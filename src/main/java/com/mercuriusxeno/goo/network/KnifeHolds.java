@@ -18,7 +18,9 @@ import java.util.UUID;
  * count, read off the server's own clock rather than any client's. Each knife
  * the clock forms is paid as it forms, and a knife the player cannot cover
  * does not form. Each tick a count that changed goes to the caster and the
- * players watching. A throw takes knives out of the fan, their prices spent.
+ * players watching. A throw takes knives out of the fan, their prices spent,
+ * and restarts the stage clock: a stage later the fan fills from the stage the
+ * knives left round up to, each refilled knife paid as it forms.
  * A hold ends when the client lets go, the player leaves, or the glove leaves
  * the hand, refunding the price of every knife still in the fan, and its end
  * sends a count of 0.
@@ -27,9 +29,11 @@ import java.util.UUID;
  * decision knives-form-on-right-click-and-throw-on-left-click
  * decision knives-pay-per-knife-as-each-forms
  * decision knives-form-on-right-click-and-throw-on-left-click
+ * decision knives-refill-from-the-stage-the-fan-rounds-up-to
  */
 public final class KnifeHolds {
 
+    private static final int NO_THROW = -1;
     private final Map<UUID, Hold> holds = new HashMap<>();
 
     /**
@@ -50,6 +54,9 @@ public final class KnifeHolds {
         private int paid;
         private int thrown;
         private int synced;
+        /** The server tick of the last throw, which restarts the stage clock; NO_THROW before any. */
+        private int threwAt = NO_THROW;
+        private int leftAtThrow;
 
         Hold(ServerPlayer player, int beganAt, Held held, GooFraction price) {
             this.player = player;
@@ -70,11 +77,28 @@ public final class KnifeHolds {
          * @return the knives in the fan, every one paid for
          */
         int settle(int now) {
-            int clocked = charge().knivesFormedAt(now - beganAt);
-            while (paid < clocked && AbilityCharges.charge(player, held.gooType(), price)) {
+            int clocked = threwAt == NO_THROW ? charge().knivesFormedAt(now - beganAt)
+                    : charge().knivesSinceThrow(leftAtThrow, now - threwAt);
+            while (paid - thrown < clocked && AbilityCharges.charge(player, held.gooType(), price)) {
                 paid++;
             }
             return paid - thrown;
+        }
+
+        /**
+         * Takes thrown knives out of the fan and restarts the stage clock from
+         * the knives left.
+         *
+         * @param knives the knives thrown
+         * @param now    the server tick
+         */
+        void threw(int knives, int now) {
+            if (knives <= 0) {
+                return;
+            }
+            thrown += Math.min(knives, paid - thrown);
+            leftAtThrow = paid - thrown;
+            threwAt = now;
         }
 
         /**
@@ -147,7 +171,7 @@ public final class KnifeHolds {
     public void threw(ServerPlayer player, int knives) {
         Hold hold = holds.get(player.getUUID());
         if (hold != null) {
-            hold.thrown += Math.min(knives, hold.paid - hold.thrown);
+            hold.threw(knives, player.level().getServer().getTickCount());
         }
     }
 
