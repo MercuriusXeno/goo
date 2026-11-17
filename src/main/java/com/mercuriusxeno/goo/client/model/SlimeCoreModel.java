@@ -69,7 +69,7 @@ public record SlimeCoreModel(BlockStateModel shell, BakedQuad.MaterialInfo core,
     public void collectParts(BlockAndTintGetter level, BlockPos pos, BlockState state, RandomSource random,
                              List<BlockStateModelPart> parts) {
         List<BakedQuad> coats = new ArrayList<>();
-        if (sidesHolding(state, SideCoat.ATTACHED).isEmpty()) {
+        if (VolumeCellBlock.attachedSidesOf(state) == 0) {
             collectFill(level, pos, state, random, parts);
         } else {
             // attached-goo-draws-per-attachment-and-divides-its-volume: the volume divides between its surfaces

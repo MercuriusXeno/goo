@@ -41,6 +41,8 @@ class VolumeCellFilmTest {
     private static final float STREAK_REACH = 0.25f / 16f;
     /** The block's volume a test draws; a lone attached side with no floor draws all of it. */
     private int volume = 1;
+    /** Whether the drawn block is attached to its ceiling. */
+    private boolean ceiling;
 
     private final BakedQuad.MaterialInfo film = new BakedQuad.MaterialInfo(mock(TextureAtlasSprite.class),
             ChunkSectionLayer.TRANSLUCENT, null, 0, true, 0, false);
@@ -106,6 +108,23 @@ class VolumeCellFilmTest {
                 "the north wall's slab should face out four layers from its wall");
     }
 
+    /**
+     * A block of volume 6 attached to its ceiling alone, with no floor, draws
+     * its whole volume down from the underside: a face looking down six
+     * layers' depth below the block's top
+     * (decision attached-goo-draws-per-attachment-and-divides-its-volume).
+     */
+    @Test
+    void aBlockOnACeilingDrawsItsVolumeDownFromTheUnderside() {
+        volume = 6;
+        ceiling = true;
+        List<BakedQuad> quads = quadsOf(List.of(), SideCoat.BARE);
+
+        assertTrue(quads.stream().anyMatch(quad -> quad.direction() == Direction.DOWN
+                        && Math.abs(quad.position(0).y() - (1 - 6 * ONE_LAYER)) < EPSILON),
+                "the ceiling's slab should look down six layers below the block's top");
+    }
+
     private List<BakedQuad> filmQuadsOf(Direction wall) {
         return quadsOf(wall, SideCoat.ATTACHED);
     }
@@ -120,6 +139,7 @@ class VolumeCellFilmTest {
         when(state.getBlock()).thenReturn(goo);
         when(state.is(goo)).thenReturn(true);
         when(state.getValue(VolumeCellBlock.LAYERS)).thenReturn(volume);
+        when(state.getValue(VolumeCellBlock.CEILING)).thenReturn(ceiling);
         for (Direction side : Direction.Plane.HORIZONTAL) {
             when(state.getValue(VolumeCellBlock.coatProperty(side))).thenReturn(walls.contains(side) ? coat
                     : SideCoat.BARE);

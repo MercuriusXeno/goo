@@ -138,6 +138,12 @@ public record GooTypeDefinition(int peakLight, float saturationFill, int wheel, 
      */
     public static final int HOLDS_WHERE_IT_STRIKES = 3;
     /**
+     * The ladder's top rung: goo that holds a block's underside where it strikes, and every hold below.
+     * adhesion-is-a-ladder-of-holds
+     * glow-goo-is-adhesion-four
+     */
+    public static final int HOLDS_AN_UNDERSIDE = 4;
+    /**
      * The rate of a type whose JSON leaves {@link #VESSEL_SOURCE_PER_MB} out.
      */
     public static final int NO_VESSEL_SOURCE = 0;
@@ -209,7 +215,7 @@ public record GooTypeDefinition(int peakLight, float saturationFill, int wheel, 
                 HueCycle.MAP_CODEC.forGetter(Tail::hueCycle),
                 Codec.floatRange(0f, 1f).fieldOf(ELASTICITY).forGetter(Tail::elasticity),
                 Codec.intRange(0, FIRM_COHESION).fieldOf(COHESION).forGetter(Tail::cohesion),
-                Codec.intRange(CLINGS_TO_NOTHING, HOLDS_WHERE_IT_STRIKES).fieldOf(ADHESION).forGetter(Tail::adhesion)
+                Codec.intRange(CLINGS_TO_NOTHING, HOLDS_AN_UNDERSIDE).fieldOf(ADHESION).forGetter(Tail::adhesion)
         ).apply(instance, Tail::new));
 
         static Tail of(GooTypeDefinition definition) {
