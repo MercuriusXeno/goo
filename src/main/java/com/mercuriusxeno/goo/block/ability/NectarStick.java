@@ -1,8 +1,15 @@
 package com.mercuriusxeno.goo.block.ability;
 
+import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.program.NectarGooStep;
 import com.mercuriusxeno.goo.registry.GooAttachments;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 
@@ -22,6 +29,12 @@ public final class NectarStick {
     private static final double FULL_STRENGTH = 1.0;
     /** How many ticks after its last touch a jump still pushes off the goo: the touch lands after the jump's tick. */
     private static final long JUMP_TOUCH_TICKS = 1;
+    /** How many ticks after it was last stuck a thing still hangs: the stick lands after the tick's own check. */
+    private static final long STUCK_TOUCH_TICKS = 1;
+    /** The gravity modifier a thing stuck on a Nectar coated wall wears. */
+    private static final Identifier STUCK = Identifier.fromNamespaceAndPath(Goo.MODID, "nectar_stuck");
+    /** The share of its gravity taken from a stuck thing: all of it. */
+    private static final double NO_GRAVITY = -1.0;
 
     private NectarStick() {
     }
@@ -43,6 +56,61 @@ public final class NectarStick {
     public static Multipliers multipliersFor(boolean touching, NectarGooStep nectar) {
         return touching ? new Multipliers(nectar.jumpFactor(), nectar.speedFactor())
                 : new Multipliers(FULL_STRENGTH, FULL_STRENGTH);
+    }
+
+    /**
+     * @param jumping    whether the stuck thing jumps
+     * @param sneaking   whether it sneaks
+     * @param climbSpeed the speed it climbs or sinks at
+     * @return its vertical velocity
+     */
+    public static double climbVelocity(boolean jumping, boolean sneaking, double climbSpeed) {
+        if (jumping == sneaking) {
+            return 0;
+        }
+        return jumping ? climbSpeed : -climbSpeed;
+    }
+
+    /**
+     * Sticks a living thing to a Nectar coated wall it stands in, once a
+     * tick: its gravity off, its fall forgotten, and its vertical motion the
+     * climb its jump or sneak asks for, hanging where it is otherwise; on
+     * both sides, since the client moves its own player.
+     * operator UAT 2026-11-17: on Nectar you are temporarily Spider-Man; gravity is off while you are stuck
+     *
+     * @param level  the level the cell stands in
+     * @param living the thing stuck to the wall
+     * @param nectar the cell's laying ability's nectar goo step
+     */
+    static void stick(Level level, LivingEntity living, NectarGooStep nectar) {
+        long now = level.getGameTime();
+        if (living.getData(GooAttachments.NECTAR_STUCK_AT) == now) {
+            return;
+        }
+        living.setData(GooAttachments.NECTAR_STUCK_AT, now);
+        AttributeInstance gravity = living.getAttribute(Attributes.GRAVITY);
+        if (gravity != null && !gravity.hasModifier(STUCK)) {
+            gravity.addTransientModifier(new AttributeModifier(STUCK, NO_GRAVITY, Operation.ADD_MULTIPLIED_TOTAL));
+        }
+        living.resetFallDistance();
+        Vec3 motion = living.getDeltaMovement();
+        living.setDeltaMovement(motion.x, climbVelocity(living.jumping, living.isShiftKeyDown(),
+                nectar.climbSpeed()), motion.z);
+    }
+
+    /**
+     * Gives a living thing its gravity back once it is no longer stuck to a
+     * Nectar coated wall: the tick after the last one it was stuck.
+     *
+     * @param level  the level it stands in
+     * @param living the living thing
+     */
+    public static void unstickIfClear(Level level, LivingEntity living) {
+        AttributeInstance gravity = living.getAttribute(Attributes.GRAVITY);
+        if (gravity != null && gravity.hasModifier(STUCK)
+                && level.getGameTime() - living.getData(GooAttachments.NECTAR_STUCK_AT) > STUCK_TOUCH_TICKS) {
+            gravity.removeModifier(STUCK);
+        }
     }
 
     /**
