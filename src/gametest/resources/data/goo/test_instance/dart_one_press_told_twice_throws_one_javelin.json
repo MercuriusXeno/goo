@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:dart_one_press_told_twice_throws_one_javelin",
+  "environment": "minecraft:default",
+  "structure": "goo:light_bay",
+  "max_ticks": 100,
+  "setup_ticks": 0,
+  "required": true
+}

@@ -50,8 +50,7 @@ public final class KnivesThrowHandler {
      * @param down   true as left click goes down, false as it lifts
      */
     public static void leftClick(ServerPlayer player, boolean down) {
-        GooServerState.of(player.level().getServer()).knifeHolds().leftClick(player, down);
-        if (down) {
+        if (GooServerState.of(player.level().getServer()).knifeHolds().leftClick(player, down)) {
             throwKnife(player);
         }
     }

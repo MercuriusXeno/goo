@@ -211,17 +211,29 @@ public final class KnifeHolds {
     }
 
     /**
-     * Records left click going down or lifting during the player's hold.
+     * Records left click going down or lifting during the player's hold; a
+     * press told again while it is already down keeps its beat and is no new press.
      * decision knives-throw-one-per-two-ticks-while-left-click-is-held
+     * decision dart-throws-one-javelin-per-five-ticks-while-left-click-is-held
      *
      * @param player the player
      * @param down   true as it goes down, false as it lifts
+     * @return true where left click went down fresh during a hold
      */
-    public void leftClick(ServerPlayer player, boolean down) {
+    public boolean leftClick(ServerPlayer player, boolean down) {
         Hold hold = holds.get(player.getUUID());
-        if (hold != null) {
-            hold.throwingSince = down ? player.level().getServer().getTickCount() : NOT_THROWING;
+        if (hold == null) {
+            return false;
         }
+        if (!down) {
+            hold.throwingSince = NOT_THROWING;
+            return false;
+        }
+        if (hold.throwingSince != NOT_THROWING) {
+            return false;
+        }
+        hold.throwingSince = player.level().getServer().getTickCount();
+        return true;
     }
 
     /**
