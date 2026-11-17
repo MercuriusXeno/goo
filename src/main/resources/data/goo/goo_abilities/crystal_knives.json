@@ -1,13 +1,13 @@
 {
   "gooType": "crystal",
   "displayName": "goo.ability.crystal.knives",
-  "badge": "free",
+  "badge": "held",
   "order": 10,
   "cost": 1000,
   "requires": ["minecraft:amethyst_shard"],
   "delivery": {
     "kind": "arc",
-    "charge": { "max_ticks": 30, "flecks": 27, "spread_degrees": 45, "sweep_ticks": 8, "fewest_flecks": 3, "narrowest_degrees": 5 }
+    "charge": { "max_ticks": 60, "stages": 5, "stage_ticks": 12 }
   },
   "behaviors": [
     { "type": "damage", "amount": 2, "source": "attack", "knockback": false },
