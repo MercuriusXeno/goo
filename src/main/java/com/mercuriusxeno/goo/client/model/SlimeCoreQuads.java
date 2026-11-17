@@ -97,8 +97,9 @@ public final class SlimeCoreQuads {
 
     /**
      * A slab's core's plan cut into patches at the shell's splits, each
-     * patch held where the slab over all four of its corners holds room for
-     * the core. Distances are in model pixels: along the slab's plane by its
+     * patch held where the slab over any of its corners holds room for the
+     * core; where the slab leaves no room the core's top closes onto its
+     * floor, so the core ends with no side inside its plan. Distances are in model pixels: along the slab's plane by its
      * two axes, and out from its surface.
      */
     private static final class CoreShape {
@@ -120,8 +121,8 @@ public final class SlimeCoreQuads {
             this.held = new boolean[firsts.length - 1][seconds.length - 1];
             for (int a = 0; a < held.length; a++) {
                 for (int b = 0; b < held[a].length; b++) {
-                    held[a][b] = roomAt(firsts[a], seconds[b]) && roomAt(firsts[a + 1], seconds[b])
-                            && roomAt(firsts[a], seconds[b + 1]) && roomAt(firsts[a + 1], seconds[b + 1]);
+                    held[a][b] = roomAt(firsts[a], seconds[b]) || roomAt(firsts[a + 1], seconds[b])
+                            || roomAt(firsts[a], seconds[b + 1]) || roomAt(firsts[a + 1], seconds[b + 1]);
                 }
             }
         }
@@ -155,14 +156,14 @@ public final class SlimeCoreQuads {
          */
         private List<BakedQuad> patchOf(int a, int b, BakedQuad.MaterialInfo material) {
             List<BakedQuad> quads = new ArrayList<>();
-            if (!slab.covered() || !atTheTop(a, b)) {
+            if (!slab.covered() || underTheTop(a, b)) {
                 quads.add(spanned(face(a, b, WHOLE, plane.surface().getOpposite(), material)));
             }
             if (slab.base() == 0) {
                 quads.add(spanned(face(a, b, 0, plane.surface(), material)));
             }
             for (Direction edge : edges()) {
-                if (endsAcross(a, b, edge)) {
+                if (endsAcross(a, b, edge) && roomAlong(a, b, edge)) {
                     quads.add(spanned(sideOf(a, b, edge, material)));
                 }
             }
@@ -230,9 +231,8 @@ public final class SlimeCoreQuads {
         }
 
         /**
-         * Whether the core ends across one edge of a patch: the patch beside
-         * it holds no core, or the edge is the core's own bound on a side no
-         * slab of its goo continues past.
+         * Whether the core draws a side across one edge of a patch: only on
+         * the core's own bound, at a side no slab of its goo continues past.
          *
          * @param a    the patch's index along the first axis
          * @param b    its index along the second
@@ -244,7 +244,24 @@ public final class SlimeCoreQuads {
             int step = edge.getAxisDirection().getStep();
             int besideA = acrossFirst ? a + step : a;
             int besideB = acrossFirst ? b : b + step;
-            return inPlan(besideA, besideB) ? !held[besideA][besideB] : opensAt(edge);
+            // slime-core-slopes-with-the-pile-inside-its-contour: inside its plan the core closes onto its floor
+            // where it has no room, so it ends there with no side; a side stands only on its open bound
+            return !inPlan(besideA, besideB) && opensAt(edge);
+        }
+
+        /**
+         * Whether the core holds room at either end of a patch's edge, so a side there stands any height.
+         *
+         * @param a    the patch's index along the first axis
+         * @param b    its index along the second
+         * @param edge the edge
+         * @return true where the side has height
+         */
+        private boolean roomAlong(int a, int b, Direction edge) {
+            boolean acrossFirst = edge.getAxis() == plane.first().getAxis();
+            float[] alongFirst = spanOf(firsts, a, acrossFirst ? edge : null);
+            float[] alongSecond = spanOf(seconds, b, acrossFirst ? null : edge);
+            return roomAt(alongFirst[0], alongSecond[0]) || roomAt(alongFirst[1], alongSecond[1]);
         }
 
         private boolean inPlan(int a, int b) {
@@ -252,45 +269,63 @@ public final class SlimeCoreQuads {
         }
 
         /**
-         * Whether all four corners of a patch stand at the core's whole-block
-         * top, inside a column that runs on up past it.
+         * Whether the column's core top stands under this block's top at all
+         * four corners of a patch: only there does a full block under goo
+         * draw it, and where any corner rises past, the block on top draws
+         * the patch, so the two never draw one patch twice.
+         * stacked-goo-cells-share-one-slime-core
          *
          * @param a the patch's index along the first axis
          * @param b its index along the second
-         * @return true where the patch's outer face lies inside the column's core
+         * @return true where this block draws the patch's core top
          */
-        private boolean atTheTop(int a, int b) {
-            return topAt(firsts[a], seconds[b]) >= WHOLE - ROOM_SLACK
-                    && topAt(firsts[a + 1], seconds[b]) >= WHOLE - ROOM_SLACK
-                    && topAt(firsts[a], seconds[b + 1]) >= WHOLE - ROOM_SLACK
-                    && topAt(firsts[a + 1], seconds[b + 1]) >= WHOLE - ROOM_SLACK;
+        private boolean underTheTop(int a, int b) {
+            return rawTopAt(firsts[a], seconds[b]) < WHOLE - ROOM_SLACK
+                    && rawTopAt(firsts[a + 1], seconds[b]) < WHOLE - ROOM_SLACK
+                    && rawTopAt(firsts[a], seconds[b + 1]) < WHOLE - ROOM_SLACK
+                    && rawTopAt(firsts[a + 1], seconds[b + 1]) < WHOLE - ROOM_SLACK;
         }
 
         /**
          * The core's outer face at a point: 7/8 of the pile's surface over
-         * it, measured from the column's base, a whole block at the most.
+         * it, measured from the column's base, a whole block at the most, and
+         * down on its floor where that leaves no room.
          *
          * @param first  model pixels along the first axis
          * @param second model pixels along the second
          * @return the distance out from the slab's surface, in model pixels
          */
         private float topAt(float first, float second) {
-            float surface = (float) slab.surfaceAtPixel(first, second);
-            return Math.min(WHOLE, (surface * CORE_TOP - slab.base()) * PIXELS_PER_LAYER);
+            return Math.max(floorAt(first, second), Math.min(WHOLE, rawTopAt(first, second)));
+        }
+
+        /**
+         * @param first  model pixels along the first axis
+         * @param second model pixels along the second
+         * @return 7/8 of the pile's surface over the point from the column's base, out from the slab's surface
+         */
+        private float rawTopAt(float first, float second) {
+            return ((float) slab.surfaceAtPixel(first, second) * CORE_TOP - slab.base()) * PIXELS_PER_LAYER;
         }
 
         /**
          * The core's face toward the surface at a point: 1/8 of the pile's
-         * surface over it, measured from the column's base, none under the
-         * block's own floor.
+         * surface over it; in a block on a full block of its goo the block's
+         * own floor, where the column's core runs on down, or the core's top
+         * where that dips under the floor, so the core closes there inside the
+         * column's.
          *
          * @param first  model pixels along the first axis
          * @param second model pixels along the second
          * @return the distance out from the slab's surface, in model pixels
          */
         private float floorAt(float first, float second) {
+            if (slab.base() > 0) {
+                // stacked-goo-cells-share-one-slime-core: a column's core runs on down, closing where its top dips
+                return Math.min(0, rawTopAt(first, second));
+            }
             float surface = (float) slab.surfaceAtPixel(first, second);
-            return Math.max(0, (surface * CORE_FLOOR - slab.base()) * PIXELS_PER_LAYER);
+            return Math.max(0, surface * CORE_FLOOR * PIXELS_PER_LAYER);
         }
 
         private boolean roomAt(float first, float second) {

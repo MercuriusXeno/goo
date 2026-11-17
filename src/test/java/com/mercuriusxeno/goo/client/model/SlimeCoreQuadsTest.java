@@ -276,9 +276,9 @@ class SlimeCoreQuadsTest {
 
         /**
          * A column's core runs unbroken from the full block into the block on
-         * it: where the block on top holds a core, the full block's core
-         * reaches its own top under it, and its outer face draws only where
-         * the column's core top dips into it.
+         * it: the block on top draws no core floor, the full block no core top
+         * where the column's core rises past it, and the block on top draws
+         * the column's core top there, on down where it dips into the full block.
          * stacked-goo-cells-share-one-slime-core
          */
         @Test
@@ -290,8 +290,82 @@ class SlimeCoreQuadsTest {
             assertTrue(upper.stream().noneMatch(quad -> quad.direction() == Direction.DOWN),
                     "the block on top draws no core floor");
             assertTrue(lower.stream().noneMatch(inPlaneY(1f)), "the full block draws no core top at its own top");
-            assertTrue(lower.stream().anyMatch(quad -> quad.direction() == Direction.UP),
-                    "the full block draws the core top where the column's core dips into it");
+            assertTrue(lower.stream().noneMatch(quad -> quad.direction() == Direction.UP && touchesItsTop(quad)),
+                    "the full block draws no core top where the column's core rises past it, the block on top's to draw");
+            assertTrue(upper.stream().anyMatch(quad -> quad.direction() == Direction.UP && dipsUnderItsFloor(quad)),
+                    "the block on top draws the column's core top on down where it dips into the full block");
+        }
+    }
+
+    @Nested
+    class Inside {
+
+        /**
+         * A pile of Goop, a cone of blocks on stone with column tops over its
+         * full middle: no block's core draws a side anywhere but its own outer
+         * bound, 2 px in from a side no goo continues past, so no wall stands
+         * inside the pile.
+         * slime-core-slopes-with-the-pile-inside-its-contour
+         */
+        @Test
+        void noCoreSideStandsInsideThePile() {
+            int[][] lower = {
+                    {0, 2, 4, 5, 4, 2, 0},
+                    {2, 6, 10, 12, 10, 6, 2},
+                    {4, 10, 15, 15, 15, 10, 4},
+                    {5, 12, 15, 15, 15, 12, 5},
+                    {4, 10, 15, 15, 14, 10, 4},
+                    {2, 6, 10, 12, 10, 6, 2},
+                    {0, 2, 4, 5, 4, 2, 0}};
+            int[][] upper = {
+                    {0, 0, 0, 0, 0, 0, 0},
+                    {0, 0, 0, 0, 0, 0, 0},
+                    {0, 0, 2, 4, 1, 0, 0},
+                    {0, 0, 5, 9, 3, 0, 0},
+                    {0, 0, 1, 3, 0, 0, 0},
+                    {0, 0, 0, 0, 0, 0, 0},
+                    {0, 0, 0, 0, 0, 0, 0}};
+            SameGooCells pile = new SameGooCells();
+            for (int x = 0; x < lower.length; x++) {
+                for (int z = 0; z < lower.length; z++) {
+                    pile.solid(x - 3, -1, z - 3);
+                    if (lower[x][z] > 0) {
+                        pile.at(x - 3, 0, z - 3, lower[x][z]);
+                    }
+                    if (upper[x][z] > 0) {
+                        pile.at(x - 3, 1, z - 3, upper[x][z]);
+                    }
+                }
+            }
+            List<String> inside = new ArrayList<>();
+            for (int x = -3; x <= 3; x++) {
+                for (int y = 0; y <= 1; y++) {
+                    for (int z = -3; z <= 3; z++) {
+                        if (pile.layersAt(x, y, z) > 0) {
+                            inside.addAll(sidesInside(pile.shiftedBy(x, y, z), x + "," + y + "," + z));
+                        }
+                    }
+                }
+            }
+            assertTrue(inside.isEmpty(), inside.size() + " core sides stand inside the pile: " + inside);
+        }
+
+        private List<String> sidesInside(LayersAround around, String block) {
+            SlimeTop top = SlimeTop.of(around);
+            List<String> inside = new ArrayList<>();
+            for (BakedQuad quad : coreOf(around)) {
+                Direction face = quad.direction();
+                if (face.getAxis().isVertical()) {
+                    continue;
+                }
+                float plane = face.getAxis() == Direction.Axis.X ? middleOf(quad).x() : middleOf(quad).z();
+                float bound = face.getAxisDirection() == Direction.AxisDirection.POSITIVE ? 1 - SIDE_MARGIN
+                        : SIDE_MARGIN;
+                if (!top.rims().contains(face) || Math.abs(plane - bound) > EPSILON) {
+                    inside.add(block + " " + face + " at " + plane);
+                }
+            }
+            return inside;
         }
     }
 
@@ -344,6 +418,26 @@ class SlimeCoreQuadsTest {
             assertEquals(ARGB.color(SHELL_ALPHA, HIGHLIGHT), tints.getFirst().color(mock(BlockState.class)),
                     "the layers draw at 30% opacity in the goo's highlight");
         }
+    }
+
+    /** Whether any corner of a quad stands under its block's floor. */
+    private static boolean dipsUnderItsFloor(BakedQuad quad) {
+        for (int vertex = 0; vertex < BakedQuad.VERTEX_COUNT; vertex++) {
+            if (quad.position(vertex).y() < -EPSILON) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Whether any corner of a quad stands at its block's top. */
+    private static boolean touchesItsTop(BakedQuad quad) {
+        for (int vertex = 0; vertex < BakedQuad.VERTEX_COUNT; vertex++) {
+            if (quad.position(vertex).y() >= 1 - EPSILON) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** The shell's top over a point, in blocks above the block's floor. */
