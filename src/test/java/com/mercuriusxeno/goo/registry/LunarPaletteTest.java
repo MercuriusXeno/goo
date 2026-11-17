@@ -30,12 +30,13 @@ class LunarPaletteTest {
     }
 
     /**
-     * Anorthosite's pale feldspar grain and its mid brown-grey specks, after the operator's sample rock; regolith, the
-     * dust of the pale parts; the iron core's form B steel. A landform sprite joining the palette draws from these, or
-     * adds a color beside them.
+     * Anorthosite's pale feldspar grain and its mid brown-grey specks, after the operator's sample rock, with off-white
+     * glints the ground blocks share; regolith, the dust of the pale parts; the iron core's form B steel. A landform
+     * sprite joining the palette draws from these, or adds a color beside them.
      * decision lunar-textures-get-form-and-texture-before-color
      */
     static final List<PaletteColor> LUNAR_PALETTE = List.of(
+            new PaletteColor(0xdcd3cd, "anorthosite and regolith glints"),
             new PaletteColor(0xc8bdb6, "anorthosite"),
             new PaletteColor(0xb4a8a1, "anorthosite"),
             new PaletteColor(0x9f938d, "anorthosite"),
