@@ -162,12 +162,26 @@ public final class SlimeCoreQuads {
             if (slab.base() == 0) {
                 quads.add(spanned(face(a, b, 0, plane.surface(), material)));
             }
+            quads.addAll(wallsOf(a, b, material));
+            return quads;
+        }
+
+        /**
+         * A held patch's sides on the core's own bound, at open sides, where the core has height.
+         *
+         * @param a        the patch's index along the first axis
+         * @param b        its index along the second
+         * @param material the core's material
+         * @return the patch's sides
+         */
+        private List<BakedQuad> wallsOf(int a, int b, BakedQuad.MaterialInfo material) {
+            List<BakedQuad> walls = new ArrayList<>();
             for (Direction edge : edges()) {
                 if (endsAcross(a, b, edge) && roomAlong(a, b, edge)) {
-                    quads.add(spanned(sideOf(a, b, edge, material)));
+                    walls.add(spanned(sideOf(a, b, edge, material)));
                 }
             }
-            return quads;
+            return walls;
         }
 
         /**
