@@ -11,7 +11,10 @@ import com.mercuriusxeno.goo.type.GooTypes;
 import com.mercuriusxeno.goo.throwing.DripFall;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import org.junit.jupiter.api.Nested;
@@ -33,7 +36,9 @@ import java.util.stream.IntStream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -62,6 +67,34 @@ class VolumeCellBlockTest {
     class Faces {
 
         private final VolumeCellBlock slime = mock(VolumeCellBlock.class, CALLS_REAL_METHODS);
+        private static final BlockPos AT = new BlockPos(0, 64, 0);
+
+        /**
+         * The sloped top is drawing only: a block of 12 collides as the box
+         * twelve fifteenths of a block tall across the whole block, with a
+         * block of 6 beside it and alone
+         * (decision goo-block-top-slopes-to-the-average-with-the-adjoining-block).
+         */
+        @Test
+        void aBlocksCollisionStaysTheFlatBoxAtItsVolume() {
+            BlockState twelve = mock(BlockState.class);
+            when(twelve.getValue(VolumeCellBlock.LAYERS)).thenReturn(12);
+            BlockState six = mock(BlockState.class);
+            when(six.is(slime)).thenReturn(true);
+            when(six.getValue(VolumeCellBlock.LAYERS)).thenReturn(6);
+            BlockGetter beside = mock(BlockGetter.class);
+            when(beside.getBlockState(any())).thenReturn(mock(BlockState.class));
+            when(beside.getBlockState(AT.east())).thenReturn(six);
+            BlockGetter alone = mock(BlockGetter.class);
+            when(alone.getBlockState(any())).thenReturn(mock(BlockState.class));
+
+            doReturn(true).when(slime).onAFloor(any(), any());
+
+            for (BlockGetter level : List.of(beside, alone)) {
+                AABB box = slime.getCollisionShape(twelve, level, AT, CollisionContext.empty()).bounds();
+                assertEquals(new AABB(0, 0, 0, 1, 12 / 15.0, 1), box);
+            }
+        }
 
         @Test
         void aCellContinuesIntoACellOfItsGoo() {

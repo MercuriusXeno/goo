@@ -78,7 +78,8 @@ class VolumeCellFilmTest {
     @ParameterizedTest
     @EnumSource(value = Direction.class, names = {"NORTH", "EAST", "SOUTH", "WEST"})
     void aRunnySideDrawsAStreakOnItsWall(Direction wall) {
-        List<BakedQuad> quads = quadsOf(wall, SideCoat.RUNNY);
+        List<BakedQuad> quads = quadsOf(wall, SideCoat.RUNNY).stream()
+                .filter(quad -> quad.direction() != Direction.UP).toList();
 
         assertFalse(quads.isEmpty(), "a runny side on the " + wall + " wall draws nothing");
         float plane = wall.getAxisDirection() == Direction.AxisDirection.POSITIVE ? 1f : 0f;

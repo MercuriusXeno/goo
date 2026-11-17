@@ -101,7 +101,7 @@ class SlimeCoreQuadsTest {
 
         /** residual-always-draws-a-core-inside-a-one-eighth-margin */
         @Test
-        void aCellAtOneLayerDrawsSixQuadsTwoPixelsInAndFourTenthsOfAPixelUpAndDown() {
+        void aCellAtOneLayerDrawsItsCoreTwoPixelsInAndFourTenthsOfAPixelUpAndDown() {
             float layerPixels = 16f / WHOLE_LAYERS;
             assertSpansPixels(loneCore(1, mock(TextureAtlasSprite.class)),
                     new float[] {2f, 0.4f, 2f}, new float[] {14f, layerPixels - 0.4f, 14f});
@@ -338,11 +338,15 @@ class SlimeCoreQuadsTest {
     }
 
     /**
-     * Asserts the quads are one box's six faces, its corners reaching exactly
-     * the bounds given in model pixels, x, y and z.
+     * Asserts the quads are one box's faces, one for each side and its top
+     * cut into the pieces the shell's top patches stand over, its corners
+     * reaching exactly the bounds given in model pixels, x, y and z.
      */
     private static void assertSpansPixels(List<BakedQuad> quads, float[] from, float[] to) {
-        assertEquals(6, quads.size());
+        for (Direction face : Direction.values()) {
+            long drawn = quads.stream().filter(quad -> quad.direction() == face).count();
+            assertTrue(face == Direction.UP ? drawn >= 1 : drawn == 1, drawn + " " + face + " faces");
+        }
         float minX = Float.MAX_VALUE;
         float minY = Float.MAX_VALUE;
         float minZ = Float.MAX_VALUE;

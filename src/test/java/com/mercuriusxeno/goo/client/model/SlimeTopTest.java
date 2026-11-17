@@ -1,0 +1,114 @@
+package com.mercuriusxeno.goo.client.model;
+
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+/**
+ * The heights a goo block's sloped top stands at, in layers above the
+ * block's floor, at the 4 by 4 grid of points 0, 4, 12 and 16 texels in
+ * along each axis: grid index 0 the west or north edge, 3 the east or south.
+ * goo-block-top-slopes-to-the-average-with-the-adjoining-block
+ */
+class SlimeTopTest {
+
+    private static final double EPSILON = 1e-9;
+    private static final int WEST = 0;
+    private static final int NORTH = 0;
+    private static final int EAST = 3;
+    private static final int SOUTH = 3;
+    private static final int[] MIDDLE = {1, 2};
+
+    /**
+     * A block of 12 beside a block of 6 to its east, on a floor with air
+     * elsewhere: each middle stands at its own volume, the edge they share
+     * at 9, each edge to air at half its volume, the corners on the shared
+     * edge at 4.5 and each outer corner at a quarter of its volume.
+     */
+    @Test
+    void aTopSlopesToTheAverageWithTheBlockBesideIt() {
+        SameGooCells cells = new SameGooCells().at(0, 0, 0, 12).at(1, 0, 0, 6);
+        SlimeTop twelve = SlimeTop.of(cells);
+        SlimeTop six = SlimeTop.of(cells.shiftedBy(1, 0, 0));
+
+        assertMiddle(twelve, 12);
+        assertMiddle(six, 6);
+        assertEdge(twelve, EAST, 9, "the edge the 12 shares");
+        assertEdge(six, WEST, 9, "the edge the 6 shares");
+        assertEdge(twelve, WEST, 6, "the 12's edge to air");
+        assertEquals(6, twelve.heightAt(1, NORTH), EPSILON, "the 12's north edge to air");
+        assertEquals(3, six.heightAt(1, SOUTH), EPSILON, "the 6's south edge to air");
+        assertEdge(six, EAST, 3, "the 6's edge to air");
+        assertEquals(4.5, twelve.heightAt(EAST, NORTH), EPSILON);
+        assertEquals(4.5, twelve.heightAt(EAST, SOUTH), EPSILON);
+        assertEquals(4.5, six.heightAt(WEST, NORTH), EPSILON);
+        assertEquals(3, twelve.heightAt(WEST, NORTH), EPSILON, "the 12's outer corner");
+        assertEquals(3, twelve.heightAt(WEST, SOUTH), EPSILON, "the 12's outer corner");
+        assertEquals(1.5, six.heightAt(EAST, NORTH), EPSILON, "the 6's outer corner");
+        assertEquals(1.5, six.heightAt(EAST, SOUTH), EPSILON, "the 6's outer corner");
+    }
+
+    @Test
+    void aWholeBlockAloneSlopesToHalfAtItsEdgesAndAQuarterAtItsCorners() {
+        SlimeTop alone = SlimeTop.of(LayersAround.alone(15));
+
+        assertMiddle(alone, 15);
+        assertEdge(alone, EAST, 7.5, "an edge");
+        assertEdge(alone, WEST, 7.5, "an edge");
+        assertEquals(7.5, alone.heightAt(1, NORTH), EPSILON);
+        assertEquals(3.75, alone.heightAt(WEST, NORTH), EPSILON);
+        assertEquals(3.75, alone.heightAt(EAST, SOUTH), EPSILON);
+    }
+
+    /**
+     * A block of 8 with solid blocks to its north, west, north-west and
+     * north-east and air to its east and south: against a solid block the
+     * edge keeps its own volume, and a solid block stays out of a corner's
+     * average.
+     */
+    @Test
+    void aSolidBlockLeavesTheEdgeAtTheBlocksOwnShare() {
+        SameGooCells cells = new SameGooCells().at(0, 0, 0, 8).solid(0, 0, -1).solid(-1, 0, 0).solid(-1, 0, -1)
+                .solid(1, 0, -1);
+        SlimeTop top = SlimeTop.of(cells);
+
+        assertEquals(8, top.heightAt(1, NORTH), EPSILON, "the north edge");
+        assertEdge(top, WEST, 8, "the west edge");
+        assertEquals(8, top.heightAt(WEST, NORTH), EPSILON, "the north-west corner");
+        assertEdge(top, EAST, 4, "the east edge");
+        assertEquals(4, top.heightAt(1, SOUTH), EPSILON, "the south edge");
+        assertEquals(4, top.heightAt(EAST, NORTH), EPSILON, "the north-east corner");
+        assertEquals(2, top.heightAt(EAST, SOUTH), EPSILON, "the south-east corner");
+    }
+
+    /**
+     * A block of 6 on a full block of its goo, beside a block of 9 at the
+     * full block's level: the column's top stands 21 layers over its base,
+     * so the edge the two share stands 15 over that base, the average of 21
+     * and 9, which is the 6's own floor and the 9's own top.
+     * stacked-goo-cells-share-one-slime-core
+     */
+    @Test
+    void aBlockOnAFullBlockOfItsGooSlopesWithItAsOneColumn() {
+        SameGooCells cells = new SameGooCells().at(0, 0, 0, 6).at(0, -1, 0, 15).at(1, -1, 0, 9);
+        SlimeTop columnTop = SlimeTop.of(cells);
+        SlimeTop nine = SlimeTop.of(cells.shiftedBy(1, -1, 0));
+
+        assertEdge(columnTop, EAST, 0, "15 layers over the column's base, the 6's floor");
+        assertEdge(nine, WEST, 15, "15 layers over the column's base, the 9's top");
+    }
+
+    private static void assertMiddle(SlimeTop top, double expected) {
+        for (int x : MIDDLE) {
+            for (int z : MIDDLE) {
+                assertEquals(expected, top.heightAt(x, z), EPSILON, "the middle at " + x + ", " + z);
+            }
+        }
+    }
+
+    private static void assertEdge(SlimeTop top, int x, double expected, String edge) {
+        for (int z : MIDDLE) {
+            assertEquals(expected, top.heightAt(x, z), EPSILON, edge + " at " + z);
+        }
+    }
+}
