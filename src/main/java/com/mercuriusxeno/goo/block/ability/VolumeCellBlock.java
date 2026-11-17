@@ -432,6 +432,40 @@ public class VolumeCellBlock extends Block {
     }
 
     /**
+     * The goo the top layer of a cell gives back as it is taken: what the
+     * cell's layers cost less what the layers left under it cost, whole mb
+     * alone, so layers taken one by one sum to the cell broken whole though a
+     * single layer's price is fractional.
+     * vacuum-breaks-a-cell-the-tick-the-wave-reaches-it
+     *
+     * @param layers    the layers the cell held before the take
+     * @param blockCost the cost of a whole block of the goo
+     * @return the goo in mb
+     */
+    static int reclaimedByTopLayer(int layers, GooFraction blockCost) {
+        return reclaimed(layers, blockCost) - reclaimed(layers - 1, blockCost);
+    }
+
+    /**
+     * Takes the top layer off a cell of more than one layer, dropping the goo
+     * that layer gives back where the cell stands, as breaking drops it; a
+     * cell laid where its laying ability's definition does not load gives
+     * back nothing.
+     * vacuum-breaks-a-cell-the-tick-the-wave-reaches-it
+     *
+     * @param level the level
+     * @param pos   the cell
+     * @param state the cell's state, of two layers or more
+     */
+    public void takeTopLayer(ServerLevel level, BlockPos pos, BlockState state) {
+        int layers = layersHeld(state);
+        LoadedAbilityCost.of(level, binding.layingAbility()).map(cost -> reclaimedByTopLayer(layers, cost))
+                .filter(mb -> mb > 0)
+                .ifPresent(mb -> popResource(level, pos, GooStacks.createForOutput(binding.gooType(), mb)));
+        level.setBlock(pos, state.setValue(LAYERS, layers - 1), UPDATE_ALL);
+    }
+
+    /**
      * The goo a broken cell gives back, by type and amount.
      *
      * @param gooType the goo type given back

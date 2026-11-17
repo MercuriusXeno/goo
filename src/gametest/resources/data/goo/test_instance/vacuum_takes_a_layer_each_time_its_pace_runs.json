@@ -1,6 +1,6 @@
 {
   "type": "minecraft:function",
-  "function": "goo:vacuum_released_part_way_starts_the_cell_over",
+  "function": "goo:vacuum_takes_a_layer_each_time_its_pace_runs",
   "environment": "minecraft:default",
   "structure": "goo:light_bay",
   "max_ticks": 100,
