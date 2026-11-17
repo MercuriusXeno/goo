@@ -40,7 +40,9 @@ class GooTypeDefinitionTest {
     private static final String ALL_COLORS =
             ", \"wheel\": \"112233\", \"bright\": \"445566\", \"highlight\": \"778899\", \"edge\": \"AABBCC\"";
     private static final String WATER_LIKE_FLUID =
-            ", \"density\": 1000, \"viscosity\": 1000, \"elasticity\": 0.5, \"temperature\": 300, \"extinguishes\": false,"
+            ", \"density\": 1000, \"viscosity\": 1000, \"elasticity\": 0.5, \"cohesion\": 0, \"adhesion\": 1,"
+            + " \"temperature\": 300,"
+            + " \"extinguishes\": false,"
             + " \"map_color\": \"stone\"";
     private static final String FLIGHT = ", \"levity\": 1.0, \"base_flight_time\": 3";
     private static final String BODY_BEFORE_FLIGHT = "{\"light_level\": 8, \"saturation_fill\": 0.5" + ALL_COLORS
@@ -54,6 +56,10 @@ class GooTypeDefinitionTest {
     private static final int BLAZE_VISCOSITY = 800;
     private static final int BLAZE_TEMPERATURE = 1300;
     private static final int FROST_TEMPERATURE = 200;
+    private static final int WEIRD_COHESION = 4;
+    private static final int WEIRD_ADHESION = 3;
+    private static final int GLOW_ADHESION = 4;
+    private static final int COMMON_ADHESION = 1;
 
     static Stream<ResourceKey<GooTypeDefinition>> bundledKeys() {
         return GooTypes.BUNDLED.stream();
@@ -263,6 +269,56 @@ class GooTypeDefinitionTest {
         GooTypeDefinition type = decodeBundled(key);
         assertEquals(expectedLevity(key), type.levity(), key::toString);
         assertEquals(COMMON_BASE_FLIGHT_TIME, type.baseFlightTime(), key::toString);
+    }
+
+    /**
+     * Every bundled type states a cohesion: weird holds a step of 4 and every other type, kinetic among them, 0.
+     * cohesion-is-the-step-the-goo-holds
+     */
+    @ParameterizedTest
+    @MethodSource("bundledKeys")
+    void bundledCohesionMatchesDecision(ResourceKey<GooTypeDefinition> key) throws Exception {
+        int expected = key == GooTypes.WEIRD ? WEIRD_COHESION : 0;
+        assertEquals(expected, decodeBundled(key).cohesion(), key::toString);
+    }
+
+    /**
+     * Every bundled type states an adhesion: kinetic clings to nothing, weird holds a side where it
+     * strikes, and every other type holds tops.
+     * adhesion-is-a-ladder-of-holds
+     */
+    @ParameterizedTest
+    @MethodSource("bundledKeys")
+    void bundledAdhesionMatchesDecision(ResourceKey<GooTypeDefinition> key) throws Exception {
+        int expected = key == GooTypes.KINETIC ? 0 : key == GooTypes.WEIRD ? WEIRD_ADHESION
+                : key == GooTypes.GLOW ? GLOW_ADHESION : COMMON_ADHESION;
+        assertEquals(expected, decodeBundled(key).adhesion(), key::toString);
+    }
+
+    /**
+     * An adhesion past the ladder's top rung is refused.
+     */
+    @Test
+    void refusesAdhesionPastTheLaddersTop() {
+        assertTrue(parse(BODY_BEFORE_FLIGHT.replace("\"adhesion\": 1", "\"adhesion\": 5") + FLIGHT + "}").isError());
+    }
+
+    /**
+     * The ladder's top rung, 4, holds a block's underside, and decodes
+     * (decision adhesion-is-a-ladder-of-holds).
+     */
+    @Test
+    void anAdhesionOfFourDecodes() {
+        assertEquals(GLOW_ADHESION, parse(BODY_BEFORE_FLIGHT.replace("\"adhesion\": 1", "\"adhesion\": 4") + FLIGHT
+                + "}").getOrThrow().adhesion());
+    }
+
+    /**
+     * A cohesion past fifteen layers is refused, since no step stands taller than a whole cell.
+     */
+    @Test
+    void refusesCohesionPastAWholeCell() {
+        assertTrue(parse(BODY_BEFORE_FLIGHT.replace("\"cohesion\": 0", "\"cohesion\": 16") + FLIGHT + "}").isError());
     }
 
     private static float expectedLevity(ResourceKey<GooTypeDefinition> key) {
