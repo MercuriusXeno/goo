@@ -137,9 +137,11 @@ public final class HeldJavelins {
      * @return the javelin's point
      */
     static Vec3 javelinAt(Stack stack, int index, Vec3 cube, float xRot, float yRot, double age) {
-        Vec3 slot = StackHover.pointOf(cube, xRot, yRot, StackHover.javelinSlot(index));
+        Vec3 slot = StackHover.pointOf(cube, xRot, yRot, StackHover.javelinSlot(index, stack.count()));
         if (index < stack.previous()) {
-            return slot;
+            // dart-javelins-hover-over-the-shrinking-blob-cube: a standing javelin shifts as the centered pile widens
+            Vec3 was = StackHover.pointOf(cube, xRot, yRot, StackHover.javelinSlot(index, stack.previous()));
+            return was.lerp(slot, HoveringKnives.easedAt(age));
         }
         Vec3 spawn = StackHover.pointOf(cube, xRot, yRot, StackHover.spawnSlot(index, StackHover.JAVELINS));
         return spawn.lerp(slot, HoveringKnives.easedAt(age));

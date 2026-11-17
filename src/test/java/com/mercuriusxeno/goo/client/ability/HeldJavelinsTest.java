@@ -37,28 +37,36 @@ class HeldJavelinsTest {
 
         Vec3 top = StackHover.pointOf(CUBE, PITCH, YAW, StackHover.spawnSlot(1, StackHover.JAVELINS));
         assertEquals(0, top.distanceTo(HeldJavelins.javelinAt(stack, 1, CUBE, PITCH, YAW, 0)), WITHIN);
-        Vec3 slot = StackHover.pointOf(CUBE, PITCH, YAW, StackHover.javelinSlot(1));
+        Vec3 slot = StackHover.pointOf(CUBE, PITCH, YAW, StackHover.javelinSlot(1, 2));
         assertEquals(0, slot.distanceTo(HeldJavelins.javelinAt(stack, 1, CUBE, PITCH, YAW,
                 HeldJavelins.EASE_TICKS)), WITHIN);
-        Vec3 first = StackHover.pointOf(CUBE, PITCH, YAW, StackHover.javelinSlot(0));
+        Vec3 first = StackHover.pointOf(CUBE, PITCH, YAW, StackHover.javelinSlot(0, 1));
         assertEquals(0, first.distanceTo(HeldJavelins.javelinAt(stack, 0, CUBE, PITCH, YAW, 0)), WITHIN,
-                "a javelin formed before the change stands at its slot");
+                "a javelin formed before the change starts where it stood alone");
+        Vec3 shifted = StackHover.pointOf(CUBE, PITCH, YAW, StackHover.javelinSlot(0, 2));
+        assertEquals(0, shifted.distanceTo(HeldJavelins.javelinAt(stack, 0, CUBE, PITCH, YAW,
+                HeldJavelins.EASE_TICKS)), WITHIN, "and eases sideways as the pile widens");
     }
 
     @Test
-    void theJavelinsHoverSideBySideAtOneHeightPointingAlongTheLook() {
-        HeldJavelins.formed(CASTER, 3, 0);
-        HeldJavelins.Stack stack = HeldJavelins.stackOf(CASTER);
+    void eachJavelinPointsAlongTheLook() {
         Vec3 look = Vec3.directionFromRotation(PITCH, YAW);
-        Vec3 up = Vec3.directionFromRotation(PITCH - 90f, YAW);
+        assertEquals(0, look.distanceTo(HeldJavelins.headingOf(PITCH, YAW)), FLOAT_WITHIN);
+    }
 
-        double height = HeldJavelins.javelinAt(stack, 0, CUBE, PITCH, YAW, HeldJavelins.EASE_TICKS)
-                .subtract(CUBE).dot(up);
-        for (int javelin = 0; javelin < StackHover.JAVELINS; javelin++) {
-            Vec3 at = HeldJavelins.javelinAt(stack, javelin, CUBE, PITCH, YAW, HeldJavelins.EASE_TICKS);
-            assertEquals(height, at.subtract(CUBE).dot(up), FLOAT_WITHIN, "the javelins share one height");
-            assertTrue(height > StackHover.cubeTopAt(0, StackHover.JAVELINS), "above the cube's top");
-            assertEquals(0, look.distanceTo(HeldJavelins.headingOf(PITCH, YAW)), FLOAT_WITHIN);
+    // dart-javelins-hover-over-the-shrinking-blob-cube: the server throws each javelin from the slot it hovers at
+    @Test
+    void eachJavelinIsThrownFromTheSlotItHoversAt() {
+        Vec3 eye = new Vec3(4.5, 66.62, -1.5);
+        Vec3 cube = StackHover.cubeCenterInView(eye, PITCH, YAW, true);
+        for (int held = 1; held <= StackHover.JAVELINS; held++) {
+            HeldJavelins.formed(CASTER, held, held);
+            HeldJavelins.formed(CASTER, held, held + 1);
+            Vec3 drawn = HeldJavelins.javelinAt(HeldJavelins.stackOf(CASTER), held - 1, cube, PITCH, YAW,
+                    HeldJavelins.EASE_TICKS);
+            Vec3 launched = com.mercuriusxeno.goo.ability.crystal.ThrownKnife.launchPointOf(eye, PITCH, YAW, true,
+                    held, true);
+            assertEquals(0, drawn.distanceTo(launched), WITHIN, "the javelin leaving at " + held + " held");
         }
     }
 }
