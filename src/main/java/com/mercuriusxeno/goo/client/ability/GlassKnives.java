@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.TravelForm;
 import com.mercuriusxeno.goo.ability.crystal.ThrownKnife;
+import com.mercuriusxeno.goo.ability.program.SoundCue;
 import com.mercuriusxeno.goo.client.FlatQuadContext;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.GooSubmitter;
@@ -17,6 +18,7 @@ import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.sounds.SoundEvent;
@@ -35,6 +37,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 /**
  * Knives' glass knives in flight on this client: each leaves its hover slot
@@ -155,11 +158,25 @@ public final class GlassKnives {
      */
     public static void onPayload(GlassKnifePayload payload, IPayloadContext context) {
         context.enqueueWork(() -> {
-            ClientLevel level = Minecraft.getInstance().level;
-            if (level != null) {
-                LIVE.add(new Knife(payload, level.getGameTime()));
+            Minecraft mc = Minecraft.getInstance();
+            if (mc.level != null && mc.player != null) {
+                LocalPlayer local = mc.player;
+                launched(payload, mc.level.getGameTime(), cue -> StackSounds.playAt(local, payload.start(), cue));
             }
         });
+    }
+
+    /**
+     * Starts a knife or javelin the server threw, sounding its throw once as it leaves.
+     * decision knives-and-javelins-sound-as-each-forms-and-is-thrown
+     *
+     * @param payload the throw
+     * @param now     the game time
+     * @param played  plays the throw's cue where it leaves
+     */
+    static void launched(GlassKnifePayload payload, long now, Consumer<SoundCue> played) {
+        LIVE.add(new Knife(payload, now));
+        payload.thrownSound().ifPresent(played);
     }
 
     /** Drops every knife, as a disconnect does. */

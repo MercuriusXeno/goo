@@ -81,4 +81,20 @@ class HoveringKnivesTest {
 
         assertNull(HoveringKnives.fanOf(CASTER));
     }
+
+    // knives-and-javelins-sound-as-each-forms-and-is-thrown
+    @Test
+    void eachKnifeFormingForTheLocalPlayerChimesOnce() {
+        com.mercuriusxeno.goo.ability.FormSounds knives =
+                com.mercuriusxeno.goo.ability.AbilityJson.decode("crystal_knives").delivery().formSounds();
+        java.util.List<com.mercuriusxeno.goo.ability.program.SoundCue> played = new java.util.ArrayList<>();
+        HoveringKnives.counted(CASTER, 1, 0, CASTER, knives, played::add);
+        HoveringKnives.counted(CASTER, 2, 3, CASTER, knives, played::add);
+        HoveringKnives.counted(CASTER, 2, 4, CASTER, knives, played::add);
+        HoveringKnives.counted(CASTER, 1, 5, CASTER, knives, played::add);
+        HoveringKnives.counted(CASTER + 1, 1, 6, CASTER, knives, played::add);
+
+        assertEquals(2, played.size(), "two knives formed for the local player should chime twice, " + played);
+        played.forEach(cue -> assertEquals("minecraft:block.amethyst_block.chime", cue.sound().toString()));
+    }
 }

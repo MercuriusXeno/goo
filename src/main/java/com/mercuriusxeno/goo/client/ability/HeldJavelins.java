@@ -1,14 +1,14 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.FormSounds;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.TravelForm;
 import com.mercuriusxeno.goo.ability.crystal.StackHover;
+import com.mercuriusxeno.goo.ability.program.SoundCue;
 import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.throwing.GloveThrowSender;
-import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
 import com.mercuriusxeno.goo.client.throwing.GooFlightRenderer;
-import com.mercuriusxeno.goo.client.throwing.JavelinTurn;
 import com.mercuriusxeno.goo.network.KnifeRainSling;
 import com.mercuriusxeno.goo.network.StackFormedPayload;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -28,6 +28,7 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jspecify.annotations.Nullable;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Consumer;
 
 /**
  * Dart's stacked javelins on this client, as the server counts them for each
@@ -77,13 +78,34 @@ public final class HeldJavelins {
             if (mc.level == null) {
                 return;
             }
-            int before = formedBy(payload.casterId());
-            formed(payload.casterId(), payload.formed(), mc.level.getGameTime());
             LocalPlayer local = mc.player;
-            if (local != null && local.getId() == payload.casterId() && payload.formed() > before) {
-                GloveUseTracker.shink(local, JavelinTurn.FORMS);
-            }
+            counted(payload.casterId(), payload.formed(), mc.level.getGameTime(),
+                    local == null ? StackSounds.NO_ONE : local.getId(), StackSounds.selectedBy(local),
+                    cue -> StackSounds.playAt(local, cue));
         });
+    }
+
+    /**
+     * Records a caster's formed count and sounds each javelin the local
+     * player's hold forms: a count risen for the local player plays the form
+     * cue, Dart's shink, once, and a count that holds or falls, or another
+     * caster's, plays none.
+     * decision dart-shinks-as-it-forms-and-pitched-down-as-it-reverts
+     *
+     * @param casterId the caster's entity id
+     * @param formed   the javelins formed
+     * @param now      the game time
+     * @param localId  the local player's entity id
+     * @param sounds   the local player's selected stack sounds
+     * @param played   plays a cue at the local player
+     */
+    static void counted(int casterId, int formed, long now, int localId, FormSounds sounds,
+                        Consumer<SoundCue> played) {
+        int before = formedBy(casterId);
+        formed(casterId, formed, now);
+        if (casterId == localId && formed > before) {
+            sounds.form().ifPresent(played);
+        }
     }
 
     /**

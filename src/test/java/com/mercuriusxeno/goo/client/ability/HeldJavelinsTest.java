@@ -69,4 +69,20 @@ class HeldJavelinsTest {
             assertEquals(0, drawn.distanceTo(launched), WITHIN, "the javelin leaving at " + held + " held");
         }
     }
+
+    // dart-shinks-as-it-forms-and-pitched-down-as-it-reverts
+    @Test
+    void eachJavelinFormingForTheLocalPlayerScrapesOnce() {
+        com.mercuriusxeno.goo.ability.FormSounds dart =
+                com.mercuriusxeno.goo.ability.AbilityJson.decode("metal_dart").delivery().formSounds();
+        java.util.List<com.mercuriusxeno.goo.ability.program.SoundCue> played = new java.util.ArrayList<>();
+        HeldJavelins.counted(CASTER, 1, 0, CASTER, dart, played::add);
+        HeldJavelins.counted(CASTER, 1, 4, CASTER, dart, played::add);
+        HeldJavelins.counted(CASTER, 0, 5, CASTER, dart, played::add);
+        HeldJavelins.counted(CASTER + 1, 1, 6, CASTER, dart, played::add);
+
+        assertEquals(1, played.size(), "one javelin formed for the local player should scrape once, " + played);
+        assertEquals("minecraft:item.axe.scrape", played.getFirst().sound().toString());
+        assertEquals(1.5f, played.getFirst().pitch(), 1e-6f);
+    }
 }

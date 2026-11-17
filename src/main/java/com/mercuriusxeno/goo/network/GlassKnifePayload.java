@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.program.SoundCue;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
@@ -8,6 +9,7 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.NonNull;
+import java.util.Optional;
 
 /**
  * Server-to-client payload: one of Knives' glass knives, or Dart's javelin, left its hover slot,
@@ -20,9 +22,11 @@ import org.jspecify.annotations.NonNull;
  * @param start     where it left its hover slot
  * @param velocity  its launch velocity, blocks per tick
  * @param javelinType the goo type id of Dart's javelin, which draws in that goo, or {@link #GLASS} for a glass knife
+ * @param thrownSound the sound the throw makes as it leaves, empty for none
+ * decision knives-and-javelins-sound-as-each-forms-and-is-thrown
  */
-public record GlassKnifePayload(int throwerId, Vec3 start, Vec3 velocity, String javelinType)
-        implements CustomPacketPayload {
+public record GlassKnifePayload(int throwerId, Vec3 start, Vec3 velocity, String javelinType,
+                                Optional<SoundCue> thrownSound) implements CustomPacketPayload {
 
     /** The javelin type of a glass knife, which is no javelin. */
     public static final String GLASS = "";
@@ -47,6 +51,7 @@ public record GlassKnifePayload(int throwerId, Vec3 start, Vec3 velocity, String
             Vec3.STREAM_CODEC, GlassKnifePayload::start,
             Vec3.STREAM_CODEC, GlassKnifePayload::velocity,
             ByteBufCodecs.STRING_UTF8, GlassKnifePayload::javelinType,
+            ByteBufCodecs.optional(SoundCue.STREAM_CODEC), GlassKnifePayload::thrownSound,
             GlassKnifePayload::new);
 
     @Override

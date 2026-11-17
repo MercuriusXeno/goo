@@ -1,12 +1,15 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.FormSounds;
 import com.mercuriusxeno.goo.ability.crystal.StackHover;
+import com.mercuriusxeno.goo.ability.program.SoundCue;
 import com.mercuriusxeno.goo.client.FlatQuadContext;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.network.KnifeRainSling;
 import com.mercuriusxeno.goo.network.StackFormedPayload;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
@@ -18,6 +21,7 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jspecify.annotations.Nullable;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Consumer;
 
 /**
  * Knives' formed knives on this client, hovering in an upside-down pyramid
@@ -66,9 +70,34 @@ public final class HoveringKnives {
         context.enqueueWork(() -> {
             Minecraft mc = Minecraft.getInstance();
             if (mc.level != null) {
-                formed(payload.casterId(), payload.formed(), mc.level.getGameTime());
+                LocalPlayer local = mc.player;
+                counted(payload.casterId(), payload.formed(), mc.level.getGameTime(),
+                        local == null ? StackSounds.NO_ONE : local.getId(), StackSounds.selectedBy(local),
+                        cue -> StackSounds.playAt(local, cue));
             }
         });
+    }
+
+    /**
+     * Records a caster's formed count and sounds each knife the local
+     * player's hold forms: a count risen for the local player plays the form
+     * cue once, and a count that holds or falls, or another caster's, plays none.
+     * decision knives-and-javelins-sound-as-each-forms-and-is-thrown
+     *
+     * @param casterId the caster's entity id
+     * @param formed   the knives formed
+     * @param now      the game time
+     * @param localId  the local player's entity id
+     * @param sounds   the local player's selected stack sounds
+     * @param played   plays a cue at the local player
+     */
+    static void counted(int casterId, int formed, long now, int localId, FormSounds sounds,
+                        Consumer<SoundCue> played) {
+        int before = formedBy(casterId);
+        formed(casterId, formed, now);
+        if (casterId == localId && formed > before) {
+            sounds.form().ifPresent(played);
+        }
     }
 
     /**

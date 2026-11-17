@@ -76,4 +76,44 @@ class GlassKnivesTest {
         assertEquals(1, frame[0].length(), TOLERANCE);
         assertEquals(0, GlassKunai.frame(new Vec3(0, 0, 1), 0f)[0].y, TOLERANCE);
     }
+
+    @org.junit.jupiter.api.AfterEach
+    void clearTheFlights() {
+        GlassKnives.clear();
+    }
+
+    private static java.util.List<com.mercuriusxeno.goo.ability.program.SoundCue> thrownAs(String ability,
+                                                                                         String javelinType) {
+        java.util.Optional<com.mercuriusxeno.goo.ability.program.SoundCue> cue =
+                com.mercuriusxeno.goo.ability.AbilityJson.decode(ability).delivery().formSounds().thrown();
+        java.util.List<com.mercuriusxeno.goo.ability.program.SoundCue> played = new java.util.ArrayList<>();
+        GlassKnives.launched(new GlassKnifePayload(7, Vec3.ZERO, AHEAD, javelinType, cue), 0, played::add);
+        return played;
+    }
+
+    // knives-and-javelins-sound-as-each-forms-and-is-thrown
+    @Test
+    void eachKnifeThrownPlaysTheArrowsShotPitchedUpOnce() {
+        java.util.List<com.mercuriusxeno.goo.ability.program.SoundCue> played =
+                thrownAs("crystal_knives", GlassKnifePayload.GLASS);
+        assertEquals(1, played.size(), "a knife leaving should sound once, " + played);
+        assertEquals("minecraft:entity.arrow.shoot", played.getFirst().sound().toString());
+        assertTrue(played.getFirst().pitch() > 1f, "the shot should be pitched up, " + played.getFirst().pitch());
+    }
+
+    // knives-and-javelins-sound-as-each-forms-and-is-thrown
+    @Test
+    void eachJavelinThrownPlaysTheTridentsThrowOnce() {
+        java.util.List<com.mercuriusxeno.goo.ability.program.SoundCue> played = thrownAs("metal_dart", "goo:metal");
+        assertEquals(1, played.size(), "a javelin leaving should sound once, " + played);
+        assertEquals("minecraft:item.trident.throw", played.getFirst().sound().toString());
+    }
+
+    @Test
+    void aThrowNamingNoSoundPlaysNone() {
+        java.util.List<com.mercuriusxeno.goo.ability.program.SoundCue> played = new java.util.ArrayList<>();
+        GlassKnives.launched(new GlassKnifePayload(7, Vec3.ZERO, AHEAD, GlassKnifePayload.GLASS,
+                java.util.Optional.empty()), 0, played::add);
+        assertTrue(played.isEmpty());
+    }
 }

@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.OwnMinions;
 import com.mercuriusxeno.goo.ability.crystal.ThrownKnife;
+import com.mercuriusxeno.goo.ability.program.SoundCue;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.throwing.DripArc;
 import com.mercuriusxeno.goo.throwing.FenceRails;
@@ -57,12 +58,13 @@ public final class ThrownKnives {
      * @param start     where it leaves
      * @param velocity  its launch velocity, blocks per tick
      * @param javelin   whether it is Dart's javelin rather than a knife, which watching clients draw
+     * @param sound     the sound the throw makes as it leaves, which watching clients play
      */
     public void launch(ServerPlayer thrower, ResourceKey<GooTypeDefinition> gooType, String abilityId, Vec3 start,
-                       Vec3 velocity, boolean javelin) {
+                       Vec3 velocity, boolean javelin, Optional<SoundCue> sound) {
         flying.add(new Flight(thrower, gooType, abilityId, start, velocity, 0));
         EntityVisuals.sendToWatchers(thrower, new GlassKnifePayload(thrower.getId(), start, velocity,
-                javelin ? GooTypes.id(gooType) : GlassKnifePayload.GLASS));
+                javelin ? GooTypes.id(gooType) : GlassKnifePayload.GLASS, sound));
     }
 
     /**
