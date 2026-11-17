@@ -84,7 +84,8 @@ class VolumeCellLookTest {
                 new Cell("blaze_molten", CellBinding.MOLTEN, "goo:fluid/blaze_fluid", 0xFF750F),
                 new Cell("crystal_shatter", CellBinding.SHATTER, "goo:fluid/crystal_fluid", 0x5ED0F8),
                 new Cell("deep_host", CellBinding.HOST, "goo:fluid/deep_fluid", 0x16303E),
-                new Cell("frost_rime", CellBinding.RIME, "goo:fluid/frost_fluid", 0xBCE7F5));
+                new Cell("frost_rime", CellBinding.RIME, "goo:fluid/frost_fluid", 0xBCE7F5),
+                new Cell("glow_wisps", CellBinding.WISPS, "goo:fluid/glow_fluid", 0xFFE60F));
     }
 
     @Nested

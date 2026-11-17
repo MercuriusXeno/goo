@@ -92,6 +92,15 @@ public class GooParticles {
         PARTICLE_TYPES.register("rime_spray_drip", () -> new SimpleParticleType(false));
 
     /**
+     * Wisps' spray drip: the mod's blocky goo drip in glow's golds, flying
+     * its arc until it strikes a block's top, where it splats and the Wisps
+     * goo lands.
+     * glow-world-goo-is-named-wisps-and-takes-the-holds-place
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> WISPS_SPRAY_DRIP =
+        PARTICLE_TYPES.register("wisps_spray_drip", () -> new SimpleParticleType(false));
+
+    /**
      * A snowflake crystal flitting weightlessly along Cold's wind (decision
      * cold-streams-wind-lines-and-snowflakes).
      */

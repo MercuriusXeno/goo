@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.frost.FrostCurve;
 import com.mercuriusxeno.goo.ability.frost.FrozenEvents;
+import com.mercuriusxeno.goo.ability.program.FreezeBlocksStep;
 import com.mercuriusxeno.goo.ability.program.NovaStep;
 import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.data.GooValueTable;
@@ -28,7 +29,9 @@ import net.minecraft.world.entity.monster.Witch;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.LiquidBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
@@ -50,6 +53,8 @@ public final class FrostAbilityTests {
     private static final String NOVA_FREEZES_WATER_AND_LAVA = "nova_freezes_water_and_lava_in_its_ring";
     private static final String COLD_BREAKS_GRASS = "cold_breaks_the_grass_in_its_cone";
     private static final String COLD_FREEZES_WATER_AND_LAVA = "cold_freezes_water_and_lava_in_its_cone";
+    private static final String COLD_COOLS_MOLTEN_IRON_AND_LAVA = "cold_cools_molten_iron_and_lava_in_its_cone";
+    private static final String FREEZE_COOLS_ONLY_THE_MOLTEN_SOURCE = "freeze_cools_only_the_molten_source";
     private static final String ORB_FREEZES_PATH = "orb_freezes_path_and_pool";
     private static final String ORB_ENDS_ON_A_MOB = "orb_ends_on_a_mob";
     private static final String ORB_ENDS_AT_ITS_RANGE = "orb_ends_at_its_range";
@@ -70,6 +75,10 @@ public final class FrostAbilityTests {
         GooTestFunctions.registerTest(registrar, COLD_BREAKS_GRASS, FrostAbilityTests::coldBreaksTheGrassInItsCone);
         GooTestFunctions.registerTest(registrar, COLD_FREEZES_WATER_AND_LAVA,
                 FrostAbilityTests::coldFreezesWaterAndLavaInItsCone);
+        GooTestFunctions.registerTest(registrar, COLD_COOLS_MOLTEN_IRON_AND_LAVA,
+                FrostAbilityTests::coldCoolsMoltenIronAndLavaInItsCone);
+        GooTestFunctions.registerTest(registrar, FREEZE_COOLS_ONLY_THE_MOLTEN_SOURCE,
+                FrostAbilityTests::freezeCoolsOnlyTheMoltenSource);
         GooTestFunctions.registerTest(registrar, ORB_FREEZES_PATH, FrostAbilityTests::orbFreezesPathAndPool);
         GooTestFunctions.registerTest(registrar, ORB_ENDS_ON_A_MOB, FrostAbilityTests::orbEndsOnAMob);
         GooTestFunctions.registerTest(registrar, ORB_ENDS_AT_ITS_RANGE, FrostAbilityTests::orbEndsAtItsRange);
@@ -94,6 +103,10 @@ public final class FrostAbilityTests {
     private static final BlockPos NOVA_LAVA_POS = new BlockPos(1, 0, 3);
     private static final String SHOULD_ICE_IN_THE_RING = "Nova's ring should freeze the water it reaches to ice";
     private static final String SHOULD_OBSIDIAN_IN_THE_RING = "Nova's ring should freeze the lava it reaches to obsidian";
+    /** Still molten iron in a stone basin inside a third-held ring, walled from the water's spread. */
+    private static final BlockPos NOVA_MOLTEN_IRON_POS = new BlockPos(2, 0, 2);
+    private static final String SHOULD_IRON_CORE_IN_THE_RING =
+            "Nova's ring should cool the molten iron it reaches to iron core";
     private static final Identifier FROST_COLD = Identifier.parse("goo:frost_cold");
     private static final BlockPos STREAMER_POS = new BlockPos(0, 1, 2);
     /** Grass three blocks east of the streamer, inside Cold's cone below the look. */
@@ -109,6 +122,27 @@ public final class FrostAbilityTests {
     private static final BlockPos COLD_LAVA_POS = new BlockPos(6, 0, 2);
     private static final String SHOULD_ICE_IN_THE_CONE = "Cold's cone should freeze the water it reaches to ice";
     private static final String SHOULD_OBSIDIAN_IN_THE_CONE = "Cold's cone should freeze the lava it reaches to obsidian";
+    /**
+     * Still molten iron on Cold's axis, a block short of the lava so neither meets the other; no basin walls it, since
+     * a wall standing in the cone would end Cold's aim short of the lava.
+     */
+    private static final BlockPos COLD_MOLTEN_IRON_POS = new BlockPos(4, 0, 2);
+    private static final String SHOULD_IRON_CORE_IN_THE_CONE =
+            "Cold's cone should cool the molten iron it reaches to iron core";
+    /** Still molten iron in a stone basin beside the Orb's roll, inside its freeze sphere, walled from the pools. */
+    private static final BlockPos ORB_MOLTEN_IRON_POS = new BlockPos(1, 0, 4);
+    private static final String SHOULD_IRON_CORE_BESIDE_THE_ROLL =
+            "The Orb's freeze sphere should cool the molten iron beside its roll to iron core";
+    /** A molten iron source, flowing molten iron and flowing lava in a row, two blocks apart. */
+    private static final BlockPos FREEZE_SOURCE_POS = new BlockPos(1, 0, 3);
+    private static final BlockPos FREEZE_FLOWING_IRON_POS = new BlockPos(3, 0, 3);
+    private static final BlockPos FREEZE_FLOWING_LAVA_POS = new BlockPos(5, 0, 3);
+    /** A flowing cell's level, one step down from its source. */
+    private static final int FLOWING_LEVEL = 2;
+    /** Reaches the three cells, each two blocks from the middle one's center. */
+    private static final double FREEZE_REACH = 2.5;
+    private static final String SHOULD_IRON_CORE_AT_THE_SOURCE = "A freeze should cool a molten iron source to iron core";
+    private static final String SHOULD_FLOW_ON = "A freeze should leave flowing %s liquid, stands %s";
     private static final Identifier FROST_ORB = Identifier.parse("goo:frost_orb");
     /** Two still water blocks in the floor under the Orb's path. */
     private static final BlockPos POOL_NEAR = new BlockPos(2, 0, 2);
@@ -169,6 +203,12 @@ public final class FrostAbilityTests {
     private static final String SHOULD_RUN_AFTER_RELOAD =
             "A glacial prism loaded from its save should still run its combo, holds %s, program %s";
     private static final String SHOULD_ICE_INSIDE = "Water inside the glacial field should stand as magicked ice";
+    /**
+     * Still molten iron in a stone basin inside Glacial's reach: water poured on the bay's open floor spreads to it
+     * within ten ticks, and water cools molten iron to iron core on its own.
+     */
+    private static final BlockPos GLACIAL_MOLTEN_IRON_POS = new BlockPos(1, 0, 2);
+    private static final String SHOULD_IRON_CORE_INSIDE = "Molten iron inside the glacial field should cool to iron core";
     private static final String SHOULD_THAW_OUTSIDE = "The zombie past the glacial field should thaw, stands %s";
     private static final String ABILITY_REQUIRED = "Ability registry must hold frost_nova";
     private static final String SHOULD_FREEZE = "A full Nova should freeze the %s zombie, stands %s";
@@ -225,12 +265,15 @@ public final class FrostAbilityTests {
     public static void novaFreezesWaterAndLavaInItsRing(GameTestHelper helper) {
         helper.setBlock(NOVA_WATER_POS, Blocks.WATER);
         helper.setBlock(NOVA_LAVA_POS, Blocks.LAVA);
+        basin(helper, NOVA_MOLTEN_IRON_POS, GooBlocks.MOLTEN_IRON.get());
         ServerPlayer caster = caster(helper);
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             release(caster, fullHoldTicks(helper) / THIRD);
             helper.getLevel().getServer().getPlayerList().remove(caster);
             helper.assertTrue(helper.getBlockState(NOVA_WATER_POS).is(Blocks.ICE), SHOULD_ICE_IN_THE_RING);
             helper.assertTrue(helper.getBlockState(NOVA_LAVA_POS).is(Blocks.OBSIDIAN), SHOULD_OBSIDIAN_IN_THE_RING);
+            helper.assertTrue(helper.getBlockState(NOVA_MOLTEN_IRON_POS).is(GooBlocks.IRON_CORE.get()),
+                    SHOULD_IRON_CORE_IN_THE_RING);
             helper.succeed();
         });
     }
@@ -294,6 +337,64 @@ public final class FrostAbilityTests {
     }
 
     /**
+     * Cold held ten ticks at the floor cools the molten iron source in its cone
+     * to iron core and the lava source to obsidian, each by the pair the molten
+     * groups hold at its position (decisions frost-cools-molten-blocks-into-molten-cooled-blocks,
+     * every-frost-freeze-turns-a-molten-iron-source-to-iron-core).
+     *
+     * @param helper the gametest helper
+     */
+    public static void coldCoolsMoltenIronAndLavaInItsCone(GameTestHelper helper) {
+        helper.setBlock(COLD_MOLTEN_IRON_POS, GooBlocks.MOLTEN_IRON.get());
+        helper.setBlock(COLD_LAVA_POS, Blocks.LAVA);
+        ServerPlayer streamer = SelfDeliveryTests.invoker(helper, GooTypes.FROST);
+        Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(STREAMER_POS));
+        streamer.setPos(stand.x, stand.y, stand.z);
+        streamer.setYRot(FACING_EAST);
+        streamer.setXRot(AT_THE_FLOOR);
+        AbilityDefinition cold = AbilityRegistry.of(helper.getLevel()).getAbility(FROST_COLD);
+        helper.assertTrue(cold != null, ABILITY_REQUIRED);
+        KnownRecipes.teachRequires(streamer, cold);
+        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.FROST), FROST_COLD.toString(),
+                streamer.getEyePosition(), streamer.getEyePosition());
+        for (int held = 1; held <= COLD_HOLD_TICKS; held++) {
+            helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(streamer, tick));
+        }
+        helper.runAfterDelay(COLD_HOLD_TICKS + 1, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(streamer);
+            helper.assertTrue(helper.getBlockState(COLD_MOLTEN_IRON_POS).is(GooBlocks.IRON_CORE.get()),
+                    SHOULD_IRON_CORE_IN_THE_CONE);
+            helper.assertTrue(helper.getBlockState(COLD_LAVA_POS).is(Blocks.OBSIDIAN), SHOULD_OBSIDIAN_IN_THE_CONE);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A freeze over a molten iron source, a flowing molten iron cell and a
+     * flowing lava cell cools the source to iron core and leaves both flowing
+     * cells liquid: only a source cools (decision every-frost-freeze-turns-a-molten-iron-source-to-iron-core).
+     *
+     * @param helper the gametest helper
+     */
+    public static void freezeCoolsOnlyTheMoltenSource(GameTestHelper helper) {
+        BlockState flowingIron = GooBlocks.MOLTEN_IRON.get().defaultBlockState()
+                .setValue(LiquidBlock.LEVEL, FLOWING_LEVEL);
+        BlockState flowingLava = Blocks.LAVA.defaultBlockState().setValue(LiquidBlock.LEVEL, FLOWING_LEVEL);
+        helper.setBlock(FREEZE_SOURCE_POS, GooBlocks.MOLTEN_IRON.get());
+        helper.setBlock(FREEZE_FLOWING_IRON_POS, flowingIron);
+        helper.setBlock(FREEZE_FLOWING_LAVA_POS, flowingLava);
+        FreezeBlocksStep.freezeWithin(helper.getLevel(), Vec3.atCenterOf(helper.absolutePos(FREEZE_FLOWING_IRON_POS)),
+                FREEZE_REACH, false);
+        BlockState ironAfter = helper.getBlockState(FREEZE_FLOWING_IRON_POS);
+        BlockState lavaAfter = helper.getBlockState(FREEZE_FLOWING_LAVA_POS);
+        helper.assertTrue(helper.getBlockState(FREEZE_SOURCE_POS).is(GooBlocks.IRON_CORE.get()),
+                SHOULD_IRON_CORE_AT_THE_SOURCE);
+        helper.assertTrue(ironAfter.equals(flowingIron), String.format(SHOULD_FLOW_ON, "molten iron", ironAfter));
+        helper.assertTrue(lavaAfter.equals(flowingLava), String.format(SHOULD_FLOW_ON, "lava", lavaAfter));
+        helper.succeed();
+    }
+
+    /**
      * The Orb thrown along the bay over a pool and past a zombie freezes the
      * pool to ice and the zombie as it rolls by, and its freeze sphere freezes
      * the water four blocks beside its roll (decision orb-freeze-sphere-matches-its-nova).
@@ -304,6 +405,7 @@ public final class FrostAbilityTests {
         helper.setBlock(POOL_NEAR, Blocks.WATER);
         helper.setBlock(POOL_FAR, Blocks.WATER);
         helper.setBlock(ORB_WIDE_WATER_POS, Blocks.WATER);
+        basin(helper, ORB_MOLTEN_IRON_POS, GooBlocks.MOLTEN_IRON.get());
         helper.setBlock(ORB_BYSTANDER_POS.below(), Blocks.STONE);
         Mob bystander = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, ORB_BYSTANDER_POS);
         ServerPlayer thrower = orbThrower(helper);
@@ -314,6 +416,8 @@ public final class FrostAbilityTests {
             helper.assertTrue(helper.getBlockState(POOL_NEAR).is(Blocks.ICE)
                     && helper.getBlockState(POOL_FAR).is(Blocks.ICE), SHOULD_ICE_THE_POOL);
             helper.assertTrue(helper.getBlockState(ORB_WIDE_WATER_POS).is(Blocks.ICE), SHOULD_ICE_WIDE);
+            helper.assertTrue(helper.getBlockState(ORB_MOLTEN_IRON_POS).is(GooBlocks.IRON_CORE.get()),
+                    SHOULD_IRON_CORE_BESIDE_THE_ROLL);
             helper.assertTrue(gauge > 0, String.format(SHOULD_FREEZE_BYSTANDER, gauge));
             helper.assertTrue(noRollingGoo(helper), SHOULD_END);
             helper.succeed();
@@ -426,6 +530,7 @@ public final class FrostAbilityTests {
         helper.setBlock(GLACIAL_PRISM_POS.below(), Blocks.STONE);
         helper.setBlock(GLACIAL_PRISM_POS, GooBlocks.PRISM.get());
         helper.setBlock(GLACIAL_WATER_POS, Blocks.WATER);
+        basin(helper, GLACIAL_MOLTEN_IRON_POS, GooBlocks.MOLTEN_IRON.get());
         Mob inside = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, GLACIAL_INSIDE_POS);
         Mob outside = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, GLACIAL_OUTSIDE_POS);
         float[] held = new float[1];
@@ -446,6 +551,8 @@ public final class FrostAbilityTests {
             helper.assertTrue(insideGauge == held[0], String.format(SHOULD_HOLD_INSIDE, insideGauge));
             helper.assertTrue(outsideGauge == 0f, String.format(SHOULD_THAW_OUTSIDE, outsideGauge));
             helper.assertTrue(helper.getBlockState(GLACIAL_WATER_POS).is(GooBlocks.MAGICKED_ICE.get()), SHOULD_ICE_INSIDE);
+            helper.assertTrue(helper.getBlockState(GLACIAL_MOLTEN_IRON_POS).is(GooBlocks.IRON_CORE.get()),
+                    SHOULD_IRON_CORE_INSIDE);
             helper.succeed();
         });
     }
@@ -589,6 +696,22 @@ public final class FrostAbilityTests {
     private static void release(ServerPlayer caster, int heldTicks) {
         GooThrowHandler.releaseCharge(caster,
                 new GooChargePayload(GooTypes.id(GooTypes.FROST), FROST_NOVA.toString(), heldTicks));
+    }
+
+    /**
+     * Sets a still fluid in a one-block stone basin, so it stays where it was
+     * rather than flowing off the bay's open floor.
+     *
+     * @param helper the gametest helper
+     * @param pos    where the fluid stands
+     * @param fluid  the fluid's block
+     */
+    private static void basin(GameTestHelper helper, BlockPos pos, Block fluid) {
+        helper.setBlock(pos.below(), Blocks.STONE);
+        for (Direction side : Direction.Plane.HORIZONTAL) {
+            helper.setBlock(pos.relative(side), Blocks.STONE);
+        }
+        helper.setBlock(pos, fluid);
     }
 
     private static ServerPlayer caster(GameTestHelper helper) {

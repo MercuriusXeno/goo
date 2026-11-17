@@ -41,7 +41,9 @@ final class SearchDropdown {
         /** An item tag, by its #id. */
         TAG,
         /** A mutator, by its name. */
-        MUTATOR
+        MUTATOR,
+        /** A block with no item form, by its namespaced id, drawn by its name with no icon. */
+        BLOCK
     }
 
     /**
@@ -97,6 +99,18 @@ final class SearchDropdown {
         return new SearchDropdown(inventory.stream().map(entry -> new Choice(entry.tag()
                 || entry.id().startsWith(TAG_MARK) ? Kind.TAG : Kind.ITEM, entry.id(), entry.tag()
                 ? entry.id() : entry.name())).toList());
+    }
+
+    /**
+     * @param inventory      the server's items and tags
+     * @param itemlessBlocks the client's blocks with no item form, each by its id and name
+     * @return a dropdown over every item, every #tag and every block with no item form, as a group's member
+     */
+    static SearchDropdown overMembers(List<ValuesTab.ManagerEntry> inventory,
+                                      List<ValuesTab.ManagerEntry> itemlessBlocks) {
+        List<Choice> choices = new ArrayList<>(overMembers(inventory).all);
+        itemlessBlocks.forEach(block -> choices.add(new Choice(Kind.BLOCK, block.id(), block.name())));
+        return new SearchDropdown(choices);
     }
 
     /**
