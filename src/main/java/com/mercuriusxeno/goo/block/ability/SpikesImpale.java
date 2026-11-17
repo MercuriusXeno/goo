@@ -19,12 +19,13 @@ import org.jspecify.annotations.Nullable;
 import java.util.Set;
 
 /**
- * The strike Spikes goo makes on a living thing walking on it: spikes rise
- * under the thing and the spikes step's strike runs on it, once the step's
- * cooldown has passed since the goo last struck it, and each strike rolls
- * the step's spend chance of taking one layer from the cell under it, the
- * cell gone with its last layer. A strike credits the player who placed
- * the cell, and nobody where no player did.
+ * The strike Spikes goo makes on a living thing standing on it: a spike
+ * runs through the thing and the spikes step's strike runs on it, once the
+ * step's cooldown has passed since the goo last struck it, and each strike
+ * rolls the step's spend chance of taking one layer from the cell under it,
+ * the cell gone with its last layer. A strike credits the player who placed
+ * the cell, and nobody where no player did, and never lands on that player
+ * (operator ruling 2026-11-17: an ability never attacks its caster).
  * spikes-is-a-coat-of-metal-goo-that-impales-what-walks-on-it
  * metal-spends-charge-by-chance
  * urchin-rests-bristled-and-spears
@@ -36,8 +37,9 @@ final class SpikesImpale {
     }
 
     /**
-     * Impales a thing walking on a Spikes cell, where the step strikes it
-     * and its cooldown has passed, and rolls the cell's spend.
+     * Impales a thing standing on a Spikes cell, where the step strikes it,
+     * it is not the player who sprayed the cell and its cooldown has passed,
+     * and rolls the cell's spend.
      *
      * @param level  the server level
      * @param pos    the cell
@@ -48,14 +50,10 @@ final class SpikesImpale {
      */
     static void impale(ServerLevel level, BlockPos pos, BlockState state, Entity entity, SpikesStep step,
                        @Nullable ServerPlayer placer) {
-        if (!strikes(entity, step) || !(entity instanceof LivingEntity living)) {
+        if (!(entity instanceof LivingEntity living) || !dueToStrike(level, pos, living, step)) {
             return;
         }
-        long now = level.getGameTime();
-        if (!due(now, living.getData(GooAttachments.SPIKES_STRUCK_AT), step.cooldown())) {
-            return;
-        }
-        living.setData(GooAttachments.SPIKES_STRUCK_AT, now);
+        living.setData(GooAttachments.SPIKES_STRUCK_AT, level.getGameTime());
         EntityVisuals.sendToWatchers(living,
                 new SpikesRisePayload(pos, living.getId(), step.retractShink(), step.retractFrame()));
         new ProgramBehavior(step.strike()).tick(EntityHost.struckByField(level, living, placer));
@@ -65,6 +63,22 @@ final class SpikesImpale {
             level.setBlock(pos, left > 0 ? state.setValue(VolumeCellBlock.LAYERS, left)
                     : Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
         }
+    }
+
+    /**
+     * Whether a cell strikes a living thing standing on it now: the step
+     * strikes it, it is not the player who sprayed the cell, and the
+     * cooldown since the goo last struck it has passed.
+     *
+     * @param level  the server level
+     * @param pos    the cell
+     * @param living the thing on the cell
+     * @param step   the spikes step
+     * @return true where the cell strikes the thing this tick
+     */
+    private static boolean dueToStrike(ServerLevel level, BlockPos pos, LivingEntity living, SpikesStep step) {
+        return strikes(living, step) && !SprayerSpared.spares(living, CellPlacers.of(level).placerAt(pos))
+                && due(level.getGameTime(), living.getData(GooAttachments.SPIKES_STRUCK_AT), step.cooldown());
     }
 
     /**

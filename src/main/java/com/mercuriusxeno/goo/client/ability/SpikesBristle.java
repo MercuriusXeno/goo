@@ -9,7 +9,7 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.core.BlockPos;
-import net.minecraft.util.Mth;
+import net.minecraft.util.ARGB;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
@@ -22,16 +22,20 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.joml.Vector3f;
 import org.jspecify.annotations.Nullable;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
 /**
  * Spikes goo bristling as this client sees it: each Spikes cell near the
  * camera lies flat until a living thing comes near, as Shatter's shards
- * rise, then small chrome triangular pyramids rise out of its goo, rigid,
- * keeping their size, and sink back once nothing living is near. Each
- * cell's pyramids stand where a seed the client picks puts them.
+ * rise, then five steel triangular pyramids grow out of the blob's midline,
+ * keeping their shape, and shrink back into it once nothing living is near.
+ * The pyramids stand in a quincunx, four near the corners and one in the
+ * middle, nudged a little by a seed the client picks, so none stands nearer
+ * another than the least spacing, in the cell or against its neighbours.
+ * Each face carries one shade under a fixed light, dark steel to bright,
+ * so the faces read apart and the edges show, with no highlight sweeping
+ * (operator UAT 2026-11-17).
  * urchin-rests-bristled-and-spears
  * spikes-is-a-coat-of-metal-goo-that-impales-what-walks-on-it
  */
@@ -40,8 +44,16 @@ public final class SpikesBristle {
 
     /** A spike's sides: a triangular pyramid. */
     static final int PYRAMID_SIDES = 3;
-    /** The pyramids one cell bristles with. */
+    /** The pyramids one cell bristles with, the quincunx's five. */
     static final int PYRAMIDS_PER_CELL = 5;
+    /** Where the quincunx's corner pyramids stand, across and along the cell. */
+    static final float NEAR_EDGE = 0.25f;
+    /** Where the quincunx's middle pyramid stands, across and along the cell. */
+    static final float MIDDLE = 0.5f;
+    /** How far a seed nudges a pyramid from its quincunx place, either way on each axis. */
+    static final float NUDGE = 0.03f;
+    /** The closest two pyramids stand, in blocks, in a cell or across neighbouring cells. */
+    static final double LEAST_SPACING = 0.25;
     /** How far in from the cell's edge a pyramid's center stands, so its base stays on the cell. */
     static final float EDGE_INSET = 0.18f;
     /** The shortest bristling pyramid, in blocks. */
@@ -50,9 +62,23 @@ public final class SpikesBristle {
     static final float HEIGHT_SPREAD = 0.2f;
     /** A bristling pyramid's base radius, in blocks. */
     static final float BASE_RADIUS = 0.08f;
-    /** Ticks the chrome band takes to sweep down a spike once. */
-    private static final float SWEEP_TICKS = 20f;
-    private static final int OPAQUE = 0xFF;
+    /** The least summed RGB difference between two faces' shades, so their shared edge shows. */
+    static final int LEAST_FACE_CONTRAST = 60;
+    /** The shade of a face turned from the light. */
+    private static final int SHADOW_STEEL = 0xFF3A3F4A;
+    /** The shade of a face turned square to the light. */
+    private static final int LIT_STEEL = 0xFFF0F2F6;
+    /** The light every face is shaded under, from above, a little to one side. */
+    private static final Vector3f LIGHT = new Vector3f(-0.5f, 0.8f, -0.3f).normalize();
+    /** The share of the light a face turned from it still catches. */
+    private static final float AMBIENT = 0.15f;
+    /** Half, the blob's midline as a share of its height and a face's middle between its corners. */
+    private static final float HALF = 0.5f;
+    private static final double TWO_PI = 2 * Math.PI;
+    private static final int RGB = 0xFFFFFF;
+    private static final float[][] QUINCUNX = {
+        {NEAR_EDGE, NEAR_EDGE}, {1f - NEAR_EDGE, NEAR_EDGE}, {MIDDLE, MIDDLE},
+        {NEAR_EDGE, 1f - NEAR_EDGE}, {1f - NEAR_EDGE, 1f - NEAR_EDGE}};
 
     private static final NearCells<Layout> CELLS = new NearCells<>(SpikesBristle::isSpikes,
             SpikesBristle::layoutFromSeed);
@@ -62,7 +88,7 @@ public final class SpikesBristle {
     }
 
     /**
-     * One bristling pyramid: where it stands on the cell's top and how tall it rises.
+     * One bristling pyramid: where it stands on the cell's top and how tall it grows.
      *
      * @param x      its center's place across the cell, 0 to 1
      * @param z      its center's place along the cell, 0 to 1
@@ -80,21 +106,25 @@ public final class SpikesBristle {
     }
 
     /**
-     * The pyramids a seed puts on a cell: each inside the cell's top, inset
-     * from its edges, at a height between the shortest and the tallest.
+     * The pyramids a seed puts on a cell: one at each place of the
+     * quincunx, nudged at most {@link #NUDGE} each way, at a height between
+     * the shortest and the tallest.
      *
      * @param seed the cell's seed
      * @return the cell's layout
      */
     static Layout layoutFromSeed(long seed) {
         Random random = new Random(seed);
-        List<Pyramid> pyramids = new ArrayList<>();
-        float span = 1f - EDGE_INSET - EDGE_INSET;
-        for (int pyramid = 0; pyramid < PYRAMIDS_PER_CELL; pyramid++) {
-            pyramids.add(new Pyramid(EDGE_INSET + random.nextFloat() * span, EDGE_INSET + random.nextFloat() * span,
-                    LEAST_HEIGHT + random.nextFloat() * HEIGHT_SPREAD));
+        Pyramid[] pyramids = new Pyramid[QUINCUNX.length];
+        for (int place = 0; place < QUINCUNX.length; place++) {
+            pyramids[place] = new Pyramid(QUINCUNX[place][0] + nudge(random), QUINCUNX[place][1] + nudge(random),
+                    LEAST_HEIGHT + random.nextFloat() * HEIGHT_SPREAD);
         }
-        return new Layout(List.copyOf(pyramids));
+        return new Layout(List.of(pyramids));
+    }
+
+    private static float nudge(Random random) {
+        return (random.nextFloat() - HALF) * (NUDGE + NUDGE);
     }
 
     /**
@@ -108,8 +138,19 @@ public final class SpikesBristle {
     }
 
     /**
+     * The height of a Spikes cell's blob midline, half way up its goo, where its spikes grow from.
+     *
+     * @param pos    the cell
+     * @param layers the layers the cell holds
+     * @return the midline's height in world blocks
+     */
+    static double midline(BlockPos pos, int layers) {
+        return pos.getY() + (double) HALF * layers / VolumeCellBlock.MAX_LAYERS;
+    }
+
+    /**
      * Client tick: rescans the Spikes cells near the camera when due, moves
-     * each cell's bristle toward risen or sunk by what living things stand
+     * each cell's bristle toward grown or shrunk by what living things stand
      * near it, and forgets every cell once the client leaves the level.
      *
      * @param event the event instance
@@ -133,7 +174,7 @@ public final class SpikesBristle {
     }
 
     /**
-     * Draws every bristling cell's pyramids risen their share out of its goo, in Metal's chrome.
+     * Draws every bristling cell's pyramids grown their share out of its blob's midline.
      *
      * @param event the level render stage event
      */
@@ -144,57 +185,96 @@ public final class SpikesBristle {
             return;
         }
         float partial = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        int sweep = ColorBytes.toByte(Mth.frac((mc.level.getGameTime() + partial) / SWEEP_TICKS));
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
         PoseStack.Pose pose = event.getPoseStack().last();
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
-        VertexConsumer chrome = buffers.getBuffer(GooRenderTypes.METAL_CHROME_TYPE);
+        VertexConsumer steel = buffers.getBuffer(GooRenderTypes.SPIKES_STEEL_TYPE);
         Level level = mc.level;
         CELLS.cells().forEach((pos, cell) -> {
             float shown = cell.shownAt(partial);
             BlockState state = level.getBlockState(pos);
             if (shown > 0f && isSpikes(state)) {
-                drawCell(pose, chrome, pos, gooTop(pos, state), cell.layout(), shown, camera, sweep);
+                double mid = midline(pos, VolumeCellBlock.layersOf(state));
+                for (Pyramid pyramid : cell.layout().pyramids()) {
+                    Vector3f base = new Vector3f((float) (pos.getX() + pyramid.x() - camera.x),
+                            (float) (mid - camera.y), (float) (pos.getZ() + pyramid.z() - camera.z));
+                    emitPyramid(pose, steel, base, pyramid.height() * shown, BASE_RADIUS * shown);
+                }
             }
         });
-        buffers.endBatch(GooRenderTypes.METAL_CHROME_TYPE);
+        buffers.endBatch(GooRenderTypes.SPIKES_STEEL_TYPE);
     }
 
     /**
-     * The height of a Spikes cell's goo surface.
+     * Emits one steel triangular pyramid standing straight up from its base,
+     * each face in its own shade under the fixed light.
      *
-     * @param pos   the cell
-     * @param state the cell's state
-     * @return the surface's height in world blocks
+     * @param pose   the pose, camera-relative
+     * @param steel  the steel vertex consumer
+     * @param base   the pyramid's base center, camera-relative
+     * @param height its height in blocks
+     * @param radius its base radius in blocks
      */
-    static double gooTop(BlockPos pos, BlockState state) {
-        return pos.getY() + (double) VolumeCellBlock.layersOf(state) / VolumeCellBlock.MAX_LAYERS;
-    }
-
-    private static void drawCell(PoseStack.Pose pose, VertexConsumer chrome, BlockPos pos, double gooTop,
-                                 Layout layout, float shown, Vec3 camera, int sweep) {
-        for (Pyramid pyramid : layout.pyramids()) {
-            double sunk = (1f - shown) * pyramid.height();
-            Vector3f base = new Vector3f((float) (pos.getX() + pyramid.x() - camera.x),
-                    (float) (gooTop - sunk - camera.y), (float) (pos.getZ() + pyramid.z() - camera.z));
-            emitPyramid(pose, chrome, base, pyramid.height(), BASE_RADIUS, sweep);
+    static void emitPyramid(PoseStack.Pose pose, VertexConsumer steel, Vector3f base, float height, float radius) {
+        Vector3f apex = new Vector3f(base).add(0f, height, 0f);
+        Vector3f[] corners = cornersOf(base, radius);
+        for (int side = 0; side < PYRAMID_SIDES; side++) {
+            Vector3f from = corners[side];
+            Vector3f to = corners[(side + 1) % PYRAMID_SIDES];
+            int tone = faceShade(from, to, apex, base);
+            vertex(pose, steel, from, tone);
+            vertex(pose, steel, to, tone);
+            vertex(pose, steel, apex, tone);
+            vertex(pose, steel, apex, tone);
         }
     }
 
     /**
-     * Emits one rigid chrome triangular pyramid standing straight up from its base.
+     * The shades a reference pyramid's three faces take under the fixed light, face by face.
      *
-     * @param pose   the pose, camera-relative
-     * @param chrome Metal's chrome vertex consumer
-     * @param base   the pyramid's base center, camera-relative
-     * @param height its height in blocks
-     * @param radius its base radius in blocks
-     * @param sweep  the chrome band's place, a byte
+     * @return each face's RGB shade
      */
-    static void emitPyramid(PoseStack.Pose pose, VertexConsumer chrome, Vector3f base, float height, float radius,
-                            int sweep) {
-        MetalExplosionVisual.Spike spike = new MetalExplosionVisual.Spike(base, new Vector3f(0f, 1f, 0f), height,
-                radius);
-        MetalExplosionVisual.emitSpike(pose, chrome, spike, sweep, OPAQUE, PYRAMID_SIDES);
+    static int[] faceTones() {
+        Vector3f base = new Vector3f();
+        Vector3f apex = new Vector3f(0f, LEAST_HEIGHT, 0f);
+        Vector3f[] corners = cornersOf(base, BASE_RADIUS);
+        int[] tones = new int[PYRAMID_SIDES];
+        for (int side = 0; side < PYRAMID_SIDES; side++) {
+            tones[side] = faceShade(corners[side], corners[(side + 1) % PYRAMID_SIDES], apex, base) & RGB;
+        }
+        return tones;
+    }
+
+    private static Vector3f[] cornersOf(Vector3f base, float radius) {
+        Vector3f[] corners = new Vector3f[PYRAMID_SIDES];
+        for (int corner = 0; corner < PYRAMID_SIDES; corner++) {
+            double angle = TWO_PI * corner / PYRAMID_SIDES;
+            corners[corner] = new Vector3f(base).add((float) Math.cos(angle) * radius, 0f,
+                    (float) Math.sin(angle) * radius);
+        }
+        return corners;
+    }
+
+    /**
+     * One face's shade: dark steel turned from the light, bright steel turned square to it.
+     *
+     * @param from the face's first base corner
+     * @param to   its second base corner
+     * @param apex the pyramid's apex
+     * @param base the pyramid's base center, which the face's normal points away from
+     * @return the face's opaque ARGB shade
+     */
+    private static int faceShade(Vector3f from, Vector3f to, Vector3f apex, Vector3f base) {
+        Vector3f normal = new Vector3f(to).sub(from).cross(new Vector3f(apex).sub(from)).normalize();
+        Vector3f outward = new Vector3f(from).add(to).mul(HALF).sub(base);
+        if (normal.dot(outward) < 0f) {
+            normal.negate();
+        }
+        float lit = AMBIENT + (1f - AMBIENT) * Math.max(0f, normal.dot(LIGHT));
+        return ARGB.srgbLerp(lit, SHADOW_STEEL, LIT_STEEL);
+    }
+
+    private static void vertex(PoseStack.Pose pose, VertexConsumer steel, Vector3f at, int tone) {
+        steel.addVertex(pose, at.x, at.y, at.z).setColor(tone);
     }
 }

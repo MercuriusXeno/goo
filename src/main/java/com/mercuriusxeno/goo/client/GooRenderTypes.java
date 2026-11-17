@@ -301,6 +301,24 @@ public final class GooRenderTypes {
     public static final RenderType METEOR_ROCK_TYPE = burnoutType(METEOR_ROCK);
 
     /**
+     * Spikes goo's steel pyramids: plain colored quads, each face carrying
+     * its own shade under a fixed light, writing depth so a pyramid's near
+     * faces hide its far ones (operator UAT 2026-11-17: no glisten, edges that
+     * read).
+     * urchin-rests-bristled-and-spears
+     */
+    public static final RenderPipeline SPIKES_STEEL = RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "spikes_steel"))
+            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+            .withDepthStencilState(DepthStencilState.DEFAULT)
+            .withCull(false)
+            .build();
+
+    /** RenderType for Spikes goo's steel pyramids. */
+    public static final RenderType SPIKES_STEEL_TYPE = burnoutType(SPIKES_STEEL);
+
+    /**
      * Unstable goo's burnout explosion pipeline (decision
      * elemental-explosion-per-type): the fireball sphere and its shockwave
      * ring, additive with depth write off and both faces drawn, through
@@ -1735,6 +1753,17 @@ public final class GooRenderTypes {
         event.registerPipeline(SCRY_FACES);
         event.registerPipeline(METEOR_SCORCH);
         event.registerPipeline(METEOR_ROCK);
+        registerSolidSurfacePipelines(event);
+    }
+
+    /**
+     * Registers the pipelines that draw solid surfaces in the world:
+     * Spikes' steel pyramids and the portable hole's mouth, carve and pit.
+     *
+     * @param event the event instance
+     */
+    private static void registerSolidSurfacePipelines(RegisterRenderPipelinesEvent event) {
+        event.registerPipeline(SPIKES_STEEL);
         event.registerPipeline(PORTABLE_HOLE_MOUTH);
         event.registerPipeline(PORTABLE_HOLE_CARVE);
         event.registerPipeline(PORTABLE_HOLE_PIT);
