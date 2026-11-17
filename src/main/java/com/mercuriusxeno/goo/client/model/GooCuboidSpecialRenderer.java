@@ -1,17 +1,12 @@
 package com.mercuriusxeno.goo.client.model;
 
 import com.mercuriusxeno.goo.client.GooSubmitter;
-import com.mercuriusxeno.goo.client.ability.LiftedPalmBlob;
-import com.mercuriusxeno.goo.client.ability.PortalView;
 import com.mercuriusxeno.goo.client.throwing.BlobShape;
 import com.mercuriusxeno.goo.client.throwing.GooFlightRenderer;
-import com.mercuriusxeno.goo.client.zone.RoomBodyCopyRenderer;
-import com.mercuriusxeno.goo.item.GooCasters;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.serialization.MapCodec;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.special.SpecialModelRenderer;
 import net.minecraft.resources.ResourceKey;
@@ -22,15 +17,13 @@ import org.jspecify.annotations.Nullable;
 import java.util.function.Consumer;
 
 /**
- * Special item renderer for the goo item in the level: dropped, held in a
- * hand or set in an item frame, it draws as the palm cuboid, the core inside
- * the translucent shell the glove's palm blob draws, while GUI slots keep the
- * sprite tiers. Held as the player's caster with no glove, the cuboid is
- * the palm blob: it marks the hand the aim line leaves from, and while the
- * blob stands lifted it draws nothing, the local first-person lift drawing in
- * its place as the glove's does.
+ * Special item renderer for the goo item in the level: dropped or set in an
+ * item frame, it draws as the palm cuboid, the core inside the translucent
+ * shell the glove's palm blob draws, while GUI slots keep the sprite tiers.
+ * Held in a hand it draws through {@link GloveSpecialRenderer} as the glove's
+ * palm blob on the bare hand instead
+ * (decision raw-goo-items-work-bare-handed-for-the-held-type).
  * decision goo-item-in-world-draws-as-the-palm-cuboid
- * decision raw-goo-items-work-bare-handed-for-the-held-type
  */
 public class GooCuboidSpecialRenderer implements SpecialModelRenderer<GooCuboidSpecialRenderer.GooCuboid> {
 
@@ -63,38 +56,7 @@ public class GooCuboidSpecialRenderer implements SpecialModelRenderer<GooCuboidS
             return null;
         }
         Float joining = GooJoins.anchorSizeOf(stack);
-        float size = joining != null ? joining : GooCuboidSize.sizeOf(GooStacks.volumeOf(stack));
-        Minecraft mc = Minecraft.getInstance();
-        boolean localCaster = mc.player != null && stack == GooCasters.casterOf(mc.player);
-        boolean lifted = LiftedPalmBlob.liftedFrom(stack);
-        return new GooCuboid(type, size, localCaster, lifted, lifted && LiftedPalmBlob.heldInView(stack));
-    }
-
-    /**
-     * Submits the local first-person lift in the hand's pass in place of the
-     * cuboid, as the glove's palm does; any other lifted cuboid draws nothing,
-     * the level's pass drawing its blob.
-     *
-     * @param data          the lifted cuboid
-     * @param poseStack     the current pose stack
-     * @param nodeCollector the render node collector
-     */
-    private static void submitLift(GooCuboid data, PoseStack poseStack, SubmitNodeCollector nodeCollector) {
-        if (data.liftedInView() && !PortalView.drawing() && !RoomBodyCopyRenderer.drawingCopies()) {
-            LiftedPalmBlob.liftHeldInView().ifPresent(lift -> GloveSpecialRenderer.submitLiftedGoo(poseStack,
-                    nodeCollector, data.type(), lift, standingOffTheCuboid(lift)));
-        }
-    }
-
-    /**
-     * Where the lifted blob stands off the cuboid as it stands up: from the
-     * cuboid's center, up the model.
-     *
-     * @param lift the local player's lift
-     * @return the point in the item's model, in block coords
-     */
-    private static Vector3f standingOffTheCuboid(LiftedPalmBlob.HandLift lift) {
-        return new Vector3f(MODEL_CENTER, MODEL_CENTER + lift.stand() * GooFlightRenderer.SHELL_HW, MODEL_CENTER);
+        return joining != null ? new GooCuboid(type, joining) : GooCuboid.ofVolume(type, GooStacks.volumeOf(stack));
     }
 
     /**
@@ -121,13 +83,6 @@ public class GooCuboidSpecialRenderer implements SpecialModelRenderer<GooCuboidS
             return;
         }
         ResourceKey<GooTypeDefinition> type = data.type();
-        if (data.localCaster()) {
-            GloveSpecialRenderer.captureGooCenter(poseStack, MODEL_CENTER, MODEL_CENTER, MODEL_CENTER);
-        }
-        if (data.lifted()) {
-            submitLift(data, poseStack, nodeCollector);
-            return;
-        }
         BlobShape shape = BlobShape.CUBE.scaled(data.size());
         poseStack.pushPose();
         poseStack.translate(MODEL_CENTER, MODEL_CENTER, MODEL_CENTER);
@@ -153,14 +108,10 @@ public class GooCuboidSpecialRenderer implements SpecialModelRenderer<GooCuboidS
     /**
      * The goo item's render data.
      *
-     * @param type         the goo type the stack carries
-     * @param size         the cuboid's size against a thrown blob's
-     * @param localCaster  whether the stack is the local player's caster, held bare handed
-     * @param lifted       whether a caster's blob stands lifted off this stack
-     * @param liftedInView whether the lift is the local player's, drawn in the first-person hand's pass
+     * @param type the goo type the stack carries
+     * @param size the cuboid's size against a thrown blob's
      */
-    public record GooCuboid(ResourceKey<GooTypeDefinition> type, float size, boolean localCaster, boolean lifted,
-                            boolean liftedInView) {
+    public record GooCuboid(ResourceKey<GooTypeDefinition> type, float size) {
 
         /**
          * The cuboid a stack draws as at rest, sized by its volume.
@@ -171,7 +122,7 @@ public class GooCuboidSpecialRenderer implements SpecialModelRenderer<GooCuboidS
          * @return the cuboid
          */
         public static GooCuboid ofVolume(ResourceKey<GooTypeDefinition> type, double volume) {
-            return new GooCuboid(type, GooCuboidSize.sizeOf(volume), false, false, false);
+            return new GooCuboid(type, GooCuboidSize.sizeOf(volume));
         }
     }
 
