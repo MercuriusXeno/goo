@@ -17,7 +17,7 @@ import static org.mockito.Mockito.mock;
  */
 class NectarStepTest {
 
-    private final List<Step> jellyFeed = List.of(new NectarGooStep(2, 16, 12, 100), new NectarStep());
+    private final List<Step> jellyFeed = List.of(new NectarGooStep(2, 16, 12, 100, 0.5, 0.4), new NectarStep());
 
     @Test
     void feedTakesAnAnimalAndASlime() {

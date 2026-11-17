@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.block.ability.SideCoat;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
@@ -27,8 +28,11 @@ import java.util.function.Consumer;
  * striking a block's top, from a jelly-holding caster who pays for its
  * layer, lays a Nectar cell of one layer there; an adult cow reaching the
  * goo falls in love, eating a layer of it; two zombies reaching it turn on
- * each other over it; and a drip striking a calf grows it, spent on it.
+ * each other over it; a drip striking a calf grows it, spent on it; and a
+ * drip striking a wall's side coats it, a mob in the coated space climbing
+ * it as a ladder.
  * nectar-is-sprayed-goo-with-a-guided-throw-near-a-mob
+ * nectar-is-the-sticky-goo-you-climb-that-nerfs-jumping-and-speed
  * nectar-goo-keeps-feeds-effects-as-a-universal-food
  * each-feeding-eats-a-layer-of-nectar
  */
@@ -39,6 +43,7 @@ public final class NectarTests {
     private static final String COURTS_AN_ADULT_COW = "nectar_goo_courts_an_adult_cow_for_a_layer";
     private static final String SETS_TWO_ZOMBIES_FIGHTING = "nectar_goo_sets_two_zombies_fighting";
     private static final String DRIP_FEEDS_A_STRUCK_CALF = "nectar_drip_feeds_a_struck_calf";
+    private static final String COATS_A_WALL_AND_CLIMBS = "nectar_drip_on_a_wall_coats_it_and_climbs";
     private static final Identifier NECTAR = Identifier.parse("goo:jelly_nectar");
     /** The floor block the drip strikes, walled on its four sides one block up. */
     private static final BlockPos DRIP_FLOOR = new BlockPos(2, 1, 2);
@@ -52,10 +57,15 @@ public final class NectarTests {
     private static final int PEN_WALL_TOP_Y = 4;
     /** Where the calf stands for the strike test, on open stone. */
     private static final BlockPos CALF_FLOOR = new BlockPos(2, 1, 2);
+    /** The stone the wall test's drip strikes, standing clear of the bay's floor. */
+    private static final BlockPos WALL = new BlockPos(2, 3, 2);
     private static final String ABILITY_REQUIRED = "The ability registry must hold jelly_nectar";
     private static final String DRIP_LAYERS_WRONG = "The cell over the floor should be Nectar of one layer, stands %s";
     private static final String COW_NOT_FED = "The cow should fall in love eating a layer: in love %b, the cell stands %s";
     private static final String ZOMBIES_NOT_FIGHTING = "Two zombies at Nectar goo should target each other: %s and %s";
+    private static final String WALL_NOT_COATED = "The cell east of the wall should be Nectar attached to its west side,"
+            + " stands %s";
+    private static final String NOT_CLIMBING = "A zombie in the coated space should read on a climbable";
     private static final String CALF_NOT_FED = "A struck calf should grow to an adult, the drip spent: baby %b, under it %s";
 
     private NectarTests() {
@@ -71,6 +81,7 @@ public final class NectarTests {
         GooTestFunctions.registerTest(registrar, COURTS_AN_ADULT_COW, NectarTests::courtsAnAdultCowForALayer);
         GooTestFunctions.registerTest(registrar, SETS_TWO_ZOMBIES_FIGHTING, NectarTests::setsTwoZombiesFighting);
         GooTestFunctions.registerTest(registrar, DRIP_FEEDS_A_STRUCK_CALF, NectarTests::dripFeedsAStruckCalf);
+        GooTestFunctions.registerTest(registrar, COATS_A_WALL_AND_CLIMBS, NectarTests::coatsAWallAndClimbs);
     }
 
     /**
@@ -147,6 +158,32 @@ public final class NectarTests {
         helper.getLevel().getServer().getPlayerList().remove(caster);
         BlockState under = helper.getBlockState(CALF_FLOOR.above());
         helper.assertTrue(!calf.isBaby() && under.isAir(), String.format(CALF_NOT_FED, calf.isBaby(), under));
+        helper.succeed();
+    }
+
+    /**
+     * One Nectar drip striking a stone wall's east side, from a
+     * jelly-holding caster, coats that side: the cell east of the wall
+     * stands Nectar attached to its west side, and a zombie in that cell
+     * reads on a climbable.
+     *
+     * @param helper the gametest helper
+     */
+    public static void coatsAWallAndClimbs(GameTestHelper helper) {
+        helper.setBlock(WALL, Blocks.STONE);
+        BlockPos coated = WALL.east();
+        helper.setBlock(coated, Blocks.AIR);
+        AbilityDefinition nectar = AbilityRegistry.of(helper.getLevel()).getAbility(NECTAR);
+        helper.assertTrue(nectar != null, ABILITY_REQUIRED);
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.JELLY);
+        KnownRecipes.teachRequires(caster, nectar);
+        LandedDrips.landOnSide(helper, caster, nectar, WALL, Direction.EAST, ONE_DRIP);
+        helper.getLevel().getServer().getPlayerList().remove(caster);
+        BlockState cell = helper.getBlockState(coated);
+        helper.assertTrue(cell.is(GooBlocks.JELLY_NECTAR.get())
+                && cell.getValue(VolumeCellBlock.WEST) == SideCoat.ATTACHED, String.format(WALL_NOT_COATED, cell));
+        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, coated);
+        helper.assertTrue(zombie.onClimbable(), NOT_CLIMBING);
         helper.succeed();
     }
 

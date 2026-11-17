@@ -166,7 +166,7 @@ class StepCodecTest {
             Map.entry("reserve_drain", new ReserveDrainStep(Expr.literal(0.05), Expr.literal(0.5), Expr.literal(10),
                     Expr.literal(0.5))),
             Map.entry("nectar", new NectarStep()),
-            Map.entry("nectar_goo", new NectarGooStep(2, 16, 12, 100)),
+            Map.entry("nectar_goo", new NectarGooStep(2, 16, 12, 100, 0.5, 0.4)),
             Map.entry("seal", new SealStep(Expr.literal(6), Expr.literal(32))),
             Map.entry("elude", new EludeStep(Expr.literal(8))),
             Map.entry("shriek", new ShriekStep(Expr.literal(16), Expr.literal(600))),
