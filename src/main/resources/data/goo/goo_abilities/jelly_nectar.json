@@ -2,7 +2,7 @@
   "gooType": "jelly",
   "displayName": "goo.ability.jelly.nectar",
   "cost_mechanics": "goo.ability.jelly.nectar.cost_mechanics",
-  "badge": "channeled",
+  "badge": "residual",
   "order": 40,
   "cost": 96,
   "cost_formula": "%s/m³",
