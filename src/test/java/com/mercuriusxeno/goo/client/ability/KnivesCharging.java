@@ -21,8 +21,8 @@ import static org.mockito.Mockito.when;
  */
 public final class KnivesCharging implements AutoCloseable {
 
-    /** Knives' charge, as crystal_knives.json gives it: 5 stages of 12 ticks. */
-    public static final Charge KNIVES = new Charge(60, 5, 12);
+    /** Knives' charge, as crystal_knives.json gives it: one knife per 3 ticks up to 10. */
+    public static final Charge KNIVES = new Charge(30, 10, 3);
 
     private final MockedStatic<GloveThrowSender> sender;
 

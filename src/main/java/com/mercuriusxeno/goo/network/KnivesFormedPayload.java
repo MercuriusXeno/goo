@@ -13,7 +13,7 @@ import org.jspecify.annotations.NonNull;
  * sent to the caster and the players watching each time the count changes,
  * 0 once the hold ends, so every client draws the server's fan.
  * decision knives-emerge-from-the-blob-and-hover-in-a-fan
- * decision knives-form-in-fibonacci-stages-to-twelve
+ * decision knives-charge-one-per-three-ticks-up-to-ten
  *
  * @param casterId the caster's entity id
  * @param formed   the knives formed, 0 for no hold

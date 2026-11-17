@@ -646,7 +646,7 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
      * @return true for an arc whose charge forms knives
      */
     public boolean slingsAFan() {
-        return kind == DeliveryKind.ARC && charge.formsInStages();
+        return kind == DeliveryKind.ARC && charge.formsKnives();
     }
 
     /**
