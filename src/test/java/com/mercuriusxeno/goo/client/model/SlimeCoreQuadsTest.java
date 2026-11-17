@@ -34,9 +34,9 @@ import static org.mockito.Mockito.when;
 /**
  * Covers the quads a slime core draws as: a translucent body at half
  * opacity on the cell's goo type's fluid sprite, in the sprite's own colors,
- * following the sloped top from inside, 0.4 px under it and 0.4 px over the
- * floor, 2 px in from each side no goo of its type continues past, ending
- * where the slope leaves no room, and drawing nothing on a face its block
+ * the shell's sloped body at the slime's 3/4, centred: from 1/8 to 7/8 of
+ * the shell's height at every point, 1/8 of a block in from each side no goo
+ * of its type continues past, and drawing nothing on a face its block
  * shares with goo of its type, textured where it stands in its block so the
  * texture runs on across a join. The sprites stand in for the goo types'.
  */
@@ -48,8 +48,10 @@ class SlimeCoreQuadsTest {
     private static final int WHOLE_LAYERS = 15;
     private static final long SWEEP_SEED = 7L;
     private static final int SWEEP_TRIALS = 2000;
-    /** The core's margin under the shell's top and over the floor, in blocks. */
-    private static final float VERTICAL_MARGIN = 0.4f * PIXEL;
+    /** The core's top, as a share of the shell's height over the same point: the slime's 3/4, centred. */
+    private static final float CORE_TOP = 7f / 8;
+    /** The core's floor, as a share of the shell's height over the same point. */
+    private static final float CORE_FLOOR = 1f / 8;
     /** The core's margin in from each open side, in blocks. */
     private static final float SIDE_MARGIN = 2 * PIXEL;
     private static final Identifier BLOCK_ATLAS = Identifier.withDefaultNamespace("textures/atlas/blocks.png");
@@ -86,9 +88,9 @@ class SlimeCoreQuadsTest {
     class Contour {
 
         /**
-         * Every point of the core stands 0.4 px or more under the shell's top
-         * above it and 2 px or more in from each open side, for a block of 12
-         * beside a block of 3, a block of 15 alone and a block of 1 alone.
+         * Every point of the core stands between 1/8 and 7/8 of the shell's
+         * height above it and 2 px or more in from each open side, for a block
+         * of 12 beside a block of 3, a block of 15 alone and a block of 1 alone.
          * slime-core-slopes-with-the-pile-inside-its-contour
          * residual-always-draws-a-core-inside-a-one-eighth-margin
          */
@@ -114,7 +116,7 @@ class SlimeCoreQuadsTest {
 
         /**
          * Seeded neighbourhoods of random cells sweep the contour rule: no
-         * core vertex stands closer than 0.4 px under its shell's top, save
+         * core vertex stands over 7/8 of its shell's height, save
          * in a block goo of its type covers, which draws no top and whose
          * core runs on up the column.
          * slime-core-slopes-with-the-pile-inside-its-contour
@@ -132,8 +134,8 @@ class SlimeCoreQuadsTest {
                 for (BakedQuad quad : coreOf(cells)) {
                     for (int vertex = 0; vertex < BakedQuad.VERTEX_COUNT; vertex++) {
                         Vector3fc at = quad.position(vertex);
-                        assertTrue(at.y() <= shellAt(top, at) - VERTICAL_MARGIN + EPSILON,
-                                "a core vertex at " + at + " rises into its shell's margin at trial " + trial);
+                        assertTrue(at.y() <= shellAt(top, at) * CORE_TOP + EPSILON,
+                                "a core vertex at " + at + " rises over 7/8 of its shell at trial " + trial);
                     }
                 }
             }
@@ -146,8 +148,10 @@ class SlimeCoreQuadsTest {
             for (BakedQuad quad : quads) {
                 for (int vertex = 0; vertex < BakedQuad.VERTEX_COUNT; vertex++) {
                     Vector3fc at = quad.position(vertex);
-                    assertTrue(at.y() <= shellAt(top, at) - VERTICAL_MARGIN + EPSILON,
-                            "a core vertex at " + at + " stands within 0.4 px of the shell's top");
+                    assertTrue(at.y() <= shellAt(top, at) * CORE_TOP + EPSILON,
+                            "a core vertex at " + at + " stands over 7/8 of the shell's height");
+                    assertTrue(at.y() >= shellAt(top, at) * CORE_FLOOR - EPSILON,
+                            "a core vertex at " + at + " stands under 1/8 of the shell's height");
                     for (Direction side : open) {
                         assertTrue(inFrom(side, at) >= SIDE_MARGIN - EPSILON,
                                 "a core vertex at " + at + " stands within 2 px of the open " + side + " side");
@@ -182,12 +186,12 @@ class SlimeCoreQuadsTest {
             assertTrue(six.stream().noneMatch(inPlaneX(0f)), "the 6 draws a core face on the shared edge");
         }
 
-        /** Every core top vertex stands exactly 0.4 px under the sloped top at its place, so no step stands. */
+        /** Every core top vertex stands at exactly 7/8 of the sloped top at its place, so no step stands. */
         private void assertTopFollowsTheSlope(List<BakedQuad> core, SlimeTop top) {
             for (BakedQuad quad : core) {
                 for (int vertex = 0; quad.direction() == Direction.UP && vertex < BakedQuad.VERTEX_COUNT; vertex++) {
                     Vector3fc at = quad.position(vertex);
-                    assertEquals(shellAt(top, at) - VERTICAL_MARGIN, at.y(), EPSILON, "the core's top at " + at);
+                    assertEquals(shellAt(top, at) * CORE_TOP, at.y(), EPSILON, "the core's top at " + at);
                 }
             }
         }
@@ -259,9 +263,9 @@ class SlimeCoreQuadsTest {
 
         /** stacked-goo-cells-share-one-slime-core */
         @Test
-        void aColumnsTopCellOfOneLayerDrawsItsCoreTopFourTenthsOfAPixelUnderItsSurface() {
+        void aColumnsTopCellOfOneLayerDrawsItsCoreTopAtSevenEighthsOfItsSurface() {
             List<BakedQuad> quads = coreOf(new SameGooCells().at(0, 0, 0, 1).at(0, -1, 0, 15));
-            assertTrue(quads.stream().anyMatch(inPlaneY(FIFTEENTH - VERTICAL_MARGIN)
+            assertTrue(quads.stream().anyMatch(inPlaneY(FIFTEENTH * CORE_TOP)
                     .and(quad -> quad.direction() == Direction.UP)));
         }
     }
