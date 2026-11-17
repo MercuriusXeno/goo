@@ -31,6 +31,9 @@ import java.util.concurrent.ConcurrentHashMap;
  * A player arriving in their room is released by a second door standing on
  * them, kept past the teleport and sent each tick until its release ticks pass.
  * decision matching-doorway-opens-in-the-room-and-releases-you
+ * Each door carries its look, so Tartarus' gate is sent drawn with the nether
+ * portal's texture and bursts the nether portal's own particles.
+ * decision tartarus-summons-a-gate-to-the-nether-like-end-and-zone
  */
 @EventBusSubscriber(modid = Goo.MODID)
 public final class ConjuredDoors {
@@ -60,8 +63,9 @@ public final class ConjuredDoors {
      *
      * @param door the door
      * @param tick the server tick it stood
+     * @param look what the door is drawn with
      */
-    private record Standing(ConjuredDoor door, int tick) {
+    private record Standing(ConjuredDoor door, int tick, GateLook look) {
     }
 
     /**
@@ -72,12 +76,13 @@ public final class ConjuredDoors {
      * @param yaw     the way they faced arriving, in degrees
      * @param start   the server tick it began
      * @param door    the door as it stands now
+     * @param look    what the door is drawn with
      */
-    private record Release(ServerPlayer arriver, Vec3 feet, float yaw, int start, ConjuredDoor door) {
+    private record Release(ServerPlayer arriver, Vec3 feet, float yaw, int start, ConjuredDoor door, GateLook look) {
 
         Release at(int now) {
             return new Release(arriver, feet, yaw, start,
-                    ConjuredDoor.releasing(feet, yaw, now - start));
+                    ConjuredDoor.releasing(feet, yaw, now - start), look);
         }
 
         boolean overAt(int now) {
@@ -95,13 +100,27 @@ public final class ConjuredDoors {
      * @return true on the tick the door is first conjured
      */
     public static boolean conjure(ServerPlayer caster, int held, int charge) {
+        return conjure(caster, held, charge, GateLook.STARFIELD);
+    }
+
+    /**
+     * Stands a caster's door drawn with a look where their hold has brought
+     * it this tick and sends it to them and their watchers, conjuring it the first tick.
+     *
+     * @param caster the player channeling
+     * @param held   the hold's tick count
+     * @param charge the ticks the charge takes
+     * @param look   what the door is drawn with
+     * @return true on the tick the door is first conjured
+     */
+    public static boolean conjure(ServerPlayer caster, int held, int charge, GateLook look) {
         ServerLevel level = caster.level();
         ConjuredDoor door = ConjuredDoor.standing(caster.position(), caster.getYRot(), held, charge);
-        Standing before = DOORS.put(caster.getUUID(), new Standing(door, level.getServer().getTickCount()));
+        Standing before = DOORS.put(caster.getUUID(), new Standing(door, level.getServer().getTickCount(), look));
         if (before == null) {
-            showConjuring(level, door);
+            showConjuring(level, door, look);
         }
-        sendDoor(caster, door);
+        sendDoor(caster, door, look);
         return before == null;
     }
 
@@ -126,7 +145,18 @@ public final class ConjuredDoors {
      * @param arriver the player standing on their arrival cell
      */
     public static void release(ServerPlayer arriver) {
-        releaseAt(arriver, arriver.level().getServer().getTickCount());
+        release(arriver, GateLook.STARFIELD);
+    }
+
+    /**
+     * Stands the doorway drawn with a look releasing a player who has just
+     * arrived, on them at full size, and sends it to them and their watchers.
+     *
+     * @param arriver the arriving player
+     * @param look    what the door is drawn with
+     */
+    public static void release(ServerPlayer arriver, GateLook look) {
+        releaseAt(arriver, arriver.level().getServer().getTickCount(), look);
     }
 
     /**
@@ -136,10 +166,14 @@ public final class ConjuredDoors {
      * @param now     the server tick the release begins
      */
     static void releaseAt(ServerPlayer arriver, int now) {
+        releaseAt(arriver, now, GateLook.STARFIELD);
+    }
+
+    private static void releaseAt(ServerPlayer arriver, int now, GateLook look) {
         Release release = new Release(arriver, arriver.position(), arriver.getYRot(), now,
-                ConjuredDoor.releasing(arriver.position(), arriver.getYRot(), 0));
+                ConjuredDoor.releasing(arriver.position(), arriver.getYRot(), 0), look);
         RELEASES.put(arriver.getUUID(), release);
-        sendDoor(arriver, release.door());
+        sendDoor(arriver, release.door(), look);
     }
 
     /**
@@ -147,20 +181,23 @@ public final class ConjuredDoors {
      *
      * @param caster the caster
      * @param door   the door
+     * @param look   what the door is drawn with
      */
-    static void sendDoor(ServerPlayer caster, ConjuredDoor door) {
-        EntityVisuals.sendToWatchers(caster, new ConjuredDoorPayload(caster.getId(), door));
+    static void sendDoor(ServerPlayer caster, ConjuredDoor door, GateLook look) {
+        EntityVisuals.sendToWatchers(caster, new ConjuredDoorPayload(caster.getId(), door, look));
     }
 
     /**
-     * Bursts void where a door is conjured and plays the conjuring sound.
+     * Bursts void, or a nether portal's motes for Tartarus' gate, where a
+     * door is conjured and plays the conjuring sound.
      *
      * @param level the caster's level
      * @param door  the door, at its start
+     * @param look  what the door is drawn with
      */
-    private static void showConjuring(ServerLevel level, ConjuredDoor door) {
+    private static void showConjuring(ServerLevel level, ConjuredDoor door, GateLook look) {
         Vec3 middle = door.at().add(0, DOOR_MIDDLE, 0);
-        level.sendParticles(ParticleTypes.REVERSE_PORTAL, middle.x, middle.y, middle.z, CONJURE_PARTICLES,
+        level.sendParticles(look == GateLook.NETHER_PORTAL ? ParticleTypes.PORTAL : ParticleTypes.REVERSE_PORTAL, middle.x, middle.y, middle.z, CONJURE_PARTICLES,
                 CONJURE_SPREAD, CONJURE_TALL, CONJURE_SPREAD, CONJURE_SPEED);
         level.playSound(null, middle.x, middle.y, middle.z, GooSounds.ZONE_CONJURE.get(), SoundSource.PLAYERS,
                 CONJURE_VOLUME, 1f);
@@ -210,7 +247,7 @@ public final class ConjuredDoors {
         RELEASES.replaceAll((arriver, release) -> {
             Release moved = release.at(now);
             if (now > release.start()) {
-                sendDoor(moved.arriver(), moved.door());
+                sendDoor(moved.arriver(), moved.door(), moved.look());
             }
             return moved;
         });

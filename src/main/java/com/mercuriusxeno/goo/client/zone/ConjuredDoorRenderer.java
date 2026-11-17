@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.zone;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.zone.GateLook;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
@@ -91,6 +92,11 @@ public final class ConjuredDoorRenderer {
      */
     static void submitDoor(SubmitNodeCollector collector, PoseStack poseStack, ClientConjuredDoors.Drawn door,
                            Vec3 camera) {
+        if (door.look() == GateLook.NETHER_PORTAL) {
+            // decision tartarus-summons-a-gate-to-the-nether-like-end-and-zone
+            TartarusGateStandIn.submit(collector, poseStack, door, camera);
+            return;
+        }
         Vec3[] corners = cornersOf(door, camera);
         collector.submitCustomGeometry(poseStack, RenderTypes.endPortal(),
                 (pose, consumer) -> emitBothWaysRound(pose, consumer, corners));
