@@ -61,6 +61,13 @@ public record BlendPalette(float lightRed, float lightGreen, float lightBlue,
      */
     public static final BlendPalette RIME_FROST_BLUES = new BlendPalette(
             0xD5 / 255f, 0xFF / 255f, 0xFF / 255f, 0xAD / 255f, 0xD8 / 255f, 0xE6 / 255f);
+    /**
+     * Wisps' spray drips, from glow's bright yellow, FFFF28, to its wheel
+     * gold, FFD700, the two the glow goo type's definition names.
+     * glow-world-goo-is-named-wisps-and-takes-the-holds-place
+     */
+    public static final BlendPalette WISPS_GLOW_GOLDS = new BlendPalette(
+            0xFF / 255f, 0xFF / 255f, 0x28 / 255f, 0xFF / 255f, 0xD7 / 255f, 0x00 / 255f);
 
     /**
      * The color a share of the way from the light end to the dark.

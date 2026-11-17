@@ -7,14 +7,16 @@ package com.mercuriusxeno.goo.block.ability;
  * harm as any ground does and ramps a thing trying to move on it, slippery as
  * ice; molten stands as ordinary ground, and so does shatter under the
  * shards hanging over it, which cut what moves through them; rime is as
- * slippery as ice and pushes nothing. A goo type binding a world goo to the
- * cell names one.
+ * slippery as ice and pushes nothing; wisps stands as ordinary ground and
+ * smites the undead touching it. A goo type binding a world goo to the cell
+ * names one.
  * slime-and-slick-are-one-volume-cell-tech
  * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
  * shatter-is-splattered-goo-and-shards-form-over-the-splatters
  * bounce-ramps-jump-height-while-jump-is-held
  * slick-coats-the-ground-with-kinetic-speed
  * rime-goo-is-slippery-to-walk-on
+ * undead-touching-wisps-goo-erupt-in-flames-and-take-holy-damage-by-fill
  *
  * @see VolumeCellBlock
  */
@@ -29,7 +31,9 @@ public enum CellSurface {
     /** Shatter's: ordinary ground under the glass shards hanging over it, which cut what moves through them. */
     SHARDS(Frictions.ORDINARY_GROUND),
     /** Rime's: as slippery as ice, moving nothing on it, so a thing slides as on ice with none of slick's push. */
-    GLAZE(Frictions.ICE);
+    GLAZE(Frictions.ICE),
+    /** Wisps': ordinary ground that sets the undead touching it on fire and deals them holy damage. */
+    SMITE(Frictions.ORDINARY_GROUND);
 
     /** The friction a cell bound to this surface stands at, the slipperiness what moves on it meets. */
     private final float friction;
@@ -79,6 +83,13 @@ public enum CellSurface {
      */
     public boolean takesTheStepAtAnyHeight() {
         return ramps() || cuts() || this == GLAZE;
+    }
+
+    /**
+     * @return true where the cell burns the undead touching it and deals them holy damage
+     */
+    public boolean smites() {
+        return this == SMITE;
     }
 
     /** The frictions the surfaces stand at, held apart so the constants above can read them. */

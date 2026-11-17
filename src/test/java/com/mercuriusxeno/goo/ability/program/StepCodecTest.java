@@ -51,10 +51,9 @@ class StepCodecTest {
             Map.entry("nova", new NovaStep(Expr.parse("2 + 6 * charge").getOrThrow(),
                     Expr.parse("4 + 12 * charge").getOrThrow(), 0.05f, 0.4f, new FrostCurve(300, 0.005f, 0.5f, 3f))),
             Map.entry("freeze_blocks", new FreezeBlocksStep(Expr.literal(2))),
-            Map.entry("cool_lava", new CoolLavaStep()),
             Map.entry("coat", new CoatStep()),
             Map.entry("slick", new SlickStep(1.03, 1.08, 40, 1, 0.3)),
-            Map.entry("vacuum", new VacuumStep(1.25)),
+            Map.entry("vacuum", new VacuumStep(6, 30)),
             Map.entry("vacuum_pull", new VacuumPullStep(0.05, 1, 0.2, 1.5)),
             Map.entry("wobble", new WobbleStep(Expr.literal(600))),
             Map.entry("detect_ore", new DetectOreStep(TagKey.create(Registries.BLOCK,
@@ -74,8 +73,8 @@ class StepCodecTest {
             Map.entry("ignite", LeafSteps.IGNITE.step(Expr.literal(10))),
             Map.entry("light_fire", LeafSteps.LIGHT_FIRE.step(Unit.INSTANCE)),
             Map.entry("detonate_explosive", LeafSteps.DETONATE_EXPLOSIVE.step(Expr.literal(2.5))),
-            Map.entry("molten", new MoltenStep(TagKey.create(Registries.BLOCK,
-                    Identifier.fromNamespaceAndPath("goo", "meltable")), 40)),
+            Map.entry("molten", new MoltenStep(Map.of(Identifier.fromNamespaceAndPath("minecraft", "lava"),
+                    List.of("#goo:meltable")), 40)),
             Map.entry("shatter", new ShatterStep(List.of(EntityFilter.LIVING), Expr.literal(1), List.of(),
                     Expr.literal(0.02))),
             Map.entry("host", new HostStep(3, 8)),
@@ -129,7 +128,7 @@ class StepCodecTest {
             Map.entry("sight", new SightStep(Expr.literal(3))),
             Map.entry("lux", new LuxStep()),
             Map.entry("unveil", new UnveilStep()),
-            Map.entry("wisps", new WispsStep(64, 4000, 1200, 0, true, 0.8, 0.25)),
+            Map.entry("wisps", new WispsStep(0.5, 20, 40, 0.25, 1200)),
             Map.entry("reflector", new ReflectorStep(20)),
             Map.entry("ray", new RayStep(32, 10, List.of(EntityFilter.LIVING), new RayStep.Refraction(16, 1.5, 0.85),
                     List.of(new DamageStep(Expr.parse("(4 + 4 * undead) * share").getOrThrow(), DamageKind.MAGIC)),
@@ -369,6 +368,14 @@ class StepCodecTest {
     @Test
     void extinguishDecodesFromItsTypeAlone() {
         assertEquals(new ExtinguishStep(), decode("{\"type\": \"extinguish\"}").getOrThrow());
+    }
+
+    // goop-stops-turning-lava-into-magma
+    @Test
+    void aStepListCarryingCoolLavaLoadsTheCoatAlone() {
+        String json = "[{\"type\": \"cool_lava\"}, {\"type\": \"coat\"}]";
+        List<Step> steps = StepTypes.LIST_CODEC.parse(JsonOps.INSTANCE, JsonParser.parseString(json)).getOrThrow();
+        assertEquals(List.of(new CoatStep()), steps);
     }
 
     @Test

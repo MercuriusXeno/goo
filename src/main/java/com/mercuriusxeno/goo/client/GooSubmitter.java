@@ -131,16 +131,6 @@ public final class GooSubmitter {
     }
 
     /**
-     * Returns the solid render type on the block atlas, for an opaque draw
-     * of a goo sprite such as the thrown goo's core.
-     *
-     * @return entitySolid on the block atlas
-     */
-    public static RenderType solidOnBlockAtlas() {
-        return solidOn(BLOCK_ATLAS);
-    }
-
-    /**
      * Returns the cutout render type on the block atlas, for an opaque body
      * whose texture leaves holes, drawn from both sides like entityTranslucent
      * but without blending, so the hand pass draws it with the solid geometry

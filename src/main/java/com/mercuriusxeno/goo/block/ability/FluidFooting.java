@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.block.ability;
 
 import net.minecraft.tags.FluidTags;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.FluidState;
 
@@ -56,13 +55,14 @@ public enum FluidFooting {
     }
 
     /**
-     * Whether a cell lies on a block: a water or lava source this footing names.
+     * Whether a cell lies on a block: one holding a water or lava source this
+     * footing names, read by the fluid's tag, so Molten lies on molten iron
+     * as on lava.
      *
      * @param footing the block under the cell
      * @return true where the cell lies on it as on a sturdy top
      */
     public boolean liesOn(BlockState footing) {
-        boolean named = water && footing.is(Blocks.WATER) || lava && footing.is(Blocks.LAVA);
-        return named && footing.getFluidState().isSource();
+        return stopsAt(footing.getFluidState());
     }
 }

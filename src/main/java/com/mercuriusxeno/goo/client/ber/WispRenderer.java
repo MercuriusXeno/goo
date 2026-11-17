@@ -110,10 +110,22 @@ public class WispRenderer implements BlockEntityRenderer<WispBlockEntity, WispRe
         float strength = strength(state.fade) * fadeIn(state.age);
         Vec3 center = Vec3.atCenterOf(state.blockPos).add(0, bob(state.seed, state.time), 0);
         // operator UAT 2026-10-10: water drew over the wisps, so they draw after the translucent blocks
-        WispGlow.queue(new WispGlow.Sprite(center, state.time * turn(state.seed), (pose, consumer) -> {
-            emitCube(pose, consumer, HALO_HALF * strength, ARGB.color(Math.round(HALO_ALPHA * strength), HALO_RGB));
-            emitCube(pose, consumer, CORE_HALF * strength, ARGB.color(Math.round(CORE_ALPHA * strength), CORE_RGB));
-        }));
+        WispGlow.queue(new WispGlow.Sprite(center, state.time * turn(state.seed),
+                (pose, consumer) -> drawMote(pose, consumer, strength)));
+    }
+
+    /**
+     * Emits a wisp's mote about the pose's origin: the glow-yellow halo cube
+     * with the near-white core inside it, both shrunk and dimmed by a share.
+     * wisps-travel-as-entities-then-settle-as-glowy-air-blocks
+     *
+     * @param pose     the pose at the mote's center
+     * @param consumer the vertex consumer, position and color
+     * @param strength how much of the mote shows, zero to one
+     */
+    public static void drawMote(PoseStack.Pose pose, VertexConsumer consumer, float strength) {
+        emitCube(pose, consumer, HALO_HALF * strength, ARGB.color(Math.round(HALO_ALPHA * strength), HALO_RGB));
+        emitCube(pose, consumer, CORE_HALF * strength, ARGB.color(Math.round(CORE_ALPHA * strength), CORE_RGB));
     }
 
     /**

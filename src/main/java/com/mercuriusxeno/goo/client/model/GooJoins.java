@@ -188,7 +188,7 @@ public final class GooJoins {
         poseStack.translate(center.x - camera.x, center.y - camera.y, center.z - camera.z);
         poseStack.scale(stretch(halfSpan.x, halfWidth), stretch(halfSpan.y, halfWidth),
                 stretch(halfSpan.z, halfWidth));
-        GooFlightRenderer.emitCore(poseStack.last(), buffers.getBuffer(GooSubmitter.solidOnBlockAtlas()), type,
+        GooFlightRenderer.emitCore(poseStack.last(), buffers.getBuffer(GooSubmitter.renderType()), type,
                 gameTime, BlobShape.CUBE);
         GooFlightRenderer.emitShell(poseStack.last(), buffers.getBuffer(GooSubmitter.renderType()), type, BlobShape.CUBE);
         poseStack.popPose();
