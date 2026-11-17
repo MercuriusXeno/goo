@@ -14,14 +14,14 @@ public record ServerFallLanding(MinecraftServer server) implements LayerFalls.La
     @Override
     public boolean land(LayerFalls.Fall fall) {
         ServerLevel level = server.getLevel(fall.dimension());
-        return level != null && fall.cell().landFall(level, fall.start());
+        return level != null && fall.cell().landFall(level, fall.start(), fall.placer());
     }
 
     @Override
     public void landNow(LayerFalls.Fall fall) {
         ServerLevel level = server.getLevel(fall.dimension());
         if (level != null) {
-            fall.cell().landFallNow(level, fall.start());
+            fall.cell().landFallNow(level, fall.start(), fall.placer());
         }
     }
 }

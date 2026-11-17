@@ -17,10 +17,12 @@ import org.jspecify.annotations.Nullable;
 import java.util.function.Consumer;
 
 /**
- * Special item renderer for the goo item in the level: dropped, held in a
- * hand or set in an item frame, it draws as the palm cuboid, the core inside
- * the translucent shell the glove's palm blob draws, while GUI slots keep the
- * sprite tiers.
+ * Special item renderer for the goo item in the level: dropped or set in an
+ * item frame, it draws as the palm cuboid, the core inside the translucent
+ * shell the glove's palm blob draws, while GUI slots keep the sprite tiers.
+ * Held in a hand it draws through {@link GloveSpecialRenderer} as the glove's
+ * palm blob on the bare hand instead
+ * (decision raw-goo-items-work-bare-handed-for-the-held-type).
  * decision goo-item-in-world-draws-as-the-palm-cuboid
  */
 public class GooCuboidSpecialRenderer implements SpecialModelRenderer<GooCuboidSpecialRenderer.GooCuboid> {

@@ -1,0 +1,288 @@
+package com.mercuriusxeno.goo.gametest;
+
+import com.mercuriusxeno.goo.ability.AbilityDefinition;
+import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.hex.Charmed;
+import com.mercuriusxeno.goo.ability.program.DamageStep;
+import com.mercuriusxeno.goo.ability.world.AbilityImpact;
+import com.mercuriusxeno.goo.ability.zoo.Rallied;
+import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
+import com.mercuriusxeno.goo.registry.GooAttachments;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import com.mercuriusxeno.goo.type.GooTypes;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.ProblemReporter;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.damagesource.DamageType;
+import net.minecraft.world.damagesource.DamageTypes;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.storage.TagValueInput;
+import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import org.jspecify.annotations.Nullable;
+import java.util.UUID;
+import java.util.function.Consumer;
+
+/**
+ * Gametests for the hits a standing goo field deals: Urchin's spikes, landed through the shipped ability, strike
+ * naming the player who threw Urchin and keeping goo:stalagmite, strike naming no one where no player threw it,
+ * leave that player's rally and charm standing on the mobs struck, and the field's block entity carries the
+ * player through a save.
+ * standing-goo-thing-credits-whoever-placed-it
+ * goo-hit-keeps-its-kind-and-names-the-player-behind-it
+ * crediting-a-goo-hit-changes-nothing-else
+ */
+@RegistersGameTests
+public final class StandingFieldCreditTests {
+    private static final String URCHIN_NAMES_ITS_THROWER = "standing_credit_urchin_names_the_player_who_threw_it";
+    private static final String UNTHROWN_URCHIN_NAMES_NONE = "standing_credit_urchin_no_player_threw_names_no_entity";
+    private static final String URCHIN_KEEPS_RALLY_AND_CHARM = "standing_credit_urchin_keeps_rally_and_charm";
+    private static final String URCHIN_PLACER_SURVIVES_A_SAVE = "standing_credit_urchin_placer_survives_a_save";
+    private static final String LURKER_NAMES_ITS_THROWER = "standing_credit_lurker_names_the_player_who_threw_it";
+    private static final String UNTHROWN_LURKER_NAMES_NONE = "standing_credit_lurker_no_player_threw_names_no_entity";
+    private static final String VINES_THORNS_NAME_THEIR_THROWER =
+            "standing_credit_vines_thorns_name_the_player_who_threw_them";
+    private static final String UNSTABLE_LURKER = "goo:unstable_lurker";
+    private static final String LEAF_VINES = "goo:leaf_vines";
+    private static final String SHOULD_NAME = "%s should hit as %s naming %s, its latest such hit named %s";
+    /** The floor block missed Vines land on; they stand in the cell above it, where the husk stands. */
+    private static final BlockPos FLOOR_UNDER_THE_VINES = new BlockPos(3, 0, 3);
+    /** Ticks past the landing by which the vines' field has rooted the husk standing in it. */
+    private static final int ROOTED_BY_TICK = 5;
+    /** Ticks the rooted husk is shoved east, past the vines' first thorn. */
+    private static final int SHOVE_TICKS = 30;
+    /** A shove far past the root's leash in one tick. */
+    private static final Vec3 SHOVE = new Vec3(0.6, 0, 0);
+
+    private static final String METAL_URCHIN = "goo:metal_urchin";
+    private static final String ABILITIES_REQUIRED = "Ability registry must hold " + METAL_URCHIN;
+    private static final String NOT_STRUCK = "The Urchin field has not struck the %s yet";
+    private static final String SHOULD_NAME_THE_THROWER =
+            "Urchin's strike should name the player who threw it as goo:stalagmite, last hit by %s from %s";
+    private static final String SHOULD_NAME_NONE =
+            "Urchin's strike with no player behind it should name no entity as goo:stalagmite, last hit by %s from %s";
+    private static final String SHOULD_KEEP = "The thrower's own %s should keep its %s after Urchin struck it, holds it %s";
+    private static final String PLACER_LOST = "The reloaded Urchin block entity holds placer %s, the player who threw it was %s";
+
+    /** The block Urchin's goo lands on; the field stands in the cell above it. */
+    private static final BlockPos STRUCK = new BlockPos(3, 1, 3);
+    private static final BlockPos FIELD = STRUCK.above();
+    /** Two mob cells, each two and a half blocks from the field's center, inside its 3.75 block reach. */
+    private static final BlockPos SOUTH_OF_THE_FIELD = new BlockPos(3, 1, 5);
+    private static final BlockPos EAST_OF_THE_FIELD = new BlockPos(5, 1, 3);
+    /** Blocks above the field the thrower hangs, out of the field's reach so it strikes only the mobs. */
+    private static final int THROWER_HEIGHT = 12;
+    /** Health enough for a mob to outlast every charge an Urchin field holds. */
+    private static final float HARDY_HEALTH = 1024f;
+    private static final float RALLY_DAMAGE = 6f;
+
+    private StandingFieldCreditTests() {
+    }
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, URCHIN_NAMES_ITS_THROWER,
+                StandingFieldCreditTests::urchinStrikeNamesThePlayerWhoThrewIt);
+        GooTestFunctions.registerTest(registrar, UNTHROWN_URCHIN_NAMES_NONE,
+                StandingFieldCreditTests::urchinStrikeNoPlayerThrewNamesNoEntity);
+        GooTestFunctions.registerTest(registrar, URCHIN_KEEPS_RALLY_AND_CHARM,
+                StandingFieldCreditTests::urchinStrikeKeepsTheThrowersRallyAndCharm);
+        GooTestFunctions.registerTest(registrar, URCHIN_PLACER_SURVIVES_A_SAVE,
+                StandingFieldCreditTests::urchinPlacerSurvivesASave);
+        GooTestFunctions.registerTest(registrar, LURKER_NAMES_ITS_THROWER,
+                StandingFieldCreditTests::lurkerBlastNamesThePlayerWhoThrewIt);
+        GooTestFunctions.registerTest(registrar, UNTHROWN_LURKER_NAMES_NONE,
+                StandingFieldCreditTests::lurkerBlastNoPlayerThrewNamesNoEntity);
+        GooTestFunctions.registerTest(registrar, VINES_THORNS_NAME_THEIR_THROWER,
+                StandingFieldCreditTests::vinesThornsNameThePlayerWhoThrewThem);
+    }
+
+    /**
+     * A Lurker landed for a mock player explodes on a pig that comes within its reach, the blast naming that
+     * player as minecraft:explosion.
+     *
+     * @param helper the gametest helper
+     */
+    public static void lurkerBlastNamesThePlayerWhoThrewIt(GameTestHelper helper) {
+        ServerPlayer thrower = throwerOverhead(helper);
+        Mob pig = hardy(helper.spawnWithNoFreeWill(EntityType.PIG, SOUTH_OF_THE_FIELD));
+        land(helper, STRUCK, UNSTABLE_LURKER, GooTypes.UNSTABLE, thrower.getUUID());
+        succeedOnceNamed(helper, pig, "Lurker's blast", DamageTypes.EXPLOSION, thrower);
+    }
+
+    /**
+     * A Lurker landed with no player behind it explodes on a pig within its reach, the blast naming no entity as
+     * minecraft:explosion.
+     *
+     * @param helper the gametest helper
+     */
+    public static void lurkerBlastNoPlayerThrewNamesNoEntity(GameTestHelper helper) {
+        Mob pig = hardy(helper.spawnWithNoFreeWill(EntityType.PIG, SOUTH_OF_THE_FIELD));
+        land(helper, STRUCK, UNSTABLE_LURKER, GooTypes.UNSTABLE, null);
+        succeedOnceNamed(helper, pig, "Lurker's blast", DamageTypes.EXPLOSION, null);
+    }
+
+    /**
+     * Leaf Vines missed onto the floor for a mock player stand, root a husk standing in them, and the thorns the
+     * husk takes once shoved off its root name that player as minecraft:sweet_berry_bush.
+     *
+     * @param helper the gametest helper
+     */
+    public static void vinesThornsNameThePlayerWhoThrewThem(GameTestHelper helper) {
+        ServerPlayer thrower = throwerOverhead(helper);
+        helper.setBlock(FLOOR_UNDER_THE_VINES, Blocks.STONE);
+        Mob husk = hardy(helper.spawnWithNoFreeWill(EntityType.HUSK, FLOOR_UNDER_THE_VINES.above()));
+        land(helper, FLOOR_UNDER_THE_VINES, LEAF_VINES, GooTypes.LEAF, thrower.getUUID());
+        for (int tick = ROOTED_BY_TICK; tick < ROOTED_BY_TICK + SHOVE_TICKS; tick++) {
+            helper.runAfterDelay(tick, () -> {
+                husk.setDeltaMovement(SHOVE);
+                husk.hurtMarked = true;
+            });
+        }
+        succeedOnceNamed(helper, husk, "Vines' thorns", DamageTypes.SWEET_BERRY_BUSH, thrower);
+    }
+
+    // a mob's last hit may be a fall or a fire it took since, so the test holds the latest hit of the type it awaits
+    private static void succeedOnceNamed(GameTestHelper helper, Mob mob, String hitBy, ResourceKey<DamageType> type,
+                                         @Nullable ServerPlayer player) {
+        DamageSource[] latest = {null};
+        helper.succeedWhen(() -> {
+            DamageSource now = mob.getLastDamageSource();
+            latest[0] = now != null && now.is(type) ? now : latest[0];
+            helper.assertTrue(latest[0] != null, String.format(NOT_STRUCK, mob.getName().getString()));
+            helper.assertTrue(latest[0].getEntity() == player, String.format(SHOULD_NAME, hitBy, type.identifier(),
+                    player == null ? "no one" : player.getName().getString(), causeOf(latest[0])));
+            if (player != null) {
+                helper.getLevel().getServer().getPlayerList().remove(player);
+            }
+        });
+    }
+
+    private static void land(GameTestHelper helper, BlockPos struck, String abilityId,
+                             ResourceKey<GooTypeDefinition> type, @Nullable UUID thrower) {
+        AbilityDefinition ability = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(abilityId));
+        helper.assertTrue(ability != null, "Ability registry must hold " + abilityId);
+        AbilityImpact.land(helper.getLevel(), helper.absolutePos(struck), type, Direction.UP, ability, null, 0,
+                thrower);
+    }
+
+    /**
+     * Urchin, landed for a mock player, strikes a pig in its field with goo:stalagmite naming that player.
+     *
+     * @param helper the gametest helper
+     */
+    public static void urchinStrikeNamesThePlayerWhoThrewIt(GameTestHelper helper) {
+        ServerPlayer thrower = throwerOverhead(helper);
+        Mob pig = hardy(helper.spawnWithNoFreeWill(EntityType.PIG, SOUTH_OF_THE_FIELD));
+        landUrchin(helper, thrower.getUUID());
+        helper.succeedWhen(() -> {
+            DamageSource last = struck(helper, pig, "pig");
+            helper.assertTrue(last.getEntity() == thrower && last.is(DamageStep.STALAGMITE),
+                    String.format(SHOULD_NAME_THE_THROWER, causeOf(last), last));
+            helper.getLevel().getServer().getPlayerList().remove(thrower);
+        });
+    }
+
+    /**
+     * Urchin, landed with no player behind it, strikes a pig in its field with goo:stalagmite naming no entity.
+     *
+     * @param helper the gametest helper
+     */
+    public static void urchinStrikeNoPlayerThrewNamesNoEntity(GameTestHelper helper) {
+        Mob pig = hardy(helper.spawnWithNoFreeWill(EntityType.PIG, SOUTH_OF_THE_FIELD));
+        landUrchin(helper, null);
+        helper.succeedWhen(() -> {
+            DamageSource last = struck(helper, pig, "pig");
+            helper.assertTrue(last.getEntity() == null && last.is(DamageStep.STALAGMITE),
+                    String.format(SHOULD_NAME_NONE, causeOf(last), last));
+        });
+    }
+
+    /**
+     * Urchin, landed for a mock player, strikes a cow that player rallied and a husk that player charmed, and
+     * both the rally and the charm still stand once each has been struck.
+     *
+     * @param helper the gametest helper
+     */
+    public static void urchinStrikeKeepsTheThrowersRallyAndCharm(GameTestHelper helper) {
+        ServerPlayer thrower = throwerOverhead(helper);
+        Mob cow = hardy(helper.spawnWithNoFreeWill(EntityType.COW, SOUTH_OF_THE_FIELD));
+        cow.setData(GooAttachments.RALLIED, new Rallied(thrower.getUUID(), RALLY_DAMAGE));
+        Mob husk = hardy(helper.spawnWithNoFreeWill(EntityType.HUSK, EAST_OF_THE_FIELD));
+        husk.setData(GooAttachments.CHARMED, new Charmed(thrower.getUUID()));
+        landUrchin(helper, thrower.getUUID());
+        helper.succeedWhen(() -> {
+            struck(helper, cow, "rallied cow");
+            struck(helper, husk, "charmed husk");
+            helper.assertTrue(cow.hasData(GooAttachments.RALLIED),
+                    String.format(SHOULD_KEEP, "cow", "rally", cow.hasData(GooAttachments.RALLIED)));
+            helper.assertTrue(husk.hasData(GooAttachments.CHARMED),
+                    String.format(SHOULD_KEEP, "husk", "charm", husk.hasData(GooAttachments.CHARMED)));
+            helper.getLevel().getServer().getPlayerList().remove(thrower);
+        });
+    }
+
+    /**
+     * Urchin's block entity, landed for a player, saves to a tag through its codec, and a fresh block entity
+     * loaded from that tag holds the same player as the field's placer.
+     *
+     * @param helper the gametest helper
+     */
+    public static void urchinPlacerSurvivesASave(GameTestHelper helper) {
+        UUID thrower = UUID.randomUUID();
+        landUrchin(helper, thrower);
+        AbilityBlockEntity standing = helper.getBlockEntity(FIELD, AbilityBlockEntity.class);
+        CompoundTag saved = standing.saveCustomOnly(helper.getLevel().registryAccess());
+        AbilityBlockEntity reloaded = new AbilityBlockEntity(standing.getBlockPos(), standing.getBlockState());
+        reloaded.loadCustomOnly(TagValueInput.create(ProblemReporter.DISCARDING, helper.getLevel().registryAccess(),
+                saved));
+        helper.assertTrue(thrower.equals(reloaded.placer()), String.format(PLACER_LOST, reloaded.placer(), thrower));
+        helper.succeed();
+    }
+
+    private static void landUrchin(GameTestHelper helper, @Nullable UUID thrower) {
+        helper.setBlock(STRUCK, Blocks.STONE);
+        AbilityDefinition urchin = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(METAL_URCHIN));
+        helper.assertTrue(urchin != null, ABILITIES_REQUIRED);
+        AbilityImpact.land(helper.getLevel(), helper.absolutePos(STRUCK), GooTypes.METAL, Direction.UP, urchin,
+                null, 0, thrower);
+    }
+
+    private static DamageSource struck(GameTestHelper helper, Mob mob, String name) {
+        DamageSource last = mob.getLastDamageSource();
+        helper.assertTrue(last != null, String.format(NOT_STRUCK, name));
+        return last;
+    }
+
+    private static Mob hardy(Mob mob) {
+        mob.getAttribute(Attributes.MAX_HEALTH).setBaseValue(HARDY_HEALTH);
+        mob.setHealth(HARDY_HEALTH);
+        return mob;
+    }
+
+    private static String causeOf(DamageSource source) {
+        return source.getEntity() == null ? "no one" : source.getEntity().getName().getString();
+    }
+
+    @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
+    private static ServerPlayer throwerOverhead(GameTestHelper helper) {
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        Vec3 hang = Vec3.atBottomCenterOf(helper.absolutePos(FIELD.above(THROWER_HEIGHT)));
+        player.setNoGravity(true);
+        player.setPos(hang.x, hang.y, hang.z);
+        return player;
+    }
+}

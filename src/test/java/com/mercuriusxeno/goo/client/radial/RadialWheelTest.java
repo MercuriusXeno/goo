@@ -186,6 +186,31 @@ class RadialWheelTest {
         }
     }
 
+    /**
+     * The wheel offers the types the player's caster casts: every type for a glove, the held goo's alone for raw goo
+     * held bare handed, and none with neither (decision raw-goo-items-work-bare-handed-for-the-held-type).
+     */
+    @Nested
+    class CastableTypes {
+
+        private static final List<String> ORDER = List.of("astral", "blaze", "crystal");
+
+        @Test
+        void aBareHandHoldingRawGooOffersTheHeldTypeAlone() {
+            assertEquals(List.of("blaze"), RadialWheel.castableTypes(ORDER, false, "blaze"));
+        }
+
+        @Test
+        void aGlovedHandOffersEveryType() {
+            assertEquals(ORDER, RadialWheel.castableTypes(ORDER, true, null));
+        }
+
+        @Test
+        void aHandHoldingNeitherGloveNorRawGooOffersNothing() {
+            assertEquals(List.of(), RadialWheel.castableTypes(ORDER, false, null));
+        }
+    }
+
     /** The wheel shows only types the player holds with abilities to offer (decision wheel-shows-only-held-types-with-abilities). */
     @Nested
     class ShownTypes {
