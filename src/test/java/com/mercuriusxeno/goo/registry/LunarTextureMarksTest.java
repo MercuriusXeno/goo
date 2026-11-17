@@ -126,7 +126,7 @@ class LunarTextureMarksTest {
     }
 
     static Stream<String> groundSprites() {
-        return LunarPaletteTest.LUNAR_SPRITES.stream();
+        return LunarPaletteTest.GROUND_SPRITES.stream();
     }
 
     @ParameterizedTest
