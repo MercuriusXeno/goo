@@ -45,7 +45,7 @@ public final class GooFlightRenderer {
      * inner cube in its 8 px outer one.
      * goo-cuboid-core-is-three-quarters-of-its-shell
      */
-    private static final float CORE_SHARE_OF_SHELL = 0.75f;
+    public static final float CORE_SHARE_OF_SHELL = 0.75f;
     /**
      * Half-width of the core cuboid at rest, between pulses.
      */

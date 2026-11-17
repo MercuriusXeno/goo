@@ -48,6 +48,7 @@ import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyFloat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -102,7 +103,27 @@ class VolumeCellLookTest {
                 List<String> shells = partsAt(cell.blockId(), layers, false);
                 assertFalse(shells.isEmpty(), cell.blockId() + " draws nothing at " + layers + " layers");
                 for (String model : shells) {
-                    assertDrawsGoo(model, fluid);
+                    ResolvedModel resolved = resolve(model);
+                    assertEquals(fluid, resolved.texture("#particle"), model + " breaks into another texture");
+                    assertEquals(fluid, resolved.texture("#goo"), model + " draws another texture");
+                    assertEquals(ChunkSectionLayer.TRANSLUCENT, bakedLayerOf(resolved.material("#goo")),
+                            model + " bakes onto another layer than the translucent one");
+                }
+            }
+        }
+
+        /**
+         * No goo block's shell draws a flat layer model for its top: the
+         * shell names the goo's material alone, and the slime core model
+         * builds the sloped top and its rims from the level
+         * (decision goo-block-top-slopes-to-the-average-with-the-adjoining-block).
+         */
+        @ParameterizedTest
+        @MethodSource("com.mercuriusxeno.goo.client.model.VolumeCellLookTest#cells")
+        void noShellDrawsAFlatLayerModelForItsTop(Cell cell) {
+            for (int layers = 1; layers <= VolumeCellBlock.MAX_LAYERS; layers++) {
+                for (String model : partsAt(cell.blockId(), layers, false)) {
+                    assertTrue(resolve(model).faces().isEmpty(), model + " draws a flat layer model");
                 }
             }
         }
@@ -128,28 +149,16 @@ class VolumeCellLookTest {
         }
 
         /**
-         * A whole block's shell top stands on the block's face, where a core
-         * running up the column meets it, so it culls under the cell above; a
-         * lower top stands inside its block and always draws.
+         * Slime names its drips at every height its fill stands, which the
+         * slime core model turns to each side, and none at fill 0, whose goo
+         * stands in films alone.
          */
-        @ParameterizedTest
-        @MethodSource("com.mercuriusxeno.goo.client.model.VolumeCellLookTest#cells")
-        void onlyAWholeBlocksShellTopCullsAgainstTheCellAbove(Cell cell) {
-            for (int layers = 1; layers <= VolumeCellBlock.MAX_LAYERS; layers++) {
-                for (String model : partsAt(cell.blockId(), layers, false)) {
-                    String expected = layers == VolumeCellBlock.MAX_LAYERS ? "up" : null;
-                    JsonObject top = upFaceOf(model);
-                    assertEquals(expected, top.has("cullface") ? top.get("cullface").getAsString() : null,
-                            model + "'s top");
-                }
-            }
-        }
-
         @Test
-        void slimeDripsOnEverySideAtEveryHeight() {
+        void slimeNamesItsDripsAtEveryHeightOfFill() {
             for (int layers = 1; layers <= VolumeCellBlock.MAX_LAYERS; layers++) {
-                assertEquals(4, partsAt("slime_coat", layers, true).size(), "drips at " + layers + " layers");
+                assertEquals(1, partsAt("slime_coat", layers, true).size(), "drips at " + layers + " layers");
             }
+            assertEquals(List.of(), partsAt("slime_coat", 0, true));
         }
     }
 
@@ -184,17 +193,17 @@ class VolumeCellLookTest {
     }
 
     /**
-     * The models a block state applies at a height: its body, or its drips.
+     * The models a block state applies at a height: its body's shell, or the
+     * drips the slime core model turns to each side no cell of its goo continues.
      */
     private static List<String> partsAt(String blockId, int layers, boolean drips) {
         List<String> models = new ArrayList<>();
+        String key = drips ? "drips" : "shell";
         for (JsonElement part : read(BLOCKSTATE.formatted(blockId)).getAsJsonArray("multipart")) {
             JsonObject when = part.getAsJsonObject().getAsJsonObject("when");
-            boolean drip = when.keySet().stream().anyMatch(key -> !"layers".equals(key));
-            if (String.valueOf(layers).equals(when.get("layers").getAsString()) && drip == drips) {
-                JsonObject apply = part.getAsJsonObject().getAsJsonObject("apply");
-                JsonObject variant = apply.has("shell") ? apply.getAsJsonObject("shell") : apply;
-                models.add(variant.get("model").getAsString());
+            JsonObject apply = part.getAsJsonObject().getAsJsonObject("apply");
+            if (String.valueOf(layers).equals(when.get("layers").getAsString()) && apply.has(key)) {
+                models.add(apply.getAsJsonObject(key).get("model").getAsString());
             }
         }
         return models;
@@ -244,27 +253,6 @@ class VolumeCellLookTest {
         return FaceBakery.bakeQuad(baker, new Vector3f(0, 0, 0), new Vector3f(16, 8, 16), face,
                 new Material.Baked(sprite, material.forceTranslucent()), Direction.UP, BlockModelRotation.IDENTITY,
                 null, true, 0).materialInfo().layer();
-    }
-
-    /**
-     * The up face of the nearest elements a model or its parents carry.
-     */
-    private static JsonObject upFaceOf(String model) {
-        String next = model;
-        while (next != null) {
-            JsonObject json = read(MODEL.formatted(next.substring(next.indexOf(':') + 1)));
-            if (json.has("elements")) {
-                for (JsonElement element : json.getAsJsonArray("elements")) {
-                    JsonObject faces = element.getAsJsonObject().getAsJsonObject("faces");
-                    if (faces.has("up")) {
-                        return faces.getAsJsonObject("up");
-                    }
-                }
-                break;
-            }
-            next = json.has("parent") ? json.get("parent").getAsString() : null;
-        }
-        throw new AssertionError(model + " draws no top");
     }
 
     /**
