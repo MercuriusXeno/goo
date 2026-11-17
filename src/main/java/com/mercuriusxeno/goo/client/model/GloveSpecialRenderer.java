@@ -4,7 +4,6 @@ import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.ability.ChargeMotes;
 import com.mercuriusxeno.goo.client.ability.GloveGlow;
-import com.mercuriusxeno.goo.client.ability.KnivesCharge;
 import com.mercuriusxeno.goo.client.ability.LiftedPalmBlob;
 import com.mercuriusxeno.goo.client.ability.PalmBlobHop;
 import com.mercuriusxeno.goo.client.ability.PhaseLook;
@@ -567,8 +566,7 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
         if (type != null && !GloveUseTracker.isSelectedTypeAvailable()) {
             type = null;
         }
-        return new GloveData(stack.getItem(), type, channelGlowOf(type, stack),
-                KnivesCharge.palmScaleAt(KnivesCharge.localPalmShare(stack)),
+        return new GloveData(stack.getItem(), type, channelGlowOf(type, stack), 1f,
                 // palm-blob-lifts-as-the-spray-source
                 type != null && LiftedPalmBlob.liftedFrom(stack), LiftedPalmBlob.heldInView(stack));
     }
@@ -654,7 +652,7 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
      * @param item         the glove item instance (determines tier/body model)
      * @param selectedType the selected goo type, or null if none selected
      * @param channelGlow  how strongly the light around the held goo glows while a glow channel holds, zero to one
-     * @param blobScale    the palm blob's size against its rest size, swelling with the local charge
+     * @param blobScale    the palm blob's size against its rest size
      * @param palmLifted   whether the palm blob stands lifted at the holder's spray source, leaving the palm none
      * @param heldInView   whether the local player holds this glove before the eyes in first person, so the
      *                     hand's pass draws its lifted blob

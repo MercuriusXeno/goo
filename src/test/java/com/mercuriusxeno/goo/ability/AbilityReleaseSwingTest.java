@@ -35,7 +35,7 @@ class AbilityReleaseSwingTest {
             Map.entry("zoo_shape", ArmPoseKind.NONE),
             Map.entry("zoo_spawn", ArmPoseKind.NONE),
             Map.entry("glow_bulb", ArmPoseKind.HOLD_OUT),
-            Map.entry("crystal_knives", ArmPoseKind.WIND_UP));
+            Map.entry("crystal_knives", ArmPoseKind.NONE));
 
     /** Each shipped arc ability that throws a blob from the hand, by file name. */
     private static final Set<String> THROWS_A_BLOB = Set.of(

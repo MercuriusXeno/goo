@@ -11,51 +11,14 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * The glove arm's ability poses: the wind-up eases the hand left across the
- * chest over the charge, at chest height, and holds it there, and the fling
- * backhands the arm out from wherever the wind-up got to, holds, and falls
- * back; a held-out arm points along the aim, a raised arm holds the hand at
- * face height, and a held pose let go eases back down
+ * The glove arm's ability poses: a held-out arm points along the aim, a
+ * raised arm holds the hand at face height, and a held pose let go eases
+ * back down
  * (decisions ability-json-names-its-arm-pose, use-key-throw-swings-no-more).
  */
 class AbilityPosesTest {
 
     private static final float TOLERANCE = 1e-5f;
-
-    @Test
-    void theWindUpEasesTheHandAcrossTheChestOverTheChargeAndHoldsIt() {
-        assertEquals(0f, AbilityPoses.heldAt(ArmPoseKind.WIND_UP, 0, 0f).weight(), TOLERANCE);
-        float quarter = AbilityPoses.heldAt(ArmPoseKind.WIND_UP, AbilityPoses.WIND_UP_TICKS / 4, 0f).weight();
-        assertTrue(quarter > 0f && quarter < 0.5f, "the hand eases rather than snapping, at " + quarter);
-        assertEquals(0.5f, AbilityPoses.heldAt(ArmPoseKind.WIND_UP, AbilityPoses.WIND_UP_TICKS / 2, 0f).weight(),
-                TOLERANCE);
-        AbilityPoses.Held wound = AbilityPoses.heldAt(ArmPoseKind.WIND_UP, AbilityPoses.WIND_UP_TICKS, 0f);
-        assertEquals(1f, wound.weight(), TOLERANCE);
-        assertEquals(AbilityPoses.WOUND, wound.angles());
-        assertTrue(wound.angles().yRot() < 0, "the hand turns across the chest");
-        assertTrue(wound.angles().xRot() > -Math.PI / 2, "the hand stays below the shoulder");
-        assertFalse(AbilityPoses.overAt(new AbilityPoses.Posed(ArmPoseKind.WIND_UP, 0, true, 0f), 1000));
-    }
-
-    @Test
-    void theFlingBackhandsFromWhereTheWindUpGotToThenFallsBack() {
-        AbilityPoses.Posed halfWound = new AbilityPoses.Posed(ArmPoseKind.WIND_UP, 0, true, 0f);
-        float from = AbilityPoses.easedFrom(halfWound, AbilityPoses.WIND_UP_TICKS / 2);
-        assertEquals(0.5f, from, TOLERANCE);
-        AbilityPoses.Held start = AbilityPoses.heldAt(ArmPoseKind.FLING, 0, from);
-        assertEquals(AbilityPoses.WOUND, start.angles());
-        assertEquals(from, start.weight(), TOLERANCE);
-        AbilityPoses.Held out = AbilityPoses.heldAt(ArmPoseKind.FLING, AbilityPoses.FLING_OUT_TICKS, from);
-        assertEquals(AbilityPoses.FLUNG, out.angles());
-        assertEquals(1f, out.weight(), TOLERANCE);
-        assertTrue(out.angles().yRot() > 0, "the arm flings out to the glove side");
-        float end = AbilityPoses.FLING_OUT_TICKS + AbilityPoses.FLING_HOLD_TICKS + AbilityPoses.FLING_RETURN_TICKS;
-        assertEquals(0f, AbilityPoses.heldAt(ArmPoseKind.FLING, end, from).weight(), TOLERANCE);
-        AbilityPoses.Posed fling = new AbilityPoses.Posed(ArmPoseKind.FLING, 0, true, from);
-        assertFalse(AbilityPoses.overAt(fling, end - 1));
-        assertTrue(AbilityPoses.overAt(fling, end));
-        assertEquals(0f, AbilityPoses.easedFrom(null, 5), TOLERANCE);
-    }
 
     @Test
     void aHeldOutArmEasesLevelAlongTheAimAndHoldsThere() {
@@ -93,31 +56,31 @@ class AbilityPosesTest {
     }
 
     @Test
-    void aFlingToldNothingPlaysOn() {
-        AbilityPoses.Posed fling = new AbilityPoses.Posed(ArmPoseKind.FLING, 0, true, 0f);
-        assertSame(fling, AbilityPoses.posedNext(fling, ArmPoseKind.NONE, true, 1));
+    void noPoseToldNothingStaysNone() {
         assertNull(AbilityPoses.posedNext(null, ArmPoseKind.NONE, true, 1));
+        assertEquals(0f, AbilityPoses.easedFrom(null, 5), TOLERANCE);
     }
 
     @Test
-    void theReleaseStartsFromWhereTheHoldGotTo() {
-        AbilityPoses.Posed holding = new AbilityPoses.Posed(ArmPoseKind.WIND_UP, 0, true, 0f);
-        AbilityPoses.Posed flung = AbilityPoses.posedNext(holding, ArmPoseKind.FLING, true, AbilityPoses.WIND_UP_TICKS);
-        assertEquals(ArmPoseKind.FLING, flung.kind());
-        assertEquals(AbilityPoses.WIND_UP_TICKS, flung.since(), TOLERANCE);
-        assertEquals(1f, flung.from(), TOLERANCE);
-        assertSame(holding, AbilityPoses.posedNext(holding, ArmPoseKind.WIND_UP, true, 20));
+    void aNewFrameStartsFromWhereTheHoldGotTo() {
+        AbilityPoses.Posed holding = new AbilityPoses.Posed(ArmPoseKind.HOLD_OUT, 0, true, 0f);
+        AbilityPoses.Posed raised = AbilityPoses.posedNext(holding, ArmPoseKind.HOLD_UP, true,
+                AbilityPoses.HOLD_EASE_TICKS);
+        assertEquals(ArmPoseKind.HOLD_UP, raised.kind());
+        assertEquals(AbilityPoses.HOLD_EASE_TICKS, raised.since(), TOLERANCE);
+        assertEquals(1f, raised.from(), TOLERANCE);
+        assertSame(holding, AbilityPoses.posedNext(holding, ArmPoseKind.HOLD_OUT, true, 20));
     }
 
     @Test
-    void aFlingOverIsReplacedByTheNextFling() {
-        AbilityPoses.Posed done = new AbilityPoses.Posed(ArmPoseKind.FLING, 0, true, 0f);
-        AbilityPoses.Posed again = AbilityPoses.posedNext(done, ArmPoseKind.FLING, true, 100);
+    void aPoseEasedDownIsReplacedByTheNextHold() {
+        AbilityPoses.Posed done = new AbilityPoses.Posed(ArmPoseKind.HOLD_OUT, 0, true, 0f, true);
+        AbilityPoses.Posed again = AbilityPoses.posedNext(done, ArmPoseKind.HOLD_OUT, true, 100);
         assertEquals(100, again.since(), TOLERANCE);
         assertEquals(0f, again.from(), TOLERANCE);
     }
 
-    /** The first-person glove hand moves on every pose, not on the wind-up and fling alone. */
+    /** The first-person glove hand moves on every pose. */
     @Nested
     class FirstPersonHand {
 
@@ -168,13 +131,6 @@ class AbilityPosesTest {
             assertHand(AbilityPoses.RAISED_HAND, AbilityPoses.handAt(lowering, 0));
             assertTrue(AbilityPoses.overAt(lowering, AbilityPoses.LOWER_TICKS));
             assertHand(AbilityPoses.VANILLA_HAND, AbilityPoses.handAt(lowering, AbilityPoses.LOWER_TICKS));
-        }
-
-        @Test
-        void theWindUpAndFlingStillMoveTheHandAcrossThenOut() {
-            assertHand(AbilityPoses.WOUND_HAND, handAt(ArmPoseKind.WIND_UP, 0f, AbilityPoses.WIND_UP_TICKS));
-            assertHand(AbilityPoses.WOUND_HAND, handAt(ArmPoseKind.FLING, 1f, 0));
-            assertHand(AbilityPoses.FLUNG_HAND, handAt(ArmPoseKind.FLING, 1f, AbilityPoses.FLING_OUT_TICKS));
         }
     }
 }
