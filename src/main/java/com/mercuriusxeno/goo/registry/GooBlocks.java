@@ -294,7 +294,7 @@ public class GooBlocks {
     /**
      * Leech: the volume cell bound to Hex's goo, the violet goo Leech sprays
      * onto a block's top, one to fifteen layers, ordinary ground underfoot
-     * that slows what it catches and sounds as soul sand does, dropping the
+     * that slows what it catches and sounds as goo does, dropping the
      * hex goo its layers cost through VolumeCellBlock.getDrops, no loot table
      * (decisions leech-goo-slows-what-it-catches-and-the-spirits-damage-it,
      * each-goo-type-ships-a-world-goo-on-the-volume-cell).
@@ -304,7 +304,7 @@ public class GooBlocks {
             () -> BlockBehaviour.Properties.of()
                     .mapColor(MapColor.COLOR_PURPLE)
                     .friction(CellBinding.LEECH.surface().friction())
-                    .sound(SoundType.SOUL_SAND)
+                    .sound(SoundType.SLIME_BLOCK)
                     .instabreak()
                     .noOcclusion()
                     .replaceable()
