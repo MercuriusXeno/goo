@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.block.ability.NectarFeeds;
 import com.mercuriusxeno.goo.block.ability.SideCoat;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
@@ -20,6 +21,7 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.animal.cow.Cow;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
 
@@ -28,7 +30,8 @@ import java.util.function.Consumer;
  * striking a block's top, from a jelly-holding caster who pays for its
  * layer, lays a Nectar cell of one layer there; an adult cow reaching the
  * goo falls in love, eating a layer of it; two zombies reaching it turn on
- * each other over it; a drip striking a calf grows it, spent on it; and a
+ * each other over it; a cow and two zombies standing out of the goo's
+ * feeding reach walk to it, the cow eating and the zombies fighting; a drip striking a calf grows it, spent on it; and a
  * drip striking a wall's side coats it, a mob in the coated space climbing
  * it as a ladder.
  * nectar-is-sprayed-goo-with-a-guided-throw-near-a-mob
@@ -44,6 +47,8 @@ public final class NectarTests {
     private static final String SETS_TWO_ZOMBIES_FIGHTING = "nectar_goo_sets_two_zombies_fighting";
     private static final String DRIP_FEEDS_A_STRUCK_CALF = "nectar_drip_feeds_a_struck_calf";
     private static final String COATS_A_WALL_AND_CLIMBS = "nectar_drip_on_a_wall_coats_it_and_climbs";
+    private static final String DRAWS_A_COW_FROM_RANGE = "nectar_goo_draws_an_adult_cow_from_range_for_a_layer";
+    private static final String DRAWS_ZOMBIES_FROM_RANGE = "nectar_goo_draws_two_zombies_from_range_to_fight";
     private static final Identifier NECTAR = Identifier.parse("goo:jelly_nectar");
     /** The floor block the drip strikes, walled on its four sides one block up. */
     private static final BlockPos DRIP_FLOOR = new BlockPos(2, 1, 2);
@@ -57,6 +62,16 @@ public final class NectarTests {
     private static final int PEN_WALL_TOP_Y = 4;
     /** Where the calf stands for the strike test, on open stone. */
     private static final BlockPos CALF_FLOOR = new BlockPos(2, 1, 2);
+    /** The range tests' pen, six blocks across, its cell in one corner of the floor inside the rim. */
+    private static final int RANGE_PEN_SPAN = 6;
+    private static final BlockPos RANGE_CELL = new BlockPos(1, 2, 1);
+    /** The far corner of the range pen's floor, where the cow starts. */
+    private static final BlockPos FAR_CORNER = new BlockPos(4, 3, 4);
+    /** The two corners beside the cell's, where the zombies start. */
+    private static final BlockPos EAST_CORNER = new BlockPos(4, 3, 1);
+    private static final BlockPos SOUTH_CORNER = new BlockPos(1, 3, 4);
+    /** jelly_nectar.json's reach, the blocks out to which a Nectar cell draws mobs. */
+    private static final double SHIPPED_REACH = 12;
     /** The stone the wall test's drip strikes, standing clear of the bay's floor. */
     private static final BlockPos WALL = new BlockPos(2, 3, 2);
     private static final String ABILITY_REQUIRED = "The ability registry must hold jelly_nectar";
@@ -66,6 +81,8 @@ public final class NectarTests {
     private static final String WALL_NOT_COATED = "The cell east of the wall should be Nectar attached to its west side,"
             + " stands %s";
     private static final String NOT_CLIMBING = "A zombie in the coated space should read on a climbable";
+    private static final String STARTS_IN_REACH = "The mob should start past the feeding reach %.1f and inside"
+            + " the reach %.1f, starts %.2f off";
     private static final String CALF_NOT_FED = "A struck calf should grow to an adult, the drip spent: baby %b, under it %s";
 
     private NectarTests() {
@@ -82,6 +99,8 @@ public final class NectarTests {
         GooTestFunctions.registerTest(registrar, SETS_TWO_ZOMBIES_FIGHTING, NectarTests::setsTwoZombiesFighting);
         GooTestFunctions.registerTest(registrar, DRIP_FEEDS_A_STRUCK_CALF, NectarTests::dripFeedsAStruckCalf);
         GooTestFunctions.registerTest(registrar, COATS_A_WALL_AND_CLIMBS, NectarTests::coatsAWallAndClimbs);
+        GooTestFunctions.registerTest(registrar, DRAWS_A_COW_FROM_RANGE, NectarTests::drawsAnAdultCowFromRange);
+        GooTestFunctions.registerTest(registrar, DRAWS_ZOMBIES_FROM_RANGE, NectarTests::drawsTwoZombiesFromRange);
     }
 
     /**
@@ -185,6 +204,77 @@ public final class NectarTests {
         Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, coated);
         helper.assertTrue(zombie.onClimbable(), NOT_CLIMBING);
         helper.succeed();
+    }
+
+    /**
+     * An adult cow with its AI, standing in the far corner of a pen from a
+     * five-layer Nectar cell, out of its feeding reach and inside its reach,
+     * walks to the cell and eats: it falls in love, and the cell stands a
+     * layer lower.
+     *
+     * @param helper the gametest helper
+     */
+    public static void drawsAnAdultCowFromRange(GameTestHelper helper) {
+        layRangePen(helper);
+        Cow cow = helper.spawn(EntityType.COW, FAR_CORNER);
+        assertStartsInRange(helper, cow);
+        helper.succeedWhen(() -> {
+            BlockState cell = helper.getBlockState(RANGE_CELL);
+            helper.assertTrue(cow.isInLove() && cell.is(GooBlocks.JELLY_NECTAR.get())
+                    && cell.getValue(VolumeCellBlock.LAYERS) == FED_CELL_LAYERS - 1,
+                    String.format(COW_NOT_FED, cow.isInLove(), cell));
+        });
+    }
+
+    /**
+     * Two zombies with their AI, standing in the corners beside a Nectar
+     * cell's, out of its feeding reach and inside its reach, with no player
+     * in the structure, walk to the cell and turn on each other over it.
+     *
+     * @param helper the gametest helper
+     */
+    public static void drawsTwoZombiesFromRange(GameTestHelper helper) {
+        layRangePen(helper);
+        Mob first = helper.spawn(EntityType.ZOMBIE, EAST_CORNER);
+        Mob second = helper.spawn(EntityType.ZOMBIE, SOUTH_CORNER);
+        assertStartsInRange(helper, first);
+        assertStartsInRange(helper, second);
+        helper.succeedWhen(() -> helper.assertTrue(first.getTarget() == second && second.getTarget() == first,
+                String.format(ZOMBIES_NOT_FIGHTING, first.getTarget(), second.getTarget())));
+    }
+
+    /**
+     * Asserts a mob starts past the range cell's feeding reach and inside its reach.
+     *
+     * @param helper the gametest helper
+     * @param mob    the mob
+     */
+    private static void assertStartsInRange(GameTestHelper helper, Mob mob) {
+        Vec3 top = helper.absoluteVec(Vec3.atBottomCenterOf(RANGE_CELL))
+                .add(0, (double) FED_CELL_LAYERS / VolumeCellBlock.MAX_LAYERS, 0);
+        double off = mob.position().distanceTo(top);
+        helper.assertTrue(off > NectarFeeds.REACH && off < SHIPPED_REACH,
+                String.format(STARTS_IN_REACH, NectarFeeds.REACH, SHIPPED_REACH, off));
+    }
+
+    /**
+     * Lays stone across the range pen and sets a five-layer Nectar cell into
+     * its top course in one corner, walled on every side, with a stone wall
+     * around the pen's rim two blocks tall.
+     *
+     * @param helper the gametest helper
+     */
+    private static void layRangePen(GameTestHelper helper) {
+        BlockPos.betweenClosed(0, 1, 0, RANGE_PEN_SPAN - 1, STONE_TOP_Y, RANGE_PEN_SPAN - 1)
+                .forEach(pos -> helper.setBlock(pos.immutable(), Blocks.STONE));
+        BlockPos.betweenClosed(0, STONE_TOP_Y + 1, 0, RANGE_PEN_SPAN - 1, PEN_WALL_TOP_Y, RANGE_PEN_SPAN - 1)
+                .forEach(pos -> {
+                    boolean rim = pos.getX() == 0 || pos.getZ() == 0 || pos.getX() == RANGE_PEN_SPAN - 1
+                            || pos.getZ() == RANGE_PEN_SPAN - 1;
+                    helper.setBlock(pos.immutable(), rim ? Blocks.STONE : Blocks.AIR);
+                });
+        helper.setBlock(RANGE_CELL, GooBlocks.JELLY_NECTAR.get().defaultBlockState()
+                .setValue(VolumeCellBlock.LAYERS, FED_CELL_LAYERS));
     }
 
     /**
