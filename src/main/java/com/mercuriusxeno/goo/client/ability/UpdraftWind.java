@@ -31,9 +31,10 @@ import java.util.stream.Stream;
 /**
  * Updraft's and Lift's look: frost's wind lines without snowflakes rise from
  * each Updraft cell the client draws up through its column, as tall as the
- * cell holds layers and as wide as the updraft step names, and a lift
- * prism's wind spirals out around it from its base (LiftWind); each blows
- * one line a tick however many frames draw it.
+ * cell holds layers and as wide as the updraft step names, about three a
+ * second, and a lift prism's wind spirals out around it from its base
+ * (LiftWind); neither blows more than one line a tick however many frames
+ * draw it.
  * updraft-blob-stands-a-column-of-wind
  * updraft-goo-lifts-one-block-per-layer
  * lift-prism-levitates-the-block-above
@@ -49,6 +50,11 @@ public final class UpdraftWind {
     private static final long FORGET_AFTER_TICKS = 40;
     /** The Updraft cells the client has drawn, each blowing up its column every tick it still stands. */
     private static final Set<BlockPos> CELLS = ConcurrentHashMap.newKeySet();
+    /**
+     * The ticks between a cell's lines, about three a second.
+     * operator ruling 2026-11-17: 3-4 lines a second for each cell
+     */
+    static final int WIND_EVERY_TICKS = 6;
     /** How far from the camera a cell's wind still blows, squared: past it the cell is forgotten until drawn again. */
     private static final double BLOWS_WITHIN_SQUARED = 48.0 * 48.0;
 
@@ -111,8 +117,22 @@ public final class UpdraftWind {
     }
 
     /**
-     * Blows one line up a cell's column from its top, the first time the
-     * cell is seen this tick.
+     * Whether a cell blows its line on this tick: once in every
+     * {@value #WIND_EVERY_TICKS} ticks, at a tick its position picks, so the
+     * cells of a patch blow at their own times rather than all at once.
+     * operator ruling 2026-11-17: 3-4 lines a second for each cell
+     *
+     * @param cell     the Updraft cell
+     * @param gameTime the game time
+     * @return true on the cell's tick of the cadence
+     */
+    static boolean blowsOnCadence(BlockPos cell, long gameTime) {
+        return Math.floorMod(gameTime + cell.hashCode(), WIND_EVERY_TICKS) == 0;
+    }
+
+    /**
+     * Blows one line up a cell's column from its top, on the cell's tick of
+     * the cadence, the first time the cell is seen that tick.
      *
      * @param level the client level
      * @param cell  the Updraft cell
@@ -120,7 +140,7 @@ public final class UpdraftWind {
      */
     private static void blowUp(ClientLevel level, BlockPos cell, UpdraftStep step) {
         long now = level.getGameTime();
-        if (!blowsNow(cell, now)) {
+        if (!blowsOnCadence(cell, now) || !blowsNow(cell, now)) {
             return;
         }
         BlockState state = level.getBlockState(cell);

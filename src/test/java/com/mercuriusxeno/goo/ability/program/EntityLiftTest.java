@@ -24,6 +24,7 @@ class EntityLiftTest {
     private static final double RADIUS = 1;
     private static final double HEIGHT = 8;
     private static final double SPEED = 0.4;
+    private static final double FALL_CAP = 0.15;
 
     @Nested
     class Bounds {
@@ -107,6 +108,23 @@ class EntityLiftTest {
             double left = 0.1;
 
             assertEquals(new Vec3(0.1, left, -0.2), EntityLift.risen(new Vec3(0.1, -0.6, -0.2), SPEED, left));
+        }
+
+        @Test
+        void aFallOverThePushIsCappedAtTheFallCapKeepingItsSidewaysMotion() {
+            Vec3 carried = EntityLift.carried(new Vec3(0.1, -0.6, -0.2), -2, SPEED, FALL_CAP);
+
+            assertEquals(new Vec3(0.1, -FALL_CAP, -0.2), carried);
+        }
+
+        @Test
+        void aRiseOverThePushStays() {
+            assertEquals(0.3, EntityLift.carried(new Vec3(0, 0.3, 0), -1, SPEED, FALL_CAP).y, EPSILON);
+        }
+
+        @Test
+        void aFallInsideThePushTurnsIntoTheRise() {
+            assertEquals(SPEED, EntityLift.carried(new Vec3(0, -0.6, 0), HEIGHT, SPEED, FALL_CAP).y, EPSILON);
         }
 
         @Test

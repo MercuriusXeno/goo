@@ -4,6 +4,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -14,9 +15,13 @@ import java.util.function.IntPredicate;
  * Carries every entity standing in a column of air upward: its rise is
  * raised to the column's speed, eased to land on the column's top, its
  * sideways motion kept and its fall cleared, so an entity rides up to the
- * column's top, drops back in and is carried up again, hovering there.
+ * column's top, drops back in and is carried up again, hovering there; over
+ * the column a glide zone slows a fall to its cap, so dropping from a tall
+ * column to a short one glides down onto it. A player's own client moves
+ * it, so the server only clears a player's fall.
  * updraft-is-typhoons-world-goo-that-lifts-the-entities-above-it
  * updraft-goo-lifts-one-block-per-layer
+ * operator ruling 2026-11-17: a tall zone above the push smooths transitions with slow fall and air control
  */
 final class EntityLift {
 
@@ -27,24 +32,57 @@ final class EntityLift {
     }
 
     /**
-     * Lifts every entity whose feet stand inside the column, spectators aside.
+     * Carries every entity whose feet stand inside the column or the glide
+     * zone over it, spectators aside: each one's fall clears, and each but a
+     * player, whose own client moves it, rises in the column and falls no
+     * faster than the cap over it.
+     * operator report 2026-11-17: moving over updraft goo stalled and hitched the player
      *
-     * @param level  the level to scan
-     * @param base   the middle of the column's floor
-     * @param radius the column's half width in blocks
-     * @param height the column's height in blocks
-     * @param speed  the rise the column carries at, in blocks per tick
+     * @param level       the level to scan
+     * @param base        the middle of the column's floor
+     * @param radius      the column's half width in blocks
+     * @param height      the column's height in blocks
+     * @param glideHeight the glide zone's height over the column's top, in blocks
+     * @param speed       the rise the column carries at, in blocks per tick
+     * @param fallCap     the fastest a fall in the glide zone runs, in blocks per tick
      */
-    static void liftInColumn(ServerLevel level, Vec3 base, double radius, double height, double speed) {
-        AABB column = columnBox(base, radius, height);
+    static void liftInColumn(ServerLevel level, Vec3 base, double radius, double height, double glideHeight,
+                             double speed, double fallCap) {
+        double reach = height + glideHeight;
+        AABB column = columnBox(base, radius, reach);
         for (Entity entity : level.getEntities((Entity) null, column, entity -> !entity.isSpectator())) {
-            if (inColumn(entity.position(), base, radius, height)) {
-                double toTop = base.y + height - entity.getY();
-                entity.setDeltaMovement(risen(entity.getDeltaMovement(), speed, toTop));
-                entity.resetFallDistance();
+            if (!inColumn(entity.position(), base, radius, reach)) {
+                continue;
+            }
+            entity.resetFallDistance();
+            if (entity instanceof Player) {
+                continue;
+            }
+            Vec3 now = entity.getDeltaMovement();
+            Vec3 carried = carried(now, base.y + height - entity.getY(), speed, fallCap);
+            if (!carried.equals(now)) {
+                entity.setDeltaMovement(carried);
                 entity.hurtMarked = true;
             }
         }
+    }
+
+    /**
+     * A velocity in a column or the glide zone over it: below the column's
+     * top it rises as {@link #risen} carries it; over the top its fall runs
+     * no faster than the cap and a rise stays, so a drop glides down.
+     *
+     * @param velocity the velocity now
+     * @param toTop    the blocks from the entity's feet up to the column's top, negative over it
+     * @param speed    the column's rise, in blocks per tick
+     * @param fallCap  the fastest a fall over the column runs, in blocks per tick
+     * @return the carried velocity
+     */
+    static Vec3 carried(Vec3 velocity, double toTop, double speed, double fallCap) {
+        if (toTop > 0) {
+            return risen(velocity, speed, toTop);
+        }
+        return new Vec3(velocity.x, Math.max(velocity.y, -fallCap), velocity.z);
     }
 
     /**
