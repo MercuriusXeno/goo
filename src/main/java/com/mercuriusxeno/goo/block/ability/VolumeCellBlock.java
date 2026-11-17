@@ -299,9 +299,10 @@ public class VolumeCellBlock extends Block {
         List<Direction> running = runnySides(state);
         if (attached.isEmpty() && !onAFloor && !running.isEmpty()) {
             // operator UAT 2026-11-17: goo running down a wall in midair is not sitting on a block
-            return GooShares.runningDown(state.getValue(LAYERS), Set.copyOf(running));
+            return GooShares.runningDown(layersOf(state), Set.copyOf(running));
         }
-        return GooShares.of(state.getValue(LAYERS), onAFloor, attached, cohesion);
+        // operator UAT 2026-11-17: a block Vacuum just broke draws as air for a frame, holding no layers
+        return GooShares.of(layersOf(state), onAFloor, attached, cohesion);
     }
 
     /**

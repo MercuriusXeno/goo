@@ -78,6 +78,7 @@ class VolumeCellBlockTest {
         @Test
         void aBlocksCollisionStaysTheFlatBoxAtItsVolume() {
             BlockState twelve = mock(BlockState.class);
+            when(twelve.getBlock()).thenReturn(slime);
             when(twelve.getValue(VolumeCellBlock.LAYERS)).thenReturn(12);
             BlockState six = mock(BlockState.class);
             when(six.is(slime)).thenReturn(true);
@@ -687,6 +688,18 @@ class VolumeCellBlockTest {
             GooShares shares = VolumeCellBlock.sharesOf(runningDownTheWestWall(), false, NO_COHESION);
 
             assertEquals(new GooShares(0, Map.of(Direction.WEST, (double) LAYERS)), shares);
+        }
+
+        /**
+         * operator UAT 2026-11-17: the client crashed drawing a goo block Vacuum broke, the block already air
+         */
+        @Test
+        void aBlockNoLongerGooSharesNothing() {
+            BlockState air = mock(BlockState.class);
+            when(air.getBlock()).thenReturn(mock(net.minecraft.world.level.block.Block.class));
+            when(air.getValue(any())).thenThrow(new IllegalArgumentException("air holds no layers"));
+
+            assertEquals(new GooShares(0, Map.of()), VolumeCellBlock.sharesOf(air, false, NO_COHESION));
         }
 
         @Test
