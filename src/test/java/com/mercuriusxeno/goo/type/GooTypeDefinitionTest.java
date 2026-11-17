@@ -57,6 +57,8 @@ class GooTypeDefinitionTest {
     private static final int BLAZE_TEMPERATURE = 1300;
     private static final int FROST_TEMPERATURE = 200;
     private static final int WEIRD_COHESION = 4;
+    /** Jelly's cohesion (operator ruling 2026-11-17: 0 is too low for Nectar to stay on walls). */
+    private static final int JELLY_COHESION = 1;
     private static final int WEIRD_ADHESION = 3;
     private static final int GLOW_ADHESION = 4;
     private static final int JELLY_ADHESION = 3;
@@ -273,13 +275,14 @@ class GooTypeDefinitionTest {
     }
 
     /**
-     * Every bundled type states a cohesion: weird holds a step of 4 and every other type, kinetic among them, 0.
+     * Every bundled type states a cohesion: weird holds a step of 4, jelly 1, and every other type, kinetic
+     * among them, 0.
      * cohesion-is-the-step-the-goo-holds
      */
     @ParameterizedTest
     @MethodSource("bundledKeys")
     void bundledCohesionMatchesDecision(ResourceKey<GooTypeDefinition> key) throws Exception {
-        int expected = key == GooTypes.WEIRD ? WEIRD_COHESION : 0;
+        int expected = key == GooTypes.WEIRD ? WEIRD_COHESION : key == GooTypes.JELLY ? JELLY_COHESION : 0;
         assertEquals(expected, decodeBundled(key).cohesion(), key::toString);
     }
 

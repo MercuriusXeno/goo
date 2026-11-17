@@ -23,6 +23,8 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Consumer;
 
 /**
@@ -47,6 +49,8 @@ public final class NectarTests {
     private static final String SETS_TWO_ZOMBIES_FIGHTING = "nectar_goo_sets_two_zombies_fighting";
     private static final String DRIP_FEEDS_A_STRUCK_CALF = "nectar_drip_feeds_a_struck_calf";
     private static final String COATS_A_WALL_AND_CLIMBS = "nectar_drip_on_a_wall_coats_it_and_climbs";
+    private static final String WALL_COAT_STAYS = "nectar_on_a_wall_stays_on_it";
+    private static final String COATS_A_CLIMBABLE_COLUMN = "nectar_coats_a_wall_column_to_climb";
     private static final String DRAWS_A_COW_FROM_RANGE = "nectar_goo_draws_an_adult_cow_from_range_for_a_layer";
     private static final String DRAWS_ZOMBIES_FROM_RANGE = "nectar_goo_draws_two_zombies_from_range_to_fight";
     private static final Identifier NECTAR = Identifier.parse("goo:jelly_nectar");
@@ -62,6 +66,17 @@ public final class NectarTests {
     private static final int PEN_WALL_TOP_Y = 4;
     /** Where the calf stands for the strike test, on open stone. */
     private static final BlockPos CALF_FLOOR = new BlockPos(2, 1, 2);
+    /** The drips the wall hold test lands on one wall, more than one wall holds. */
+    private static final int WALL_DRIPS = 5;
+    /** The layers one wall holds of jelly's goo: a layer plus one for its cohesion of 1. */
+    private static final int ONE_WALL_HOLDS = 2;
+    /** Ticks for the wall's goo to run down whatever its hold lets go, past a few of jelly's pours. */
+    private static final int WALL_SETTLE_TICKS = 60;
+    /** The column test's wall: three stone blocks stacked over the bay's floor. */
+    private static final BlockPos COLUMN_FOOT = new BlockPos(2, 1, 2);
+    private static final int COLUMN_HEIGHT = 3;
+    /** The drips the column test lands on each face, bottom face first. */
+    private static final int DRIPS_PER_FACE = 2;
     /** The range tests' pen, six blocks across, its cell in one corner of the floor inside the rim. */
     private static final int RANGE_PEN_SPAN = 6;
     private static final BlockPos RANGE_CELL = new BlockPos(1, 2, 1);
@@ -81,6 +96,10 @@ public final class NectarTests {
     private static final String WALL_NOT_COATED = "The cell east of the wall should be Nectar attached to its west side,"
             + " stands %s";
     private static final String NOT_CLIMBING = "A zombie in the coated space should read on a climbable";
+    private static final String WALL_COAT_RAN = "The wall should keep %d of the %d layers landed on it, the cell"
+            + " there stands %s";
+    private static final String COLUMN_GAP = "Every face of the wall should keep Nectar attached so the run can"
+            + " be climbed; the cells in front, bottom first, stand %s";
     private static final String STARTS_IN_REACH = "The mob should start past the feeding reach %.1f and inside"
             + " the reach %.1f, starts %.2f off";
     private static final String CALF_NOT_FED = "A struck calf should grow to an adult, the drip spent: baby %b, under it %s";
@@ -99,6 +118,8 @@ public final class NectarTests {
         GooTestFunctions.registerTest(registrar, SETS_TWO_ZOMBIES_FIGHTING, NectarTests::setsTwoZombiesFighting);
         GooTestFunctions.registerTest(registrar, DRIP_FEEDS_A_STRUCK_CALF, NectarTests::dripFeedsAStruckCalf);
         GooTestFunctions.registerTest(registrar, COATS_A_WALL_AND_CLIMBS, NectarTests::coatsAWallAndClimbs);
+        GooTestFunctions.registerTest(registrar, WALL_COAT_STAYS, NectarTests::wallCoatStaysOnIt);
+        GooTestFunctions.registerTest(registrar, COATS_A_CLIMBABLE_COLUMN, NectarTests::coatsAWallColumnToClimb);
         GooTestFunctions.registerTest(registrar, DRAWS_A_COW_FROM_RANGE, NectarTests::drawsAnAdultCowFromRange);
         GooTestFunctions.registerTest(registrar, DRAWS_ZOMBIES_FROM_RANGE, NectarTests::drawsTwoZombiesFromRange);
     }
@@ -204,6 +225,68 @@ public final class NectarTests {
         Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, coated);
         helper.assertTrue(zombie.onClimbable(), NOT_CLIMBING);
         helper.succeed();
+    }
+
+    /**
+     * Five Nectar drips striking a stone wall's east side, clear of any
+     * floor, leave the wall coated: once the goo has had time to run, the
+     * cell east of the wall still holds the two layers one wall holds of
+     * jelly's goo, attached to its west side, the rest run down.
+     * operator ruling 2026-11-17: a cohesion of 0 is too low for Nectar to stay on walls; jelly takes 1
+     *
+     * @param helper the gametest helper
+     */
+    public static void wallCoatStaysOnIt(GameTestHelper helper) {
+        helper.setBlock(WALL, Blocks.STONE);
+        BlockPos coated = WALL.east();
+        helper.setBlock(coated, Blocks.AIR);
+        AbilityDefinition nectar = AbilityRegistry.of(helper.getLevel()).getAbility(NECTAR);
+        helper.assertTrue(nectar != null, ABILITY_REQUIRED);
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.JELLY);
+        KnownRecipes.teachRequires(caster, nectar);
+        LandedDrips.landOnSide(helper, caster, nectar, WALL, Direction.EAST, WALL_DRIPS);
+        helper.getLevel().getServer().getPlayerList().remove(caster);
+        helper.runAfterDelay(WALL_SETTLE_TICKS, () -> {
+            BlockState cell = helper.getBlockState(coated);
+            helper.assertTrue(cell.is(GooBlocks.JELLY_NECTAR.get())
+                    && cell.getValue(VolumeCellBlock.WEST) == SideCoat.ATTACHED
+                    && cell.getValue(VolumeCellBlock.LAYERS) == ONE_WALL_HOLDS,
+                    String.format(WALL_COAT_RAN, ONE_WALL_HOLDS, WALL_DRIPS, cell));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Nectar drips striking each face of a three-high stone wall, bottom face
+     * first, coat the whole column: once the goo has had time to run, the
+     * cell in front of every face stands Nectar attached to the wall, a
+     * contiguous run to climb.
+     * nectar-is-the-sticky-goo-you-climb-that-nerfs-jumping-and-speed
+     *
+     * @param helper the gametest helper
+     */
+    public static void coatsAWallColumnToClimb(GameTestHelper helper) {
+        for (int up = 0; up < COLUMN_HEIGHT; up++) {
+            helper.setBlock(COLUMN_FOOT.above(up), Blocks.STONE);
+            helper.setBlock(COLUMN_FOOT.above(up).east(), Blocks.AIR);
+        }
+        AbilityDefinition nectar = AbilityRegistry.of(helper.getLevel()).getAbility(NECTAR);
+        helper.assertTrue(nectar != null, ABILITY_REQUIRED);
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.JELLY);
+        KnownRecipes.teachRequires(caster, nectar);
+        for (int up = 0; up < COLUMN_HEIGHT; up++) {
+            LandedDrips.landOnSide(helper, caster, nectar, COLUMN_FOOT.above(up), Direction.EAST, DRIPS_PER_FACE);
+        }
+        helper.getLevel().getServer().getPlayerList().remove(caster);
+        helper.runAfterDelay(WALL_SETTLE_TICKS, () -> {
+            List<BlockState> cells = new ArrayList<>();
+            for (int up = 0; up < COLUMN_HEIGHT; up++) {
+                cells.add(helper.getBlockState(COLUMN_FOOT.above(up).east()));
+            }
+            helper.assertTrue(cells.stream().allMatch(cell -> cell.is(GooBlocks.JELLY_NECTAR.get())
+                    && cell.getValue(VolumeCellBlock.WEST) == SideCoat.ATTACHED), String.format(COLUMN_GAP, cells));
+            helper.succeed();
+        });
     }
 
     /**
