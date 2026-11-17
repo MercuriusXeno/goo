@@ -282,8 +282,6 @@ public final class GloveUseTracker {
             CHARM_LIKE.tick(PRESS, actions);
         }
         liftThePalmBlob(mc, player);
-        // knives-paint-mobs-by-hovering-while-forming: the outline's pick joins the hold's paint
-        KnivesHoldSender.paint(highlightedMob(), GloveUseTracker::mobStands);
         // blast-charge-wubs-higher-at-each-stage: a sized charge wubs as it reaches each stage
         GloveThrowSender.wubTheCharge(player);
         // blast-charge-pulls-green-motes-into-the-shell-and-the-blob: the charge draws motes in as it grows

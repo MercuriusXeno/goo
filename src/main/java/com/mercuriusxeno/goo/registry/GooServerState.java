@@ -10,10 +10,10 @@ import com.mercuriusxeno.goo.block.ability.MoltenHeats;
 import com.mercuriusxeno.goo.block.ability.WispClaims;
 import com.mercuriusxeno.goo.network.DripFlights;
 import com.mercuriusxeno.goo.network.GooEffectScheduler;
-import com.mercuriusxeno.goo.network.HomingKnives;
 import com.mercuriusxeno.goo.network.KnifeHolds;
 import com.mercuriusxeno.goo.network.ScanWaves;
 import com.mercuriusxeno.goo.network.StreamHolds;
+import com.mercuriusxeno.goo.network.ThrownKnives;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.Level;
 import org.jspecify.annotations.Nullable;
@@ -28,7 +28,7 @@ public final class GooServerState {
 
     private final GooEffectScheduler gooEffects = new GooEffectScheduler();
     private final KnifeHolds knifeHolds = new KnifeHolds();
-    private final HomingKnives homingKnives = new HomingKnives();
+    private final ThrownKnives thrownKnives = new ThrownKnives();
     private final MorphBirths morphBirths = new MorphBirths();
     private final BlockExposures blockExposures = new BlockExposures();
     private final AbilityBlockFallScheduler markerFalls = new AbilityBlockFallScheduler();
@@ -89,12 +89,12 @@ public final class GooServerState {
     }
 
     /**
-     * Knives' thrown knives in flight (decision knives-home-on-their-painted-mob).
+     * Knives' thrown knives in flight (decision knives-and-dart-function-as-projectiles).
      *
-     * @return the homing knives
+     * @return the thrown knives
      */
-    public HomingKnives homingKnives() {
-        return homingKnives;
+    public ThrownKnives thrownKnives() {
+        return thrownKnives;
     }
 
     /**
@@ -213,7 +213,7 @@ public final class GooServerState {
         blockExposures.decay(server);
         streamHolds.releaseLapsed(currentTick);
         knifeHolds.tick(currentTick);
-        homingKnives.tick(currentTick);
+        thrownKnives.tick(currentTick);
     }
 
     /**
@@ -222,7 +222,7 @@ public final class GooServerState {
     public void clear() {
         gooEffects.clear();
         knifeHolds.clear();
-        homingKnives.clear();
+        thrownKnives.clear();
         blockExposures.clear();
         markerFalls.clear();
         streamHolds.clear();

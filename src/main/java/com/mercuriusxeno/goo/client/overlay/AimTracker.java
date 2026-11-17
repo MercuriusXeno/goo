@@ -65,9 +65,10 @@ public final class AimTracker {
                 GloveAim.aimRange(player, AimState.MAX_RANGE));
         List<Step> behaviors = GloveAim.selectedBehaviors(player);
         boolean grabPressed = GloveUseTracker.showsArea() && behaviors.stream().anyMatch(GrabStep.class::isInstance);
+        // knives-do-not-highlight-mobs: a held Knives outlines no mob, the one under the crosshair included
         STATE.update(seed -> HELD.resolve(grabPressed, GrabFlail::grabbed,
                 () -> AimTargets.resolve(player, ray, seed, GloveAim.targetingHint(player), behaviors)),
-                entityOutline);
+                entityOutline, !KnivesHoldSender.selectedFormsKnives(player));
     }
 
     /**
@@ -140,7 +141,7 @@ public final class AimTracker {
     public static void modifyEntityRenderState(Entity entity, EntityRenderState state) {
         // sweeping-grab-locks-every-item-the-highlight-passes: a locked item the aim left draws in the main frame
         TargetResult.@Nullable Passage passage = entity == STATE.aimedMob() ? STATE.target().passage() : null;
-        int color = outlineIn(STATE.outlineFor(entity, GrabFlail::grabbed, KnivesHoldSender::paints),
+        int color = outlineIn(STATE.outlineFor(entity, GrabFlail::grabbed),
                 PortalView.extractingView(),
                 PortalView.extractingGate(), passage);
         if (color != 0) {

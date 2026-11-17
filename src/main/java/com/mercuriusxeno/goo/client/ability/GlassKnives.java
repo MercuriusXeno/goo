@@ -1,10 +1,14 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.ability.crystal.KnifeHoming;
+import com.mercuriusxeno.goo.ability.crystal.ThrownKnife;
 import com.mercuriusxeno.goo.client.FlatQuadContext;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.network.DripFlights;
 import com.mercuriusxeno.goo.network.GlassKnifePayload;
+import com.mercuriusxeno.goo.throwing.DripArc;
+import com.mercuriusxeno.goo.throwing.FenceRails;
+import com.mercuriusxeno.goo.throwing.ProjectileFlight;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -13,13 +17,7 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.level.ClipContext;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
-import net.minecraft.world.phys.shapes.CollisionContext;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -32,15 +30,16 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Knives' glass knives in flight on this client: each leaves its fan slot as
- * the glass kunai it hovered as and homes on its mob tick by tick, point
- * first, rolling as it goes, turning toward where the mob stands on this
- * client. One meeting a block stands stuck there a moment, then shatters;
- * one reaching its mob shatters at once, and one whose mob is gone flies on
- * to where the mob last stood and shatters there, with a tinkle of glass,
+ * Knives' glass knives in flight on this client: each leaves its hover slot
+ * as the glass kunai it hovered as and flies the projectile flight the
+ * server flies it on, point first, rolling as it goes, dropping like an
+ * arrow and passing between a fence's rails. One meeting a block stands
+ * stuck there a moment, then shatters; one meeting a mob shatters at once,
+ * and one whose flight runs out shatters in the air, with a tinkle of glass,
  * cracking into splinters that tumble down and melt away.
  * decision knives-sling-then-morph-to-flechettes
- * decision knives-home-on-their-painted-mob
+ * decision knives-and-dart-function-as-projectiles
+ * decision knives-and-javelins-drop-like-an-arrow
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class GlassKnives {
@@ -66,18 +65,18 @@ public final class GlassKnives {
     private GlassKnives() {
     }
 
-    /** One knife: the points it has passed each tick, its mob, how its flight ended, and when it left. */
+    /** One knife: its tick points, velocity and thrower, how its flight ended, and when it left. */
     private static final class Knife {
         private final List<Vec3> path = new ArrayList<>();
-        private final int mobId;
+        private final int throwerId;
         private final long startTick;
-        private Vec3 lastKnown;
+        private Vec3 velocity;
         private GlassKnifePayload.@Nullable Ending ending;
 
-        Knife(Vec3 start, int mobId, Vec3 lastKnown, long startTick) {
-            path.add(start);
-            this.mobId = mobId;
-            this.lastKnown = lastKnown;
+        Knife(GlassKnifePayload thrown, long startTick) {
+            path.add(thrown.start());
+            this.throwerId = thrown.throwerId();
+            this.velocity = thrown.velocity();
             this.startTick = startTick;
         }
 
@@ -105,55 +104,36 @@ public final class GlassKnives {
         }
 
         private void fly(ClientLevel level) {
-            Vec3 from = path.getLast();
-            LivingEntity mob = level.getEntity(mobId) instanceof LivingEntity living && living.isAlive()
-                    ? living : null;
-            if (mob != null) {
-                lastKnown = mob.getBoundingBox().getCenter();
-            }
-            Vec3 next = from.add(KnifeHoming.velocityToward(from, lastKnown));
-            BlockHitResult wall = level.clip(new ClipContext(from, next, ClipContext.Block.COLLIDER,
-                    ClipContext.Fluid.NONE, CollisionContext.empty()));
-            boolean meetsAWall = wall.getType() == HitResult.Type.BLOCK;
-            path.add(meetsAWall ? wall.getLocation() : next);
-            endingOf(from, next, mob == null ? null : mob.getBoundingBox(), lastKnown, meetsAWall, ticks())
-                    .ifPresent(ended -> {
-                        ending = ended;
-                        land(level, ended, path.getLast());
-                    });
+            DripArc.Step step = ProjectileFlight.step(path.getLast(), velocity, ProjectileFlight.ARROW,
+                    FenceRails.clipping(level), DripFlights.livingNear(level, throwerId),
+                    DripFlights.airspaceOf(level));
+            path.add(step.position());
+            velocity = step.velocity();
+            endingOf(step, ticks()).ifPresent(ended -> {
+                ending = ended;
+                land(level, ended, path.getLast());
+            });
         }
     }
 
     /**
-     * How a knife's step ends its flight: in a block it meets, on its mob
-     * where the step reaches the mob's box, or spent where its mob is gone
-     * and the step reached where the mob last stood or its flight ran out.
+     * How a tick of a knife's flight ends it: in a block it meets, on a mob
+     * it meets, or spent where it left the world or its flight ran out.
      *
-     * @param from      where the step starts
-     * @param next      where it stops
-     * @param mob       the standing mob's box, or null where the mob is gone
-     * @param lastKnown where the mob last stood
-     * @param wall      whether the step meets a block
-     * @param ticks     the ticks the knife has flown, this step included
+     * @param step  the tick of its flight
+     * @param ticks the ticks the knife has flown, this one included
      * @return how the flight ends, empty while it flies on
      */
-    static Optional<GlassKnifePayload.Ending> endingOf(Vec3 from, Vec3 next, @Nullable AABB mob, Vec3 lastKnown,
-                                                       boolean wall, int ticks) {
-        if (wall) {
+    static Optional<GlassKnifePayload.Ending> endingOf(DripArc.Step step, int ticks) {
+        if (step.strike().isPresent()) {
             return Optional.of(GlassKnifePayload.Ending.STUCK);
         }
-        if (mob != null && KnifeHoming.arrives(from, next, mob)) {
+        if (step.living().isPresent()) {
             return Optional.of(GlassKnifePayload.Ending.STRUCK);
         }
-        return spent(mob == null, next, lastKnown, ticks) ? Optional.of(GlassKnifePayload.Ending.SPENT)
+        return step.lost() || ticks >= ThrownKnife.MOST_FLIGHT_TICKS ? Optional.of(GlassKnifePayload.Ending.SPENT)
                 : Optional.empty();
     }
-
-    // A knife whose mob is gone is spent where the mob last stood; any knife is spent once its flight runs out.
-    private static boolean spent(boolean mobGone, Vec3 next, Vec3 lastKnown, int ticks) {
-        return mobGone && next.equals(lastKnown) || ticks >= KnifeHoming.MOST_FLIGHT_TICKS;
-    }
-
     /**
      * Starts a knife the server sent.
      *
@@ -164,7 +144,7 @@ public final class GlassKnives {
         context.enqueueWork(() -> {
             ClientLevel level = Minecraft.getInstance().level;
             if (level != null) {
-                LIVE.add(new Knife(payload.start(), payload.mobId(), payload.lastKnown(), level.getGameTime()));
+                LIVE.add(new Knife(payload, level.getGameTime()));
             }
         });
     }
