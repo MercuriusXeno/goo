@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.program.SoundPlays;
-import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.network.SpikesRisePayload;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -25,14 +24,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Spikes goo's strike as this client sees it: chrome spikes, drawn with the
- * original spike geometry, shoot up out of the goo under the struck thing
- * into its body, hold, and retract into the goo on the retract frame
- * metal_spikes.json names, sounding the retract shink as they go; the goo
- * lies flat between strikes. Client-only: the server's strike already
- * landed its damage and its shink out.
+ * Spikes goo's strike as this client sees it: one rigid chrome triangular
+ * pyramid shoots up out of the goo under the struck thing and fully through
+ * it, its tip standing out over the thing's head, holds, and sinks back into
+ * the goo on the retract frame metal_spikes.json names, sounding the retract
+ * shink as it goes. The pyramid keeps its size and moves, rather than
+ * stretching. Client-only: the server's strike already landed its damage and
+ * its shink out.
  * urchin-rests-bristled-and-spears
- * urchin-spines-return-to-the-original-spikes
  * urchin-spikes-shink-out-and-shink-back
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
@@ -42,15 +41,14 @@ public final class SpikesRise {
     static final int SHOOT_TICKS = 2;
     /** Ticks the spikes take to sink back into the goo. */
     static final int RETRACT_TICKS = 6;
-    /** How far from the struck thing's center the ring of spikes around the middle one stands, as a share of its width. */
-    private static final float RING_SHARE = 0.35f;
-    /** The spikes rising around the middle one, evenly round the ring. */
-    private static final int RING_SPIKES = 4;
-    /** The struck thing's body center, as a share of its height over its feet. */
-    private static final float BODY_CENTER = 0.5f;
+    /** How far the impaling pyramid's tip stands out over the struck thing's head, in blocks. */
+    static final float OVER_THE_HEAD = 0.4f;
+    /** The impaling pyramid's base radius, as a share of the struck thing's width. */
+    private static final float BASE_SHARE = 0.4f;
+    /** The thinnest the impaling pyramid's base stands, in blocks, so a small thing is still run through. */
+    private static final float LEAST_BASE_RADIUS = 0.16f;
     /** Ticks the chrome band takes to sweep down a spike once. */
     private static final float SWEEP_TICKS = 20f;
-    private static final double TWO_PI = 2 * Math.PI;
     /** The smoothstep's cubic coefficients, 3t^2 - 2t^3. */
     private static final float SMOOTH_SQUARE = 3f;
     private static final float SMOOTH_CUBE = 2f;
@@ -149,44 +147,39 @@ public final class SpikesRise {
     }
 
     /**
-     * Draws one strike's spikes at their share of their reach, where any
-     * stand out and the cell and the struck thing both still stand.
+     * Draws one strike's pyramid risen its share of the way, where any of it
+     * stands out of the goo and the cell and the struck thing both still stand.
      *
      * @param level the client's level
      * @param rise  the strike
-     * @param share how far out its spikes stand, {@link #extension}
+     * @param share how far the pyramid has risen, {@link #extension}
      * @param frame what this frame draws with
      */
     private static void drawRise(ClientLevel level, Rise rise, float share, Frame frame) {
         Entity struck = level.getEntity(rise.payload.struckId());
         BlockState cell = level.getBlockState(rise.payload.cell());
-        if (share <= 0f || struck == null || !(cell.getBlock() instanceof VolumeCellBlock)) {
+        if (share <= 0f || struck == null || !SpikesBristle.isSpikes(cell)) {
             return;
         }
-        double gooTop = rise.payload.cell().getY() + (double) VolumeCellBlock.layersOf(cell) / VolumeCellBlock.MAX_LAYERS;
+        double gooTop = SpikesBristle.gooTop(rise.payload.cell(), cell);
         Vec3 feet = struck.getPosition(frame.partial());
-        Vector3f aim = relative(feet.add(0, struck.getBbHeight() * BODY_CENTER, 0), frame.camera());
-        float ring = struck.getBbWidth() * RING_SHARE;
-        emitSpike(frame, relative(new Vec3(feet.x, gooTop, feet.z), frame.camera()), aim, share);
-        for (int spike = 0; spike < RING_SPIKES; spike++) {
-            double angle = TWO_PI * spike / RING_SPIKES;
-            Vec3 base = new Vec3(feet.x + ring * Math.cos(angle), gooTop, feet.z + ring * Math.sin(angle));
-            emitSpike(frame, relative(base, frame.camera()), aim, share);
-        }
+        float height = impaleHeight(gooTop, feet.y + struck.getBbHeight());
+        Vec3 base = new Vec3(feet.x, gooTop - (1f - share) * height, feet.z);
+        float radius = Math.max(LEAST_BASE_RADIUS, struck.getBbWidth() * BASE_SHARE);
+        SpikesBristle.emitPyramid(frame.pose(), frame.chrome(), relative(base, frame.camera()), height, radius,
+                frame.sweep());
     }
 
     /**
-     * Emits one spike from its base on the goo toward the struck thing's
-     * body center, out its share of the way there and past it.
+     * How tall the impaling pyramid stands: from the goo's surface through
+     * the struck thing to past the top of its head.
      *
-     * @param frame what this frame draws with
-     * @param base  the spike's base on the goo, camera-relative
-     * @param aim   the struck thing's body center, camera-relative
-     * @param share how far out the spike stands
+     * @param gooTop  the goo surface's height
+     * @param headTop the top of the struck thing's body
+     * @return the pyramid's height in blocks
      */
-    private static void emitSpike(Frame frame, Vector3f base, Vector3f aim, float share) {
-        float reach = aim.distance(base) + SpikesSpear.OVERSHOOT;
-        SpikesSpear.emit(frame.pose(), frame.chrome(), base, aim, reach * share, frame.sweep());
+    static float impaleHeight(double gooTop, double headTop) {
+        return (float) (Math.max(0.0, headTop - gooTop) + OVER_THE_HEAD);
     }
 
     private static Vector3f relative(Vec3 point, Vec3 camera) {
