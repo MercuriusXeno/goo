@@ -63,6 +63,56 @@ public final class GooCasters {
     }
 
     /**
+     * Whether a stack drawn for a hand is the stack the player holds in either hand.
+     *
+     * @param player the player
+     * @param drawn  the stack being drawn
+     * @return true where the drawn stack stands for one of the player's hands
+     */
+    public static boolean drawnInHand(Player player, ItemStack drawn) {
+        return drawnAs(drawn, player.getMainHandItem(), player.getOffhandItem())
+                || drawnAs(drawn, player.getOffhandItem(), player.getMainHandItem());
+    }
+
+    /**
+     * Whether a stack drawn for a hand is the stack the player casts from.
+     *
+     * @param player the player
+     * @param drawn  the stack being drawn
+     * @return true where the drawn stack stands for the player's caster
+     */
+    public static boolean drawnAsCaster(Player player, ItemStack drawn) {
+        InteractionHand hand = casterHand(player);
+        if (hand == null) {
+            return false;
+        }
+        boolean main = hand == InteractionHand.MAIN_HAND;
+        return main ? drawnAs(drawn, player.getMainHandItem(), player.getOffhandItem())
+                : drawnAs(drawn, player.getOffhandItem(), player.getMainHandItem());
+    }
+
+    /**
+     * Whether a drawn stack stands for a held one: the same stack, or raw goo
+     * of the held goo's type the other hand does not hold. The first-person
+     * hand draws the stack it last took, which lags the one the server sends
+     * each tick a bare-handed cast drains the held goo; a glove's stack never
+     * changes, so it is always the same stack.
+     * decision raw-goo-items-work-bare-handed-for-the-held-type
+     *
+     * @param drawn     the stack being drawn
+     * @param held      the stack held in the hand
+     * @param otherHand the stack held in the other hand
+     * @return true where the drawn stack is the held one
+     */
+    static boolean drawnAs(ItemStack drawn, ItemStack held, ItemStack otherHand) {
+        if (drawn == held) {
+            return true;
+        }
+        return drawn != otherHand && drawn.getItem() instanceof GooItem && held.getItem() instanceof GooItem
+                && Objects.equals(GooStacks.keyOf(drawn), GooStacks.keyOf(held));
+    }
+
+    /**
      * Whether the player's caster is a glove, which casts every type.
      *
      * @param player the player

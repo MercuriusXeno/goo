@@ -111,7 +111,8 @@ public final class GloveGlow {
      * @return true when either hand holds it
      */
     private static boolean inHand(ItemStack stack, LocalPlayer player) {
-        return heldBy(stack, player.getMainHandItem()) || heldBy(stack, player.getOffhandItem());
+        return GooCasters.drawnInHand(player, stack) || heldBy(stack, player.getMainHandItem())
+                || heldBy(stack, player.getOffhandItem());
     }
 
     /**
