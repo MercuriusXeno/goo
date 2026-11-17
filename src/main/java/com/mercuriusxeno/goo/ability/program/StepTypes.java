@@ -128,7 +128,6 @@ public final class StepTypes {
         register(LeafSteps.AGE.type());
         register(MetronomeStep.TYPE);
         register(RelayStep.TYPE);
-        register(ExtendStep.TYPE);
         register(LeafSteps.STUN.type());
         register(SignalWaveStep.TYPE);
         register(TickToggleStep.TYPE);

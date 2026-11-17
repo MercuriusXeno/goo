@@ -69,7 +69,6 @@ class AbilityPoseTableTest {
             Map.entry("metal_urchin", ArmPose.SWUNG),
             Map.entry("nether_decay", ArmPose.HELD_OUT),
             Map.entry("nether_undead", ArmPose.HELD_UP),
-            Map.entry("pulse_extend", ArmPose.HELD_UP),
             Map.entry("pulse_signal", ArmPose.HELD_OUT),
             Map.entry("pulse_tick", ArmPose.HELD_OUT),
             Map.entry("pulse_zap", ArmPose.HELD_OUT),
