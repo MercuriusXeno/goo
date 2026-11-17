@@ -29,6 +29,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.VineBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
@@ -42,7 +43,9 @@ import java.util.function.Consumer;
  * struggling against its vines until they let go takes no harm from them;
  * a player under Barkskin standing on a full cell takes no vines from it,
  * and a held player's vines end as Barkskin begins on them;
- * Vines goo sprayed onto a wall's side grows a goologged vine there.
+ * Vines goo sprayed onto a wall's side grows a goologged vine there, which
+ * climbs like a vine and outlives a hit eating its cell's last layer; the
+ * player who sprayed the goo is spared by it.
  * vines-is-sprayed-slime-that-entangles-what-tries-to-cross
  * vines-root-is-volume-based-one-to-five-vines-by-layers
  * vines-deal-no-thorn-damage-and-attacking-the-mob-frees-it
@@ -94,6 +97,22 @@ public final class VinesTests {
     private static final String BARKSKIN_ENDS_HELD_VINES = "vines_held_end_as_barkskin_begins";
     private static final String HELD_VINES_SHOULD_END = "The held player's vines should end the tick after Barkskin "
             + "begins, holds %s with its slow modifier %s";
+    private static final String EATEN_CELL_KEEPS_ITS_VINES = "vines_eaten_cell_leaves_its_vines_hanging";
+    private static final String GOOLOGGED_VINES_CLIMB = "vines_goologged_vines_climb_like_a_vine";
+    private static final String CASTER_SPARED = "vines_spare_the_player_who_sprayed_them";
+    /** A one-layer Vines cell on the bay floor with a vine hanging on the stone wall north of it. */
+    private static final BlockPos VINED_CELL = new BlockPos(2, 2, 4);
+    /** A one-layer Vines cell on the bay floor with no wall beside it, so it grows no vine. */
+    private static final BlockPos BARE_CELL = new BlockPos(4, 2, 4);
+    /** One layer's height, where a thing standing in a one-layer cell stands. */
+    private static final double ONE_LAYER = 1.0 / VolumeCellBlock.MAX_LAYERS;
+    private static final String SHOULD_HANG_ALONE = "The cell's last layer eaten should leave its vine hanging north, "
+            + "stands %s";
+    private static final String SHOULD_CLIMB = "A zombie in the vined cell should climb and one in the bare cell "
+            + "should not: vined %s, bare %s";
+    private static final String CASTER_SHOULD_BE_SPARED = "The player who sprayed the cell should hold no vines, "
+            + "holds %s";
+    private static final String OTHER_SHOULD_BE_HELD = "Another player on the cell should be held by its vine, holds %s";
     private static final String WALL_GROWS_A_VINE = "vines_on_a_wall_grow_a_goologged_vine";
     /** The stone wall the drips strike, standing on the bay floor. */
     private static final BlockPos WALL = new BlockPos(3, 2, 2);
@@ -125,6 +144,10 @@ public final class VinesTests {
         GooTestFunctions.registerTest(registrar, BARKSKIN_SPARES, VinesTests::vinesSpareAPlayerUnderBarkskin);
         GooTestFunctions.registerTest(registrar, WALL_GROWS_A_VINE, VinesTests::vinesOnAWallGrowAGoologgedVine);
         GooTestFunctions.registerTest(registrar, BARKSKIN_ENDS_HELD_VINES, VinesTests::vinesHeldEndAsBarkskinBegins);
+        GooTestFunctions.registerTest(registrar, EATEN_CELL_KEEPS_ITS_VINES,
+                VinesTests::vinesEatenCellLeavesItsVinesHanging);
+        GooTestFunctions.registerTest(registrar, GOOLOGGED_VINES_CLIMB, VinesTests::vinesGoologgedVinesClimbLikeAVine);
+        GooTestFunctions.registerTest(registrar, CASTER_SPARED, VinesTests::vinesSpareThePlayerWhoSprayedThem);
     }
 
     /**
@@ -326,6 +349,111 @@ public final class VinesTests {
                     String.format(HELD_VINES_SHOULD_END, after, slowed ? "standing" : "gone"));
             helper.succeed();
         });
+    }
+
+    /**
+     * A zombie held by a one-layer Vines cell bearing a vine on its north
+     * wall takes a hit that eats the cell's last layer; the vine is left
+     * hanging on that wall as a vine.
+     *
+     * @param helper the gametest helper
+     */
+    public static void vinesEatenCellLeavesItsVinesHanging(GameTestHelper helper) {
+        layVinedCell(helper, VINED_CELL);
+        Mob zombie = helmeted(helper.spawnWithNoFreeWill(EntityType.ZOMBIE, onThinCell(VINED_CELL)));
+        helper.runAfterDelay(SETTLE_TICKS, () -> {
+            Rooted held = zombie.getData(GooAttachments.ROOTED);
+            helper.assertTrue(held.vines() == 1, String.format(SHOULD_BE_HELD, held));
+            zombie.hurtServer(helper.getLevel(), helper.getLevel().damageSources().magic(), HIT_DAMAGE);
+            BlockState left = helper.getBlockState(VINED_CELL);
+            helper.assertTrue(left.is(Blocks.VINE) && left.getValue(VineBlock.NORTH),
+                    String.format(SHOULD_HANG_ALONE, left));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A zombie standing in a one-layer Vines cell bearing a vine climbs as
+     * on a vine, and a zombie in a one-layer cell with no wall to grow one
+     * on does not.
+     *
+     * @param helper the gametest helper
+     */
+    public static void vinesGoologgedVinesClimbLikeAVine(GameTestHelper helper) {
+        layVinedCell(helper, VINED_CELL);
+        helper.setBlock(BARE_CELL.below(), Blocks.STONE);
+        layCell(helper, BARE_CELL, 1);
+        Mob onVines = helmeted(helper.spawnWithNoFreeWill(EntityType.ZOMBIE, onThinCell(VINED_CELL)));
+        Mob onBare = helmeted(helper.spawnWithNoFreeWill(EntityType.ZOMBIE, onThinCell(BARE_CELL)));
+        helper.runAfterDelay(SETTLE_TICKS, () -> {
+            helper.assertTrue(onVines.onClimbable() && !onBare.onClimbable(),
+                    String.format(SHOULD_CLIMB, onVines.onClimbable(), onBare.onClimbable()));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A mock player lands one Vines drip on stone, and stands in the cell it
+     * laid beside another mock player; the cell's vine holds the other
+     * player and spares the one who sprayed it.
+     *
+     * @param helper the gametest helper
+     */
+    public static void vinesSpareThePlayerWhoSprayedThem(GameTestHelper helper) {
+        helper.setBlock(FLOOR, Blocks.STONE);
+        helper.setBlock(OVER_THE_FLOOR, Blocks.AIR);
+        AbilityDefinition vines = AbilityRegistry.of(helper.getLevel()).getAbility(VINES);
+        helper.assertTrue(vines != null, ABILITY_REQUIRED);
+        ServerPlayer caster = survivor(SelfDeliveryTests.invoker(helper, GooTypes.LEAF));
+        ServerPlayer other = survivor(SelfDeliveryTests.invoker(helper, GooTypes.LEAF));
+        KnownRecipes.teachRequires(caster, vines);
+        LandedDrips.landOn(helper, caster, vines, FLOOR, 1);
+        for (ServerPlayer player : new ServerPlayer[] {caster, other}) {
+            Vec3 in = inThinCell(helper, OVER_THE_FLOOR);
+            player.setPos(in.x, in.y, in.z);
+            SelfDeliveryTests.tickFor(helper, player, SETTLE_TICKS);
+        }
+        helper.runAfterDelay(SETTLE_TICKS + 1, () -> {
+            Rooted onCaster = caster.getData(GooAttachments.ROOTED);
+            Rooted onOther = other.getData(GooAttachments.ROOTED);
+            helper.getLevel().getServer().getPlayerList().remove(caster);
+            helper.getLevel().getServer().getPlayerList().remove(other);
+            helper.assertTrue(onOther.vines() == 1, String.format(OTHER_SHOULD_BE_HELD, onOther));
+            helper.assertTrue(onCaster.vines() == 0, String.format(CASTER_SHOULD_BE_SPARED, onCaster));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Lays a one-layer Vines cell on a stone floor with a stone wall north of
+     * it, the cell attached to that wall and bearing a vine on it.
+     *
+     * @param helper the gametest helper
+     * @param cell   the cell
+     */
+    private static void layVinedCell(GameTestHelper helper, BlockPos cell) {
+        helper.setBlock(cell.below(), Blocks.STONE);
+        helper.setBlock(cell.north(), Blocks.STONE);
+        helper.setBlock(cell, GooBlocks.LEAF_VINES.get().defaultBlockState()
+                .setValue(VolumeCellBlock.coatProperty(Direction.NORTH), SideCoat.ATTACHED)
+                .setValue(GoologgedSides.NORTH, true));
+    }
+
+    /** Where a thing stands in a one-layer cell, relative to the test: on its one layer, over the cell's middle. */
+    private static Vec3 onThinCell(BlockPos cell) {
+        return Vec3.atBottomCenterOf(cell).add(0, ONE_LAYER, 0);
+    }
+
+    /** Where a thing stands in a one-layer cell, in the world. */
+    private static Vec3 inThinCell(GameTestHelper helper, BlockPos cell) {
+        return helper.absoluteVec(onThinCell(cell));
+    }
+
+    /** A survival player whose client reports loaded, whom the vines and hits reach. */
+    private static ServerPlayer survivor(ServerPlayer player) {
+        player.setGameMode(GameType.SURVIVAL);
+        player.connection.markClientLoaded();
+        return player;
     }
 
     private static void standOn(GameTestHelper helper, ServerPlayer player, BlockPos cell) {

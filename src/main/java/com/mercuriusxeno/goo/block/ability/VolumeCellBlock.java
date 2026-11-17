@@ -703,14 +703,15 @@ public class VolumeCellBlock extends Block {
 
     /**
      * Whether a hit this cell deals credits whoever placed it, so the cell
-     * remembers its placer: a cutting cell's shards and a smiting cell's
-     * holy fire; a cell that hurts nothing remembers none.
+     * remembers its placer: an entangling cell, which spares it, and the
+     * cutting cell's shards and the smiting cell's holy fire, which credit
+     * it; a cell that neither spares nor hurts remembers none.
      * standing-goo-thing-credits-whoever-placed-it
      *
      * @return true where the cell remembers its placer
      */
     protected boolean creditsItsPlacer() {
-        return surface().cuts() || surface().smites();
+        return surface().cuts() || surface().smites() || surface().entangles();
     }
 
     /**
@@ -1898,8 +1899,10 @@ public class VolumeCellBlock extends Block {
     /**
      * Entangles a living thing crossing an entangling cell in the vines its
      * layers give, by its laying ability's vines step, on the server, whose
-     * speed modifier reaches the client too.
+     * speed modifier reaches the client too; the player who placed the cell
+     * is spared.
      * vines-is-sprayed-slime-that-entangles-what-tries-to-cross
+     * operator ruling 2026-11-17: the caster is spared their own goo
      *
      * @param level  the level the cell stands in
      * @param pos    the cell
@@ -1909,7 +1912,7 @@ public class VolumeCellBlock extends Block {
     private void entangle(Level level, BlockPos pos, BlockState state, Entity entity) {
         if (surface().entangles() && level instanceof ServerLevel server) {
             VinesStep.in(layingProgram(server)).ifPresent(vines -> RootEvents.entangle(entity,
-                    new Rooted.Touch(pos, state.getValue(LAYERS), vines.fireFactor())));
+                    new Rooted.Touch(pos, state.getValue(LAYERS), vines.fireFactor()), creditedPlayerAt(server, pos)));
         }
     }
 

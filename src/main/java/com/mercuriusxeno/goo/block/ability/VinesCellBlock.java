@@ -5,6 +5,8 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.VineBlock;
@@ -21,8 +23,9 @@ import java.util.stream.Collectors;
  * vine could validly hang, the vine standing in the cell's own space, and
  * spends the layers a vine costs; it keeps growing while a valid wall and
  * goo remain, so a heavy spray saturates a wall in vines, and keeps its
- * layers once every coated wall bears one. Goo spent to nothing leaves its
- * vines hanging alone.
+ * layers once every coated wall bears one. Goo spent to nothing, by growing
+ * or by a hit eating its last layer, leaves its vines hanging alone, and a
+ * cell bearing a vine climbs as a vine does.
  * vines-goo-on-walls-places-goologged-vines-and-depletes
  */
 public class VinesCellBlock extends VolumeCellBlock {
@@ -63,6 +66,16 @@ public class VinesCellBlock extends VolumeCellBlock {
     }
 
     /**
+     * Climbs as a vine does where a vine hangs in the cell.
+     * vines-goo-on-walls-places-goologged-vines-and-depletes
+     */
+    @Override
+    public boolean isLadder(@NonNull BlockState state, @NonNull LevelReader level, @NonNull BlockPos pos,
+                            @NonNull LivingEntity entity) {
+        return GoologgedSides.SIDES.stream().anyMatch(side -> GoologgedSides.plantedOn(state, side));
+    }
+
+    /**
      * Grows one goologged vine on the next coated wall a vine can hang on,
      * spending its layers: the cell stands anew with the vine, which ticks it
      * again for the next, or, spent to nothing, leaves its vines as a vine.
@@ -83,17 +96,21 @@ public class VinesCellBlock extends VolumeCellBlock {
         planting.side().ifPresent(side -> {
             BlockState grown = state.setValue(GoologgedSides.plantProperty(side), true);
             level.setBlock(pos, planting.layersLeft() > 0 ? grown.setValue(LAYERS, planting.layersLeft())
-                    : vinesAlone(grown), UPDATE_ALL);
+                    : spent(grown), UPDATE_ALL);
         });
     }
 
     /**
-     * The vine a cell's vines stand as once its goo is spent.
+     * What a Vines cell leaves once its goo is spent: its vines hanging alone
+     * as a vine, or air where it bore none.
      *
-     * @param cell the cell's state, its vines grown
-     * @return a vine hanging on every side the cell's vines hung on
+     * @param cell the cell's state
+     * @return a vine hanging on every side the cell's vines hung on, or air
      */
-    private static BlockState vinesAlone(BlockState cell) {
+    public static BlockState spent(BlockState cell) {
+        if (GoologgedSides.SIDES.stream().noneMatch(side -> GoologgedSides.plantedOn(cell, side))) {
+            return Blocks.AIR.defaultBlockState();
+        }
         BlockState vine = Blocks.VINE.defaultBlockState();
         for (Direction side : GoologgedSides.SIDES) {
             vine = vine.setValue(VineBlock.getPropertyForFace(side), GoologgedSides.plantedOn(cell, side));
