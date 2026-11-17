@@ -194,11 +194,6 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
     }
 
     @Override
-    public void liftEntitiesInColumn(double radius, double height, double speed) {
-        EntityLift.liftInColumn(level, Vec3.atBottomCenterOf(pos), radius, height, speed);
-    }
-
-    @Override
     public void rideShaftAbove(int cap, double rise, double sink) {
         EntityLift.rideShaft(level, pos.above(), cap, rise, sink);
     }
