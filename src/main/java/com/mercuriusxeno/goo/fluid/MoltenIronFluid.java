@@ -1,10 +1,16 @@
 package com.mercuriusxeno.goo.fluid;
 
+import com.mercuriusxeno.goo.Goo;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.damagesource.DamageType;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.InsideBlockEffectApplier;
 import net.minecraft.world.entity.InsideBlockEffectType;
@@ -28,11 +34,19 @@ import java.util.function.Supplier;
  * cools it (FluidInteractionRegistry: a source to iron core, flowing molten iron to anorthosite), and molten iron
  * falling onto water cools that water to anorthosite. It burns hotter than lava: what stands in it takes
  * {@link #SCALD_DAMAGE} a hit to lava's 4 and burns {@link #FIRE_SECONDS} seconds to lava's 15, dropped items burn
- * away, and it lights flammable blocks near it as lava does.
+ * away, and it lights flammable blocks near it as lava does. Its hit is a damage type of its own, so a death in it
+ * reads its own message.
  * decision lunar-matter-is-anorthosite-basalt-regolith-and-an-iron-core
+ * decision molten-iron-death-reads-wanted-a-cast-of-molten-metal
  */
 public abstract class MoltenIronFluid extends BaseFlowingFluid {
 
+    /**
+     * Molten iron's own damage type, fire as lava's is, so its death message is its own.
+     * molten-iron-death-reads-wanted-a-cast-of-molten-metal
+     */
+    public static final ResourceKey<DamageType> MOLTEN_IRON_DAMAGE =
+            ResourceKey.create(Registries.DAMAGE_TYPE, Identifier.fromNamespaceAndPath(Goo.MODID, "molten_iron"));
     /** The damage a hit of molten iron deals, past lava's 4. */
     static final float SCALD_DAMAGE = 6.0F;
     /** The seconds molten iron sets a thing alight for, past lava's 15. */
@@ -69,7 +83,9 @@ public abstract class MoltenIronFluid extends BaseFlowingFluid {
     }
 
     /**
-     * Burns a thing standing in molten iron: a longer fire than lava's and a harder hit, through lava's damage.
+     * Burns a thing standing in molten iron: a longer fire than lava's and a harder hit, through molten iron's own
+     * damage, which names no entity since molten iron is environmental and credits nobody.
+     * molten-iron-death-reads-wanted-a-cast-of-molten-metal
      *
      * @param entity the thing standing in it
      */
@@ -78,7 +94,9 @@ public abstract class MoltenIronFluid extends BaseFlowingFluid {
             return;
         }
         entity.igniteForSeconds(FIRE_SECONDS);
-        entity.hurtServer(level, entity.damageSources().lava(), SCALD_DAMAGE);
+        DamageSource moltenIron = new DamageSource(level.registryAccess().lookupOrThrow(Registries.DAMAGE_TYPE)
+                .getOrThrow(MOLTEN_IRON_DAMAGE));
+        entity.hurtServer(level, moltenIron, SCALD_DAMAGE);
     }
 
     /**
