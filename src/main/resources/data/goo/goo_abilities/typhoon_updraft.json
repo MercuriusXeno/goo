@@ -20,7 +20,7 @@
   },
   "behaviors": [
     { "type": "updraft", "half_width": 0.5, "rise": 0.4, "glide_height": 16, "fall_cap": 0.15,
-      "air_speed": 0.35, "air_steer": 0.15 }
+      "air_speed": 0.35, "air_steer": 0.15, "air_refill": 10 }
   ],
   "on_prism": [
     { "type": "lift", "rise": 0.3, "sink": 0.2, "cap": 32 }
