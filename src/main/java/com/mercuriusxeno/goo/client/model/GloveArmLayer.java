@@ -44,6 +44,7 @@ public final class GloveArmLayer extends RenderLayer<AvatarRenderState, PlayerMo
 
     private static final float PIXELS_PER_BLOCK = 16f;
     private static final float MODEL_CENTER = 0.5f;
+    private static final float HALF = 0.5f;
     /** Vanilla's ItemInHandLayer turns and offsets the held item from the arm part by these. */
     private static final float HAND_X_TURN_DEGREES = -90f;
     private static final float HAND_Y_TURN_DEGREES = 180f;
@@ -232,6 +233,57 @@ public final class GloveArmLayer extends RenderLayer<AvatarRenderState, PlayerMo
         CutArm built = CutArm.of(ArmBox.of(side, slim), cut);
         cutArms.put(side, built);
         return built;
+    }
+
+    /**
+     * One whole bare arm and its sleeve in the skin's texture, which raw goo held in first person draws in the
+     * glove body's place.
+     * decision raw-goo-items-work-bare-handed-for-the-held-type
+     *
+     * @param side the arm holding the goo
+     * @param slim whether the skin's arms are slim
+     * @return the arm
+     */
+    static BareArm bareArm(HumanoidArm side, boolean slim) {
+        ArmBox box = ArmBox.of(side, slim);
+        CutArm whole = CutArm.of(box, HAND_END_Y);
+        return new BareArm(whole.arm(), whole.sleeve(), box.minX() + box.width() * HALF, box.width());
+    }
+
+    /**
+     * A whole bare arm, and where it stands in a glove's model: its hand end at the glove's fingers, the arm running
+     * up the glove body's length past the cuff, and its width and depth stretched to the glove body's, so the palm
+     * blob rests on it where it rests on the glove's palm.
+     *
+     * @param arm     the arm
+     * @param sleeve  the sleeve
+     * @param centerX the arm cube's middle along x, in the arm part's pixels
+     * @param width   the arm cube's width, in pixels
+     */
+    record BareArm(ModelPart arm, ModelPart sleeve, float centerX, float width) {
+
+        /** The glove body's middle along x and z, in glove model pixels. */
+        private static final float BODY_CENTER_PX = 8f;
+        /** The glove body's width and depth, in glove model pixels: x and z both span 5 to 11. */
+        private static final float BODY_WIDTH_PX = 6f;
+        /** The glove body's fingers' end, in glove model pixels, where the arm's hand end stands. */
+        private static final float FINGERS_Y_PX = 0f;
+        private static final float HALF_TURN_DEGREES = 180f;
+
+        /**
+         * Carries the pose from the arm part's pixels into the glove's model: the hand end at the fingers, the
+         * shoulder up past the cuff, turned a half turn about x so the arm runs up the model as the glove body does.
+         *
+         * @param poseStack the pose stack, at the glove's model
+         */
+        void standInGloveBody(PoseStack poseStack) {
+            float stretch = BODY_WIDTH_PX / width;
+            poseStack.translate(BODY_CENTER_PX / PIXELS_PER_BLOCK, (FINGERS_Y_PX + HAND_END_Y) / PIXELS_PER_BLOCK,
+                    BODY_CENTER_PX / PIXELS_PER_BLOCK);
+            poseStack.scale(stretch, 1f, stretch);
+            poseStack.mulPose(Axis.XP.rotationDegrees(HALF_TURN_DEGREES));
+            poseStack.translate(-centerX / PIXELS_PER_BLOCK, 0f, 0f);
+        }
     }
 
     /**
