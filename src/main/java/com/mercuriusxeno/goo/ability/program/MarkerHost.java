@@ -195,11 +195,6 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
     }
 
     @Override
-    public void rideShaftAbove(int cap, double rise, double sink) {
-        EntityLift.rideShaft(level, pos.above(), cap, rise, sink);
-    }
-
-    @Override
     public void spawnParticles(ParticleBurst burst) {
         BlockAnchoredActions.sendBurst(level, Vec3.atCenterOf(pos), be.getPlacedFace().getAxis(), burst);
     }
