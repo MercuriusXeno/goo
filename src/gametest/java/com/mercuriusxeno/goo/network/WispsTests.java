@@ -50,8 +50,6 @@ public final class WispsTests {
     private static final BlockPos FLOOR = new BlockPos(2, 0, 2);
     /** The cell over the floor block, where the drips' layers land. */
     private static final BlockPos OVER_THE_FLOOR = FLOOR.above();
-    /** Ticks the light engine takes to light the room after the cell changes. */
-    private static final int LIGHT_SETTLE_TICKS = 4;
     private static final String ABILITY_REQUIRED = "The ability registry must hold glow_wisps";
     private static final String CELL_WRONG = "The cell over the floor should hold %d layers of Wisps, stands %s";
     private static final String LIGHT_WRONG = "A Wisps cell of %d layers should shine at block light %d, reads %d";
@@ -254,7 +252,9 @@ public final class WispsTests {
     /**
      * One Wisps drip striking the floor of a sealed dark room lays a Wisps
      * cell of one layer shining at block light 1; fourteen more fill the
-     * cell, and it shines at 15.
+     * cell, and it shines at 15. The light engine runs off the server
+     * thread and lit a full cell nine ticks late under a loaded suite, so
+     * each read waits until the light answers, within the test's ticks.
      *
      * @param helper the gametest helper
      */
@@ -265,15 +265,12 @@ public final class WispsTests {
         ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.GLOW);
         KnownRecipes.teachRequires(caster, wisps);
         LandedDrips.landOn(helper, caster, wisps, FLOOR, 1);
-        helper.runAfterDelay(LIGHT_SETTLE_TICKS, () -> {
-            assertShinesAt(helper, 1);
-            LandedDrips.landOn(helper, caster, wisps, FLOOR, VolumeCellBlock.MAX_LAYERS - 1);
-            helper.runAfterDelay(LIGHT_SETTLE_TICKS, () -> {
-                helper.getLevel().getServer().getPlayerList().remove(caster);
-                assertShinesAt(helper, VolumeCellBlock.MAX_LAYERS);
-                helper.succeed();
-            });
-        });
+        helper.startSequence()
+                .thenWaitUntil(() -> assertShinesAt(helper, 1))
+                .thenExecute(() -> LandedDrips.landOn(helper, caster, wisps, FLOOR, VolumeCellBlock.MAX_LAYERS - 1))
+                .thenWaitUntil(() -> assertShinesAt(helper, VolumeCellBlock.MAX_LAYERS))
+                .thenExecute(() -> helper.getLevel().getServer().getPlayerList().remove(caster))
+                .thenSucceed();
     }
 
     private static void assertShinesAt(GameTestHelper helper, int layers) {

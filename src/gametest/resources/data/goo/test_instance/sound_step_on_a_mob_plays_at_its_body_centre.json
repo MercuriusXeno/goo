@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:sound_step_on_a_mob_plays_at_its_body_centre",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 40,
+  "setup_ticks": 0,
+  "required": true
+}
