@@ -123,12 +123,15 @@ public final class KnivesHoldTests {
     /** The read a tick past the 6th after the press, which sees the throw the 6th tick's server tick lands. */
     private static final int READ_SIX_TICKS_ON = 7;
     private static final int NINE_TICKS = 9;
-    private static final int THREE_THROWN = 3;
-    private static final String SHOULD_THROW_ON_THE_HOLD = "Holding left click should throw 1 knife on the press,"
-            + " 3 by 6 ticks later, and none more in the 9 ticks after it lifts; thrown %s";
-    /** 10 held, 3 thrown, and the 1 the clock formed 6 ticks after the first throw left a full hold. */
-    private static final int HELD_BENEATH_THE_THROW = 8;
-    private static final String SHOULD_CHARGE_BENEATH = "The charge should run on beneath the throw, 8 held"
+    /** 5 on the press, 3 of the 5 left 3 ticks on, and 2 of the 3 held 6 ticks on, the knife the clock formed among them. */
+    private static final int FIRST_VOLLEY = 5;
+    private static final int THREE_VOLLEYS = 10;
+    private static final String SHOULD_THROW_ON_THE_HOLD = "Holding left click should throw half the knives held on"
+            + " the press, 5, then half of those left every 3 ticks, 10 by 6 ticks later, and none more in the 9 ticks"
+            + " after it lifts; thrown %s";
+    /** The 1 knife left of the third volley. */
+    private static final int HELD_BENEATH_THE_THROW = 1;
+    private static final String SHOULD_CHARGE_BENEATH = "The charge should run on beneath the throw, 1 held"
             + " 6 ticks on; held %s";
     /** An unarmored pig 3 blocks ahead, in the knives' path. */
     private static final BlockPos PIG_POS = new BlockPos(8, 1, 4);
@@ -155,6 +158,12 @@ public final class KnivesHoldTests {
     private static final String SHOULD_HEAD_AT_THE_CROSSHAIR = "A knife should leave its slot %s heading at the"
             + " crosshair's point %s, along %s; it left along %s";
 
+    private static final String KNIVES_THROW_HALF_THE_HELD_ROUNDED_UP = "knives_throw_half_the_held_rounded_up";
+    private static final int HALF_OF_TEN = 5;
+    private static final int THEN_HALF_OF_FIVE_ROUNDED_UP = 8;
+    private static final String SHOULD_THROW_HALF = "A throw from 10 knives should throw 5, and the next from the 5 left"
+            + " 3 more, 8 in all; thrown %s";
+
     private KnivesHoldTests() {
     }
 
@@ -180,6 +189,8 @@ public final class KnivesHoldTests {
                 KnivesHoldTests::knivesThrowOnePerThreeTicksWhileLeftClickIsHeld);
         GooTestFunctions.registerTest(registrar, KNIVES_THREE_TICKS_APART_BOTH_DAMAGE_ONE_MOB,
                 KnivesHoldTests::knivesThreeTicksApartBothDamageOneMob);
+        GooTestFunctions.registerTest(registrar, KNIVES_THROW_HALF_THE_HELD_ROUNDED_UP,
+                KnivesHoldTests::knivesThrowHalfTheHeldRoundedUp);
         GooTestFunctions.registerTest(registrar, KNIVES_FLY_FROM_THEIR_SLOT_TO_THE_CROSSHAIR,
                 KnivesHoldTests::knivesFlyFromTheirSlotToTheCrosshair);
     }
@@ -214,7 +225,7 @@ public final class KnivesHoldTests {
         helper.runAfterDelay(TEN_KNIVES_TICKS + READ_SIX_TICKS_ON + NINE_TICKS, () -> {
             thrown.add(state.knifeHolds().thrownBy(caster));
             helper.getLevel().getServer().getPlayerList().remove(caster);
-            helper.assertTrue(thrown.equals(List.of(1, THREE_THROWN, THREE_THROWN)),
+            helper.assertTrue(thrown.equals(List.of(FIRST_VOLLEY, THREE_VOLLEYS, THREE_VOLLEYS)),
                     String.format(SHOULD_THROW_ON_THE_HOLD, thrown));
             helper.assertTrue(heldSixTicksOn[0] == HELD_BENEATH_THE_THROW,
                     String.format(SHOULD_CHARGE_BENEATH, heldSixTicksOn[0]));
@@ -285,6 +296,32 @@ public final class KnivesHoldTests {
             Vec3 heading = flying.getFirst().velocity().normalize();
             helper.assertTrue(heading.dot(toTheCrosshair) > AT_THE_CROSSHAIR,
                     String.format(SHOULD_HEAD_AT_THE_CROSSHAIR, slot, crosshair, toTheCrosshair, heading));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A mock player holding 10 knives throws: half the knives held leave,
+     * rounded up, 5, and the next throw takes half of the 5 left, rounded up, 3.
+     * decision knives-throw-one-per-two-ticks-while-left-click-is-held
+     *
+     * @param helper the gametest helper
+     */
+    public static void knivesThrowHalfTheHeldRoundedUp(GameTestHelper helper) {
+        ServerPlayer caster = casterHolding(helper, TWELVE_PRICES);
+        standAt(helper, caster, Vec3.atBottomCenterOf(CASTER_POS), 0f);
+        GooServerState state = GooServerState.of(helper.getLevel().getServer());
+        holding(caster, true);
+
+        helper.runAfterDelay(TEN_KNIVES_TICKS, () -> {
+            List<Integer> thrown = new ArrayList<>();
+            KnivesThrowHandler.throwKnife(caster);
+            thrown.add(state.knifeHolds().thrownBy(caster));
+            KnivesThrowHandler.throwKnife(caster);
+            thrown.add(state.knifeHolds().thrownBy(caster));
+            helper.getLevel().getServer().getPlayerList().remove(caster);
+            helper.assertTrue(thrown.equals(List.of(HALF_OF_TEN, THEN_HALF_OF_FIVE_ROUNDED_UP)),
+                    String.format(SHOULD_THROW_HALF, thrown));
             helper.succeed();
         });
     }

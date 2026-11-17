@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.registry.GooServerState;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
+import java.util.Optional;
 
 /**
  * Server-side handler for a Knives throw: during a standing hold with a knife
@@ -71,16 +72,22 @@ public final class KnivesThrowHandler {
                     held.ability().cost().exactIn(GooValues.of(player.level())))) {
                 return;
             }
-            Vec3 slot = ThrownKnife.launchPointOf(player.getEyePosition(), player.getViewXRot(1f),
-                    player.getViewYRot(1f), GooCasters.casterOnTheRight(player), inTheHold, delivery.stacksJavelins());
+            int count = ThrownKnife.thrownAtOnce(inTheHold, delivery.stacksJavelins());
             Vec3 crosshair = ThrownKnife.crosshairPointOf(player, 1f);
-            // knives-hover-above-the-blob-cube-over-the-hand: it leaves from where it hovers, drawn from its slot forward
-            Vec3 start = ThrownKnife.drawnFromOf(slot, ThrownKnife.headingFrom(slot, crosshair),
-                    delivery.stacksJavelins(), 1f);
-            state.thrownKnives().launch(player, held.gooType(), held.ability().id().toString(), start,
-                    ThrownKnife.launchVelocityToward(start, crosshair, delivery.throwSpeed()), delivery.stacksJavelins(),
-                    delivery.formSounds().thrownWith(player.getRandom()));
-            holds.threw(player, 1);
+            for (int leaving = 0; leaving < count; leaving++) {
+                Vec3 slot = ThrownKnife.launchPointOf(player.getEyePosition(), player.getViewXRot(1f),
+                        player.getViewYRot(1f), GooCasters.casterOnTheRight(player), inTheHold - 1 - leaving,
+                        inTheHold, delivery.stacksJavelins());
+                // knives-hover-above-the-blob-cube-over-the-hand: it leaves from where it hovers, drawn from its slot forward
+                Vec3 start = ThrownKnife.drawnFromOf(slot, ThrownKnife.headingFrom(slot, crosshair),
+                        delivery.stacksJavelins(), 1f);
+                // knives-and-javelins-sound-as-each-forms-and-is-thrown: a volley sounds once
+                state.thrownKnives().launch(player, held.gooType(), held.ability().id().toString(), start,
+                        ThrownKnife.launchVelocityToward(start, crosshair, delivery.throwSpeed()),
+                        delivery.stacksJavelins(), leaving == 0 ? delivery.formSounds().thrownWith(player.getRandom())
+                                : Optional.empty());
+            }
+            holds.threw(player, count);
         });
     }
 }

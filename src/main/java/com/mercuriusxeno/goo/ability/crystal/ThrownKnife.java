@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.ability.crystal;
 
 import com.mercuriusxeno.goo.ability.TravelForm;
 import com.mercuriusxeno.goo.throwing.ProjectileFlight;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.ProjectileUtil;
 import net.minecraft.world.level.ClipContext;
@@ -23,6 +24,8 @@ public final class ThrownKnife {
     public static final int MOST_FLIGHT_TICKS = 100;
     /** How far the crosshair's ray reaches for a block or mob to rest on, in blocks. */
     public static final double CROSSHAIR_REACH = 64;
+    /** A knives throw takes one of every two knives held. */
+    private static final int HALVES = 2;
 
     private ThrownKnife() {
     }
@@ -42,8 +45,38 @@ public final class ThrownKnife {
      */
     public static Vec3 launchPointOf(Vec3 eye, float xRot, float yRot, boolean gloveRight, int held,
                                      boolean javelins) {
+        return launchPointOf(eye, xRot, yRot, gloveRight, held - 1, held, javelins);
+    }
+
+    /**
+     * Where one of a throw's volley leaves from: the hover slot of the one at an index.
+     *
+     * @param eye        the thrower's eye
+     * @param xRot       the thrower's view pitch in degrees
+     * @param yRot       the thrower's view yaw in degrees
+     * @param gloveRight whether the glove is in the right hand
+     * @param index      the index of the one leaving, 0 the first formed
+     * @param held       the count held as the throw leaves, at least 1
+     * @param javelins   whether the stack is Dart's javelins rather than Knives' knives
+     * @return the point
+     */
+    public static Vec3 launchPointOf(Vec3 eye, float xRot, float yRot, boolean gloveRight, int index, int held,
+                                     boolean javelins) {
         return StackHover.pointOf(StackHover.cubeCenterInView(eye, xRot, yRot, gloveRight, javelins), xRot, yRot,
-                StackHover.slotOf(held - 1, held, javelins));
+                StackHover.slotOf(index, held, javelins));
+    }
+
+    /**
+     * How many one throw takes from a stack: half the knives held, rounded
+     * up, or one javelin.
+     * decision knives-throw-one-per-two-ticks-while-left-click-is-held
+     *
+     * @param held     the count held as the throw leaves
+     * @param javelins whether the stack is Dart's javelins rather than Knives' knives
+     * @return the count thrown
+     */
+    public static int thrownAtOnce(int held, boolean javelins) {
+        return javelins ? Math.min(1, held) : Mth.positiveCeilDiv(held, HALVES);
     }
 
     /**
