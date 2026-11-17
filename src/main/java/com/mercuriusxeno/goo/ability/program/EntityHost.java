@@ -179,8 +179,8 @@ public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entit
 
 
     @Override
-    public void liftEntitiesInColumn(double radius, double height, double speed, int air) {
-        EntityLift.liftInColumn(level, target.position(), radius, height, speed, air);
+    public void liftEntitiesInColumn(double radius, double height, double speed) {
+        EntityLift.liftInColumn(level, target.position(), radius, height, speed);
     }
 
     @Override

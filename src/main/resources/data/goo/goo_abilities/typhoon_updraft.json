@@ -11,7 +11,7 @@
     {
       "type": "linger",
       "steps": [
-        { "type": "updraft", "radius": 1, "height": 8, "speed": 0.4, "air": 10, "duration": 200 }
+        { "type": "updraft", "radius": 1, "height": 8, "speed": 0.4, "duration": 200 }
       ]
     }
   ],
