@@ -23,7 +23,7 @@ import net.minecraft.world.phys.Vec3;
 public final class StackHover {
 
     /** Blocks a knife stands above and below its slot's height. */
-    public static final double KNIFE_HALF_HEIGHT = 0.012;
+    public static final double KNIFE_HALF_HEIGHT = 0.022;
     /**
      * The full cube's edge, in blocks: the lifted palm blob's greatest drawn edge,
      * twice the flight shell's 0.15 half width at the palm rest's half flight size
@@ -32,17 +32,14 @@ public final class StackHover {
     static final double FULL_EDGE = 2 * 0.15 * 0.5 * 0.9;
     /** Blocks between the cube's top and the lowest point of the row standing over it. */
     static final double CLEARANCE = 0.03;
+    /** A knife's whole length, point to butt, in blocks, hovering or thrown alike. */
+    public static final double KNIFE_LENGTH = 0.6;
+    /** A knife's blade width at its widest, in blocks, which the knives' spacing follows. */
+    public static final double KNIFE_WIDTH = 0.15;
+    /** How far apart two knives or two javelins stand against their width: a quarter of a width clear. */
+    static final double SPACING_PER_WIDTH = 1.25;
     /** Blocks between neighbouring knives along a row. */
-    static final double KNIFE_SPACING = 0.09;
-    /**
-     * A hovering knife's length, point to butt, in blocks: small enough that
-     * the whole pyramid stands in the view over the hand.
-     */
-    public static final double KNIFE_HOVER_LENGTH = 0.12;
-    /** A hovering javelin's length, in blocks, small enough that the whole triangle stands in the view. */
-    public static final double JAVELIN_HOVER_LENGTH = 0.25;
-    /** How far apart two javelins stand against the width across their fins: a quarter of a width clear. */
-    static final double JAVELIN_SPACING_PER_WIDTH = 1.25;
+    static final double KNIFE_SPACING = KNIFE_WIDTH * SPACING_PER_WIDTH;
     /** An equilateral triangle's height against its side, which the javelins' rows stand apart by. */
     private static final double TRIANGLE_HEIGHT_PER_SIDE = Math.sqrt(3) / 2;
     /** The knives the pyramid holds. */
@@ -129,17 +126,7 @@ public final class StackHover {
      * @return its slot
      */
     public static Slot javelinSlot(int index, int held) {
-        return javelinSlot(index, held, TravelForm.DART.widthAcrossFins() * javelinHoverShare());
-    }
-
-    /**
-     * The size a hovering javelin draws at against a thrown one's: its hover
-     * length over the dart's whole length.
-     *
-     * @return the share of the flight size
-     */
-    public static double javelinHoverShare() {
-        return JAVELIN_HOVER_LENGTH / TravelForm.DART.frontLength();
+        return javelinSlot(index, held, TravelForm.DART.widthAcrossFins());
     }
 
     /**
@@ -158,7 +145,7 @@ public final class StackHover {
      * @return its slot
      */
     public static Slot javelinSlot(int index, int held, double width) {
-        double apart = width * JAVELIN_SPACING_PER_WIDTH;
+        double apart = width * SPACING_PER_WIDTH;
         double lower = cubeTopAt(JAVELINS - 1, JAVELINS) + CLEARANCE + javelinHalfHeight(width);
         int javelin = Math.clamp(index, 0, JAVELINS - 1);
         // the upper pair stand half the spacing either side of the middle, a lone first javelin on it

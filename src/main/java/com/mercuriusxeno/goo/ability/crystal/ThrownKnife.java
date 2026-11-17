@@ -1,6 +1,11 @@
 package com.mercuriusxeno.goo.ability.crystal;
 
+import com.mercuriusxeno.goo.ability.TravelForm;
 import com.mercuriusxeno.goo.throwing.ProjectileFlight;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.projectile.ProjectileUtil;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
 
 /**
@@ -54,5 +59,55 @@ public final class ThrownKnife {
      */
     public static Vec3 launchVelocityToward(Vec3 slot, Vec3 crosshair, double speed) {
         return ProjectileFlight.launch(crosshair.subtract(slot), speed);
+    }
+
+    /**
+     * Where a player's crosshair rests: the first block or mob the look meets
+     * within the crosshair's reach, or the point that far along the look where
+     * it meets none. Each hovering knife and javelin points at it and each
+     * throw heads at it.
+     * decision knives-hover-above-the-blob-cube-over-the-hand
+     *
+     * @param player  the player
+     * @param partial the partial tick, 1 on the server
+     * @return the point
+     */
+    public static Vec3 crosshairPointOf(Player player, float partial) {
+        Vec3 eye = player.getEyePosition(partial);
+        Vec3 reach = player.getViewVector(partial).scale(CROSSHAIR_REACH);
+        Vec3 end = player.level().clip(new ClipContext(eye, eye.add(reach), ClipContext.Block.COLLIDER,
+                ClipContext.Fluid.NONE, player)).getLocation();
+        EntityHitResult mob = ProjectileUtil.getEntityHitResult(player, eye, end,
+                player.getBoundingBox().expandTowards(reach).inflate(1), entity -> !entity.isSpectator()
+                        && entity.isPickable(), eye.distanceToSqr(end));
+        return mob == null ? end : mob.getLocation();
+    }
+
+    /**
+     * The heading from a slot at the crosshair's point, which a hovering one
+     * points along and a thrown one leaves along.
+     *
+     * @param slot      the slot
+     * @param crosshair the point the crosshair rests on
+     * @return the unit heading
+     */
+    public static Vec3 headingFrom(Vec3 slot, Vec3 crosshair) {
+        return crosshair.subtract(slot).normalize();
+    }
+
+    /**
+     * The point a knife or javelin draws from, its butt or tail on its slot
+     * and its length running forward along its heading: a knife's point, which
+     * a knife draws from, and a javelin's middle, which a javelin draws about.
+     *
+     * @param slot     the slot its butt or tail stands on
+     * @param heading  its unit heading
+     * @param javelins whether it is Dart's javelin rather than a knife
+     * @param scale    its size, 1 whole
+     * @return the point it draws from
+     */
+    public static Vec3 drawnFromOf(Vec3 slot, Vec3 heading, boolean javelins, float scale) {
+        double lead = javelins ? TravelForm.DART.fins().sweep() : StackHover.KNIFE_LENGTH;
+        return slot.add(heading.scale(lead * scale));
     }
 }

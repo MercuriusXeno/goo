@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.network;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.crystal.ThrownKnife;
 import com.mercuriusxeno.goo.ability.program.DamageStep;
 import com.mercuriusxeno.goo.ability.program.Variables;
 import com.mercuriusxeno.goo.data.GooValues;
@@ -172,7 +173,7 @@ public final class DartHoldTests {
 
     /**
      * A mock player holding 1 javelin throws with no mob ahead: one javelin
-     * flies, leaving along the look at 2.5 blocks a tick, and two ticks on it
+     * flies, leaving at the crosshair's point at 2.5 blocks a tick, and two ticks on it
      * stands lower than the straight line of its launch would put it.
      * decision knives-and-javelins-drop-like-an-arrow
      *
@@ -183,20 +184,22 @@ public final class DartHoldTests {
         ServerPlayer caster = casterHolding(helper);
         GooServerState state = GooServerState.of(helper.getLevel().getServer());
         ThrownKnives.Flight[] launched = new ThrownKnives.Flight[1];
+        Vec3[] crosshair = new Vec3[1];
         holding(caster, true);
 
         helper.runAfterDelay(ONE_JAVELIN_TICKS, () -> {
+            crosshair[0] = ThrownKnife.crosshairPointOf(caster, 1f);
             throwDart(caster);
             List<ThrownKnives.Flight> flying = state.thrownKnives().flyingFrom(caster);
             launched[0] = flying.size() == 1 ? flying.getFirst() : null;
         });
         helper.runAfterDelay(ONE_JAVELIN_TICKS + 2, () -> {
             List<ThrownKnives.Flight> flying = state.thrownKnives().flyingFrom(caster);
-            Vec3 look = caster.getViewVector(1f);
             helper.getLevel().getServer().getPlayerList().remove(caster);
             helper.assertTrue(launched[0] != null && flying.size() == 1, String.format(SHOULD_FLY, flying));
             Vec3 start = launched[0].position();
             Vec3 velocity = launched[0].velocity();
+            Vec3 look = ThrownKnife.headingFrom(start, crosshair[0]);
             double straight = start.add(velocity.scale(2)).y;
             helper.assertTrue(Math.abs(velocity.length() - JAVELIN_SPEED) < SPEED_WITHIN
                     && velocity.normalize().dot(look) > ALONG_THE_LOOK
