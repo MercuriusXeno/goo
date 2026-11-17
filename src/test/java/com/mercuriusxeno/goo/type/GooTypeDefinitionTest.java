@@ -59,7 +59,7 @@ class GooTypeDefinitionTest {
     private static final int WEIRD_COHESION = 4;
     private static final int WEIRD_ADHESION = 3;
     private static final int GLOW_ADHESION = 4;
-    private static final int BLAZE_COHESION = 5;
+    private static final int BLAZE_COHESION = 4;
     private static final int BLAZE_ADHESION = 4;
     private static final int COMMON_ADHESION = 1;
 
@@ -274,8 +274,8 @@ class GooTypeDefinitionTest {
     }
 
     /**
-     * Every bundled type states a cohesion: weird holds a step of 4, blaze a step of 5, and every other type,
-     * kinetic among them, 0.
+     * Every bundled type states a cohesion: weird holds a step of 4, blaze the thick rung of 4, and every
+     * other type, kinetic among them, 0.
      * cohesion-is-the-step-the-goo-holds
      * blaze-goo-is-adhesion-four-and-cohesion-five
      */
