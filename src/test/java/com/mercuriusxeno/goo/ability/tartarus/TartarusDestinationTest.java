@@ -51,4 +51,39 @@ class TartarusDestinationTest {
                     fromOverworld(-64));
         }
     }
+
+    /** decision tartarus-in-the-nether-takes-you-to-the-overworld-at-eight-times-your-spot */
+    @Nested
+    class FromTheNether {
+
+        private Optional<TartarusDestination> fromNether(int y) {
+            return TartarusDestination.from(Level.NETHER, new BlockPos(100, y, -200), NETHER, OVERWORLD);
+        }
+
+        @Test
+        void theTargetIsTheOverworld() {
+            assertEquals(Optional.of(Level.OVERWORLD), TartarusDestination.targetOf(Level.NETHER));
+        }
+
+        @Test
+        void theBottomOfTheNetherStartsAtTheTopOfTheOverworldAtEightTimesTheXAndZ() {
+            assertEquals(Optional.of(new TartarusDestination(Level.OVERWORLD, new BlockPos(800, 319, -1600))),
+                    fromNether(0));
+        }
+
+        @Test
+        void theTopOfTheNetherStartsAtTheBottomOfTheOverworld() {
+            assertEquals(Optional.of(new TartarusDestination(Level.OVERWORLD, new BlockPos(800, -64, -1600))),
+                    fromNether(127));
+        }
+    }
+
+    @Nested
+    class FromTheEnd {
+
+        @Test
+        void theGateLeadsNowhere() {
+            assertEquals(Optional.empty(), TartarusDestination.targetOf(Level.END));
+        }
+    }
 }
