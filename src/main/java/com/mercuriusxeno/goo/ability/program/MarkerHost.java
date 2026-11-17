@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.ability.GooHitCredit;
 import com.mercuriusxeno.goo.ability.pulse.RedstoneBeat;
 import com.mercuriusxeno.goo.ability.pulse.RelayNetwork;
 import com.mercuriusxeno.goo.block.ability.MarkerAnchor;
@@ -12,11 +13,13 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraft.world.phys.Vec3;
+import org.jspecify.annotations.Nullable;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalDouble;
@@ -106,7 +109,17 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
     @Override
     public void forEachEntityWithin(SelectionShape shape, double radius, Set<EntityFilter> filters,
                                     Consumer<TargetHost> body) {
-        BlockAnchoredActions.forEachEntityWithin(level, Vec3.atCenterOf(pos), shape, radius, filters, body);
+        BlockAnchoredActions.forEachEntityWithin(level, Vec3.atCenterOf(pos), shape, radius, filters, placer(), body);
+    }
+
+    /**
+     * The player who stood the marker's field, whom each hit it deals credits.
+     * standing-goo-thing-credits-whoever-placed-it
+     *
+     * @return the player, or null where no player stood it or that player is not on the server
+     */
+    public @Nullable ServerPlayer placer() {
+        return GooHitCredit.placerOf(level, be.placer());
     }
 
     @Override
@@ -121,7 +134,7 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
 
     @Override
     public void forEntity(int entityId, Consumer<TargetHost> body) {
-        BlockAnchoredActions.forEntity(level, entityId, body);
+        BlockAnchoredActions.forEntity(level, entityId, placer(), body);
     }
 
     @Override

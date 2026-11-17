@@ -22,12 +22,22 @@ import java.util.function.Consumer;
  * {@link HostCapability#TICKING} and a program with a waiting step refuses
  * at load (decision host-agnostic-runtime).
  *
+ * <p>A standing field's strike runs on a host naming no thrower and naming
+ * the player who placed the field, whom its hits credit and nothing else
+ * reads, so the placer's own field strikes them, and the distance, the
+ * teleport, the rally and the rest read the strike as they did before it
+ * credited anyone.
+ * standing-goo-thing-credits-whoever-placed-it
+ * crediting-a-goo-hit-changes-nothing-else
+ *
  * @param level   the server level
  * @param target  the struck entity
  * @param thrower the entity that threw the goo, or null when unknown
  * @param share   the share of the hit the target takes, one for a direct hit
+ * @param placer  the player who placed the standing field striking the target, or null for none
  */
-public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entity thrower, double share)
+public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entity thrower, double share,
+                         @Nullable Entity placer)
         implements TargetHost, ExplodeHost, EntityScanHost {
 
     private static final double BODY_CENTER = 0.5;
@@ -43,6 +53,35 @@ public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entit
      */
     public EntityHost(ServerLevel level, LivingEntity target, @Nullable Entity thrower) {
         this(level, target, thrower, WHOLE_HIT);
+    }
+
+    /**
+     * The host of a thrown hit the target takes a share of.
+     *
+     * @param level   the server level
+     * @param target  the struck entity
+     * @param thrower the entity that threw, or null
+     * @param share   the share of the hit the target takes
+     */
+    public EntityHost(ServerLevel level, LivingEntity target, @Nullable Entity thrower, double share) {
+        this(level, target, thrower, share, null);
+    }
+
+    /**
+     * The host of a standing field's strike, which no one threw and whose hits credit the field's placer.
+     *
+     * @param level  the server level
+     * @param target the struck entity
+     * @param placer the player who placed the field, or null for none
+     * @return the host
+     */
+    public static EntityHost struckByField(ServerLevel level, LivingEntity target, @Nullable Entity placer) {
+        return new EntityHost(level, target, null, WHOLE_HIT, placer);
+    }
+
+    @Override
+    public @Nullable Entity creditedTo() {
+        return thrower != null ? thrower : placer;
     }
 
     @Override
@@ -167,13 +206,13 @@ public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entit
     public void forEachEntityWithin(SelectionShape shape, double radius, Set<EntityFilter> filters,
                                     Consumer<TargetHost> body) {
         EntityScan.forEachLivingWithin(level, target.position(), shape, radius, filters, target,
-                living -> body.accept(new EntityHost(level, living, thrower)));
+                living -> body.accept(new EntityHost(level, living, thrower, WHOLE_HIT, placer)));
     }
 
     @Override
     public void forEntity(int entityId, Consumer<TargetHost> body) {
         if (level.getEntity(entityId) instanceof LivingEntity living && living.isAlive()) {
-            body.accept(new EntityHost(level, living, thrower));
+            body.accept(new EntityHost(level, living, thrower, WHOLE_HIT, placer));
         }
     }
 
