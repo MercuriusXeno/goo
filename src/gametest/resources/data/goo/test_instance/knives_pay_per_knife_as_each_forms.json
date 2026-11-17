@@ -1,9 +1,9 @@
 {
   "type": "minecraft:function",
-  "function": "goo:knives_fractional_cost_banks_its_half",
+  "function": "goo:knives_pay_per_knife_as_each_forms",
   "environment": "minecraft:default",
   "structure": "goo:light_bay",
-  "max_ticks": 20,
+  "max_ticks": 100,
   "setup_ticks": 0,
   "required": true
 }

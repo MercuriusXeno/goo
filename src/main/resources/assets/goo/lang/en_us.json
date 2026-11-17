@@ -174,7 +174,7 @@
   "goo.ability.crystal.shatter.cost_mechanics": "Costs %s per block of shatter goo laid, a fifteenth of it per layer.",
   "goo.ability.crystal.shatter.description": "Held stream sprays crystal goo that grows glass shards over it.",
   "goo.ability.crystal.knives": "Knives",
-  "goo.ability.crystal.knives.description": "Hold to gather a fan of glass knives, then release to sling them.",
+  "goo.ability.crystal.knives.description": "Hold to form glass knives in a fan before you, then left click to throw them.",
   "goo.ability.crystal.glimmer": "Glimmer",
   "goo.ability.crystal.glimmer.description": "Hold to detect nearby gemstone ores.",
   "goo.ability.crystal.scales": "Scales",
@@ -361,6 +361,8 @@
 
   "goo.ability.param.cost.cost": "Cost",
   "goo.ability.param.cost.cost.description": "Goo in mB that one use of the ability costs.",
+  "goo.ability.param.cost_per_knife.cost": "Cost per knife",
+  "goo.ability.param.cost_per_knife.cost.description": "Goo in mB that each knife costs as it forms, returned for every knife still hovering when the hold is let go.",
   "goo.ability.param.cost_per_block.cost_per_block": "Cost per block",
   "goo.ability.param.cost_per_block.cost_per_block.description": "Goo in mB added to the cost for each block the blink travels.",
   "goo.ability.param.node_percent.node_percent": "Oculus percent",

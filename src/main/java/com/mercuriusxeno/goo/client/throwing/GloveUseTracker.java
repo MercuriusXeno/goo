@@ -100,6 +100,7 @@ public final class GloveUseTracker {
     /** Clears hold and availability state when no player is present. */
     private static void resetState() {
         PRESS.cancel();
+        KnivesHoldSender.end();
         selectedTypeAvailable = false;
     }
 
@@ -270,6 +271,8 @@ public final class GloveUseTracker {
                 GlovePoses.drop(player);
             }
             PRESS.cancel();
+            // knives-form-on-right-click-and-throw-on-left-click: a dropped press ends the knives it formed
+            KnivesHoldSender.end();
             return;
         }
         GloveInputGate.PressActions actions = pressActions(player);
@@ -279,6 +282,8 @@ public final class GloveUseTracker {
             CHARM_LIKE.tick(PRESS, actions);
         }
         liftThePalmBlob(mc, player);
+        // knives-paint-mobs-by-hovering-while-forming: the outline's pick joins the hold's paint
+        KnivesHoldSender.paint(highlightedMob(), GloveUseTracker::mobStands);
         // blast-charge-wubs-higher-at-each-stage: a sized charge wubs as it reaches each stage
         GloveThrowSender.wubTheCharge(player);
         // blast-charge-pulls-green-motes-into-the-shell-and-the-blob: the charge draws motes in as it grows
@@ -357,7 +362,23 @@ public final class GloveUseTracker {
         }
 
         @Override
+        public boolean formsKnives() {
+            return KnivesHoldSender.selectedFormsKnives(player);
+        }
+
+        @Override
+        public boolean throwKnives() {
+            return KnivesHoldSender.throwKnives(player);
+        }
+
+        @Override
         public void javelinTurned(JavelinTurn turn) {
+            // knives-form-on-right-click-and-throw-on-left-click: the server forms the knives from the hold's first tick
+            if (turn == JavelinTurn.FORMS) {
+                KnivesHoldSender.begin(player);
+            } else if (turn == JavelinTurn.REVERTS) {
+                KnivesHoldSender.end();
+            }
             if (turn == JavelinTurn.THROWN) {
                 // dart-forms-on-right-click-and-throws-on-left-click: the next javelin forms from the blob behind it
                 LiftedPalmBlob.liftAfresh(player.getId(), player.getEyePosition(), player.level().getGameTime());

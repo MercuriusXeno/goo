@@ -637,15 +637,16 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
     }
 
     /**
-     * Whether the release slings a fan of flecks across a cone rather than
-     * one blob along a line: an arc whose charge slings flecks, which shows no
-     * aim line of any kind.
+     * Whether the hold forms a fan of knives rather than one blob thrown
+     * along a line: an arc whose charge forms knives in stages, which shows
+     * no aim line of any kind.
      * knives-aims-a-spread-fan-not-a-blob-line
+     * knives-emerge-from-the-blob-and-hover-in-a-fan
      *
-     * @return true for an arc whose charge slings
+     * @return true for an arc whose charge forms knives
      */
     public boolean slingsAFan() {
-        return kind == DeliveryKind.ARC && charge.slings();
+        return kind == DeliveryKind.ARC && charge.formsInStages();
     }
 
     /**

@@ -89,6 +89,19 @@ class AbilitySyncHandlerTest {
             }
         }
 
+        /** knives-pay-per-knife-as-each-forms */
+        @Test
+        void knivesPetalAndCostReadItsPricePerKnife() {
+            AbilityDefinition knives = AbilityJson.decode("crystal_knives");
+            String perKnife = GooFormat.formatMixed(knives.cost().exactIn(GooValueTable.EMPTY)) + "/knife";
+
+            for (AbilitySyncPayload.Entry entry : roundTrip(knives)) {
+                ClientAbility client = ClientAbility.fromEntry(entry);
+                assertEquals(perKnife, client.petalLabel(PLENTY, 0));
+                assertEquals(perKnife, client.costLabel());
+            }
+        }
+
         /** slick-drains-per-film-it-lays */
         @Test
         void slicksPetalReadsItsCostPerCubicMeter() {

@@ -189,6 +189,22 @@ class AbilitiesModelTest {
             assertEquals("cost", byPath().get("cost").mechanism());
             assertEquals("cost", byPath().get("cost").field());
         }
+
+        /** knives-pay-per-knife-as-each-forms: a charge forming knives prices one knife by its cost. */
+        @Test
+        void aChargeFormingKnivesReadsItsCostAsThePricePerKnife() {
+            JsonObject knives = sample();
+            JsonObject charge = new JsonObject();
+            charge.addProperty("max_ticks", 60);
+            charge.addProperty("stages", 5);
+            knives.getAsJsonObject("delivery").add("charge", charge);
+
+            AbilitiesModel.Leaf cost = AbilitiesModel.leaves(SAMPLE, knives).stream()
+                    .filter(leaf -> "cost".equals(leaf.path())).findFirst().orElseThrow();
+
+            assertEquals("cost_per_knife", cost.mechanism());
+            assertEquals("cost", cost.field());
+        }
     }
 
     @Nested

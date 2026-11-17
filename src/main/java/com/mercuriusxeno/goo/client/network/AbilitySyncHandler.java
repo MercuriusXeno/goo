@@ -592,12 +592,34 @@ public final class AbilitySyncHandler {
          * dynamic-costs-keep-the-mb-quantity: nothing up front reads the formula, never a zero
          * spire-cost-field-prices-each-cubic-meter-of-stone-at-mundane-block: a per-block price reads it too
          * click-costs-one-mb-and-nothing-under-sculker: a price a standing ability waives reads its rule too
+         * knives-pay-per-knife-as-each-forms: a price per knife reads it too
          *
          * @return the formula filled, or empty where the cost reads as a number
          */
         private Optional<String> formulaLabel() {
-            return costPrice.isFree() || pricedByWhatItLays() || freeWhile.isPresent() || delivery.sizesByCharge()
+            return costPrice.isFree() || pricedByWhatItLays() || freeWhile.isPresent() || pricedByItsCharge()
                     ? formula() : Optional.empty();
+        }
+
+        /**
+         * Whether the ability's charge sets what its cost buys: a cast sized by its charge, priced by its radius, or
+         * a hold forming knives, priced per knife.
+         * knives-pay-per-knife-as-each-forms
+         *
+         * @return true for a charge sizing the cast or forming knives
+         */
+        private boolean pricedByItsCharge() {
+            return delivery.sizesByCharge() || pricedPerKnife();
+        }
+
+        /**
+         * Whether the ability's cost is the price of each knife its hold forms, Knives', paid as each forms.
+         * knives-pay-per-knife-as-each-forms
+         *
+         * @return true for a charge forming knives in stages
+         */
+        private boolean pricedPerKnife() {
+            return delivery.charge().formsInStages();
         }
 
         /**
@@ -623,7 +645,8 @@ public final class AbilitySyncHandler {
          * The short formula the petal and the panel read, its number filled
          * from the ability's own numbers so it stays true when one is tuned: a
          * Spire's cost, its price per block grown, live from the connection's
-         * goo values, a Gouge's its fixed price a tear.
+         * goo values, Knives' its price per knife, a Gouge's its fixed price a tear.
+         * knives-pay-per-knife-as-each-forms
          * dynamic-costs-keep-the-mb-quantity
          * spire-cost-field-prices-each-cubic-meter-of-stone-at-mundane-block
          *
@@ -634,7 +657,7 @@ public final class AbilitySyncHandler {
         }
 
         private List<String> formulaArguments() {
-            if (pricedByWhatItLays()) {
+            if (pricedByWhatItLays() || pricedPerKnife()) {
                 return List.of(GooFormat.formatMixed(costPrice.exactIn(ClientGooValues::current)));
             }
             if (delivery.sizesByCharge()) {
