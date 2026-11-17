@@ -311,16 +311,20 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
      * palm-blob-rests-pressed-and-stands-into-the-cube
      * every-lift-begins-with-a-hop
      *
-     * @param poseStack     the pose stack, at the glove's model
+     * Raw goo held bare handed lifts its blob the same way from its own
+     * cuboid (decision raw-goo-items-work-bare-handed-for-the-held-type).
+     *
+     * @param poseStack     the pose stack, at the caster's model
      * @param nodeCollector the render node collector
      * @param type          the goo type
      * @param lift          the local player's lift
+     * @param standing      where the blob stands off the palm in the caster's model, in block coords
      */
-    private static void submitLiftedGoo(PoseStack poseStack, SubmitNodeCollector nodeCollector,
-                                        ResourceKey<GooTypeDefinition> type, LiftedPalmBlob.HandLift lift) {
+    static void submitLiftedGoo(PoseStack poseStack, SubmitNodeCollector nodeCollector,
+                                ResourceKey<GooTypeDefinition> type, LiftedPalmBlob.HandLift lift, Vector3fc standing) {
         Matrix4f toHandPass = new Matrix4f(poseStack.last().pose());
         Quaternionf turn = liftedTurn(toHandPass, FirstPersonSwing.unswung(toHandPass), lift);
-        LiftedPlace place = liftedPlace(toHandPass, lift);
+        LiftedPlace place = liftedPlace(toHandPass, lift, standing);
         if (lift.javelin() < 1f) {
             submitBlob(poseStack, nodeCollector, type, place.inModel(), lift.shape().scaled(1f - lift.javelin()),
                     turn);
@@ -393,7 +397,29 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
      * @return the blob's place in the model and in the hand pass
      */
     static LiftedPlace liftedPlace(Matrix4fc toHandPass, LiftedPalmBlob.HandLift lift) {
-        Vector3f standing = palmCenter(palmShape(REST_SCALE)).add(0f, 0f, -lift.stand() * SHELL_HW_PX / BLOCK_PIXELS);
+        return liftedPlace(toHandPass, lift, standingOffThePalm(lift));
+    }
+
+    /**
+     * Where the glove's lifted blob stands off its palm as it stands up.
+     *
+     * @param lift the local player's lift
+     * @return the point in the glove's model, in block coords
+     */
+    private static Vector3f standingOffThePalm(LiftedPalmBlob.HandLift lift) {
+        return palmCenter(palmShape(REST_SCALE)).add(0f, 0f, -lift.stand() * SHELL_HW_PX / BLOCK_PIXELS);
+    }
+
+    /**
+     * Where the local first-person blob stands as it lifts from a point in
+     * the caster's model toward the spray source as the hand's pass shows it.
+     *
+     * @param toHandPass the caster's model onto the hand pass's camera-relative world axes
+     * @param lift       the local player's lift
+     * @param standing   where the blob stands off the palm in the caster's model
+     * @return the blob's place in the model and in the hand pass
+     */
+    static LiftedPlace liftedPlace(Matrix4fc toHandPass, LiftedPalmBlob.HandLift lift, Vector3fc standing) {
         Vector3f palm = toHandPass.transformPosition(standing, new Vector3f());
         Vector3f lifted = palm.lerp(lift.sourceInHand().toVector3f(), lift.share());
         // the model point takes its own vector: transformPosition rewrites its argument, and the wisps need the hand's
@@ -628,7 +654,7 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
             captureGooCenter(poseStack, palm.x(), palm.y(), palm.z());
             if (data.heldInView() && !PortalView.drawing() && !RoomBodyCopyRenderer.drawingCopies()) {
                 LiftedPalmBlob.liftHeldInView().ifPresent(lift -> submitLiftedGoo(poseStack, nodeCollector,
-                        data.selectedType(), lift));
+                        data.selectedType(), lift, standingOffThePalm(lift)));
             }
             return;
         }
