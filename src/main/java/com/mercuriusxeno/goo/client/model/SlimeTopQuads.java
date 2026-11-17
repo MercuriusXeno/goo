@@ -256,18 +256,20 @@ public final class SlimeTopQuads {
     }
 
     /**
-     * A flat quad with its vertices raised to a height field: every vertex
-     * of a horizontal patch, or a side's upper vertices, baked at the
-     * block's top, its lower ones kept where they were baked.
+     * A flat face baked between the block's floor and top with its vertices
+     * moved onto two height fields: those at the floor onto the low one,
+     * those at the top onto the high one.
      *
-     * @param flat    the quad baked flat
-     * @param heights the height over each point, in blocks
-     * @param side    true for a side baked up to the block's top, false for a horizontal patch
-     * @return the raised quad
+     * @param flat the face baked flat
+     * @param low  the height each floor vertex moves to, in blocks
+     * @param high the height each top vertex moves to, in blocks
+     * @return the moved face
      */
-    static BakedQuad raised(BakedQuad flat, HeightField heights, boolean side) {
-        return reshaped(flat, at -> !side || at.y() >= WHOLE - ON_THE_PLANE
-                ? new Vector3f(at.x(), heights.heightAt(at.x(), at.z()) * WHOLE, at.z()) : at);
+    static BakedQuad spanned(BakedQuad flat, HeightField low, HeightField high) {
+        return reshaped(flat, at -> {
+            HeightField field = at.y() >= WHOLE - ON_THE_PLANE ? high : low;
+            return new Vector3f(at.x(), field.heightAt(at.x(), at.z()) * WHOLE, at.z());
+        });
     }
 
     /**
@@ -284,18 +286,6 @@ public final class SlimeTopQuads {
             moved.add(new Vertex(new Vector3f(at.x(), at.y() + rise, at.z()), quad.packedUV(vertex)));
         }
         return quadOf(moved, quad.direction(), quad.materialInfo());
-    }
-
-    /**
-     * @param quad a quad
-     * @return the height of its highest vertex, in blocks
-     */
-    static float tallestOf(BakedQuad quad) {
-        float tallest = 0;
-        for (int vertex = 0; vertex < BakedQuad.VERTEX_COUNT; vertex++) {
-            tallest = Math.max(tallest, quad.position(vertex).y());
-        }
-        return tallest;
     }
 
     /**

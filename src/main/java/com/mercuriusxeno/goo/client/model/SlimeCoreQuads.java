@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.model;
 
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
+import com.mercuriusxeno.goo.client.throwing.GooFlightRenderer;
 import com.mojang.math.Quadrant;
 import net.minecraft.client.renderer.block.dispatch.BlockModelRotation;
 import net.minecraft.client.resources.model.ModelBaker;
@@ -16,16 +17,16 @@ import java.util.List;
 /**
  * Builds the quads a slime core draws as: a body at 50% opacity on the
  * cell's goo type's fluid sprite, in its own colors as the palm blob's core
- * is, following the sloped top from inside. At every point its top stands
- * 0.4 px under the shell's top, its floor 0.4 px over the block's floor, and
- * it stays 2 px in from each side no goo of its type continues past; where
- * the slope leaves less room than that the core ends. A block on a full
- * block of its goo keeps no floor to its core and the full block no top, so
- * a column keeps one unbroken core, and a core reaching a side its goo
- * continues past draws no face there, meeting the core across at one height.
- * Each face is textured where it stands in its block, so the texture runs on
- * across a join as across tiled blocks. It reads no client state, so a test
- * hands it any sprite.
+ * is, the shell's sloped body at the slime's 3/4, centred in it: at every
+ * point it runs from 1/8 to 7/8 of the shell's height there, and it stands
+ * 1/8 of a block in from each side no goo of its type continues past. Since
+ * neighbouring shells meet at one height, so do their cores, and they join
+ * smoothly. A block on a full block of its goo keeps no floor to its core
+ * and the full block no top, so a column keeps one unbroken core, and a core
+ * reaching a side its goo continues past draws no face there. Each face is
+ * textured where it stands in its block, so the texture runs on across a
+ * join as across tiled blocks. It reads no client state, so a test hands it
+ * any sprite.
  * slime-core-slopes-with-the-pile-inside-its-contour
  * residual-always-draws-a-core-inside-a-one-eighth-margin
  * stacked-goo-cells-share-one-slime-core
@@ -48,20 +49,20 @@ public final class SlimeCoreQuads {
     /** Model pixels across a whole block. */
     private static final float WHOLE = 16f;
     /**
-     * The margin in from each side no goo continues past, 2 px.
-     * residual-always-draws-a-core-inside-a-one-eighth-margin
+     * The core's share of its shell along every axis: the slime's own, the
+     * flying blob's 3/4, centred in the shell.
+     * slime-core-slopes-with-the-pile-inside-its-contour
      */
-    private static final float SIDE_MARGIN = 2f;
-    /**
-     * The margin under the shell's top and over the floor, 0.4 px.
-     * residual-always-draws-a-core-inside-a-one-eighth-margin
-     */
-    private static final float VERTICAL_MARGIN = 0.4f;
-    /** Model pixels in one layer. */
-    private static final float PIXELS_PER_LAYER = WHOLE / VolumeCellBlock.MAX_LAYERS;
+    private static final float CORE_SHARE = GooFlightRenderer.CORE_SHARE_OF_SHELL;
+    /** The core's top, as a share of the shell's height over the same point. */
+    private static final float CORE_TOP = (1 + CORE_SHARE) / 2;
+    /** The core's floor, as a share of the shell's height over the same point. */
+    private static final float CORE_FLOOR = (1 - CORE_SHARE) / 2;
+    /** The core's margin in from each side no goo continues past, in model pixels: 2 px of a block's 16. */
+    private static final float SIDE_MARGIN = WHOLE * CORE_FLOOR;
     /** The offset to the cell below. */
     private static final int BELOW = -1;
-    /** How far short of the margin a corner still counts as holding room, against rounding. */
+    /** The least room a corner holds a core in, in blocks, against rounding. */
     private static final float ROOM_SLACK = 1e-4f;
 
     private SlimeCoreQuads() {
@@ -79,28 +80,28 @@ public final class SlimeCoreQuads {
             return List.of();
         }
         boolean column = around.layersAt(0, BELOW, 0) == VolumeCellBlock.MAX_LAYERS;
-        return new CoreShape(SlimeTop.of(around), column ? 0 : VERTICAL_MARGIN).quadsOf(material);
+        return new CoreShape(SlimeTop.of(around), column).quadsOf(material);
     }
 
     /**
      * The core's plan cut into patches at the shell's splits, each patch
-     * held where the slope leaves room over all four of its corners.
+     * held where the shell over all four of its corners holds goo.
      */
     private static final class CoreShape {
 
         private final SlimeTop top;
-        private final float floor;
+        private final boolean column;
         private final float[] xs;
         private final float[] zs;
         private final boolean[][] held;
 
         /**
-         * @param top   the shell's top over the core
-         * @param floor the core's floor, in model pixels, 0 for a column's upper block
+         * @param top    the shell's top over the core
+         * @param column whether the block stands on a full block of its goo, its core running on down
          */
-        CoreShape(SlimeTop top, float floor) {
+        CoreShape(SlimeTop top, boolean column) {
             this.top = top;
-            this.floor = floor;
+            this.column = column;
             this.xs = cutsWithin(inset(Direction.WEST), WHOLE - inset(Direction.EAST));
             this.zs = cutsWithin(inset(Direction.NORTH), WHOLE - inset(Direction.SOUTH));
             this.held = new boolean[xs.length - 1][zs.length - 1];
@@ -141,20 +142,19 @@ public final class SlimeCoreQuads {
         private List<BakedQuad> patchOf(int x, int z, BakedQuad.MaterialInfo material) {
             List<BakedQuad> quads = new ArrayList<>();
             if (!top.covered()) {
-                quads.add(SlimeTopQuads.raised(faceOf(new Vector3f(xs[x], 0, zs[z]), new Vector3f(xs[x + 1], 0,
-                        zs[z + 1]), Direction.UP, material), this::topAt, false));
+                quads.add(spanned(faceOf(new Vector3f(xs[x], WHOLE, zs[z]), new Vector3f(xs[x + 1], WHOLE,
+                        zs[z + 1]), Direction.UP, material)));
             }
-            if (floor > 0) {
-                quads.add(faceOf(new Vector3f(xs[x], floor, zs[z]), new Vector3f(xs[x + 1], floor, zs[z + 1]),
-                        Direction.DOWN, material));
+            if (!column) {
+                quads.add(spanned(faceOf(new Vector3f(xs[x], 0, zs[z]), new Vector3f(xs[x + 1], 0, zs[z + 1]),
+                        Direction.DOWN, material)));
             }
             quads.addAll(wallsOf(x, z, material));
             return quads;
         }
 
         /**
-         * A held patch's sides on each edge where the core ends, each standing
-         * from the core's floor up to its top, none where the top meets the floor.
+         * A held patch's sides on each edge where the core ends.
          *
          * @param x        the patch's index west to east
          * @param z        its index north to south
@@ -164,10 +164,8 @@ public final class SlimeCoreQuads {
         private List<BakedQuad> wallsOf(int x, int z, BakedQuad.MaterialInfo material) {
             List<BakedQuad> walls = new ArrayList<>();
             for (Direction side : Direction.Plane.HORIZONTAL) {
-                BakedQuad wall = endsAcross(x, z, side)
-                        ? SlimeTopQuads.raised(sideOf(x, z, side, material), this::topAt, true) : null;
-                if (wall != null && SlimeTopQuads.tallestOf(wall) > floor / WHOLE + ROOM_SLACK) {
-                    walls.add(wall);
+                if (endsAcross(x, z, side)) {
+                    walls.add(spanned(sideOf(x, z, side, material)));
                 }
             }
             return walls;
@@ -193,45 +191,69 @@ public final class SlimeCoreQuads {
         }
 
         /**
-         * A patch's side on one edge, baked flat from the core's floor to the block's top.
+         * A patch's side on one edge, baked flat over the block's height.
          *
          * @param x        the patch's index west to east
          * @param z        its index north to south
          * @param side     the edge
          * @param material the core's material
-         * @return the side, its upper vertices to raise to the core's top
+         * @return the side, its lower vertices to stand on the core's floor and its upper on its top
          */
         private BakedQuad sideOf(int x, int z, Direction side, BakedQuad.MaterialInfo material) {
             float west = side == Direction.EAST ? xs[x + 1] : xs[x];
             float east = side == Direction.WEST ? xs[x] : xs[x + 1];
             float north = side == Direction.SOUTH ? zs[z + 1] : zs[z];
             float south = side == Direction.NORTH ? zs[z] : zs[z + 1];
-            return faceOf(new Vector3f(west, floor, north), new Vector3f(east, WHOLE, south), side, material);
+            return faceOf(new Vector3f(west, 0, north), new Vector3f(east, WHOLE, south), side, material);
         }
 
         /**
-         * The core's top at a point, in blocks: 0.4 px under the shell's top,
-         * the whole block where goo of its type covers it, never under its floor.
+         * A face baked flat between the block's floor and top, its vertices
+         * moved onto the core: those at the floor to its floor, those at the
+         * top to its top.
+         *
+         * @param flat the face baked flat
+         * @return the face standing on the core
+         */
+        private BakedQuad spanned(BakedQuad flat) {
+            return SlimeTopQuads.spanned(flat, this::floorAt, this::topAt);
+        }
+
+        /**
+         * The core's top at a point: 7/8 of the shell's height there, the
+         * whole block where goo of its type covers it and the column runs on up.
          *
          * @param x model pixels east of the block's west side
          * @param z model pixels south of its north side
          * @return the top, in blocks above the block's floor
          */
         private float topAt(float x, float z) {
-            return Math.max(floor, roofAt(x, z)) / WHOLE;
+            return top.covered() ? 1 : shellAt(x, z) * CORE_TOP;
+        }
+
+        /**
+         * The core's floor at a point: 1/8 of the shell's height there, the
+         * block's own floor where the column runs on down.
+         *
+         * @param x model pixels east of the block's west side
+         * @param z model pixels south of its north side
+         * @return the floor, in blocks above the block's floor
+         */
+        private float floorAt(float x, float z) {
+            return column ? 0 : shellAt(x, z) * CORE_FLOOR;
         }
 
         /**
          * @param x model pixels east of the block's west side
          * @param z model pixels south of its north side
-         * @return the highest the core may stand there, in model pixels
+         * @return the shell's height there, in blocks, a whole block where goo of its type covers it
          */
-        private float roofAt(float x, float z) {
-            return top.covered() ? WHOLE : (float) top.heightAtPixel(x, z) * PIXELS_PER_LAYER - VERTICAL_MARGIN;
+        private float shellAt(float x, float z) {
+            return top.covered() ? 1 : (float) top.heightAtPixel(x, z) / VolumeCellBlock.MAX_LAYERS;
         }
 
         private boolean roomAt(float x, float z) {
-            return roofAt(x, z) >= floor - ROOM_SLACK;
+            return topAt(x, z) - floorAt(x, z) > ROOM_SLACK;
         }
 
         /**
