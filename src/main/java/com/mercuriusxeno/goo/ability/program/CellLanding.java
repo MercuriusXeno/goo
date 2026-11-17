@@ -70,6 +70,37 @@ final class CellLanding {
         boolean gooBelow(BlockPos cell);
 
         /**
+         * @param cell a cell
+         * @return the volume a block of this goo there holds, 0 for any other
+         */
+        default int volumeAt(BlockPos cell) {
+            return 0;
+        }
+
+        /**
+         * @param cell a cell
+         * @return the sides a block of this goo there is attached to
+         */
+        default int attachedAt(BlockPos cell) {
+            return 0;
+        }
+
+        /**
+         * @param cell a cell
+         * @return true where a block there stands on a floor
+         */
+        default boolean floorAt(BlockPos cell) {
+            return false;
+        }
+
+        /**
+         * @return the goo's cohesion
+         */
+        default int cohesion() {
+            return 0;
+        }
+
+        /**
          * @param cell an open cell
          * @param side one of its sides
          * @return true where the block on that side has a sturdy face toward the cell, a wall
@@ -128,6 +159,28 @@ final class CellLanding {
         }
 
         @Override
+        public int volumeAt(BlockPos pos) {
+            BlockState standing = host.stateAt(pos);
+            return standing.is(cell) ? VolumeCellBlock.layersOf(standing) : 0;
+        }
+
+        @Override
+        public int attachedAt(BlockPos pos) {
+            BlockState standing = host.stateAt(pos);
+            return standing.is(cell) ? VolumeCellBlock.attachedSidesOf(standing) : 0;
+        }
+
+        @Override
+        public boolean floorAt(BlockPos pos) {
+            return cell.onAFloor(host.level(), pos);
+        }
+
+        @Override
+        public int cohesion() {
+            return cell.cohesionAt(host.level());
+        }
+
+        @Override
         public boolean wallAt(BlockPos pos, Direction side) {
             return VolumeCellBlock.clingsTo(host.level(), pos, side);
         }
@@ -183,17 +236,47 @@ final class CellLanding {
      */
     private static Optional<CellFed> sideFedBy(CoatRay.BlockStrike strike, int adhesion, Cells cells) {
         Direction wall = strike.face().getOpposite();
-        // a drip striking a film's own face strikes the wall the film already coats, so it runs there
-        if (cells.sideAt(strike.block(), wall).filter(SideCoat::holdsALayer).isPresent()) {
-            return Optional.of(CellFed.runny(strike.block(), wall));
+        // a drip striking a film's own face strikes the wall the film already coats, its block taking it or not
+        Optional<SideCoat> onTheStruck = cells.sideAt(strike.block(), wall).filter(SideCoat::holdsALayer);
+        if (onTheStruck.isPresent()) {
+            return Optional.of(fedBeside(strike.block(), wall, adhesion, onTheStruck.get(), cells));
         }
         // a drip striking the side of its goo's fill joins that fill, as one striking its top does
         if (cells.thickens(strike.block())) {
             return Optional.of(CellFed.fill(strike.block()));
         }
         BlockPos beside = strike.block().relative(strike.face());
-        return cells.sideAt(beside, wall).map(standing -> sideCoatFor(adhesion, standing, cells.gooBelow(beside))
-                == SideCoat.ATTACHED ? CellFed.film(beside, wall) : CellFed.runny(beside, wall));
+        return cells.sideAt(beside, wall).map(standing -> fedBeside(beside, wall, adhesion, standing, cells));
+    }
+
+    /**
+     * What a side strike lays in a block beside a wall: its layer joining
+     * the block's volume with that side attached, or running down the wall.
+     *
+     * @param cell     the block beside the struck wall
+     * @param wall     its side facing that wall
+     * @param adhesion the rung of the adhesion ladder the goo clings at
+     * @param standing what that side holds
+     * @param cells    what the landing reads of the cells
+     * @return the cell and the side fed
+     */
+    private static CellFed fedBeside(BlockPos cell, Direction wall, int adhesion, SideCoat standing, Cells cells) {
+        Beside beside = new Beside(standing, cells.volumeAt(cell), cells.attachedAt(cell), cells.floorAt(cell),
+                cells.gooBelow(cell));
+        return sideCoatFor(adhesion, cells.cohesion(), beside) == SideCoat.ATTACHED ? CellFed.film(cell, wall)
+                : CellFed.runny(cell, wall);
+    }
+
+    /**
+     * What the landing reads of a block beside a struck wall.
+     *
+     * @param coat          what its side facing the wall holds
+     * @param volume        the volume it holds, 0 for an empty space
+     * @param attachedSides the sides it is attached to
+     * @param onAFloor      whether it stands on a floor
+     * @param gooBelow      whether goo of its type stands in the cell below it
+     */
+    record Beside(SideCoat coat, int volume, int attachedSides, boolean onAFloor, boolean gooBelow) {
     }
 
     /**
@@ -248,11 +331,59 @@ final class CellLanding {
      * @return a film or a runny layer
      */
     static SideCoat sideCoatFor(int adhesion, SideCoat standing, boolean gooBelow) {
-        if (standing.holdsALayer()) {
-            return SideCoat.RUNNY;
-        }
+        int volume = standing.holdsALayer() ? 1 : 0;
+        int attached = standing == SideCoat.ATTACHED ? 1 : 0;
+        return sideCoatFor(adhesion, 0, new Beside(standing, volume, attached, false, gooBelow));
+    }
+
+    /**
+     * What a side strike's layer stands as, by the adhesion ladder and the
+     * goo's cohesion: where the adhesion holds that side, a bare side takes
+     * the layer attached, and an attached side takes it into the block's
+     * volume while a block with no floor holds fewer than one layer plus the
+     * cohesion for each side it is attached to, a block on a floor always;
+     * the layer past that, a runny side, or a side the adhesion does not hold
+     * runs down the wall.
+     * drip-striking-a-side-sticks-or-runs-by-adhesion
+     * attached-goo-draws-per-attachment-and-divides-its-volume
+     *
+     * @param adhesion the rung of the adhesion ladder the goo clings at
+     * @param cohesion the goo's cohesion
+     * @param beside   the block beside the struck wall
+     * @return attached where the layer joins the block, runny where it runs
+     */
+    static SideCoat sideCoatFor(int adhesion, int cohesion, Beside beside) {
+        boolean holds = holdsTheSide(adhesion, beside.gooBelow()) && beside.coat() != SideCoat.RUNNY;
+        return holds && hasRoom(cohesion, beside) ? SideCoat.ATTACHED : SideCoat.RUNNY;
+    }
+
+    /**
+     * Whether a goo's adhesion holds a block's side: at 3 and up where it
+     * strikes, at 2 only over goo of its type.
+     * adhesion-is-a-ladder-of-holds
+     *
+     * @param adhesion the rung of the adhesion ladder the goo clings at
+     * @param gooBelow whether goo of its type stands in the cell below
+     * @return true where the side holds
+     */
+    private static boolean holdsTheSide(int adhesion, boolean gooBelow) {
         boolean holdsOverGoo = adhesion == GooTypeDefinition.HOLDS_WHERE_IT_STRIKES - 1 && gooBelow;
-        return adhesion >= GooTypeDefinition.HOLDS_WHERE_IT_STRIKES || holdsOverGoo ? SideCoat.ATTACHED : SideCoat.RUNNY;
+        return adhesion >= GooTypeDefinition.HOLDS_WHERE_IT_STRIKES || holdsOverGoo;
+    }
+
+    /**
+     * Whether a block beside a held wall takes one more layer: a bare side
+     * takes it attached, a block on a floor always, and a block with no floor
+     * while it holds fewer than its hold.
+     * attached-goo-draws-per-attachment-and-divides-its-volume
+     *
+     * @param cohesion the goo's cohesion
+     * @param beside   the block beside the struck wall
+     * @return true where the layer joins the block
+     */
+    private static boolean hasRoom(int cohesion, Beside beside) {
+        return beside.coat() == SideCoat.BARE || beside.onAFloor()
+                || beside.volume() < VolumeCellBlock.holdOf(cohesion, beside.attachedSides());
     }
 
     /**
@@ -303,7 +434,7 @@ final class CellLanding {
                     .ifPresent(landing -> cell.placeRunny(host, pos, side, landing));
             return;
         }
-        VolumeCellBlock.filmed(host.stateAt(pos), cell, side)
+        VolumeCellBlock.stuck(host.stateAt(pos), cell, side)
                 .filter(into -> host.placementPrice().pay(VolumeCellBlock.MAX_LAYERS))
                 .ifPresent(into -> host.transformBlock(pos, into));
     }
