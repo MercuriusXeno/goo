@@ -3,11 +3,13 @@ package com.mercuriusxeno.goo.network;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.program.MoltenStep;
+import com.mercuriusxeno.goo.block.ability.MoltenHeats;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import com.mercuriusxeno.goo.registry.GooBlocks;
+import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -24,7 +26,10 @@ import java.util.function.Consumer;
  * Blaze's Molten through the real landing its stream's drips take: a drip
  * striking stone's top lays a one-layer blaze cell there, and a drip
  * striking a lava source lays the cell on the lava's surface, where it stands.
+ * A cell melts obsidian and magma into lava and iron core into molten iron
+ * for one layer each, and melts no other stone.
  * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
+ * molten-melts-only-obsidian-magma-and-iron-core-one-layer-each
  */
 @RegistersGameTests
 public final class MoltenTests {
@@ -41,16 +46,23 @@ public final class MoltenTests {
     private static final String ABILITY_REQUIRED = "The ability registry must hold blaze_molten";
     private static final String LAYERS_WRONG = "The cell over the %s should hold one layer of Molten, stands %s";
     private static final String LAVA_GONE = "The lava source should stand under the Molten cell, stands %s";
-    private static final String MOLTEN_MELTS_STONE = "molten_over_stone_melts_it_for_three_layers";
-    /** The layers the melt test lays over the stone. */
-    private static final int FIVE_LAYERS = 5;
-    /** The layers melting one block spends, stated here so the test checks the cell rather than echoing it. */
-    private static final int MELT_LAYERS = 3;
-    private static final String NOT_MELTED = "Five layers of Molten should melt %s to a %s source, stands %s";
-    private static final String MELTED_EARLY = "Half way through the heat %s should stand under five layers,"
-            + " stands %s under %s";
+    private static final String MOLTEN_MELTS_OBSIDIAN = "molten_over_obsidian_melts_it_for_one_layer";
+    private static final String MOLTEN_MELTS_MAGMA = "molten_over_magma_melts_it_for_one_layer";
     private static final String MOLTEN_MELTS_IRON_CORE = "molten_over_iron_core_melts_it_to_molten_iron";
-    private static final String LAYERS_LEFT_WRONG ="The Molten cell should rest on the lava at two layers, stands %s";
+    private static final String MOLTEN_LEAVES_STONE = "molten_leaves_stone_unmelted";
+    private static final String MOLTEN_LEAVES_COBBLESTONE = "molten_leaves_cobblestone_unmelted";
+    private static final String MOLTEN_LEAVES_DEEPSLATE = "molten_leaves_deepslate_unmelted";
+    private static final String MOLTEN_LEAVES_NETHERRACK = "molten_leaves_netherrack_unmelted";
+    /** The layers the melt tests lay over the floor block. */
+    private static final int TWO_LAYERS = 2;
+    /** How many heats the unmelted tests wait out, so a melt that would run has run. */
+    private static final int SEVERAL_HEATS = 4;
+    private static final String NOT_MELTED = "Two layers of Molten should melt %s to a %s source, stands %s";
+    private static final String MELTED_EARLY = "Half way through the heat %s should stand red hot under two layers,"
+            + " stands %s under %s, heat started %s";
+    private static final String LAYERS_LEFT_WRONG = "The Molten cell should rest on the melt at one layer, stands %s";
+    private static final String HEAT_LEFT_STANDING = "The melt should end the cell's heat";
+    private static final String MELTED_INTO_LAVA = "Fifteen layers of Molten should leave %s unmelted, stands %s";
 
     private MoltenTests() {
     }
@@ -63,8 +75,13 @@ public final class MoltenTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, MOLTEN_DRIP_LAYS_A_CELL, MoltenTests::moltenDripLaysACellOnStone);
         GooTestFunctions.registerTest(registrar, MOLTEN_POOLS_ON_LAVA, MoltenTests::moltenDripPoolsOnLava);
-        GooTestFunctions.registerTest(registrar, MOLTEN_MELTS_STONE, MoltenTests::moltenOverStoneMeltsItForThreeLayers);
+        GooTestFunctions.registerTest(registrar, MOLTEN_MELTS_OBSIDIAN, MoltenTests::moltenOverObsidianMeltsItForOneLayer);
+        GooTestFunctions.registerTest(registrar, MOLTEN_MELTS_MAGMA, MoltenTests::moltenOverMagmaMeltsItForOneLayer);
         GooTestFunctions.registerTest(registrar, MOLTEN_MELTS_IRON_CORE, MoltenTests::moltenOverIronCoreMeltsItToMoltenIron);
+        GooTestFunctions.registerTest(registrar, MOLTEN_LEAVES_STONE, MoltenTests::moltenLeavesStoneUnmelted);
+        GooTestFunctions.registerTest(registrar, MOLTEN_LEAVES_COBBLESTONE, MoltenTests::moltenLeavesCobblestoneUnmelted);
+        GooTestFunctions.registerTest(registrar, MOLTEN_LEAVES_DEEPSLATE, MoltenTests::moltenLeavesDeepslateUnmelted);
+        GooTestFunctions.registerTest(registrar, MOLTEN_LEAVES_NETHERRACK, MoltenTests::moltenLeavesNetherrackUnmelted);
     }
 
     /**
@@ -99,59 +116,130 @@ public final class MoltenTests {
     }
 
     /**
-     * Five layers of Molten over stone heat it red hot and then melt it: half
-     * way through the heat the stone still stands under all five layers, and
-     * after it a lava source stands where the stone stood, the cell resting on
-     * it three layers lower, at two.
-     * molten-spends-three-layers-per-stone-block-priced-at-lava-minus-mundane-block
+     * Two layers of Molten over obsidian heat it red hot and then melt it into
+     * a lava source, the cell resting on it at one layer.
+     * molten-melts-only-obsidian-magma-and-iron-core-one-layer-each
      * stone-goes-red-hot-before-molten-turns-it-to-lava
      *
      * @param helper the gametest helper
      */
-    public static void moltenOverStoneMeltsItForThreeLayers(GameTestHelper helper) {
-        meltsForThreeLayers(helper, Blocks.STONE, Blocks.LAVA);
+    public static void moltenOverObsidianMeltsItForOneLayer(GameTestHelper helper) {
+        meltsForOneLayer(helper, Blocks.OBSIDIAN, Blocks.LAVA);
     }
 
     /**
-     * Five layers of Molten over iron core heat it red hot and then melt it
-     * into a molten iron source, spending the three layers a stone block
-     * spends (decision molten-melts-by-a-meltable-group-and-its-parallel-melted-group).
+     * Two layers of Molten over a magma block melt it into a lava source, the
+     * cell resting on it at one layer.
+     * molten-melts-only-obsidian-magma-and-iron-core-one-layer-each
+     *
+     * @param helper the gametest helper
+     */
+    public static void moltenOverMagmaMeltsItForOneLayer(GameTestHelper helper) {
+        meltsForOneLayer(helper, Blocks.MAGMA_BLOCK, Blocks.LAVA);
+    }
+
+    /**
+     * Two layers of Molten over iron core melt it into a molten iron source,
+     * the cell resting on it at one layer.
+     * molten-melts-by-a-meltable-group-and-its-parallel-melted-group
      *
      * @param helper the gametest helper
      */
     public static void moltenOverIronCoreMeltsItToMoltenIron(GameTestHelper helper) {
-        meltsForThreeLayers(helper, GooBlocks.IRON_CORE.get(), GooBlocks.MOLTEN_IRON.get());
+        meltsForOneLayer(helper, GooBlocks.IRON_CORE.get(), GooBlocks.MOLTEN_IRON.get());
     }
 
-    // Five layers over the floor block heat it for the heat's ticks, then leave the melted block's source under the
-    // cell, two layers left.
-    private static void meltsForThreeLayers(GameTestHelper helper, Block floor, Block meltedInto) {
+    /**
+     * Fifteen layers of Molten over stone leave no lava source below them
+     * after several times the heat.
+     * molten-melts-only-obsidian-magma-and-iron-core-one-layer-each
+     *
+     * @param helper the gametest helper
+     */
+    public static void moltenLeavesStoneUnmelted(GameTestHelper helper) {
+        leavesUnmelted(helper, Blocks.STONE);
+    }
+
+    /**
+     * Fifteen layers of Molten over cobblestone leave no lava source below them.
+     *
+     * @param helper the gametest helper
+     */
+    public static void moltenLeavesCobblestoneUnmelted(GameTestHelper helper) {
+        leavesUnmelted(helper, Blocks.COBBLESTONE);
+    }
+
+    /**
+     * Fifteen layers of Molten over deepslate leave no lava source below them.
+     *
+     * @param helper the gametest helper
+     */
+    public static void moltenLeavesDeepslateUnmelted(GameTestHelper helper) {
+        leavesUnmelted(helper, Blocks.DEEPSLATE);
+    }
+
+    /**
+     * Fifteen layers of Molten over netherrack leave no lava source below them.
+     *
+     * @param helper the gametest helper
+     */
+    public static void moltenLeavesNetherrackUnmelted(GameTestHelper helper) {
+        leavesUnmelted(helper, Blocks.NETHERRACK);
+    }
+
+    // Two layers over the floor block heat it red hot for the heat's ticks, then leave the melted block's source under
+    // the cell, one layer left.
+    private static void meltsForOneLayer(GameTestHelper helper, Block floor, Block meltedInto) {
+        int heatTicks = layMoltenOn(helper, floor, TWO_LAYERS);
+        BlockPos cellAt = helper.absolutePos(OVER_THE_FLOOR);
+        helper.runAfterDelay(heatTicks / 2, () -> {
+            BlockState heating = helper.getBlockState(FLOOR);
+            boolean heatStarted = heatsOf(helper).startedAt(helper.getLevel(), cellAt).isPresent();
+            helper.assertTrue(heating.is(floor) && heatStarted && holdsLayers(helper, TWO_LAYERS),
+                    String.format(MELTED_EARLY, floor, heating, helper.getBlockState(OVER_THE_FLOOR), heatStarted));
+        });
+        helper.runAfterDelay(heatTicks + PAST_THE_POUR, () -> {
+            BlockState melted = helper.getBlockState(FLOOR);
+            helper.assertTrue(melted.is(meltedInto) && melted.getFluidState().isSource(),
+                    String.format(NOT_MELTED, floor, meltedInto, melted));
+            helper.assertTrue(holdsLayers(helper, 1),
+                    String.format(LAYERS_LEFT_WRONG, helper.getBlockState(OVER_THE_FLOOR)));
+            helper.assertTrue(heatsOf(helper).startedAt(helper.getLevel(), cellAt).isEmpty(), HEAT_LEFT_STANDING);
+            helper.succeed();
+        });
+    }
+
+    // Fifteen layers over the floor block stand several heats, and the block under them is no lava.
+    private static void leavesUnmelted(GameTestHelper helper, Block floor) {
+        int heatTicks = layMoltenOn(helper, floor, VolumeCellBlock.MAX_LAYERS);
+        helper.runAfterDelay(heatTicks * SEVERAL_HEATS, () -> {
+            BlockState under = helper.getBlockState(FLOOR);
+            helper.assertFalse(under.is(Blocks.LAVA), String.format(MELTED_INTO_LAVA, floor, under));
+            helper.succeed();
+        });
+    }
+
+    // Walls the floor block and the cell over it in stone, so neither lava nor goo runs off, and lays the cell;
+    // answers the molten step's heat ticks.
+    private static int layMoltenOn(GameTestHelper helper, Block floor, int layers) {
         walledIn(helper, floor);
         for (Direction side : Direction.Plane.HORIZONTAL) {
             helper.setBlock(OVER_THE_FLOOR.relative(side), Blocks.STONE);
         }
         AbilityDefinition molten = AbilityRegistry.of(helper.getLevel()).getAbility(MOLTEN);
         helper.assertTrue(molten != null, ABILITY_REQUIRED);
-        int heatTicks = MoltenStep.in(molten.behaviors()).orElseThrow().heatTicks();
         helper.setBlock(OVER_THE_FLOOR, GooBlocks.BLAZE_MOLTEN.get().defaultBlockState()
-                .setValue(VolumeCellBlock.LAYERS, FIVE_LAYERS));
-        helper.runAfterDelay(heatTicks / 2, () -> {
-            BlockState heating = helper.getBlockState(FLOOR);
-            BlockState cell = helper.getBlockState(OVER_THE_FLOOR);
-            boolean fiveLayers = cell.is(GooBlocks.BLAZE_MOLTEN.get())
-                    && cell.getValue(VolumeCellBlock.LAYERS) == FIVE_LAYERS;
-            helper.assertTrue(heating.is(floor) && fiveLayers, String.format(MELTED_EARLY, floor, heating, cell));
-        });
-        helper.runAfterDelay(heatTicks + PAST_THE_POUR, () -> {
-            BlockState melted = helper.getBlockState(FLOOR);
-            helper.assertTrue(melted.is(meltedInto) && melted.getFluidState().isSource(),
-                    String.format(NOT_MELTED, floor, meltedInto, melted));
-            BlockState cell = helper.getBlockState(OVER_THE_FLOOR);
-            boolean twoLayers = cell.is(GooBlocks.BLAZE_MOLTEN.get())
-                    && cell.getValue(VolumeCellBlock.LAYERS) == FIVE_LAYERS - MELT_LAYERS;
-            helper.assertTrue(twoLayers, String.format(LAYERS_LEFT_WRONG, cell));
-            helper.succeed();
-        });
+                .setValue(VolumeCellBlock.LAYERS, layers));
+        return MoltenStep.in(molten.behaviors()).orElseThrow().heatTicks();
+    }
+
+    private static boolean holdsLayers(GameTestHelper helper, int layers) {
+        BlockState cell = helper.getBlockState(OVER_THE_FLOOR);
+        return cell.is(GooBlocks.BLAZE_MOLTEN.get()) && cell.getValue(VolumeCellBlock.LAYERS) == layers;
+    }
+
+    private static MoltenHeats heatsOf(GameTestHelper helper) {
+        return GooServerState.of(helper.getLevel().getServer()).moltenHeats();
     }
 
     /**
