@@ -252,8 +252,9 @@ public final class GloveArmLayer extends RenderLayer<AvatarRenderState, PlayerMo
 
     /**
      * A whole bare arm, and where it stands in a glove's model: its hand end at the glove's fingers, the arm running
-     * up the glove body's length past the cuff, and its width and depth stretched to the glove body's, so the palm
-     * blob rests on it where it rests on the glove's palm.
+     * up the glove body's length past the cuff, and its width and depth stretched so the sleeve's outside fills the
+     * glove body's and no further, so the palm blob rests on it where it rests on the glove's palm and the translucent
+     * sleeve never pokes through the translucent blob.
      *
      * @param arm     the arm
      * @param sleeve  the sleeve
@@ -277,10 +278,10 @@ public final class GloveArmLayer extends RenderLayer<AvatarRenderState, PlayerMo
          * @param poseStack the pose stack, at the glove's model
          */
         void standInGloveBody(PoseStack poseStack) {
-            float stretch = BODY_WIDTH_PX / width;
+            float sleeveGrowth = SLEEVE_GROWTH + SLEEVE_GROWTH;
             poseStack.translate(BODY_CENTER_PX / PIXELS_PER_BLOCK, (FINGERS_Y_PX + HAND_END_Y) / PIXELS_PER_BLOCK,
                     BODY_CENTER_PX / PIXELS_PER_BLOCK);
-            poseStack.scale(stretch, 1f, stretch);
+            poseStack.scale(BODY_WIDTH_PX / (width + sleeveGrowth), 1f, BODY_WIDTH_PX / (ARM_DEPTH + sleeveGrowth));
             poseStack.mulPose(Axis.XP.rotationDegrees(HALF_TURN_DEGREES));
             poseStack.translate(-centerX / PIXELS_PER_BLOCK, 0f, 0f);
         }
