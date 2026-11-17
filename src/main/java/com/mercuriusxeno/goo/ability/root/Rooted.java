@@ -21,17 +21,15 @@ import net.minecraft.world.phys.Vec3;
  *
  * @param anchor     where the thing stood when a cell last gave it vines, which the strands reach down to
  * @param vines      the vines held, none once released
- * @param thorns     the damage the vines deal each tick the thing moves while held
  * @param fireFactor what fire damage to a thing that is not fire immune is multiplied by
  * @param lastCell   the cell that last gave the thing vines
  * @param rootedAt   the game time the vines first latched, which the unpack runs from
  * @param endsAt     the game time the vines release at, or released at once they have
  */
-public record Rooted(Vec3 anchor, int vines, float thorns, float fireFactor, BlockPos lastCell, long rootedAt,
-                     long endsAt) {
+public record Rooted(Vec3 anchor, int vines, float fireFactor, BlockPos lastCell, long rootedAt, long endsAt) {
 
     /** The vines a thing never rooted holds. */
-    public static final Rooted NONE = new Rooted(Vec3.ZERO, 0, 0f, 1f, BlockPos.ZERO, 0L, 0L);
+    public static final Rooted NONE = new Rooted(Vec3.ZERO, 0, 1f, BlockPos.ZERO, 0L, 0L);
 
     /** Ticks the vines take to spread over the thing. */
     public static final int UNPACK_TICKS = 6;
@@ -41,7 +39,6 @@ public record Rooted(Vec3 anchor, int vines, float thorns, float fireFactor, Blo
 
     private static final String FIELD_ANCHOR = "anchor";
     private static final String FIELD_VINES = "vines";
-    private static final String FIELD_THORNS = "thorns";
     private static final String FIELD_FIRE_FACTOR = "fire_factor";
     private static final String FIELD_LAST_CELL = "last_cell";
     private static final String FIELD_ROOTED_AT = "rooted_at";
@@ -51,7 +48,6 @@ public record Rooted(Vec3 anchor, int vines, float thorns, float fireFactor, Blo
     public static final MapCodec<Rooted> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
             Vec3.CODEC.fieldOf(FIELD_ANCHOR).forGetter(Rooted::anchor),
             Codec.INT.fieldOf(FIELD_VINES).forGetter(Rooted::vines),
-            Codec.FLOAT.fieldOf(FIELD_THORNS).forGetter(Rooted::thorns),
             Codec.FLOAT.fieldOf(FIELD_FIRE_FACTOR).forGetter(Rooted::fireFactor),
             BlockPos.CODEC.fieldOf(FIELD_LAST_CELL).forGetter(Rooted::lastCell),
             Codec.LONG.fieldOf(FIELD_ROOTED_AT).forGetter(Rooted::rootedAt),
@@ -62,7 +58,6 @@ public record Rooted(Vec3 anchor, int vines, float thorns, float fireFactor, Blo
     public static final StreamCodec<ByteBuf, Rooted> STREAM_CODEC = StreamCodec.composite(
             Vec3.STREAM_CODEC, Rooted::anchor,
             ByteBufCodecs.VAR_INT, Rooted::vines,
-            ByteBufCodecs.FLOAT, Rooted::thorns,
             ByteBufCodecs.FLOAT, Rooted::fireFactor,
             BlockPos.STREAM_CODEC, Rooted::lastCell,
             ByteBufCodecs.VAR_LONG, Rooted::rootedAt,
@@ -74,10 +69,9 @@ public record Rooted(Vec3 anchor, int vines, float thorns, float fireFactor, Blo
      *
      * @param cell       the cell touched
      * @param layers     the layers it holds
-     * @param thorns     the thorn damage its laying step names
      * @param fireFactor the fire factor its laying step names
      */
-    public record Touch(BlockPos cell, int layers, float thorns, float fireFactor) {
+    public record Touch(BlockPos cell, int layers, float fireFactor) {
     }
 
     /**
@@ -120,7 +114,7 @@ public record Rooted(Vec3 anchor, int vines, float thorns, float fireFactor, Blo
         if (after.vines() == 0) {
             return this;
         }
-        return new Rooted(at, after.vines(), touch.thorns(), touch.fireFactor(), touch.cell().immutable(),
+        return new Rooted(at, after.vines(), touch.fireFactor(), touch.cell().immutable(),
                 holding ? rootedAt : now, now + after.ticksLeft());
     }
 
@@ -141,7 +135,7 @@ public record Rooted(Vec3 anchor, int vines, float thorns, float fireFactor, Blo
      * @return the released vines
      */
     public Rooted releasedAt(long now) {
-        return new Rooted(anchor, 0, thorns, fireFactor, lastCell, rootedAt, Math.min(endsAt, now));
+        return new Rooted(anchor, 0, fireFactor, lastCell, rootedAt, Math.min(endsAt, now));
     }
 
     /**
