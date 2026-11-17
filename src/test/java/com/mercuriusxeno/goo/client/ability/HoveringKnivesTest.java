@@ -61,7 +61,7 @@ class HoveringKnivesTest {
     @Test
     void eachKnifeIsThrownFromTheSlotItHoversAt() {
         Vec3 eye = new Vec3(4.5, 66.62, -1.5);
-        Vec3 cube = StackHover.cubeCenterInView(eye, PITCH, YAW, true);
+        Vec3 cube = StackHover.cubeCenterInView(eye, PITCH, YAW, true, false);
         for (int held = 1; held <= 10; held++) {
             HoveringKnives.formed(CASTER, held, held);
             HoveringKnives.formed(CASTER, held, held + 1);
@@ -98,4 +98,11 @@ class HoveringKnivesTest {
         played.forEach(cue -> assertEquals("minecraft:block.amethyst_block.chime", cue.sound().toString()));
         played.forEach(cue -> assertEquals(1f, cue.volume(), 1e-6f, "the chime should play at full volume, heard clearly"));
     }
-}
+
+    // knives-hover-above-the-blob-cube-over-the-hand: the clear glass of a nearer knife lays over a farther one
+    @Test
+    void theKnivesDrawFarthestFromTheCameraFirst() {
+        Vec3 camera = new Vec3(0, 64, 0);
+        java.util.List<Vec3> middles = java.util.List.of(new Vec3(0, 64, 1), new Vec3(0, 64, 3), new Vec3(0, 64, 2));
+        assertEquals(java.util.List.of(1, 2, 0), HoveringKnives.drawOrderOf(middles, camera));
+    }}

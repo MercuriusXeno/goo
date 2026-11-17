@@ -19,7 +19,10 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jspecify.annotations.Nullable;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
@@ -42,6 +45,7 @@ public final class HoveringKnives {
     private static final int KNIVES = 10;
     private static final float SMOOTH_SQUARE = 3f;
     private static final float SMOOTH_CUBE = 2f;
+    private static final double HALF = 0.5;
 
     /** Each caster's fan, by entity id. */
     private static final Map<Integer, Fan> FANS = new HashMap<>();
@@ -192,6 +196,23 @@ public final class HoveringKnives {
         return knifeScaleAt(fan, index, age);
     }
 
+    /**
+     * The order a pyramid's knives draw in, so the clear glass of a nearer
+     * knife lays over a farther one: farthest from the camera first.
+     *
+     * @param middles each knife's middle, by index
+     * @param camera  the camera's position
+     * @return the knives' indices in the order they draw
+     */
+    static List<Integer> drawOrderOf(List<Vec3> middles, Vec3 camera) {
+        List<Integer> order = new ArrayList<>();
+        for (int index = 0; index < middles.size(); index++) {
+            order.add(index);
+        }
+        order.sort(Comparator.comparingDouble((Integer index) -> middles.get(index).distanceToSqr(camera)).reversed());
+        return order;
+    }
+
     static float easedAt(double age) {
         float share = (float) Math.clamp(age / EASE_TICKS, 0.0, 1.0);
         return share * share * (SMOOTH_SQUARE - SMOOTH_CUBE * share);
@@ -232,14 +253,21 @@ public final class HoveringKnives {
                                 Vec3 camera) {
         float xRot = caster.getViewXRot(partial);
         float yRot = caster.getViewYRot(partial);
-        Vec3 cube = StackAnchor.cubeOf(caster, partial);
+        Vec3 cube = StackAnchor.cubeOf(caster, partial, false);
         Vec3 crosshair = ThrownKnife.crosshairPointOf(caster, partial);
+        List<Vec3> butts = new ArrayList<>();
+        List<Vec3> middles = new ArrayList<>();
         for (int index = 0; index < fan.count(); index++) {
             Vec3 butt = knifeAt(fan, index, cube, xRot, yRot, age);
-            Vec3 heading = ThrownKnife.headingFrom(butt, crosshair);
+            butts.add(butt);
+            middles.add(butt.lerp(crosshair, StackHover.KNIFE_LENGTH * HALF / butt.distanceTo(crosshair)));
+        }
+        // knives-hover-above-the-blob-cube-over-the-hand: farthest first, so nearer glass lays over farther
+        for (int index : drawOrderOf(middles, camera)) {
+            Vec3 heading = ThrownKnife.headingFrom(butts.get(index), crosshair);
             float scale = knifeDrawnScaleAt(fan, index, age);
-            GlassKunai.emit(quads, ThrownKnife.drawnFromOf(butt, heading, false, scale).subtract(camera), heading,
-                    0f, scale);
+            GlassKunai.emit(quads, ThrownKnife.drawnFromOf(butts.get(index), heading, false, scale).subtract(camera),
+                    heading, 0f, scale);
         }
     }
 }

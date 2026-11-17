@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.ability.AbilityTags;
 import com.mercuriusxeno.goo.ability.GloveRest;
 import com.mercuriusxeno.goo.ability.GloveSelection;
+import com.mercuriusxeno.goo.ability.crystal.StackHover;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.item.GooCasters;
@@ -41,6 +42,8 @@ public final class BlobRest {
         CENTER_LINE,
         /** At the glove rest, for Bore, whose drill extends from that hand. */
         BY_THE_GLOVE,
+        /** Just over the palm, for Knives, whose knives rise from the hand and point up at the crosshair. */
+        OVER_THE_PALM,
         /** Straight above where the hand rests, for every other ability. */
         ABOVE_THE_HAND;
 
@@ -56,6 +59,9 @@ public final class BlobRest {
             }
             if (ability.hasTag(AbilityTags.CENTERED)) {
                 return CENTER_LINE;
+            }
+            if (ability.delivery() != null && ability.delivery().formsKnives()) {
+                return OVER_THE_PALM;
             }
             // decision bore-blob-lifts-by-the-glove-and-the-drill-extends-from-that-hand
             return BoreDrill.stepOf(ability).isPresent() ? BY_THE_GLOVE : ABOVE_THE_HAND;
@@ -81,6 +87,7 @@ public final class BlobRest {
                     .add(Vec3.directionFromRotation(0f, yRot + QUARTER_TURN)
                             .scale(gloveRight ? GloveRest.TO_THE_GLOVE_SIDE : -GloveRest.TO_THE_GLOVE_SIDE))
                     .subtract(up.scale(GloveRest.BELOW));
+            case OVER_THE_PALM -> SpraySource.inView(eye, xRot, yRot, gloveRight, StackHover.KNIFE_RISE_ABOVE_THE_PALM);
             case ABOVE_THE_HAND -> SpraySource.inView(eye, xRot, yRot, gloveRight);
         };
     }
@@ -99,6 +106,9 @@ public final class BlobRest {
     public static Vec3 of(int casterId, Vec3 sentGlove, float partialTick) {
         return viewOf(casterId, partialTick).map(view -> {
             Rest rest = Rest.of(selectedAbility(view.caster()));
+            if (rest == Rest.OVER_THE_PALM) {
+                return SpraySource.of(casterId, sentGlove, partialTick, StackHover.KNIFE_RISE_ABOVE_THE_PALM);
+            }
             return rest == Rest.ABOVE_THE_HAND ? SpraySource.of(casterId, sentGlove, partialTick)
                     : inView(view.eye(), view.xRot(), view.yRot(), GooCasters.casterOnTheRight(view.caster()),
                     rest);

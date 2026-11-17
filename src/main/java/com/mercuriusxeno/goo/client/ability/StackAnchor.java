@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.ability.crystal.StackHover;
 import com.mercuriusxeno.goo.item.GooCasters;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.player.Player;
@@ -22,17 +23,18 @@ final class StackAnchor {
     /**
      * The center of the cube a caster's stack stands over this frame.
      *
-     * @param caster  the caster
-     * @param partial the frame's partial tick
+     * @param caster   the caster
+     * @param partial  the frame's partial tick
+     * @param javelins whether the stack is Dart's javelins, whose cube stands higher than Knives'
      * @return the cube's center
      */
-    static Vec3 cubeOf(Player caster, float partial) {
+    static Vec3 cubeOf(Player caster, float partial, boolean javelins) {
         Minecraft mc = Minecraft.getInstance();
+        double rise = javelins ? SpraySource.RISE_ABOVE_THE_PALM : StackHover.KNIFE_RISE_ABOVE_THE_PALM;
         if (caster == mc.player && mc.options.getCameraType().isFirstPerson()) {
-            Vec3 overThePalm = SpraySource.of(caster.getId(), caster.getEyePosition(partial), partial);
+            Vec3 overThePalm = SpraySource.of(caster.getId(), caster.getEyePosition(partial), partial, rise);
             return LiftedPalmBlob.blobOf(caster.getId(), partial).map(LiftedPalmBlob.Blob::place).orElse(overThePalm);
         }
-        return KnivesCharge.handAt(caster, GooCasters.casterOnTheRight(caster), partial)
-                .add(0, SpraySource.RISE_ABOVE_THE_PALM, 0);
+        return KnivesCharge.handAt(caster, GooCasters.casterOnTheRight(caster), partial).add(0, rise, 0);
     }
 }

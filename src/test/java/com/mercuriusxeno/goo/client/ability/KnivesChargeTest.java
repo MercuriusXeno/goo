@@ -39,9 +39,13 @@ class KnivesChargeTest {
         void theCubeCenterStackHoverAnswersIsTheRestANonCenteredBlobLiftsTo() {
             for (boolean gloveRight : new boolean[] {true, false}) {
                 assertNear(BlobRest.inView(SprayingClient.EYE, SprayingClient.PITCH, SprayingClient.YAW, gloveRight,
+                                BlobRest.Rest.OVER_THE_PALM),
+                        StackHover.cubeCenterInView(SprayingClient.EYE, SprayingClient.PITCH, SprayingClient.YAW,
+                                gloveRight, false), "the server's knife cube center, glove right " + gloveRight + ",");
+                assertNear(BlobRest.inView(SprayingClient.EYE, SprayingClient.PITCH, SprayingClient.YAW, gloveRight,
                                 BlobRest.Rest.ABOVE_THE_HAND),
                         StackHover.cubeCenterInView(SprayingClient.EYE, SprayingClient.PITCH, SprayingClient.YAW,
-                                gloveRight), "the server's cube center, glove right " + gloveRight + ",");
+                                gloveRight, true), "the server's javelin cube center, glove right " + gloveRight + ",");
             }
         }
 
@@ -55,10 +59,10 @@ class KnivesChargeTest {
 
                 Vec3 place = LiftedPalmBlob.blobOf(SprayingClient.CASTER, 0f).orElseThrow().place();
                 Vec3 rest = BlobRest.inView(SprayingClient.EYE, SprayingClient.PITCH, SprayingClient.YAW, true,
-                        BlobRest.Rest.ABOVE_THE_HAND);
+                        BlobRest.Rest.OVER_THE_PALM);
                 assertNear(rest, place, "the cube");
                 assertNear(StackHover.cubeCenterInView(SprayingClient.EYE, SprayingClient.PITCH, SprayingClient.YAW,
-                        true), place, "the cube");
+                        true, false), place, "the cube");
             }
         }
     }

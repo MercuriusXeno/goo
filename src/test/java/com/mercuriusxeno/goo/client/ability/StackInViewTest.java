@@ -10,11 +10,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * A full stack hovers whole in the view over the hand at full size: every
- * knife of a full pyramid and every javelin of a full triangle draws at its
- * thrown size, its butt or tail on its slot and its length running forward at
- * the crosshair's point, in front of the eye and inside a 16:9 view at
- * vanilla's default 70 degree field of view.
+ * A full stack hovers over the hand at full size: every knife of a full
+ * pyramid and every javelin of a full triangle draws at its thrown size, its
+ * butt or tail on its slot and its length running forward at the crosshair's
+ * point, all of it in front of the eye. Every javelin and every knife's point
+ * stand inside a 16:9 view at vanilla's default 70 degree field of view; the
+ * top row's outer knife butts, a blade's width apart over a palm at the right
+ * of the view, may run past its right edge.
  * decision knives-hover-above-the-blob-cube-over-the-hand
  * decision dart-javelins-hover-over-the-shrinking-blob-cube
  */
@@ -43,6 +45,11 @@ class StackInViewTest {
         return EYE.add(Vec3.directionFromRotation(PITCH, YAW).scale(CROSSHAIR_AHEAD));
     }
 
+    private static void assertInFront(Vec3 point, String what) {
+        double depth = point.subtract(EYE).dot(Vec3.directionFromRotation(PITCH, YAW));
+        assertTrue(depth > NEAR, what + " stands " + depth + " ahead of the eye, behind the near plane");
+    }
+
     private static void assertInView(Vec3 point, String what) {
         Vec3 ahead = Vec3.directionFromRotation(PITCH, YAW);
         Vec3 up = Vec3.directionFromRotation(PITCH - 90f, YAW);
@@ -57,8 +64,8 @@ class StackInViewTest {
     }
 
     @Test
-    void everyKnifeOfAFullPyramidHoversWholeAtFullSizePointingAtTheCrosshair() {
-        Vec3 cube = StackHover.cubeCenterInView(EYE, PITCH, YAW, true);
+    void everyKnifeOfAFullPyramidHoversAtFullSizeItsPointInViewAndItsButtInFront() {
+        Vec3 cube = StackHover.cubeCenterInView(EYE, PITCH, YAW, true, false);
         HoveringKnives.formed(CASTER, StackHover.KNIVES, 0);
         HoveringKnives.Fan fan = HoveringKnives.fanOf(CASTER);
         for (int index = 0; index < StackHover.KNIVES; index++) {
@@ -69,14 +76,14 @@ class StackInViewTest {
             assertEquals(1f, scale, WITHIN, "knife " + index + " should hover at its thrown size");
             assertEquals(0, point.subtract(butt).subtract(heading.scale(StackHover.KNIFE_LENGTH)).length(), WITHIN,
                     "knife " + index + "'s point should stand its length ahead of its butt, at the crosshair");
-            assertInView(butt, "knife " + index + "'s butt");
+            assertInFront(butt, "knife " + index + "'s butt");
             assertInView(point, "knife " + index + "'s point");
         }
     }
 
     @Test
     void everyJavelinOfAFullTriangleHoversWholeAtFullSizePointingAtTheCrosshair() {
-        Vec3 cube = StackHover.cubeCenterInView(EYE, PITCH, YAW, true);
+        Vec3 cube = StackHover.cubeCenterInView(EYE, PITCH, YAW, true, true);
         HeldJavelins.formed(CASTER, StackHover.JAVELINS, 0);
         HeldJavelins.Stack stack = HeldJavelins.stackOf(CASTER);
         for (int index = 0; index < StackHover.JAVELINS; index++) {
