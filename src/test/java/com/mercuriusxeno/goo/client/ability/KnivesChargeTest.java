@@ -10,25 +10,27 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Knives' charge: a chime at each step as the charge grows, capped at the
- * steps it chimes, the glove's palm blob swelling with the charge, and the
- * blob held afloat through the wind-up and the backhand's sweep (decisions
- * knives-sling-then-morph-to-flechettes, charge-swells-the-palm-blob,
+ * Knives' hold: a chime at each stage of knives formed, never past the
+ * stages the charge names, the glove's palm blob swelling with the charge,
+ * and the blob held afloat through the wind-up alone (decisions
+ * knives-form-in-fibonacci-stages-to-twelve, charge-swells-the-palm-blob,
  * knives-blob-floats-ahead-of-the-hand-and-spews-the-knives).
  */
 class KnivesChargeTest {
 
-    private static final Charge KNIVES = new Charge(30, 27, 45, 8, 3, 5);
+    private static final Charge KNIVES = KnivesCharging.KNIVES;
     private static final float TOLERANCE = 1e-5f;
 
     @Nested
     class ChimeSteps {
 
         @Test
-        void theChargeStepsUpAsItGrowsUpToTheStepsItChimes() {
-            assertEquals(3, KnivesCharge.shownAt(KNIVES, 0f));
-            assertEquals(8, KnivesCharge.shownAt(KNIVES, 0.2f));
-            assertEquals(KnivesCharge.MOST_SHOWN, KnivesCharge.shownAt(KNIVES, 1f));
+        void eachStageOfTwelveTicksChimesOnceUpToTheStagesTheChargeNames() {
+            assertEquals(0, KnivesCharge.stagesFormedAt(KNIVES, 11));
+            assertEquals(1, KnivesCharge.stagesFormedAt(KNIVES, 12));
+            assertEquals(4, KnivesCharge.stagesFormedAt(KNIVES, 59));
+            assertEquals(5, KnivesCharge.stagesFormedAt(KNIVES, 60));
+            assertEquals(5, KnivesCharge.stagesFormedAt(KNIVES, 600));
         }
     }
 
@@ -57,25 +59,18 @@ class KnivesChargeTest {
     class FloatsTheBlob {
 
         @Test
-        void theWindUpFloatsTheBlobHoweverLongItIsHeld() {
-            assertTrue(KnivesCharge.floatsAt(new AbilityPoses.Posed(ArmPoseKind.WIND_UP, 0, true, 0f), 100,
-                    KNIVES.sweepTicks()));
+        void theWindUpFloatsTheBlob() {
+            assertTrue(KnivesCharge.floatsAt(new AbilityPoses.Posed(ArmPoseKind.WIND_UP, 0, true, 0f)));
         }
 
         @Test
-        void theBackhandFloatsTheBlobThroughItsSweepAndNoLonger() {
-            AbilityPoses.Posed backhand = new AbilityPoses.Posed(ArmPoseKind.FLING, 0, true, 0.8f);
-
-            assertTrue(KnivesCharge.floatsAt(backhand, KNIVES.sweepTicks(), KNIVES.sweepTicks()),
-                    "at the sweep's last tick the blob should float");
-            assertFalse(KnivesCharge.floatsAt(backhand, KNIVES.sweepTicks() + 1, KNIVES.sweepTicks()),
-                    "past the sweep the blob should settle");
+        void aDroppedArmFloatsTheBlobNoLonger() {
+            assertFalse(KnivesCharge.floatsAt(new AbilityPoses.Posed(ArmPoseKind.NONE, 0, true, 0f)));
         }
 
         @Test
         void aWindUpLetGoFloatsTheBlobNoLonger() {
-            assertFalse(KnivesCharge.floatsAt(new AbilityPoses.Posed(ArmPoseKind.WIND_UP, 0, true, 0.5f, true), 1,
-                    KNIVES.sweepTicks()));
+            assertFalse(KnivesCharge.floatsAt(new AbilityPoses.Posed(ArmPoseKind.WIND_UP, 0, true, 0.5f, true)));
         }
     }
 
@@ -83,7 +78,7 @@ class KnivesChargeTest {
     class PalmShare {
 
         @Test
-        void noSlingingChargeHeldShowsNoShare() {
+        void noKnifeFormingChargeHeldShowsNoShare() {
             assertEquals(0f, KnivesCharge.palmShareOf(null, true, 0.7f), TOLERANCE);
         }
 
@@ -93,7 +88,7 @@ class KnivesChargeTest {
         }
 
         @Test
-        void aWoundUpSlingingChargeShowsTheShareItReached() {
+        void aWoundUpKnifeFormingChargeShowsTheShareItReached() {
             assertEquals(0.7f, KnivesCharge.palmShareOf(KNIVES, true, 0.7f), TOLERANCE);
             assertEquals(1f, KnivesCharge.palmShareOf(KNIVES, true, 1.5f), TOLERANCE);
         }

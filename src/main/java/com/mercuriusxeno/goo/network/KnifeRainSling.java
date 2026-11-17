@@ -1,116 +1,17 @@
 package com.mercuriusxeno.goo.network;
 
-import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.ability.AbilityDefinition;
-import com.mercuriusxeno.goo.ability.Charge;
-import com.mercuriusxeno.goo.ability.Delivery;
-import com.mercuriusxeno.goo.ability.crystal.KnifeRain;
-import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.item.GooGloveItem;
-import com.mercuriusxeno.goo.registry.GooServerState;
-import com.mercuriusxeno.goo.type.GooTypeDefinition;
-import com.mercuriusxeno.goo.type.GooTypes;
-import net.minecraft.resources.ResourceKey;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.HumanoidArm;
-import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.entity.projectile.ProjectileUtil;
-import net.minecraft.world.level.ClipContext;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.EntityHitResult;
-import net.minecraft.world.phys.HitResult;
-import net.minecraft.world.phys.Vec3;
-import org.jspecify.annotations.Nullable;
-import java.util.List;
 
 /**
- * Throws a charged Knives release as a rain of glass knives: the glove arm
- * flings out, the knives stream from the blob floating ahead of the hand
- * over the sweep in the fixed pattern {@link KnifeRain} lays, and each arcs
- * under gravity until it sticks in a block, strikes a mob, or is spent. A
- * knife striking a mob runs the ability's program on it when it arrives.
- * decision knives-sling-then-morph-to-flechettes
+ * The side of the body Knives' knives leave from: the glove hand's, which
+ * every cast drawn from the lifted palm blob reads too.
  * decision knives-blob-floats-ahead-of-the-hand-and-spews-the-knives
- * decision knives-land-in-staggered-rows-with-no-randomness
  */
 public final class KnifeRainSling {
 
-    /** Blocks a mob's box is widened by when a knife's path is swept against it. */
-    private static final double KNIFE_REACH = 0.25;
-    private static final float FLING_VOLUME = 0.9f;
-    private static final float FLING_PITCH = 1.5f;
-    private static final float CHIME_VOLUME = 1f;
-    private static final float CHIME_PITCH = 1.3f;
-
-    private static final String LOG_NO_GOO = "Knife rain rejected: insufficient {} goo";
-
     private KnifeRainSling() {
-    }
-
-    /**
-     * Pays the release's cost and reagents once and queues each knife to
-     * leave the floating blob on its tick; the releasing client poses the arm's fling.
-     * The pattern is the look's and the charge's alone, so the same charge
-     * always slings the same knives.
-     * knives-land-in-staggered-rows-with-no-randomness
-     *
-     * @param player    the releasing player
-     * @param gooType   the ability's goo type
-     * @param ability   the slinging ability
-     * @param heldTicks the ticks the use key was held
-     */
-    public static void sling(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType, AbilityDefinition ability,
-                             int heldTicks) {
-        if (!pay(player, gooType, ability)) {
-            return;
-        }
-        Delivery delivery = ability.delivery();
-        Charge charge = delivery.charge();
-        float share = delivery.chargeShare(heldTicks);
-        int count = charge.fleckCount(share);
-        List<Vec3> velocities = KnifeRain.releaseVelocities(player.getYRot(), player.getXRot(), charge, share);
-        int[] launchTicks = KnifeRain.launchTicks(count, charge.sweepTicks());
-        boolean gloveRight = gloveOnTheRight(player);
-
-        int now = player.level().getServer().getTickCount();
-        FleckLaunches launches = GooServerState.of(player.level().getServer()).fleckLaunches();
-        for (int index = 0; index < count; index++) {
-            Vec3 velocity = velocities.get(index);
-            int sinceRelease = launchTicks[index];
-            launches.enqueue(now + sinceRelease,
-                    () -> launch(player, new Release(gooType, ability, gloveRight, heldTicks), velocity, sinceRelease));
-        }
-    }
-
-    /**
-     * Takes the release's goo and reagents and plays the fling, once for the
-     * whole rain: a sweep of the arm and a chime of glass, never a snowball.
-     *
-     * @param player  the releasing player
-     * @param gooType the ability's goo type
-     * @param ability the slinging ability
-     * @return false where the player lacks the goo, which throws nothing
-     */
-    private static boolean pay(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType,
-                               AbilityDefinition ability) {
-        if (!AbilityCharges.charge(player, gooType, ability.cost().exactIn(GooValues.of(player.level())))) {
-            if (Goo.LOGGER.isDebugEnabled()) {
-                Goo.LOGGER.debug(LOG_NO_GOO, GooTypes.id(gooType));
-            }
-            return false;
-        }
-        GooThrowHandler.consumeReagents(player, ability.id().toString(), gooType);
-        ServerLevel level = player.level();
-        level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.PLAYER_ATTACK_SWEEP,
-                SoundSource.PLAYERS, FLING_VOLUME, FLING_PITCH);
-        level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.AMETHYST_CLUSTER_BREAK,
-                SoundSource.PLAYERS, CHIME_VOLUME, CHIME_PITCH);
-        return true;
     }
 
     /**
@@ -124,109 +25,5 @@ public final class KnifeRainSling {
         boolean inMain = player.getMainHandItem().getItem() instanceof GooGloveItem;
         HumanoidArm gloveArm = inMain ? player.getMainArm() : player.getMainArm().getOpposite();
         return gloveArm == HumanoidArm.RIGHT;
-    }
-
-    /**
-     * A release whose knives are queued to leave.
-     *
-     * @param gooType    the ability's goo type
-     * @param ability    the slinging ability
-     * @param gloveRight whether the glove is in the right hand
-     * @param heldTicks  the ticks the charge was held, which set how far across the chest the blob floats
-     */
-    record Release(ResourceKey<GooTypeDefinition> gooType, AbilityDefinition ability, boolean gloveRight,
-                   int heldTicks) {
-    }
-
-    /**
-     * Sends one knife from the blob floating ahead of the hand, as the
-     * player's eye and look stand at the knife's own launch tick: its flight
-     * goes to the players watching, and a knife striking a mob lands its
-     * ability on the mob when it arrives, aimed from where the knife left.
-     * knives-blob-floats-ahead-of-the-hand-and-spews-the-knives
-     *
-     * @param player       the releasing player
-     * @param release      the release the knife belongs to
-     * @param velocity     the knife's velocity leaving the blob
-     * @param sinceRelease the ticks since the release this knife leaves at
-     */
-    static void launch(ServerPlayer player, Release release, Vec3 velocity, int sinceRelease) {
-        if (player.isRemoved()) {
-            return;
-        }
-        ServerLevel level = player.level();
-        Vec3 start = KnifeRain.leavesFrom(player.getEyePosition(), player.getYRot(), player.getViewVector(1f),
-                release.gloveRight(), release.heldTicks(), sinceRelease);
-        Flight flight = fly(player, start, velocity);
-        EntityVisuals.sendToWatchers(player, new GlassKnifePayload(start, velocity, flight.ticks(), flight.end(),
-                flight.ending().ordinal()));
-        if (flight.struck() != null) {
-            LivingEntity struck = flight.struck();
-            GooServerState.of(level.getServer()).gooEffects().enqueue(new GooEffectScheduler.PendingEffect(
-                    level.getServer().getTickCount() + flight.ticks(), level, player, release.gooType(),
-                    struck.getId(), struck.blockPosition(), null, release.ability().id().toString(),
-                    new GooEffectScheduler.Aim(start, KnifeRain.velocityAt(velocity, flight.ticks(),
-                            KnifeRain.gravityIn(level.dimension())).normalize())));
-        }
-    }
-
-    /**
-     * Flies a knife tick by tick along its arc until it meets a block or a
-     * living mob, or its flight is spent.
-     *
-     * @param player   the thrower, whom no knife strikes
-     * @param start    where it leaves the floating blob
-     * @param velocity its velocity leaving the hand
-     * @return how and where its flight ends
-     */
-    static Flight fly(ServerPlayer player, Vec3 start, Vec3 velocity) {
-        Vec3 position = start;
-        Vec3 moving = velocity;
-        // decision lunar-gravity-is-one-sixth-of-the-overworlds: a knife falls under its dimension's gravity
-        double gravity = KnifeRain.gravityIn(player.level().dimension());
-        for (int tick = 1; tick <= KnifeRain.MOST_FLIGHT_TICKS; tick++) {
-            Vec3 next = position.add(moving);
-            BlockHitResult wall = player.level().clip(new ClipContext(position, next, ClipContext.Block.COLLIDER,
-                    ClipContext.Fluid.NONE, player));
-            Vec3 stop = wall.getType() == HitResult.Type.BLOCK ? wall.getLocation() : next;
-            LivingEntity struck = firstMobOn(player, position, stop);
-            if (struck != null) {
-                return new Flight(tick, struck.getBoundingBox().clip(position, stop).orElse(stop),
-                        GlassKnifePayload.Ending.STRUCK, struck);
-            }
-            if (wall.getType() == HitResult.Type.BLOCK) {
-                return new Flight(tick, stop, GlassKnifePayload.Ending.STUCK, null);
-            }
-            position = next;
-            moving = KnifeRain.nextVelocity(moving, gravity);
-        }
-        return new Flight(KnifeRain.MOST_FLIGHT_TICKS, position, GlassKnifePayload.Ending.SPENT, null);
-    }
-
-    /**
-     * The first living mob a knife's path meets in one tick.
-     *
-     * @param player the thrower, whom no knife strikes
-     * @param from   where the knife is
-     * @param stop   where its tick's path stops
-     * @return the mob, or null for none
-     */
-    private static @Nullable LivingEntity firstMobOn(ServerPlayer player, Vec3 from, Vec3 stop) {
-        AABB swept = new AABB(from, stop).inflate(KNIFE_REACH);
-        EntityHitResult hit = ProjectileUtil.getEntityHitResult(player.level(), player, from, stop, swept,
-                candidate -> candidate instanceof LivingEntity living && living.isAlive() && candidate != player,
-                (float) KNIFE_REACH);
-        return hit != null && hit.getEntity() instanceof LivingEntity living ? living : null;
-    }
-
-    /**
-     * How a knife's flight ends.
-     *
-     * @param ticks  the ticks it flies
-     * @param end    where it ends
-     * @param ending how it ends
-     * @param struck the mob it strikes, or null
-     */
-    record Flight(int ticks, Vec3 end, GlassKnifePayload.Ending ending, @Nullable LivingEntity struck) {
     }
 }

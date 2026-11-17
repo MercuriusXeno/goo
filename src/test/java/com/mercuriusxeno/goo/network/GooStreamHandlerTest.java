@@ -16,7 +16,6 @@ import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.List;
-import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -103,9 +102,9 @@ class GooStreamHandlerTest {
     }
     /**
      * A Goop drip the server throws and the drip its watchers draw leave the
-     * glove hand along one axis aimed through the crosshair's point, so the
-     * two fly one arc.
-     * diagnose-and-correct-the-spray-landing-off-the-aim
+     * glove hand, off the sight line, about the caster's look, so the two fly
+     * one arc.
+     * goo-spray-scatters-in-a-cone-around-the-look-vector
      */
     @Nested
     class DripAxis {
@@ -115,30 +114,21 @@ class GooStreamHandlerTest {
         private static final Vec3 LOOK = new Vec3(1, 0, 0);
         /** The glove hand ahead of, below and right of an eye looking east. */
         private static final Vec3 HAND = EYE.add(0.6, -0.35, 0.4);
-        private static final Vec3 CROSSHAIR = new Vec3(7, EYE.y, EYE.z);
         private static final double TOLERANCE = 1e-12;
         private final Delivery goop = AbilityJson.decode("weird_goop").delivery();
 
         @Test
-        void theDrawnDripsLaunchAlongTheAxisTheServersDripsLaunchAlong() {
+        void theDrawnDripsLaunchAboutTheLookAsTheServersDripsDo() {
             double exitSpeed = goop.exitSpeedAt(0);
-            Vec3 axis = GooStreamHandler.dripAxis(HAND, LOOK, Optional.of(CROSSHAIR), exitSpeed,
-                    DripArc.GRAVITY);
-            StreamMotesPayload drawn = GooStreamHandler.motesOf(1, HAND, axis, DRIP, goop, 0, exitSpeed, false);
+            StreamMotesPayload drawn = GooStreamHandler.dripMotesOf(1, HAND, LOOK, DRIP, goop, exitSpeed, false);
 
-            assertTrue(axis.distanceTo(LOOK) > TOLERANCE, "a hand off the sight line should aim off the look");
+            assertEquals(LOOK, drawn.axis(), "a hand off the sight line should still draw its drips about the look");
             for (CoatRay.ConeShare share : CoatRay.scatteredShares(1, 3)) {
-                Vec3 thrown = GooStreamHandler.dripLaunch(axis, goop, share, exitSpeed);
+                Vec3 thrown = GooStreamHandler.dripLaunch(LOOK, goop, share, exitSpeed);
                 Vec3 drawnLaunch = DripArc.launch(drawn.axis(), drawn.coneDegrees(), share, drawn.throwSpeed());
                 assertEquals(0, thrown.distanceTo(drawnLaunch), TOLERANCE,
                         "the drawn drip should launch as the server's drip does at " + share);
             }
-        }
-
-        @Test
-        void aCrosshairMeetingNoBlockLeavesTheAxisOnTheLook() {
-            assertEquals(LOOK, GooStreamHandler.dripAxis(HAND, LOOK, Optional.empty(),
-                    goop.exitSpeedAt(0), DripArc.GRAVITY));
         }
     }
 

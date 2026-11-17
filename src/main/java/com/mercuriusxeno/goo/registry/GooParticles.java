@@ -65,6 +65,51 @@ public class GooParticles {
         PARTICLE_TYPES.register("molten_spray_drip", () -> new SimpleParticleType(false));
 
     /**
+     * Shatter's spray drip: the mod's blocky goo drip in crystal's blues,
+     * flying its arc until it strikes a block's top, where it splats and the
+     * shatter goo lands.
+     * shatter-is-splattered-goo-and-shards-form-over-the-splatters
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> SHATTER_SPRAY_DRIP =
+        PARTICLE_TYPES.register("shatter_spray_drip", () -> new SimpleParticleType(false));
+
+    /**
+     * Host's spray drip: the mod's blocky goo drip in deep's teals, flying
+     * its arc until it strikes a block's top, where it splats and the Host
+     * goo lands.
+     * host-is-a-sculky-slime-that-sculk-spreads-eagerly-through
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> HOST_SPRAY_DRIP =
+        PARTICLE_TYPES.register("host_spray_drip", () -> new SimpleParticleType(false));
+
+    /**
+     * Rime's spray drip: the mod's blocky goo drip in frost's pale blues,
+     * flying its arc until it strikes a block's top, where it splats and the
+     * Rime goo lands.
+     * iceborn-is-dropped-for-rime-a-frost-goo-that-keeps-what-is-around-it-frozen
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> RIME_SPRAY_DRIP =
+        PARTICLE_TYPES.register("rime_spray_drip", () -> new SimpleParticleType(false));
+
+    /**
+     * Wisps' spray drip: the mod's blocky goo drip in glow's golds, flying
+     * its arc until it strikes a block's top, where it splats and the Wisps
+     * goo lands.
+     * glow-world-goo-is-named-wisps-and-takes-the-holds-place
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> WISPS_SPRAY_DRIP =
+        PARTICLE_TYPES.register("wisps_spray_drip", () -> new SimpleParticleType(false));
+
+    /**
+     * Leech's spray drip: the mod's blocky goo drip in hex's violets, flying
+     * its arc until it strikes a block's top, where it splats and the Leech
+     * goo lands.
+     * leech-goo-slows-what-it-catches-and-the-spirits-damage-it
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> LEECH_SPRAY_DRIP =
+        PARTICLE_TYPES.register("leech_spray_drip", () -> new SimpleParticleType(false));
+
+    /**
      * A snowflake crystal flitting weightlessly along Cold's wind (decision
      * cold-streams-wind-lines-and-snowflakes).
      */
@@ -145,7 +190,7 @@ public class GooParticles {
 
     /**
      * The hex wisp: a wisp of drawn life in hex purple, scattering off a
-     * victim then curling home to whoever it heals: Lifetap's splashes and
+     * victim then curling home to whoever it heals: Leech goo's splashes and
      * Drain's trickle.
      * lifetap-trades-regen-for-leech
      */

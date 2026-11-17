@@ -32,6 +32,10 @@ public final class AbilitiesModel {
     /** The separator between a leaf path's segments. */
     public static final String PATH_SEPARATOR = "/";
     private static final String COST = "cost";
+    /** The mechanism Knives' cost reads under: the price of one knife. */
+    private static final String COST_PER_KNIFE = "cost_per_knife";
+    private static final String CHARGE = "charge";
+    private static final String STAGES = "stages";
     private static final String UPKEEP = "upkeep";
     private static final List<String> COST_FIELDS = List.of(COST, UPKEEP);
     private static final String ABILITIES = "abilities";
@@ -103,8 +107,10 @@ public final class AbilitiesModel {
 
     /**
      * The mechanism a leaf tunes, which its sub-heading names: the nearest step holding it, by its type; the
-     * delivery's kind for a delivery leaf; the root field itself for any other.
+     * delivery's kind for a delivery leaf; the cost of a charge forming knives, the price of one knife; the root
+     * field itself for any other.
      * ability-params-read-named-under-their-mechanism-and-hover-a-description
+     * knives-pay-per-knife-as-each-forms
      *
      * @param file the ability's JSON
      * @param path the leaf's path
@@ -112,9 +118,11 @@ public final class AbilitiesModel {
      */
     static String mechanismOf(JsonObject file, List<String> path) {
         String first = path.getFirst();
+        if (pricesAKnife(file, path)) {
+            return COST_PER_KNIFE;
+        }
         if (DELIVERY.equals(first)) {
-            JsonElement kind = file.getAsJsonObject(DELIVERY).get(KIND_FIELD);
-            return kind != null && kind.isJsonPrimitive() ? kind.getAsString() : DELIVERY;
+            return deliveryKindOf(file);
         }
         String mechanism = first;
         JsonElement at = file;
@@ -124,6 +132,20 @@ public final class AbilitiesModel {
             mechanism = stepTypeOf(at).orElse(mechanism);
         }
         return mechanism;
+    }
+
+    // The delivery's kind, or the delivery itself where it names none.
+    private static String deliveryKindOf(JsonObject file) {
+        JsonElement kind = file.getAsJsonObject(DELIVERY).get(KIND_FIELD);
+        return kind != null && kind.isJsonPrimitive() ? kind.getAsString() : DELIVERY;
+    }
+
+    // The root cost of a delivery whose charge names stages, which forms knives, prices one knife.
+    private static boolean pricesAKnife(JsonObject file, List<String> path) {
+        return path.equals(List.of(COST)) && Optional.ofNullable(file.get(DELIVERY)).filter(JsonElement::isJsonObject)
+                .map(delivery -> delivery.getAsJsonObject().get(CHARGE)).filter(JsonElement::isJsonObject)
+                .map(charge -> charge.getAsJsonObject().get(STAGES)).filter(JsonElement::isJsonPrimitive)
+                .map(JsonElement::getAsInt).orElse(0) > 0;
     }
 
     private static Optional<String> stepTypeOf(JsonElement at) {

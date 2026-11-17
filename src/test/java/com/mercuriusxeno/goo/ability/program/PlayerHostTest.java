@@ -203,10 +203,11 @@ class PlayerHostTest {
         }
 
         @Test
-        void playerHostProvidesTargetExplodeEntityScanChannelBlockBreaksFrostZoneAndAstralLunar() {
+        void playerHostProvidesTargetExplodeEntityScanChannelBlockBreaksFrostZoneAstralLunarAndEnd() {
             assertEquals(Set.of(HostCapability.TARGET, HostCapability.EXPLODE, HostCapability.ENTITY_SCAN,
                             HostCapability.CHANNEL, HostCapability.BREAK_BLOCKS,
-                            HostCapability.FROST, HostCapability.ZONE, HostCapability.ASTRAL_LUNAR),
+                            HostCapability.FROST, HostCapability.ZONE, HostCapability.ASTRAL_LUNAR,
+                            HostCapability.END),
                     HostKind.PLAYER.capabilities());
         }
     }

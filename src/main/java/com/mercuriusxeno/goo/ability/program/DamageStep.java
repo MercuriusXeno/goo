@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.GooHitCredit;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
@@ -8,11 +9,13 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.damagesource.CombatRules;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageSources;
 import net.minecraft.world.damagesource.DamageType;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
@@ -145,6 +148,22 @@ public record DamageStep(Expr amount, DamageKind source, boolean knockback,
     }
 
     /**
+     * The damage the step lands on a target once its armor has taken its
+     * share, read with no program variables bound, which Knives' knives-to-kill
+     * counts by. Enchantment protection and resistance are left out.
+     * decision knives-split-evenly-capped-at-the-kill
+     *
+     * @param target  the entity the hit reaches
+     * @param thrower the player whose hit it is, or null
+     * @return the damage landed
+     */
+    public float landedOn(LivingEntity target, @Nullable Entity thrower) {
+        return CombatRules.getDamageAfterAbsorb(target, amount.evaluateFloat(Variables.NONE),
+                damageSource(target, thrower), target.getArmorValue(),
+                (float) target.getAttributeValue(Attributes.ARMOR_TOUGHNESS));
+    }
+
+    /**
      * Heals an undead target in place of the hit, or leaves a living caster
      * the hit reached as it stands.
      * decision decay-and-hive-heal-an-undead-target
@@ -163,19 +182,26 @@ public record DamageStep(Expr amount, DamageKind source, boolean knockback,
     }
 
     /**
-     * Maps the step's damage kind to the target's damage source.
+     * Maps the step's damage kind to the target's damage source: the
+     * thrower's attack, or the kind's own type naming the player who threw.
+     * direct-goo-hit-credits-its-caster
+     * goo-hit-keeps-its-kind-and-names-the-player-behind-it
      *
-     * @param target the entity being hurt
+     * @param target  the entity being hurt
+     * @param thrower the entity that threw the goo, or null
      * @return the damage source
      */
     private DamageSource damageSource(LivingEntity target, @Nullable Entity thrower) {
-        Optional<ResourceKey<DamageType>> owned = gooTypeOf(source);
-        if (owned.isPresent()) {
-            return new DamageSource(target.level().registryAccess().lookupOrThrow(Registries.DAMAGE_TYPE)
-                    .getOrThrow(owned.get()));
-        }
         DamageSources sources = target.damageSources();
-        return source == DamageKind.ATTACK ? attackBy(sources, thrower) : sourceOfItsOwn(sources);
+        if (source == DamageKind.ATTACK) {
+            return attackBy(sources, thrower);
+        }
+        Optional<ResourceKey<DamageType>> owned = gooTypeOf(source);
+        DamageSource uncredited = owned.isPresent()
+                ? new DamageSource(target.level().registryAccess().lookupOrThrow(Registries.DAMAGE_TYPE)
+                        .getOrThrow(owned.get()))
+                : sourceOfItsOwn(sources);
+        return GooHitCredit.credit(uncredited, target, thrower);
     }
 
     /**
@@ -194,7 +220,7 @@ public record DamageStep(Expr amount, DamageKind source, boolean knockback,
     }
 
     /**
-     * The source of a kind that names its own, owing nothing to the thrower.
+     * The source of a vanilla kind, naming no one.
      *
      * @param sources the level's damage sources
      * @return the damage source

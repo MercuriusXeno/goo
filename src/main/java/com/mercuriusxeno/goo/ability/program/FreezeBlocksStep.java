@@ -1,24 +1,30 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.ability.frost.FrostFire;
+import com.mercuriusxeno.goo.data.GooGroups;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
 
 /**
- * Freezes the still water and lava within a sphere around the host's frost
+ * Freezes the still water and lava types within a sphere around the host's frost
  * center: water becomes ice, magicked ice that never thaws where the step
- * lasts, and lava becomes obsidian, and the fire in the sphere goes out. The
+ * lasts, each lava type becomes what the molten groups pair it with, lava
+ * obsidian and molten iron iron core, and the fire in the sphere goes out. The
  * Orb freezes what it passes with ice that may melt
  * (decision orb-carries-a-swirling-nova), and Nova's ring and Cold's cone
  * freeze what they reach the same way (decision nova-ring-and-cold-cone-freeze-water-and-lava).
@@ -31,6 +37,10 @@ public record FreezeBlocksStep(Expr radius, boolean lasting) implements TakesNoE
     private static final String NAME = "freeze_blocks";
     private static final String FIELD_RADIUS = "radius";
     private static final String FIELD_LASTING = "lasting";
+    /** The base values group holding each lava type frost cools. */
+    private static final String MOLTEN_BLOCKS = "molten_blocks";
+    /** The base values group holding what each lava type cools into, at the lava type's position. */
+    private static final String MOLTEN_COOLED_BLOCKS = "molten_cooled_blocks";
 
     /**
      * Codec for the step's params.
@@ -91,7 +101,8 @@ public record FreezeBlocksStep(Expr radius, boolean lasting) implements TakesNoE
 
     /**
      * What a block freezes into: still water to ice, magicked where it lasts,
-     * still lava to obsidian, anything else nothing.
+     * a still lava type to the block the molten groups pair it with, anything
+     * else nothing.
      *
      * @param state   the block
      * @param lasting whether water freezes to magicked ice
@@ -105,7 +116,22 @@ public record FreezeBlocksStep(Expr radius, boolean lasting) implements TakesNoE
             return Optional.of(lasting ? GooBlocks.MAGICKED_ICE.get().defaultBlockState()
                     : Blocks.ICE.defaultBlockState());
         }
-        return state.is(Blocks.LAVA) ? Optional.of(Blocks.OBSIDIAN.defaultBlockState()) : Optional.empty();
+        return cooledFormOf(GooGroups.current(), BuiltInRegistries.BLOCK.getKey(state.getBlock()))
+                .flatMap(BuiltInRegistries.BLOCK::getOptional).map(Block::defaultBlockState);
+    }
+
+    /**
+     * The block a lava type cools into: the member of the molten cooled group standing at the position the lava type
+     * stands at in the molten group.
+     * frost-cools-molten-blocks-into-molten-cooled-blocks
+     * every-frost-freeze-turns-a-molten-iron-source-to-iron-core
+     *
+     * @param groups each group's members by group name
+     * @param liquid the lava type's block id
+     * @return the cooled block's id, empty where the molten group holds no such liquid or no partner stands for it
+     */
+    public static Optional<Identifier> cooledFormOf(Map<String, List<Identifier>> groups, Identifier liquid) {
+        return GooGroups.pairedMember(groups, MOLTEN_BLOCKS, MOLTEN_COOLED_BLOCKS, liquid);
     }
 
     @Override

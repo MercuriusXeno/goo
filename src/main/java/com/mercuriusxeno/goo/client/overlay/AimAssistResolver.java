@@ -153,8 +153,7 @@ final class AimAssistResolver {
             double coneDegrees) {
         AABB searchBox = buildSearchBox(from, to, coneDegrees);
         boolean sparesOwnMinions = GloveAim.sparesOwnMinions(player);
-        return player.level().getEntities(player, searchBox, e -> isCandidate(e, behaviors, sparesOwnMinions,
-                mob -> OwnMinions.ownMinionOf(player, mob)));
+        return player.level().getEntities(player, searchBox, e -> isCandidate(e, behaviors, player, sparesOwnMinions));
     }
 
     /**
@@ -173,18 +172,21 @@ final class AimAssistResolver {
     /**
      * Whether the aim may outline an entity, sparing the player's own
      * minions where the selected ability spares them, so a harmful mob
-     * ability never locks on a mob its caster rallied or charmed.
+     * ability never locks on a mob its caster rallied or charmed, and
+     * dropping a mob the selected ability's steps refuse for the player,
+     * so a refused Rally or Charm never locks on it.
      * mob-targeted-attacks-refuse-your-minions
+     * refused-rally-or-charm-spends-no-goo
      *
      * @param entity           the entity in the search box
      * @param behaviors        the selected ability's steps
+     * @param player           the aiming player
      * @param sparesOwnMinions whether the selected ability spares the player's own minions
-     * @param ownMinion        whether an entity is the player's own minion
      * @return true where the entity is a candidate
      */
-    static boolean isCandidate(Entity entity, List<Step> behaviors, boolean sparesOwnMinions,
-                               Predicate<Entity> ownMinion) {
-        return isCandidate(entity, behaviors) && !(sparesOwnMinions && ownMinion.test(entity));
+    static boolean isCandidate(Entity entity, List<Step> behaviors, Entity player, boolean sparesOwnMinions) {
+        return isCandidate(entity, behaviors) && !(sparesOwnMinions && OwnMinions.ownMinionOf(player, entity))
+                && !Step.refusedByAny(behaviors, player, entity);
     }
 
     /**

@@ -90,10 +90,10 @@ public enum HostCapability {
      */
     SHRIEK(ShriekHost.class),
     /**
-     * A struck surface an End gate can open over (decision
-     * end-clears-blocks-and-opens-a-portal).
+     * A channeling player End's gate can carry to the End (decision
+     * end-summons-a-gate-like-zone-that-takes-you-to-the-end-and-back).
      */
-    END_GATE(GateHost.class),
+    END(EndHost.class),
     /**
      * A struck surface a wormhole can carry its caster through to the
      * opening ahead (decision hole-closes-the-space-to-an-opening-ahead).

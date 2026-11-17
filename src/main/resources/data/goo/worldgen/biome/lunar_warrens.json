@@ -1,0 +1,53 @@
+{
+  "attributes": {
+    "minecraft:visual/sky_color": "#000000"
+  },
+  "carvers": [],
+  "downfall": 0.0,
+  "effects": {
+    "water_color": "#3f76e4"
+  },
+  "features": [
+    [],
+    [],
+    [
+      "goo:boulder_field"
+    ],
+    [],
+    [],
+    [],
+    [
+      "goo:ore_meteoric_iron",
+      "goo:meteoric_iron_nuggets"
+    ],
+    [
+      "goo:crystal_spikes_rising",
+      "goo:crystal_spikes_hanging"
+    ],
+    [],
+    [],
+    [
+      "goo:crater_pools"
+    ]
+  ],
+  "has_precipitation": false,
+  "spawn_costs": {},
+  "spawners": {
+    "ambient": [],
+    "axolotls": [],
+    "creature": [],
+    "misc": [],
+    "monster": [
+      {
+        "type": "goo:eldritch_monstrosity",
+        "maxCount": 6,
+        "minCount": 2,
+        "weight": 150
+      }
+    ],
+    "underground_water_creature": [],
+    "water_ambient": [],
+    "water_creature": []
+  },
+  "temperature": 0.0
+}

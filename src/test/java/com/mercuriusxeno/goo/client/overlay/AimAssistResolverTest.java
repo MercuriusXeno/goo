@@ -12,6 +12,10 @@ import com.mercuriusxeno.goo.ability.program.GrabStep;
 import com.mercuriusxeno.goo.ability.program.HealPulse;
 import com.mercuriusxeno.goo.ability.program.LeafSteps;
 import com.mercuriusxeno.goo.ability.program.Step;
+import com.mercuriusxeno.goo.ability.hex.Charmed;
+import com.mercuriusxeno.goo.ability.zoo.Rallied;
+import com.mercuriusxeno.goo.registry.GooAttachments;
+import net.minecraft.world.entity.animal.cow.Cow;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
@@ -28,6 +32,7 @@ import java.io.InputStreamReader;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -41,7 +46,8 @@ import static org.mockito.Mockito.when;
  * is never an aim target, so a throw at one lands beside it (decision
  * splat-runs-the-program-no-fuse); its cone taking no mob beyond the ray's
  * reach (decision grab-reaches-telekinesis-range); and its candidates being
- * what the selected ability's steps take (decision steps-declare-the-entities-they-take).
+ * what the selected ability's steps take (decision steps-declare-the-entities-they-take), less
+ * a mob the selected Rally or Charm refuses (decision refused-rally-or-charm-spends-no-goo).
  */
 class AimAssistResolverTest {
 
@@ -112,7 +118,7 @@ class AimAssistResolverTest {
     @Nested
     class Candidates {
 
-        private final List<Step> grab = List.of(new GrabStep(16, 3, 1.5, 1, 10));
+        private final List<Step> grab = List.of(new GrabStep(16, 3, 1.5, 1, 10, 0.15, 4, 3, 0.4, 0.7));
         private final List<Step> heal = List.of(LeafSteps.HEAL.step(new HealPulse(Expr.literal(1), 4)));
 
         @Test
@@ -160,17 +166,17 @@ class AimAssistResolverTest {
         /** decision mob-targeted-attacks-refuse-your-minions */
         @Test
         void aHarmfulMobAbilityOutlinesNoOwnMinion() {
-            Mob minion = pickable(Mob.class);
-            assertFalse(AimAssistResolver.isCandidate(minion, heal,
-                    OwnMinions.sparesOwnMinions(AbilityBadge.MOB, DeliveryKind.ARC, true), ownMinion -> ownMinion == minion));
+            Mob minion = rallied(pickableCow(), PLAYER);
+            assertFalse(AimAssistResolver.isCandidate(minion, heal, player(),
+                    OwnMinions.sparesOwnMinions(AbilityBadge.MOB, DeliveryKind.ARC, true)));
         }
 
         /** decision mob-targeted-attacks-refuse-your-minions */
         @Test
         void anUntaggedMobAbilityOutlinesAnOwnMinion() {
-            Mob minion = pickable(Mob.class);
-            assertTrue(AimAssistResolver.isCandidate(minion, heal,
-                    OwnMinions.sparesOwnMinions(AbilityBadge.MOB, DeliveryKind.ARC, false), ownMinion -> ownMinion == minion));
+            Mob minion = rallied(pickableCow(), PLAYER);
+            assertTrue(AimAssistResolver.isCandidate(minion, heal, player(),
+                    OwnMinions.sparesOwnMinions(AbilityBadge.MOB, DeliveryKind.ARC, false)));
         }
 
         private static <E extends Entity> E pickable(Class<E> kind) {
@@ -179,5 +185,97 @@ class AimAssistResolverTest {
             when(entity.isPickable()).thenReturn(true);
             return entity;
         }
+    }
+
+    /**
+     * The aim drops a mob the selected Rally or Charm refuses for the player,
+     * so it is neither outlined nor locked, and keeps the casts that still
+     * land (decisions refused-rally-or-charm-spends-no-goo,
+     * rally-cast-on-your-rallied-mob-releases-it).
+     */
+    @Nested
+    class RefusedRallyAndCharm {
+
+        private final List<Step> charm = AbilityJson.decode("hex_charm").behaviors();
+        private final List<Step> rally = AbilityJson.decode("zoo_rally").behaviors();
+
+        @Test
+        void charmOverARalliedMobIsNoCandidate() {
+            assertFalse(candidate(rallied(pickableCow(), PLAYER), charm));
+        }
+
+        @Test
+        void rallyOverACharmedMobIsNoCandidate() {
+            assertFalse(candidate(charmed(pickableCow(), PLAYER), rally));
+        }
+
+        @Test
+        void rallyOverAnotherPlayersRalliedMobIsNoCandidate() {
+            assertFalse(candidate(rallied(pickableCow(), OTHER_PLAYER), rally));
+        }
+
+        @Test
+        void rallyOverAnotherPlayersCharmedMobIsNoCandidate() {
+            assertFalse(candidate(charmed(pickableCow(), OTHER_PLAYER), rally));
+        }
+
+        @Test
+        void charmOverAnotherPlayersRalliedMobIsNoCandidate() {
+            assertFalse(candidate(rallied(pickableCow(), OTHER_PLAYER), charm));
+        }
+
+        @Test
+        void charmOverAnotherPlayersCharmedMobIsNoCandidate() {
+            assertFalse(candidate(charmed(pickableCow(), OTHER_PLAYER), charm));
+        }
+
+        @Test
+        void rallyOverAMobHoldingNeitherEffectIsACandidate() {
+            assertTrue(candidate(pickableCow(), rally));
+        }
+
+        @Test
+        void charmOverAMobHoldingNeitherEffectIsACandidate() {
+            assertTrue(candidate(pickableCow(), charm));
+        }
+
+        @Test
+        void rallyOverThePlayersOwnRalliedMobIsACandidate() {
+            assertTrue(candidate(rallied(pickableCow(), PLAYER), rally));
+        }
+
+        private static boolean candidate(Mob mob, List<Step> behaviors) {
+            return AimAssistResolver.isCandidate(mob, behaviors, player(), false);
+        }
+    }
+
+    private static final UUID PLAYER = new UUID(1L, 1L);
+    private static final UUID OTHER_PLAYER = new UUID(2L, 2L);
+    private static final float STRIKE = 6f;
+
+    private static Player player() {
+        Player player = mock(Player.class);
+        when(player.getUUID()).thenReturn(PLAYER);
+        return player;
+    }
+
+    private static Cow pickableCow() {
+        Cow cow = mock(Cow.class);
+        when(cow.isAlive()).thenReturn(true);
+        when(cow.isPickable()).thenReturn(true);
+        when(cow.getType()).thenAnswer(unused -> EntityType.COW);
+        return cow;
+    }
+
+    private static Cow rallied(Cow cow, UUID rallier) {
+        when(cow.hasData(GooAttachments.RALLIED)).thenReturn(true);
+        when(cow.getData(GooAttachments.RALLIED)).thenReturn(new Rallied(rallier, STRIKE));
+        return cow;
+    }
+
+    private static Cow charmed(Cow cow, UUID charmer) {
+        when(cow.hasData(GooAttachments.CHARMED)).thenReturn(true);
+        when(cow.getData(GooAttachments.CHARMED)).thenReturn(new Charmed(charmer));
+        return cow;
     }
 }

@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.ability.GooHitCredit;
 import com.mercuriusxeno.goo.ability.petrify.BlockExposures;
 import com.mercuriusxeno.goo.network.HoldMarks;
 import com.mojang.serialization.Codec;
@@ -19,6 +20,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -188,10 +190,11 @@ public record FlamesStep(Expr damage, int every, int burnSeconds, int cookTicks,
      * @param amount the fire damage
      */
     private void burnCrossed(ChannelHost host, ChannelAim aim, float amount) {
-        List<LivingEntity> inReach = new ArrayList<>();
-        host.forEachLivingIn(cellsAround(host.eye(), aim), Set.of(), target -> inReach.add(target.target()));
-        for (LivingEntity target : FlameRays.crossed(sprayOf(host, aim), inReach, LivingEntity::getBoundingBox)) {
-            burn(host.level(), target, amount, burnSeconds);
+        List<TargetHost> inReach = new ArrayList<>();
+        host.forEachLivingIn(cellsAround(host.eye(), aim), Set.of(), inReach::add);
+        for (TargetHost crossed : FlameRays.crossed(sprayOf(host, aim), inReach,
+                reached -> reached.target().getBoundingBox())) {
+            burn(host.level(), crossed.target(), amount, burnSeconds, crossed.thrower());
         }
     }
 
@@ -259,20 +262,24 @@ public record FlamesStep(Expr damage, int every, int burnSeconds, int cookTicks,
      * Sets one living thing alight and burns it, alight before the hit lands
      * so a killing burn drops cooked loot. The hit waits out the thing's
      * invulnerability window, so a burn lands at most once per half second.
-     * A fire-immune thing is left alone.
+     * A fire-immune thing is left alone. The burn names the player behind
+     * the flame, keeping in_fire.
      * flames-and-heater-respect-i-frames
+     * direct-goo-hit-credits-its-caster
+     * goo-hit-keeps-its-kind-and-names-the-player-behind-it
      *
      * @param level       the server level
      * @param target      the living thing in the cone
      * @param amount      the fire damage
      * @param burnSeconds the seconds it stays alight
+     * @param cause       the entity behind the flame, or null for none
      */
-    static void burn(ServerLevel level, LivingEntity target, float amount, int burnSeconds) {
+    static void burn(ServerLevel level, LivingEntity target, float amount, int burnSeconds, @Nullable Entity cause) {
         if (!catchesFire(target)) {
             return;
         }
         target.igniteForSeconds(burnSeconds);
-        target.hurtServer(level, target.damageSources().inFire(), amount);
+        target.hurtServer(level, GooHitCredit.credit(target.damageSources().inFire(), target, cause), amount);
     }
 
     /**

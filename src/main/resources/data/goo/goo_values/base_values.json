@@ -604,6 +604,14 @@
             "copper_nautilus_armor",
             "diamond_nautilus_armor",
             "netherite_nautilus_armor"
+        ],
+        "molten_blocks": [
+            "lava",
+            "goo:molten_iron"
+        ],
+        "molten_cooled_blocks": [
+            "obsidian",
+            "goo:iron_core"
         ]
     },
     "#creative_only": "denied",
@@ -785,6 +793,10 @@
     "goo:anorthosite": "$mundane_block + 9 $iron_nugget + $lunar",
     "goo:regolith": "$mundane_block + $quartz + $lunar",
     "goo:iron_core": "$iron_block + $lunar",
+    "goo:meteoric_iron": "45 $iron_nugget + 2 $lunar",
+    "goo:impact_glass": "$mundane_block + 2 $quartz + 2 $lunar",
+    "goo:breccia": "$mundane_block + 4 $iron_nugget + $lunar",
+    "goo:crater_ice": "ice + $lunar",
     "goo:molten_iron_bucket": "$iron_block + 27 $iron_nugget + 5 $fuel + $lunar",
     "nether_wart": {"nether": "$base", "hex": "4 $base", "shroom": "2 $base"},
     "ender_pearl": {"ender": "12 $base"},
