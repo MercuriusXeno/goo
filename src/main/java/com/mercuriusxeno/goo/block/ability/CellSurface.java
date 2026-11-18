@@ -8,8 +8,9 @@ package com.mercuriusxeno.goo.block.ability;
  * ice; molten stands as ordinary ground, and so does shatter under the
  * shards hanging over it, which cut what moves through them; rime is as
  * slippery as ice and pushes nothing; wisps stands as ordinary ground and
- * smites the undead touching it; leech slows a thing caught in it. A goo
- * type binding a world goo to the cell names one.
+ * smites the undead touching it; leech slows a thing caught in it; spikes
+ * stands as ordinary ground and impales what walks on it. A goo type
+ * binding a world goo to the cell names one.
  * slime-and-slick-are-one-volume-cell-tech
  * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
  * shatter-is-splattered-goo-and-shards-form-over-the-splatters
@@ -18,6 +19,7 @@ package com.mercuriusxeno.goo.block.ability;
  * slick-coats-the-ground-with-kinetic-speed
  * rime-goo-is-slippery-to-walk-on
  * undead-touching-wisps-goo-erupt-in-flames-and-take-holy-damage-by-fill
+ * spikes-is-a-coat-of-metal-goo-that-impales-what-walks-on-it
  *
  * @see VolumeCellBlock
  */
@@ -36,7 +38,9 @@ public enum CellSurface {
     /** Wisps': ordinary ground that sets the undead touching it on fire and deals them holy damage. */
     SMITE(Frictions.ORDINARY_GROUND),
     /** Leech's: ordinary ground underfoot, it slows a thing caught in it. */
-    SLOW(Frictions.ORDINARY_GROUND);
+    SLOW(Frictions.ORDINARY_GROUND),
+    /** Spikes': ordinary ground that forms spikes to impale a thing walking on it. */
+    IMPALE(Frictions.ORDINARY_GROUND);
 
     /** The friction a cell bound to this surface stands at, the slipperiness what moves on it meets. */
     private final float friction;
@@ -77,15 +81,17 @@ public enum CellSurface {
      * Whether the cell, rather than the block under it, takes the step and
      * the ground friction of a thing standing on it at any height, a thin
      * cell's top lying above the depth vanilla reads them at: slick's ramp,
-     * shatter's cut, and rime's slide and cold reach what stands on it.
+     * shatter's cut, rime's slide and cold, and spikes' strike reach what
+     * stands on it.
      * slick-coats-the-ground-with-kinetic-speed
      * each-shatter-cut-has-a-chance-to-deplete-a-layer
      * rime-goo-is-slippery-to-walk-on
+     * spikes-is-a-coat-of-metal-goo-that-impales-what-walks-on-it
      *
-     * @return true where the cell ramps, cuts or glazes what stands on it
+     * @return true where the cell ramps, cuts, glazes or impales what stands on it
      */
     public boolean takesTheStepAtAnyHeight() {
-        return ramps() || cuts() || this == GLAZE;
+        return ramps() || cuts() || this == GLAZE || this == IMPALE;
     }
 
     /**

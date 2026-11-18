@@ -5,12 +5,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * UrchinVisual's orb shake: the metal marker shakes through each
+ * SpikesVisual's orb shake: the metal marker shakes through each
  * spike's windup and is still outside it.
  */
-class UrchinVisualTest {
+class SpikesVisualTest {
 
-    /** The strike tick metal_urchin.json declares. */
+    /** The strike tick the spike trap fixture declares. */
     private static final int STRIKE_TICK = 6;
     private static final int STEPS_PER_TICK = 10;
 
@@ -21,8 +21,8 @@ class UrchinVisualTest {
         for (int step = 1; step < STRIKE_TICK * STEPS_PER_TICK; step++) {
             int age = step / STEPS_PER_TICK;
             float partial = (step % STEPS_PER_TICK) / (float) STEPS_PER_TICK;
-            float offset = UrchinVisual.gooShake(age, partial, STRIKE_TICK) - 1f;
-            assertTrue(Math.abs(offset) <= UrchinVisual.SHAKE_AMPLITUDE, "shake " + offset + " past its amplitude");
+            float offset = SpikesVisual.gooShake(age, partial, STRIKE_TICK) - 1f;
+            assertTrue(Math.abs(offset) <= SpikesVisual.SHAKE_AMPLITUDE, "shake " + offset + " past its amplitude");
             if (previousOffset != 0f && Math.signum(offset) != Math.signum(previousOffset)) {
                 signChanges++;
             }
@@ -35,19 +35,19 @@ class UrchinVisualTest {
 
     @Test
     void orbRestsOnTheStrikeTick() {
-        assertEquals(1f, UrchinVisual.gooShake(STRIKE_TICK, 0f, STRIKE_TICK), 0f);
+        assertEquals(1f, SpikesVisual.gooShake(STRIKE_TICK, 0f, STRIKE_TICK), 0f);
     }
 
     @Test
     void orbIsStillPastTheStrike() {
         for (int age = STRIKE_TICK; age < STRIKE_TICK * 3; age++) {
-            assertEquals(1f, UrchinVisual.gooShake(age, 0.5f, STRIKE_TICK), 0f);
+            assertEquals(1f, SpikesVisual.gooShake(age, 0.5f, STRIKE_TICK), 0f);
         }
     }
 
     @Test
     void orbComesToRestContinuouslyAtTheStrike() {
-        float lastWindupFrame = UrchinVisual.gooShake(STRIKE_TICK - 1, 0.99f, STRIKE_TICK);
+        float lastWindupFrame = SpikesVisual.gooShake(STRIKE_TICK - 1, 0.99f, STRIKE_TICK);
         assertEquals(1f, lastWindupFrame, 0.02f);
     }
 }

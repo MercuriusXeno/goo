@@ -12,12 +12,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Urchin's shot arms over three ticks, fires over three into the mob, and
+ * The spike trap's shot arms over three ticks, fires over three into the mob, and
  * retracts over six, drawn as the urchin's own spike cone
  * (decision urchin-rests-bristled-and-spears; operator ruling 2026-10-11:
  * arm 3, fire 3, retract 6, damage on contact).
  */
-class UrchinSpearTest {
+class SpikesSpearTest {
 
     private static final int STRIKE_TICK = 6;
     private static final int LENGTH = 12;
@@ -29,46 +29,46 @@ class UrchinSpearTest {
 
         @Test
         void armedHeadStandsJustPastTheBristlesOnTheThirdTick() {
-            assertEquals(UrchinSpear.ARM_REACH,
-                    UrchinSpear.tipDistance(UrchinSpear.ARM_TICKS, 0f, STRIKE_TICK, LENGTH, REACH), EPSILON);
+            assertEquals(SpikesSpear.ARM_REACH,
+                    SpikesSpear.tipDistance(SpikesSpear.ARM_TICKS, 0f, STRIKE_TICK, LENGTH, REACH), EPSILON);
         }
 
         @Test
         void armingRisesFromNothing() {
-            float early = UrchinSpear.tipDistance(1, 0f, STRIKE_TICK, LENGTH, REACH);
-            float later = UrchinSpear.tipDistance(2, 0f, STRIKE_TICK, LENGTH, REACH);
-            assertEquals(0f, UrchinSpear.tipDistance(0, 0f, STRIKE_TICK, LENGTH, REACH), EPSILON);
-            assertTrue(early > 0f && later > early && later < UrchinSpear.ARM_REACH, early + " then " + later);
+            float early = SpikesSpear.tipDistance(1, 0f, STRIKE_TICK, LENGTH, REACH);
+            float later = SpikesSpear.tipDistance(2, 0f, STRIKE_TICK, LENGTH, REACH);
+            assertEquals(0f, SpikesSpear.tipDistance(0, 0f, STRIKE_TICK, LENGTH, REACH), EPSILON);
+            assertTrue(early > 0f && later > early && later < SpikesSpear.ARM_REACH, early + " then " + later);
         }
 
         @Test
         void tipStandsInTheMobOnTheTickTheDamageLands() {
-            assertEquals(REACH, UrchinSpear.tipDistance(STRIKE_TICK, 0f, STRIKE_TICK, LENGTH, REACH), EPSILON);
+            assertEquals(REACH, SpikesSpear.tipDistance(STRIKE_TICK, 0f, STRIKE_TICK, LENGTH, REACH), EPSILON);
         }
 
         @Test
         void firePunchesFasterAsItGoes() {
-            float first = UrchinSpear.tipDistance(4, 0f, STRIKE_TICK, LENGTH, REACH)
-                    - UrchinSpear.tipDistance(3, 0f, STRIKE_TICK, LENGTH, REACH);
-            float last = UrchinSpear.tipDistance(STRIKE_TICK, 0f, STRIKE_TICK, LENGTH, REACH)
-                    - UrchinSpear.tipDistance(5, 0f, STRIKE_TICK, LENGTH, REACH);
+            float first = SpikesSpear.tipDistance(4, 0f, STRIKE_TICK, LENGTH, REACH)
+                    - SpikesSpear.tipDistance(3, 0f, STRIKE_TICK, LENGTH, REACH);
+            float last = SpikesSpear.tipDistance(STRIKE_TICK, 0f, STRIKE_TICK, LENGTH, REACH)
+                    - SpikesSpear.tipDistance(5, 0f, STRIKE_TICK, LENGTH, REACH);
             assertTrue(last > first, "fire's last tick " + last + " should outrun its first " + first);
         }
 
         @Test
         void retractTakesSixTicksAndPunchOutrunsIt() {
-            float halfRetract = UrchinSpear.tipDistance(STRIKE_TICK + 3, 0f, STRIKE_TICK, LENGTH, REACH);
+            float halfRetract = SpikesSpear.tipDistance(STRIKE_TICK + 3, 0f, STRIKE_TICK, LENGTH, REACH);
             assertEquals(REACH / 2, halfRetract, EPSILON);
-            assertTrue(UrchinSpear.tipDistance(LENGTH - 1, 0.99f, STRIKE_TICK, LENGTH, REACH) < 0.01f);
-            assertEquals(0f, UrchinSpear.tipDistance(LENGTH, 0f, STRIKE_TICK, LENGTH, REACH), EPSILON);
+            assertTrue(SpikesSpear.tipDistance(LENGTH - 1, 0.99f, STRIKE_TICK, LENGTH, REACH) < 0.01f);
+            assertEquals(0f, SpikesSpear.tipDistance(LENGTH, 0f, STRIKE_TICK, LENGTH, REACH), EPSILON);
         }
 
         @Test
         void aMobInsideTheBristlesIsArmedAtNoFurtherThanItStands() {
             float close = 0.8f;
-            assertEquals(close, UrchinSpear.tipDistance(UrchinSpear.ARM_TICKS, 0f, STRIKE_TICK, LENGTH, close),
+            assertEquals(close, SpikesSpear.tipDistance(SpikesSpear.ARM_TICKS, 0f, STRIKE_TICK, LENGTH, close),
                     EPSILON);
-            assertEquals(close, UrchinSpear.tipDistance(STRIKE_TICK, 0f, STRIKE_TICK, LENGTH, close), EPSILON);
+            assertEquals(close, SpikesSpear.tipDistance(STRIKE_TICK, 0f, STRIKE_TICK, LENGTH, close), EPSILON);
         }
     }
 
@@ -78,28 +78,28 @@ class UrchinSpearTest {
 
         @Test
         void spinesRestRetractedBeforeAndAfterAShot() {
-            assertEquals(0f, UrchinSpear.bristleShare(0, 0f, STRIKE_TICK, LENGTH), EPSILON);
-            assertEquals(0f, UrchinSpear.bristleShare(LENGTH, 0f, STRIKE_TICK, LENGTH), EPSILON);
+            assertEquals(0f, SpikesSpear.bristleShare(0, 0f, STRIKE_TICK, LENGTH), EPSILON);
+            assertEquals(0f, SpikesSpear.bristleShare(LENGTH, 0f, STRIKE_TICK, LENGTH), EPSILON);
         }
 
         @Test
         void spinesStandFullyOutFromTheArmToTheStab() {
-            for (int age = UrchinSpear.ARM_TICKS; age <= STRIKE_TICK; age++) {
-                assertEquals(1f, UrchinSpear.bristleShare(age, 0f, STRIKE_TICK, LENGTH), EPSILON, "age " + age);
+            for (int age = SpikesSpear.ARM_TICKS; age <= STRIKE_TICK; age++) {
+                assertEquals(1f, SpikesSpear.bristleShare(age, 0f, STRIKE_TICK, LENGTH), EPSILON, "age " + age);
             }
         }
 
         @Test
         void spinesRetractAlongsideTheSpear() {
-            float share = UrchinSpear.bristleShare(STRIKE_TICK + 3, 0f, STRIKE_TICK, LENGTH);
+            float share = SpikesSpear.bristleShare(STRIKE_TICK + 3, 0f, STRIKE_TICK, LENGTH);
             assertEquals(0.5f, share, EPSILON);
-            assertEquals(REACH * share, UrchinSpear.tipDistance(STRIKE_TICK + 3, 0f, STRIKE_TICK, LENGTH, REACH),
+            assertEquals(REACH * share, SpikesSpear.tipDistance(STRIKE_TICK + 3, 0f, STRIKE_TICK, LENGTH, REACH),
                     EPSILON);
         }
     }
 
     /**
-     * Every spine Urchin draws, the shot's and the flare's, is the urchin's
+     * Every spine the spike trap draws, the shot's and the flare's, is the urchin's
      * one spike: a four-sided cone whose every vertex stands on its base
      * ring or at its tip (decision urchin-spines-return-to-the-original-spikes).
      */
@@ -115,7 +115,7 @@ class UrchinSpearTest {
             Vector3f base = MetalExplosionVisual.basePoint(Direction.UP);
             Vector3f aim = new Vector3f(base).add(1f, 3f, 0.5f);
             RecordingVertexConsumer consumer = new RecordingVertexConsumer();
-            UrchinSpear.emit(new PoseStack().last(), consumer, base, aim, SHOT_TIP, 0);
+            SpikesSpear.emit(new PoseStack().last(), consumer, base, aim, SHOT_TIP, 0);
             List<RecordingVertexConsumer.Vertex> vertices = consumer.vertices();
             assertEquals(CONE_VERTICES, vertices.size(), "a shot draws " + vertices.size() + " vertices");
             assertIsSpikeCone(vertices, base, new Vector3f(aim).sub(base).normalize(), SHOT_TIP);
