@@ -23,9 +23,9 @@ import java.util.UUID;
 /**
  * Runs a charmed mob for its charmer until the charmer hurts it: it fights the
  * nearest mob targeting the charmer, else the nearest monster hostile to
- * players before that monster aggresses, sparing every charmed or rallied
+ * players before that monster aggresses, sparing every charmed or led
  * mob; any target it would take or holds that is a player or a charmed or
- * rallied mob turns to that foe, or to none; with no foe in reach it follows
+ * led mob turns to that foe, or to none; with no foe in reach it follows
  * the charmer, and no hit of its lands on a player. A hit from anyone but the
  * charmer leaves the charm standing.
  * charm-glisten-and-icon-over-the-head

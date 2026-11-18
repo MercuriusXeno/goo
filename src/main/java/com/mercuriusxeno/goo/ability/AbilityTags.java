@@ -56,7 +56,7 @@ public final class AbilityTags {
 
     /**
      * An ability that harms what it strikes; one wearing the mob badge
-     * refuses its caster's own rallied and charmed mobs.
+     * refuses its caster's own led and charmed mobs.
      * mob-targeted-attacks-refuse-your-minions
      */
     public static final String HARMFUL = "harmful";

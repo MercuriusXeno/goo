@@ -43,6 +43,14 @@ class WispFloodTest {
     }
 
     @Test
+    void aFloodKeepingNoClearStepsLightsTheCellsBesideItsOrigin() {
+        Grid grid = new Grid(WispFloodTest::inTheRoom, cell -> true);
+        new WispFlood(EYES, 2, 0, 0, WispFlood.EVERY_DARK_CELL, 0).walk(TICK_BUDGET, grid, ROLL);
+        int nearest = grid.placed.stream().mapToInt(cell -> cell.distManhattan(EYES)).min().orElseThrow();
+        assertEquals(1, nearest);
+    }
+
+    @Test
     void aPlacedWispLightsTheCellsWithinItsLitStepsAndNoFurther() {
         BlockPos wisp = EYES.east(ROOM_HALF - 1);
         WispFlood flood = new WispFlood(EYES, RANGE, 0);
