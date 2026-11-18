@@ -95,7 +95,7 @@ class AbilityBadgeTest {
             "frost_cold, CHANNELED", "weird_goop, RESIDUAL", "kinetic_slick, RESIDUAL", "blaze_molten, RESIDUAL",
             "deep_host, RESIDUAL", "frost_rime, RESIDUAL", "hex_leech, RESIDUAL", "typhoon_updraft, RESIDUAL",
             "jelly_nectar, RESIDUAL", "pulse_signal, RESIDUAL", "metal_spikes, RESIDUAL",
-            "nether_infest, RESIDUAL", "leaf_vines, RESIDUAL"})
+            "nether_infest, RESIDUAL", "leaf_vines, RESIDUAL", "unstable_nitro, RESIDUAL"})
     void shippedAbilityWearsItsControlBadge(String ability, AbilityBadge badge) {
         assertEquals(badge, AbilityJson.decode(ability).badge(), ability);
     }
