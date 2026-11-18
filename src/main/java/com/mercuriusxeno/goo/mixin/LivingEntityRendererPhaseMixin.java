@@ -55,6 +55,6 @@ public abstract class LivingEntityRendererPhaseMixin {
             + "Lnet/minecraft/client/renderer/state/level/CameraRenderState;)V",
             at = @At(value = "INVOKE", target = "Lnet/minecraft/util/ARGB;multiply(II)I"))
     private int goo$phasedBodyTint(int tint, @Local(argsOnly = true) LivingEntityRenderState state) {
-        return PhaseLook.isPhased(state) ? PhaseLook.bodyTint(tint) : tint;
+        return PhaseLook.isPhased(state) ? PhaseLook.bodyTint(state, tint) : tint;
     }
 }

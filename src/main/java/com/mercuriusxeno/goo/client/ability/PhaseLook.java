@@ -37,6 +37,14 @@ public final class PhaseLook {
      * phased-things-draw-as-a-ghostly-image
      */
     static final int PHASED_ALPHA = 230;
+    /**
+     * The phased player's own look's alpha, out of 255: its first-person arm,
+     * what it holds and its paper doll, a little over half there, fainter
+     * than the bodies the world sees (operator: "make both the player and the
+     * held item more transparent").
+     * phased-things-draw-as-a-ghostly-image
+     */
+    static final int OWN_PHASED_ALPHA = 140;
 
     private PhaseLook() {
     }
@@ -116,5 +124,28 @@ public final class PhaseLook {
      */
     public static int bodyTint(int tint) {
         return ARGB.color(Math.min(ARGB.alpha(tint), PHASED_ALPHA), tint);
+    }
+
+    /**
+     * The tint the phased player's own look draws under: its color at the
+     * player's own, fainter alpha, or lower where it was already fainter.
+     *
+     * @param tint the own ARGB tint
+     * @return the tint with the player's own phase alpha
+     */
+    public static int ownTint(int tint) {
+        return ARGB.color(Math.min(ARGB.alpha(tint), OWN_PHASED_ALPHA), tint);
+    }
+
+    /**
+     * The tint a phased body draws under: the player's own fainter tint for
+     * its paper doll, the body tint for everything the world sees.
+     *
+     * @param state the body's render state
+     * @param tint  the body's own ARGB tint
+     * @return the tint with the phase alpha
+     */
+    public static int bodyTint(EntityRenderState state, int tint) {
+        return isPaperDoll(state) ? ownTint(tint) : bodyTint(tint);
     }
 }
