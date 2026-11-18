@@ -7,6 +7,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.Vec3;
 
 /**
@@ -27,6 +28,8 @@ final class LandedDrips {
     private static final double START_OFF_THE_FACE = 1.05;
     /** A side drip's speed into the face, enough that one tick carries it from its start through the face. */
     private static final double INTO_THE_FACE = 1.1;
+    /** How far over a struck box's top a striking drip starts, inside one tick's fall. */
+    private static final double OVER_THE_BOX = 0.5;
 
     private LandedDrips() {
     }
@@ -75,6 +78,26 @@ final class LandedDrips {
         for (int drip = 0; drip < drips; drip++) {
             flights.launch(new DripFlights.Flight(thrower, start, normal.scale(-INTO_THE_FACE)));
         }
+        fly(helper, flights);
+    }
+
+    /**
+     * Drops one drip onto a living thing in one flight tick, falling into
+     * the top of its box from just over it, thrown as a stream throws a drip
+     * that strikes the living it meets.
+     * nectar-goo-keeps-feeds-effects-as-a-universal-food
+     *
+     * @param helper  the gametest helper
+     * @param caster  the player who threw it
+     * @param ability the stream ability whose steps run on what the drip strikes
+     * @param struck  the living thing the drip falls onto
+     */
+    static void strike(GameTestHelper helper, ServerPlayer caster, AbilityDefinition ability, LivingEntity struck) {
+        DripFlights flights = new DripFlights();
+        DripFlights.Thrower thrower = new DripFlights.Thrower(helper.getLevel().dimension(), caster.getUUID(),
+                caster.getId(), ability, DripLanding.in(ChannelHost.passSteps(ability.behaviors(), true)), true);
+        Vec3 start = struck.getBoundingBox().getCenter().add(0, struck.getBbHeight() / 2 + OVER_THE_BOX, 0);
+        flights.launch(new DripFlights.Flight(thrower, start, FALLING));
         fly(helper, flights);
     }
 

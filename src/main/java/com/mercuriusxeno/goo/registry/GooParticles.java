@@ -119,6 +119,33 @@ public class GooParticles {
         PARTICLE_TYPES.register("updraft_spray_drip", () -> new SimpleParticleType(false));
 
     /**
+     * Nectar's spray drip: the mod's blocky goo drip in jelly's oranges,
+     * flying its arc until it strikes a block's top, where it splats and the
+     * Nectar goo lands.
+     * nectar-is-sprayed-goo-with-a-guided-throw-near-a-mob
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> NECTAR_SPRAY_DRIP =
+        PARTICLE_TYPES.register("nectar_spray_drip", () -> new SimpleParticleType(false));
+
+    /**
+     * Signal's spray drip: the mod's blocky goo drip in pulse's reds, flying
+     * its arc until it strikes a block's top, where it splats and the Signal
+     * goo lands.
+     * extend-is-dropped-for-signal-an-in-world-pulse-goo
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> SIGNAL_SPRAY_DRIP =
+        PARTICLE_TYPES.register("signal_spray_drip", () -> new SimpleParticleType(false));
+
+    /**
+     * Spikes' spray drip: the mod's blocky goo drip in metal's silvers,
+     * flying its arc until it strikes a block's top, where it splats and the
+     * Spikes goo lands.
+     * spikes-is-a-coat-of-metal-goo-that-impales-what-walks-on-it
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> SPIKES_SPRAY_DRIP =
+        PARTICLE_TYPES.register("spikes_spray_drip", () -> new SimpleParticleType(false));
+
+    /**
      * A snowflake crystal flitting weightlessly along Cold's wind (decision
      * cold-streams-wind-lines-and-snowflakes).
      */

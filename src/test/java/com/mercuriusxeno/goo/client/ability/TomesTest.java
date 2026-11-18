@@ -1,10 +1,15 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
+import net.minecraft.client.resources.sounds.SoundInstance;
+import net.minecraft.resources.Identifier;
+import net.minecraft.sounds.SoundEvent;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -64,5 +69,31 @@ class TomesTest {
     void theBookFadesOutByTheEnd() {
         assertEquals(1f, Tomes.showAlpha(Tomes.SNAP_AT, Tomes.SNAP_AT + 1, Tomes.ENCHANT_TICKS), TOLERANCE);
         assertEquals(0f, Tomes.showAlpha(Tomes.ENCHANT_TICKS, Tomes.SNAP_AT + 1, Tomes.ENCHANT_TICKS), TOLERANCE);
+    }
+
+    // goo-sound-at-the-listener-reaches-both-ears: the tome floats a hand ahead of its caster's eye
+    @Nested
+    class WhereATomesSoundPlays {
+
+        private static final double EPSILON = 1e-9;
+        private final Vec3 tome = new Vec3(13.4, 65.32, -7.9);
+        private final SoundEvent pageTurn = SoundEvent.createVariableRangeEvent(
+                Identifier.withDefaultNamespace("item.book.page_turn"));
+
+        @Test
+        void theLocalCastersTomePlaysAtTheListenerUnattenuated() {
+            SimpleSoundInstance sound = Tomes.tomeSoundOf(pageTurn, tome, 1f, 1f, true);
+            assertTrue(sound.isRelative());
+            assertEquals(SoundInstance.Attenuation.NONE, sound.getAttenuation());
+        }
+
+        @Test
+        void anotherPlayersTomePlaysAtTheTome() {
+            SimpleSoundInstance sound = Tomes.tomeSoundOf(pageTurn, tome, 1f, 1f, false);
+            assertFalse(sound.isRelative());
+            assertEquals(tome.x, sound.getX(), EPSILON);
+            assertEquals(tome.y, sound.getY(), EPSILON);
+            assertEquals(tome.z, sound.getZ(), EPSILON);
+        }
     }
 }

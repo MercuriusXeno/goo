@@ -12,7 +12,7 @@ import java.util.stream.Stream;
  * gate the hold conjures before the player, as Zone's door stands, and the
  * tick the hold reaches its charge carries them through it to where it
  * leads. A hold the gate leads nowhere from stands nothing. End is
- * {@code end charge=20}. In the End it costs nothing, and its gate leads
+ * {@code end charge=40}. In the End it costs nothing, and its gate leads
  * back to where the player portalled in from.
  * decision end-summons-a-gate-like-zone-that-takes-you-to-the-end-and-back
  * decision end-clears-blocks-and-opens-a-portal

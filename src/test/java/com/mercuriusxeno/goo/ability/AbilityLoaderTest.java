@@ -59,6 +59,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -84,7 +85,7 @@ class AbilityLoaderTest {
     /** The one brew that starts silent (decision rally-drops-its-sound-and-gets-its-sprite). */
     private static final Identifier SILENT_BREW = Identifier.fromNamespaceAndPath(Goo.MODID, "zoo_rally");
     /** The proving example of a world ability that stays after its blob lands. */
-    private static final String LINGERING = "metal_urchin";
+    private static final String LINGERING = "deep_shriek";
     /** The ability whose program ends the tick it lands. */
     private static final String BLAST = "unstable_blast";
 
@@ -216,6 +217,15 @@ class AbilityLoaderTest {
             assertNull(new AbilityRegistry(shippedById()).durativeAbilityFor(GooTypes.HEX));
         }
 
+        /**
+         * metal-world-goo-is-named-spikes
+         * spikes-is-a-coat-of-metal-goo-that-impales-what-walks-on-it
+         */
+        @Test
+        void metalShipsDartMagnetAndSpikes() {
+            assertEquals(Set.of("metal_dart", "metal_magnet", "metal_spikes"), shippedPathsOf(GooTypes.METAL));
+        }
+
         @Test
         void voidShipsCancelHoleZoneAndVacuum() {
             assertEquals(Set.of("void_cancel", "void_hole", "void_zone", "void_vacuum"),
@@ -231,6 +241,16 @@ class AbilityLoaderTest {
             assertEquals(Set.of("frost_nova", "frost_cold", "frost_orb", "frost_rime"),
                     shippedPathsOf(GooTypes.FROST));
             assertNull(new AbilityRegistry(shippedById()).durativeAbilityFor(GooTypes.FROST));
+        }
+
+        /**
+         * extend-is-dropped-for-signal-an-in-world-pulse-goo
+         * goo-type-ships-without-a-durative-ability
+         */
+        @Test
+        void pulseShipsTickZapAndSignalAndNoDurative() {
+            assertEquals(Set.of("pulse_tick", "pulse_zap", "pulse_signal"), shippedPathsOf(GooTypes.PULSE));
+            assertNull(new AbilityRegistry(shippedById()).durativeAbilityFor(GooTypes.PULSE));
         }
     }
 
@@ -389,6 +409,46 @@ class AbilityLoaderTest {
     static Stream<AbilityDefinition> shippedBrews() {
         return AbilityJson.files().stream().map(AbilityJson::decode)
                 .filter(ability -> DurativeRoute.isDurative(ability.delivery(), ability.badge()));
+    }
+
+    /**
+     * Mitosis aims and lands within the 16 blocks its delivery names.
+     * decision each-ability-names-its-range-and-the-shared-throw-range-retires
+     * decision abilities-leaving-the-shared-range-start-at-sixteen-blocks
+     */
+    @Test
+    void mitosisDeliveryNamesASixteenBlockRange() {
+        assertEquals(16, AbilityJson.decode("weird_mitosis").delivery().range());
+    }
+
+    /**
+     * Every shipped arc, beam, spontaneous cast and envelop names its range:
+     * Zap 32, Knives and Dart none, every other 16.
+     * decision each-ability-names-its-range-and-the-shared-throw-range-retires
+     * decision abilities-leaving-the-shared-range-start-at-sixteen-blocks
+     * decision zap-starts-at-thirty-two-blocks
+     */
+    @Test
+    void everyShippedThrownOrCastAbilityNamesItsRange() {
+        Set<DeliveryKind> thrownOrCast = Set.of(DeliveryKind.ARC, DeliveryKind.BEAM, DeliveryKind.SPONTANEOUS,
+                DeliveryKind.ENVELOP);
+        Map<String, Double> named = new TreeMap<>();
+        for (Path file : AbilityJson.files()) {
+            AbilityDefinition ability = AbilityJson.decode(file);
+            if (thrownOrCast.contains(ability.delivery().kind())) {
+                named.put(ability.id().getPath(), ability.delivery().range());
+            }
+        }
+        Map<String, Double> expected = new TreeMap<>();
+        named.keySet().forEach(name -> expected.put(name, switch (name) {
+            case "pulse_zap" -> 32.0;
+            case "crystal_knives", "metal_dart" -> 0.0;
+            default -> 16.0;
+        }));
+
+        assertTrue(named.keySet().containsAll(Set.of("weird_mitosis", "pulse_zap", "void_hole", "zoo_spawn",
+                "crystal_knives", "metal_dart")), "the walk missed the shipped inventory: " + named.keySet());
+        assertEquals(expected, named);
     }
 
     /**

@@ -219,6 +219,33 @@ public final class GooAttachments {
             ATTACHMENT_TYPES.register("leech_slowed_at", () -> AttachmentType.builder(() -> -1L).build());
 
     /**
+     * The game time an entity last touched Nectar goo, so a thing touching
+     * several cells or both of a cell's hooks in one tick is slowed once,
+     * and its next jump knows it stood in the goo; never saved.
+     * nectar-is-the-sticky-goo-you-climb-that-nerfs-jumping-and-speed
+     */
+    public static final Supplier<AttachmentType<Long>> NECTAR_TOUCHED_AT =
+            ATTACHMENT_TYPES.register("nectar_touched_at", () -> AttachmentType.builder(() -> -1L).build());
+
+    /**
+     * The game time an entity was last stuck on a Nectar coated wall, its
+     * gravity off, so the tick after it leaves the coat gives its gravity
+     * back; never saved.
+     * operator UAT 2026-11-17: on Nectar you are temporarily Spider-Man; gravity is off while you are stuck
+     */
+    public static final Supplier<AttachmentType<Long>> NECTAR_STUCK_AT =
+            ATTACHMENT_TYPES.register("nectar_stuck_at", () -> AttachmentType.builder(() -> -1L).build());
+
+    /**
+     * The game time Spikes goo last struck an entity, so a thing walking on
+     * it is struck again only once the spikes step's cooldown has passed,
+     * however many cells it crosses; never saved.
+     * spikes-is-a-coat-of-metal-goo-that-impales-what-walks-on-it
+     */
+    public static final Supplier<AttachmentType<Long>> SPIKES_STRUCK_AT =
+            ATTACHMENT_TYPES.register("spikes_struck_at", () -> AttachmentType.builder(() -> -1L).build());
+
+    /**
      * Where an entity stood before its latest goo teleport, kept for the
      * steps after the teleport in the same program, a ghost trail among
      * them, and never saved (decision ghost-trail-spans-the-blink).

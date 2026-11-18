@@ -50,6 +50,7 @@ public final class GooNetworking {
         r.playToClient(HolesSyncPayload.TYPE, HolesSyncPayload.STREAM_CODEC);
         r.playToClient(RoomEdgesSyncPayload.TYPE, RoomEdgesSyncPayload.STREAM_CODEC);
         r.playToClient(ConjuredDoorPayload.TYPE, ConjuredDoorPayload.STREAM_CODEC);
+        r.playToClient(ListenerSoundPayload.TYPE, ListenerSoundPayload.STREAM_CODEC);
         r.playToClient(GateCarriedPayload.TYPE, GateCarriedPayload.STREAM_CODEC);
         r.playToClient(PartnerChunkPayload.TYPE, PartnerChunkPayload.STREAM_CODEC);
         r.playToClient(PartnerChunksDropPayload.TYPE, PartnerChunksDropPayload.STREAM_CODEC);
@@ -106,6 +107,7 @@ public final class GooNetworking {
         r.playToClient(HeldSweepPayload.TYPE, HeldSweepPayload.STREAM_CODEC);
         r.playToClient(LaserPayload.TYPE, LaserPayload.STREAM_CODEC);
         r.playToClient(LeechPayload.TYPE, LeechPayload.STREAM_CODEC);
+        r.playToClient(SpikesRisePayload.TYPE, SpikesRisePayload.STREAM_CODEC);
         r.playToClient(TomePayload.TYPE, TomePayload.STREAM_CODEC);
         r.playToClient(NovaRingPayload.TYPE, NovaRingPayload.STREAM_CODEC);
         r.playToClient(HeaterFlamePayload.TYPE, HeaterFlamePayload.STREAM_CODEC);

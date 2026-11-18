@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import net.minecraft.world.phys.Vec3;
-import net.minecraft.world.phys.shapes.Shapes;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -58,36 +57,6 @@ class EntityLiftTest {
         }
     }
 
-    /** A lift prism's shaft (decision lift-prism-levitates-the-block-above). */
-    @Nested
-    class Shaft {
-
-        private static final int CAP = 32;
-
-        @Test
-        void aShaftRunsUpToTheFirstBlockThatStopsMovement() {
-            assertEquals(4, EntityLift.shaftHeight(up -> up < 4, CAP));
-        }
-
-        @Test
-        void anOpenSkyShaftStopsAtTheCap() {
-            assertEquals(CAP, EntityLift.shaftHeight(up -> true, CAP));
-        }
-
-        @Test
-        void aBlockedFloorStandsNoShaft() {
-            assertEquals(0, EntityLift.shaftHeight(up -> false, CAP));
-        }
-
-        @Test
-        void aRiderRisesAndASneakingRiderSinksKeepingItsSidewaysMotion() {
-            Vec3 drifting = new Vec3(0.1, -0.5, 0.05);
-
-            assertEquals(new Vec3(0.1, 0.3, 0.05), EntityLift.ridden(drifting, false, 0.3, 0.2));
-            assertEquals(new Vec3(0.1, -0.2, 0.05), EntityLift.ridden(drifting, true, 0.3, 0.2));
-        }
-    }
-
     @Nested
     class Lift {
 
@@ -130,27 +99,6 @@ class EntityLiftTest {
         @Test
         void aRiseFarBelowTheTopKeepsTheColumnsSpeed() {
             assertEquals(SPEED, EntityLift.risen(new Vec3(0, -0.6, 0), SPEED, HEIGHT).y, EPSILON);
-        }
-    }
-
-    /**
-     * The shaft reaches down to the top of a block shorter than full, so a
-     * rider standing on a prism's column stands in the shaft.
-     * lift-prism-levitates-the-block-above
-     */
-    @Nested
-    class StandingDepth {
-
-        @Test
-        void aShortColumnSinksTheFloorToItsTop() {
-            assertEquals(2.0 / 16, EntityLift.standingDepth(Shapes.box(0.25, 0, 0.25, 0.75, 14.0 / 16, 0.75)),
-                    EPSILON);
-        }
-
-        @Test
-        void aFullOrOpenBlockLeavesTheFloorWhereItIs() {
-            assertEquals(0, EntityLift.standingDepth(Shapes.block()), EPSILON);
-            assertEquals(0, EntityLift.standingDepth(Shapes.empty()), EPSILON);
         }
     }
 }

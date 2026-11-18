@@ -445,10 +445,8 @@ public final class ZoneRooms {
         burst(player.level(), player.position());
         Vec3 arrival = arrivalOf(room);
         // decision door-carries-its-own-sound-through-the-change
-        ConjuredDoors.sendDoorSound(player);
-        player.teleport(new TeleportTransition(pocket, arrival, Vec3.ZERO, FACING_DOOR, 0f,
+        ConjuredDoors.carry(player, new TeleportTransition(pocket, arrival, Vec3.ZERO, FACING_DOOR, 0f,
                 TeleportTransition.DO_NOTHING));
-        ConjuredDoors.sendDoorSound(player);
         burst(pocket, arrival);
         sendEdges(player);
         // decision matching-doorway-opens-in-the-room-and-releases-you

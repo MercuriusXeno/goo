@@ -12,9 +12,9 @@ import net.minecraft.resources.ResourceKey;
  * a whole block of it and whose program names what the cell's surface does,
  * that surface, and the fluid sources the goo's drips stop at and its cell
  * lies on as on a sturdy top. Weird's slime, Kinetic's slick, Blaze's molten,
- * Crystal's shatter, Deep's host, Frost's rime, Glow's wisps, Hex's leech
- * and Typhoon's updraft are bound so far, and another goo type ships its
- * world goo as another binding.
+ * Crystal's shatter, Deep's host, Frost's rime, Glow's wisps, Hex's leech,
+ * Typhoon's updraft, Jelly's nectar, Pulse's signal and Metal's spikes are bound so far, and another goo
+ * type ships its world goo as another binding.
  * slime-and-slick-are-one-volume-cell-tech
  * each-goo-type-ships-a-world-goo-on-the-volume-cell
  * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
@@ -25,8 +25,11 @@ import net.minecraft.resources.ResourceKey;
  * glow-world-goo-is-named-wisps-and-takes-the-holds-place
  * leech-goo-slows-what-it-catches-and-the-spirits-damage-it
  * updraft-is-typhoons-world-goo-that-lifts-the-entities-above-it
+ * nectar-is-sprayed-goo-with-a-guided-throw-near-a-mob
+ * extend-is-dropped-for-signal-an-in-world-pulse-goo
+ * spikes-is-a-coat-of-metal-goo-that-impales-what-walks-on-it
  *
- * @param gooType       the goo type the cell holds and drops when broken
+ * @param gooType      the goo type the cell holds and drops when broken
  * @param layingAbility the ability laying the goo, whose cost prices a whole block of it
  * @param surface       what the cell does to things on it
  * @param fluidFooting  the fluid sources the drips stop at and the cell lies on as on a sturdy top
@@ -52,6 +55,15 @@ public record CellBinding(ResourceKey<GooTypeDefinition> gooType, Identifier lay
 
     /** The ability laying Typhoon's goo, Updraft, whose cost prices a whole block of it and whose step names its column. */
     public static final Identifier UPDRAFT_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "typhoon_updraft");
+
+    /** The ability laying Jelly's goo, Nectar, whose cost prices a whole block of it and whose step names its guide. */
+    public static final Identifier NECTAR_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "jelly_nectar");
+
+    /** The ability laying Pulse's goo, Signal, whose cost prices a whole block of it. */
+    public static final Identifier SIGNAL_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "pulse_signal");
+
+    /** The ability laying Metal's goo, Spikes, whose cost prices a whole block of it. */
+    public static final Identifier SPIKES_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "metal_spikes");
 
     /** The ability laying Glow's goo, Wisps, whose cost prices a whole block of it. */
     public static final Identifier WISPS_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "glow_wisps");
@@ -91,5 +103,26 @@ public record CellBinding(ResourceKey<GooTypeDefinition> gooType, Identifier lay
      * updraft-is-typhoons-world-goo-that-lifts-the-entities-above-it
      */
     public static final CellBinding UPDRAFT = new CellBinding(GooTypes.TYPHOON, UPDRAFT_ABILITY, CellSurface.POOL,
+            FluidFooting.NONE);
+    /**
+     * Jelly's goo: Nectar lays it, and it stands as ordinary ground.
+     * nectar-is-sprayed-goo-with-a-guided-throw-near-a-mob
+     */
+    public static final CellBinding NECTAR = new CellBinding(GooTypes.JELLY, NECTAR_ABILITY, CellSurface.POOL,
+            FluidFooting.NONE);
+    /**
+     * Pulse's goo: Signal lays it, it stands as ordinary ground, and it sends
+     * a redstone signal equal to its layers.
+     * extend-is-dropped-for-signal-an-in-world-pulse-goo
+     * signal-goo-sends-a-redstone-signal-equal-to-its-layers
+     */
+    public static final CellBinding SIGNAL = new CellBinding(GooTypes.PULSE, SIGNAL_ABILITY, CellSurface.POOL,
+            FluidFooting.NONE);
+    /**
+     * Metal's goo: Spikes lays it, it stands as ordinary ground, and it
+     * impales what walks on it.
+     * spikes-is-a-coat-of-metal-goo-that-impales-what-walks-on-it
+     */
+    public static final CellBinding SPIKES = new CellBinding(GooTypes.METAL, SPIKES_ABILITY, CellSurface.IMPALE,
             FluidFooting.NONE);
 }
