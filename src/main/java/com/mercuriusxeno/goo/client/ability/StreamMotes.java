@@ -16,8 +16,6 @@ import net.minecraft.core.particles.SimpleParticleType;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 /**
@@ -36,7 +34,7 @@ import java.util.List;
  */
 public final class StreamMotes {
 
-    /** Motes launched each tick of the stream. */
+    /** Motes off the arc launched each tick of a stream throwing no drips; a spray draws the drips its server threw. */
     static final int MOTES_PER_TICK = 6;
 
     private StreamMotes() {
@@ -66,31 +64,17 @@ public final class StreamMotes {
             return;
         }
         boolean threwDrips = false;
-        List<CoatRay.ConeShare> shares = distinctShares(random);
-        for (int i = 0; i < MOTES_PER_TICK; i++) {
+        // operator UAT 2026-11-17: every drawn drip lands; the client draws the very drips the server threw
+        List<CoatRay.ConeShare> shares = CoatRay.scatteredShares(payload.held(), payload.drips());
+        for (int i = 0; i < shares.size(); i++) {
             // goop-and-slick-coat-lands-where-each-drip-arc-strikes: each drawn drip flies one of the server's arcs
             // operator ruling 2026-11-13: a tick's drips stand apart, each a share of a tick further along its arc
-            threwDrips |= throwOnItsArc(mc, payload, particle, shares.get(i), (double) i / MOTES_PER_TICK);
+            threwDrips |= throwOnItsArc(mc, payload, particle, shares.get(i), (double) i / shares.size());
         }
         if (threwDrips) {
             // palm-blob-lifts-as-the-spray-source: a tick throwing drips keeps the caster's spray running
             LiftedPalmBlob.held(payload.casterId(), payload.apex(), mc.level.getGameTime());
         }
-    }
-
-    /**
-     * A tick's drips' places in the cone's fan, no two the same, so no two
-     * fly one arc.
-     *
-     * @param random the source the places are drawn from
-     * @return one share of the fan for each of the tick's drips
-     */
-    static List<CoatRay.ConeShare> distinctShares(RandomSource random) {
-        List<CoatRay.ConeShare> fan = new ArrayList<>(CoatRay.coneFan());
-        for (int i = 0; i < MOTES_PER_TICK; i++) {
-            Collections.swap(fan, i, i + random.nextInt(fan.size() - i));
-        }
-        return fan.subList(0, MOTES_PER_TICK);
     }
 
     /**

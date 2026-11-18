@@ -6,7 +6,7 @@
   "cost": 25,
   "cost_formula": "age/block",
   "delivery": {
-    "kind": "arc"
+    "kind": "arc", "range": 16
   },
   "behaviors": [
     {

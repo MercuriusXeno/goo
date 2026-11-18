@@ -10,9 +10,8 @@
 // The halo breaks into feathered tongues that circle the oval like a vortex while its outer reach
 // ripples in and out, never resting; every term reads the snapped texel center, so the motion steps
 // texel to texel (decision portal-halo-turns-and-ripples).
-// A hole's mouth wears the same halo, starting at the torn edge its own shader draws rather than a
-// clean oval, so the band along the tear stays as it draws; the vertex alpha marks the torn edge,
-// nothing for a portal and whole for a mouth (decision hole-mouths-wear-the-portal-halo).
+// A hole's mouth wears the same halo around the same clean oval (decisions
+// hole-mouths-wear-the-portal-halo, tunnel-drops-its-crisp-wiggly-outline-and-looks-like-the-portals).
 
 in vec2 frameCoord;
 flat in vec2 texels;
@@ -24,8 +23,9 @@ out vec4 fragColor;
 // a block, counted at sixteen texels a block.
 const float HALO_MARGIN_TEXELS = 8.0;
 // How many texels out from the oval's edge the halo fades to nothing at its longest tongue's still
-// reach, short of the quad's border.
-const float HALO_REACH_TEXELS = 2.5;
+// reach, short of the quad's border; with the ripple's swing it sums to HALO_REACH_LIMIT, so the
+// longest tongue's ripple peaks at the limit.
+const float HALO_REACH_TEXELS = 1.6;
 // How strongly the halo glows on the texels touching the oval's edge.
 const float HALO_STRENGTH = 0.5;
 // GameTime runs from zero to one over a day of 24000 ticks; this many seconds make one day. Each
@@ -37,14 +37,15 @@ const float HALO_TURN_SECONDS = 8.0;
 // How many seconds the outer reach takes to ripple out and back once, tuned by eye.
 const float HALO_RIPPLE_SECONDS = 1.0;
 // How many texels the outer reach ripples in and out by.
-const float HALO_RIPPLE_TEXELS = 0.5;
+const float HALO_RIPPLE_TEXELS = 0.4;
 // How many tongues the halo breaks into around the oval, the coarsest of its noise's three layers.
 const float HALO_TONGUES = 5.0;
 // The share of the reach a tongue's gap still keeps, so the halo thins between tongues and never parts.
 const float HALO_GAP_REACH = 0.45;
-// The texel distance a ripple never carries the reach past: 3 texels from the rim at most
-// (decision surface-glow-reaches-three-texels).
-const float HALO_REACH_LIMIT = 3.0;
+// The texel distance a ripple never carries the reach past: 2 texels from the rim at most, the
+// distance a mouth stands inside its blocks, so the glow ends at the blocks' edge
+// (decision surface-glow-reaches-two-texels).
+const float HALO_REACH_LIMIT = 2.0;
 // How deep the turning noise breaks the glow's strength between tongues, the band by the rim among it,
 // as a share of full strength, so no texel of the glow sits still (decision
 // surface-glow-reaches-shorter-and-moves-inside). Tuned by eye.
@@ -65,18 +66,11 @@ float tongues(float angle) {
 void main() {
     vec2 oval = texels - 2.0 * HALO_MARGIN_TEXELS;
     vec2 at = portalTexelCenter(frameCoord, texels) * texels;
-    // A corner face's quad unfolds its face past the wall quad's edge (decision glow-wraps-onto-corner-faces):
-    // how far past is the fragment's height off the wall, in texels, and it stands over the wall at the
-    // oval's box edge. On the wall quad nothing stands past, and the height is none.
-    vec2 past = at - clamp(at, vec2(0.0), texels);
-    float height = length(past);
-    vec2 wallAt = at - past - sign(past) * HALO_MARGIN_TEXELS;
-    vec2 across = (wallAt - HALO_MARGIN_TEXELS) / oval * 2.0 - 1.0;
+    vec2 across = (at - HALO_MARGIN_TEXELS) / oval * 2.0 - 1.0;
     float around = atan(across.y, across.x);
-    float edge = mix(1.0, holeTornEdge(around, GameTime), frameColor.a);
-    float inPlane = -portalTexelsInside(across, oval, edge);
-    // The distance from the rim: across the wall plane, and up off it on a corner face.
-    float beyond = length(vec2(max(inPlane, 0.0), height));
+    // The distance from the rim across the wall plane alone: the glow shows on no corner face
+    // (decision glow-wraps-onto-no-corner-face).
+    float beyond = -portalTexelsInside(across, oval, 1.0);
     if (beyond <= 0.0) {
         discard;
     }

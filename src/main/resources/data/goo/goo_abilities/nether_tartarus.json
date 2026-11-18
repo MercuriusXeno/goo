@@ -1,0 +1,14 @@
+{
+  "gooType": "nether",
+  "displayName": "goo.ability.nether.tartarus",
+  "badge": "channeled",
+  "order": 30,
+  "cost": 2000,
+  "requires": ["minecraft:netherrack"],
+  "delivery": { "kind": "self", "ticks_per_charge": 40 },
+  "behaviors": [
+    { "type": "tartarus", "charge": 40, "reach": 4 }
+  ],
+  "tags": ["self"],
+  "pose": "held_out"
+}

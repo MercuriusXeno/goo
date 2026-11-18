@@ -1,12 +1,15 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.client.sound.ListenerSounds;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -90,8 +93,10 @@ public final class NovaRings {
      */
     public void pulse(ClientLevel level, Vec3 center, float reach) {
         live.add(new Ring(center, reach, level.getGameTime(), (float) (level.getRandom().nextDouble() * TWO_PI)));
-        level.playLocalSound(center.x, center.y, center.z, SoundEvents.WIND_CHARGE_BURST.value(), SoundSource.PLAYERS,
-                rushVolume(reach), RUSH_PITCH, false);
+        Player local = Minecraft.getInstance().player;
+        if (local != null) {
+            ListenerSounds.play(rushOf(center, reach, local.getEyePosition()));
+        }
         int snowflakes = Math.max(1, Math.round(reach * SNOWFLAKES_PER_BLOCK));
         for (int i = 0; i < snowflakes; i++) {
             Vec3 velocity = FrostExplosionVisual.snowflakeVelocity(Direction.UP,
@@ -111,6 +116,22 @@ public final class NovaRings {
      */
     static float rushVolume(float reach) {
         return Math.min(RUSH_CEILING, RUSH_FLOOR + RUSH_PER_BLOCK * reach);
+    }
+
+    /**
+     * The rush of air a nova bursts with at its centre: at the listener for
+     * the local player when it bursts about them, a player's nova centring on
+     * their body under the eye, and at the centre for anyone else.
+     * goo-sound-at-the-listener-reaches-both-ears
+     *
+     * @param center   the nova's centre
+     * @param reach    the ring's reach in blocks
+     * @param localEye the local player's eye
+     * @return the rush
+     */
+    static SimpleSoundInstance rushOf(Vec3 center, float reach, Vec3 localEye) {
+        return ListenerSounds.heardAt(SoundEvents.WIND_CHARGE_BURST.value(), SoundSource.PLAYERS, rushVolume(reach),
+                RUSH_PITCH, center, ListenerSounds.besideHead(center, localEye));
     }
 
     /**

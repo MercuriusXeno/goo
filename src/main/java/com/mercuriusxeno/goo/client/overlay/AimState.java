@@ -17,11 +17,6 @@ import java.util.function.Predicate;
  */
 public final class AimState {
 
-    /**
-     * Maximum range for goo throwing in blocks.
-     */
-    public static final double MAX_RANGE = 64.0;
-
     private TargetResult target = TargetResult.NONE;
     private AimAssistResolver.@Nullable AimHit hit;
     private int outlineColor;

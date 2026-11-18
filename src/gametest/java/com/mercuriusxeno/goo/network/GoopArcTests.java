@@ -99,11 +99,14 @@ public final class GoopArcTests {
     private static final String HELD_BLOCK_FALLS_WHOLE = "goop_block_holding_its_walls_layers_falls_whole";
     private static final String RESTING_BESIDE_A_WALL_ADHERES = "goop_resting_beside_a_wall_adheres_to_it";
     private static final String ON_FULL_GOO_NEVER_FLOATS = "goop_on_a_full_block_of_goop_never_floats_above_it";
-    private static final String HELD_DRAINS_INTO_GOO_BELOW = "goop_held_on_a_wall_drains_into_its_goo_below";
+    private static final String HELD_KEEPS_ITS_HOLD_OVER_GOO_BELOW =
+            "goop_held_on_a_wall_keeps_its_hold_over_its_goo_below";
     /** The layers the Goop a held block drains into holds, its sum with the held block's under Goop's pour gap. */
     private static final int DRAINED_INTO = 1;
-    /** The layers a block of Goop held on a wall over goo holds. */
-    private static final int HELD_ABOVE = 3;
+    /** The layers a block of Goop held on a wall over goo holds, past what one wall holds of it. */
+    private static final int HELD_ABOVE = 7;
+    /** The layers one wall holds of Goop: a layer plus one for each point of its cohesion of 4. */
+    private static final int GOOP_ONE_WALL_HOLDS = 5;
     /** Ticks a column of Goop on an open floor is watched while its full block pours away. */
     private static final int COLUMN_WATCH_TICKS = 120;
     /** The layers a block of Goop resting beside a wall holds, under Goop's pour gap so it stays put. */
@@ -226,8 +229,8 @@ public final class GoopArcTests {
         GooTestFunctions.registerTest(registrar, BLOCK_FALLS_WHOLE, GoopArcTests::goopBlockFallsWholeWhenItsLastWallBreaks);
         GooTestFunctions.registerTest(registrar, CEILING_BLOCK_FALLS_WHOLE,
                 GoopArcTests::goopOnACeilingFallsWholeWhenItsCeilingBreaks);
-        GooTestFunctions.registerTest(registrar, HELD_DRAINS_INTO_GOO_BELOW,
-                GoopArcTests::goopHeldOnAWallDrainsIntoItsGooBelow);
+        GooTestFunctions.registerTest(registrar, HELD_KEEPS_ITS_HOLD_OVER_GOO_BELOW,
+                GoopArcTests::goopHeldOnAWallKeepsItsHoldOverItsGooBelow);
         GooTestFunctions.registerTest(registrar, ON_FULL_GOO_NEVER_FLOATS,
                 GoopArcTests::goopOnAFullBlockOfGoopNeverFloatsAboveIt);
         GooTestFunctions.registerTest(registrar, RESTING_BESIDE_A_WALL_ADHERES,
@@ -848,15 +851,18 @@ public final class GoopArcTests {
      * @param helper the gametest helper
      */
     /**
-     * Goop held on a stone wall over a block of Goop with room drains down
-     * into it, so goo piles and joins the goo under it in place of hanging
-     * on the wall over a gap.
+     * Goop held on a stone wall over a block of Goop with room keeps what
+     * the wall holds of it and drains only the rest down into the Goop
+     * under it: adhesion applies, so a wall's coat stays on the wall, and
+     * goo past its hold piles onto the goo below and joins it.
      * operator UAT 2026-11-17: goo needs to pile and connect with goo below it
+     * operator UAT 2026-11-17: adhesion must apply, so goo a wall holds stays on it over goo below
+     * drip-striking-a-side-sticks-or-runs-by-adhesion
      * stacked-goo-cells-share-one-slime-core
      *
      * @param helper the gametest helper
      */
-    public static void goopHeldOnAWallDrainsIntoItsGooBelow(GameTestHelper helper) {
+    public static void goopHeldOnAWallKeepsItsHoldOverItsGooBelow(GameTestHelper helper) {
         BlockPos lower = new BlockPos(OPEN_AIR_WALL_EAST - 1, 1, LEVEL_STREAMER_POS.getZ());
         helper.setBlock(lower.below(), Blocks.STONE);
         helper.setBlock(lower.east(), Blocks.STONE);
@@ -867,10 +873,15 @@ public final class GoopArcTests {
                 .setValue(VolumeCellBlock.LAYERS, HELD_ABOVE)
                 .setValue(VolumeCellBlock.coatProperty(Direction.EAST), SideCoat.ATTACHED));
         helper.runAfterDelay(ADHERE_TICKS, () -> {
-            helper.assertBlockPresent(Blocks.AIR, lower.above());
+            BlockState held = helper.getBlockState(lower.above());
+            helper.assertTrue(held.is(GooBlocks.SLIME_COAT.get())
+                    && held.getValue(VolumeCellBlock.coatProperty(Direction.EAST)) == SideCoat.ATTACHED
+                    && VolumeCellBlock.layersOf(held) == GOOP_ONE_WALL_HOLDS,
+                    "the wall should keep " + GOOP_ONE_WALL_HOLDS + " layers of Goop attached, stands " + held);
             int below = VolumeCellBlock.layersOf(helper.getBlockState(lower));
-            helper.assertTrue(below == DRAINED_INTO + HELD_ABOVE, "the goo below should hold "
-                    + (DRAINED_INTO + HELD_ABOVE) + " layers, holds " + below);
+            int drained = HELD_ABOVE - GOOP_ONE_WALL_HOLDS;
+            helper.assertTrue(below == DRAINED_INTO + drained, "the goo below should hold "
+                    + (DRAINED_INTO + drained) + " layers, holds " + below);
             helper.succeed();
         });
     }

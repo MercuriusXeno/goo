@@ -12,7 +12,7 @@
     "range": 6,
     "drains_on_placement": true,
     "throw_speed": 0.84,
-    "drips_per_tick": 1,
+    "drips_per_tick": 6,
     "cone": 15,
     "ticks_per_charge": 20,
     "particle": "goo:updraft_spray_drip",
@@ -20,10 +20,7 @@
   },
   "behaviors": [
     { "type": "updraft", "half_width": 0.5, "rise": 0.4, "glide_height": 16, "fall_cap": 0.15,
-      "air_speed": 0.35, "air_steer": 0.15 }
-  ],
-  "on_prism": [
-    { "type": "lift", "rise": 0.3, "sink": 0.2, "cap": 32 }
+      "air_speed": 0.35, "air_steer": 0.15, "air_refill": 10 }
   ],
   "tags": ["stream"]
 }

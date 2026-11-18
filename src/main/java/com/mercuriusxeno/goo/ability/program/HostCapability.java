@@ -95,6 +95,11 @@ public enum HostCapability {
      */
     END(EndHost.class),
     /**
+     * A channeling player Tartarus' gate can carry to the nether (decision
+     * tartarus-summons-a-gate-to-the-nether-like-end-and-zone).
+     */
+    TARTARUS(TartarusHost.class),
+    /**
      * A struck surface a wormhole can carry its caster through to the
      * opening ahead (decision hole-closes-the-space-to-an-opening-ahead).
      */

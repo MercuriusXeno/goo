@@ -2,10 +2,14 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.program.UpdraftStep;
+import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
+import com.mercuriusxeno.goo.gametest.SurvivalPlayers;
+import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -28,10 +32,12 @@ import java.util.function.Consumer;
  * a block for each of its layers and leaves what stands beside it, and a
  * cell lifting spends none of its layers. Each test walls its cells in
  * stone so no cell pours its layers away, and each lift test opens the
- * bay's sky, whose barrier roof would stop a rider six blocks up.
+ * bay's sky, whose barrier roof would stop a rider six blocks up. A cell
+ * refills the air of what it lifts and of what stands in its glide zone.
  * updraft-is-typhoons-world-goo-that-lifts-the-entities-above-it
  * updraft-goo-lifts-one-block-per-layer
  * updraft-goo-is-semi-permanent-and-does-not-deplete
+ * updraft-refills-the-air-of-entities-it-propels
  */
 @RegistersGameTests
 public final class UpdraftTests {
@@ -41,6 +47,9 @@ public final class UpdraftTests {
     private static final String KEEPS_ITS_LAYERS_WHILE_LIFTING = "updraft_keeps_its_layers_while_lifting";
     private static final String LEAVES_A_PLAYER_TO_ITS_CLIENT = "updraft_leaves_a_players_motion_to_its_client";
     private static final String GLIDES_A_FALLING_MOB_DOWN = "updraft_glides_a_falling_mob_down";
+    private static final String REFILLS_A_LIFTED_ZOMBIES_AIR = "updraft_refills_a_lifted_zombies_air";
+    private static final String REFILLS_AIR_IN_THE_GLIDE_ZONE = "updraft_refills_air_in_the_glide_zone";
+    private static final String LEAVES_A_PRISM_PLAIN = "updraft_leaves_a_prism_plain";
     private static final Identifier UPDRAFT = Identifier.parse("goo:typhoon_updraft");
     /** The stone the walled tests lay, two blocks deep across the bay. */
     private static final int STONE_TOP_Y = 2;
@@ -83,6 +92,14 @@ public final class UpdraftTests {
     /** The most the zombie beside the column may rise and still stand on the ground. */
     private static final double GROUNDED_SLACK = 0.1;
     private static final double SPAWN_OVER_THE_TOP = 0.01;
+    private static final BlockPos AIR_CELL = new BlockPos(2, STONE_TOP_Y, 2);
+    private static final int AIR_LAYERS = 2;
+    /** How far into the glide zone, over the push column's top, the player stands. */
+    private static final double INTO_THE_GLIDE_ZONE = 3;
+    /** The zombie's rise that marks the cell's first lift, since a placed cell first ticks after its pour delay. */
+    private static final double FIRST_LIFT_RISE = 0.01;
+    /** The tick between the cell writing the zombie's rise and the zombie moving by it. */
+    private static final int RISE_LAG_TICKS = 1;
     private static final String ABILITY_REQUIRED = "The ability registry must hold typhoon_updraft";
     private static final String DRIP_LAYERS_WRONG = "The cell over the floor should be Updraft of %d layers, stands %s";
     private static final String RISE_WRONG = "A zombie on a %d-layer Updraft cell should rise %d blocks over its top"
@@ -93,6 +110,16 @@ public final class UpdraftTests {
             + " held %s, stands %s";
     private static final String GLIDE_TOO_FAST = "A zombie falling through the glide zone should fall at most %.2f a tick,"
             + " fell %.2f";
+    private static final String AIR_NOT_FULL = "A zombie the cell lifts should read %d air %d ticks after its first"
+            + " lift, reads %d";
+    private static final String GLIDE_AIR_NOT_RISEN = "A player in the glide zone should gain air from 0, reads %d";
+    /** The prism the Updraft stream is held on. */
+    private static final BlockPos PRISM_POS = new BlockPos(2, 1, 2);
+    /** Three blocks south of the prism, where the player holds Updraft on it. */
+    private static final BlockPos PRISM_STAND = new BlockPos(2, 1, 5);
+    /** Ticks past the hold the prism is read at, so the hold's last stream tick has landed. */
+    private static final int PRISM_SETTLE_TICKS = 2;
+    private static final String PRISM_HOLDS_A_COMBO = "Updraft held on a prism should leave it plain, it holds '%s'";
     private static final String NOT_LIFTED = "After %d ticks the zombie should stand above the cell's top %.2f, stands at %.2f";
 
     private UpdraftTests() {
@@ -108,7 +135,10 @@ public final class UpdraftTests {
         GooTestFunctions.registerTest(registrar, LIFTS_BY_ITS_LAYERS, UpdraftTests::liftsByItsLayers);
         GooTestFunctions.registerTest(registrar, KEEPS_ITS_LAYERS_WHILE_LIFTING, UpdraftTests::keepsItsLayersWhileLifting);
         GooTestFunctions.registerTest(registrar, LEAVES_A_PLAYER_TO_ITS_CLIENT, UpdraftTests::leavesAPlayersMotionToItsClient);
+        GooTestFunctions.registerTest(registrar, REFILLS_A_LIFTED_ZOMBIES_AIR, UpdraftTests::refillsALiftedZombiesAir);
+        GooTestFunctions.registerTest(registrar, REFILLS_AIR_IN_THE_GLIDE_ZONE, UpdraftTests::refillsAirInTheGlideZone);
         GooTestFunctions.registerTest(registrar, GLIDES_A_FALLING_MOB_DOWN, UpdraftTests::glidesAFallingMobDown);
+        GooTestFunctions.registerTest(registrar, LEAVES_A_PRISM_PLAIN, UpdraftTests::leavesAPrismPlain);
     }
 
     /**
@@ -216,6 +246,29 @@ public final class UpdraftTests {
     }
 
     /**
+     * Updraft's stream held on a bare prism through the real stream path for
+     * the ticks a combo's conversion takes leaves the prism a plain prism
+     * holding no combo.
+     * updraft-sheds-its-prism-effect
+     * floatstone-lift-leaves-the-mod
+     *
+     * @param helper the gametest helper
+     */
+    public static void leavesAPrismPlain(GameTestHelper helper) {
+        helper.setBlock(PRISM_POS.below(), Blocks.STONE);
+        helper.setBlock(PRISM_POS, GooBlocks.PRISM.get());
+        int hold = PrismChanneler.hold(helper, UPDRAFT);
+        ServerPlayer holder = PrismChanneler.holdOn(helper, GooTypes.TYPHOON, UPDRAFT, PRISM_POS, PRISM_STAND, hold);
+        helper.runAfterDelay(hold + PRISM_SETTLE_TICKS, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(holder);
+            helper.assertBlockPresent(GooBlocks.PRISM.get(), PRISM_POS);
+            String combo = helper.getBlockEntity(PRISM_POS, PrismBlockEntity.class).getCombo();
+            helper.assertTrue(combo.isEmpty(), String.format(PRISM_HOLDS_A_COMBO, combo));
+            helper.succeed();
+        });
+    }
+
+    /**
      * A zombie starting high over a two-layer cell, inside the glide zone
      * above its push column, falls no faster than the shipped fall cap on its
      * way down to the push.
@@ -243,6 +296,85 @@ public final class UpdraftTests {
                     String.format(GLIDE_TOO_FAST, GLIDE_FALL_CAP, fastest[0]));
             helper.succeed();
         });
+    }
+
+    /**
+     * A zombie with no air stands on a two-layer cell: in the ticks its full
+     * air takes at the shipped refill rate, counted from the cell's first
+     * lift, the zombie reads its full air.
+     * updraft-refills-the-air-of-entities-it-propels
+     *
+     * @param helper the gametest helper
+     */
+    public static void refillsALiftedZombiesAir(GameTestHelper helper) {
+        layStone(helper);
+        placeCell(helper, AIR_CELL, AIR_LAYERS);
+        double over = (double) AIR_LAYERS / VolumeCellBlock.MAX_LAYERS + SPAWN_OVER_THE_TOP;
+        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, Vec3.atBottomCenterOf(AIR_CELL).add(0, over, 0));
+        zombie.setAirSupply(0);
+        int full = zombie.getMaxAirSupply();
+        int refillTicks = RISE_LAG_TICKS + (int) Math.ceil((double) full / airRefilledATick(helper));
+        double startY = zombie.getY();
+        int[] sinceLift = {-1};
+        helper.onEachTick(() -> {
+            if (sinceLift[0] < 0 && zombie.getY() > startY + FIRST_LIFT_RISE) {
+                sinceLift[0] = 0;
+            }
+            if (sinceLift[0] < 0 || sinceLift[0]++ < refillTicks) {
+                return;
+            }
+            helper.assertTrue(zombie.getAirSupply() == full,
+                    String.format(AIR_NOT_FULL, full, refillTicks, zombie.getAirSupply()));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A survival player with no air stands in the glide zone over a two-layer
+     * cell, above its push column: the cell's ticks raise its air. A mock
+     * player's own breath never ticks, so only the cell raises it.
+     * updraft-refills-the-air-of-entities-it-propels
+     *
+     * @param helper the gametest helper
+     */
+    public static void refillsAirInTheGlideZone(GameTestHelper helper) {
+        layStone(helper);
+        placeCell(helper, AIR_CELL, AIR_LAYERS);
+        ServerPlayer player = SurvivalPlayers.placeIn(helper);
+        Vec3 feet = Vec3.atBottomCenterOf(helper.absolutePos(AIR_CELL))
+                .add(0, UpdraftStep.pushHeight(AIR_LAYERS) + INTO_THE_GLIDE_ZONE, 0);
+        player.setPos(feet.x, feet.y, feet.z);
+        player.setAirSupply(0);
+        boolean[] read = {false};
+        helper.onEachTick(() -> {
+            if (read[0] || player.getAirSupply() <= 0) {
+                return;
+            }
+            read[0] = true;
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            helper.assertTrue(player.getAirSupply() > 0, String.format(GLIDE_AIR_NOT_RISEN, player.getAirSupply()));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * The air an Updraft cell refills each living entity in its zones a
+     * tick, as goo:typhoon_updraft's updraft step names it.
+     *
+     * @param helper the gametest helper
+     * @return the air refilled a tick
+     */
+    public static int airRefilledATick(GameTestHelper helper) {
+        AbilityDefinition updraft = AbilityRegistry.of(helper.getLevel()).getAbility(UPDRAFT);
+        helper.assertTrue(updraft != null, ABILITY_REQUIRED);
+        return UpdraftStep.in(updraft.behaviors()).map(UpdraftStep::airRefill)
+                .orElseThrow(() -> new IllegalStateException(ABILITY_REQUIRED));
+    }
+
+    private static void placeCell(GameTestHelper helper, BlockPos cell, int layers) {
+        Block updraft = updraftCell();
+        helper.setBlock(cell, updraft == Blocks.AIR ? Blocks.AIR.defaultBlockState()
+                : updraft.defaultBlockState().setValue(VolumeCellBlock.LAYERS, layers));
     }
 
     /**

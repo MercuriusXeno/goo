@@ -1,10 +1,12 @@
 package com.mercuriusxeno.goo.ability.typhoon;
 
+import com.mercuriusxeno.goo.ability.program.SoundCue;
+import com.mercuriusxeno.goo.ability.program.SoundKind;
+import com.mercuriusxeno.goo.ability.program.SoundPlays;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.projectile.ShulkerBullet;
 import net.minecraft.world.phys.Vec3;
@@ -40,8 +42,10 @@ public final class ShulkerSpew {
         ShulkerBullet bullet = new ShulkerBullet(level, caster, taken, Direction.Axis.Y);
         bullet.snapTo(blob.x, blob.y, blob.z, bullet.getYRot(), bullet.getXRot());
         level.addFreshEntity(bullet);
-        level.playSound(null, blob.x, blob.y, blob.z, SoundEvents.SHULKER_SHOOT, SoundSource.PLAYERS, SHOOT_VOLUME,
-                SHOOT_PITCH_BASE + (level.getRandom().nextFloat() - level.getRandom().nextFloat()) * SHOOT_PITCH_SPREAD);
+        // goo-sound-at-the-listener-reaches-both-ears: the held blob sits at the caster's hand
+        SoundPlays.playAtListener(level, caster, blob, new SoundCue(SoundEvents.SHULKER_SHOOT.location(),
+                SoundKind.PLAYERS, SHOOT_VOLUME,
+                SHOOT_PITCH_BASE + (level.getRandom().nextFloat() - level.getRandom().nextFloat()) * SHOOT_PITCH_SPREAD));
         return bullet;
     }
 }

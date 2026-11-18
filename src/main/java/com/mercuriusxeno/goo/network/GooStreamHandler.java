@@ -27,7 +27,10 @@ import com.mercuriusxeno.goo.ability.program.SoundKind;
 import com.mercuriusxeno.goo.ability.program.SoundPlays;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.StepHost;
+import com.mercuriusxeno.goo.ability.program.TartarusStep;
 import com.mercuriusxeno.goo.ability.spray.SprayPrograms;
+import com.mercuriusxeno.goo.ability.tartarus.TartarusCast;
+import com.mercuriusxeno.goo.ability.tartarus.TartarusHolds;
 import com.mercuriusxeno.goo.block.ability.SlickLayPace;
 import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
@@ -84,6 +87,8 @@ public final class GooStreamHandler {
     public static final double LAUNCH_SPEED_PER_BLOCK = 0.1;
     /** Below this squared gap the crosshair sits on the hand and the look aims instead. */
     private static final double MIN_AIM_LENGTH_SQUARED = 1e-6;
+    /** The drips a tick of motes off the arc carries: none. */
+    private static final int NO_DRIPS = 0;
     /** Rays the spray casts each tick to find the floors it lands on. */
     private static final int FLOOR_RAYS_PER_TICK = 12;
     /** Reads which living things a tick's program healed. */
@@ -168,16 +173,24 @@ public final class GooStreamHandler {
     }
 
     /**
-     * Plays one beat of the held ability's sound at the player, its pitch strayed a little.
+     * Plays one beat of the held ability's sound at the player, its pitch
+     * strayed a little: everyone near hears it at the holder's eye, and the
+     * holder hears it at the listener, or, for a looped sound, hears their
+     * own fading loop instead.
      *
      * @param player the streaming player
      * @param sound  the stream's sound
      */
     private static void playStreamSound(ServerPlayer player, StreamSound sound) {
-        float pitch = sound.pitchFor(player.getRandom().nextFloat());
-        // decay-gnats-degrade-each-block-once: a looped sound's holder hears its own fading loop instead
-        SoundPlays.playExcept(player.level(), sound.loop() ? player : null, player.getEyePosition(),
-                new SoundCue(sound.sound(), SoundKind.PLAYERS, sound.volume(), pitch));
+        SoundCue cue = new SoundCue(sound.sound(), SoundKind.PLAYERS, sound.volume(),
+                sound.pitchFor(player.getRandom().nextFloat()));
+        if (sound.loop()) {
+            // decay-gnats-degrade-each-block-once
+            SoundPlays.playExcept(player.level(), player, player.getEyePosition(), cue);
+        } else {
+            // diagnose-and-correct-the-spray-squelch-playing-in-one-ear
+            SoundPlays.playAtListener(player.level(), player, player.getEyePosition(), cue);
+        }
     }
 
     /**
@@ -221,13 +234,20 @@ public final class GooStreamHandler {
      * @param gooType the ability's goo type
      * @param ability the stream ability
      * @return the hold's tick count, or 0 when the tick runs nothing: a second stream tick in one
-     *         server tick, or a share the player cannot pay, which stops the stream
+     *         server tick, a share the player cannot pay, which stops the stream, or a Tartarus hold
+     *         its first tick refused, which drains and consumes nothing
      */
     private static int drainShare(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType,
                                       AbilityDefinition ability) {
         MinecraftServer server = player.level().getServer();
         int held = GooServerState.of(server).streamHolds().advance(player.getUUID(), server.getTickCount());
-        if (held == 0 || !paysReagents(player, ability, held)) {
+        if (held == 0) {
+            return 0;
+        }
+        // decision tartarus-sets-you-on-the-nearest-safe-floor-at-the-scaled-spot-or-refuses
+        Optional<TartarusCast> tartarus = TartarusStep.in(ability.behaviors())
+                .map(step -> TartarusHolds.castFor(player, step.reach(), held));
+        if (tartarus.filter(TartarusCast::refused).isPresent() || !paysReagents(player, ability, held)) {
             return 0;
         }
         if (ability.delivery().drainsOnPlacement()) {
@@ -235,8 +255,9 @@ public final class GooStreamHandler {
         }
         // decision end-gate-in-the-end-is-free-and-returns-you-where-you-portalled-in
         AbilityPrice cost = ability.cost().forCasterIn(player.level().dimension(), ability.behaviors());
-        int share = StreamHolds.shareAt(cost.exactIn(GooValues.of(player.level())),
+        int tickShare = StreamHolds.shareAt(cost.exactIn(GooValues.of(player.level())),
                 ability.delivery().ticksPerCharge(), held);
+        int share = tartarus.map(cast -> cast.charged(tickShare)).orElse(tickShare);
         if (!GooSourceScanner.hasEnough(player, gooType, share)) {
             return 0;
         }
@@ -351,9 +372,12 @@ public final class GooStreamHandler {
             // the living in its cone
             // goo-spray-scatters-in-a-cone-around-the-look-vector: the drips, the block pass and the drawn drips
             // all leave the hand about the look, whatever block the crosshair meets
-            runBlockPass(cast, apex, axis, delivery, ability, held, true);
-            boolean strikesLiving = throwDrips(player, apex, axis, ability, held);
-            sprayDrips(player, apex, axis, delivery, strikesLiving);
+            // nectar-is-sprayed-goo-with-a-guided-throw-near-a-mob: an aim near a mob throws them onto it
+            Vec3 thrown = NectarThrows.axisFor(player, apex, axis, channelSteps(ability.behaviors(), true),
+                    exitSpeedOf(player, delivery));
+            runBlockPass(cast, apex, thrown, delivery, ability, held, true);
+            boolean strikesLiving = throwDrips(player, apex, thrown, ability, held);
+            sprayDrips(player, apex, thrown, ability, strikesLiving, held);
             return List.of();
         }
         // decay-gnats-degrade-each-block-once: what the stream strikes follows the look; only its motes
@@ -727,26 +751,30 @@ public final class GooStreamHandler {
      */
     static void sprayParticles(ServerPlayer player, Vec3 apex, Vec3 axis, Delivery delivery, double speed) {
         delivery.particle().ifPresent(particle -> EntityVisuals.sendToWatchers(player, motesOf(player.getId(), apex,
-                axis, particle, delivery, speed, exitSpeedOf(player, delivery), false)));
+                axis, particle, delivery, speed, exitSpeedOf(player, delivery), false, NO_DRIPS, NO_DRIPS)));
     }
 
     /**
-     * Tells the caster's watchers to draw this tick's drips, launched about
-     * the look as the server's drips are, naming whether a drawn drip ends
-     * on a living thing it meets.
+     * Tells the caster's watchers to draw this tick's drips, the very drips
+     * the server threw this tick, each on its own arc about the look, naming
+     * whether a drawn drip ends on a living thing it meets.
      * goop-wobbles-a-mob-its-drip-strikes
      * goo-spray-scatters-in-a-cone-around-the-look-vector
+     * operator UAT 2026-11-17: every drawn drip lands; a drip you see splat lays its layer where it splats
      *
      * @param player        the spraying player
      * @param apex          the cone's apex
      * @param look          the player's look
-     * @param delivery      the stream delivery
+     * @param ability       the stream ability
      * @param strikesLiving whether the stream's drips end on the living they meet
+     * @param held          the hold's tick count, which seeds the tick's drips' places in the cone
      */
-    private static void sprayDrips(ServerPlayer player, Vec3 apex, Vec3 look, Delivery delivery,
-                                   boolean strikesLiving) {
+    private static void sprayDrips(ServerPlayer player, Vec3 apex, Vec3 look, AbilityDefinition ability,
+                                   boolean strikesLiving, int held) {
+        Delivery delivery = ability.delivery();
+        int drips = dripsThisTick(player, delivery, DripLanding.in(channelSteps(ability.behaviors(), true)), held);
         delivery.particle().ifPresent(particle -> EntityVisuals.sendToWatchers(player, dripMotesOf(player.getId(),
-                apex, look, particle, delivery, exitSpeedOf(player, delivery), strikesLiving)));
+                apex, look, particle, delivery, exitSpeedOf(player, delivery), strikesLiving, held, drips)));
     }
 
     /**
@@ -762,11 +790,13 @@ public final class GooStreamHandler {
      * @param delivery      the stream delivery
      * @param exitSpeed     a drawn drip's exit speed, blocks per tick
      * @param strikesLiving whether a drawn drip ends on the living it meets
+     * @param held          the hold's tick count, which seeds the tick's drips' places in the cone
+     * @param drips         the drips the server threw this tick
      * @return the payload
      */
     static StreamMotesPayload dripMotesOf(int casterId, Vec3 apex, Vec3 look, Identifier particle, Delivery delivery,
-                                          double exitSpeed, boolean strikesLiving) {
-        return motesOf(casterId, apex, look, particle, delivery, 0, exitSpeed, strikesLiving);
+                                          double exitSpeed, boolean strikesLiving, int held, int drips) {
+        return motesOf(casterId, apex, look, particle, delivery, 0, exitSpeed, strikesLiving, held, drips);
     }
 
     /**
@@ -780,12 +810,14 @@ public final class GooStreamHandler {
      * @param speed         each mote's launch speed along its heading, blocks per tick
      * @param exitSpeed     a drawn drip's exit speed, blocks per tick
      * @param strikesLiving whether a drawn drip ends on the living it meets
+     * @param held          the hold's tick count, which seeds a tick's drips' places in the cone
+     * @param drips         the drips the server threw this tick, none for motes off the arc
      * @return the payload
      */
     static StreamMotesPayload motesOf(int casterId, Vec3 apex, Vec3 axis, Identifier particle, Delivery delivery,
-                                      double speed, double exitSpeed, boolean strikesLiving) {
+                                      double speed, double exitSpeed, boolean strikesLiving, int held, int drips) {
         return new StreamMotesPayload(casterId, apex, axis, particle, delivery.coneDegrees(), speed, exitSpeed,
-                strikesLiving);
+                strikesLiving, held, drips);
     }
 
     /**

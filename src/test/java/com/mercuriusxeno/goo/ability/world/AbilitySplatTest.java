@@ -53,11 +53,11 @@ class AbilitySplatTest {
     }
 
     /**
-     * Urchin's field lingers and never explodes, so its burnout plays at the splat.
+     * Shriek's trap lingers and never explodes, so its burnout plays at the splat.
      */
     @Test
     void aLingeringCloudThatNeverExplodesAnnouncesItsBurnoutBeforeItsProgramRuns() {
-        RecordingSplat splat = new RecordingSplat(AbilityImpact.explodesLater(AbilityJson.decode("metal_urchin")));
+        RecordingSplat splat = new RecordingSplat(AbilityImpact.explodesLater(AbilityJson.decode("deep_shriek")));
         AbilitySplat.resolve(splat);
         assertEquals(List.of(ANNOUNCE, RUN), splat.calls());
     }

@@ -9,8 +9,11 @@ import com.mercuriusxeno.goo.block.ability.HostCellBlock;
 import com.mercuriusxeno.goo.block.ability.LightRailBlock;
 import com.mercuriusxeno.goo.block.ability.MagickedIceBlock;
 import com.mercuriusxeno.goo.block.ability.MoltenCellBlock;
+import com.mercuriusxeno.goo.block.ability.NectarCellBlock;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
 import com.mercuriusxeno.goo.block.ability.RimeCellBlock;
+import com.mercuriusxeno.goo.block.ability.SignalCellBlock;
+import com.mercuriusxeno.goo.block.ability.SpikesCellBlock;
 import com.mercuriusxeno.goo.block.ability.UpdraftCellBlock;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.block.ability.WispBlock;
@@ -333,6 +336,69 @@ public class GooBlocks {
             () -> BlockBehaviour.Properties.of()
                     .mapColor(MapColor.COLOR_LIGHT_GREEN)
                     .friction(CellBinding.UPDRAFT.surface().friction())
+                    .sound(SoundType.SLIME_BLOCK)
+                    .instabreak()
+                    .noOcclusion()
+                    .replaceable()
+                    .noLootTable()
+                    .pushReaction(PushReaction.DESTROY));
+    /**
+     * Nectar: the volume cell bound to Jelly's goo, the orange goo Nectar
+     * sprays onto a block's top, one to fifteen layers, ordinary ground
+     * underfoot and sounding as goo does, a food the mobs about it eat a
+     * layer at a time or fight over, dropping the jelly goo its layers cost
+     * through VolumeCellBlock.getDrops, no loot table
+     * (decisions nectar-is-sprayed-goo-with-a-guided-throw-near-a-mob,
+     * nectar-goo-keeps-feeds-effects-as-a-universal-food,
+     * each-goo-type-ships-a-world-goo-on-the-volume-cell).
+     */
+    public static final DeferredBlock<NectarCellBlock> JELLY_NECTAR = BLOCKS.registerBlock(
+            "jelly_nectar", properties -> new NectarCellBlock(properties, CellBinding.NECTAR),
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_ORANGE)
+                    .friction(CellBinding.NECTAR.surface().friction())
+                    .sound(SoundType.SLIME_BLOCK)
+                    .instabreak()
+                    .noOcclusion()
+                    .replaceable()
+                    .noLootTable()
+                    .pushReaction(PushReaction.DESTROY));
+    /**
+     * Signal: the volume cell bound to Pulse's goo, the red goo Signal sprays
+     * onto a block's top, one to fifteen layers, ordinary ground underfoot
+     * and sounding as goo does, sending a redstone signal equal to its layers
+     * as a redstone block sends its own, carried by no block it lies against,
+     * dropping the pulse goo its layers cost through VolumeCellBlock.getDrops,
+     * no loot table (decisions extend-is-dropped-for-signal-an-in-world-pulse-goo,
+     * signal-goo-sends-a-redstone-signal-equal-to-its-layers,
+     * each-goo-type-ships-a-world-goo-on-the-volume-cell).
+     */
+    public static final DeferredBlock<SignalCellBlock> PULSE_SIGNAL = BLOCKS.registerBlock(
+            "pulse_signal", properties -> new SignalCellBlock(properties, CellBinding.SIGNAL),
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_RED)
+                    .friction(CellBinding.SIGNAL.surface().friction())
+                    .sound(SoundType.SLIME_BLOCK)
+                    .instabreak()
+                    .noOcclusion()
+                    .replaceable()
+                    .noLootTable()
+                    .isRedstoneConductor((state, level, pos) -> false)
+                    .pushReaction(PushReaction.DESTROY));
+    /**
+     * Spikes: the volume cell bound to Metal's goo, the silver goo Spikes
+     * sprays onto a block's top, one to fifteen layers, ordinary ground
+     * underfoot that impales what walks on it and sounds as goo does,
+     * dropping the metal goo its layers cost through VolumeCellBlock.getDrops,
+     * no loot table
+     * (decisions spikes-is-a-coat-of-metal-goo-that-impales-what-walks-on-it,
+     * each-goo-type-ships-a-world-goo-on-the-volume-cell).
+     */
+    public static final DeferredBlock<SpikesCellBlock> METAL_SPIKES = BLOCKS.registerBlock(
+            "metal_spikes", properties -> new SpikesCellBlock(properties, CellBinding.SPIKES),
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.METAL)
+                    .friction(CellBinding.SPIKES.surface().friction())
                     .sound(SoundType.SLIME_BLOCK)
                     .instabreak()
                     .noOcclusion()

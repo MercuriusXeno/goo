@@ -64,7 +64,7 @@ public final class AimTracker {
         int entityOutline = selectedType != null ? ARGB.opaque(ClientGooTypes.highlight(selectedType)) : 0;
         Camera camera = mc.gameRenderer.getMainCamera();
         AimTargets.AimRay ray = AimTargets.AimRay.along(camera.position(), new Vec3(camera.forwardVector()),
-                GloveAim.aimRange(player, AimState.MAX_RANGE));
+                GloveAim.aimRange(player));
         List<Step> behaviors = GloveAim.selectedBehaviors(player);
         boolean grabPressed = GloveUseTracker.showsArea() && behaviors.stream().anyMatch(GrabStep.class::isInstance);
         // knives-do-not-highlight-mobs, dart-does-not-seek-or-highlight: Knives and Dart outline no mob
