@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.ability;
 
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -17,12 +18,15 @@ class SpikesBristleTest {
 
     private static final long SEED = 90_210L;
     private static final long SEEDS = 200L;
+    /** The share of the inset span the first pyramids of many cells must cover between them. */
+    private static final double SPREAD_SHARE = 0.8;
 
     @Test
     void everyPyramidStandsInsetOnTheCellAtABristlingHeight() {
         for (long seed = 0; seed < SEEDS; seed++) {
             SpikesBristle.Layout layout = SpikesBristle.layoutFromSeed(seed);
-            assertEquals(SpikesBristle.PYRAMIDS_PER_CELL, layout.pyramids().size());
+            int count = layout.pyramids().size();
+            assertTrue(count >= SpikesBristle.FEWEST_PYRAMIDS && count <= SpikesBristle.MOST_PYRAMIDS, "count " + count);
             for (SpikesBristle.Pyramid pyramid : layout.pyramids()) {
                 assertTrue(pyramid.x() >= SpikesBristle.EDGE_INSET && pyramid.x() <= 1f - SpikesBristle.EDGE_INSET,
                         "x " + pyramid.x());
@@ -33,6 +37,26 @@ class SpikesBristleTest {
                         "height " + pyramid.height());
             }
         }
+    }
+
+    @Test
+    void cellsDrawDifferentCountsAndDifferentSpots() {
+        java.util.Set<Integer> counts = new java.util.HashSet<>();
+        for (long seed = 0; seed < SEEDS; seed++) {
+            counts.add(SpikesBristle.layoutFromSeed(seed).pyramids().size());
+        }
+        assertEquals(SpikesBristle.MOST_PYRAMIDS - SpikesBristle.FEWEST_PYRAMIDS + 1, counts.size(),
+                "counts drawn " + counts);
+        double least = 1;
+        double most = 0;
+        for (long seed = 0; seed < SEEDS; seed++) {
+            float x = SpikesBristle.layoutFromSeed(seed).pyramids().getFirst().x();
+            least = Math.min(least, x);
+            most = Math.max(most, x);
+        }
+        double inset = 1 - SpikesBristle.EDGE_INSET - SpikesBristle.EDGE_INSET;
+        assertTrue(most - least > SPREAD_SHARE * inset, "first pyramids span only " + least + " to " + most);
+        assertNotEquals(SpikesBristle.layoutFromSeed(SEED), SpikesBristle.layoutFromSeed(SEED + 1));
     }
 
     @Test
