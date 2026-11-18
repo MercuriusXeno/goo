@@ -29,9 +29,9 @@ class MarkerOrbVisualTest {
     private static final GooRenderUtil.UvRect UV = new GooRenderUtil.UvRect(0f, 0f, 1f, 1f);
     private static final int WHITE = 0xFFFFFFFF;
 
-    /** Every scale the orb modifier takes at rest and at a lurker's full swell. */
+    /** A scale the orb modifier takes at rest and one a spike's windup shake swells it to. */
     private static final float[] MODIFIERS = {
-        1f, 1f + MarkerOrbVisual.LURKER_SWELL,
+        1f, 1.35f,
     };
 
     /**
