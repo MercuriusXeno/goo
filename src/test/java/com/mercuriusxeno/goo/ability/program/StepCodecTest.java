@@ -175,6 +175,7 @@ class StepCodecTest {
             Map.entry("scan_visual", new ScanVisualStep("sound_wave",
                     java.util.Optional.of(Identifier.withDefaultNamespace("block.comparator.click")))),
             Map.entry("end", new EndStep(Expr.literal(1200))),
+            Map.entry("tartarus", new TartarusStep(Expr.literal(20), 4)),
             Map.entry("hole_open", new HoleOpenStep(Expr.literal(240), Expr.literal(120))),
             Map.entry("zone", new ZoneStep(Expr.literal(20), Expr.literal(6), Expr.literal(40),
                     Expr.literal(10), Expr.literal(1))),

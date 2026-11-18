@@ -16,7 +16,7 @@ import java.util.stream.Stream;
  * at once, each ring costing a base plus a step for each block of Manhattan
  * distance from the center for every cell it holds, the feed spreading each
  * ring's cost over the ring time. Void's Zone is
- * {@code zone charge=20 enter=6 ring_ticks=20 cell_cost=10 distance_cost=1},
+ * {@code zone charge=40 enter=6 ring_ticks=20 cell_cost=10 distance_cost=1},
  * a ring a second, so the room grows one block a second on every side.
  * decision outsider-is-a-channeled-pocket-with-a-door-voidstone-and-a-spiral-platform
  * decision channeling-to-the-pocket-conjures-a-door-that-envelops-the-player
