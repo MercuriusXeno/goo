@@ -6,7 +6,7 @@ import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.program.GrabStep;
 import com.mercuriusxeno.goo.ability.quantum.GatePassage;
 import com.mercuriusxeno.goo.ability.quantum.Portal;
-import com.mercuriusxeno.goo.ability.quantum.PortalChoice;
+import com.mercuriusxeno.goo.ability.quantum.PortalPairs;
 import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.client.throwing.TargetingHint;
 import net.minecraft.core.Direction;
@@ -125,9 +125,9 @@ public final class AimFarLegTests {
         Portal near = new Portal(GlobalPos.of(level.dimension(), helper.absolutePos(NEAR_PORTAL)), Direction.WEST,
                 Direction.UP, PortalColor.BLUE);
         Portal far = new Portal(GlobalPos.of(level.dimension(), helper.absolutePos(FAR_PORTAL)), Direction.EAST,
-                Direction.UP, PortalColor.BLUE);
-        PortalChoice.place(level, player.getUUID(), near);
-        PortalChoice.place(level, player.getUUID(), far);
+                Direction.UP, PortalColor.ORANGE);
+        PortalPairs.place(level, player.getUUID(), near);
+        PortalPairs.place(level, player.getUUID(), far);
         Zombie zombie = helper.spawn(EntityType.ZOMBIE, PAST_THE_WALL);
         zombie.setNoAi(true);
         GatePassage.setClientPairs(GatePassage.pairsOf(level.getServer()));
@@ -141,8 +141,8 @@ public final class AimFarLegTests {
         } finally {
             GatePassage.setClientPairs(List.of());
         }
-        PortalChoice.breakAt(level, near.block().pos(), near.face());
-        PortalChoice.breakAt(level, far.block().pos(), far.face());
+        PortalPairs.breakAt(level, near.block().pos(), near.face());
+        PortalPairs.breakAt(level, far.block().pos(), far.face());
         zombie.discard();
         helper.getLevel().getServer().getPlayerList().remove(player);
         helper.succeed();

@@ -4,7 +4,6 @@ import com.mercuriusxeno.goo.ability.quantum.PortalColor;
 import com.mercuriusxeno.goo.ability.quantum.Gate;
 import com.mercuriusxeno.goo.ability.quantum.GatePassage;
 import com.mercuriusxeno.goo.ability.quantum.Portal;
-import com.mercuriusxeno.goo.ability.quantum.QuantumPortals;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.core.BlockPos;
@@ -49,9 +48,6 @@ class PortalFacesTest {
     private static final int[] THIRTY_TWO_BY_FORTY_EIGHT = {32, 48};
     /** A wall portal on the north face of (0, 64, 0), its frame (0, 64, 0) to (1, 66, 1). */
     private static final Portal WALL_PORTAL = new Portal(GlobalPos.of(Level.OVERWORLD, new BlockPos(0, 64, 0)),
-            Direction.NORTH, Direction.UP, PortalColor.BLUE);
-    /** The portal it links to, the entry of the pair. */
-    private static final Portal OTHER_PORTAL = new Portal(GlobalPos.of(Level.OVERWORLD, new BlockPos(9, 64, 0)),
             Direction.NORTH, Direction.UP, PortalColor.BLUE);
     /** A drawn gate's box as its blocks stand, grown full open. */
     private static final Function<PortalFaces.Drawn, AABB> BLOCKS_OF = drawn -> drawn.gate().blocks();
@@ -136,9 +132,6 @@ class PortalFacesTest {
         /** A wall portal on the north face of (0, 64, 0), its frame (0, 64, 0) to (1, 66, 1). */
         private static final Portal WALL = new Portal(GlobalPos.of(Level.OVERWORLD, new BlockPos(0, 64, 0)),
                 Direction.NORTH, Direction.UP, PortalColor.BLUE);
-        /** The portal it links to, the entry of the pair. */
-        private static final Portal ENTRY = new Portal(GlobalPos.of(Level.OVERWORLD, new BlockPos(9, 64, 0)),
-                Direction.NORTH, Direction.UP, PortalColor.BLUE);
         /** The frame's corners on x, half a block out each side. */
         private static final float[] XS = {-0.5F, 1.5F};
         /** The frame's corners on y, half a block out each end. */
@@ -147,15 +140,15 @@ class PortalFacesTest {
         private static final float FACE_Z = -0.01F;
 
         @Test
-        void aWaitingPortalsHaloReachesTheMarginPastItsFrameInBlue() {
-            int rgb = PortalFaces.colorOf(WALL, List.of());
+        void aBluePortalsHaloReachesTheMarginPastItsFrameInBlue() {
+            int rgb = PortalFaces.colorOf(WALL);
 
             assertHaloAround(rgb, ARGB.color(PortalFaces.CLEAN_EDGE, PortalFaces.BLUE_RGB));
         }
 
         @Test
-        void aLinkedExitsHaloReachesTheMarginPastItsFrameInOrange() {
-            int rgb = PortalFaces.colorOf(WALL, List.of(new QuantumPortals.Link(ENTRY, WALL)));
+        void anOrangePortalsHaloReachesTheMarginPastItsFrameInOrange() {
+            int rgb = PortalFaces.colorOf(WALL.withColor(PortalColor.ORANGE));
 
             assertHaloAround(rgb, ARGB.color(PortalFaces.CLEAN_EDGE, PortalFaces.ORANGE_RGB));
         }
@@ -229,14 +222,13 @@ class PortalFacesTest {
         }
 
         @Test
-        void aWaitingPortalsSwirlBandArchesOverItsRimToTheNamedDepthInBlue() {
-            assertSwirlBandOff(PortalFaces.colorOf(WALL_PORTAL, List.of()), PortalFaces.BLUE_RGB);
+        void aBluePortalsSwirlBandArchesOverItsRimToTheNamedDepthInBlue() {
+            assertSwirlBandOff(PortalFaces.colorOf(WALL_PORTAL), PortalFaces.BLUE_RGB);
         }
 
         @Test
-        void aLinkedExitsSwirlBandArchesOverItsRimToTheNamedDepthInOrange() {
-            assertSwirlBandOff(PortalFaces.colorOf(WALL_PORTAL, List.of(new QuantumPortals.Link(OTHER_PORTAL,
-                    WALL_PORTAL))), PortalFaces.ORANGE_RGB);
+        void anOrangePortalsSwirlBandArchesOverItsRimToTheNamedDepthInOrange() {
+            assertSwirlBandOff(PortalFaces.colorOf(WALL_PORTAL.withColor(PortalColor.ORANGE)), PortalFaces.ORANGE_RGB);
         }
 
         private void assertSwirlBandOff(int rgb, int expectedRgb) {

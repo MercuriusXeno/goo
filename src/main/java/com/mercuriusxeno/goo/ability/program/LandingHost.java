@@ -4,8 +4,8 @@ import com.mercuriusxeno.goo.ability.aging.Aging;
 import com.mercuriusxeno.goo.ability.hole.HoleOpening;
 import com.mercuriusxeno.goo.ability.pulse.ZapDevice;
 import com.mercuriusxeno.goo.ability.quantum.Portal;
-import com.mercuriusxeno.goo.ability.quantum.PortalChoice;
 import com.mercuriusxeno.goo.ability.quantum.PortalColor;
+import com.mercuriusxeno.goo.ability.quantum.PortalPairs;
 import com.mercuriusxeno.goo.ability.quantum.PortalShots;
 import com.mercuriusxeno.goo.ability.quantum.Wormhole;
 import com.mercuriusxeno.goo.ability.spore.ShroomNetwork;
@@ -156,7 +156,7 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
         }
         Optional<Portal> frame = Portal.frameOn(level, cell.relative(face.getOpposite()), face, player.getDirection(),
                 color.get());
-        frame.ifPresent(portal -> PortalChoice.place(level, caster, portal));
+        frame.ifPresent(portal -> PortalPairs.place(level, caster, portal));
         return frame.isPresent();
     }
 

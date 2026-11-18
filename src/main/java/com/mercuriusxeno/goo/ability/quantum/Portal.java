@@ -118,6 +118,14 @@ public record Portal(GlobalPos block, Direction face, Direction along, PortalCol
     }
 
     /**
+     * @param recolored the color to open in
+     * @return this frame in that color
+     */
+    public Portal withColor(PortalColor recolored) {
+        return new Portal(block, face, along, recolored);
+    }
+
+    /**
      * @return the frame's second block
      */
     public BlockPos second() {

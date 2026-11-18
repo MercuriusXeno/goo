@@ -6,7 +6,7 @@ import com.mercuriusxeno.goo.ability.GloveButton;
 import com.mercuriusxeno.goo.ability.quantum.GatePassage;
 import com.mercuriusxeno.goo.ability.quantum.PartnerStreaming;
 import com.mercuriusxeno.goo.ability.quantum.Portal;
-import com.mercuriusxeno.goo.ability.quantum.PortalChoice;
+import com.mercuriusxeno.goo.ability.quantum.PortalPairs;
 import com.mercuriusxeno.goo.ability.quantum.PortalShots;
 import com.mercuriusxeno.goo.ability.quantum.PortalTether;
 import com.mercuriusxeno.goo.ability.quantum.QuantumPortals;
@@ -51,17 +51,16 @@ import java.util.UUID;
 import java.util.function.Consumer;
 
 /**
- * Gametest for Quantum's portals: three casts at walls place three frames two
- * blocks tall; right clicking one with Portal in hand enters choosing, and
- * right clicking a distant one links the two, the first the blue entry
- * portal, both chunks tethered; standing a block off the entry carries no
- * one, going through its face carries the player on out of its partner at
- * the matching point; a
- * later link unlinks the earlier pair (decision portals-link-by-looking-through-portal-vision).
+ * Gametest for Quantum's portals: a blue cast and an orange one at walls
+ * place a linked pair of frames two blocks tall, both chunks tethered;
+ * standing a block off the blue one carries no one, going through its face
+ * carries the player on out of its partner at the matching point; a second
+ * blue cast moves the blue portal (decisions player-holds-one-pair-of-portals,
+ * portals-link-by-looking-through-portal-vision).
  */
 @RegistersGameTests
 public final class PortalTests {
-    private static final String PLACE_CHOOSE_LINK_AND_CARRY = "portals_place_choose_link_and_carry";
+    private static final String PLACE_A_PAIR_AND_CARRY = "portals_place_a_pair_and_carry";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -69,7 +68,7 @@ public final class PortalTests {
      * @param registrar the test function registrar
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
-        GooTestFunctions.registerTest(registrar, PLACE_CHOOSE_LINK_AND_CARRY, PortalTests::placeChooseLinkAndCarry);
+        GooTestFunctions.registerTest(registrar, PLACE_A_PAIR_AND_CARRY, PortalTests::placeAPairAndCarry);
         GooTestFunctions.registerTest(registrar, HIT_BREAKS_THE_PORTAL, PortalTests::hitBreaksThePortal);
         GooTestFunctions.registerTest(registrar, LINK_REACHES_EVERY_CLIENT, PortalTests::linkReachesEveryClient);
         GooTestFunctions.registerTest(registrar, ARROW_FLIES_THROUGH_A_LINKED_PAIR,
@@ -80,8 +79,6 @@ public final class PortalTests {
                 PortalTests::slimeSpawnsInPlaceThroughAPair);
         GooTestFunctions.registerTest(registrar, LINK_REACHES_A_PLAYER_CHANGING_DIMENSION,
                 PortalTests::linkReachesAPlayerChangingDimension);
-        GooTestFunctions.registerTest(registrar, PLACING_LINKS_TO_THE_LAST_PLACED,
-                PortalTests::placingLinksToTheLastPlaced);
         GooTestFunctions.registerTest(registrar, NOT_IN_A_WALL_WHILE_PASSING, PortalTests::passingBodyIsNotInAWall);
         GooTestFunctions.registerTest(registrar, OTHER_ENTITIES_GO_THROUGH, PortalTests::otherEntitiesGoThrough);
         GooTestFunctions.registerTest(registrar, THROWN_IN_AT_AN_ANGLE,
@@ -91,9 +88,6 @@ public final class PortalTests {
                 PortalTests::playerByTheEdgeMovesAsItsClientDoes);
         GooTestFunctions.registerTest(registrar, NOT_HURT_BY_THE_WALL_BESIDE,
                 PortalTests::smallMobByTheEdgeIsNotHurtByTheWall);
-        GooTestFunctions.registerTest(registrar, BROKEN_LAST_LINKS_NOTHING,
-                PortalTests::placedAfterTheLastBrokeStandsInert);
-        GooTestFunctions.registerTest(registrar, LINKING_BY_HAND_COSTS_GOO, PortalTests::linkingByHandCostsGoo);
         GooTestFunctions.registerTest(registrar, ONLY_ON_OPAQUE_BLOCKS, PortalTests::opensOnlyOnOpaqueSolidBlocks);
         GooTestFunctions.registerTest(registrar, THROW_AT_NO_ROOM_DOES_NOTHING,
                 PortalTests::throwWhereNoFrameFitsDoesNothing);
@@ -106,44 +100,6 @@ public final class PortalTests {
                 PortalTests::floorPairCarriesAFallingBodyOutClear);
         GooTestFunctions.registerTest(registrar, PLAYER_DROPS_THROUGH_A_FLOOR_PAIR,
                 PortalTests::floorPairCarriesADroppingPlayer);
-    }
-
-    private static final String PLACING_LINKS_TO_THE_LAST_PLACED = "portal_placing_links_to_the_last_placed";
-
-    /**
-     * Placing pairs unpaired portals: a portal placed alone stands inert; the
-     * next pairs with it, the older the blue entry and the newer the orange
-     * exit; a third, every other portal already paired, stands inert and the
-     * pair stands; a fourth pairs with the unpaired third, and the first pair
-     * stays linked beside it, as many pairs as the player places
-     * (decision portals-link-by-looking-through-portal-vision).
-     *
-     * @param helper the gametest helper
-     */
-    public static void placingLinksToTheLastPlaced(GameTestHelper helper) {
-        ServerLevel level = helper.getLevel();
-        ServerPlayer player = SelfDeliveryTests.invoker(helper, GooTypes.QUANTUM);
-        KnownRecipes.teachRequires(player, AbilityRegistry.of(level).getAbility(Identifier.parse(PORTAL)));
-        standAt(helper, player, Vec3.atBottomCenterOf(AWAY));
-        QuantumPortals portals = QuantumPortals.get(level);
-        Portal first = castAt(helper, player, FIRST, Direction.SOUTH);
-        helper.assertTrue(portals.partnerOf(first).isEmpty(), "A portal placed alone should stand inert");
-        Portal second = castAt(helper, player, SECOND, Direction.NORTH);
-        helper.assertTrue(portals.linksOf(player.getUUID()).equals(List.of(new QuantumPortals.Link(first, second))),
-                "The next portal placed should pair with the unpaired first, the older blue and the newer orange, "
-                        + "holds " + portals.linksOf(player.getUUID()));
-        Portal third = castAt(helper, player, THIRD, Direction.SOUTH);
-        helper.assertTrue(portals.partnerOf(third).isEmpty() && portals.partnerOf(first).equals(Optional.of(second)),
-                "A portal placed with every other portal paired should stand inert, the pair standing; holds "
-                        + portals.linksOf(player.getUUID()));
-        Portal fourth = castAt(helper, player, FOURTH, Direction.SOUTH);
-        helper.assertTrue(portals.linksOf(player.getUUID()).equals(List.of(new QuantumPortals.Link(first, second),
-                new QuantumPortals.Link(third, fourth))), "A fourth portal should pair with the unpaired third, the "
-                + "first pair still linked beside it, holds " + portals.linksOf(player.getUUID()));
-        assertTethered(helper, player, first);
-        assertTethered(helper, player, fourth);
-        level.getServer().getPlayerList().remove(player);
-        helper.succeed();
     }
 
     private static final String NOT_IN_A_WALL_WHILE_PASSING = "portal_passing_body_is_not_in_a_wall";
@@ -163,74 +119,14 @@ public final class PortalTests {
         ServerPlayer player = SelfDeliveryTests.invoker(helper, GooTypes.QUANTUM);
         KnownRecipes.teachRequires(player, AbilityRegistry.of(level).getAbility(Identifier.parse(PORTAL)));
         standAt(helper, player, Vec3.atBottomCenterOf(AWAY));
-        castAt(helper, player, FIRST, Direction.SOUTH);
-        castAt(helper, player, SECOND, Direction.NORTH);
+        castAt(helper, player, FIRST, Direction.SOUTH, PortalColor.BLUE);
+        castAt(helper, player, SECOND, Direction.NORTH, PortalColor.ORANGE);
         helper.runAfterDelay(STEP, () -> {
             standAt(helper, player, AT_THE_FACE);
             helper.assertFalse(player.isInWall(), "A body pressed to a linked portal's face should not be in a wall");
             level.getServer().getPlayerList().remove(player);
             helper.succeed();
         });
-    }
-
-    private static final String BROKEN_LAST_LINKS_NOTHING = "portal_placed_after_the_last_broke_stands_inert";
-
-    /**
-     * A portal pairs with the last portal placed, and only that one: where the
-     * last placed portal broke, a new portal stands inert, never pairing with
-     * an older one (decision portals-link-by-looking-through-portal-vision).
-     *
-     * @param helper the gametest helper
-     */
-    public static void placedAfterTheLastBrokeStandsInert(GameTestHelper helper) {
-        ServerLevel level = helper.getLevel();
-        ServerPlayer player = SelfDeliveryTests.invoker(helper, GooTypes.QUANTUM);
-        KnownRecipes.teachRequires(player, AbilityRegistry.of(level).getAbility(Identifier.parse(PORTAL)));
-        standAt(helper, player, Vec3.atBottomCenterOf(AWAY));
-        QuantumPortals portals = QuantumPortals.get(level);
-        Portal first = castAt(helper, player, FIRST, Direction.SOUTH);
-        Portal second = castAt(helper, player, SECOND, Direction.NORTH);
-        PortalChoice.breakAt(level, second.block().pos(), second.face());
-        helper.assertTrue(portals.partnerOf(first).isEmpty(), "Breaking the second should leave the first unpaired");
-        Portal third = castAt(helper, player, THIRD, Direction.SOUTH);
-        helper.assertTrue(portals.partnerOf(third).isEmpty() && portals.partnerOf(first).isEmpty(),
-                "A portal placed after the last placed broke should stand inert, holds "
-                        + portals.linksOf(player.getUUID()));
-        level.getServer().getPlayerList().remove(player);
-        helper.succeed();
-    }
-
-    private static final String LINKING_BY_HAND_COSTS_GOO = "portal_linking_by_hand_costs_goo";
-
-    /**
-     * Linking two portals by hand costs the goo a Portal throw costs: a
-     * player holding it pays and the link lands; a player holding none is
-     * refused, the pair standing as it was
-     * (decision portals-link-by-looking-through-portal-vision).
-     *
-     * @param helper the gametest helper
-     */
-    public static void linkingByHandCostsGoo(GameTestHelper helper) {
-        ServerLevel level = helper.getLevel();
-        ServerPlayer player = SelfDeliveryTests.invoker(helper, GooTypes.QUANTUM);
-        KnownRecipes.teachRequires(player, AbilityRegistry.of(level).getAbility(Identifier.parse(PORTAL)));
-        standAt(helper, player, Vec3.atBottomCenterOf(AWAY));
-        QuantumPortals portals = QuantumPortals.get(level);
-        Portal first = castAt(helper, player, FIRST, Direction.SOUTH);
-        castAt(helper, player, SECOND, Direction.NORTH);
-        Portal third = castAt(helper, player, THIRD, Direction.SOUTH);
-        int held = com.mercuriusxeno.goo.item.GooSourceScanner.aggregateAvailable(player).getOrDefault(GooTypes.QUANTUM, 0);
-        PortalChoice.choose(player, Optional.of(first));
-        helper.assertTrue(PortalLinkPayload.linkPaid(player, third), "A player holding the goo should link by hand");
-        int after = com.mercuriusxeno.goo.item.GooSourceScanner.aggregateAvailable(player).getOrDefault(GooTypes.QUANTUM, 0);
-        helper.assertTrue(after < held, "Linking by hand should cost goo, held " + held + " then " + after);
-        helper.assertTrue(portals.partnerOf(first).equals(Optional.of(third)), "The paid link should land");
-        player.getInventory().clearContent();
-        PortalChoice.choose(player, Optional.of(third));
-        helper.assertFalse(PortalLinkPayload.linkPaid(player, first), "A player holding no goo should be refused");
-        helper.assertTrue(portals.partnerOf(first).equals(Optional.of(third)), "A refused link should leave the pair");
-        level.getServer().getPlayerList().remove(player);
-        helper.succeed();
     }
 
     private static final String ONLY_ON_OPAQUE_BLOCKS = "portal_opens_only_on_opaque_solid_blocks";
@@ -249,11 +145,11 @@ public final class PortalTests {
         standAt(helper, player, Vec3.atBottomCenterOf(AWAY));
         helper.setBlock(THIRD, Blocks.GLASS);
         helper.setBlock(THIRD.above(), Blocks.GLASS);
-        castBlue(helper, player, THIRD, Direction.SOUTH);
+        castShot(helper, player, THIRD, Direction.SOUTH, PortalColor.BLUE);
         helper.assertTrue(QuantumPortals.get(level).portalsOf(player.getUUID()).isEmpty(),
                 "A portal cast on glass should place nothing, holds " + QuantumPortals.get(level).portalsOf(
                         player.getUUID()));
-        castAt(helper, player, FIRST, Direction.SOUTH);
+        castAt(helper, player, FIRST, Direction.SOUTH, PortalColor.BLUE);
         helper.assertTrue(QuantumPortals.get(level).portalsOf(player.getUUID()).size() == 1,
                 "A portal cast on stone should place one");
         level.getServer().getPlayerList().remove(player);
@@ -310,8 +206,8 @@ public final class PortalTests {
      */
     public static void sneakingStandsOnAFloorPortal(GameTestHelper helper) {
         ServerPlayer player = SelfDeliveryTests.invoker(helper, GooTypes.QUANTUM);
-        Portal in = floorAt(helper, player, FLOOR_IN);
-        floorAt(helper, player, FLOOR_OUT);
+        Portal in = floorAt(helper, player, FLOOR_IN, PortalColor.BLUE);
+        floorAt(helper, player, FLOOR_OUT, PortalColor.ORANGE);
         helper.runAfterDelay(STEP, () -> {
             standAt(helper, player, ON_THE_FLOOR_PORTAL);
             BlockPos frame = in.block().pos();
@@ -333,8 +229,7 @@ public final class PortalTests {
     /** Floor frames laid on stone a block over the floor, each running south. */
     private static final BlockPos NEVER_LINKED = new BlockPos(3, 1, 3);
     private static final BlockPos LEFT_UNLINKED = new BlockPos(7, 1, 3);
-    private static final BlockPos FIRST_PARTNER = new BlockPos(11, 1, 3);
-    private static final BlockPos SECOND_PARTNER = new BlockPos(11, 1, 9);
+    private static final BlockPos PARTNER = new BlockPos(11, 1, 3);
     /** Ticks a body stands on a frame, long enough to fall through were it open. */
     private static final int STOOD = 20;
     /** How far below a frame's top a body's feet may sink before it counts as fallen in. */
@@ -342,22 +237,19 @@ public final class PortalTests {
 
     /**
      * A portal with no partner is a floor like any other: a body standing on
-     * a floor portal never linked, or one whose link a later link undid,
-     * stays standing on it (decision portals-link-by-looking-through-portal-vision).
+     * a floor portal never linked, or one whose partner broke, stays standing
+     * on it (decisions player-holds-one-pair-of-portals, portals-link-by-looking-through-portal-vision).
      *
      * @param helper the gametest helper
      */
     public static void unlinkedPortalHoldsABodyUp(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         ServerPlayer owner = SelfDeliveryTests.invoker(helper, GooTypes.QUANTUM);
-        Portal neverLinked = floorAt(helper, owner, NEVER_LINKED);
-        Portal leftUnlinked = floorAt(helper, owner, LEFT_UNLINKED);
-        Portal first = floorAt(helper, owner, FIRST_PARTNER);
-        Portal second = floorAt(helper, owner, SECOND_PARTNER);
-        PortalChoice.choose(owner, Optional.of(leftUnlinked));
-        PortalChoice.link(owner, first);
-        PortalChoice.choose(owner, Optional.of(first));
-        PortalChoice.link(owner, second);
+        ServerPlayer loner = SelfDeliveryTests.invoker(helper, GooTypes.QUANTUM);
+        Portal neverLinked = floorAt(helper, loner, NEVER_LINKED, PortalColor.BLUE);
+        Portal leftUnlinked = floorAt(helper, owner, LEFT_UNLINKED, PortalColor.BLUE);
+        Portal partner = floorAt(helper, owner, PARTNER, PortalColor.ORANGE);
+        PortalPairs.breakAt(level, partner.block().pos(), partner.face());
         helper.assertTrue(QuantumPortals.get(level).partnerOf(leftUnlinked).isEmpty()
                 && QuantumPortals.get(level).partnerOf(neverLinked).isEmpty(), "Both test frames should stand unlinked");
         fenceIn(helper, NEVER_LINKED);
@@ -366,8 +258,11 @@ public final class PortalTests {
         Pig onLeft = helper.spawn(EntityType.PIG, Vec3.atBottomCenterOf(LEFT_UNLINKED.above()));
         helper.runAfterDelay(STOOD, () -> {
             assertStandsOn(helper, onNever, NEVER_LINKED, "never linked");
-            assertStandsOn(helper, onLeft, LEFT_UNLINKED, "whose link a later link undid");
+            assertStandsOn(helper, onLeft, LEFT_UNLINKED, "whose partner broke");
+            PortalPairs.breakAt(level, neverLinked.block().pos(), neverLinked.face());
+            PortalPairs.breakAt(level, leftUnlinked.block().pos(), leftUnlinked.face());
             level.getServer().getPlayerList().remove(owner);
+            level.getServer().getPlayerList().remove(loner);
             helper.succeed();
         });
     }
@@ -389,10 +284,8 @@ public final class PortalTests {
     public static void floorPairCarriesAFallingBodyOutClear(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         ServerPlayer owner = SelfDeliveryTests.invoker(helper, GooTypes.QUANTUM);
-        Portal in = floorAt(helper, owner, FLOOR_IN);
-        Portal out = floorAt(helper, owner, FLOOR_OUT);
-        PortalChoice.choose(owner, Optional.of(in));
-        PortalChoice.link(owner, out);
+        Portal in = floorAt(helper, owner, FLOOR_IN, PortalColor.BLUE);
+        Portal out = floorAt(helper, owner, FLOOR_OUT, PortalColor.ORANGE);
         Pig pig = helper.spawn(EntityType.PIG, Vec3.atBottomCenterOf(FLOOR_IN.above(2)));
         helper.runAfterDelay(THROUGH, () -> {
             double top = helper.absolutePos(FLOOR_OUT).getY() + 1;
@@ -423,10 +316,8 @@ public final class PortalTests {
     public static void floorPairCarriesADroppingPlayer(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         ServerPlayer player = SelfDeliveryTests.invoker(helper, GooTypes.QUANTUM);
-        Portal in = floorAt(helper, player, FLOOR_IN);
-        Portal out = floorAt(helper, player, FLOOR_OUT);
-        PortalChoice.choose(player, Optional.of(in));
-        PortalChoice.link(player, out);
+        Portal in = floorAt(helper, player, FLOOR_IN, PortalColor.BLUE);
+        Portal out = floorAt(helper, player, FLOOR_OUT, PortalColor.ORANGE);
         helper.runAfterDelay(STEP, () -> {
             standAt(helper, player, SUNK_IN_THE_FRAME);
             crossAsTheClientSays(player, in);
@@ -459,8 +350,8 @@ public final class PortalTests {
     public static void otherEntitiesGoThrough(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         ServerPlayer owner = SelfDeliveryTests.invoker(helper, GooTypes.QUANTUM);
-        Portal in = floorAt(helper, owner, FLOOR_IN);
-        castAt(helper, owner, THIRD, Direction.SOUTH);
+        Portal in = floorAt(helper, owner, FLOOR_IN, PortalColor.BLUE);
+        castAt(helper, owner, THIRD, Direction.SOUTH, PortalColor.ORANGE);
         net.minecraft.world.entity.item.ItemEntity item = new net.minecraft.world.entity.item.ItemEntity(level,
                 helper.absoluteVec(Vec3.atBottomCenterOf(FLOOR_IN.above(2))).x(),
                 helper.absoluteVec(Vec3.atBottomCenterOf(FLOOR_IN.above(2))).y(),
@@ -471,8 +362,8 @@ public final class PortalTests {
         ServerPlayer other = SelfDeliveryTests.invoker(helper, GooTypes.QUANTUM);
         KnownRecipes.teachRequires(other, AbilityRegistry.of(level).getAbility(Identifier.parse(PORTAL)));
         standAt(helper, other, Vec3.atBottomCenterOf(AWAY));
-        Portal wallIn = castAt(helper, other, FIRST, Direction.SOUTH);
-        Portal wallOut = castAt(helper, other, SECOND, Direction.NORTH);
+        Portal wallIn = castAt(helper, other, FIRST, Direction.SOUTH, PortalColor.BLUE);
+        Portal wallOut = castAt(helper, other, SECOND, Direction.NORTH, PortalColor.ORANGE);
         helper.assertTrue(QuantumPortals.get(level).partnerOf(wallIn).equals(Optional.of(wallOut))
                 && QuantumPortals.get(level).partnerOf(in).isPresent(), "Both pairs should stand linked");
         Pig pig = helper.spawn(EntityType.PIG, A_BLOCK_OFF);
@@ -583,8 +474,8 @@ public final class PortalTests {
                 FIRST.above(2), FIRST.west().above(2), FIRST.east().above(2))) {
             helper.setBlock(side, Blocks.STONE);
         }
-        Portal in = castAt(helper, owner, FIRST, Direction.SOUTH);
-        Portal out = castAt(helper, owner, SECOND, Direction.NORTH);
+        Portal in = castAt(helper, owner, FIRST, Direction.SOUTH, PortalColor.BLUE);
+        Portal out = castAt(helper, owner, SECOND, Direction.NORTH, PortalColor.ORANGE);
         helper.assertTrue(QuantumPortals.get(helper.getLevel()).partnerOf(in).equals(Optional.of(out)),
                 "The pair should stand linked");
         return in;
@@ -696,13 +587,13 @@ public final class PortalTests {
     /** How high the glass around a fenced-in frame stands, past a pig's jump. */
     private static final int FENCE_HEIGHT = 2;
 
-    /** Lays a floor frame on two stone blocks running south from a cell, placed for an owner. */
-    private static Portal floorAt(GameTestHelper helper, ServerPlayer owner, BlockPos first) {
+    /** Lays a floor frame of a color on two stone blocks running south from a cell, placed for an owner. */
+    private static Portal floorAt(GameTestHelper helper, ServerPlayer owner, BlockPos first, PortalColor color) {
         helper.setBlock(first, Blocks.STONE);
         helper.setBlock(first.south(), Blocks.STONE);
         Portal portal = new Portal(GlobalPos.of(helper.getLevel().dimension(), helper.absolutePos(first)),
-                Direction.UP, Direction.SOUTH, PortalColor.BLUE);
-        PortalChoice.place(helper.getLevel(), owner.getUUID(), portal);
+                Direction.UP, Direction.SOUTH, color);
+        PortalPairs.place(helper.getLevel(), owner.getUUID(), portal);
         return portal;
     }
 
@@ -733,14 +624,13 @@ public final class PortalTests {
         ServerPlayer player = SelfDeliveryTests.invoker(helper, GooTypes.QUANTUM);
         KnownRecipes.teachRequires(player, AbilityRegistry.of(level).getAbility(Identifier.parse(PORTAL)));
         standAt(helper, player, Vec3.atBottomCenterOf(AWAY));
-        Portal near = castAt(helper, player, FIRST, Direction.SOUTH);
+        Portal near = castAt(helper, player, FIRST, Direction.SOUTH, PortalColor.BLUE);
         BlockPos farBlock = helper.absolutePos(FIRST).east(FAR);
         level.setBlockAndUpdate(farBlock, Blocks.STONE.defaultBlockState());
         level.setBlockAndUpdate(farBlock.above(), Blocks.STONE.defaultBlockState());
-        Portal far = new Portal(GlobalPos.of(level.dimension(), farBlock), Direction.SOUTH, Direction.UP, PortalColor.BLUE);
-        PortalChoice.place(level, player.getUUID(), far);
-        PortalChoice.choose(player, Optional.of(near));
-        PortalChoice.link(player, far);
+        Portal far = new Portal(GlobalPos.of(level.dimension(), farBlock), Direction.SOUTH, Direction.UP,
+                PortalColor.ORANGE);
+        PortalPairs.place(level, player.getUUID(), far);
         standAt(helper, player, A_BLOCK_OFF);
         player.setYRot(NORTH);
         player.setXRot(LOOK_DOWN);
@@ -781,13 +671,11 @@ public final class PortalTests {
         ServerPlayer onlooker = SelfDeliveryTests.invoker(helper, GooTypes.QUANTUM);
         KnownRecipes.teachRequires(owner, AbilityRegistry.of(level).getAbility(Identifier.parse(PORTAL)));
         standAt(helper, owner, Vec3.atBottomCenterOf(AWAY));
-        Portal first = castAt(helper, owner, FIRST, Direction.SOUTH);
-        Portal second = castAt(helper, owner, SECOND, Direction.NORTH);
-        PortalChoice.choose(owner, Optional.of(first));
-        PortalChoice.link(owner, second);
-        helper.assertTrue(PortalChoice.syncFor(onlooker).links().contains(new QuantumPortals.Link(first, second)),
+        Portal first = castAt(helper, owner, FIRST, Direction.SOUTH, PortalColor.BLUE);
+        Portal second = castAt(helper, owner, SECOND, Direction.NORTH, PortalColor.ORANGE);
+        helper.assertTrue(PortalPairs.syncFor(onlooker).links().contains(new QuantumPortals.Link(first, second)),
                 "The sync a player who linked nothing receives should carry another player's link, carries "
-                        + PortalChoice.syncFor(onlooker).links());
+                        + PortalPairs.syncFor(onlooker).links());
         level.getServer().getPlayerList().remove(owner);
         level.getServer().getPlayerList().remove(onlooker);
         helper.succeed();
@@ -812,10 +700,8 @@ public final class PortalTests {
         ServerLevel level = helper.getLevel();
         ServerPlayer owner = SelfDeliveryTests.invoker(helper, GooTypes.QUANTUM);
         standAt(helper, owner, Vec3.atBottomCenterOf(AWAY));
-        Portal entry = castAt(helper, owner, FIRST, Direction.SOUTH);
-        Portal exit = castAt(helper, owner, SECOND, Direction.NORTH);
-        PortalChoice.choose(owner, Optional.of(entry));
-        PortalChoice.link(owner, exit);
+        Portal entry = castAt(helper, owner, FIRST, Direction.SOUTH, PortalColor.BLUE);
+        Portal exit = castAt(helper, owner, SECOND, Direction.NORTH, PortalColor.ORANGE);
         Vec3 from = helper.absoluteVec(ARROW_FROM);
         Arrow arrow = new Arrow(level, from.x(), from.y(), from.z(), new ItemStack(Items.ARROW), null);
         arrow.setDeltaMovement(0, 0, -ARROW_SPEED);
@@ -872,17 +758,16 @@ public final class PortalTests {
         player.getInventory().add(GooStacks.createForOutput(GooTypes.CRYSTAL, PRISM_GOO * GooStacks.THOUSAND));
         KnownRecipes.teachRequires(player, AbilityRegistry.of(level).getAbility(CRYSTAL_PRISM));
         standAt(helper, player, A_BLOCK_OFF);
-        Portal near = castAt(helper, player, FIRST, Direction.SOUTH);
+        Portal near = castAt(helper, player, FIRST, Direction.SOUTH, PortalColor.BLUE);
         BlockPos farBlock = helper.absolutePos(FIRST).east(FAR);
         level.setBlockAndUpdate(farBlock, Blocks.STONE.defaultBlockState());
         level.setBlockAndUpdate(farBlock.above(), Blocks.STONE.defaultBlockState());
         BlockPos floor = farBlock.south(PAST_THE_PARTNER);
         level.setBlockAndUpdate(floor, Blocks.STONE.defaultBlockState());
         level.setBlockAndUpdate(floor.above(), Blocks.AIR.defaultBlockState());
-        Portal far = new Portal(GlobalPos.of(level.dimension(), farBlock), Direction.SOUTH, Direction.UP, PortalColor.BLUE);
-        PortalChoice.place(level, player.getUUID(), far);
-        PortalChoice.choose(player, Optional.of(near));
-        PortalChoice.link(player, far);
+        Portal far = new Portal(GlobalPos.of(level.dimension(), farBlock), Direction.SOUTH, Direction.UP,
+                PortalColor.ORANGE);
+        PortalPairs.place(level, player.getUUID(), far);
         GooThrowPayload thrown = new GooThrowPayload(GooTypes.id(GooTypes.CRYSTAL), NO_ENTITY, floor,
                 Direction.UP.ordinal(), false, CRYSTAL_PRISM.toString(), player.getEyePosition(),
                 Vec3.atCenterOf(floor).add(0, 0.5, 0)).through(near.gate(), near.gate().center());
@@ -919,7 +804,7 @@ public final class PortalTests {
         player.getInventory().add(GooStacks.createForOutput(GooTypes.WEIRD, PRISM_GOO * GooStacks.THOUSAND));
         KnownRecipes.teachRequires(player, AbilityRegistry.of(level).getAbility(WEIRD_MITOSIS));
         standAt(helper, player, A_BLOCK_OFF);
-        Portal near = castAt(helper, player, FIRST, Direction.SOUTH);
+        Portal near = castAt(helper, player, FIRST, Direction.SOUTH, PortalColor.BLUE);
         // A hostile mob with no player within 128 blocks despawns on its first tick, so the far side stands
         // within the 32 blocks where no mob despawns at all.
         BlockPos farBlock = helper.absolutePos(FIRST).east(SLIME_FAR);
@@ -932,10 +817,9 @@ public final class PortalTests {
         level.setBlockAndUpdate(floor, Blocks.STONE.defaultBlockState());
         level.setBlockAndUpdate(floor.above(), Blocks.AIR.defaultBlockState());
         level.setBlockAndUpdate(floor.above(2), Blocks.AIR.defaultBlockState());
-        Portal far = new Portal(GlobalPos.of(level.dimension(), farBlock), Direction.SOUTH, Direction.UP, PortalColor.BLUE);
-        PortalChoice.place(level, player.getUUID(), far);
-        PortalChoice.choose(player, Optional.of(near));
-        PortalChoice.link(player, far);
+        Portal far = new Portal(GlobalPos.of(level.dimension(), farBlock), Direction.SOUTH, Direction.UP,
+                PortalColor.ORANGE);
+        PortalPairs.place(level, player.getUUID(), far);
         Vec3 landing = Vec3.atBottomCenterOf(floor.above());
         GooThrowHandler.execute(player, new GooThrowPayload(GooTypes.id(GooTypes.WEIRD), NO_ENTITY, floor,
                 Direction.UP.ordinal(), false, WEIRD_MITOSIS.toString(), player.getEyePosition(),
@@ -987,19 +871,19 @@ public final class PortalTests {
         ServerPlayer onlooker = SelfDeliveryTests.invoker(helper, GooTypes.QUANTUM);
         UUID owner = UUID.randomUUID();
         Portal entry = netherFrame(nether, NETHER_PAIR);
-        Portal exit = netherFrame(nether, NETHER_PAIR.east(NETHER_APART));
-        PortalChoice.place(nether, owner, entry);
-        PortalChoice.place(nether, owner, exit);
+        Portal exit = netherFrame(nether, NETHER_PAIR.east(NETHER_APART)).withColor(PortalColor.ORANGE);
+        PortalPairs.place(nether, owner, entry);
+        PortalPairs.place(nether, owner, exit);
         QuantumPortals.Link link = new QuantumPortals.Link(entry, exit);
-        helper.assertFalse(PortalChoice.lastSentTo(onlooker).map(sync -> sync.links().contains(link)).orElse(false),
+        helper.assertFalse(PortalPairs.lastSentTo(onlooker).map(sync -> sync.links().contains(link)).orElse(false),
                 "A player in the Overworld should be told no link in the Nether");
         Vec3 there = Vec3.atBottomCenterOf(NETHER_PAIR.south(2));
         // Read in the same tick as the move, before another test's link resyncs every player.
         onlooker.teleportTo(nether, there.x(), there.y(), there.z(), Set.of(), 0F, 0F, false);
-        boolean told = PortalChoice.lastSentTo(onlooker).map(sync -> sync.links().contains(link)).orElse(false);
-        Optional<List<QuantumPortals.Link>> links = PortalChoice.lastSentTo(onlooker).map(PortalsSyncPayload::links);
-        PortalChoice.breakAt(nether, entry.block().pos(), entry.face());
-        PortalChoice.breakAt(nether, exit.block().pos(), exit.face());
+        boolean told = PortalPairs.lastSentTo(onlooker).map(sync -> sync.links().contains(link)).orElse(false);
+        Optional<List<QuantumPortals.Link>> links = PortalPairs.lastSentTo(onlooker).map(PortalsSyncPayload::links);
+        PortalPairs.breakAt(nether, entry.block().pos(), entry.face());
+        PortalPairs.breakAt(nether, exit.block().pos(), exit.face());
         helper.getLevel().getServer().getPlayerList().remove(onlooker);
         helper.assertTrue(told, "A player gone to the Nether should be told the link there, told " + links);
         helper.succeed();
@@ -1026,7 +910,7 @@ public final class PortalTests {
         ServerPlayer player = SelfDeliveryTests.invoker(helper, GooTypes.QUANTUM);
         KnownRecipes.teachRequires(player, AbilityRegistry.of(level).getAbility(Identifier.parse(PORTAL)));
         player.setGameMode(GameType.CREATIVE);
-        Portal portal = castAt(helper, player, FIRST, Direction.SOUTH);
+        Portal portal = castAt(helper, player, FIRST, Direction.SOUTH, PortalColor.BLUE);
         standAt(helper, player, A_BLOCK_OFF);
         player.gameMode.handleBlockBreakAction(helper.absolutePos(FIRST.above()),
                 ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, Direction.SOUTH, level.getMaxY(), 0);
@@ -1061,32 +945,28 @@ public final class PortalTests {
     }
 
     /**
-     * Places three wall frames, links two by choosing, shows a step a block
-     * off carries no one and a step against the face carries, and relinks.
+     * A blue cast and an orange one place two frames two blocks tall, linked,
+     * both chunks tethered; a step a block off the blue face carries no one,
+     * a step through it carries the player out of the orange one, and a
+     * second blue cast moves the blue portal, linking it to the orange and
+     * moving the tether with it
+     * (decisions player-holds-one-pair-of-portals, portals-link-by-looking-through-portal-vision).
      *
      * @param helper the gametest helper
      */
-    public static void placeChooseLinkAndCarry(GameTestHelper helper) {
+    public static void placeAPairAndCarry(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         ServerPlayer player = SelfDeliveryTests.invoker(helper, GooTypes.QUANTUM);
+        player.getInventory().add(GooStacks.createForOutput(GooTypes.QUANTUM, GooStacks.THOUSAND));
         KnownRecipes.teachRequires(player, AbilityRegistry.of(level).getAbility(Identifier.parse(PORTAL)));
         standAt(helper, player, Vec3.atBottomCenterOf(AWAY));
-        Portal first = castAt(helper, player, FIRST, Direction.SOUTH);
-        Portal second = castAt(helper, player, SECOND, Direction.NORTH);
-        Portal third = castAt(helper, player, THIRD, Direction.SOUTH);
+        Portal first = castAt(helper, player, FIRST, Direction.SOUTH, PortalColor.BLUE);
+        Portal second = castAt(helper, player, SECOND, Direction.NORTH, PortalColor.ORANGE);
         QuantumPortals portals = QuantumPortals.get(level);
-        helper.assertTrue(Set.copyOf(portals.portalsOf(player.getUUID())).equals(Set.of(first, second, third)),
-                "Three casts should place three frames two tall, holds " + portals.portalsOf(player.getUUID()));
-
-        PortalChoice.choose(player, Optional.of(first));
-        helper.assertTrue(portals.choosing(player.getUUID()).equals(Optional.of(first)),
-                "Right clicking a portal with Portal in hand should enter choosing for it");
-        PortalChoice.link(player, second);
-        helper.assertTrue(portals.linksOf(player.getUUID()).contains(new QuantumPortals.Link(first, second)),
-                "The portal chosen from should be the blue entry portal, holds " + portals.linksOf(player.getUUID()));
+        helper.assertTrue(portals.portalsOf(player.getUUID()).equals(List.of(first, second)),
+                "A blue and an orange cast should place two frames two tall, holds " + portals.portalsOf(player.getUUID()));
         helper.assertTrue(portals.partnerOf(first).equals(Optional.of(second)),
-                "Linking should pair the chosen portal with the one right clicked");
-        helper.assertTrue(portals.choosing(player.getUUID()).isEmpty(), "A link landing should end choosing");
+                "The blue and the orange portal should stand linked");
         assertTethered(helper, player, first);
         assertTethered(helper, player, second);
 
@@ -1103,35 +983,40 @@ public final class PortalTests {
         });
         helper.runAfterDelay(STEP * 3, () -> {
             assertOutOf(helper, player, OUT_OF_THE_SECOND);
-            PortalChoice.choose(player, Optional.of(second));
-            PortalChoice.link(player, third);
-            helper.assertTrue(portals.partnerOf(first).isEmpty(), "A later link should unlink the earlier pair");
+            standAt(helper, player, Vec3.atBottomCenterOf(AWAY));
+            Portal third = castAt(helper, player, THIRD, Direction.SOUTH, PortalColor.BLUE);
+            helper.assertTrue(portals.portalAt(first.block(), first.face()).isEmpty(),
+                    "A second blue cast should move the blue portal from where it stood");
             helper.assertTrue(portals.partnerOf(second).equals(Optional.of(third)),
-                    "The later link should pair the two it names");
+                    "The moved blue portal should link to the orange one");
             assertTethered(helper, player, third);
             ChunkPos firstChunk = ChunkPos.containing(first.block().pos());
             if (!firstChunk.equals(ChunkPos.containing(second.block().pos()))
                     && !firstChunk.equals(ChunkPos.containing(third.block().pos()))) {
                 helper.assertFalse(PortalTether.CONTROLLER.forceChunk(level, player.getUUID(), firstChunk.x(),
-                        firstChunk.z(), false, true), "The unlinked portal's chunk should hold no tether");
+                        firstChunk.z(), false, true), "The moved portal's old chunk should hold no tether");
             }
+            PortalPairs.breakAt(level, third.block().pos(), third.face());
+            PortalPairs.breakAt(level, second.block().pos(), second.face());
             level.getServer().getPlayerList().remove(player);
             helper.succeed();
         });
     }
 
-    /** Builds a two-tall stone wall at a cell and casts a blue portal on its face, answering the frame expected. */
-    private static Portal castAt(GameTestHelper helper, ServerPlayer caster, BlockPos lower, Direction face) {
+    /** Builds a two-tall stone wall at a cell and casts a portal of a color on its face, answering the frame expected. */
+    private static Portal castAt(GameTestHelper helper, ServerPlayer caster, BlockPos lower, Direction face,
+                                 PortalColor color) {
         helper.setBlock(lower, Blocks.STONE);
         helper.setBlock(lower.above(), Blocks.STONE);
-        castBlue(helper, caster, lower, face);
+        castShot(helper, caster, lower, face, color);
         return new Portal(GlobalPos.of(helper.getLevel().dimension(), helper.absolutePos(lower)), face, Direction.UP,
-                PortalColor.BLUE);
+                color);
     }
 
-    /** Lands a blue Portal shot's program on a block's face. */
-    private static void castBlue(GameTestHelper helper, ServerPlayer caster, BlockPos struck, Direction face) {
-        PortalShots.casting(caster.getUUID(), PortalColor.BLUE, () -> GooEffectScheduler.applyEffect(
+    /** Lands a Portal shot's program of a color on a block's face. */
+    private static void castShot(GameTestHelper helper, ServerPlayer caster, BlockPos struck, Direction face,
+                                 PortalColor color) {
+        PortalShots.casting(caster.getUUID(), color, () -> GooEffectScheduler.applyEffect(
                 new PendingEffect(0, helper.getLevel(), caster, GooTypes.QUANTUM, NO_ENTITY, helper.absolutePos(struck),
                         face, PORTAL)));
     }
