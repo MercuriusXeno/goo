@@ -39,8 +39,8 @@ class HeldEffectIconsTest {
 
     private static final String SIGHT_ICON = "textures/goo/ability/shroom_sight.png";
     private static final List<ResourceKey<GooTypeDefinition>> GRANTING_NONE = List.of(
-            GooTypes.ASTRAL, GooTypes.FROST, GooTypes.HEX, GooTypes.INFINITY, GooTypes.METAL, GooTypes.OPULENT,
-            GooTypes.PULSE, GooTypes.QUANTUM, GooTypes.UNSTABLE, GooTypes.VOID, GooTypes.WEIRD, GooTypes.ZOMBIE);
+            GooTypes.ASTRAL, GooTypes.FROST, GooTypes.HEX, GooTypes.INFINITY, GooTypes.METAL, GooTypes.NETHER,
+            GooTypes.OPULENT, GooTypes.PULSE, GooTypes.QUANTUM, GooTypes.UNSTABLE, GooTypes.VOID, GooTypes.WEIRD);
 
     private static AbilityRegistry shipped;
     private Map<ResourceKey<GooTypeDefinition>, IClientMobEffectExtensions> extensions;

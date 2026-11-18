@@ -42,7 +42,7 @@ class IconFrontHeartSpritesTest {
     private static final int ICON_SHIFT_Y = 8;
 
     @ParameterizedTest
-    @CsvSource({"ancient, yore_ancient", "zombie, nether_undead"})
+    @CsvSource({"ancient, yore_ancient", "zombie, zombie_undead"})
     void fullHeartIsTheIconsFrontHeart(String heart, String ability) throws IOException {
         BufferedImage full = read(HEARTS + heart + "_full.png");
         BufferedImage icon = read(ICONS + ability + ".png");
