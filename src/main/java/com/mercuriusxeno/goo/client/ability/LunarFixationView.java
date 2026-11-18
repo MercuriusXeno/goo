@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.ability.astral.LunarFixation;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Input;
 import net.minecraft.world.phys.Vec2;
 import net.neoforged.api.distmarker.Dist;
@@ -58,9 +59,23 @@ public final class LunarFixationView {
             return;
         }
         heldLook = lookOnTick(heldLook, fixation, player.getXRot(), player.getYRot());
-        player.setXRot(heldLook.pitch());
-        player.setYRot(heldLook.yaw());
-        player.setYHeadRot(heldLook.yaw());
+        holdView(player, heldLook);
+    }
+
+    /**
+     * Sets a held caster's look this tick and the last tick's look both to the look they hold, so nothing drawn
+     * between the two turns as the hold takes.
+     * decision diagnose-and-correct-the-moon-twitch-on-the-first-grab
+     *
+     * @param caster the held caster
+     * @param look   the look they hold
+     */
+    static void holdView(Entity caster, HeldLook look) {
+        caster.setXRot(look.pitch());
+        caster.setYRot(look.yaw());
+        caster.setYHeadRot(look.yaw());
+        caster.xRotO = look.pitch();
+        caster.yRotO = look.yaw();
     }
 
     /**

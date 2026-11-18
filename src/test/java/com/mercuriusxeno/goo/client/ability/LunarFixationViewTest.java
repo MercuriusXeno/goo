@@ -11,6 +11,7 @@ import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.client.event.ComputeFovModifierEvent;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.mockito.Answers;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
@@ -174,6 +175,57 @@ class LunarFixationViewTest {
         @Test
         void aLookAtTheDiscsEdgeRightOfThePlanetsCenterStaysWhereItWas() {
             assertLookHeldEveryTick(onPlanet, centerPitch, centerYaw + edgeYaw);
+        }
+    }
+
+    /**
+     * decision diagnose-and-correct-the-moon-twitch-on-the-first-grab
+     */
+    @Nested
+    class AsTheHoldTakes {
+        private static final float HELD_PITCH = -60F;
+        private static final float HELD_YAW = 120F;
+        private static final double MOUSE_PUSH = 40.0;
+        private static final int TICKS = 4;
+
+        /**
+         * Runs a client tick as the caster's client does: the last tick's look kept, the mouse turning the caster
+         * between ticks, and the view's hold at the tick's end.
+         *
+         * @param caster     the held caster
+         * @param kept       the look kept from the tick before
+         * @param fixation   the fixation holding them
+         * @param mouseTurns whether the mouse turns them this tick
+         * @return the look kept
+         */
+        private static LunarFixationView.HeldLook tick(Player caster, LunarFixationView.HeldLook kept,
+                LunarFixation fixation, boolean mouseTurns) {
+            caster.xRotO = caster.getXRot();
+            caster.yRotO = caster.getYRot();
+            if (mouseTurns) {
+                caster.turn(MOUSE_PUSH, MOUSE_PUSH);
+            }
+            LunarFixationView.HeldLook look = LunarFixationView.lookOnTick(kept, fixation, caster.getXRot(),
+                    caster.getYRot());
+            LunarFixationView.holdView(caster, look);
+            return look;
+        }
+
+        @Test
+        void thisTicksAndTheLastTicksLookStayOnTheLookHeldBeforeTheFixationArrived() {
+            Player caster = mock(Player.class, Answers.CALLS_REAL_METHODS);
+            caster.setXRot(HELD_PITCH);
+            caster.setYRot(HELD_YAW);
+            LunarFixation fixation = fixationOn(LunarSight.Sky.MOON, LunarSight.moonDirection(0F));
+            LunarFixationView.HeldLook look = LunarFixationView.HeldLook.NONE;
+            for (int tick = 0; tick <= TICKS; tick++) {
+                look = tick(caster, look, fixation, tick > 0);
+                assertAll("tick " + tick + " after the fixation arrived",
+                        () -> assertEquals(HELD_PITCH, caster.getXRot(), EXACT, "this tick's pitch"),
+                        () -> assertEquals(HELD_YAW, caster.getYRot(), EXACT, "this tick's yaw"),
+                        () -> assertEquals(HELD_PITCH, caster.xRotO, EXACT, "the last tick's pitch"),
+                        () -> assertEquals(HELD_YAW, caster.yRotO, EXACT, "the last tick's yaw"));
+            }
         }
     }
 
