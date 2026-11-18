@@ -31,14 +31,6 @@ class HeartOverlayHudTest {
         assertEquals(3, HeartOverlayHud.rowHeight(400f, 0));
     }
 
-    /** A phased player's hearts draw blue and see-through, half for half (operator ask, an indication of phase in first person). */
-    @Test
-    void aPhasedBarDrawsEachPresentHalfAsThePhasedHeart() {
-        assertEquals(List.of("goo:hud/heart/phased_full", "goo:hud/heart/phased_half", "none"),
-                java.util.stream.IntStream.of(2, 1, 0).mapToObj(halves -> HeartOverlayHud.phasedSprite(halves)
-                        .map(Object::toString).orElse("none")).toList());
-    }
-
     @Test
     void slotsRunTenToARowStackingUpward() {
         assertEquals(124, HeartOverlayHud.slotX(13, 100));

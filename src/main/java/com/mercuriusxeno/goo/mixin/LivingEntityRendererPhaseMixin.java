@@ -39,7 +39,7 @@ public abstract class LivingEntityRendererPhaseMixin {
     private void goo$phasedBodyType(LivingEntityRenderState state, boolean isBodyVisible, boolean forceTransparent,
             boolean appearGlowing, CallbackInfoReturnable<RenderType> cir) {
         if (cir.getReturnValue() != null && PhaseLook.isPhased(state)) {
-            cir.setReturnValue(PhaseLook.bodyType(getTextureLocation(state)));
+            cir.setReturnValue(PhaseLook.bodyType(state, getTextureLocation(state)));
         }
     }
 
