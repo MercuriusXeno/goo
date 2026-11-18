@@ -4,17 +4,30 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.ability.AirbornWind;
+import com.mercuriusxeno.goo.client.ability.BeatRings;
+import com.mercuriusxeno.goo.client.ability.CrystalShatterVisual;
 import com.mercuriusxeno.goo.client.ability.FireStream;
+import com.mercuriusxeno.goo.client.ability.FloatPlatform;
 import com.mercuriusxeno.goo.client.ability.GlassKnives;
+import com.mercuriusxeno.goo.client.ability.GroundShake;
 import com.mercuriusxeno.goo.client.ability.GrowthBreeze;
+import com.mercuriusxeno.goo.client.ability.HeadMarks;
 import com.mercuriusxeno.goo.client.ability.HeatWaveEffect;
+import com.mercuriusxeno.goo.client.ability.HeldSweepVisual;
 import com.mercuriusxeno.goo.client.ability.HoveringKnives;
 import com.mercuriusxeno.goo.client.ability.LaserScorch;
 import com.mercuriusxeno.goo.client.ability.LaserVisual;
+import com.mercuriusxeno.goo.client.ability.LevelCursor;
+import com.mercuriusxeno.goo.client.ability.MeteorMarkers;
+import com.mercuriusxeno.goo.client.ability.MeteorScorches;
 import com.mercuriusxeno.goo.client.ability.MiasmaVortex;
+import com.mercuriusxeno.goo.client.ability.NovaChargeGhost;
+import com.mercuriusxeno.goo.client.ability.NovaRings;
+import com.mercuriusxeno.goo.client.ability.PetrifyFog;
 import com.mercuriusxeno.goo.client.ability.PneumaWind;
 import com.mercuriusxeno.goo.client.ability.ReapSlashBlades;
 import com.mercuriusxeno.goo.client.ability.RelayLasers;
+import com.mercuriusxeno.goo.client.ability.SignalRings;
 import com.mercuriusxeno.goo.client.ability.SpikesBristle;
 import com.mercuriusxeno.goo.client.ability.SpikesRise;
 import com.mercuriusxeno.goo.client.ability.WindLines;
@@ -65,7 +78,21 @@ public final class TranslucentVisualPath {
             new Registration(HeatWaveEffect.class, SortRoute.SCREEN_SPACE, HeatWaveEffect::collect),
             new Registration(WispGlow.class, SortRoute.FAR_TO_NEAR, WispGlow::collect),
             new Registration(SpikesBristle.class, SortRoute.OPAQUE_SHAPE, SpikesBristle::collect),
-            new Registration(SpikesRise.class, SortRoute.OPAQUE_SHAPE, SpikesRise::collect));
+            new Registration(SpikesRise.class, SortRoute.OPAQUE_SHAPE, SpikesRise::collect),
+            new Registration(BeatRings.class, SortRoute.FAR_TO_NEAR, BeatRings::collect),
+            new Registration(NovaRings.class, SortRoute.FAR_TO_NEAR, NovaRings::collect),
+            new Registration(NovaChargeGhost.class, SortRoute.FAR_TO_NEAR, NovaChargeGhost::collect),
+            new Registration(SignalRings.class, SortRoute.FAR_TO_NEAR, SignalRings::collect),
+            new Registration(GroundShake.class, SortRoute.OPAQUE_SHAPE, GroundShake::collect),
+            new Registration(MeteorMarkers.class, SortRoute.ON_OPAQUE_FACES, MeteorMarkers::collect),
+            new Registration(MeteorScorches.class, SortRoute.ON_OPAQUE_FACES, MeteorScorches::collect),
+            new Registration(PetrifyFog.class, SortRoute.FAR_TO_NEAR, PetrifyFog::collect),
+            new Registration(FloatPlatform.class, SortRoute.FAR_TO_NEAR, FloatPlatform::collect),
+            new Registration(CrystalShatterVisual.class, SortRoute.FAR_TO_NEAR, CrystalShatterVisual::collect),
+            new Registration(HeldSweepVisual.class, SortRoute.FAR_TO_NEAR, HeldSweepVisual::collect),
+            new Registration(HeldSweepVisual.class, SortRoute.THROUGH_BLOCKS, HeldSweepVisual::collectFaces),
+            new Registration(LevelCursor.class, SortRoute.FAR_TO_NEAR, LevelCursor::collect),
+            new Registration(HeadMarks.class, SortRoute.THROUGH_BLOCKS, HeadMarks::collect));
 
     private TranslucentVisualPath() {
     }

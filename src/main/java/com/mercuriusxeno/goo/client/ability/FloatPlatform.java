@@ -1,19 +1,20 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.LineContext;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * Float's platform: under every floating mob in sight, flat mint squares,
@@ -22,7 +23,6 @@ import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
  * mob up. The whole platform fades over the float's last ticks.
  * float-blob-levitates-the-mob
  */
-@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class FloatPlatform {
 
     /** Squares in flight at once, evenly staggered along the drop. */
@@ -49,27 +49,47 @@ public final class FloatPlatform {
     }
 
     /**
-     * Draws each floating mob's platform after the translucent blocks.
+     * Hands the shared path every floating mob's platform, sorted by the
+     * nearest floating mob's feet.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
      *
-     * @param event the level render stage event
+     * @param frame the frame being drawn
+     * @param draws where the platforms' draw goes
      */
-    @SubscribeEvent
-    public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) {
+            return;
+        }
+        List<LivingEntity> floating = floating(mc.level);
+        if (floating.isEmpty()) {
             return;
         }
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         float gameTime = mc.level.getGameTime() + partialTick;
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
-        LineContext lines = new LineContext(event.getPoseStack().last(), buffers.getBuffer(GooRenderTypes.LINES_GLOW));
-        float width = mc.getWindow().getAppropriateLineWidth() * WIDTH_SCALE;
-        for (Entity entity : mc.level.entitiesForRendering()) {
+        draws.accept(SortedDraw.nearestOf(floating.stream().map(living -> living.getPosition(partialTick)), camera,
+                () -> drawPlatforms(mc, frame, floating, camera, partialTick, gameTime)));
+    }
+
+    private static List<LivingEntity> floating(ClientLevel level) {
+        List<LivingEntity> floating = new ArrayList<>();
+        for (Entity entity : level.entitiesForRendering()) {
             if (entity instanceof LivingEntity living && !living.isInvisible()
                     && living.hasData(GooAttachments.FLOATING)) {
-                drawPlatform(lines, living, camera, width, partialTick, gameTime);
+                floating.add(living);
             }
+        }
+        return floating;
+    }
+
+    private static void drawPlatforms(Minecraft mc, LevelFrame frame, List<LivingEntity> floating, Vec3 camera,
+                                      float partialTick, float gameTime) {
+        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        LineContext lines = new LineContext(frame.poseStack().last(), buffers.getBuffer(GooRenderTypes.LINES_GLOW));
+        float width = mc.getWindow().getAppropriateLineWidth() * WIDTH_SCALE;
+        for (LivingEntity living : floating) {
+            drawPlatform(lines, living, camera, width, partialTick, gameTime);
         }
         buffers.endBatch(GooRenderTypes.LINES_GLOW);
     }

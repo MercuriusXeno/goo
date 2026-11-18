@@ -1,7 +1,8 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.network.MeteorScorchPayload;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -13,13 +14,10 @@ import net.minecraft.core.Direction;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 /**
@@ -28,7 +26,6 @@ import java.util.function.Predicate;
  * fading to nothing over about four seconds; no block changes.
  * decision meteo-winds-up-then-drops-in-a-second-trailing-fire
  */
-@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class MeteorScorches {
 
     /** Ticks the scorch takes to fade to nothing: about four seconds (operator ruling 2026-11-06). */
@@ -150,28 +147,37 @@ public final class MeteorScorches {
     }
 
     /**
-     * Draws every scorch once the world has drawn, reading each crater once
-     * its blocks have settled, and drops the scorches that have faded.
+     * Drops the scorches that have faded, reads each crater once its blocks
+     * have settled, and hands the shared path every scorch, to draw on its
+     * opaque-face route right after the faces it lies flush on, whose depth
+     * already stands, so the scorches sort as one batch.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
      *
-     * @param event the level render stage event
+     * @param frame the frame being drawn
+     * @param draws where the scorches' draw goes
      */
-    @SubscribeEvent
-    public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || SCORCHES.isEmpty()) {
             return;
         }
         long now = mc.level.getGameTime();
         SCORCHES.removeIf(scorch -> strengthAt(now - scorch.struckAt()) <= 0f);
-        Vec3 camera = mc.gameRenderer.getMainCamera().position();
-        PoseStack.Pose pose = event.getPoseStack().last();
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
-        VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.METEOR_SCORCH_TYPE);
         for (Scorch scorch : SCORCHES) {
             // a crater with no open face reads again each frame until its scorch fades, a few hundred blocks
             if (scorch.blocks().isEmpty() && now - scorch.struckAt() >= SETTLE_TICKS) {
                 readCrater(mc.level, scorch);
             }
+        }
+        List<Scorch> standing = List.copyOf(SCORCHES);
+        draws.accept(new SortedDraw(0, () -> drawScorches(mc, frame.poseStack().last(), standing, now)));
+    }
+
+    private static void drawScorches(Minecraft mc, PoseStack.Pose pose, List<Scorch> standing, long now) {
+        Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.METEOR_SCORCH_TYPE);
+        for (Scorch scorch : standing) {
             drawScorch(pose, consumer, camera, scorch, now - scorch.struckAt());
         }
         buffers.endBatch(GooRenderTypes.METEOR_SCORCH_TYPE);

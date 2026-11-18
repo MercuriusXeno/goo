@@ -3,15 +3,28 @@ package com.mercuriusxeno.goo.client;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.TranslucentVisualPath.Registration;
 import com.mercuriusxeno.goo.client.ability.AirbornWind;
+import com.mercuriusxeno.goo.client.ability.BeatRings;
+import com.mercuriusxeno.goo.client.ability.CrystalShatterVisual;
 import com.mercuriusxeno.goo.client.ability.FireStream;
+import com.mercuriusxeno.goo.client.ability.FloatPlatform;
 import com.mercuriusxeno.goo.client.ability.GlassKnives;
+import com.mercuriusxeno.goo.client.ability.GroundShake;
 import com.mercuriusxeno.goo.client.ability.GrowthBreeze;
+import com.mercuriusxeno.goo.client.ability.HeadMarks;
 import com.mercuriusxeno.goo.client.ability.HeatWaveEffect;
+import com.mercuriusxeno.goo.client.ability.HeldSweepVisual;
 import com.mercuriusxeno.goo.client.ability.HoveringKnives;
 import com.mercuriusxeno.goo.client.ability.LaserScorch;
 import com.mercuriusxeno.goo.client.ability.LaserVisual;
+import com.mercuriusxeno.goo.client.ability.LevelCursor;
+import com.mercuriusxeno.goo.client.ability.MeteorMarkers;
+import com.mercuriusxeno.goo.client.ability.MeteorScorches;
 import com.mercuriusxeno.goo.client.ability.MiasmaVortex;
+import com.mercuriusxeno.goo.client.ability.NovaChargeGhost;
+import com.mercuriusxeno.goo.client.ability.NovaRings;
+import com.mercuriusxeno.goo.client.ability.PetrifyFog;
 import com.mercuriusxeno.goo.client.ability.PneumaWind;
+import com.mercuriusxeno.goo.client.ability.SignalRings;
 import com.mercuriusxeno.goo.client.ability.ReapSlashBlades;
 import com.mercuriusxeno.goo.client.ability.RelayLasers;
 import com.mercuriusxeno.goo.client.ability.SpikesBristle;
@@ -113,6 +126,59 @@ class TranslucentVisualPathTest {
                 () -> assertEquals(List.of(SortRoute.OPAQUE_SHAPE), routesOf(SpikesBristle.class)),
                 () -> assertEquals(List.of(SortRoute.OPAQUE_SHAPE), routesOf(SpikesRise.class)),
                 () -> assertTrue(GooRenderTypes.SPIKES_STEEL.getDepthStencilState().writeDepth()));
+    }
+
+    /**
+     * The ring, marker and ground visuals, each registered under its routes
+     * and drawing through pipelines that test depth, save the parts a
+     * standing ruling shows through blocks.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
+     * decision diagnose-and-correct-translucent-goo-visuals-that-depth-sort-wrong
+     */
+    @Nested
+    class RingMarkerAndGroundVisuals {
+
+        @Test
+        void eachRegistersUnderItsRoutes() {
+            Map<Class<?>, List<SortRoute>> routes = new LinkedHashMap<>();
+            routes.put(BeatRings.class, List.of(SortRoute.FAR_TO_NEAR));
+            routes.put(NovaRings.class, List.of(SortRoute.FAR_TO_NEAR));
+            routes.put(NovaChargeGhost.class, List.of(SortRoute.FAR_TO_NEAR));
+            routes.put(SignalRings.class, List.of(SortRoute.FAR_TO_NEAR));
+            routes.put(GroundShake.class, List.of(SortRoute.OPAQUE_SHAPE));
+            routes.put(MeteorMarkers.class, List.of(SortRoute.ON_OPAQUE_FACES));
+            routes.put(MeteorScorches.class, List.of(SortRoute.ON_OPAQUE_FACES));
+            routes.put(PetrifyFog.class, List.of(SortRoute.FAR_TO_NEAR));
+            routes.put(FloatPlatform.class, List.of(SortRoute.FAR_TO_NEAR));
+            routes.put(CrystalShatterVisual.class, List.of(SortRoute.FAR_TO_NEAR));
+            routes.put(HeldSweepVisual.class, List.of(SortRoute.FAR_TO_NEAR, SortRoute.THROUGH_BLOCKS));
+            routes.put(LevelCursor.class, List.of(SortRoute.FAR_TO_NEAR));
+            routes.put(HeadMarks.class, List.of(SortRoute.THROUGH_BLOCKS));
+            assertAll(routes.entrySet().stream().map(entry -> () -> assertEquals(Set.copyOf(entry.getValue()),
+                    Set.copyOf(routesOf(entry.getKey())), entry.getKey().getSimpleName())));
+        }
+
+        @Test
+        void eachSortedPartTestsDepthAgainstTheLevel() {
+            List<RenderPipeline> sorted = List.of(GooRenderTypes.LINES_ADDITIVE_GLOW, GooRenderTypes.FROST_EXPLOSION,
+                    GooRenderTypes.METEOR_SCORCH, GooRenderTypes.PETRIFY_FOG, GooRenderTypes.CRYSTAL_SHARD,
+                    GooRenderTypes.GLOW_SHELL, GooRenderTypes.ROCK_EXPLOSION);
+            assertAll(sorted.stream().map(pipeline -> () -> assertEquals(CompareOp.LESS_THAN_OR_EQUAL,
+                    pipeline.getDepthStencilState().depthTest(), pipeline.getLocation().toString())));
+        }
+
+        /**
+         * Scry's revealed faces show through walls (decision
+         * held-sweeps-share-one-fast-shell-visual), and so do the head marks,
+         * so a mark never clips into the wall it stands near (operator
+         * ruling 2026-11-18).
+         */
+        @Test
+        void theThroughBlocksPartsPassEveryDepthTest() {
+            assertAll(
+                    () -> assertEquals(CompareOp.ALWAYS_PASS, GooRenderTypes.SCRY_FACES.getDepthStencilState().depthTest()),
+                    () -> assertTrue(RenderPipelines.TEXT_SEE_THROUGH.getDepthStencilState() == null));
+        }
     }
 
     /**
