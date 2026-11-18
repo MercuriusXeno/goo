@@ -26,16 +26,14 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import org.jspecify.annotations.Nullable;
-import java.util.List;
 import java.util.function.Consumer;
 
 /**
  * Gametests for the lingering goo effects a player applies: a mock player applies Toxin through Leaf Bio's
- * landing, Mycosis through its spray and Root through Leaf Vines' landing, and each tick of the effect after the
+ * landing and Mycosis through its spray, and each tick of the effect after the
  * cast hurts the mob with its own damage type naming that player (decisions
  * lingering-goo-effect-credits-whoever-applied-it, goo-hit-keeps-its-kind-and-names-the-player-behind-it). The same
  * effect applied the same way to a mob the player rallied and a mob the player charmed hurts both with its type
@@ -46,14 +44,10 @@ import java.util.function.Consumer;
 public final class LingeringCreditTests {
     private static final String TOXIN_NAMES_THE_APPLIER = "goo_lingering_credit_toxin_names_the_applier";
     private static final String MYCOSIS_NAMES_THE_APPLIER = "goo_lingering_credit_mycosis_names_the_applier";
-    private static final String ROOT_THORNS_NAMES_THE_APPLIER = "goo_lingering_credit_root_thorns_names_the_applier";
     private static final String TOXIN_KEEPS_RALLY_AND_CHARM = "goo_lingering_credit_toxin_keeps_rally_and_charm";
     private static final String MYCOSIS_KEEPS_RALLY_AND_CHARM = "goo_lingering_credit_mycosis_keeps_rally_and_charm";
-    private static final String ROOT_THORNS_KEEPS_RALLY_AND_CHARM =
-            "goo_lingering_credit_root_thorns_keeps_rally_and_charm";
 
     private static final String LEAF_BIO = "goo:leaf_bio";
-    private static final String LEAF_VINES = "goo:leaf_vines";
     private static final Identifier SHROOM_MYCOSIS = Identifier.parse("goo:shroom_mycosis");
 
     /** Where the first afflicted mob stands. */
@@ -65,14 +59,8 @@ public final class LingeringCreditTests {
     private static final float FACING_EAST = -90f;
     /** Pitch down from the eye toward a husk's middle three blocks off. */
     private static final float LOOKING_AT_THE_MOB = 12f;
-    /** The floor the bay's mobs stand on, so the vines' root holds on stone. */
-    private static final int FLOOR_SPAN = 6;
     private static final int SETTLE_TICKS = 1;
     private static final int SPRAY_TICKS = 3;
-    /** Ticks the rooted mobs are shoved east, past the vines' first thorn. */
-    private static final int SHOVE_TICKS = 30;
-    /** A shove far past the leash in one tick. */
-    private static final Vec3 SHOVE = new Vec3(0.6, 0, 0);
     private static final float RALLY_DAMAGE = 6f;
     /** Shroom goo the sprayer holds, thousands: enough to pay for the spray. */
     private static final int HELD_GOO = 25;
@@ -99,14 +87,10 @@ public final class LingeringCreditTests {
         GooTestFunctions.registerTest(registrar, TOXIN_NAMES_THE_APPLIER, LingeringCreditTests::toxinNamesTheApplier);
         GooTestFunctions.registerTest(registrar, MYCOSIS_NAMES_THE_APPLIER,
                 LingeringCreditTests::mycosisNamesTheApplier);
-        GooTestFunctions.registerTest(registrar, ROOT_THORNS_NAMES_THE_APPLIER,
-                LingeringCreditTests::rootThornsNamesTheApplier);
         GooTestFunctions.registerTest(registrar, TOXIN_KEEPS_RALLY_AND_CHARM,
                 LingeringCreditTests::toxinKeepsRallyAndCharm);
         GooTestFunctions.registerTest(registrar, MYCOSIS_KEEPS_RALLY_AND_CHARM,
                 LingeringCreditTests::mycosisKeepsRallyAndCharm);
-        GooTestFunctions.registerTest(registrar, ROOT_THORNS_KEEPS_RALLY_AND_CHARM,
-                LingeringCreditTests::rootThornsKeepsRallyAndCharm);
     }
 
     /**
@@ -133,22 +117,6 @@ public final class LingeringCreditTests {
         ServerPlayer player = sprayer(helper);
         spray(helper, player);
         succeedOnceNamed(helper, player, husk, "Mycosis", DamageTypes.MAGIC);
-    }
-
-    /**
-     * A Leaf Vines blob a mock player threw roots a husk, which is shoved off its root, and the vines' thorns hurt
-     * it with sweet_berry_bush naming the player.
-     *
-     * @param helper the gametest helper
-     */
-    @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
-    public static void rootThornsNamesTheApplier(GameTestHelper helper) {
-        layFloor(helper);
-        Mob husk = helper.spawnWithNoFreeWill(EntityType.HUSK, MOB_POS);
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
-        helper.runAfterDelay(SETTLE_TICKS, () -> land(helper, player, LEAF_VINES, husk));
-        shove(helper, List.of(husk));
-        succeedOnceNamed(helper, player, husk, "Root's thorns", DamageTypes.SWEET_BERRY_BUSH);
     }
 
     /**
@@ -186,27 +154,6 @@ public final class LingeringCreditTests {
     }
 
     /**
-     * Leaf Vines blobs a mock player threw root a husk it rallied and a husk it charmed, both shoved off their
-     * roots, and the vines' thorns hurt both with sweet_berry_bush, leaving the rally and the charm standing.
-     *
-     * @param helper the gametest helper
-     */
-    @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
-    public static void rootThornsKeepsRallyAndCharm(GameTestHelper helper) {
-        layFloor(helper);
-        Mob rallied = helper.spawnWithNoFreeWill(EntityType.HUSK, MOB_POS);
-        Mob charmed = helper.spawnWithNoFreeWill(EntityType.HUSK, SECOND_MOB_POS);
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
-        makeOwn(player, rallied, charmed);
-        helper.runAfterDelay(SETTLE_TICKS, () -> {
-            land(helper, player, LEAF_VINES, rallied);
-            land(helper, player, LEAF_VINES, charmed);
-        });
-        shove(helper, List.of(rallied, charmed));
-        succeedOnceKept(helper, player, "Root's thorns", DamageTypes.SWEET_BERRY_BUSH, rallied, charmed);
-    }
-
-    /**
      * Lands one blob of the ability the player threw on the mob through the scheduler's landing, the path an
      * arrived throw takes.
      *
@@ -220,21 +167,6 @@ public final class LingeringCreditTests {
         helper.assertTrue(ability != null, String.format(ABILITY_REQUIRED, abilityId));
         GooEffectScheduler.applyEffect(new PendingEffect(0, helper.getLevel(), player, ability.gooType(),
                 mob.getId(), mob.blockPosition(), Direction.UP, abilityId));
-    }
-
-    /**
-     * Shoves each mob east every tick past the landing, off the root the vines latched it to.
-     *
-     * @param helper the gametest helper
-     * @param mobs   the rooted mobs
-     */
-    private static void shove(GameTestHelper helper, List<Mob> mobs) {
-        for (int tick = 1; tick <= SHOVE_TICKS; tick++) {
-            helper.runAfterDelay(SETTLE_TICKS + tick, () -> mobs.forEach(mob -> {
-                mob.setDeltaMovement(SHOVE);
-                mob.hurtMarked = true;
-            }));
-        }
     }
 
     private static Mob still(Mob mob) {
@@ -313,14 +245,6 @@ public final class LingeringCreditTests {
                                                        @Nullable DamageSource held) {
         DamageSource now = mob.getLastDamageSource();
         return now != null && now.is(type) ? now : held;
-    }
-
-    private static void layFloor(GameTestHelper helper) {
-        for (int x = 1; x <= FLOOR_SPAN; x++) {
-            for (int z = 1; z <= FLOOR_SPAN; z++) {
-                helper.setBlock(new BlockPos(x, 0, z), Blocks.STONE);
-            }
-        }
     }
 
     private static void spray(GameTestHelper helper, ServerPlayer player) {

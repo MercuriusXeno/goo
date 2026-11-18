@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.program.SoundCue;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
@@ -8,19 +9,27 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.NonNull;
+import java.util.Optional;
 
 /**
- * Server-to-client payload: one of Knives' glass knives left its fan slot
- * homing on its mob, for every client watching to fly it the same way, each
- * tick turning toward where the mob stands on that client.
+ * Server-to-client payload: one of Knives' glass knives, or Dart's javelin, left its hover slot,
+ * for every client watching to fly it along the same projectile flight the
+ * server flies it on.
  * decision knives-sling-then-morph-to-flechettes
- * decision knives-home-on-their-painted-mob
+ * decision knives-and-dart-function-as-projectiles
  *
- * @param start     where it left its fan slot
- * @param mobId     the entity id of the mob it homes on
- * @param lastKnown where the mob stood as the knife left, which the knife flies to should the mob be gone
+ * @param throwerId the thrower's entity id, whom the knife passes through
+ * @param start     where it left its hover slot
+ * @param velocity  its launch velocity, blocks per tick
+ * @param javelinType the goo type id of Dart's javelin, which draws in that goo, or {@link #GLASS} for a glass knife
+ * @param thrownSound the sound the throw makes as it leaves, empty for none
+ * decision knives-and-javelins-sound-as-each-forms-and-is-thrown
  */
-public record GlassKnifePayload(Vec3 start, int mobId, Vec3 lastKnown) implements CustomPacketPayload {
+public record GlassKnifePayload(int throwerId, Vec3 start, Vec3 velocity, String javelinType,
+                                Optional<SoundCue> thrownSound) implements CustomPacketPayload {
+
+    /** The javelin type of a glass knife, which is no javelin. */
+    public static final String GLASS = "";
 
     /** How a knife's flight ends. */
     public enum Ending {
@@ -28,7 +37,7 @@ public record GlassKnifePayload(Vec3 start, int mobId, Vec3 lastKnown) implement
         STUCK,
         /** It strikes a mob and shatters. */
         STRUCK,
-        /** Its mob was gone, or its flight ran out, and it shatters in the air. */
+        /** Its flight ran out, or it left the world, and it shatters in the air. */
         SPENT
     }
 
@@ -38,9 +47,11 @@ public record GlassKnifePayload(Vec3 start, int mobId, Vec3 lastKnown) implement
 
     /** Stream codec for encoding/decoding. */
     public static final StreamCodec<ByteBuf, GlassKnifePayload> STREAM_CODEC = StreamCodec.composite(
+            ByteBufCodecs.VAR_INT, GlassKnifePayload::throwerId,
             Vec3.STREAM_CODEC, GlassKnifePayload::start,
-            ByteBufCodecs.VAR_INT, GlassKnifePayload::mobId,
-            Vec3.STREAM_CODEC, GlassKnifePayload::lastKnown,
+            Vec3.STREAM_CODEC, GlassKnifePayload::velocity,
+            ByteBufCodecs.STRING_UTF8, GlassKnifePayload::javelinType,
+            ByteBufCodecs.optional(SoundCue.STREAM_CODEC), GlassKnifePayload::thrownSound,
             GlassKnifePayload::new);
 
     @Override

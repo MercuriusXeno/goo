@@ -110,13 +110,14 @@ public class GooItems {
     public static final DeferredItem<ExoriteGearItem> EXORITE_BOOTS = registerExoriteArmor("exorite_boots", ArmorType.BOOTS);
     // --- Equipment (gloves: right-click throw / radial select) ---
     public static final DeferredItem<GooGloveItem> GOO_GLOVE = ITEMS.registerItem("goo_glove",
-            props -> new GooGloveItem(props.stacksTo(1).attributes(GooGloveItem.attackModifiers(GloveTier.GLOVE))));
+            props -> new GooGloveItem(props.stacksTo(1).attributes(GooGloveItem.attackModifiers(GloveTier.GLOVE)),
+                    GloveTier.GLOVE));
     public static final DeferredItem<GooGloveItem> GOO_GAUNTLET = ITEMS.registerItem("goo_gauntlet",
             props -> new GooGloveItem(props.stacksTo(1).fireResistant()
-                    .attributes(GooGloveItem.attackModifiers(GloveTier.GAUNTLET))));
+                    .attributes(GooGloveItem.attackModifiers(GloveTier.GAUNTLET)), GloveTier.GAUNTLET));
     public static final DeferredItem<GooGloveItem> EXO_GAUNTLET = ITEMS.registerItem("exo_gauntlet",
             props -> new GooGloveItem(props.stacksTo(1).fireResistant()
-                    .attributes(GooGloveItem.attackModifiers(GloveTier.EXO_GAUNTLET))));
+                    .attributes(GooGloveItem.attackModifiers(GloveTier.EXO_GAUNTLET)), GloveTier.EXO_GAUNTLET));
     // --- Partially Melted Item (crucible intermediate, not in creative tab) ---
     public static final DeferredItem<PartiallyMeltedItem> PARTIALLY_MELTED_ITEM = ITEMS.registerItem(
             "partially_melted_item", props -> new PartiallyMeltedItem(props.stacksTo(1)));

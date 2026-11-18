@@ -4,12 +4,13 @@ import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.ability.ChargeMotes;
 import com.mercuriusxeno.goo.client.ability.GloveGlow;
-import com.mercuriusxeno.goo.client.ability.KnivesCharge;
 import com.mercuriusxeno.goo.client.ability.LiftedPalmBlob;
 import com.mercuriusxeno.goo.client.ability.PalmBlobHop;
 import com.mercuriusxeno.goo.client.ability.PhaseLook;
 import com.mercuriusxeno.goo.client.ability.PhasedHands;
 import com.mercuriusxeno.goo.client.ability.PortalView;
+import com.mercuriusxeno.goo.client.ability.SpraySource;
+import com.mercuriusxeno.goo.client.ability.StackInHand;
 import com.mercuriusxeno.goo.client.throwing.BlobShape;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
 import com.mercuriusxeno.goo.client.throwing.GooFlightRenderer;
@@ -646,8 +647,7 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
         if (type != null && !GloveUseTracker.isSelectedTypeAvailable()) {
             type = null;
         }
-        return new GloveData(stack.getItem(), type, channelGlowOf(type, stack),
-                KnivesCharge.palmScaleAt(KnivesCharge.localPalmShare(stack)),
+        return new GloveData(stack.getItem(), type, channelGlowOf(type, stack), LiftedPalmBlob.restingShareOf(stack),
                 // palm-blob-lifts-as-the-spray-source
                 type != null && LiftedPalmBlob.liftedFrom(stack), LiftedPalmBlob.heldInView(stack));
     }
@@ -667,8 +667,7 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
         if (player != null) {
             handArm = GooCasters.drawnInMainHand(player, stack) ? player.getMainArm() : player.getMainArm().getOpposite();
         }
-        return new GloveData(stack.getItem(), type, channelGlowOf(type, stack),
-                KnivesCharge.palmScaleAt(KnivesCharge.localPalmShare(stack)),
+        return new GloveData(stack.getItem(), type, channelGlowOf(type, stack), LiftedPalmBlob.restingShareOf(stack),
                 type != null && LiftedPalmBlob.liftedFrom(stack), LiftedPalmBlob.heldInView(stack), handArm);
     }
 
@@ -726,10 +725,17 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
      * @param nodeCollector the render node collector
      */
     private static void submitPalm(GloveData data, PoseStack poseStack, SubmitNodeCollector nodeCollector) {
+        boolean beforeTheEyes = data.heldInView() && !PortalView.drawing() && !RoomBodyCopyRenderer.drawingCopies();
+        Vector3f palm = palmCenter(palmShape(REST_SCALE));
+        if (beforeTheEyes) {
+            // palm-blob-lifts-as-the-spray-source: the lifted blob stands straight above where this palm rests
+            SpraySource.recordRestingPalm(poseStack.last().pose(), palm);
+            // knives-hover-above-the-blob-cube-over-the-hand: the stack draws in this pass, with the blob it hovers over
+            StackInHand.submit(poseStack, nodeCollector);
+        }
         if (data.palmLifted()) {
-            Vector3f palm = palmCenter(palmShape(REST_SCALE));
             captureGooCenter(poseStack, palm.x(), palm.y(), palm.z());
-            if (data.heldInView() && !PortalView.drawing() && !RoomBodyCopyRenderer.drawingCopies()) {
+            if (beforeTheEyes) {
                 LiftedPalmBlob.liftHeldInView().ifPresent(lift -> submitLiftedGoo(poseStack, nodeCollector,
                         data.selectedType(), lift));
             }
@@ -757,7 +763,7 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
      * @param item         the glove item instance (determines tier/body model)
      * @param selectedType the selected goo type, or null if none selected
      * @param channelGlow  how strongly the light around the held goo glows while a glow channel holds, zero to one
-     * @param blobScale    the palm blob's size against its rest size, swelling with the local charge
+     * @param blobScale    the palm blob's size against its rest size
      * @param palmLifted   whether the palm blob stands lifted at the holder's spray source, leaving the palm none
      * @param heldInView   whether the local player holds this glove before the eyes in first person, so the
      *                     hand's pass draws its lifted blob

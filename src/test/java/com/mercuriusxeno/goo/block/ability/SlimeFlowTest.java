@@ -1,9 +1,12 @@
 package com.mercuriusxeno.goo.block.ability;
 
 import com.mercuriusxeno.goo.block.ability.SlimeFlow.Side;
+import com.mercuriusxeno.goo.type.Adhesion;
 import net.minecraft.core.Direction;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import java.util.List;
 import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -22,7 +25,7 @@ class SlimeFlowTest {
     /** The cohesion of a goo that levels as flat as whole layers allow. */
     private static final int RUNNY = 0;
     /** The adhesion that holds tops, keeping a cell's last layer where it was laid. */
-    private static final int HOLDS_TOPS = 1;
+    private static final Adhesion HOLDS_TOPS = Adhesion.TOPS;
 
     /**
      * A cell pours only the layers standing above its goo's cohesion step
@@ -123,28 +126,22 @@ class SlimeFlowTest {
     }
 
     /**
-     * A cell's last layer stays where it was laid at adhesion 1 and up, and
-     * runs off an open ledge at adhesion 0 (decision adhesion-is-a-ladder-of-holds).
+     * A cell's last layer stays where it was laid at tops and up, and
+     * runs off an open ledge at slips alone (decision adhesion-is-a-ladder-of-holds).
      */
     @Nested
-    class Adhesion {
+    class LastLayer {
 
-        private static final int CLINGS_TO_NOTHING = 0;
-
-        @Test
-        void aOneLayerCellPoursItsLayerOffALedgeAtAdhesionZero() {
-            assertEquals(Optional.of(Direction.SOUTH),
-                    SlimeFlow.pour(1, RUNNY, CLINGS_TO_NOTHING, List.of(Side.ledge(Direction.SOUTH))));
+        @ParameterizedTest
+        @CsvSource({"SLIPS, true", "TOPS, false", "GELS, false", "CLINGS, false", "HANGS, false"})
+        void aOneLayerCellPoursItsLayerOffALedgeAtSlipsAlone(Adhesion adhesion, boolean runsOff) {
+            assertEquals(runsOff ? Optional.of(Direction.SOUTH) : Optional.empty(),
+                    SlimeFlow.pour(1, RUNNY, adhesion, List.of(Side.ledge(Direction.SOUTH))));
         }
 
         @Test
-        void aOneLayerCellKeepsItsLayerAtALedgeAtAdhesionOne() {
-            assertEquals(Optional.empty(), SlimeFlow.pour(1, RUNNY, HOLDS_TOPS, List.of(Side.ledge(Direction.SOUTH))));
-        }
-
-        @Test
-        void aOneLayerCellWithNoLedgeKeepsItsLayerAtAdhesionZero() {
-            assertEquals(Optional.empty(), SlimeFlow.pour(1, RUNNY, CLINGS_TO_NOTHING,
+        void aOneLayerCellWithNoLedgeKeepsItsLayerAtSlips() {
+            assertEquals(Optional.empty(), SlimeFlow.pour(1, RUNNY, Adhesion.SLIPS,
                     List.of(Side.holds(Direction.NORTH, 0), Side.blocked(Direction.EAST))));
         }
     }

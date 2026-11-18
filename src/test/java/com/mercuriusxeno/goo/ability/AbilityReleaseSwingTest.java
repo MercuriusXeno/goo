@@ -26,7 +26,7 @@ class AbilityReleaseSwingTest {
             Map.entry("crystal_prism", ArmPoseKind.NONE),
             Map.entry("void_hole", ArmPoseKind.NONE),
             Map.entry("deep_click", ArmPoseKind.NONE),
-            Map.entry("rock_spire", ArmPoseKind.NONE),
+            Map.entry("rock_build", ArmPoseKind.NONE),
             Map.entry("hex_charm", ArmPoseKind.NONE),
             Map.entry("typhoon_shulk", ArmPoseKind.NONE),
             Map.entry("yore_rewind", ArmPoseKind.NONE),
@@ -34,13 +34,14 @@ class AbilityReleaseSwingTest {
             Map.entry("zoo_shape", ArmPoseKind.NONE),
             Map.entry("zoo_spawn", ArmPoseKind.NONE),
             Map.entry("glow_bulb", ArmPoseKind.HOLD_OUT),
-            Map.entry("crystal_knives", ArmPoseKind.WIND_UP));
+            Map.entry("quantum_portal", ArmPoseKind.HOLD_OUT),
+            Map.entry("crystal_knives", ArmPoseKind.NONE));
 
     /** Each shipped arc ability that throws a blob from the hand, by file name. */
     private static final Set<String> THROWS_A_BLOB = Set.of(
             "blaze_ignite", "deep_shriek", "ender_seal",
-            "frost_orb", "leaf_bio", "leaf_bloom", "leaf_vines", "metal_dart",
-            "quantum_portal", "quantum_tunnel", "shroom_spore", "unstable_lurker",
+            "frost_orb", "leaf_bio", "leaf_bloom", "metal_dart",
+            "quantum_tunnel", "shroom_spore",
             "void_cancel", "weird_mitosis", "yore_age", "yore_expire", "zoo_allure");
 
     static Stream<String> abilitiesThrowingNoBlob() {

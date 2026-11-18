@@ -66,7 +66,6 @@ public final class GooNetworking {
     private static void registerAbilityVisualPayloads(PayloadRegistrar r) {
         r.playToClient(ChainBurnoutPayload.TYPE, ChainBurnoutPayload.STREAM_CODEC);
         r.playToClient(BlastShardsPayload.TYPE, BlastShardsPayload.STREAM_CODEC);
-        r.playToClient(LurkerPulsePayload.TYPE, LurkerPulsePayload.STREAM_CODEC);
         r.playToClient(SculkerHeardPayload.TYPE, SculkerHeardPayload.STREAM_CODEC);
         r.playToClient(SculkerVibrationPayload.TYPE, SculkerVibrationPayload.STREAM_CODEC);
         registerClientEffectPayloads(r);
@@ -116,7 +115,8 @@ public final class GooNetworking {
         r.playToClient(OreRevealPayload.TYPE, OreRevealPayload.STREAM_CODEC);
         r.playToClient(MeteorScorchPayload.TYPE, MeteorScorchPayload.STREAM_CODEC);
         r.playToClient(GlassKnifePayload.TYPE, GlassKnifePayload.STREAM_CODEC);
-        r.playToClient(KnivesFormedPayload.TYPE, KnivesFormedPayload.STREAM_CODEC);
+        r.playToClient(StackFormedPayload.TYPE, StackFormedPayload.STREAM_CODEC);
+        r.playToClient(PalmBufferPayload.TYPE, PalmBufferPayload.STREAM_CODEC);
         r.playToClient(ArmPosePayload.TYPE, ArmPosePayload.STREAM_CODEC);
         r.playToClient(PalmBlobLiftPayload.TYPE, PalmBlobLiftPayload.STREAM_CODEC);
     }
@@ -131,7 +131,7 @@ public final class GooNetworking {
         r.playToServer(CanisterUnlinkPayload.TYPE, CanisterUnlinkPayload.STREAM_CODEC, CanisterUnlinkHandler::handle);
         r.playToServer(GooThrowPayload.TYPE, GooThrowPayload.STREAM_CODEC, GooThrowHandler::handle);
         r.playToServer(GrabThrowPayload.TYPE, GrabThrowPayload.STREAM_CODEC, GrabThrowPayload::handle);
-        r.playToServer(GooSpirePayload.TYPE, GooSpirePayload.STREAM_CODEC, GooSpireHandler::handle);
+        r.playToServer(GooBuildPayload.TYPE, GooBuildPayload.STREAM_CODEC, GooBuildHandler::handle);
         r.playToServer(GooChargePayload.TYPE, GooChargePayload.STREAM_CODEC, GooThrowHandler::handleCharge);
         r.playToServer(GlovePosePayload.TYPE, GlovePosePayload.STREAM_CODEC, GooThrowHandler::handleGlovePose);
         r.playToServer(PalmBlobChargePayload.TYPE, PalmBlobChargePayload.STREAM_CODEC, PalmBlobChargePayload::handle);
@@ -141,8 +141,7 @@ public final class GooNetworking {
         r.playToServer(PlexerTargetPickPayload.TYPE, PlexerTargetPickPayload.STREAM_CODEC, PlexerTargetPickHandler::handle);
         r.playToServer(WorkbenchRequestPayload.TYPE, WorkbenchRequestPayload.STREAM_CODEC,
                 WorkbenchRequestHandler::handle);
-        r.playToServer(PortalChoosePayload.TYPE, PortalChoosePayload.STREAM_CODEC, PortalChoosePayload::handle);
-        r.playToServer(PortalLinkPayload.TYPE, PortalLinkPayload.STREAM_CODEC, PortalLinkPayload::handle);
+        r.playToServer(PortalShotPayload.TYPE, PortalShotPayload.STREAM_CODEC, PortalShotPayload::handle);
         r.playToServer(GateCrossedPayload.TYPE, GateCrossedPayload.STREAM_CODEC, GateCrossedPayload::handle);
     }
 }

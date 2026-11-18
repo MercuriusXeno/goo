@@ -55,6 +55,8 @@ public final class GooFlightRenderer {
      * slime-core-draws-translucent-at-the-shells-opacity
      */
     private static final int SHELL_ALPHA = 0x4C;
+    /** Half a cuboid's edge. */
+    private static final float HALF_EDGE = 0.5f;
     /**
      * The core's color: 50% opaque over its fluid sprite's own colors.
      * slime-core-draws-translucent-at-the-shells-opacity
@@ -248,6 +250,43 @@ public final class GooFlightRenderer {
     }
 
     /**
+     * Draws a thrown blob as a flight draws it, its core, shell and tail
+     * streaking behind it along its velocity, scaled about its center, its
+     * shell and tail tinted a color of its own; Portal's shot draws through
+     * this at its smaller size, in its portal's color.
+     * operator UAT 2026-11-18: the Portal shot is a real thrown blob, smaller and faster
+     * operator UAT 2026-11-18: quantum goo's color is orange and blue; the shots fire orange on right
+     *
+     * @param poseStack the pose stack, at the blob's center
+     * @param buffers   the buffer source
+     * @param type      the goo type, whose fluid the blob wears
+     * @param gameTime  the level game time in ticks
+     * @param flight    the blob's velocity, blocks per tick, its size against a flight's and its tint
+     */
+    public static void renderThrownBlob(PoseStack poseStack, MultiBufferSource buffers,
+                                        ResourceKey<GooTypeDefinition> type, float gameTime, ShotLook flight) {
+        poseStack.pushPose();
+        poseStack.scale(flight.scale(), flight.scale(), flight.scale());
+        renderCore(poseStack, buffers, type, gameTime);
+        RenderContext ctx = new RenderContext(poseStack.last(), buffers.getBuffer(GooSubmitter.renderType()),
+                GooSubmitter.fullbrightLight());
+        ctx.emitBox(ARGB.color(SHELL_ALPHA, flight.rgb()), boxAbout(BlobShape.CUBE.scaled(SHELL_HW)), spriteToUv(type));
+        emitCrossingTailQuads(poseStack, buffers.getBuffer(GooSubmitter.renderType()),
+                ARGB.color(TAIL_ALPHA, flight.rgb()), buildTailAxes(flight.velocity()), spriteToUv(type));
+        poseStack.popPose();
+    }
+
+    /**
+     * How a thrown blob drawn on its own flies and looks.
+     *
+     * @param velocity the blob's velocity, blocks per tick
+     * @param scale    its size against a flight's, 0 to 1
+     * @param rgb      the tint its shell and tail wear, 0xRRGGBB
+     */
+    public record ShotLook(Vec3 velocity, float scale, int rgb) {
+    }
+
+    /**
      * Draws a goo blob of a type, the core and shell a flight carries,
      * scaled about its center; a model transformation draws its blob
      * through this as it shrinks into the model it becomes
@@ -376,6 +415,32 @@ public final class GooFlightRenderer {
         int color = ARGB.color(SHELL_ALPHA, ClientGooTypes.color(type));
         RenderContext ctx = new RenderContext(pose, c, GooSubmitter.fullbrightLight());
         ctx.emitBox(color, boxAbout(shape.scaled(SHELL_HW)), spriteToUv(type));
+    }
+
+    /**
+     * Emits a cuboid of goo drawn as the palm blob draws, its shell and its
+     * core 3/4 of it, about a point: the cuboid a forming weapon is cut from
+     * the palm blob as. The consumer takes {@link GooSubmitter#renderType()} geometry.
+     * decision weapons-form-from-a-goo-cuboid-leaving-the-palm-blob
+     *
+     * @param pose   the pose the point stands in
+     * @param c      a consumer of the translucent goo render type
+     * @param type   the goo type
+     * @param center the cuboid's middle, in the pose's space
+     * @param edge   the cuboid's edge, in blocks
+     */
+    public static void emitCuboidAt(PoseStack.Pose pose, VertexConsumer c, ResourceKey<GooTypeDefinition> type,
+                                    Vec3 center, float edge) {
+        RenderContext ctx = new RenderContext(pose, c, GooSubmitter.fullbrightLight());
+        float half = edge * HALF_EDGE;
+        ctx.emitBox(CORE_COLOR, boxAbout(center, half * CORE_SHARE_OF_SHELL), spriteToUv(type));
+        ctx.emitBox(ARGB.color(SHELL_ALPHA, ClientGooTypes.color(type)), boxAbout(center, half), spriteToUv(type));
+    }
+
+    // The cube a half edge spans about a point.
+    private static CuboidBounds boxAbout(Vec3 center, float half) {
+        return new CuboidBounds((float) center.x - half, (float) center.x + half, (float) center.z - half,
+                (float) center.z + half, (float) center.y - half, (float) center.y + half);
     }
 
     /**

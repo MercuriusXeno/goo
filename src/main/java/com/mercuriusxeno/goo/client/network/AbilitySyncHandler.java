@@ -9,12 +9,14 @@ import com.mercuriusxeno.goo.ability.AbilityPrice;
 import com.mercuriusxeno.goo.ability.ArmPose;
 import com.mercuriusxeno.goo.ability.ChargeSize;
 import com.mercuriusxeno.goo.ability.Delivery;
+import com.mercuriusxeno.goo.ability.DimensionFace;
 import com.mercuriusxeno.goo.ability.DistancePrice;
 import com.mercuriusxeno.goo.ability.HeldRoute;
 import com.mercuriusxeno.goo.ability.IndicatorShowing;
+import com.mercuriusxeno.goo.ability.ShownFace;
 import com.mercuriusxeno.goo.ability.program.BlinkLanding;
+import com.mercuriusxeno.goo.ability.program.BuildStep;
 import com.mercuriusxeno.goo.ability.program.GougeStep;
-import com.mercuriusxeno.goo.ability.program.SpireStep;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.ZoneStep;
 import com.mercuriusxeno.goo.client.ClientGooValues;
@@ -26,6 +28,7 @@ import com.mercuriusxeno.goo.network.AbilitySyncPayload;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jspecify.annotations.Nullable;
 import java.util.IllegalFormatException;
@@ -126,6 +129,8 @@ public final class AbilitySyncHandler {
      *                    (decision dynamic-costs-keep-the-mb-quantity)
      * @param freeWhile   the self ability whose standing makes a throw free, empty for none
      *                    (decision click-costs-one-mb-and-nothing-under-sculker)
+     * @param dimensionFace the name and the icon the ability shows a player standing in one dimension, empty for
+     *                    none (decision lunar-reads-as-terran-while-you-are-on-the-moon)
      */
     public record ClientAbility(Identifier id, String displayName, String icon,
                                 int order, List<String> tags,
@@ -134,7 +139,54 @@ public final class AbilitySyncHandler {
                                 IndicatorShowing indicator, List<Identifier> consumes, AbilityPrice upkeepPrice,
                                 DistancePrice distancePrice, List<Step> onPrism, ArmPose pose, String description,
                                 Optional<String> costMechanics, Optional<String> costFormula,
-                                Optional<Identifier> freeWhile) {
+                                Optional<Identifier> freeWhile, Optional<DimensionFace> dimensionFace) {
+
+        /**
+         * A client ability showing one face wherever the player stands.
+         *
+         * @param id            the ability resource identifier
+         * @param displayName   the translation key
+         * @param icon          the icon texture path override
+         * @param order         the sort order
+         * @param tags          categorical tags
+         * @param behaviors     the ability's step program
+         * @param costPrice     what a throw costs
+         * @param delivery      how the ability leaves the glove
+         * @param badge         the target kind the radial marks on the icon
+         * @param requires      the items the player must know before its radial petal unlocks
+         * @param area          the area the glove draws while right click is held
+         * @param indicator     when the ability's indicator shows
+         * @param consumes      the items a throw takes, one of each
+         * @param upkeepPrice   what a held durative effect pays each tick it stands
+         * @param distancePrice what a blink adds to the cost for its trip
+         * @param onPrism       the steps a landing on a prism runs, empty for none
+         * @param pose          the arm pose the glove arm takes in place of the swing
+         * @param description   the translation key for what the ability does
+         * @param costMechanics the format key explaining how a zero-cost ability charges, empty for none
+         * @param costFormula   the short formula a dynamically priced ability's petal reads, empty for none
+         * @param freeWhile     the self ability whose standing makes a throw free, empty for none
+         */
+        public ClientAbility(Identifier id, String displayName, String icon, int order, List<String> tags,
+                             List<Step> behaviors, AbilityPrice costPrice, Delivery delivery, AbilityBadge badge,
+                             List<Identifier> requires, AbilityArea area, IndicatorShowing indicator,
+                             List<Identifier> consumes, AbilityPrice upkeepPrice, DistancePrice distancePrice,
+                             List<Step> onPrism, ArmPose pose, String description, Optional<String> costMechanics,
+                             Optional<String> costFormula, Optional<Identifier> freeWhile) {
+            this(id, displayName, icon, order, tags, behaviors, costPrice, delivery, badge, requires, area,
+                    indicator, consumes, upkeepPrice, distancePrice, onPrism, pose, description, costMechanics,
+                    costFormula, freeWhile, Optional.empty());
+        }
+
+        /**
+         * The name and the icon this ability shows a player standing in a dimension.
+         * decision lunar-reads-as-terran-while-you-are-on-the-moon
+         *
+         * @param standingIn the dimension the player stands in
+         * @return the name key and the icon texture shown
+         */
+        public ShownFace shownIn(ResourceKey<Level> standingIn) {
+            return ShownFace.of(id, displayName, icon, dimensionFace, standingIn);
+        }
 
         /**
          * A client ability no standing self ability makes free.
@@ -488,7 +540,7 @@ public final class AbilitySyncHandler {
                     entry.cost(), entry.delivery(), entry.badge(), entry.requires(), entry.area(),
                     entry.indicator(), entry.consumes(), entry.upkeep(), entry.distancePrice(), entry.onPrism(),
                     entry.pose(), entry.description(), entry.costMechanics(), entry.costFormula(),
-                    entry.freeWhile());
+                    entry.freeWhile(), entry.dimensionFace());
         }
 
         /**
@@ -618,7 +670,7 @@ public final class AbilitySyncHandler {
          * @return true for a charge forming knives in stages
          */
         private boolean pricedPerKnife() {
-            return delivery.charge().formsInStages();
+            return delivery.formsKnives();
         }
 
         /**
@@ -643,7 +695,7 @@ public final class AbilitySyncHandler {
         /**
          * The short formula the petal and the panel read, its number filled
          * from the ability's own numbers so it stays true when one is tuned: a
-         * Spire's cost, its price per block grown, live from the connection's
+         * Build's cost, its price per block grown, live from the connection's
          * goo values, Knives' its price per knife, a Gouge's its fixed price a tear.
          * knives-pay-per-knife-as-each-forms
          * dynamic-costs-keep-the-mb-quantity
@@ -677,19 +729,19 @@ public final class AbilitySyncHandler {
         }
 
         /**
-         * Whether the ability's cost is its price for each block it grows, a Spire's, charged by the blocks its plan
+         * Whether the ability's cost is its price for each block it grows, a Build's, charged by the blocks its plan
          * grows rather than once a throw.
          * spire-cost-field-prices-each-cubic-meter-of-stone-at-mundane-block
          *
-         * @return true for an ability running the spire step
+         * @return true for an ability running the build step
          */
         private boolean pricedPerBlockGrown() {
-            return behaviors.stream().anyMatch(SpireStep.class::isInstance);
+            return behaviors.stream().anyMatch(BuildStep.class::isInstance);
         }
 
         /**
          * Whether the ability's cost prices what it lays, charged as each block lands rather than once a
-         * throw or by the ticks held: a Spire's block grown, or a placement-drained stream's slime or film.
+         * throw or by the ticks held: a Build's block grown, or a placement-drained stream's slime or film.
          * spire-cost-field-prices-each-cubic-meter-of-stone-at-mundane-block
          * goop-drains-per-cubic-meter-of-slime-placed
          *
@@ -872,7 +924,7 @@ public final class AbilitySyncHandler {
         /**
          * The numbers a cost-mechanics format fills from, in the order its kind reads them:
          * a durative ability its upkeep a second; a blink its per-block price, its wall price and its
-         * oculus percent; a Spire its cost, the price per block grown; any other none.
+         * oculus percent; a Build its cost, the price per block grown; any other none.
          *
          * @param lookup the goo values the numbers read from
          * @return the arguments, formatted

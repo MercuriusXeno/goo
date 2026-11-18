@@ -608,6 +608,58 @@ class VolumeCellBlockTest {
     }
 
     /**
+     * A broken Infest cell gives back nether goo, each layer a fifteenth of
+     * Infest's cost as nether_infest.json ships it.
+     * infest-is-nethers-goo-the-decay-effect-localized-around-the-goo
+     */
+    @Nested
+    class InfestReclaim {
+
+        private static final int LAYERS = 8;
+
+        @Test
+        void infestIsNetherGooLaidByNethersInfest() {
+            assertEquals(List.of(GooTypes.NETHER, AbilityJson.idOf("nether_infest.json")),
+                    List.of(CellBinding.INFEST.gooType(), CellBinding.INFEST.layingAbility()));
+        }
+
+        @Test
+        void aBrokenInfestCellDropsNetherGooAtFifteenthsOfInfestsCost() {
+            GooFraction cost = AbilityJson.decode("nether_infest").cost().exactIn(GooValueTable.EMPTY);
+
+            assertEquals(Optional.of(new VolumeCellBlock.Reclaim(GooTypes.NETHER,
+                            cost.times(LAYERS).dividedBy(FIFTEEN).floor())),
+                    VolumeCellBlock.reclaimedBy(CellBinding.INFEST, LAYERS, cost));
+        }
+    }
+
+    /**
+     * A broken Vines cell gives back leaf goo, each layer a fifteenth of
+     * Vines' cost as leaf_vines.json ships it.
+     * vines-is-sprayed-slime-that-entangles-what-tries-to-cross
+     */
+    @Nested
+    class VinesReclaim {
+
+        private static final int LAYERS = 7;
+
+        @Test
+        void vinesIsLeafGooLaidByLeafsVines() {
+            assertEquals(List.of(GooTypes.LEAF, AbilityJson.idOf("leaf_vines.json")),
+                    List.of(CellBinding.VINES.gooType(), CellBinding.VINES.layingAbility()));
+        }
+
+        @Test
+        void aBrokenVinesCellDropsLeafGooAtFifteenthsOfVinesCost() {
+            GooFraction cost = AbilityJson.decode("leaf_vines").cost().exactIn(GooValueTable.EMPTY);
+
+            assertEquals(Optional.of(new VolumeCellBlock.Reclaim(GooTypes.LEAF,
+                            cost.times(LAYERS).dividedBy(FIFTEEN).floor())),
+                    VolumeCellBlock.reclaimedBy(CellBinding.VINES, LAYERS, cost));
+        }
+    }
+
+    /**
      * A broken Wisps cell gives back glow goo, each layer a fifteenth of
      * Wisps' cost as glow_wisps.json ships it
      * (decision glow-world-goo-is-named-wisps-and-takes-the-holds-place).

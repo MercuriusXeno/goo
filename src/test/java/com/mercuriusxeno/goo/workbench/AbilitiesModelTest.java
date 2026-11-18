@@ -195,8 +195,8 @@ class AbilitiesModelTest {
         void aChargeFormingKnivesReadsItsCostAsThePricePerKnife() {
             JsonObject knives = sample();
             JsonObject charge = new JsonObject();
-            charge.addProperty("max_ticks", 60);
-            charge.addProperty("stages", 5);
+            charge.addProperty("max_ticks", 30);
+            charge.addProperty("stack", 10);
             knives.getAsJsonObject("delivery").add("charge", charge);
 
             AbilitiesModel.Leaf cost = AbilitiesModel.leaves(SAMPLE, knives).stream()

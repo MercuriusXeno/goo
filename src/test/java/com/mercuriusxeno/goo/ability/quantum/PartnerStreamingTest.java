@@ -27,10 +27,10 @@ class PartnerStreamingTest {
             ResourceKey.create(Registries.DIMENSION, Identifier.withDefaultNamespace("overworld"));
     /** A wall frame whose face looks south, onto z 1. */
     private static final Portal ENTRY = new Portal(GlobalPos.of(OVERWORLD, new BlockPos(0, 64, 0)), Direction.SOUTH,
-            Direction.UP);
+            Direction.UP, PortalColor.BLUE);
     /** Its partner, two thousand blocks east, far past any view distance. */
     private static final Portal EXIT = new Portal(GlobalPos.of(OVERWORLD, new BlockPos(2000, 64, 0)),
-            Direction.SOUTH, Direction.UP);
+            Direction.SOUTH, Direction.UP, PortalColor.BLUE);
     private static final List<QuantumPortals.Link> LINKS = List.of(new QuantumPortals.Link(ENTRY, EXIT));
     /** An eye three blocks before the entry's face. */
     private static final Vec3 EYE = new Vec3(0.5, 65.6, 4);

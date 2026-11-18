@@ -54,13 +54,4 @@ public class AbilityBlockRenderState extends BlockEntityRenderState {
 
     /** How many ticks a spike stays in flight, windup to retracted. */
     public int spikeLength;
-
-    /** How brightly a watching marker glows as its enemy closes, 0 at rest. */
-    public float lurkerGlow;
-
-    /** True when the marker is a Vines trap waiting on the ground (decision vines-unpack-root-and-thorn). */
-    public boolean vinesTrap;
-
-    /** How far the trap's blob has unpacked into its knot and tendrils, 0 to 1. */
-    public float vinesUnpacked;
 }
