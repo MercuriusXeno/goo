@@ -15,6 +15,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalInt;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -62,7 +63,7 @@ class BuildGrowthTest {
         void growsOnlyTheColumnsOpenThroughTheRise() {
             BuildGrowth growth = BuildGrowth.plan(blocks, footprintAt(3), PER_BLOCK);
             assertEquals(List.of(new BlockPos(0, 64, 0), new BlockPos(1, 64, 0), new BlockPos(3, 64, 0)),
-                    growth.columns());
+                    growth.columns().stream().map(BuildColumn::ground).toList());
         }
 
         @ParameterizedTest
@@ -71,6 +72,64 @@ class BuildGrowthTest {
             int rise = 3;
             BuildGrowth growth = BuildGrowth.plan(blocks, footprintAt(rise), GooFraction.of(perBlock));
             assertEquals(GooFraction.of(perBlock * OPEN_COLUMNS * rise), growth.exactCost());
+        }
+    }
+
+    /**
+     * Each column reaches down as far as it rises, stopping at bedrock, and lifts what it reached by the rise on stone.
+     * decision build-reaches-down-as-far-as-it-rises-and-lifts-the-ground-on-stone
+     */
+    @Nested
+    class Lift {
+
+        private static final int RISE = 3;
+        private static final BlockPos FAR_CORNER = new BlockPos(2, 64, 2);
+        /** The column whose bedrock lies two blocks under its ground cell. */
+        private static final BlockPos SHALLOW_GROUND = new BlockPos(5, 64, 5);
+
+        private final BlockGetter ground = mock(BlockGetter.class);
+
+        @BeforeEach
+        void layTheGroundOverBedrock() {
+            BlockState open = mock(BlockState.class);
+            when(open.canBeReplaced()).thenReturn(true);
+            BlockState dirt = mock(BlockState.class);
+            BlockState bedrock = mock(BlockState.class);
+            when(bedrock.getDestroySpeed(any(), any())).thenReturn(-1f);
+            when(ground.getMinY()).thenReturn(-64);
+            when(ground.getBlockState(any(BlockPos.class))).thenAnswer(call -> {
+                BlockPos pos = call.getArgument(0);
+                if (pos.equals(SHALLOW_GROUND.below(2))) {
+                    return bedrock;
+                }
+                return pos.getY() <= CORNER.getY() ? dirt : open;
+            });
+        }
+
+        @Test
+        void aThreeByThreeRisingThreeLiftsItsTwentySevenBlocksByThreeOnTwentySevenStone() {
+            BuildGrowth growth = BuildGrowth.plan(ground, new BuildFootprint(CORNER, FAR_CORNER, RISE), PER_BLOCK);
+
+            List<BlockPos> lifted = growth.columns().stream().flatMap(column -> column.liftedCells().stream()).toList();
+            List<BlockPos> stone = growth.columns().stream().flatMap(column -> column.stoneCells().stream()).toList();
+            List<BlockPos> reached = BlockPos.betweenClosedStream(new BlockPos(0, 62, 0), FAR_CORNER)
+                    .map(BlockPos::immutable).toList();
+            assertEquals(Set.copyOf(reached), Set.copyOf(lifted));
+            assertEquals(Set.copyOf(reached), Set.copyOf(stone));
+            assertEquals(27, stone.size());
+            growth.columns().forEach(column -> column.liftedCells()
+                    .forEach(cell -> assertEquals(cell.above(RISE), column.liftedTo(cell))));
+        }
+
+        @Test
+        void aColumnOverBedrockTwoDownLiftsItsTwoBlocksByThreeOnThreeStone() {
+            BuildColumn column = BuildGrowth.plan(ground, new BuildFootprint(SHALLOW_GROUND, SHALLOW_GROUND, RISE),
+                    PER_BLOCK).columns().getFirst();
+
+            assertEquals(List.of(SHALLOW_GROUND.below(), SHALLOW_GROUND), column.liftedCells());
+            assertEquals(List.of(SHALLOW_GROUND.above(2), SHALLOW_GROUND.above(3)),
+                    column.liftedCells().stream().map(column::liftedTo).toList());
+            assertEquals(List.of(SHALLOW_GROUND.below(), SHALLOW_GROUND, SHALLOW_GROUND.above()), column.stoneCells());
         }
     }
 
