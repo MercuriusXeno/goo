@@ -15,7 +15,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Covers the blue planet's eight hand-drawn phase sprites, each read through the classpath as the 32x32 texels it
- * ships: a disc of sea and land, lit on the side its phase lights, its unlit part still drawn, darkened.
+ * ships: a square of the overworld's sea and land filling the sprite as vanilla's moon is a square, lit on the side its
+ * phase lights, its unlit part still drawn, darkened.
  * decision planet-face-is-eight-hand-drawn-phase-sprites
  */
 class BluePlanetSpritesTest {
@@ -76,6 +77,12 @@ class BluePlanetSpritesTest {
         BufferedImage sprite = read(phase);
         assertEquals(TEXELS, sprite.getWidth(), phase);
         assertEquals(TEXELS, sprite.getHeight(), phase);
+    }
+
+    @Test
+    void theFullPlanetIsASquareFillingItsSprite() throws IOException {
+        BufferedImage full = read("full");
+        assertEquals(TEXELS * TEXELS, discTexels(full, true).size() + discTexels(full, false).size());
     }
 
     @Test
