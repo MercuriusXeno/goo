@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.ability.quantum.PortalColor;
 import com.mercuriusxeno.goo.network.ScanWavePayload;
 import net.minecraft.client.Minecraft;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
@@ -40,11 +41,16 @@ public final class ScanVisuals {
      */
     public static final String LIGHT_DART = "light_dart";
 
+
     private static final Map<String, ScanVisual> RENDERERS = new HashMap<>();
 
     static {
         RENDERERS.put(SOUND_WAVE, SoundWaves::start);
         RENDERERS.put(LIGHT_DART, LightDarts::start);
+        // operator UAT 2026-11-18: each Portal shot darts a small fast Quantum blob in its portal's color
+        for (PortalColor color : PortalColor.values()) {
+            RENDERERS.put(color.shotVisual(), (wave, gameTime) -> QuantumBlobDarts.start(wave, gameTime, color));
+        }
     }
 
     private ScanVisuals() {

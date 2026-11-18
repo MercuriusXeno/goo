@@ -1,7 +1,8 @@
 package com.mercuriusxeno.goo.network;
 
+import com.mercuriusxeno.goo.ability.quantum.PortalColor;
 import com.mercuriusxeno.goo.ability.quantum.Portal;
-import com.mercuriusxeno.goo.ability.quantum.PortalChoice;
+import com.mercuriusxeno.goo.ability.quantum.PortalPairs;
 import com.mercuriusxeno.goo.ability.quantum.QuantumPortals;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
@@ -60,16 +61,16 @@ public final class PortalDisplacedTests {
      */
     public static void portalBreaksWhenABlockFillsItsFront(GameTestHelper helper) {
         UUID owner = UUID.randomUUID();
-        Portal near = wallPortal(helper, owner, NEAR_PORTAL, Direction.WEST);
-        Portal far = wallPortal(helper, owner, FAR_PORTAL, Direction.EAST);
+        Portal near = wallPortal(helper, owner, NEAR_PORTAL, Direction.WEST, PortalColor.BLUE);
+        Portal far = wallPortal(helper, owner, FAR_PORTAL, Direction.EAST, PortalColor.ORANGE);
         QuantumPortals portals = QuantumPortals.get(helper.getLevel());
-        helper.assertTrue(!portals.linksOf(owner).isEmpty(), "The two portals should stand linked");
+        helper.assertTrue(portals.pairOf(owner).isPresent(), "The two portals should stand linked");
         helper.setBlock(NEAR_PORTAL.above().west(), Blocks.STONE);
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             helper.assertTrue(portals.portalAt(near.block(), near.face()).isEmpty(),
                     "A stone placed before the portal should break it");
-            helper.assertTrue(portals.linksOf(owner).isEmpty(), "The broken portal's link should go with it");
-            PortalChoice.breakAt(helper.getLevel(), far.block().pos(), far.face());
+            helper.assertTrue(portals.pairOf(owner).isEmpty(), "The broken portal's link should go with it");
+            PortalPairs.breakAt(helper.getLevel(), far.block().pos(), far.face());
             helper.succeed();
         });
     }
@@ -80,7 +81,7 @@ public final class PortalDisplacedTests {
      * @param helper the gametest helper
      */
     public static void unpairedPortalBreaksWhenABlockFillsItsFront(GameTestHelper helper) {
-        Portal alone = wallPortal(helper, UUID.randomUUID(), NEAR_PORTAL, Direction.WEST);
+        Portal alone = wallPortal(helper, UUID.randomUUID(), NEAR_PORTAL, Direction.WEST, PortalColor.BLUE);
         helper.setBlock(NEAR_PORTAL.west(), Blocks.STONE);
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             helper.assertTrue(QuantumPortals.get(helper.getLevel()).portalAt(alone.block(), alone.face()).isEmpty(),
@@ -96,26 +97,27 @@ public final class PortalDisplacedTests {
      * @param helper the gametest helper
      */
     public static void portalStandsBehindATorch(GameTestHelper helper) {
-        Portal standing = wallPortal(helper, UUID.randomUUID(), NEAR_PORTAL, Direction.WEST);
+        Portal standing = wallPortal(helper, UUID.randomUUID(), NEAR_PORTAL, Direction.WEST, PortalColor.BLUE);
         helper.setBlock(NEAR_PORTAL.west().below(), Blocks.STONE);
         helper.setBlock(NEAR_PORTAL.west(), Blocks.TORCH);
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             helper.assertTrue(QuantumPortals.get(helper.getLevel()).portalAt(standing.block(), standing.face())
                     .isPresent(), "A torch before a portal should leave it standing");
-            PortalChoice.breakAt(helper.getLevel(), standing.block().pos(), standing.face());
+            PortalPairs.breakAt(helper.getLevel(), standing.block().pos(), standing.face());
             helper.succeed();
         });
     }
 
-    private static Portal wallPortal(GameTestHelper helper, UUID owner, BlockPos lower, Direction face) {
+    private static Portal wallPortal(GameTestHelper helper, UUID owner, BlockPos lower, Direction face,
+                                     PortalColor color) {
         for (int z = -1; z <= 3; z++) {
             for (int y = 1; y <= 3; y++) {
                 helper.setBlock(new BlockPos(WALL_X, y, z), Blocks.STONE);
             }
         }
         ServerLevel level = helper.getLevel();
-        Portal portal = new Portal(GlobalPos.of(level.dimension(), helper.absolutePos(lower)), face, Direction.UP);
-        PortalChoice.place(level, owner, portal);
+        Portal portal = new Portal(GlobalPos.of(level.dimension(), helper.absolutePos(lower)), face, Direction.UP, color);
+        PortalPairs.place(level, owner, portal);
         return portal;
     }
 }

@@ -92,6 +92,22 @@ public record GooThrowPayload(String gooTypeId, int targetEntityId,
                 false, abilityId, origin, point, gate, facePoint);
     }
 
+    /**
+     * This throw aimed at a block's face, at the point it was struck, naming no entity.
+     *
+     * @param pos   the struck block
+     * @param face  the struck face
+     * @param point where the face was struck
+     * @return the re-aimed throw
+     */
+    public GooThrowPayload struckAt(BlockPos pos, Direction face, Vec3 point) {
+        return new GooThrowPayload(gooTypeId, NO_ENTITY, pos, face.ordinal(), false, abilityId, origin, point,
+                gate, facePoint);
+    }
+
+    /** The entity id a throw at a block names. */
+    private static final int NO_ENTITY = -1;
+
     /** Payload type ID for registration. */
     public static final Type<GooThrowPayload> TYPE =
         new Type<>(Identifier.fromNamespaceAndPath(Goo.MODID, "goo_throw"));
