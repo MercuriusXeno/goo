@@ -4,7 +4,7 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.PrismCombos;
 import com.mercuriusxeno.goo.ability.hex.Charmed;
-import com.mercuriusxeno.goo.ability.zoo.Rallied;
+import com.mercuriusxeno.goo.ability.yarn.Led;
 import com.mercuriusxeno.goo.block.ability.CellPlacers;
 import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.block.ability.RailLine;
@@ -38,7 +38,7 @@ import java.util.function.Consumer;
 /**
  * Gametests for the hits a standing goo block deals: a light rail a player's Laser reflectors laid burns an undead
  * naming that player as magic, a rail no player laid names no one, the rail's credited hit leaves that player's
- * rally and charm standing, and a Wisps or Rime cell a player placed names that player on its holy or freeze hit.
+ * lead and charm standing, and a Wisps or Rime cell a player placed names that player on its holy or freeze hit.
  * standing-goo-thing-credits-whoever-placed-it
  * goo-hit-keeps-its-kind-and-names-the-player-behind-it
  * crediting-a-goo-hit-changes-nothing-else
@@ -47,7 +47,7 @@ import java.util.function.Consumer;
 public final class StandingBlockCreditTests {
     private static final String RAIL_NAMES_ITS_LAYER = "standing_credit_rail_names_the_player_who_laid_it";
     private static final String UNLAID_RAIL_NAMES_NONE = "standing_credit_rail_no_player_laid_names_no_entity";
-    private static final String RAIL_KEEPS_RALLY_AND_CHARM = "standing_credit_rail_keeps_rally_and_charm";
+    private static final String RAIL_KEEPS_LEAD_AND_CHARM = "standing_credit_rail_keeps_lead_and_charm";
     private static final String WISPS_NAMES_ITS_PLACER = "standing_credit_wisps_cell_names_its_placer";
     private static final String RIME_NAMES_ITS_PLACER = "standing_credit_rime_cell_names_its_placer";
 
@@ -60,7 +60,7 @@ public final class StandingBlockCreditTests {
     /** Blocks above the bay the player hangs, clear of the rail and the cells. */
     private static final int PLAYER_HEIGHT = 12;
     private static final float HARDY_HEALTH = 1024f;
-    private static final float RALLY_DAMAGE = 6f;
+    private static final float LEAD_DAMAGE = 6f;
 
     private static final String NOT_STRUCK = "The %s has not been hit yet";
     private static final String SHOULD_NAME_THE_PLAYER = "The %s's hit should name the player who placed it as %s, "
@@ -81,8 +81,8 @@ public final class StandingBlockCreditTests {
         GooTestFunctions.registerTest(registrar, RAIL_NAMES_ITS_LAYER, StandingBlockCreditTests::railNamesThePlayerWhoLaidIt);
         GooTestFunctions.registerTest(registrar, UNLAID_RAIL_NAMES_NONE,
                 StandingBlockCreditTests::railNoPlayerLaidNamesNoEntity);
-        GooTestFunctions.registerTest(registrar, RAIL_KEEPS_RALLY_AND_CHARM,
-                StandingBlockCreditTests::railKeepsTheLayersRallyAndCharm);
+        GooTestFunctions.registerTest(registrar, RAIL_KEEPS_LEAD_AND_CHARM,
+                StandingBlockCreditTests::railKeepsTheLayersLeadAndCharm);
         GooTestFunctions.registerTest(registrar, WISPS_NAMES_ITS_PLACER, StandingBlockCreditTests::wispsCellNamesItsPlacer);
         GooTestFunctions.registerTest(registrar, RIME_NAMES_ITS_PLACER, StandingBlockCreditTests::rimeCellNamesItsPlacer);
     }
@@ -119,24 +119,24 @@ public final class StandingBlockCreditTests {
     }
 
     /**
-     * A rail a mock player's reflectors laid burns a zombie that player rallied and a husk that player charmed,
-     * and the rally and the charm still stand once each has been burned.
+     * A rail a mock player's reflectors laid burns a zombie that player led and a husk that player charmed,
+     * and the lead and the charm still stand once each has been burned.
      *
      * @param helper the gametest helper
      */
-    public static void railKeepsTheLayersRallyAndCharm(GameTestHelper helper) {
+    public static void railKeepsTheLayersLeadAndCharm(GameTestHelper helper) {
         ServerPlayer player = playerOverhead(helper);
         List<BlockPos> floorCells = railFloorCells();
         Mob zombie = undeadIn(helper, EntityType.ZOMBIE, floorCells.getFirst());
-        zombie.setData(GooAttachments.RALLIED, new Rallied(player.getUUID(), RALLY_DAMAGE));
+        zombie.setData(GooAttachments.LED, new Led(player.getUUID(), LEAD_DAMAGE));
         Mob husk = undeadIn(helper, EntityType.HUSK, floorCells.getLast());
         husk.setData(GooAttachments.CHARMED, new Charmed(player.getUUID()));
         layRail(helper, player.getUUID());
         helper.succeedWhen(() -> {
-            struck(helper, zombie, "rallied zombie");
+            struck(helper, zombie, "led zombie");
             struck(helper, husk, "charmed husk");
-            helper.assertTrue(zombie.hasData(GooAttachments.RALLIED),
-                    String.format(SHOULD_KEEP, "zombie", "rally", zombie.hasData(GooAttachments.RALLIED)));
+            helper.assertTrue(zombie.hasData(GooAttachments.LED),
+                    String.format(SHOULD_KEEP, "zombie", "lead", zombie.hasData(GooAttachments.LED)));
             helper.assertTrue(husk.hasData(GooAttachments.CHARMED),
                     String.format(SHOULD_KEEP, "husk", "charm", husk.hasData(GooAttachments.CHARMED)));
             helper.getLevel().getServer().getPlayerList().remove(player);

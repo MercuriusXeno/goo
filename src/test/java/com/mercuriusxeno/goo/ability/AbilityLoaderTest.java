@@ -83,7 +83,7 @@ class AbilityLoaderTest {
     private static final String DIRECTORY = "goo_abilities";
     private static final String EN_US = "/assets/goo/lang/en_us.json";
     /** The one brew that starts silent (decision rally-drops-its-sound-and-gets-its-sprite). */
-    private static final Identifier SILENT_BREW = Identifier.fromNamespaceAndPath(Goo.MODID, "zoo_rally");
+    private static final Identifier SILENT_BREW = Identifier.fromNamespaceAndPath(Goo.MODID, "yarn_lead");
     /** The proving example of a world ability that stays after its blob lands. */
     private static final String LINGERING = "deep_shriek";
     /** The ability whose program ends the tick it lands. */
@@ -400,14 +400,14 @@ class AbilityLoaderTest {
     }
 
     /**
-     * Every brew but Rally sounds as its effect starts, as every held effect
+     * Every brew but Lead sounds as its effect starts, as every held effect
      * sounds as it ends.
      * held-effects-sound-up-and-down
      * rally-drops-its-sound-and-gets-its-sprite
      */
     @ParameterizedTest
     @MethodSource("shippedBrews")
-    void everyBrewButRallySoundsAsItStarts(AbilityDefinition brew) {
+    void everyBrewButLeadSoundsAsItStarts(AbilityDefinition brew) {
         boolean sounds = brew.behaviors().stream().flatMap(AbilityLoaderTest::stepTree)
                 .anyMatch(SoundStep.class::isInstance);
         assertEquals(!brew.id().equals(SILENT_BREW), sounds, brew.id().toString());
@@ -670,10 +670,11 @@ class AbilityLoaderTest {
         }
 
         @Test
-        void shippedBlazeLeafAndZooEachCarryExactlyOneBrew() {
+        void shippedBlazeLeafAndYarnEachCarryExactlyOneBrew() {
             Map<Identifier, AbilityDefinition> shipped = scanShipped(AbilityJson.files());
             // leader-is-zoos-brew-ability
-            List<ResourceKey<GooTypeDefinition>> carriers = List.of(GooTypes.BLAZE, GooTypes.LEAF, GooTypes.ZOO);
+            // kin-becomes-herd-and-rally-becomes-lead-on-yarn
+            List<ResourceKey<GooTypeDefinition>> carriers = List.of(GooTypes.BLAZE, GooTypes.LEAF, GooTypes.YARN);
 
             for (ResourceKey<GooTypeDefinition> type : carriers) {
                 long brews = shipped.values().stream()
@@ -688,25 +689,28 @@ class AbilityLoaderTest {
          * decision charm-like-abilities-lock-the-highlighted-mob-on-right-click
          */
         @Test
-        void shippedZooRallyCastsAtOneMobForAFlatCost() {
-            AbilityDefinition rally = AbilityJson.decode("zoo_rally");
+        void shippedYarnLeadCastsAtOneMobForAFlatCost() {
+            AbilityDefinition lead = AbilityJson.decode("yarn_lead");
 
-            assertEquals(AbilityBadge.MOB, rally.badge());
-            assertEquals(DeliveryKind.ENVELOP, rally.delivery().kind());
-            assertTrue(rally.cost().in(GooValueTable.EMPTY) > 0, "cost " + rally.cost().in(GooValueTable.EMPTY));
-            assertEquals(0, rally.upkeep().in(GooValueTable.EMPTY));
+            assertEquals(AbilityBadge.MOB, lead.badge());
+            assertEquals(DeliveryKind.ENVELOP, lead.delivery().kind());
+            assertTrue(lead.cost().in(GooValueTable.EMPTY) > 0, "cost " + lead.cost().in(GooValueTable.EMPTY));
+            assertEquals(0, lead.upkeep().in(GooValueTable.EMPTY));
         }
 
-        /** decision leader-is-zoos-brew-ability */
+        /**
+         * decision leader-is-zoos-brew-ability
+         * decision kin-becomes-herd-and-rally-becomes-lead-on-yarn
+         */
         @Test
-        void shippedZooLeaderHoldsOnAnUpkeep() {
-            AbilityDefinition leader = AbilityJson.decode("zoo_kin");
+        void shippedYarnHerdHoldsOnAnUpkeep() {
+            AbilityDefinition herd = AbilityJson.decode("yarn_herd");
 
-            assertEquals(GooTypes.ZOO, leader.gooType());
-            assertEquals(AbilityBadge.DURATIVE, leader.badge());
-            assertEquals(DeliveryKind.SELF, leader.delivery().kind());
-            assertTrue(leader.upkeep().in(GooValueTable.EMPTY) > 0, "upkeep " + leader.upkeep().in(GooValueTable.EMPTY));
-            assertTrue(DurativeRoute.isDurative(leader.delivery(), leader.badge()));
+            assertEquals(GooTypes.YARN, herd.gooType());
+            assertEquals(AbilityBadge.DURATIVE, herd.badge());
+            assertEquals(DeliveryKind.SELF, herd.delivery().kind());
+            assertTrue(herd.upkeep().in(GooValueTable.EMPTY) > 0, "upkeep " + herd.upkeep().in(GooValueTable.EMPTY));
+            assertTrue(DurativeRoute.isDurative(herd.delivery(), herd.badge()));
         }
     }
 

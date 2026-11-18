@@ -7,8 +7,8 @@ import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.AbilityTags;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
+import com.mercuriusxeno.goo.ability.LeadRelease;
 import com.mercuriusxeno.goo.ability.OwnMinions;
-import com.mercuriusxeno.goo.ability.RallyRelease;
 import com.mercuriusxeno.goo.ability.ThrowRange;
 import com.mercuriusxeno.goo.ability.aging.Aging;
 import com.mercuriusxeno.goo.ability.aging.AgingTable;
@@ -243,8 +243,8 @@ public final class GooThrowHandler {
 
     /**
      * Whether a throw names a mob a step of its ability refuses for the
-     * thrower, such as Charm at a rallied mob or Rally at another player's
-     * rallied mob, which is refused whole, before anything is paid.
+     * thrower, such as Charm at a led mob or Lead at another player's
+     * led mob, which is refused whole, before anything is paid.
      * refused-rally-or-charm-spends-no-goo
      *
      * @param player  the throwing player
@@ -276,7 +276,7 @@ public final class GooThrowHandler {
     }
 
     /**
-     * Whether a harmful mob ability is thrown at a mob its thrower rallied or
+     * Whether a harmful mob ability is thrown at a mob its thrower led or
      * charmed, which is refused whole, before anything is paid, so neither a
      * touch nor a flight lands on it.
      * mob-targeted-attacks-refuse-your-minions
@@ -735,8 +735,8 @@ public final class GooThrowHandler {
     /** Resolves the throw cost from the ability definition, falling back to THROW_COST.
      * An aging throw costs the aging table's price for the block it is aimed
      * at, and {@link #REFUSED} where the table names none, which no
-     * inventory can pay (decision old-blob-ages-valuables-slowly). A Rally
-     * throw releasing the thrower's own rallied mob costs nothing
+     * inventory can pay (decision old-blob-ages-valuables-slowly). A Lead
+     * throw releasing the thrower's own led mob costs nothing
      * (decision rally-release-cast-costs-nothing).
      *
      * @param player  the throwing player
@@ -749,7 +749,7 @@ public final class GooThrowHandler {
         AbilityDefinition def = thrownAbility(player.level(), payload.abilityId(), gooType);
         if (def == null) { return GooFraction.of(THROW_COST); }
         Entity aimed = payload.targetEntityId() >= 0 ? player.level().getEntity(payload.targetEntityId()) : null;
-        if (RallyRelease.releasesOwnRally(def.behaviors(), player, aimed)) { return GooFraction.ZERO; }
+        if (LeadRelease.releasesOwnLead(def.behaviors(), player, aimed)) { return GooFraction.ZERO; }
         if (ages(def)) {
             return GooFraction.of(AgingTable.priceOf(player.level().getBlockState(payload.targetPos()))
                     .orElse(REFUSED));

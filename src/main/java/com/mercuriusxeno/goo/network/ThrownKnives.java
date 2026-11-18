@@ -25,7 +25,7 @@ import java.util.Optional;
  * between a fence's rails, a knife meeting a mob runs the ability's program
  * on it, and a knife whose flight runs out or leaves the world is spent. Dart's
  * javelins fly the same flight, and both pass through the thrower's own
- * rallied and charmed mobs.
+ * led and charmed mobs.
  * decision dart-does-not-seek-or-highlight
  * decision knives-and-dart-function-as-projectiles
  * decision knives-do-not-seek-you-just-throw-them
@@ -106,7 +106,7 @@ public final class ThrownKnives {
                 step.position(), step.velocity(), flight.ticks() + 1));
     }
 
-    // The living a flight may meet: any but the thrower and the thrower's own rallied or charmed mobs.
+    // The living a flight may meet: any but the thrower and the thrower's own led or charmed mobs.
     private static DripArc.LivingNear livingNear(ServerLevel level, ServerPlayer thrower) {
         DripArc.LivingNear near = DripFlights.livingNear(level, thrower.getId());
         return (from, to) -> near.along(from, to).stream().filter(box -> !(level.getEntity(box.entityId())
