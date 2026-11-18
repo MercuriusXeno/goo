@@ -128,6 +128,7 @@
   "block.goo.glow_wisps": "Wisps",
   "block.goo.hex_leech": "Leech",
   "block.goo.typhoon_updraft": "Updraft",
+  "block.goo.jelly_nectar": "Nectar",
   "block.goo.leaf_vines": "Vines",
 
   "goo.badge.world": "World",
@@ -258,8 +259,8 @@
   "goo.ability.jelly.reserve": "Reserve",
   "goo.ability.jelly.reserve.description": "Channel to bank health and hunger, at a loss, into reserves spent before your own.",
   "goo.ability.jelly.nectar": "Nectar",
-  "goo.ability.jelly.nectar.description": "Feeds an animal that draws nearby mobs, the hostile ones fighting over it.",
-  "entity.goo.nectar_pile": "Nectar",
+  "goo.ability.jelly.nectar.cost_mechanics": "Costs %s per block of Nectar laid, a fifteenth of it per layer.",
+  "goo.ability.jelly.nectar.description": "Held stream sprays Nectar, a sweet jelly goo every mob craves: animals eat it a layer at a time to breed or grow, and hostiles fight over it. Aimed near a mob, the spray is thrown onto it.",
   "entity.goo.drifting_wisp": "Wisp",
   "goo.ability.leaf.barkskin": "Barkskin",
   "goo.ability.leaf.barkskin.description": "Regrowing bark hearts shield yours and thorn melee attackers, but fire and axes hit them hard.",

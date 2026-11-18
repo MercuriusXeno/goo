@@ -83,6 +83,13 @@ public record BlendPalette(float lightRed, float lightGreen, float lightBlue,
     public static final BlendPalette UPDRAFT_TYPHOON_GREENS = new BlendPalette(
             0xFD / 255f, 0xFF / 255f, 0xFF / 255f, 0xD5 / 255f, 0xF5 / 255f, 0xE3 / 255f);
     /**
+     * Nectar's spray drips, from jelly's bright amber, FFB238, to its wheel
+     * orange, C2410C, the two the jelly goo type's definition names.
+     * nectar-is-sprayed-goo-with-a-guided-throw-near-a-mob
+     */
+    public static final BlendPalette NECTAR_JELLY_ORANGES = new BlendPalette(
+            0xFF / 255f, 0xB2 / 255f, 0x38 / 255f, 0xC2 / 255f, 0x41 / 255f, 0x0C / 255f);
+    /**
      * Vines' spray drips, from leaf's bright green, A6F078, to its wheel
      * green, 7EC850, the two the leaf goo type's definition names.
      * vines-is-sprayed-slime-that-entangles-what-tries-to-cross
