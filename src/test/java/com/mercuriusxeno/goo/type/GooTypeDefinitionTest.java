@@ -43,7 +43,7 @@ class GooTypeDefinitionTest {
     private static final String ALL_COLORS =
             ", \"wheel\": \"112233\", \"bright\": \"445566\", \"highlight\": \"778899\", \"edge\": \"AABBCC\"";
     private static final String WATER_LIKE_FLUID =
-            ", \"density\": 1000, \"viscosity\": 1000, \"elasticity\": 0.5, \"cohesion\": \"runny\", \"adhesion\": 1,"
+            ", \"density\": 1000, \"viscosity\": 1000, \"elasticity\": 0.5, \"cohesion\": \"runny\", \"adhesion\": \"tops\","
             + " \"temperature\": 300,"
             + " \"extinguishes\": false,"
             + " \"map_color\": \"stone\"";
@@ -60,6 +60,7 @@ class GooTypeDefinitionTest {
     private static final int BLAZE_TEMPERATURE = 1300;
     private static final int FROST_TEMPERATURE = 200;
     private static final Pattern COHESION_FIELD = Pattern.compile("\"cohesion\": [^,]+");
+    private static final Pattern ADHESION_FIELD = Pattern.compile("\"adhesion\": [^,]+");
     private static final Cohesion WEIRD_COHESION = Cohesion.THICK;
     /** Jelly's cohesion, the stiff rung just below firm (operator ruling 2026-11-17). */
     private static final Cohesion JELLY_COHESION = Cohesion.STIFF;
@@ -67,20 +68,20 @@ class GooTypeDefinitionTest {
     private static final Cohesion METAL_COHESION = Cohesion.SOFT;
     /** Leaf's cohesion, the stiff rung Jelly holds (operator ruling 2026-11-17). */
     private static final Cohesion LEAF_COHESION = Cohesion.STIFF;
-    private static final int WEIRD_ADHESION = 3;
-    private static final int LEAF_ADHESION = 3;
-    private static final int GLOW_ADHESION = 4;
-    private static final int JELLY_ADHESION = 3;
+    private static final Adhesion WEIRD_ADHESION = Adhesion.CLINGS;
+    private static final Adhesion LEAF_ADHESION = Adhesion.CLINGS;
+    private static final Adhesion GLOW_ADHESION = Adhesion.HANGS;
+    private static final Adhesion JELLY_ADHESION = Adhesion.CLINGS;
     private static final Cohesion BLAZE_COHESION = Cohesion.THICK;
-    private static final int BLAZE_ADHESION = 4;
-    private static final int COMMON_ADHESION = 1;
+    private static final Adhesion BLAZE_ADHESION = Adhesion.HANGS;
+    private static final Adhesion COMMON_ADHESION = Adhesion.TOPS;
     /** Pulse's goo holds where it is laid, firm and clinging to an underside, so its layers set its signal at will. */
     private static final Cohesion PULSE_COHESION = Cohesion.FIRM;
-    private static final int PULSE_ADHESION = GooTypeDefinition.HOLDS_AN_UNDERSIDE;
+    private static final Adhesion PULSE_ADHESION = Adhesion.HANGS;
     /** Nether's goo pours past two layers of step, the soft rung (operator ruling 2026-11-17). */
     private static final Cohesion NETHER_COHESION = Cohesion.SOFT;
     /** Nether's goo holds a block's side where it strikes, the clings rung (operator ruling 2026-11-17). */
-    private static final int NETHER_ADHESION = 3;
+    private static final Adhesion NETHER_ADHESION = Adhesion.CLINGS;
 
     static Stream<ResourceKey<GooTypeDefinition>> bundledKeys() {
         return GooTypes.BUNDLED.stream();
@@ -336,8 +337,8 @@ class GooTypeDefinitionTest {
     }
 
     /**
-     * Every bundled type states an adhesion: kinetic clings to nothing, weird, jelly, nether and leaf hold a
-     * side where they strike, glow, blaze and pulse hold an underside, and every other type holds tops.
+     * Every bundled type names an adhesion rung: kinetic slips, weird, jelly, nether and leaf cling,
+     * glow, blaze and pulse hang, and every other type holds tops.
      * adhesion-is-a-ladder-of-holds
      * signal-goo-sends-a-redstone-signal-equal-to-its-layers
      * nectar-is-the-sticky-goo-you-climb-that-nerfs-jumping-and-speed
@@ -348,30 +349,42 @@ class GooTypeDefinitionTest {
     @ParameterizedTest
     @MethodSource("bundledKeys")
     void bundledAdhesionMatchesDecision(ResourceKey<GooTypeDefinition> key) throws Exception {
-        Map<ResourceKey<GooTypeDefinition>, Integer> stated = Map.of(GooTypes.KINETIC, 0,
+        Map<ResourceKey<GooTypeDefinition>, Adhesion> stated = Map.of(GooTypes.KINETIC, Adhesion.SLIPS,
                 GooTypes.WEIRD, WEIRD_ADHESION, GooTypes.GLOW, GLOW_ADHESION, GooTypes.BLAZE, BLAZE_ADHESION,
                 GooTypes.JELLY, JELLY_ADHESION, GooTypes.PULSE, PULSE_ADHESION, GooTypes.NETHER, NETHER_ADHESION,
                 GooTypes.LEAF, LEAF_ADHESION);
-        int expected = stated.getOrDefault(key, COMMON_ADHESION);
+        Adhesion expected = stated.getOrDefault(key, COMMON_ADHESION);
         assertEquals(expected, decodeBundled(key).adhesion(), key::toString);
     }
 
     /**
-     * An adhesion past the ladder's top rung is refused.
+     * A type naming an adhesion rung decodes to that rung's level on the ladder.
+     * adhesion-is-a-ladder-of-holds
      */
-    @Test
-    void refusesAdhesionPastTheLaddersTop() {
-        assertTrue(parse(BODY_BEFORE_FLIGHT.replace("\"adhesion\": 1", "\"adhesion\": 5") + FLIGHT + "}").isError());
+    @ParameterizedTest
+    @CsvSource({"slips, 0", "tops, 1", "gels, 2", "clings, 3", "hangs, 4"})
+    void anAdhesionRungDecodesToItsLevel(String rung, int level) {
+        assertEquals(level, decode(withAdhesion("\"" + rung + "\"")).adhesion().level(), rung);
     }
 
     /**
-     * The ladder's top rung, 4, holds a block's underside, and decodes
-     * (decision adhesion-is-a-ladder-of-holds).
+     * An adhesion stated as a number is refused, so a type names its rung.
      */
     @Test
-    void anAdhesionOfFourDecodes() {
-        assertEquals(GLOW_ADHESION, parse(BODY_BEFORE_FLIGHT.replace("\"adhesion\": 1", "\"adhesion\": 4") + FLIGHT
-                + "}").getOrThrow().adhesion());
+    void refusesAdhesionAsANumber() {
+        assertTrue(parse(withAdhesion("3")).isError());
+    }
+
+    /**
+     * An adhesion naming no rung of the five is refused.
+     */
+    @Test
+    void refusesAdhesionOffTheRungs() {
+        assertTrue(parse(withAdhesion("\"sticky\"")).isError());
+    }
+
+    private static String withAdhesion(String spelled) {
+        return ADHESION_FIELD.matcher(BODY_BEFORE_FLIGHT).replaceFirst("\"adhesion\": " + spelled) + FLIGHT + "}";
     }
 
     private static String withCohesion(String spelled) {

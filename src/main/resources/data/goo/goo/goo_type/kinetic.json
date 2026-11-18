@@ -9,7 +9,7 @@
   "viscosity": 400,
   "elasticity": 0.9,
   "cohesion": "runny",
-  "adhesion": 0,
+  "adhesion": "slips",
   "temperature": 300,
   "extinguishes": false,
   "levity": 1.0,
