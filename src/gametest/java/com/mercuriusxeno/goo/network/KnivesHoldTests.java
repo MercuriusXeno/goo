@@ -128,9 +128,9 @@ public final class KnivesHoldTests {
     private static final String SHOULD_THROW_ON_THE_HOLD = "Holding left click should throw half the knives held on"
             + " the press, 5, then half of those left every 5 ticks, 8 by 6 ticks later, and none more in the 9 ticks"
             + " after it lifts; thrown %s";
-    /** The 2 left of the second volley and the knife the clock formed 6 ticks after the first. */
-    private static final int HELD_BENEATH_THE_THROW = 3;
-    private static final String SHOULD_CHARGE_BENEATH = "The charge should run on beneath the throw, 3 held"
+    /** The 2 left of the second volley: the knife the clock reaches 6 ticks on waits for the buffer's refill. */
+    private static final int HELD_BENEATH_THE_THROW = 2;
+    private static final String SHOULD_CHARGE_BENEATH = "The next knife should wait for the buffer, 2 held"
             + " 6 ticks on; held %s";
     /** An unarmored pig 3 blocks ahead, in the knives' path. */
     private static final BlockPos PIG_POS = new BlockPos(8, 1, 4);
@@ -197,8 +197,8 @@ public final class KnivesHoldTests {
     /**
      * A mock player holding 10 knives, the charge stopped at its cap, holds
      * left click: the hold throws half its knives on the press, 5, and half
-     * the 5 left 5 ticks later, 8 by the 6th tick, the charge running on
-     * beneath the throw to hold 3 then;
+     * the 5 left 5 ticks later, 8 by the 6th tick, 2 held then, the next
+     * knife waiting for the buffer the ten knives drained to its floor;
      * once left click lifts, it throws none in the 9 ticks after.
      * decision knives-throw-one-per-two-ticks-while-left-click-is-held
      *

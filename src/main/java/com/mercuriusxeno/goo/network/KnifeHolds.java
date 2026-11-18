@@ -81,10 +81,20 @@ public final class KnifeHolds {
          */
         int settle(int now) {
             runTheClock(now);
-            while (paid - thrown < clocked && AbilityCharges.charge(player, held.gooType(), price)) {
+            // palm-blob-is-a-buffer-that-right-click-turns-into-weapons: a weapon forms only on a share of the buffer
+            int share = PalmBuffer.shareOf(charge());
+            while (paid - thrown < clocked && PalmBuffer.takeShare(player, abilityId(), share)) {
+                if (!AbilityCharges.charge(player, held.gooType(), price)) {
+                    PalmBuffer.giveBack(player, abilityId(), share);
+                    break;
+                }
                 paid++;
             }
             return paid - thrown;
+        }
+
+        String abilityId() {
+            return held.ability().id().toString();
         }
 
         /**
@@ -148,10 +158,12 @@ public final class KnifeHolds {
             return changed;
         }
 
-        /** Returns the price of every knife still in the fan. */
+        /** Returns the price of every knife still in the fan, and every one's share to the buffer. */
         void refund() {
             if (paid > thrown) {
                 AbilityCharges.refund(player, held.gooType(), price.times(paid - thrown));
+                // held-weapons-reserve-their-share-of-the-buffer: a release returns every held share
+                PalmBuffer.giveBack(player, abilityId(), (paid - thrown) * PalmBuffer.shareOf(charge()));
                 thrown = paid;
             }
         }
@@ -234,6 +246,20 @@ public final class KnifeHolds {
         }
         hold.throwingSince = player.level().getServer().getTickCount();
         return true;
+    }
+
+    /**
+     * The weapons the player's standing hold of an ability holds, as last
+     * settled, without forming any: none for another ability's hold or none.
+     * decision held-weapons-reserve-their-share-of-the-buffer
+     *
+     * @param player    the player
+     * @param abilityId the ability's id
+     * @return the weapons held
+     */
+    int heldIn(ServerPlayer player, String abilityId) {
+        Hold hold = holds.get(player.getUUID());
+        return hold == null || !hold.abilityId().equals(abilityId) ? 0 : hold.paid - hold.thrown;
     }
 
     /**

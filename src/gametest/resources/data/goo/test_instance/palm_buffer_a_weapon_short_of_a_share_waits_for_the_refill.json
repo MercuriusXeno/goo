@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:palm_buffer_a_weapon_short_of_a_share_waits_for_the_refill",
+  "environment": "minecraft:default",
+  "structure": "goo:light_bay",
+  "max_ticks": 200,
+  "setup_ticks": 0,
+  "required": true
+}
