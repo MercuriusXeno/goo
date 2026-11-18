@@ -63,11 +63,16 @@ public final class PhaseGooEvents {
         } else if (shift == PhaseShift.INTO_PHASE) {
             living.removeData(GooAttachments.OUT_OF_PHASE);
         }
-        if (shift != PhaseShift.NONE) {
-            float pitch = shift == PhaseShift.OUT_OF_PHASE ? OUT_OF_PHASE_PITCH : INTO_PHASE_PITCH;
-            level.playSound(null, living.getX(), living.getY(), living.getZ(), SoundEvents.RESPAWN_ANCHOR_DEPLETE,
-                    living.getSoundSource(), SHIFT_VOLUME, pitch);
+        soundShift(level, living, shift);
+    }
+
+    private static void soundShift(ServerLevel level, LivingEntity living, PhaseShift shift) {
+        if (shift == PhaseShift.NONE) {
+            return;
         }
+        float pitch = shift == PhaseShift.OUT_OF_PHASE ? OUT_OF_PHASE_PITCH : INTO_PHASE_PITCH;
+        level.playSound(null, living.getX(), living.getY(), living.getZ(), SoundEvents.RESPAWN_ANCHOR_DEPLETE,
+                living.getSoundSource(), SHIFT_VOLUME, pitch);
     }
 
     /**
