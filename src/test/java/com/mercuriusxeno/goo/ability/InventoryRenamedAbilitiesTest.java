@@ -101,7 +101,8 @@ class InventoryRenamedAbilitiesTest {
         assertEquals("goo.ability.void.zone.cost_mechanics", zone.get("cost_mechanics").getAsString());
         JsonObject step = zone.getAsJsonArray("behaviors").get(0).getAsJsonObject();
         assertEquals("zone", step.get("type").getAsString());
-        assertEquals(20, step.get("charge").getAsInt());
+        // the operator ruled the gates' whole trip twice as slow: Zone's channel is 40 ticks
+        assertEquals(40, step.get("charge").getAsInt());
         assertEquals(6, step.get("enter").getAsInt());
         assertEquals(20, step.get("ring_ticks").getAsInt());
         assertEquals(10, step.get("cell_cost").getAsInt());
