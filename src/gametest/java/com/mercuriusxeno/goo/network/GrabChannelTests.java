@@ -1,11 +1,12 @@
 package com.mercuriusxeno.goo.network;
 
+import com.mercuriusxeno.goo.ability.quantum.PortalColor;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.program.GrabStep;
 import com.mercuriusxeno.goo.ability.kinetic.GrabEvents;
 import com.mercuriusxeno.goo.ability.quantum.Portal;
-import com.mercuriusxeno.goo.ability.quantum.PortalChoice;
+import com.mercuriusxeno.goo.ability.quantum.PortalPairs;
 import net.minecraft.core.Direction;
 import net.minecraft.core.GlobalPos;
 import net.minecraft.server.level.ServerLevel;
@@ -700,11 +701,11 @@ public final class GrabChannelTests {
         }
         ServerLevel level = helper.getLevel();
         Portal near = new Portal(GlobalPos.of(level.dimension(), helper.absolutePos(NEAR_PORTAL)), Direction.WEST,
-                Direction.UP);
+                Direction.UP, PortalColor.BLUE);
         Portal far = new Portal(GlobalPos.of(level.dimension(), helper.absolutePos(FAR_PORTAL)), Direction.EAST,
-                Direction.UP);
-        PortalChoice.place(level, player.getUUID(), near);
-        PortalChoice.place(level, player.getUUID(), far);
+                Direction.UP, PortalColor.ORANGE);
+        PortalPairs.place(level, player.getUUID(), near);
+        PortalPairs.place(level, player.getUUID(), far);
         Pig pig = helper.spawn(EntityType.PIG, PAST_THE_WALL);
         holdFor(helper, player, pig, THROUGH_TICKS);
         helper.runAfterDelay(THROUGH_TICKS + 1, () -> {
@@ -713,8 +714,8 @@ public final class GrabChannelTests {
             helper.assertTrue(pig.getX() < helper.absolutePos(NEAR_PORTAL).getX(), "The pig should be drawn back "
                     + "through the pair to the player's side of the wall, stands at " + helper.relativeVec(pig.position())
                     );
-            PortalChoice.breakAt(level, near.block().pos(), near.face());
-            PortalChoice.breakAt(level, far.block().pos(), far.face());
+            PortalPairs.breakAt(level, near.block().pos(), near.face());
+            PortalPairs.breakAt(level, far.block().pos(), far.face());
             leave(helper, player);
         });
     }
@@ -777,11 +778,11 @@ public final class GrabChannelTests {
         helper.setBlock(FLOOR_PORTAL.east(), Blocks.STONE);
         ServerLevel level = helper.getLevel();
         Portal floor = new Portal(GlobalPos.of(level.dimension(), helper.absolutePos(FLOOR_PORTAL)), Direction.UP,
-                Direction.EAST);
+                Direction.EAST, PortalColor.BLUE);
         Portal far = new Portal(GlobalPos.of(level.dimension(), helper.absolutePos(FAR_PORTAL)), Direction.EAST,
-                Direction.UP);
-        PortalChoice.place(level, player.getUUID(), floor);
-        PortalChoice.place(level, player.getUUID(), far);
+                Direction.UP, PortalColor.ORANGE);
+        PortalPairs.place(level, player.getUUID(), floor);
+        PortalPairs.place(level, player.getUUID(), far);
         Pig pig = helper.spawn(EntityType.PIG, PAST_THE_WALL);
         double wall = helper.absolutePos(NEAR_PORTAL).getX();
         java.util.List<Vec3> motions = new java.util.ArrayList<>();
@@ -804,8 +805,8 @@ public final class GrabChannelTests {
                     + "at " + helper.relativeVec(cameOut.get(0)));
             helper.assertTrue(motions.get(0).y() <= 0, "The pig should come up out of the floor portal with no leap "
                     + "of its own, moving " + motions.get(0));
-            PortalChoice.breakAt(level, floor.block().pos(), floor.face());
-            PortalChoice.breakAt(level, far.block().pos(), far.face());
+            PortalPairs.breakAt(level, floor.block().pos(), floor.face());
+            PortalPairs.breakAt(level, far.block().pos(), far.face());
             leave(helper, player);
         });
     }
@@ -847,11 +848,11 @@ public final class GrabChannelTests {
         }
         ServerLevel level = helper.getLevel();
         Portal near = new Portal(GlobalPos.of(level.dimension(), helper.absolutePos(NEAR_PILLAR)), Direction.WEST,
-                Direction.UP);
+                Direction.UP, PortalColor.BLUE);
         Portal far = new Portal(GlobalPos.of(level.dimension(), helper.absolutePos(FAR_PILLAR)), Direction.EAST,
-                Direction.UP);
-        PortalChoice.place(level, player.getUUID(), near);
-        PortalChoice.place(level, player.getUUID(), far);
+                Direction.UP, PortalColor.ORANGE);
+        PortalPairs.place(level, player.getUUID(), near);
+        PortalPairs.place(level, player.getUUID(), far);
         Zombie zombie = helper.spawn(EntityType.ZOMBIE, IN_PLAIN_SIGHT);
         Vec3 holdMiddle = helper.absoluteVec(eyeAtStand.add(holdDistance(helper), 0, 0));
         net.minecraft.world.phys.BlockHitResult straight = level.clip(new net.minecraft.world.level.ClipContext(
@@ -878,8 +879,8 @@ public final class GrabChannelTests {
             helper.assertTrue(left.z() >= nearMouth.minZ && left.z() <= nearMouth.maxZ, "The zombie aimed at "
                     + "through the portal should come out of the near portal, carried through the pair, not pulled "
                     + "sideways across; went " + cameOut.stream().map(helper::relativeVec).toList());
-            PortalChoice.breakAt(level, near.block().pos(), near.face());
-            PortalChoice.breakAt(level, far.block().pos(), far.face());
+            PortalPairs.breakAt(level, near.block().pos(), near.face());
+            PortalPairs.breakAt(level, far.block().pos(), far.face());
             leave(helper, player);
         });
     }
@@ -921,11 +922,11 @@ public final class GrabChannelTests {
         }
         ServerLevel level = helper.getLevel();
         Portal west = new Portal(GlobalPos.of(level.dimension(), helper.absolutePos(FACING_WEST_WALL)), Direction.EAST,
-                Direction.UP);
+                Direction.UP, PortalColor.BLUE);
         Portal east = new Portal(GlobalPos.of(level.dimension(), helper.absolutePos(FACING_EAST_WALL)), Direction.WEST,
-                Direction.UP);
-        PortalChoice.place(level, player.getUUID(), west);
-        PortalChoice.place(level, player.getUUID(), east);
+                Direction.UP, PortalColor.ORANGE);
+        PortalPairs.place(level, player.getUUID(), west);
+        PortalPairs.place(level, player.getUUID(), east);
         Pig pig = helper.spawn(EntityType.PIG, BETWEEN);
         java.util.List<Vec3> path = new java.util.ArrayList<>();
         path.add(pig.position());
@@ -941,8 +942,8 @@ public final class GrabChannelTests {
             long intoThePair = path.stream().filter(feet -> feet.x() < westFace).count();
             helper.assertTrue(intoThePair <= 1, "The pig should go into the facing pair at most once, went in "
                     + intoThePair + " times along " + path.stream().map(helper::relativeVec).toList());
-            PortalChoice.breakAt(level, west.block().pos(), west.face());
-            PortalChoice.breakAt(level, east.block().pos(), east.face());
+            PortalPairs.breakAt(level, west.block().pos(), west.face());
+            PortalPairs.breakAt(level, east.block().pos(), east.face());
             leave(helper, player);
         });
     }
@@ -991,11 +992,11 @@ public final class GrabChannelTests {
         }
         ServerLevel level = helper.getLevel();
         Portal west = new Portal(GlobalPos.of(level.dimension(), helper.absolutePos(AIMED_INTO)), Direction.EAST,
-                Direction.UP);
+                Direction.UP, PortalColor.BLUE);
         Portal east = new Portal(GlobalPos.of(level.dimension(), helper.absolutePos(BEHIND_THE_HOLDER)),
-                Direction.WEST, Direction.UP);
-        PortalChoice.place(level, player.getUUID(), west);
-        PortalChoice.place(level, player.getUUID(), east);
+                Direction.WEST, Direction.UP, PortalColor.ORANGE);
+        PortalPairs.place(level, player.getUUID(), west);
+        PortalPairs.place(level, player.getUUID(), east);
         Pig pig = helper.spawn(EntityType.PIG, BETWEEN_THE_PAIR);
         java.util.List<Vec3> held = new java.util.ArrayList<>();
         for (int tick = 1; tick <= SETTLE_TICKS + WATCHED_TICKS; tick++) {
@@ -1011,8 +1012,8 @@ public final class GrabChannelTests {
             double first = held.getFirst().x();
             boolean still = held.stream().allMatch(middle -> Math.abs(middle.x() - first) < AT_THE_HOLD
                     && middle.x() > AIMED_INTO_FACE_X && middle.x() < BEHIND_THE_HOLDER_FACE_X);
-            PortalChoice.breakAt(level, west.block().pos(), west.face());
-            PortalChoice.breakAt(level, east.block().pos(), east.face());
+            PortalPairs.breakAt(level, west.block().pos(), west.face());
+            PortalPairs.breakAt(level, east.block().pos(), east.face());
             helper.assertTrue(still, "The pig should be held still between the pair, past the portal it is aimed "
                     + "into, its middle stood at " + held);
             leave(helper, player);
@@ -1060,11 +1061,11 @@ public final class GrabChannelTests {
         }
         ServerLevel level = helper.getLevel();
         Portal west = new Portal(GlobalPos.of(level.dimension(), helper.absolutePos(CUSP_WEST)), Direction.EAST,
-                Direction.UP);
+                Direction.UP, PortalColor.BLUE);
         Portal east = new Portal(GlobalPos.of(level.dimension(), helper.absolutePos(CUSP_EAST)), Direction.WEST,
-                Direction.UP);
-        PortalChoice.place(level, player.getUUID(), west);
-        PortalChoice.place(level, player.getUUID(), east);
+                Direction.UP, PortalColor.ORANGE);
+        PortalPairs.place(level, player.getUUID(), west);
+        PortalPairs.place(level, player.getUUID(), east);
         // A silverfish, its box small enough to hang between the player and the east portal.
         net.minecraft.world.entity.Mob mob = helper.spawnWithNoFreeWill(EntityType.SILVERFISH, BEFORE_THE_WEST_FACE);
         java.util.List<Vec3> path = new java.util.ArrayList<>();
@@ -1080,8 +1081,8 @@ public final class GrabChannelTests {
         helper.runAfterDelay(CUSP_TICKS + 1, () -> {
             long jumps = java.util.stream.IntStream.range(1, path.size())
                     .filter(i -> path.get(i).distanceTo(path.get(i - 1)) > A_CARRY).count();
-            PortalChoice.breakAt(level, west.block().pos(), west.face());
-            PortalChoice.breakAt(level, east.block().pos(), east.face());
+            PortalPairs.breakAt(level, west.block().pos(), west.face());
+            PortalPairs.breakAt(level, east.block().pos(), east.face());
             mob.discard();
             helper.assertTrue(jumps <= 1, "The mob should be held still on one side of the pair, jumped "
                     + jumps + " times along " + path);
@@ -1127,11 +1128,11 @@ public final class GrabChannelTests {
         }
         ServerLevel level = helper.getLevel();
         Portal west = new Portal(GlobalPos.of(level.dimension(), helper.absolutePos(AHEAD_WEST)), Direction.EAST,
-                Direction.UP);
+                Direction.UP, PortalColor.BLUE);
         Portal east = new Portal(GlobalPos.of(level.dimension(), helper.absolutePos(BEHIND_EAST)), Direction.WEST,
-                Direction.UP);
-        PortalChoice.place(level, player.getUUID(), west);
-        PortalChoice.place(level, player.getUUID(), east);
+                Direction.UP, PortalColor.ORANGE);
+        PortalPairs.place(level, player.getUUID(), west);
+        PortalPairs.place(level, player.getUUID(), east);
         // A silverfish, its box small enough to hang between the player and the east portal.
         net.minecraft.world.entity.Mob mob = helper.spawnWithNoFreeWill(EntityType.SILVERFISH,
                 BlockPos.containing(HUNG_PAST_THE_PORTAL));
@@ -1150,8 +1151,8 @@ public final class GrabChannelTests {
         helper.runAfterDelay(SETTLE_TICKS + WATCHED_TICKS + 1, () -> {
             double westFace = helper.absolutePos(AHEAD_WEST).getX() + 1;
             double comeBackTo = middleOf(mob).x() - westFace;
-            PortalChoice.breakAt(level, west.block().pos(), west.face());
-            PortalChoice.breakAt(level, east.block().pos(), east.face());
+            PortalPairs.breakAt(level, west.block().pos(), west.face());
+            PortalPairs.breakAt(level, east.block().pos(), east.face());
             mob.discard();
 
             helper.assertTrue(comeBackTo > 0 && comeBackTo < 1, "The mob should come back out before the west "
@@ -1236,11 +1237,11 @@ public final class GrabChannelTests {
         }
         ServerLevel level = helper.getLevel();
         Portal near = new Portal(GlobalPos.of(level.dimension(), helper.absolutePos(NEAR_PORTAL)), Direction.WEST,
-                Direction.UP);
+                Direction.UP, PortalColor.BLUE);
         Portal far = new Portal(GlobalPos.of(level.dimension(), helper.absolutePos(FAR_PORTAL)), Direction.EAST,
-                Direction.UP);
-        PortalChoice.place(level, player.getUUID(), near);
-        PortalChoice.place(level, player.getUUID(), far);
+                Direction.UP, PortalColor.ORANGE);
+        PortalPairs.place(level, player.getUUID(), near);
+        PortalPairs.place(level, player.getUUID(), far);
         Pig pig = helper.spawn(EntityType.PIG, pigAt);
         double wall = helper.absolutePos(NEAR_PORTAL).getX();
         java.util.List<Vec3> path = new java.util.ArrayList<>();
@@ -1263,8 +1264,8 @@ public final class GrabChannelTests {
 
             helper.assertTrue(pig.getX() < wall, "The pig should come through to the player's side, stands at "
                     + helper.relativeVec(pig.position()));
-            PortalChoice.breakAt(level, near.block().pos(), near.face());
-            PortalChoice.breakAt(level, far.block().pos(), far.face());
+            PortalPairs.breakAt(level, near.block().pos(), near.face());
+            PortalPairs.breakAt(level, far.block().pos(), far.face());
             leave(helper, player);
         });
     }

@@ -1,8 +1,9 @@
 package com.mercuriusxeno.goo.network;
 
+import com.mercuriusxeno.goo.ability.quantum.PortalColor;
 import com.mercuriusxeno.goo.ability.quantum.GatePassage;
 import com.mercuriusxeno.goo.ability.quantum.Portal;
-import com.mercuriusxeno.goo.ability.quantum.PortalChoice;
+import com.mercuriusxeno.goo.ability.quantum.PortalPairs;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.HeardSounds;
 import com.mercuriusxeno.goo.gametest.PacketRecorder;
@@ -77,12 +78,12 @@ public final class PortalSoundTests {
         ServerPlayer caster = standingAway(helper);
         PacketRecorder heard = PacketRecorder.attachTo(caster);
         Portal portal = wallAt(helper, FIRST, Direction.SOUTH);
-        PortalChoice.place(level, caster.getUUID(), portal);
+        PortalPairs.place(level, caster.getUUID(), portal);
         List<ClientboundSoundPacket> fresh = HeardSounds.of(heard, GooSoundIds.PORTAL_PLACE);
         helper.assertTrue(fresh.size() == 1 && HeardSounds.playedAt(fresh.getFirst(), portal.faceCenter()),
                 "Placing a fresh portal should play the placement sound once at its face centre "
                         + portal.faceCenter() + ", heard by its caster, plays " + HeardSounds.describe(fresh));
-        PortalChoice.place(level, caster.getUUID(), portal);
+        PortalPairs.place(level, caster.getUUID(), portal);
         List<ClientboundSoundPacket> again = HeardSounds.of(heard, GooSoundIds.PORTAL_PLACE);
         helper.assertTrue(again.size() == 1, "Placing a portal the caster already holds should play nothing more, "
                 + "plays " + HeardSounds.describe(again));
@@ -101,9 +102,9 @@ public final class PortalSoundTests {
         ServerPlayer owner = standingAway(helper);
         PacketRecorder heard = PacketRecorder.attachTo(owner);
         Portal entry = wallAt(helper, FIRST, Direction.SOUTH);
-        Portal exit = wallAt(helper, SECOND, Direction.NORTH);
-        PortalChoice.place(helper.getLevel(), owner.getUUID(), entry);
-        PortalChoice.place(helper.getLevel(), owner.getUUID(), exit);
+        Portal exit = wallAt(helper, SECOND, Direction.NORTH).withColor(PortalColor.ORANGE);
+        PortalPairs.place(helper.getLevel(), owner.getUUID(), entry);
+        PortalPairs.place(helper.getLevel(), owner.getUUID(), exit);
         helper.runAfterDelay(STEP, () -> {
             Pig pig = helper.spawn(EntityType.PIG, A_BLOCK_OFF);
             pig.setDeltaMovement(0, 0, -SHOVE);
@@ -130,9 +131,9 @@ public final class PortalSoundTests {
         ServerPlayer player = standingAway(helper);
         PacketRecorder crosserHeard = PacketRecorder.attachClaiming(player, ListenerSoundPayload.class);
         Portal entry = wallAt(helper, FIRST, Direction.SOUTH);
-        Portal exit = wallAt(helper, SECOND, Direction.NORTH);
-        PortalChoice.place(helper.getLevel(), player.getUUID(), entry);
-        PortalChoice.place(helper.getLevel(), player.getUUID(), exit);
+        Portal exit = wallAt(helper, SECOND, Direction.NORTH).withColor(PortalColor.ORANGE);
+        PortalPairs.place(helper.getLevel(), player.getUUID(), entry);
+        PortalPairs.place(helper.getLevel(), player.getUUID(), exit);
         helper.runAfterDelay(STEP, () -> {
             GatePassage.announced(player, entry.gate(), helper.absoluteVec(THROUGH_THE_FACE), Vec3.ZERO,
                     player.getYRot(), player.getXRot());
@@ -179,6 +180,6 @@ public final class PortalSoundTests {
     private static Portal wallAt(GameTestHelper helper, BlockPos lower, Direction face) {
         helper.setBlock(lower, Blocks.STONE);
         helper.setBlock(lower.above(), Blocks.STONE);
-        return new Portal(GlobalPos.of(helper.getLevel().dimension(), helper.absolutePos(lower)), face, Direction.UP);
+        return new Portal(GlobalPos.of(helper.getLevel().dimension(), helper.absolutePos(lower)), face, Direction.UP, PortalColor.BLUE);
     }
 }
