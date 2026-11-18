@@ -7,12 +7,12 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
- * nether_decay.json, read from the classpath as the loader reads it: the hive its hold makes of a prism strikes
+ * zombie_decay.json, read from the classpath as the loader reads it: the hive its hold makes of a prism strikes
  * living mobs alone (decision hive-prism-pillar-eats-the-living).
  */
-class NetherDecayJsonTest {
+class ZombieDecayJsonTest {
 
-    private final AbilityDefinition definition = AbilityJson.decode("nether_decay");
+    private final AbilityDefinition definition = AbilityJson.decode("zombie_decay");
 
     /**
      * The hive's field keeps living mobs still alive, the operator's ruling of mobs only.
