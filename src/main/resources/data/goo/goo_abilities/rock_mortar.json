@@ -2,7 +2,7 @@
   "gooType": "rock",
   "displayName": "goo.ability.rock.mortar",
   "cost_mechanics": "goo.ability.rock.mortar.cost_mechanics",
-  "badge": "channeled",
+  "badge": "residual",
   "order": 0,
   "cost": "15 * $mundane_block",
   "cost_formula": "%s/m³",
