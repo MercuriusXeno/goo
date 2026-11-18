@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:build_pushes_a_wall_out_two_on_stone",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 60,
+  "setup_ticks": 0,
+  "required": true
+}
