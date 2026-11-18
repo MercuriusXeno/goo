@@ -15,6 +15,8 @@ import com.mercuriusxeno.goo.client.ability.MiasmaVortex;
 import com.mercuriusxeno.goo.client.ability.PneumaWind;
 import com.mercuriusxeno.goo.client.ability.ReapSlashBlades;
 import com.mercuriusxeno.goo.client.ability.RelayLasers;
+import com.mercuriusxeno.goo.client.ability.SpikesBristle;
+import com.mercuriusxeno.goo.client.ability.SpikesRise;
 import com.mercuriusxeno.goo.client.ability.WindLines;
 import com.mercuriusxeno.goo.client.ability.WispGlow;
 import com.mercuriusxeno.goo.client.ability.ZapBolts;
@@ -61,7 +63,9 @@ public final class TranslucentVisualPath {
             new Registration(PneumaWind.class, SortRoute.FAR_TO_NEAR, PneumaWind::collect),
             new Registration(GrowthBreeze.class, SortRoute.FAR_TO_NEAR, GrowthBreeze::collect),
             new Registration(HeatWaveEffect.class, SortRoute.SCREEN_SPACE, HeatWaveEffect::collect),
-            new Registration(WispGlow.class, SortRoute.FAR_TO_NEAR, WispGlow::collect));
+            new Registration(WispGlow.class, SortRoute.FAR_TO_NEAR, WispGlow::collect),
+            new Registration(SpikesBristle.class, SortRoute.OPAQUE_SHAPE, SpikesBristle::collect),
+            new Registration(SpikesRise.class, SortRoute.OPAQUE_SHAPE, SpikesRise::collect));
 
     private TranslucentVisualPath() {
     }

@@ -21,6 +21,14 @@ public enum SortRoute {
     ON_OPAQUE_FACES(RenderLevelStageEvent.AfterOpaqueBlocks.class),
 
     /**
+     * A shape that writes its own depth and shows nothing through it, such
+     * as Spikes goo's steel pyramids, drawn with the opaque world right
+     * after the opaque blocks, so every translucent thing drawn later sorts
+     * against it as against a block.
+     */
+    OPAQUE_SHAPE(RenderLevelStageEvent.AfterOpaqueBlocks.class),
+
+    /**
      * Drawn regardless of depth, under a standing decision that shows it
      * through blocks, such as the x-ray overlays and the held ghost's second
      * pass (decision held-visual-ghosts-the-landing-in-two-passes). Drawn
