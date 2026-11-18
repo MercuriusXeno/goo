@@ -4,37 +4,22 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.player.Player;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.entity.living.LivingChangeTargetEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 
 /**
- * Holds the out-of-phase and the plain apart: an out-of-phase mob takes no
- * player for its target unless that player is eldritch, and a player's
- * eldritch state ends the tick it fades. Quantum's phase marks the
- * out-of-phase.
+ * Ends a player's eldritch state the tick it fades, and reads who stands
+ * out of phase on either side. Which mob may target whom across phase is
+ * PhaseEvents': a mob targets its own side of phase, or an eldritch player.
  * eldritch-sight-reveals-the-out-of-phase
+ * phase-shares-a-plane-between-the-phased
  */
 @EventBusSubscriber(modid = Goo.MODID)
 public final class EldritchEvents {
 
     private EldritchEvents() {
-    }
-
-    /**
-     * Turns an out-of-phase mob away from a player who is not eldritch.
-     *
-     * @param event the change target event
-     */
-    @SubscribeEvent
-    public static void onChangeTarget(LivingChangeTargetEvent event) {
-        if (event.getEntity() instanceof Mob mob && event.getNewAboutToBeSetTarget() instanceof Player player
-                && !sees(isOutOfPhase(mob), isEldritch(player))) {
-            event.setNewAboutToBeSetTarget(null);
-        }
     }
 
     /**
@@ -48,18 +33,6 @@ public final class EldritchEvents {
                 && !isEldritch(player)) {
             end(player);
         }
-    }
-
-    /**
-     * Whether a player and an entity see each other: anything in phase is
-     * seen by all, and the out-of-phase only by the eldritch.
-     *
-     * @param outOfPhase whether the entity is out of phase
-     * @param eldritch   whether the player is eldritch
-     * @return true where they see each other
-     */
-    public static boolean sees(boolean outOfPhase, boolean eldritch) {
-        return !outOfPhase || eldritch;
     }
 
     /**
