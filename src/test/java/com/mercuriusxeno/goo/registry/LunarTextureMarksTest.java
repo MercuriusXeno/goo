@@ -176,6 +176,42 @@ class LunarTextureMarksTest {
         assertTrue(repeatedClustersOf(image).isEmpty(), "two-texel specks read as pepper");
     }
 
+    /**
+     * A bald window: a four-texel square, wrapped on the tile, holding two tones or fewer, which reads in game as a
+     * flat spot. The operator ruled crater ice's flat spots bad.
+     */
+    static int baldWindowsOf(BufferedImage image) {
+        int width = image.getWidth();
+        int height = image.getHeight();
+        int bald = 0;
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                Set<Integer> tones = new HashSet<>();
+                for (int j = 0; j < 4; j++) {
+                    for (int i = 0; i < 4; i++) {
+                        tones.add(storedArgb(image, (x + i) % width, (y + j) % height));
+                    }
+                }
+                if (tones.size() <= 2) {
+                    bald++;
+                }
+            }
+        }
+        return bald;
+    }
+
+    static Stream<String> craterIceSprites() {
+        return LunarPaletteTest.variantsOf("crater_ice").stream();
+    }
+
+    /** Anorthosite and breccia, the rock crater ice lies among, hold one bald window or none; so does the ice. */
+    @ParameterizedTest
+    @MethodSource("craterIceSprites")
+    void craterIceHasNoFlatSpot(String sprite) throws IOException {
+        int bald = baldWindowsOf(gooBlock(sprite));
+        assertTrue(bald <= 1, sprite + " has " + bald + " flat four-texel windows");
+    }
+
     private static List<String> repeatedClustersOf(BufferedImage image) {
         List<Set<Texel>> clusters = clustersOf(darkMarksOf(image), image.getWidth(), image.getHeight()).stream()
                 .filter(cluster -> cluster.size() >= 3).toList();
