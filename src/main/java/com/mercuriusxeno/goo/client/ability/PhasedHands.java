@@ -20,7 +20,6 @@ import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderArmEvent;
-import net.neoforged.neoforge.client.event.RenderGuiEvent;
 import net.neoforged.neoforge.client.event.RenderHandEvent;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -122,12 +121,13 @@ public final class PhasedHands {
     }
 
     /**
-     * Ends the fade once the hands have drawn, before the slots draw.
-     *
-     * @param event the gui render event
+     * Ends the fade the moment the first-person hands have drawn, from
+     * GameRendererPhasedHandsMixin: the frame renders the gui's slots after
+     * the hands, and caches their item icons, so a fade left standing faded
+     * every slot while the player was phased and kept it after.
+     * phased-things-draw-as-a-ghostly-image
      */
-    @SubscribeEvent
-    public static void onRenderGuiPre(RenderGuiEvent.Pre event) {
+    public static void endHands() {
         ghosting = false;
     }
 
