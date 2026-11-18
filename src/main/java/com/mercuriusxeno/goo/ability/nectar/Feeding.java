@@ -9,6 +9,7 @@ import net.minecraft.world.entity.monster.Slime;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Items;
 import org.jspecify.annotations.Nullable;
+import java.util.Optional;
 
 /**
  * What Jelly's Nectar does to an animal it reaches: it counts as the animal's
@@ -53,7 +54,42 @@ public final class Feeding {
     }
 
     /**
-     * The size a fed slime grows to: the next vanilla size step, capped at
+     * What an animal reaching Nectar goo eats.
+     *
+     * @param layersLeft  the cell's layers after the meal
+     * @param ageAfter    the animal's age after it
+     * @param fallsInLove whether the animal falls in love
+     */
+    public record Meal(int layersLeft, int ageAfter, boolean fallsInLove) {
+    }
+
+    /**
+     * What an animal reaching a Nectar cell eats: a baby grows to an adult
+     * and an adult ready to breed falls in love, each eating one layer of
+     * the cell; an animal neither feeds eats nothing.
+     * each-feeding-eats-a-layer-of-nectar
+     * nectar-goo-keeps-feeds-effects-as-a-universal-food
+     *
+     * @param layers        the cell's layers
+     * @param age           the animal's age, below zero for a baby
+     * @param canFallInLove whether the animal may fall in love
+     * @return the meal, empty where the goo feeds it nothing
+     */
+    public static Optional<Meal> mealOf(int layers, int age, boolean canFallInLove) {
+        if (layers <= 0) {
+            return Optional.empty();
+        }
+        if (age < ADULT_AGE) {
+            return Optional.of(new Meal(layers - 1, ADULT_AGE, false));
+        }
+        if (age == ADULT_AGE && canFallInLove) {
+            return Optional.of(new Meal(layers - 1, ADULT_AGE, true));
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * The size a fed slime grows to:the next vanilla size step, capped at
      * the largest natural size.
      * slimes-grow-on-jelly-feed
      *
