@@ -1,40 +1,33 @@
 package com.mercuriusxeno.goo.client.throwing;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.ability.ArmPose;
+import com.mercuriusxeno.goo.ability.GloveButton;
 import com.mercuriusxeno.goo.ability.program.PortalStep;
-import com.mercuriusxeno.goo.ability.quantum.Portal;
-import com.mercuriusxeno.goo.client.ability.ClientPortals;
+import com.mercuriusxeno.goo.client.ability.LiftedPalmBlob;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
-import com.mercuriusxeno.goo.network.PortalChoosePayload;
-import com.mercuriusxeno.goo.network.PortalLinkPayload;
 import net.minecraft.client.Minecraft;
-import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.world.entity.player.Player;
+import net.minecraft.client.player.LocalPlayer;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import org.jspecify.annotations.Nullable;
-import java.util.Optional;
 
 /**
- * A right click with Portal in the glove among the player's own portals:
- * sneaking on one starts choosing its partner, and sneaking on another while
- * choosing links the two; while choosing, a right click anywhere else, or on
- * the chosen portal again, cancels, the portal keeping any link it held;
- * otherwise a right click places a portal.
- * portals-link-by-looking-through-portal-vision
+ * Portal in the glove: left click shoots the blue portal and right click the
+ * orange one, each the moment its button goes down, once a press however
+ * long the button is held, the palm blob hopping as it shoots.
+ * portal-takes-over-left-and-right-click-for-blue-and-orange
+ * operator UAT 2026-11-17: both buttons fire on press, each hopping the palm blob as it shoots
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class PortalAim {
 
-    /** The sneak held through a link, which stops counting until let go. */
-    private static final SneakLatch LATCH = new SneakLatch();
-
-    /** The route the last Portal press sent, which its release swings by. */
-    private static Press lastSent = new Place();
+    /** Whether the attack key stood down as the last client tick ended. */
+    private static boolean attackDownLastTick;
+    /** Whether the use key stood down as the last client tick ended. */
+    private static boolean useDownLastTick;
 
     private PortalAim() {
     }
@@ -50,140 +43,40 @@ public final class PortalAim {
         return ability != null && PortalStep.placesPortals(ability.behaviors());
     }
 
-    /** What a right click with Portal in the glove does. */
-    public sealed interface Press permits Choose, Link, Cancel, Place {
+    /**
+     * Whether a button's interaction shoots Portal: a fresh press does, and
+     * the interaction vanilla repeats while the button stays down does not.
+     *
+     * @param downLastTick whether the button stood down as the last tick ended
+     * @return true for a fresh press
+     */
+    static boolean shootsOnThisPress(boolean downLastTick) {
+        return !downLastTick;
     }
 
     /**
-     * Starts choosing a portal's partner.
+     * Shoots Portal by a button on a fresh press, hopping the palm blob as
+     * the shot leaves it.
      *
-     * @param portal the portal chosen from
+     * @param player the local player
+     * @param button the button pressed
      */
-    public record Choose(Portal portal) implements Press {
-    }
-
-    /**
-     * Links the portal being chosen from to another.
-     *
-     * @param target the partner
-     */
-    public record Link(Portal target) implements Press {
-    }
-
-    /** Cancels choosing; a portal linked already keeps its link. */
-    public record Cancel() implements Press {
-    }
-
-    /** Throws Portal, placing a portal. */
-    public record Place() implements Press {
-    }
-
-    /**
-     * What a right click with Portal in the glove does.
-     *
-     * @param choosing the portal being chosen from, empty while none is
-     * @param sneaking whether the player sneaks
-     * @param faced    the player's portal its look faces, at any distance, empty for none
-     * @return the press
-     */
-    public static Press pressed(Optional<Portal> choosing, boolean sneaking, Optional<Portal> faced) {
-        if (choosing.isPresent()) {
-            boolean another = sneaking && faced.isPresent() && !faced.get().equals(choosing.get());
-            return another ? new Link(faced.get()) : new Cancel();
+    public static void shoot(LocalPlayer player, GloveButton button) {
+        boolean downLastTick = button == GloveButton.ATTACK ? attackDownLastTick : useDownLastTick;
+        if (shootsOnThisPress(downLastTick) && GloveThrowSender.sendPortalShot(player, button)) {
+            LiftedPalmBlob.held(player.getId(), player.getEyePosition(), player.level().getGameTime());
         }
-        return sneaking && faced.isPresent() ? new Choose(faced.get()) : new Place();
     }
 
     /**
-     * Whether a sent Portal press swings the glove hand on release: only a
-     * Place, which throws a blob, and only by a pose that swings; a Choose, a
-     * Link or a Cancel throws no blob.
-     * decision diagnose-and-correct-hand-swings-outside-throws
-     *
-     * @param press the route the press sent
-     * @param pose  the selected ability's arm pose
-     * @return true where the press swings
-     */
-    public static boolean swingsOnRelease(Press press, ArmPose pose) {
-        return press instanceof Place && pose.swingsOnRelease();
-    }
-
-    /**
-     * Whether the last Portal press sent swings the glove hand on release.
-     *
-     * @param pose the selected ability's arm pose
-     * @return true where that press swings
-     */
-    public static boolean lastSentSwings(ArmPose pose) {
-        return swingsOnRelease(lastSent, pose);
-    }
-
-    /**
-     * Sends what a press with Portal in hand does among the player's portals.
-     *
-     * @param player the local player
-     * @return true when the press chose, linked or cancelled, so nothing is thrown
-     */
-    public static boolean press(Player player) {
-        Press press = pressed(ClientPortals.choosing(), sneaks(player), faced(player));
-        lastSent = press;
-        CustomPacketPayload payload = switch (press) {
-            case Choose choose -> new PortalChoosePayload(Optional.of(choose.portal()));
-            case Link link -> {
-                LATCH.linked();
-                yield new PortalLinkPayload(link.target());
-            }
-            case Cancel cancel -> new PortalChoosePayload(Optional.empty());
-            case Place place -> null;
-        };
-        if (payload == null) {
-            return false;
-        }
-        GloveThrowSender.sendPayload(payload);
-        return true;
-    }
-
-    /**
-     * The player's portal its look faces, at any distance.
-     *
-     * @param player the local player
-     * @return the portal, empty for none
-     */
-    public static Optional<Portal> faced(Player player) {
-        return ClientPortals.facedOnLook(ClientPortals.portals(), player.level().dimension(),
-                player.getEyePosition(), player.getLookAngle());
-    }
-
-    /**
-     * Whether the player holds Portal in its glove and sneaks, when its
-     * portals light up to show what a right click works on.
-     *
-     * @param player the local player
-     * @return true while it does
-     */
-    public static boolean working(Player player) {
-        return sneaks(player) && selected(GloveAim.selectedAbilityId(player));
-    }
-
-    /**
-     * Whether the player's sneak counts for working on portals: not while the
-     * sneak held through a link stays held.
-     *
-     * @param player the local player
-     * @return true where it counts
-     */
-    private static boolean sneaks(Player player) {
-        return LATCH.sneaking(player.isShiftKeyDown());
-    }
-
-    /**
-     * Frees the sneak once the player lets go of it.
+     * Notes whether each button stands down as the client tick ends.
      *
      * @param event the client's tick
      */
     @SubscribeEvent
     public static void onClientTick(ClientTickEvent.Post event) {
-        Player player = Minecraft.getInstance().player;
-        LATCH.update(player != null && player.isShiftKeyDown());
+        Minecraft mc = Minecraft.getInstance();
+        attackDownLastTick = mc.options.keyAttack.isDown();
+        useDownLastTick = mc.options.keyUse.isDown();
     }
 }
