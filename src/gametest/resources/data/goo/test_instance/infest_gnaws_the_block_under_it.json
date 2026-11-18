@@ -1,0 +1,10 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:infest_gnaws_the_block_under_it",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 200,
+  "setup_ticks": 0,
+  "required": true
+}
+
