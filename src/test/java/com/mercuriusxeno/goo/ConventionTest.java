@@ -79,23 +79,18 @@ class ConventionTest {
      * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
      */
     private static final Set<String> NOT_YET_ON_THE_SORTING_PATH = Set.of(
-            "client.ability.AfterimageRenderer", "client.ability.BeatRings",
-            "client.ability.BlockMingleRenderer", "client.ability.BoreDrill", "client.ability.ChainBurnoutRenderer",
-            "client.ability.CrystalShatterVisual", "client.ability.FloatPlatform", "client.ability.GroundShake",
-            "client.ability.HeadMarks", "client.ability.HeldSweepVisual",
-            "client.ability.LevelCursor", "client.ability.LiftedPalmBlob", "client.ability.LunarTripView",
-            "client.ability.MeteorMarkers", "client.ability.MeteorScorches", "client.ability.NovaChargeGhost",
-            "client.ability.NovaRings", "client.ability.PartnerMeshes", "client.ability.PetrifyFog",
-            "client.ability.PortalFaces", "client.ability.PortalView", "client.ability.RollingGooRenderer",
-            "client.ability.SculkerEchoRenderer", "client.ability.SculkerGlassRenderer", "client.ability.SculkerSenses",
-            "client.ability.SculkerVision", "client.ability.SignalRings", "client.ability.Tomes",
+            "client.ability.AfterimageRenderer", "client.ability.BlockMingleRenderer", "client.ability.BoreDrill",
+            "client.ability.ChainBurnoutRenderer", "client.ability.LiftedPalmBlob", "client.ability.LunarTripView",
+            "client.ability.PartnerMeshes", "client.ability.PortalFaces", "client.ability.PortalView",
+            "client.ability.RollingGooRenderer", "client.ability.SculkerEchoRenderer", "client.ability.SculkerGlassRenderer",
+            "client.ability.SculkerSenses", "client.ability.SculkerVision", "client.ability.Tomes",
             "client.ability.TransformationRenderer", "client.hole.HoleMouths", "client.hole.HolePits",
             "client.hud.CanisterHudRenderer", "client.hud.CrucibleHudRenderer", "client.hud.PlexerHudRenderer",
             "client.hud.VatHudRenderer", "client.model.GooJoins", "client.overlay.AimedMobRipple",
             "client.overlay.BlinkCursor", "client.overlay.FungusXray", "client.overlay.GasketOverlayRenderer",
             "client.overlay.GooTargetHighlighter", "client.overlay.OculusXray", "client.overlay.OreXray",
-            "client.overlay.TransmitTargetMarker", "client.throwing.GooFlightRenderer",
-            "client.zone.RoomCopyRenderer", "client.zone.VoidstoneFaces");
+            "client.overlay.TransmitTargetMarker", "client.throwing.GooFlightRenderer", "client.zone.RoomCopyRenderer",
+            "client.zone.VoidstoneFaces");
     /**
      * The main and tools classes split into slices imported side by side, since one
      * import of them all took seconds (decision slow-tests-take-a-seam). The first
