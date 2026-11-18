@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.overlay;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.program.BlinkLanding;
 import com.mercuriusxeno.goo.ability.program.TeleportStep;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.ability.AfterimageRenderer;
 import com.mercuriusxeno.goo.client.ability.Afterimages;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
@@ -12,6 +13,7 @@ import com.mercuriusxeno.goo.client.throwing.GloveAim;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
 import com.mercuriusxeno.goo.type.GooColors;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
@@ -68,7 +70,8 @@ public final class BlinkCursor {
         if (type != null && ability != null && showsCursor(ability, GloveUseTracker.showsArea())) {
             float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
             Optional<BlinkLanding> trip = BlinkAim.trip(player, ability, partialTick);
-            AfterimageRenderer.drawRipples(event, ripplesAt(mc, player, trip, type, partialTick));
+            AfterimageRenderer.drawRipples(new LevelFrame(event.getModelViewMatrix(), new PoseStack(),
+                    event.getLevelRenderState()), ripplesAt(mc, player, trip, type, partialTick));
         }
     }
 
