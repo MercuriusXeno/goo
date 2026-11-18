@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.ISidedProxy;
 import com.mercuriusxeno.goo.ability.DurativeRoute;
 import com.mercuriusxeno.goo.ability.HeldEffectIcon;
 import com.mercuriusxeno.goo.ability.HeldEffectName;
+import com.mercuriusxeno.goo.ability.StandingDimension;
 import com.mercuriusxeno.goo.ability.nether.HiveSwarm;
 import com.mercuriusxeno.goo.ability.oculus.OculusNodes;
 import com.mercuriusxeno.goo.ability.program.Step;
@@ -151,10 +152,12 @@ public final class GooClientSetup {
         ISidedProxy.INSTANCE[0] = new ClientProxy();
         AbilityBlockEntity.installClientSteps(GooClientSetup::syncedSteps);
         GooTypes.readConnectionOrderFrom(GooClientSetup::connectionTypeOrder);
-        HeldEffectName.readConnectionNamesFrom(
-                type -> syncedDurativeAbility(type).map(ClientAbility::displayName).orElse(null));
-        HeldEffectIcon.readConnectionIconsFrom(
-                type -> syncedDurativeAbility(type).map(ClientAbility::iconTexture).orElse(null));
+        // lunar-reads-as-terran-while-you-are-on-the-moon: a held effect shows its ability's face where the player stands
+        StandingDimension.readFrom(ClientDimension::standingIn);
+        HeldEffectName.readConnectionNamesFrom(type -> syncedDurativeAbility(type)
+                .map(ability -> ability.shownIn(ClientDimension.standingIn()).displayName()).orElse(null));
+        HeldEffectIcon.readConnectionIconsFrom(type -> syncedDurativeAbility(type)
+                .map(ability -> ability.shownIn(ClientDimension.standingIn()).icon()).orElse(null));
         HiveSwarm.installBuzzLoops(FadingLoops::keepAlive);
     }
 
@@ -525,7 +528,7 @@ public final class GooClientSetup {
     public static void registerCustomSkies(RegisterCustomEnvironmentEffectRendererEvent event) {
         event.registerSkyboxRenderer(PocketStarSky.ID, new PocketStarSkyRenderer());
         // decision astral-sky-is-the-void-with-one-bright-blue-overworld-star
-        event.registerSkyboxRenderer(LunarSky.ID, new LunarSkyRenderer());
+        event.registerSkyboxRenderer(LunarSky.ID, new LunarSkyRenderer(true));
     }
 
     /**
