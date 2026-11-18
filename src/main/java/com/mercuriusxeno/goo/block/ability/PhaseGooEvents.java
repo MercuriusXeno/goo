@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.ability.quantum.OutOfPhase;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.entity.LivingEntity;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -19,7 +20,9 @@ import java.util.stream.Stream;
  * thing stands there and expires when it steps off. A phase already standing
  * longer is kept. The phase is the out-of-phase state, with all it means:
  * mobs lose the phased, only the phased trade hits with them, and they draw
- * as a ghostly image.
+ * as a ghostly image. A faded phase ends on its own thing's tick, here, and
+ * each shift sounds where the thing stands: the respawn anchor's deplete,
+ * high as it slips out of phase and low as it steps back in.
  * phase-goo-puts-what-stands-in-it-out-of-phase
  * phase-shares-a-plane-between-the-phased
  */
@@ -32,21 +35,38 @@ public final class PhaseGooEvents {
      * own tick refreshes it.
      */
     private static final int STANDING_TICKS = 2;
+    /** The shift sounds' volume. */
+    private static final float SHIFT_VOLUME = 0.8F;
+    /** The pitch the thing slips out of phase at, the phase abilities' own. */
+    private static final float OUT_OF_PHASE_PITCH = 1.6F;
+    /** The pitch the thing steps back into phase at, lower, the way back. */
+    private static final float INTO_PHASE_PITCH = 0.9F;
 
     private PhaseGooEvents() {
     }
 
     /**
-     * Phases a living thing standing in Phase goo.
+     * Phases a living thing standing in Phase goo, ends a phase faded off the
+     * goo, and sounds either shift.
      *
      * @param event the entity tick event
      */
     @SubscribeEvent
     public static void onEntityTick(EntityTickEvent.Post event) {
-        if (event.getEntity() instanceof LivingEntity living && living.level() instanceof ServerLevel level) {
-            if (phaseCellUnder(living).isPresent()) {
-                phaseIn(level, living);
-            }
+        if (!(event.getEntity() instanceof LivingEntity living) || !(living.level() instanceof ServerLevel level)) {
+            return;
+        }
+        boolean inGoo = phaseCellUnder(living).isPresent();
+        PhaseShift shift = PhaseShift.of(inGoo, living.getData(GooAttachments.OUT_OF_PHASE), level.getGameTime());
+        if (inGoo) {
+            phaseIn(level, living);
+        } else if (shift == PhaseShift.INTO_PHASE) {
+            living.removeData(GooAttachments.OUT_OF_PHASE);
+        }
+        if (shift != PhaseShift.NONE) {
+            float pitch = shift == PhaseShift.OUT_OF_PHASE ? OUT_OF_PHASE_PITCH : INTO_PHASE_PITCH;
+            level.playSound(null, living.getX(), living.getY(), living.getZ(), SoundEvents.RESPAWN_ANCHOR_DEPLETE,
+                    living.getSoundSource(), SHIFT_VOLUME, pitch);
         }
     }
 
