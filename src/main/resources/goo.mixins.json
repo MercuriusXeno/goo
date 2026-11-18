@@ -55,6 +55,7 @@
     "PlayerModelAbilityPoseMixin",
     "ScreenEffectRendererGateMixin",
     "EntityScryOutlineColorMixin",
-    "MinecraftScryOutlineMixin"
+    "MinecraftScryOutlineMixin",
+    "MouseHandlerLunarHoldMixin"
   ]
 }
