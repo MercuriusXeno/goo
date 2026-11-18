@@ -115,8 +115,7 @@ class AffordedCountTest {
     @Nested
     class StandingUpkeepNetted {
 
-        private static final StandingUpkeep FIFTY = new StandingUpkeep(50, false);
-        private static final StandingUpkeep FIFTY_EXTENDED = new StandingUpkeep(25, true);
+        private static final StandingUpkeep FIFTY = new StandingUpkeep(50);
 
         private static String count(ClientAbility ability, int holdings, StandingUpkeep standing) {
             return AffordedCount.reckon(ability, holdings, NO_REAGENTS, standing).orElseThrow().label();
@@ -127,15 +126,13 @@ class AffordedCountTest {
             ClientAbility flames = stream(THOUSAND, Delivery.DEFAULT_TICKS_PER_CHARGE);
             assertEquals("1K/s | 12s", flames.petalLabel(12_500, NO_REAGENTS, StandingUpkeep.NONE));
             assertEquals("1K/s | 6s", flames.petalLabel(12_500, NO_REAGENTS, FIFTY));
-            assertEquals("1K/s | 8s", flames.petalLabel(12_500, NO_REAGENTS, FIFTY_EXTENDED));
         }
 
         @Test
-        void brewSubtractsTheStandingUpkeepAndHalvesItsOwnUnderAnExtend() {
+        void brewSubtractsTheStandingUpkeep() {
             ClientAbility brew = ability(0, Delivery.of(DeliveryKind.SELF), AbilityBadge.DURATIVE, List.of(), 2);
             assertEquals("6s", count(brew, 250, StandingUpkeep.NONE));
-            assertEquals("3s", count(brew, 250, new StandingUpkeep(2, false)));
-            assertEquals("6s", count(brew, 250, new StandingUpkeep(1, true)));
+            assertEquals("3s", count(brew, 250, new StandingUpkeep(2)));
         }
 
         @Test
