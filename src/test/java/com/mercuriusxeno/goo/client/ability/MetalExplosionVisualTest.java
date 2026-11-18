@@ -108,7 +108,7 @@ class MetalExplosionVisualTest {
     }
 
     /**
-     * Urchin's spines and spears write depth over the metal shader, so the
+     * The spike trap's spines and spears write depth over the metal shader, so the
      * translucent goo blob drawn after them stays behind the parts in front
      * of it (decision urchin-rests-bristled-and-spears).
      */
