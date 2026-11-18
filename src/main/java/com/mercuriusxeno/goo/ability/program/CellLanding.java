@@ -3,7 +3,7 @@ package com.mercuriusxeno.goo.ability.program;
 import com.mercuriusxeno.goo.block.ability.SideCoat;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.throwing.CoatRay;
-import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import com.mercuriusxeno.goo.type.Adhesion;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.block.state.BlockState;
@@ -208,7 +208,7 @@ final class CellLanding {
     /**
      * The cell a drip's strike feeds: a cell of the goo short of a whole
      * block struck on its top, else the open cell over a struck top that can
-     * hold a world goo; a strike on a block's side at adhesion 3 coats the
+     * hold a world goo; a strike on a block's side at clings and above coats the
      * side of the open cell beside the struck face that faces the struck
      * block; any other strike feeds nothing.
      * goop-and-slick-coat-lands-where-each-drip-arc-strikes
@@ -219,7 +219,7 @@ final class CellLanding {
      * @param cells    what the landing reads of the cells
      * @return the cell and the side fed, empty where the strike lays nothing
      */
-    static Optional<CellFed> cellFedBy(CoatRay.BlockStrike strike, int adhesion, Cells cells) {
+    static Optional<CellFed> cellFedBy(CoatRay.BlockStrike strike, Adhesion adhesion, Cells cells) {
         if (strike.face().getAxis().isHorizontal()) {
             return sideFedBy(strike, adhesion, cells);
         }
@@ -287,7 +287,7 @@ final class CellLanding {
      * @param cells    what the landing reads of the cells
      * @return the cell and the side fed, empty where the cell beside cannot hold the goo
      */
-    private static Optional<CellFed> sideFedBy(CoatRay.BlockStrike strike, int adhesion, Cells cells) {
+    private static Optional<CellFed> sideFedBy(CoatRay.BlockStrike strike, Adhesion adhesion, Cells cells) {
         Direction wall = strike.face().getOpposite();
         // a drip striking a film's own face strikes the wall the film already coats, its block taking it or not
         Optional<SideCoat> onTheStruck = cells.sideAt(strike.block(), wall).filter(SideCoat::holdsALayer);
@@ -318,7 +318,7 @@ final class CellLanding {
      * @return the cell and the side fed, or the goo over a block already holding a whole block, empty where
      *         nothing over it takes the layer
      */
-    private static Optional<CellFed> fedBeside(BlockPos cell, Direction wall, int adhesion, SideCoat standing,
+    private static Optional<CellFed> fedBeside(BlockPos cell, Direction wall, Adhesion adhesion, SideCoat standing,
                                                Cells cells) {
         Beside beside = new Beside(standing, cells.volumeAt(cell), cells.attachedAt(cell), cells.floorAt(cell),
                 cells.gooBelow(cell));
@@ -343,10 +343,10 @@ final class CellLanding {
     }
 
     /**
-     * What a strike on a block's underside lays: at adhesion 4 its layer
+     * What a strike on a block's underside lays: at hangs its layer
      * joins the volume of the block under the struck block, its ceiling
      * attached, while that block holds fewer than its hold; past that, and
-     * for goo below 4, which holds no ceiling, a
+     * for goo below hangs, which holds no ceiling, a
      * runny layer on the wall the cell under it touches, the wall nearest
      * the strike where it touches several, at any adhesion; where it touches
      * none, the layer falls from that cell to the first top below and joins
@@ -358,10 +358,10 @@ final class CellLanding {
      * @param cells  what the landing reads of the cells
      * @return the cell and the side fed, empty where the layer finds no top
      */
-    private static Optional<CellFed> undersideFedBy(CoatRay.BlockStrike strike, int adhesion, Cells cells) {
+    private static Optional<CellFed> undersideFedBy(CoatRay.BlockStrike strike, Adhesion adhesion, Cells cells) {
         BlockPos under = strike.block().below();
-        if (adhesion >= GooTypeDefinition.HOLDS_AN_UNDERSIDE) {
-            // adhesion-is-a-ladder-of-holds: at 4 the underside holds the layer, as a held wall does
+        if (adhesion.keeps(Adhesion.HANGS)) {
+            // adhesion-is-a-ladder-of-holds: at hangs the underside holds the layer, as a held wall does
             Optional<CellFed> held = cells.sideAt(under, Direction.UP)
                     .flatMap(ceiling -> fedBeside(under, Direction.UP, adhesion, ceiling, cells))
                     .filter(fed -> fed.coat() == SideCoat.ATTACHED);
@@ -398,9 +398,9 @@ final class CellLanding {
 
     /**
      * What a side strike's layer stands as, the whole adhesion ladder in one
-     * rule: at 0 or 1 it runs; at 2 it holds as a film where goo of its type
-     * stands in the cell below and runs where none does; at 3 it holds where
-     * it strikes; and at any adhesion it runs where the side already holds its
+     * rule: at slips or tops it runs; at gels it holds as a film where goo of its
+     * type stands in the cell below and runs where none does; at clings and
+     * hangs it holds where it strikes; and at any adhesion it runs where the side already holds its
      * one layer.
      * adhesion-is-a-ladder-of-holds
      * drip-striking-a-side-sticks-or-runs-by-adhesion
@@ -410,7 +410,7 @@ final class CellLanding {
      * @param gooBelow whether goo of its type stands in the cell below
      * @return a film or a runny layer
      */
-    static SideCoat sideCoatFor(int adhesion, SideCoat standing, boolean gooBelow) {
+    static SideCoat sideCoatFor(Adhesion adhesion, SideCoat standing, boolean gooBelow) {
         int volume = standing.holdsALayer() ? 1 : 0;
         int attached = standing == SideCoat.ATTACHED ? 1 : 0;
         return sideCoatFor(adhesion, 0, new Beside(standing, volume, attached, false, gooBelow));
@@ -432,24 +432,11 @@ final class CellLanding {
      * @param beside   the block beside the struck wall
      * @return attached where the layer joins the block, runny where it runs
      */
-    static SideCoat sideCoatFor(int adhesion, int cohesion, Beside beside) {
-        boolean holds = holdsTheSide(adhesion, beside.gooBelow()) && beside.coat() != SideCoat.RUNNY;
+    static SideCoat sideCoatFor(Adhesion adhesion, int cohesion, Beside beside) {
+        boolean holds = adhesion.holdsASide(beside.gooBelow()) && beside.coat() != SideCoat.RUNNY;
         return holds && hasRoom(cohesion, beside) ? SideCoat.ATTACHED : SideCoat.RUNNY;
     }
 
-    /**
-     * Whether a goo's adhesion holds a block's side: at 3 and up where it
-     * strikes, at 2 only over goo of its type.
-     * adhesion-is-a-ladder-of-holds
-     *
-     * @param adhesion the rung of the adhesion ladder the goo clings at
-     * @param gooBelow whether goo of its type stands in the cell below
-     * @return true where the side holds
-     */
-    private static boolean holdsTheSide(int adhesion, boolean gooBelow) {
-        boolean holdsOverGoo = adhesion == GooTypeDefinition.HOLDS_WHERE_IT_STRIKES - 1 && gooBelow;
-        return adhesion >= GooTypeDefinition.HOLDS_WHERE_IT_STRIKES || holdsOverGoo;
-    }
 
     /**
      * Whether a block beside a held wall takes one more layer: a bare side

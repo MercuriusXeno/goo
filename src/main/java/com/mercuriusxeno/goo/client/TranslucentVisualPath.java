@@ -17,6 +17,7 @@ import com.mercuriusxeno.goo.client.ability.GroundShake;
 import com.mercuriusxeno.goo.client.ability.GrowthBreeze;
 import com.mercuriusxeno.goo.client.ability.HeadMarks;
 import com.mercuriusxeno.goo.client.ability.HeatWaveEffect;
+import com.mercuriusxeno.goo.client.ability.HeldJavelins;
 import com.mercuriusxeno.goo.client.ability.HeldSweepVisual;
 import com.mercuriusxeno.goo.client.ability.HoveringKnives;
 import com.mercuriusxeno.goo.client.ability.LaserScorch;
@@ -34,6 +35,7 @@ import com.mercuriusxeno.goo.client.ability.PetrifyFog;
 import com.mercuriusxeno.goo.client.ability.PneumaWind;
 import com.mercuriusxeno.goo.client.ability.PortalFaces;
 import com.mercuriusxeno.goo.client.ability.PortalView;
+import com.mercuriusxeno.goo.client.ability.QuantumBlobDarts;
 import com.mercuriusxeno.goo.client.ability.ReapSlashBlades;
 import com.mercuriusxeno.goo.client.ability.RelayLasers;
 import com.mercuriusxeno.goo.client.ability.RollingGooRenderer;
@@ -108,6 +110,7 @@ public final class TranslucentVisualPath {
             new Registration(ReapSlashBlades.class, SortRoute.FAR_TO_NEAR, ReapSlashBlades::collect),
             new Registration(GlassKnives.class, SortRoute.FAR_TO_NEAR, GlassKnives::collect),
             new Registration(HoveringKnives.class, SortRoute.FAR_TO_NEAR, HoveringKnives::collect),
+            new Registration(HeldJavelins.class, SortRoute.FAR_TO_NEAR, HeldJavelins::collect),
             new Registration(WindLines.class, SortRoute.FAR_TO_NEAR, WindLines::collect),
             new Registration(AirbornWind.class, SortRoute.FAR_TO_NEAR, AirbornWind::collect),
             new Registration(PneumaWind.class, SortRoute.FAR_TO_NEAR, PneumaWind::collect),
@@ -148,6 +151,7 @@ public final class TranslucentVisualPath {
             new Registration(BoreDrill.class, SortRoute.FAR_TO_NEAR, BoreDrill::collect),
             new Registration(PortalFaces.class, SortRoute.FAR_TO_NEAR, PortalFaces::collect),
             new Registration(PortalView.class, SortRoute.SKY, PortalView::collectSky),
+            new Registration(QuantumBlobDarts.class, SortRoute.FAR_TO_NEAR, QuantumBlobDarts::collect),
             new Registration(HoleMouths.class, SortRoute.FAR_TO_NEAR, HoleMouths::collect),
             new Registration(HolePits.class, SortRoute.OPAQUE_SHAPE, HolePits::collect),
             new Registration(RoomCopyRenderer.class, SortRoute.OPAQUE_SHAPE, RoomCopyRenderer::collectSolid),

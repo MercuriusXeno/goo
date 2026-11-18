@@ -72,7 +72,7 @@ public final class PocketStarSky {
     public enum Sky {
         /** goo's sea of stars. */
         STARS,
-        /** goo's sea of stars beside lunar's one blue overworld star (LunarSky). */
+        /** goo's sea of stars beside lunar's blue planet (LunarSky). */
         LUNAR_VOID,
         /** Vanilla's own sky for the dimension's skybox. */
         VANILLA

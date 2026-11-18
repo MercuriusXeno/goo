@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.ability.quantum.PortalColor;
 import com.mercuriusxeno.goo.ability.quantum.Gate;
 import com.mercuriusxeno.goo.ability.quantum.Portal;
 import com.mercuriusxeno.goo.ability.quantum.QuantumPortals;
@@ -45,7 +46,7 @@ class PortalHumsTest {
     private static final Set<Gate> PORTALS = Set.of(ENTRY.gate(), EXIT.gate(), INERT.gate());
 
     private static Portal wall(ResourceKey<Level> dimension, BlockPos lower, Direction face) {
-        return new Portal(GlobalPos.of(dimension, lower), face, Direction.UP);
+        return new Portal(GlobalPos.of(dimension, lower), face, Direction.UP, PortalColor.BLUE);
     }
 
     private static Set<Vec3> centresOf(Set<Gate> gates) {

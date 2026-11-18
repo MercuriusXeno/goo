@@ -10,7 +10,14 @@ import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
+import java.io.IOException;
+import java.io.Reader;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import static org.junit.jupiter.api.Assertions.assertAll;
@@ -37,7 +44,6 @@ class DeliveryTest {
     private static final int BASE_FLIGHT_TIME = 3;
     private static final double SIXTEEN_BLOCKS = 16;
     private static final Vec3 SIXTEEN_AWAY = START.add(0, 0, SIXTEEN_BLOCKS);
-    private static final String PEAK_SHARE = "peak_share";
 
     private static DataResult<AbilityDefinition> decode(String deliveryField) {
         return AbilityDefinition.codecFor(ID)
@@ -117,11 +123,11 @@ class DeliveryTest {
             assertEquals(60, delivery.chargeTicks());
         }
 
-        // knives-form-in-fibonacci-stages-to-twelve
+        // knives-charge-one-per-three-ticks-up-to-ten
         @Test
-        void crystalKnivesFormsItsKnivesInStages() {
+        void crystalKnivesFormsKnives() {
             Delivery knives = AbilityJson.decode("crystal_knives").delivery();
-            assertTrue(knives.charge().formsInStages());
+            assertTrue(knives.formsKnives());
         }
 
         // knives-aims-a-spread-fan-not-a-blob-line
@@ -306,35 +312,20 @@ class DeliveryTest {
         }
 
         /**
-         * The shipped dart flies 2.5 blocks a tick at every distance, Metal's
-         * levity and base flight time passed in
-         * (decision dart-flies-low-and-straight-at-double-speed).
+         * The shipped Dart and Knives leave as projectiles at their own speeds,
+         * a javelin 2.5 blocks a tick and a knife 1.5, throwing no drips, and a
+         * bare arc keeps the base peak and its type's flight time (decisions
+         * knives-and-javelins-drop-like-an-arrow, knives-and-dart-function-as-projectiles).
          */
         @Test
-        void dartFliesTwoAndAHalfBlocksATickAtEveryDistance() {
+        void dartAndKnivesLeaveAtTheirThrowSpeedsAndABareArcKeepsTheBasePeak() {
             Delivery dart = AbilityJson.decode("metal_dart").delivery();
-            assertEquals(2, dart.travelTicks(4, LEVITY, BASE_FLIGHT_TIME));
-            assertEquals(7, dart.travelTicks(SIXTEEN_BLOCKS, LEVITY, BASE_FLIGHT_TIME));
-            assertEquals(13, dart.travelTicks(32, LEVITY, BASE_FLIGHT_TIME));
-        }
+            Delivery knives = AbilityJson.decode("crystal_knives").delivery();
+            assertEquals(2.5, dart.throwSpeed(), TOLERANCE);
+            assertEquals(1.5, knives.throwSpeed(), TOLERANCE);
+            assertFalse(dart.throwsDrips() || knives.throwsDrips(), "a projectile throws no drips");
 
-        /**
-         * The shipped dart flies a peak above zero and no higher than a
-         * quarter of the base peak, the share metal_dart.json names, while a
-         * bare arc keeps the base peak and its type's flight time
-         * (decision dart-flies-low-and-straight-at-double-speed).
-         */
-        @Test
-        void dartFliesALowPeakTheShareItsJsonNamesAndABareArcKeepsTheBasePeak() {
-            JsonObject json = JsonParser.parseString(AbilityJson.read("metal_dart")).getAsJsonObject()
-                    .getAsJsonObject("delivery");
-            assertTrue(json.has(PEAK_SHARE), "metal_dart.json names no " + PEAK_SHARE);
             double basePeak = ThrowArc.basePeak(SIXTEEN_BLOCKS);
-            double dartPeak = AbilityJson.decode("metal_dart").delivery().peak(START, SIXTEEN_AWAY, false);
-            assertEquals(basePeak * json.get(PEAK_SHARE).getAsDouble(), dartPeak, TOLERANCE);
-            assertTrue(dartPeak > 0, "the dart flies no peak");
-            assertTrue(dartPeak <= basePeak / 4, "the dart's peak " + dartPeak + " tops a quarter of " + basePeak);
-
             Delivery bare = deliveryOf("\"delivery\": { \"kind\": \"arc\" },");
             assertEquals(basePeak, bare.peak(START, SIXTEEN_AWAY, false), TOLERANCE);
             assertEquals((int) ThrowArc.travelTicks(SIXTEEN_BLOCKS, LEVITY, BASE_FLIGHT_TIME),
@@ -385,7 +376,9 @@ class DeliveryTest {
                     Identifier.fromNamespaceAndPath("goo", "jelly_nectar"),
                     Identifier.fromNamespaceAndPath("goo", "pulse_signal"),
                     Identifier.fromNamespaceAndPath("goo", "metal_spikes"),
-                    Identifier.fromNamespaceAndPath("goo", "nether_infest")), throwing);
+                    Identifier.fromNamespaceAndPath("goo", "nether_infest"),
+                    Identifier.fromNamespaceAndPath("goo", "leaf_vines"),
+                    Identifier.fromNamespaceAndPath("goo", "unstable_nitro")), throwing);
         }
     }
 
@@ -399,22 +392,29 @@ class DeliveryTest {
     class ExitSpeed {
 
         private static final double RAMPED = 1.0;
-        /** The drips a spray throws, and draws, each tick. */
-        private static final int SIX_DRIPS = 6;
-        /** The drips Slick throws, and draws, each tick. */
-        private static final int SLICK_DRIPS = 2;
+        /** The drips every goo spray throws, and draws, each tick at rest. */
+        private static final int TWO_DRIPS = 2;
+        private static final String DRIPS_PER_TICK = "drips_per_tick";
 
         /**
-         * operator UAT 2026-11-17: every drawn drip lands, so each spray throws the six drips a tick it draws;
-         * Slick keeps the two a tick its ramp and spread are tuned to, drawing two
+         * Every shipped ability whose delivery names a drip pace, so a spray merging later meets the same rate.
+         * every-goo-spray-throws-two-drips-a-tick
          */
         @Test
-        void eachSprayThrowsTheSixDripsATickItDraws() {
-            assertEquals(SLICK_DRIPS, AbilityJson.decode("kinetic_slick").delivery().dripsPerTick());
-            for (String spray : Set.of("weird_goop", "blaze_molten", "crystal_shatter",
-                    "deep_host", "frost_rime", "glow_wisps", "hex_leech", "typhoon_updraft", "jelly_nectar",
-                    "pulse_signal")) {
-                assertEquals(SIX_DRIPS, AbilityJson.decode(spray).delivery().dripsPerTick(), spray);
+        void everyGooSprayThrowsTwoDripsATick() {
+            List<Path> sprays = AbilityJson.files().stream().filter(ExitSpeed::namesADripPace).toList();
+
+            assertFalse(sprays.isEmpty(), "no shipped ability names " + DRIPS_PER_TICK);
+            assertAll(sprays.stream().map(spray -> () -> assertEquals(TWO_DRIPS,
+                    AbilityJson.decode(spray).delivery().dripsPerTick(), spray.getFileName().toString())));
+        }
+
+        private static boolean namesADripPace(Path file) {
+            try (Reader reader = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
+                JsonObject ability = JsonParser.parseReader(reader).getAsJsonObject();
+                return ability.has("delivery") && ability.getAsJsonObject("delivery").has(DRIPS_PER_TICK);
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
             }
         }
 
@@ -422,7 +422,7 @@ class DeliveryTest {
         void eachSprayLeavesFasterByTheCastersSpeed() {
             for (String spray : Set.of("weird_goop", "kinetic_slick", "blaze_molten", "crystal_shatter",
                     "deep_host", "frost_rime", "glow_wisps", "hex_leech", "typhoon_updraft", "jelly_nectar",
-                    "pulse_signal", "metal_spikes", "nether_infest")) {
+                    "pulse_signal", "metal_spikes", "nether_infest", "leaf_vines", "unstable_nitro")) {
                 Delivery delivery = AbilityJson.decode(spray).delivery();
 
                 assertEquals(delivery.throwSpeed() + RAMPED, delivery.exitSpeedAt(RAMPED), 1e-9, spray);

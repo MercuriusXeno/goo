@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.radial;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.held.HeldEffects;
+import com.mercuriusxeno.goo.client.ClientDimension;
 import com.mercuriusxeno.goo.client.hud.MixedNumberLabel;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.network.OfferedAbility;
@@ -19,6 +20,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 import org.joml.Matrix3x2fStack;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
@@ -464,7 +466,7 @@ final class RadialWheelRenderer {
         // icons-slide-in-from-behind-the-tip: the icon rides in while the words stay on the resting tip
         List<BadgeIcon> badges = blitAbilityIcon(graphics, frame, petal, ability,
                 dimmed ? computeOverlayTint(false, true) : COLOR_WHITE);
-        return new Words(splitNameLines(buildLabel(ability).getString()), Component.literal(slotLabels.costLabel()),
+        return new Words(splitNameLines(buildLabel(ability, ClientDimension.standingIn()).getString()), Component.literal(slotLabels.costLabel()),
                 restingTip, textColorOf(dimmed, hovered), List.of(), badges);
     }
 
@@ -701,7 +703,7 @@ final class RadialWheelRenderer {
                                                    RadialWheel.PetalArc petal, ClientAbility ability, int color) {
         IconCluster cluster = clusterAround(contentCenter(frame, petal), ability.badge(), ability.reactsToPrisms());
         PetalMask.Petal shape = petal.shape();
-        PetalPainter.paintSprite(graphics, frame, shape, frame.look().sprite(resolveAbilityIcon(ability)),
+        PetalPainter.paintSprite(graphics, frame, shape, frame.look().sprite(resolveAbilityIcon(ability, ClientDimension.standingIn())),
                 cluster.iconCenter(), ABILITY_ICON_SIZE, color);
         for (BadgeIcon badge : cluster.badges()) {
             ItemRect square = badge.rect();
@@ -1168,24 +1170,28 @@ final class RadialWheelRenderer {
     }
 
     /**
-     * The petal's name label: the bare name, the badge marking the target kind.
+     * The petal's name label: the bare name the ability shows where the player stands, the badge marking the target
+     * kind.
      * badge-marks-the-target-kind
+     * lunar-reads-as-terran-while-you-are-on-the-moon
      *
-     * @param ability the synced ability
+     * @param ability    the synced ability
+     * @param standingIn the dimension the player stands in
      * @return the ability's translatable name
      */
-    static Component buildLabel(ClientAbility ability) {
-        return Component.translatable(ability.displayName());
+    static Component buildLabel(ClientAbility ability, ResourceKey<Level> standingIn) {
+        return Component.translatable(ability.shownIn(standingIn).displayName());
     }
 
     /**
      * Resolves the icon texture for an ability. Uses the explicit override
      * if provided, otherwise falls back to convention path.
      *
-     * @param ability the client ability descriptor
+     * @param ability    the client ability descriptor
+     * @param standingIn the dimension the player stands in, whose face the ability shows
      * @return the icon texture identifier
      */
-    static Identifier resolveAbilityIcon(ClientAbility ability) {
-        return ability.iconTexture();
+    static Identifier resolveAbilityIcon(ClientAbility ability, ResourceKey<Level> standingIn) {
+        return ability.shownIn(standingIn).icon();
     }
 }

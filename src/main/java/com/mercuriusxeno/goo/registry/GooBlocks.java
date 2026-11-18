@@ -11,11 +11,13 @@ import com.mercuriusxeno.goo.block.ability.LightRailBlock;
 import com.mercuriusxeno.goo.block.ability.MagickedIceBlock;
 import com.mercuriusxeno.goo.block.ability.MoltenCellBlock;
 import com.mercuriusxeno.goo.block.ability.NectarCellBlock;
+import com.mercuriusxeno.goo.block.ability.NitroCellBlock;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
 import com.mercuriusxeno.goo.block.ability.RimeCellBlock;
 import com.mercuriusxeno.goo.block.ability.SignalCellBlock;
 import com.mercuriusxeno.goo.block.ability.SpikesCellBlock;
 import com.mercuriusxeno.goo.block.ability.UpdraftCellBlock;
+import com.mercuriusxeno.goo.block.ability.VinesCellBlock;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.block.ability.WispBlock;
 import com.mercuriusxeno.goo.block.ability.ZapPulseBlock;
@@ -379,12 +381,32 @@ public class GooBlocks {
             () -> BlockBehaviour.Properties.of()
                     .mapColor(MapColor.COLOR_RED)
                     .friction(CellBinding.SIGNAL.surface().friction())
+                    .isRedstoneConductor((state, level, pos) -> false)
                     .sound(SoundType.SLIME_BLOCK)
                     .instabreak()
                     .noOcclusion()
                     .replaceable()
                     .noLootTable()
-                    .isRedstoneConductor((state, level, pos) -> false)
+                    .pushReaction(PushReaction.DESTROY));
+    /**
+     * Vines: the volume cell bound to Leaf's goo, the green goo Vines sprays
+     * onto a block's top or a wall, one to fifteen layers, ordinary ground
+     * underfoot and sounding as goo does, entangling what crosses it and
+     * growing goologged vines on the walls it coats
+     * (decisions vines-is-sprayed-slime-that-entangles-what-tries-to-cross,
+     * vines-goo-on-walls-places-goologged-vines-and-depletes,
+     * each-goo-type-ships-a-world-goo-on-the-volume-cell).
+     */
+    public static final DeferredBlock<VinesCellBlock> LEAF_VINES = BLOCKS.registerBlock(
+            "leaf_vines", properties -> new VinesCellBlock(properties, CellBinding.VINES),
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.PLANT)
+                    .friction(CellBinding.VINES.surface().friction())
+                    .sound(SoundType.SLIME_BLOCK)
+                    .instabreak()
+                    .noOcclusion()
+                    .replaceable()
+                    .noLootTable()
                     .pushReaction(PushReaction.DESTROY));
     /**
      * Spikes: the volume cell bound to Metal's goo, the silver goo Spikes
@@ -421,6 +443,27 @@ public class GooBlocks {
             () -> BlockBehaviour.Properties.of()
                     .mapColor(MapColor.NETHER)
                     .friction(CellBinding.INFEST.surface().friction())
+                    .sound(SoundType.SLIME_BLOCK)
+                    .instabreak()
+                    .noOcclusion()
+                    .replaceable()
+                    .noLootTable()
+                    .pushReaction(PushReaction.DESTROY));
+    /**
+     * Nitro: the volume cell bound to Unstable's goo, the green goo Nitro
+     * sprays onto a block's top, one to fifteen layers, sounding as goo
+     * does, exploding in a chain by its layers when a living thing touches
+     * it, dropping the unstable goo its layers cost through
+     * VolumeCellBlock.getDrops, no loot table
+     * (decisions nitro-is-unstables-goo-that-explodes-in-a-chain-by-its-quantity,
+     * nitro-explodes-when-touched-heated-shocked-pulsed-or-struck,
+     * each-goo-type-ships-a-world-goo-on-the-volume-cell).
+     */
+    public static final DeferredBlock<NitroCellBlock> UNSTABLE_NITRO = BLOCKS.registerBlock(
+            "unstable_nitro", properties -> new NitroCellBlock(properties, CellBinding.NITRO),
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_LIGHT_GREEN)
+                    .friction(CellBinding.NITRO.surface().friction())
                     .sound(SoundType.SLIME_BLOCK)
                     .instabreak()
                     .noOcclusion()

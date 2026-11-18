@@ -29,7 +29,7 @@ class AbilityPoseTableTest {
             Map.entry("crystal_glimmer", ArmPose.HELD_UP),
             Map.entry("crystal_prism", ArmPose.RESTING),
             Map.entry("crystal_scales", ArmPose.HELD_UP),
-            Map.entry("crystal_knives", ArmPose.SHOULDER_CAST),
+            Map.entry("crystal_knives", ArmPose.RESTING),
             Map.entry("deep_click", ArmPose.RESTING),
             Map.entry("deep_host", ArmPose.HELD_OUT),
             Map.entry("frost_rime", ArmPose.HELD_OUT),
@@ -63,7 +63,7 @@ class AbilityPoseTableTest {
             Map.entry("leaf_bloom", ArmPose.SWUNG),
             Map.entry("leaf_growth", ArmPose.HELD_OUT),
             Map.entry("leaf_reap", ArmPose.HELD_OUT),
-            Map.entry("leaf_vines", ArmPose.SWUNG),
+            Map.entry("leaf_vines", ArmPose.HELD_OUT),
             Map.entry("metal_dart", ArmPose.SWUNG),
             Map.entry("metal_magnet", ArmPose.HELD_UP),
             Map.entry("metal_spikes", ArmPose.HELD_OUT),
@@ -75,7 +75,7 @@ class AbilityPoseTableTest {
             Map.entry("pulse_tick", ArmPose.HELD_OUT),
             Map.entry("pulse_zap", ArmPose.HELD_OUT),
             Map.entry("quantum_tunnel", ArmPose.SWUNG),
-            Map.entry("quantum_portal", ArmPose.SWUNG),
+            Map.entry("quantum_portal", ArmPose.HELD_OUT),
             Map.entry("quantum_phase_self", ArmPose.HELD_UP),
             Map.entry("quantum_phase_other", ArmPose.RESTING),
             Map.entry("rock_bore", ArmPose.HELD_OUT),
@@ -94,7 +94,7 @@ class AbilityPoseTableTest {
             Map.entry("typhoon_shulk", ArmPose.RESTING),
             Map.entry("typhoon_updraft", ArmPose.HELD_OUT),
             Map.entry("unstable_blast", ArmPose.RESTING),
-            Map.entry("unstable_lurker", ArmPose.SWUNG),
+            Map.entry("unstable_nitro", ArmPose.HELD_OUT),
             Map.entry("void_cancel", ArmPose.SWUNG),
             Map.entry("void_zone", ArmPose.HELD_OUT),
             Map.entry("void_hole", ArmPose.RESTING),
@@ -121,6 +121,19 @@ class AbilityPoseTableTest {
     void eachShippedAbilityResolvesItsRuledPose(Path file) {
         AbilityDefinition ability = AbilityJson.decode(file);
         assertEquals(RULED.get(ability.id().getPath()), ability.pose(), ability.id().toString());
+    }
+
+    /**
+     * Knives holds and throws with the hand where vanilla draws it, at the
+     * glove's side: its hold and release frames are both the frame that moves
+     * the hand nowhere, so its across-the-chest share stands at zero through
+     * the hold and every throw (decision knives-hand-stays-at-its-side-off-the-screen-center).
+     */
+    @Test
+    void knivesHoldsAndThrowsWithTheHandAtItsSide() {
+        ArmPose knives = AbilityJson.decode("crystal_knives").pose();
+        assertEquals(ArmPoseKind.NONE, knives.holdFrame());
+        assertEquals(ArmPoseKind.NONE, knives.releaseFrame());
     }
 
     @Test

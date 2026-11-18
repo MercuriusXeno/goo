@@ -11,20 +11,44 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
- * Lunar's refusal, the line a cast looking at neither the moon nor the blue star shows: "That's no moon!".
+ * Lunar's refusals, the lines a cast holding neither the moon nor the blue planet shows: "That's no moon!" in the
+ * overworld and "That's not your world" on the moon.
  * decision lunar-refusal-says-thats-no-moon
+ * decision terran-refusal-says-thats-not-your-world
  */
 class LunarRefusalTest {
 
     private static final String EN_US_JSON = "/assets/goo/lang/en_us.json";
     private static final String REFUSAL = "That's no moon!";
+    private static final String TERRAN_REFUSAL = "That's not your world";
+    private static final String SUN_JOKE = "The big yellow one is the sun!";
+
+    private static JsonObject lang() throws IOException {
+        try (InputStream in = LunarRefusalTest.class.getResourceAsStream(EN_US_JSON)) {
+            assertNotNull(in, EN_US_JSON + " is not on the classpath");
+            return JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8)).getAsJsonObject();
+        }
+    }
+
+    private static String read(JsonObject lang, String key) {
+        return lang.has(key) ? lang.get(key).getAsString() : null;
+    }
 
     @Test
     void refusalReadsThatsNoMoon() throws IOException {
-        try (InputStream in = LunarRefusalTest.class.getResourceAsStream(EN_US_JSON)) {
-            assertNotNull(in, EN_US_JSON + " is not on the classpath");
-            JsonObject lang = JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8)).getAsJsonObject();
-            assertEquals(REFUSAL, lang.get(AstralLunar.TELL_REFUSED).getAsString());
-        }
+        assertEquals(REFUSAL, read(lang(), LunarSight.LUNAR_REFUSED));
+    }
+
+    /**
+     * decision pointing-at-the-sun-says-the-big-yellow-one-is-the-sun
+     */
+    @Test
+    void theSunJokeReadsTheBigYellowOneIsTheSun() throws IOException {
+        assertEquals(SUN_JOKE, read(lang(), LunarSight.SUN_REFUSED));
+    }
+
+    @Test
+    void terranRefusalReadsThatsNotYourWorld() throws IOException {
+        assertEquals(TERRAN_REFUSAL, read(lang(), LunarSight.TERRAN_REFUSED));
     }
 }

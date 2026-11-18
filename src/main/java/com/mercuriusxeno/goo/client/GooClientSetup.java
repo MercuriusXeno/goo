@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.ISidedProxy;
 import com.mercuriusxeno.goo.ability.DurativeRoute;
 import com.mercuriusxeno.goo.ability.HeldEffectIcon;
 import com.mercuriusxeno.goo.ability.HeldEffectName;
+import com.mercuriusxeno.goo.ability.StandingDimension;
 import com.mercuriusxeno.goo.ability.nether.HiveSwarm;
 import com.mercuriusxeno.goo.ability.oculus.OculusNodes;
 import com.mercuriusxeno.goo.ability.program.Step;
@@ -18,6 +19,7 @@ import com.mercuriusxeno.goo.client.ability.AilmentOverlayLayer;
 import com.mercuriusxeno.goo.client.ability.BeatRings;
 import com.mercuriusxeno.goo.client.ability.BlockTransforms;
 import com.mercuriusxeno.goo.client.ability.ChainBurnouts;
+import com.mercuriusxeno.goo.client.ability.ClientPalmBuffers;
 import com.mercuriusxeno.goo.client.ability.DownedPose;
 import com.mercuriusxeno.goo.client.ability.EncasedBodies;
 import com.mercuriusxeno.goo.client.ability.EncasementLayer;
@@ -26,6 +28,7 @@ import com.mercuriusxeno.goo.client.ability.FrozenPoses;
 import com.mercuriusxeno.goo.client.ability.GhostTrails;
 import com.mercuriusxeno.goo.client.ability.GlassKnives;
 import com.mercuriusxeno.goo.client.ability.GrabFlail;
+import com.mercuriusxeno.goo.client.ability.HeldJavelins;
 import com.mercuriusxeno.goo.client.ability.HeldSweepVisual;
 import com.mercuriusxeno.goo.client.ability.HoveringKnives;
 import com.mercuriusxeno.goo.client.ability.KinOutline;
@@ -90,6 +93,7 @@ import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.NoopRenderer;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.client.resources.model.sprite.Material;
+import net.minecraft.core.particles.SimpleParticleType;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.Entity;
@@ -151,10 +155,12 @@ public final class GooClientSetup {
         ISidedProxy.INSTANCE[0] = new ClientProxy();
         AbilityBlockEntity.installClientSteps(GooClientSetup::syncedSteps);
         GooTypes.readConnectionOrderFrom(GooClientSetup::connectionTypeOrder);
-        HeldEffectName.readConnectionNamesFrom(
-                type -> syncedDurativeAbility(type).map(ClientAbility::displayName).orElse(null));
-        HeldEffectIcon.readConnectionIconsFrom(
-                type -> syncedDurativeAbility(type).map(ClientAbility::iconTexture).orElse(null));
+        // lunar-reads-as-terran-while-you-are-on-the-moon: a held effect shows its ability's face where the player stands
+        StandingDimension.readFrom(ClientDimension::standingIn);
+        HeldEffectName.readConnectionNamesFrom(type -> syncedDurativeAbility(type)
+                .map(ability -> ability.shownIn(ClientDimension.standingIn()).displayName()).orElse(null));
+        HeldEffectIcon.readConnectionIconsFrom(type -> syncedDurativeAbility(type)
+                .map(ability -> ability.shownIn(ClientDimension.standingIn()).icon()).orElse(null));
         HiveSwarm.installBuzzLoops(FadingLoops::keepAlive);
     }
 
@@ -314,7 +320,8 @@ public final class GooClientSetup {
                 GooBlocks.BLAZE_MOLTEN.get(), GooBlocks.CRYSTAL_SHATTER.get(), GooBlocks.DEEP_HOST.get(),
                 GooBlocks.FROST_RIME.get(), GooBlocks.GLOW_WISPS.get(), GooBlocks.HEX_LEECH.get(),
                 GooBlocks.TYPHOON_UPDRAFT.get(), GooBlocks.JELLY_NECTAR.get(), GooBlocks.PULSE_SIGNAL.get(),
-                GooBlocks.METAL_SPIKES.get(), GooBlocks.NETHER_INFEST.get())) {
+                GooBlocks.METAL_SPIKES.get(), GooBlocks.NETHER_INFEST.get(), GooBlocks.LEAF_VINES.get(),
+                GooBlocks.UNSTABLE_NITRO.get())) {
             event.register(VolumeCellTint.sources(cell.binding().gooType(), ClientGooTypes::color), cell);
         }
     }
@@ -398,38 +405,43 @@ public final class GooClientSetup {
      * leech-goo-slows-what-it-catches-and-the-spirits-damage-it
      * nectar-is-sprayed-goo-with-a-guided-throw-near-a-mob
      * infest-is-nethers-goo-the-decay-effect-localized-around-the-goo
+     * vines-is-sprayed-slime-that-entangles-what-tries-to-cross
+     * nitro-is-unstables-goo-that-explodes-in-a-chain-by-its-quantity
      *
      * @param event the event instance
      */
     private static void registerSprayDrips(RegisterParticleProvidersEvent event) {
-        event.registerSpriteSet(GooParticles.GOOP_SPRAY_DRIP.get(),
-                sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.GOOP_SLIME_GREENS));
-        event.registerSpriteSet(GooParticles.SLICK_SPRAY_DRIP.get(),
-                sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.SLICK_SLIME_BLUES));
+        registerSprayDrip(event, GooParticles.GOOP_SPRAY_DRIP.get(), BlendPalette.GOOP_SLIME_GREENS);
+        registerSprayDrip(event, GooParticles.SLICK_SPRAY_DRIP.get(), BlendPalette.SLICK_SLIME_BLUES);
+        registerSprayDrip(event, GooParticles.SHATTER_SPRAY_DRIP.get(), BlendPalette.SHATTER_CRYSTAL_BLUES);
+        registerSprayDrip(event, GooParticles.HOST_SPRAY_DRIP.get(), BlendPalette.HOST_DEEP_TEALS);
+        registerSprayDrip(event, GooParticles.WISPS_SPRAY_DRIP.get(), BlendPalette.WISPS_GLOW_GOLDS);
+        registerSprayDrip(event, GooParticles.LEECH_SPRAY_DRIP.get(), BlendPalette.LEECH_HEX_VIOLETS);
+        registerSprayDrip(event, GooParticles.UPDRAFT_SPRAY_DRIP.get(), BlendPalette.UPDRAFT_TYPHOON_GREENS);
+        registerSprayDrip(event, GooParticles.NECTAR_SPRAY_DRIP.get(), BlendPalette.NECTAR_JELLY_ORANGES);
+        registerSprayDrip(event, GooParticles.SIGNAL_SPRAY_DRIP.get(), BlendPalette.SIGNAL_PULSE_REDS);
+        registerSprayDrip(event, GooParticles.SPIKES_SPRAY_DRIP.get(), BlendPalette.SPIKES_METAL_SILVERS);
+        registerSprayDrip(event, GooParticles.INFEST_SPRAY_DRIP.get(), BlendPalette.INFEST_NETHER_REDS);
+        registerSprayDrip(event, GooParticles.VINES_SPRAY_DRIP.get(), BlendPalette.VINES_LEAF_GREENS);
+        registerSprayDrip(event, GooParticles.NITRO_SPRAY_DRIP.get(), BlendPalette.NITRO_UNSTABLE_GREENS);
         event.registerSpriteSet(GooParticles.MOLTEN_SPRAY_DRIP.get(),
                 sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.MOLTEN_BLAZE_ORANGES,
                         CellBinding.MOLTEN.fluidFooting()));
-        event.registerSpriteSet(GooParticles.SHATTER_SPRAY_DRIP.get(),
-                sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.SHATTER_CRYSTAL_BLUES));
-        event.registerSpriteSet(GooParticles.HOST_SPRAY_DRIP.get(),
-                sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.HOST_DEEP_TEALS));
         event.registerSpriteSet(GooParticles.RIME_SPRAY_DRIP.get(),
                 sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.RIME_FROST_BLUES,
                         CellBinding.RIME.fluidFooting()));
-        event.registerSpriteSet(GooParticles.WISPS_SPRAY_DRIP.get(),
-                sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.WISPS_GLOW_GOLDS));
-        event.registerSpriteSet(GooParticles.LEECH_SPRAY_DRIP.get(),
-                sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.LEECH_HEX_VIOLETS));
-        event.registerSpriteSet(GooParticles.UPDRAFT_SPRAY_DRIP.get(),
-                sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.UPDRAFT_TYPHOON_GREENS));
-        event.registerSpriteSet(GooParticles.NECTAR_SPRAY_DRIP.get(),
-                sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.NECTAR_JELLY_ORANGES));
-        event.registerSpriteSet(GooParticles.SIGNAL_SPRAY_DRIP.get(),
-                sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.SIGNAL_PULSE_REDS));
-        event.registerSpriteSet(GooParticles.SPIKES_SPRAY_DRIP.get(),
-                sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.SPIKES_METAL_SILVERS));
-        event.registerSpriteSet(GooParticles.INFEST_SPRAY_DRIP.get(),
-                sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.INFEST_NETHER_REDS));
+    }
+
+    /**
+     * Registers one spray's drip, drawn in its goo's two blended colors.
+     *
+     * @param event   the event instance
+     * @param drip    the spray's drip particle
+     * @param palette the goo's colors
+     */
+    private static void registerSprayDrip(RegisterParticleProvidersEvent event, SimpleParticleType drip,
+                                          BlendPalette palette) {
+        event.registerSpriteSet(drip, sprites -> new SprayDripParticle.Provider(sprites, palette));
     }
 
     /**
@@ -522,7 +534,7 @@ public final class GooClientSetup {
     public static void registerCustomSkies(RegisterCustomEnvironmentEffectRendererEvent event) {
         event.registerSkyboxRenderer(PocketStarSky.ID, new PocketStarSkyRenderer());
         // decision astral-sky-is-the-void-with-one-bright-blue-overworld-star
-        event.registerSkyboxRenderer(LunarSky.ID, new LunarSkyRenderer());
+        event.registerSkyboxRenderer(LunarSky.ID, new LunarSkyRenderer(true));
     }
 
     /**
@@ -648,6 +660,8 @@ public final class GooClientSetup {
         MeteorScorches.clear();
         GlassKnives.clear();
         HoveringKnives.clear();
+        ClientPalmBuffers.clear();
+        HeldJavelins.clear();
         AbilityPoses.clear();
         PrismFormingSounds.CLIENT.clear();
     }

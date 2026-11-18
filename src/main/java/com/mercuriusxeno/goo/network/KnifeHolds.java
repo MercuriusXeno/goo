@@ -18,22 +18,23 @@ import java.util.UUID;
  * count, read off the server's own clock rather than any client's. Each knife
  * the clock forms is paid as it forms, and a knife the player cannot cover
  * does not form. Each tick a count that changed goes to the caster and the
- * players watching. A throw takes knives out of the fan, their prices spent,
- * and restarts the stage clock: a stage later the fan fills from the stage the
- * knives left round up to, each refilled knife paid as it forms.
+ * players watching. A throw takes knives out of the hold, their prices spent,
+ * and the clock runs on beneath it, forming knives back up to the charge's
+ * most at its rate, each refilled knife paid as it forms. Left click held
+ * throws a knife as it goes down and one every 2 ticks after, while a knife
+ * is held, until it lifts.
  * A hold ends when the client lets go, the player leaves, or the glove leaves
- * the hand, refunding the price of every knife still in the fan, and its end
- * sends a count of 0.
- * decision knives-form-in-fibonacci-stages-to-twelve
- * decision knives-stage-takes-twelve-ticks-with-no-cooldown
+ * the hand, refunding the price of every knife still held, and its end sends
+ * a count of 0.
+ * decision knives-charge-one-per-three-ticks-up-to-ten
  * decision knives-form-on-right-click-and-throw-on-left-click
  * decision knives-pay-per-knife-as-each-forms
- * decision knives-form-on-right-click-and-throw-on-left-click
  * decision knives-refill-from-the-stage-the-fan-rounds-up-to
+ * decision knives-throw-one-per-two-ticks-while-left-click-is-held
  */
 public final class KnifeHolds {
 
-    private static final int NO_THROW = -1;
+    private static final int NOT_THROWING = -1;
     private final Map<UUID, Hold> holds = new HashMap<>();
 
     /**
@@ -48,19 +49,21 @@ public final class KnifeHolds {
     /** One player's hold, the knives it has paid for counted as they form, and those it threw. */
     private static final class Hold {
         private final ServerPlayer player;
-        private final int beganAt;
         private final Held held;
         private final GooFraction price;
         private int paid;
         private int thrown;
         private int synced;
-        /** The server tick of the last throw, which restarts the stage clock; NO_THROW before any. */
-        private int threwAt = NO_THROW;
-        private int leftAtThrow;
+        /** The server tick the knife forming now began at; the cap stops the clock, holding it at the tick. */
+        private int clockedFrom;
+        /** The knives the clock has formed, less those thrown. */
+        private int clocked;
+        /** The server tick left click went down, NOT_THROWING while it is up. */
+        private int throwingSince = NOT_THROWING;
 
         Hold(ServerPlayer player, int beganAt, Held held, GooFraction price) {
             this.player = player;
-            this.beganAt = beganAt;
+            this.clockedFrom = beganAt;
             this.held = held;
             this.price = price;
         }
@@ -77,17 +80,43 @@ public final class KnifeHolds {
          * @return the knives in the fan, every one paid for
          */
         int settle(int now) {
-            int clocked = threwAt == NO_THROW ? charge().knivesFormedAt(now - beganAt)
-                    : charge().knivesSinceThrow(leftAtThrow, now - threwAt);
-            while (paid - thrown < clocked && AbilityCharges.charge(player, held.gooType(), price)) {
+            runTheClock(now);
+            // palm-blob-is-a-buffer-that-right-click-turns-into-weapons: a weapon forms only on a share of the buffer
+            int share = PalmBuffer.shareOf(charge());
+            while (paid - thrown < clocked && PalmBuffer.takeShare(player, abilityId(), share)) {
+                if (!AbilityCharges.charge(player, held.gooType(), price)) {
+                    PalmBuffer.giveBack(player, abilityId(), share);
+                    break;
+                }
                 paid++;
             }
             return paid - thrown;
         }
 
+        String abilityId() {
+            return held.ability().id().toString();
+        }
+
         /**
-         * Takes thrown knives out of the fan and restarts the stage clock from
-         * the knives left.
+         * Forms each knife whose ticks have gone by since the last one,
+         * keeping the ticks the next has run; at the cap the clock stands
+         * still, so the knife after a throw from a full hold starts at the throw.
+         * decision knives-throw-one-per-two-ticks-while-left-click-is-held: charging runs on beneath the throw
+         *
+         * @param now the server tick
+         */
+        private void runTheClock(int now) {
+            int reached = charge().stackedSinceThrow(clocked, now - clockedFrom);
+            if (reached >= charge().stack()) {
+                clockedFrom = now;
+            } else {
+                clockedFrom += (reached - clocked) * charge().stackTicks();
+            }
+            clocked = reached;
+        }
+
+        /**
+         * Takes thrown knives out of the hold, the knife forming now running on.
          *
          * @param knives the knives thrown
          * @param now    the server tick
@@ -96,9 +125,25 @@ public final class KnifeHolds {
             if (knives <= 0) {
                 return;
             }
+            settle(now);
             thrown += Math.min(knives, paid - thrown);
-            leftAtThrow = paid - thrown;
-            threwAt = now;
+            clocked = paid - thrown;
+        }
+
+        /**
+         * Whether the held left click throws this tick: every beat its charge
+         * names after the press, 2 ticks for Knives and 5 for Dart, the press's own
+         * throw landing as it went down.
+         * decision knives-throw-one-per-two-ticks-while-left-click-is-held
+         * decision dart-throws-one-javelin-per-five-ticks-while-left-click-is-held
+         *
+         * @param now the server tick
+         * @return true on a tick the held throw throws
+         */
+        boolean throwsAt(int now) {
+            int since = now - throwingSince;
+            int beat = charge().throwTicks();
+            return throwingSince != NOT_THROWING && beat > 0 && since > 0 && since % beat == 0;
         }
 
         /**
@@ -113,10 +158,12 @@ public final class KnifeHolds {
             return changed;
         }
 
-        /** Returns the price of every knife still in the fan. */
+        /** Returns the price of every knife still in the fan, and every one's share to the buffer. */
         void refund() {
             if (paid > thrown) {
                 AbilityCharges.refund(player, held.gooType(), price.times(paid - thrown));
+                // held-weapons-reserve-their-share-of-the-buffer: a release returns every held share
+                PalmBuffer.giveBack(player, abilityId(), (paid - thrown) * PalmBuffer.shareOf(charge()));
                 thrown = paid;
             }
         }
@@ -147,7 +194,7 @@ public final class KnifeHolds {
         if (ended != null) {
             ended.refund();
             if (ended.synced > 0) {
-                syncCount(player, 0);
+                syncCount(ended, 0, true);
             }
         }
     }
@@ -176,6 +223,57 @@ public final class KnifeHolds {
     }
 
     /**
+     * Records left click going down or lifting during the player's hold; a
+     * press told again while it is already down keeps its beat and is no new press.
+     * decision knives-throw-one-per-two-ticks-while-left-click-is-held
+     * decision dart-throws-one-javelin-per-five-ticks-while-left-click-is-held
+     *
+     * @param player the player
+     * @param down   true as it goes down, false as it lifts
+     * @return true where left click went down fresh during a hold
+     */
+    public boolean leftClick(ServerPlayer player, boolean down) {
+        Hold hold = holds.get(player.getUUID());
+        if (hold == null) {
+            return false;
+        }
+        if (!down) {
+            hold.throwingSince = NOT_THROWING;
+            return false;
+        }
+        if (hold.throwingSince != NOT_THROWING) {
+            return false;
+        }
+        hold.throwingSince = player.level().getServer().getTickCount();
+        return true;
+    }
+
+    /**
+     * The weapons the player's standing hold of an ability holds, as last
+     * settled, without forming any: none for another ability's hold or none.
+     * decision held-weapons-reserve-their-share-of-the-buffer
+     *
+     * @param player    the player
+     * @param abilityId the ability's id
+     * @return the weapons held
+     */
+    int heldIn(ServerPlayer player, String abilityId) {
+        Hold hold = holds.get(player.getUUID());
+        return hold == null || !hold.abilityId().equals(abilityId) ? 0 : hold.paid - hold.thrown;
+    }
+
+    /**
+     * The knives the player's standing hold has thrown.
+     *
+     * @param player the player
+     * @return the knives thrown, 0 for a player holding none
+     */
+    public int thrownBy(ServerPlayer player) {
+        Hold hold = holds.get(player.getUUID());
+        return hold == null ? 0 : hold.thrown;
+    }
+
+    /**
      * The knives in the player's fan now, each paid for.
      *
      * @param player the player
@@ -188,7 +286,8 @@ public final class KnifeHolds {
 
     /**
      * Ticks every hold: a hold whose player has left or no longer holds a
-     * caster of its type ends, refunded, and a count that changed goes to the watchers.
+     * caster of its type ends, refunded, a held left click throws on its beat,
+     * and a count that changed goes to the watchers.
      *
      * @param now the server tick
      */
@@ -199,18 +298,22 @@ public final class KnifeHolds {
             if (hold.player.isRemoved() || !GooThrowHandler.validateCaster(hold.player, hold.held.gooType())) {
                 live.remove();
                 hold.refund();
-                syncCount(hold.player, 0);
+                syncCount(hold, 0, true);
                 continue;
+            }
+            if (hold.throwsAt(now)) {
+                KnivesThrowHandler.throwKnife(hold.player);
             }
             int formed = hold.settle(now);
             if (hold.syncs(formed)) {
-                syncCount(hold.player, formed);
+                syncCount(hold, formed, false);
             }
         }
     }
 
-    private static void syncCount(ServerPlayer player, int formed) {
-        EntityVisuals.sendToWatchers(player, new KnivesFormedPayload(player.getId(), formed));
+    private static void syncCount(Hold hold, int formed, boolean released) {
+        EntityVisuals.sendToWatchers(hold.player, new StackFormedPayload(hold.player.getId(), formed,
+                hold.held.ability().delivery().stacksJavelins(), released));
     }
 
     /** Drops every hold, as a server stop does. */

@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.radial;
 
+import com.mercuriusxeno.goo.client.ClientDimension;
 import com.mercuriusxeno.goo.client.hud.MixedNumberLabel;
 import com.mercuriusxeno.goo.client.hud.NineSlice;
 import com.mercuriusxeno.goo.client.hud.PanelPainter;
@@ -12,6 +13,8 @@ import com.mercuriusxeno.goo.client.network.OfferedAbility;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.level.Level;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.ToIntFunction;
@@ -65,7 +68,8 @@ final class AbilityExplanationPanel {
         ToIntFunction<String> fontWidth = text -> font.width(Component.literal(text));
         // every-mixed-number-takes-the-spacing-rule: the text wraps and the panel sizes to the respaced widths
         ToIntFunction<String> widthOf = MixedNumberLabel.spacedWidth(fontWidth);
-        List<PanelRow> rows = rows(offered.ability(), frame.look().costMechanicsLookup(), textWidth, widthOf);
+        List<PanelRow> rows = rows(offered.ability(), frame.look().costMechanicsLookup(), textWidth, widthOf,
+                ClientDimension.standingIn());
         PanelPainter.PanelSize size = PanelPainter.measure(rows, widthOf);
         int top = frame.centerY() - Math.round(size.height()) / HALF;
         NineSlice.blit(graphics, new PanelRectangle(left, top, Math.round(size.width()), Math.round(size.height())));
@@ -103,12 +107,14 @@ final class AbilityExplanationPanel {
      * @param lookup    the lang, item names and goo values the texts resolve through
      * @param textWidth the width the texts wrap to
      * @param widthOf   the width in pixels the font gives a string
+     * @param standingIn the dimension the player stands in, whose name the ability shows
+     *                  (decision lunar-reads-as-terran-while-you-are-on-the-moon)
      * @return the rows top to bottom
      */
     static List<PanelRow> rows(ClientAbility ability, CostMechanicsLookup lookup, int textWidth,
-                               ToIntFunction<String> widthOf) {
+                               ToIntFunction<String> widthOf, ResourceKey<Level> standingIn) {
         List<PanelRow> rows = new ArrayList<>();
-        rows.add(PanelPainter.labelRow(lookup.translate(ability.displayName())));
+        rows.add(PanelPainter.labelRow(lookup.translate(ability.shownIn(standingIn).displayName())));
         for (String line : WordWrap.lines(lookup.translate(ability.description()), textWidth, widthOf)) {
             rows.add(PanelRow.header(line, PanelPainter.TEXT_COLOR));
         }

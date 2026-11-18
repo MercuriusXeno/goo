@@ -7,7 +7,7 @@ import java.util.stream.Stream;
 
 /**
  * Lunar, run each held tick of the channel: the first held tick fixes the caster's gaze on the moon or the
- * blue overworld star their look holds, holding them still while it swells to fill their view, and each tick after
+ * blue planet their look holds, holding them still while it swells to fill their view, and each tick after
  * keeps the pull; held through, it carries them and takes its cost, and let go early, it releases them and takes
  * nothing. It places nothing. Lunar is {@code astral_lunar fixation=100 cost=1000}, five seconds of
  * fixation, the time the trip takes to dim the sky, darken the land, swell the moon and flood the view white.
@@ -16,7 +16,7 @@ import java.util.stream.Stream;
  * decision holding-right-click-pulls-the-moon-and-early-release-cancels
  *
  * @param fixation the held ticks the fixation runs before Lunar carries the caster
- * @param cost     the astral Lunar costs as the moon or the star takes the caster (mB)
+ * @param cost     the astral Lunar costs as the moon or the planet takes the caster (mB)
  */
 public record AstralLunarStep(Expr fixation, Expr cost) implements Step {
 

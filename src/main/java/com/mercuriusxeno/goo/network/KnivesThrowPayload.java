@@ -7,17 +7,18 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 import org.jspecify.annotations.NonNull;
-import java.util.List;
 
 /**
- * Client-to-server payload: a left click during a Knives hold throws the
- * knives at the mobs the hold painted, in painted order.
+ * Client-to-server payload: left click goes down or lifts during a Knives
+ * hold. Held down, it throws a knife along the thrower's look as it goes down
+ * and one every 2 ticks after; it names no mob, since a knife seeks none.
  * decision knives-form-on-right-click-and-throw-on-left-click
- * decision knives-paint-mobs-by-hovering-while-forming
+ * decision knives-throw-one-per-two-ticks-while-left-click-is-held
+ * decision knives-do-not-seek-you-just-throw-them
  *
- * @param painted the painted mobs' entity ids, in painted order
+ * @param down true as left click goes down, false as it lifts
  */
-public record KnivesThrowPayload(List<Integer> painted) implements CustomPacketPayload {
+public record KnivesThrowPayload(boolean down) implements CustomPacketPayload {
 
     /** Payload type ID for registration. */
     public static final Type<KnivesThrowPayload> TYPE =
@@ -25,8 +26,7 @@ public record KnivesThrowPayload(List<Integer> painted) implements CustomPacketP
 
     /** Stream codec for encoding/decoding. */
     public static final StreamCodec<ByteBuf, KnivesThrowPayload> STREAM_CODEC = StreamCodec.composite(
-            ByteBufCodecs.VAR_INT.apply(ByteBufCodecs.list()), KnivesThrowPayload::painted,
-            KnivesThrowPayload::new);
+            ByteBufCodecs.BOOL, KnivesThrowPayload::down, KnivesThrowPayload::new);
 
     @Override
     public @NonNull Type<? extends CustomPacketPayload> type() {

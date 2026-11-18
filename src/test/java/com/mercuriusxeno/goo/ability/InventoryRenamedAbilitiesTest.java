@@ -64,7 +64,8 @@ class InventoryRenamedAbilitiesTest {
                 Arguments.of("jelly_nectar", "Nectar"),
                 Arguments.of("void_cancel", "Cancel"),
                 Arguments.of("zoo_kin", "Kin"),
-                Arguments.of("rock_build", "Build"));
+                Arguments.of("rock_build", "Build"),
+                Arguments.of("unstable_nitro", "Nitro"));
     }
 
     @ParameterizedTest

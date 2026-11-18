@@ -9,7 +9,7 @@ import net.minecraft.util.Mth;
  * caster: the sky dims to the star void first, the land drops into darkness behind it, and the moon swells from
  * vanilla's size, slowly and then rushing in, until it covers the whole view; white floods the view as it does,
  * stands full over the crossing until the caster's client learns they arrived, and then clears. The trip home
- * mirrors it with the blue star swelling in the moon's place under lunar's sky, already the void.
+ * mirrors it with the blue planet swelling in its phase under lunar's sky, already the void.
  * decision gate-fixates-your-view-on-the-moon-until-it-takes-you
  * decision gate-on-the-blue-star-returns-you-exactly-where-you-left
  */
@@ -17,16 +17,15 @@ final class LunarTrip {
 
     /** How far off vanilla's sky draws the moon, and the moon quad's half width there. */
     static final float SKY_DISTANCE = 100F;
-    private static final float VANILLA_MOON_HALF_WIDTH = 20F;
     /** The share of the moon sprite's width its disc spans: eight of its thirty-two texels. */
-    static final double MOON_DISC_SHARE = 8.0 / 32.0;
+    static final double MOON_DISC_SHARE = LunarSky.MOON_DISC_SHARE;
     /** Vanilla's moon disc's half width, as the tangent of its angle from the view's center. */
-    static final double RESTING_MOON_HALF_TANGENT = VANILLA_MOON_HALF_WIDTH / SKY_DISTANCE * MOON_DISC_SHARE;
+    static final double RESTING_MOON_HALF_TANGENT = LunarSky.VANILLA_MOON_HALF_WIDTH / SKY_DISTANCE * MOON_DISC_SHARE;
     /** The widest view a player holds: vanilla's widest field of view slider on an ultrawide screen. */
     private static final double WIDEST_VERTICAL_FOV_DEGREES = 110.0;
     private static final double WIDEST_ASPECT = 21.0 / 9.0;
     /**
-     * The widest view's half diagonal, as a tangent: a square body, the moon's disc or the star's core, covers it
+     * The widest view's half diagonal, as a tangent: a body, the moon's disc or the planet's, covers it
      * whatever way it turns once its half width reaches this.
      */
     static final double WIDEST_VIEW_HALF_TANGENT = Math.tan(Math.toRadians(WIDEST_VERTICAL_FOV_DEGREES / 2))
@@ -34,8 +33,8 @@ final class LunarTrip {
     /** How far past the widest view the swollen moon reaches, so its edge never shows at the end. */
     private static final double SWOLLEN_MARGIN = 1.25;
     private static final double SWOLLEN_HALF_TANGENT = WIDEST_VIEW_HALF_TANGENT * SWOLLEN_MARGIN;
-    /** The blue star's core half width as lunar's sky draws it, as a tangent. */
-    static final double RESTING_STAR_HALF_TANGENT = LunarSky.OVERWORLD_STAR.halfSize() / SKY_DISTANCE;
+    /** The blue planet's half width as lunar's sky draws it, as a tangent. */
+    static final double RESTING_PLANET_HALF_TANGENT = LunarSky.PLANET_HALF_SIZE / SKY_DISTANCE;
 
     /** The share of the fixation over which the sky dims to the star void. */
     private static final float SKY_DIM_START = 0F;
@@ -159,15 +158,16 @@ final class LunarTrip {
     }
 
     /**
-     * The blue star's core half width as a tangent, as the swell takes it on the way home: its resting size until
+     * The blue planet's half width as a tangent, as the swell takes it on the way home: its size in lunar's sky until
      * the swell begins, then growing as the moon does until it covers the view.
      * decision gate-on-the-blue-star-returns-you-exactly-where-you-left
+     * decision blue-star-is-a-planet-four-moons-wide-drawn-in-phases
      *
      * @param progress the share of the fixation run, zero to one
      * @return the half width's tangent
      */
-    static double starHalfTangent(float progress) {
-        return swollen(progress, RESTING_STAR_HALF_TANGENT);
+    static double planetHalfTangent(float progress) {
+        return swollen(progress, RESTING_PLANET_HALF_TANGENT);
     }
 
     /**
