@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.throwing;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.GloveButton;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.HeldRoute;
 import com.mercuriusxeno.goo.ability.program.ChannelAim;
@@ -115,6 +116,11 @@ public final class GloveUseTracker {
         if (player != null && BuildCast.selected(player)) {
             // spire-rips-walls-and-platforms: a footprint cast holds its own presses, never a throw
             BuildCast.press(player, hand);
+            return;
+        }
+        if (player != null && PortalAim.selected(GloveAim.selectedAbilityId(player))) {
+            // operator UAT 2026-11-17: right click shoots the orange portal on press, as left click shoots the blue
+            PortalAim.shoot(player, GloveButton.USE);
             return;
         }
         if (!PRESS.isArmed()) {
