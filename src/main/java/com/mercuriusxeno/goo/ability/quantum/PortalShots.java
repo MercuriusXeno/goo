@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.ability.ThrowRange;
 import com.mercuriusxeno.goo.ability.program.PortalStep;
 import com.mercuriusxeno.goo.network.GooThrowHandler;
 import com.mercuriusxeno.goo.network.GooThrowPayload;
+import com.mercuriusxeno.goo.network.PalmBlobChargePayload;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ClipContext;
@@ -54,8 +55,11 @@ public final class PortalShots {
         }
         Optional<GooThrowPayload> aimed = shot.gate().isPresent() ? Optional.of(shot)
                 : alongTheLook(player, shot, ThrowRange.of(portal.get()));
-        aimed.ifPresent(cast -> casting(player.getUUID(), PortalColor.pressedBy(button),
-                () -> GooThrowHandler.execute(player, cast)));
+        aimed.ifPresent(cast -> {
+            casting(player.getUUID(), PortalColor.pressedBy(button), () -> GooThrowHandler.execute(player, cast));
+            // operator UAT 2026-11-17: the palm blob hops as it shoots, for the players watching too
+            PalmBlobChargePayload.sendLift(player);
+        });
     }
 
     /**

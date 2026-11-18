@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.throwing;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.GloveButton;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.program.GrabStep;
 import com.mercuriusxeno.goo.ability.program.PortalStep;
@@ -18,7 +19,6 @@ import net.minecraft.world.item.ItemStack;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.InputEvent;
 import org.jspecify.annotations.Nullable;
 
@@ -42,9 +42,6 @@ import org.jspecify.annotations.Nullable;
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class GloveAttackTracker {
-
-    /** Whether the attack key stood down as the last client tick ended, so a press held on shoots no more. */
-    private static boolean attackDownLastTick;
 
     private GloveAttackTracker() {
     }
@@ -144,9 +141,7 @@ public final class GloveAttackTracker {
     private static void shootThePortal(InputEvent.InteractionKeyMappingTriggered event, LocalPlayer player) {
         event.setCanceled(true);
         event.setSwingHand(false);
-        if (shootsOnThisPress(attackDownLastTick)) {
-            GloveThrowSender.sendPortalShot(player);
-        }
+        PortalAim.shoot(player, GloveButton.ATTACK);
     }
 
     /**
@@ -180,28 +175,6 @@ public final class GloveAttackTracker {
                 // the press stays vanilla's; resolve shoots Portal before this
             }
         }
-    }
-
-    /**
-     * Whether an attack-key interaction shoots Portal: a fresh press does,
-     * and the interaction vanilla repeats each tick the key stays down does not.
-     * portal-takes-over-left-and-right-click-for-blue-and-orange
-     *
-     * @param downLastTick whether the attack key stood down as the last tick ended
-     * @return true for a fresh press
-     */
-    static boolean shootsOnThisPress(boolean downLastTick) {
-        return !downLastTick;
-    }
-
-    /**
-     * Notes whether the attack key stands down as the client tick ends.
-     *
-     * @param event the client's tick
-     */
-    @SubscribeEvent
-    public static void onClientTick(ClientTickEvent.Post event) {
-        attackDownLastTick = Minecraft.getInstance().options.keyAttack.isDown();
     }
 
     /**
