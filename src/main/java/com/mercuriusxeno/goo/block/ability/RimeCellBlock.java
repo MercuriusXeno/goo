@@ -59,7 +59,7 @@ public class RimeCellBlock extends VolumeCellBlock {
     /**
      * Freezes what the cell's layers pay for in its reach and stands the
      * cell lower by what the freezes spent, gone where they spent it all, as
-     * Molten's cell stands lower by the stone it melts; a cell still standing
+     * Molten's cell stands lower by the block it melts; a cell still standing
      * keeps a tick coming, a pending pour's or the next chill's.
      * rime-goo-depletes-on-freezing
      * molten-spends-three-layers-per-stone-block-priced-at-lava-minus-mundane-block

@@ -5,11 +5,23 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.ability.program.UpdraftStep;
+import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
+import com.mercuriusxeno.goo.network.AbilitySyncPayload;
+import com.google.gson.JsonParser;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Locale;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -20,10 +32,46 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * updraft-is-typhoons-world-goo-that-lifts-the-entities-above-it
  * updraft-wears-the-residual-badge
  * updraft-goo-lifts-one-block-per-layer
+ * Updraft carries no prism reaction, so its wheel card wears the residual
+ * badge alone and its description names no prism.
+ * updraft-sheds-its-prism-effect
+ * floatstone-lift-leaves-the-mod
  */
 class UpdraftAbilityTest {
 
     private static final String UPDRAFT = "typhoon_updraft";
+    private static final String LANG_PATH = "/assets/goo/lang/en_us.json";
+    private static final String DESCRIPTION_KEY = "goo.ability.typhoon.updraft.description";
+    private static final String DESCRIPTION_END = "a block for each layer.";
+
+    @Test
+    void updraftCarriesNoPrismReactionSoItsWheelCardDrawsTheResidualBadgeAlone() {
+        AbilityDefinition updraft = AbilityJson.decode(UPDRAFT);
+        ClientAbility synced = ClientAbility.fromEntry(
+                AbilitySyncPayload.gloveEntries(updraft.gooType(), List.of(updraft)).getFirst());
+
+        assertTrue(updraft.onPrism().isEmpty(), "typhoon_updraft carries an on_prism reaction");
+        assertFalse(synced.reactsToPrisms(), "the synced Updraft reads as reacting to prisms");
+    }
+
+    @Test
+    void updraftsDescriptionEndsAtItsLayersAndNamesNoPrism() throws IOException {
+        String description = englishDescription();
+        String lowered = description.toLowerCase(Locale.ROOT);
+
+        assertTrue(description.endsWith(DESCRIPTION_END), description);
+        assertFalse(lowered.contains("prism"), description);
+        assertFalse(lowered.contains("floatstone"), description);
+    }
+
+    private static String englishDescription() throws IOException {
+        try (InputStream in = UpdraftAbilityTest.class.getResourceAsStream(LANG_PATH)) {
+            assertNotNull(in, LANG_PATH);
+            try (Reader reader = new InputStreamReader(in, StandardCharsets.UTF_8)) {
+                return JsonParser.parseReader(reader).getAsJsonObject().get(DESCRIPTION_KEY).getAsString();
+            }
+        }
+    }
 
     @Test
     void updraftWearsTheResidualBadgeAndSpraysAsAStream() {

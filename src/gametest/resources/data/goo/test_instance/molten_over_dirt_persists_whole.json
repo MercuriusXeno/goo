@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:molten_over_dirt_persists_whole",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 240,
+  "setup_ticks": 0,
+  "required": true
+}

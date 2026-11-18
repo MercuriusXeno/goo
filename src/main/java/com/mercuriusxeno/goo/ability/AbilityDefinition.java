@@ -499,6 +499,9 @@ public record AbilityDefinition(
     private static final String FIELD_COST_MECHANICS = "cost_mechanics";
     private static final String FIELD_COST_FORMULA = "cost_formula";
     private static final String FIELD_FREE_WHILE = "free_while";
+    private static final String RESIDUAL_REACTS_TO_PRISMS =
+            "%s wears the residual badge and names " + FIELD_ON_PRISM
+                    + "; a residual ability carries no prism reaction";
     private static final String UNFORMULATED_DYNAMIC_PRICE =
             "An ability costing nothing up front and paying no upkeep must name " + FIELD_COST_FORMULA
                     + ", the formula its petal reads";
@@ -629,7 +632,8 @@ public record AbilityDefinition(
      */
     public static Codec<AbilityDefinition> codecFor(Identifier id) {
         return fileCodec(id).validate(AbilityDefinition::formulatedDynamicPrice)
-                .validate(AbilityDefinition::unambiguousPrices);
+                .validate(AbilityDefinition::unambiguousPrices)
+                .validate(AbilityDefinition::residualWithoutPrismReaction);
     }
 
     private static Codec<AbilityDefinition> fileCodec(Identifier id) {
@@ -664,6 +668,20 @@ public record AbilityDefinition(
                         reactions.onBlocks(), AbilityPrice.of(held.upkeep(), heading.gooType()), held.downSound(),
                         price.distancePrice(), pose.orElseGet(() -> ArmPose.defaultFor(delivery.kind())),
                         heading.descriptionKey(), price.costMechanics(), price.costFormula(), price.freeWhile())));
+    }
+
+    /**
+     * Refuses an ability wearing the residual badge that names a prism
+     * reaction, as an unknown badge word is refused at load.
+     * no-residual-ability-carries-a-prism-reaction
+     *
+     * @param definition the ability as the JSON wrote it
+     * @return the ability, or an error naming the ability, the badge and the field
+     */
+    private static DataResult<AbilityDefinition> residualWithoutPrismReaction(AbilityDefinition definition) {
+        return definition.badge() == AbilityBadge.RESIDUAL && !definition.onPrism().isEmpty()
+                ? DataResult.error(() -> String.format(RESIDUAL_REACTS_TO_PRISMS, definition.id()))
+                : DataResult.success(definition);
     }
 
     /**
