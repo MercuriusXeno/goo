@@ -37,6 +37,8 @@ public final class PalmBuffer {
     static final int REFILL_A_TICK = 2;
     /** The fill a tick raw goo held bare handed refills, 0.5%, in half percents. */
     private static final int BARE_HANDED_REFILL = 1;
+    /** The ability told for a selection keeping no buffer. */
+    private static final String NO_ABILITY = "";
 
     private PalmBuffer() {
     }
@@ -151,6 +153,25 @@ public final class PalmBuffer {
     private static int refillSpeedOf(ServerPlayer player) {
         ItemStack caster = GooCasters.casterOf(player);
         return refillSpeedOf(caster != null && caster.getItem() instanceof GooGloveItem glove ? glove.tier() : null);
+    }
+
+    /**
+     * The buffer a player's clients draw now: the selected ability's fill,
+     * refill speed and cap, or none for a selection keeping no buffer.
+     *
+     * @param player the player
+     * @param holds  the standing holds
+     * @param now    the server tick
+     * @return what the clients are to be told
+     */
+    static PalmBufferSyncs.Told toldNow(ServerPlayer player, KnifeHolds holds, int now) {
+        AbilityDefinition selected = selectedStackingAbility(player);
+        if (selected == null) {
+            return new PalmBufferSyncs.Told(NO_ABILITY, PalmBufferPayload.NONE, 0, 0, now);
+        }
+        String abilityId = selected.id().toString();
+        int cap = PalmBuffers.FULL - holds.heldIn(player, abilityId) * shareOf(selected.delivery().charge());
+        return new PalmBufferSyncs.Told(abilityId, fillOf(player, abilityId), refillSpeedOf(player), cap, now);
     }
 
     private static @Nullable AbilityDefinition selectedStackingAbility(ServerPlayer player) {

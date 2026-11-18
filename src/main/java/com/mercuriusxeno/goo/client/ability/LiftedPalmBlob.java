@@ -388,6 +388,10 @@ public final class LiftedPalmBlob {
      * @return the share of the full cube
      */
     static float stackShareOf(int casterId, double now) {
+        // palm-blob-and-cutaway-cuboid-size-by-the-buffers-volume: the cube draws at the buffer's fill, by volume
+        if (ClientPalmBuffers.holdsABuffer(casterId)) {
+            return (float) (StackHover.edgeAtFill(ClientPalmBuffers.fillAt(casterId, now)) / StackHover.edgeAtFill(1));
+        }
         HoveringKnives.Fan fan = HoveringKnives.fanOf(casterId);
         if (fan != null) {
             return easedShare(fan.previous(), fan.count(), StackHover.KNIVES, now - fan.changedAt());
@@ -395,6 +399,25 @@ public final class LiftedPalmBlob {
         HeldJavelins.Stack stack = HeldJavelins.stackOf(casterId);
         return stack == null ? 1f
                 : easedShare(stack.previous(), stack.count(), StackHover.JAVELINS, now - stack.changedAt());
+    }
+
+    /**
+     * The size the palm blob rests at on a caster's palm: the local player's
+     * at its buffer's fill by volume, for the stack the local player casts
+     * from, and whole for any other.
+     * decision palm-blob-and-cutaway-cuboid-size-by-the-buffers-volume
+     *
+     * @param caster the caster stack being drawn
+     * @return the share of the full blob
+     */
+    public static float restingShareOf(ItemStack caster) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null || mc.level == null || !GooCasters.drawnAsCaster(mc.player, caster)) {
+            return 1f;
+        }
+        double now = mc.level.getGameTime() + mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
+        return (float) (StackHover.edgeAtFill(ClientPalmBuffers.fillAt(mc.player.getId(), now))
+                / StackHover.edgeAtFill(1));
     }
 
     // The cube's share eased from the count before the stack's last change to the count after, as one rises.

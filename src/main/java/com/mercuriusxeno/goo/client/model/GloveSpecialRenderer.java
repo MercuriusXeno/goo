@@ -647,7 +647,7 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
         if (type != null && !GloveUseTracker.isSelectedTypeAvailable()) {
             type = null;
         }
-        return new GloveData(stack.getItem(), type, channelGlowOf(type, stack), 1f,
+        return new GloveData(stack.getItem(), type, channelGlowOf(type, stack), LiftedPalmBlob.restingShareOf(stack),
                 // palm-blob-lifts-as-the-spray-source
                 type != null && LiftedPalmBlob.liftedFrom(stack), LiftedPalmBlob.heldInView(stack));
     }
@@ -667,7 +667,7 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
         if (player != null) {
             handArm = GooCasters.drawnInMainHand(player, stack) ? player.getMainArm() : player.getMainArm().getOpposite();
         }
-        return new GloveData(stack.getItem(), type, channelGlowOf(type, stack), 1f,
+        return new GloveData(stack.getItem(), type, channelGlowOf(type, stack), LiftedPalmBlob.restingShareOf(stack),
                 type != null && LiftedPalmBlob.liftedFrom(stack), LiftedPalmBlob.heldInView(stack), handArm);
     }
 

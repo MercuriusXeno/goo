@@ -79,4 +79,12 @@ class HeldJavelinsTest {
         assertEquals("minecraft:item.axe.scrape", played.getFirst().sound().toString());
         assertEquals(1.5f, played.getFirst().pitch(), 1e-6f);
     }
-}
+
+    // dart-javelins-hover-over-the-shrinking-blob-cube: three javelins held leave the cube at the floor, not gone
+    @Test
+    void threeJavelinsHeldLeaveTheCubeAtTheFloor() {
+        ClientPalmBuffers.synced(CASTER, 20, 2, 20, 0);
+        HeldJavelins.formed(CASTER, StackHover.JAVELINS, 0);
+        assertEquals(0.464f, LiftedPalmBlob.stackShareOf(CASTER, 100), 0.001f);
+        ClientPalmBuffers.clear();
+    }}
