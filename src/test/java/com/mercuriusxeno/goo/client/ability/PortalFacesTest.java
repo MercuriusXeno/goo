@@ -438,9 +438,10 @@ class PortalFacesTest {
     }
 
     /**
-     * A Tunnel mouth draws its rim through the portals' drawing: over the
-     * same box, its halo, corner glow, swirl band and sleeve emit what a
-     * Portal's do, in its own color
+     * A Tunnel mouth draws its rim through the portals' drawing, its oval
+     * standing two texels inside its blocks each way across the face: its
+     * halo, swirl band and sleeve emit what a Portal's on that oval's box do,
+     * in its own color, and its corner glow counts the inset from the rim
      * (decision tunnel-drops-its-crisp-wiggly-outline-and-looks-like-the-portals).
      */
     @Nested
@@ -453,31 +454,78 @@ class PortalFacesTest {
         private static final Gate FLOOR_MOUTH = new Gate(Level.OVERWORLD, new AABB(5, 63, 0, 6, 64, 2),
                 Direction.UP, new Vec3(0, 0, 1));
 
+        /** A drawn gate's box as its oval fills it, grown full open. */
+        private static final Function<PortalFaces.Drawn, AABB> OVAL_OF = PortalFaces.Drawn::ovalBox;
+        /** A one by two wall mouth on the north face of (0, 64, 0) to (1, 66, 1). */
+        private static final Gate ONE_BY_TWO_WALL_MOUTH = new Gate(Level.OVERWORLD, new AABB(0, 64, 0, 1, 66, 1),
+                Direction.NORTH, new Vec3(0, 1, 0));
+        /** How far a face coordinate may stand from where the test reckons it, float rounding only. */
+        private static final float NEAR = 1.0e-4F;
+
         @Test
-        void aWallMouthDrawsItsRimAsAPortalOnTheSameBoxDoes() {
+        void aMouthsOvalStandsTwoTexelsInsideItsBlocksEachWayAcrossTheFace() {
+            double in = 2.0 / 16;
+            assertEquals(new AABB(in, 64 + in, 0, 3 - in, 67 - in, 1),
+                    new PortalFaces.Drawn(WALL_MOUTH, PortalFaces.BLUE_RGB, true).ovalBox(), "A wall mouth");
+            assertEquals(new AABB(5 + in, 63, in, 6 - in, 64, 2 - in),
+                    new PortalFaces.Drawn(FLOOR_MOUTH, PortalFaces.ORANGE_RGB, true).ovalBox(), "A floor mouth");
+            assertEquals(WALL_MOUTH.blocks(), new PortalFaces.Drawn(WALL_MOUTH, PortalFaces.BLUE_RGB, false).ovalBox(),
+                    "A portal's oval fills its whole blocks");
+        }
+
+        @Test
+        void aWallMouthDrawsItsRimAsAPortalOnItsOvalsBoxDoes() {
             assertDrawsAsAPortal(WALL_MOUTH, PortalFaces.BLUE_RGB);
         }
 
         @Test
-        void aFloorMouthDrawsItsRimAsAPortalOnTheSameBoxDoes() {
+        void aFloorMouthDrawsItsRimAsAPortalOnItsOvalsBoxDoes() {
             assertDrawsAsAPortal(FLOOR_MOUTH, PortalFaces.ORANGE_RGB);
+        }
+
+        /**
+         * A mouth's corner glow unfolds its face past the halo quad around
+         * its inset oval, so the glow on a side wall's face counts the inset
+         * as distance from the rim: on the face of the block east of a one by
+         * two mouth, the quad's first face coordinate runs from the wall's
+         * reach past that halo quad's east edge out the margin.
+         */
+        @Test
+        void aMouthsCornerGlowUnfoldsPastTheHaloAroundItsInsetOval() {
+            VertexConsumer consumer = mock(VertexConsumer.class, Answers.RETURNS_SELF);
+            ArgumentCaptor<Float> us = ArgumentCaptor.forClass(Float.class);
+            PortalFaces.Drawn mouth = new PortalFaces.Drawn(ONE_BY_TWO_WALL_MOUTH, PortalFaces.BLUE_RGB, true);
+
+            PortalFaces.emitCornerGlows(new PoseStack().last(), consumer, List.of(mouth), OVAL_OF,
+                    (pos, face) -> pos.equals(new BlockPos(1, 64, -1)));
+
+            verify(consumer, times(CORNERS)).setUv(us.capture(), org.mockito.ArgumentMatchers.anyFloat());
+            double low = PortalFaces.MOUTH_INSET - PortalFaces.HALO_MARGIN;
+            double wide = 1 - 2 * PortalFaces.MOUTH_INSET + 2 * PortalFaces.HALO_MARGIN;
+            for (double height : new double[] {0, PortalFaces.HALO_MARGIN}) {
+                float expected = (float) ((1 + PortalFaces.HALO_MARGIN + height - low) / wide);
+                assertTrue(us.getAllValues().stream().anyMatch(u -> Math.abs(u - expected) < NEAR),
+                        "The corner face should unfold to " + expected + " at " + height + " off the wall, unfolds to "
+                                + us.getAllValues());
+            }
         }
 
         private void assertDrawsAsAPortal(Gate gate, int rgb) {
             PortalFaces.Drawn mouth = new PortalFaces.Drawn(gate, rgb, true);
-            PortalFaces.Drawn portal = new PortalFaces.Drawn(gate, rgb, false);
+            PortalFaces.Drawn portal = new PortalFaces.Drawn(new Gate(gate.dimension(), mouth.ovalBox(), gate.face(),
+                    gate.up()), rgb, false);
             PoseStack.Pose pose = new PoseStack().last();
-            assertEquals(emitted(pose, portal), emitted(pose, mouth),
-                    "A Tunnel mouth's halo, corner glow, swirl band and sleeve should emit what a Portal's do");
+            assertEquals(emitted(pose, portal, BLOCKS_OF), emitted(pose, mouth, OVAL_OF),
+                    "A Tunnel mouth's halo, swirl band and sleeve should emit what a Portal's on its oval's box do");
         }
 
-        /** Every call the halo, corner glow, swirl band and sleeve emitters make for one gate, in order. */
-        private List<String> emitted(PoseStack.Pose pose, PortalFaces.Drawn drawn) {
+        /** Every call the halo, swirl band and sleeve emitters make for one gate, in order. */
+        private List<String> emitted(PoseStack.Pose pose, PortalFaces.Drawn drawn,
+                Function<PortalFaces.Drawn, AABB> boxOf) {
             VertexConsumer consumer = mock(VertexConsumer.class, Answers.RETURNS_SELF);
-            PortalFaces.emitHalos(pose, consumer, List.of(drawn), BLOCKS_OF);
-            PortalFaces.emitCornerGlows(pose, consumer, List.of(drawn), BLOCKS_OF, (pos, face) -> true);
-            PortalFaces.emitSwirlBands(pose, consumer, List.of(drawn), BLOCKS_OF);
-            PortalFaces.emitSleeves(pose, consumer, List.of(drawn), BLOCKS_OF);
+            PortalFaces.emitHalos(pose, consumer, List.of(drawn), boxOf);
+            PortalFaces.emitSwirlBands(pose, consumer, List.of(drawn), boxOf);
+            PortalFaces.emitSleeves(pose, consumer, List.of(drawn), boxOf);
             return org.mockito.Mockito.mockingDetails(consumer).getInvocations().stream()
                     .map(call -> call.getMethod().getName() + java.util.Arrays.toString(call.getArguments()))
                     .toList();
