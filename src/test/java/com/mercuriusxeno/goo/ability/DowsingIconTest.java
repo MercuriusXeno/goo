@@ -30,7 +30,7 @@ class DowsingIconTest {
     private static final String DOWSING = "astral_dowsing.png";
     /** Astral's other ability icons, whose colors are Astral's icon palette. */
     private static final List<String> ASTRAL_ICONS = List.of("astral_scry.png", "astral_meteo.png",
-            "astral_gate.png");
+            "astral_lunar.png", "astral_terran.png");
 
     @Test
     void dowsingStandsAtTheSizeOfAstralsIcons() throws IOException {

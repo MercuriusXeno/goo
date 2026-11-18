@@ -2,7 +2,7 @@ package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.block.ability.FluidFooting;
 import com.mercuriusxeno.goo.throwing.CoatRay;
-import net.minecraft.core.BlockPos;
+import net.minecraft.world.entity.LivingEntity;
 import java.util.List;
 import java.util.Optional;
 
@@ -16,21 +16,21 @@ import java.util.Optional;
 public interface DripLanding {
 
     /**
-     * The cell a drip's strike feeds.
+     * The cell a drip's strike feeds, and the side whose wall it coats there.
      *
      * @param host   the caster's host
      * @param strike where the drip struck
-     * @return the cell, empty where the strike lays nothing
+     * @return the cell and the side fed, empty where the strike lays nothing
      */
-    Optional<BlockPos> cellFed(ChannelHost host, CoatRay.BlockStrike strike);
+    Optional<CellFed> cellFed(ChannelHost host, CoatRay.BlockStrike strike);
 
     /**
      * Feeds a cell what one strike lays, paid for as it lands.
      *
      * @param host the caster's host
-     * @param cell the cell a strike fed
+     * @param fed  the cell and the side a strike fed
      */
-    void feed(ChannelHost host, BlockPos cell);
+    void feed(ChannelHost host, CellFed fed);
 
     /**
      * Whether the stream throws its drips faster the faster its caster
@@ -53,6 +53,18 @@ public interface DripLanding {
      */
     default FluidFooting fluidFooting() {
         return FluidFooting.NONE;
+    }
+
+    /**
+     * Whether a drip striking the living ends on a living thing it meets,
+     * where it passes through the rest.
+     * nectar-goo-keeps-feeds-effects-as-a-universal-food
+     *
+     * @param living a living thing the drip meets
+     * @return true where the drip ends on it, every living thing for most
+     */
+    default boolean endsOn(LivingEntity living) {
+        return true;
     }
 
     /**

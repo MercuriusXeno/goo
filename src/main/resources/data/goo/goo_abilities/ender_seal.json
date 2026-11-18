@@ -5,7 +5,7 @@
   "order": 0,
   "cost": 1000,
   "requires": ["minecraft:popped_chorus_fruit"],
-  "delivery": { "kind": "arc" },
+  "delivery": { "kind": "arc", "range": 16 },
   "behaviors": [
     {
       "type": "target",

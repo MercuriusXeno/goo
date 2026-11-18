@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.throwing;
 import com.mercuriusxeno.goo.ability.AbilityArea;
 import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.AbilityTags;
+import com.mercuriusxeno.goo.ability.BuildGrowth;
 import com.mercuriusxeno.goo.ability.Charge;
 import com.mercuriusxeno.goo.ability.ChargeSize;
 import com.mercuriusxeno.goo.ability.Delivery;
@@ -11,7 +12,6 @@ import com.mercuriusxeno.goo.ability.DurativeRoute;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.HeldRoute;
 import com.mercuriusxeno.goo.ability.RallyRelease;
-import com.mercuriusxeno.goo.ability.SpireGrowth;
 import com.mercuriusxeno.goo.ability.StreamSound;
 import com.mercuriusxeno.goo.ability.program.BlinkLanding;
 import com.mercuriusxeno.goo.ability.program.ChannelAim;
@@ -30,8 +30,8 @@ import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.overlay.AimTracker;
 import com.mercuriusxeno.goo.client.sound.FadingLoops;
+import com.mercuriusxeno.goo.item.GooCasters;
 import com.mercuriusxeno.goo.item.GooFormat;
-import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.ReagentScanner;
 import com.mercuriusxeno.goo.network.GooChargePayload;
@@ -52,7 +52,6 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
@@ -87,7 +86,7 @@ public final class GloveThrowSender {
      * @return true when a payload was sent, the one press the arm plays its pose's release for
      */
     public static boolean sendThrow(Player player, int heldTicks) {
-        GloveSelection selection = heldSelection(player);
+        GloveSelection selection = GooCasters.heldSelection(player);
         ResourceKey<GooTypeDefinition> gooType = selection == null ? null : selection.getGooType();
         if (gooType == null) {
             return false;
@@ -146,7 +145,7 @@ public final class GloveThrowSender {
      * @param player the local player
      */
     public static void sendHold(Player player) {
-        GloveSelection selection = heldSelection(player);
+        GloveSelection selection = GooCasters.heldSelection(player);
         ResourceKey<GooTypeDefinition> gooType = selection == null ? null : selection.getGooType();
         if (gooType != null && HeldRoute.runsWhileHeld(selectedDelivery(selection.abilityId()),
                 selectedBadge(selection.abilityId()))) {
@@ -378,7 +377,7 @@ public final class GloveThrowSender {
     }
 
     private static Optional<ChargingSized> chargingSizedAbility(Player player) {
-        GloveSelection selection = heldSelection(player);
+        GloveSelection selection = GooCasters.heldSelection(player);
         ClientAbility ability = selection == null ? null : AbilitySyncHandler.findAbility(selection.abilityId());
         if (ability == null || selection.getGooType() == null || !GloveUseTracker.charging()
                 || !ability.delivery().sizesByCharge()) {
@@ -726,7 +725,7 @@ public final class GloveThrowSender {
      * @return the formatted cost, or empty when the glove holds no selection
      */
     public static Optional<String> aimedCostLabel(Player player) {
-        GloveSelection selection = heldSelection(player);
+        GloveSelection selection = GooCasters.heldSelection(player);
         if (selection == null || selection.getGooType() == null) {
             return Optional.empty();
         }
@@ -742,7 +741,7 @@ public final class GloveThrowSender {
 
     /**
      * The cost of a cast sized as it is made: a charged cast's size reached,
-     * or a Spire's planned stone.
+     * or a Build's planned stone.
      *
      * @param player  the local player
      * @param ability the selected ability, or null where the client holds no synced copy
@@ -754,9 +753,9 @@ public final class GloveThrowSender {
             // spontaneous-abilities-cast-at-the-target-with-no-thrown-blob: a sized cast reads the price of its size
             return OptionalInt.of(ChargeSize.costAt(ability.cost(), charged.getAsDouble()));
         }
-        if (player instanceof LocalPlayer local && SpireCast.footprint().isPresent()) {
-            // spire-grows-stone-out-of-the-top: a Spire reads the goo value of the stone it would grow
-            return OptionalInt.of(SpireCast.plannedGrowth(local).map(SpireGrowth::cost).orElse(0));
+        if (player instanceof LocalPlayer local && BuildCast.footprint().isPresent()) {
+            // spire-grows-stone-out-of-the-top: a Build reads the goo value of the stone it would grow
+            return OptionalInt.of(BuildCast.plannedGrowth(local).map(BuildGrowth::cost).orElse(0));
         }
         return OptionalInt.empty();
     }
@@ -835,22 +834,6 @@ public final class GloveThrowSender {
             return null;
         }
         return buildPayload(target, GooTypes.id(gooType), abilityId, origin);
-    }
-
-    /**
-     * Reads the selection of the glove the player holds, main hand first.
-     * Every selection names an ability (decision no-throw-without-ability),
-     * so a glove with none selected throws nothing.
-     *
-     * @param player the local player
-     * @return the selection, or null when the glove holds none
-     */
-    public static @Nullable GloveSelection heldSelection(Player player) {
-        ItemStack glove = player.getMainHandItem();
-        if (!(glove.getItem() instanceof GooGloveItem)) {
-            glove = player.getOffhandItem();
-        }
-        return GooGloveItem.getSelection(glove);
     }
 
     /**

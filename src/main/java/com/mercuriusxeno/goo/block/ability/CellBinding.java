@@ -12,9 +12,10 @@ import net.minecraft.resources.ResourceKey;
  * a whole block of it and whose program names what the cell's surface does,
  * that surface, and the fluid sources the goo's drips stop at and its cell
  * lies on as on a sturdy top. Weird's slime, Kinetic's slick, Blaze's molten,
- * Crystal's shatter, Deep's host, Frost's rime, Glow's wisps, Hex's leech and
- * Astral's Dowsing are bound so far, and another goo type ships its world goo as another
- * binding.
+ * Crystal's shatter, Deep's host, Frost's rime, Glow's wisps, Hex's leech,
+ * Typhoon's updraft, Jelly's nectar, Pulse's signal, Metal's spikes,
+ * Nether's infest, Leaf's vines and Astral's Dowsing are bound so far, and
+ * another goo type ships its world goo as another binding.
  * slime-and-slick-are-one-volume-cell-tech
  * each-goo-type-ships-a-world-goo-on-the-volume-cell
  * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
@@ -24,9 +25,15 @@ import net.minecraft.resources.ResourceKey;
  * rime-drips-stop-at-a-water-or-lava-surface
  * glow-world-goo-is-named-wisps-and-takes-the-holds-place
  * leech-goo-slows-what-it-catches-and-the-spirits-damage-it
+ * updraft-is-typhoons-world-goo-that-lifts-the-entities-above-it
+ * nectar-is-sprayed-goo-with-a-guided-throw-near-a-mob
+ * extend-is-dropped-for-signal-an-in-world-pulse-goo
+ * spikes-is-a-coat-of-metal-goo-that-impales-what-walks-on-it
+ * infest-is-nethers-goo-the-decay-effect-localized-around-the-goo
+ * vines-is-sprayed-slime-that-entangles-what-tries-to-cross
  * astral-world-goo-is-dowsing-an-x-ray-of-ore
  *
- * @param gooType       the goo type the cell holds and drops when broken
+ * @param gooType      the goo type the cell holds and drops when broken
  * @param layingAbility the ability laying the goo, whose cost prices a whole block of it
  * @param surface       what the cell does to things on it
  * @param fluidFooting  the fluid sources the drips stop at and the cell lies on as on a sturdy top
@@ -49,6 +56,23 @@ public record CellBinding(ResourceKey<GooTypeDefinition> gooType, Identifier lay
     public static final Identifier RIME_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "frost_rime");
     /** The ability laying Hex's goo, Leech, whose cost prices a whole block of it and whose step names its slow. */
     public static final Identifier LEECH_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "hex_leech");
+
+    /** The ability laying Typhoon's goo, Updraft, whose cost prices a whole block of it and whose step names its column. */
+    public static final Identifier UPDRAFT_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "typhoon_updraft");
+
+    /** The ability laying Jelly's goo, Nectar, whose cost prices a whole block of it and whose step names its guide. */
+    public static final Identifier NECTAR_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "jelly_nectar");
+    /** The ability laying Nether's goo, Infest, whose cost prices a whole block of it. */
+    public static final Identifier INFEST_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "nether_infest");
+
+    /** The ability laying Pulse's goo, Signal, whose cost prices a whole block of it. */
+    public static final Identifier SIGNAL_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "pulse_signal");
+
+    /** The ability laying Metal's goo, Spikes, whose cost prices a whole block of it. */
+    public static final Identifier SPIKES_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "metal_spikes");
+
+    /** The ability laying Leaf's goo, Vines, whose cost prices a whole block of it. */
+    public static final Identifier VINES_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "leaf_vines");
 
     /** The ability laying Glow's goo, Wisps, whose cost prices a whole block of it. */
     public static final Identifier WISPS_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "glow_wisps");
@@ -83,6 +107,47 @@ public record CellBinding(ResourceKey<GooTypeDefinition> gooType, Identifier lay
             FluidFooting.NONE);
     /** Hex's goo: Leech lays it, and it slows what it catches. */
     public static final CellBinding LEECH = new CellBinding(GooTypes.HEX, LEECH_ABILITY, CellSurface.SLOW,
+            FluidFooting.NONE);
+    /**
+     * Typhoon's goo: Updraft lays it, it stands as ordinary ground, and its
+     * column lifts what stands above it.
+     * updraft-is-typhoons-world-goo-that-lifts-the-entities-above-it
+     */
+    public static final CellBinding UPDRAFT = new CellBinding(GooTypes.TYPHOON, UPDRAFT_ABILITY, CellSurface.POOL,
+            FluidFooting.NONE);
+    /**
+     * Jelly's goo: Nectar lays it, and it stands as ordinary ground.
+     * nectar-is-sprayed-goo-with-a-guided-throw-near-a-mob
+     */
+    public static final CellBinding NECTAR = new CellBinding(GooTypes.JELLY, NECTAR_ABILITY, CellSurface.POOL,
+            FluidFooting.NONE);
+    /**
+     * Pulse's goo: Signal lays it, it stands as ordinary ground, and it sends
+     * a redstone signal equal to its layers.
+     * extend-is-dropped-for-signal-an-in-world-pulse-goo
+     * signal-goo-sends-a-redstone-signal-equal-to-its-layers
+     */
+    public static final CellBinding SIGNAL = new CellBinding(GooTypes.PULSE, SIGNAL_ABILITY, CellSurface.POOL,
+            FluidFooting.NONE);
+    /**
+     * Metal's goo: Spikes lays it, it stands as ordinary ground, and it
+     * impales what walks on it.
+     * spikes-is-a-coat-of-metal-goo-that-impales-what-walks-on-it
+     */
+    public static final CellBinding SPIKES = new CellBinding(GooTypes.METAL, SPIKES_ABILITY, CellSurface.IMPALE,
+            FluidFooting.NONE);
+    /**
+     * Nether's goo: Infest lays it, and it stands as ordinary ground.
+     * infest-is-nethers-goo-the-decay-effect-localized-around-the-goo
+     */
+    public static final CellBinding INFEST = new CellBinding(GooTypes.NETHER, INFEST_ABILITY, CellSurface.POOL,
+            FluidFooting.NONE);
+    /**
+     * Leaf's goo: Vines lays it, it stands as ordinary ground, and it
+     * entangles what crosses it.
+     * vines-is-sprayed-slime-that-entangles-what-tries-to-cross
+     */
+    public static final CellBinding VINES = new CellBinding(GooTypes.LEAF, VINES_ABILITY, CellSurface.ENTANGLE,
             FluidFooting.NONE);
     /**
      * Astral's Dowsing goo: Dowsing lays it, ordinary ground to stand on, and it lies on sturdy tops alone.

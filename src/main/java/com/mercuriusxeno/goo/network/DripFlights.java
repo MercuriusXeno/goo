@@ -111,10 +111,11 @@ public final class DripFlights {
                 continue;
             }
             FluidFooting footing = thrower.landing().map(DripLanding::fluidFooting).orElse(FluidFooting.NONE);
-            DripArc.Step step = DripArc.step(flight.position(), flight.velocity(),
+            // decision lunar-gravity-is-one-sixth-of-the-overworlds: a drip falls under its dimension's gravity
+            DripArc.Step step = DripArc.step(flight.position(), flight.velocity(), new DripArc.Flight(
                     CoatRay.clippingFor(level, footing),
-                    thrower.strikesLiving() ? livingNear(level, thrower.casterId()) : DripArc.NO_LIVING,
-                    airspaceOf(level));
+                    thrower.strikesLiving() ? livingNear(level, thrower) : DripArc.NO_LIVING,
+                    airspaceOf(level), DripArc.gravityIn(level.dimension())));
             if (!step.ended()) {
                 flying.add(flight.after(step));
             }
@@ -142,7 +143,7 @@ public final class DripFlights {
         DripLanding landing = thrower.landing().get();
         ChannelHost host = PlayerHost.landing(level, caster, GooStreamHandler.placementPrice(caster,
                 thrower.ability()));
-        landing.cellFed(host, strike).ifPresent(cell -> landing.feed(host, cell));
+        landing.cellFed(host, strike).ifPresent(fed -> landing.feed(host, fed));
     }
 
     /**
@@ -160,6 +161,22 @@ public final class DripFlights {
         if (caster != null && level.getEntity(struck.entityId()) instanceof LivingEntity living && living.isAlive()) {
             GooStreamHandler.strikeLiving(level, caster, living, thrower.ability());
         }
+    }
+
+    /**
+     * The living things a level holds near a drip's segment that the drip
+     * ends on, the caster aside.
+     * nectar-goo-keeps-feeds-effects-as-a-universal-food
+     *
+     * @param level   the level
+     * @param thrower who threw the drip, whose landing names the living it ends on
+     * @return the living near each segment, as boxes
+     */
+    private static DripArc.LivingNear livingNear(Level level, Thrower thrower) {
+        DripArc.LivingNear near = livingNear(level, thrower.casterId());
+        return thrower.landing().<DripArc.LivingNear>map(landing -> (from, to) -> near.along(from, to).stream()
+                .filter(box -> level.getEntity(box.entityId()) instanceof LivingEntity living
+                        && landing.endsOn(living)).toList()).orElse(near);
     }
 
     /**

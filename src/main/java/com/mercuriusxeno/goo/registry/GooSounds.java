@@ -40,7 +40,7 @@ public final class GooSounds {
     public static final DeferredHolder<SoundEvent, SoundEvent> BOING =
         SOUND_EVENTS.register("effects.boing", () -> SoundEvent.createVariableRangeEvent(GooSoundIds.BOING));
 
-    /** Spire's rising rumble (decision spire-rumbles-like-a-dull-earthquake). */
+    /** Build's rising rumble (decision spire-rumbles-like-a-dull-earthquake). */
     public static final DeferredHolder<SoundEvent, SoundEvent> EARTH_RUMBLE =
         SOUND_EVENTS.register("effects.earth_rumble",
             () -> SoundEvent.createVariableRangeEvent(GooSoundIds.EARTH_RUMBLE));
@@ -103,6 +103,11 @@ public final class GooSounds {
     public static final DeferredHolder<SoundEvent, SoundEvent> VACUUM_SLURP =
         SOUND_EVENTS.register("effects.vacuum_slurp",
             () -> SoundEvent.createVariableRangeEvent(GooSoundIds.VACUUM_SLURP));
+
+    /** Astral's gate rising tone (decision gate-fixates-your-view-on-the-moon-until-it-takes-you). */
+    public static final DeferredHolder<SoundEvent, SoundEvent> LUNAR_TONE =
+        SOUND_EVENTS.register("effects.lunar_tone",
+            () -> SoundEvent.createVariableRangeEvent(GooSoundIds.LUNAR_TONE));
 
     private GooSounds() {}
 }

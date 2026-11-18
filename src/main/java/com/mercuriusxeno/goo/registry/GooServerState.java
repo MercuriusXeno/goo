@@ -3,14 +3,18 @@ package com.mercuriusxeno.goo.registry;
 import com.mercuriusxeno.goo.ability.frost.GlacialFields;
 import com.mercuriusxeno.goo.ability.petrify.BlockExposures;
 import com.mercuriusxeno.goo.ability.program.MorphBirths;
+import com.mercuriusxeno.goo.ability.program.VacuumCounts;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockFallScheduler;
 import com.mercuriusxeno.goo.block.ability.HostFreeCells;
 import com.mercuriusxeno.goo.block.ability.HostSpreaders;
+import com.mercuriusxeno.goo.block.ability.LayerFalls;
 import com.mercuriusxeno.goo.block.ability.MoltenHeats;
+import com.mercuriusxeno.goo.block.ability.NectarFights;
 import com.mercuriusxeno.goo.block.ability.WispClaims;
 import com.mercuriusxeno.goo.network.DripFlights;
-import com.mercuriusxeno.goo.network.FleckLaunches;
 import com.mercuriusxeno.goo.network.GooEffectScheduler;
+import com.mercuriusxeno.goo.network.HomingKnives;
+import com.mercuriusxeno.goo.network.KnifeHolds;
 import com.mercuriusxeno.goo.network.ScanWaves;
 import com.mercuriusxeno.goo.network.StreamHolds;
 import net.minecraft.server.MinecraftServer;
@@ -26,7 +30,8 @@ import org.jspecify.annotations.Nullable;
 public final class GooServerState {
 
     private final GooEffectScheduler gooEffects = new GooEffectScheduler();
-    private final FleckLaunches fleckLaunches = new FleckLaunches();
+    private final KnifeHolds knifeHolds = new KnifeHolds();
+    private final HomingKnives homingKnives = new HomingKnives();
     private final MorphBirths morphBirths = new MorphBirths();
     private final BlockExposures blockExposures = new BlockExposures();
     private final AbilityBlockFallScheduler markerFalls = new AbilityBlockFallScheduler();
@@ -35,9 +40,12 @@ public final class GooServerState {
     private final ScanWaves scanWaves = new ScanWaves();
     private final DripFlights dripFlights = new DripFlights();
     private final MoltenHeats moltenHeats = new MoltenHeats();
+    private final NectarFights nectarFights = new NectarFights();
+    private final LayerFalls layerFalls = new LayerFalls();
     private final HostSpreaders hostSpreaders = new HostSpreaders();
     private final HostFreeCells hostFreeCells = new HostFreeCells();
     private final WispClaims wispClaims = new WispClaims();
+    private final VacuumCounts vacuumCounts = new VacuumCounts();
 
     /**
      * Answers the state the server holds.
@@ -77,10 +85,22 @@ public final class GooServerState {
     }
 
     /**
-     * @return the slung flecks yet to leave the hand
+     * Each player's Knives hold and the knives it has formed
+     * (decision knives-form-in-fibonacci-stages-to-twelve).
+     *
+     * @return the Knives holds
      */
-    public FleckLaunches fleckLaunches() {
-        return fleckLaunches;
+    public KnifeHolds knifeHolds() {
+        return knifeHolds;
+    }
+
+    /**
+     * Knives' thrown knives in flight (decision knives-home-on-their-painted-mob).
+     *
+     * @return the homing knives
+     */
+    public HomingKnives homingKnives() {
+        return homingKnives;
     }
 
     /**
@@ -130,6 +150,13 @@ public final class GooServerState {
     }
 
     /**
+     * @return the layers of world goo falling through open air on this server
+     */
+    public LayerFalls layerFalls() {
+        return layerFalls;
+    }
+
+    /**
      * The Molten cells melting the block below them
      * (decision stone-goes-red-hot-before-molten-turns-it-to-lava).
      *
@@ -137,6 +164,16 @@ public final class GooServerState {
      */
     public MoltenHeats moltenHeats() {
         return moltenHeats;
+    }
+
+    /**
+     * The fights over Nectar cells
+     * (decision nectar-goo-keeps-feeds-effects-as-a-universal-food).
+     *
+     * @return the nectar fights
+     */
+    public NectarFights nectarFights() {
+        return nectarFights;
     }
 
     /**
@@ -170,6 +207,13 @@ public final class GooServerState {
     }
 
     /**
+     * @return the ticks Vacuum has counted on each goo cell toward its next layer
+     */
+    public VacuumCounts vacuumCounts() {
+        return vacuumCounts;
+    }
+
+    /**
      * @return how long each player has held a stream
      */
     public StreamHolds streamHolds() {
@@ -183,9 +227,6 @@ public final class GooServerState {
      */
     public void drainArrived(MinecraftServer server) {
         int currentTick = server.getTickCount();
-        if (fleckLaunches.hasPending()) {
-            fleckLaunches.drainArrived(currentTick);
-        }
         if (gooEffects.hasPending()) {
             gooEffects.drainArrivedEffects(currentTick);
         }
@@ -201,6 +242,9 @@ public final class GooServerState {
         morphBirths.bearArrived(currentTick);
         blockExposures.decay(server);
         streamHolds.releaseLapsed(currentTick);
+        vacuumCounts.dropForgotten(currentTick);
+        knifeHolds.tick(currentTick);
+        homingKnives.tick(currentTick);
     }
 
     /**
@@ -208,7 +252,8 @@ public final class GooServerState {
      */
     public void clear() {
         gooEffects.clear();
-        fleckLaunches.clear();
+        knifeHolds.clear();
+        homingKnives.clear();
         blockExposures.clear();
         markerFalls.clear();
         streamHolds.clear();
@@ -216,9 +261,12 @@ public final class GooServerState {
         glacialFields.clear();
         scanWaves.clear();
         dripFlights.clear();
+        layerFalls.clear();
         moltenHeats.clear();
+        nectarFights.clear();
         hostSpreaders.clear();
         hostFreeCells.clear();
         wispClaims.clear();
+        vacuumCounts.clear();
     }
 }

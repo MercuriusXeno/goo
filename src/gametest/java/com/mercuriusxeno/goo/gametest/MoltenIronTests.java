@@ -1,13 +1,18 @@
 package com.mercuriusxeno.goo.gametest;
 
+import com.mercuriusxeno.goo.fluid.MoltenIronFluid;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooFluids;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.tags.FluidTags;
+import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.animal.golem.IronGolem;
+import net.minecraft.world.entity.animal.pig.Pig;
+import net.minecraft.world.entity.monster.Strider;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.LiquidBlock;
@@ -99,6 +104,16 @@ public final class MoltenIronTests {
     private static final String SHOULD_HURT_MORE = "Molten iron should hurt harder than lava: lava took %.1f, molten iron %.1f";
     private static final String SHOULD_BURN_LONGER = "Molten iron should set a longer fire than lava: lava %d ticks, molten iron %d";
 
+    private static final String MOLTEN_IRON_HURTS_BY_ITS_OWN_DAMAGE_TYPE = "molten_iron_hurts_by_its_own_damage_type";
+    private static final String MOLTEN_IRON_SPARES_A_FIRE_IMMUNE_MOB = "molten_iron_spares_a_fire_immune_mob";
+    /** Health enough that the pig outlives every scald the test waits through. */
+    private static final float HARDY_HEALTH = 1024f;
+    private static final int FIRE_IMMUNE_WATCH_TICKS = 60;
+    private static final String SHOULD_HURT_AS_MOLTEN_IRON =
+            "A pig in molten iron should be hurt by goo:molten_iron naming no entity, last hit by %s";
+    private static final String SHOULD_SPARE_THE_FIRE_IMMUNE =
+            "A strider in molten iron should keep its whole health: full %.1f, holds %.1f";
+
     private MoltenIronTests() {
     }
 
@@ -118,6 +133,10 @@ public final class MoltenIronTests {
                 MoltenIronTests::moltenIronJumpRisesAsInLava);
         GooTestFunctions.registerTest(registrar, MOLTEN_IRON_READS_AS_LAVA_TO_THE_CAMERA,
                 MoltenIronTests::moltenIronReadsAsLavaToTheCamera);
+        GooTestFunctions.registerTest(registrar, MOLTEN_IRON_HURTS_BY_ITS_OWN_DAMAGE_TYPE,
+                MoltenIronTests::moltenIronHurtsByItsOwnDamageType);
+        GooTestFunctions.registerTest(registrar, MOLTEN_IRON_SPARES_A_FIRE_IMMUNE_MOB,
+                MoltenIronTests::moltenIronSparesAFireImmuneMob);
     }
 
     /**
@@ -303,7 +322,8 @@ public final class MoltenIronTests {
 
     /**
      * Of two iron golems held still, one in lava and one in molten iron, the one in molten iron has taken more
-     * damage and carries a longer fire.
+     * damage and carries a longer fire, read once several hits have landed and waited on through the test's ticks, so
+     * a golem whose chunk starts ticking late still burns before the test reads it.
      *
      * @param helper the gametest helper
      */
@@ -314,14 +334,54 @@ public final class MoltenIronTests {
         IronGolem inLava = helper.spawnWithNoFreeWill(EntityType.IRON_GOLEM, LAVA_POOL);
         IronGolem inMolten = helper.spawnWithNoFreeWill(EntityType.IRON_GOLEM, MOLTEN_POOL);
         float full = inLava.getMaxHealth();
-        helper.runAfterDelay(BURN_TICKS, () -> {
+        helper.succeedWhen(() -> {
             float lavaTook = full - inLava.getHealth();
             float moltenTook = full - inMolten.getHealth();
+            helper.assertTrue(helper.getTick() >= BURN_TICKS, String.format(SHOULD_HURT_MORE, lavaTook, moltenTook));
             helper.assertTrue(moltenTook > lavaTook, String.format(SHOULD_HURT_MORE, lavaTook, moltenTook));
             helper.assertTrue(inMolten.getRemainingFireTicks() > inLava.getRemainingFireTicks(),
                     String.format(SHOULD_BURN_LONGER, inLava.getRemainingFireTicks(), inMolten.getRemainingFireTicks()));
-            helper.succeed();
         });
+    }
+
+    /**
+     * A pig held still in a molten iron source is hurt by molten iron's own damage type, naming no entity, since
+     * molten iron is environmental and credits nobody.
+     * molten-iron-death-reads-wanted-a-cast-of-molten-metal
+     *
+     * @param helper the gametest helper
+     */
+    public static void moltenIronHurtsByItsOwnDamageType(GameTestHelper helper) {
+        layStoneFloor(helper);
+        helper.setBlock(MOLTEN_POOL, GooBlocks.MOLTEN_IRON.get());
+        Pig pig = helper.spawnWithNoFreeWill(EntityType.PIG, MOLTEN_POOL);
+        pig.getAttribute(Attributes.MAX_HEALTH).setBaseValue(HARDY_HEALTH);
+        pig.setHealth(HARDY_HEALTH);
+        helper.succeedWhen(() -> {
+            DamageSource last = pig.getLastDamageSource();
+            helper.assertTrue(last != null && last.is(MoltenIronFluid.MOLTEN_IRON_DAMAGE)
+                            && last.getEntity() == null && last.getDirectEntity() == null,
+                    String.format(SHOULD_HURT_AS_MOLTEN_IRON, last));
+        });
+    }
+
+    /**
+     * A strider, fire immune, held in a molten iron source for {@link #FIRE_IMMUNE_WATCH_TICKS} ticks keeps its
+     * whole health, since molten iron's damage is fire as lava's is.
+     * molten-iron-death-reads-wanted-a-cast-of-molten-metal
+     *
+     * @param helper the gametest helper
+     */
+    public static void moltenIronSparesAFireImmuneMob(GameTestHelper helper) {
+        layStoneFloor(helper);
+        helper.setBlock(MOLTEN_POOL, GooBlocks.MOLTEN_IRON.get());
+        Strider strider = helper.spawnWithNoFreeWill(EntityType.STRIDER, MOLTEN_POOL);
+        float full = strider.getMaxHealth();
+        helper.startSequence()
+                .thenIdle(FIRE_IMMUNE_WATCH_TICKS)
+                .thenExecute(() -> helper.assertTrue(strider.getHealth() == full,
+                        String.format(SHOULD_SPARE_THE_FIRE_IMMUNE, full, strider.getHealth())))
+                .thenSucceed();
     }
 
     private static void assertCooled(GameTestHelper helper, BlockPos pos, BlockState cooled) {

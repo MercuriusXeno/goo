@@ -219,20 +219,20 @@ class AbilityDefinitionTest {
         }
 
         /**
-         * Spire prices each cubic meter of stone it grows at $mundane_block, read in rock, here from a fixture's
+         * Build prices each cubic meter of stone it grows at $mundane_block, read in rock, here from a fixture's
          * $mundane_block of 7 rock and 5 metal.
          * decision spire-cost-field-prices-each-cubic-meter-of-stone-at-mundane-block
          * decision no-test-asserts-a-shipped-base-value
          */
         @Test
-        void spireCostReadsMundaneBlockInRock() {
-            AbilityPrice spireCost = AbilityJson.decode("rock_spire").cost();
+        void buildCostReadsMundaneBlockInRock() {
+            AbilityPrice buildCost = AbilityJson.decode("rock_build").cost();
             IGooValueLookup fixture = GooBaseValuesPreview.registry("""
                     {"_constants": {"mundane_block": {"rock": 7, "metal": 5}}}
                     """).table();
 
-            assertEquals("$" + MUNDANE_BLOCK, spireCost.source());
-            assertEquals(GooFraction.of(7), spireCost.exactIn(fixture));
+            assertEquals("$" + MUNDANE_BLOCK, buildCost.source());
+            assertEquals(GooFraction.of(7), buildCost.exactIn(fixture));
         }
     }
 
@@ -285,30 +285,30 @@ class AbilityDefinitionTest {
         }
 
         // crystal-shards-becomes-crystal-knives-everywhere
-        // knives-wears-the-free-badge
+        // held-badge-marks-abilities-that-prepare-and-throw
         @Test
-        void knivesDecodesAsTheFreeCrystalAbilityNamedKnives() {
+        void knivesDecodesAsTheHeldCrystalAbilityNamedKnives() {
             AbilityDefinition knives = AbilityJson.decode("crystal_knives");
             assertEquals("goo.ability.crystal.knives", knives.displayName());
-            assertEquals(AbilityBadge.FREE, knives.badge());
+            assertEquals(AbilityBadge.HELD, knives.badge());
         }
 
-        // knives-wears-the-free-badge
+        // held-badge-marks-abilities-that-prepare-and-throw
         @Test
-        void knivesStandsInTheCrystalFansFreeTierAfterEveryChanneledMobAndWorldAbility() {
+        void knivesStandsInTheCrystalFansHeldTierAfterEveryResidualAndChanneledAbility() {
             List<AbilityDefinition> fan = AbilityJson.files().stream().map(AbilityJson::decode)
                     .filter(ability -> ability.gooType().equals(GooTypes.CRYSTAL))
                     .sorted(AbilityBadge.fanOrder(AbilityDefinition::badge, AbilityDefinition::order)).toList();
             int knives = fan.indexOf(AbilityJson.decode("crystal_knives"));
             assertTrue(knives >= 0, "the crystal fan should hold Knives");
-            List<AbilityBadge> before = List.of(AbilityBadge.CHANNELED, AbilityBadge.MOB, AbilityBadge.WORLD);
+            List<AbilityBadge> before = List.of(AbilityBadge.RESIDUAL, AbilityBadge.CHANNELED);
             for (AbilityDefinition after : fan.subList(knives + 1, fan.size())) {
                 assertFalse(before.contains(after.badge()), after.id() + " badged " + after.badge()
                         + " should stand before Knives in the fan");
             }
         }
 
-        // knives-wears-the-free-badge: Knives slings knives and throws no blob, so it keeps no area
+        // knives-emerge-from-the-blob-and-hover-in-a-fan: Knives forms knives and throws no blob, so it keeps no area
         @Test
         void knivesKeepsTheAreaItsFileWroteNone() {
             assertEquals(AbilityArea.Shape.NONE, AbilityJson.decode("crystal_knives").area().shape());
@@ -367,21 +367,21 @@ class AbilityDefinitionTest {
 
         @Test
         void mobThrowOverAFieldStepDrawsNoArea() {
-            List<Step> field = AbilityJson.decode("metal_urchin").behaviors();
+            List<Step> field = SpikeTrapFixture.definition().behaviors();
             assertEquals(AbilityArea.NONE,
                     AbilityDefinition.heldArea(AbilityArea.NONE, Delivery.ARC, AbilityBadge.MOB, field));
         }
 
         @Test
         void beamOverAFieldStepDrawsNoArea() {
-            List<Step> field = AbilityJson.decode("metal_urchin").behaviors();
+            List<Step> field = SpikeTrapFixture.definition().behaviors();
             assertEquals(AbilityArea.NONE,
                     AbilityDefinition.heldArea(AbilityArea.NONE, Delivery.BEAM, AbilityBadge.WORLD, field));
         }
 
         @Test
         void freeThrowOverAFieldStepDrawsItsSphere() {
-            List<Step> field = AbilityJson.decode("metal_urchin").behaviors();
+            List<Step> field = SpikeTrapFixture.definition().behaviors();
             assertEquals(AbilityArea.Shape.SPHERE,
                     AbilityDefinition.heldArea(AbilityArea.NONE, Delivery.ARC, AbilityBadge.FREE, field).shape());
         }

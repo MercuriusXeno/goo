@@ -8,7 +8,7 @@ import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.throwing.GloveAim;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
-import com.mercuriusxeno.goo.network.KnifeRainSling;
+import com.mercuriusxeno.goo.item.GooCasters;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
@@ -167,14 +167,17 @@ public final class BoreDrill {
     }
 
     /**
-     * Draws the vortex after the translucent blocks while a bore runs, after
-     * the ground shake has drawn its blocks, so the blocks it is breaking
-     * never paint over it.
+     * Draws the vortex once the level is drawn while a bore runs: after the
+     * ground shake has drawn its blocks, so the blocks it is breaking never
+     * paint over it, and after the clouds and weather, all farther than the
+     * vortex reaches, so they sort behind its translucent dust, which writes
+     * no depth they could test against.
+     * decision diagnose-and-correct-bore-behaving-weirdly-close-to-things
      *
      * @param event the level render stage event
      */
     @SubscribeEvent(priority = EventPriority.LOWEST)
-    public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
+    public static void onAfterLevel(RenderLevelStageEvent.AfterLevel event) {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
         if (player == null || mc.level == null) {
@@ -189,7 +192,7 @@ public final class BoreDrill {
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
         ConeSections.Volume full = volume(CastOrigin.ofLocal(mc).subtract(camera),
                 pointAhead(mc.level, CameraEye.of(mc, player, partialTick), lastStep,
-                        KnifeRainSling.gloveOnTheRight(player), lastReach).subtract(camera),
+                        GooCasters.casterOnTheRight(player), lastReach).subtract(camera),
                 lastStep.shape(), player.getViewYRot(partialTick));
         double poured = held ? emergedShare(GloveUseTracker.channelTicks() + partialTick) : 1;
         BoreDrillPass.draw(emerged(full, poured), presence, event.getModelViewMatrix());

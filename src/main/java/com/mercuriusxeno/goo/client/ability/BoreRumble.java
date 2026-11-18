@@ -6,7 +6,7 @@ import com.mercuriusxeno.goo.ability.program.BoreStep;
 import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.sound.FadingLoops;
-import com.mercuriusxeno.goo.network.KnifeRainSling;
+import com.mercuriusxeno.goo.item.GooCasters;
 import com.mercuriusxeno.goo.registry.GooSoundIds;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -22,7 +22,7 @@ import java.util.List;
 
 /**
  * Bore's louder rumble: while the local player's bore is making progress
- * destroying blocks, Spire's earth rumble loops at their ears louder than
+ * destroying blocks, Build's earth rumble loops at their ears louder than
  * the ambient whir the bore's stream loops the whole time it is held, and
  * fades out once no block is breaking.
  * decision bore-loops-spires-earth-rumble
@@ -92,7 +92,7 @@ public final class BoreRumble {
         Delivery reaching = bore.delivery().reachingTo(player.blockInteractionRange());
         ChannelAim aim = new ChannelAim(eye.add(player.getViewVector(1f).scale(reaching.range())), null,
                 reaching.coneDegrees());
-        return BoreStep.progressing(eye, step.shape(), KnifeRainSling.gloveOnTheRight(player), aim,
+        return BoreStep.progressing(eye, step.shape(), GooCasters.casterOnTheRight(player), aim,
                 cell -> level.getBlockState(cell).isAir(), cell -> level.getBlockState(cell).is(step.breaks()));
     }
 }

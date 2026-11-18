@@ -7,12 +7,12 @@
   "delivery": {
     "kind": "stream",
     "range": 8,
-    "cone": 40,
+    "cone": 45,
     "ticks_per_charge": 20
   },
-  "area": { "shape": "cone", "size": 8.0, "angle": 40.0 },
+  "area": { "shape": "cone", "size": 8.0, "angle": 45.0 },
   "behaviors": [
-    { "type": "vacuum", "near_break_ticks": 4, "far_break_ticks": 12 },
+    { "type": "vacuum", "near_layer_ticks": 4, "far_layer_ticks": 8, "count_memory_ticks": 20 },
     { "type": "wind", "inward": true, "pitch": 0.6, "light_color": "#b48ce8", "dark_color": "#7a52b0", "void_motes": true },
     { "type": "vacuum_pull", "item_acceleration": 0.1, "item_top_speed": 0.5, "mob_speed": 0.2, "stop_distance": 1.5 }
   ],

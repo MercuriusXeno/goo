@@ -7,6 +7,8 @@ import com.mercuriusxeno.goo.ability.aging.Aging;
 import com.mercuriusxeno.goo.ability.aging.AgingTable;
 import com.mercuriusxeno.goo.ability.blockmap.BlockMaps;
 import com.mercuriusxeno.goo.ability.quantum.PortalChoice;
+import com.mercuriusxeno.goo.block.ability.LayerFalls;
+import com.mercuriusxeno.goo.block.ability.ServerFallLanding;
 import com.mercuriusxeno.goo.command.GooCommand;
 import com.mercuriusxeno.goo.command.ValuesManagers;
 import com.mercuriusxeno.goo.data.GooGroups;
@@ -18,6 +20,7 @@ import com.mercuriusxeno.goo.lab.LabFirstJoin;
 import com.mercuriusxeno.goo.network.AbilitySyncPayload;
 import com.mercuriusxeno.goo.network.GooValueSync;
 import com.mercuriusxeno.goo.network.PlayerKnowledge;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -28,9 +31,11 @@ import net.neoforged.neoforge.event.AddServerReloadListenersEvent;
 import net.neoforged.neoforge.event.OnDatapackSyncEvent;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.neoforged.neoforge.event.level.ChunkEvent;
 import net.neoforged.neoforge.event.server.ServerStartingEvent;
 import net.neoforged.neoforge.event.server.ServerStoppedEvent;
 import net.neoforged.neoforge.event.server.ServerStoppingEvent;
+import net.neoforged.neoforge.event.tick.LevelTickEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 
@@ -106,6 +111,40 @@ public final class GooEventWiring {
     @SubscribeEvent
     public static void onServerStopping(ServerStoppingEvent event) {
         ValuesManagers.close(event.getServer());
+        // falling-layer-lands-when-its-drip-arrives: no fall ends unlanded, so a stop lands each at once
+        GooServerState.of(event.getServer()).layerFalls().flush(new ServerFallLanding(event.getServer()));
+    }
+
+    /**
+     * Lands each layer falling in a level whose drip arrives this tick, at the
+     * start of the level's tick, so the layer stands in its cell through the
+     * whole of its arrival tick.
+     * falling-layer-lands-when-its-drip-arrives
+     *
+     * @param event the level tick event
+     */
+    @SubscribeEvent
+    public static void onLevelTick(LevelTickEvent.Pre event) {
+        if (event.getLevel() instanceof ServerLevel level) {
+            LayerFalls falls = GooServerState.of(level.getServer()).layerFalls();
+            if (falls.hasPending()) {
+                falls.tick(level.dimension(), level.getServer().getTickCount(), new ServerFallLanding(level.getServer()));
+            }
+        }
+    }
+
+    /**
+     * Lands at once every layer falling from a chunk as it unloads, so no fall ends unlanded.
+     * falling-layer-lands-when-its-drip-arrives
+     *
+     * @param event the chunk unload event
+     */
+    @SubscribeEvent
+    public static void onChunkUnload(ChunkEvent.Unload event) {
+        if (event.getLevel() instanceof ServerLevel level) {
+            GooServerState.of(level.getServer()).layerFalls().flushChunk(level.dimension(), event.getChunk().getPos(),
+                    new ServerFallLanding(level.getServer()));
+        }
     }
 
     /**

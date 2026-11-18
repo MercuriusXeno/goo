@@ -13,15 +13,19 @@
     "neoforge:custom_skybox": "goo:lunar_void"
   },
   "coordinate_scale": 1.0,
+  "default_clock": "minecraft:overworld",
   "has_ceiling": false,
   "has_ender_dragon_fight": false,
-  "has_fixed_time": true,
   "has_skylight": true,
-  "height": 256,
+  "height": 576,
   "infiniburn": "#minecraft:infiniburn_end",
-  "logical_height": 256,
-  "min_y": 0,
+  "logical_height": 576,
+  "min_y": -256,
   "monster_spawn_block_light_limit": 0,
   "monster_spawn_light_level": 0,
-  "skybox": "end"
+  "skybox": "overworld",
+  "timelines": [
+    "goo:lunar_day",
+    "goo:lunar_moon"
+  ]
 }

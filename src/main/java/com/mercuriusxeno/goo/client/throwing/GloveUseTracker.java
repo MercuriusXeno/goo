@@ -6,7 +6,7 @@ import com.mercuriusxeno.goo.ability.HeldRoute;
 import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import com.mercuriusxeno.goo.client.ability.LiftedPalmBlob;
 import com.mercuriusxeno.goo.client.overlay.AimTracker;
-import com.mercuriusxeno.goo.item.GooGloveItem;
+import com.mercuriusxeno.goo.item.GooCasters;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.network.PalmBlobChargePayload;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -20,7 +20,6 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.neoforged.api.distmarker.Dist;
@@ -100,6 +99,7 @@ public final class GloveUseTracker {
     /** Clears hold and availability state when no player is present. */
     private static void resetState() {
         PRESS.cancel();
+        KnivesHoldSender.end();
         selectedTypeAvailable = false;
     }
 
@@ -111,9 +111,9 @@ public final class GloveUseTracker {
      */
     public static void pressGlove(InteractionHand hand) {
         LocalPlayer player = Minecraft.getInstance().player;
-        if (player != null && SpireCast.selected(player)) {
+        if (player != null && BuildCast.selected(player)) {
             // spire-rips-walls-and-platforms: a footprint cast holds its own presses, never a throw
-            SpireCast.press(player, hand);
+            BuildCast.press(player, hand);
             return;
         }
         if (!PRESS.isArmed()) {
@@ -146,7 +146,7 @@ public final class GloveUseTracker {
      * @return true for an envelop delivery
      */
     private static boolean selectedEnvelops(Player player) {
-        GloveSelection selection = GloveThrowSender.heldSelection(player);
+        GloveSelection selection = GooCasters.heldSelection(player);
         return selection != null && GloveThrowSender.selectedDelivery(selection.abilityId()).envelops();
     }
 
@@ -189,7 +189,7 @@ public final class GloveUseTracker {
      * @param player the local player, or null where none stands
      */
     private static void rootASizedCharge(@Nullable LocalPlayer player) {
-        GloveSelection selection = player == null ? null : GloveThrowSender.heldSelection(player);
+        GloveSelection selection = player == null ? null : GooCasters.heldSelection(player);
         if (selection != null && GloveThrowSender.selectedSizesByCharge(selection.abilityId())) {
             GloveThrowSender.rootTheCharge();
         }
@@ -259,17 +259,21 @@ public final class GloveUseTracker {
 
     /**
      * Advances the glove press off the held use key; a screen or a hand
-     * that no longer holds the glove drops it.
+     * that no longer holds the player's caster, the glove or raw goo held
+     * bare handed, drops it.
+     * decision raw-goo-items-work-bare-handed-for-the-held-type
      *
      * @param mc     the client
      * @param player the local player
      */
     private static void trackGloveHold(Minecraft mc, LocalPlayer player) {
-        if (mc.screen != null || !(player.getItemInHand(pressHand).getItem() instanceof GooGloveItem)) {
+        if (mc.screen != null || GooCasters.casterHand(player) != pressHand) {
             if (PRESS.isArmed()) {
                 GlovePoses.drop(player);
             }
             PRESS.cancel();
+            // knives-form-on-right-click-and-throw-on-left-click: a dropped press ends the knives it formed
+            KnivesHoldSender.end();
             return;
         }
         GloveInputGate.PressActions actions = pressActions(player);
@@ -279,6 +283,8 @@ public final class GloveUseTracker {
             CHARM_LIKE.tick(PRESS, actions);
         }
         liftThePalmBlob(mc, player);
+        // knives-paint-mobs-by-hovering-while-forming: the outline's pick joins the hold's paint
+        KnivesHoldSender.paint(highlightedMob(), GloveUseTracker::mobStands);
         // blast-charge-wubs-higher-at-each-stage: a sized charge wubs as it reaches each stage
         GloveThrowSender.wubTheCharge(player);
         // blast-charge-pulls-green-motes-into-the-shell-and-the-blob: the charge draws motes in as it grows
@@ -357,7 +363,23 @@ public final class GloveUseTracker {
         }
 
         @Override
+        public boolean formsKnives() {
+            return KnivesHoldSender.selectedFormsKnives(player);
+        }
+
+        @Override
+        public boolean throwKnives() {
+            return KnivesHoldSender.throwKnives(player);
+        }
+
+        @Override
         public void javelinTurned(JavelinTurn turn) {
+            // knives-form-on-right-click-and-throw-on-left-click: the server forms the knives from the hold's first tick
+            if (turn == JavelinTurn.FORMS) {
+                KnivesHoldSender.begin(player);
+            } else if (turn == JavelinTurn.REVERTS) {
+                KnivesHoldSender.end();
+            }
             if (turn == JavelinTurn.THROWN) {
                 // dart-forms-on-right-click-and-throws-on-left-click: the next javelin forms from the blob behind it
                 LiftedPalmBlob.liftAfresh(player.getId(), player.getEyePosition(), player.level().getGameTime());
@@ -375,7 +397,7 @@ public final class GloveUseTracker {
      * @param turn   the javelin's turn
      */
     private static void shink(LocalPlayer player, JavelinTurn turn) {
-        GloveSelection selection = GloveThrowSender.heldSelection(player);
+        GloveSelection selection = GooCasters.heldSelection(player);
         if (selection == null) {
             return;
         }
@@ -394,7 +416,7 @@ public final class GloveUseTracker {
      * @return true for a held throw
      */
     private static boolean selectedThrowsOnAttack(LocalPlayer player) {
-        GloveSelection selection = GloveThrowSender.heldSelection(player);
+        GloveSelection selection = GooCasters.heldSelection(player);
         return selection != null && HeldRoute.throwsOnAttack(GloveThrowSender.selectedDelivery(selection.abilityId()),
                 GloveThrowSender.selectedBadge(selection.abilityId()));
     }
@@ -428,7 +450,7 @@ public final class GloveUseTracker {
      * @return true for a held selection
      */
     private static boolean selectedRunsWhileHeld(LocalPlayer player) {
-        GloveSelection selection = GloveThrowSender.heldSelection(player);
+        GloveSelection selection = GooCasters.heldSelection(player);
         return selection != null && GloveInputGate.runsFromPress(GloveThrowSender.selectedDelivery(selection.abilityId()),
                 GloveThrowSender.selectedBadge(selection.abilityId()));
     }
@@ -535,20 +557,12 @@ public final class GloveUseTracker {
     }
 
     /**
-     * Reads the selected goo type from whichever hand holds a glove.
+     * Reads the selected goo type off the player's caster.
      *
      * @param player the interacting player
-     * @return the selected goo type, or null if no glove is held or no type is selected
+     * @return the selected goo type, or null if no caster is held or no type is selected
      */
     private static @Nullable ResourceKey<GooTypeDefinition> readSelectedType(LocalPlayer player) {
-        ItemStack main = player.getMainHandItem();
-        if (main.getItem() instanceof GooGloveItem) {
-            return GooGloveItem.getSelectedType(main);
-        }
-        ItemStack off = player.getOffhandItem();
-        if (off.getItem() instanceof GooGloveItem) {
-            return GooGloveItem.getSelectedType(off);
-        }
-        return null;
+        return GooCasters.selectedTypeOf(GooCasters.casterOf(player));
     }
 }

@@ -14,6 +14,7 @@ import net.minecraft.client.particle.SingleQuadParticle;
 import net.minecraft.client.particle.SpriteSet;
 import net.minecraft.client.renderer.state.level.QuadParticleRenderState;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ColorParticleOption;
 import net.minecraft.core.particles.SimpleParticleType;
 import net.minecraft.util.ARGB;
@@ -117,7 +118,8 @@ public final class SprayDripParticle extends SingleQuadParticle {
         this.zo = this.z;
         this.age++;
         SprayDrip.Step step = drip.step(new Vec3(this.x, this.y, this.z), new Vec3(this.xd, this.yd, this.zd),
-                CoatRay.clippingFor(this.level, footing), living, DripFlights.airspaceOf(this.level));
+                new DripArc.Flight(CoatRay.clippingFor(this.level, footing), living,
+                        DripFlights.airspaceOf(this.level), DripArc.gravityIn(this.level.dimension())));
         this.setPos(step.position().x, step.position().y, step.position().z);
         this.xd = step.velocity().x;
         this.yd = step.velocity().y;
@@ -126,8 +128,10 @@ public final class SprayDripParticle extends SingleQuadParticle {
             this.remove();
         } else if (step.splats()) {
             this.remove();
+            // the land splat reads the struck face's normal from its velocity; none lies on a top
+            Vec3 normal = step.face().map(Direction::getUnitVec3).orElse(Vec3.ZERO);
             this.level.addParticle(ColorParticleOption.create(GooParticles.TRAIL_DRIP_LAND.get(),
-                    this.rCol, this.gCol, this.bCol), this.x, this.y, this.z, 0.0, 0.0, 0.0);
+                    this.rCol, this.gCol, this.bCol), this.x, this.y, this.z, normal.x, normal.y, normal.z);
         }
     }
 
@@ -141,7 +145,8 @@ public final class SprayDripParticle extends SingleQuadParticle {
      */
     private void throwFromTheSource() {
         Vec3 from = source.at(0f);
-        DripArc.Step aTickOn = DripArc.step(from, drip.velocity(), OPEN_AIR, ANYWHERE);
+        DripArc.Step aTickOn = DripArc.step(from, drip.velocity(), new DripArc.Flight(OPEN_AIR, DripArc.NO_LIVING,
+                ANYWHERE, DripArc.gravityIn(this.level.dimension())));
         Vec3 at = from.lerp(aTickOn.position(), lead);
         Vec3 velocity = drip.velocity().lerp(aTickOn.velocity(), lead);
         this.setPos(at.x, at.y, at.z);

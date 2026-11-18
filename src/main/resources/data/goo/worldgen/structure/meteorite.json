@@ -1,0 +1,7 @@
+{
+  "type": "goo:meteorite",
+  "biomes": "#goo:has_structure/lunar_landmarks",
+  "step": "surface_structures",
+  "spawn_overrides": {},
+  "terrain_adaptation": "none"
+}

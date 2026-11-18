@@ -3,11 +3,12 @@ package com.mercuriusxeno.goo.registry;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.LingeringAppliers;
 import com.mercuriusxeno.goo.ability.aging.AgingBlocks;
+import com.mercuriusxeno.goo.ability.astral.LunarArrival;
+import com.mercuriusxeno.goo.ability.astral.LunarFixation;
+import com.mercuriusxeno.goo.ability.astral.WayHome;
 import com.mercuriusxeno.goo.ability.deep.Sculker;
 import com.mercuriusxeno.goo.ability.end.EndWayBack;
 import com.mercuriusxeno.goo.ability.frost.Frozen;
-import com.mercuriusxeno.goo.ability.gate.GateFixation;
-import com.mercuriusxeno.goo.ability.gate.WayHome;
 import com.mercuriusxeno.goo.ability.gluttony.Gluttony;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
 import com.mercuriusxeno.goo.ability.held.HeldEffects;
@@ -204,6 +205,33 @@ public final class GooAttachments {
             ATTACHMENT_TYPES.register("leech_slowed_at", () -> AttachmentType.builder(() -> -1L).build());
 
     /**
+     * The game time an entity last touched Nectar goo, so a thing touching
+     * several cells or both of a cell's hooks in one tick is slowed once,
+     * and its next jump knows it stood in the goo; never saved.
+     * nectar-is-the-sticky-goo-you-climb-that-nerfs-jumping-and-speed
+     */
+    public static final Supplier<AttachmentType<Long>> NECTAR_TOUCHED_AT =
+            ATTACHMENT_TYPES.register("nectar_touched_at", () -> AttachmentType.builder(() -> -1L).build());
+
+    /**
+     * The game time an entity was last stuck on a Nectar coated wall, its
+     * gravity off, so the tick after it leaves the coat gives its gravity
+     * back; never saved.
+     * operator UAT 2026-11-17: on Nectar you are temporarily Spider-Man; gravity is off while you are stuck
+     */
+    public static final Supplier<AttachmentType<Long>> NECTAR_STUCK_AT =
+            ATTACHMENT_TYPES.register("nectar_stuck_at", () -> AttachmentType.builder(() -> -1L).build());
+
+    /**
+     * The game time Spikes goo last struck an entity, so a thing walking on
+     * it is struck again only once the spikes step's cooldown has passed,
+     * however many cells it crosses; never saved.
+     * spikes-is-a-coat-of-metal-goo-that-impales-what-walks-on-it
+     */
+    public static final Supplier<AttachmentType<Long>> SPIKES_STRUCK_AT =
+            ATTACHMENT_TYPES.register("spikes_struck_at", () -> AttachmentType.builder(() -> -1L).build());
+
+    /**
      * Where an entity stood before its latest goo teleport, kept for the
      * steps after the teleport in the same program, a ghost trail among
      * them, and never saved (decision ghost-trail-spans-the-blink).
@@ -253,18 +281,30 @@ public final class GooAttachments {
                             .build());
 
     /**
-     * The fixation Astral's gate holds a caster in, synced to the caster's client, which zooms the view and holds
-     * the look; a fixation an unload interrupts is dropped, and the caster stays where they stood.
+     * The fixation Lunar holds a caster in, synced to the caster's client, which holds the look and brings
+     * the moon or the star to the caster; a fixation an unload interrupts is dropped, and the caster stays where
+     * they stood.
      * decision gate-fixates-your-view-on-the-moon-until-it-takes-you
      */
-    public static final Supplier<AttachmentType<GateFixation>> GATE_FIXATION =
-            ATTACHMENT_TYPES.register("gate_fixation",
-                    () -> AttachmentType.builder(() -> GateFixation.NONE)
-                            .sync(GooAttachments::syncsToOwner, GateFixation.STREAM_CODEC)
+    public static final Supplier<AttachmentType<LunarFixation>> LUNAR_FIXATION =
+            ATTACHMENT_TYPES.register("lunar_fixation",
+                    () -> AttachmentType.builder(() -> LunarFixation.NONE)
+                            .sync(GooAttachments::syncsToOwner, LunarFixation.STREAM_CODEC)
                             .build());
 
     /**
-     * Where a caster left the overworld from when the moon took them, saved with the player until the blue star
+     * The mark Lunar leaves on a caster it carried, once they stand at the far end, synced to the caster's
+     * client, whose white flood holds over the crossing until the mark arrives and then clears; never saved.
+     * decision gate-fixates-your-view-on-the-moon-until-it-takes-you
+     */
+    public static final Supplier<AttachmentType<LunarArrival>> LUNAR_ARRIVAL =
+            ATTACHMENT_TYPES.register("lunar_arrival",
+                    () -> AttachmentType.builder(() -> LunarArrival.NONE)
+                            .sync(GooAttachments::syncsToOwner, LunarArrival.STREAM_CODEC)
+                            .build());
+
+    /**
+     * Where a caster left the overworld from when the moon took them, saved with the player until the blue planet
      * carries them back.
      * decision gate-on-the-blue-star-returns-you-exactly-where-you-left
      */

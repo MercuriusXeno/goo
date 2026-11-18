@@ -3,7 +3,6 @@ package com.mercuriusxeno.goo.ability.program;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.throwing.CoatRay;
 import com.mojang.serialization.MapCodec;
-import net.minecraft.core.BlockPos;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
@@ -49,13 +48,13 @@ public record DowseStep() implements TakesNoEntity, DripLanding {
     }
 
     @Override
-    public Optional<BlockPos> cellFed(ChannelHost host, CoatRay.BlockStrike strike) {
+    public Optional<CellFed> cellFed(ChannelHost host, CoatRay.BlockStrike strike) {
         return CellLanding.cellFed(host, strike, GooBlocks.ASTRAL_DOWSING.get());
     }
 
     @Override
-    public void feed(ChannelHost host, BlockPos cell) {
-        CellLanding.feed(host, cell, GooBlocks.ASTRAL_DOWSING.get());
+    public void feed(ChannelHost host, CellFed fed) {
+        CellLanding.feed(host, fed, GooBlocks.ASTRAL_DOWSING.get());
     }
 
     @Override

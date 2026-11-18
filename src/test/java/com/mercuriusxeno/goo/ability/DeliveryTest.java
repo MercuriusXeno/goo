@@ -10,7 +10,14 @@ import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
+import java.io.IOException;
+import java.io.Reader;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import static org.junit.jupiter.api.Assertions.assertAll;
@@ -117,12 +124,11 @@ class DeliveryTest {
             assertEquals(60, delivery.chargeTicks());
         }
 
-        // knives-sling-then-morph-to-flechettes
-        // knives-cone-five-to-forty-five-and-three-to-twenty-seven-knives
+        // knives-form-in-fibonacci-stages-to-twelve
         @Test
-        void crystalKnivesChargesARainOfKnives() {
+        void crystalKnivesFormsItsKnivesInStages() {
             Delivery knives = AbilityJson.decode("crystal_knives").delivery();
-            assertTrue(knives.charge().slings());
+            assertTrue(knives.charge().formsInStages());
         }
 
         // knives-aims-a-spread-fan-not-a-blob-line
@@ -382,6 +388,12 @@ class DeliveryTest {
                     Identifier.fromNamespaceAndPath("goo", "frost_rime"),
                     Identifier.fromNamespaceAndPath("goo", "glow_wisps"),
                     Identifier.fromNamespaceAndPath("goo", "hex_leech"),
+                    Identifier.fromNamespaceAndPath("goo", "typhoon_updraft"),
+                    Identifier.fromNamespaceAndPath("goo", "jelly_nectar"),
+                    Identifier.fromNamespaceAndPath("goo", "pulse_signal"),
+                    Identifier.fromNamespaceAndPath("goo", "metal_spikes"),
+                    Identifier.fromNamespaceAndPath("goo", "nether_infest"),
+                    Identifier.fromNamespaceAndPath("goo", "leaf_vines"),
                     Identifier.fromNamespaceAndPath("goo", "astral_dowsing")), throwing);
         }
     }
@@ -396,11 +408,37 @@ class DeliveryTest {
     class ExitSpeed {
 
         private static final double RAMPED = 1.0;
+        /** The drips every goo spray throws, and draws, each tick at rest. */
+        private static final int TWO_DRIPS = 2;
+        private static final String DRIPS_PER_TICK = "drips_per_tick";
+
+        /**
+         * Every shipped ability whose delivery names a drip pace, so a spray merging later meets the same rate.
+         * every-goo-spray-throws-two-drips-a-tick
+         */
+        @Test
+        void everyGooSprayThrowsTwoDripsATick() {
+            List<Path> sprays = AbilityJson.files().stream().filter(ExitSpeed::namesADripPace).toList();
+
+            assertFalse(sprays.isEmpty(), "no shipped ability names " + DRIPS_PER_TICK);
+            assertAll(sprays.stream().map(spray -> () -> assertEquals(TWO_DRIPS,
+                    AbilityJson.decode(spray).delivery().dripsPerTick(), spray.getFileName().toString())));
+        }
+
+        private static boolean namesADripPace(Path file) {
+            try (Reader reader = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
+                JsonObject ability = JsonParser.parseReader(reader).getAsJsonObject();
+                return ability.has("delivery") && ability.getAsJsonObject("delivery").has(DRIPS_PER_TICK);
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+        }
 
         @Test
         void eachSprayLeavesFasterByTheCastersSpeed() {
             for (String spray : Set.of("weird_goop", "kinetic_slick", "blaze_molten", "crystal_shatter",
-                    "deep_host", "frost_rime", "glow_wisps", "hex_leech")) {
+                    "deep_host", "frost_rime", "glow_wisps", "hex_leech", "typhoon_updraft", "jelly_nectar",
+                    "pulse_signal", "metal_spikes", "nether_infest", "leaf_vines")) {
                 Delivery delivery = AbilityJson.decode(spray).delivery();
 
                 assertEquals(delivery.throwSpeed() + RAMPED, delivery.exitSpeedAt(RAMPED), 1e-9, spray);

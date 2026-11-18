@@ -59,6 +59,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -84,7 +85,7 @@ class AbilityLoaderTest {
     /** The one brew that starts silent (decision rally-drops-its-sound-and-gets-its-sprite). */
     private static final Identifier SILENT_BREW = Identifier.fromNamespaceAndPath(Goo.MODID, "zoo_rally");
     /** The proving example of a world ability that stays after its blob lands. */
-    private static final String LINGERING = "metal_urchin";
+    private static final String LINGERING = "deep_shriek";
     /** The ability whose program ends the tick it lands. */
     private static final String BLAST = "unstable_blast";
 
@@ -125,13 +126,14 @@ class AbilityLoaderTest {
     }
 
     /**
-     * Molten ships its melts_into map: lava from the meltable stone tag, molten iron from iron core alone (decision
-     * molten-melts-by-a-meltable-group-and-its-parallel-melted-group).
+     * Molten ships its melts_into map: lava from obsidian and magma, molten iron from iron core alone (decisions
+     * molten-melts-by-a-meltable-group-and-its-parallel-melted-group,
+     * molten-melts-only-obsidian-magma-and-iron-core-one-layer-each).
      */
     @Test
-    void shippedMoltenMeltsStoneToLavaAndIronCoreToMoltenIron() {
+    void shippedMoltenMeltsObsidianAndMagmaToLavaAndIronCoreToMoltenIron() {
         AbilityDefinition molten = shippedById().get(Identifier.parse("goo:blaze_molten"));
-        assertEquals(Map.of(Identifier.parse("minecraft:lava"), List.of("#goo:meltable"),
+        assertEquals(Map.of(Identifier.parse("minecraft:lava"), List.of("minecraft:obsidian", "minecraft:magma_block"),
                         Identifier.parse("goo:molten_iron"), List.of("goo:iron_core")),
                 MoltenStep.in(molten.behaviors()).orElseThrow().meltsInto());
     }
@@ -215,6 +217,15 @@ class AbilityLoaderTest {
             assertNull(new AbilityRegistry(shippedById()).durativeAbilityFor(GooTypes.HEX));
         }
 
+        /**
+         * metal-world-goo-is-named-spikes
+         * spikes-is-a-coat-of-metal-goo-that-impales-what-walks-on-it
+         */
+        @Test
+        void metalShipsDartMagnetAndSpikes() {
+            assertEquals(Set.of("metal_dart", "metal_magnet", "metal_spikes"), shippedPathsOf(GooTypes.METAL));
+        }
+
         @Test
         void voidShipsCancelHoleZoneAndVacuum() {
             assertEquals(Set.of("void_cancel", "void_hole", "void_zone", "void_vacuum"),
@@ -230,6 +241,16 @@ class AbilityLoaderTest {
             assertEquals(Set.of("frost_nova", "frost_cold", "frost_orb", "frost_rime"),
                     shippedPathsOf(GooTypes.FROST));
             assertNull(new AbilityRegistry(shippedById()).durativeAbilityFor(GooTypes.FROST));
+        }
+
+        /**
+         * extend-is-dropped-for-signal-an-in-world-pulse-goo
+         * goo-type-ships-without-a-durative-ability
+         */
+        @Test
+        void pulseShipsTickZapAndSignalAndNoDurative() {
+            assertEquals(Set.of("pulse_tick", "pulse_zap", "pulse_signal"), shippedPathsOf(GooTypes.PULSE));
+            assertNull(new AbilityRegistry(shippedById()).durativeAbilityFor(GooTypes.PULSE));
         }
     }
 
@@ -391,6 +412,46 @@ class AbilityLoaderTest {
     }
 
     /**
+     * Mitosis aims and lands within the 16 blocks its delivery names.
+     * decision each-ability-names-its-range-and-the-shared-throw-range-retires
+     * decision abilities-leaving-the-shared-range-start-at-sixteen-blocks
+     */
+    @Test
+    void mitosisDeliveryNamesASixteenBlockRange() {
+        assertEquals(16, AbilityJson.decode("weird_mitosis").delivery().range());
+    }
+
+    /**
+     * Every shipped arc, beam, spontaneous cast and envelop names its range:
+     * Zap and Build 32, Knives and Dart none, every other 16.
+     * decision each-ability-names-its-range-and-the-shared-throw-range-retires
+     * decision abilities-leaving-the-shared-range-start-at-sixteen-blocks
+     * decision zap-starts-at-thirty-two-blocks
+     */
+    @Test
+    void everyShippedThrownOrCastAbilityNamesItsRange() {
+        Set<DeliveryKind> thrownOrCast = Set.of(DeliveryKind.ARC, DeliveryKind.BEAM, DeliveryKind.SPONTANEOUS,
+                DeliveryKind.ENVELOP);
+        Map<String, Double> named = new TreeMap<>();
+        for (Path file : AbilityJson.files()) {
+            AbilityDefinition ability = AbilityJson.decode(file);
+            if (thrownOrCast.contains(ability.delivery().kind())) {
+                named.put(ability.id().getPath(), ability.delivery().range());
+            }
+        }
+        Map<String, Double> expected = new TreeMap<>();
+        named.keySet().forEach(name -> expected.put(name, switch (name) {
+            case "pulse_zap", "rock_build" -> 32.0;
+            case "crystal_knives", "metal_dart" -> 0.0;
+            default -> 16.0;
+        }));
+
+        assertTrue(named.keySet().containsAll(Set.of("weird_mitosis", "pulse_zap", "void_hole", "zoo_spawn",
+                "crystal_knives", "metal_dart")), "the walk missed the shipped inventory: " + named.keySet());
+        assertEquals(expected, named);
+    }
+
+    /**
      * Ender blink leaves an ender afterimage where the player stood, before
      * its teleport, and another where it lands, after it
      * (decision afterimage-is-one-shared-effect).
@@ -461,19 +522,19 @@ class AbilityLoaderTest {
     @Nested
     class Description {
 
-        private static final String SPIRE = "rock_spire";
+        private static final String BUILD = "rock_build";
 
         @Test
         void jsonNamingADescriptionReadsThatKey() {
-            String json = AbilityJson.read(SPIRE).replaceFirst("\\{",
-                    "{ \"description\": \"goo.ability.rock.spire.lifted\",");
+            String json = AbilityJson.read(BUILD).replaceFirst("\\{",
+                    "{ \"description\": \"goo.ability.rock.build.lifted\",");
 
-            assertEquals("goo.ability.rock.spire.lifted", AbilityJson.decodeText(SPIRE, json).description());
+            assertEquals("goo.ability.rock.build.lifted", AbilityJson.decodeText(BUILD, json).description());
         }
 
         @Test
         void jsonNamingNoDescriptionReadsItsDisplayNamePlusDescription() {
-            assertEquals("goo.ability.rock.spire.description", AbilityJson.decode(SPIRE).description());
+            assertEquals("goo.ability.rock.build.description", AbilityJson.decode(BUILD).description());
         }
     }
 
@@ -486,7 +547,7 @@ class AbilityLoaderTest {
     class CostFormula {
 
         private static final List<String> DYNAMIC_ABILITIES = List.of("ender_blink",
-                "unstable_blast", "rock_spire", "rock_gouge", "yore_age");
+                "unstable_blast", "rock_build", "rock_gouge", "yore_age");
 
         @Test
         void eachDynamicAbilityCarriesItsFormula() {
@@ -773,7 +834,7 @@ class AbilityLoaderTest {
     }
 
     /**
-     * Vacuum ships among Void's abilities as a held stream of 8 blocks and a 40 degree cone, costing 1 mb of void
+     * Vacuum ships among Void's abilities as a held stream of 10 blocks and a 60 degree cone, costing 1 mb of void
      * goo each 20 held ticks and requiring no item.
      * vacuum-is-voids-held-cone-that-breaks-residuals-in-a-wave
      * vacuum-costs-one-mb-of-void-a-second

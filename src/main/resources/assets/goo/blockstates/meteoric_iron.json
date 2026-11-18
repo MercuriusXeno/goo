@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "": [
+      { "model": "goo:block/meteoric_iron" },
+      { "model": "goo:block/meteoric_iron_2" },
+      { "model": "goo:block/meteoric_iron_3" },
+      { "model": "goo:block/meteoric_iron_4" }
+    ]
+  }
+}

@@ -20,7 +20,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -54,7 +53,7 @@ class StepCodecTest {
             Map.entry("coat", new CoatStep()),
             Map.entry("slick", new SlickStep(1.03, 1.08, 40, 1, 0.3)),
             Map.entry("dowse", new DowseStep()),
-            Map.entry("vacuum", new VacuumStep(6, 30)),
+            Map.entry("vacuum", new VacuumStep(3, 6, 20)),
             Map.entry("vacuum_pull", new VacuumPullStep(0.05, 1, 0.2, 1.5)),
             Map.entry("wobble", new WobbleStep(Expr.literal(600))),
             Map.entry("detect_ore", new DetectOreStep(TagKey.create(Registries.BLOCK,
@@ -75,12 +74,13 @@ class StepCodecTest {
             Map.entry("light_fire", LeafSteps.LIGHT_FIRE.step(Unit.INSTANCE)),
             Map.entry("detonate_explosive", LeafSteps.DETONATE_EXPLOSIVE.step(Expr.literal(2.5))),
             Map.entry("molten", new MoltenStep(Map.of(Identifier.fromNamespaceAndPath("minecraft", "lava"),
-                    List.of("#goo:meltable")), 40)),
+                    List.of("minecraft:obsidian")), 40, 4f, 15)),
             Map.entry("shatter", new ShatterStep(List.of(EntityFilter.LIVING), Expr.literal(1), List.of(),
                     Expr.literal(0.02))),
             Map.entry("host", new HostStep(3, 8)),
             Map.entry("rime", new RimeStep(3, 20, 1, 4, 1.0F, 20)),
             Map.entry("leech_goo", new LeechGooStep(0.5, 0.3f, 0.1, 0.01, 10)),
+            Map.entry("vines", new VinesStep(1.5f, 1)),
             Map.entry("entities", new EntitiesStep(SelectionShape.SPHERE, Expr.literal(2.5),
                     List.of(EntityFilter.LIVING, EntityFilter.NOT_FIRE_IMMUNE),
                     List.of(LeafSteps.IGNITE.step(Expr.literal(5))))),
@@ -144,7 +144,7 @@ class StepCodecTest {
             Map.entry("bore", new BoreStep(TagKey.create(Registries.BLOCK,
                     Identifier.fromNamespaceAndPath("goo", "bore_breakable")), new BreakPace(5, 1.5), new BoreDrillShape(0.6, 3, 10, 1), List.of(),
                     List.of())),
-            Map.entry("spire", new SpireStep()),
+            Map.entry("build", new BuildStep(16, 16)),
             Map.entry("petrify", new PetrifyStep(Expr.literal(2))),
             Map.entry("drain_petrify", new DrainPetrifyStep(Expr.literal(2.5))),
             Map.entry("wake_statue", new WakeStatueStep()),
@@ -159,14 +159,14 @@ class StepCodecTest {
             Map.entry("age", LeafSteps.AGE.step(Unit.INSTANCE)),
             Map.entry("metronome", new MetronomeStep()),
             Map.entry("relay", new RelayStep()),
-            Map.entry("extend", new ExtendStep()),
             Map.entry("stun", LeafSteps.STUN.step(Expr.literal(60))),
             Map.entry("signal_wave", new SignalWaveStep(Expr.literal(8), Expr.literal(40))),
             Map.entry("tick_toggle", new TickToggleStep(Expr.literal(4))),
             Map.entry("gluttony", new GluttonyStep(Expr.literal(20), Expr.literal(20))),
             Map.entry("reserve_drain", new ReserveDrainStep(Expr.literal(0.05), Expr.literal(0.5), Expr.literal(10),
                     Expr.literal(0.5))),
-            Map.entry("nectar", new NectarStep(Expr.literal(12), Expr.literal(100))),
+            Map.entry("nectar", new NectarStep()),
+            Map.entry("nectar_goo", new NectarGooStep(2, 16, 12, 100, 0.5, 0.4, 0.2)),
             Map.entry("seal", new SealStep(Expr.literal(6), Expr.literal(32))),
             Map.entry("elude", new EludeStep(Expr.literal(8))),
             Map.entry("shriek", new ShriekStep(Expr.literal(16), Expr.literal(600))),
@@ -175,10 +175,11 @@ class StepCodecTest {
             Map.entry("scan_visual", new ScanVisualStep("sound_wave",
                     java.util.Optional.of(Identifier.withDefaultNamespace("block.comparator.click")))),
             Map.entry("end", new EndStep(Expr.literal(1200))),
+            Map.entry("tartarus", new TartarusStep(Expr.literal(20), 4)),
             Map.entry("hole_open", new HoleOpenStep(Expr.literal(240), Expr.literal(120))),
             Map.entry("zone", new ZoneStep(Expr.literal(20), Expr.literal(6), Expr.literal(40),
                     Expr.literal(10), Expr.literal(1))),
-            Map.entry("astral_gate", new AstralGateStep(Expr.literal(60), Expr.literal(1000))),
+            Map.entry("astral_lunar", new AstralLunarStep(Expr.literal(60), Expr.literal(1000))),
             Map.entry("meteor", new MeteorStep(Expr.literal(4), 40)),
             Map.entry("bloom", new BloomStep(Expr.literal(4), Expr.literal(8), Expr.literal(64))),
             Map.entry("tick_plants", new TickPlantsStep()),
@@ -191,9 +192,8 @@ class StepCodecTest {
                     Expr.literal(2.6), Expr.literal(0.45), Expr.literal(0.2), Expr.literal(10), Expr.literal(5),
                     Expr.literal(6), Expr.literal(0.5))),
             Map.entry("hasten_regrow", new HastenRegrowStep(Expr.literal(2))),
-            Map.entry("root", new RootStep(Expr.literal(60), Expr.literal(4), Expr.literal(1), Expr.literal(1.5))),
             Map.entry("hit_or_miss", new HitOrMissStep(
-                    List.of(new RootStep(Expr.literal(60), Expr.literal(4), Expr.literal(1), Expr.literal(1.5))),
+                    List.of(LeafSteps.IGNITE.step(Expr.literal(5))),
                     List.of(new LingerStep(List.of(LeafSteps.DISCARD.step(Unit.INSTANCE)))))),
             Map.entry("charm", new CharmStep()),
             Map.entry("phase", new PhaseStep(Optional.of(Expr.literal(600)))),
@@ -209,8 +209,11 @@ class StepCodecTest {
                     List.of(new AilmentOverlayStep(AilmentKind.HEX, Expr.literal(60))))),
             Map.entry("tome", new TomeStep(TomeKind.FUSE)),
             Map.entry("float", new FloatStep(Expr.literal(100), Expr.literal(1))),
-            Map.entry("lift", new LiftStep(Expr.literal(0.3), Expr.literal(0.2), Expr.literal(32))),
-            Map.entry("updraft", new UpdraftStep(Expr.literal(1), Expr.literal(8), Expr.literal(0.4), Expr.literal(200))),
+            Map.entry("updraft", new UpdraftStep(0.5, 0.4, 16, 0.15, 0.35, 0.15, 10)),
+            Map.entry("signal", new SignalStep()),
+            Map.entry("spikes", new SpikesStep(List.of(EntityFilter.LIVING), 10, 0.25, List.of(),
+                    SoundCue.of(Identifier.parse("minecraft:item.axe.scrape")), 3)),
+            Map.entry("infest", new InfestStep(Identifier.fromNamespaceAndPath("goo", "decay"), 20, 2f, 0.1)),
             Map.entry("airborn", new AirbornStep(Expr.literal(0.6), Expr.literal(0.4), Expr.literal(0.2),
                     Expr.literal(0.4), Expr.literal(0.5), Expr.literal(1.2), Expr.literal(0.05))),
             Map.entry("pneuma", new PneumaStep(Expr.literal(30), Expr.literal(300), Expr.literal(60))),
@@ -355,7 +358,8 @@ class StepCodecTest {
         // decision bore-and-flatten-json-carry-two-pace-values
         BoreStep bore = AbilityJson.decode("rock_bore").behaviors().stream().filter(BoreStep.class::isInstance)
                 .map(BoreStep.class::cast).findFirst().orElseThrow();
-        assertNotNull(bore.pace());
+        // decision bore-runs-very-slightly-faster
+        assertEquals(new BreakPace(2, 2), bore.pace());
     }
 
     @Test
@@ -363,7 +367,8 @@ class StepCodecTest {
         // decision bore-and-flatten-json-carry-two-pace-values
         LevelStep levelStep = AbilityJson.decode("rock_level").behaviors().stream()
                 .filter(LevelStep.class::isInstance).map(LevelStep.class::cast).findFirst().orElseThrow();
-        assertNotNull(levelStep.pace());
+        // decision level-runs-slightly-faster
+        assertEquals(new BreakPace(4, 1.5), levelStep.pace());
     }
 
     @Test
@@ -377,6 +382,12 @@ class StepCodecTest {
         String json = "[{\"type\": \"cool_lava\"}, {\"type\": \"coat\"}]";
         List<Step> steps = StepTypes.LIST_CODEC.parse(JsonOps.INSTANCE, JsonParser.parseString(json)).getOrThrow();
         assertEquals(List.of(new CoatStep()), steps);
+    }
+
+    // floatstone-lift-leaves-the-mod
+    @Test
+    void aStepTypedLiftRefusesAsUnknown() {
+        assertTrue(decode("{\"type\": \"lift\", \"rise\": 0.3, \"sink\": 0.2, \"cap\": 32}").isError());
     }
 
     @Test

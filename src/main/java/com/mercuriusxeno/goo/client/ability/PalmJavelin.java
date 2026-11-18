@@ -3,7 +3,7 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.TravelForm;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
-import com.mercuriusxeno.goo.item.GooGloveItem;
+import com.mercuriusxeno.goo.item.GooCasters;
 import net.minecraft.world.item.ItemStack;
 import org.jspecify.annotations.Nullable;
 
@@ -47,13 +47,13 @@ public final class PalmJavelin {
     }
 
     /**
-     * The delivery of the ability a glove has selected, as this client holds it.
+     * The delivery of the ability a caster has selected, as this client holds it.
      *
-     * @param glove the glove
-     * @return the delivery, or null where the glove selects no ability this client holds
+     * @param caster the glove, or raw goo held bare handed, or null for none
+     * @return the delivery, or null where the caster selects no ability this client holds
      */
-    static @Nullable Delivery selectedDelivery(ItemStack glove) {
-        var selection = GooGloveItem.getSelection(glove);
+    static @Nullable Delivery selectedDelivery(@Nullable ItemStack caster) {
+        var selection = GooCasters.selectionOf(caster);
         AbilitySyncHandler.ClientAbility ability = selection == null ? null
                 : AbilitySyncHandler.findAbility(selection.abilityId());
         return ability == null ? null : ability.delivery();

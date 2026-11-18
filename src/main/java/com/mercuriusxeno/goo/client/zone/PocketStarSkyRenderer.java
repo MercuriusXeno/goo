@@ -41,7 +41,8 @@ import java.util.function.Consumer;
 public final class PocketStarSkyRenderer implements CustomSkyboxRenderer {
 
     /** How far round the camera the stars stand, as vanilla's do. */
-    private static final float SKY_DISTANCE = 100F;
+    public static final float SKY_DISTANCE = 100F;
+    private static final float FULL_BRIGHTNESS = 1F;
     /** The faintest star's half width at the sky's distance. */
     private static final float FAINT_HALF_SIZE = 0.12F;
     /** How much wider than the faintest the brightest star stands. */
@@ -66,19 +67,32 @@ public final class PocketStarSkyRenderer implements CustomSkyboxRenderer {
      * @param vertices   the buffer
      * @param indexCount the indices the quads draw with
      */
-    record SkyQuads(GpuBuffer vertices, int indexCount) {
+    public record SkyQuads(GpuBuffer vertices, int indexCount) {
     }
 
     @Override
     public boolean renderSky(LevelRenderState levelRenderState, SkyRenderState skyRenderState,
             Matrix4fc modelViewMatrix, Runnable setupFog) {
         setupFog.run();
+        drawStars(modelViewMatrix, FULL_BRIGHTNESS);
+        return true;
+    }
+
+    /**
+     * Draws the sea of dim stars under the view's rotation, every star scaled by one brightness; the Lunar trip fades
+     * them in over the overworld's sky with it.
+     * decision gate-fixates-your-view-on-the-moon-until-it-takes-you
+     *
+     * @param modelViewMatrix the sky pass's model view
+     * @param brightness      how bright the sea draws, zero to one
+     */
+    public void drawStars(Matrix4fc modelViewMatrix, float brightness) {
         if (stars == null) {
             List<PocketStarSky.Star> sky = PocketStarSky.stars();
             stars = buildQuads(LABEL, sky.size(), builder -> sky.forEach(star -> addStar(builder, star)));
         }
-        drawQuads(GooRenderTypes.POCKET_SKY, stars, modelViewMatrix, LABEL);
-        return true;
+        drawQuads(GooRenderTypes.POCKET_SKY, stars, modelViewMatrix, LABEL,
+                new Vector4f(FULL_BRIGHTNESS, FULL_BRIGHTNESS, FULL_BRIGHTNESS, brightness));
     }
 
     /**
@@ -90,7 +104,7 @@ public final class PocketStarSkyRenderer implements CustomSkyboxRenderer {
      * @param fill  adds the quads' vertices
      * @return the built quads
      */
-    static SkyQuads buildQuads(String label, int quads, Consumer<BufferBuilder> fill) {
+    public static SkyQuads buildQuads(String label, int quads, Consumer<BufferBuilder> fill) {
         try (ByteBufferBuilder bytes = ByteBufferBuilder.exactlySized(
                 DefaultVertexFormat.POSITION_COLOR.getVertexSize() * quads * CORNERS)) {
             BufferBuilder builder = new BufferBuilder(bytes, VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
@@ -112,10 +126,25 @@ public final class PocketStarSkyRenderer implements CustomSkyboxRenderer {
      * @param label           the render pass's debug label
      */
     static void drawQuads(RenderPipeline pipeline, SkyQuads quads, Matrix4fc modelViewMatrix, String label) {
+        drawQuads(pipeline, quads, modelViewMatrix, label,
+                new Vector4f(FULL_BRIGHTNESS, FULL_BRIGHTNESS, FULL_BRIGHTNESS, FULL_BRIGHTNESS));
+    }
+
+    /**
+     * Draws built quads through a sky pipeline, under the view's rotation alone, with a color modulator.
+     *
+     * @param pipeline        the pipeline
+     * @param quads           the quads
+     * @param modelViewMatrix the sky pass's model view
+     * @param label           the render pass's debug label
+     * @param modulator       the color modulator the shader reads
+     */
+    public static void drawQuads(RenderPipeline pipeline, SkyQuads quads, Matrix4fc modelViewMatrix, String label,
+            Vector4f modulator) {
         RenderSystem.AutoStorageIndexBuffer sequential = RenderSystem.getSequentialBuffer(VertexFormat.Mode.QUADS);
         GpuBuffer indices = sequential.getBuffer(quads.indexCount());
         GpuBufferSlice transforms = RenderSystem.getDynamicUniforms().writeTransform(modelViewMatrix,
-                new Vector4f(1F, 1F, 1F, 1F), new Vector3f(), new Matrix4f());
+                modulator, new Vector3f(), new Matrix4f());
         GpuTextureView color = Minecraft.getInstance().getMainRenderTarget().getColorTextureView();
         GpuTextureView depth = Minecraft.getInstance().getMainRenderTarget().getDepthTextureView();
         try (RenderPass pass = RenderSystem.getDevice().createCommandEncoder()
@@ -138,7 +167,7 @@ public final class PocketStarSkyRenderer implements CustomSkyboxRenderer {
      * @param turn    the turn about the direction, a share of a full turn
      * @param color   the vertex color, or the values the shader reads in its place
      */
-    static void addFacingQuad(BufferBuilder builder, Vec3 along, float half, float turn, Vector3f color) {
+    public static void addFacingQuad(BufferBuilder builder, Vec3 along, float half, float turn, Vector3f color) {
         Vector3f center = new Vector3f((float) along.x(), (float) along.y(), (float) along.z()).mul(SKY_DISTANCE);
         Vector3f up = Math.abs(along.y()) > NEAR_THE_POLE ? EAST : UP;
         Matrix3f facing = new Matrix3f().rotateTowards(new Vector3f(center).negate(), up).rotateZ(-turn * FULL_TURN);
