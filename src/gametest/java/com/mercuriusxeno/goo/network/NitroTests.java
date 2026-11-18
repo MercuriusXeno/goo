@@ -50,6 +50,10 @@ public final class NitroTests {
     private static final BlockPos SECOND_CELL = new BlockPos(4, 2, 2);
     private static final String CELL_STANDS = "The Nitro cell at %s should be spent, stands %s";
     private static final String COW_UNHURT = "The cow should fall from %.1f health, reads %.1f";
+    private static final String A_SIGNAL_SETS_IT_OFF = "nitro_a_redstone_signal_sets_it_off";
+    /** The ticks the cell stands quiet before the redstone block takes the wall's place. */
+    private static final int SIGNAL_AFTER = 5;
+    private static final String MARKER_STANDS = "The dirt beside the Nitro cell should break in its blast";
     private static final String GOO_DROPPED = "Each Nitro cell should go off, not drop its goo: %s lie there";
 
     private NitroTests() {
@@ -63,6 +67,32 @@ public final class NitroTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, DRIP_LAYS_A_CELL, NitroTests::dripLaysAnUnstableCellOfOneLayer);
         GooTestFunctions.registerTest(registrar, STEPPED_ON_SETS_OFF_THE_CHAIN, NitroTests::steppedOnSetsOffTheChain);
+        GooTestFunctions.registerTest(registrar, A_SIGNAL_SETS_IT_OFF, NitroTests::aRedstoneSignalSetsItOff);
+    }
+
+    /**
+     * A full Nitro cell walled in obsidian on three sides and a dirt block
+     * on the fourth goes off when a redstone block takes the place of one
+     * obsidian wall: the cell is spent and its blast breaks the dirt.
+     * nitro-explodes-when-touched-heated-shocked-pulsed-or-struck
+     *
+     * @param helper the gametest helper
+     */
+    public static void aRedstoneSignalSetsItOff(GameTestHelper helper) {
+        BlockPos.betweenClosed(CHAMBER_LOW, CHAMBER_HIGH).forEach(pos -> helper.setBlock(pos,
+                pos.getY() == CHAMBER_LOW.getY() ? Blocks.OBSIDIAN : Blocks.AIR));
+        helper.setBlock(FIRST_CELL.north(), Blocks.OBSIDIAN);
+        helper.setBlock(FIRST_CELL.south(), Blocks.OBSIDIAN);
+        helper.setBlock(FIRST_CELL.west(), Blocks.OBSIDIAN);
+        helper.setBlock(FIRST_CELL.east(), Blocks.DIRT);
+        helper.setBlock(FIRST_CELL, GooBlocks.UNSTABLE_NITRO.get().defaultBlockState()
+                .setValue(VolumeCellBlock.LAYERS, VolumeCellBlock.MAX_LAYERS));
+        helper.runAfterDelay(SIGNAL_AFTER, () -> helper.setBlock(FIRST_CELL.west(), Blocks.REDSTONE_BLOCK));
+        helper.succeedWhen(() -> {
+            helper.assertTrue(helper.getBlockState(FIRST_CELL).isAir(),
+                    String.format(CELL_STANDS, FIRST_CELL, helper.getBlockState(FIRST_CELL)));
+            helper.assertFalse(helper.getBlockState(FIRST_CELL.east()).is(Blocks.DIRT), MARKER_STANDS);
+        });
     }
 
     /**
