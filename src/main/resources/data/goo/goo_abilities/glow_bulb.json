@@ -5,7 +5,7 @@
   "order": 0,
   "cost": 1000,
   "requires": ["minecraft:glowstone"],
-  "delivery": { "kind": "spontaneous" },
+  "delivery": { "kind": "spontaneous", "range": 16 },
   "area": { "shape": "line" },
   "behaviors": [
     { "type": "scan_visual", "visual": "light_dart" },
