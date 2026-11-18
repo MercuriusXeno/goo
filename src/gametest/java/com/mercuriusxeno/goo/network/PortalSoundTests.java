@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.network;
 
+import com.mercuriusxeno.goo.ability.quantum.PortalColor;
 import com.mercuriusxeno.goo.ability.quantum.GatePassage;
 import com.mercuriusxeno.goo.ability.quantum.Portal;
 import com.mercuriusxeno.goo.ability.quantum.PortalChoice;
@@ -179,6 +180,6 @@ public final class PortalSoundTests {
     private static Portal wallAt(GameTestHelper helper, BlockPos lower, Direction face) {
         helper.setBlock(lower, Blocks.STONE);
         helper.setBlock(lower.above(), Blocks.STONE);
-        return new Portal(GlobalPos.of(helper.getLevel().dimension(), helper.absolutePos(lower)), face, Direction.UP);
+        return new Portal(GlobalPos.of(helper.getLevel().dimension(), helper.absolutePos(lower)), face, Direction.UP, PortalColor.BLUE);
     }
 }

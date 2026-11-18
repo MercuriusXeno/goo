@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.ability.ChargeSize;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.ability.DurativeRoute;
+import com.mercuriusxeno.goo.ability.GloveButton;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.HeldRoute;
 import com.mercuriusxeno.goo.ability.RallyRelease;
@@ -38,6 +39,7 @@ import com.mercuriusxeno.goo.network.GooChargePayload;
 import com.mercuriusxeno.goo.network.GooStreamPayload;
 import com.mercuriusxeno.goo.network.GooThrowHandler;
 import com.mercuriusxeno.goo.network.GooThrowPayload;
+import com.mercuriusxeno.goo.network.PortalShotPayload;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -603,7 +605,28 @@ public final class GloveThrowSender {
         if (payload == null) {
             return false;
         }
-        sendPayload(payload);
+        // portal-takes-over-left-and-right-click-for-blue-and-orange: right click shoots the orange portal
+        sendPayload(PortalAim.selected(abilityId) ? new PortalShotPayload(GloveButton.USE, payload) : payload);
+        return true;
+    }
+
+    /**
+     * Shoots the blue portal at the aimed target, the attack key's press with
+     * Portal held, when the player can afford it.
+     * portal-takes-over-left-and-right-click-for-blue-and-orange
+     *
+     * @param player the local player
+     * @return true when the shot was sent
+     */
+    public static boolean sendPortalShot(Player player) {
+        GloveSelection selection = GooCasters.heldSelection(player);
+        ResourceKey<GooTypeDefinition> gooType = selection == null ? null : selection.getGooType();
+        GooThrowPayload payload = gooType == null ? null
+                : affordablePayload(player, AimTracker.currentTarget(), gooType, selection.abilityId());
+        if (payload == null) {
+            return false;
+        }
+        sendPayload(new PortalShotPayload(GloveButton.ATTACK, payload));
         return true;
     }
 

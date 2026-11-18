@@ -31,7 +31,7 @@ class PortalTransformTest {
     private static final Portal FLOOR = portal(new BlockPos(20, 64, 0), Direction.UP, Direction.NORTH);
 
     private static Portal portal(BlockPos block, Direction face, Direction along) {
-        return new Portal(GlobalPos.of(OVERWORLD, block), face, along);
+        return new Portal(GlobalPos.of(OVERWORLD, block), face, along, PortalColor.BLUE);
     }
 
     private static void assertVec(Vec3 expected, Vec3 actual) {

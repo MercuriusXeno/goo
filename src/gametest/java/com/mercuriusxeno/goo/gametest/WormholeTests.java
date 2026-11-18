@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.gametest;
 
+import com.mercuriusxeno.goo.ability.quantum.PortalColor;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.program.Variables;
@@ -533,7 +534,7 @@ public final class WormholeTests {
         buildWall(helper);
         ServerPlayer caster = caster(helper);
         Portal portal = new Portal(GlobalPos.of(helper.getLevel().dimension(), helper.absolutePos(portalFoot)),
-                portalFace, Direction.UP);
+                portalFace, Direction.UP, PortalColor.BLUE);
         QuantumPortals portals = QuantumPortals.get(helper.getLevel());
         UUID portalOwner = UUID.randomUUID();
         portals.place(portalOwner, portal);

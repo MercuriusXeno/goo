@@ -73,7 +73,7 @@ class AbilityPoseTableTest {
             Map.entry("pulse_tick", ArmPose.HELD_OUT),
             Map.entry("pulse_zap", ArmPose.HELD_OUT),
             Map.entry("quantum_tunnel", ArmPose.SWUNG),
-            Map.entry("quantum_portal", ArmPose.SWUNG),
+            Map.entry("quantum_portal", ArmPose.HELD_OUT),
             Map.entry("quantum_phase_self", ArmPose.HELD_UP),
             Map.entry("quantum_phase_other", ArmPose.RESTING),
             Map.entry("rock_bore", ArmPose.HELD_OUT),

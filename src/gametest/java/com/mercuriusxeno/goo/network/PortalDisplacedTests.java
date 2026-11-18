@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.network;
 
+import com.mercuriusxeno.goo.ability.quantum.PortalColor;
 import com.mercuriusxeno.goo.ability.quantum.Portal;
 import com.mercuriusxeno.goo.ability.quantum.PortalChoice;
 import com.mercuriusxeno.goo.ability.quantum.QuantumPortals;
@@ -114,7 +115,7 @@ public final class PortalDisplacedTests {
             }
         }
         ServerLevel level = helper.getLevel();
-        Portal portal = new Portal(GlobalPos.of(level.dimension(), helper.absolutePos(lower)), face, Direction.UP);
+        Portal portal = new Portal(GlobalPos.of(level.dimension(), helper.absolutePos(lower)), face, Direction.UP, PortalColor.BLUE);
         PortalChoice.place(level, owner, portal);
         return portal;
     }

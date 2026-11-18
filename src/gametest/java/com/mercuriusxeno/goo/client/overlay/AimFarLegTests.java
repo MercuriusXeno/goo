@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.overlay;
 
+import com.mercuriusxeno.goo.ability.quantum.PortalColor;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.program.GrabStep;
@@ -122,9 +123,9 @@ public final class AimFarLegTests {
         }
         ServerLevel level = helper.getLevel();
         Portal near = new Portal(GlobalPos.of(level.dimension(), helper.absolutePos(NEAR_PORTAL)), Direction.WEST,
-                Direction.UP);
+                Direction.UP, PortalColor.BLUE);
         Portal far = new Portal(GlobalPos.of(level.dimension(), helper.absolutePos(FAR_PORTAL)), Direction.EAST,
-                Direction.UP);
+                Direction.UP, PortalColor.BLUE);
         PortalChoice.place(level, player.getUUID(), near);
         PortalChoice.place(level, player.getUUID(), far);
         Zombie zombie = helper.spawn(EntityType.ZOMBIE, PAST_THE_WALL);

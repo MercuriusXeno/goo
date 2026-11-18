@@ -27,16 +27,16 @@ class PortalTest {
 
     @Test
     void aWallPortalOpensDownFromTheStruckBlock() {
-        Optional<Portal> frame = Portal.frameAt(pos -> true, pos -> true, AT, Direction.SOUTH, Direction.NORTH);
-        assertEquals(Optional.of(new Portal(GlobalPos.of(OVERWORLD, STRUCK.below()), Direction.SOUTH, Direction.UP)),
+        Optional<Portal> frame = Portal.frameAt(pos -> true, pos -> true, AT, Direction.SOUTH, Direction.NORTH, PortalColor.BLUE);
+        assertEquals(Optional.of(new Portal(GlobalPos.of(OVERWORLD, STRUCK.below()), Direction.SOUTH, Direction.UP, PortalColor.BLUE)),
                 frame);
     }
 
     @Test
     void aWallPortalOpensUpWhereThereIsNoRoomBelow() {
         Set<BlockPos> solid = Set.of(STRUCK, STRUCK.above());
-        Optional<Portal> frame = Portal.frameAt(solid::contains, pos -> true, AT, Direction.SOUTH, Direction.NORTH);
-        assertEquals(Optional.of(new Portal(AT, Direction.SOUTH, Direction.UP)), frame);
+        Optional<Portal> frame = Portal.frameAt(solid::contains, pos -> true, AT, Direction.SOUTH, Direction.NORTH, PortalColor.BLUE);
+        assertEquals(Optional.of(new Portal(AT, Direction.SOUTH, Direction.UP, PortalColor.BLUE)), frame);
     }
 
     /** A wall portal standing on the two blocks below the struck one's. */
@@ -51,15 +51,15 @@ class PortalTest {
     @Test
     void aWallPortalThrownAboveAStandingOneOpensUpClearOfIt() {
         Optional<Portal> frame = Portal.frameAt(pos -> true, pos -> true, STANDING_BELOW::contains, AT,
-                Direction.SOUTH, Direction.NORTH);
-        assertEquals(Optional.of(new Portal(AT, Direction.SOUTH, Direction.UP)), frame);
+                Direction.SOUTH, Direction.NORTH, PortalColor.BLUE);
+        assertEquals(Optional.of(new Portal(AT, Direction.SOUTH, Direction.UP, PortalColor.BLUE)), frame);
     }
 
     /** A wall portal thrown at a standing one's top block finds no frame clear of it, and opens none. */
     @Test
     void aWallPortalThrownAtAStandingOnesTopOpensNone() {
         Optional<Portal> frame = Portal.frameAt(pos -> true, pos -> true, STANDING_BELOW::contains,
-                GlobalPos.of(OVERWORLD, STRUCK.below()), Direction.SOUTH, Direction.NORTH);
+                GlobalPos.of(OVERWORLD, STRUCK.below()), Direction.SOUTH, Direction.NORTH, PortalColor.BLUE);
         assertEquals(Optional.empty(), frame);
     }
 
@@ -68,15 +68,15 @@ class PortalTest {
     void aFloorPortalThrownAtAStandingOnesEndOpensBeyondIt() {
         Set<BlockPos> standing = Set.of(STRUCK.south(), STRUCK.south(2));
         Optional<Portal> frame = Portal.frameAt(pos -> true, pos -> true, standing::contains, AT, Direction.UP,
-                Direction.SOUTH);
-        assertEquals(Optional.of(new Portal(GlobalPos.of(OVERWORLD, STRUCK.north()), Direction.UP, Direction.SOUTH)),
+                Direction.SOUTH, PortalColor.BLUE);
+        assertEquals(Optional.of(new Portal(GlobalPos.of(OVERWORLD, STRUCK.north()), Direction.UP, Direction.SOUTH, PortalColor.BLUE)),
                 frame);
     }
 
     @Test
     void aFloorPortalThrownNorthOrSouthHasNorthUp() {
         for (Direction facing : new Direction[] {Direction.NORTH, Direction.SOUTH}) {
-            Portal frame = Portal.frameAt(pos -> true, pos -> true, AT, Direction.UP, facing).orElseThrow();
+            Portal frame = Portal.frameAt(pos -> true, pos -> true, AT, Direction.UP, facing, PortalColor.BLUE).orElseThrow();
             assertEquals(Direction.NORTH.getUnitVec3(), frame.gate().up(), "A floor portal thrown facing " + facing
                     + " should have north up");
         }
@@ -85,7 +85,7 @@ class PortalTest {
     @Test
     void aCeilingPortalThrownEastOrWestHasWestUp() {
         for (Direction facing : new Direction[] {Direction.EAST, Direction.WEST}) {
-            Portal frame = Portal.frameAt(pos -> true, pos -> true, AT, Direction.DOWN, facing).orElseThrow();
+            Portal frame = Portal.frameAt(pos -> true, pos -> true, AT, Direction.DOWN, facing, PortalColor.BLUE).orElseThrow();
             assertEquals(Direction.WEST.getUnitVec3(), frame.gate().up(), "A ceiling portal thrown facing " + facing
                     + " should have west up");
         }
