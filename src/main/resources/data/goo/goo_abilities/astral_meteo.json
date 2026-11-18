@@ -4,7 +4,7 @@
   "badge": "world",
   "order": 40,
   "cost": 3000,
-  "delivery": { "kind": "spontaneous" },
+  "delivery": { "kind": "spontaneous", "range": 16 },
   "behaviors": [
     { "type": "meteor", "power": 4.0, "fall_ticks": 20 }
   ],

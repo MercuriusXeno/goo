@@ -9,7 +9,7 @@
     "minecraft:gunpowder"
   ],
   "delivery": {
-    "kind": "spontaneous",
+    "kind": "spontaneous", "range": 16,
     "charge": {
       "max_ticks": 84,
       "min_size": 2,

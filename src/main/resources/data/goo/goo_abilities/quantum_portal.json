@@ -4,7 +4,7 @@
   "badge": "world",
   "order": 60,
   "cost": 1000,
-  "delivery": { "kind": "arc" },
+  "delivery": { "kind": "arc", "range": 16 },
   "behaviors": [
     { "type": "sound", "id": "minecraft:block.respawn_anchor.charge", "at": "host", "source": "blocks", "volume": 1, "pitch": 1.2 },
     { "type": "quantum_portal" }
