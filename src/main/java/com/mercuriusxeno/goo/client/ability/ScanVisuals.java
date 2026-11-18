@@ -40,11 +40,19 @@ public final class ScanVisuals {
      */
     public static final String LIGHT_DART = "light_dart";
 
+    /**
+     * The visual Quantum's Portal names: a small Quantum blob the palm blob
+     * shoots fast and straight to the struck face.
+     * operator UAT 2026-11-17: have the palm blob shoot a smaller, high velocity blob at the target
+     */
+    public static final String QUANTUM_BLOB = "quantum_blob";
+
     private static final Map<String, ScanVisual> RENDERERS = new HashMap<>();
 
     static {
         RENDERERS.put(SOUND_WAVE, SoundWaves::start);
         RENDERERS.put(LIGHT_DART, LightDarts::start);
+        RENDERERS.put(QUANTUM_BLOB, QuantumBlobDarts::start);
     }
 
     private ScanVisuals() {

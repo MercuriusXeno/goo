@@ -9,6 +9,7 @@ import com.mercuriusxeno.goo.ability.quantum.PortalShots;
 import com.mercuriusxeno.goo.ability.quantum.QuantumPortals;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
+import com.mercuriusxeno.goo.gametest.PacketRecorder;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -84,6 +85,38 @@ public final class PortalShotTests {
                 PortalShotTests::landsWhereTheLookStrikesFarAndUp);
         GooTestFunctions.registerTest(registrar, A_SECOND_BLUE_MOVES_THE_BLUE_PORTAL,
                 PortalShotTests::aSecondBlueMovesTheBluePortal);
+        GooTestFunctions.registerTest(registrar, A_SHOT_DARTS_A_QUANTUM_BLOB, PortalShotTests::aShotDartsAQuantumBlob);
+    }
+
+    private static final String A_SHOT_DARTS_A_QUANTUM_BLOB = "portal_shot_darts_a_quantum_blob_to_the_struck_face";
+    /** The visual a Portal shot names, a small fast Quantum blob. */
+    private static final String QUANTUM_BLOB = "quantum_blob";
+    /** How far the dart's end may stand from the struck face's middle, float rounding only. */
+    private static final double ON_THE_FACE = 0.01;
+
+    /**
+     * A Portal shot sends the shooter's client a dart: a small fast Quantum
+     * blob from the palm blob to the face the shot struck
+     * (operator UAT 2026-11-17: have the palm blob shoot a smaller, high
+     * velocity blob at the target; decision shriek-bloom-portal-mitosis-and-dart-still-throw-a-blob).
+     *
+     * @param helper the gametest helper
+     */
+    public static void aShotDartsAQuantumBlob(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        ServerPlayer player = shooter(helper, BEFORE_THE_WALLS);
+        PacketRecorder seen = PacketRecorder.attachClaiming(player, ScanWavePayload.class);
+        wall(helper, BLUE_WALL_TOP, 2);
+        shootAt(helper, player, GloveButton.ATTACK, BLUE_WALL_TOP, Direction.SOUTH);
+        List<ScanWavePayload> darts = seen.payloadsOf(ScanWavePayload.class);
+        Vec3 struck = faceCenter(helper, BLUE_WALL_TOP, Direction.SOUTH);
+        QuantumPortals.get(level).portalsOf(player.getUUID())
+                .forEach(portal -> PortalPairs.breakAt(level, portal.block().pos(), portal.face()));
+        level.getServer().getPlayerList().remove(player);
+        helper.assertTrue(darts.size() == 1 && darts.getFirst().visual().equals(QUANTUM_BLOB)
+                && darts.getFirst().to().distanceTo(struck) < ON_THE_FACE, "A Portal shot should dart one quantum "
+                + "blob to the struck face " + struck + ", darts " + darts);
+        helper.succeed();
     }
 
     /**

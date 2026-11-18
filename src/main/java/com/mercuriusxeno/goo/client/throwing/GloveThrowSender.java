@@ -590,20 +590,20 @@ public final class GloveThrowSender {
         if (payload == null) {
             return false;
         }
-        // portal-takes-over-left-and-right-click-for-blue-and-orange: right click shoots the orange portal
-        sendPayload(PortalAim.selected(abilityId) ? new PortalShotPayload(GloveButton.USE, payload) : payload);
+        sendPayload(payload);
         return true;
     }
 
     /**
-     * Shoots the blue portal at the aimed target, the attack key's press with
-     * Portal held, when the player can afford it.
+     * Shoots Portal at the aimed target by a button, left click the blue
+     * portal and right click the orange one, when the player can afford it.
      * portal-takes-over-left-and-right-click-for-blue-and-orange
      *
      * @param player the local player
+     * @param button the button pressed
      * @return true when the shot was sent
      */
-    public static boolean sendPortalShot(Player player) {
+    public static boolean sendPortalShot(Player player, GloveButton button) {
         GloveSelection selection = GooCasters.heldSelection(player);
         ResourceKey<GooTypeDefinition> gooType = selection == null ? null : selection.getGooType();
         GooThrowPayload payload = gooType == null ? null
@@ -611,7 +611,7 @@ public final class GloveThrowSender {
         if (payload == null) {
             return false;
         }
-        sendPayload(new PortalShotPayload(GloveButton.ATTACK, payload));
+        sendPayload(new PortalShotPayload(button, payload));
         return true;
     }
 

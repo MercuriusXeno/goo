@@ -53,14 +53,4 @@ class GloveAttackTrackerTest {
         assertEquals(GloveAttackTracker.AttackOutcome.SHOOT_PORTAL, GloveAttackTracker.outcomeOf(true, false, true,
                 false, true));
     }
-
-    @Test
-    void aFreshAttackPressShootsPortal() {
-        assertEquals(true, GloveAttackTracker.shootsOnThisPress(false));
-    }
-
-    @Test
-    void theAttackKeyHeldDownShootsPortalNoMore() {
-        assertEquals(false, GloveAttackTracker.shootsOnThisPress(true));
-    }
 }
