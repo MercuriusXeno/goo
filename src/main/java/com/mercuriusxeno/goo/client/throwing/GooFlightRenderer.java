@@ -55,6 +55,8 @@ public final class GooFlightRenderer {
      * slime-core-draws-translucent-at-the-shells-opacity
      */
     private static final int SHELL_ALPHA = 0x4C;
+    /** Half a cuboid's edge. */
+    private static final float HALF_EDGE = 0.5f;
     /**
      * The core's color: 50% opaque over its fluid sprite's own colors.
      * slime-core-draws-translucent-at-the-shells-opacity
@@ -376,6 +378,32 @@ public final class GooFlightRenderer {
         int color = ARGB.color(SHELL_ALPHA, ClientGooTypes.color(type));
         RenderContext ctx = new RenderContext(pose, c, GooSubmitter.fullbrightLight());
         ctx.emitBox(color, boxAbout(shape.scaled(SHELL_HW)), spriteToUv(type));
+    }
+
+    /**
+     * Emits a cuboid of goo drawn as the palm blob draws, its shell and its
+     * core 3/4 of it, about a point: the cuboid a forming weapon is cut from
+     * the palm blob as. The consumer takes {@link GooSubmitter#renderType()} geometry.
+     * decision weapons-form-from-a-goo-cuboid-leaving-the-palm-blob
+     *
+     * @param pose   the pose the point stands in
+     * @param c      a consumer of the translucent goo render type
+     * @param type   the goo type
+     * @param center the cuboid's middle, in the pose's space
+     * @param edge   the cuboid's edge, in blocks
+     */
+    public static void emitCuboidAt(PoseStack.Pose pose, VertexConsumer c, ResourceKey<GooTypeDefinition> type,
+                                    Vec3 center, float edge) {
+        RenderContext ctx = new RenderContext(pose, c, GooSubmitter.fullbrightLight());
+        float half = edge * HALF_EDGE;
+        ctx.emitBox(CORE_COLOR, boxAbout(center, half * CORE_SHARE_OF_SHELL), spriteToUv(type));
+        ctx.emitBox(ARGB.color(SHELL_ALPHA, ClientGooTypes.color(type)), boxAbout(center, half), spriteToUv(type));
+    }
+
+    // The cube a half edge spans about a point.
+    private static CuboidBounds boxAbout(Vec3 center, float half) {
+        return new CuboidBounds((float) center.x - half, (float) center.x + half, (float) center.z - half,
+                (float) center.z + half, (float) center.y - half, (float) center.y + half);
     }
 
     /**

@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.overlay;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.program.GrabStep;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.quantum.Gate;
@@ -9,8 +10,9 @@ import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.client.ability.GrabFlail;
 import com.mercuriusxeno.goo.client.ability.PortalView;
 import com.mercuriusxeno.goo.client.throwing.GloveAim;
+import com.mercuriusxeno.goo.client.throwing.GloveThrowSender;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
-import com.mercuriusxeno.goo.client.throwing.KnivesHoldSender;
+import com.mercuriusxeno.goo.item.GooCasters;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
@@ -65,9 +67,16 @@ public final class AimTracker {
                 GloveAim.aimRange(player));
         List<Step> behaviors = GloveAim.selectedBehaviors(player);
         boolean grabPressed = GloveUseTracker.showsArea() && behaviors.stream().anyMatch(GrabStep.class::isInstance);
+        // knives-do-not-highlight-mobs, dart-does-not-seek-or-highlight: Knives and Dart outline no mob
         STATE.update(seed -> HELD.resolve(grabPressed, GrabFlail::grabbed,
                 () -> AimTargets.resolve(player, ray, seed, GloveAim.targetingHint(player), behaviors)),
-                entityOutline);
+                entityOutline, outlinesMobs(player));
+    }
+
+    // Whether the glove's held selection outlines the mob its aim rests on.
+    private static boolean outlinesMobs(Player player) {
+        GloveSelection selection = GooCasters.heldSelection(player);
+        return selection == null || AimState.mobsOutlineFor(GloveThrowSender.selectedDelivery(selection.abilityId()));
     }
 
     /**
@@ -140,7 +149,7 @@ public final class AimTracker {
     public static void modifyEntityRenderState(Entity entity, EntityRenderState state) {
         // sweeping-grab-locks-every-item-the-highlight-passes: a locked item the aim left draws in the main frame
         TargetResult.@Nullable Passage passage = entity == STATE.aimedMob() ? STATE.target().passage() : null;
-        int color = outlineIn(STATE.outlineFor(entity, GrabFlail::grabbed, KnivesHoldSender::paints),
+        int color = outlineIn(STATE.outlineFor(entity, GrabFlail::grabbed),
                 PortalView.extractingView(),
                 PortalView.extractingGate(), passage);
         if (color != 0) {
