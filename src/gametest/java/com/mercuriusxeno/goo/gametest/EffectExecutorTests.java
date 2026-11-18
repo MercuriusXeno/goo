@@ -63,7 +63,7 @@ import net.neoforged.neoforge.registries.RegisterEvent;
 @RegistersGameTests
 public final class EffectExecutorTests {
     private static final String FX_PROGRAM_MINE = "fx_program_proximity_mine";
-    private static final String FX_PROGRAM_METAL_URCHIN = "fx_program_metal_urchin";
+    private static final String FX_PROGRAM_SPIKE_TRAP = "fx_program_test_spike_trap";
     private static final String COMPRESSION_SPHERE_SPILLS_ON_TOUCH = "compression_sphere_spills_on_touch";
     private static final String LARGE_BLAST_LEAVES_A_GREEN_SPHERE = "large_blast_leaves_a_green_sphere";
     private static final String SMALL_BLAST_POPS_ITS_DROPS = "small_blast_pops_its_drops";
@@ -72,7 +72,7 @@ public final class EffectExecutorTests {
     private static final String FX_LANDED_GLOW_CRYSTAL = "fx_landed_glow_crystal_stands";
     private static final String FX_FALLEN_MARKER_KEEPS_ABILITY = "fx_fallen_marker_keeps_ability";
     private static final String FX_OTHER_ABILITY_MARKS_CRYSTAL = "fx_other_ability_marks_crystal";
-    private static final String FX_URCHIN_BLOCK_GOES = "fx_urchin_block_goes";
+    private static final String FX_SPIKE_TRAP_BLOCK_GOES = "fx_spike_trap_block_goes";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -81,7 +81,7 @@ public final class EffectExecutorTests {
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, FX_PROGRAM_MINE, EffectExecutorTests::programProximityMine);
-        GooTestFunctions.registerTest(registrar, FX_PROGRAM_METAL_URCHIN, EffectExecutorTests::programMetalUrchin);
+        GooTestFunctions.registerTest(registrar, FX_PROGRAM_SPIKE_TRAP, EffectExecutorTests::programSpikeTrap);
         GooTestFunctions.registerTest(registrar, COMPRESSION_SPHERE_SPILLS_ON_TOUCH, EffectExecutorTests::compressionSphereSpillsOnTouch);
         GooTestFunctions.registerTest(registrar, LARGE_BLAST_LEAVES_A_GREEN_SPHERE, EffectExecutorTests::largeBlastLeavesAGreenSphere);
         GooTestFunctions.registerTest(registrar, SMALL_BLAST_POPS_ITS_DROPS, EffectExecutorTests::smallBlastPopsItsDrops);
@@ -90,7 +90,7 @@ public final class EffectExecutorTests {
         GooTestFunctions.registerTest(registrar, FX_LANDED_GLOW_CRYSTAL, EffectExecutorTests::glowCrystalStandsAfterLanding);
         GooTestFunctions.registerTest(registrar, FX_FALLEN_MARKER_KEEPS_ABILITY, EffectExecutorTests::fallenMarkerKeepsAbility);
         GooTestFunctions.registerTest(registrar, FX_OTHER_ABILITY_MARKS_CRYSTAL, EffectExecutorTests::otherAbilityMarksCrystal);
-        GooTestFunctions.registerTest(registrar, FX_URCHIN_BLOCK_GOES, EffectExecutorTests::urchinBlockGoesWithItsProgram);
+        GooTestFunctions.registerTest(registrar, FX_SPIKE_TRAP_BLOCK_GOES, EffectExecutorTests::spikeTrapBlockGoesWithItsProgram);
     }
 
 
@@ -116,13 +116,13 @@ public final class EffectExecutorTests {
     private static final int MINE_IDLE_TICKS = 5;
     /** Where the mine's target spawns: two blocks from the marker, inside its radius. */
     private static final BlockPos MINE_TARGET_POS = MARKER_POS.east(2);
-    private static final String ABILITY_METAL_URCHIN = "goo:metal_urchin";
+    private static final String ABILITY_SPIKE_TRAP = "goo:test_spike_trap";
     private static final String SPIKE_MISSED = "The metal trap left the walking pig unhurt";
     /** Where a diamond lies: two blocks west of the marker. */
     private static final BlockPos DIAMOND_POS = MARKER_POS.west(2);
     /** Horizontal speed the moving pig is shuffled at, reversed every tick so it stays put. */
     private static final double SHUFFLE_SPEED = 0.2;
-    /** Health enough for a pig to outlast every charge an Urchin field holds. */
+    /** Health enough for a pig to outlast every charge a spike trap field holds. */
     private static final float HARDY_HEALTH = 1024f;
     /** Ticks per back-and-forth of the moving pig's shuffle. */
     private static final int SHUFFLE_PERIOD = 2;
@@ -195,7 +195,7 @@ public final class EffectExecutorTests {
     }
 
     /**
-     * A metal_urchin marker whose support breaks while its program runs
+     * A test_spike_trap marker whose support breaks while its program runs
      * falls to the floor below and lands carrying its ability id and its
      * running program (decisions no-throw-without-ability,
      * splat-runs-the-program-no-fuse).
@@ -205,14 +205,14 @@ public final class EffectExecutorTests {
     public static void fallenMarkerKeepsAbility(GameTestHelper helper) {
         helper.setBlock(FALL_FLOOR_POS, Blocks.STONE);
         helper.setBlock(FALL_SUPPORT_POS, Blocks.STONE);
-        AbilityDefinition spikes = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(ABILITY_METAL_URCHIN));
+        AbilityDefinition spikes = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(ABILITY_SPIKE_TRAP));
         helper.assertTrue(spikes != null, ABILITIES_REQUIRED);
         AbilityImpact.land(helper.getLevel(), helper.absolutePos(FALL_SUPPORT_POS), GooTypes.METAL, Direction.UP, spikes);
         helper.assertBlockPresent(GooBlocks.ABILITY_BLOCK.get(), FALL_START_POS);
         helper.setBlock(FALL_SUPPORT_POS, Blocks.AIR);
         helper.runAfterDelay(FALL_LANDED_TICKS, () -> {
             AbilityBlockEntity landed = helper.getBlockEntity(FALL_LANDING_POS, AbilityBlockEntity.class);
-            helper.assertTrue(ABILITY_METAL_URCHIN.equals(landed.getAbilityId()), FALL_ABILITY_LOST);
+            helper.assertTrue(ABILITY_SPIKE_TRAP.equals(landed.getAbilityId()), FALL_ABILITY_LOST);
             helper.assertTrue(landed.getBehavior() != null && landed.getBehavior().isActive(), FALL_PROGRAM_LOST);
             helper.succeed();
         });
@@ -236,13 +236,13 @@ public final class EffectExecutorTests {
     }
 
     /**
-     * A metal_urchin goo landing on a glow crystal leaves it as it stood
+     * A test_spike_trap goo landing on a glow crystal leaves it as it stood
      * and places its own marker on the crystal's face.
      *
      * @param helper the gametest helper
      */
     public static void otherAbilityMarksCrystal(GameTestHelper helper) {
-        landOnCrystal(helper, GooTypes.METAL, ABILITY_METAL_URCHIN);
+        landOnCrystal(helper, GooTypes.METAL, ABILITY_SPIKE_TRAP);
         helper.assertBlockPresent(GooBlocks.GLOW_CRYSTAL.get(), CRYSTAL_POS);
         helper.assertBlockPresent(GooBlocks.ABILITY_BLOCK.get(), CRYSTAL_POS.above());
         helper.succeed();
@@ -564,7 +564,7 @@ public final class EffectExecutorTests {
     private static AbilityBlockEntity placeMetalTrap(GameTestHelper helper) {
         discardLeftoverEntities(helper);
         helper.setBlock(MINE_TARGET_POS.below(), Blocks.STONE);
-        placeMarkerWithAbility(helper, GooTypes.METAL, ABILITY_METAL_URCHIN);
+        placeMarkerWithAbility(helper, GooTypes.METAL, ABILITY_SPIKE_TRAP);
         return helper.getBlockEntity(MARKER_POS, AbilityBlockEntity.class);
     }
 
@@ -574,7 +574,7 @@ public final class EffectExecutorTests {
      *
      * @param helper the gametest helper
      */
-    public static void programMetalUrchin(GameTestHelper helper) {
+    public static void programSpikeTrap(GameTestHelper helper) {
         placeMetalTrap(helper);
         Pig[] pig = new Pig[1];
         helper.startSequence()
@@ -655,15 +655,15 @@ public final class EffectExecutorTests {
     }
 
     /**
-     * An Urchin field stands its block while a moving pig draws its
+     * A spike trap field stands its block while a moving pig draws its
      * strikes, and the block is gone once the field has spent its charges
      * and contracted (decision lingering-abilities-place-their-own-thing).
      *
      * @param helper the gametest helper
      */
-    public static void urchinBlockGoesWithItsProgram(GameTestHelper helper) {
+    public static void spikeTrapBlockGoesWithItsProgram(GameTestHelper helper) {
         discardLeftoverEntities(helper);
-        placeMarkerWithAbility(helper, GooTypes.METAL, ABILITY_METAL_URCHIN);
+        placeMarkerWithAbility(helper, GooTypes.METAL, ABILITY_SPIKE_TRAP);
         helper.assertBlockPresent(GooBlocks.ABILITY_BLOCK.get(), MARKER_POS);
         Pig pig = spawnShufflingPig(helper, MINE_TARGET_POS);
         // a pig's ten health dies to two impalings, leaving the field charges it never spends

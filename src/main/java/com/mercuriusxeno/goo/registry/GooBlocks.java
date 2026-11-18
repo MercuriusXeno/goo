@@ -14,6 +14,7 @@ import com.mercuriusxeno.goo.block.ability.NectarCellBlock;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
 import com.mercuriusxeno.goo.block.ability.RimeCellBlock;
 import com.mercuriusxeno.goo.block.ability.SignalCellBlock;
+import com.mercuriusxeno.goo.block.ability.SpikesCellBlock;
 import com.mercuriusxeno.goo.block.ability.UpdraftCellBlock;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.block.ability.WispBlock;
@@ -384,6 +385,26 @@ public class GooBlocks {
                     .replaceable()
                     .noLootTable()
                     .isRedstoneConductor((state, level, pos) -> false)
+                    .pushReaction(PushReaction.DESTROY));
+    /**
+     * Spikes: the volume cell bound to Metal's goo, the silver goo Spikes
+     * sprays onto a block's top, one to fifteen layers, ordinary ground
+     * underfoot that impales what walks on it and sounds as goo does,
+     * dropping the metal goo its layers cost through VolumeCellBlock.getDrops,
+     * no loot table
+     * (decisions spikes-is-a-coat-of-metal-goo-that-impales-what-walks-on-it,
+     * each-goo-type-ships-a-world-goo-on-the-volume-cell).
+     */
+    public static final DeferredBlock<SpikesCellBlock> METAL_SPIKES = BLOCKS.registerBlock(
+            "metal_spikes", properties -> new SpikesCellBlock(properties, CellBinding.SPIKES),
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.METAL)
+                    .friction(CellBinding.SPIKES.surface().friction())
+                    .sound(SoundType.SLIME_BLOCK)
+                    .instabreak()
+                    .noOcclusion()
+                    .replaceable()
+                    .noLootTable()
                     .pushReaction(PushReaction.DESTROY));
     /**
      * Infest: the volume cell bound to Nether's goo, the dark red goo Infest

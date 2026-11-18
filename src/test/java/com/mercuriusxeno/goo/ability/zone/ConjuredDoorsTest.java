@@ -28,7 +28,7 @@ import static org.mockito.Mockito.when;
  */
 class ConjuredDoorsTest {
 
-    private static final int CHARGE = 20;
+    private static final int CHARGE = 40;
     private static final int CASTER_ID = 41;
     private static final Vec3 FEET = new Vec3(10.5, 64, -3.5);
     /** Facing south, the way yaw 0 looks. */
@@ -186,9 +186,10 @@ class ConjuredDoorsTest {
         when(caster.getId()).thenReturn(CASTER_ID);
         ConjuredDoor door = ConjuredDoor.standing(FEET, FACING_SOUTH, CHARGE / 2, CHARGE);
         try (MockedStatic<EntityVisuals> visuals = mockStatic(EntityVisuals.class)) {
-            ConjuredDoors.sendDoor(caster, door);
+            ConjuredDoors.sendDoor(caster, door, GateLook.NETHER_PORTAL);
 
-            visuals.verify(() -> EntityVisuals.sendToWatchers(caster, new ConjuredDoorPayload(CASTER_ID, door)));
+            visuals.verify(() -> EntityVisuals.sendToWatchers(caster,
+                    new ConjuredDoorPayload(CASTER_ID, door, GateLook.NETHER_PORTAL)));
         }
     }
 }

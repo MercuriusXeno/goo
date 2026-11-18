@@ -17,6 +17,10 @@ import net.minecraft.world.phys.Vec3;
  * The share crossed travels with the door so the caster's own client can
  * stand it from the look of each frame it draws.
  * decision conjured-door-follows-the-look-smoothly
+ * How far before the caster it stands travels with it too: Zone's and End's
+ * door a block and a half, Tartarus' doorway three quarters of a block, or
+ * less where a wall stands nearer.
+ * decision tartarus-draws-its-own-portal-with-the-nether-portal-texture
  *
  * @param at       the middle of the door's foot
  * @param yaw      the way the caster faced, so the door faces them, in degrees
@@ -24,13 +28,19 @@ import net.minecraft.world.phys.Vec3;
  * @param widened  how far it has widened, 0 for a pixel wide to 1 for the doorway's full width
  * @param crossed  the share of its stand-off it has moved into the caster, 0 before them to 1 on their feet
  * @param phase    whether it grows before the caster or moves into them
+ * @param standsOff how far before the caster's feet it stands while it grows, in blocks
  */
-public record ConjuredDoor(Vec3 at, float yaw, double unzipped, double widened, double crossed, Phase phase) {
+public record ConjuredDoor(Vec3 at, float yaw, double unzipped, double widened, double crossed, Phase phase,
+                           double standsOff) {
 
     /** How far before the caster's feet the door stands while it grows, in blocks. */
     public static final double STANDS_OFF = 1.5;
-    /** The charge's last ticks, over which the door moves into the caster. */
-    static final int ENVELOP_TICKS = 6;
+    /**
+     * The charge's last ticks, over which the door moves into the caster. The
+     * operator ruled the whole trip of End, Zone and Tartarus twice as slow, so
+     * this and the release's ticks doubled with their 40-tick charge.
+     */
+    static final int ENVELOP_TICKS = 12;
 
     /** Sends a door. */
     public static final StreamCodec<ByteBuf, ConjuredDoor> STREAM_CODEC = StreamCodec.composite(
@@ -40,7 +50,9 @@ public record ConjuredDoor(Vec3 at, float yaw, double unzipped, double widened, 
             ByteBufCodecs.DOUBLE, ConjuredDoor::widened,
             ByteBufCodecs.DOUBLE, ConjuredDoor::crossed,
             ByteBufCodecs.idMapper(ordinal -> Phase.values()[ordinal], Phase::ordinal), ConjuredDoor::phase,
+            ByteBufCodecs.DOUBLE, ConjuredDoor::standsOff,
             ConjuredDoor::new);
+
 
     /** Where a conjured door stands in its life. */
     public enum Phase {
@@ -53,11 +65,25 @@ public record ConjuredDoor(Vec3 at, float yaw, double unzipped, double widened, 
     }
 
     /** The ticks a releasing door takes to move off its arriver, narrowing to a slash. */
-    public static final int MOVE_OFF_TICKS = 10;
+    public static final int MOVE_OFF_TICKS = 20;
     /** The ticks the slash then takes to zip up to a pixel: a starting value for the operator to judge. */
-    public static final int ZIP_UP_TICKS = 10;
+    public static final int ZIP_UP_TICKS = 20;
     /** The ticks a whole release takes. */
     public static final int RELEASE_TICKS = MOVE_OFF_TICKS + ZIP_UP_TICKS;
+
+    /**
+     * A door standing Zone's and End's block and a half before its caster.
+     *
+     * @param at       the middle of the door's foot
+     * @param yaw      the way the caster faced, in degrees
+     * @param unzipped how far it has unzipped
+     * @param widened  how far it has widened
+     * @param crossed  the share of its stand-off it has moved into the caster
+     * @param phase    whether it grows before the caster or moves into them
+     */
+    public ConjuredDoor(Vec3 at, float yaw, double unzipped, double widened, double crossed, Phase phase) {
+        this(at, yaw, unzipped, widened, crossed, phase, STANDS_OFF);
+    }
 
     /**
      * The door releasing a player into their room, the entry played in
@@ -74,12 +100,26 @@ public record ConjuredDoor(Vec3 at, float yaw, double unzipped, double widened, 
      * @return the door
      */
     public static ConjuredDoor releasing(Vec3 feet, float yaw, double tick) {
+        return releasing(feet, yaw, tick, STANDS_OFF);
+    }
+
+    /**
+     * The door releasing a player, backing off them to a stand-off of its own.
+     *
+     * @param feet      the arriver's feet
+     * @param yaw       the arriver's yaw, in degrees
+     * @param tick      the release's ticks so far, partial between ticks
+     * @param standsOff how far before the arriver it backs off to, in blocks
+     * @return the door
+     */
+    public static ConjuredDoor releasing(Vec3 feet, float yaw, double tick, double standsOff) {
         if (tick <= MOVE_OFF_TICKS) {
             double crossed = 1 - Math.clamp(tick / MOVE_OFF_TICKS, 0, 1);
-            return new ConjuredDoor(placedAt(feet, yaw, crossed), yaw, 1, crossed, crossed, Phase.RELEASING);
+            return new ConjuredDoor(placedAt(feet, yaw, crossed, standsOff), yaw, 1, crossed, crossed,
+                    Phase.RELEASING, standsOff);
         }
         double unzipped = 1 - Math.clamp((tick - MOVE_OFF_TICKS) / ZIP_UP_TICKS, 0, 1);
-        return new ConjuredDoor(placedAt(feet, yaw, 0), yaw, unzipped, 0, 0, Phase.RELEASING);
+        return new ConjuredDoor(placedAt(feet, yaw, 0, standsOff), yaw, unzipped, 0, 0, Phase.RELEASING, standsOff);
     }
 
     /**
@@ -92,13 +132,28 @@ public record ConjuredDoor(Vec3 at, float yaw, double unzipped, double widened, 
      * @return the door
      */
     public static ConjuredDoor standing(Vec3 feet, float yaw, int held, int charge) {
+        return standing(feet, yaw, held, charge, STANDS_OFF);
+    }
+
+    /**
+     * The door a hold has conjured so far, standing a stand-off of its own before the caster.
+     *
+     * @param feet      the caster's feet
+     * @param yaw       the caster's yaw, in degrees
+     * @param held      the hold's tick count
+     * @param charge    the ticks the charge takes
+     * @param standsOff how far before the caster it stands while it grows, in blocks
+     * @return the door
+     */
+    public static ConjuredDoor standing(Vec3 feet, float yaw, int held, int charge, double standsOff) {
         int growing = Math.max(1, charge - ENVELOP_TICKS);
         if (held <= growing) {
-            return new ConjuredDoor(placedAt(feet, yaw, 0), yaw, Math.max(0, held) / (double) growing, 0, 0,
-                    Phase.GROWING);
+            return new ConjuredDoor(placedAt(feet, yaw, 0, standsOff), yaw, Math.max(0, held) / (double) growing, 0,
+                    0, Phase.GROWING, standsOff);
         }
         double crossed = Math.min(1, (held - growing) / (double) (charge - growing));
-        return new ConjuredDoor(placedAt(feet, yaw, crossed), yaw, 1, crossed, crossed, Phase.ENVELOPING);
+        return new ConjuredDoor(placedAt(feet, yaw, crossed, standsOff), yaw, 1, crossed, crossed,
+                Phase.ENVELOPING, standsOff);
     }
 
     /**
@@ -111,8 +166,21 @@ public record ConjuredDoor(Vec3 at, float yaw, double unzipped, double widened, 
      * @return the middle of the door's foot
      */
     public static Vec3 placedAt(Vec3 feet, float yaw, double crossed) {
+        return placedAt(feet, yaw, crossed, STANDS_OFF);
+    }
+
+    /**
+     * Where a door's foot stands for a caster's feet and look, at a stand-off of its own.
+     *
+     * @param feet      the caster's feet
+     * @param yaw       the caster's yaw, in degrees
+     * @param crossed   the share of its stand-off the door has moved into them
+     * @param standsOff how far before them it stands uncrossed, in blocks
+     * @return the middle of the door's foot
+     */
+    public static Vec3 placedAt(Vec3 feet, float yaw, double crossed, double standsOff) {
         double radians = Math.toRadians(yaw);
-        double off = STANDS_OFF * (1 - crossed);
+        double off = standsOff * (1 - crossed);
         return feet.add(-Math.sin(radians) * off, 0, Math.cos(radians) * off);
     }
 }

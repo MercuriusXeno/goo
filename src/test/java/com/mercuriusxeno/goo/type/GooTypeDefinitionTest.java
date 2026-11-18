@@ -60,6 +60,8 @@ class GooTypeDefinitionTest {
     private static final int WEIRD_COHESION = 4;
     /** Jelly's cohesion, the stiff rung just below firm (operator ruling 2026-11-17). */
     private static final int JELLY_COHESION = 8;
+    /** Metal's cohesion, the soft rung, so a Spikes coat keeps some thickness where it lands (operator ruling 2026-11-17). */
+    private static final int METAL_COHESION = 2;
     private static final int WEIRD_ADHESION = 3;
     private static final int GLOW_ADHESION = 4;
     private static final int JELLY_ADHESION = 3;
@@ -286,7 +288,7 @@ class GooTypeDefinitionTest {
 
     /**
      * Every bundled type states a cohesion: weird holds a step of 4, blaze the thick rung of 4, jelly the stiff rung of 8,
-     * pulse the firm 15, nether the soft 2, and every other type, kinetic among them, 0.
+     * pulse the firm 15, metal and nether the soft 2, and every other type, kinetic among them, 0.
      * cohesion-is-the-step-the-goo-holds
      * blaze-goo-is-adhesion-four-and-cohesion-five
      * signal-goo-sends-a-redstone-signal-equal-to-its-layers
@@ -297,7 +299,7 @@ class GooTypeDefinitionTest {
     void bundledCohesionMatchesDecision(ResourceKey<GooTypeDefinition> key) throws Exception {
         Map<ResourceKey<GooTypeDefinition>, Integer> stated = Map.of(GooTypes.WEIRD, WEIRD_COHESION,
                 GooTypes.BLAZE, BLAZE_COHESION, GooTypes.JELLY, JELLY_COHESION, GooTypes.PULSE, PULSE_COHESION,
-                GooTypes.NETHER, NETHER_COHESION);
+                GooTypes.METAL, METAL_COHESION, GooTypes.NETHER, NETHER_COHESION);
         assertEquals(stated.getOrDefault(key, 0), decodeBundled(key).cohesion(), key::toString);
     }
 
