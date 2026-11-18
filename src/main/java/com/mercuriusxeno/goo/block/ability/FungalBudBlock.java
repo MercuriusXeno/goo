@@ -70,7 +70,7 @@ public class FungalBudBlock extends Block {
         return MUSHROOMS.get(random.nextInt(MUSHROOMS.size()));
     }
 
-    private static boolean standsOnAFloor(LevelReader level, BlockPos pos) {
+    static boolean standsOnAFloor(LevelReader level, BlockPos pos) {
         BlockPos floor = pos.below();
         return level.getBlockState(floor).isFaceSturdy(level, floor, Direction.UP);
     }
@@ -94,7 +94,7 @@ public class FungalBudBlock extends Block {
 
     /**
      * Stands on a sturdy floor, with no bud, mushroom or fungus beside it on
-     * any of its four sides, so the mushrooms buds grow into never stand
+     * any of its four sides, a goo cell's goologged fungus among them, so the mushrooms buds grow into never stand
      * touching and knock one another off.
      */
     @Override
@@ -112,7 +112,9 @@ public class FungalBudBlock extends Block {
     static boolean hasRoomBeside(LevelReader level, BlockPos pos) {
         for (Direction side : Direction.Plane.HORIZONTAL) {
             BlockState beside = level.getBlockState(pos.relative(side));
-            if (beside.getBlock() instanceof FungalBudBlock || GROWTHS.stream().anyMatch(beside::is)) {
+            // mushrooms-and-buds-are-goo-logged-with-shroom-goo: fungus a goo cell holds stands beside a bud too
+            if (beside.getBlock() instanceof FungalBudBlock || GROWTHS.stream().anyMatch(beside::is)
+                    || GoologgedFungus.holdsFungus(beside)) {
                 return false;
             }
         }

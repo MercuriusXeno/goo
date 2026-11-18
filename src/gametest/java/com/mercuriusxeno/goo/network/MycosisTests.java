@@ -2,6 +2,8 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.program.MycosisStep;
+import com.mercuriusxeno.goo.block.ability.GoologgedFungus;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
@@ -21,6 +23,7 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.NetherWartBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
@@ -31,10 +34,15 @@ import java.util.function.Consumer;
  * Shroom's Mycosis as a world goo through the real paths: one of its
  * stream's drips lays a one-layer Mycosis cell, a zombie standing in the goo
  * carries the mycosis effect and the spores, and an infected zombie dying on
- * bare floor leaves Mycosis goo where it fell. Each test walls its cells in
- * stone so no cell pours its layers away.
+ * bare floor leaves Mycosis goo where it fell; the goo grows a goologged
+ * bud in its own space and buds on the open floor in its reach, and tends
+ * the nether wart there. Each test walls its cells in stone so no cell
+ * pours its layers away.
  * mycosis-is-the-residual-goo-that-infests-with-mushrooms
  * mycosis-goo-infects-what-touches-it-as-the-spray-did
+ * mushrooms-and-buds-are-goo-logged-with-shroom-goo
+ * mycosis-goo-disperses-spores-and-grows-shrooms-nearby-depleting
+ * mycosis-grows-and-reaps-nether-wart
  */
 @RegistersGameTests
 public final class MycosisTests {
@@ -42,6 +50,19 @@ public final class MycosisTests {
     private static final String DRIP_LAYS_A_SHROOM_CELL = "mycosis_drip_lays_a_shroom_cell_of_one_layer";
     private static final String GOO_INFECTS_A_ZOMBIE = "mycosis_goo_infects_a_zombie_standing_in_it";
     private static final String DEAD_LEAVE_GOO = "mycosis_infected_zombie_dying_leaves_goo_where_it_fell";
+    private static final String GROWS_BUDS = "mycosis_goo_grows_a_goologged_bud_and_one_beside_it";
+    private static final String TENDS_WART = "mycosis_goo_grows_and_reaps_nether_wart";
+    /** The full cell the growth test lays, sealed in stone but for one open spot in its reach. */
+    private static final BlockPos GROWING_CELL = new BlockPos(2, 2, 2);
+    /** The one open spot over stone in the growing cell's reach, two blocks east. */
+    private static final BlockPos BUD_SPOT = GROWING_CELL.east(2);
+    /** How far around the growing cell the stone seals, the reach Mycosis ships. */
+    private static final int SEAL_REACH = 2;
+    /** The full cell the tending test lays, with nether wart two blocks either side. */
+    private static final BlockPos TENDING_CELL = new BlockPos(2, 2, 2);
+    private static final BlockPos YOUNG_WART = TENDING_CELL.east(2);
+    private static final BlockPos RIPE_WART = TENDING_CELL.west(2);
+    private static final double ITEM_SEARCH_RADIUS = 1.5;
     private static final Identifier MYCOSIS = Identifier.parse("goo:shroom_mycosis");
     /** The floor block the drip strikes, walled on its four sides one block up. */
     private static final BlockPos DRIP_FLOOR = new BlockPos(2, 1, 2);
@@ -54,6 +75,10 @@ public final class MycosisTests {
     private static final String NOT_INFECTED = "The zombie standing in Mycosis should carry the mycosis effect";
     private static final String NOT_SPORED = "The zombie standing in Mycosis should carry spores";
     private static final String NO_GOO_WHERE_IT_FELL = "The infected zombie should leave Mycosis where it fell, stands %s";
+    private static final String NOT_GROWN = "The cell should hold a goologged bud at %d layers and a bud should stand"
+            + " beside it; the cell stands %s and the spot %s";
+    private static final String NOT_TENDED = "The young wart should age and the ripe one stand replanted at age 0 with"
+            + " its wart dropped; the young stands %s and the ripe %s";
 
     private MycosisTests() {
     }
@@ -67,6 +92,8 @@ public final class MycosisTests {
         GooTestFunctions.registerTest(registrar, DRIP_LAYS_A_SHROOM_CELL, MycosisTests::dripLaysAShroomCell);
         GooTestFunctions.registerTest(registrar, GOO_INFECTS_A_ZOMBIE, MycosisTests::gooInfectsAZombie);
         GooTestFunctions.registerTest(registrar, DEAD_LEAVE_GOO, MycosisTests::infectedZombieDyingLeavesGoo);
+        GooTestFunctions.registerTest(registrar, GROWS_BUDS, MycosisTests::gooGrowsAGoologgedBudAndOneBesideIt);
+        GooTestFunctions.registerTest(registrar, TENDS_WART, MycosisTests::gooGrowsAndReapsNetherWart);
     }
 
     /**
@@ -132,6 +159,63 @@ public final class MycosisTests {
             BlockState left = helper.getBlockState(FELL_CELL);
             helper.assertTrue(left.is(GooBlocks.SHROOM_MYCOSIS.get()), String.format(NO_GOO_WHERE_IT_FELL, left));
         });
+    }
+
+    /**
+     * A full Mycosis cell sealed in stone but for one open spot over stone
+     * two blocks east grows a goologged bud in its own space, the goo still
+     * there, then a bud on that spot, and stands two buds' layers lower.
+     * mushrooms-and-buds-are-goo-logged-with-shroom-goo
+     * mycosis-goo-disperses-spores-and-grows-shrooms-nearby-depleting
+     *
+     * @param helper the gametest helper
+     */
+    public static void gooGrowsAGoologgedBudAndOneBesideIt(GameTestHelper helper) {
+        BlockPos.betweenClosedStream(GROWING_CELL.offset(-SEAL_REACH, -1, -SEAL_REACH),
+                GROWING_CELL.offset(SEAL_REACH, 1, SEAL_REACH)).forEach(pos -> helper.setBlock(pos, Blocks.STONE));
+        helper.setBlock(BUD_SPOT, Blocks.AIR);
+        helper.setBlock(GROWING_CELL, GooBlocks.SHROOM_MYCOSIS.get().defaultBlockState()
+                .setValue(VolumeCellBlock.LAYERS, VolumeCellBlock.MAX_LAYERS));
+        int perBud = MycosisStep.in(mycosis(helper).behaviors()).orElseThrow().layersPerBud();
+        int left = VolumeCellBlock.MAX_LAYERS - 2 * perBud;
+        helper.succeedWhen(() -> {
+            BlockState cell = helper.getBlockState(GROWING_CELL);
+            BlockState spot = helper.getBlockState(BUD_SPOT);
+            helper.assertTrue(cell.is(GooBlocks.SHROOM_MYCOSIS.get()) && GoologgedFungus.in(cell).isBud()
+                    && cell.getValue(VolumeCellBlock.LAYERS) == left && spot.is(GooBlocks.FUNGAL_BUD.get()),
+                    String.format(NOT_GROWN, left, cell, spot));
+        });
+    }
+
+    /**
+     * A full Mycosis cell with a young nether wart two blocks east and a
+     * ripe one two blocks west, each on soul sand, ages the young wart and
+     * reaps the ripe one, dropping its wart and replanting it at age 0.
+     * mycosis-grows-and-reaps-nether-wart
+     *
+     * @param helper the gametest helper
+     */
+    public static void gooGrowsAndReapsNetherWart(GameTestHelper helper) {
+        layFullCell(helper, TENDING_CELL);
+        helper.setBlock(YOUNG_WART.below(), Blocks.SOUL_SAND);
+        helper.setBlock(YOUNG_WART, Blocks.NETHER_WART);
+        helper.setBlock(RIPE_WART.below(), Blocks.SOUL_SAND);
+        helper.setBlock(RIPE_WART, Blocks.NETHER_WART.defaultBlockState().setValue(NetherWartBlock.AGE,
+                NetherWartBlock.MAX_AGE));
+        helper.succeedWhen(() -> {
+            BlockState young = helper.getBlockState(YOUNG_WART);
+            BlockState ripe = helper.getBlockState(RIPE_WART);
+            helper.assertTrue(young.is(Blocks.NETHER_WART) && young.getValue(NetherWartBlock.AGE) > 0
+                    && ripe.is(Blocks.NETHER_WART) && ripe.getValue(NetherWartBlock.AGE) == 0,
+                    String.format(NOT_TENDED, young, ripe));
+            helper.assertItemEntityPresent(Items.NETHER_WART, RIPE_WART, ITEM_SEARCH_RADIUS);
+        });
+    }
+
+    private static AbilityDefinition mycosis(GameTestHelper helper) {
+        AbilityDefinition mycosis = AbilityRegistry.of(helper.getLevel()).getAbility(MYCOSIS);
+        helper.assertTrue(mycosis != null, ABILITY_REQUIRED);
+        return mycosis;
     }
 
     /**
