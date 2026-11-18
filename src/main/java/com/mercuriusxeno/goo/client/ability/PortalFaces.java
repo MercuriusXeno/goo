@@ -80,8 +80,11 @@ public final class PortalFaces {
      */
     static final double HALO_MARGIN = 0.5;
     /**
-     * How far in from its blocks' edges a Tunnel mouth's oval stands on each
-     * way across the face, in blocks: two texels, as the operator set it.
+     * How far in from its blocks' edges a gate's oval stands on each way
+     * across the face, in blocks: two texels, as the operator set it, so a
+     * Portal's and a Tunnel's mouth and the glow around it draw only on the
+     * faces the gate stands on.
+     * portal-mouths-draw-shy-of-their-edges-like-tunnels
      */
     static final double MOUTH_INSET = 2.0 / 16;
     /**
@@ -142,18 +145,16 @@ public final class PortalFaces {
     record Drawn(Gate gate, int rgb, boolean hole) {
 
         /**
-         * The box the gate's oval fills on its face: a portal's whole blocks,
-         * a hole's mouth its blocks drawn in by the mouth inset each way
-         * across the face, so a Tunnel mouth stands shy of its blocks' edges.
-         * The space a body passes through stays the whole blocks.
+         * The box the gate's oval fills on its face: its blocks drawn in by
+         * the mouth inset each way across the face, so a Portal's mouth and a
+         * Tunnel's both stand shy of their blocks' edges. The space a body
+         * passes through and the face a player aims at stay the whole blocks.
          * tunnel-drops-its-crisp-wiggly-outline-and-looks-like-the-portals
+         * portal-mouths-draw-shy-of-their-edges-like-tunnels
          *
          * @return the oval's box, in world space
          */
         AABB ovalBox() {
-            if (!hole) {
-                return gate.blocks();
-            }
             Direction.Axis normal = gate.face().getAxis();
             return gate.blocks().deflate(normal == Direction.Axis.X ? 0 : MOUTH_INSET,
                     normal == Direction.Axis.Y ? 0 : MOUTH_INSET, normal == Direction.Axis.Z ? 0 : MOUTH_INSET);
@@ -264,8 +265,9 @@ public final class PortalFaces {
         VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.GOO_PORTAL_IDLE_TYPE);
         for (Portal portal : blinking) {
             int alpha = blinkAlpha(aimed.isPresent() && aimed.get().equals(portal), time);
-            emitOval(pose, consumer, portal.blocks().move(camera.reverse()), portal.face(),
-                    ARGB.color(alpha, colorOf(portal, ClientPortals.links())));
+            Drawn drawn = new Drawn(portal.gate(), colorOf(portal, ClientPortals.links()), false);
+            emitOval(pose, consumer, drawn.ovalBox().move(camera.reverse()), portal.face(),
+                    ARGB.color(alpha, drawn.rgb()));
         }
         buffers.endBatch(GooRenderTypes.GOO_PORTAL_IDLE_TYPE);
     }
@@ -291,8 +293,9 @@ public final class PortalFaces {
             if (portal.block().dimension().equals(player.level().dimension())) {
                 int alpha = blinking.contains(portal)
                         ? blinkAlpha(aimed.isPresent() && aimed.get().equals(portal), time) : OUTLINE_ALPHA;
-                emitOval(pose, consumer, portal.blocks().move(camera.reverse()), portal.face(),
-                        ARGB.color(alpha, colorOf(portal, ClientPortals.links())));
+                Drawn drawn = new Drawn(portal.gate(), colorOf(portal, ClientPortals.links()), false);
+                emitOval(pose, consumer, drawn.ovalBox().move(camera.reverse()), portal.face(),
+                        ARGB.color(alpha, drawn.rgb()));
             }
         }
         buffers.endBatch(GooRenderTypes.GOO_PORTAL_OUTLINE_TYPE);
