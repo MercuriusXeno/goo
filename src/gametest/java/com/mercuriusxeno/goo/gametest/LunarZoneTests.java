@@ -24,12 +24,18 @@ import java.util.function.Predicate;
  * the middle zone's bare rock caverns, and the warrens' sculk-lined tunnels.
  * decision lunar-underground-changes-by-depth-down-to-a-molten-iron-sea
  * decision middle-caverns-are-bare-rock-with-no-ice-or-glass
+ * decision each-lunar-zone-holds-its-own-deposit-richer-by-depth
  */
 @RegistersGameTests
 public final class LunarZoneTests {
     private static final String LUNAR_SHALLOW_ZONE_HOLDS_RUBBLE_CAVES = "lunar_shallow_zone_holds_rubble_caves";
     private static final String LUNAR_MIDDLE_CAVERNS_ARE_BARE_ROCK = "lunar_middle_caverns_are_bare_rock";
     private static final String LUNAR_WARRENS_TWIST_THROUGH_SCULK = "lunar_warrens_twist_through_sculk";
+    private static final String LUNAR_RUBBLE_CAVES_HOLD_NATIVE_IRON_LODES = "lunar_rubble_caves_hold_native_iron_lodes";
+    /** How many chunks from the origin a deposit scan reaches each way. */
+    private static final int DEPOSIT_CHUNK_REACH = 4;
+    /** The most native iron one chunk holds on average, so a lode stays a find rather than a seam. */
+    private static final int NATIVE_IRON_CEILING_PER_CHUNK = 6;
     /** How far from the origin a scan of the middle zone reaches each way, in blocks. */
     private static final int CAVERN_SCAN_REACH = 64;
 
@@ -51,6 +57,10 @@ public final class LunarZoneTests {
             + "hold no crater ice and no impact glass, holds %d crater ice and %d impact glass, the first at %s";
     private static final String NO_SCULK_TUNNEL = "No air within %d blocks of the origin in the warren zone borders "
             + "sculk";
+    private static final String NATIVE_IRON_IN_SHALLOW_BAND = "The shallow zone over %d chunks should hold between 1 "
+            + "and %d native iron, holds %d";
+    private static final String NO_NATIVE_IRON_BELOW = "The bands under the shallow zone over %d chunks should hold no "
+            + "native iron, hold %d, the first at %s";
     private static final String CAVE_IS_OPEN = "The rubble cave column %s should read air at y %d, reads %s";
     private static final String CAVE_IN_BRECCIA = "The rubble cave column %s should read breccia %s the cave at y %d, "
             + "reads %s";
@@ -70,6 +80,8 @@ public final class LunarZoneTests {
                 LunarZoneTests::lunarMiddleCavernsAreBareRock);
         GooTestFunctions.registerTest(registrar, LUNAR_WARRENS_TWIST_THROUGH_SCULK,
                 LunarZoneTests::lunarWarrensTwistThroughSculk);
+        GooTestFunctions.registerTest(registrar, LUNAR_RUBBLE_CAVES_HOLD_NATIVE_IRON_LODES,
+                LunarZoneTests::lunarRubbleCavesHoldNativeIronLodes);
     }
 
     /**
@@ -164,6 +176,48 @@ public final class LunarZoneTests {
             }
         }
         helper.fail(String.format(NO_SCULK_TUNNEL, CAVERN_SCAN_REACH));
+    }
+
+    /**
+     * Counts goo:native_iron over a square of chunks in goo:lunar, band by band: the shallow zone holds some, under a
+     * ceiling per chunk, and every band under it holds none.
+     * decision native-iron-lodes-are-worth-whole-iron-blocks
+     *
+     * @param helper the gametest helper
+     */
+    public static void lunarRubbleCavesHoldNativeIronLodes(GameTestHelper helper) {
+        ServerLevel lunar = helper.getLevel().getServer().getLevel(Lunar.LEVEL);
+        helper.assertTrue(lunar != null, LUNAR_REQUIRED);
+        int shallow = 0;
+        int below = 0;
+        BlockPos firstBelow = null;
+        BlockPos.MutableBlockPos at = new BlockPos.MutableBlockPos();
+        for (int chunkX = -DEPOSIT_CHUNK_REACH; chunkX < DEPOSIT_CHUNK_REACH; chunkX++) {
+            for (int chunkZ = -DEPOSIT_CHUNK_REACH; chunkZ < DEPOSIT_CHUNK_REACH; chunkZ++) {
+                lunar.getChunk(chunkX, chunkZ);
+                for (int x = chunkX * 16; x < chunkX * 16 + 16; x++) {
+                    for (int z = chunkZ * 16; z < chunkZ * 16 + 16; z++) {
+                        for (int y = LunarDepths.WORLD_FLOOR_Y; y < LunarDepths.SHALLOW_ZONE_TOP_Y; y++) {
+                            if (!lunar.getBlockState(at.set(x, y, z)).is(GooBlocks.NATIVE_IRON.get())) {
+                                continue;
+                            }
+                            if (y >= LunarDepths.CAVERN_ZONE_TOP_Y) {
+                                shallow++;
+                            } else {
+                                below++;
+                                firstBelow = firstBelow == null ? at.immutable() : firstBelow;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        int chunks = 4 * DEPOSIT_CHUNK_REACH * DEPOSIT_CHUNK_REACH;
+        int ceiling = chunks * NATIVE_IRON_CEILING_PER_CHUNK;
+        helper.assertTrue(shallow >= 1 && shallow <= ceiling,
+                String.format(NATIVE_IRON_IN_SHALLOW_BAND, chunks, ceiling, shallow));
+        helper.assertTrue(below == 0, String.format(NO_NATIVE_IRON_BELOW, chunks, below, firstBelow));
+        helper.succeed();
     }
 
     private static boolean bordersSculk(ServerLevel lunar, BlockPos air) {

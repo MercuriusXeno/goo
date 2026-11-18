@@ -1,0 +1,24 @@
+{
+  "variants": {
+    "": [
+      {
+        "model": "goo:block/native_iron"
+      },
+      {
+        "model": "goo:block/native_iron_2"
+      },
+      {
+        "model": "goo:block/native_iron_3"
+      },
+      {
+        "model": "goo:block/native_iron_4"
+      },
+      {
+        "model": "goo:block/native_iron_5"
+      },
+      {
+        "model": "goo:block/native_iron_6"
+      }
+    ]
+  }
+}

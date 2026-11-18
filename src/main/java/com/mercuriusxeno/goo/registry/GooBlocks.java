@@ -611,6 +611,15 @@ public class GooBlocks {
                     .strength(IRON_BLOCK_HARDNESS, IRON_BLOCK_RESISTANCE).sound(SoundType.METAL));
 
     /**
+     * Native iron: solid meteoric iron lying in rare lodes in the rubble caves, worth whole iron blocks, mined like an
+     * iron block.
+     * decision native-iron-lodes-are-worth-whole-iron-blocks
+     */
+    public static final DeferredBlock<Block> NATIVE_IRON = BLOCKS.registerSimpleBlock("native_iron",
+            () -> BlockBehaviour.Properties.of().mapColor(MapColor.METAL).requiresCorrectToolForDrops()
+                    .strength(IRON_BLOCK_HARDNESS, IRON_BLOCK_RESISTANCE).sound(SoundType.METAL));
+
+    /**
      * Impact glass: lunar's regolith melted where meteorites struck, dark glass that holds back light as tinted
      * glass does, mined like glass.
      * decision lunar-ground-gains-meteoric-iron-impact-glass-breccia-and-crater-ice
