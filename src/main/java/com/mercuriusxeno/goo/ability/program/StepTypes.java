@@ -83,6 +83,7 @@ public final class StepTypes {
         register(HostStep.TYPE);
         register(RimeStep.TYPE);
         register(LeechGooStep.TYPE);
+        register(VinesStep.TYPE);
         register(EntitiesStep.TYPE);
         register(ParticlesStep.TYPE);
         register(SoundStep.TYPE);
@@ -150,7 +151,6 @@ public final class StepTypes {
         register(AstralLunarStep.TYPE);
         register(MeteorStep.TYPE);
         register(WormholeStep.TYPE);
-        register(RootStep.TYPE);
         register(HitOrMissStep.TYPE);
         register(BloomStep.TYPE);
         register(TickPlantsStep.TYPE);

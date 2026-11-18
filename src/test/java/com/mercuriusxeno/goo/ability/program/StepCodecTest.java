@@ -79,6 +79,7 @@ class StepCodecTest {
             Map.entry("host", new HostStep(3, 8)),
             Map.entry("rime", new RimeStep(3, 20, 1, 4, 1.0F, 20)),
             Map.entry("leech_goo", new LeechGooStep(0.5, 0.3f, 0.1, 0.01, 10)),
+            Map.entry("vines", new VinesStep(1.5f, 1)),
             Map.entry("entities", new EntitiesStep(SelectionShape.SPHERE, Expr.literal(2.5),
                     List.of(EntityFilter.LIVING, EntityFilter.NOT_FIRE_IMMUNE),
                     List.of(LeafSteps.IGNITE.step(Expr.literal(5))))),
@@ -190,9 +191,8 @@ class StepCodecTest {
                     Expr.literal(2.6), Expr.literal(0.45), Expr.literal(0.2), Expr.literal(10), Expr.literal(5),
                     Expr.literal(6), Expr.literal(0.5))),
             Map.entry("hasten_regrow", new HastenRegrowStep(Expr.literal(2))),
-            Map.entry("root", new RootStep(Expr.literal(60), Expr.literal(4), Expr.literal(1), Expr.literal(1.5))),
             Map.entry("hit_or_miss", new HitOrMissStep(
-                    List.of(new RootStep(Expr.literal(60), Expr.literal(4), Expr.literal(1), Expr.literal(1.5))),
+                    List.of(LeafSteps.IGNITE.step(Expr.literal(5))),
                     List.of(new LingerStep(List.of(LeafSteps.DISCARD.step(Unit.INSTANCE)))))),
             Map.entry("charm", new CharmStep()),
             Map.entry("phase", new PhaseStep(Optional.of(Expr.literal(600)))),

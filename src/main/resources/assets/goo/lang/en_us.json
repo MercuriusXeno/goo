@@ -133,6 +133,7 @@
   "block.goo.jelly_nectar": "Nectar",
   "block.goo.pulse_signal": "Signal",
   "block.goo.nether_infest": "Infest",
+  "block.goo.leaf_vines": "Vines",
 
   "goo.badge.world": "World",
   "goo.badge.mob": "Mob",
@@ -268,7 +269,8 @@
   "goo.ability.leaf.barkskin": "Barkskin",
   "goo.ability.leaf.barkskin.description": "Regrowing bark hearts shield yours and thorn melee attackers, but fire and axes hit them hard.",
   "goo.ability.leaf.vines": "Vines",
-  "goo.ability.leaf.vines.description": "Thorny vines root a mob, leaving it weak to fire, or lie on the ground as a trap.",
+  "goo.ability.leaf.vines.cost_mechanics": "Costs %s per block of Vines laid, a fifteenth of it per layer.",
+  "goo.ability.leaf.vines.description": "Held stream sprays Vines, a leafy goo that entangles whatever tries to cross it.",
   "goo.ability.leaf.bloom": "Bloom",
   "goo.ability.leaf.bloom.description": "Spawns plants by chance around where the blob strikes.",
   "goo.ability.leaf.growth": "Growth",
