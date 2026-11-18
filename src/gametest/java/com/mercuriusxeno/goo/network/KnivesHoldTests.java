@@ -115,27 +115,27 @@ public final class KnivesHoldTests {
     private static final double HALF_A_BLOCK = 0.5;
     /** A knife's speed as it leaves, in blocks a tick (crystal_knives.json). */
     private static final double KNIFE_SPEED = 1.5;
-    private static final String KNIVES_THROW_ONE_PER_THREE_TICKS_WHILE_LEFT_CLICK_IS_HELD =
-            "knives_throw_one_per_three_ticks_while_left_click_is_held";
-    private static final String KNIVES_THREE_TICKS_APART_BOTH_DAMAGE_ONE_MOB =
-            "knives_three_ticks_apart_both_damage_one_mob";
-    /** The read a tick past the 6th after the press, which sees the throw the 6th tick's server tick lands. */
-    private static final int READ_SIX_TICKS_ON = 7;
+    private static final String KNIVES_THROW_A_VOLLEY_EVERY_FIVE_TICKS_WHILE_LEFT_CLICK_IS_HELD =
+            "knives_throw_a_volley_every_five_ticks_while_left_click_is_held";
+    private static final String KNIVES_FIVE_TICKS_APART_BOTH_DAMAGE_ONE_MOB =
+            "knives_five_ticks_apart_both_damage_one_mob";
+    /** The read a tick past the 5th after the press, which sees the second volley the 5th tick's server tick lands. */
+    private static final int READ_SIX_TICKS_ON = 6;
     private static final int NINE_TICKS = 9;
-    /** 5 on the press, 3 of the 5 left 3 ticks on, and 2 of the 3 held 6 ticks on, the knife the clock formed among them. */
+    /** 5 on the press, then 3 of the 5 left 5 ticks on. */
     private static final int FIRST_VOLLEY = 5;
-    private static final int THREE_VOLLEYS = 10;
+    private static final int TWO_VOLLEYS = 8;
     private static final String SHOULD_THROW_ON_THE_HOLD = "Holding left click should throw half the knives held on"
-            + " the press, 5, then half of those left every 3 ticks, 10 by 6 ticks later, and none more in the 9 ticks"
+            + " the press, 5, then half of those left every 5 ticks, 8 by 6 ticks later, and none more in the 9 ticks"
             + " after it lifts; thrown %s";
-    /** The 1 knife left of the third volley. */
-    private static final int HELD_BENEATH_THE_THROW = 1;
-    private static final String SHOULD_CHARGE_BENEATH = "The charge should run on beneath the throw, 1 held"
+    /** The 2 left of the second volley and the knife the clock formed 6 ticks after the first. */
+    private static final int HELD_BENEATH_THE_THROW = 3;
+    private static final String SHOULD_CHARGE_BENEATH = "The charge should run on beneath the throw, 3 held"
             + " 6 ticks on; held %s";
     /** An unarmored pig 3 blocks ahead, in the knives' path. */
     private static final BlockPos PIG_POS = new BlockPos(8, 1, 4);
     private static final float DAMAGE_WITHIN = 1e-3f;
-    private static final String SHOULD_BOTH_DAMAGE = "Two knives 3 ticks apart should take %s from the pig,"
+    private static final String SHOULD_BOTH_DAMAGE = "Two knives 5 ticks apart should take %s from the pig,"
             + " twice one knife's %s; it lost %s";
     private static final String FIELD_COST = "cost";
     /** A cost of 12 1/2 mB, written as the decimal an ability file may write. */
@@ -184,10 +184,10 @@ public final class KnivesHoldTests {
                 KnivesHoldTests::knivesDoNotTurnTowardAMobThatMoves);
         GooTestFunctions.registerTest(registrar, KNIVES_PASS_BETWEEN_FENCE_RAILS_AND_STOP_ON_A_RAIL,
                 KnivesHoldTests::knivesPassBetweenFenceRailsAndStopOnARail);
-        GooTestFunctions.registerTest(registrar, KNIVES_THROW_ONE_PER_THREE_TICKS_WHILE_LEFT_CLICK_IS_HELD,
-                KnivesHoldTests::knivesThrowOnePerThreeTicksWhileLeftClickIsHeld);
-        GooTestFunctions.registerTest(registrar, KNIVES_THREE_TICKS_APART_BOTH_DAMAGE_ONE_MOB,
-                KnivesHoldTests::knivesThreeTicksApartBothDamageOneMob);
+        GooTestFunctions.registerTest(registrar, KNIVES_THROW_A_VOLLEY_EVERY_FIVE_TICKS_WHILE_LEFT_CLICK_IS_HELD,
+                KnivesHoldTests::knivesThrowAVolleyEveryFiveTicksWhileLeftClickIsHeld);
+        GooTestFunctions.registerTest(registrar, KNIVES_FIVE_TICKS_APART_BOTH_DAMAGE_ONE_MOB,
+                KnivesHoldTests::knivesFiveTicksApartBothDamageOneMob);
         GooTestFunctions.registerTest(registrar, KNIVES_THROW_HALF_THE_HELD_ROUNDED_UP,
                 KnivesHoldTests::knivesThrowHalfTheHeldRoundedUp);
         GooTestFunctions.registerTest(registrar, KNIVES_FLY_FROM_THEIR_SLOT_STRAIGHT_AHEAD,
@@ -196,15 +196,15 @@ public final class KnivesHoldTests {
 
     /**
      * A mock player holding 10 knives, the charge stopped at its cap, holds
-     * left click: the hold has thrown 1 knife on the press and 3 by 6 ticks
-     * later, the server's tick landing the 6th tick's throw before the 7th
-     * tick reads, the charge running on beneath the throw to hold 8 then;
+     * left click: the hold throws half its knives on the press, 5, and half
+     * the 5 left 5 ticks later, 8 by the 6th tick, the charge running on
+     * beneath the throw to hold 3 then;
      * once left click lifts, it throws none in the 9 ticks after.
      * decision knives-throw-one-per-two-ticks-while-left-click-is-held
      *
      * @param helper the gametest helper
      */
-    public static void knivesThrowOnePerThreeTicksWhileLeftClickIsHeld(GameTestHelper helper) {
+    public static void knivesThrowAVolleyEveryFiveTicksWhileLeftClickIsHeld(GameTestHelper helper) {
         ServerPlayer caster = casterHolding(helper, TWELVE_PRICES);
         standAt(helper, caster, Vec3.atBottomCenterOf(CASTER_POS), 0f);
         GooServerState state = GooServerState.of(helper.getLevel().getServer());
@@ -224,7 +224,7 @@ public final class KnivesHoldTests {
         helper.runAfterDelay(TEN_KNIVES_TICKS + READ_SIX_TICKS_ON + NINE_TICKS, () -> {
             thrown.add(state.knifeHolds().thrownBy(caster));
             helper.getLevel().getServer().getPlayerList().remove(caster);
-            helper.assertTrue(thrown.equals(List.of(FIRST_VOLLEY, THREE_VOLLEYS, THREE_VOLLEYS)),
+            helper.assertTrue(thrown.equals(List.of(FIRST_VOLLEY, TWO_VOLLEYS, TWO_VOLLEYS)),
                     String.format(SHOULD_THROW_ON_THE_HOLD, thrown));
             helper.assertTrue(heldSixTicksOn[0] == HELD_BENEATH_THE_THROW,
                     String.format(SHOULD_CHARGE_BENEATH, heldSixTicksOn[0]));
@@ -234,13 +234,13 @@ public final class KnivesHoldTests {
 
     /**
      * A mock player holding 2 knives holds left click at an unarmored pig in
-     * the path: both knives strike it 3 ticks apart, and it loses twice one
+     * the path: both knives strike it 5 ticks apart, and it loses twice one
      * knife's damage, the second knife landing through the first's i-frames.
      * decision knives-throw-one-per-two-ticks-while-left-click-is-held
      *
      * @param helper the gametest helper
      */
-    public static void knivesThreeTicksApartBothDamageOneMob(GameTestHelper helper) {
+    public static void knivesFiveTicksApartBothDamageOneMob(GameTestHelper helper) {
         layTheFloor(helper);
         Mob pig = helper.spawnWithNoFreeWill(EntityType.PIG, PIG_POS);
         ServerPlayer caster = casterHolding(helper, TWO_PRICES);
