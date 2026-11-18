@@ -40,7 +40,7 @@ public final class HivePrismStyle implements PrismComboStyle {
      * @param quartzColor the plain prism's ARGB
      * @return the column's ARGB
      */
-    static int columnColor(int quartzColor) {
+    public static int columnColor(int quartzColor) {
         return ARGB.color(ARGB.alpha(quartzColor), MEAT_BROWN);
     }
 }
