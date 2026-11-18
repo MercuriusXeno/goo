@@ -17,7 +17,7 @@
     "sound": { "id": "minecraft:block.honey_block.slide", "every": 10, "volume": 1.0, "pitch": 1.0, "pitch_spread": 0.1 }
   },
   "behaviors": [
-    { "type": "phase_goo", "linger_seconds_per_layer": 2 }
+    { "type": "phase_goo" }
   ],
   "tags": ["stream"]
 }
