@@ -4,33 +4,35 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.Test;
 import java.util.Optional;
-import java.util.stream.LongStream;
+import java.util.stream.IntStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
- * What a Spores cell emits: its spore particle at the cell on each period,
- * nothing between periods.
+ * What a Spores cell emits on a display tick: its spore particle at the cell
+ * for a roll under the tuned chance, nothing for a roll at or over it, as
+ * mycelium puffs its own.
  * spores-is-shrooms-residual-a-passive-mycosis
+ * operator ruling 2026-11-18: give them a random tick chance on these spores
  */
 class SporesStepTest {
 
     private static final Identifier SPORE = Identifier.fromNamespaceAndPath("goo", "spore");
-    private static final int PERIOD = 20;
+    private static final float CHANCE = 0.1f;
     private static final BlockPos CELL = new BlockPos(3, 64, -7);
-    private static final SporesStep SPORES = new SporesStep(PERIOD, 1, SPORE,
+    private static final SporesStep SPORES = new SporesStep(20, 1, SPORE, CHANCE,
             Identifier.fromNamespaceAndPath("goo", "shroom_mycosis"), 3f, 600, 3);
-    private static final long PERIODS = 5;
+    private static final int STEPS = 100;
 
     @Test
-    void emitsItsSporesAtTheCellOnEachPeriod() {
-        LongStream.range(0, PERIODS).map(period -> period * PERIOD).forEach(time -> assertEquals(
-                Optional.of(new SporesStep.SporeEmission(SPORE, CELL)), SPORES.emissionAt(time, CELL), "tick " + time));
+    void emitsItsSporesAtTheCellForARollUnderTheChance() {
+        IntStream.range(0, STEPS).mapToObj(step -> CHANCE * step / STEPS).forEach(roll -> assertEquals(
+                Optional.of(new SporesStep.SporeEmission(SPORE, CELL)), SPORES.emissionFor(roll, CELL), "roll " + roll));
     }
 
     @Test
-    void emitsNothingBetweenPeriods() {
-        LongStream.range(0, PERIODS * PERIOD).filter(time -> time % PERIOD != 0).forEach(time -> assertEquals(
-                Optional.empty(), SPORES.emissionAt(time, CELL), "tick " + time));
+    void emitsNothingForARollAtOrOverTheChance() {
+        IntStream.range(0, STEPS).mapToObj(step -> CHANCE + (1 - CHANCE) * step / STEPS).forEach(roll -> assertEquals(
+                Optional.empty(), SPORES.emissionFor(roll, CELL), "roll " + roll));
     }
 }

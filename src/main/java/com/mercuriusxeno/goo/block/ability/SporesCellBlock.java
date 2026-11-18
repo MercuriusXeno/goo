@@ -23,8 +23,8 @@ import java.util.stream.Stream;
 
 /**
  * Shroom's Spores cell: the volume cell bound to Spores' goo, a passive
- * Mycosis. On each of its periods it emits its spore particle and places one
- * fungal bud at age 0 on an edge space, a space beside the goo, at its level
+ * Mycosis. Now and then it puffs its spore particle, as mycelium does, and
+ * on each of its periods it places one fungal bud at age 0 on an edge space, a space beside the goo, at its level
  * or just above, that holds nothing and where a fungal bud can stand,
  * spending the fixed layers a bud costs, as SporesGrowth chooses. It ages
  * nothing already standing, so the goo grows to buds and stops and the buds
@@ -41,13 +41,8 @@ public class SporesCellBlock extends VolumeCellBlock {
 
     /** How far over the cell's top its spores rise from. */
     private static final double SPORE_LIFT = 0.2;
-    /** The spores emitted a period. */
-    private static final int SPORE_COUNT = 6;
-    /** How far across the cell the spores spread. */
-    private static final double SPORE_SPREAD = 0.3;
-    /** How fast the spores drift. */
+    /** How fast a puffed spore drifts up. */
     private static final double SPORE_SPEED = 0.01;
-    private static final double HALF = 0.5;
 
     /**
      * Creates a Spores cell.
@@ -60,8 +55,8 @@ public class SporesCellBlock extends VolumeCellBlock {
     }
 
     /**
-     * Pours as any cell does, then, where the cell still stands, emits its
-     * spores and buds an edge on a period's tick, and keeps a tick coming, a
+     * Pours as any cell does, then, where the cell still stands, buds an edge
+     * on a period's tick, and keeps a tick coming, a
      * pending pour's or the next period's.
      */
     @Override
@@ -73,7 +68,6 @@ public class SporesCellBlock extends VolumeCellBlock {
         }
         SporesStep.in(layingProgram(level)).ifPresent(spores -> {
             long now = level.getGameTime();
-            spores.emissionAt(now, pos).ifPresent(emission -> emit(level, emission));
             if (spores.onPeriod(now)) {
                 budAnEdge(level, pos, spores);
             }
@@ -84,17 +78,18 @@ public class SporesCellBlock extends VolumeCellBlock {
     }
 
     /**
-     * Sends the cell's spore particle rising off its top.
-     *
-     * @param level    the server level
-     * @param emission what the cell emits and where
+     * Puffs the cell's spore particle off its top now and then, on the chance
+     * the step tunes, as mycelium puffs its own; the client draws it alone.
+     * operator ruling 2026-11-18: give them a random tick chance on these spores
      */
-    private static void emit(ServerLevel level, SporesStep.SporeEmission emission) {
-        BlockPos cell = emission.cell();
-        SimpleParticles.resolve(emission.particle()).ifPresent(particle -> level.sendParticles(particle,
-                cell.getX() + HALF, cell.getY() + layersOf(level.getBlockState(cell)) / (double) MAX_LAYERS
-                        + SPORE_LIFT, cell.getZ() + HALF, SPORE_COUNT, SPORE_SPREAD, SPORE_LIFT, SPORE_SPREAD,
-                SPORE_SPEED));
+    @Override
+    public void animateTick(@NonNull BlockState state, @NonNull Level level, @NonNull BlockPos pos,
+                            @NonNull RandomSource random) {
+        SporesStep.in(layingProgram(level)).flatMap(spores -> spores.emissionFor(random.nextFloat(), pos))
+                .flatMap(emission -> SimpleParticles.resolve(emission.particle()))
+                .ifPresent(particle -> level.addParticle(particle, pos.getX() + random.nextDouble(),
+                        pos.getY() + layersOf(state) / (double) MAX_LAYERS + SPORE_LIFT,
+                        pos.getZ() + random.nextDouble(), 0, SPORE_SPEED, 0));
     }
 
     /**
