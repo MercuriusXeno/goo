@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.ability.astral.LunarSight;
 import com.mercuriusxeno.goo.client.zone.LunarSky;
 import net.minecraft.world.phys.Vec3;
+import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -163,6 +164,25 @@ class LunarTripTest {
             assertTrue(rises(progress -> LunarTrip.planetHalfTangent((float) progress)));
         }
 
+        /**
+         * decision diagnose-and-correct-the-moon-twitch-on-the-first-grab
+         */
+        @Test
+        void theTripHomesPlanetAtRestStandsOnLunarsSkyPlanetQuad() {
+            for (float angle : new float[] {0F, 40F, 300F}) {
+                List<Vector3f> trip = LunarTripBodies.planetCorners(LunarSight.moonDirection(angle),
+                        LunarTrip.planetHalfTangent(0F));
+                List<Vector3f> sky = LunarSky.planetCorners(angle);
+                for (int corner = 0; corner < trip.size(); corner++) {
+                    String at = "corner " + corner + " at " + angle + ": trip " + trip.get(corner) + " against sky "
+                            + sky.get(corner);
+                    assertEquals(sky.get(corner).x(), trip.get(corner).x(), 1e-3, at);
+                    assertEquals(sky.get(corner).y(), trip.get(corner).y(), 1e-3, at);
+                    assertEquals(sky.get(corner).z(), trip.get(corner).z(), 1e-3, at);
+                }
+            }
+        }
+
         @Test
         void theTripHomeDrawsThePlanetDiscAtTheFixationsDirectionAtItsSwollenSize() {
             for (float progress : new float[] {0F, 0.5F, 0.9F}) {
@@ -171,11 +191,54 @@ class LunarTripTest {
                 Vector3f center = new Vector3f();
                 corners.forEach(center::add);
                 center.div(corners.size());
-                assertEquals(FIXATION_DIRECTION.x(), center.x(), QUAD_TOLERANCE, "at " + progress);
-                assertEquals(FIXATION_DIRECTION.y(), center.y(), QUAD_TOLERANCE, "at " + progress);
-                assertEquals(FIXATION_DIRECTION.z(), center.z(), QUAD_TOLERANCE, "at " + progress);
-                assertEquals(halfTangent * Math.sqrt(2), corners.get(0).distance(center), QUAD_TOLERANCE,
+                float distance = center.length();
+                Vector3f along = new Vector3f(center).div(distance);
+                assertEquals(FIXATION_DIRECTION.x(), along.x(), QUAD_TOLERANCE, "at " + progress);
+                assertEquals(FIXATION_DIRECTION.y(), along.y(), QUAD_TOLERANCE, "at " + progress);
+                assertEquals(FIXATION_DIRECTION.z(), along.z(), QUAD_TOLERANCE, "at " + progress);
+                assertEquals(halfTangent * Math.sqrt(2), corners.get(0).distance(center) / distance, QUAD_TOLERANCE,
                         "at " + progress);
+            }
+        }
+    }
+
+    /**
+     * decision diagnose-and-correct-the-moon-twitch-on-the-first-grab
+     */
+    @Nested
+    class MoonAsTheHoldTakes {
+        /** Vanilla's sky: SkyRenderer turns its moon a quarter turn about y, then the moon angle about x. */
+        private static final float VANILLA_SKY_TURN = (float) Math.toRadians(-90.0);
+        private static final float VANILLA_MOON_DISTANCE = 100F;
+        private static final float VANILLA_MOON_HALF_WIDTH = 20F;
+        /** How far the moon angle runs in a tick: a full turn over a day of 24000 ticks. */
+        private static final float DEGREES_A_TICK = 360F / 24000F;
+        private static final float[] TICK_ANGLES = {0F, 30F, 85F, 300F, 337.5F};
+        private static final float[] PARTIAL_TICKS = {0F, 0.25F, 0.5F, 0.99F};
+        private static final float CORNER_TOLERANCE = 1e-3F;
+
+        private static List<Vector3f> vanillaMoonCorners(float moonAngle) {
+            Matrix4f pose = new Matrix4f().rotateY(VANILLA_SKY_TURN).rotateX(moonAngle)
+                    .translate(0F, VANILLA_MOON_DISTANCE, 0F)
+                    .scale(VANILLA_MOON_HALF_WIDTH, 1F, VANILLA_MOON_HALF_WIDTH);
+            return LunarSky.FLAT_QUAD.stream().map(corner -> pose.transformPosition(corner, new Vector3f())).toList();
+        }
+
+        @Test
+        void theTripsMoonAtRestStandsOnVanillasMoonQuadAtEveryFrameAngle() {
+            for (float tickAngle : TICK_ANGLES) {
+                for (float partial : PARTIAL_TICKS) {
+                    float frameAngle = (float) Math.toRadians(tickAngle + partial * DEGREES_A_TICK);
+                    List<Vector3f> trip = LunarTripBodies.moonCorners(frameAngle, LunarTrip.moonHalfTangent(0F));
+                    List<Vector3f> vanilla = vanillaMoonCorners(frameAngle);
+                    for (int corner = 0; corner < trip.size(); corner++) {
+                        String at = "corner " + corner + " at " + tickAngle + " degrees, partial " + partial
+                                + ": trip " + trip.get(corner) + " against vanilla " + vanilla.get(corner);
+                        assertEquals(vanilla.get(corner).x(), trip.get(corner).x(), CORNER_TOLERANCE, at);
+                        assertEquals(vanilla.get(corner).y(), trip.get(corner).y(), CORNER_TOLERANCE, at);
+                        assertEquals(vanilla.get(corner).z(), trip.get(corner).z(), CORNER_TOLERANCE, at);
+                    }
+                }
             }
         }
     }
