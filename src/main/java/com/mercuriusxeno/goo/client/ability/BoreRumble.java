@@ -22,7 +22,7 @@ import java.util.List;
 
 /**
  * Bore's louder rumble: while the local player's bore is making progress
- * destroying blocks, Spire's earth rumble loops at their ears louder than
+ * destroying blocks, Build's earth rumble loops at their ears louder than
  * the ambient whir the bore's stream loops the whole time it is held, and
  * fades out once no block is breaking.
  * decision bore-loops-spires-earth-rumble

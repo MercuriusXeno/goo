@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:build_lifts_a_wall_of_ground_on_stone",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 60,
+  "setup_ticks": 0,
+  "required": true
+}

@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
-import com.mercuriusxeno.goo.ability.SpireGrowth;
+import com.mercuriusxeno.goo.ability.BuildGrowth;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
@@ -8,7 +8,7 @@ import net.minecraft.world.phys.Vec3;
 import java.util.OptionalDouble;
 
 /**
- * The {@link StepHost} over a Spire's submitted footprint: the stone it
+ * The {@link StepHost} over a Build's submitted footprint: the stone it
  * grows, acted on in the tick the submit lands, its particles and sound
  * reaching out from the footprint's center.
  * decision spire-grows-stone-out-of-the-top
@@ -16,7 +16,7 @@ import java.util.OptionalDouble;
  * @param level  the server level
  * @param growth the planned growth
  */
-public record FootprintHost(ServerLevel level, SpireGrowth growth) implements RaiseGroundHost {
+public record FootprintHost(ServerLevel level, BuildGrowth growth) implements RaiseGroundHost {
 
     private static final double HALF = 0.5;
 
