@@ -22,17 +22,20 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.joml.Vector3f;
 import org.jspecify.annotations.Nullable;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
+import java.util.SplittableRandom;
 
 /**
  * Spikes goo bristling as this client sees it: each Spikes cell near the
  * camera lies flat until a living thing comes near, as Shatter's shards
- * rise, then five steel triangular pyramids grow out of the blob's midline,
+ * rise, then steel triangular pyramids grow out of the blob's midline,
  * keeping their shape, and shrink back into it once nothing living is near.
- * The pyramids stand in a quincunx, four near the corners and one in the
- * middle, nudged a little by a seed the client picks, so none stands nearer
- * another than the least spacing, in the cell or against its neighbours.
+ * Each cell draws its own seed, and from it its own number of pyramids and
+ * their spots at random, a spot too near one already placed drawn again, so
+ * no two tiles look alike and none stands nearer another than the least
+ * spacing; keeping half that spacing in from the cell's edge holds it
+ * against the neighbouring cells too.
  * Each face carries one shade under a fixed light, dark steel to bright,
  * so the faces read apart and the edges show, with no highlight sweeping
  * (operator UAT 2026-11-17).
@@ -44,18 +47,16 @@ public final class SpikesBristle {
 
     /** A spike's sides: a triangular pyramid. */
     static final int PYRAMID_SIDES = 3;
-    /** The pyramids one cell bristles with, the quincunx's five. */
-    static final int PYRAMIDS_PER_CELL = 5;
-    /** Where the quincunx's corner pyramids stand, across and along the cell. */
-    static final float NEAR_EDGE = 0.25f;
-    /** Where the quincunx's middle pyramid stands, across and along the cell. */
-    static final float MIDDLE = 0.5f;
-    /** How far a seed nudges a pyramid from its quincunx place, either way on each axis. */
-    static final float NUDGE = 0.03f;
-    /** The closest two pyramids stand, in blocks, in a cell or across neighbouring cells. */
+    /** The fewest pyramids a cell bristles with (operator pick 2026-11-17). */
+    static final int FEWEST_PYRAMIDS = 3;
+    /** The most pyramids a cell bristles with (operator pick 2026-11-17). */
+    static final int MOST_PYRAMIDS = 7;
+    /** The closest two pyramids stand, in blocks, in a cell or across neighbouring cells (operator pick 2026-11-17). */
     static final double LEAST_SPACING = 0.25;
-    /** How far in from the cell's edge a pyramid's center stands, so its base stays on the cell. */
-    static final float EDGE_INSET = 0.18f;
+    /** How far in from the cell's edge a pyramid's center stands: half the least spacing, so neighbours keep it too. */
+    static final float EDGE_INSET = (float) (LEAST_SPACING / 2);
+    /** The draws a pyramid's spot gets before the cell settles for fewer pyramids. */
+    private static final int DRAWS_PER_SPOT = 40;
     /** The shortest bristling pyramid, in blocks. */
     static final float LEAST_HEIGHT = 0.22f;
     /** How much taller than the shortest a bristling pyramid may stand, in blocks. */
@@ -76,9 +77,6 @@ public final class SpikesBristle {
     private static final float HALF = 0.5f;
     private static final double TWO_PI = 2 * Math.PI;
     private static final int RGB = 0xFFFFFF;
-    private static final float[][] QUINCUNX = {
-        {NEAR_EDGE, NEAR_EDGE}, {1f - NEAR_EDGE, NEAR_EDGE}, {MIDDLE, MIDDLE},
-        {NEAR_EDGE, 1f - NEAR_EDGE}, {1f - NEAR_EDGE, 1f - NEAR_EDGE}};
 
     private static final NearCells<Layout> CELLS = new NearCells<>(SpikesBristle::isSpikes,
             SpikesBristle::layoutFromSeed);
@@ -106,25 +104,31 @@ public final class SpikesBristle {
     }
 
     /**
-     * The pyramids a seed puts on a cell: one at each place of the
-     * quincunx, nudged at most {@link #NUDGE} each way, at a height between
-     * the shortest and the tallest.
+     * The pyramids a seed puts on a cell: as many as the seed draws between
+     * the fewest and the most, each at a random spot inset from the cell's
+     * edge, a spot within the least spacing of one already placed drawn
+     * again, at a random height between the shortest and the tallest. The
+     * seed is mixed before use, so cells whose seeds lie close still differ.
      *
      * @param seed the cell's seed
      * @return the cell's layout
      */
     static Layout layoutFromSeed(long seed) {
-        Random random = new Random(seed);
-        Pyramid[] pyramids = new Pyramid[QUINCUNX.length];
-        for (int place = 0; place < QUINCUNX.length; place++) {
-            pyramids[place] = new Pyramid(QUINCUNX[place][0] + nudge(random), QUINCUNX[place][1] + nudge(random),
-                    LEAST_HEIGHT + random.nextFloat() * HEIGHT_SPREAD);
+        SplittableRandom random = new SplittableRandom(seed);
+        int wanted = FEWEST_PYRAMIDS + random.nextInt(MOST_PYRAMIDS - FEWEST_PYRAMIDS + 1);
+        List<Pyramid> pyramids = new ArrayList<>();
+        for (int draw = 0; draw < wanted * DRAWS_PER_SPOT && pyramids.size() < wanted; draw++) {
+            float x = spotFrom(random);
+            float z = spotFrom(random);
+            if (pyramids.stream().allMatch(placed -> Math.hypot(placed.x() - x, placed.z() - z) >= LEAST_SPACING)) {
+                pyramids.add(new Pyramid(x, z, LEAST_HEIGHT + (float) random.nextDouble() * HEIGHT_SPREAD));
+            }
         }
-        return new Layout(List.of(pyramids));
+        return new Layout(List.copyOf(pyramids));
     }
 
-    private static float nudge(Random random) {
-        return (random.nextFloat() - HALF) * (NUDGE + NUDGE);
+    private static float spotFrom(SplittableRandom random) {
+        return EDGE_INSET + (float) random.nextDouble() * (1f - EDGE_INSET - EDGE_INSET);
     }
 
     /**

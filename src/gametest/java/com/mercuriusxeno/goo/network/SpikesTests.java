@@ -20,12 +20,14 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.animal.pig.Pig;
 import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
@@ -65,6 +67,11 @@ public final class SpikesTests {
     private static final String SPIKES_SPARE_THEIR_SPRAYER = "spikes_spare_the_player_who_sprayed_them";
     private static final String SPRAYER_HURT = "The player who sprayed the Spikes goo should stand on it unhurt for %d"
             + " ticks: %.2f at the start, %.2f now";
+    private static final String SPIKES_STRIKE_WITH_NO_TICK = "spikes_impale_a_pig_on_a_cell_with_no_tick_pending";
+    private static final String PIG_SPARED = "A pig standing on a full Spikes cell with no tick pending should have lost"
+            + " at least %.2f health in %d ticks: %.2f at the start, %.2f now";
+    /** Ticks the pig stands on the goo, a few cooldowns. */
+    private static final int PIG_TICKS = 40;
     private static final String NOT_CROSSED = "The zombie has not crossed the Spikes cell yet";
     private static final String NOT_IMPALED = "A zombie that crossed a full Spikes cell should have lost at least %.2f"
             + " health: %.2f at the start, %.2f now";
@@ -84,6 +91,8 @@ public final class SpikesTests {
                 SpikesTests::spikesImpaleAPlayerStandingStillOnThem);
         GooTestFunctions.registerTest(registrar, SPIKES_SPARE_THEIR_SPRAYER,
                 SpikesTests::spikesSpareThePlayerWhoSprayedThem);
+        GooTestFunctions.registerTest(registrar, SPIKES_STRIKE_WITH_NO_TICK,
+                SpikesTests::spikesImpaleAPigOnACellWithNoTickPending);
     }
 
     /**
@@ -196,6 +205,35 @@ public final class SpikesTests {
             float now = player.getHealth();
             helper.getLevel().getServer().getPlayerList().remove(player);
             helper.assertTrue(now >= started, String.format(SPRAYER_HURT, STANDING_TICKS, started, now));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A pig stands on a full Spikes cell sunk in stone whose block ticks are
+     * cleared, as a cell sprayed before a strike ran on the cell's tick has
+     * none, or one still pouring has only its slow pour tick pending; within
+     * a few cooldowns the pig has lost at least the strike's damage, so
+     * whether the goo strikes never hangs on the cell's tick.
+     * spikes-is-a-coat-of-metal-goo-that-impales-what-walks-on-it
+     *
+     * @param helper the gametest helper
+     */
+    public static void spikesImpaleAPigOnACellWithNoTickPending(GameTestHelper helper) {
+        AbilityDefinition spikes = AbilityRegistry.of(helper.getLevel()).getAbility(SPIKES);
+        helper.assertTrue(spikes != null, ABILITY_REQUIRED);
+        float strikeDamage = strikeDamageOf(spikes);
+        BlockPos cell = STAND_FLOOR;
+        sinkInStone(helper, cell);
+        helper.setBlock(cell, GooBlocks.METAL_SPIKES.get().defaultBlockState()
+                .setValue(VolumeCellBlock.LAYERS, VolumeCellBlock.MAX_LAYERS));
+        BlockPos absolute = helper.absolutePos(cell);
+        helper.getLevel().getBlockTicks().clearArea(new BoundingBox(absolute));
+        Pig pig = helper.spawnWithNoFreeWill(EntityType.PIG, cell.above());
+        float started = pig.getHealth();
+        helper.runAfterDelay(PIG_TICKS, () -> {
+            helper.assertTrue(pig.getHealth() <= started - strikeDamage,
+                    String.format(PIG_SPARED, strikeDamage, PIG_TICKS, started, pig.getHealth()));
             helper.succeed();
         });
     }
