@@ -96,6 +96,13 @@ public record BlendPalette(float lightRed, float lightGreen, float lightBlue,
      */
     public static final BlendPalette SIGNAL_PULSE_REDS = new BlendPalette(
             0xF4 / 255f, 0x28 / 255f, 0x28 / 255f, 0xCC / 255f, 0x00 / 255f, 0x00 / 255f);
+    /**
+     * Spikes' spray drips, from metal's bright silver, E8E8E8, to its wheel
+     * silver, C0C0C0, the two the metal goo type's definition names.
+     * spikes-is-a-coat-of-metal-goo-that-impales-what-walks-on-it
+     */
+    public static final BlendPalette SPIKES_METAL_SILVERS = new BlendPalette(
+            0xE8 / 255f, 0xE8 / 255f, 0xE8 / 255f, 0xC0 / 255f, 0xC0 / 255f, 0xC0 / 255f);
 
     /**
      * Infest's spray drips, from nether's bright red, 9A4E4E, to its wheel
