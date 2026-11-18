@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:nectar_stack_holds_a_climber_a_step_short_of_its_top",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 80,
+  "setup_ticks": 0,
+  "required": true
+}

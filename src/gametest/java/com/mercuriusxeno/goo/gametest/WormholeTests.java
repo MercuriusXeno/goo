@@ -72,6 +72,9 @@ public final class WormholeTests {
                 WormholeTests::keepsOffAPortalOnTheStruckFace);
         GooTestFunctions.registerTest(registrar, KEEPS_OFF_A_PORTAL_ON_THE_FAR_FACE,
                 WormholeTests::keepsOffAPortalOnTheFarFace);
+        GooTestFunctions.registerTest(registrar, KEEPS_OFF_AN_OPEN_HOLE, WormholeTests::keepsOffAnOpenHole);
+        GooTestFunctions.registerTest(registrar, JOINING_PLAYER_IS_TOLD_THE_OPEN_HOLES,
+                WormholeTests::joiningPlayerIsToldTheOpenHoles);
         GooTestFunctions.registerTest(registrar, THROUGH_TO_A_FULL_OPENING, WormholeTests::throughToAFullOpening);
         GooTestFunctions.registerTest(registrar, THROUGH_TO_A_NARROW_OPENING, WormholeTests::throughToANarrowOpening);
         GooTestFunctions.registerTest(registrar, REFUSED_WITH_NO_OPENING, WormholeTests::refusedWithNoOpening);
@@ -546,6 +549,68 @@ public final class WormholeTests {
             helper.getLevel().getServer().getPlayerList().remove(caster);
             helper.assertTrue(over.isEmpty(), "No tunnel mouth should cover the portal on " + portalFace + " of "
                     + portal.blocks() + ", covering it: " + over.stream().map(Gate::blocks).toList());
+            helper.succeed();
+        });
+    }
+
+    private static final String JOINING_PLAYER_IS_TOLD_THE_OPEN_HOLES = "tunnel_joining_player_is_told_the_open_holes";
+
+    /**
+     * A player joining a level where a hole stands open is told the holes
+     * standing there, so the client counts that first word as the level's
+     * standing holes shown full size, and the next hole opened grows open
+     * from nothing rather than popping in at full size.
+     *
+     * @param helper the gametest helper
+     */
+    public static void joiningPlayerIsToldTheOpenHoles(GameTestHelper helper) {
+        buildWall(helper);
+        ServerPlayer caster = caster(helper);
+        com.mercuriusxeno.goo.ability.quantum.Wormhole.open(helper.getLevel(), caster, helper.absolutePos(STRUCK),
+                Direction.NORTH, holeReach(helper), lifetime(helper));
+        PacketRecorder told = PacketRecorder.attachClaiming(caster, com.mercuriusxeno.goo.network.HolesSyncPayload.class);
+        net.neoforged.neoforge.common.NeoForge.EVENT_BUS.post(
+                new net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent(caster));
+        List<Gate> toldOf = told.payloadsOf(com.mercuriusxeno.goo.network.HolesSyncPayload.class).stream()
+                .flatMap(payload -> payload.holes().stream()).map(com.mercuriusxeno.goo.network.HolesSyncPayload.Pair::entry)
+                .toList();
+        OpenHoles.dismissAt(helper.getLevel(), helper.absolutePos(STRUCK), Direction.NORTH);
+        helper.getLevel().getServer().getPlayerList().remove(caster);
+        helper.assertTrue(toldOf.stream().anyMatch(mouth -> mouth.covers(helper.absolutePos(STRUCK))),
+                "A player joining should be told the hole standing open at " + helper.absolutePos(STRUCK)
+                        + ", told of " + toldOf.stream().map(Gate::blocks).toList());
+        helper.succeed();
+    }
+
+    private static final String KEEPS_OFF_AN_OPEN_HOLE = "tunnel_keeps_off_an_open_hole";
+
+    /**
+     * Thrown at a wall where a hole already stands open, the tunnel counts
+     * the open hole's mouths in the way as it counts a portal: no mouth it
+     * opens lies over an open mouth on the same face, an invalid placement
+     * the operator saw as two mouths overlapping.
+     *
+     * @param helper the gametest helper
+     */
+    public static void keepsOffAnOpenHole(GameTestHelper helper) {
+        buildWall(helper);
+        ServerPlayer caster = caster(helper);
+        com.mercuriusxeno.goo.ability.quantum.Wormhole.open(helper.getLevel(), caster, helper.absolutePos(STRUCK),
+                Direction.NORTH, holeReach(helper), lifetime(helper));
+        throwAt(caster, helper.absolutePos(STRUCK), Direction.NORTH);
+        helper.runAfterDelay(LANDED, () -> {
+            net.minecraft.world.phys.AABB wall = new net.minecraft.world.phys.AABB(helper.absolutePos(
+                    new BlockPos(1, 1, WALL_NEAR_Z))).minmax(new net.minecraft.world.phys.AABB(helper.absolutePos(
+                    new BlockPos(3, 3, WALL_FAR_Z))));
+            List<Gate> mouths = OpenHoles.open().stream().flatMap(hole -> Stream.of(hole.entry(), hole.exit()))
+                    .filter(mouth -> mouth.blocks().intersects(wall)).toList();
+            List<Gate> overlapping = mouths.stream().filter(mouth -> mouths.stream().anyMatch(other -> other != mouth
+                    && other.face() == mouth.face() && other.blocks().intersects(mouth.blocks()))).toList();
+            OpenHoles.dismissAt(helper.getLevel(), helper.absolutePos(STRUCK), Direction.NORTH);
+            OpenHoles.dismissAt(helper.getLevel(), helper.absolutePos(STRUCK), Direction.NORTH);
+            helper.getLevel().getServer().getPlayerList().remove(caster);
+            helper.assertTrue(overlapping.isEmpty(), "No tunnel mouth should lie over an open hole's mouth, "
+                    + "overlapping: " + overlapping.stream().map(mouth -> mouth.face() + " " + mouth.blocks()).toList());
             helper.succeed();
         });
     }

@@ -27,9 +27,8 @@ class VacuumPullStepTest {
     private static final Vec3 PLAYER = new Vec3(0, 1, 0);
 
     /**
-     * The shipped pull keeps the speeds it held before Vacuum's cone grew
-     * to 10 blocks and 60 degrees, the item pull and mob drag taking the wider
-     * cone at those speeds
+     * The shipped pull keeps its speeds whatever Vacuum's cone is tuned to,
+     * the item pull and mob drag taking the cone at those speeds
      * (decision vacuum-is-voids-held-cone-that-breaks-residuals-in-a-wave).
      */
     @Nested

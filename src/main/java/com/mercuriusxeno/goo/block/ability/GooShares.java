@@ -36,4 +36,23 @@ public record GooShares(double floor, Map<Direction, Double> sides) {
         attached.forEach(face -> sides.put(face, side));
         return new GooShares(onAFloor ? volume - side * attached.size() : 0, Map.copyOf(sides));
     }
+
+    /**
+     * The shares of a block whose goo runs down walls with nothing under
+     * it: the walls it runs down divide the volume equally, and no floor
+     * takes any, so goo running down a wall never draws or stands as a
+     * floor in midair.
+     * runny-goo-runs-down-the-wall-to-the-first-top-below
+     * operator UAT 2026-11-17: goo running down a wall is not sitting on a block
+     *
+     * @param volume  the block's volume, 1 to 15 layers
+     * @param running the sides its goo runs down
+     * @return each running side's share of the volume
+     */
+    public static GooShares runningDown(int volume, Set<Direction> running) {
+        double side = (double) volume / running.size();
+        Map<Direction, Double> sides = new EnumMap<>(Direction.class);
+        running.forEach(face -> sides.put(face, side));
+        return new GooShares(0, Map.copyOf(sides));
+    }
 }

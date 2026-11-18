@@ -135,6 +135,7 @@ public final class StepTypes {
         register(GluttonyStep.TYPE);
         register(ReserveDrainStep.TYPE);
         register(NectarStep.TYPE);
+        register(NectarGooStep.TYPE);
         register(SealStep.TYPE);
         register(EludeStep.TYPE);
         register(ShriekStep.TYPE);
@@ -170,7 +171,6 @@ public final class StepTypes {
         register(AirbornStep.TYPE);
         register(PneumaStep.TYPE);
         register(UpdraftStep.TYPE);
-        register(LiftStep.TYPE);
         register(GrabStep.TYPE);
         register(GougeStep.TYPE);
         register(RemoteStep.TYPE);
