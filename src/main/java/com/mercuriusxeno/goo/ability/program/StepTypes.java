@@ -143,6 +143,7 @@ public final class StepTypes {
         register(VibrateStep.TYPE);
         register(ScanVisualStep.TYPE);
         register(EndStep.TYPE);
+        register(TartarusStep.TYPE);
         register(HoleOpenStep.TYPE);
         register(ZoneStep.TYPE);
         register(AstralLunarStep.TYPE);
