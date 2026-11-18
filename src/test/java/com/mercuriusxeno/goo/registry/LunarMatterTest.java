@@ -122,18 +122,38 @@ class LunarMatterTest {
         }
 
         /**
-         * Anorthosite and regolith each pick one of four shared-edge variants per block, unmirrored and unturned.
+         * Each picked lunar block, ground and landform, picks one of four variants per block, unmirrored and unturned.
          * decision lunar-repaints-are-picked-from-drafts-on-a-page
          */
         @ParameterizedTest
-        @ValueSource(strings = {"anorthosite", "regolith"})
-        void groundBlocksPickAmongFourVariantsUnturned(String block) throws IOException {
+        @ValueSource(strings = {"anorthosite", "regolith", "meteoric_iron", "impact_glass", "breccia", "crater_ice"})
+        void pickedBlocksPickAmongFourVariantsUnturned(String block) throws IOException {
             JsonElement variants = resourceJson("/assets/goo/blockstates/" + block + ".json")
                     .getAsJsonObject("variants").get("");
             assertEquals(List.of("goo:block/" + block, "goo:block/" + block + "_2", "goo:block/" + block + "_3",
                     "goo:block/" + block + "_4"), modelsOf(block));
             for (JsonElement variant : variants.getAsJsonArray()) {
                 assertEquals(Set.of("model"), variant.getAsJsonObject().keySet(), variant.toString());
+            }
+        }
+
+        /**
+         * Crater ice draws translucent at vanilla ice's alpha, 190, the operator having ruled it too opaque; a model
+         * naming no render type draws solid whatever its sprite's alpha.
+         */
+        @Test
+        void craterIceDrawsTranslucentAtVanillaIcesAlpha() throws IOException {
+            for (String model : modelsOf("crater_ice")) {
+                String name = model.substring("goo:block/".length());
+                JsonObject json = resourceJson("/assets/goo/models/block/" + name + ".json");
+                assertTrue(json.has("render_type"), name + " names no render type");
+                assertEquals("minecraft:translucent", json.get("render_type").getAsString(), name);
+                BufferedImage image = sprite("/assets/goo/textures/block/" + name + ".png");
+                for (int y = 0; y < image.getHeight(); y++) {
+                    for (int x = 0; x < image.getWidth(); x++) {
+                        assertEquals(190, image.getRGB(x, y) >>> 24, name + " alpha at " + x + "," + y);
+                    }
+                }
             }
         }
 
