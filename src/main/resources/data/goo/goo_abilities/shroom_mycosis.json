@@ -2,7 +2,7 @@
   "gooType": "shroom",
   "displayName": "goo.ability.shroom.mycosis",
   "cost_mechanics": "goo.ability.shroom.mycosis.cost_mechanics",
-  "badge": "channeled",
+  "badge": "residual",
   "order": 10,
   "cost": 96,
   "cost_formula": "%s/m³",
