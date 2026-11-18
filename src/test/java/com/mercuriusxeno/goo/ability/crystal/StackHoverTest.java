@@ -69,12 +69,14 @@ class StackHoverTest {
         }
 
         @Test
-        void theCubeShrinksAStepPerKnifeAndIsGoneAtTheTenth() {
-            for (int held = 1; held < KNIVES; held++) {
+        // knives-blob-shrinks-per-knife-and-vanishes-on-the-last: 9% a knife, stopping at the 10% floor
+        void theCubeLosesNinePercentPerKnifeAndStopsAtTheFloor() {
+            for (int held = 1; held <= KNIVES; held++) {
                 assertTrue(StackHover.cubeEdgeAt(held, KNIVES) < StackHover.cubeEdgeAt(held - 1, KNIVES),
                         "the cube at " + held + " knives should be smaller than at " + (held - 1));
             }
-            assertEquals(0, StackHover.cubeEdgeAt(KNIVES, KNIVES), DELTA);
+            assertEquals(StackHover.edgeAtFill(0.1), StackHover.cubeEdgeAt(KNIVES, KNIVES), DELTA);
+            assertTrue(StackHover.cubeEdgeAt(KNIVES, KNIVES) > 0, "the cube should never vanish");
         }
 
         @Test
@@ -155,11 +157,40 @@ class StackHoverTest {
         }
 
         @Test
-        void theCubeShrinksAThirdPerJavelinAndIsGoneAtTheThird() {
-            double full = StackHover.cubeEdgeAt(0, JAVELINS);
-            assertEquals(full * 2 / 3, StackHover.cubeEdgeAt(1, JAVELINS), DELTA);
-            assertEquals(full / 3, StackHover.cubeEdgeAt(2, JAVELINS), DELTA);
-            assertEquals(0, StackHover.cubeEdgeAt(JAVELINS, JAVELINS), DELTA);
+        // dart-javelins-hover-over-the-shrinking-blob-cube: 30% a javelin, stopping at the 10% floor
+        void theCubeLosesThirtyPercentPerJavelinAndStopsAtTheFloor() {
+            assertEquals(StackHover.edgeAtFill(0.7), StackHover.cubeEdgeAt(1, JAVELINS), DELTA);
+            assertEquals(StackHover.edgeAtFill(0.4), StackHover.cubeEdgeAt(2, JAVELINS), DELTA);
+            assertEquals(StackHover.edgeAtFill(0.1), StackHover.cubeEdgeAt(JAVELINS, JAVELINS), DELTA);
+            assertTrue(StackHover.cubeEdgeAt(JAVELINS, JAVELINS) > 0, "the cube should never vanish");
         }
     }
-}
+
+    // palm-blob-and-cutaway-cuboid-size-by-the-buffers-volume: the cube's volume is the fill's share of the full cube's
+    @org.junit.jupiter.api.Test
+    void theCubesVolumeIsTheFillsShareOfTheFullCubes() {
+        for (double fill : new double[]{1.0, 0.7, 0.4, 0.1}) {
+            double edge = StackHover.edgeAtFill(fill) / StackHover.FULL_EDGE;
+            assertEquals(fill, edge * edge * edge, 1e-6, "the cube at " + fill + " full");
+        }
+    }
+
+    // knives-cube-shrinks-clear-of-each-next-layer: each held slot clears the cube at the largest fill its count allows
+    @org.junit.jupiter.api.Test
+    void thePileClearsTheCubeAtEveryCount() {
+        for (boolean javelins : new boolean[]{false, true}) {
+            int stack = javelins ? JAVELINS : StackHover.KNIVES;
+            double halfHeight = javelins
+                    ? StackHover.javelinHalfHeight(com.mercuriusxeno.goo.ability.TravelForm.DART.widthAcrossFins())
+                    : StackHover.KNIFE_HALF_HEIGHT;
+            for (int held = 1; held <= stack; held++) {
+                double largestFill = 1 - 0.9 * held / stack;
+                double top = StackHover.edgeAtFill(largestFill) / 2;
+                for (int index = 0; index < held; index++) {
+                    double lowest = StackHover.slotOf(index, held, javelins).up() - halfHeight;
+                    assertTrue(lowest > top, (javelins ? "javelin " : "knife ") + index + " at " + held
+                            + " held stands its lowest at " + lowest + ", under the cube's top " + top);
+                }
+            }
+        }
+    }}

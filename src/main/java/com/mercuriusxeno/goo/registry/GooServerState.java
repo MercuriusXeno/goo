@@ -13,6 +13,7 @@ import com.mercuriusxeno.goo.network.DripFlights;
 import com.mercuriusxeno.goo.network.GooEffectScheduler;
 import com.mercuriusxeno.goo.network.KnifeHolds;
 import com.mercuriusxeno.goo.network.PalmBuffer;
+import com.mercuriusxeno.goo.network.PalmBufferSyncs;
 import com.mercuriusxeno.goo.network.ScanWaves;
 import com.mercuriusxeno.goo.network.StreamHolds;
 import com.mercuriusxeno.goo.network.ThrownKnives;
@@ -30,6 +31,7 @@ public final class GooServerState {
 
     private final GooEffectScheduler gooEffects = new GooEffectScheduler();
     private final KnifeHolds knifeHolds = new KnifeHolds();
+    private final PalmBufferSyncs palmBufferSyncs = new PalmBufferSyncs();
     private final ThrownKnives thrownKnives = new ThrownKnives();
     private final MorphBirths morphBirths = new MorphBirths();
     private final BlockExposures blockExposures = new BlockExposures();
@@ -225,6 +227,7 @@ public final class GooServerState {
         // each-ability-has-its-own-buffer-that-fills-only-while-held: the buffers refill before the holds settle
         PalmBuffer.refillEvery(server, knifeHolds);
         knifeHolds.tick(currentTick);
+        palmBufferSyncs.syncEvery(server, knifeHolds, currentTick);
         thrownKnives.tick(currentTick);
     }
 
@@ -234,6 +237,7 @@ public final class GooServerState {
     public void clear() {
         gooEffects.clear();
         knifeHolds.clear();
+        palmBufferSyncs.clear();
         thrownKnives.clear();
         blockExposures.clear();
         markerFalls.clear();

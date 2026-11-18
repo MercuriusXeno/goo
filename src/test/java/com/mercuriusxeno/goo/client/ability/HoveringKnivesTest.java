@@ -105,4 +105,13 @@ class HoveringKnivesTest {
         Vec3 camera = new Vec3(0, 64, 0);
         java.util.List<Vec3> middles = java.util.List.of(new Vec3(0, 64, 1), new Vec3(0, 64, 3), new Vec3(0, 64, 2));
         assertEquals(java.util.List.of(1, 2, 0), HoveringKnives.drawOrderOf(middles, camera));
+    }
+
+    // knives-blob-shrinks-per-knife-and-vanishes-on-the-last: ten knives held leave the cube at the floor, not gone
+    @Test
+    void tenKnivesHeldLeaveTheCubeAtTheFloor() {
+        ClientPalmBuffers.synced(CASTER, 20, 2, 20, 0);
+        HoveringKnives.formed(CASTER, StackHover.KNIVES, 0);
+        assertEquals(0.464f, LiftedPalmBlob.stackShareOf(CASTER, 100), 0.001f);
+        ClientPalmBuffers.clear();
     }}

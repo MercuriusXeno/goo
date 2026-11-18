@@ -76,6 +76,8 @@ public final class StackHover {
     /** The index of the first knife each row takes. */
     private static final int[] ROW_FIRST_KNIFE = {0, 2, 5, 9};
     private static final double HALF = 0.5;
+    /** The share of the buffer a full stack takes: all but its 10% floor. */
+    private static final double STACK_SHARE = 0.9;
     private static final float QUARTER_TURN = 90f;
 
     private StackHover() {
@@ -197,15 +199,34 @@ public final class StackHover {
     }
 
     /**
-     * The cube's edge at a count held: full at none, a step smaller per one
-     * held, and gone once the stack is full.
+     * The cube's edge at a fill of the buffer, by volume: the cube holds the
+     * fill's share of the full cube's volume, so its edge is the full edge
+     * times the fill's cube root, 0.464 of it at the 10% floor.
+     * decision palm-blob-and-cutaway-cuboid-size-by-the-buffers-volume
+     *
+     * @param fill the fill, 0 to 1
+     * @return the edge, in blocks
+     */
+    public static double edgeAtFill(double fill) {
+        return FULL_EDGE * Math.cbrt(Math.clamp(fill, 0.0, 1.0));
+    }
+
+    /**
+     * The cube's edge at a count held, at the largest fill that count allows:
+     * 100% less the held shares, the stack's 90% over its count each, so the
+     * cube stands at the 10% floor with the stack full and never vanishes.
+     * decision held-weapons-reserve-their-share-of-the-buffer
      *
      * @param held  the count held
      * @param stack the most the hold stacks
      * @return the edge, in blocks
      */
     public static double cubeEdgeAt(int held, int stack) {
-        return stack <= 0 ? FULL_EDGE : FULL_EDGE * Math.clamp(stack - held, 0, stack) / stack;
+        if (stack <= 0) {
+            return FULL_EDGE;
+        }
+        double sharesHeld = STACK_SHARE * Math.clamp(held, 0, stack) / stack;
+        return edgeAtFill(1 - sharesHeld);
     }
 
     /**
