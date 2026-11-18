@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:dowsing_drip_on_a_wall_attaches_to_it",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 80,
+  "setup_ticks": 0,
+  "required": true
+}

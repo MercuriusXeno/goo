@@ -78,6 +78,10 @@ class GooTypeDefinitionTest {
     private static final int NETHER_COHESION = 2;
     /** Nether's goo holds a block's side where it strikes, the clings rung (operator ruling 2026-11-17). */
     private static final int NETHER_ADHESION = 3;
+    /** Astral's goo pours past one layer of step, the loose rung (decision astral-goo-hangs-and-is-loose). */
+    private static final int ASTRAL_COHESION = 1;
+    /** Astral's goo holds a block's underside where it strikes, the hangs rung (decision astral-goo-hangs-and-is-loose). */
+    private static final int ASTRAL_ADHESION = GooTypeDefinition.HOLDS_AN_UNDERSIDE;
 
     static Stream<ResourceKey<GooTypeDefinition>> bundledKeys() {
         return GooTypes.BUNDLED.stream();
@@ -291,11 +295,12 @@ class GooTypeDefinitionTest {
 
     /**
      * Every bundled type states a cohesion: weird holds a step of 4, blaze the thick rung of 4, jelly and
-     * leaf the stiff rung of 8, pulse the firm 15, metal and nether the soft 2, and every other type,
-     * kinetic among them, 0.
+     * leaf the stiff rung of 8, pulse the firm 15, metal and nether the soft 2, astral the loose 1, and every
+     * other type, kinetic among them, 0.
      * cohesion-is-the-step-the-goo-holds
      * blaze-goo-is-adhesion-four-and-cohesion-five
      * signal-goo-sends-a-redstone-signal-equal-to-its-layers
+     * astral-goo-hangs-and-is-loose
      * operator ruling 2026-11-17: nether's cohesion is soft
      */
     @ParameterizedTest
@@ -303,18 +308,20 @@ class GooTypeDefinitionTest {
     void bundledCohesionMatchesDecision(ResourceKey<GooTypeDefinition> key) throws Exception {
         Map<ResourceKey<GooTypeDefinition>, Integer> stated = Map.of(GooTypes.WEIRD, WEIRD_COHESION,
                 GooTypes.BLAZE, BLAZE_COHESION, GooTypes.JELLY, JELLY_COHESION, GooTypes.PULSE, PULSE_COHESION,
-                GooTypes.METAL, METAL_COHESION, GooTypes.NETHER, NETHER_COHESION, GooTypes.LEAF, LEAF_COHESION);
+                GooTypes.METAL, METAL_COHESION, GooTypes.NETHER, NETHER_COHESION, GooTypes.LEAF, LEAF_COHESION,
+                GooTypes.ASTRAL, ASTRAL_COHESION);
         assertEquals(stated.getOrDefault(key, 0), decodeBundled(key).cohesion(), key::toString);
     }
 
     /**
      * Every bundled type states an adhesion: kinetic clings to nothing, weird, jelly, nether and leaf hold a
-     * side where they strike, glow, blaze and pulse hold an underside, and every other type holds tops.
+     * side where they strike, glow, blaze, pulse and astral hold an underside, and every other type holds tops.
      * adhesion-is-a-ladder-of-holds
      * signal-goo-sends-a-redstone-signal-equal-to-its-layers
      * nectar-is-the-sticky-goo-you-climb-that-nerfs-jumping-and-speed
      * vines-goo-on-walls-places-goologged-vines-and-depletes
      * blaze-goo-is-adhesion-four-and-cohesion-five
+     * astral-goo-hangs-and-is-loose
      * operator ruling 2026-11-17: nether clings
      */
     @ParameterizedTest
@@ -323,7 +330,7 @@ class GooTypeDefinitionTest {
         Map<ResourceKey<GooTypeDefinition>, Integer> stated = Map.of(GooTypes.KINETIC, 0,
                 GooTypes.WEIRD, WEIRD_ADHESION, GooTypes.GLOW, GLOW_ADHESION, GooTypes.BLAZE, BLAZE_ADHESION,
                 GooTypes.JELLY, JELLY_ADHESION, GooTypes.PULSE, PULSE_ADHESION, GooTypes.NETHER, NETHER_ADHESION,
-                GooTypes.LEAF, LEAF_ADHESION);
+                GooTypes.LEAF, LEAF_ADHESION, GooTypes.ASTRAL, ASTRAL_ADHESION);
         int expected = stated.getOrDefault(key, COMMON_ADHESION);
         assertEquals(expected, decodeBundled(key).adhesion(), key::toString);
     }
