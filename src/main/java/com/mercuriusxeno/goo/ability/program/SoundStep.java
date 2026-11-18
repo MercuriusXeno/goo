@@ -10,8 +10,8 @@ import java.util.stream.Stream;
  * Plays a sound at an anchor and finishes. Ender teleport follows its
  * jump with {@code sound id=minecraft:entity.enderman.teleport source=hostile at=target}.
  * A frame plays it that many ticks after the program reaches the step,
- * the program holding it while the steps after it run, as Urchin's
- * retract shink waits for its spikes (decisions ability-json-names-its-choreography,
+ * the program holding it while the steps after it run, as the metal
+ * spike trap's retract shink waits for its spikes (decisions ability-json-names-its-choreography,
  * urchin-spikes-shink-out-and-shink-back).
  *
  * @param sound  the sound event id
