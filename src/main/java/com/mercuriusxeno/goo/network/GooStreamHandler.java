@@ -27,7 +27,10 @@ import com.mercuriusxeno.goo.ability.program.SoundKind;
 import com.mercuriusxeno.goo.ability.program.SoundPlays;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.StepHost;
+import com.mercuriusxeno.goo.ability.program.TartarusStep;
 import com.mercuriusxeno.goo.ability.spray.SprayPrograms;
+import com.mercuriusxeno.goo.ability.tartarus.TartarusCast;
+import com.mercuriusxeno.goo.ability.tartarus.TartarusHolds;
 import com.mercuriusxeno.goo.block.ability.SlickLayPace;
 import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
@@ -231,13 +234,20 @@ public final class GooStreamHandler {
      * @param gooType the ability's goo type
      * @param ability the stream ability
      * @return the hold's tick count, or 0 when the tick runs nothing: a second stream tick in one
-     *         server tick, or a share the player cannot pay, which stops the stream
+     *         server tick, a share the player cannot pay, which stops the stream, or a Tartarus hold
+     *         its first tick refused, which drains and consumes nothing
      */
     private static int drainShare(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType,
                                       AbilityDefinition ability) {
         MinecraftServer server = player.level().getServer();
         int held = GooServerState.of(server).streamHolds().advance(player.getUUID(), server.getTickCount());
-        if (held == 0 || !paysReagents(player, ability, held)) {
+        if (held == 0) {
+            return 0;
+        }
+        // decision tartarus-sets-you-on-the-nearest-safe-floor-at-the-scaled-spot-or-refuses
+        Optional<TartarusCast> tartarus = TartarusStep.in(ability.behaviors())
+                .map(step -> TartarusHolds.castFor(player, step.reach(), held));
+        if (tartarus.filter(TartarusCast::refused).isPresent() || !paysReagents(player, ability, held)) {
             return 0;
         }
         if (ability.delivery().drainsOnPlacement()) {
@@ -245,8 +255,9 @@ public final class GooStreamHandler {
         }
         // decision end-gate-in-the-end-is-free-and-returns-you-where-you-portalled-in
         AbilityPrice cost = ability.cost().forCasterIn(player.level().dimension(), ability.behaviors());
-        int share = StreamHolds.shareAt(cost.exactIn(GooValues.of(player.level())),
+        int tickShare = StreamHolds.shareAt(cost.exactIn(GooValues.of(player.level())),
                 ability.delivery().ticksPerCharge(), held);
+        int share = tartarus.map(cast -> cast.charged(tickShare)).orElse(tickShare);
         if (!GooSourceScanner.hasEnough(player, gooType, share)) {
             return 0;
         }

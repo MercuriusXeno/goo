@@ -44,10 +44,8 @@ public final class EndGatePassage {
                     player.level().dimension(), player.position(), player.getYRot()))));
         }
         // decision door-carries-its-own-sound-through-the-change
-        ConjuredDoors.sendDoorSound(player);
-        player.teleport(new TeleportTransition(there, destination.feet(), Vec3.ZERO, destination.yaw(), 0f,
+        ConjuredDoors.carry(player, new TeleportTransition(there, destination.feet(), Vec3.ZERO, destination.yaw(), 0f,
                 TeleportTransition.DO_NOTHING));
-        ConjuredDoors.sendDoorSound(player);
         ConjuredDoors.release(player);
         return true;
     }
