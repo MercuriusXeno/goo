@@ -90,6 +90,7 @@ import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.NoopRenderer;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.client.resources.model.sprite.Material;
+import net.minecraft.core.particles.SimpleParticleType;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.Entity;
@@ -401,30 +402,34 @@ public final class GooClientSetup {
      * @param event the event instance
      */
     private static void registerSprayDrips(RegisterParticleProvidersEvent event) {
-        event.registerSpriteSet(GooParticles.GOOP_SPRAY_DRIP.get(),
-                sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.GOOP_SLIME_GREENS));
-        event.registerSpriteSet(GooParticles.SLICK_SPRAY_DRIP.get(),
-                sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.SLICK_SLIME_BLUES));
+        registerDrip(event, GooParticles.GOOP_SPRAY_DRIP.get(), BlendPalette.GOOP_SLIME_GREENS);
+        registerDrip(event, GooParticles.SLICK_SPRAY_DRIP.get(), BlendPalette.SLICK_SLIME_BLUES);
         event.registerSpriteSet(GooParticles.MOLTEN_SPRAY_DRIP.get(),
                 sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.MOLTEN_BLAZE_ORANGES,
                         CellBinding.MOLTEN.fluidFooting()));
-        event.registerSpriteSet(GooParticles.SHATTER_SPRAY_DRIP.get(),
-                sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.SHATTER_CRYSTAL_BLUES));
-        event.registerSpriteSet(GooParticles.HOST_SPRAY_DRIP.get(),
-                sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.HOST_DEEP_TEALS));
+        registerDrip(event, GooParticles.SHATTER_SPRAY_DRIP.get(), BlendPalette.SHATTER_CRYSTAL_BLUES);
+        registerDrip(event, GooParticles.HOST_SPRAY_DRIP.get(), BlendPalette.HOST_DEEP_TEALS);
         event.registerSpriteSet(GooParticles.RIME_SPRAY_DRIP.get(),
                 sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.RIME_FROST_BLUES,
                         CellBinding.RIME.fluidFooting()));
-        event.registerSpriteSet(GooParticles.WISPS_SPRAY_DRIP.get(),
-                sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.WISPS_GLOW_GOLDS));
-        event.registerSpriteSet(GooParticles.LEECH_SPRAY_DRIP.get(),
-                sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.LEECH_HEX_VIOLETS));
-        event.registerSpriteSet(GooParticles.UPDRAFT_SPRAY_DRIP.get(),
-                sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.UPDRAFT_TYPHOON_GREENS));
-        event.registerSpriteSet(GooParticles.NECTAR_SPRAY_DRIP.get(),
-                sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.NECTAR_JELLY_ORANGES));
-        event.registerSpriteSet(GooParticles.PHASE_SPRAY_DRIP.get(),
-                sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.PHASE_QUANTUM_BLUES));
+        registerDrip(event, GooParticles.WISPS_SPRAY_DRIP.get(), BlendPalette.WISPS_GLOW_GOLDS);
+        registerDrip(event, GooParticles.LEECH_SPRAY_DRIP.get(), BlendPalette.LEECH_HEX_VIOLETS);
+        registerDrip(event, GooParticles.UPDRAFT_SPRAY_DRIP.get(), BlendPalette.UPDRAFT_TYPHOON_GREENS);
+        registerDrip(event, GooParticles.NECTAR_SPRAY_DRIP.get(), BlendPalette.NECTAR_JELLY_ORANGES);
+        registerDrip(event, GooParticles.PHASE_SPRAY_DRIP.get(), BlendPalette.PHASE_QUANTUM_BLUES);
+    }
+
+    /**
+     * Registers a spray's drip blending through its goo's palette, splatting
+     * on whatever top it strikes.
+     *
+     * @param event   the event instance
+     * @param drip    the drip's particle type
+     * @param palette the colors the drip blends through
+     */
+    private static void registerDrip(RegisterParticleProvidersEvent event, SimpleParticleType drip,
+                                     BlendPalette palette) {
+        event.registerSpriteSet(drip, sprites -> new SprayDripParticle.Provider(sprites, palette));
     }
 
     /**
