@@ -139,6 +139,65 @@ class BoreBlobPlaceTest {
         assertEquals(22.5, degreesOffTheLook(place, tip), SLACK);
     }
 
+    /**
+     * Operator, 2026-11-17: looking down at a certain point the blob leaps left
+     * and down, pitching back up it leaps too high over the palm and floats
+     * back down, and it twitches like that facing near straight up too.
+     * decision diagnose-and-correct-bore-behaving-weirdly-close-to-things
+     */
+    @Nested
+    class NearStraightUpOrDown {
+
+        /** One frame at sixty frames a second, in ticks. */
+        private static final double FRAME_TICKS = 20.0 / 60;
+        /** A tenth of a degree a frame, a slow turn of the head. */
+        private static final float PITCH_STEP = 0.1f;
+        /** Most a blob 1.6 blocks from the eye moves in a frame turned a tenth of a degree, eased or bound. */
+        private static final double MOST_IN_A_FRAME = 0.05;
+        private static final float YAW_OFF_THE_AXES = 45f;
+        private static final double FLOOR_BELOW_THE_EYE = 1.62;
+
+        /**
+         * The farthest the drawn blob moves in one frame while the view
+         * pitches from one angle to another at a tenth of a degree a frame,
+         * aimed at a floor or ceiling the eye height away.
+         */
+        private double mostMovedInAFrame(int casterId, float fromPitch, float toPitch) {
+            Vec3 eye = new Vec3(0.5, 65.62, 0.5);
+            int frames = Math.round(Math.abs(toPitch - fromPitch) / PITCH_STEP);
+            float step = Math.signum(toPitch - fromPitch) * PITCH_STEP;
+            Vec3 lastDrawn = null;
+            double most = 0;
+            for (int frame = 0; frame <= frames; frame++) {
+                float pitch = fromPitch + frame * step;
+                Vec3 look = Vec3.directionFromRotation(pitch, YAW_OFF_THE_AXES);
+                Vec3 point = eye.add(look.scale(FLOOR_BELOW_THE_EYE / Math.abs(look.y)));
+                Vec3 rest = SpraySource.inView(eye, pitch, YAW_OFF_THE_AXES, true);
+                Vec3 bound = BoreBlobPlace.placeFor(eye, look, point, rest, SHIPPED);
+                BoreBlobPlace.ViewFrame view = BoreBlobPlace.ViewFrame.of(new CameraEye.Sight(eye, look),
+                        YAW_OFF_THE_AXES);
+                Vec3 drawn = BoreBlobPlace.easedFor(casterId, view, rest, bound, false, frame * FRAME_TICKS);
+                if (lastDrawn != null) {
+                    most = Math.max(most, drawn.distanceTo(lastDrawn));
+                }
+                lastDrawn = drawn;
+            }
+            return most;
+        }
+
+        @Test
+        void theBlobGlidesAsTheLookTipsToStraightDown() {
+            double most = mostMovedInAFrame(-101, 70f, 90f);
+            assertTrue(most < MOST_IN_A_FRAME, "the blob leapt " + most + " in one frame looking down");
+        }
+
+        @Test
+        void theBlobGlidesAsTheLookTipsToStraightUp() {
+            double most = mostMovedInAFrame(-102, -70f, -90f);
+            assertTrue(most < MOST_IN_A_FRAME, "the blob leapt " + most + " in one frame looking up");
+        }
+    }
+
     @Nested
     class Easing {
 

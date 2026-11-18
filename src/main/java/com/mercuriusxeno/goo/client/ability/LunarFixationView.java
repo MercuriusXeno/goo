@@ -14,7 +14,7 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.MovementInputUpdateEvent;
 
 /**
- * The caster's hold while Lunar takes them: the look stays where the caster held it on the moon or the blue star
+ * The caster's hold while Lunar takes them: the look stays where the caster held it on the moon or the blue planet
  * as the fixation began and cannot look away, and the body takes no step and no turn. The field of view stays as it
  * stands; the moon comes to the caster (LunarTripView) rather than the view closing in on it.
  * decision gate-fixates-your-view-on-the-moon-until-it-takes-you

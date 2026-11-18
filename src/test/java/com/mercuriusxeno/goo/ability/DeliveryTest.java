@@ -9,7 +9,14 @@ import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
+import java.io.IOException;
+import java.io.Reader;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import static org.junit.jupiter.api.Assertions.assertAll;
@@ -367,7 +374,9 @@ class DeliveryTest {
                     Identifier.fromNamespaceAndPath("goo", "typhoon_updraft"),
                     Identifier.fromNamespaceAndPath("goo", "jelly_nectar"),
                     Identifier.fromNamespaceAndPath("goo", "pulse_signal"),
-                    Identifier.fromNamespaceAndPath("goo", "metal_spikes")), throwing);
+                    Identifier.fromNamespaceAndPath("goo", "metal_spikes"),
+                    Identifier.fromNamespaceAndPath("goo", "nether_infest"),
+                    Identifier.fromNamespaceAndPath("goo", "leaf_vines")), throwing);
         }
     }
 
@@ -381,22 +390,29 @@ class DeliveryTest {
     class ExitSpeed {
 
         private static final double RAMPED = 1.0;
-        /** The drips a spray throws, and draws, each tick. */
-        private static final int SIX_DRIPS = 6;
-        /** The drips Slick throws, and draws, each tick. */
-        private static final int SLICK_DRIPS = 2;
+        /** The drips every goo spray throws, and draws, each tick at rest. */
+        private static final int TWO_DRIPS = 2;
+        private static final String DRIPS_PER_TICK = "drips_per_tick";
 
         /**
-         * operator UAT 2026-11-17: every drawn drip lands, so each spray throws the six drips a tick it draws;
-         * Slick keeps the two a tick its ramp and spread are tuned to, drawing two
+         * Every shipped ability whose delivery names a drip pace, so a spray merging later meets the same rate.
+         * every-goo-spray-throws-two-drips-a-tick
          */
         @Test
-        void eachSprayThrowsTheSixDripsATickItDraws() {
-            assertEquals(SLICK_DRIPS, AbilityJson.decode("kinetic_slick").delivery().dripsPerTick());
-            for (String spray : Set.of("weird_goop", "blaze_molten", "crystal_shatter",
-                    "deep_host", "frost_rime", "glow_wisps", "hex_leech", "typhoon_updraft", "jelly_nectar",
-                    "pulse_signal")) {
-                assertEquals(SIX_DRIPS, AbilityJson.decode(spray).delivery().dripsPerTick(), spray);
+        void everyGooSprayThrowsTwoDripsATick() {
+            List<Path> sprays = AbilityJson.files().stream().filter(ExitSpeed::namesADripPace).toList();
+
+            assertFalse(sprays.isEmpty(), "no shipped ability names " + DRIPS_PER_TICK);
+            assertAll(sprays.stream().map(spray -> () -> assertEquals(TWO_DRIPS,
+                    AbilityJson.decode(spray).delivery().dripsPerTick(), spray.getFileName().toString())));
+        }
+
+        private static boolean namesADripPace(Path file) {
+            try (Reader reader = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
+                JsonObject ability = JsonParser.parseReader(reader).getAsJsonObject();
+                return ability.has("delivery") && ability.getAsJsonObject("delivery").has(DRIPS_PER_TICK);
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
             }
         }
 
@@ -404,7 +420,7 @@ class DeliveryTest {
         void eachSprayLeavesFasterByTheCastersSpeed() {
             for (String spray : Set.of("weird_goop", "kinetic_slick", "blaze_molten", "crystal_shatter",
                     "deep_host", "frost_rime", "glow_wisps", "hex_leech", "typhoon_updraft", "jelly_nectar",
-                    "pulse_signal", "metal_spikes")) {
+                    "pulse_signal", "metal_spikes", "nether_infest", "leaf_vines")) {
                 Delivery delivery = AbilityJson.decode(spray).delivery();
 
                 assertEquals(delivery.throwSpeed() + RAMPED, delivery.exitSpeedAt(RAMPED), 1e-9, spray);

@@ -38,6 +38,22 @@ class BoreDrillTest {
     private static final int SAMPLES = 64;
     private static final Predicate<BlockPos> NOTHING = cell -> false;
 
+    /**
+     * Operator, 2026-11-17: the vortex drew behind the clouds; depth sort it.
+     * The vortex blends without writing depth, so it draws on the stage
+     * after the level, the clouds and weather already drawn behind it, all of
+     * them farther than the vortex can reach.
+     * decision diagnose-and-correct-bore-behaving-weirdly-close-to-things
+     */
+    @Test
+    void theVortexDrawsAfterTheCloudsSoTheySortBehindIt() {
+        java.util.List<Class<?>> stages = java.util.Arrays.stream(BoreDrill.class.getDeclaredMethods())
+                .filter(method -> method.isAnnotationPresent(net.neoforged.bus.api.SubscribeEvent.class))
+                .map(method -> method.getParameterTypes()[0]).toList();
+        assertEquals(java.util.List.of(net.neoforged.neoforge.client.event.RenderLevelStageEvent.AfterLevel.class),
+                stages);
+    }
+
     private static Vec3 farEndOf(ConeSections.Volume volume) {
         return volume.apex().add(volume.axis().scale(volume.range()));
     }

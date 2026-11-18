@@ -219,20 +219,20 @@ class AbilityDefinitionTest {
         }
 
         /**
-         * Spire prices each cubic meter of stone it grows at $mundane_block, read in rock, here from a fixture's
+         * Build prices each cubic meter of stone it grows at $mundane_block, read in rock, here from a fixture's
          * $mundane_block of 7 rock and 5 metal.
          * decision spire-cost-field-prices-each-cubic-meter-of-stone-at-mundane-block
          * decision no-test-asserts-a-shipped-base-value
          */
         @Test
-        void spireCostReadsMundaneBlockInRock() {
-            AbilityPrice spireCost = AbilityJson.decode("rock_spire").cost();
+        void buildCostReadsMundaneBlockInRock() {
+            AbilityPrice buildCost = AbilityJson.decode("rock_build").cost();
             IGooValueLookup fixture = GooBaseValuesPreview.registry("""
                     {"_constants": {"mundane_block": {"rock": 7, "metal": 5}}}
                     """).table();
 
-            assertEquals("$" + MUNDANE_BLOCK, spireCost.source());
-            assertEquals(GooFraction.of(7), spireCost.exactIn(fixture));
+            assertEquals("$" + MUNDANE_BLOCK, buildCost.source());
+            assertEquals(GooFraction.of(7), buildCost.exactIn(fixture));
         }
     }
 

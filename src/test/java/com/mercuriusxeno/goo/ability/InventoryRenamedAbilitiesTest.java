@@ -26,6 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * icon, and its old key ships nothing.
  * decision ten-abilities-take-their-inventory-names-and-keys
  * decision rename-rekeys-everything-that-names-the-ability
+ * decision spire-is-renamed-build
  */
 class InventoryRenamedAbilitiesTest {
 
@@ -62,11 +63,12 @@ class InventoryRenamedAbilitiesTest {
                 Arguments.of("crystal_glimmer", "Glimmer"),
                 Arguments.of("jelly_nectar", "Nectar"),
                 Arguments.of("void_cancel", "Cancel"),
-                Arguments.of("zoo_kin", "Kin"));
+                Arguments.of("zoo_kin", "Kin"),
+                Arguments.of("rock_build", "Build"));
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"ender_zone", "quantum_phase", "quantum_phase_shift"})
+    @ValueSource(strings = {"ender_zone", "quantum_phase", "quantum_phase_shift", "rock_spire"})
     void oldKeyShipsNoAbility(String oldId) {
         assertNull(InventoryRenamedAbilitiesTest.class.getResource(ABILITY_JSON.formatted(oldId)), oldId + " json");
         assertNull(InventoryRenamedAbilitiesTest.class.getResource(ABILITY_ICON.formatted(oldId)), oldId + " icon");
@@ -88,6 +90,8 @@ class InventoryRenamedAbilitiesTest {
                 Arguments.of("blaze", Set.of("blaze_flames", "blaze_ignite", "blaze_kindle", "blaze_molten")),
                 Arguments.of("crystal", Set.of("crystal_glimmer", "crystal_knives", "crystal_prism", "crystal_scales",
                         "crystal_shatter")),
+                Arguments.of("rock", Set.of("rock_bore", "rock_build", "rock_gouge", "rock_level", "rock_petrify",
+                        "rock_stoneskin")),
                 Arguments.of("jelly", Set.of("jelly_gluttony", "jelly_heal", "jelly_nectar", "jelly_reserve")),
                 Arguments.of("void", Set.of("void_cancel", "void_hole", "void_vacuum", "void_zone")),
                 Arguments.of("zoo", Set.of("zoo_allure", "zoo_kin", "zoo_rally", "zoo_shape", "zoo_spawn")));

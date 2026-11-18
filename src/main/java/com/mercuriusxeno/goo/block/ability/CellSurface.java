@@ -9,7 +9,8 @@ package com.mercuriusxeno.goo.block.ability;
  * shards hanging over it, which cut what moves through them; rime is as
  * slippery as ice and pushes nothing; wisps stands as ordinary ground and
  * smites the undead touching it; leech slows a thing caught in it; spikes
- * stands as ordinary ground and impales what walks on it. A goo type
+ * stands as ordinary ground and impales what walks on it; vines stands as
+ * ordinary ground and entangles what crosses it. A goo type
  * binding a world goo to the cell names one.
  * slime-and-slick-are-one-volume-cell-tech
  * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
@@ -20,6 +21,7 @@ package com.mercuriusxeno.goo.block.ability;
  * rime-goo-is-slippery-to-walk-on
  * undead-touching-wisps-goo-erupt-in-flames-and-take-holy-damage-by-fill
  * spikes-is-a-coat-of-metal-goo-that-impales-what-walks-on-it
+ * vines-is-sprayed-slime-that-entangles-what-tries-to-cross
  *
  * @see VolumeCellBlock
  */
@@ -40,7 +42,9 @@ public enum CellSurface {
     /** Leech's: ordinary ground underfoot, it slows a thing caught in it. */
     SLOW(Frictions.ORDINARY_GROUND),
     /** Spikes': ordinary ground that forms spikes to impale a thing walking on it. */
-    IMPALE(Frictions.ORDINARY_GROUND);
+    IMPALE(Frictions.ORDINARY_GROUND),
+    /** Vines': ordinary ground underfoot, it entangles a thing crossing it in vines by its layers. */
+    ENTANGLE(Frictions.ORDINARY_GROUND);
 
     /** The friction a cell bound to this surface stands at, the slipperiness what moves on it meets. */
     private final float friction;
@@ -106,6 +110,13 @@ public enum CellSurface {
      */
     public boolean slows() {
         return this == SLOW;
+    }
+
+    /**
+     * @return true where the cell entangles a thing crossing it
+     */
+    public boolean entangles() {
+        return this == ENTANGLE;
     }
 
     /** The frictions the surfaces stand at, held apart so the constants above can read them. */
