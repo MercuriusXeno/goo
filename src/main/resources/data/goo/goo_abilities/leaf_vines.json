@@ -6,7 +6,6 @@
   "order": 0,
   "cost": 1000,
   "cost_formula": "%s/m³",
-  "requires": ["minecraft:vine"],
   "delivery": {
     "kind": "stream",
     "drains_on_placement": true,
