@@ -13,9 +13,9 @@ import com.mercuriusxeno.goo.ability.DistancePrice;
 import com.mercuriusxeno.goo.ability.HeldRoute;
 import com.mercuriusxeno.goo.ability.IndicatorShowing;
 import com.mercuriusxeno.goo.ability.program.BlinkLanding;
+import com.mercuriusxeno.goo.ability.program.BuildStep;
 import com.mercuriusxeno.goo.ability.program.ExtendStep;
 import com.mercuriusxeno.goo.ability.program.GougeStep;
-import com.mercuriusxeno.goo.ability.program.SpireStep;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.ZoneStep;
 import com.mercuriusxeno.goo.client.ClientGooValues;
@@ -644,7 +644,7 @@ public final class AbilitySyncHandler {
         /**
          * The short formula the petal and the panel read, its number filled
          * from the ability's own numbers so it stays true when one is tuned: a
-         * Spire's cost, its price per block grown, live from the connection's
+         * Build's cost, its price per block grown, live from the connection's
          * goo values, Knives' its price per knife, a Gouge's its fixed price a tear.
          * knives-pay-per-knife-as-each-forms
          * dynamic-costs-keep-the-mb-quantity
@@ -678,19 +678,19 @@ public final class AbilitySyncHandler {
         }
 
         /**
-         * Whether the ability's cost is its price for each block it grows, a Spire's, charged by the blocks its plan
+         * Whether the ability's cost is its price for each block it grows, a Build's, charged by the blocks its plan
          * grows rather than once a throw.
          * spire-cost-field-prices-each-cubic-meter-of-stone-at-mundane-block
          *
-         * @return true for an ability running the spire step
+         * @return true for an ability running the build step
          */
         private boolean pricedPerBlockGrown() {
-            return behaviors.stream().anyMatch(SpireStep.class::isInstance);
+            return behaviors.stream().anyMatch(BuildStep.class::isInstance);
         }
 
         /**
          * Whether the ability's cost prices what it lays, charged as each block lands rather than once a
-         * throw or by the ticks held: a Spire's block grown, or a placement-drained stream's slime or film.
+         * throw or by the ticks held: a Build's block grown, or a placement-drained stream's slime or film.
          * spire-cost-field-prices-each-cubic-meter-of-stone-at-mundane-block
          * goop-drains-per-cubic-meter-of-slime-placed
          *
@@ -883,7 +883,7 @@ public final class AbilitySyncHandler {
         /**
          * The numbers a cost-mechanics format fills from, in the order its kind reads them:
          * a durative ability its upkeep a second; a blink its per-block price, its wall price and its
-         * oculus percent; a Spire its cost, the price per block grown; any other none.
+         * oculus percent; a Build its cost, the price per block grown; any other none.
          *
          * @param lookup the goo values the numbers read from
          * @return the arguments, formatted

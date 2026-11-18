@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.client.throwing;
 
-import com.mercuriusxeno.goo.ability.SpireFootprint;
+import com.mercuriusxeno.goo.ability.BuildFootprint;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
@@ -10,8 +10,8 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** A Spire cast submits only on its second right click, sized by the drag and raised by the pitch (decision spire-rips-walls-and-platforms). */
-class SpireChoreographyTest {
+/** A Build cast submits only on its second right click, sized by the drag and raised by the pitch (decision spire-rips-walls-and-platforms). */
+class BuildChoreographyTest {
 
     private static final BlockPos CORNER = new BlockPos(10, 64, 10);
     /** An eye three blocks above the corner's top face, two blocks west of the corner. */
@@ -24,8 +24,8 @@ class SpireChoreographyTest {
     }
 
     /** Pins the corner, drags to the cell two east, and releases. */
-    private static SpireChoreography sizedAndReleased() {
-        SpireChoreography cast = new SpireChoreography();
+    private static BuildChoreography sizedAndReleased() {
+        BuildChoreography cast = new BuildChoreography();
         cast.press(CORNER);
         cast.tick(true, EYE, lookAt(12.5, 10.5), LEVEL_PITCH);
         cast.tick(false, EYE, lookAt(12.5, 10.5), LEVEL_PITCH);
@@ -37,36 +37,36 @@ class SpireChoreographyTest {
 
         @Test
         void theSecondPressSubmitsTheDraggedFootprintAtThePitchedRise() {
-            SpireChoreography cast = sizedAndReleased();
-            cast.tick(false, EYE, lookAt(12.5, 10.5), LEVEL_PITCH - 3 * SpireChoreography.DEGREES_PER_BLOCK);
+            BuildChoreography cast = sizedAndReleased();
+            cast.tick(false, EYE, lookAt(12.5, 10.5), LEVEL_PITCH - 3 * BuildChoreography.DEGREES_PER_BLOCK);
 
-            Optional<SpireFootprint> submitted = cast.press(CORNER);
+            Optional<BuildFootprint> submitted = cast.press(CORNER);
 
-            assertEquals(Optional.of(new SpireFootprint(CORNER, new BlockPos(12, 64, 10), 4)), submitted);
-            assertEquals(SpireChoreography.Phase.IDLE, cast.phase());
+            assertEquals(Optional.of(new BuildFootprint(CORNER, new BlockPos(12, 64, 10), 4)), submitted);
+            assertEquals(BuildChoreography.Phase.IDLE, cast.phase());
         }
 
         @Test
         void pressesWhileTheDragHoldsSubmitNothing() {
-            SpireChoreography cast = new SpireChoreography();
+            BuildChoreography cast = new BuildChoreography();
             cast.press(CORNER);
             cast.tick(true, EYE, lookAt(12.5, 10.5), LEVEL_PITCH);
 
             assertEquals(Optional.empty(), cast.press(CORNER));
-            assertEquals(SpireChoreography.Phase.SIZING, cast.phase());
+            assertEquals(BuildChoreography.Phase.SIZING, cast.phase());
         }
 
         @Test
         void theHeldKeyAfterASubmitPinsNoNewCorner() {
-            SpireChoreography cast = sizedAndReleased();
+            BuildChoreography cast = sizedAndReleased();
             cast.press(CORNER);
 
             cast.press(CORNER);
-            assertEquals(SpireChoreography.Phase.IDLE, cast.phase());
+            assertEquals(BuildChoreography.Phase.IDLE, cast.phase());
 
             cast.tick(false, EYE, lookAt(12.5, 10.5), LEVEL_PITCH);
             cast.press(CORNER);
-            assertEquals(SpireChoreography.Phase.SIZING, cast.phase());
+            assertEquals(BuildChoreography.Phase.SIZING, cast.phase());
         }
     }
 
@@ -75,23 +75,23 @@ class SpireChoreographyTest {
 
         @Test
         void aReleaseLeftUnsubmittedSendsNothingWhenCancelled() {
-            SpireChoreography cast = sizedAndReleased();
-            assertEquals(SpireChoreography.Phase.RISING, cast.phase());
+            BuildChoreography cast = sizedAndReleased();
+            assertEquals(BuildChoreography.Phase.RISING, cast.phase());
 
             cast.cancel();
 
             assertEquals(Optional.empty(), cast.footprint());
             assertEquals(Optional.empty(), cast.press(CORNER));
-            assertEquals(SpireChoreography.Phase.SIZING, cast.phase());
+            assertEquals(BuildChoreography.Phase.SIZING, cast.phase());
         }
 
         @Test
         void aPressOnNoGroundPinsNothing() {
-            SpireChoreography cast = new SpireChoreography();
+            BuildChoreography cast = new BuildChoreography();
 
             cast.press(null);
 
-            assertEquals(SpireChoreography.Phase.IDLE, cast.phase());
+            assertEquals(BuildChoreography.Phase.IDLE, cast.phase());
             assertEquals(Optional.empty(), cast.footprint());
         }
     }
@@ -101,19 +101,19 @@ class SpireChoreographyTest {
 
         @Test
         void thePitchAtReleaseRisesTheLowest() {
-            assertEquals(SpireFootprint.MIN_RISE, SpireChoreography.riseFromPitch(LEVEL_PITCH, LEVEL_PITCH));
+            assertEquals(BuildFootprint.MIN_RISE, BuildChoreography.riseFromPitch(LEVEL_PITCH, LEVEL_PITCH));
         }
 
         @Test
         void eachStepUpRisesOneBlock() {
-            assertEquals(3, SpireChoreography.riseFromPitch(LEVEL_PITCH,
-                    LEVEL_PITCH - 2 * SpireChoreography.DEGREES_PER_BLOCK));
+            assertEquals(3, BuildChoreography.riseFromPitch(LEVEL_PITCH,
+                    LEVEL_PITCH - 2 * BuildChoreography.DEGREES_PER_BLOCK));
         }
 
         @Test
         void theRiseHoldsWithinItsCaps() {
-            assertEquals(SpireFootprint.MAX_RISE, SpireChoreography.riseFromPitch(LEVEL_PITCH, -90f));
-            assertEquals(SpireFootprint.MIN_RISE, SpireChoreography.riseFromPitch(LEVEL_PITCH, 90f));
+            assertEquals(BuildFootprint.MAX_RISE, BuildChoreography.riseFromPitch(LEVEL_PITCH, -90f));
+            assertEquals(BuildFootprint.MIN_RISE, BuildChoreography.riseFromPitch(LEVEL_PITCH, 90f));
         }
     }
 
@@ -123,12 +123,12 @@ class SpireChoreographyTest {
         @Test
         void theLookFindsTheGroundCellOnTheCornersLevel() {
             assertEquals(Optional.of(new BlockPos(13, 64, 9)),
-                    SpireChoreography.groundCellUnderLook(CORNER, EYE, lookAt(13.5, 9.5)));
+                    BuildChoreography.groundCellUnderLook(CORNER, EYE, lookAt(13.5, 9.5)));
         }
 
         @Test
         void aLookAboveTheHorizonFindsNoGround() {
-            assertTrue(SpireChoreography.groundCellUnderLook(CORNER, EYE, new Vec3(1, 0.2, 0).normalize()).isEmpty());
+            assertTrue(BuildChoreography.groundCellUnderLook(CORNER, EYE, new Vec3(1, 0.2, 0).normalize()).isEmpty());
         }
     }
 }

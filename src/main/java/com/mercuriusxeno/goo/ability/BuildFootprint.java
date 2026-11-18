@@ -5,7 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The ground a Spire grows stone over: a rectangle of ground cells on the
+ * The ground a Build grows stone over: a rectangle of ground cells on the
  * pinned corner's level, the drag sizing it, and the rise the pitch sets,
  * each capped so one cast stays a wall or a platform.
  * decision spire-rips-walls-and-platforms
@@ -15,7 +15,7 @@ import java.util.List;
  * @param opposite the ground cell across the footprint, on the corner's level
  * @param rise     how many stone blocks grow above each ground cell
  */
-public record SpireFootprint(BlockPos corner, BlockPos opposite, int rise) {
+public record BuildFootprint(BlockPos corner, BlockPos opposite, int rise) {
 
     /** The widest a footprint runs on either axis, in blocks. */
     public static final int MAX_SPAN = 8;
@@ -34,10 +34,10 @@ public record SpireFootprint(BlockPos corner, BlockPos opposite, int rise) {
      * @param rise     the rise asked for
      * @return the capped footprint
      */
-    public static SpireFootprint capped(BlockPos corner, BlockPos dragged, int rise) {
+    public static BuildFootprint capped(BlockPos corner, BlockPos dragged, int rise) {
         BlockPos opposite = new BlockPos(clampSpan(corner.getX(), dragged.getX()), corner.getY(),
                 clampSpan(corner.getZ(), dragged.getZ()));
-        return new SpireFootprint(corner.immutable(), opposite, Math.clamp(rise, MIN_RISE, MAX_RISE));
+        return new BuildFootprint(corner.immutable(), opposite, Math.clamp(rise, MIN_RISE, MAX_RISE));
     }
 
     /**
@@ -56,8 +56,8 @@ public record SpireFootprint(BlockPos corner, BlockPos opposite, int rise) {
      * @param lower the rise
      * @return the footprint growing that high
      */
-    public SpireFootprint withRise(int lower) {
-        return new SpireFootprint(corner, opposite, lower);
+    public BuildFootprint withRise(int lower) {
+        return new BuildFootprint(corner, opposite, lower);
     }
 
     /**

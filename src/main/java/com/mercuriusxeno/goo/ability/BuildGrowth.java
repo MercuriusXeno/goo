@@ -14,7 +14,7 @@ import java.util.Optional;
 import java.util.OptionalInt;
 
 /**
- * What a Spire grows and what it costs: stone fills the cells above each
+ * What a Build grows and what it costs: stone fills the cells above each
  * footprint cell, from one above the ground through the rise, and the ground
  * stays as it stood. A column grows only where every cell it would fill can
  * be replaced; the rest of the footprint grows nothing and costs nothing.
@@ -29,7 +29,7 @@ import java.util.OptionalInt;
  * @param columns   the ground cells whose columns grow
  * @param exactCost the exact goo the stone grown costs
  */
-public record SpireGrowth(SpireFootprint footprint, List<BlockPos> columns, GooFraction exactCost) {
+public record BuildGrowth(BuildFootprint footprint, List<BlockPos> columns, GooFraction exactCost) {
 
     /**
      * Plans a footprint's growth at its rise.
@@ -39,7 +39,7 @@ public record SpireGrowth(SpireFootprint footprint, List<BlockPos> columns, GooF
      * @param pricePerBlock the exact goo each stone block grown costs, the ability's cost resolved in its type
      * @return the plan, empty of columns where nothing can grow
      */
-    public static SpireGrowth plan(BlockGetter blocks, SpireFootprint footprint, GooFraction pricePerBlock) {
+    public static BuildGrowth plan(BlockGetter blocks, BuildFootprint footprint, GooFraction pricePerBlock) {
         List<BlockPos> columns = new ArrayList<>();
         for (BlockPos ground : footprint.groundCells()) {
             if (columnOpen(blocks, ground, footprint.rise())) {
@@ -47,7 +47,7 @@ public record SpireGrowth(SpireFootprint footprint, List<BlockPos> columns, GooF
             }
         }
         GooFraction cost = pricePerBlock.times((long) columns.size() * footprint.rise());
-        return new SpireGrowth(footprint, List.copyOf(columns), cost);
+        return new BuildGrowth(footprint, List.copyOf(columns), cost);
     }
 
     /**
@@ -63,11 +63,11 @@ public record SpireGrowth(SpireFootprint footprint, List<BlockPos> columns, GooF
      * @param holdings      the mB of that type the caster holds
      * @return the plan, or empty where no rise grows a column the holdings pay for
      */
-    public static Optional<SpireGrowth> affordable(BlockGetter blocks, SpireFootprint footprint,
+    public static Optional<BuildGrowth> affordable(BlockGetter blocks, BuildFootprint footprint,
                                                    GooFraction pricePerBlock, ResourceKey<GooTypeDefinition> gooType,
                                                    GooRemainders remainders, int holdings) {
-        for (int rise = footprint.rise(); rise >= SpireFootprint.MIN_RISE; rise--) {
-            SpireGrowth growth = plan(blocks, footprint.withRise(rise), pricePerBlock);
+        for (int rise = footprint.rise(); rise >= BuildFootprint.MIN_RISE; rise--) {
+            BuildGrowth growth = plan(blocks, footprint.withRise(rise), pricePerBlock);
             // decision melt-and-fabricate-move-the-exact-value-through-a-remainder-buffer
             boolean paidFor = new RemainderLedger(remainders).debitExact(gooType, growth.exactCost(), holdings)
                     .isPresent();

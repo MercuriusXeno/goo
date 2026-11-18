@@ -165,7 +165,7 @@ public enum HostCapability {
      */
     SPAWN_MOB(MobSpawnHost.class),
     /**
-     * The stone a Spire grows, the footprint and rise its submit planned
+     * The stone a Build grows, the footprint and rise its submit planned
      * (decision spire-grows-stone-out-of-the-top).
      */
     RAISE_GROUND(RaiseGroundHost.class),

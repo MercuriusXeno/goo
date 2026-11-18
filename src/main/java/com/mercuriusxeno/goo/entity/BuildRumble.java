@@ -12,14 +12,14 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * What a rising Spire hunk sheds on the client each tick it climbs: chips of
+ * What a rising Build hunk sheds on the client each tick it climbs: chips of
  * its own stone spilling off its sides above the ground it breaks out of, and
  * the earth rumble looping at the stone, fed each tick it climbs and fading
  * out once the rise ends or the hunk is gone.
  * decision spire-entity-izes-its-blocks-and-raises-them-smoothly
  * decision spire-rumbles-like-a-dull-earthquake
  */
-final class SpireRumble {
+final class BuildRumble {
 
     /** Chips the pillar spills each tick it climbs. */
     private static final int CHIPS_PER_TICK = 4;
@@ -29,7 +29,7 @@ final class SpireRumble {
     /** A hair out from the side, so a chip starts in the air. */
     private static final double OFF_THE_SIDE = 0.05;
 
-    private SpireRumble() {
+    private BuildRumble() {
     }
 
     /**

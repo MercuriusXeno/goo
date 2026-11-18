@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
-import com.mercuriusxeno.goo.ability.SpireGrowth;
+import com.mercuriusxeno.goo.ability.BuildGrowth;
 import com.mercuriusxeno.goo.entity.BlockHunk;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
@@ -16,7 +16,7 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 /**
- * Spire's step: the stone for the cells above each planned footprint cell,
+ * Build's step: the stone for the cells above each planned footprint cell,
  * from one above the ground through the rise, rises out of the ground as one
  * hunk of blocks over the rise time, dust thrown off the ground where each
  * column breaks out, and settles into its cells when the rise ends; the
@@ -24,9 +24,9 @@ import java.util.stream.Stream;
  * decision spire-grows-stone-out-of-the-top
  * decision spire-entity-izes-its-blocks-and-raises-them-smoothly
  */
-public record SpireStep() implements Step {
+public record BuildStep() implements Step {
 
-    private static final String NAME = "spire";
+    private static final String NAME = "build";
     /** The ticks the stone takes to rise from the ground into its cells. */
     public static final int RISE_TICKS = 20;
     private static final int DUST_PER_BLOCK = 6;
@@ -34,13 +34,13 @@ public record SpireStep() implements Step {
     private static final double DUST_SPEED = 0.1;
 
     /** Codec for the step, which takes no params. */
-    public static final MapCodec<SpireStep> CODEC = MapCodec.unit(new SpireStep());
+    public static final MapCodec<BuildStep> CODEC = MapCodec.unit(new BuildStep());
 
     /** The registered type. */
-    public static final StepType<SpireStep> TYPE = new StepType<>(NAME, CODEC);
+    public static final StepType<BuildStep> TYPE = new StepType<>(NAME, CODEC);
 
     @Override
-    public StepType<SpireStep> type() {
+    public StepType<BuildStep> type() {
         return TYPE;
     }
 
@@ -59,7 +59,7 @@ public record SpireStep() implements Step {
      * @param level  the server level
      * @param growth the planned growth
      */
-    static void grow(ServerLevel level, SpireGrowth growth) {
+    static void grow(ServerLevel level, BuildGrowth growth) {
         if (growth.columns().isEmpty()) {
             return;
         }

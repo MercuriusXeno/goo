@@ -1,22 +1,22 @@
 package com.mercuriusxeno.goo.client.throwing;
 
-import com.mercuriusxeno.goo.ability.SpireFootprint;
+import com.mercuriusxeno.goo.ability.BuildFootprint;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 import java.util.Optional;
 
 /**
- * The client's hold of a Spire cast, the first ability that submits on a
+ * The client's hold of a Build cast, the first ability that submits on a
  * second right click: a press pins the footprint's corner, the held drag
  * sizes the footprint, the release fixes it, the pitch then sets the rise,
  * and the next press submits. Nothing reaches the server until that submit,
  * so a cast abandoned at any point leaves the world untouched.
  * decision spire-rips-walls-and-platforms
  */
-public final class SpireChoreography {
+public final class BuildChoreography {
 
-    /** Where a Spire cast stands. */
+    /** Where a Build cast stands. */
     public enum Phase {
         /** No cast is live; a press pins a corner. */
         IDLE,
@@ -33,7 +33,7 @@ public final class SpireChoreography {
     private @Nullable BlockPos corner;
     private @Nullable BlockPos dragged;
     private float pitchAtRelease;
-    private int rise = SpireFootprint.MIN_RISE;
+    private int rise = BuildFootprint.MIN_RISE;
     /** True from a submit until the use key comes up, so the held key's repeat pins no new corner. */
     private boolean awaitingKeyUp;
 
@@ -44,12 +44,12 @@ public final class SpireChoreography {
      * @param pinned the ground cell the look meets, or null where it meets none
      * @return the footprint to submit, present only on the submitting press
      */
-    public Optional<SpireFootprint> press(@Nullable BlockPos pinned) {
+    public Optional<BuildFootprint> press(@Nullable BlockPos pinned) {
         if (awaitingKeyUp) {
             return Optional.empty();
         }
         if (phase == Phase.RISING) {
-            Optional<SpireFootprint> submitted = footprint();
+            Optional<BuildFootprint> submitted = footprint();
             cancel();
             awaitingKeyUp = true;
             return submitted;
@@ -82,7 +82,7 @@ public final class SpireChoreography {
             } else {
                 phase = Phase.RISING;
                 pitchAtRelease = pitch;
-                rise = SpireFootprint.MIN_RISE;
+                rise = BuildFootprint.MIN_RISE;
             }
         } else if (phase == Phase.RISING) {
             rise = riseFromPitch(pitchAtRelease, pitch);
@@ -94,7 +94,7 @@ public final class SpireChoreography {
         phase = Phase.IDLE;
         corner = null;
         dragged = null;
-        rise = SpireFootprint.MIN_RISE;
+        rise = BuildFootprint.MIN_RISE;
     }
 
     /**
@@ -109,11 +109,11 @@ public final class SpireChoreography {
      *
      * @return the footprint, empty while no cast is live
      */
-    public Optional<SpireFootprint> footprint() {
+    public Optional<BuildFootprint> footprint() {
         if (phase == Phase.IDLE || corner == null || dragged == null) {
             return Optional.empty();
         }
-        return Optional.of(SpireFootprint.capped(corner, dragged, rise));
+        return Optional.of(BuildFootprint.capped(corner, dragged, rise));
     }
 
     /**
@@ -126,7 +126,7 @@ public final class SpireChoreography {
      */
     public static int riseFromPitch(float pitchAtRelease, float pitch) {
         int climbed = (int) Math.floor((pitchAtRelease - pitch) / DEGREES_PER_BLOCK);
-        return Math.clamp(SpireFootprint.MIN_RISE + (long) climbed, SpireFootprint.MIN_RISE, SpireFootprint.MAX_RISE);
+        return Math.clamp(BuildFootprint.MIN_RISE + (long) climbed, BuildFootprint.MIN_RISE, BuildFootprint.MAX_RISE);
     }
 
     /**

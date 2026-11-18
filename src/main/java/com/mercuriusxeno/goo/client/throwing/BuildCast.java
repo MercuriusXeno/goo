@@ -2,15 +2,15 @@ package com.mercuriusxeno.goo.client.throwing;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityTags;
+import com.mercuriusxeno.goo.ability.BuildFootprint;
+import com.mercuriusxeno.goo.ability.BuildGrowth;
 import com.mercuriusxeno.goo.ability.GloveSelection;
-import com.mercuriusxeno.goo.ability.SpireFootprint;
-import com.mercuriusxeno.goo.ability.SpireGrowth;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.item.GooCasters;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
-import com.mercuriusxeno.goo.network.GooSpirePayload;
+import com.mercuriusxeno.goo.network.GooBuildPayload;
 import com.mercuriusxeno.goo.network.GooThrowHandler;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -31,28 +31,28 @@ import org.jspecify.annotations.Nullable;
 import java.util.Optional;
 
 /**
- * The glove's side of a Spire: routes the right clicks of a selection cast
- * by its footprint into {@link SpireChoreography} rather than the throw
+ * The glove's side of a Build: routes the right clicks of a selection cast
+ * by its footprint into {@link BuildChoreography} rather than the throw
  * press, advances it each tick off the use key and the look, and sends the
  * submit. A screen, a hand without the glove or another selection drops the
  * cast.
  * decision spire-rips-walls-and-platforms
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
-public final class SpireCast {
+public final class BuildCast {
 
-    private static final SpireChoreography CAST = new SpireChoreography();
+    private static final BuildChoreography CAST = new BuildChoreography();
     private static InteractionHand castHand = InteractionHand.MAIN_HAND;
     private static @Nullable String castAbility;
 
-    private SpireCast() {
+    private BuildCast() {
     }
 
     /**
      * Whether the held glove's selection is cast by its footprint.
      *
      * @param player the local player
-     * @return true for a Spire selection
+     * @return true for a Build selection
      */
     public static boolean selected(LocalPlayer player) {
         GloveSelection selection = GooCasters.heldSelection(player);
@@ -61,7 +61,7 @@ public final class SpireCast {
     }
 
     /**
-     * A right click with a Spire selected: pins the corner, or submits the
+     * A right click with a Build selected: pins the corner, or submits the
      * cast while its rise is being set.
      *
      * @param player the local player
@@ -72,16 +72,16 @@ public final class SpireCast {
         if (selection == null || selection.getGooType() == null) {
             return;
         }
-        if (CAST.phase() == SpireChoreography.Phase.IDLE) {
+        if (CAST.phase() == BuildChoreography.Phase.IDLE) {
             castHand = hand;
             castAbility = selection.abilityId();
         }
-        Optional<SpireFootprint> submitted = CAST.press(pinnedGround(player));
+        Optional<BuildFootprint> submitted = CAST.press(pinnedGround(player));
         submitted.ifPresent(footprint -> {
-            player.connection.send(new ServerboundCustomPayloadPacket(new GooSpirePayload(
+            player.connection.send(new ServerboundCustomPayloadPacket(new GooBuildPayload(
                     GooTypes.id(selection.getGooType()), selection.abilityId(), footprint.corner(),
                     footprint.opposite(), footprint.rise())));
-            // diagnose-and-correct-hand-swings-outside-throws: Spire throws no blob, so its resting pose plays no swing
+            // diagnose-and-correct-hand-swings-outside-throws: Build throws no blob, so its resting pose plays no swing
             GlovePoses.release(player, hand);
         });
     }
@@ -99,7 +99,7 @@ public final class SpireCast {
             CAST.cancel();
             return;
         }
-        if (CAST.phase() != SpireChoreography.Phase.IDLE && (mc.screen != null || !stillCasting(player))) {
+        if (CAST.phase() != BuildChoreography.Phase.IDLE && (mc.screen != null || !stillCasting(player))) {
             CAST.cancel();
         }
         CAST.tick(mc.options.keyUse.isDown(), player.getEyePosition(), player.getViewVector(1f), player.getXRot());
@@ -116,7 +116,7 @@ public final class SpireCast {
      *
      * @return the footprint, empty while no cast is live
      */
-    public static Optional<SpireFootprint> footprint() {
+    public static Optional<BuildFootprint> footprint() {
         return CAST.footprint();
     }
 
@@ -126,7 +126,7 @@ public final class SpireCast {
      * @return true while the pitch sets the rise
      */
     public static boolean rising() {
-        return CAST.phase() == SpireChoreography.Phase.RISING;
+        return CAST.phase() == BuildChoreography.Phase.RISING;
     }
 
     /**
@@ -139,9 +139,9 @@ public final class SpireCast {
      * @return the planned growth, empty while no cast is live, the client holds no synced copy of the ability,
      *         or nothing it covers grows
      */
-    public static Optional<SpireGrowth> plannedGrowth(LocalPlayer player) {
+    public static Optional<BuildGrowth> plannedGrowth(LocalPlayer player) {
         GloveSelection selection = GooCasters.heldSelection(player);
-        Optional<SpireFootprint> footprint = CAST.footprint();
+        Optional<BuildFootprint> footprint = CAST.footprint();
         if (selection == null || selection.getGooType() == null || footprint.isEmpty()) {
             return Optional.empty();
         }
@@ -150,7 +150,7 @@ public final class SpireCast {
             return Optional.empty();
         }
         int holdings = GooSourceScanner.aggregateAvailable(player).getOrDefault(selection.getGooType(), 0);
-        return SpireGrowth.affordable(player.level(), footprint.get(),
+        return BuildGrowth.affordable(player.level(), footprint.get(),
                 ability.costPrice().exactIn(GooValues.of(player.level())), selection.getGooType(),
                 player.getData(GooAttachments.REMAINDERS), holdings);
     }
