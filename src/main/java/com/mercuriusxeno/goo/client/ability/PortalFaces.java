@@ -80,6 +80,11 @@ public final class PortalFaces {
      */
     static final double HALO_MARGIN = 0.5;
     /**
+     * How far in from its blocks' edges a Tunnel mouth's oval stands on each
+     * way across the face, in blocks: two texels, as the operator set it.
+     */
+    static final double MOUTH_INSET = 2.0 / 16;
+    /**
      * How far the swirl band's arch peaks out of the wall along the face's
      * normal, right over its line, in blocks: one sixteenth, as the operator
      * set it.
@@ -137,11 +142,29 @@ public final class PortalFaces {
     record Drawn(Gate gate, int rgb, boolean hole) {
 
         /**
+         * The box the gate's oval fills on its face: a portal's whole blocks,
+         * a hole's mouth its blocks drawn in by the mouth inset each way
+         * across the face, so a Tunnel mouth stands shy of its blocks' edges.
+         * The space a body passes through stays the whole blocks.
+         * tunnel-drops-its-crisp-wiggly-outline-and-looks-like-the-portals
+         *
+         * @return the oval's box, in world space
+         */
+        AABB ovalBox() {
+            if (!hole) {
+                return gate.blocks();
+            }
+            Direction.Axis normal = gate.face().getAxis();
+            return gate.blocks().deflate(normal == Direction.Axis.X ? 0 : MOUTH_INSET,
+                    normal == Direction.Axis.Y ? 0 : MOUTH_INSET, normal == Direction.Axis.Z ? 0 : MOUTH_INSET);
+        }
+
+        /**
          * @param camera the camera's position
-         * @return the blocks the gate covers, camera-relative, shrunk as it grows open
+         * @return the box the gate's oval fills, camera-relative, shrunk as it grows open
          */
         AABB drawnBox(Vec3 camera) {
-            AABB box = gate.blocks().move(camera.reverse());
+            AABB box = ovalBox().move(camera.reverse());
             float partialTick = Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(false);
             // a portal, as a hole's mouth, grows in from nothing to its size as it is placed
             float grown = hole ? ClientHoles.grownOpen(gate, partialTick) : ClientPortals.grownOpen(gate, partialTick);
@@ -605,9 +628,11 @@ public final class PortalFaces {
             Function<Drawn, AABB> boxOf, BiPredicate<BlockPos, Direction> fullFace) {
         for (Drawn drawn : gates) {
             AABB world = drawn.gate().blocks();
-            Vec3 shift = boxOf.apply(drawn).getCenter().subtract(world.getCenter());
+            AABB box = boxOf.apply(drawn);
+            Vec3 shift = box.getCenter().subtract(world.getCenter());
+            AABB oval = box.move(shift.reverse());
             for (Corner corner : cornersOf(world, drawn.gate().face(), fullFace)) {
-                emitCornerGlow(pose, consumer, new CornerQuad(world, drawn.gate().face(), corner, shift),
+                emitCornerGlow(pose, consumer, new CornerQuad(world, oval, drawn.gate().face(), corner, shift),
                         ARGB.opaque(drawn.rgb()));
             }
         }
@@ -676,16 +701,20 @@ public final class PortalFaces {
      * toward the mouth, running along the block and out from the wall.
      *
      * @param world  the gate's blocks
+     * @param oval   the box the gate's oval fills, in world space, inside its blocks for a hole's mouth
      * @param side   the gate's face
      * @param corner the corner block and the way out to it
      * @param shift  what moves world positions to where the frame draws them
      */
-    private record CornerQuad(AABB world, Direction side, Corner corner, Vec3 shift) {
+    private record CornerQuad(AABB world, AABB oval, Direction side, Corner corner, Vec3 shift) {
 
-        /** @return the gate's halo quad's box, whose face coordinate the corner unfolds past */
+        /**
+         * @return the gate's halo quad's box, whose face coordinate the corner
+         *         unfolds past, reaching the halo margin past the oval
+         */
         AABB halo() {
             Direction.Axis normal = side.getAxis();
-            return world.inflate(normal == Direction.Axis.X ? 0 : HALO_MARGIN,
+            return oval.inflate(normal == Direction.Axis.X ? 0 : HALO_MARGIN,
                     normal == Direction.Axis.Y ? 0 : HALO_MARGIN, normal == Direction.Axis.Z ? 0 : HALO_MARGIN);
         }
 
