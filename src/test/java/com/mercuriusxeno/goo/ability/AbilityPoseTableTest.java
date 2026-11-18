@@ -106,8 +106,8 @@ class AbilityPoseTableTest {
             Map.entry("yore_expire", ArmPose.SWUNG),
             Map.entry("yore_rewind", ArmPose.RESTING),
             Map.entry("zoo_allure", ArmPose.SWUNG),
-            Map.entry("zoo_kin", ArmPose.HELD_UP),
-            Map.entry("zoo_rally", ArmPose.RESTING),
+            Map.entry("yarn_herd", ArmPose.HELD_UP),
+            Map.entry("yarn_lead", ArmPose.RESTING),
             Map.entry("zoo_shape", ArmPose.RESTING),
             Map.entry("zoo_spawn", ArmPose.RESTING));
 

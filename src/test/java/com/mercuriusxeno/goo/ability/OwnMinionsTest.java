@@ -1,11 +1,11 @@
 package com.mercuriusxeno.goo.ability;
 
 import com.mercuriusxeno.goo.ability.hex.Charmed;
-import com.mercuriusxeno.goo.ability.zoo.Rallied;
+import com.mercuriusxeno.goo.ability.yarn.Led;
 import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.junit.jupiter.api.Test;
 import java.util.Optional;
 import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -15,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Covers which mobs are a caster's own minions and which shipped abilities
  * spare them by the harmful tag (decision mob-targeted-attacks-refuse-your-minions),
- * and which mobs Charm and Rally refuse for a caster.
+ * and which mobs Charm and Lead refuse for a caster.
  */
 class OwnMinionsTest {
 
@@ -27,24 +27,24 @@ class OwnMinionsTest {
     class OwnMinionOf {
 
         @Test
-        void aMobTheCasterRalliedIsTheCastersMinion() {
-            assertTrue(OwnMinions.ownMinionOf(CASTER, new Rallied(CASTER, STRIKE), Charmed.NONE));
+        void aMobTheCasterLedIsTheCastersMinion() {
+            assertTrue(OwnMinions.ownMinionOf(CASTER, new Led(CASTER, STRIKE), Charmed.NONE));
         }
 
         @Test
         void aMobTheCasterCharmedIsTheCastersMinion() {
-            assertTrue(OwnMinions.ownMinionOf(CASTER, Rallied.NONE, new Charmed(CASTER)));
+            assertTrue(OwnMinions.ownMinionOf(CASTER, Led.NONE, new Charmed(CASTER)));
         }
 
         @Test
         void anotherPlayersMinionIsNotTheCasters() {
-            assertFalse(OwnMinions.ownMinionOf(CASTER, new Rallied(OTHER_PLAYER, STRIKE),
+            assertFalse(OwnMinions.ownMinionOf(CASTER, new Led(OTHER_PLAYER, STRIKE),
                     new Charmed(OTHER_PLAYER)));
         }
 
         @Test
         void aMobWithNeitherAttachmentIsNoMinion() {
-            assertFalse(OwnMinions.ownMinionOf(CASTER, Rallied.NONE, Charmed.NONE));
+            assertFalse(OwnMinions.ownMinionOf(CASTER, Led.NONE, Charmed.NONE));
         }
 
     }
@@ -54,59 +54,59 @@ class OwnMinionsTest {
     class CharmRefuses {
 
         @Test
-        void charmRefusesAMobTheCasterRallied() {
-            assertTrue(OwnMinions.charmRefuses(CASTER, new Rallied(CASTER, STRIKE), Charmed.NONE));
+        void charmRefusesAMobTheCasterLed() {
+            assertTrue(OwnMinions.charmRefuses(CASTER, new Led(CASTER, STRIKE), Charmed.NONE));
         }
 
         @Test
-        void charmRefusesAMobAnotherPlayerRallied() {
-            assertTrue(OwnMinions.charmRefuses(CASTER, new Rallied(OTHER_PLAYER, STRIKE), Charmed.NONE));
+        void charmRefusesAMobAnotherPlayerLed() {
+            assertTrue(OwnMinions.charmRefuses(CASTER, new Led(OTHER_PLAYER, STRIKE), Charmed.NONE));
         }
 
         @Test
         void charmRefusesAMobAnotherPlayerCharmed() {
-            assertTrue(OwnMinions.charmRefuses(CASTER, Rallied.NONE, new Charmed(OTHER_PLAYER)));
+            assertTrue(OwnMinions.charmRefuses(CASTER, Led.NONE, new Charmed(OTHER_PLAYER)));
         }
 
         @Test
         void charmTakesAMobHoldingNeitherEffect() {
-            assertFalse(OwnMinions.charmRefuses(CASTER, Rallied.NONE, Charmed.NONE));
+            assertFalse(OwnMinions.charmRefuses(CASTER, Led.NONE, Charmed.NONE));
         }
 
         @Test
         void charmTakesAMobItsCasterCharmed() {
-            assertFalse(OwnMinions.charmRefuses(CASTER, Rallied.NONE, new Charmed(CASTER)));
+            assertFalse(OwnMinions.charmRefuses(CASTER, Led.NONE, new Charmed(CASTER)));
         }
     }
 
     /** charmed-mobs-are-immune-to-rally, other-players-rally-and-charm-refuse-your-minions */
     @Nested
-    class RallyRefuses {
+    class LeadRefuses {
 
         @Test
-        void rallyRefusesAMobTheCasterCharmed() {
-            assertTrue(OwnMinions.rallyRefuses(CASTER, Rallied.NONE, new Charmed(CASTER)));
+        void leadRefusesAMobTheCasterCharmed() {
+            assertTrue(OwnMinions.leadRefuses(CASTER, Led.NONE, new Charmed(CASTER)));
         }
 
         @Test
-        void rallyRefusesAMobAnotherPlayerCharmed() {
-            assertTrue(OwnMinions.rallyRefuses(CASTER, Rallied.NONE, new Charmed(OTHER_PLAYER)));
+        void leadRefusesAMobAnotherPlayerCharmed() {
+            assertTrue(OwnMinions.leadRefuses(CASTER, Led.NONE, new Charmed(OTHER_PLAYER)));
         }
 
         @Test
-        void rallyRefusesAMobAnotherCasterRallied() {
-            assertTrue(OwnMinions.rallyRefuses(CASTER, new Rallied(OTHER_PLAYER, STRIKE), Charmed.NONE));
+        void leadRefusesAMobAnotherCasterLed() {
+            assertTrue(OwnMinions.leadRefuses(CASTER, new Led(OTHER_PLAYER, STRIKE), Charmed.NONE));
         }
 
         @Test
-        void rallyTakesAMobHoldingNeitherEffect() {
-            assertFalse(OwnMinions.rallyRefuses(CASTER, Rallied.NONE, Charmed.NONE));
+        void leadTakesAMobHoldingNeitherEffect() {
+            assertFalse(OwnMinions.leadRefuses(CASTER, Led.NONE, Charmed.NONE));
         }
 
-        /** rally-cast-on-your-rallied-mob-releases-it: the rallier's own Rally reaches the mob to release it */
+        /** rally-cast-on-your-rallied-mob-releases-it: the leader's own Lead reaches the mob to release it */
         @Test
-        void rallyTakesAMobTheCasterRallied() {
-            assertFalse(OwnMinions.rallyRefuses(CASTER, new Rallied(CASTER, STRIKE), Charmed.NONE));
+        void leadTakesAMobTheCasterLed() {
+            assertFalse(OwnMinions.leadRefuses(CASTER, new Led(CASTER, STRIKE), Charmed.NONE));
         }
     }
 
@@ -118,24 +118,24 @@ class OwnMinionsTest {
     class OwnerOf {
 
         @Test
-        void aRalliedMobFightsForItsRallier() {
-            assertEquals(Optional.of(CASTER), OwnMinions.ownerOf(new Rallied(CASTER, STRIKE), Charmed.NONE));
+        void aLedMobFightsForItsLeader() {
+            assertEquals(Optional.of(CASTER), OwnMinions.ownerOf(new Led(CASTER, STRIKE), Charmed.NONE));
         }
 
         @Test
         void aCharmedMobFightsForItsCharmer() {
-            assertEquals(Optional.of(CASTER), OwnMinions.ownerOf(Rallied.NONE, new Charmed(CASTER)));
+            assertEquals(Optional.of(CASTER), OwnMinions.ownerOf(Led.NONE, new Charmed(CASTER)));
         }
 
         @Test
-        void aMobRalliedAndCharmedFightsForItsRallier() {
-            assertEquals(Optional.of(CASTER), OwnMinions.ownerOf(new Rallied(CASTER, STRIKE),
+        void aMobLedAndCharmedFightsForItsLeader() {
+            assertEquals(Optional.of(CASTER), OwnMinions.ownerOf(new Led(CASTER, STRIKE),
                     new Charmed(OTHER_PLAYER)));
         }
 
         @Test
         void aMobHoldingNeitherFightsForNoOne() {
-            assertEquals(Optional.empty(), OwnMinions.ownerOf(Rallied.NONE, Charmed.NONE));
+            assertEquals(Optional.empty(), OwnMinions.ownerOf(Led.NONE, Charmed.NONE));
         }
     }
 
@@ -183,7 +183,7 @@ class OwnMinionsTest {
         }
 
         @ParameterizedTest
-        @ValueSource(strings = {"hex_charm", "zoo_allure", "zoo_shape", "zoo_rally"})
+        @ValueSource(strings = {"hex_charm", "zoo_allure", "zoo_shape", "yarn_lead"})
         void anUntaggedAbilityStaysUntagged(String name) {
             assertFalse(AbilityJson.decode(name).hasTag(AbilityTags.HARMFUL), name + " should carry no harmful tag");
         }

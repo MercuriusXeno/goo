@@ -175,8 +175,8 @@ public interface Step {
     /**
      * Whether the step refuses an entity for a caster, a question
      * {@link #takesEntity} cannot answer since it knows no caster: Charm
-     * refuses a rallied mob and another player's charmed one, Rally a
-     * charmed mob and another caster's rallied one. A container refuses
+     * refuses a led mob and another player's charmed one, Lead a
+     * charmed mob and another caster's led one. A container refuses
      * what any of its children refuse; any other step refuses nothing.
      * refused-rally-or-charm-spends-no-goo
      *

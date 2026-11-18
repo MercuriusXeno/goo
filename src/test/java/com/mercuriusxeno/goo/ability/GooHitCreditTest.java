@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.ability;
 
-import com.mercuriusxeno.goo.ability.zoo.Downed;
+import com.mercuriusxeno.goo.ability.yarn.Downed;
 import net.minecraft.core.Holder;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.damagesource.DamageSource;

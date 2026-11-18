@@ -25,7 +25,7 @@ import java.util.function.Consumer;
  * <p>A standing field's strike runs on a host naming no thrower and naming
  * the player who placed the field, whom its hits credit and nothing else
  * reads, so the placer's own field strikes them, and the distance, the
- * teleport, the rally and the rest read the strike as they did before it
+ * teleport, the lead and the rest read the strike as they did before it
  * credited anyone.
  * standing-goo-thing-credits-whoever-placed-it
  * crediting-a-goo-hit-changes-nothing-else

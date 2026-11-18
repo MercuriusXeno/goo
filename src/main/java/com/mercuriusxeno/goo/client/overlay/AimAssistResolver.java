@@ -167,9 +167,9 @@ final class AimAssistResolver {
     /**
      * Whether the aim may outline an entity, sparing the player's own
      * minions where the selected ability spares them, so a harmful mob
-     * ability never locks on a mob its caster rallied or charmed, and
+     * ability never locks on a mob its caster led or charmed, and
      * dropping a mob the selected ability's steps refuse for the player,
-     * so a refused Rally or Charm never locks on it.
+     * so a refused Lead or Charm never locks on it.
      * mob-targeted-attacks-refuse-your-minions
      * refused-rally-or-charm-spends-no-goo
      *

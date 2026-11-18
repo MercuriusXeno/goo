@@ -5,7 +5,7 @@ import com.mercuriusxeno.goo.ability.program.AncientStep;
 import com.mercuriusxeno.goo.ability.program.EludeStep;
 import com.mercuriusxeno.goo.ability.program.GluttonyStep;
 import com.mercuriusxeno.goo.ability.program.HeartOverlayStep;
-import com.mercuriusxeno.goo.ability.program.KinStep;
+import com.mercuriusxeno.goo.ability.program.HerdStep;
 import com.mercuriusxeno.goo.ability.program.LowerCaseEnumCodec;
 import com.mercuriusxeno.goo.ability.program.LuxStep;
 import com.mercuriusxeno.goo.ability.program.RemoteStep;
@@ -62,14 +62,14 @@ public enum LaidState {
      */
     PHASE,
     /**
-     * Laid by no step, Rally being a mob ability (decision rally-is-a-mob-effect-on-one-target);
+     * Laid by no step, Lead being a mob ability (decision rally-is-a-mob-effect-on-one-target);
      * it stands so a saved held effect naming it still loads.
      */
-    RALLY,
+    LEAD,
     /** The dive's swim through stone and its vision (decision dive-is-a-brew-of-warden-senses-and-free-swimming-through-solid-blocks). */
     SCULKER,
-    /** Zoo's Kin, last since the client sync numbers states by order (decision leader-is-zoos-brew-ability). */
-    KIN;
+    /** Yarn's Herd, last since the client sync numbers states by order (decision leader-is-zoos-brew-ability). */
+    HERD;
 
     /** Codec for the saved state. */
     public static final Codec<LaidState> CODEC = LowerCaseEnumCodec.of(LaidState.class, "laid state");
@@ -108,7 +108,7 @@ public enum LaidState {
             Map.entry(UnveilStep.class, UNVEIL),
             Map.entry(AncientStep.class, ANCIENT),
             Map.entry(SculkerStep.class, SCULKER),
-            Map.entry(KinStep.class, KIN));
+            Map.entry(HerdStep.class, HERD));
 
     private static Stream<Step> withDescendants(Step step) {
         return Stream.concat(Stream.of(step), step.children().flatMap(LaidState::withDescendants));
