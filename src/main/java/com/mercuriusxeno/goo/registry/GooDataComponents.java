@@ -122,6 +122,17 @@ public class GooDataComponents {
                             .build());
 
     /**
+     * The canister a sprayer carries, whole, its own goo and label riding inside it untouched.
+     * decision sprayer-holds-a-canister-sideways-like-a-caulk-gun
+     */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<ItemStack>> SPRAYER_CANISTER =
+            DATA_COMPONENTS.register("sprayer_canister",
+                    () -> DataComponentType.<ItemStack>builder()
+                            .persistent(ItemStack.CODEC)
+                            .networkSynchronized(ItemStack.STREAM_CODEC)
+                            .build());
+
+    /**
      * Selected goo type + ability persisted on glove items.
      */
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<GloveSelection>> SELECTED_ABILITY =

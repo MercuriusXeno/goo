@@ -118,6 +118,9 @@ public class GooItems {
     public static final DeferredItem<GooGloveItem> EXO_GAUNTLET = ITEMS.registerItem("exo_gauntlet",
             props -> new GooGloveItem(props.stacksTo(1).fireResistant()
                     .attributes(GooGloveItem.attackModifiers(GloveTier.EXO_GAUNTLET)), GloveTier.EXO_GAUNTLET));
+    /** The sprayer, carrying one canister (decision sprayer-holds-a-canister-sideways-like-a-caulk-gun). */
+    public static final DeferredItem<SprayerItem> SPRAYER = ITEMS.registerItem("sprayer",
+            props -> new SprayerItem(props.stacksTo(1)));
     // --- Partially Melted Item (crucible intermediate, not in creative tab) ---
     public static final DeferredItem<PartiallyMeltedItem> PARTIALLY_MELTED_ITEM = ITEMS.registerItem(
             "partially_melted_item", props -> new PartiallyMeltedItem(props.stacksTo(1)));
