@@ -3,13 +3,15 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.ability.FormSounds;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.program.SoundCue;
+import com.mercuriusxeno.goo.ability.program.SoundPlays;
+import com.mercuriusxeno.goo.client.sound.ListenerSounds;
 import com.mercuriusxeno.goo.client.throwing.GloveThrowSender;
 import com.mercuriusxeno.goo.item.GooCasters;
 import com.mercuriusxeno.goo.network.StackFormedPayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.sounds.SoundSource;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
+import net.minecraft.client.resources.sounds.SoundInstance;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
@@ -89,6 +91,25 @@ final class StackSounds {
     }
 
     /**
+     * The instance a cue plays by for a listener: at the listener, both ears,
+     * where it sounds beside the listener's head, and at its point otherwise.
+     * decision goo-sound-at-the-listener-reaches-both-ears
+     *
+     * @param at  where the cue sounds
+     * @param eye the listener's eye
+     * @param cue the cue
+     * @return the instance
+     */
+    static SimpleSoundInstance instanceOf(Vec3 at, Vec3 eye, SoundCue cue) {
+        if (ListenerSounds.besideHead(at, eye)) {
+            return ListenerSounds.atListener(cue);
+        }
+        return new SimpleSoundInstance(cue.sound(), SoundPlays.sourceOf(cue.source()), cue.volume(), cue.pitch(),
+                SoundInstance.createUnseededRandom(), false, 0, SoundInstance.Attenuation.LINEAR, at.x, at.y, at.z,
+                false);
+    }
+
+    /**
      * Plays a cue at a player, for that player to hear.
      *
      * @param player the player, or null for none
@@ -96,7 +117,7 @@ final class StackSounds {
      */
     static void playAt(@Nullable Player player, SoundCue cue) {
         if (player != null) {
-            playAt(player, player.position(), cue);
+            playAt(player, player.getEyePosition(), cue);
         }
     }
 
@@ -108,7 +129,7 @@ final class StackSounds {
      * @param cue    the cue
      */
     static void playAt(Player player, Vec3 at, SoundCue cue) {
-        BuiltInRegistries.SOUND_EVENT.get(cue.sound()).ifPresent(sound -> player.level().playLocalSound(
-                at.x, at.y, at.z, sound.value(), SoundSource.PLAYERS, cue.volume(), cue.pitch(), false));
+        // goo-sound-at-the-listener-reaches-both-ears: a cue beside the listener's head reaches both ears
+        ListenerSounds.play(instanceOf(at, player.getEyePosition(), cue));
     }
 }
