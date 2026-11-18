@@ -71,15 +71,6 @@ public final class LunarSight {
     }
 
     /**
-     * The refusal a cast holding neither moon nor planet shows: "That's no moon!" in the overworld and "That's not
-     * your world" on the moon, where the hold reads as Terran and a hidden planet refuses alike.
-     * decision lunar-refusal-says-thats-no-moon
-     * decision terran-refusal-says-thats-not-your-world
-     *
-     * @param dimension the caster's dimension
-     * @return the refusal's lang key
-     */
-    /**
      * The refusal a cast holding neither moon nor planet shows, the sun first: a look holding the sun while it stands
      * above the horizon, in the overworld or on the moon, says "The big yellow one is the sun!", and any other look
      * shows its dimension's refusal.
@@ -96,6 +87,15 @@ public final class LunarSight {
         return holdsTheSun ? SUN_REFUSED : refusalKey(dimension);
     }
 
+    /**
+     * The refusal a cast holding neither moon nor planet shows: "That's no moon!" in the overworld and "That's not
+     * your world" on the moon, where the hold reads as Terran and a hidden planet refuses alike.
+     * decision lunar-refusal-says-thats-no-moon
+     * decision terran-refusal-says-thats-not-your-world
+     *
+     * @param dimension the caster's dimension
+     * @return the refusal's lang key
+     */
     public static String refusalKey(ResourceKey<Level> dimension) {
         return Lunar.LEVEL.equals(dimension) ? TERRAN_REFUSED : LUNAR_REFUSED;
     }
