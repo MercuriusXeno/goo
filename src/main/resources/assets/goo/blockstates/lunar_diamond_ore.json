@@ -1,0 +1,18 @@
+{
+  "variants": {
+    "": [
+      {
+        "model": "goo:block/lunar_diamond_ore"
+      },
+      {
+        "model": "goo:block/lunar_diamond_ore_2"
+      },
+      {
+        "model": "goo:block/lunar_diamond_ore_3"
+      },
+      {
+        "model": "goo:block/lunar_diamond_ore_4"
+      }
+    ]
+  }
+}

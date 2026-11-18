@@ -86,7 +86,7 @@ class LunarMatterTest {
             assertTrue(registeredIds(GooBlocks.BLOCKS).containsAll(List.of(
                     goo("anorthosite"), goo("regolith"), goo("iron_core"), goo("molten_iron"), goo("meteoric_iron"),
                     goo("impact_glass"), goo("breccia"), goo("crater_ice"), goo("native_iron"),
-                    goo("astral_crystal"))),
+                    goo("astral_crystal"), goo("lunar_diamond_ore"), goo("lunar_gold_ore"))),
                     String.valueOf(registeredIds(GooBlocks.BLOCKS)));
         }
 
@@ -103,7 +103,8 @@ class LunarMatterTest {
             assertTrue(registeredIds(GooItems.ITEMS).containsAll(List.of(
                     goo("anorthosite"), goo("regolith"), goo("iron_core"), goo("molten_iron_bucket"),
                     goo("meteoric_iron"), goo("impact_glass"), goo("breccia"),
-                    goo("crater_ice"), goo("native_iron"), goo("astral_crystal"))),
+                    goo("crater_ice"), goo("native_iron"), goo("astral_crystal"), goo("lunar_diamond_ore"),
+                    goo("lunar_gold_ore"))),
                     String.valueOf(registeredIds(GooItems.ITEMS)));
         }
     }
