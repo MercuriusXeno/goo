@@ -952,7 +952,7 @@ public class VolumeCellBlock extends Block {
      * @param shares how the block's volume divides between its surfaces
      * @return the box
      */
-    static VoxelShape boxOf(GooShares shares) {
+    public static VoxelShape boxOf(GooShares shares) {
         VoxelShape box = shares.floor() > 0 ? Shapes.box(0, 0, 0, 1, shares.floor() / MAX_LAYERS, 1) : Shapes.empty();
         for (Map.Entry<Direction, Double> side : shares.sides().entrySet()) {
             box = Shapes.or(box, slabOn(side.getKey(), side.getValue() / MAX_LAYERS));
