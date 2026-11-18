@@ -85,6 +85,108 @@ class CellLandingTest {
     };
 
     /**
+     * A drip reaching a block of its goo that holds a whole block overflows
+     * onto the goo above it rather than vanishing: one striking the full
+     * block's top, or the wall the full block clings to, feeds the block
+     * over it, thickening the goo standing there.
+     * operator UAT 2026-11-17: drips are never eaten; every drawn drip lays its layer
+     * drip-on-a-standing-cell-increases-it
+     */
+    @Nested
+    class Overflow {
+
+        /** A block of goo holding a whole block on a floor, attached to the stone wall east of it. */
+        private static final BlockPos FULL = new BlockPos(30, 1, 30);
+        /** The goo standing over the full block, short of a whole block. */
+        private static final BlockPos OVER = FULL.above();
+        private static final BlockPos WALL_BY_FULL = FULL.east();
+        /** A full block on a floor under a stone overhang, attached to the stone wall east of it. */
+        private static final BlockPos FULL_UNDER_OVERHANG = new BlockPos(40, 1, 40);
+        /** The open cell west of it, on the floor, where a drip striking it from the west came from. */
+        private static final BlockPos SPILL = FULL_UNDER_OVERHANG.west();
+
+        private final CellLanding.Cells full = new CellLanding.Cells() {
+            @Override
+            public boolean thickens(BlockPos pos) {
+                return pos.equals(OVER);
+            }
+
+            @Override
+            public boolean takesACell(BlockPos pos) {
+                return pos.equals(SPILL);
+            }
+
+            @Override
+            public Optional<SideCoat> sideAt(BlockPos cell, Direction side) {
+                return isFull(cell) && side == Direction.EAST ? Optional.of(SideCoat.ATTACHED) : Optional.empty();
+            }
+
+            @Override
+            public boolean gooBelow(BlockPos cell) {
+                return false;
+            }
+
+            @Override
+            public boolean gooAt(BlockPos cell) {
+                return isFull(cell) || cell.equals(OVER);
+            }
+
+            @Override
+            public int volumeAt(BlockPos cell) {
+                return isFull(cell) ? VolumeCellBlock.MAX_LAYERS : 0;
+            }
+
+            @Override
+            public int attachedAt(BlockPos cell) {
+                return isFull(cell) ? 1 : 0;
+            }
+
+            @Override
+            public boolean floorAt(BlockPos cell) {
+                return isFull(cell);
+            }
+
+            @Override
+            public boolean wallAt(BlockPos cell, Direction side) {
+                return isFull(cell) && side == Direction.EAST;
+            }
+
+            private boolean isFull(BlockPos cell) {
+                return cell.equals(FULL) || cell.equals(FULL_UNDER_OVERHANG);
+            }
+
+            @Override
+            public Optional<BlockPos> dropLanding(BlockPos cell) {
+                return Optional.empty();
+            }
+        };
+
+        @Test
+        void aDripStrikingAFullBlocksTopFeedsTheGooOverIt() {
+            assertEquals(Optional.of(CellFed.fill(OVER)),
+                    CellLanding.cellFedBy(strike(FULL, Direction.UP), HOLDS_WHERE_IT_STRIKES, full));
+        }
+
+        @Test
+        void aDripStrikingAFullBlockUnderAnOverhangSpillsWhereItCameFrom() {
+            assertEquals(Optional.of(CellFed.fill(SPILL)), CellLanding.cellFedBy(
+                    strike(FULL_UNDER_OVERHANG, Direction.WEST), HOLDS_WHERE_IT_STRIKES, full));
+        }
+
+        @Test
+        void aDripStrikingTheOverhangOverAFullBlockSpillsAwayFromItsWall() {
+            assertEquals(Optional.of(CellFed.fill(SPILL)), CellLanding.cellFedBy(
+                    strike(FULL_UNDER_OVERHANG.above(), Direction.DOWN), HOLDS_WHERE_IT_STRIKES, full));
+        }
+
+        @Test
+        void aDripStrikingTheWallAFullBlockClingsToFeedsTheGooOverIt() {
+            assertEquals(Optional.of(CellFed.fill(OVER)),
+                    CellLanding.cellFedBy(strike(WALL_BY_FULL, Direction.WEST), HOLDS_WHERE_IT_STRIKES, full));
+        }
+    }
+
+    /**
      * Goo is no wall: a drip striking the side of a block of goo it cannot
      * join clings to nothing there, at any adhesion, and falls past it to the
      * first top below, so it flows on to the goo there (decision
