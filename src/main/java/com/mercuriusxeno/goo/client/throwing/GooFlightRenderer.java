@@ -248,6 +248,30 @@ public final class GooFlightRenderer {
     }
 
     /**
+     * Draws a thrown blob as a flight draws it, its core, shell and tail
+     * streaking behind it along its velocity, scaled about its center; Portal's
+     * shot draws through this at its smaller size.
+     * operator UAT 2026-11-18: the Portal shot is a real thrown blob, smaller and faster
+     *
+     * @param poseStack the pose stack, at the blob's center
+     * @param buffers   the buffer source
+     * @param type      the goo type
+     * @param gameTime  the level game time in ticks
+     * @param velocity  the blob's velocity, blocks per tick
+     * @param scale     the blob's size against a flight's, 0 to 1
+     */
+    public static void renderThrownBlob(PoseStack poseStack, MultiBufferSource buffers,
+                                        ResourceKey<GooTypeDefinition> type, float gameTime, Vec3 velocity,
+                                        float scale) {
+        poseStack.pushPose();
+        poseStack.scale(scale, scale, scale);
+        renderCore(poseStack, buffers, type, gameTime);
+        renderShell(poseStack, buffers, type);
+        renderTail(poseStack, buffers, type, velocity, gameTime);
+        poseStack.popPose();
+    }
+
+    /**
      * Draws a goo blob of a type, the core and shell a flight carries,
      * scaled about its center; a model transformation draws its blob
      * through this as it shrinks into the model it becomes

@@ -13,7 +13,7 @@ import java.util.concurrent.ThreadLocalRandom;
  * Trail particle spawning for goo flights: drip sparks and fog puffs
  * shed along the wake. Throttled to every other tick.
  */
-final class GooTrailParticles {
+public final class GooTrailParticles {
 
     /**
      * Tick interval for trail particle spawning (every N ticks).
@@ -92,7 +92,28 @@ final class GooTrailParticles {
         if (flight.ticksElapsed % PARTICLE_TICK_INTERVAL != 0) {
             return;
         }
+        spawnTrailAt(pos, motion, type);
+    }
 
+    /**
+     * Spawns one tick's trail behind a blob, unthrottled: the drip and the fog
+     * puffs a thrown blob sheds. Portal's shot, a few ticks long, sheds its
+     * trail every tick it flies.
+     * operator UAT 2026-11-18: the Portal shot is a real thrown blob, smaller and faster
+     *
+     * @param pos      the blob's world position
+     * @param heading  the blob's unit heading, which places the fog behind it
+     * @param velocity the blob's velocity, blocks per tick
+     * @param type     the goo type
+     */
+    public static void spawnShotTrail(Vec3 pos, Vec3 heading, Vec3 velocity, ResourceKey<GooTypeDefinition> type) {
+        if (Minecraft.getInstance().level != null) {
+            spawnTrailAt(pos, new TrailMotion(heading, velocity), type);
+        }
+    }
+
+    private static void spawnTrailAt(Vec3 pos, TrailMotion motion, ResourceKey<GooTypeDefinition> type) {
+        Minecraft mc = Minecraft.getInstance();
         int color = GooColors.get(mc.level.registryAccess(), type);
         spawnDripParticle(mc, pos, motion.blobVelocity(), color);
         spawnFogParticles(mc, pos, motion, color);
