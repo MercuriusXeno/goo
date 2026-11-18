@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.AbilityJson;
+import com.mercuriusxeno.goo.ability.ThrowRange;
 import com.mercuriusxeno.goo.ability.quantum.Gate;
 import com.mercuriusxeno.goo.ability.quantum.GatePassage;
 import com.mercuriusxeno.goo.item.ReagentScanner;
@@ -14,6 +15,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -29,6 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class GooThrowHandlerTest {
 
     private static final double TOLERANCE = 1e-9;
+    private static final double RANGE = 16;
     private static final Vec3 EYE = new Vec3(10, 65.62, -4);
     private static final ResourceKey<Level> OVERWORLD =
             ResourceKey.create(Registries.DIMENSION, Identifier.withDefaultNamespace("overworld"));
@@ -48,7 +51,7 @@ class GooThrowHandlerTest {
         Vec3 hand = new Vec3(0.5, 65.0, -4.0);
         Vec3 face = NEAR.center();
         Vec3 target = new Vec3(480.5, 64.5, 5.0);
-        GateArc.Hop hop = GooThrowHandler.admittedHop(List.of(new GatePassage.Pair(NEAR, FAR)), NEAR, face, hand)
+        GateArc.Hop hop = GooThrowHandler.admittedHop(List.of(new GatePassage.Pair(NEAR, FAR)), NEAR, face, hand, RANGE)
                 .orElseThrow(() -> new AssertionError("A throw through a linked gate should be admitted"));
         assertEquals(hand.distanceTo(face) + hop.partnerPoint().distanceTo(target),
                 GooThrowHandler.throughDistance(hand, hop, target), TOLERANCE,
@@ -58,7 +61,7 @@ class GooThrowHandlerTest {
     @Test
     void aThrowNamingAGateInNoPairIsRefused() {
         Vec3 hand = new Vec3(0.5, 65.0, -4.0);
-        assertTrue(GooThrowHandler.admittedHop(List.of(), NEAR, NEAR.center(), hand).isEmpty(),
+        assertTrue(GooThrowHandler.admittedHop(List.of(), NEAR, NEAR.center(), hand, RANGE).isEmpty(),
                 "A throw naming a gate that stands in no pair should be refused");
     }
 
@@ -66,25 +69,25 @@ class GooThrowHandlerTest {
     void aPointBeyondRangeIsCappedOntoTheRangeAlongItsLine() {
         Vec3 far = EYE.add(30, 90, -60);
 
-        Vec3 capped = GooThrowHandler.capToRange(EYE, far, GooThrowHandler.MAX_RANGE);
+        Vec3 capped = GooThrowHandler.capToRange(EYE, far, RANGE);
 
-        assertEquals(GooThrowHandler.MAX_RANGE, capped.distanceTo(EYE), TOLERANCE);
+        assertEquals(RANGE, capped.distanceTo(EYE), TOLERANCE);
         Vec3 along = far.subtract(EYE).normalize();
         assertEquals(1, capped.subtract(EYE).normalize().dot(along), TOLERANCE);
     }
 
     @Test
     void aPointWithinRangePassesUnchanged() {
-        Vec3 near = EYE.add(12, -3, 40);
+        Vec3 near = EYE.add(12, -3, 10);
 
-        assertSame(near, GooThrowHandler.capToRange(EYE, near, GooThrowHandler.MAX_RANGE));
+        assertSame(near, GooThrowHandler.capToRange(EYE, near, RANGE));
     }
 
     @Test
     void aPointOnTheRangePassesUnchanged() {
-        Vec3 edge = EYE.add(0, 0, GooThrowHandler.MAX_RANGE);
+        Vec3 edge = EYE.add(0, 0, RANGE);
 
-        assertSame(edge, GooThrowHandler.capToRange(EYE, edge, GooThrowHandler.MAX_RANGE));
+        assertSame(edge, GooThrowHandler.capToRange(EYE, edge, RANGE));
     }
 
     /**
@@ -94,9 +97,9 @@ class GooThrowHandlerTest {
      */
     @Test
     void aMitosisThrowAimedFortyBlocksOutIsThrownSixteenBlocksOutAlongItsLine() {
-        Vec3 far = EYE.add(new Vec3(1, 2, -3).normalize().scale(40));
+        Vec3 far = out(40);
 
-        Vec3 thrown = GooThrowHandler.pointThrownAt(EYE, far, AbilityJson.decode("weird_mitosis").delivery());
+        Vec3 thrown = GooThrowHandler.pointThrownAt(EYE, far, rangeOf("weird_mitosis"));
 
         assertEquals(16, thrown.distanceTo(EYE), TOLERANCE);
         assertEquals(1, thrown.subtract(EYE).normalize().dot(far.subtract(EYE).normalize()), TOLERANCE);
@@ -104,9 +107,67 @@ class GooThrowHandlerTest {
 
     @Test
     void aMitosisThrowAimedTenBlocksOutIsThrownAtTheAimedPoint() {
-        Vec3 near = EYE.add(new Vec3(1, 2, -3).normalize().scale(10));
+        Vec3 near = out(10);
 
-        assertSame(near, GooThrowHandler.pointThrownAt(EYE, near, AbilityJson.decode("weird_mitosis").delivery()));
+        assertSame(near, GooThrowHandler.pointThrownAt(EYE, near, rangeOf("weird_mitosis")));
+    }
+
+    /**
+     * Each server range check on a thrown or cast ability reads that
+     * ability's own range.
+     * decision each-ability-names-its-range-and-the-shared-throw-range-retires
+     * decision abilities-leaving-the-shared-range-start-at-sixteen-blocks
+     * decision zap-starts-at-thirty-two-blocks
+     */
+    @Nested
+    class EachCheckReadsTheAbilitysRange {
+
+        @Test
+        void anIgnitePointSeventeenBlocksOutCapsAtSixteen() {
+            assertEquals(16, GooThrowHandler.pointThrownAt(EYE, out(17), rangeOf("blaze_ignite")).distanceTo(EYE),
+                    TOLERANCE);
+        }
+
+        @Test
+        void anIgnitePointFifteenBlocksOutStands() {
+            Vec3 near = out(15);
+
+            assertSame(near, GooThrowHandler.pointThrownAt(EYE, near, rangeOf("blaze_ignite")));
+        }
+
+        @Test
+        void aZapPointFortyBlocksOutCapsAtThirtyTwo() {
+            assertEquals(32, GooThrowHandler.pointThrownAt(EYE, out(40), rangeOf("pulse_zap")).distanceTo(EYE),
+                    TOLERANCE);
+        }
+
+        @Test
+        void aBioFlightAtAMobSeventeenBlocksOutIsRefusedAndFifteenStands() {
+            assertReleasedWithinSixteen("leaf_bio");
+        }
+
+        @Test
+        void aHoleCastSeventeenBlocksOutIsRefusedAndFifteenStands() {
+            assertReleasedWithinSixteen("void_hole");
+        }
+
+        @Test
+        void aShulkSpewSeventeenBlocksOutIsRefusedAndFifteenStands() {
+            assertReleasedWithinSixteen("typhoon_shulk");
+        }
+
+        private void assertReleasedWithinSixteen(String name) {
+            assertFalse(GooThrowHandler.withinRange(17 * 17, rangeOf(name)), name + " should refuse 17 blocks");
+            assertTrue(GooThrowHandler.withinRange(15 * 15, rangeOf(name)), name + " should stand at 15 blocks");
+        }
+    }
+
+    private static Vec3 out(double blocks) {
+        return EYE.add(new Vec3(1, 2, -3).normalize().scale(blocks));
+    }
+
+    private static double rangeOf(String name) {
+        return ThrowRange.of(AbilityJson.decode(name));
     }
 
     @Test

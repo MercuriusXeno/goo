@@ -11,7 +11,6 @@ import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.item.GooCasters;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.network.GooSpirePayload;
-import com.mercuriusxeno.goo.network.GooThrowHandler;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.client.Minecraft;
@@ -156,14 +155,15 @@ public final class SpireCast {
     }
 
     /**
-     * The ground cell the look meets within the throw range, which a press pins.
+     * The ground cell the look meets within Spire's range, which a press pins.
+     * decision each-ability-names-its-range-and-the-shared-throw-range-retires
      *
      * @param player the local player
      * @return the cell, or null where the look meets no block in range
      */
     private static @Nullable BlockPos pinnedGround(LocalPlayer player) {
         Vec3 eye = player.getEyePosition();
-        Vec3 end = eye.add(player.getViewVector(1f).scale(GooThrowHandler.MAX_RANGE));
+        Vec3 end = eye.add(player.getViewVector(1f).scale(GloveAim.aimRange(player)));
         BlockHitResult hit = player.level().clip(new ClipContext(eye, end, ClipContext.Block.OUTLINE,
                 ClipContext.Fluid.NONE, player));
         return hit.getType() == HitResult.Type.BLOCK ? hit.getBlockPos() : null;

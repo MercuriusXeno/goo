@@ -5,7 +5,7 @@
   "order": 0,
   "cost": 1000,
   "requires": ["minecraft:redstone"],
-  "delivery": { "kind": "beam", "blocks_per_tick": 64 },
+  "delivery": { "kind": "beam", "range": 32, "blocks_per_tick": 64 },
   "behaviors": [
     { "type": "power_pulse" },
     { "type": "signal_wave", "range": 8, "cone": 40 },

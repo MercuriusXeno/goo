@@ -746,7 +746,14 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
         return range > 0 && thrownOrCastAtTheAim() ? range : unnamed;
     }
 
-    private boolean thrownOrCastAtTheAim() {
+    /**
+     * Whether the ability lands at the glove's aim: an arc thrown there, a
+     * beam, a spontaneous cast or an envelop; a rolling arc rolls its range
+     * along the look instead.
+     *
+     * @return true for a delivery landing at the aim
+     */
+    public boolean thrownOrCastAtTheAim() {
         return switch (kind) {
             case ARC -> !rolls();
             case BEAM, SPONTANEOUS, ENVELOP -> true;
