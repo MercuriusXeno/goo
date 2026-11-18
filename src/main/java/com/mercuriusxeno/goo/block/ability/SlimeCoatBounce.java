@@ -290,7 +290,7 @@ public final class SlimeCoatBounce {
 
         @Override
         public double gravityScale() {
-            return LunarGravity.scaleIn(entity.level().dimension());
+            return LunarGravity.scaleOf(entity);
         }
 
         @Override

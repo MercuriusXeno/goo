@@ -48,7 +48,7 @@ public final class AirbornClient {
         } else if (movesOnItsOwn(player)) {
             player.setDeltaMovement(AirbornMotion.flown(player.getDeltaMovement(), flightInput(player.input.keyPresses),
                     player.getLookAngle(), player.getYRot(), player.onGround(), flight,
-                    LunarGravity.scaleIn(player.level().dimension())));
+                    LunarGravity.scaleOf(player)));
         }
     }
 

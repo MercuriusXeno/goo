@@ -798,6 +798,7 @@
     "goo:breccia": "$mundane_block + 4 $iron_nugget + $lunar",
     "goo:crater_ice": "ice + $lunar",
     "goo:molten_iron_bucket": "$iron_block + 27 $iron_nugget + 5 $fuel + $lunar",
+    "goo:moonrock": "$mundane_block + 12 $lunar",
     "nether_wart": {"nether": "$base", "hex": "4 $base", "shroom": "2 $base"},
     "ender_pearl": {"ender": "12 $base"},
     "mossy_cobblestone": "moss_block + $mundane_block",
