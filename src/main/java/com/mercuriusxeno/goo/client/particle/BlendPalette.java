@@ -112,6 +112,14 @@ public record BlendPalette(float lightRed, float lightGreen, float lightBlue,
             0xA6 / 255f, 0xF0 / 255f, 0x78 / 255f, 0x7E / 255f, 0xC8 / 255f, 0x50 / 255f);
 
     /**
+     * Infest's spray drips, from nether's bright red, 9A4E4E, to its wheel
+     * red, 652828, the two the nether goo type's definition names.
+     * infest-is-nethers-goo-the-decay-effect-localized-around-the-goo
+     */
+    public static final BlendPalette INFEST_NETHER_REDS = new BlendPalette(
+            0x9A / 255f, 0x4E / 255f, 0x4E / 255f, 0x65 / 255f, 0x28 / 255f, 0x28 / 255f);
+
+    /**
      * The color a share of the way from the light end to the dark.
      *
      * @param blend the share, 0 at the light end and 1 at the dark

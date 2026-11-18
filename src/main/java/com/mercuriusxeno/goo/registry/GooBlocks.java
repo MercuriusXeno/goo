@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.block.ability.CellBinding;
 import com.mercuriusxeno.goo.block.ability.FungalBudBlock;
 import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
 import com.mercuriusxeno.goo.block.ability.HostCellBlock;
+import com.mercuriusxeno.goo.block.ability.InfestCellBlock;
 import com.mercuriusxeno.goo.block.ability.LightRailBlock;
 import com.mercuriusxeno.goo.block.ability.MagickedIceBlock;
 import com.mercuriusxeno.goo.block.ability.MoltenCellBlock;
@@ -420,6 +421,27 @@ public class GooBlocks {
             () -> BlockBehaviour.Properties.of()
                     .mapColor(MapColor.METAL)
                     .friction(CellBinding.SPIKES.surface().friction())
+                    .sound(SoundType.SLIME_BLOCK)
+                    .instabreak()
+                    .noOcclusion()
+                    .replaceable()
+                    .noLootTable()
+                    .pushReaction(PushReaction.DESTROY));
+    /**
+     * Infest: the volume cell bound to Nether's goo, the dark red goo Infest
+     * sprays onto a block's top, one to fifteen layers, ordinary ground
+     * underfoot and sounding as goo does, gnawing what it lies on and biting
+     * what stands in it, dropping the nether goo its layers cost through
+     * VolumeCellBlock.getDrops, no loot table
+     * (decisions infest-is-nethers-goo-the-decay-effect-localized-around-the-goo,
+     * infest-gnaws-the-blocks-it-lies-on-and-bites-what-stands-in-it,
+     * each-goo-type-ships-a-world-goo-on-the-volume-cell).
+     */
+    public static final DeferredBlock<InfestCellBlock> NETHER_INFEST = BLOCKS.registerBlock(
+            "nether_infest", properties -> new InfestCellBlock(properties, CellBinding.INFEST),
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.NETHER)
+                    .friction(CellBinding.INFEST.surface().friction())
                     .sound(SoundType.SLIME_BLOCK)
                     .instabreak()
                     .noOcclusion()

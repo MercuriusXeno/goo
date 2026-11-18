@@ -146,6 +146,15 @@ public class GooParticles {
         PARTICLE_TYPES.register("spikes_spray_drip", () -> new SimpleParticleType(false));
 
     /**
+     * Infest's spray drip: the mod's blocky goo drip in nether's dark reds,
+     * flying its arc until it strikes a block's top, where it splats and the
+     * Infest goo lands.
+     * infest-is-nethers-goo-the-decay-effect-localized-around-the-goo
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> INFEST_SPRAY_DRIP =
+        PARTICLE_TYPES.register("infest_spray_drip", () -> new SimpleParticleType(false));
+
+    /**
      * Vines' spray drip: the mod's blocky goo drip in leaf's greens, flying
      * its arc until it strikes a block's top, where it splats and the Vines
      * goo lands.
