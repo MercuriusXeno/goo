@@ -306,7 +306,7 @@ public final class MarkerOrbVisual {
     private static float computeSpikeShake(AbilityBlockRenderState state) {
         float strongest = 1f;
         for (FieldStrike spike : state.spikeAnims) {
-            float s = UrchinVisual.gooShake(spike.age(), state.partialTick, state.spikeStrikeTick);
+            float s = SpikesVisual.gooShake(spike.age(), state.partialTick, state.spikeStrikeTick);
             if (Math.abs(s - 1f) > Math.abs(strongest - 1f)) {
                 strongest = s;
             }

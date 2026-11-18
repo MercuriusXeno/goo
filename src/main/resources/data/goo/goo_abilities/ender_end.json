@@ -5,9 +5,9 @@
   "order": 50,
   "cost": 4000,
   "requires": ["minecraft:dragon_breath"],
-  "delivery": { "kind": "self", "ticks_per_charge": 20 },
+  "delivery": { "kind": "self", "ticks_per_charge": 40 },
   "behaviors": [
-    { "type": "end", "charge": 20 }
+    { "type": "end", "charge": 40 }
   ],
   "tags": ["self"],
   "pose": "held_out"

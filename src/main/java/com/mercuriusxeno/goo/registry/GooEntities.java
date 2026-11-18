@@ -80,7 +80,7 @@ public final class GooEntities {
 
     /**
      * A hunk of blocks lifted out of the world and carried as one, such as
-     * Spire's rising stone (decision spire-entity-izes-its-blocks-and-raises-them-smoothly).
+     * Build's rising stone (decision spire-entity-izes-its-blocks-and-raises-them-smoothly).
      */
     public static final DeferredHolder<EntityType<?>, EntityType<BlockHunk>> BLOCK_HUNK =
         ENTITIES.register("block_hunk", id -> EntityType.Builder.<BlockHunk>of(BlockHunk::new, MobCategory.MISC)
