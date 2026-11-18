@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityJson;
+import com.mercuriusxeno.goo.ability.SpikeTrapFixture;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -29,20 +30,23 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class HeldDomeRendererTest {
 
     private static boolean shows(String name, boolean armed) {
-        AbilityDefinition definition = AbilityJson.decode(name);
+        return shows(AbilityJson.decode(name), armed);
+    }
+
+    private static boolean shows(AbilityDefinition definition, boolean armed) {
         return HeldDomeRenderer.showsDome(definition.delivery(), definition.badge(), definition.area(), armed);
     }
 
     @Nested
     class ShowPredicate {
         @Test
-        void lurkerWithAnArmedPressShowsTheDome() {
-            assertTrue(shows("unstable_lurker", true));
+        void spikeTrapWithAnArmedPressShowsTheDome() {
+            assertTrue(shows(SpikeTrapFixture.definition(), true));
         }
 
         @Test
-        void lurkerWithNoPressShowsNoDome() {
-            assertFalse(shows("unstable_lurker", false));
+        void spikeTrapWithNoPressShowsNoDome() {
+            assertFalse(shows(SpikeTrapFixture.definition(), false));
         }
 
         @ParameterizedTest

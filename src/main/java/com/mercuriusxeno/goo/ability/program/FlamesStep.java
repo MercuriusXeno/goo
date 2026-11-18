@@ -2,6 +2,8 @@ package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.ability.GooHitCredit;
 import com.mercuriusxeno.goo.ability.petrify.BlockExposures;
+import com.mercuriusxeno.goo.block.ability.NitroCellBlock;
+import com.mercuriusxeno.goo.block.ability.NitroContact;
 import com.mercuriusxeno.goo.network.HoldMarks;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
@@ -116,7 +118,10 @@ public record FlamesStep(Expr damage, int every, int burnSeconds, int cookTicks,
         Function<Block, Optional<Block>> cooks = BlockCooking.heatedIntoAt(host.level(), moltenMelts, results, eye);
         HoldMarks marks = host.holdMarks();
         PaintedHold.lookedAtBlock(host, aim).ifPresent(looked -> {
-            if (host.blockIn(looked, burns)) {
+            // nitro-explodes-when-touched-heated-shocked-pulsed-or-struck: the stream heats Nitro it plays on
+            if (host.level().getBlockState(looked).getBlock() instanceof NitroCellBlock nitro) {
+                nitro.actOn(host.level(), looked, NitroContact.HEAT);
+            } else if (host.blockIn(looked, burns)) {
                 host.level().destroyBlock(looked, false, host.breaker());
             } else {
                 PaintedHold.paintSeen(host, List.of(looked), cooks, marks);

@@ -101,7 +101,7 @@ public final class LeafSteps {
 
     /**
      * Sets off the explosive ability block the landing struck as a fiery
-     * explosion; Ignite landing on a Lurker: {@code detonate_explosive power=2.5}.
+     * explosion; Ignite landing on an explosive marker: {@code detonate_explosive power=2.5}.
      * ignite-fire-and-explosive-combo
      */
     public static final LeafStepType<Expr> DETONATE_EXPLOSIVE = StepType.of("detonate_explosive", "power", IGNITE_LANDING,
