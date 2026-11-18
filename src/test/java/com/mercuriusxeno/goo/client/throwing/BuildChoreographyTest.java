@@ -120,6 +120,56 @@ class BuildChoreographyTest {
         }
     }
 
+    /**
+     * A footprint dragged up a wall's edge can still be pushed out sideways as far as the bounds allow.
+     * decision build-goes-sideways
+     */
+    @Nested
+    class Sideways {
+
+        private static final BlockPos EDGE_BOTTOM = new BlockPos(10, 64, 0);
+        private static final BlockPos EDGE_TOP = new BlockPos(10, 79, 0);
+        /** A player standing on the ground east and south of the edge. */
+        private final Vec3 eye = new Vec3(14.5, 65.62, 5.5);
+
+        private Vec3 lookAtEastFaceOf(BlockPos cell) {
+            return new Vec3(cell.getX() + 1.0, cell.getY() + 0.5, cell.getZ() + 0.5).subtract(eye).normalize();
+        }
+
+        private static float pitchOf(Vec3 look) {
+            return (float) -Math.toDegrees(Math.asin(look.y));
+        }
+
+        /** The edge's middle on its east face, where the push runs out from. */
+        private static final Vec3 EDGE_MIDDLE = new Vec3(11.0, 72.0, 0.5);
+
+        private BuildChoreography draggedUpTheEdge() {
+            BuildChoreography cast = new BuildChoreography();
+            cast.press(EDGE_BOTTOM, Direction.EAST, new BuildBounds(16, 16));
+            Vec3 top = lookAtEastFaceOf(EDGE_TOP);
+            cast.tick(true, eye, top, pitchOf(top));
+            cast.tick(false, eye, top, pitchOf(top));
+            return cast;
+        }
+
+        /** The rise after looking at the point some blocks out from the edge's middle, along its normal. */
+        private int riseLookingOut(BuildChoreography cast, double out) {
+            Vec3 look = EDGE_MIDDLE.add(out, 0, 0).subtract(eye).normalize();
+            cast.tick(false, eye, look, pitchOf(look));
+            return cast.footprint().orElseThrow().rise();
+        }
+
+        @Test
+        void anEdgeDraggedUpItsHeightPushesOutToWhereTheLookAims() {
+            BuildChoreography cast = draggedUpTheEdge();
+
+            assertEquals(EDGE_TOP, cast.footprint().orElseThrow().opposite());
+            assertEquals(16, riseLookingOut(cast, 16));
+            assertEquals(5, riseLookingOut(cast, 5));
+            assertEquals(16, riseLookingOut(cast, 30), "held within the bounds");
+        }
+    }
+
     @Nested
     class Dragging {
 
