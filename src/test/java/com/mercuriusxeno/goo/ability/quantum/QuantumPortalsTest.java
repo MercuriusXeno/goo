@@ -12,15 +12,13 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * A player's portals link within one dimension alone: a link to a portal in
- * another dimension is refused, and choosing holds. A portal links to one
- * other portal, and a player keeps as many linked pairs as they place:
- * linking a new pair leaves every other pair linked, and relinking a portal
- * breaks only the pairs that held it
- * (decision portals-link-by-looking-through-portal-vision).
+ * A player holds one pair of portals: a new portal of a color takes that
+ * color's place, the blue and the orange link while both stand in one
+ * dimension, a fallen portal takes its link down, and a save from before one
+ * pair per player loads the newest portal of each color
+ * (decisions player-holds-one-pair-of-portals, portals-link-by-looking-through-portal-vision).
  */
 class QuantumPortalsTest {
 
@@ -29,68 +27,78 @@ class QuantumPortalsTest {
     private static final ResourceKey<Level> NETHER =
             ResourceKey.create(Registries.DIMENSION, Identifier.withDefaultNamespace("the_nether"));
     private static final UUID OWNER = new UUID(1L, 2L);
-    private static final Portal HERE = new Portal(GlobalPos.of(OVERWORLD, new BlockPos(0, 64, 0)), Direction.SOUTH, Direction.UP);
-    private static final Portal THERE = new Portal(GlobalPos.of(OVERWORLD, new BlockPos(9, 64, 0)), Direction.SOUTH, Direction.UP);
-    private static final Portal ELSEWHERE = new Portal(GlobalPos.of(NETHER, new BlockPos(0, 64, 9)), Direction.SOUTH, Direction.UP);
-    private static final Portal THIRD = new Portal(GlobalPos.of(OVERWORLD, new BlockPos(0, 64, 20)), Direction.SOUTH, Direction.UP);
-    private static final Portal FOURTH = new Portal(GlobalPos.of(OVERWORLD, new BlockPos(9, 64, 20)), Direction.SOUTH, Direction.UP);
+    private static final Portal HERE = wall(OVERWORLD, new BlockPos(0, 64, 0), PortalColor.BLUE);
+    private static final Portal THERE = wall(OVERWORLD, new BlockPos(9, 64, 0), PortalColor.ORANGE);
+    private static final Portal ELSEWHERE = wall(NETHER, new BlockPos(0, 64, 9), PortalColor.ORANGE);
+    private static final Portal BLUE_MOVED = wall(OVERWORLD, new BlockPos(0, 64, 20), PortalColor.BLUE);
 
-    private static QuantumPortals choosingFromHere() {
+    private static Portal wall(ResourceKey<Level> dimension, BlockPos block, PortalColor color) {
+        return new Portal(GlobalPos.of(dimension, block), Direction.SOUTH, Direction.UP, color);
+    }
+
+    private static QuantumPortals paired() {
         QuantumPortals portals = new QuantumPortals();
         portals.place(OWNER, HERE);
         portals.place(OWNER, THERE);
-        portals.place(OWNER, ELSEWHERE);
-        portals.choose(OWNER, Optional.of(HERE));
         return portals;
     }
 
     @Test
-    void linkToAPortalInAnotherDimensionIsRefused() {
-        QuantumPortals portals = choosingFromHere();
-        assertTrue(portals.link(OWNER, ELSEWHERE).isEmpty());
-        assertTrue(portals.linksOf(OWNER).isEmpty());
-        assertEquals(Optional.of(HERE), portals.choosing(OWNER));
+    void theBlueAndTheOrangeLinkTheBlueTheEntry() {
+        QuantumPortals portals = paired();
+        assertEquals(Optional.of(new QuantumPortals.Link(HERE, THERE)), portals.pairOf(OWNER));
+        assertEquals(Optional.of(THERE), portals.partnerOf(HERE));
+        assertEquals(Optional.of(HERE), portals.partnerOf(THERE));
     }
 
     @Test
-    void linkWithinTheDimensionLands() {
-        QuantumPortals portals = choosingFromHere();
-        assertEquals(Optional.of(new QuantumPortals.Link(HERE, THERE)),
-                portals.link(OWNER, THERE).map(QuantumPortals.Relink::now));
+    void aNewBlueMovesTheBlueAndLinksToTheOrange() {
+        QuantumPortals portals = paired();
+        portals.place(OWNER, BLUE_MOVED);
+        assertEquals(List.of(BLUE_MOVED, THERE), portals.portalsOf(OWNER));
+        assertEquals(Optional.of(BLUE_MOVED), portals.partnerOf(THERE));
     }
 
     @Test
-    void aSecondPairLeavesTheFirstLinked() {
-        QuantumPortals portals = choosingFromHere();
-        portals.link(OWNER, THERE);
-        portals.place(OWNER, THIRD);
-        portals.place(OWNER, FOURTH);
-        portals.choose(OWNER, Optional.of(THIRD));
-
-        portals.link(OWNER, FOURTH);
-
-        assertEquals(List.of(new QuantumPortals.Link(HERE, THERE), new QuantumPortals.Link(THIRD, FOURTH)),
-                portals.linksOf(OWNER), "Both pairs should stand linked");
-        assertEquals(Optional.of(THERE), portals.partnerOf(HERE), "The first pair should still carry through");
-        assertEquals(Optional.of(FOURTH), portals.partnerOf(THIRD), "The second pair should carry through");
+    void aPortalAlreadyStandingPlacesNothingNew() {
+        QuantumPortals portals = paired();
+        assertEquals(false, portals.place(OWNER, HERE));
     }
 
     @Test
-    void relinkingAPortalBreaksOnlyThePairThatHeldIt() {
-        QuantumPortals portals = choosingFromHere();
-        portals.link(OWNER, THERE);
-        portals.place(OWNER, THIRD);
-        portals.place(OWNER, FOURTH);
-        portals.choose(OWNER, Optional.of(THIRD));
-        portals.link(OWNER, FOURTH);
-        portals.choose(OWNER, Optional.of(HERE));
+    void portalsInTwoDimensionsLinkNot() {
+        QuantumPortals portals = new QuantumPortals();
+        portals.place(OWNER, HERE);
+        portals.place(OWNER, ELSEWHERE);
+        assertEquals(Optional.empty(), portals.pairOf(OWNER));
+        assertEquals(List.of(), portals.links());
+    }
 
-        Optional<QuantumPortals.Relink> relink = portals.link(OWNER, THIRD);
+    @Test
+    void aFallenPortalTakesItsLinkDown() {
+        QuantumPortals portals = paired();
+        assertEquals(Optional.of(new QuantumPortals.Linked(OWNER, new QuantumPortals.Link(HERE, THERE))),
+                portals.fall(HERE));
+        assertEquals(List.of(THERE), portals.portalsOf(OWNER));
+        assertEquals(Optional.empty(), portals.partnerOf(THERE));
+    }
 
-        assertEquals(List.of(new QuantumPortals.Link(HERE, THERE), new QuantumPortals.Link(THIRD, FOURTH)),
-                relink.map(QuantumPortals.Relink::before).orElse(List.of()), "Both pairs holding the two should break");
-        assertEquals(List.of(new QuantumPortals.Link(HERE, THIRD)), portals.linksOf(OWNER),
-                "Only the new pair should stand");
-        assertTrue(portals.partnerOf(THERE).isEmpty(), "THERE, its pair broken, should stand inert");
+    /**
+     * A save from before one pair per player held every portal placed, oldest
+     * first, and every pair linked, the exit the orange one: it loads as the
+     * newest blue and the newest orange.
+     */
+    @Test
+    void aSaveOfManyPortalsKeepsTheNewestOfEachColor() {
+        Portal firstEntry = HERE.withColor(PortalColor.BLUE);
+        Portal firstExit = THERE.withColor(PortalColor.BLUE);
+        Portal secondEntry = BLUE_MOVED;
+        Portal secondExit = wall(OVERWORLD, new BlockPos(9, 64, 20), PortalColor.BLUE);
+        QuantumPortals portals = new QuantumPortals(List.of(),
+                List.of(new QuantumPortals.Placed(OWNER, List.of(firstEntry, firstExit, secondEntry, secondExit),
+                        Optional.of(secondExit))),
+                List.of(new QuantumPortals.Linked(OWNER, new QuantumPortals.Link(firstEntry, firstExit)),
+                        new QuantumPortals.Linked(OWNER, new QuantumPortals.Link(secondEntry, secondExit))));
+        assertEquals(List.of(secondEntry, secondExit.withColor(PortalColor.ORANGE)), portals.portalsOf(OWNER));
     }
 }
