@@ -10,6 +10,7 @@ import com.mercuriusxeno.goo.block.ability.HostSpreaders;
 import com.mercuriusxeno.goo.block.ability.LayerFalls;
 import com.mercuriusxeno.goo.block.ability.MoltenHeats;
 import com.mercuriusxeno.goo.block.ability.NectarFights;
+import com.mercuriusxeno.goo.block.ability.NitroFuses;
 import com.mercuriusxeno.goo.block.ability.WispClaims;
 import com.mercuriusxeno.goo.network.DripFlights;
 import com.mercuriusxeno.goo.network.GooEffectScheduler;
@@ -44,6 +45,7 @@ public final class GooServerState {
     private final DripFlights dripFlights = new DripFlights();
     private final MoltenHeats moltenHeats = new MoltenHeats();
     private final NectarFights nectarFights = new NectarFights();
+    private final NitroFuses nitroFuses = new NitroFuses();
     private final LayerFalls layerFalls = new LayerFalls();
     private final HostSpreaders hostSpreaders = new HostSpreaders();
     private final HostFreeCells hostFreeCells = new HostFreeCells();
@@ -180,6 +182,16 @@ public final class GooServerState {
     }
 
     /**
+     * The Nitro cells a blast has lit, each going off a beat later
+     * (decision nitro-is-unstables-goo-that-explodes-in-a-chain-by-its-quantity).
+     *
+     * @return the lit Nitro fuses
+     */
+    public NitroFuses nitroFuses() {
+        return nitroFuses;
+    }
+
+    /**
      * The sculk charges Host goo started from deaths near it
      * (decision mob-dying-on-or-near-host-goo-spreads-sculk-from-the-goo).
      *
@@ -242,6 +254,9 @@ public final class GooServerState {
         if (dripFlights.hasPending()) {
             dripFlights.tick(server);
         }
+        if (nitroFuses.hasPending()) {
+            nitroFuses.burnDown(currentTick);
+        }
         morphBirths.bearArrived(currentTick);
         blockExposures.decay(server);
         streamHolds.releaseLapsed(currentTick);
@@ -271,6 +286,7 @@ public final class GooServerState {
         layerFalls.clear();
         moltenHeats.clear();
         nectarFights.clear();
+        nitroFuses.clear();
         hostSpreaders.clear();
         hostFreeCells.clear();
         wispClaims.clear();

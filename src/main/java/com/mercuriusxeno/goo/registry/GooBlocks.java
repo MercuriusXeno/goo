@@ -11,6 +11,7 @@ import com.mercuriusxeno.goo.block.ability.LightRailBlock;
 import com.mercuriusxeno.goo.block.ability.MagickedIceBlock;
 import com.mercuriusxeno.goo.block.ability.MoltenCellBlock;
 import com.mercuriusxeno.goo.block.ability.NectarCellBlock;
+import com.mercuriusxeno.goo.block.ability.NitroCellBlock;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
 import com.mercuriusxeno.goo.block.ability.RimeCellBlock;
 import com.mercuriusxeno.goo.block.ability.SignalCellBlock;
@@ -450,14 +451,16 @@ public class GooBlocks {
                     .pushReaction(PushReaction.DESTROY));
     /**
      * Nitro: the volume cell bound to Unstable's goo, the green goo Nitro
-     * sprays onto a block's top, one to fifteen layers, ordinary ground
-     * underfoot and sounding as goo does, dropping the unstable goo its
-     * layers cost through VolumeCellBlock.getDrops, no loot table
+     * sprays onto a block's top, one to fifteen layers, sounding as goo
+     * does, exploding in a chain by its layers when a living thing touches
+     * it, dropping the unstable goo its layers cost through
+     * VolumeCellBlock.getDrops, no loot table
      * (decisions nitro-is-unstables-goo-that-explodes-in-a-chain-by-its-quantity,
+     * nitro-explodes-when-touched-heated-shocked-pulsed-or-struck,
      * each-goo-type-ships-a-world-goo-on-the-volume-cell).
      */
-    public static final DeferredBlock<VolumeCellBlock> UNSTABLE_NITRO = BLOCKS.registerBlock(
-            "unstable_nitro", properties -> new VolumeCellBlock(properties, CellBinding.NITRO),
+    public static final DeferredBlock<NitroCellBlock> UNSTABLE_NITRO = BLOCKS.registerBlock(
+            "unstable_nitro", properties -> new NitroCellBlock(properties, CellBinding.NITRO),
             () -> BlockBehaviour.Properties.of()
                     .mapColor(MapColor.COLOR_LIGHT_GREEN)
                     .friction(CellBinding.NITRO.surface().friction())
