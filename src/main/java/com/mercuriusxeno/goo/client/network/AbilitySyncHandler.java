@@ -670,7 +670,7 @@ public final class AbilitySyncHandler {
          * @return true for a charge forming knives in stages
          */
         private boolean pricedPerKnife() {
-            return delivery.charge().formsInStages();
+            return delivery.formsKnives();
         }
 
         /**

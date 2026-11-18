@@ -1,63 +1,67 @@
 package com.mercuriusxeno.goo.client.throwing;
 
+import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.HeldRoute;
-import com.mercuriusxeno.goo.client.ability.HoveringKnives;
 import com.mercuriusxeno.goo.item.GooCasters;
 import com.mercuriusxeno.goo.network.KnivesHoldPayload;
 import com.mercuriusxeno.goo.network.KnivesThrowPayload;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import org.jspecify.annotations.Nullable;
-import java.util.OptionalInt;
-import java.util.function.IntPredicate;
 
 /**
- * Tells the server when the local player's Knives hold begins and ends, so
- * the server's stage clock forms the knives: a hold begins with the press's
- * first held tick and ends as right click comes up or the press drops. While
- * the hold stands, each mob the outline picks is painted, and letting go
- * clears the paint.
+ * Tells the server when the local player's stacking hold begins and ends,
+ * Knives' knives or Dart's javelins, so the server's clock forms the stack: a
+ * hold begins with the press's first held tick and ends as right click comes
+ * up or the press drops.
  * decision knives-form-on-right-click-and-throw-on-left-click
- * decision knives-form-in-fibonacci-stages-to-twelve
- * decision knives-paint-mobs-by-hovering-while-forming
+ * decision knives-charge-one-per-three-ticks-up-to-ten
+ * decision dart-stacks-three-javelins-one-per-ten-ticks
  */
 public final class KnivesHoldSender {
 
     /** The selection whose hold the server was told began, or null where none stands. */
     private static @Nullable GloveSelection begun;
-    /** The mobs the standing hold has painted. */
-    private static final PaintedMobs PAINTED = new PaintedMobs();
+    /** Whether the server was told left click went down and not yet that it lifted. */
+    private static boolean throwing;
 
     private KnivesHoldSender() {
     }
 
     /**
-     * Whether a player's glove selection forms knives in stages on a held press.
+     * Whether a player's selection throws from the hold the server keeps,
+     * Knives' or Dart's.
      *
      * @param player the player
-     * @return true for a held throw whose charge forms knives
+     * @return true for a held throw whose charge stacks
      */
-    public static boolean selectedFormsKnives(Player player) {
+    public static boolean selectedThrowsFromTheHold(Player player) {
         GloveSelection selection = GooCasters.heldSelection(player);
-        return selection != null && formsKnives(selection);
-    }
-
-    private static boolean formsKnives(GloveSelection selection) {
-        Delivery delivery = GloveThrowSender.selectedDelivery(selection.abilityId());
-        return HeldRoute.throwsOnAttack(delivery, GloveThrowSender.selectedBadge(selection.abilityId()))
-                && delivery.charge().formsInStages();
+        return selection != null && throwsFromTheHold(GloveThrowSender.selectedDelivery(selection.abilityId()),
+                GloveThrowSender.selectedBadge(selection.abilityId()));
     }
 
     /**
-     * Tells the server a hold begins, for a selection forming knives.
+     * Whether a left click throws from the hold the server keeps, which stays
+     * standing through each throw and forms on beneath it.
+     *
+     * @param delivery the selected ability's delivery
+     * @param badge    the selected ability's badge
+     * @return true where the left click throws from the server's hold
+     */
+    static boolean throwsFromTheHold(Delivery delivery, @Nullable AbilityBadge badge) {
+        return HeldRoute.throwsOnAttack(delivery, badge) && delivery.charge().stacks();
+    }
+
+    /**
+     * Tells the server a hold begins, for a selection whose charge stacks.
      *
      * @param player the local player
      */
     static void begin(Player player) {
         GloveSelection selection = GooCasters.heldSelection(player);
-        if (selection == null || selection.getGooType() == null || !formsKnives(selection)) {
+        if (selection == null || selection.getGooType() == null || !selectedThrowsFromTheHold(player)) {
             return;
         }
         GloveThrowSender.sendPayload(new KnivesHoldPayload(true, selection.gooTypeId(), selection.abilityId()));
@@ -65,49 +69,43 @@ public final class KnivesHoldSender {
     }
 
     /**
-     * Paints the mob the outline picks this tick while a hold stands, first
-     * dropping each painted mob no longer standing.
+     * Tells the server left click went down during the local player's hold,
+     * which throws a knife at once and one every 2 ticks after until it lifts;
+     * the server launches each, aimed at no mob.
+     * decision knives-throw-one-per-two-ticks-while-left-click-is-held
+     * decision knives-do-not-seek-you-just-throw-them
      *
-     * @param hovered the outlined mob's entity id, empty for none
-     * @param stands  whether the mob of an id still stands on this client
+     * @return true where a hold stood
      */
-    static void paint(OptionalInt hovered, IntPredicate stands) {
-        if (begun != null) {
-            PAINTED.dropGone(stands);
-            PAINTED.hovered(hovered);
-        }
-    }
-
-    /**
-     * Throws the knives in the local player's fan at the mobs the hold
-     * painted, in painted order, and clears the paint; the server splits them.
-     * decision knives-form-on-right-click-and-throw-on-left-click
-     *
-     * @param player the local player
-     * @return true where a hold stood with a knife in its fan
-     */
-    static boolean throwKnives(Player player) {
-        if (begun == null || HoveringKnives.formedBy(player.getId()) <= 0) {
+    static boolean throwKnives() {
+        if (begun == null) {
             return false;
         }
-        GloveThrowSender.sendPayload(new KnivesThrowPayload(PAINTED.painted()));
-        PAINTED.thrown();
+        // dart-throws-one-javelin-per-five-ticks-while-left-click-is-held: a press already told is told once
+        if (!throwing) {
+            GloveThrowSender.sendPayload(new KnivesThrowPayload(true));
+            throwing = true;
+        }
         return true;
     }
 
     /**
-     * Whether the standing hold has painted an entity, which wears the outlined mob's highlight.
+     * Tells the server left click lifted, once the attack key the throw went
+     * down with is up.
+     * decision knives-throw-one-per-two-ticks-while-left-click-is-held
      *
-     * @param entity the entity
-     * @return true for a painted mob while the hold stands
+     * @param attackDown whether the attack key is down this tick
      */
-    public static boolean paints(Entity entity) {
-        return begun != null && PAINTED.paints(entity.getId());
+    static void watchTheLeftClick(boolean attackDown) {
+        if (throwing && !attackDown) {
+            GloveThrowSender.sendPayload(new KnivesThrowPayload(false));
+            throwing = false;
+        }
     }
 
-    /** Tells the server the hold it was told of ends, its knives gone and none thrown, its paint cleared. */
+    /** Tells the server the hold it was told of ends, its knives gone and none thrown. */
     static void end() {
-        PAINTED.dismissed();
+        throwing = false;
         if (begun != null) {
             GloveThrowSender.sendPayload(new KnivesHoldPayload(false, begun.gooTypeId(), begun.abilityId()));
             begun = null;

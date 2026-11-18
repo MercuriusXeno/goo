@@ -19,6 +19,7 @@ import com.mercuriusxeno.goo.client.ability.AilmentOverlayLayer;
 import com.mercuriusxeno.goo.client.ability.BeatRings;
 import com.mercuriusxeno.goo.client.ability.BlockTransforms;
 import com.mercuriusxeno.goo.client.ability.ChainBurnouts;
+import com.mercuriusxeno.goo.client.ability.ClientPalmBuffers;
 import com.mercuriusxeno.goo.client.ability.DownedPose;
 import com.mercuriusxeno.goo.client.ability.EncasedBodies;
 import com.mercuriusxeno.goo.client.ability.EncasementLayer;
@@ -27,6 +28,7 @@ import com.mercuriusxeno.goo.client.ability.FrozenPoses;
 import com.mercuriusxeno.goo.client.ability.GhostTrails;
 import com.mercuriusxeno.goo.client.ability.GlassKnives;
 import com.mercuriusxeno.goo.client.ability.GrabFlail;
+import com.mercuriusxeno.goo.client.ability.HeldJavelins;
 import com.mercuriusxeno.goo.client.ability.HeldSweepVisual;
 import com.mercuriusxeno.goo.client.ability.HoveringKnives;
 import com.mercuriusxeno.goo.client.ability.KinOutline;
@@ -654,6 +656,8 @@ public final class GooClientSetup {
         MeteorScorches.clear();
         GlassKnives.clear();
         HoveringKnives.clear();
+        ClientPalmBuffers.clear();
+        HeldJavelins.clear();
         AbilityPoses.clear();
         PrismFormingSounds.CLIENT.clear();
     }

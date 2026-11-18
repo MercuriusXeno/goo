@@ -170,11 +170,26 @@ public final class DripArc {
      * @return where the tick leaves it
      */
     public static Step step(Vec3 position, Vec3 launched, Flight flight) {
-        CoatRay.BlockClip clip = flight.clip();
-        LivingNear living = flight.living();
-        Airspace airspace = flight.airspace();
         Vec3 velocity = launched.add(0, -flight.gravity(), 0).scale(DRAG);
-        Vec3 next = position.add(velocity);
+        return moveAlong(position, position.add(velocity), velocity, flight.clip(), flight.living(),
+                flight.airspace());
+    }
+
+    /**
+     * Where a tick's segment leaves a thing in flight: the nearest of the
+     * living boxes and the blocks the segment meets ends it, and a segment
+     * leaving the airspace loses it.
+     *
+     * @param position where the tick starts
+     * @param next     where the segment ends unstruck
+     * @param velocity the velocity the next tick flies by
+     * @param clip     the blocks the segment may meet
+     * @param living   the living the segment may meet
+     * @param airspace where it may fly
+     * @return where the tick leaves it
+     */
+    static Step moveAlong(Vec3 position, Vec3 next, Vec3 velocity, CoatRay.BlockClip clip, LivingNear living,
+                          Airspace airspace) {
         // the airspace is read before the clip, so no segment reaches into a chunk the world holds unloaded
         if (!airspace.holds(next)) {
             return new Step(next, velocity, Optional.empty(), Optional.empty(), true);
