@@ -20,7 +20,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -357,7 +356,8 @@ class StepCodecTest {
         // decision bore-and-flatten-json-carry-two-pace-values
         BoreStep bore = AbilityJson.decode("rock_bore").behaviors().stream().filter(BoreStep.class::isInstance)
                 .map(BoreStep.class::cast).findFirst().orElseThrow();
-        assertNotNull(bore.pace());
+        // decision bore-runs-very-slightly-faster
+        assertEquals(new BreakPace(2, 2), bore.pace());
     }
 
     @Test
@@ -365,7 +365,8 @@ class StepCodecTest {
         // decision bore-and-flatten-json-carry-two-pace-values
         LevelStep levelStep = AbilityJson.decode("rock_level").behaviors().stream()
                 .filter(LevelStep.class::isInstance).map(LevelStep.class::cast).findFirst().orElseThrow();
-        assertNotNull(levelStep.pace());
+        // decision level-runs-slightly-faster
+        assertEquals(new BreakPace(4, 1.5), levelStep.pace());
     }
 
     @Test
