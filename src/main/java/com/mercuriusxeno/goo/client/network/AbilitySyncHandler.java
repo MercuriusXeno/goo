@@ -14,7 +14,6 @@ import com.mercuriusxeno.goo.ability.HeldRoute;
 import com.mercuriusxeno.goo.ability.IndicatorShowing;
 import com.mercuriusxeno.goo.ability.program.BlinkLanding;
 import com.mercuriusxeno.goo.ability.program.BuildStep;
-import com.mercuriusxeno.goo.ability.program.ExtendStep;
 import com.mercuriusxeno.goo.ability.program.GougeStep;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.ZoneStep;
@@ -744,16 +743,6 @@ public final class AbilitySyncHandler {
          */
         public boolean paysWhileHeld() {
             return !upkeepPrice.isFree() || HeldRoute.runsWhileHeld(delivery, badge);
-        }
-
-        /**
-         * Whether the ability is the glove's Extend, whose own upkeep a standing Extend
-         * never halves (decision extender-multiplies-the-next-self-duration).
-         *
-         * @return true for an ability running the extend step
-         */
-        public boolean extendsOthers() {
-            return behaviors.stream().anyMatch(ExtendStep.class::isInstance);
         }
 
         /**

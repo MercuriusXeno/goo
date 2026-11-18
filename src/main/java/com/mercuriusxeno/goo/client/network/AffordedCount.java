@@ -114,7 +114,7 @@ public record AffordedCount(long count, boolean timed) {
 
     /**
      * The ticks the holdings pay for the ability's own rate and the standing upkeep together:
-     * a durative ability's upkeep, halved under a standing Extend unless it is the Extend, or a stream's
+     * a durative ability's upkeep, or a stream's
      * or channel's cost each ticksPerCharge, scaled through by ticksPerCharge so 1000 over
      * 1000 a 60 ticks reads 60 rather than a hair under.
      *
@@ -126,8 +126,7 @@ public record AffordedCount(long count, boolean timed) {
     private static long ticksSustained(ClientAbility ability, int holdings, StandingUpkeep standing) {
         if (ability.upkeep() > 0) {
             // time-counts-net-standing-upkeep: a durative ability standing on the glove is in the standing upkeep already
-            double own = standing.paying().contains(ability.id()) ? 0
-                    : standing.ownDurativeUpkeep(ability.upkeep(), ability.extendsOthers());
+            double own = standing.paying().contains(ability.id()) ? 0 : ability.upkeep();
             return (long) (holdings / (own + standing.perTick()));
         }
         int ticksPerCharge = ability.delivery().ticksPerCharge();
