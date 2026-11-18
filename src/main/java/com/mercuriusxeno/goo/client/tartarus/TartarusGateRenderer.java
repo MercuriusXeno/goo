@@ -10,20 +10,17 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.phys.Vec3;
-import java.util.function.Function;
 
 /**
- * Draws Tartarus' own portal, the rift the operator settled on, in place of
- * the door End and Zone draw, as the artifact draft drew it: cell by cell,
- * 64 cells a block, each cell showing what the rift's shape answers at its
- * middle, so its edge steps in quarter texels. The membrane is the nether
- * portal's own animated texture, a texel a sixteenth of a block, fixed in
- * the gate's plane; the rim and the embers are flat color over a white
- * texel; all of it fullbright, seen from either side. Each row's runs of
- * like cells draw as one quad, a membrane run broken where the texture
- * repeats.
+ * Draws Tartarus' own portal, the doorway the operator settled on, in place
+ * of the door End and Zone draw, as the artifact draft drew it: one block
+ * wide and two tall, texel by texel, each texel of it that shows drawn with
+ * its own texel of the nether portal's animated texture, fixed in the
+ * doorway's plane as the vanilla portal block's; each row's run of showing
+ * texels draws as one quad. Its motes are flat color over a white texel, a
+ * texel square each; all of it fullbright, seen from either side.
  * decision tartarus-draws-its-own-portal-with-the-nether-portal-texture
- * Where it stands at the camera, a first-person caster's own gate reaching
+ * Where it stands at the camera, a first-person caster's own doorway reaching
  * them, the nether portal's texture covers the view.
  * decision tartarus-draws-its-own-portal-with-the-nether-portal-texture
  */
@@ -33,12 +30,11 @@ public final class TartarusGateRenderer implements GateDrawing {
     public static final TartarusGateRenderer INSTANCE = new TartarusGateRenderer();
     /** The nether portal's texture on the block atlas, animated as the block's own. */
     public static final Identifier TEXTURE = Identifier.withDefaultNamespace("block/nether_portal");
-    /** A white texel on the block atlas, which the rim and the embers tint. */
+    /** A white texel on the block atlas, which the motes tint. */
     static final Identifier FLAT_TEXTURE = Identifier.fromNamespaceAndPath(Goo.MODID, "block/flat_white");
-    /** How far before the membrane an ember draws, so it shows over it from either side, in blocks. */
-    private static final double EMBER_LIFT = 0.002;
-    /** The texture repeats once a block across and up; a block's middle stands half its cells in. */
-    private static final int HALF_BLOCK = RiftShape.CELLS / 2;
+    /** How far before the doorway a mote draws, so it shows over it from either side, in blocks. */
+    private static final double MOTE_LIFT = 0.002;
+    private static final double TEXEL = 1.0 / TexelDoorway.TEXELS;
     private static final double HALF = 0.5;
     private static final int OPAQUE_WHITE = 0xFFFFFFFF;
 
@@ -55,7 +51,7 @@ public final class TartarusGateRenderer implements GateDrawing {
     }
 
     /**
-     * Submits one rift with the sprites given.
+     * Submits one doorway with the sprites given.
      *
      * @param collector the collector the frame submits to
      * @param poseStack the frame's pose
@@ -67,42 +63,52 @@ public final class TartarusGateRenderer implements GateDrawing {
      */
     static void submitWith(SubmitNodeCollector collector, PoseStack poseStack, ClientConjuredDoors.Drawn door,
                            Vec3 camera, double time, GooRenderUtil.UvRect portalUv, GooRenderUtil.UvRect flatUv) {
-        RiftShape.of(door, time).ifPresent(rift -> {
+        TexelDoorway.of(door, time).ifPresent(doorway -> {
             double radians = Math.toRadians(door.yaw());
             Plane plane = new Plane(door.at().subtract(camera), new Vec3(Math.cos(radians), 0, Math.sin(radians)),
                     new Vec3(-Math.sin(radians), 0, Math.cos(radians)));
             collector.submitCustomGeometry(poseStack, GooSubmitter.renderType(), (pose, consumer) -> {
                 Quads quads = new Quads(new RenderContext(pose, consumer, GooSubmitter.fullbrightLight()), plane,
                         portalUv, flatUv);
-                emitCells(quads, rift);
-                rift.embers(quads::ember);
+                emitTexels(quads, doorway);
+                doorway.motes(quads::mote);
             });
         });
     }
 
     /**
-     * Emits every row of cells, each row's runs of like cells as one quad.
+     * Emits every row of the doorway, each run of showing texels as one quad.
      *
-     * @param quads the emitter
-     * @param rift  the rift's shape
+     * @param quads   the emitter
+     * @param doorway the doorway
      */
-    private static void emitCells(Quads quads, RiftShape rift) {
-        int rows = (int) Math.ceil(RiftShape.TALLEST * RiftShape.CELLS);
-        int side = (int) Math.ceil(RiftShape.WIDEST * RiftShape.CELLS);
-        for (int row = 0; row < rows; row++) {
-            double up = (row + HALF) / RiftShape.CELLS;
-            int runStart = -side;
-            RiftShape.Fill runFill = RiftShape.Fill.NONE;
-            for (int cell = -side; cell <= side; cell++) {
-                RiftShape.Fill fill = cell < side ? rift.fillAt((cell + HALF) / RiftShape.CELLS, up)
-                        : RiftShape.Fill.NONE;
-                if (fill != runFill || Math.floorMod(cell + HALF_BLOCK, RiftShape.CELLS) == 0) {
-                    quads.run(runFill, runStart, cell, row, rift.rimColorAt(up));
-                    runStart = cell;
-                    runFill = fill;
+    private static void emitTexels(Quads quads, TexelDoorway doorway) {
+        for (int up = 0; up < TexelDoorway.UP; up++) {
+            int across = 0;
+            while (across < TexelDoorway.ACROSS) {
+                int end = runEnd(doorway, across, up);
+                if (end > across) {
+                    quads.run(across, end, up);
                 }
+                across = Math.max(end, across + 1);
             }
         }
+    }
+
+    /**
+     * Where a run of showing texels starting at a texel ends.
+     *
+     * @param doorway the doorway
+     * @param from    the texel across the run starts at
+     * @param up      the row up
+     * @return the texel past the run's last, the start itself where it shows not
+     */
+    private static int runEnd(TexelDoorway doorway, int from, int up) {
+        int end = from;
+        while (end < TexelDoorway.ACROSS && doorway.shows(end, up)) {
+            end++;
+        }
+        return end;
     }
 
     private static float lerp(float from, float to, double share) {
@@ -110,7 +116,7 @@ public final class TartarusGateRenderer implements GateDrawing {
     }
 
     /**
-     * The gate's plane relative to the camera.
+     * The doorway's plane relative to the camera.
      *
      * @param foot   the middle of its foot
      * @param across the unit way across it
@@ -124,71 +130,68 @@ public final class TartarusGateRenderer implements GateDrawing {
     }
 
     /**
-     * Emits the rift's quads into one frame's geometry.
+     * Emits the doorway's quads into one frame's geometry.
      *
      * @param ctx      the render context
-     * @param plane    the gate's plane
+     * @param plane    the doorway's plane
      * @param portalUv the nether portal sprite's UV rect
      * @param flatUv   the white texel sprite's UV rect
      */
     private record Quads(RenderContext ctx, Plane plane, GooRenderUtil.UvRect portalUv, GooRenderUtil.UvRect flatUv) {
 
         /**
-         * Emits one run of like cells along a row.
+         * Emits one run of showing texels along a row, each on its own texel of the texture.
          *
-         * @param fill     what the run shows
-         * @param from     its first cell across
-         * @param to       the cell past its last
-         * @param row      its row up
-         * @param rimColor the row's rim color
+         * @param from the run's first texel across
+         * @param to   the texel past its last
+         * @param up   its row up
          */
-        void run(RiftShape.Fill fill, int from, int to, int row, int rimColor) {
-            if (fill == RiftShape.Fill.NONE || from == to) {
-                return;
-            }
-            double left = (double) from / RiftShape.CELLS;
-            double right = (double) to / RiftShape.CELLS;
-            double low = (double) row / RiftShape.CELLS;
-            double high = (double) (row + 1) / RiftShape.CELLS;
-            if (fill == RiftShape.Fill.RIM) {
-                flat(left, right, low, high, rimColor, 0);
-                return;
-            }
-            int column = Math.floorDiv(from + HALF_BLOCK, RiftShape.CELLS);
-            int textureRow = Math.floorDiv(row, RiftShape.CELLS);
-            bothWaysRound(corners(left, right, low, high), 0, corner -> new float[] {
-                lerp(portalUv.u0(), portalUv.u1(), corner[0] + HALF - column),
-                lerp(portalUv.v0(), portalUv.v1(), 1 - (corner[1] - textureRow))}, OPAQUE_WHITE);
+        void run(int from, int to, int up) {
+            double left = from * TEXEL - HALF;
+            double right = to * TEXEL - HALF;
+            double low = up * TEXEL;
+            double high = (up + 1) * TEXEL;
+            int row = up % TexelDoorway.TEXELS;
+            float v0 = lerp(portalUv.v0(), portalUv.v1(), 1 - (row + 1) * TEXEL);
+            float v1 = lerp(portalUv.v0(), portalUv.v1(), 1 - row * TEXEL);
+            float u0 = lerp(portalUv.u0(), portalUv.u1(), from * TEXEL);
+            float u1 = lerp(portalUv.u0(), portalUv.u1(), to * TEXEL);
+            quad(left, right, low, high, 0, new float[][] {{u0, v1}, {u1, v1}, {u1, v0}, {u0, v0}}, OPAQUE_WHITE);
         }
 
         /**
-         * Emits one ember, a texel square on the texel grid, just before the membrane.
+         * Emits one mote, a texel square on the texel grid, just before the doorway.
          *
-         * @param ember the ember
+         * @param mote the mote
          */
-        void ember(RiftShape.Ember ember) {
-            double left = Math.floor(ember.across() * RiftShape.TEXELS) / RiftShape.TEXELS;
-            double low = Math.floor(ember.up() * RiftShape.TEXELS) / RiftShape.TEXELS;
-            double size = 1.0 / RiftShape.TEXELS;
-            flat(left, left + size, low, low + size, ember.color(), EMBER_LIFT);
-        }
-
-        private void flat(double left, double right, double low, double high, int color, double lift) {
+        void mote(TexelDoorway.Mote mote) {
+            double left = Math.floor(mote.across() / TEXEL) * TEXEL;
+            double low = Math.floor(mote.up() / TEXEL) * TEXEL;
             float u = lerp(flatUv.u0(), flatUv.u1(), HALF);
             float v = lerp(flatUv.v0(), flatUv.v1(), HALF);
-            bothWaysRound(corners(left, right, low, high), lift, corner -> new float[] {u, v}, color);
+            quad(left, left + TEXEL, low, low + TEXEL, MOTE_LIFT, new float[][] {{u, v}, {u, v}, {u, v}, {u, v}},
+                    mote.color());
         }
 
-        private static double[][] corners(double left, double right, double low, double high) {
-            return new double[][] {{left, low}, {right, low}, {right, high}, {left, high}};
-        }
-
-        private void bothWaysRound(double[][] corners, double lift, Function<double[], float[]> uv, int color) {
-            for (double[] corner : corners) {
-                vertex(corner, lift, uv.apply(corner), plane.facing(), color);
+        /**
+         * Emits a quad from its lower edge to its upper, both ways round; the UVs pair with the corners in order.
+         *
+         * @param left  its left edge across, in blocks
+         * @param right its right edge across, in blocks
+         * @param low   its lower edge up, in blocks
+         * @param high  its upper edge up, in blocks
+         * @param lift  how far before the plane it draws, in blocks
+         * @param uvs   each corner's UV, lower left first and counterclockwise
+         * @param color its ARGB color
+         */
+        private void quad(double left, double right, double low, double high, double lift, float[][] uvs,
+                          int color) {
+            double[][] corners = {{left, low}, {right, low}, {right, high}, {left, high}};
+            for (int index = 0; index < corners.length; index++) {
+                vertex(corners[index], lift, uvs[index], plane.facing(), color);
             }
             for (int index = corners.length - 1; index >= 0; index--) {
-                vertex(corners[index], -lift, uv.apply(corners[index]), plane.facing().reverse(), color);
+                vertex(corners[index], -lift, uvs[index], plane.facing().reverse(), color);
             }
         }
 

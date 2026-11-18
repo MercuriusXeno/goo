@@ -82,7 +82,7 @@ public final class ConjuredDoors {
 
         Release at(int now) {
             return new Release(arriver, feet, yaw, start,
-                    ConjuredDoor.releasing(feet, yaw, now - start), look);
+                    ConjuredDoor.releasing(feet, yaw, now - start, door.standsOff()), look);
         }
 
         boolean overAt(int now) {
@@ -115,7 +115,8 @@ public final class ConjuredDoors {
      */
     public static boolean conjure(ServerPlayer caster, int held, int charge, GateLook look) {
         ServerLevel level = caster.level();
-        ConjuredDoor door = ConjuredDoor.standing(caster.position(), caster.getYRot(), held, charge);
+        ConjuredDoor door = ConjuredDoor.standing(caster.position(), caster.getYRot(), held, charge,
+                standsOffFor(caster, look));
         Standing before = DOORS.put(caster.getUUID(), new Standing(door, level.getServer().getTickCount(), look));
         if (before == null) {
             showConjuring(level, door, look);
@@ -171,9 +172,27 @@ public final class ConjuredDoors {
 
     private static void releaseAt(ServerPlayer arriver, int now, GateLook look) {
         Release release = new Release(arriver, arriver.position(), arriver.getYRot(), now,
-                ConjuredDoor.releasing(arriver.position(), arriver.getYRot(), 0), look);
+                ConjuredDoor.releasing(arriver.position(), arriver.getYRot(), 0, standsOffFor(arriver, look)), look);
         RELEASES.put(arriver.getUUID(), release);
         sendDoor(arriver, release.door(), look);
+    }
+
+    /**
+     * How far before a player their door stands: Zone's and End's their look's
+     * own distance, Tartarus' doorway as far as the space ahead is clear, up to its own.
+     * decision tartarus-draws-its-own-portal-with-the-nether-portal-texture
+     *
+     * @param player the player the door stands before
+     * @param look   what the door is drawn with
+     * @return the stand-off, in blocks
+     */
+    private static double standsOffFor(ServerPlayer player, GateLook look) {
+        if (look == GateLook.STARFIELD) {
+            return look.standsOff();
+        }
+        ServerLevel level = player.level();
+        return DoorStandOff.clearAhead(pos -> !level.getBlockState(pos).getCollisionShape(level, pos).isEmpty(),
+                player.position(), player.getYRot(), look.standsOff());
     }
 
     /**
@@ -189,7 +208,7 @@ public final class ConjuredDoors {
 
     /**
      * Bursts void where a starfield door is conjured, and plays the conjuring
-     * sound for every door; Tartarus' rift gives off its own embers instead.
+     * sound for every door; Tartarus' doorway gives off its own slow motes instead.
      * decision tartarus-draws-its-own-portal-with-the-nether-portal-texture
      *
      * @param level the caster's level

@@ -6,7 +6,7 @@ import net.minecraft.world.phys.Vec3;
 
 /**
  * How one look of conjured door is drawn: Zone's and End's with the
- * starfield, Tartarus' with its own rift.
+ * starfield, Tartarus' with its own texel doorway.
  * decision tartarus-draws-its-own-portal-with-the-nether-portal-texture
  */
 @FunctionalInterface

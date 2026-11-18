@@ -16,10 +16,10 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
 
 /**
- * The nether portal's texture over the view while a Tartarus rift stands at
- * the camera: a first-person caster's own rift reaching them as it takes
+ * The nether portal's texture over the view while a Tartarus doorway stands at
+ * the camera: a first-person caster's own doorway reaching them as it takes
  * them, and leaving them as it backs off on arrival, fading in over the
- * last third of a block.
+ * last 0.3 of a block, as round two of the draft does.
  * decision tartarus-draws-its-own-portal-with-the-nether-portal-texture
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
@@ -27,8 +27,8 @@ public final class TartarusCover {
 
     /** The cover the local view draws. */
     public static final TartarusCover LOCAL = new TartarusCover();
-    /** How near the camera a rift's foot stands before its texture starts to cover the view, in blocks. */
-    static final double COVERS_WITHIN = 0.35;
+    /** How near the camera a doorway's foot stands before its texture starts to cover the view, in blocks. */
+    static final double COVERS_WITHIN = 0.3;
     /** The cover's tiles across the screen's height: the artifact draft's texel size. */
     private static final double TILES_DOWN = 6.25;
     /** Layers of the sprite the cover draws, so its translucent texels come near opaque. */
@@ -42,9 +42,9 @@ public final class TartarusCover {
     }
 
     /**
-     * How much of the view a rift covers, standing a distance from the camera across the ground.
+     * How much of the view a doorway covers, standing a distance from the camera across the ground.
      *
-     * @param distance the horizontal distance from the camera to the rift's foot, in blocks
+     * @param distance the horizontal distance from the camera to the doorway's foot, in blocks
      * @return the cover's opacity, 0 to 1
      */
     static double alphaAt(double distance) {
@@ -52,9 +52,9 @@ public final class TartarusCover {
     }
 
     /**
-     * Reads a rift drawn this frame, the nearest to the camera setting the cover.
+     * Reads a doorway drawn this frame, the nearest to the camera setting the cover.
      *
-     * @param foot   the middle of the rift's foot
+     * @param foot   the middle of the doorway's foot
      * @param camera the camera's world position
      */
     void seeGateAt(Vec3 foot, Vec3 camera) {
