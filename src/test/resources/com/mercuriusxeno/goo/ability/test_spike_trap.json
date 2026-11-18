@@ -1,8 +1,8 @@
 {
   "gooType": "metal",
-  "displayName": "goo.ability.metal.urchin",
+  "displayName": "goo.ability.metal.test_spike_trap",
   "badge": "world",
-  "order": 0,
+  "order": 90,
   "cost": 1000,
   "delivery": { "kind": "arc", "range": 16 },
   "behaviors": [

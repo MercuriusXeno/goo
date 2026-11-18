@@ -59,6 +59,8 @@ class GooTypeDefinitionTest {
     private static final int WEIRD_COHESION = 4;
     /** Jelly's cohesion, the stiff rung just below firm (operator ruling 2026-11-17). */
     private static final int JELLY_COHESION = 8;
+    /** Metal's cohesion, the soft rung, so a Spikes coat keeps some thickness where it lands (operator ruling 2026-11-17). */
+    private static final int METAL_COHESION = 2;
     private static final int WEIRD_ADHESION = 3;
     private static final int GLOW_ADHESION = 4;
     private static final int JELLY_ADHESION = 3;
@@ -290,7 +292,8 @@ class GooTypeDefinitionTest {
     @MethodSource("bundledKeys")
     void bundledCohesionMatchesDecision(ResourceKey<GooTypeDefinition> key) throws Exception {
         int expected = key == GooTypes.WEIRD ? WEIRD_COHESION : key == GooTypes.BLAZE ? BLAZE_COHESION
-                : key == GooTypes.JELLY ? JELLY_COHESION : key == GooTypes.PULSE ? PULSE_COHESION : 0;
+                : key == GooTypes.JELLY ? JELLY_COHESION : key == GooTypes.PULSE ? PULSE_COHESION
+                : key == GooTypes.METAL ? METAL_COHESION : 0;
         assertEquals(expected, decodeBundled(key).cohesion(), key::toString);
     }
 

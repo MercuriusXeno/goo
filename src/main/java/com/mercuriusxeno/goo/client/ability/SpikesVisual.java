@@ -20,17 +20,17 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Urchin's trap visual: the trap rests as its goo blob once the landing
+ * The thrown metal spike trap's visual: the trap rests as its goo blob once the landing
  * flare retracts, and each strike in flight bristles the landing's chrome
- * spines out as it arms and shoots one of its spikes ({@link UrchinSpear})
+ * spines out as it arms and shoots one of its spikes ({@link SpikesSpear})
  * at its mob, the spines retracting with the spear. The strikes are the
- * metal_urchin field effect's, read from the marker's
+ * metal trap's field effect's, read from the marker's
  * {@link FieldEffectState}; each spear aims at its mob's interpolated body
  * center while the client holds the mob, so it stands in the mob on the
  * tick the damage lands.
  * urchin-rests-bristled-and-spears
  */
-public final class UrchinVisual {
+public final class SpikesVisual {
 
     /** How far the windup shake swings the orb either side of resting size, at its peak. */
     static final float SHAKE_AMPLITUDE = 0.15f;
@@ -42,7 +42,7 @@ public final class UrchinVisual {
     /** Game ticks the bristle's specular band takes over one show's sweeps, the held ghost's two seconds. */
     private static final float SWEEP_TICKS = 40f;
 
-    private UrchinVisual() {
+    private SpikesVisual() {
     }
 
     /**
@@ -65,7 +65,7 @@ public final class UrchinVisual {
                 state.partialTick);
         state.spikeStrikeTick = step.map(trap -> trap.strikeTick().evaluateInt(variables)).orElse(0);
         state.spikeLength = step.map(trap -> trap.strikeTicks().evaluateInt(variables)).orElse(0);
-        state.urchinBristle = (float) state.spikeAnims.stream().mapToDouble(strike -> UrchinSpear.bristleShare(
+        state.spikesBristle = (float) state.spikeAnims.stream().mapToDouble(strike -> SpikesSpear.bristleShare(
                 strike.age(), state.partialTick, state.spikeStrikeTick, state.spikeLength)).max().orElse(0);
     }
 
@@ -129,16 +129,16 @@ public final class UrchinVisual {
         int sweepByte = ColorBytes.toByte(sweep);
         Vector3f base = MetalExplosionVisual.basePoint(state.placedFace);
         GooSubmitter.submitChrome(poseStack, nodeCollector, (pose, c) -> {
-            if (state.urchinBristle > 0f) {
-                MetalExplosionVisual.bristled(state.placedFace, sweep, state.urchinBristle).emit(pose, c);
+            if (state.spikesBristle > 0f) {
+                MetalExplosionVisual.bristled(state.placedFace, sweep, state.spikesBristle).emit(pose, c);
             }
             for (int i = 0; i < state.spikeAnims.size(); i++) {
                 FieldStrike strike = state.spikeAnims.get(i);
                 Vector3f aim = state.spikeAims.get(i);
-                float reach = aim.distance(base) + UrchinSpear.OVERSHOOT;
-                float tip = UrchinSpear.tipDistance(strike.age(), state.partialTick, state.spikeStrikeTick,
+                float reach = aim.distance(base) + SpikesSpear.OVERSHOOT;
+                float tip = SpikesSpear.tipDistance(strike.age(), state.partialTick, state.spikeStrikeTick,
                         state.spikeLength, reach);
-                UrchinSpear.emit(pose, c, base, aim, tip, sweepByte);
+                SpikesSpear.emit(pose, c, base, aim, tip, sweepByte);
             }
         });
     }
