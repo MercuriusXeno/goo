@@ -20,7 +20,9 @@ import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.TextureTransform;
 import net.minecraft.resources.Identifier;
 import net.neoforged.neoforge.client.event.RegisterRenderPipelinesEvent;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -58,6 +60,12 @@ public final class GooRenderTypes {
     private static final String THROUGH_BLOCKS_SUFFIX = "_through_blocks";
     /** Must match goo_fluid_surface.fsh: the sampler the frame's mingle table binds to. */
     private static final String MINGLE_TABLE_SAMPLER = "MingleTable";
+    /**
+     * The sort recorded beside each translucent pipeline as it is built,
+     * initialised before the first pipeline records into it.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
+     */
+    private static final Map<RenderPipeline, PipelineSort> SORTS = new HashMap<>();
 
     /**
      * Lines pipeline with LIGHTNING blend (SRC_ALPHA, ONE) and no depth write.
@@ -65,12 +73,12 @@ public final class GooRenderTypes {
      *
      * @return the result
      */
-    public static final RenderPipeline LINES_ADDITIVE_GLOW = RenderPipeline.builder(RenderPipelines.LINES_SNIPPET)
+    public static final RenderPipeline LINES_ADDITIVE_GLOW = sorted(PipelineSort.ON_THE_PATH, RenderPipeline.builder(RenderPipelines.LINES_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, "pipeline/lines_additive_glow"))
             .withColorTargetState(new ColorTargetState(BlendFunction.LIGHTNING))
             .withDepthStencilState(new DepthStencilState(
                     DepthStencilState.DEFAULT.depthTest(), false))
-            .build();
+            .build());
 
     /** RenderType that draws lines with additive glow blending. */
     public static final RenderType LINES_GLOW = RenderType.create(
@@ -86,7 +94,7 @@ public final class GooRenderTypes {
      * a block's own baked quads through vanilla's translucent entity shader,
      * passing every depth test and writing no depth, so fungus shows through walls.
      */
-    public static final RenderPipeline FUNGUS_XRAY = RenderPipeline.builder(RenderPipelines.ENTITY_SNIPPET)
+    public static final RenderPipeline FUNGUS_XRAY = sorted(PipelineSort.ON_THE_PATH, RenderPipeline.builder(RenderPipelines.ENTITY_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "fungus_xray"))
             .withShaderDefine("ALPHA_CUTOUT", ALPHA_CUTOUT)
             .withShaderDefine("PER_FACE_LIGHTING")
@@ -94,7 +102,7 @@ public final class GooRenderTypes {
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
             .withCull(false)
-            .build();
+            .build());
 
     /**
      * Deep Click's shriek rings drawn through blocks: vanilla's translucent
@@ -103,7 +111,9 @@ public final class GooRenderTypes {
      * (decision submerged-click-ripples-through-the-ground-to-its-range).
      */
     public static final RenderPipeline CLICK_WAVE_THROUGH_BLOCKS =
-            RenderPipeline.builder(RenderPipelines.MATRICES_FOG_SNIPPET)
+            // A particle in vanilla's main pass, through every depth test under its own decision:
+            // decision submerged-click-ripples-through-the-ground-to-its-range
+            sorted(PipelineSort.THROUGH_BLOCKS,RenderPipeline.builder(RenderPipelines.MATRICES_FOG_SNIPPET)
                     .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "click_wave_through_blocks"))
                     .withVertexShader("core/particle")
                     .withFragmentShader("core/particle")
@@ -113,21 +123,21 @@ public final class GooRenderTypes {
                     .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
                     .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
                     .withCull(false)
-                    .build();
+                    .build());
 
     /**
      * Sight's fungus glow (decision sight-lengthens-shift-and-outlines-fungus):
      * the x-ray's quads blended additively, so a swollen copy of each fungus
      * glows like a lamp behind the wall.
      */
-    public static final RenderPipeline FUNGUS_GLOW = RenderPipeline.builder(RenderPipelines.ENTITY_SNIPPET)
+    public static final RenderPipeline FUNGUS_GLOW = sorted(PipelineSort.ON_THE_PATH, RenderPipeline.builder(RenderPipelines.ENTITY_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "fungus_glow"))
             .withShaderDefine("ALPHA_CUTOUT", ALPHA_CUTOUT)
             .withSampler("Sampler1")
             .withColorTargetState(new ColorTargetState(BlendFunction.LIGHTNING))
             .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
             .withCull(false)
-            .build();
+            .build());
 
     /** Per-atlas memoized render types on the fungus glow pipeline. */
     private static final java.util.function.Function<Identifier, RenderType> FUNGUS_GLOW_FACTORY =
@@ -150,7 +160,7 @@ public final class GooRenderTypes {
      * inside the stone as from the open, and every face draws at one shade,
      * floors and ceilings as bright as walls.
      */
-    public static final RenderPipeline SCULKER_GLASS = RenderPipeline.builder(RenderPipelines.ENTITY_SNIPPET)
+    public static final RenderPipeline SCULKER_GLASS = sorted(PipelineSort.ON_THE_PATH, RenderPipeline.builder(RenderPipelines.ENTITY_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "sculker_glass"))
             .withShaderDefine("ALPHA_CUTOUT", ALPHA_CUTOUT)
             .withSampler("Sampler1")
@@ -158,7 +168,7 @@ public final class GooRenderTypes {
             .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, true,
                     DECAL_BIAS_SCALE, DECAL_BIAS_CONSTANT))
             .withCull(false)
-            .build();
+            .build());
 
     /** Per-atlas memoized render types on Sculker's glass pipeline. */
     private static final java.util.function.Function<Identifier, RenderType> SCULKER_GLASS_FACTORY =
@@ -190,12 +200,12 @@ public final class GooRenderTypes {
      * depth tested with depth write off, both faces drawn; its twin passes every
      * depth test so the shell shows through blocks.
      */
-    public static final RenderPipeline SPORE_SHELL = colorShellPipeline("spore_shell",
-            DepthStencilState.DEFAULT.depthTest(), BlendFunction.TRANSLUCENT);
+    public static final RenderPipeline SPORE_SHELL = sorted(PipelineSort.ON_THE_PATH, colorShellPipeline("spore_shell",
+            DepthStencilState.DEFAULT.depthTest(), BlendFunction.TRANSLUCENT));
 
     /** The spore shell's twin that ignores depth. */
-    public static final RenderPipeline SPORE_SHELL_THROUGH_BLOCKS = colorShellPipeline(
-            "spore_shell" + THROUGH_BLOCKS_SUFFIX, CompareOp.ALWAYS_PASS, BlendFunction.TRANSLUCENT);
+    public static final RenderPipeline SPORE_SHELL_THROUGH_BLOCKS = sorted(PipelineSort.ON_THE_PATH, colorShellPipeline(
+            "spore_shell" + THROUGH_BLOCKS_SUFFIX, CompareOp.ALWAYS_PASS, BlendFunction.TRANSLUCENT));
 
     /** RenderType for shroom's held spore shell over blocks. */
     public static final RenderType SPORE_SHELL_TYPE = burnoutType(SPORE_SHELL);
@@ -209,12 +219,12 @@ public final class GooRenderTypes {
      * plain colored quads added onto the world, depth tested with depth write
      * off and both faces drawn, so a caster inside the sphere sees its shell.
      */
-    public static final RenderPipeline GLOW_SHELL = colorShellPipeline("glow_shell",
-            DepthStencilState.DEFAULT.depthTest(), BlendFunction.LIGHTNING);
+    public static final RenderPipeline GLOW_SHELL = sorted(PipelineSort.ON_THE_PATH, colorShellPipeline("glow_shell",
+            DepthStencilState.DEFAULT.depthTest(), BlendFunction.LIGHTNING));
 
     /** Scry's revealed faces: added onto the world through every depth test, so they show through walls. */
-    public static final RenderPipeline SCRY_FACES = colorShellPipeline("scry_faces",
-            CompareOp.ALWAYS_PASS, BlendFunction.LIGHTNING);
+    public static final RenderPipeline SCRY_FACES = sorted(PipelineSort.ON_THE_PATH, colorShellPipeline("scry_faces",
+            CompareOp.ALWAYS_PASS, BlendFunction.LIGHTNING));
 
     /** RenderType for glow's shell of light. */
     public static final RenderType GLOW_SHELL_TYPE = burnoutType(GLOW_SHELL);
@@ -228,8 +238,8 @@ public final class GooRenderTypes {
      * quads alpha blended over the faces, depth tested with depth write off,
      * so the scorch darkens what it lies on and never shows through walls.
      */
-    public static final RenderPipeline METEOR_SCORCH = colorShellPipeline("meteor_scorch",
-            DepthStencilState.DEFAULT.depthTest(), BlendFunction.TRANSLUCENT);
+    public static final RenderPipeline METEOR_SCORCH = sorted(PipelineSort.ON_THE_PATH, colorShellPipeline("meteor_scorch",
+            DepthStencilState.DEFAULT.depthTest(), BlendFunction.TRANSLUCENT));
 
     /** RenderType for Meteo's scorch. */
     public static final RenderType METEOR_SCORCH_TYPE = burnoutType(METEOR_SCORCH);
@@ -239,8 +249,8 @@ public final class GooRenderTypes {
      * plain colored rings alpha blended over the face it opens on, depth tested
      * with depth write off, so the mouth lies on its face and never shows through walls.
      */
-    public static final RenderPipeline PORTABLE_HOLE_MOUTH = colorShellPipeline("portable_hole_mouth",
-            DepthStencilState.DEFAULT.depthTest(), BlendFunction.TRANSLUCENT);
+    public static final RenderPipeline PORTABLE_HOLE_MOUTH = sorted(PipelineSort.ON_THE_PATH, colorShellPipeline("portable_hole_mouth",
+            DepthStencilState.DEFAULT.depthTest(), BlendFunction.TRANSLUCENT));
 
     /** RenderType for Void's portable hole mouth. */
     public static final RenderType PORTABLE_HOLE_MOUTH_TYPE = burnoutType(PORTABLE_HOLE_MOUTH);
@@ -255,7 +265,7 @@ public final class GooRenderTypes {
      * of the world's depth, so the pit and the items sunk behind the face draw through
      * the mouth and nowhere else.
      */
-    public static final RenderPipeline PORTABLE_HOLE_CARVE = RenderPipeline.builder(
+    public static final RenderPipeline PORTABLE_HOLE_CARVE = sorted(PipelineSort.ON_THE_PATH, RenderPipeline.builder(
                     RenderPipelines.MATRICES_PROJECTION_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "portable_hole_carve"))
             .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "portable_hole_carve"))
@@ -265,7 +275,7 @@ public final class GooRenderTypes {
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, true))
             .withCull(false)
-            .build();
+            .build());
 
     /**
      * Void's portable hole pit (decision hole-items-are-a-three-dimensional-soup-sunk-in-the-hole):
@@ -273,13 +283,13 @@ public final class GooRenderTypes {
      * tested and writing depth, so they show only where the carve opened the depth and
      * hide whatever lies past the pit.
      */
-    public static final RenderPipeline PORTABLE_HOLE_PIT = RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
+    public static final RenderPipeline PORTABLE_HOLE_PIT = sorted(PipelineSort.ON_THE_PATH, RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "portable_hole_pit"))
             .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .withDepthStencilState(new DepthStencilState(DepthStencilState.DEFAULT.depthTest(), true))
             .withCull(false)
-            .build();
+            .build());
 
     /** RenderType for Void's portable hole pit. */
     public static final RenderType PORTABLE_HOLE_PIT_TYPE = burnoutType(PORTABLE_HOLE_PIT);
@@ -289,13 +299,13 @@ public final class GooRenderTypes {
      * plain colored quads that write depth, so the rock's near faces hide its
      * far ones and it draws front to back as a solid.
      */
-    public static final RenderPipeline METEOR_ROCK = RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
+    public static final RenderPipeline METEOR_ROCK = sorted(PipelineSort.WRITES_DEPTH, RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "meteor_rock"))
             .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .withDepthStencilState(DepthStencilState.DEFAULT)
             .withCull(false)
-            .build();
+            .build());
 
     /** RenderType for Meteo's rock. */
     public static final RenderType METEOR_ROCK_TYPE = burnoutType(METEOR_ROCK);
@@ -307,13 +317,13 @@ public final class GooRenderTypes {
      * read).
      * urchin-rests-bristled-and-spears
      */
-    public static final RenderPipeline SPIKES_STEEL = RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
+    public static final RenderPipeline SPIKES_STEEL = sorted(PipelineSort.ON_THE_PATH, RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "spikes_steel"))
             .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .withDepthStencilState(DepthStencilState.DEFAULT)
             .withCull(false)
-            .build();
+            .build());
 
     /** RenderType for Spikes goo's steel pyramids. */
     public static final RenderType SPIKES_STEEL_TYPE = burnoutType(SPIKES_STEEL);
@@ -324,7 +334,7 @@ public final class GooRenderTypes {
      * ring, additive with depth write off and both faces drawn, through
      * {@code unstable_explosion.vsh / .fsh}.
      */
-    public static final RenderPipeline UNSTABLE_EXPLOSION = burnoutPipeline("unstable_explosion", BlendFunction.LIGHTNING);
+    public static final RenderPipeline UNSTABLE_EXPLOSION = sorted(PipelineSort.ON_THE_PATH, burnoutPipeline("unstable_explosion", BlendFunction.LIGHTNING));
 
     /** RenderType that draws unstable goo's burnout explosion. */
     public static final RenderType UNSTABLE_EXPLOSION_TYPE = burnoutType(UNSTABLE_EXPLOSION);
@@ -334,8 +344,8 @@ public final class GooRenderTypes {
      * no depth test, so the crater the blast would cut shows through blocks.
      * held-visual-ghosts-the-landing-in-two-passes
      */
-    public static final RenderPipeline UNSTABLE_EXPLOSION_THROUGH_BLOCKS = throughBlocksPipeline("unstable_explosion",
-            BlendFunction.LIGHTNING);
+    public static final RenderPipeline UNSTABLE_EXPLOSION_THROUGH_BLOCKS = sorted(PipelineSort.ON_THE_PATH, throughBlocksPipeline("unstable_explosion",
+            BlendFunction.LIGHTNING));
 
     /** RenderType for unstable's held ghost through blocks. */
     public static final RenderType UNSTABLE_EXPLOSION_THROUGH_BLOCKS_TYPE =
@@ -346,7 +356,7 @@ public final class GooRenderTypes {
      * blended so the dust hides what is behind it, through
      * {@code rock_explosion.vsh / .fsh}.
      */
-    public static final RenderPipeline ROCK_EXPLOSION = burnoutPipeline("rock_explosion", BlendFunction.TRANSLUCENT);
+    public static final RenderPipeline ROCK_EXPLOSION = sorted(PipelineSort.ON_THE_PATH, burnoutPipeline("rock_explosion", BlendFunction.TRANSLUCENT));
 
     /** RenderType that draws rock goo's burnout explosion. */
     public static final RenderType ROCK_EXPLOSION_TYPE = burnoutType(ROCK_EXPLOSION);
@@ -356,8 +366,8 @@ public final class GooRenderTypes {
      * test, so the part of a rock dome inside blocks shows through them.
      * held-visual-ghosts-the-landing-in-two-passes
      */
-    public static final RenderPipeline ROCK_EXPLOSION_THROUGH_BLOCKS = throughBlocksPipeline("rock_explosion",
-            BlendFunction.TRANSLUCENT);
+    public static final RenderPipeline ROCK_EXPLOSION_THROUGH_BLOCKS = sorted(PipelineSort.ON_THE_PATH, throughBlocksPipeline("rock_explosion",
+            BlendFunction.TRANSLUCENT));
 
     /** RenderType for rock's held ghost through blocks. */
     public static final RenderType ROCK_EXPLOSION_THROUGH_BLOCKS_TYPE = burnoutType(ROCK_EXPLOSION_THROUGH_BLOCKS);
@@ -366,7 +376,7 @@ public final class GooRenderTypes {
      * Frost goo's burnout explosion pipeline: the fog ring, alpha blended,
      * through {@code frost_explosion.vsh / .fsh}.
      */
-    public static final RenderPipeline FROST_EXPLOSION = burnoutPipeline("frost_explosion", BlendFunction.TRANSLUCENT);
+    public static final RenderPipeline FROST_EXPLOSION = sorted(PipelineSort.ON_THE_PATH, burnoutPipeline("frost_explosion", BlendFunction.TRANSLUCENT));
 
     /** RenderType that draws frost goo's burnout explosion. */
     public static final RenderType FROST_EXPLOSION_TYPE = burnoutType(FROST_EXPLOSION);
@@ -376,8 +386,8 @@ public final class GooRenderTypes {
      * test, so the part of the Orb's landing ring inside blocks shows through
      * them (decision orb-carries-a-swirling-nova).
      */
-    public static final RenderPipeline FROST_EXPLOSION_THROUGH_BLOCKS = throughBlocksPipeline("frost_explosion",
-            BlendFunction.TRANSLUCENT);
+    public static final RenderPipeline FROST_EXPLOSION_THROUGH_BLOCKS = sorted(PipelineSort.ON_THE_PATH, throughBlocksPipeline("frost_explosion",
+            BlendFunction.TRANSLUCENT));
 
     /** RenderType for frost's held ghost through blocks. */
     public static final RenderType FROST_EXPLOSION_THROUGH_BLOCKS_TYPE = burnoutType(FROST_EXPLOSION_THROUGH_BLOCKS);
@@ -386,7 +396,7 @@ public final class GooRenderTypes {
      * Metal goo's burnout explosion pipeline: the chrome urchin, drawn
      * solid, through {@code metal_explosion.vsh / .fsh}.
      */
-    public static final RenderPipeline METAL_EXPLOSION = burnoutPipeline("metal_explosion", BlendFunction.TRANSLUCENT);
+    public static final RenderPipeline METAL_EXPLOSION = sorted(PipelineSort.ON_THE_PATH, burnoutPipeline("metal_explosion", BlendFunction.TRANSLUCENT));
 
     /** RenderType that draws metal goo's burnout explosion. */
     public static final RenderType METAL_EXPLOSION_TYPE = burnoutType(METAL_EXPLOSION);
@@ -398,8 +408,8 @@ public final class GooRenderTypes {
      * of it rather than blending over them.
      * urchin-rests-bristled-and-spears
      */
-    public static final RenderPipeline METAL_CHROME = shaderPairPipeline("metal_chrome", "metal_explosion",
-            BlendFunction.TRANSLUCENT, DefaultVertexFormat.POSITION_COLOR_NORMAL, DepthStencilState.DEFAULT);
+    public static final RenderPipeline METAL_CHROME = sorted(PipelineSort.WRITES_DEPTH, shaderPairPipeline("metal_chrome", "metal_explosion",
+            BlendFunction.TRANSLUCENT, DefaultVertexFormat.POSITION_COLOR_NORMAL, DepthStencilState.DEFAULT));
 
     /** RenderType for the metal spike trap's depth-writing chrome. */
     public static final RenderType METAL_CHROME_TYPE = burnoutType(METAL_CHROME);
@@ -409,8 +419,8 @@ public final class GooRenderTypes {
      * depth test, so the spikes inside blocks show through them.
      * held-visual-ghosts-the-landing-in-two-passes
      */
-    public static final RenderPipeline METAL_EXPLOSION_THROUGH_BLOCKS = throughBlocksPipeline("metal_explosion",
-            BlendFunction.TRANSLUCENT);
+    public static final RenderPipeline METAL_EXPLOSION_THROUGH_BLOCKS = sorted(PipelineSort.ON_THE_PATH, throughBlocksPipeline("metal_explosion",
+            BlendFunction.TRANSLUCENT));
 
     /** RenderType for metal's held ghost through blocks. */
     public static final RenderType METAL_EXPLOSION_THROUGH_BLOCKS_TYPE = burnoutType(METAL_EXPLOSION_THROUGH_BLOCKS);
@@ -419,8 +429,8 @@ public final class GooRenderTypes {
      * Crystal goo's burnout explosion pipeline: the prism burst, alpha
      * blended, through {@code crystal_explosion.vsh / .fsh}.
      */
-    public static final RenderPipeline CRYSTAL_EXPLOSION = burnoutPipeline("crystal_explosion",
-            BlendFunction.TRANSLUCENT);
+    public static final RenderPipeline CRYSTAL_EXPLOSION = sorted(PipelineSort.ON_THE_PATH, burnoutPipeline("crystal_explosion",
+            BlendFunction.TRANSLUCENT));
 
     /** RenderType that draws crystal goo's burnout explosion. */
     public static final RenderType CRYSTAL_EXPLOSION_TYPE = burnoutType(CRYSTAL_EXPLOSION);
@@ -430,8 +440,8 @@ public final class GooRenderTypes {
      * depth test, so the part of the dome inside blocks shows through them.
      * held-visual-ghosts-the-landing-in-two-passes
      */
-    public static final RenderPipeline CRYSTAL_EXPLOSION_THROUGH_BLOCKS = throughBlocksPipeline("crystal_explosion",
-            BlendFunction.TRANSLUCENT);
+    public static final RenderPipeline CRYSTAL_EXPLOSION_THROUGH_BLOCKS = sorted(PipelineSort.ON_THE_PATH, throughBlocksPipeline("crystal_explosion",
+            BlendFunction.TRANSLUCENT));
 
     /** RenderType for crystal's held ghost through blocks. */
     public static final RenderType CRYSTAL_EXPLOSION_THROUGH_BLOCKS_TYPE = burnoutType(CRYSTAL_EXPLOSION_THROUGH_BLOCKS);
@@ -440,7 +450,7 @@ public final class GooRenderTypes {
      * Glow goo's burnout explosion pipeline: the aurora bloom, additive,
      * through {@code glow_explosion.vsh / .fsh}.
      */
-    public static final RenderPipeline GLOW_EXPLOSION = burnoutPipeline("glow_explosion", BlendFunction.LIGHTNING);
+    public static final RenderPipeline GLOW_EXPLOSION = sorted(PipelineSort.ON_THE_PATH, burnoutPipeline("glow_explosion", BlendFunction.LIGHTNING));
 
     /** RenderType that draws glow goo's burnout explosion. */
     public static final RenderType GLOW_EXPLOSION_TYPE = burnoutType(GLOW_EXPLOSION);
@@ -450,12 +460,12 @@ public final class GooRenderTypes {
      * vanilla's beacon beam shader blended additively, depth tested with depth
      * write off and both faces drawn, so its layers stack into a bloom.
      */
-    public static final RenderPipeline GLOW_BEAM = RenderPipeline.builder(RenderPipelines.BEACON_BEAM_SNIPPET)
+    public static final RenderPipeline GLOW_BEAM = sorted(PipelineSort.ON_THE_PATH, RenderPipeline.builder(RenderPipelines.BEACON_BEAM_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "glow_beam"))
             .withColorTargetState(new ColorTargetState(BlendFunction.LIGHTNING))
             .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false))
             .withCull(false)
-            .build();
+            .build());
 
     /**
      * A glow prism's column and halo (decision diagnose-and-correct-the-sunbeam-prism-depth):
@@ -463,10 +473,10 @@ public final class GooRenderTypes {
      * drawn after it, Laser's ray among them, show in front of the column
      * rather than fail the depth it would write.
      */
-    public static final RenderPipeline GLOW_COLUMN = RenderPipelines.ENTITY_TRANSLUCENT.toBuilder()
+    public static final RenderPipeline GLOW_COLUMN = sorted(PipelineSort.ON_THE_PATH, RenderPipelines.ENTITY_TRANSLUCENT.toBuilder()
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "glow_column"))
             .withDepthStencilState(new DepthStencilState(DepthStencilState.DEFAULT.depthTest(), false))
-            .build();
+            .build());
 
     /** The glow column render type, on the block atlas. */
     public static final RenderType GLOW_COLUMN_TYPE = RenderType.create("goo_glow_column",
@@ -484,7 +494,7 @@ public final class GooRenderTypes {
      * they draw beneath it.
      * portal-halo-glows-additively-onto-the-wall
      */
-    public static final RenderPipeline GOO_PORTAL_HALO = RenderPipeline.builder(
+    public static final RenderPipeline GOO_PORTAL_HALO = sorted(PipelineSort.ON_THE_PATH, RenderPipeline.builder(
                     RenderPipelines.MATRICES_PROJECTION_SNIPPET, RenderPipelines.GLOBALS_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "goo_portal_halo"))
             .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_portal_idle"))
@@ -494,7 +504,7 @@ public final class GooRenderTypes {
             .withColorTargetState(new ColorTargetState(BlendFunction.LIGHTNING))
             .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false))
             .withCull(false)
-            .build();
+            .build());
 
     /** RenderType for a gate's halo. */
     public static final RenderType GOO_PORTAL_HALO_TYPE = RenderType.create("goo_portal_halo",
@@ -508,7 +518,7 @@ public final class GooRenderTypes {
      * glow.
      * tornadic-halo-spirals-out-from-the-rim
      */
-    public static final RenderPipeline GOO_PORTAL_SWIRL_BAND = RenderPipeline.builder(
+    public static final RenderPipeline GOO_PORTAL_SWIRL_BAND = sorted(PipelineSort.ON_THE_PATH, RenderPipeline.builder(
                     RenderPipelines.MATRICES_PROJECTION_SNIPPET, RenderPipelines.GLOBALS_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "goo_portal_swirl_band"))
             .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_portal_idle"))
@@ -518,7 +528,7 @@ public final class GooRenderTypes {
             .withColorTargetState(new ColorTargetState(BlendFunction.LIGHTNING))
             .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false))
             .withCull(false)
-            .build();
+            .build());
 
     /** RenderType for a gate's swirl band. */
     public static final RenderType GOO_PORTAL_SWIRL_BAND_TYPE = RenderType.create("goo_portal_swirl_band",
@@ -583,10 +593,10 @@ public final class GooRenderTypes {
      * with depth write off and biased toward the camera as a decal is, so it
      * wins the face's own depth without standing off it.
      */
-    public static final RenderPipeline LASER_SCORCH = shaderPairPipeline("laser_scorch", "laser_scorch",
+    public static final RenderPipeline LASER_SCORCH = sorted(PipelineSort.ON_THE_PATH, shaderPairPipeline("laser_scorch", "laser_scorch",
             BlendFunction.TRANSLUCENT, DefaultVertexFormat.POSITION_COLOR_NORMAL,
             new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false,
-                    BLOCK_MINGLE_DEPTH_BIAS_SCALE, BLOCK_MINGLE_DEPTH_BIAS_CONSTANT));
+                    BLOCK_MINGLE_DEPTH_BIAS_SCALE, BLOCK_MINGLE_DEPTH_BIAS_CONSTANT)));
 
     /** RenderType that draws Laser's scorch. */
     public static final RenderType LASER_SCORCH_TYPE = burnoutType(LASER_SCORCH);
@@ -596,41 +606,14 @@ public final class GooRenderTypes {
      * the scorch's shaders in their glow pass, added onto the world after
      * every mark's char, so overlapping marks' glows sum into one streak.
      */
-    public static final RenderPipeline LASER_SCORCH_GLOW = LASER_SCORCH.toBuilder()
+    public static final RenderPipeline LASER_SCORCH_GLOW = sorted(PipelineSort.ON_THE_PATH, LASER_SCORCH.toBuilder()
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "laser_scorch_glow"))
             .withShaderDefine("GLOW_PASS")
             .withColorTargetState(new ColorTargetState(BlendFunction.ADDITIVE))
-            .build();
+            .build());
 
     /** RenderType that draws Laser's scorch glow. */
     public static final RenderType LASER_SCORCH_GLOW_TYPE = burnoutType(LASER_SCORCH_GLOW);
-
-    /**
-     * Voronoi fissure pipeline: procedural crack pattern on a sphere mesh.
-     * Translucent blend, depth test on (occluded by terrain), depth write off
-     * (cracks are overlay), cull off (visible from inside). Reserved for
-     * future use - not currently wired to any effect.
-     */
-    public static final RenderPipeline VORONOI_FISSURE = RenderPipeline.builder(
-                    RenderPipelines.MATRICES_PROJECTION_SNIPPET,
-                    RenderPipelines.GLOBALS_SNIPPET)
-            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, "pipeline/voronoi_fissure"))
-            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, "core/voronoi_fissure"))
-            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, "core/voronoi_fissure"))
-            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR_NORMAL, VertexFormat.Mode.QUADS)
-            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
-            .withDepthStencilState(new DepthStencilState(
-                    DepthStencilState.DEFAULT.depthTest(), false))
-            .withCull(false)
-            .build();
-
-    /** RenderType for the voronoi fissure sphere (reserved, not wired). */
-    public static final RenderType VORONOI_FISSURE_TYPE = RenderType.create(
-            "goo_voronoi_fissure",
-            RenderSetup.builder(VORONOI_FISSURE)
-                    .setOutputTarget(OutputTarget.MAIN_TARGET)
-                    .createRenderSetup()
-    );
 
     /**
      * Goo fluid pipeline: translucent fullbright fluid with no directional
@@ -640,13 +623,13 @@ public final class GooRenderTypes {
      * other and the surrounding canister body. Texture is sampled from
      * Sampler0; no overlay, no lightmap (skipped via shader defines).
      */
-    public static final RenderPipeline GOO_FLUID = RenderPipeline.builder(RenderPipelines.ENTITY_EMISSIVE_SNIPPET)
+    public static final RenderPipeline GOO_FLUID = sorted(PipelineSort.WRITES_DEPTH, RenderPipeline.builder(RenderPipelines.ENTITY_EMISSIVE_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, "pipeline/goo_fluid"))
             .withShaderDefine("ALPHA_CUTOUT", 0.1F)
             .withShaderDefine("NO_OVERLAY")
             .withShaderDefine("NO_CARDINAL_LIGHTING")
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
-            .build();
+            .build());
 
     /** RenderType for goo fluid surfaces. Per-texture-key memoized below. */
     private static final java.util.function.Function<Identifier, RenderType> GOO_FLUID_FACTORY =
@@ -680,7 +663,7 @@ public final class GooRenderTypes {
      * one-pass-blends-every-type). Cull is off as on entityTranslucent,
      * which the vat and crucible fluid drew on before.
      */
-    public static final RenderPipeline GOO_FLUID_SURFACE = RenderPipeline.builder(
+    public static final RenderPipeline GOO_FLUID_SURFACE = sorted(PipelineSort.WRITES_DEPTH, RenderPipeline.builder(
                     RenderPipelines.ENTITY_EMISSIVE_SNIPPET,
                     RenderPipelines.GLOBALS_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, "pipeline/goo_fluid_surface"))
@@ -692,7 +675,7 @@ public final class GooRenderTypes {
             .withShaderDefine("NO_CARDINAL_LIGHTING")
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .withCull(false)
-            .build();
+            .build());
 
     /** Per-texture memoized render types on the goo fluid surface pipeline. */
     private static final java.util.function.Function<Identifier, RenderType> GOO_FLUID_SURFACE_FACTORY =
@@ -719,7 +702,7 @@ public final class GooRenderTypes {
      * Crystal shard pipeline: translucent glass splinter quads scattered
      * in a cloud volume. Depth test on, depth write off, cull off.
      */
-    public static final RenderPipeline CRYSTAL_SHARD = RenderPipeline.builder(
+    public static final RenderPipeline CRYSTAL_SHARD = sorted(PipelineSort.ON_THE_PATH, RenderPipeline.builder(
                     RenderPipelines.MATRICES_PROJECTION_SNIPPET,
                     RenderPipelines.GLOBALS_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, "pipeline/crystal_shard"))
@@ -730,7 +713,7 @@ public final class GooRenderTypes {
             .withDepthStencilState(new DepthStencilState(
                     DepthStencilState.DEFAULT.depthTest(), false))
             .withCull(false)
-            .build();
+            .build());
 
     /** RenderType that submits the crystal shard splinters with scene copy sampler. */
     public static final RenderType CRYSTAL_SHARD_TYPE = RenderType.create(
@@ -749,7 +732,7 @@ public final class GooRenderTypes {
      * keeps emission order rather than sorting. Premultiplied blending lets the band
      * draw opaque over the body while a translucent item body keeps its alpha.
      */
-    public static final RenderPipeline CRUCIBLE_DISSOLVE = RenderPipeline.builder(
+    public static final RenderPipeline CRUCIBLE_DISSOLVE = sorted(PipelineSort.WRITES_DEPTH, RenderPipeline.builder(
                     RenderPipelines.ENTITY_SNIPPET,
                     RenderPipelines.GLOBALS_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, "pipeline/crucible_dissolve"))
@@ -758,7 +741,7 @@ public final class GooRenderTypes {
             .withShaderDefine("ALPHA_CUTOUT", 0.1F)
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT_PREMULTIPLIED_ALPHA))
             .withCull(false)
-            .build();
+            .build());
 
     /** Per-texture memoized render types on the crucible dissolve pipeline. */
     private static final java.util.function.Function<Identifier, RenderType> CRUCIBLE_DISSOLVE_FACTORY =
@@ -821,7 +804,7 @@ public final class GooRenderTypes {
      * PocketStarSkyRenderer in the sky pass, added onto the dark with no depth
      * test, as vanilla's stars draw (decision outsider-room-draws-a-skybox-of-stars).
      */
-    public static final RenderPipeline POCKET_SKY = RenderPipeline.builder(
+    public static final RenderPipeline POCKET_SKY = sorted(PipelineSort.WITH_THE_SKY, RenderPipeline.builder(
                     RenderPipelines.MATRICES_PROJECTION_SNIPPET,
                     RenderPipelines.GLOBALS_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "pocket_sky"))
@@ -829,18 +812,18 @@ public final class GooRenderTypes {
             .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "pocket_sky"))
             .withColorTargetState(new ColorTargetState(BlendFunction.ADDITIVE))
             .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
-            .build();
+            .build());
 
     /**
      * The Lunar trip's veil over the overworld's sky: black quads round the camera, alpha blended at the sky's dim
      * through vanilla's position-color shader, passing every depth test, so the day sky fades to the star void.
      * decision gate-fixates-your-view-on-the-moon-until-it-takes-you
      */
-    public static final RenderPipeline LUNAR_SKY_VEIL = RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
+    public static final RenderPipeline LUNAR_SKY_VEIL = sorted(PipelineSort.ON_THE_PATH, RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "lunar_sky_veil"))
             .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
             .withCull(false)
-            .build();
+            .build());
 
     /**
      * The Lunar trip's swelling moon or blue planet: vanilla's celestial draw, the sprite added onto the frame,
@@ -848,11 +831,11 @@ public final class GooRenderTypes {
      * decision gate-fixates-your-view-on-the-moon-until-it-takes-you
      * decision planet-face-is-eight-hand-drawn-phase-sprites
      */
-    public static final RenderPipeline LUNAR_MOON = RenderPipelines.CELESTIAL.toBuilder()
+    public static final RenderPipeline LUNAR_MOON = sorted(PipelineSort.ON_THE_PATH, RenderPipelines.CELESTIAL.toBuilder()
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "lunar_moon"))
             .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
             .withCull(false)
-            .build();
+            .build());
 
     /**
      * The render type voidstone's faces draw through, its texture transform
@@ -872,7 +855,7 @@ public final class GooRenderTypes {
      * and writes no depth, as translucent blocks write none
      * (decision coat-is-a-green-slime-film-over-the-blocks-own-texture).
      */
-    public static final RenderPipeline BLOCK_MINGLE_TRANSLUCENT = RenderPipeline.builder(
+    public static final RenderPipeline BLOCK_MINGLE_TRANSLUCENT = sorted(PipelineSort.ON_THE_PATH, RenderPipeline.builder(
                     RenderPipelines.ENTITY_SNIPPET,
                     RenderPipelines.GLOBALS_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "block_mingle_translucent"))
@@ -881,7 +864,7 @@ public final class GooRenderTypes {
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false,
                     BLOCK_MINGLE_DEPTH_BIAS_SCALE, BLOCK_MINGLE_DEPTH_BIAS_CONSTANT))
-            .build();
+            .build());
 
     /** Per-atlas memoized render types on the blended block transform pipeline. */
     private static final java.util.function.Function<Identifier, RenderType> BLOCK_MINGLE_TRANSLUCENT_FACTORY =
@@ -962,13 +945,13 @@ public final class GooRenderTypes {
      * Translucent with depth write off, so the splat never hides the mob's
      * own depth.
      */
-    public static final RenderPipeline GOO_MOB_COAT = RenderPipeline.builder(RenderPipelines.ENTITY_SNIPPET)
+    public static final RenderPipeline GOO_MOB_COAT = sorted(PipelineSort.FLUSH_ON_A_DEPTH_WRITING_SURFACE, RenderPipeline.builder(RenderPipelines.ENTITY_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "goo_mob_coat"))
             .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_mob_coat"))
             .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_mob_coat"))
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .withDepthStencilState(new DepthStencilState(DepthStencilState.DEFAULT.depthTest(), false))
-            .build();
+            .build());
 
     /** Per-atlas memoized render types on the goo coat pipeline. */
     private static final java.util.function.Function<Identifier, RenderType> GOO_MOB_COAT_FACTORY =
@@ -1000,7 +983,7 @@ public final class GooRenderTypes {
      * model's own depth. The entity layout without the entity snippet's Sampler0,
      * since no pattern samples a texture, only the lightmap.
      */
-    public static final RenderPipeline GOO_AILMENT_OVERLAY = RenderPipeline.builder(
+    public static final RenderPipeline GOO_AILMENT_OVERLAY = sorted(PipelineSort.FLUSH_ON_A_DEPTH_WRITING_SURFACE, RenderPipeline.builder(
                     RenderPipelines.MATRICES_FOG_LIGHT_DIR_SNIPPET,
                     RenderPipelines.GLOBALS_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "goo_ailment_overlay"))
@@ -1010,7 +993,7 @@ public final class GooRenderTypes {
             .withVertexFormat(DefaultVertexFormat.ENTITY, VertexFormat.Mode.QUADS)
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .withDepthStencilState(new DepthStencilState(DepthStencilState.DEFAULT.depthTest(), false))
-            .build();
+            .build());
 
     /**
      * Petrify's stone pipeline (decision petrify-stone-encasement-and-calcify-map):
@@ -1019,7 +1002,7 @@ public final class GooRenderTypes {
      * texture laid over the skin coordinates in noise patches covering the
      * share of the model the vertex alpha carries, whole at a statue.
      */
-    public static final RenderPipeline PETRIFY_STONE = RenderPipeline.builder(
+    public static final RenderPipeline PETRIFY_STONE = sorted(PipelineSort.FLUSH_ON_A_DEPTH_WRITING_SURFACE, RenderPipeline.builder(
                     RenderPipelines.ENTITY_SNIPPET,
                     RenderPipelines.GLOBALS_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "petrify_stone"))
@@ -1027,7 +1010,7 @@ public final class GooRenderTypes {
             .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "petrify_stone"))
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .withDepthStencilState(new DepthStencilState(DepthStencilState.DEFAULT.depthTest(), false))
-            .build();
+            .build());
 
     /** The petrify stone render type, sampling vanilla's stone texture. */
     public static final RenderType PETRIFY_STONE_TYPE = RenderType.create(
@@ -1045,7 +1028,7 @@ public final class GooRenderTypes {
      * share of the model the vertex alpha carries.
      * vines-unpack-root-and-thorn
      */
-    public static final RenderPipeline VINE_TANGLE = RenderPipeline.builder(
+    public static final RenderPipeline VINE_TANGLE = sorted(PipelineSort.FLUSH_ON_A_DEPTH_WRITING_SURFACE, RenderPipeline.builder(
                     RenderPipelines.ENTITY_SNIPPET,
                     RenderPipelines.GLOBALS_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "vine_tangle"))
@@ -1053,7 +1036,7 @@ public final class GooRenderTypes {
             .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "vine_tangle"))
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .withDepthStencilState(new DepthStencilState(DepthStencilState.DEFAULT.depthTest(), false))
-            .build();
+            .build());
 
     /** The vine tangle render type, sampling vanilla's vine texture. */
     public static final RenderType VINE_TANGLE_TYPE = RenderType.create(
@@ -1083,7 +1066,7 @@ public final class GooRenderTypes {
      * through {@code petrify_fog.vsh / .fsh}, churning as it billows out
      * (decision petrify-fog-is-billowing-roiling-dust).
      */
-    public static final RenderPipeline PETRIFY_FOG = burnoutPipeline("petrify_fog", BlendFunction.TRANSLUCENT);
+    public static final RenderPipeline PETRIFY_FOG = sorted(PipelineSort.ON_THE_PATH, burnoutPipeline("petrify_fog", BlendFunction.TRANSLUCENT));
 
     /** The petrify fog render type. */
     public static final RenderType PETRIFY_FOG_TYPE = burnoutType(PETRIFY_FOG);
@@ -1100,7 +1083,7 @@ public final class GooRenderTypes {
      * nearest voxel it draws, so whatever draws later and farther, such as
      * the clouds, stands behind it.
      */
-    public static final RenderPipeline FIRE_FIELD = RenderPipeline.builder(
+    public static final RenderPipeline FIRE_FIELD = sorted(PipelineSort.ON_THE_PATH, RenderPipeline.builder(
                     RenderPipelines.MATRICES_PROJECTION_SNIPPET,
                     RenderPipelines.GLOBALS_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "fire_field"))
@@ -1111,7 +1094,7 @@ public final class GooRenderTypes {
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .withDepthStencilState(DepthStencilState.DEFAULT)
             .withCull(true)
-            .build();
+            .build());
 
     /** The uniform block the miasma vortex pipeline reads Drain's cone and colors from. */
     public static final String MIASMA_VORTEX_BLOCK = "MiasmaVortex";
@@ -1128,7 +1111,7 @@ public final class GooRenderTypes {
      * none, since the march clips itself against the world.
      * drain-casts-a-filled-tornadic-miasma-vortex-along-the-look
      */
-    public static final RenderPipeline MIASMA_VORTEX = RenderPipeline.builder(
+    public static final RenderPipeline MIASMA_VORTEX = sorted(PipelineSort.ON_THE_PATH, RenderPipeline.builder(
                     RenderPipelines.MATRICES_PROJECTION_SNIPPET,
                     RenderPipelines.GLOBALS_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "miasma_vortex"))
@@ -1140,7 +1123,7 @@ public final class GooRenderTypes {
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
             .withCull(true)
-            .build();
+            .build());
 
     /**
      * Growth's breeze pipeline: cross-sections of the cone drawn through
@@ -1148,7 +1131,7 @@ public final class GooRenderTypes {
      * with pulses running out from the glove.
      * growth-breeze-ticks-plants
      */
-    public static final RenderPipeline GROWTH_BREEZE = burnoutPipeline("growth_breeze", BlendFunction.LIGHTNING);
+    public static final RenderPipeline GROWTH_BREEZE = sorted(PipelineSort.ON_THE_PATH, burnoutPipeline("growth_breeze", BlendFunction.LIGHTNING));
 
     /** The growth breeze render type. */
     public static final RenderType GROWTH_BREEZE_TYPE = burnoutType(GROWTH_BREEZE);
@@ -1158,21 +1141,21 @@ public final class GooRenderTypes {
      * {@code leaf_ghost.vsh / .fsh}.
      * bloom-places-buds-by-biome-and-surface
      */
-    public static final RenderPipeline LEAF_GHOST = burnoutPipeline("leaf_ghost", BlendFunction.LIGHTNING);
+    public static final RenderPipeline LEAF_GHOST = sorted(PipelineSort.ON_THE_PATH, burnoutPipeline("leaf_ghost", BlendFunction.LIGHTNING));
 
     /** The leaf ghost render type. */
     public static final RenderType LEAF_GHOST_TYPE = burnoutType(LEAF_GHOST);
 
     /** Leaf's held ghost through blocks, so the haze shows where blocks stand between. */
-    public static final RenderPipeline LEAF_GHOST_THROUGH_BLOCKS = throughBlocksPipeline("leaf_ghost",
-            BlendFunction.LIGHTNING);
+    public static final RenderPipeline LEAF_GHOST_THROUGH_BLOCKS = sorted(PipelineSort.ON_THE_PATH, throughBlocksPipeline("leaf_ghost",
+            BlendFunction.LIGHTNING));
 
     /**
      * Reap's swell, a whole sphere of Growth's breeze swelling out to Reap's
      * radius, drawn through {@code reap_swell.vsh / .fsh}.
      * reap-breeze-harvests-and-replants
      */
-    public static final RenderPipeline REAP_SWELL = burnoutPipeline("reap_swell", BlendFunction.LIGHTNING);
+    public static final RenderPipeline REAP_SWELL = sorted(PipelineSort.ON_THE_PATH, burnoutPipeline("reap_swell", BlendFunction.LIGHTNING));
 
     /** The reap swell render type. */
     public static final RenderType REAP_SWELL_TYPE = burnoutType(REAP_SWELL);
@@ -1195,7 +1178,7 @@ public final class GooRenderTypes {
      * Blended translucent; it passes every depth test and writes none, since
      * the march clips itself against the world.
      */
-    public static final RenderPipeline BORE_DRILL = RenderPipeline.builder(
+    public static final RenderPipeline BORE_DRILL = sorted(PipelineSort.ON_THE_PATH, RenderPipeline.builder(
                     RenderPipelines.MATRICES_PROJECTION_SNIPPET,
                     RenderPipelines.GLOBALS_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "bore_drill"))
@@ -1207,7 +1190,7 @@ public final class GooRenderTypes {
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
             .withCull(true)
-            .build();
+            .build());
 
     /**
      * Ghost trail pipeline (decision ghost-trail-spans-the-blink): an entity's
@@ -1215,13 +1198,13 @@ public final class GooRenderTypes {
      * echo in the goo type's color, its skin read for the cutout and the
      * shading alone. Depth write off, so ghosts and the world behind show through.
      */
-    public static final RenderPipeline GOO_GHOST = RenderPipeline.builder(RenderPipelines.ENTITY_SNIPPET)
+    public static final RenderPipeline GOO_GHOST = sorted(PipelineSort.ON_THE_PATH, RenderPipeline.builder(RenderPipelines.ENTITY_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "goo_ghost"))
             .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_ghost"))
             .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_ghost"))
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .withDepthStencilState(new DepthStencilState(DepthStencilState.DEFAULT.depthTest(), false))
-            .build();
+            .build());
 
     /** Per-skin memoized render types on the ghost pipeline. */
     private static final java.util.function.Function<Identifier, RenderType> GOO_GHOST_FACTORY =
@@ -1252,13 +1235,13 @@ public final class GooRenderTypes {
      * Depth write on, as vanilla's translucent entity, so the body hides its
      * own far side.
      */
-    public static final RenderPipeline GOO_PHASE = RenderPipeline.builder(RenderPipelines.ENTITY_SNIPPET)
+    public static final RenderPipeline GOO_PHASE = sorted(PipelineSort.WRITES_DEPTH, RenderPipeline.builder(RenderPipelines.ENTITY_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "goo_phase"))
             .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_phase"))
             .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_phase"))
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .withDepthStencilState(DepthStencilState.DEFAULT)
-            .build();
+            .build());
 
     /** Per-skin memoized render types on the phase pipeline. */
     private static final java.util.function.Function<Identifier, RenderType> GOO_PHASE_FACTORY =
@@ -1288,7 +1271,7 @@ public final class GooRenderTypes {
      * the view through lies flush with the frame. Depth tested and written, as
      * the face stands in the world.
      */
-    public static final RenderPipeline GOO_PORTAL_VIEW = RenderPipeline.builder(
+    public static final RenderPipeline GOO_PORTAL_VIEW = sorted(PipelineSort.ON_THE_PATH, RenderPipeline.builder(
                     RenderPipelines.MATRICES_PROJECTION_SNIPPET, RenderPipelines.GLOBALS_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "goo_portal_view"))
             .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_portal_view"))
@@ -1299,7 +1282,7 @@ public final class GooRenderTypes {
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .withDepthStencilState(DepthStencilState.DEFAULT)
             .withCull(false)
-            .build();
+            .build());
 
     /** The texel buffer each copy of a Zone room reads its translation from. */
     public static final String ROOM_COPY_TRANSLATIONS = "RoomCopyTranslations";
@@ -1324,14 +1307,14 @@ public final class GooRenderTypes {
             .build();
 
     /** A Zone room's translucent blocks in each of its copies, as {@link #ROOM_COPY_SOLID}. */
-    public static final RenderPipeline ROOM_COPY_TRANSLUCENT = RenderPipeline.builder(RenderPipelines.BLOCK_SNIPPET)
+    public static final RenderPipeline ROOM_COPY_TRANSLUCENT = sorted(PipelineSort.ON_THE_PATH, RenderPipeline.builder(RenderPipelines.BLOCK_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "room_copy_translucent"))
             .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "room_copy_block"))
             .withUniform(ROOM_COPY_TRANSLATIONS, UniformType.TEXEL_BUFFER, TextureFormat.RED8I)
             .withShaderDefine("ALPHA_CUTOUT", TRANSLUCENT_BLOCK_ALPHA)
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .withDepthStencilState(DepthStencilState.DEFAULT)
-            .build();
+            .build());
 
     /**
      * Idle portal pipeline (decision portals-link-by-looking-through-portal-vision):
@@ -1340,7 +1323,7 @@ public final class GooRenderTypes {
      * blended over the wall, depth tested and written as the face stands in
      * the world.
      */
-    public static final RenderPipeline GOO_PORTAL_IDLE = RenderPipeline.builder(
+    public static final RenderPipeline GOO_PORTAL_IDLE = sorted(PipelineSort.ON_THE_PATH, RenderPipeline.builder(
                     RenderPipelines.MATRICES_PROJECTION_SNIPPET, RenderPipelines.GLOBALS_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "goo_portal_idle"))
             .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_portal_idle"))
@@ -1349,7 +1332,7 @@ public final class GooRenderTypes {
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .withDepthStencilState(DepthStencilState.DEFAULT)
             .withCull(false)
-            .build();
+            .build());
 
     /** RenderType for an idle portal's swirl. */
     public static final RenderType GOO_PORTAL_IDLE_TYPE = RenderType.create("goo_portal_idle",
@@ -1407,14 +1390,14 @@ public final class GooRenderTypes {
      * painting where any channel changes, the silhouettes' perimeters, in the goo
      * type's color that ColorModulator carries, blended over the frame.
      */
-    public static final RenderPipeline GOO_RIPPLE_EDGE = RenderPipeline.builder(RenderPipelines.MATRICES_PROJECTION_SNIPPET)
+    public static final RenderPipeline GOO_RIPPLE_EDGE = sorted(PipelineSort.ON_THE_PATH, RenderPipeline.builder(RenderPipelines.MATRICES_PROJECTION_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "goo_ripple_edge"))
             .withVertexShader(Identifier.withDefaultNamespace("core/screenquad"))
             .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_ripple_edge"))
             .withSampler("InSampler")
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .withVertexFormat(DefaultVertexFormat.EMPTY, VertexFormat.Mode.TRIANGLES)
-            .build();
+            .build());
 
     /**
      * Sculker's soft outline pipeline (decision sculker-sight-persists-where-echoes-have-touched):
@@ -1422,14 +1405,14 @@ public final class GooRenderTypes {
      * {@code goo_soft_outline.fsh}, painting a blurred glow out from each heard
      * body's edge in the color ColorModulator carries, blended over the frame.
      */
-    public static final RenderPipeline GOO_SOFT_OUTLINE = RenderPipeline.builder(RenderPipelines.MATRICES_PROJECTION_SNIPPET)
+    public static final RenderPipeline GOO_SOFT_OUTLINE = sorted(PipelineSort.ON_THE_PATH, RenderPipeline.builder(RenderPipelines.MATRICES_PROJECTION_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "goo_soft_outline"))
             .withVertexShader(Identifier.withDefaultNamespace("core/screenquad"))
             .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_soft_outline"))
             .withSampler("InSampler")
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .withVertexFormat(DefaultVertexFormat.EMPTY, VertexFormat.Mode.TRIANGLES)
-            .build();
+            .build());
 
     /** The one render type on the ailment overlay pipeline. */
     public static final RenderType GOO_AILMENT_OVERLAY_TYPE = RenderType.create(
@@ -1441,6 +1424,23 @@ public final class GooRenderTypes {
     );
 
     private GooRenderTypes() {}
+
+    /**
+     * The sort route recorded beside a pipeline this class builds.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
+     *
+     * @param pipeline the pipeline
+     * @return its recorded sort, or empty where none is recorded
+     */
+    public static Optional<PipelineSort> sortOf(RenderPipeline pipeline) {
+        return Optional.ofNullable(SORTS.get(pipeline));
+    }
+
+    // Records a translucent pipeline's sort beside its definition and hands the pipeline back.
+    private static RenderPipeline sorted(PipelineSort sort, RenderPipeline pipeline) {
+        SORTS.put(pipeline, sort);
+        return pipeline;
+    }
 
     /**
      * A ripple mask pipeline filling one channel of the ripple buffer
@@ -1599,7 +1599,6 @@ public final class GooRenderTypes {
         registerMobLayerPipelines(event);
         registerLeafPipelines(event);
         registerLinePipelines(event);
-        event.registerPipeline(VORONOI_FISSURE);
         event.registerPipeline(CRYSTAL_SHARD);
         event.registerPipeline(GOO_FLUID);
         event.registerPipeline(GOO_FLUID_SURFACE);

@@ -12,6 +12,7 @@ import com.mercuriusxeno.goo.client.ability.ChainBurnoutRenderer;
 import com.mercuriusxeno.goo.client.ability.CrystalShatterVisual;
 import com.mercuriusxeno.goo.client.ability.FireStream;
 import com.mercuriusxeno.goo.client.ability.FloatPlatform;
+import com.mercuriusxeno.goo.client.ability.GhostTrailRenderer;
 import com.mercuriusxeno.goo.client.ability.GlassKnives;
 import com.mercuriusxeno.goo.client.ability.GroundShake;
 import com.mercuriusxeno.goo.client.ability.GrowthBreeze;
@@ -37,6 +38,7 @@ import com.mercuriusxeno.goo.client.ability.PortalFaces;
 import com.mercuriusxeno.goo.client.ability.PortalView;
 import com.mercuriusxeno.goo.client.ability.QuantumBlobDarts;
 import com.mercuriusxeno.goo.client.ability.ReapSlashBlades;
+import com.mercuriusxeno.goo.client.ability.ReapSwells;
 import com.mercuriusxeno.goo.client.ability.RelayLasers;
 import com.mercuriusxeno.goo.client.ability.RollingGooRenderer;
 import com.mercuriusxeno.goo.client.ability.SculkerEchoRenderer;
@@ -51,12 +53,17 @@ import com.mercuriusxeno.goo.client.ability.TransformationRenderer;
 import com.mercuriusxeno.goo.client.ability.WindLines;
 import com.mercuriusxeno.goo.client.ability.WispGlow;
 import com.mercuriusxeno.goo.client.ability.ZapBolts;
+import com.mercuriusxeno.goo.client.ber.style.GlowBeaconStyle;
+import com.mercuriusxeno.goo.client.ber.style.GlowColumn;
+import com.mercuriusxeno.goo.client.ber.style.GlowReflectorStyle;
+import com.mercuriusxeno.goo.client.entity.MeteorRenderer;
 import com.mercuriusxeno.goo.client.hole.HoleMouths;
 import com.mercuriusxeno.goo.client.hole.HolePits;
 import com.mercuriusxeno.goo.client.hud.CanisterHudRenderer;
 import com.mercuriusxeno.goo.client.hud.CrucibleHudRenderer;
 import com.mercuriusxeno.goo.client.hud.PlexerHudRenderer;
 import com.mercuriusxeno.goo.client.hud.VatHudRenderer;
+import com.mercuriusxeno.goo.client.model.GloveSpecialRenderer;
 import com.mercuriusxeno.goo.client.model.GooJoins;
 import com.mercuriusxeno.goo.client.overlay.AimedMobRipple;
 import com.mercuriusxeno.goo.client.overlay.BlinkCursor;
@@ -73,12 +80,14 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.state.level.LevelRenderState;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.joml.Matrix4fStack;
 import org.joml.Matrix4fc;
+import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -116,6 +125,15 @@ public final class TranslucentVisualPath {
             new Registration(PneumaWind.class, SortRoute.FAR_TO_NEAR, PneumaWind::collect),
             new Registration(GrowthBreeze.class, SortRoute.FAR_TO_NEAR, GrowthBreeze::collect),
             new Registration(WispGlow.class, SortRoute.FAR_TO_NEAR, WispGlow::collect),
+            // operator ruling 2026-11-18: the glows vanilla's main pass drew before the clouds, queued by their
+            // renderers; a prism's column registers before its beams, which sort at its center and draw after it.
+            new Registration(GlowColumn.class, SortRoute.FAR_TO_NEAR, GlowColumn::collect),
+            new Registration(GlowBeaconStyle.class, SortRoute.FAR_TO_NEAR, GlowBeaconStyle::collect),
+            new Registration(GlowReflectorStyle.class, SortRoute.FAR_TO_NEAR, GlowReflectorStyle::collect),
+            new Registration(MeteorRenderer.class, SortRoute.FAR_TO_NEAR, MeteorRenderer::collect),
+            new Registration(GloveSpecialRenderer.class, SortRoute.FAR_TO_NEAR, GloveSpecialRenderer::collect),
+            new Registration(ReapSwells.class, SortRoute.FAR_TO_NEAR, ReapSwells::collect),
+            new Registration(GhostTrailRenderer.class, SortRoute.FAR_TO_NEAR, GhostTrailRenderer::collect),
             new Registration(SpikesBristle.class, SortRoute.OPAQUE_SHAPE, SpikesBristle::collect),
             new Registration(SpikesRise.class, SortRoute.OPAQUE_SHAPE, SpikesRise::collect),
             new Registration(BeatRings.class, SortRoute.FAR_TO_NEAR, BeatRings::collect),
@@ -177,7 +195,24 @@ public final class TranslucentVisualPath {
             new Registration(PlexerHudRenderer.class, SortRoute.FAR_TO_NEAR, PlexerHudRenderer::collect),
             new Registration(VatHudRenderer.class, SortRoute.FAR_TO_NEAR, VatHudRenderer::collect));
 
+    /** The camera of the level pass submitting its entities now, null outside one. */
+    private static @Nullable Vec3 submittingCamera;
+
     private TranslucentVisualPath() {
+    }
+
+    /**
+     * Where the camera stands of the level pass submitting its entities,
+     * block entities and items now: from the pass's opaque blocks until the
+     * path draws its once-the-level-is-drawn routes. The hand's pass and the
+     * GUI submit after, outside any level pass, so a renderer drawing for
+     * both tells here whether its glow belongs on the path.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
+     *
+     * @return the camera's place in the world, or null outside a level pass
+     */
+    public static @Nullable Vec3 submittingLevelCamera() {
+        return submittingCamera;
     }
 
     /**
@@ -198,6 +233,8 @@ public final class TranslucentVisualPath {
     @SubscribeEvent
     public static void onAfterOpaqueBlocks(RenderLevelStageEvent.AfterOpaqueBlocks event) {
         drawStage(event, RenderLevelStageEvent.AfterOpaqueBlocks.class);
+        // LevelRenderer submits the pass's entities, block entities and particles right after this stage.
+        submittingCamera = event.getLevelRenderState().cameraRenderState.pos;
     }
 
     /**
@@ -212,6 +249,7 @@ public final class TranslucentVisualPath {
      */
     @SubscribeEvent
     public static void onAfterLevel(RenderLevelStageEvent.AfterLevel event) {
+        submittingCamera = null;
         drawStage(event, RenderLevelStageEvent.AfterLevel.class);
     }
 
@@ -233,6 +271,7 @@ public final class TranslucentVisualPath {
      * @param levelRenderState the level's render state this pass
      */
     public static void drawAfterAPortalsLevel(Matrix4fc modelView, LevelRenderState levelRenderState) {
+        submittingCamera = null;
         drawRoutes(modelView, levelRenderState, portalRoutes());
     }
 

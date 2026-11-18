@@ -185,6 +185,24 @@ class TranslucentVisualPathTest {
     }
 
     /**
+     * The goo glows vanilla's main pass drew before the clouds, which a farther
+     * cloud painted over, queued by their renderers onto the path and drawn far
+     * to near after the clouds (operator ruling 2026-11-18).
+     * decision diagnose-and-correct-translucent-goo-visuals-that-depth-sort-wrong
+     */
+    @Test
+    void theMainPassGlowsDrawFarToNearOnThePath() {
+        List<String> glows = List.of("ber.style.GlowColumn", "ber.style.GlowBeaconStyle",
+                "ber.style.GlowReflectorStyle", "entity.MeteorRenderer", "ability.ReapSwells",
+                "ability.GhostTrailRenderer");
+        assertAll(glows.stream().map(glow -> () -> assertEquals(List.of(SortRoute.FAR_TO_NEAR),
+                TranslucentVisualPath.REGISTRATIONS.stream()
+                        .filter(registration -> registration.visual().getName()
+                                .equals("com.mercuriusxeno.goo.client." + glow))
+                        .map(Registration::route).toList(), glow)));
+    }
+
+    /**
      * The overlays, flights, joins, burnouts, highlights, gasket overlays and
      * in-world panels: the last visuals that drew on a stage of their own.
      * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
