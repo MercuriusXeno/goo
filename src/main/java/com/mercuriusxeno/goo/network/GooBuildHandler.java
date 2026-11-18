@@ -3,8 +3,8 @@ package com.mercuriusxeno.goo.network;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityTags;
-import com.mercuriusxeno.goo.ability.SpireFootprint;
-import com.mercuriusxeno.goo.ability.SpireGrowth;
+import com.mercuriusxeno.goo.ability.BuildFootprint;
+import com.mercuriusxeno.goo.ability.BuildGrowth;
 import com.mercuriusxeno.goo.ability.program.FootprintHost;
 import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
@@ -26,7 +26,7 @@ import java.util.Optional;
 import java.util.OptionalInt;
 
 /**
- * Server side of a Spire's submit: the footprint is checked against the caps
+ * Server side of a Build's submit: the footprint is checked against the caps
  * and the throw range, planned against the cells above it, its rise lowered
  * to what the caster's goo pays for, and grown, charging the ability's cost
  * per stone block grown. The client held the choreography; the server
@@ -35,11 +35,11 @@ import java.util.OptionalInt;
  * decision spire-grows-stone-out-of-the-top
  * decision spire-cost-field-prices-each-cubic-meter-of-stone-at-mundane-block
  */
-public final class GooSpireHandler {
+public final class GooBuildHandler {
 
     private static final String LOG_PROGRAM_REFUSED = "Ability {} program refused for the footprint host: {}";
 
-    private GooSpireHandler() {
+    private GooBuildHandler() {
     }
 
     /**
@@ -48,7 +48,7 @@ public final class GooSpireHandler {
      * @param payload the submit
      * @param context the network context
      */
-    public static void handle(GooSpirePayload payload, IPayloadContext context) {
+    public static void handle(GooBuildPayload payload, IPayloadContext context) {
         context.enqueueWork(() -> {
             if (context.player() instanceof ServerPlayer player) {
                 cast(player, payload);
@@ -57,7 +57,7 @@ public final class GooSpireHandler {
     }
 
     /**
-     * Grows a Spire for a player: refused whole for a glove-less player, an
+     * Grows a Build for a player: refused whole for a glove-less player, an
      * unknown type, an ability the player may not use or that is not cast by
      * its footprint, a missing reagent, a footprint past the caps or the
      * throw range, or a footprint the goo cannot grow a stone block over.
@@ -65,7 +65,7 @@ public final class GooSpireHandler {
      * @param player  the casting player
      * @param payload the submit
      */
-    public static void cast(ServerPlayer player, GooSpirePayload payload) {
+    public static void cast(ServerPlayer player, GooBuildPayload payload) {
         ResourceKey<GooTypeDefinition> gooType = GooTypes.known(payload.gooTypeId());
         if (gooType == null || !withinReach(player, gooType, payload.footprint())) {
             return;
@@ -82,12 +82,12 @@ public final class GooSpireHandler {
      * the player's eye.
      *
      * @param player    the casting player
-     * @param gooType   the spire's goo type
+     * @param gooType   the build's goo type
      * @param footprint the footprint as submitted
      * @return true for a submit in reach
      */
     private static boolean withinReach(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType,
-                                       SpireFootprint footprint) {
+                                       BuildFootprint footprint) {
         return GooThrowHandler.validateCaster(player, gooType) && footprint.withinCaps()
                 && inRange(player, footprint.corner()) && inRange(player, footprint.opposite());
     }
@@ -110,13 +110,13 @@ public final class GooSpireHandler {
      * @param gooType the ability's goo type
      * @param ability the ability
      */
-    private static void grow(ServerPlayer player, GooSpirePayload payload, ResourceKey<GooTypeDefinition> gooType,
+    private static void grow(ServerPlayer player, GooBuildPayload payload, ResourceKey<GooTypeDefinition> gooType,
                              AbilityDefinition ability) {
         ServerLevel level = player.level();
         int holdings = GooSourceScanner.aggregateAvailable(player).getOrDefault(gooType, 0);
         IRemainderLedger ledger = GooCapabilities.remainderLedgerOf(player);
         // spire-cost-field-prices-each-cubic-meter-of-stone-at-mundane-block
-        Optional<SpireGrowth> plan = SpireGrowth.affordable(level, payload.footprint(),
+        Optional<BuildGrowth> plan = BuildGrowth.affordable(level, payload.footprint(),
                 ability.cost().exactIn(GooValues.of(level)), gooType, ledger.remainders(), holdings);
         if (plan.isEmpty()) {
             return;

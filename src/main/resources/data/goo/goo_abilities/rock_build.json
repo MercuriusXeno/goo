@@ -1,7 +1,7 @@
 {
   "gooType": "rock",
-  "displayName": "goo.ability.rock.spire",
-  "cost_mechanics": "goo.ability.rock.spire.cost_mechanics",
+  "displayName": "goo.ability.rock.build",
+  "cost_mechanics": "goo.ability.rock.build.cost_mechanics",
   "badge": "world",
   "order": 40,
   "cost": "$mundane_block",
@@ -9,7 +9,7 @@
   "requires": ["minecraft:gravel", "minecraft:sand"],
   "delivery": { "kind": "arc" },
   "behaviors": [
-    { "type": "spire" }
+    { "type": "build" }
   ],
   "tags": ["footprint"],
   "pose": "resting"

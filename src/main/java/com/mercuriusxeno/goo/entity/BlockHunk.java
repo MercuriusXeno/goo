@@ -646,7 +646,7 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
     }
 
     /**
-     * Whether the hunk is a Spire pillar, rising from the ground, rather than a lifted chunk.
+     * Whether the hunk is a Build pillar, rising from the ground, rather than a lifted chunk.
      *
      * @return true for a rising pillar
      */
@@ -761,7 +761,7 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
         interpolation.cancel();
         setPos(positionAt(now));
         if (level().isClientSide() && climbsAt(now)) {
-            SpireRumble.play(this, now - riseStartTime);
+            BuildRumble.play(this, now - riseStartTime);
         }
         if (climbsAt(now)) {
             HunkRiders.rises(this);
@@ -867,7 +867,7 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
 
     /**
      * Whether a hunk blocks movement: a rising one is solid, so nothing falls
-     * through Spire's stone mid-rise, while a lifted one collides with nothing.
+     * through Build's stone mid-rise, while a lifted one collides with nothing.
      *
      * @param rising whether the hunk rises
      * @return true where entities collide with it

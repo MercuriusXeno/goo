@@ -462,19 +462,19 @@ class AbilityLoaderTest {
     @Nested
     class Description {
 
-        private static final String SPIRE = "rock_spire";
+        private static final String BUILD = "rock_build";
 
         @Test
         void jsonNamingADescriptionReadsThatKey() {
-            String json = AbilityJson.read(SPIRE).replaceFirst("\\{",
-                    "{ \"description\": \"goo.ability.rock.spire.lifted\",");
+            String json = AbilityJson.read(BUILD).replaceFirst("\\{",
+                    "{ \"description\": \"goo.ability.rock.build.lifted\",");
 
-            assertEquals("goo.ability.rock.spire.lifted", AbilityJson.decodeText(SPIRE, json).description());
+            assertEquals("goo.ability.rock.build.lifted", AbilityJson.decodeText(BUILD, json).description());
         }
 
         @Test
         void jsonNamingNoDescriptionReadsItsDisplayNamePlusDescription() {
-            assertEquals("goo.ability.rock.spire.description", AbilityJson.decode(SPIRE).description());
+            assertEquals("goo.ability.rock.build.description", AbilityJson.decode(BUILD).description());
         }
     }
 
@@ -487,7 +487,7 @@ class AbilityLoaderTest {
     class CostFormula {
 
         private static final List<String> DYNAMIC_ABILITIES = List.of("ender_blink",
-                "unstable_blast", "rock_spire", "rock_gouge", "yore_age");
+                "unstable_blast", "rock_build", "rock_gouge", "yore_age");
 
         @Test
         void eachDynamicAbilityCarriesItsFormula() {

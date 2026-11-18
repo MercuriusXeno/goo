@@ -23,11 +23,11 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * A Spire's plan grows stone into the open cells above each footprint cell, priced at the ability's per-block price
+ * A Build's plan grows stone into the open cells above each footprint cell, priced at the ability's per-block price
  * for each block grown (decisions spire-grows-stone-out-of-the-top,
  * spire-cost-field-prices-each-cubic-meter-of-stone-at-mundane-block).
  */
-class SpireGrowthTest {
+class BuildGrowthTest {
 
     private static final GooFraction PER_BLOCK = GooFraction.of(7);
     private static final BlockPos CORNER = new BlockPos(0, 64, 0);
@@ -51,8 +51,8 @@ class SpireGrowthTest {
         });
     }
 
-    private SpireFootprint footprintAt(int rise) {
-        return new SpireFootprint(CORNER, OPPOSITE, rise);
+    private BuildFootprint footprintAt(int rise) {
+        return new BuildFootprint(CORNER, OPPOSITE, rise);
     }
 
     @Nested
@@ -60,7 +60,7 @@ class SpireGrowthTest {
 
         @Test
         void growsOnlyTheColumnsOpenThroughTheRise() {
-            SpireGrowth growth = SpireGrowth.plan(blocks, footprintAt(3), PER_BLOCK);
+            BuildGrowth growth = BuildGrowth.plan(blocks, footprintAt(3), PER_BLOCK);
             assertEquals(List.of(new BlockPos(0, 64, 0), new BlockPos(1, 64, 0), new BlockPos(3, 64, 0)),
                     growth.columns());
         }
@@ -69,13 +69,13 @@ class SpireGrowthTest {
         @ValueSource(longs = {7, 12})
         void costsThePerBlockPriceForEachBlockGrown(long perBlock) {
             int rise = 3;
-            SpireGrowth growth = SpireGrowth.plan(blocks, footprintAt(rise), GooFraction.of(perBlock));
+            BuildGrowth growth = BuildGrowth.plan(blocks, footprintAt(rise), GooFraction.of(perBlock));
             assertEquals(GooFraction.of(perBlock * OPEN_COLUMNS * rise), growth.exactCost());
         }
     }
 
     /**
-     * A Spire charges the exact per-block price through the player's ledger.
+     * A Build charges the exact per-block price through the player's ledger.
      * decision melt-and-fabricate-move-the-exact-value-through-a-remainder-buffer
      */
     @Nested
@@ -84,8 +84,8 @@ class SpireGrowthTest {
         private static final int HOLDINGS = 1000;
         private static final GooFraction SIXTY_FOUR_THIRDS = GooFraction.of(64, 3);
 
-        private SpireGrowth oneColumnAt(int rise) {
-            return SpireGrowth.plan(blocks, new SpireFootprint(CORNER, CORNER, rise), SIXTY_FOUR_THIRDS);
+        private BuildGrowth oneColumnAt(int rise) {
+            return BuildGrowth.plan(blocks, new BuildFootprint(CORNER, CORNER, rise), SIXTY_FOUR_THIRDS);
         }
 
         @Test
@@ -114,7 +114,7 @@ class SpireGrowthTest {
             int holdings = 21;
             RemainderLedger ledger = new RemainderLedger(GooRemainders.EMPTY.with(GooTypes.ROCK, GooFraction.of(2, 3)));
 
-            Optional<SpireGrowth> growth = SpireGrowth.affordable(blocks, new SpireFootprint(CORNER, CORNER, 1),
+            Optional<BuildGrowth> growth = BuildGrowth.affordable(blocks, new BuildFootprint(CORNER, CORNER, 1),
                     SIXTY_FOUR_THIRDS, GooTypes.ROCK, ledger.remainders(), holdings);
 
             assertEquals(OptionalInt.of(holdings), growth.orElseThrow().chargeThrough(ledger, GooTypes.ROCK, holdings));
@@ -130,14 +130,14 @@ class SpireGrowthTest {
         @Test
         void lowersTheRiseToWhatTheHoldingsPayFor() {
             int threeBlocksPerOpenColumn = PER_BLOCK_MB * OPEN_COLUMNS * 3;
-            Optional<SpireGrowth> growth = SpireGrowth.affordable(blocks, footprintAt(8), PER_BLOCK,
+            Optional<BuildGrowth> growth = BuildGrowth.affordable(blocks, footprintAt(8), PER_BLOCK,
                     GooTypes.ROCK, GooRemainders.EMPTY, threeBlocksPerOpenColumn);
             assertEquals(3, growth.orElseThrow().footprint().rise());
         }
 
         @Test
         void growsNothingWhereTheHoldingsPayForNoBlock() {
-            Optional<SpireGrowth> growth = SpireGrowth.affordable(blocks, footprintAt(8), PER_BLOCK, GooTypes.ROCK,
+            Optional<BuildGrowth> growth = BuildGrowth.affordable(blocks, footprintAt(8), PER_BLOCK, GooTypes.ROCK,
                     GooRemainders.EMPTY, PER_BLOCK_MB - 1);
             assertTrue(growth.isEmpty());
         }

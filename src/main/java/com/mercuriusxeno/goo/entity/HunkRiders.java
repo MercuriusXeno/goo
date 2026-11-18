@@ -11,7 +11,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Carries the riders of Spire's rising stone: at the start of each entity's
+ * Carries the riders of Build's rising stone: at the start of each entity's
  * own tick, after its last position is taken, an entity standing on a
  * climbing hunk's top is lifted onto where the top climbs this tick, so the
  * climb falls inside the rider's interpolation and the rider glides with the
