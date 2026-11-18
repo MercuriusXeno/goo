@@ -49,14 +49,14 @@ class ClientAbilityPriceTest {
 
     @Test
     void anItemPricedCostReadsThePricedMbOnTheWheel() {
-        String json = AbilityJson.read("unstable_lurker")
+        String json = AbilityJson.read("deep_shriek")
                 .replaceFirst("\"cost\"\\s*:\\s*\\d+", "\"cost\": \"3 * minecraft:cobblestone\"");
-        AbilityDefinition lurker = AbilityJson.decodeText("unstable_lurker", json);
+        AbilityDefinition shriek = AbilityJson.decodeText("deep_shriek", json);
         IGooValueLookup values = mock(IGooValueLookup.class);
-        when(values.lookup(COBBLESTONE)).thenReturn(new GooValue(Map.of(lurker.gooType(), COBBLESTONE_MB)));
+        when(values.lookup(COBBLESTONE)).thenReturn(new GooValue(Map.of(shriek.gooType(), COBBLESTONE_MB)));
         standing = ClientGooValues.readFrom(() -> values);
 
-        ClientAbility ability = synced(lurker);
+        ClientAbility ability = synced(shriek);
 
         assertEquals(750, ability.price());
         assertEquals(3, AffordedCount.reckon(ability, 2250, NO_REAGENTS).orElseThrow().count());

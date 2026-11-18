@@ -320,19 +320,19 @@ class WorkbenchOperationsTest {
      */
     @Nested
     class AbilitySaveAndPromote {
-        private static final Identifier LURKER = Identifier.fromNamespaceAndPath("goo", "unstable_lurker");
+        private static final Identifier SHRIEK = Identifier.fromNamespaceAndPath("goo", "deep_shriek");
         private static final int EDITED_COST = 777;
         private final List<Map<Identifier, JsonObject>> applied = new java.util.ArrayList<>();
         private WorkbenchOperations abilities;
 
         @BeforeEach
         void bindTheAbilityFiles() {
-            JsonObject shipped = JsonParser.parseString(AbilityJson.read("unstable_lurker")).getAsJsonObject();
+            JsonObject shipped = JsonParser.parseString(AbilityJson.read("deep_shriek")).getAsJsonObject();
             abilities = new WorkbenchOperations(paths, () -> new byte[0], () -> { }, (draft, progress) -> 0,
                     text -> { }, new AbilityFiles() {
                         @Override
                         public Map<Identifier, JsonObject> live() {
-                            return Map.of(LURKER, shipped);
+                            return Map.of(SHRIEK, shipped);
                         }
 
                         @Override
@@ -351,7 +351,7 @@ class WorkbenchOperationsTest {
             JsonObject changes = new JsonObject();
             changes.addProperty("cost", EDITED_COST);
             JsonObject edited = new JsonObject();
-            edited.add(LURKER.toString(), changes);
+            edited.add(SHRIEK.toString(), changes);
             JsonObject posted = new JsonObject();
             posted.add("abilities", edited);
             return posted.toString();
@@ -362,9 +362,9 @@ class WorkbenchOperationsTest {
             answeredOk(WorkbenchOperations.SAVE_ABILITIES, costEdit());
 
             assertEquals(List.of(EDITED_COST, EDITED_COST), List.of(
-                    AbilityDrafts.read(paths.abilityDrafts()).get(LURKER)
+                    AbilityDrafts.read(paths.abilityDrafts()).get(SHRIEK)
                             .get("cost").getAsInt(),
-                    applied.getLast().get(LURKER).get("cost").getAsInt()));
+                    applied.getLast().get(SHRIEK).get("cost").getAsInt()));
         }
 
         @Test
@@ -372,7 +372,7 @@ class WorkbenchOperationsTest {
             answeredOk(WorkbenchOperations.SAVE_ABILITIES, costEdit());
             answeredOk(WorkbenchOperations.PROMOTE, "");
 
-            Path live = AbilityDrafts.liveFileOf(paths.abilities(), LURKER);
+            Path live = AbilityDrafts.liveFileOf(paths.abilities(), SHRIEK);
             assertEquals(List.of(EDITED_COST, 409), List.of(
                     JsonParser.parseString(Files.readString(live)).getAsJsonObject().get("cost").getAsInt(),
                     abilities.answer(WorkbenchOperations.PROMOTE, "").status()));

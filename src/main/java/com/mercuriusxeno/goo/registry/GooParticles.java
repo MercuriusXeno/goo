@@ -155,6 +155,15 @@ public class GooParticles {
         PARTICLE_TYPES.register("infest_spray_drip", () -> new SimpleParticleType(false));
 
     /**
+     * Nitro's spray drip: the mod's blocky goo drip in unstable's greens,
+     * flying its arc until it strikes a block's top, where it splats and the
+     * Nitro goo lands.
+     * nitro-is-unstables-goo-that-explodes-in-a-chain-by-its-quantity
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> NITRO_SPRAY_DRIP =
+        PARTICLE_TYPES.register("nitro_spray_drip", () -> new SimpleParticleType(false));
+
+    /**
      * Vines' spray drip: the mod's blocky goo drip in leaf's greens, flying
      * its arc until it strikes a block's top, where it splats and the Vines
      * goo lands.
