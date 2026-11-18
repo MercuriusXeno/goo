@@ -354,15 +354,20 @@ public final class SlimeCoreQuads {
 
         /**
          * The core's outer face at a point: 7/8 of the pile's surface over
-         * it, measured from the column's base, a whole block at the most, and
-         * down on its floor where that leaves no room.
+         * it, measured from the column's base, and down on its floor where
+         * that leaves no room. A block goo of its type covers stops at its own
+         * top, where the block above draws the column on up; an uncovered
+         * block's core rises with its shell over its top toward a taller
+         * neighbour, so it meets that neighbour's core along their edge.
+         * stacked-goo-cells-share-one-slime-core
          *
          * @param first  model pixels along the first axis
          * @param second model pixels along the second
          * @return the distance out from the slab's surface, in model pixels
          */
         private float topAt(float first, float second) {
-            return Math.max(floorAt(first, second), Math.min(WHOLE, rawTopAt(first, second)));
+            float top = rawTopAt(first, second);
+            return Math.max(floorAt(first, second), slab.covered() ? Math.min(WHOLE, top) : top);
         }
 
         /**
