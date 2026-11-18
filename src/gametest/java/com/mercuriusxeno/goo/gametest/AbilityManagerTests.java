@@ -33,7 +33,7 @@ import java.util.stream.Collectors;
 @RegistersGameTests
 public final class AbilityManagerTests {
     private static final String SAVE_WRITES_A_DRAFT = "ability_manager_save_writes_a_draft_and_applies_live";
-    private static final Identifier EDITED = Identifier.fromNamespaceAndPath("goo", "unstable_lurker");
+    private static final Identifier EDITED = Identifier.fromNamespaceAndPath("goo", "deep_shriek");
     private static final int EDITED_COST = 777;
     private static final String PROMOTE_LANDS_THE_DRAFT = "ability_manager_promote_lands_the_draft_live";
     private static final String DISCARD_DROPS_THE_DRAFTS = "ability_manager_discard_drops_the_drafts";
@@ -53,8 +53,8 @@ public final class AbilityManagerTests {
     }
 
     /**
-     * Saves Lurker at 777 and promotes: the server prices 777 with no /reload, the live file and a second promote
-     * standing in WorkbenchOperationsTest; then the promoted file goes and the abilities apply afresh, so later batches read the shipped Lurker. A values draft standing from another batch is
+     * Saves Shriek at 777 and promotes: the server prices 777 with no /reload, the live file and a second promote
+     * standing in WorkbenchOperationsTest; then the promoted file goes and the abilities apply afresh, so later batches read the shipped Shriek. A values draft standing from another batch is
      * set aside first, so this promote moves no base_values.json into the world.
      *
      * @param helper the gametest helper
@@ -93,7 +93,7 @@ public final class AbilityManagerTests {
     }
 
     /**
-     * Saves Lurker at 777 and discards: the server prices the shipped cost again.
+     * Saves Shriek at 777 and discards: the server prices the shipped cost again.
      *
      * @param helper the gametest helper
      */
@@ -120,7 +120,7 @@ public final class AbilityManagerTests {
     }
 
     /**
-     * Saves Lurker at a cost of 777, reads the cost the server holds, then saves the shipped cost back
+     * Saves Shriek at a cost of 777, reads the cost the server holds, then saves the shipped cost back
      * and drops the draft, so the abilities the later batches read stand as they were.
      *
      * @param helper the gametest helper

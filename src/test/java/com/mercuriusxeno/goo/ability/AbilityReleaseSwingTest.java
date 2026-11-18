@@ -42,7 +42,7 @@ class AbilityReleaseSwingTest {
     private static final Set<String> THROWS_A_BLOB = Set.of(
             "blaze_ignite", "deep_shriek", "ender_seal",
             "frost_orb", "leaf_bio", "leaf_bloom", "metal_dart",
-            "quantum_tunnel", "shroom_spore", "unstable_lurker",
+            "quantum_tunnel", "shroom_spore",
             "void_cancel", "weird_mitosis", "yore_age", "yore_expire", "zoo_allure");
 
     static Stream<String> abilitiesThrowingNoBlob() {
