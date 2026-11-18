@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.block.ability.FluidFooting;
 import com.mercuriusxeno.goo.throwing.CoatRay;
+import net.minecraft.world.entity.LivingEntity;
 import java.util.List;
 import java.util.Optional;
 
@@ -52,6 +53,18 @@ public interface DripLanding {
      */
     default FluidFooting fluidFooting() {
         return FluidFooting.NONE;
+    }
+
+    /**
+     * Whether a drip striking the living ends on a living thing it meets,
+     * where it passes through the rest.
+     * nectar-goo-keeps-feeds-effects-as-a-universal-food
+     *
+     * @param living a living thing the drip meets
+     * @return true where the drip ends on it, every living thing for most
+     */
+    default boolean endsOn(LivingEntity living) {
+        return true;
     }
 
     /**

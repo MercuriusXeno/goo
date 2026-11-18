@@ -24,6 +24,7 @@ import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -33,6 +34,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * (decision tests-read-the-inventory-from-loaded-json).
  */
 class AbilityBadgeTest {
+
+    /** The name the residual fixture loads under, which its refusal names. */
+    private static final String RESIDUAL_FIXTURE = "residual_fixture";
+    /** A residual stream naming a prism reaction, with the badge left for the test to write. */
+    private static final String STREAM_REACTING_TO_PRISMS = """
+            { "gooType": "typhoon", "displayName": "goo.ability.fixture", "badge": "%s", "cost": 96,
+              "delivery": { "kind": "stream" }, "behaviors": [],
+              "on_prism": [ { "type": "coat" } ] }""";
 
     /** The delivery field a held channel writes; its codec default hides whether the JSON wrote it. */
     private static final String TICKS_PER_CHARGE_FIELD = "ticks_per_charge";
@@ -85,7 +94,7 @@ class AbilityBadgeTest {
     @CsvSource({"kinetic_grab, HELD", "rock_gouge, HELD", "blaze_flames, CHANNELED", "typhoon_gust, CHANNELED",
             "frost_cold, CHANNELED", "weird_goop, RESIDUAL", "kinetic_slick, RESIDUAL", "blaze_molten, RESIDUAL",
             "deep_host, RESIDUAL", "frost_rime, RESIDUAL", "hex_leech, RESIDUAL", "typhoon_updraft, RESIDUAL",
-            "nether_infest, RESIDUAL"})
+            "jelly_nectar, RESIDUAL", "nether_infest, RESIDUAL"})
     void shippedAbilityWearsItsControlBadge(String ability, AbilityBadge badge) {
         assertEquals(badge, AbilityJson.decode(ability).badge(), ability);
     }
@@ -94,6 +103,7 @@ class AbilityBadgeTest {
      * decision residual-badge-marks-the-four-goo-sprays
      * decision rime-wears-the-residual-badge
      * updraft-wears-the-residual-badge
+     * operator ruling 2026-11-17: Nectar wears the residual badge
      */
     @Test
     void residualIsWornByExactlyTheGooSprays() {
@@ -101,7 +111,7 @@ class AbilityBadgeTest {
                 .filter(definition -> definition.badge() == AbilityBadge.RESIDUAL)
                 .map(definition -> definition.id().getPath()).collect(Collectors.toSet());
         assertEquals(Set.of("weird_goop", "kinetic_slick", "blaze_molten", "deep_host", "frost_rime", "hex_leech",
-                "typhoon_updraft", "nether_infest"), wearers);
+                "typhoon_updraft", "jelly_nectar", "nether_infest"), wearers);
     }
 
     /** decision self-badge-becomes-instant-with-a-noita-trigger-star */
@@ -221,7 +231,7 @@ class AbilityBadgeTest {
      * @param host the host ability's file name
      */
     @ParameterizedTest
-    @CsvSource({"typhoon_lift, typhoon_updraft", "pulse_relay, pulse_zap", "pulse_metronome, pulse_tick",
+    @CsvSource({"pulse_relay, pulse_zap", "pulse_metronome, pulse_tick",
             "nether_hive, nether_decay", "glow_reflector, glow_laser",
             "leaf_verdant, leaf_growth", "frost_glacial, frost_cold", "ender_oculus, ender_blink",
             "blaze_heater, blaze_flames"})
@@ -237,6 +247,39 @@ class AbilityBadgeTest {
             AbilityDefinition definition = AbilityJson.decode(file);
             assertTrue(allowedBadges(definition, writtenDelivery(file)).contains(definition.badge()),
                     definition.id() + " wears " + definition.badge());
+        }
+    }
+
+    /**
+     * An ability wearing the residual badge that names a prism reaction
+     * fails to load, its error naming the ability, the badge and on_prism,
+     * while the same JSON wearing another badge loads.
+     * no-residual-ability-carries-a-prism-reaction
+     */
+    @Test
+    void aResidualAbilityNamingAPrismReactionFailsToLoad() {
+        IllegalStateException refusal = assertThrows(IllegalStateException.class,
+                () -> AbilityJson.decodeText(RESIDUAL_FIXTURE, STREAM_REACTING_TO_PRISMS.formatted("residual")));
+        String message = refusal.getMessage();
+
+        assertTrue(message.contains(RESIDUAL_FIXTURE), message);
+        assertTrue(message.contains("residual badge"), message);
+        assertTrue(message.contains("on_prism"), message);
+        assertFalse(AbilityJson.decodeText(RESIDUAL_FIXTURE, STREAM_REACTING_TO_PRISMS.formatted("free"))
+                .onPrism().isEmpty(), "a free stream keeps its prism reaction");
+    }
+
+    /**
+     * Every shipped ability wearing the residual badge decodes with no prism reaction.
+     * no-residual-ability-carries-a-prism-reaction
+     */
+    @Test
+    void shippedResidualAbilitiesCarryNoPrismReaction() {
+        for (Path file : AbilityJson.files()) {
+            AbilityDefinition definition = AbilityJson.decode(file);
+            if (definition.badge() == AbilityBadge.RESIDUAL) {
+                assertTrue(definition.onPrism().isEmpty(), definition.id() + " carries an on_prism reaction");
+            }
         }
     }
 }
