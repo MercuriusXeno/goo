@@ -276,6 +276,26 @@ class SlimeCoreQuadsTest {
         }
 
         /**
+         * A full block with nothing on it beside a column of a full block and
+         * a block of 9 meets that column's core along their edge: its shell
+         * slopes up over its own top toward the taller column, and its core
+         * rises with it to the column's core's height at every point of the
+         * edge, so no core top hangs over the other with nothing closing the step.
+         * stacked-goo-cells-share-one-slime-core
+         */
+        @Test
+        void anUncoveredFullBlocksCoreMeetsATallerColumnsCore() {
+            SameGooCells pit = new SameGooCells().at(0, 0, 0, 15).at(0, 1, 0, 9).at(1, 0, 0, 15);
+            Map<Float, Float> column = new TreeMap<>(topHeightsAlong(coreOf(pit.shiftedBy(0, 1, 0)), 1f));
+            column.replaceAll((z, y) -> y + 1);
+            Map<Float, Float> uncovered = topHeightsAlong(coreOf(pit.shiftedBy(1, 0, 0)), 0f);
+
+            assertFalse(column.isEmpty(), "the column should draw its core top along the edge");
+            assertEquals(column.keySet(), uncovered.keySet(), "both cores should draw the edge at the same points");
+            column.forEach((z, y) -> assertEquals(y, uncovered.get(z), EPSILON, "the cores' tops at z " + z));
+        }
+
+        /**
          * A block of 6 on a full block of its goo keeps one unbroken core with
          * it: neither draws a core face on the face the two share.
          * stacked-goo-cells-share-one-slime-core
