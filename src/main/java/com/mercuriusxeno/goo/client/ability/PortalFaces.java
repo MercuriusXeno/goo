@@ -112,7 +112,17 @@ public final class PortalFaces {
      * @return 0xRRGGBB
      */
     static int colorOf(Portal portal) {
-        return portal.color() == PortalColor.ORANGE ? ORANGE_RGB : BLUE_RGB;
+        return rgbOf(portal.color());
+    }
+
+    /**
+     * The color a portal of a color draws in, and its shot flies in.
+     *
+     * @param color blue or orange
+     * @return 0xRRGGBB
+     */
+    static int rgbOf(PortalColor color) {
+        return color == PortalColor.ORANGE ? ORANGE_RGB : BLUE_RGB;
     }
 
     /**
