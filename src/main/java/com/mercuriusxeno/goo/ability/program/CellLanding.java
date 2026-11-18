@@ -150,7 +150,8 @@ final class CellLanding {
 
         @Override
         public boolean takesACell(BlockPos pos) {
-            return host.airAt(pos) && cell.liesOn(host.level(), pos);
+            // operator UAT 2026-11-17: drips are never eaten; a full block of its goo is a top a drip lays on
+            return host.airAt(pos) && cell.onAFloor(host.level(), pos);
         }
 
         @Override
@@ -229,8 +230,47 @@ final class CellLanding {
         if (cells.thickens(struck)) {
             return Optional.of(CellFed.fill(struck));
         }
-        BlockPos over = struck.above();
-        return cells.takesACell(over) ? Optional.of(CellFed.fill(over)) : Optional.empty();
+        return overflowOnto(struck, Optional.empty(), cells);
+    }
+
+    /**
+     * Where a layer reaching a block it cannot join goes: onto the block
+     * over it, thickening goo of its type standing there short of a whole
+     * block, or starting a cell in the open cell over a top that holds a
+     * world goo, a whole block of its goo among them; where nothing over it
+     * takes the layer, it spills into the open cell its drip came from; so a
+     * drip reaching a full block of its goo piles onto it or spills beside
+     * it rather than vanishing.
+     * drip-on-a-standing-cell-increases-it
+     * operator UAT 2026-11-17: drips are never eaten; every drawn drip lays its layer
+     *
+     * @param under the block the layer cannot join
+     * @param spill the open cell the drip came from, empty for a drip falling onto its top
+     * @param cells what the landing reads of the cells
+     * @return the block fed, empty where nothing over it or beside it takes the layer
+     */
+    private static Optional<CellFed> overflowOnto(BlockPos under, Optional<BlockPos> spill, Cells cells) {
+        BlockPos over = under.above();
+        if (cells.thickens(over) || cells.takesACell(over)) {
+            return Optional.of(CellFed.fill(over));
+        }
+        return spill.flatMap(open -> spillInto(open, cells));
+    }
+
+    /**
+     * Where a spilled layer lands in the open cell its drip came from: in
+     * that cell's fill, where it holds goo of its type short of a whole block
+     * or stands over a top, else falling from it to the first top below.
+     *
+     * @param open  the open cell the drip came from
+     * @param cells what the landing reads of the cells
+     * @return the cell fed or falling, empty where the layer finds no top
+     */
+    private static Optional<CellFed> spillInto(BlockPos open, Cells cells) {
+        if (cells.thickens(open) || cells.takesACell(open)) {
+            return Optional.of(CellFed.fill(open));
+        }
+        return cells.dropLanding(open).map(landing -> CellFed.falling(open));
     }
 
     /**
@@ -252,7 +292,7 @@ final class CellLanding {
         // a drip striking a film's own face strikes the wall the film already coats, its block taking it or not
         Optional<SideCoat> onTheStruck = cells.sideAt(strike.block(), wall).filter(SideCoat::holdsALayer);
         if (onTheStruck.isPresent()) {
-            return Optional.of(fedBeside(strike.block(), wall, adhesion, onTheStruck.get(), cells));
+            return fedBeside(strike.block(), wall, adhesion, onTheStruck.get(), cells);
         }
         // a drip striking the side of its goo's fill joins that fill, as one striking its top does
         if (cells.thickens(strike.block())) {
@@ -263,7 +303,7 @@ final class CellLanding {
             // drip-striking-a-side-sticks-or-runs-by-adhesion: goo is no wall, so the drip falls past it
             return cells.dropLanding(beside).map(landing -> CellFed.falling(beside));
         }
-        return cells.sideAt(beside, wall).map(standing -> fedBeside(beside, wall, adhesion, standing, cells));
+        return cells.sideAt(beside, wall).flatMap(standing -> fedBeside(beside, wall, adhesion, standing, cells));
     }
 
     /**
@@ -275,13 +315,19 @@ final class CellLanding {
      * @param adhesion the rung of the adhesion ladder the goo clings at
      * @param standing what that side holds
      * @param cells    what the landing reads of the cells
-     * @return the cell and the side fed
+     * @return the cell and the side fed, or the goo over a block already holding a whole block, empty where
+     *         nothing over it takes the layer
      */
-    private static CellFed fedBeside(BlockPos cell, Direction wall, int adhesion, SideCoat standing, Cells cells) {
+    private static Optional<CellFed> fedBeside(BlockPos cell, Direction wall, int adhesion, SideCoat standing,
+                                               Cells cells) {
         Beside beside = new Beside(standing, cells.volumeAt(cell), cells.attachedAt(cell), cells.floorAt(cell),
                 cells.gooBelow(cell));
-        return sideCoatFor(adhesion, cells.cohesion(), beside) == SideCoat.ATTACHED ? CellFed.film(cell, wall)
-                : CellFed.runny(cell, wall);
+        if (beside.volume() >= VolumeCellBlock.MAX_LAYERS) {
+            // operator UAT 2026-11-17: drips are never eaten; a full block's layer piles onto it or spills beside it
+            return overflowOnto(cell, Optional.of(cell.relative(wall.getOpposite())), cells);
+        }
+        return Optional.of(sideCoatFor(adhesion, cells.cohesion(), beside) == SideCoat.ATTACHED
+                ? CellFed.film(cell, wall) : CellFed.runny(cell, wall));
     }
 
     /**
@@ -317,7 +363,7 @@ final class CellLanding {
         if (adhesion >= GooTypeDefinition.HOLDS_AN_UNDERSIDE) {
             // adhesion-is-a-ladder-of-holds: at 4 the underside holds the layer, as a held wall does
             Optional<CellFed> held = cells.sideAt(under, Direction.UP)
-                    .map(ceiling -> fedBeside(under, Direction.UP, adhesion, ceiling, cells))
+                    .flatMap(ceiling -> fedBeside(under, Direction.UP, adhesion, ceiling, cells))
                     .filter(fed -> fed.coat() == SideCoat.ATTACHED);
             if (held.isPresent()) {
                 return held;
@@ -325,6 +371,10 @@ final class CellLanding {
         }
         Optional<Direction> nearest = Direction.Plane.HORIZONTAL.stream().filter(side -> cells.wallAt(under, side))
                 .min(Comparator.comparingDouble(side -> reachTo(strike.point(), under, side)));
+        if (nearest.isPresent() && cells.volumeAt(under) >= VolumeCellBlock.MAX_LAYERS) {
+            // operator UAT 2026-11-17: drips are never eaten; a full block's layer spills away from its wall
+            return overflowOnto(under, Optional.of(under.relative(nearest.get().getOpposite())), cells);
+        }
         if (nearest.isPresent()) {
             return Optional.of(CellFed.runny(under, nearest.get()));
         }

@@ -89,6 +89,7 @@ class VolumeCellLookTest {
                 new Cell("glow_wisps", CellBinding.WISPS, "goo:fluid/glow_fluid", 0xFFE60F),
                 new Cell("hex_leech", CellBinding.LEECH, "goo:fluid/hex_fluid", 0x6A5AAF),
                 new Cell("typhoon_updraft", CellBinding.UPDRAFT, "goo:fluid/typhoon_fluid", 0xE4FFF2),
+                new Cell("jelly_nectar", CellBinding.NECTAR, "goo:fluid/jelly_fluid", 0xE8505B),
                 new Cell("quantum_phase", CellBinding.PHASE, "goo:fluid/quantum_fluid", 0x6AD0F0));
     }
 

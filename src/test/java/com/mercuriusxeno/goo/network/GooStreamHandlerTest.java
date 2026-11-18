@@ -93,7 +93,7 @@ class GooStreamHandlerTest {
         private void assertCrosshairLaunch(double crosshairDistance, double restsAt) {
             Vec3 axis = new Vec3(0.6, 0, 0.8);
             StreamMotesPayload spores = new StreamMotesPayload(1, GLOVE, axis, SPORE, 0,
-                    GooStreamHandler.crosshairSpeed(RANGE, crosshairDistance), Delivery.NO_THROW_SPEED, false);
+                    GooStreamHandler.crosshairSpeed(RANGE, crosshairDistance), Delivery.NO_THROW_SPEED, false, 0, 0);
 
             Vec3 launch = GooStreamHandler.moteLaunch(spores, AXIS);
 
@@ -120,7 +120,8 @@ class GooStreamHandlerTest {
         @Test
         void theDrawnDripsLaunchAboutTheLookAsTheServersDripsDo() {
             double exitSpeed = goop.exitSpeedAt(0);
-            StreamMotesPayload drawn = GooStreamHandler.dripMotesOf(1, HAND, LOOK, DRIP, goop, exitSpeed, false);
+            StreamMotesPayload drawn = GooStreamHandler.dripMotesOf(1, HAND, LOOK, DRIP, goop, exitSpeed, false,
+                    1, 3);
 
             assertEquals(LOOK, drawn.axis(), "a hand off the sight line should still draw its drips about the look");
             for (CoatRay.ConeShare share : CoatRay.scatteredShares(1, 3)) {
