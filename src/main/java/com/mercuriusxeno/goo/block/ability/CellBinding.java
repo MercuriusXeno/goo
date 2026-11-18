@@ -14,8 +14,9 @@ import net.minecraft.resources.ResourceKey;
  * lies on as on a sturdy top. Weird's slime, Kinetic's slick, Blaze's molten,
  * Crystal's shatter, Deep's host, Frost's rime, Glow's wisps, Hex's leech,
  * Typhoon's updraft, Jelly's nectar, Pulse's signal, Metal's spikes,
- * Nether's infest, Leaf's vines, Unstable's nitro and Shroom's spores are bound
- * so far, and another goo type ships its world goo as another binding.
+ * Nether's infest, Leaf's vines, Unstable's nitro, Quantum's phase and
+ * Shroom's spores are bound so far, and another goo type ships its world goo
+ * as another binding.
  * slime-and-slick-are-one-volume-cell-tech
  * each-goo-type-ships-a-world-goo-on-the-volume-cell
  * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
@@ -33,6 +34,7 @@ import net.minecraft.resources.ResourceKey;
  * vines-is-sprayed-slime-that-entangles-what-tries-to-cross
  * spores-is-shrooms-residual-a-passive-mycosis
  * nitro-is-unstables-goo-that-explodes-in-a-chain-by-its-quantity
+ * phase-goo-puts-what-stands-in-it-out-of-phase
  *
  * @param gooType      the goo type the cell holds and drops when broken
  * @param layingAbility the ability laying the goo, whose cost prices a whole block of it
@@ -65,6 +67,8 @@ public record CellBinding(ResourceKey<GooTypeDefinition> gooType, Identifier lay
     public static final Identifier NECTAR_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "jelly_nectar");
     /** The ability laying Nether's goo, Infest, whose cost prices a whole block of it. */
     public static final Identifier INFEST_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "nether_infest");
+    /** The ability laying Quantum's goo, Phase, whose cost prices a whole block of it and whose step names its linger. */
+    public static final Identifier PHASE_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "quantum_phase");
 
     /** The ability laying Pulse's goo, Signal, whose cost prices a whole block of it. */
     public static final Identifier SIGNAL_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "pulse_signal");
@@ -164,5 +168,12 @@ public record CellBinding(ResourceKey<GooTypeDefinition> gooType, Identifier lay
      * nitro-is-unstables-goo-that-explodes-in-a-chain-by-its-quantity
      */
     public static final CellBinding NITRO = new CellBinding(GooTypes.UNSTABLE, NITRO_ABILITY, CellSurface.POOL,
+            FluidFooting.NONE);
+    /**
+     * Quantum's goo: Phase lays it, it stands as ordinary ground, and it puts
+     * what stands in it out of phase.
+     * phase-goo-puts-what-stands-in-it-out-of-phase
+     */
+    public static final CellBinding PHASE = new CellBinding(GooTypes.QUANTUM, PHASE_ABILITY, CellSurface.PHASE,
             FluidFooting.NONE);
 }
