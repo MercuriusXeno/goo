@@ -18,7 +18,8 @@ class SporesStepTest {
     private static final Identifier SPORE = Identifier.fromNamespaceAndPath("goo", "spore");
     private static final int PERIOD = 20;
     private static final BlockPos CELL = new BlockPos(3, 64, -7);
-    private static final SporesStep SPORES = new SporesStep(PERIOD, 1, SPORE);
+    private static final SporesStep SPORES = new SporesStep(PERIOD, 1, SPORE,
+            Identifier.fromNamespaceAndPath("goo", "shroom_mycosis"), 3f, 600, 3);
     private static final long PERIODS = 5;
 
     @Test

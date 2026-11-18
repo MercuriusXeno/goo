@@ -2,16 +2,25 @@ package com.mercuriusxeno.goo.block.ability;
 
 import com.mercuriusxeno.goo.ability.program.SimpleParticles;
 import com.mercuriusxeno.goo.ability.program.SporesStep;
+import com.mercuriusxeno.goo.ability.spray.Spored;
+import com.mercuriusxeno.goo.registry.GooAttachments;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.InsideBlockEffectApplier;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 /**
@@ -22,9 +31,13 @@ import java.util.stream.Stream;
  * spending the fixed layers a bud costs, as SporesGrowth chooses. It ages
  * nothing already standing, so the goo grows to buds and stops and the buds
  * ripen on their own; with no valid edge space it places nothing and keeps
- * its layers.
+ * its layers. A mob standing on the goo, on its top or in its space, carries
+ * spores as the spore stream gives them, refreshed while it stands there,
+ * bursting the step's ability when it dies, and no mycosis effect; the
+ * spores mark that the goo gave them and credit the cell's placer.
  * spores-is-shrooms-residual-a-passive-mycosis
  * spores-goo-spends-on-edge-growth-and-grows-to-buds
+ * mobs-on-spores-goo-turn-death-into-shrooms-and-mycelium
  */
 public class SporesCellBlock extends VolumeCellBlock {
 
@@ -130,6 +143,58 @@ public class SporesCellBlock extends VolumeCellBlock {
                 .map(space -> new SporesGrowth.Edge(space, level.getBlockState(space).isAir(),
                         bud.canSurvive(level, space)))
                 .toList();
+    }
+
+    /**
+     * Spores a mob standing on the goo's top, as every cell's surface then acts on it.
+     */
+    @Override
+    public void stepOn(@NonNull Level level, @NonNull BlockPos pos, @NonNull BlockState state,
+                       @NonNull Entity entity) {
+        spore(level, pos, entity);
+        super.stepOn(level, pos, state, entity);
+    }
+
+    /**
+     * Spores a mob in the goo's space, wading in it or standing on a cell short of a whole block.
+     */
+    @Override
+    protected void entityInside(@NonNull BlockState state, @NonNull Level level, @NonNull BlockPos pos,
+                                @NonNull Entity entity, @NonNull InsideBlockEffectApplier effects,
+                                boolean pastEdges) {
+        spore(level, pos, entity);
+        super.entityInside(state, level, pos, entity, effects, pastEdges);
+    }
+
+    /**
+     * Gives a living mob on the goo the spores the step names, lasting its
+     * spore ticks from now, marked as the goo's and crediting the cell's
+     * placer; a player and a dead mob carry none.
+     * mobs-on-spores-goo-turn-death-into-shrooms-and-mycelium
+     *
+     * @param level  the level the cell stands in
+     * @param pos    the cell
+     * @param entity the entity on the cell
+     */
+    private void spore(Level level, BlockPos pos, Entity entity) {
+        if (!(level instanceof ServerLevel server) || !(entity instanceof Mob mob) || !mob.isAlive()) {
+            return;
+        }
+        SporesStep.in(layingProgram(server)).ifPresent(spores -> mob.setData(GooAttachments.SPORED,
+                new Spored(spores.burst(), spores.sporeRadius(), server.getGameTime() + spores.sporeTicks(), true,
+                        Optional.ofNullable(creditedPlayerAt(server, pos)).map(Entity::getUUID))));
+    }
+
+    /**
+     * The player a death fed by this cell credits: whoever placed it, while that player is on the server.
+     * mobs-on-spores-goo-turn-death-into-shrooms-and-mycelium
+     *
+     * @param level the level
+     * @param pos   the cell
+     * @return the player, or null where no player placed it or the player is away
+     */
+    public @Nullable ServerPlayer creditedPlayer(ServerLevel level, BlockPos pos) {
+        return creditedPlayerAt(level, pos);
     }
 
     /**
