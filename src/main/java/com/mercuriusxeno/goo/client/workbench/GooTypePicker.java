@@ -10,7 +10,8 @@ import java.util.Set;
 import java.util.function.Consumer;
 
 /**
- * The goo type picker: a grid 7 icons wide and 4 high over every goo type, each cell named on hover, opened by one
+ * The goo type picker: a grid 7 icons wide and 4 high over every goo type, growing a row while its cells overflow
+ * that, each cell named on hover, opened by one
  * click and answering its type on the next (decision goo-type-picker-is-a-seven-by-four-icon-grid). The cell past the
  * last type closes it with no pick, the cell after that picks no goo type where the caller allows none, and a click
  * outside the grid or Escape closes it, so an opened picker never holds the screen. BuilderOverlays places it by the
@@ -68,15 +69,26 @@ final class GooTypePicker {
     }
 
     /**
-     * @return each type's cell, row by row, the grid holding at most 7 by 4 less its close cell
+     * @return each type's cell, row by row
      */
     List<Cell> cells() {
         List<String> offered = types.stream().filter(type -> !hidden.contains(type)).toList();
         List<Cell> cells = new ArrayList<>();
-        for (int index = 0; index < Math.min(offered.size(), COLUMNS * ROWS - 1); index++) {
+        for (int index = 0; index < offered.size(); index++) {
             cells.add(cellAt(offered.get(index), index));
         }
         return cells;
+    }
+
+    /**
+     * The grid's rows: 4, and one more for each row its type, close and no-goo-type cells overflow, so every cell
+     * stands one click away with no scroll (operator ruling 2026-11-18, yarn standing beside yore and zoo).
+     * decision goo-type-picker-is-a-seven-by-four-icon-grid
+     *
+     * @return how many rows the grid lays its cells on
+     */
+    int rows() {
+        return Math.max(ROWS, nothingCell().row() + 1);
     }
 
     /**
@@ -128,6 +140,7 @@ final class GooTypePicker {
         this.disabled = Set.copyOf(disabled);
         open = true;
         firstRow = 0;
+        shownRows = rows();
     }
 
     /**
@@ -136,7 +149,7 @@ final class GooTypePicker {
      * @param amount the wheel's turn, positive toward the top
      */
     void scroll(double amount) {
-        int lastFirst = Math.max(0, usedRows() - shownRows);
+        int lastFirst = Math.max(0, rows() - shownRows);
         firstRow = Math.clamp(firstRow - (long) Math.signum(amount), 0, lastFirst);
     }
 
@@ -144,7 +157,7 @@ final class GooTypePicker {
      * @param rows how many rows fit under the opener
      */
     void fitRows(int rows) {
-        shownRows = Math.clamp(rows, 1, ROWS);
+        shownRows = Math.clamp(rows, 1, rows());
         scroll(0);
     }
 
@@ -153,10 +166,6 @@ final class GooTypePicker {
      */
     int firstRow() {
         return firstRow;
-    }
-
-    private int usedRows() {
-        return Math.min(ROWS, nothingCell().row() + 1);
     }
 
     /**

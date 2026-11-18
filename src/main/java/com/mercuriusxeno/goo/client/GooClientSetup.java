@@ -30,8 +30,9 @@ import com.mercuriusxeno.goo.client.ability.GlassKnives;
 import com.mercuriusxeno.goo.client.ability.GrabFlail;
 import com.mercuriusxeno.goo.client.ability.HeldJavelins;
 import com.mercuriusxeno.goo.client.ability.HeldSweepVisual;
+import com.mercuriusxeno.goo.client.ability.HerdOutline;
 import com.mercuriusxeno.goo.client.ability.HoveringKnives;
-import com.mercuriusxeno.goo.client.ability.KinOutline;
+import com.mercuriusxeno.goo.client.ability.LeadOutline;
 import com.mercuriusxeno.goo.client.ability.MeteorScorches;
 import com.mercuriusxeno.goo.client.ability.MobAilments;
 import com.mercuriusxeno.goo.client.ability.MobCoatLayer;
@@ -41,7 +42,6 @@ import com.mercuriusxeno.goo.client.ability.NovaRings;
 import com.mercuriusxeno.goo.client.ability.PhaseLook;
 import com.mercuriusxeno.goo.client.ability.PhasedSight;
 import com.mercuriusxeno.goo.client.ability.PrismFormingSounds;
-import com.mercuriusxeno.goo.client.ability.RallyOutline;
 import com.mercuriusxeno.goo.client.ability.RelayLasers;
 import com.mercuriusxeno.goo.client.ability.SignalRings;
 import com.mercuriusxeno.goo.client.ability.TransformationRenderer;
@@ -451,8 +451,8 @@ public final class GooClientSetup {
 
     /**
      * Registers the render state modifiers that stamp each entity's goo state
-     * onto its render state: the rally outline, the ailments with their
-     * outline, which overrides the rally's, the glove's target outline, which
+     * onto its render state: the lead outline, the ailments with their
+     * outline, which overrides the lead's, the glove's target outline, which
      * overrides both, the goo coat, the phase, the stone and frost
      * encasements, the frozen pose, the grab flail, the vine tangle, the
      * transformation, the eldritch phase and the exit tilt, in that order.
@@ -464,8 +464,8 @@ public final class GooClientSetup {
     public static void registerRenderStateModifiers(
             RegisterRenderStateModifiersEvent event) {
         List<BiConsumer<Entity, EntityRenderState>> stamps = List.of(
-                KinOutline::stampOutline,
-                RallyOutline::stampOutline,
+                HerdOutline::stampOutline,
+                LeadOutline::stampOutline,
                 AilmentOverlayLayer::stampAilments,
                 AimTracker::modifyEntityRenderState,
                 MobCoatLayer::stampCoat,

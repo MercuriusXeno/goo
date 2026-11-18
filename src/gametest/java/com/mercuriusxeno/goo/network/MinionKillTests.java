@@ -3,7 +3,7 @@ package com.mercuriusxeno.goo.network;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
-import com.mercuriusxeno.goo.ability.zoo.RallyEvents;
+import com.mercuriusxeno.goo.ability.yarn.LeadEvents;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import com.mercuriusxeno.goo.network.GooEffectScheduler.PendingEffect;
@@ -36,7 +36,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.function.Consumer;
 
 /**
- * Gametests for a minion's kill: a rallied or charmed mob's hit marks the
+ * Gametests for a minion's kill: a led or charmed mob's hit marks the
  * struck mob as its player's, as a tamed wolf's hit marks it as its
  * owner's, so the kill drops experience and player-only loot and counts in
  * that player's statistics and advancements, while the struck mob fights
@@ -47,29 +47,29 @@ import java.util.function.Consumer;
  */
 @RegistersGameTests
 public final class MinionKillTests {
-    private static final String RALLIED_COWS_STRIKE_MARKS_THE_ZOMBIE_AS_ITS_RALLIERS =
-            "rallied_cows_strike_marks_the_zombie_as_its_ralliers";
-    private static final String RALLIED_COWS_KILL_DROPS_EXPERIENCE_AND_PLAYER_ONLY_LOOT =
-            "rallied_cows_kill_drops_experience_and_player_only_loot";
-    private static final String WOLF_STRUCK_BY_A_RALLIED_COW_TARGETS_THE_COW =
-            "wolf_struck_by_a_rallied_cow_targets_the_cow";
-    private static final String RALLIED_COWS_MARK_STANDS_AFTER_ITS_RALLY_ENDS =
-            "rallied_cows_mark_stands_after_its_rally_ends";
+    private static final String LED_COWS_STRIKE_MARKS_THE_ZOMBIE_AS_ITS_LEADERS =
+            "led_cows_strike_marks_the_zombie_as_its_leaders";
+    private static final String LED_COWS_KILL_DROPS_EXPERIENCE_AND_PLAYER_ONLY_LOOT =
+            "led_cows_kill_drops_experience_and_player_only_loot";
+    private static final String WOLF_STRUCK_BY_A_LED_COW_TARGETS_THE_COW =
+            "wolf_struck_by_a_led_cow_targets_the_cow";
+    private static final String LED_COWS_MARK_STANDS_AFTER_ITS_LEAD_ENDS =
+            "led_cows_mark_stands_after_its_lead_ends";
     private static final String CHARMED_ZOMBIES_HIT_MARKS_THE_SKELETON_AS_ITS_CHARMERS =
             "charmed_zombies_hit_marks_the_skeleton_as_its_charmers";
     private static final String CHARMED_SKELETONS_ARROW_MARKS_THE_ZOMBIE_AS_ITS_CHARMERS =
             "charmed_skeletons_arrow_marks_the_zombie_as_its_charmers";
-    private static final String RALLIED_COWS_KILL_COUNTS_IN_ITS_RALLIERS_STATS_AND_ADVANCEMENTS =
-            "rallied_cows_kill_counts_in_its_ralliers_stats_and_advancements";
+    private static final String LED_COWS_KILL_COUNTS_IN_ITS_LEADERS_STATS_AND_ADVANCEMENTS =
+            "led_cows_kill_counts_in_its_leaders_stats_and_advancements";
 
-    private static final Identifier ZOO_RALLY = Identifier.fromNamespaceAndPath(Goo.MODID, "zoo_rally");
+    private static final Identifier YARN_LEAD = Identifier.fromNamespaceAndPath(Goo.MODID, "yarn_lead");
     private static final Identifier HEX_CHARM = Identifier.fromNamespaceAndPath(Goo.MODID, "hex_charm");
     private static final Identifier KILL_A_MOB = Identifier.withDefaultNamespace("adventure/kill_a_mob");
     private static final BlockPos MINION_POS = new BlockPos(2, 1, 3);
     private static final BlockPos FOE_POS = new BlockPos(3, 1, 3);
-    /** The hit the foe lands on the rallier, which makes it the rally's foe. */
+    /** The hit the foe lands on the leader, which makes it the lead's foe. */
     private static final float FOE_HIT = 1f;
-    /** The health a foe a test kills stands at, under one rally strike's 6. */
+    /** The health a foe a test kills stands at, under one lead strike's 6. */
     private static final float ONE_STRIKE_HEALTH = 1f;
     /** A light hit the test lands for a minion, as its own attack would. */
     private static final float MINION_HIT = 2f;
@@ -80,8 +80,8 @@ public final class MinionKillTests {
     private static final double CERTAIN_CHARM_HEALTH = 10;
     /** Ticks the wolf lives before the hit, so the hit's stamp reads past its first tick. */
     private static final int WOLF_SETTLE_TICKS = 2;
-    /** Ticks between the rally ending and the mark read again. */
-    private static final int AFTER_THE_RALLY_TICKS = 5;
+    /** Ticks between the lead ending and the mark read again. */
+    private static final int AFTER_THE_LEAD_TICKS = 5;
     /** Reach around the foe's spot a drop or an orb is looked for in. */
     private static final double DROP_REACH = 6;
 
@@ -96,10 +96,10 @@ public final class MinionKillTests {
             + "elder guardian died";
     private static final String WOLF_TARGETS = "The struck wolf should target the cow, targets %s";
     private static final String WOLF_ANGRY_AT = "The struck wolf should stay angry at the cow, angry at %s";
-    private static final String RALLY_STOOD = "The cow's rally should have ended";
-    private static final String KILLS_UNCOUNTED = "The rallier's mobs-killed statistic should read 1, reads %s";
+    private static final String LEAD_STOOD = "The cow's lead should have ended";
+    private static final String KILLS_UNCOUNTED = "The leader's mobs-killed statistic should read 1, reads %s";
     private static final String ADVANCEMENT_MISSING = "minecraft:adventure/kill_a_mob should load";
-    private static final String ADVANCEMENT_UNDONE = "The rallier should hold minecraft:adventure/kill_a_mob";
+    private static final String ADVANCEMENT_UNDONE = "The leader should hold minecraft:adventure/kill_a_mob";
     private static final String NOT_A_MINION = "The %s should hold its %s";
 
     private MinionKillTests() {
@@ -111,58 +111,58 @@ public final class MinionKillTests {
      * @param registrar the test function registrar
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
-        GooTestFunctions.registerTest(registrar, RALLIED_COWS_STRIKE_MARKS_THE_ZOMBIE_AS_ITS_RALLIERS,
-                MinionKillTests::ralliedCowsStrikeMarksTheZombieAsItsRalliers);
-        GooTestFunctions.registerTest(registrar, RALLIED_COWS_KILL_DROPS_EXPERIENCE_AND_PLAYER_ONLY_LOOT,
-                MinionKillTests::ralliedCowsKillDropsExperienceAndPlayerOnlyLoot);
-        GooTestFunctions.registerTest(registrar, WOLF_STRUCK_BY_A_RALLIED_COW_TARGETS_THE_COW,
+        GooTestFunctions.registerTest(registrar, LED_COWS_STRIKE_MARKS_THE_ZOMBIE_AS_ITS_LEADERS,
+                MinionKillTests::ledCowsStrikeMarksTheZombieAsItsLeaders);
+        GooTestFunctions.registerTest(registrar, LED_COWS_KILL_DROPS_EXPERIENCE_AND_PLAYER_ONLY_LOOT,
+                MinionKillTests::ledCowsKillDropsExperienceAndPlayerOnlyLoot);
+        GooTestFunctions.registerTest(registrar, WOLF_STRUCK_BY_A_LED_COW_TARGETS_THE_COW,
                 MinionKillTests::wolfStruckByARalliedCowTargetsTheCow);
-        GooTestFunctions.registerTest(registrar, RALLIED_COWS_MARK_STANDS_AFTER_ITS_RALLY_ENDS,
-                MinionKillTests::ralliedCowsMarkStandsAfterItsRallyEnds);
+        GooTestFunctions.registerTest(registrar, LED_COWS_MARK_STANDS_AFTER_ITS_LEAD_ENDS,
+                MinionKillTests::ledCowsMarkStandsAfterItsLeadEnds);
         GooTestFunctions.registerTest(registrar, CHARMED_ZOMBIES_HIT_MARKS_THE_SKELETON_AS_ITS_CHARMERS,
                 MinionKillTests::charmedZombiesHitMarksTheSkeletonAsItsCharmers);
         GooTestFunctions.registerTest(registrar, CHARMED_SKELETONS_ARROW_MARKS_THE_ZOMBIE_AS_ITS_CHARMERS,
                 MinionKillTests::charmedSkeletonsArrowMarksTheZombieAsItsCharmers);
-        GooTestFunctions.registerTest(registrar, RALLIED_COWS_KILL_COUNTS_IN_ITS_RALLIERS_STATS_AND_ADVANCEMENTS,
-                MinionKillTests::ralliedCowsKillCountsInItsRalliersStatsAndAdvancements);
+        GooTestFunctions.registerTest(registrar, LED_COWS_KILL_COUNTS_IN_ITS_LEADERS_STATS_AND_ADVANCEMENTS,
+                MinionKillTests::ledCowsKillCountsInItsLeadersStatsAndAdvancements);
     }
 
     /**
-     * A zombie hurts the rallier and the rallied cow's rally strike lands on
-     * it: the zombie names the rallier as the player who last hurt it and the
+     * A zombie hurts the leader and the led cow's lead strike lands on
+     * it: the zombie names the leader as the player who last hurt it and the
      * cow as the mob that did.
      *
      * @param helper the gametest helper
      */
-    public static void ralliedCowsStrikeMarksTheZombieAsItsRalliers(GameTestHelper helper) {
-        ServerPlayer rallier = survivalPlayer(helper, GooTypes.ZOO);
+    public static void ledCowsStrikeMarksTheZombieAsItsLeaders(GameTestHelper helper) {
+        ServerPlayer leader = survivalPlayer(helper, GooTypes.YARN);
         Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, MINION_POS);
         Mob zombie = sunproof(helper.spawnWithNoFreeWill(EntityType.ZOMBIE, FOE_POS));
-        provoke(helper, rallier, zombie);
-        rally(helper, cow, rallier);
+        provoke(helper, leader, zombie);
+        lead(helper, cow, leader);
 
         helper.succeedWhen(() -> {
             helper.assertTrue(zombie.getLastHurtByMob() == cow,
                     String.format(MINION_NOT_ATTACKER, "zombie", "cow", zombie.getLastHurtByMob()));
-            assertMarked(helper, zombie, rallier);
-            helper.getLevel().getServer().getPlayerList().remove(rallier);
+            assertMarked(helper, zombie, leader);
+            helper.getLevel().getServer().getPlayerList().remove(leader);
         });
     }
 
     /**
-     * A rallied cow's strike kills an elder guardian left at 1 health: its
+     * A led cow's strike kills an elder guardian left at 1 health: its
      * experience orbs and the wet sponge its loot table drops only for a
      * player's kill stand where it died.
      *
      * @param helper the gametest helper
      */
-    public static void ralliedCowsKillDropsExperienceAndPlayerOnlyLoot(GameTestHelper helper) {
-        ServerPlayer rallier = survivalPlayer(helper, GooTypes.ZOO);
+    public static void ledCowsKillDropsExperienceAndPlayerOnlyLoot(GameTestHelper helper) {
+        ServerPlayer leader = survivalPlayer(helper, GooTypes.YARN);
         Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, MINION_POS);
         Mob guardian = helper.spawnWithNoFreeWill(EntityType.ELDER_GUARDIAN, FOE_POS);
-        provoke(helper, rallier, guardian);
+        provoke(helper, leader, guardian);
         guardian.setHealth(ONE_STRIKE_HEALTH);
-        rally(helper, cow, rallier);
+        lead(helper, cow, leader);
 
         helper.succeedWhen(() -> {
             helper.assertTrue(guardian.isDeadOrDying(),
@@ -170,23 +170,23 @@ public final class MinionKillTests {
             helper.assertFalse(helper.getEntities(EntityType.EXPERIENCE_ORB, FOE_POS, DROP_REACH).isEmpty(), NO_ORB);
             helper.assertTrue(helper.getEntities(EntityType.ITEM, FOE_POS, DROP_REACH).stream()
                     .anyMatch(item -> item.getItem().is(Items.WET_SPONGE)), NO_SPONGE);
-            helper.getLevel().getServer().getPlayerList().remove(rallier);
+            helper.getLevel().getServer().getPlayerList().remove(leader);
         });
     }
 
     /**
-     * An untamed wolf with its AI running takes a hit sourced to a rallied
-     * cow, built as the rally's strike builds it, beside the cow's survival
-     * rallier: the wolf targets the cow and stays angry at it, not at the
-     * rallier the hit marks it with.
+     * An untamed wolf with its AI running takes a hit sourced to a led
+     * cow, built as the lead's strike builds it, beside the cow's survival
+     * leader: the wolf targets the cow and stays angry at it, not at the
+     * leader the hit marks it with.
      *
      * @param helper the gametest helper
      */
     public static void wolfStruckByARalliedCowTargetsTheCow(GameTestHelper helper) {
-        ServerPlayer rallier = survivalPlayer(helper, GooTypes.ZOO);
+        ServerPlayer leader = survivalPlayer(helper, GooTypes.YARN);
         Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, MINION_POS);
-        rally(helper, cow, rallier);
-        helper.assertTrue(cow.hasData(GooAttachments.RALLIED), String.format(NOT_A_MINION, "cow", "rally"));
+        lead(helper, cow, leader);
+        helper.assertTrue(cow.hasData(GooAttachments.LED), String.format(NOT_A_MINION, "cow", "lead"));
         Wolf wolf = helper.spawn(EntityType.WOLF, FOE_POS);
 
         helper.startSequence()
@@ -199,33 +199,33 @@ public final class MinionKillTests {
                     helper.assertTrue(angryAt != null && angryAt.getUUID().equals(cow.getUUID()),
                             String.format(WOLF_ANGRY_AT, angryAt == null ? "none" : angryAt.getUUID()));
                 })
-                .thenExecute(() -> helper.getLevel().getServer().getPlayerList().remove(rallier))
+                .thenExecute(() -> helper.getLevel().getServer().getPlayerList().remove(leader))
                 .thenSucceed();
     }
 
     /**
-     * The rallied cow strikes the zombie and the test ends the cow's rally:
-     * ticks later, the zombie still names the rallier as the player who last
+     * The led cow strikes the zombie and the test ends the cow's lead:
+     * ticks later, the zombie still names the leader as the player who last
      * hurt it.
      *
      * @param helper the gametest helper
      */
-    public static void ralliedCowsMarkStandsAfterItsRallyEnds(GameTestHelper helper) {
-        ServerPlayer rallier = survivalPlayer(helper, GooTypes.ZOO);
+    public static void ledCowsMarkStandsAfterItsLeadEnds(GameTestHelper helper) {
+        ServerPlayer leader = survivalPlayer(helper, GooTypes.YARN);
         Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, MINION_POS);
         Mob zombie = sunproof(helper.spawnWithNoFreeWill(EntityType.ZOMBIE, FOE_POS));
-        provoke(helper, rallier, zombie);
-        rally(helper, cow, rallier);
+        provoke(helper, leader, zombie);
+        lead(helper, cow, leader);
 
         helper.startSequence()
                 .thenWaitUntil(() -> helper.assertTrue(zombie.getLastHurtByMob() == cow,
                         String.format(MINION_NOT_ATTACKER, "zombie", "cow", zombie.getLastHurtByMob())))
                 .thenExecute(() -> {
-                    RallyEvents.endRally(cow);
-                    helper.assertFalse(cow.hasData(GooAttachments.RALLIED), RALLY_STOOD);
+                    LeadEvents.endLead(cow);
+                    helper.assertFalse(cow.hasData(GooAttachments.LED), LEAD_STOOD);
                 })
-                .thenExecuteAfter(AFTER_THE_RALLY_TICKS, () -> {
-                    assertMarkedThenLeave(helper, zombie, rallier);
+                .thenExecuteAfter(AFTER_THE_LEAD_TICKS, () -> {
+                    assertMarkedThenLeave(helper, zombie, leader);
                 })
                 .thenSucceed();
     }
@@ -273,30 +273,30 @@ public final class MinionKillTests {
     }
 
     /**
-     * A rallied cow's strike kills a zombie left at 1 health: the rallier's
-     * mobs-killed statistic reads 1 and the rallier holds the vanilla
+     * A led cow's strike kills a zombie left at 1 health: the leader's
+     * mobs-killed statistic reads 1 and the leader holds the vanilla
      * advancement for killing a monster, as a tamed wolf's owner does. The
      * per-type count, zombies killed, goes to the entity behind the killing
      * damage alone, the cow, as it does for a wolf's kill.
      *
      * @param helper the gametest helper
      */
-    public static void ralliedCowsKillCountsInItsRalliersStatsAndAdvancements(GameTestHelper helper) {
-        ServerPlayer rallier = survivalPlayer(helper, GooTypes.ZOO);
+    public static void ledCowsKillCountsInItsLeadersStatsAndAdvancements(GameTestHelper helper) {
+        ServerPlayer leader = survivalPlayer(helper, GooTypes.YARN);
         Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, MINION_POS);
         Mob zombie = sunproof(helper.spawnWithNoFreeWill(EntityType.ZOMBIE, FOE_POS));
-        provoke(helper, rallier, zombie);
+        provoke(helper, leader, zombie);
         zombie.setHealth(ONE_STRIKE_HEALTH);
-        rally(helper, cow, rallier);
+        lead(helper, cow, leader);
         AdvancementHolder killAMob = helper.getLevel().getServer().getAdvancements().get(KILL_A_MOB);
         helper.assertTrue(killAMob != null, ADVANCEMENT_MISSING);
 
         helper.succeedWhen(() -> {
             helper.assertTrue(zombie.isDeadOrDying(), String.format(NOT_DEAD, "zombie", zombie.getHealth()));
-            int kills = rallier.getStats().getValue(Stats.CUSTOM, Stats.MOB_KILLS);
+            int kills = leader.getStats().getValue(Stats.CUSTOM, Stats.MOB_KILLS);
             helper.assertTrue(kills == 1, String.format(KILLS_UNCOUNTED, kills));
-            helper.assertTrue(rallier.getAdvancements().getOrStartProgress(killAMob).isDone(), ADVANCEMENT_UNDONE);
-            helper.getLevel().getServer().getPlayerList().remove(rallier);
+            helper.assertTrue(leader.getAdvancements().getOrStartProgress(killAMob).isDone(), ADVANCEMENT_UNDONE);
+            helper.getLevel().getServer().getPlayerList().remove(leader);
         });
     }
 
@@ -344,18 +344,18 @@ public final class MinionKillTests {
     }
 
     /**
-     * The foe hurts the rallier, which makes it the foe a rallied mob strikes.
+     * The foe hurts the leader, which makes it the foe a led mob strikes.
      *
      * @param helper  the gametest helper
-     * @param rallier the rallier hurt
-     * @param foe     the mob hurting the rallier
+     * @param leader the leader hurt
+     * @param foe     the mob hurting the leader
      */
-    private static void provoke(GameTestHelper helper, ServerPlayer rallier, Mob foe) {
-        rallier.hurtServer(helper.getLevel(), foe.damageSources().mobAttack(foe), FOE_HIT);
+    private static void provoke(GameTestHelper helper, ServerPlayer leader, Mob foe) {
+        leader.hurtServer(helper.getLevel(), foe.damageSources().mobAttack(foe), FOE_HIT);
     }
 
-    private static void rally(GameTestHelper helper, Mob mob, ServerPlayer rallier) {
-        throwAt(helper, mob, rallier, ZOO_RALLY);
+    private static void lead(GameTestHelper helper, Mob mob, ServerPlayer leader) {
+        throwAt(helper, mob, leader, YARN_LEAD);
     }
 
     private static void charm(GameTestHelper helper, Mob mob, ServerPlayer charmer) {
