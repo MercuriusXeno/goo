@@ -39,7 +39,7 @@ public abstract class LivingEntityRendererPhaseMixin {
     private void goo$phasedBodyType(LivingEntityRenderState state, boolean isBodyVisible, boolean forceTransparent,
             boolean appearGlowing, CallbackInfoReturnable<RenderType> cir) {
         if (cir.getReturnValue() != null && PhaseLook.isPhased(state)) {
-            cir.setReturnValue(PhaseLook.bodyType(getTextureLocation(state)));
+            cir.setReturnValue(PhaseLook.bodyType(state, getTextureLocation(state)));
         }
     }
 
@@ -55,6 +55,6 @@ public abstract class LivingEntityRendererPhaseMixin {
             + "Lnet/minecraft/client/renderer/state/level/CameraRenderState;)V",
             at = @At(value = "INVOKE", target = "Lnet/minecraft/util/ARGB;multiply(II)I"))
     private int goo$phasedBodyTint(int tint, @Local(argsOnly = true) LivingEntityRenderState state) {
-        return PhaseLook.isPhased(state) ? PhaseLook.bodyTint(tint) : tint;
+        return PhaseLook.isPhased(state) ? PhaseLook.bodyTint(state, tint) : tint;
     }
 }

@@ -136,6 +136,15 @@ public record BlendPalette(float lightRed, float lightGreen, float lightBlue,
             0x88 / 255f, 0xFF / 255f, 0x44 / 255f, 0x39 / 255f, 0xFF / 255f, 0x14 / 255f);
 
     /**
+     * Phase's spray drips, from quantum's highlight blue, 6AD0F0, to its
+     * wheel blue, 3AA0E0, the two blues the quantum goo type's definition
+     * names.
+     * phase-goo-puts-what-stands-in-it-out-of-phase
+     */
+    public static final BlendPalette PHASE_QUANTUM_BLUES = new BlendPalette(
+            0x6A / 255f, 0xD0 / 255f, 0xF0 / 255f, 0x3A / 255f, 0xA0 / 255f, 0xE0 / 255f);
+
+    /**
      * The color a share of the way from the light end to the dark.
      *
      * @param blend the share, 0 at the light end and 1 at the dark

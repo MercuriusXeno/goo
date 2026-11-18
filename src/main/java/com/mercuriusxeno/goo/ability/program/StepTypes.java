@@ -82,6 +82,7 @@ public final class StepTypes {
         register(RimeStep.TYPE);
         register(LeechGooStep.TYPE);
         register(VinesStep.TYPE);
+        register(PhaseGooStep.TYPE);
         register(EntitiesStep.TYPE);
         register(ParticlesStep.TYPE);
         register(SoundStep.TYPE);
@@ -157,7 +158,6 @@ public final class StepTypes {
         register(HastenRegrowStep.TYPE);
         register(SlashStep.TYPE);
         register(CharmStep.TYPE);
-        register(PhaseStep.TYPE);
         register(PortalStep.TYPE);
         register(LeafSteps.ENCHANT_BOOK.type());
         register(FuseBooksStep.TYPE);

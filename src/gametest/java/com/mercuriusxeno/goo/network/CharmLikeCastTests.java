@@ -9,7 +9,6 @@ import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.gametest.PacketRecorder;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import com.mercuriusxeno.goo.item.GooStacks;
-import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
@@ -47,7 +46,6 @@ import java.util.function.Predicate;
 @RegistersGameTests
 public final class CharmLikeCastTests {
 
-    private static final String PHASE_OTHER_DARTS = "phase_other_darts_to_the_taken_mob_and_phases_it";
     private static final String RALLY_DARTS = "rally_darts_to_the_taken_mob_and_rallies_it";
     private static final String SHULK_SPEWS = "shulk_spews_a_shulker_bullet_at_the_taken_mob";
     private static final String REWIND_STEPS = "rewind_steps_a_cow_back_once_per_cast";
@@ -82,7 +80,6 @@ public final class CharmLikeCastTests {
     private static final int DART_LANDED_TICKS = 5;
     /** The face a throw at an entity names: none. */
     private static final int NO_FACE = -1;
-    private static final Identifier PHASE_OTHER = Identifier.parse("goo:quantum_phase_other");
     private static final Identifier RALLY = Identifier.parse("goo:zoo_rally");
     private static final String ABILITY_REQUIRED = "The cast ability should load";
     private static final String SHOULD_DART_NOT_TOUCH =
@@ -98,22 +95,10 @@ public final class CharmLikeCastTests {
      * @param registrar the test function registrar
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
-        GooTestFunctions.registerTest(registrar, PHASE_OTHER_DARTS, CharmLikeCastTests::phaseOtherDartsAndPhases);
         GooTestFunctions.registerTest(registrar, RALLY_DARTS, CharmLikeCastTests::rallyDartsAndRallies);
         GooTestFunctions.registerTest(registrar, SHULK_SPEWS, CharmLikeCastTests::shulkSpewsAShulkerBulletAtTheTakenMob);
         GooTestFunctions.registerTest(registrar, REWIND_STEPS, CharmLikeCastTests::rewindStepsACowBackOncePerCast);
         GooTestFunctions.registerTest(registrar, REWIND_FIZZLES, CharmLikeCastTests::rewindAtAMobShrinkingIntoItsEggFizzles);
-    }
-
-    /**
-     * Phase Other cast at a zombie leaves it out of phase once the dart lands.
-     *
-     * @param helper the gametest helper
-     */
-    public static void phaseOtherDartsAndPhases(GameTestHelper helper) {
-        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, MOB_POS);
-        castAndAssert(helper, GooTypes.QUANTUM, PHASE_OTHER, zombie,
-                mob -> mob.getData(GooAttachments.OUT_OF_PHASE).standsAt(helper.getLevel().getGameTime()));
     }
 
     /**
