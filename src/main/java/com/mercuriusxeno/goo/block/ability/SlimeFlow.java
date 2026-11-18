@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.block.ability;
 
-import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import com.mercuriusxeno.goo.type.Adhesion;
 import net.minecraft.core.Direction;
 import java.util.Comparator;
 import java.util.List;
@@ -82,12 +82,12 @@ public final class SlimeFlow {
      *
      * @param layers   the coat layers the pouring cell holds
      * @param cohesion the step in layers the goo holds over a neighbour, 0 levelling flat
-     * @param adhesion the rung of the adhesion ladder the goo clings at, 0 clinging to nothing
+     * @param adhesion the rung of the adhesion ladder the goo clings at, slips clinging to nothing
      * @param sides    its side neighbours
      * @return the side that takes a layer, empty where the cell holds its step
      */
-    static Optional<Direction> pour(int layers, int cohesion, int adhesion, List<Side> sides) {
-        boolean lastLayerRuns = layers == 1 && adhesion == GooTypeDefinition.CLINGS_TO_NOTHING;
+    static Optional<Direction> pour(int layers, int cohesion, Adhesion adhesion, List<Side> sides) {
+        boolean lastLayerRuns = layers == 1 && adhesion == Adhesion.SLIPS;
         List<Side> takers = sides.stream().filter(side -> takes(layers - cohesion, side)
                 || lastLayerRuns && side.footing() == Footing.LEDGE).toList();
         Optional<Side> ledge = takers.stream().filter(side -> side.footing() == Footing.LEDGE).findFirst();
