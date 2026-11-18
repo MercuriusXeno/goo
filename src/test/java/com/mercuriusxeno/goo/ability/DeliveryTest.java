@@ -10,7 +10,14 @@ import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
+import java.io.IOException;
+import java.io.Reader;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import static org.junit.jupiter.api.Assertions.assertAll;
@@ -397,22 +404,29 @@ class DeliveryTest {
     class ExitSpeed {
 
         private static final double RAMPED = 1.0;
-        /** The drips a spray throws, and draws, each tick. */
-        private static final int SIX_DRIPS = 6;
-        /** The drips Slick throws, and draws, each tick. */
-        private static final int SLICK_DRIPS = 2;
+        /** The drips every goo spray throws, and draws, each tick at rest. */
+        private static final int TWO_DRIPS = 2;
+        private static final String DRIPS_PER_TICK = "drips_per_tick";
 
         /**
-         * operator UAT 2026-11-17: every drawn drip lands, so each spray throws the six drips a tick it draws;
-         * Slick keeps the two a tick its ramp and spread are tuned to, drawing two
+         * Every shipped ability whose delivery names a drip pace, so a spray merging later meets the same rate.
+         * every-goo-spray-throws-two-drips-a-tick
          */
         @Test
-        void eachSprayThrowsTheSixDripsATickItDraws() {
-            assertEquals(SLICK_DRIPS, AbilityJson.decode("kinetic_slick").delivery().dripsPerTick());
-            for (String spray : Set.of("weird_goop", "blaze_molten", "crystal_shatter",
-                    "deep_host", "frost_rime", "glow_wisps", "hex_leech", "typhoon_updraft", "jelly_nectar",
-                    "pulse_signal")) {
-                assertEquals(SIX_DRIPS, AbilityJson.decode(spray).delivery().dripsPerTick(), spray);
+        void everyGooSprayThrowsTwoDripsATick() {
+            List<Path> sprays = AbilityJson.files().stream().filter(ExitSpeed::namesADripPace).toList();
+
+            assertFalse(sprays.isEmpty(), "no shipped ability names " + DRIPS_PER_TICK);
+            assertAll(sprays.stream().map(spray -> () -> assertEquals(TWO_DRIPS,
+                    AbilityJson.decode(spray).delivery().dripsPerTick(), spray.getFileName().toString())));
+        }
+
+        private static boolean namesADripPace(Path file) {
+            try (Reader reader = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
+                JsonObject ability = JsonParser.parseReader(reader).getAsJsonObject();
+                return ability.has("delivery") && ability.getAsJsonObject("delivery").has(DRIPS_PER_TICK);
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
             }
         }
 
