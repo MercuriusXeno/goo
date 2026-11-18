@@ -88,7 +88,8 @@ class VolumeCellLookTest {
                 new Cell("frost_rime", CellBinding.RIME, "goo:fluid/frost_fluid", 0xBCE7F5),
                 new Cell("glow_wisps", CellBinding.WISPS, "goo:fluid/glow_fluid", 0xFFE60F),
                 new Cell("hex_leech", CellBinding.LEECH, "goo:fluid/hex_fluid", 0x6A5AAF),
-                new Cell("typhoon_updraft", CellBinding.UPDRAFT, "goo:fluid/typhoon_fluid", 0xE4FFF2));
+                new Cell("typhoon_updraft", CellBinding.UPDRAFT, "goo:fluid/typhoon_fluid", 0xE4FFF2),
+                new Cell("jelly_nectar", CellBinding.NECTAR, "goo:fluid/jelly_fluid", 0xE8505B));
     }
 
     @Nested

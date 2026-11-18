@@ -53,7 +53,8 @@ public final class Wormhole {
      * @param open  whether a cell holds nothing a body collides with, inside the world
      * @param fits  whether a box holds nothing a body collides with, inside the world
      * @param solid whether a cell holds an opaque solid block a mouth may stand on
-     * @param taken whether a standing portal covers a cell's face, which a mouth may not lie over
+     * @param taken whether a standing portal or an open hole's mouth covers a cell's face, which a mouth may not
+     *              lie over
      */
     public record Space(Predicate<BlockPos> open, Predicate<AABB> fits, Predicate<BlockPos> solid,
                         BiPredicate<BlockPos, Direction> taken) {
@@ -73,7 +74,8 @@ public final class Wormhole {
                             && !level.isOutsideBuildHeight(BlockPos.containing(box.maxX, box.maxY, box.maxZ))
                             && level.noCollision(player, box),
                     cell -> level.getBlockState(cell).isSolidRender(),
-                    (cell, face) -> standing.portalAt(GlobalPos.of(level.dimension(), cell), face).isPresent());
+                    (cell, face) -> standing.portalAt(GlobalPos.of(level.dimension(), cell), face).isPresent()
+                            || OpenHoles.mouthAt(level.dimension(), cell, face));
         }
     }
 
@@ -148,8 +150,8 @@ public final class Wormhole {
 
     /**
      * Whether a mouth may stand on a cell's face: the cell an opaque solid
-     * block, and no standing portal on that face, since a portal is in the
-     * way as a block is and a mouth never lies over one.
+     * block, and no standing portal or open hole's mouth on that face, since
+     * either is in the way as a block is and a mouth never lies over one.
      * hole-closes-the-space-to-an-opening-ahead
      *
      * @param space the world as the scan reads it
