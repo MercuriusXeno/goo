@@ -59,8 +59,8 @@ class GloveAimTest {
     }
 
     @Test
-    void buildAimsSixteenBlocks() {
-        assertEquals(16, GloveAim.aimRangeOf(shipped("rock_build"), null));
+    void buildAimsThirtyTwoBlocks() {
+        assertEquals(32, GloveAim.aimRangeOf(shipped("rock_build"), null));
     }
 
     @Test

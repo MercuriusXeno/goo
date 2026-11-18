@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:build_grows_for_a_caster_far_from_its_footprint",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 60,
+  "setup_ticks": 0,
+  "required": true
+}
