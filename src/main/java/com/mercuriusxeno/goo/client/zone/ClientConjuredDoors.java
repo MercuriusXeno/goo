@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.zone;
 
 import com.mercuriusxeno.goo.ability.zone.ConjuredDoor;
+import com.mercuriusxeno.goo.ability.zone.GateLook;
 import com.mercuriusxeno.goo.network.ConjuredDoorPayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.util.Mth;
@@ -22,6 +23,9 @@ import java.util.Optional;
  * The local caster's own door stands from the look of the frame drawn, and
  * another caster's turns between updates as it moves.
  * decision conjured-door-follows-the-look-smoothly
+ * Each door keeps the look the server sent it with, and only a starfield
+ * door on its caster's feet raises the starfield cover.
+ * decision tartarus-summons-a-gate-to-the-nether-like-end-and-zone
  */
 public final class ClientConjuredDoors {
 
@@ -30,7 +34,7 @@ public final class ClientConjuredDoors {
     /** Client ticks a door outlasts its last update before it starts to collapse. */
     static final int OUTLASTS = 2;
     /** Client ticks a collapsing door takes to shrink to nothing. */
-    static final int COLLAPSE_TICKS = 5;
+    static final int COLLAPSE_TICKS = 10;
 
     private static final Map<Integer, Seen> DOORS = new HashMap<>();
     /** The local player's release into their room while one waits or plays. */
@@ -45,8 +49,9 @@ public final class ClientConjuredDoors {
      * @param before the door the update before stood
      * @param now    the door the last update stood
      * @param at     the client game tick the last update came
+     * @param look   what the door is drawn with
      */
-    record Seen(ConjuredDoor before, ConjuredDoor now, long at) {
+    record Seen(ConjuredDoor before, ConjuredDoor now, long at, GateLook look) {
     }
 
     /**
@@ -56,8 +61,38 @@ public final class ClientConjuredDoors {
      * @param yaw      the way its caster faced, in degrees
      * @param unzipped how far it has unzipped from the doorway's head, 0 for a pixel to 1 for a slash on the floor
      * @param widened  how far it has widened, 0 for a pixel wide to 1 for the doorway's full width
+     * @param look     what it is drawn with
+     * @param phase     where it stands in its life, as the server last sent it
+     * @param collapsed how far it has collapsed since its updates stopped, 0 while they come to 1 gone
      */
-    public record Drawn(Vec3 at, float yaw, double unzipped, double widened) {
+    public record Drawn(Vec3 at, float yaw, double unzipped, double widened, GateLook look,
+                        ConjuredDoor.Phase phase, double collapsed) {
+
+        /**
+         * A door its updates still stand.
+         *
+         * @param at       the middle of its foot
+         * @param yaw      the way its caster faced, in degrees
+         * @param unzipped how far it has unzipped
+         * @param widened  how far it has widened
+         * @param look     what it is drawn with
+         * @param phase    where it stands in its life
+         */
+        public Drawn(Vec3 at, float yaw, double unzipped, double widened, GateLook look, ConjuredDoor.Phase phase) {
+            this(at, yaw, unzipped, widened, look, phase, 0);
+        }
+
+        /**
+         * A door drawn with the starfield, as Zone's and End's are.
+         *
+         * @param at       the middle of its foot
+         * @param yaw      the way its caster faced, in degrees
+         * @param unzipped how far it has unzipped
+         * @param widened  how far it has widened
+         */
+        public Drawn(Vec3 at, float yaw, double unzipped, double widened) {
+            this(at, yaw, unzipped, widened, GateLook.STARFIELD, ConjuredDoor.Phase.GROWING);
+        }
     }
 
     /**
@@ -66,7 +101,7 @@ public final class ClientConjuredDoors {
      * @param unzipped how far it has unzipped
      * @param widened  how far it has widened
      */
-    private record Shares(double unzipped, double widened) {
+    private record Shares(double unzipped, double widened, double collapsed) {
     }
 
     /**
@@ -80,14 +115,26 @@ public final class ClientConjuredDoors {
             Minecraft mc = Minecraft.getInstance();
             boolean local = mc.player != null && payload.casterId() == mc.player.getId();
             if (local) {
-                EntryCover.LOCAL.doorSeen(payload.casterId(), mc.player.getId(), payload.door());
+                coverFor(payload, mc.player.getId());
             }
             if (local && payload.door().phase() == ConjuredDoor.Phase.RELEASING) {
-                takeLocalRelease(payload.door());
+                takeLocalRelease(payload.door(), payload.look());
             } else if (mc.level != null) {
                 take(payload, mc.level.getGameTime());
             }
         });
+    }
+
+    /**
+     * Raises the starfield cover for the local caster's own starfield door on their feet.
+     *
+     * @param payload the door's payload
+     * @param localId the local player's entity id
+     */
+    private static void coverFor(ConjuredDoorPayload payload, int localId) {
+        if (payload.look() == GateLook.STARFIELD) {
+            EntryCover.LOCAL.doorSeen(payload.casterId(), localId, payload.door());
+        }
     }
 
     /**
@@ -97,8 +144,10 @@ public final class ClientConjuredDoors {
      * decision matching-doorway-opens-in-the-room-and-releases-you
      *
      * @param startedAt the client game tick it began playing, NaN while it waits on the cover
+     * @param look      what the door is drawn with
+     * @param standsOff how far before the arriver it backs off to, in blocks
      */
-    record LocalRelease(double startedAt) {
+    record LocalRelease(double startedAt, GateLook look, double standsOff) {
     }
 
     /**
@@ -109,8 +158,18 @@ public final class ClientConjuredDoors {
      * @param door the releasing door the server sent
      */
     static void takeLocalRelease(ConjuredDoor door) {
+        takeLocalRelease(door, GateLook.STARFIELD);
+    }
+
+    /**
+     * Takes the server's release of the local player drawn with a look.
+     *
+     * @param door the releasing door the server sent
+     * @param look what the door is drawn with
+     */
+    static void takeLocalRelease(ConjuredDoor door, GateLook look) {
         if (localRelease == null && door.widened() >= 1) {
-            localRelease = new LocalRelease(Double.NaN);
+            localRelease = new LocalRelease(Double.NaN, look, door.standsOff());
         }
     }
 
@@ -137,15 +196,16 @@ public final class ClientConjuredDoors {
             return Optional.empty();
         }
         if (Double.isNaN(localRelease.startedAt())) {
-            localRelease = new LocalRelease(time);
+            localRelease = new LocalRelease(time, localRelease.look(), localRelease.standsOff());
         }
         double tick = time - localRelease.startedAt();
         if (tick > ConjuredDoor.RELEASE_TICKS) {
             localRelease = null;
             return Optional.empty();
         }
-        ConjuredDoor door = ConjuredDoor.releasing(look.feet(), look.yaw(), tick);
-        return Optional.of(new Drawn(door.at(), look.yaw(), door.unzipped(), door.widened()));
+        ConjuredDoor door = ConjuredDoor.releasing(look.feet(), look.yaw(), tick, localRelease.standsOff());
+        return Optional.of(new Drawn(door.at(), look.yaw(), door.unzipped(), door.widened(), localRelease.look(),
+                door.phase()));
     }
 
     /**
@@ -157,7 +217,7 @@ public final class ClientConjuredDoors {
     static void take(ConjuredDoorPayload payload, long gameTime) {
         Seen was = DOORS.get(payload.casterId());
         ConjuredDoor before = was == null ? payload.door() : was.now();
-        DOORS.put(payload.casterId(), new Seen(before, payload.door(), gameTime));
+        DOORS.put(payload.casterId(), new Seen(before, payload.door(), gameTime, payload.look()));
     }
 
     /**
@@ -227,8 +287,9 @@ public final class ClientConjuredDoors {
         double since = time - seen.at();
         double step = stepBetween(since);
         double crossed = Mth.lerp(step, seen.before().crossed(), seen.now().crossed());
-        Vec3 at = ConjuredDoor.placedAt(look.feet(), look.yaw(), crossed);
-        return sharesAt(seen, since).map(shares -> new Drawn(at, look.yaw(), shares.unzipped(), shares.widened()));
+        Vec3 at = ConjuredDoor.placedAt(look.feet(), look.yaw(), crossed, seen.now().standsOff());
+        return sharesAt(seen, since).map(shares -> new Drawn(at, look.yaw(), shares.unzipped(), shares.widened(),
+                seen.look(), seen.now().phase(), shares.collapsed()));
     }
 
     /**
@@ -248,7 +309,8 @@ public final class ClientConjuredDoors {
         ConjuredDoor now = seen.now();
         Vec3 at = before.at().lerp(now.at(), step);
         float yaw = Mth.rotLerp((float) step, before.yaw(), now.yaw());
-        return sharesAt(seen, since).map(shares -> new Drawn(at, yaw, shares.unzipped(), shares.widened()));
+        return sharesAt(seen, since).map(shares -> new Drawn(at, yaw, shares.unzipped(), shares.widened(),
+                seen.look(), seen.now().phase(), shares.collapsed()));
     }
 
     /**
@@ -274,9 +336,10 @@ public final class ClientConjuredDoors {
         if (since <= OUTLASTS) {
             double step = stepBetween(since);
             return Optional.of(new Shares(Mth.lerp(step, seen.before().unzipped(), now.unzipped()),
-                    Mth.lerp(step, seen.before().widened(), now.widened())));
+                    Mth.lerp(step, seen.before().widened(), now.widened()), 0));
         }
         double left = 1 - (since - OUTLASTS) / COLLAPSE_TICKS;
-        return left <= 0 ? Optional.empty() : Optional.of(new Shares(now.unzipped() * left, now.widened() * left));
+        return left <= 0 ? Optional.empty()
+                : Optional.of(new Shares(now.unzipped() * left, now.widened() * left, 1 - left));
     }
 }
