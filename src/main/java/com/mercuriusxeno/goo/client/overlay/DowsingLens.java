@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.overlay;
 
 import com.mercuriusxeno.goo.Goo;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.tags.TagKey;
@@ -10,19 +11,23 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import java.util.ArrayDeque;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.Function;
+import java.util.function.ToIntFunction;
 
 /**
  * A Dowsing cell as a lens onto ore: the ore it may show, an ore Glimmer or
  * Magnet detects, a block tagged goo:gem_ores or goo:metal_ores, any part of
- * which lies behind the cell's goo from the eye, within the cell's layer
- * count in blocks past the goo. A one layer coat reaches the block behind
- * it, and a whole block of fifteen layers fifteen blocks deep. The lens
+ * which lies behind the cell's goo from the eye, within its patch's depth
+ * in blocks past the goo: the layers of the thickest cell in the connected
+ * patch it belongs to. A one layer patch reaches the block behind it, and a
+ * patch holding a whole block of fifteen layers fifteen blocks deep. The lens
  * answers candidates whole, so turning the camera pops no ore in or out; the
  * cut at the goo's edge on screen is the draw's, through the window mask.
  * astral-world-goo-is-dowsing-an-x-ray-of-ore
@@ -43,17 +48,65 @@ public final class DowsingLens {
     private static final double STEEP_LOOK = 0.9;
     private static final Vec3 UP = new Vec3(0, 1, 0);
     private static final Vec3 EAST = new Vec3(1, 0, 0);
+    /** The most cells one patch walk reads in a tick, a patch of 32 by 32 cells. */
+    private static final int PATCH_WALK_LIMIT = 1024;
 
     private DowsingLens() {
     }
 
     /**
-     * One Dowsing cell's goo and the layers it holds.
+     * One Dowsing cell's goo and its patch's depth.
      *
      * @param goo    the cell's goo, in world coordinates
-     * @param layers the layers the cell holds, its reach in blocks past the goo
+     * @param layers the layers of the thickest cell in its patch, its reach in blocks past the goo
      */
     public record Lens(AABB goo, int layers) {
+    }
+
+    /**
+     * Each cell's patch depth: the layers of the thickest Dowsing cell in
+     * the connected patch it belongs to, two cells joining where they share
+     * a face. The walk follows each patch out past the given cells, so the
+     * depth holds steady as the eye moves along a patch larger than the lens
+     * reach, and stops after a fixed count of cells per patch, so a vast
+     * patch costs a bounded amount each tick.
+     * dowsing-patch-shows-ore-as-deep-as-its-thickest-cell
+     * dowsing-shows-ore-one-block-deep-per-layer
+     *
+     * @param cells    the Dowsing cells the lens reach gathered
+     * @param layersAt the layers of the Dowsing cell at a position, 0 where none stands
+     * @return each given cell's patch depth
+     */
+    public static Map<BlockPos, Integer> patchDepths(Set<BlockPos> cells, ToIntFunction<BlockPos> layersAt) {
+        Map<BlockPos, Integer> depths = new HashMap<>();
+        for (BlockPos cell : cells) {
+            if (!depths.containsKey(cell)) {
+                walkPatch(cell, layersAt, cells, depths);
+            }
+        }
+        return depths;
+    }
+
+    // Walks one patch from a cell across shared faces, then gives every gathered cell it reached the patch's depth.
+    private static void walkPatch(BlockPos start, ToIntFunction<BlockPos> layersAt, Set<BlockPos> cells,
+                                  Map<BlockPos, Integer> depths) {
+        Set<BlockPos> reached = new HashSet<>(List.of(start));
+        ArrayDeque<BlockPos> frontier = new ArrayDeque<>(List.of(start));
+        int deepest = layersAt.applyAsInt(start);
+        while (!frontier.isEmpty() && reached.size() < PATCH_WALK_LIMIT) {
+            BlockPos at = frontier.poll();
+            for (Direction face : Direction.values()) {
+                BlockPos next = at.relative(face);
+                int layers = layersAt.applyAsInt(next);
+                if (layers > 0 && reached.add(next)) {
+                    deepest = Math.max(deepest, layers);
+                    frontier.add(next);
+                }
+            }
+        }
+        int depth = deepest;
+        reached.stream().filter(cells::contains).forEach(cell -> depths.put(cell, depth));
+        depths.putIfAbsent(start, depth);
     }
 
     /**

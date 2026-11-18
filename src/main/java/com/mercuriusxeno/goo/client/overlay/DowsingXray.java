@@ -33,6 +33,7 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.joml.Matrix4f;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -41,15 +42,17 @@ import java.util.TreeMap;
 /**
  * Shows the ore the Dowsing cells near the eye lens, through each cell as a
  * window: every client tick it finds the Dowsing cells in the loaded chunks
- * around the eye and asks the lens which ore each layer count's cells may
- * show, so the sight follows the camera, the cells' layers and the blocks
- * behind them within a tick, with no payload from the server. Each layer
- * count draws on its own: its cells' goo marks the stencil where the goo is
+ * around the eye, gives each the depth of the thickest cell in its connected
+ * patch, and asks the lens which ore each depth's cells may show, so the
+ * sight follows the camera, the cells' layers and the blocks behind them
+ * within a tick, with no payload from the server. Each depth draws on its
+ * own: its cells' goo marks the stencil where the goo is
  * the nearest surface, then its ore draws as itself, a little translucent
  * and fully lit, and its starlight glow, only on those marked pixels, so the
  * ore is cut off at the goo's edge on screen.
  * astral-world-goo-is-dowsing-an-x-ray-of-ore
  * dowsing-shows-ore-one-block-deep-per-layer
+ * dowsing-patch-shows-ore-as-deep-as-its-thickest-cell
  * dowsing-goo-is-a-window-onto-the-ore-behind-it
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
@@ -71,7 +74,7 @@ public final class DowsingXray {
     private static final int MASK_COLOR = -1;
 
     /**
-     * One layer count's window: the goo its cells hold and the ore they may show.
+     * One depth's window: the goo its cells hold and the ore they may show.
      *
      * @param goo the cells' goo
      * @param ore the ore candidates behind it
@@ -79,7 +82,7 @@ public final class DowsingXray {
     private record Window(List<AABB> goo, Set<BlockPos> ore) {
     }
 
-    /** The windows the Dowsing cells opened at the last tick, by layer count. */
+    /** The windows the Dowsing cells opened at the last tick, by patch depth. */
     private static List<Window> windows = List.of();
 
     private DowsingXray() {
@@ -189,29 +192,33 @@ public final class DowsingXray {
 
     /**
      * Every Dowsing cell within the lens reach of the eye, reading only the
-     * chunk sections whose palette may hold one.
+     * chunk sections whose palette may hold one, each reaching as deep as the
+     * thickest cell of the connected patch it belongs to.
+     * dowsing-patch-shows-ore-as-deep-as-its-thickest-cell
      *
      * @param level the client level
      * @param eye   the camera's eye
-     * @return each cell's goo and layers
+     * @return each cell's goo and patch depth
      */
     private static List<DowsingLens.Lens> lensesAround(Level level, Vec3 eye) {
-        List<DowsingLens.Lens> lenses = new ArrayList<>();
+        Map<BlockPos, BlockState> cells = new HashMap<>();
         SectionPos low = SectionPos.of(BlockPos.containing(eye.subtract(LENS_REACH, LENS_REACH, LENS_REACH)));
         SectionPos high = SectionPos.of(BlockPos.containing(eye.add(LENS_REACH, LENS_REACH, LENS_REACH)));
         for (int sx = low.x(); sx <= high.x(); sx++) {
             for (int sz = low.z(); sz <= high.z(); sz++) {
                 ChunkAccess chunk = level.getChunk(sx, sz, ChunkStatus.FULL, false);
                 if (chunk != null) {
-                    lensesInChunk(level, chunk, low.y(), high.y(), lenses);
+                    cellsInChunk(chunk, low.y(), high.y(), cells);
                 }
             }
         }
+        Map<BlockPos, Integer> depths = DowsingLens.patchDepths(cells.keySet(), pos -> lensLayersAt(level, pos));
+        List<DowsingLens.Lens> lenses = new ArrayList<>();
+        cells.forEach((cell, state) -> lensesOfCell(level, cell, state, depths.get(cell), lenses));
         return lenses;
     }
 
-    private static void lensesInChunk(Level level, ChunkAccess chunk, int lowY, int highY,
-                                      List<DowsingLens.Lens> lenses) {
+    private static void cellsInChunk(ChunkAccess chunk, int lowY, int highY, Map<BlockPos, BlockState> cells) {
         for (int sy = Math.max(lowY, chunk.getMinSectionY()); sy <= Math.min(highY, chunk.getMaxSectionY()); sy++) {
             LevelChunkSection section = chunk.getSection(chunk.getSectionIndexFromSectionY(sy));
             if (section.hasOnlyAir() || !section.getStates().maybeHas(DowsingXray::isLens)) {
@@ -219,30 +226,38 @@ public final class DowsingXray {
             }
             BlockPos base = new BlockPos(chunk.getPos().getMinBlockX(), SectionPos.sectionToBlockCoord(sy),
                     chunk.getPos().getMinBlockZ());
-            lensesInSection(level, section, base, lenses);
+            cellsInSection(section, base, cells);
         }
     }
 
-    private static void lensesInSection(Level level, LevelChunkSection section, BlockPos base,
-                                        List<DowsingLens.Lens> lenses) {
+    private static void cellsInSection(LevelChunkSection section, BlockPos base, Map<BlockPos, BlockState> cells) {
         for (int x = 0; x < SECTION_SIZE; x++) {
             for (int y = 0; y < SECTION_SIZE; y++) {
                 for (int z = 0; z < SECTION_SIZE; z++) {
                     BlockState state = section.getBlockState(x, y, z);
                     if (isLens(state)) {
-                        lensesOfCell(level, base.offset(x, y, z), state, lenses);
+                        cells.put(base.offset(x, y, z), state);
                     }
                 }
             }
         }
     }
 
-    // One lens for each box of the cell's goo, each reaching as far past the goo as the cell holds layers.
-    private static void lensesOfCell(Level level, BlockPos cell, BlockState state, List<DowsingLens.Lens> lenses) {
+    // The layers of the Dowsing cell at a position, 0 where none stands or its chunk is not loaded.
+    private static int lensLayersAt(Level level, BlockPos pos) {
+        if (!level.isLoaded(pos)) {
+            return 0;
+        }
+        BlockState state = level.getBlockState(pos);
+        return isLens(state) ? VolumeCellBlock.layersOf(state) : 0;
+    }
+
+    // One lens for each box of the cell's goo, each reaching as far past the goo as its patch is deep.
+    private static void lensesOfCell(Level level, BlockPos cell, BlockState state, int depth,
+                                     List<DowsingLens.Lens> lenses) {
         VolumeCellBlock block = (VolumeCellBlock) state.getBlock();
         GooShares shares = VolumeCellBlock.sharesOf(state, block.onAFloor(level, cell), block.cohesionIn(level));
-        int layers = VolumeCellBlock.layersOf(state);
-        gooOf(cell, shares).forEach(goo -> lenses.add(new DowsingLens.Lens(goo, layers)));
+        gooOf(cell, shares).forEach(goo -> lenses.add(new DowsingLens.Lens(goo, depth)));
     }
 
     private static boolean isLens(BlockState state) {
