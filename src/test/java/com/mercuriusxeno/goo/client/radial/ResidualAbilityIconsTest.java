@@ -34,7 +34,7 @@ class ResidualAbilityIconsTest {
     // each-residual-icon-draws-its-goo-in-its-own-shape
     /** The icons drawing the residual style; a later residual joins by its icon's name. */
     static final List<String> RESIDUAL_ICONS = List.of("weird_goop", "kinetic_slick", "blaze_molten", "deep_host",
-            "crystal_shatter", "hex_leech", "typhoon_updraft", "jelly_nectar", "quantum_phase");
+            "crystal_shatter", "hex_leech", "typhoon_updraft", "jelly_nectar", "pulse_signal", "quantum_phase");
 
     private static final String SHATTER = "crystal_shatter";
     private static final String ABILITY_ICONS = "/assets/goo/textures/goo/ability/";

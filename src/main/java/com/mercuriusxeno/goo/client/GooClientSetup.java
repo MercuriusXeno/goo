@@ -314,7 +314,8 @@ public final class GooClientSetup {
         for (VolumeCellBlock cell : List.of(GooBlocks.SLIME_COAT.get(), GooBlocks.KINETIC_SLICK.get(),
                 GooBlocks.BLAZE_MOLTEN.get(), GooBlocks.CRYSTAL_SHATTER.get(), GooBlocks.DEEP_HOST.get(),
                 GooBlocks.FROST_RIME.get(), GooBlocks.GLOW_WISPS.get(), GooBlocks.HEX_LEECH.get(),
-                GooBlocks.TYPHOON_UPDRAFT.get(), GooBlocks.JELLY_NECTAR.get(), GooBlocks.QUANTUM_PHASE.get())) {
+                GooBlocks.TYPHOON_UPDRAFT.get(), GooBlocks.JELLY_NECTAR.get(), GooBlocks.PULSE_SIGNAL.get(),
+                GooBlocks.QUANTUM_PHASE.get())) {
             event.register(VolumeCellTint.sources(cell.binding().gooType(), ClientGooTypes::color), cell);
         }
     }
@@ -416,6 +417,7 @@ public final class GooClientSetup {
         registerDrip(event, GooParticles.LEECH_SPRAY_DRIP.get(), BlendPalette.LEECH_HEX_VIOLETS);
         registerDrip(event, GooParticles.UPDRAFT_SPRAY_DRIP.get(), BlendPalette.UPDRAFT_TYPHOON_GREENS);
         registerDrip(event, GooParticles.NECTAR_SPRAY_DRIP.get(), BlendPalette.NECTAR_JELLY_ORANGES);
+        registerDrip(event, GooParticles.SIGNAL_SPRAY_DRIP.get(), BlendPalette.SIGNAL_PULSE_REDS);
         registerDrip(event, GooParticles.PHASE_SPRAY_DRIP.get(), BlendPalette.PHASE_QUANTUM_BLUES);
     }
 
