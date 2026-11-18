@@ -5,7 +5,7 @@
   "order": 0,
   "cost": 2000,
   "requires": ["minecraft:recovery_compass"],
-  "delivery": { "kind": "arc" },
+  "delivery": { "kind": "arc", "range": 16 },
   "behaviors": [
     {
       "type": "target",

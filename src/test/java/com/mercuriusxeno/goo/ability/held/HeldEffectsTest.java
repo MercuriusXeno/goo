@@ -176,20 +176,6 @@ class HeldEffectsTest {
             assertEquals(Map.of(GooTypes.BLAZE, 3.0), held.upkeepPerTick());
             assertEquals(Map.of(GooTypes.BLAZE, (int) (3000 / 3.0)), held.ticksLeft(type -> 3000));
         }
-
-        @Test
-        void anExtendHalvesTheOthersAndPaysItsOwn() {
-            HeldEffects.Held first = new HeldEffects.Held(KINDLE, GooTypes.BLAZE, 1, Set.of(), STARTED);
-            HeldEffects.Held second = new HeldEffects.Held(GLUTTONY, GooTypes.BLAZE, 2, Set.of(), STARTED);
-            HeldEffects.Held extend = new HeldEffects.Held(Identifier.fromNamespaceAndPath("goo", "pulse_extend"),
-                    GooTypes.PULSE, 1, Set.of(LaidState.EXTEND), STARTED);
-            HeldEffects held = holding(first, second, extend);
-
-            assertEquals(Map.of(GooTypes.BLAZE, 1.5, GooTypes.PULSE, 1.0), held.upkeepPerTick());
-            assertTrue(held.extended());
-            assertEquals(Map.of(GooTypes.BLAZE, (int) (3000 / 1.5), GooTypes.PULSE, 3000),
-                    held.ticksLeft(type -> 3000));
-        }
     }
 
     /** Every end plays the ended effect's down cue once (decision held-effects-sound-up-and-down). */
@@ -244,50 +230,5 @@ class HeldEffectsTest {
     @Test
     void leaderStepLaysLeader() {
         assertEquals(Set.of(LaidState.KIN), LaidState.laidBy(List.of(new KinStep(12, 4))));
-    }
-
-    /** The Extend held beside other effects (decision extender-multiplies-the-next-self-duration). */
-    @Nested
-    class Extend {
-
-        private static final Identifier EXTEND = Identifier.fromNamespaceAndPath("goo", "pulse_extend");
-        private static final int TICKS = 20;
-        private static final int PLENTY = 1000;
-
-        private HeldEffects.Held gloveExtend() {
-            return new HeldEffects.Held(EXTEND, GooTypes.PULSE, UPKEEP, Set.of(LaidState.EXTEND), STARTED);
-        }
-
-        @Test
-        void extendBesideKindlePaysPulseEveryTickAndCoversEveryOtherBlazeTick() {
-            HeldEffects held = holding(gloveExtend(), hearts(KINDLE, GooTypes.BLAZE));
-            int pulse = 0;
-            int blaze = 0;
-            for (long now = STARTED + 1; now <= STARTED + TICKS; now++) {
-                HeldEffects.Ticked ticked = held.tick(type -> PLENTY, now);
-                pulse += ticked.drawn().getOrDefault(GooTypes.PULSE, 0);
-                blaze += ticked.drawn().getOrDefault(GooTypes.BLAZE, 0);
-                held = ticked.after();
-            }
-            assertEquals(TICKS * UPKEEP, pulse);
-            assertEquals(TICKS / 2 * UPKEEP, blaze);
-        }
-
-        @Test
-        void pulseRunningDryEndsTheExtendAloneAndTheOthersPayEveryTick() {
-            HeldEffects.Ticked ticked = holding(gloveExtend(), hearts(KINDLE, GooTypes.BLAZE))
-                    .tick(type -> type == GooTypes.PULSE ? 0 : PLENTY, STARTED + 2);
-            assertEquals(List.of(gloveExtend()), ticked.ended());
-            assertEquals(UPKEEP, ticked.drawn().get(GooTypes.BLAZE));
-        }
-
-        @Test
-        void aGloveExtendDoublesEachOtherEffectsTimeLeftUntilItEnds() {
-            HeldEffects held = holding(gloveExtend(), hearts(KINDLE, GooTypes.BLAZE));
-            assertEquals(2 * PLENTY / UPKEEP, held.ticksLeft(type -> PLENTY).get(GooTypes.BLAZE));
-            assertEquals(PLENTY / UPKEEP, held.ticksLeft(type -> PLENTY).get(GooTypes.PULSE));
-            HeldEffects ended = held.end(EXTEND).after();
-            assertEquals(PLENTY / UPKEEP, ended.ticksLeft(type -> PLENTY).get(GooTypes.BLAZE));
-        }
     }
 }

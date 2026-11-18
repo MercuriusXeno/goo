@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.OwnMinions;
+import com.mercuriusxeno.goo.ability.ThrowRange;
 import com.mercuriusxeno.goo.ability.crystal.KnifeFan;
 import com.mercuriusxeno.goo.ability.crystal.KnifeSplit;
 import com.mercuriusxeno.goo.ability.program.DamageStep;
@@ -96,7 +97,7 @@ public final class KnivesThrowHandler {
 
     // A mob a knife may strike: alive, not the thrower, in reach, and not the thrower's own minion.
     private static boolean strikable(ServerPlayer player, LivingEntity mob) {
-        return mob.isAlive() && mob != player && mob.distanceTo(player) <= GooThrowHandler.MAX_RANGE
+        return mob.isAlive() && mob != player && mob.distanceTo(player) <= ThrowRange.KNIVES_AND_DART_REACH
                 && !OwnMinions.ownMinionOf(player, mob);
     }
 

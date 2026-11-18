@@ -68,6 +68,9 @@ class GooTypeDefinitionTest {
     private static final int BLAZE_COHESION = 4;
     private static final int BLAZE_ADHESION = 4;
     private static final int COMMON_ADHESION = 1;
+    /** Pulse's goo holds where it is laid, firm and clinging to an underside, so its layers set its signal at will. */
+    private static final int PULSE_COHESION = GooTypeDefinition.FIRM_COHESION;
+    private static final int PULSE_ADHESION = GooTypeDefinition.HOLDS_AN_UNDERSIDE;
 
     static Stream<ResourceKey<GooTypeDefinition>> bundledKeys() {
         return GooTypes.BUNDLED.stream();
@@ -281,22 +284,25 @@ class GooTypeDefinitionTest {
 
     /**
      * Every bundled type states a cohesion: weird holds a step of 4, blaze the thick rung of 4, jelly and
-     * leaf the stiff rung of 8, and every other type, kinetic among them, 0.
+     * leaf the stiff rung of 8, pulse the firm 15, and every other type, kinetic among them, 0.
      * cohesion-is-the-step-the-goo-holds
      * blaze-goo-is-adhesion-four-and-cohesion-five
+     * signal-goo-sends-a-redstone-signal-equal-to-its-layers
      */
     @ParameterizedTest
     @MethodSource("bundledKeys")
     void bundledCohesionMatchesDecision(ResourceKey<GooTypeDefinition> key) throws Exception {
         int expected = key == GooTypes.WEIRD ? WEIRD_COHESION : key == GooTypes.BLAZE ? BLAZE_COHESION
-                : key == GooTypes.JELLY ? JELLY_COHESION : key == GooTypes.LEAF ? LEAF_COHESION : 0;
+                : key == GooTypes.JELLY ? JELLY_COHESION : key == GooTypes.LEAF ? LEAF_COHESION
+                : key == GooTypes.PULSE ? PULSE_COHESION : 0;
         assertEquals(expected, decodeBundled(key).cohesion(), key::toString);
     }
 
     /**
      * Every bundled type states an adhesion: kinetic clings to nothing, weird, jelly and leaf hold a
-     * side where they strike, glow and blaze hold an underside, and every other type holds tops.
+     * side where they strike, glow, blaze and pulse hold an underside, and every other type holds tops.
      * adhesion-is-a-ladder-of-holds
+     * signal-goo-sends-a-redstone-signal-equal-to-its-layers
      * nectar-is-the-sticky-goo-you-climb-that-nerfs-jumping-and-speed
      * vines-goo-on-walls-places-goologged-vines-and-depletes
      * blaze-goo-is-adhesion-four-and-cohesion-five
@@ -307,7 +313,7 @@ class GooTypeDefinitionTest {
         int expected = key == GooTypes.KINETIC ? 0 : key == GooTypes.WEIRD ? WEIRD_ADHESION
                 : key == GooTypes.LEAF ? LEAF_ADHESION : key == GooTypes.GLOW ? GLOW_ADHESION
                 : key == GooTypes.BLAZE ? BLAZE_ADHESION : key == GooTypes.JELLY ? JELLY_ADHESION
-                : COMMON_ADHESION;
+                : key == GooTypes.PULSE ? PULSE_ADHESION : COMMON_ADHESION;
         assertEquals(expected, decodeBundled(key).adhesion(), key::toString);
     }
 

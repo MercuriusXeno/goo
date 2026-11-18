@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityTags;
 import com.mercuriusxeno.goo.ability.SpireFootprint;
 import com.mercuriusxeno.goo.ability.SpireGrowth;
+import com.mercuriusxeno.goo.ability.ThrowRange;
 import com.mercuriusxeno.goo.ability.program.FootprintHost;
 import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
@@ -21,13 +22,12 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
-import org.jspecify.annotations.Nullable;
 import java.util.Optional;
 import java.util.OptionalInt;
 
 /**
  * Server side of a Spire's submit: the footprint is checked against the caps
- * and the throw range, planned against the cells above it, its rise lowered
+ * and Spire's range, planned against the cells above it, its rise lowered
  * to what the caster's goo pays for, and grown, charging the ability's cost
  * per stone block grown. The client held the choreography; the server
  * trusts none of it.
@@ -59,45 +59,57 @@ public final class GooSpireHandler {
     /**
      * Grows a Spire for a player: refused whole for a glove-less player, an
      * unknown type, an ability the player may not use or that is not cast by
-     * its footprint, a missing reagent, a footprint past the caps or the
-     * throw range, or a footprint the goo cannot grow a stone block over.
+     * its footprint, a missing reagent, a footprint past the caps or Spire's
+     * range, or a footprint the goo cannot grow a stone block over.
      *
      * @param player  the casting player
      * @param payload the submit
      */
     public static void cast(ServerPlayer player, GooSpirePayload payload) {
         ResourceKey<GooTypeDefinition> gooType = GooTypes.known(payload.gooTypeId());
-        if (gooType == null || !withinReach(player, gooType, payload.footprint())) {
+        if (gooType == null) {
             return;
         }
         AbilityDefinition ability = GooThrowHandler.usableAbility(player, payload.abilityId(), gooType);
-        if (castable(player, ability)) {
+        if (ability != null && withinReach(player, gooType, payload.footprint(), ThrowRange.of(ability))
+                && castable(player, ability)) {
             grow(player, payload, gooType, ability);
         }
     }
 
     /**
      * Whether the submit is one the player can make: a caster held that casts the type, the
-     * footprint within its caps, and both corners within the throw range of
+     * footprint within its caps, and both corners within Spire's range of
      * the player's eye.
      *
      * @param player    the casting player
      * @param gooType   the spire's goo type
      * @param footprint the footprint as submitted
+     * @param range     Spire's range in blocks
      * @return true for a submit in reach
      */
     private static boolean withinReach(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType,
-                                       SpireFootprint footprint) {
+                                       SpireFootprint footprint, double range) {
+        Vec3 eye = player.getEyePosition();
         return GooThrowHandler.validateCaster(player, gooType) && footprint.withinCaps()
-                && inRange(player, footprint.corner()) && inRange(player, footprint.opposite());
+                && inRange(eye, footprint.corner(), range) && inRange(eye, footprint.opposite(), range);
     }
 
-    private static boolean inRange(ServerPlayer player, BlockPos cell) {
-        return player.getEyePosition().distanceTo(Vec3.atCenterOf(cell)) <= GooThrowHandler.MAX_RANGE;
+    /**
+     * Whether a footprint corner's cell stands within range of the eye.
+     * decision each-ability-names-its-range-and-the-shared-throw-range-retires
+     *
+     * @param eye   the caster's eye
+     * @param cell  the corner cell
+     * @param range Spire's range in blocks
+     * @return true for a cell in range
+     */
+    static boolean inRange(Vec3 eye, BlockPos cell, double range) {
+        return eye.distanceTo(Vec3.atCenterOf(cell)) <= range;
     }
 
-    private static boolean castable(ServerPlayer player, @Nullable AbilityDefinition ability) {
-        return ability != null && ability.hasTag(AbilityTags.FOOTPRINT)
+    private static boolean castable(ServerPlayer player, AbilityDefinition ability) {
+        return ability.hasTag(AbilityTags.FOOTPRINT)
                 && GooThrowHandler.holdsReagents(player, ability);
     }
 
