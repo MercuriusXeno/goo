@@ -29,10 +29,10 @@ import static org.mockito.Mockito.when;
  */
 class AbilitiesPaneTest {
     private static final GroupsPane.Bounds VIEW = new GroupsPane.Bounds(0, 0, 500, 400);
-    private static final String NAME_KEY = "goo.ability.unstable.lurker";
-    private static final String NAME = "Lurker";
+    private static final String NAME_KEY = "goo.ability.unstable.nitro";
+    private static final String NAME = "Nitro";
     private static final String MODEL = """
-            {"abilities": [{"id": "goo:unstable_lurker", "gooType": "unstable", "displayName": "%s", "draft": false,
+            {"abilities": [{"id": "goo:unstable_nitro", "gooType": "unstable", "displayName": "%s", "draft": false,
               "leaves": [
                 {"path": "cost", "value": "3 * minecraft:cobblestone", "kind": "COST"},
                 {"path": "behaviors/0/amount", "value": "health / 2", "kind": "EXPRESSION"},
@@ -271,11 +271,11 @@ class AbilitiesPaneTest {
      */
     @Nested
     class Heading {
-        private static final String DESCRIPTION_KEY = "goo.ability.unstable.lurker.description";
+        private static final String DESCRIPTION_KEY = "goo.ability.unstable.nitro.description";
         private static final String DESCRIPTION = "Lies in wait, then bursts when something walks over it.";
         private static final Map<String, String> LANG = Map.of(NAME_KEY, NAME, DESCRIPTION_KEY, DESCRIPTION);
         private static final String DRAFTED = """
-                {"typeOrder": ["unstable"], "abilities": [{"id": "goo:unstable_lurker", "gooType": "unstable",
+                {"typeOrder": ["unstable"], "abilities": [{"id": "goo:unstable_nitro", "gooType": "unstable",
                   "displayName": "%s", "description": "%s", "icon": "", "badge": "world", "order": 10,
                   "draft": true, "leaves": []}]}
                 """.formatted(NAME_KEY, DESCRIPTION_KEY);
@@ -295,7 +295,7 @@ class AbilitiesPaneTest {
             DrawnFrame frame = drawn();
             int iconLeft = VIEW.left() + ControlFlow.INDENT + ControlFlow.RAIL_ADVANCE;
             verify(frame.graphics).blit(any(), eq(AbilityIconTexture.of(
-                    net.minecraft.resources.Identifier.parse("goo:unstable_lurker"), "")), eq(iconLeft), anyInt(),
+                    net.minecraft.resources.Identifier.parse("goo:unstable_nitro"), "")), eq(iconLeft), anyInt(),
                     anyFloat(), anyFloat(), eq(RowLayout.SPRITE_SIZE), eq(RowLayout.SPRITE_SIZE),
                     eq(RowLayout.SPRITE_SIZE), eq(RowLayout.SPRITE_SIZE), anyInt());
             assertTrue(frame.find(NAME).x() >= iconLeft + RowLayout.SPRITE_SIZE, frame.find(NAME).toString());
