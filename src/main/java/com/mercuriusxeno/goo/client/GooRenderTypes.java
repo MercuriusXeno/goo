@@ -1325,41 +1325,6 @@ public final class GooRenderTypes {
             .withCull(false)
             .build();
 
-    /**
-     * A hole's mouth showing the view through it: the far side see-through
-     * over the wall inside a torn, shifting edge
-     * (decision hole-closes-the-space-to-an-opening-ahead).
-     */
-    public static final RenderPipeline GOO_HOLE_VIEW = RenderPipeline.builder(
-                    RenderPipelines.MATRICES_PROJECTION_SNIPPET, RenderPipelines.GLOBALS_SNIPPET)
-            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "goo_hole_view"))
-            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_portal_view"))
-            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_hole_view"))
-            .withSampler("Sampler0")
-            .withVertexFormat(DefaultVertexFormat.POSITION_TEX_LIGHTMAP_COLOR, VertexFormat.Mode.QUADS)
-            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
-            .withDepthStencilState(DepthStencilState.DEFAULT)
-            .withCull(false)
-            .build();
-
-    private static final java.util.function.Function<Identifier, RenderType> GOO_HOLE_VIEW_FACTORY =
-            net.minecraft.util.Util.memoize(view -> RenderType.create("goo_hole_view",
-                    RenderSetup.builder(GOO_HOLE_VIEW)
-                            .withTexture("Sampler0", view)
-                            .setOutputTarget(OutputTarget.MAIN_TARGET)
-                            .createRenderSetup()
-            ));
-
-    /**
-     * Returns the hole view render type over a hole mouth's view texture.
-     *
-     * @param view the view texture's id
-     * @return memoized RenderType
-     */
-    public static RenderType gooHoleView(Identifier view) {
-        return GOO_HOLE_VIEW_FACTORY.apply(view);
-    }
-
     /** The texel buffer each copy of a Zone room reads its translation from. */
     public static final String ROOM_COPY_TRANSLATIONS = "RoomCopyTranslations";
 
@@ -1736,7 +1701,6 @@ public final class GooRenderTypes {
         event.registerPipeline(GOO_PHASE);
         event.registerPipeline(GOO_PORTAL_VIEW);
         event.registerPipeline(GOO_PORTAL_IDLE);
-        event.registerPipeline(GOO_HOLE_VIEW);
         event.registerPipeline(ROOM_COPY_SOLID);
         event.registerPipeline(ROOM_COPY_CUTOUT);
         event.registerPipeline(ROOM_COPY_TRANSLUCENT);

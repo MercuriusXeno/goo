@@ -21,7 +21,8 @@ import java.util.Optional;
  *
  * @param kind           the delivery kind
  * @param blocksPerTick  a beam's speed in blocks per tick, and a scan's wave speed
- * @param range          a stream's reach in blocks, and how far a scan reads along the look
+ * @param range          how far the ability aims and lands, a stream's reach and a scan's read; 0 where
+ *                       it names none (decision each-ability-names-its-range-and-the-shared-throw-range-retires)
  * @param coneDegrees    a stream's cone, apex to rim, in degrees
  * @param ticksPerCharge a stream's ticks of hold one cost pays for
  * @param grannyAllowed  whether an arc may lob onto a top face

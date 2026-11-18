@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:nectar_drip_lays_a_jelly_cell_of_one_layer",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 80,
+  "setup_ticks": 0,
+  "required": true
+}

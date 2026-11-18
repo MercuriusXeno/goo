@@ -129,13 +129,13 @@ public final class StepTypes {
         register(LeafSteps.AGE.type());
         register(MetronomeStep.TYPE);
         register(RelayStep.TYPE);
-        register(ExtendStep.TYPE);
         register(LeafSteps.STUN.type());
         register(SignalWaveStep.TYPE);
         register(TickToggleStep.TYPE);
         register(GluttonyStep.TYPE);
         register(ReserveDrainStep.TYPE);
         register(NectarStep.TYPE);
+        register(NectarGooStep.TYPE);
         register(SealStep.TYPE);
         register(EludeStep.TYPE);
         register(ShriekStep.TYPE);
@@ -171,7 +171,7 @@ public final class StepTypes {
         register(AirbornStep.TYPE);
         register(PneumaStep.TYPE);
         register(UpdraftStep.TYPE);
-        register(LiftStep.TYPE);
+        register(SignalStep.TYPE);
         register(GrabStep.TYPE);
         register(GougeStep.TYPE);
         register(RemoteStep.TYPE);

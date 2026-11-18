@@ -1,5 +1,10 @@
 {
   "variants": {
-    "": { "model": "goo:block/impact_glass" }
+    "": [
+      { "model": "goo:block/impact_glass" },
+      { "model": "goo:block/impact_glass_2" },
+      { "model": "goo:block/impact_glass_3" },
+      { "model": "goo:block/impact_glass_4" }
+    ]
   }
 }

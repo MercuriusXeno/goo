@@ -11,9 +11,8 @@
 // unsnapped, off the texel grid the rim and surface glow keep. frameCoord runs zero to one around the
 // rim, then zero to one across the arch from inside the rim to outside; texels carries how many
 // texels each way runs, around the arch's peak and across it.
-// A hole's mouth wears the same band (decision hole-mouths-wear-the-tornadic-halo): its vertex alpha
-// marks the torn edge, its arch straddles the middle of the tear, and every part of it inside the
-// tear holeTornEdge draws is cut, so the band starts at the tear.
+// A hole's mouth wears the same band over the same clean rim (decisions hole-mouths-wear-the-tornadic-halo,
+// tunnel-drops-its-crisp-wiggly-outline-and-looks-like-the-portals).
 
 in vec2 frameCoord;
 flat in vec2 texels;
@@ -72,13 +71,6 @@ float streakNoise(vec2 at, float period) {
 void main() {
     float around = frameCoord.x;
     float across = frameCoord.y;
-    // How far out this fragment stands as a share of the oval's radius: the arch's peak, plus its
-    // offset across the arch, the arch's texels across over the peak's radius in texels.
-    float peak = mix(1.0, 1.0 - 0.5 * HOLE_TEAR_DEPTH, frameColor.a);
-    float spread = peak + (across - 0.5) * texels.y * TAU / texels.x;
-    if (frameColor.a > 0.5 && spread < holeTornEdge(around * TAU, GameTime)) {
-        discard;
-    }
     float seconds = GameTime * SECONDS_PER_DAY;
     float turned = (around - seconds / BAND_TURN_SECONDS) * BAND_STREAKS_AROUND;
     vec2 at = vec2(turned, across * BAND_STREAK_ROWS + turned * BAND_SLANT);
