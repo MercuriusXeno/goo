@@ -59,6 +59,8 @@ class GooTypeDefinitionTest {
     private static final int WEIRD_COHESION = 4;
     /** Jelly's cohesion, the stiff rung just below firm (operator ruling 2026-11-17). */
     private static final int JELLY_COHESION = 8;
+    /** Metal's cohesion, the soft rung, so a Spikes coat keeps some thickness where it lands (operator ruling 2026-11-17). */
+    private static final int METAL_COHESION = 2;
     /** Leaf's cohesion, the stiff rung Jelly holds (operator ruling 2026-11-17). */
     private static final int LEAF_COHESION = 8;
     private static final int WEIRD_ADHESION = 3;
@@ -284,7 +286,8 @@ class GooTypeDefinitionTest {
 
     /**
      * Every bundled type states a cohesion: weird holds a step of 4, blaze the thick rung of 4, jelly and
-     * leaf the stiff rung of 8, pulse the firm 15, and every other type, kinetic among them, 0.
+     * leaf the stiff rung of 8, metal the soft rung of 2, pulse the firm 15, and every other type, kinetic
+     * among them, 0.
      * cohesion-is-the-step-the-goo-holds
      * blaze-goo-is-adhesion-four-and-cohesion-five
      * signal-goo-sends-a-redstone-signal-equal-to-its-layers
@@ -294,7 +297,7 @@ class GooTypeDefinitionTest {
     void bundledCohesionMatchesDecision(ResourceKey<GooTypeDefinition> key) throws Exception {
         int expected = key == GooTypes.WEIRD ? WEIRD_COHESION : key == GooTypes.BLAZE ? BLAZE_COHESION
                 : key == GooTypes.JELLY ? JELLY_COHESION : key == GooTypes.LEAF ? LEAF_COHESION
-                : key == GooTypes.PULSE ? PULSE_COHESION : 0;
+                : key == GooTypes.PULSE ? PULSE_COHESION : key == GooTypes.METAL ? METAL_COHESION : 0;
         assertEquals(expected, decodeBundled(key).cohesion(), key::toString);
     }
 

@@ -20,7 +20,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -211,6 +210,8 @@ class StepCodecTest {
             Map.entry("float", new FloatStep(Expr.literal(100), Expr.literal(1))),
             Map.entry("updraft", new UpdraftStep(0.5, 0.4, 16, 0.15, 0.35, 0.15, 10)),
             Map.entry("signal", new SignalStep()),
+            Map.entry("spikes", new SpikesStep(List.of(EntityFilter.LIVING), 10, 0.25, List.of(),
+                    SoundCue.of(Identifier.parse("minecraft:item.axe.scrape")), 3)),
             Map.entry("airborn", new AirbornStep(Expr.literal(0.6), Expr.literal(0.4), Expr.literal(0.2),
                     Expr.literal(0.4), Expr.literal(0.5), Expr.literal(1.2), Expr.literal(0.05))),
             Map.entry("pneuma", new PneumaStep(Expr.literal(30), Expr.literal(300), Expr.literal(60))),
@@ -355,7 +356,8 @@ class StepCodecTest {
         // decision bore-and-flatten-json-carry-two-pace-values
         BoreStep bore = AbilityJson.decode("rock_bore").behaviors().stream().filter(BoreStep.class::isInstance)
                 .map(BoreStep.class::cast).findFirst().orElseThrow();
-        assertNotNull(bore.pace());
+        // decision bore-runs-very-slightly-faster
+        assertEquals(new BreakPace(2, 2), bore.pace());
     }
 
     @Test
@@ -363,7 +365,8 @@ class StepCodecTest {
         // decision bore-and-flatten-json-carry-two-pace-values
         LevelStep levelStep = AbilityJson.decode("rock_level").behaviors().stream()
                 .filter(LevelStep.class::isInstance).map(LevelStep.class::cast).findFirst().orElseThrow();
-        assertNotNull(levelStep.pace());
+        // decision level-runs-slightly-faster
+        assertEquals(new BreakPace(4, 1.5), levelStep.pace());
     }
 
     @Test
