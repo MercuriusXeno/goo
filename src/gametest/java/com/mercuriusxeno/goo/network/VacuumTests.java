@@ -218,6 +218,10 @@ public final class VacuumTests {
     private static final String WORLD_GOOS_LEFT = "Every goo on the volume cell should break and return its layers'"
             + " goo: %s";
 
+    private static final String TAKES_NITRO_UP = "vacuum_takes_nitro_up_without_a_blast";
+    private static final String NITRO_NOT_RETURNED = "Vacuum should return %d mb of unstable goo for the Nitro cell,"
+            + " %d mb came back";
+
     private static final String THREE_PARTICLES_PER_LAYER = "vacuum_throws_three_break_particles_per_layer";
     /** The break particles a vacuumed cell throws for each layer it held. */
     private static final int PARTICLES_PER_LAYER = 3;
@@ -260,6 +264,7 @@ public final class VacuumTests {
         GooTestFunctions.registerTest(registrar, RETURNS_THE_LAYERS_PRICE, VacuumTests::vacuumReturnsASlimeCellsLayersPrice);
         GooTestFunctions.registerTest(registrar, RETURNS_THE_SLICKS_PRICE, VacuumTests::vacuumReturnsASlickCellsLayersPrice);
         GooTestFunctions.registerTest(registrar, BREAKS_EVERY_WORLD_GOO, VacuumTests::vacuumBreaksEveryGooOnTheVolumeCell);
+        GooTestFunctions.registerTest(registrar, TAKES_NITRO_UP, VacuumTests::vacuumTakesNitroUpWithoutABlast);
         GooTestFunctions.registerTest(registrar, THREE_PARTICLES_PER_LAYER,
                 VacuumTests::vacuumThrowsThreeBreakParticlesPerLayer);
     }
@@ -344,6 +349,38 @@ public final class VacuumTests {
         helper.runAfterDelay((long) worldGoos.size() * turn, () -> {
             helper.getLevel().getServer().getPlayerList().remove(vacuumer);
             helper.assertTrue(left.isEmpty(), String.format(WORLD_GOOS_LEFT, left));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Vacuum held over a Nitro cell of eleven layers, ringed with dirt on
+     * three sides, takes it up a layer at a time without setting it off:
+     * every dirt block stands, the cell is air, and the unstable goo its
+     * layers cost came back.
+     * vacuum-and-unstable-goo-items-do-not-set-nitro-off
+     *
+     * @param helper the gametest helper
+     */
+    public static void vacuumTakesNitroUpWithoutABlast(GameTestHelper helper) {
+        layTheFloor(helper);
+        helper.setBlock(laneCell(DECAYED - 1).below(), Blocks.STONE_SLAB);
+        BlockPos cell = laneCell(DECAYED);
+        List<BlockPos> ring = List.of(cell.north(), cell.south(), cell.east());
+        ring.forEach(marker -> helper.setBlock(marker, Blocks.DIRT));
+        VolumeCellBlock nitro = GooBlocks.UNSTABLE_NITRO.get();
+        helper.setBlock(cell, nitro.defaultBlockState().setValue(VolumeCellBlock.LAYERS, VACUUMED_LAYERS));
+        ServerPlayer vacuumer = vacuumer(helper);
+        int before = gooReturned(helper, vacuumer, GooTypes.UNSTABLE);
+        int hold = drainHold(helper, DECAYED, VACUUMED_LAYERS);
+        holdVacuum(helper, vacuumer, hold, held -> vacuumer.doTick());
+        helper.runAfterDelay(hold + 1, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(vacuumer);
+            ring.forEach(marker -> assertStands(helper, marker, Blocks.DIRT));
+            assertStands(helper, cell, Blocks.AIR);
+            int returned = gooReturned(helper, vacuumer, GooTypes.UNSTABLE) - before;
+            int owed = ResidualPrices.worldGooRefund(helper, nitro, VACUUMED_LAYERS);
+            helper.assertTrue(returned == owed, String.format(NITRO_NOT_RETURNED, owed, returned));
             helper.succeed();
         });
     }
