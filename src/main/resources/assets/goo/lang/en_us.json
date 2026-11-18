@@ -327,7 +327,7 @@
   "goo.ability.shroom.mycosis.description": "Spray spores that poison, slow and weaken mobs, which burst into spores on death.",
   "goo.ability.shroom.spores": "Spores",
   "goo.ability.shroom.spores.cost_mechanics": "Costs %s per block of Spores laid, a fifteenth of it per layer.",
-  "goo.ability.shroom.spores.description": "Held stream sprays Spores, a fungal goo that poisons, slows and weakens whatever touches it; an infected mob dies into a splash of Spores.",
+  "goo.ability.shroom.spores.description": "Held stream sprays Spores, a fungal goo that puffs spores and buds the ground at its edges, spending a little goo on each bud.",
   "goo.ability.shroom.transmit": "Transmit",
   "goo.ability.shroom.transmit.description": "Near a fungus, move to the fungus block you aim at.",
   "goo.ability.shroom.sight": "Sight",
