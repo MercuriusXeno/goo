@@ -78,22 +78,24 @@ public final class StreamMotes {
     }
 
     /**
-     * Throws one drip of the tick along its share of the cone's fan, at the
+     * Throws one drip of the tick onto its share's spot of the cone, at the
      * launch the server's drip for that share took: it leaves the lifted palm
      * blob and flies its arc until it strikes.
      * goop-and-slick-coat-lands-where-each-drip-arc-strikes
+     * residual-spray-cone-centers-on-the-look-from-the-blob
      *
      * @param mc       the client
      * @param payload  the stream's tick
      * @param particle the drip's particle
-     * @param share    the drip's place in the cone's fan
+     * @param share    the drip's place in the cone
      * @param lead     the share of a tick of flight the drip has flown when thrown
      * @return true where the mote is a spray drip thrown on its arc
      */
     private static boolean throwOnItsArc(Minecraft mc, StreamMotesPayload payload, SimpleParticleType particle,
                                          CoatRay.ConeShare share, double lead) {
         Vec3 apex = payload.apex();
-        Vec3 launch = DripArc.launch(payload.axis(), payload.coneDegrees(), share, payload.throwSpeed());
+        Vec3 launch = payload.cone().launchFrom(apex, payload.coneDegrees(), share, payload.throwSpeed(),
+                DripArc.gravityIn(mc.level.dimension()));
         Particle mote = mc.particleEngine.createParticle(particle, apex.x, apex.y, apex.z, launch.x, launch.y,
                 launch.z);
         if (mote instanceof SprayDripParticle drip) {
