@@ -23,8 +23,13 @@ public final class PhaseLook {
     public static final ContextKey<Boolean> PHASED =
             new ContextKey<>(Identifier.fromNamespaceAndPath(Goo.MODID, "phased"));
 
-    /** The body's alpha while phased, out of 255: under half there. */
-    static final int PHASED_ALPHA = 110;
+    /**
+     * The body's alpha while phased, out of 255: about seven tenths there, a
+     * ghost still plainly the thing it is (operator: "mobs are too
+     * transparent" at 110).
+     * phased-things-draw-as-a-ghostly-image
+     */
+    static final int PHASED_ALPHA = 180;
 
     private PhaseLook() {
     }
