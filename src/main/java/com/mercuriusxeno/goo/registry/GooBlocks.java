@@ -449,6 +449,25 @@ public class GooBlocks {
                     .noLootTable()
                     .pushReaction(PushReaction.DESTROY));
     /**
+     * Mortar: the volume cell bound to Rock's goo, the stony goo Mortar
+     * sprays onto a block's top or clings with to its sides, one to fifteen
+     * layers, ordinary ground underfoot and sounding as goo does, dropping
+     * the rock goo its layers cost through VolumeCellBlock.getDrops, no loot
+     * table (decisions mortar-is-rocks-residual-a-petrification-and-hardening-goo,
+     * each-goo-type-ships-a-world-goo-on-the-volume-cell).
+     */
+    public static final DeferredBlock<VolumeCellBlock> ROCK_MORTAR = BLOCKS.registerBlock(
+            "rock_mortar", properties -> new VolumeCellBlock(properties, CellBinding.MORTAR),
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.STONE)
+                    .friction(CellBinding.MORTAR.surface().friction())
+                    .sound(SoundType.SLIME_BLOCK)
+                    .instabreak()
+                    .noOcclusion()
+                    .replaceable()
+                    .noLootTable()
+                    .pushReaction(PushReaction.DESTROY));
+    /**
      * Prism: the milky quartz crystal Crystal's Prism grows, the host every
      * prism combo grows on (decision prism-blob-becomes-a-milky-quartz-crystal).
      */

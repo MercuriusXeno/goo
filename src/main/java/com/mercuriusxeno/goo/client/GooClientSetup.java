@@ -319,7 +319,8 @@ public final class GooClientSetup {
                 GooBlocks.BLAZE_MOLTEN.get(), GooBlocks.CRYSTAL_SHATTER.get(), GooBlocks.DEEP_HOST.get(),
                 GooBlocks.FROST_RIME.get(), GooBlocks.GLOW_WISPS.get(), GooBlocks.HEX_LEECH.get(),
                 GooBlocks.TYPHOON_UPDRAFT.get(), GooBlocks.JELLY_NECTAR.get(), GooBlocks.PULSE_SIGNAL.get(),
-                GooBlocks.METAL_SPIKES.get(), GooBlocks.NETHER_INFEST.get(), GooBlocks.LEAF_VINES.get())) {
+                GooBlocks.METAL_SPIKES.get(), GooBlocks.NETHER_INFEST.get(), GooBlocks.LEAF_VINES.get(),
+                GooBlocks.ROCK_MORTAR.get())) {
             event.register(VolumeCellTint.sources(cell.binding().gooType(), ClientGooTypes::color), cell);
         }
     }
@@ -404,6 +405,7 @@ public final class GooClientSetup {
      * nectar-is-sprayed-goo-with-a-guided-throw-near-a-mob
      * infest-is-nethers-goo-the-decay-effect-localized-around-the-goo
      * vines-is-sprayed-slime-that-entangles-what-tries-to-cross
+     * mortar-is-rocks-residual-a-petrification-and-hardening-goo
      *
      * @param event the event instance
      */
@@ -438,6 +440,8 @@ public final class GooClientSetup {
                 sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.INFEST_NETHER_REDS));
         event.registerSpriteSet(GooParticles.VINES_SPRAY_DRIP.get(),
                 sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.VINES_LEAF_GREENS));
+        event.registerSpriteSet(GooParticles.MORTAR_SPRAY_DRIP.get(),
+                sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.MORTAR_ROCK_GRAYS));
     }
 
     /**
