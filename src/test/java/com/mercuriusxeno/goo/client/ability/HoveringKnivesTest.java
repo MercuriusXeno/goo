@@ -6,6 +6,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Knives' hovering pyramid on the client: a new knife spawns at the cube's
@@ -26,21 +27,6 @@ class HoveringKnivesTest {
     @AfterEach
     void clearTheFans() {
         HoveringKnives.clear();
-    }
-
-    @Test
-    void aNewKnifeStartsAtTheCubesTopAndRisesToItsSlot() {
-        HoveringKnives.formed(CASTER, 3, 0);
-        HoveringKnives.formed(CASTER, 4, 9);
-        HoveringKnives.Fan fan = HoveringKnives.fanOf(CASTER);
-
-        Vec3 top = StackHover.pointOf(CUBE, PITCH, YAW, StackHover.spawnSlot(3, 10));
-        assertEquals(0, top.distanceTo(HoveringKnives.knifeAt(fan, 3, CUBE, PITCH, YAW, 0)), WITHIN);
-        assertEquals(0f, HoveringKnives.knifeScaleAt(fan, 3, 0), 1e-6f, "the knife grows out of the cube");
-        Vec3 slot = StackHover.pointOf(CUBE, PITCH, YAW, StackHover.knifeSlot(3, 4));
-        assertEquals(0, slot.distanceTo(HoveringKnives.knifeAt(fan, 3, CUBE, PITCH, YAW,
-                HoveringKnives.EASE_TICKS)), WITHIN);
-        assertEquals(1f, HoveringKnives.knifeScaleAt(fan, 3, HoveringKnives.EASE_TICKS), 1e-6f);
     }
 
     @Test
@@ -113,5 +99,46 @@ class HoveringKnivesTest {
         ClientPalmBuffers.synced(CASTER, 20, 2, 20, 0);
         HoveringKnives.formed(CASTER, StackHover.KNIVES, 0);
         assertEquals(0.464f, LiftedPalmBlob.stackShareOf(CASTER, 100), 0.001f);
+        ClientPalmBuffers.clear();
+    }
+
+    // weapons-form-from-a-goo-cuboid-leaving-the-palm-blob: the cuboid leaves the blob and becomes the knife at its slot
+    @Test
+    void aFormingKnifeStartsAsTheCuboidAtTheBlobAndEndsAsTheKnifeAtItsSlot() {
+        HoveringKnives.formed(CASTER, 1, 0);
+        HoveringKnives.Fan fan = HoveringKnives.fanOf(CASTER);
+        assertEquals(0, CUBE.distanceTo(HoveringKnives.knifeAt(fan, 0, CUBE, PITCH, YAW, 0)), WITHIN,
+                "the cuboid starts at the blob");
+        assertEquals(0f, HoveringKnives.knifeScaleAt(fan, 0, 0), 1e-6f, "no knife shape at the first frame");
+        assertEquals(0.5f, HoveringKnives.knifeScaleAt(fan, 0, HoveringKnives.EASE_TICKS / 2), 1e-6f,
+                "half formed midway");
+        Vec3 slot = StackHover.pointOf(CUBE, PITCH, YAW, StackHover.knifeSlot(0, 1));
+        assertEquals(0, slot.distanceTo(HoveringKnives.knifeAt(fan, 0, CUBE, PITCH, YAW, 6)), WITHIN,
+                "settled at its slot 6 ticks on");
+        assertEquals(1f, HoveringKnives.knifeScaleAt(fan, 0, 6), 1e-6f, "the knife whole 6 ticks on");
+        float before = -1f;
+        for (double age = 0; age <= 6; age += 0.25) {
+            float weight = HoveringKnives.knifeScaleAt(fan, 0, age);
+            assertTrue(weight >= before, "the knife's weight should only rise, " + weight + " after " + before);
+            before = weight;
+        }
+    }
+
+    // weapons-form-from-a-goo-cuboid-leaving-the-palm-blob: the blob shrinks by ease as the cuboid leaves
+    @Test
+    void theBlobShrinksByEaseAsTheCuboidLeaves() {
+        ClientPalmBuffers.synced(CASTER, 182, 2, 182, 0);
+        HoveringKnives.formed(CASTER, 1, 0);
+        float before = Float.MAX_VALUE;
+        java.util.List<Float> volumes = new java.util.ArrayList<>();
+        for (double age = 0; age <= 6; age += 0.25) {
+            float edge = LiftedPalmBlob.stackShareOf(CASTER, age);
+            float volume = edge * edge * edge;
+            assertTrue(volume <= before + 1e-6f, "the blob should never grow as the cuboid leaves, " + volumes);
+            volumes.add(volume);
+            before = volume;
+        }
+        assertEquals(1f, volumes.getFirst(), 1e-4f, "the blob starts at its volume before");
+        assertEquals(0.91f, volumes.getLast(), 1e-4f, "and ends a knife's share less");
         ClientPalmBuffers.clear();
     }}

@@ -29,25 +29,6 @@ class HeldJavelinsTest {
         HeldJavelins.clear();
     }
 
-    @Test
-    void aFormingJavelinStartsAtTheCubesTopAndRisesToItsSlot() {
-        HeldJavelins.formed(CASTER, 1, 0);
-        HeldJavelins.formed(CASTER, 2, 10);
-        HeldJavelins.Stack stack = HeldJavelins.stackOf(CASTER);
-
-        Vec3 top = StackHover.pointOf(CUBE, PITCH, YAW, StackHover.spawnSlot(1, StackHover.JAVELINS));
-        assertEquals(0, top.distanceTo(HeldJavelins.javelinAt(stack, 1, CUBE, PITCH, YAW, 0)), WITHIN);
-        Vec3 slot = StackHover.pointOf(CUBE, PITCH, YAW, StackHover.javelinSlot(1, 2));
-        assertEquals(0, slot.distanceTo(HeldJavelins.javelinAt(stack, 1, CUBE, PITCH, YAW,
-                HeldJavelins.EASE_TICKS)), WITHIN);
-        Vec3 first = StackHover.pointOf(CUBE, PITCH, YAW, StackHover.javelinSlot(0, 1));
-        assertEquals(0, first.distanceTo(HeldJavelins.javelinAt(stack, 0, CUBE, PITCH, YAW, 0)), WITHIN,
-                "a javelin formed before the change starts where it stood alone");
-        Vec3 shifted = StackHover.pointOf(CUBE, PITCH, YAW, StackHover.javelinSlot(0, 2));
-        assertEquals(0, shifted.distanceTo(HeldJavelins.javelinAt(stack, 0, CUBE, PITCH, YAW,
-                HeldJavelins.EASE_TICKS)), WITHIN, "and eases sideways as the pile widens");
-    }
-
     // dart-javelins-hover-over-the-shrinking-blob-cube: the server throws each javelin from the slot it hovers at
     @Test
     void eachJavelinIsThrownFromTheSlotItHoversAt() {
@@ -86,5 +67,32 @@ class HeldJavelinsTest {
         ClientPalmBuffers.synced(CASTER, 20, 2, 20, 0);
         HeldJavelins.formed(CASTER, StackHover.JAVELINS, 0);
         assertEquals(0.464f, LiftedPalmBlob.stackShareOf(CASTER, 100), 0.001f);
+        ClientPalmBuffers.clear();
+    }
+
+    // weapons-form-from-a-goo-cuboid-leaving-the-palm-blob: the cuboid leaves the blob and becomes the javelin
+    @Test
+    void aFormingJavelinStartsAsTheCuboidAtTheBlobAndEndsAsTheJavelinAtItsSlot() {
+        HeldJavelins.formed(CASTER, 1, 0);
+        HeldJavelins.Stack stack = HeldJavelins.stackOf(CASTER);
+        assertEquals(0, CUBE.distanceTo(HeldJavelins.javelinAt(stack, 0, CUBE, PITCH, YAW, 0)), WITHIN,
+                "the cuboid starts at the blob");
+        assertEquals(0f, HeldJavelins.javelinDrawnScaleAt(stack, 0, 0), 1e-6f, "no javelin shape at the first frame");
+        assertEquals(0.5f, HeldJavelins.javelinDrawnScaleAt(stack, 0, 5), 1e-6f, "half formed midway, 5 ticks on");
+        Vec3 slot = StackHover.pointOf(CUBE, PITCH, YAW, StackHover.javelinSlot(0, 1));
+        assertEquals(0, slot.distanceTo(HeldJavelins.javelinAt(stack, 0, CUBE, PITCH, YAW, 10)), WITHIN,
+                "settled at its slot 10 ticks on");
+        assertEquals(1f, HeldJavelins.javelinDrawnScaleAt(stack, 0, 10), 1e-6f, "the javelin whole 10 ticks on");
+    }
+
+    // weapons-form-from-a-goo-cuboid-leaving-the-palm-blob: the blob shrinks by ease as the cuboid leaves
+    @Test
+    void theBlobShrinksByEaseAsTheCuboidLeaves() {
+        ClientPalmBuffers.synced(CASTER, 140, 2, 140, 0);
+        HeldJavelins.formed(CASTER, 1, 0);
+        float first = LiftedPalmBlob.stackShareOf(CASTER, 0);
+        float last = LiftedPalmBlob.stackShareOf(CASTER, 10);
+        assertEquals(1f, first * first * first, 1e-4f, "the blob starts at its volume before");
+        assertEquals(0.7f, last * last * last, 1e-4f, "and ends a javelin's share less");
         ClientPalmBuffers.clear();
     }}

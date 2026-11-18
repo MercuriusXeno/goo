@@ -193,4 +193,13 @@ class StackHoverTest {
                 }
             }
         }
+    }
+
+    // palm-blob-and-cutaway-cuboid-size-by-the-buffers-volume: a cuboid holds its weapon's share of the full blob
+    @org.junit.jupiter.api.Test
+    void theCutawayCuboidHoldsItsWeaponsShareOfTheFullBlob() {
+        double knife = StackHover.cuboidEdgeOf(StackHover.KNIVES) / StackHover.FULL_EDGE;
+        double javelin = StackHover.cuboidEdgeOf(JAVELINS) / StackHover.FULL_EDGE;
+        assertEquals(0.09, knife * knife * knife, 1e-6, "a knife's cuboid");
+        assertEquals(0.30, javelin * javelin * javelin, 1e-6, "a javelin's cuboid");
     }}

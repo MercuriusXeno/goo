@@ -390,7 +390,8 @@ public final class LiftedPalmBlob {
     static float stackShareOf(int casterId, double now) {
         // palm-blob-and-cutaway-cuboid-size-by-the-buffers-volume: the cube draws at the buffer's fill, by volume
         if (ClientPalmBuffers.holdsABuffer(casterId)) {
-            return (float) (StackHover.edgeAtFill(ClientPalmBuffers.fillAt(casterId, now)) / StackHover.edgeAtFill(1));
+            double fill = ClientPalmBuffers.fillAt(casterId, now) + leavingShareOf(casterId, now);
+            return (float) (StackHover.edgeAtFill(fill) / StackHover.edgeAtFill(1));
         }
         HoveringKnives.Fan fan = HoveringKnives.fanOf(casterId);
         if (fan != null) {
@@ -399,6 +400,32 @@ public final class LiftedPalmBlob {
         HeldJavelins.Stack stack = HeldJavelins.stackOf(casterId);
         return stack == null ? 1f
                 : easedShare(stack.previous(), stack.count(), StackHover.JAVELINS, now - stack.changedAt());
+    }
+
+    /**
+     * The share of the blob a forming weapon's cuboid has still to carry away:
+     * the share the server took as the weapon formed, given back to the drawn
+     * blob and eased away as the cuboid leaves it, so the blob shrinks by ease
+     * and blob and cuboid together hold one volume throughout.
+     * decision weapons-form-from-a-goo-cuboid-leaving-the-palm-blob
+     *
+     * @param casterId the caster's entity id
+     * @param now      the game time, with the frame's partial tick
+     * @return the share still leaving, 0 to 1
+     */
+    static double leavingShareOf(int casterId, double now) {
+        HoveringKnives.Fan fan = HoveringKnives.fanOf(casterId);
+        if (fan != null) {
+            double age = now - fan.changedAt();
+            return Math.max(0, fan.count() - fan.previous()) * StackHover.shareOf(StackHover.KNIVES)
+                    * (1 - HoveringKnives.easedAt(age));
+        }
+        HeldJavelins.Stack stack = HeldJavelins.stackOf(casterId);
+        if (stack == null) {
+            return 0;
+        }
+        return Math.max(0, stack.count() - stack.previous()) * StackHover.shareOf(StackHover.JAVELINS)
+                * (1 - HeldJavelins.formedAt(now - stack.changedAt()));
     }
 
     /**

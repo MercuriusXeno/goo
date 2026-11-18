@@ -87,9 +87,9 @@ class StackInViewTest {
         HeldJavelins.formed(CASTER, StackHover.JAVELINS, 0);
         HeldJavelins.Stack stack = HeldJavelins.stackOf(CASTER);
         for (int index = 0; index < StackHover.JAVELINS; index++) {
-            Vec3 tail = HeldJavelins.javelinAt(stack, index, cube, PITCH, YAW, SETTLED);
+            Vec3 tail = HeldJavelins.javelinAt(stack, index, cube, PITCH, YAW, HeldJavelins.FORM_TICKS);
             Vec3 heading = ThrownKnife.headingFrom(tail, crosshair());
-            float scale = HeldJavelins.javelinDrawnScaleAt(stack, index, SETTLED);
+            float scale = HeldJavelins.javelinDrawnScaleAt(stack, index, HeldJavelins.FORM_TICKS);
             Vec3 middle = ThrownKnife.drawnFromOf(tail, heading, true, scale);
             assertEquals(1f, scale, WITHIN, "javelin " + index + " should hover at its thrown size");
             assertEquals(0, middle.subtract(tail).subtract(heading.scale(TravelForm.DART.fins().sweep())).length(),
