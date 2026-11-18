@@ -11,12 +11,18 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.Identifier;
+import net.minecraft.tags.BlockTags;
+import net.minecraft.tags.TagKey;
 import net.minecraft.world.level.block.AmethystClusterBlock;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.RandomState;
 import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
@@ -34,6 +40,12 @@ public final class LunarZoneTests {
     private static final String LUNAR_WARRENS_TWIST_THROUGH_SCULK = "lunar_warrens_twist_through_sculk";
     private static final String LUNAR_RUBBLE_CAVES_HOLD_NATIVE_IRON_LODES = "lunar_rubble_caves_hold_native_iron_lodes";
     private static final String LUNAR_MIDDLE_CAVERNS_GROW_ASTRAL_CRYSTAL = "lunar_middle_caverns_grow_astral_crystal";
+    private static final String LUNAR_WARRENS_HOLD_DIAMOND_GOLD_AND_ANCIENT_DEBRIS =
+            "lunar_warrens_hold_diamond_gold_and_ancient_debris";
+    /** Vanilla's stone and deepslate ore tags, none of whose vanilla blocks generate on lunar. */
+    private static final List<TagKey<Block>> VANILLA_ORE_TAGS = List.of(BlockTags.COAL_ORES, BlockTags.IRON_ORES,
+            BlockTags.COPPER_ORES, BlockTags.GOLD_ORES, BlockTags.REDSTONE_ORES, BlockTags.LAPIS_ORES,
+            BlockTags.DIAMOND_ORES, BlockTags.EMERALD_ORES);
     /** The most astral crystal one chunk holds on average, so a cluster stays a find. */
     private static final int ASTRAL_CRYSTAL_CEILING_PER_CHUNK = 8;
     /** How many chunks from the origin a deposit scan reaches each way. */
@@ -70,6 +82,11 @@ public final class LunarZoneTests {
     private static final String NO_ASTRAL_CRYSTAL_OUTSIDE = "The shallow zone and the warrens over %d chunks should "
             + "hold no astral crystal, hold %d, the first at %s";
     private static final String CRYSTAL_ON_ROCK = "The astral crystal at %s should grow from rock, grows from %s";
+    private static final String WARRENS_HOLD_ORE = "The warrens over %d chunks should hold %s, hold none";
+    private static final String NO_WARREN_ORE_ABOVE = "The bands over the warrens across %d chunks should hold no "
+            + "diamond, gold or ancient debris, hold %d, the first at %s";
+    private static final String NO_VANILLA_ORE = "Lunar over %d chunks should generate no vanilla stone or deepslate "
+            + "ore, generates %d, the first %s at %s";
     private static final String CAVE_IS_OPEN = "The rubble cave column %s should read air at y %d, reads %s";
     private static final String CAVE_IN_BRECCIA = "The rubble cave column %s should read breccia %s the cave at y %d, "
             + "reads %s";
@@ -93,6 +110,8 @@ public final class LunarZoneTests {
                 LunarZoneTests::lunarRubbleCavesHoldNativeIronLodes);
         GooTestFunctions.registerTest(registrar, LUNAR_MIDDLE_CAVERNS_GROW_ASTRAL_CRYSTAL,
                 LunarZoneTests::lunarMiddleCavernsGrowAstralCrystal);
+        GooTestFunctions.registerTest(registrar, LUNAR_WARRENS_HOLD_DIAMOND_GOLD_AND_ANCIENT_DEBRIS,
+                LunarZoneTests::lunarWarrensHoldDiamondGoldAndAncientDebris);
     }
 
     /**
@@ -274,6 +293,73 @@ public final class LunarZoneTests {
                 String.format(ASTRAL_CRYSTAL_IN_MIDDLE_BAND, chunks, ceiling, middle));
         helper.assertTrue(outside == 0, String.format(NO_ASTRAL_CRYSTAL_OUTSIDE, chunks, outside, firstOutside));
         helper.succeed();
+    }
+
+    /**
+     * Scans a square of chunks in goo:lunar from its floor to its top: the warrens' band holds lunar diamond ore, lunar
+     * gold ore and ancient debris, the bands over it hold none of the three, and no band holds a vanilla stone or
+     * deepslate ore.
+     * decision lunar-rock-holds-diamond-gold-and-ancient-debris
+     *
+     * @param helper the gametest helper
+     */
+    public static void lunarWarrensHoldDiamondGoldAndAncientDebris(GameTestHelper helper) {
+        ServerLevel lunar = helper.getLevel().getServer().getLevel(Lunar.LEVEL);
+        helper.assertTrue(lunar != null, LUNAR_REQUIRED);
+        List<Block> warrenOres = List.of(GooBlocks.LUNAR_DIAMOND_ORE.get(), GooBlocks.LUNAR_GOLD_ORE.get(),
+                Blocks.ANCIENT_DEBRIS);
+        int[] inWarrens = new int[warrenOres.size()];
+        int above = 0;
+        BlockPos firstAbove = null;
+        int vanilla = 0;
+        BlockPos firstVanilla = null;
+        BlockState firstVanillaState = null;
+        BlockPos.MutableBlockPos at = new BlockPos.MutableBlockPos();
+        int top = LunarDepths.WORLD_FLOOR_Y + LunarDepths.WORLD_HEIGHT;
+        for (int chunkX = -DEPOSIT_CHUNK_REACH; chunkX < DEPOSIT_CHUNK_REACH; chunkX++) {
+            for (int chunkZ = -DEPOSIT_CHUNK_REACH; chunkZ < DEPOSIT_CHUNK_REACH; chunkZ++) {
+                lunar.getChunk(chunkX, chunkZ);
+                for (int x = chunkX * 16; x < chunkX * 16 + 16; x++) {
+                    for (int z = chunkZ * 16; z < chunkZ * 16 + 16; z++) {
+                        for (int y = LunarDepths.WORLD_FLOOR_Y; y < top; y++) {
+                            BlockState state = lunar.getBlockState(at.set(x, y, z));
+                            int ore = warrenOres.indexOf(state.getBlock());
+                            if (ore >= 0 && y >= LunarDepths.SEA_ZONE_TOP_Y && y < LunarDepths.WARREN_ZONE_TOP_Y) {
+                                inWarrens[ore]++;
+                            } else if (ore >= 0 && y >= LunarDepths.WARREN_ZONE_TOP_Y) {
+                                above++;
+                                firstAbove = firstAbove == null ? at.immutable() : firstAbove;
+                            }
+                            if (isVanillaOre(state)) {
+                                vanilla++;
+                                firstVanilla = firstVanilla == null ? at.immutable() : firstVanilla;
+                                firstVanillaState = firstVanillaState == null ? state : firstVanillaState;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        int chunks = 4 * DEPOSIT_CHUNK_REACH * DEPOSIT_CHUNK_REACH;
+        for (int ore = 0; ore < warrenOres.size(); ore++) {
+            helper.assertTrue(inWarrens[ore] > 0, String.format(WARRENS_HOLD_ORE, chunks, warrenOres.get(ore)));
+        }
+        helper.assertTrue(above == 0, String.format(NO_WARREN_ORE_ABOVE, chunks, above, firstAbove));
+        helper.assertTrue(vanilla == 0, String.format(NO_VANILLA_ORE, chunks, vanilla, firstVanillaState,
+                firstVanilla));
+        helper.succeed();
+    }
+
+    private static boolean isVanillaOre(BlockState state) {
+        if (!BuiltInRegistries.BLOCK.getKey(state.getBlock()).getNamespace().equals(Identifier.DEFAULT_NAMESPACE)) {
+            return false;
+        }
+        for (TagKey<Block> tag : VANILLA_ORE_TAGS) {
+            if (state.is(tag)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static void assertGrowsFromRock(GameTestHelper helper, ServerLevel lunar, BlockPos crystal,
