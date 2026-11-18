@@ -45,6 +45,7 @@ public final class WispFlood {
     private final double growth;
     private final int litSteps;
     private final double density;
+    private final int clearSteps;
     private double edge;
     private final Deque<BlockPos> frontier = new ArrayDeque<>();
     private final LongOpenHashSet visited = new LongOpenHashSet();
@@ -73,11 +74,30 @@ public final class WispFlood {
      * @param density  the chance, from 0 to 1, that a dark, sighted cell the walk reaches takes a wisp
      */
     public WispFlood(BlockPos origin, double range, double growth, int litSteps, double density) {
+        this(origin, range, growth, litSteps, density, CLEAR_OF_THE_EYES);
+    }
+
+    /**
+     * Starts a flood at a cell, placing no wisp within a number of steps of
+     * it: a holder's eyes keep their clear steps, and a Wisps cell shedding
+     * from its own spot keeps none, so a one-layer cell's short reach still
+     * holds a cell to shed toward.
+     * wisps-goo-sheds-a-wisp-toward-nearby-dark
+     *
+     * @param origin     the cell the flood starts at
+     * @param range      how far from the origin a cell may be, in blocks
+     * @param growth     how many blocks the edge grows each tick it walks; zero or less reaches the range at once
+     * @param litSteps   how many steps out a placed wisp's light keeps a cell lit
+     * @param density    the chance, from 0 to 1, that a dark, sighted cell the walk reaches takes a wisp
+     * @param clearSteps how many steps out from the origin no wisp is placed
+     */
+    public WispFlood(BlockPos origin, double range, double growth, int litSteps, double density, int clearSteps) {
         this.origin = origin.immutable();
         this.range = range;
         this.growth = growth;
         this.litSteps = litSteps;
         this.density = density;
+        this.clearSteps = clearSteps;
         frontier.add(this.origin);
         visited.add(this.origin.asLong());
     }
@@ -94,7 +114,7 @@ public final class WispFlood {
      * @return the flood from there
      */
     public WispFlood movedTo(BlockPos eyes) {
-        WispFlood moved = new WispFlood(eyes, range, growth, litSteps, density);
+        WispFlood moved = new WispFlood(eyes, range, growth, litSteps, density, clearSteps);
         moved.edge = edge;
         // a wisp left past the new flood's reach lights none of its cells, so the walk forgets it
         double kept = range + litSteps;
@@ -183,7 +203,7 @@ public final class WispFlood {
     }
 
     private boolean takes(BlockPos cell, Cells cells, RandomSource random) {
-        return cell.distManhattan(origin) > CLEAR_OF_THE_EYES && !litByThisFlood(cell)
+        return cell.distManhattan(origin) > clearSteps && !litByThisFlood(cell)
                 && picks(cell, cells, random, density);
     }
 
