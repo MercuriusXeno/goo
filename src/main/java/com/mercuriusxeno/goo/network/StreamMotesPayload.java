@@ -29,9 +29,11 @@ import org.jspecify.annotations.NonNull;
  *                    server's drip flies; {@link com.mercuriusxeno.goo.ability.Delivery#NO_THROW_SPEED} for motes
  *                    off the arc
  * @param strikesLiving whether a drawn drip ends on a living thing it meets, as the server's drip does
+ * @param held        the hold's tick the drips were thrown on, which seeds their places in the cone
+ * @param drips       the drips the server threw this tick, each drawn on its own arc; 0 for motes off the arc
  */
 public record StreamMotesPayload(int casterId, Vec3 apex, Vec3 axis, Identifier particle, double coneDegrees,
-                                 double speed, double throwSpeed, boolean strikesLiving)
+                                 double speed, double throwSpeed, boolean strikesLiving, int held, int drips)
         implements CustomPacketPayload {
 
     /** Payload type ID for registration. */
@@ -48,6 +50,8 @@ public record StreamMotesPayload(int casterId, Vec3 apex, Vec3 axis, Identifier 
             ByteBufCodecs.DOUBLE, StreamMotesPayload::speed,
             ByteBufCodecs.DOUBLE, StreamMotesPayload::throwSpeed,
             ByteBufCodecs.BOOL, StreamMotesPayload::strikesLiving,
+            ByteBufCodecs.VAR_INT, StreamMotesPayload::held,
+            ByteBufCodecs.VAR_INT, StreamMotesPayload::drips,
             StreamMotesPayload::new);
 
     @Override

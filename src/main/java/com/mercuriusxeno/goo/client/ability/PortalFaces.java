@@ -80,10 +80,10 @@ public final class PortalFaces {
      */
     static final double HALO_MARGIN = 0.5;
     /**
-     * A halo vertex's alpha marks the edge its oval draws, which the halo
-     * shader starts from: none for a portal's clean oval, whole for a hole
-     * mouth's torn edge. The halo's strength is the shader's own.
+     * How far in from its blocks' edges a Tunnel mouth's oval stands on each
+     * way across the face, in blocks: two texels, as the operator set it.
      */
+    static final double MOUTH_INSET = 2.0 / 16;
     /**
      * How far the swirl band's arch peaks out of the wall along the face's
      * normal, right over its line, in blocks: one sixteenth, as the operator
@@ -114,17 +114,8 @@ public final class PortalFaces {
     private static final int BAND_RINGS = 6;
     /** How many segments each of the band's rings runs around the rim in, enough that it draws round. */
     private static final int BAND_SEGMENTS = 64;
-    /**
-     * Where a hole mouth's band arches over, as a share of the oval's
-     * radius: the middle of the mouth's tear, one less half HOLE_TEAR_DEPTH
-     * in portal_texels.glsl, so the band reaches the tear wherever the tear
-     * stands, and the swirl band shader cuts what lies inside it.
-     */
-    private static final double TORN_MIDDLE = 0.92;
     /** The three in Ramanujan's reckoning of an oval's perimeter. */
     private static final double RAMANUJAN_THREE = 3;
-    static final int CLEAN_EDGE = 0;
-    static final int TORN_EDGE = 255;
 
     private PortalFaces() {
     }
@@ -146,16 +137,34 @@ public final class PortalFaces {
      *
      * @param gate a portal's frame or a hole's mouth
      * @param rgb  its color, 0xRRGGBB
-     * @param hole whether it is a hole's mouth, drawn see-through with a torn edge
+     * @param hole whether it is a hole's mouth, grown open as a hole's mouth grows, drawn as a portal is
      */
     record Drawn(Gate gate, int rgb, boolean hole) {
 
         /**
+         * The box the gate's oval fills on its face: a portal's whole blocks,
+         * a hole's mouth its blocks drawn in by the mouth inset each way
+         * across the face, so a Tunnel mouth stands shy of its blocks' edges.
+         * The space a body passes through stays the whole blocks.
+         * tunnel-drops-its-crisp-wiggly-outline-and-looks-like-the-portals
+         *
+         * @return the oval's box, in world space
+         */
+        AABB ovalBox() {
+            if (!hole) {
+                return gate.blocks();
+            }
+            Direction.Axis normal = gate.face().getAxis();
+            return gate.blocks().deflate(normal == Direction.Axis.X ? 0 : MOUTH_INSET,
+                    normal == Direction.Axis.Y ? 0 : MOUTH_INSET, normal == Direction.Axis.Z ? 0 : MOUTH_INSET);
+        }
+
+        /**
          * @param camera the camera's position
-         * @return the blocks the gate covers, camera-relative, shrunk as it grows open
+         * @return the box the gate's oval fills, camera-relative, shrunk as it grows open
          */
         AABB drawnBox(Vec3 camera) {
-            AABB box = gate.blocks().move(camera.reverse());
+            AABB box = ovalBox().move(camera.reverse());
             float partialTick = Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(false);
             // a portal, as a hole's mouth, grows in from nothing to its size as it is placed
             float grown = hole ? ClientHoles.grownOpen(gate, partialTick) : ClientPortals.grownOpen(gate, partialTick);
@@ -316,7 +325,9 @@ public final class PortalFaces {
     }
 
     /**
-     * Draws the view through each gate that drew one this frame, inside its oval.
+     * Draws the view through each gate that drew one this frame, inside its
+     * oval, a hole's mouth through the portals' own view.
+     * tunnel-drops-its-crisp-wiggly-outline-and-looks-like-the-portals
      *
      * @param pose    the pose
      * @param buffers the frame's buffers
@@ -327,8 +338,7 @@ public final class PortalFaces {
             List<Drawn> gates) {
         for (Drawn drawn : gates) {
             PortalView.viewOf(drawn.gate()).ifPresent(view -> {
-                // hole-closes-the-space-to-an-opening-ahead
-                RenderType type = drawn.hole() ? GooRenderTypes.gooHoleView(view) : GooRenderTypes.gooPortalView(view);
+                RenderType type = GooRenderTypes.gooPortalView(view);
                 emitOval(pose, buffers.getBuffer(type), drawn.drawnBox(camera), drawn.gate().face(),
                         ARGB.color(OPAQUE, drawn.rgb()));
                 buffers.endBatch(type);
@@ -455,11 +465,11 @@ public final class PortalFaces {
 
     /**
      * Emits the swirl band of every gate the frame draws, each portal and
-     * each of a hole's two mouths, beside its surface glow, in its own color.
-     * A mouth's edge is marked torn and its band arches over the middle of
-     * its tear, so the shader starts it at the tear.
+     * each of a hole's two mouths, beside its surface glow, in its own color,
+     * a mouth's arching over its rim as a portal's does.
      * tornadic-halo-spirals-out-from-the-rim
      * hole-mouths-wear-the-tornadic-halo
+     * tunnel-drops-its-crisp-wiggly-outline-and-looks-like-the-portals
      *
      * @param pose     the pose
      * @param consumer the swirl band pipeline's vertex consumer
@@ -469,7 +479,7 @@ public final class PortalFaces {
     static void emitSwirlBands(PoseStack.Pose pose, VertexConsumer consumer, List<Drawn> gates,
             Function<Drawn, AABB> boxOf) {
         for (Drawn drawn : gates) {
-            emitSwirlBand(pose, consumer, Arch.of(drawn, boxOf), colorOf(drawn), false);
+            emitSwirlBand(pose, consumer, Arch.of(drawn, boxOf), ARGB.opaque(drawn.rgb()), false);
         }
     }
 
@@ -488,16 +498,8 @@ public final class PortalFaces {
     static void emitSleeves(PoseStack.Pose pose, VertexConsumer consumer, List<Drawn> gates,
             Function<Drawn, AABB> boxOf) {
         for (Drawn drawn : gates) {
-            emitSwirlBand(pose, consumer, Arch.of(drawn, boxOf), colorOf(drawn), true);
+            emitSwirlBand(pose, consumer, Arch.of(drawn, boxOf), ARGB.opaque(drawn.rgb()), true);
         }
-    }
-
-    /**
-     * @param drawn a gate the frame draws
-     * @return its swirl band's packed ARGB color, its alpha the edge mark
-     */
-    private static int colorOf(Drawn drawn) {
-        return ARGB.color(drawn.hole() ? TORN_EDGE : CLEAN_EDGE, drawn.rgb());
     }
 
     /**
@@ -514,7 +516,7 @@ public final class PortalFaces {
      * @param pose     the pose
      * @param consumer the vertex consumer
      * @param arch     the arch over the gate's rim
-     * @param color    the packed ARGB color, its alpha the edge mark
+     * @param color    the packed ARGB color
      * @param sleeve   whether to emit the sleeve rather than the arch
      */
     private static void emitSwirlBand(PoseStack.Pose pose, VertexConsumer consumer, Arch arch, int color,
@@ -543,29 +545,20 @@ public final class PortalFaces {
      * @param center the oval's middle on the face's plane, lifted off it
      * @param side   the face
      * @param half   the oval's half size across the face's first way, then its second
-     * @param base   where the arch peaks, as a share of the oval's radius
      */
-    private record Arch(Vec3 center, Direction side, double[] half, double base) {
-
-        /**
-         * @param box  the gate's blocks, camera-relative
-         * @param side the face
-         * @param base where the arch peaks, as a share of the oval's radius
-         * @return the arch
-         */
-        static Arch over(AABB box, Direction side, double base) {
-            Vec3 middle = cornerOf(box, side, 0, 0).add(cornerOf(box, side, 1, 1)).scale(HALF_WAVE);
-            return new Arch(middle, side, new double[] {(box.max(firstAxisOf(side)) - box.min(firstAxisOf(side)))
-                    * HALF_WAVE, (box.max(secondAxisOf(side)) - box.min(secondAxisOf(side))) * HALF_WAVE}, base);
-        }
+    private record Arch(Vec3 center, Direction side, double[] half) {
 
         /**
          * @param drawn a gate the frame draws
          * @param boxOf the box each gate draws over, camera-relative
-         * @return the arch over its rim, over the middle of its tear for a hole's mouth
+         * @return the arch over its rim
          */
         static Arch of(Drawn drawn, Function<Drawn, AABB> boxOf) {
-            return over(boxOf.apply(drawn), drawn.gate().face(), drawn.hole() ? TORN_MIDDLE : 1);
+            AABB box = boxOf.apply(drawn);
+            Direction side = drawn.gate().face();
+            Vec3 middle = cornerOf(box, side, 0, 0).add(cornerOf(box, side, 1, 1)).scale(HALF_WAVE);
+            return new Arch(middle, side, new double[] {(box.max(firstAxisOf(side)) - box.min(firstAxisOf(side)))
+                    * HALF_WAVE, (box.max(secondAxisOf(side)) - box.min(secondAxisOf(side))) * HALF_WAVE});
         }
 
         /**
@@ -595,8 +588,8 @@ public final class PortalFaces {
         private Vec3 around(int segment, double off) {
             double angle = Mth.TWO_PI * segment / BAND_SEGMENTS;
             double out = off - BAND_INSET;
-            return center.add(Vec3.ZERO.with(firstAxisOf(side), (half[0] * base + out) * Math.cos(angle))
-                    .with(secondAxisOf(side), (half[1] * base + out) * Math.sin(angle)));
+            return center.add(Vec3.ZERO.with(firstAxisOf(side), (half[0] + out) * Math.cos(angle))
+                    .with(secondAxisOf(side), (half[1] + out) * Math.sin(angle)));
         }
 
         /**
@@ -605,8 +598,8 @@ public final class PortalFaces {
          *         rim to outside, at sixteen a block
          */
         int[] texels() {
-            double first = half[0] * base;
-            double second = half[1] * base;
+            double first = half[0];
+            double second = half[1];
             double around = Math.PI * (RAMANUJAN_THREE * (first + second) - Math.sqrt((RAMANUJAN_THREE * first
                     + second) * (first + RAMANUJAN_THREE * second)));
             return new int[] {(int) Math.round(around * TEXELS_PER_BLOCK),
@@ -618,8 +611,7 @@ public final class PortalFaces {
      * Emits the surface glow onto every block face forming a tight corner
      * around a gate's mouth: each full solid face standing in front of the
      * gate's wall, bordering its box on the left, the right, below or above,
-     * and facing the mouth, lit in the gate's own color, a mouth's carrying
-     * the torn edge's mark. Each quad runs from the wall out the halo margin
+     * and facing the mouth, lit in the gate's own color. Each quad runs from the wall out the halo margin
      * along the face, and its face coordinate unfolds the face past the wall
      * quad's edge, so the halo shader reads how far past as the height off
      * the wall and fades by true distance from the rim.
@@ -636,10 +628,12 @@ public final class PortalFaces {
             Function<Drawn, AABB> boxOf, BiPredicate<BlockPos, Direction> fullFace) {
         for (Drawn drawn : gates) {
             AABB world = drawn.gate().blocks();
-            Vec3 shift = boxOf.apply(drawn).getCenter().subtract(world.getCenter());
+            AABB box = boxOf.apply(drawn);
+            Vec3 shift = box.getCenter().subtract(world.getCenter());
+            AABB oval = box.move(shift.reverse());
             for (Corner corner : cornersOf(world, drawn.gate().face(), fullFace)) {
-                emitCornerGlow(pose, consumer, new CornerQuad(world, drawn.gate().face(), corner, shift),
-                        ARGB.color(drawn.hole() ? TORN_EDGE : CLEAN_EDGE, drawn.rgb()));
+                emitCornerGlow(pose, consumer, new CornerQuad(world, oval, drawn.gate().face(), corner, shift),
+                        ARGB.opaque(drawn.rgb()));
             }
         }
     }
@@ -688,7 +682,7 @@ public final class PortalFaces {
      * @param pose     the pose
      * @param consumer the vertex consumer
      * @param quad     the corner's quad
-     * @param color    the packed ARGB color, its alpha the edge mark
+     * @param color    the packed ARGB color
      */
     private static void emitCornerGlow(PoseStack.Pose pose, VertexConsumer consumer, CornerQuad quad, int color) {
         int[][] corners = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
@@ -707,16 +701,20 @@ public final class PortalFaces {
      * toward the mouth, running along the block and out from the wall.
      *
      * @param world  the gate's blocks
+     * @param oval   the box the gate's oval fills, in world space, inside its blocks for a hole's mouth
      * @param side   the gate's face
      * @param corner the corner block and the way out to it
      * @param shift  what moves world positions to where the frame draws them
      */
-    private record CornerQuad(AABB world, Direction side, Corner corner, Vec3 shift) {
+    private record CornerQuad(AABB world, AABB oval, Direction side, Corner corner, Vec3 shift) {
 
-        /** @return the gate's halo quad's box, whose face coordinate the corner unfolds past */
+        /**
+         * @return the gate's halo quad's box, whose face coordinate the corner
+         *         unfolds past, reaching the halo margin past the oval
+         */
         AABB halo() {
             Direction.Axis normal = side.getAxis();
-            return world.inflate(normal == Direction.Axis.X ? 0 : HALO_MARGIN,
+            return oval.inflate(normal == Direction.Axis.X ? 0 : HALO_MARGIN,
                     normal == Direction.Axis.Y ? 0 : HALO_MARGIN, normal == Direction.Axis.Z ? 0 : HALO_MARGIN);
         }
 
@@ -769,9 +767,10 @@ public final class PortalFaces {
 
     /**
      * Emits the halo of every gate the frame draws, each portal and each of
-     * a hole's two mouths, in its own color, a mouth's edge marked torn.
+     * a hole's two mouths, in its own color, around the same clean oval.
      * portal-halo-glows-additively-onto-the-wall
      * hole-mouths-wear-the-portal-halo
+     * tunnel-drops-its-crisp-wiggly-outline-and-looks-like-the-portals
      *
      * @param pose     the pose
      * @param consumer the halo pipeline's vertex consumer
@@ -781,7 +780,7 @@ public final class PortalFaces {
     static void emitHalos(PoseStack.Pose pose, VertexConsumer consumer, List<Drawn> gates,
             Function<Drawn, AABB> boxOf) {
         for (Drawn drawn : gates) {
-            emitHalo(pose, consumer, boxOf.apply(drawn), drawn.gate().face(), drawn.rgb(), drawn.hole());
+            emitHalo(pose, consumer, boxOf.apply(drawn), drawn.gate().face(), drawn.rgb());
         }
     }
 
@@ -830,14 +829,12 @@ public final class PortalFaces {
      * @param box      the gate's blocks, camera-relative
      * @param side     the face
      * @param rgb      the gate's color, 0xRRGGBB
-     * @param torn     whether the gate is a hole's mouth, its edge torn
      */
-    private static void emitHalo(PoseStack.Pose pose, VertexConsumer consumer, AABB box, Direction side, int rgb,
-            boolean torn) {
+    private static void emitHalo(PoseStack.Pose pose, VertexConsumer consumer, AABB box, Direction side, int rgb) {
         Direction.Axis normal = side.getAxis();
         AABB halo = box.inflate(normal == Direction.Axis.X ? 0 : HALO_MARGIN, normal == Direction.Axis.Y ? 0 : HALO_MARGIN,
                 normal == Direction.Axis.Z ? 0 : HALO_MARGIN);
-        emitOval(pose, consumer, halo, side, ARGB.color(torn ? TORN_EDGE : CLEAN_EDGE, rgb));
+        emitOval(pose, consumer, halo, side, ARGB.opaque(rgb));
     }
 
     /**
