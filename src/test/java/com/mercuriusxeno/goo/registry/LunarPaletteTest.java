@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import static com.mercuriusxeno.goo.registry.SpritePixels.gooBlock;
 import static com.mercuriusxeno.goo.registry.SpritePixels.storedArgb;
@@ -67,15 +68,29 @@ class LunarPaletteTest {
             new PaletteColor(0xadc1d0, "crater_ice"),
             new PaletteColor(0x9cb3c4, "crater_ice"),
             new PaletteColor(0xc9ccd1, "meteoric_iron glint"),
-            new PaletteColor(0x1d1e21, "impact_glass"),
-            new PaletteColor(0x121315, "impact_glass"));
+            new PaletteColor(0x1d1e21, "impact_glass and native_iron"),
+            new PaletteColor(0x121315, "impact_glass"),
+            new PaletteColor(0x47494e, "native_iron"),
+            new PaletteColor(0x5d6065, "native_iron"),
+            new PaletteColor(0x696c71, "native_iron"),
+            new PaletteColor(0x7d8085, "native_iron"),
+            new PaletteColor(0x9ea2a8, "native_iron"),
+            new PaletteColor(0xc0c4c9, "native_iron"),
+            new PaletteColor(0xd0d3d7, "native_iron"),
+            new PaletteColor(0xe2e5e8, "native_iron"));
 
     /**
      * A ground block's sprites: its own and the variants its blockstate picks among per block, sharing one border band.
      * decision lunar-repaints-are-picked-from-drafts-on-a-page
      */
     static List<String> variantsOf(String block) {
-        return List.of(block, block + "_2", block + "_3", block + "_4");
+        return variantsOf(block, 4);
+    }
+
+    /** A block's sprites when its blockstate picks among some count of variants: its own, then _2 onward. */
+    static List<String> variantsOf(String block, int count) {
+        return Stream.concat(Stream.of(block), IntStream.rangeClosed(2, count).mapToObj(k -> block + "_" + k))
+                .toList();
     }
 
     /** The ground blocks' variants, which the mark tests read. */
@@ -86,8 +101,8 @@ class LunarPaletteTest {
      * The landform blocks' variants, each picked from drafts beside the ground blocks.
      * decision lunar-repaints-are-picked-from-drafts-on-a-page
      */
-    static final List<String> LANDFORM_SPRITES = Stream.of("meteoric_iron", "impact_glass", "breccia", "crater_ice")
-            .flatMap(block -> variantsOf(block).stream()).toList();
+    static final List<String> LANDFORM_SPRITES = Stream.concat(Stream.of("meteoric_iron", "impact_glass", "breccia",
+            "crater_ice").flatMap(block -> variantsOf(block).stream()), variantsOf("native_iron", 6).stream()).toList();
 
     /** The sprites under assets/goo/textures/block/ held to the palette: every lunar block's variants. */
     static final List<String> LUNAR_SPRITES = Stream.of(GROUND_SPRITES.stream(), Stream.of("iron_core"),
