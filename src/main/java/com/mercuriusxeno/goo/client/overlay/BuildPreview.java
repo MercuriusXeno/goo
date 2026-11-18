@@ -1,50 +1,69 @@
 package com.mercuriusxeno.goo.client.overlay;
 
-import com.mercuriusxeno.goo.ability.SpireFootprint;
+import com.mercuriusxeno.goo.ability.BuildFootprint;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 
 /**
- * What Spire's preview draws: the ripple echo's rings across the footprint's
+ * What Build's preview draws: the ripple echo's rings across the footprint's
  * ground cells, the tops the stone grows from, each ring the footprint's own
  * outline scaled from its center, over a steady outline of its edge; and once the footprint is fixed the ghost
  * stone filling every cell the rise would fill above them, only its outer
  * faces, so no seam shows between its blocks.
  * decision spire-previews-as-a-surface-ripple-and-ghost-stone
  */
-final class SpirePreview {
+final class BuildPreview {
 
     /** How far above the ground the rings float, so they never fight the ground's own face. */
     static final double RING_LIFT = 0.02;
     private static final double HALF = 0.5;
 
-    private SpirePreview() {
+    private BuildPreview() {
     }
 
     /**
      * One ring of the ripple echo at a phase: the footprint's outline scaled
-     * from its center by the ring's phase (RippleRings), lying just above the
-     * ground, closed on its first corner.
+     * from its center by the ring's phase (RippleRings), lying just off the
+     * face the footprint lies on, closed on its first corner.
+     * decision build-goes-sideways
      *
      * @param footprint the live footprint
      * @param phase     the ring's phase, 0 at the center to 1 at the footprint's edge
-     * @return the ring's corners, north-west, south-west, south-east, north-east, then north-west again
+     * @return the ring's corners, closed on the first; on the ground north-west, south-west, south-east, north-east
      */
-    static Vec3[] ringCorners(SpireFootprint footprint, double phase) {
+    static Vec3[] ringCorners(BuildFootprint footprint, double phase) {
+        Direction face = footprint.face();
+        Direction.Axis normal = face.getAxis();
+        Direction.Axis[] across = Arrays.stream(Direction.Axis.VALUES).filter(axis -> axis != normal)
+                .toArray(Direction.Axis[]::new);
         BlockPos min = footprint.min();
         BlockPos max = footprint.max();
-        double centerX = (min.getX() + max.getX() + 1) * HALF;
-        double centerZ = (min.getZ() + max.getZ() + 1) * HALF;
-        double halfX = RippleRings.ringRadius(phase, (max.getX() + 1 - min.getX()) * HALF);
-        double halfZ = RippleRings.ringRadius(phase, (max.getZ() + 1 - min.getZ()) * HALF);
-        double y = min.getY() + 1 + RING_LIFT;
-        Vec3 northWest = new Vec3(centerX - halfX, y, centerZ - halfZ);
-        return new Vec3[] {northWest, new Vec3(centerX - halfX, y, centerZ + halfZ),
-            new Vec3(centerX + halfX, y, centerZ + halfZ), new Vec3(centerX + halfX, y, centerZ - halfZ), northWest};
+        double[] center = new double[across.length];
+        double[] half = new double[across.length];
+        for (int i = 0; i < across.length; i++) {
+            center[i] = (min.get(across[i]) + max.get(across[i]) + 1) * HALF;
+            half[i] = RippleRings.ringRadius(phase, (max.get(across[i]) + 1 - min.get(across[i])) * HALF);
+        }
+        boolean outward = face.getAxisDirection() == Direction.AxisDirection.POSITIVE;
+        double plane = outward ? max.get(normal) + 1 + RING_LIFT : min.get(normal) - RING_LIFT;
+        Vec3 first = pointOn(normal, plane, across, center[0] - half[0], center[1] - half[1]);
+        return new Vec3[] {first, pointOn(normal, plane, across, center[0] - half[0], center[1] + half[1]),
+            pointOn(normal, plane, across, center[0] + half[0], center[1] + half[1]),
+            pointOn(normal, plane, across, center[0] + half[0], center[1] - half[1]), first};
+    }
+
+    private static Vec3 pointOn(Direction.Axis normal, double plane, Direction.Axis[] across, double u, double v) {
+        double[] point = new double[Direction.Axis.VALUES.length];
+        point[normal.ordinal()] = plane;
+        point[across[0].ordinal()] = u;
+        point[across[1].ordinal()] = v;
+        return new Vec3(point[Direction.Axis.X.ordinal()], point[Direction.Axis.Y.ordinal()],
+                point[Direction.Axis.Z.ordinal()]);
     }
 
     /**
@@ -54,7 +73,7 @@ final class SpirePreview {
      * @param footprint the live footprint
      * @return the edge's corners, closed on its first
      */
-    static Vec3[] edgeOutline(SpireFootprint footprint) {
+    static Vec3[] edgeOutline(BuildFootprint footprint) {
         return ringCorners(footprint, 1);
     }
 
@@ -105,22 +124,22 @@ final class SpirePreview {
      * @param footprint the live footprint
      * @return the ground cells
      */
-    static List<BlockPos> rippleCells(SpireFootprint footprint) {
+    static List<BlockPos> rippleCells(BuildFootprint footprint) {
         return footprint.groundCells();
     }
 
     /**
-     * The cells the ghost stone fills: above each ground cell, from the cell
-     * on top of it up through the rise.
+     * The cells the ghost stone fills: out from each ground cell along its
+     * face's normal, from the cell in front of it out through the rise.
      *
      * @param footprint the footprint, at its rise
      * @return the cells, column by column
      */
-    static List<BlockPos> ghostCells(SpireFootprint footprint) {
+    static List<BlockPos> ghostCells(BuildFootprint footprint) {
         List<BlockPos> cells = new ArrayList<>();
         for (BlockPos ground : footprint.groundCells()) {
             for (int height = 1; height <= footprint.rise(); height++) {
-                cells.add(ground.above(height));
+                cells.add(ground.relative(footprint.face(), height));
             }
         }
         return cells;

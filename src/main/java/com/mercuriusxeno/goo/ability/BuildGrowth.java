@@ -6,30 +6,36 @@ import com.mercuriusxeno.goo.data.IRemainderLedger;
 import com.mercuriusxeno.goo.data.RemainderLedger;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.block.state.BlockState;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalInt;
 
 /**
- * What a Spire grows and what it costs: stone fills the cells above each
- * footprint cell, from one above the ground through the rise, and the ground
- * stays as it stood. A column grows only where every cell it would fill can
- * be replaced; the rest of the footprint grows nothing and costs nothing.
+ * What a Build grows and what it costs: each footprint column reaches down
+ * as far as it rises and lifts the blocks it reached by the rise on stone
+ * grown in the cells they leave (BuildColumn). A column grows only where
+ * every cell above the ground the rise fills can be replaced; the rest of
+ * the footprint grows nothing and costs nothing. A footprint on a wall
+ * reaches into the wall and pushes out along its normal the same way.
+ * decision build-goes-sideways
  * The goo spent is the ability's exact per-block price for every stone block
  * grown, charged through the caster's ledger. The client prices its preview
  * through the same plan the server grows by.
  * decision spire-grows-stone-out-of-the-top
+ * decision build-reaches-down-as-far-as-it-rises-and-lifts-the-ground-on-stone
  * decision spire-cost-field-prices-each-cubic-meter-of-stone-at-mundane-block
  * decision melt-and-fabricate-move-the-exact-value-through-a-remainder-buffer
  *
  * @param footprint the footprint at the rise planned
- * @param columns   the ground cells whose columns grow
+ * @param columns   the columns that grow
  * @param exactCost the exact goo the stone grown costs
  */
-public record SpireGrowth(SpireFootprint footprint, List<BlockPos> columns, GooFraction exactCost) {
+public record BuildGrowth(BuildFootprint footprint, List<BuildColumn> columns, GooFraction exactCost) {
 
     /**
      * Plans a footprint's growth at its rise.
@@ -39,15 +45,16 @@ public record SpireGrowth(SpireFootprint footprint, List<BlockPos> columns, GooF
      * @param pricePerBlock the exact goo each stone block grown costs, the ability's cost resolved in its type
      * @return the plan, empty of columns where nothing can grow
      */
-    public static SpireGrowth plan(BlockGetter blocks, SpireFootprint footprint, GooFraction pricePerBlock) {
-        List<BlockPos> columns = new ArrayList<>();
+    public static BuildGrowth plan(BlockGetter blocks, BuildFootprint footprint, GooFraction pricePerBlock) {
+        List<BuildColumn> columns = new ArrayList<>();
         for (BlockPos ground : footprint.groundCells()) {
-            if (columnOpen(blocks, ground, footprint.rise())) {
-                columns.add(ground);
+            if (columnOpen(blocks, ground, footprint.rise(), footprint.face())) {
+                columns.add(BuildColumn.reaching(ground, footprint.rise(), footprint.face(),
+                        cell -> carriable(blocks, cell)));
             }
         }
         GooFraction cost = pricePerBlock.times((long) columns.size() * footprint.rise());
-        return new SpireGrowth(footprint, List.copyOf(columns), cost);
+        return new BuildGrowth(footprint, List.copyOf(columns), cost);
     }
 
     /**
@@ -63,11 +70,11 @@ public record SpireGrowth(SpireFootprint footprint, List<BlockPos> columns, GooF
      * @param holdings      the mB of that type the caster holds
      * @return the plan, or empty where no rise grows a column the holdings pay for
      */
-    public static Optional<SpireGrowth> affordable(BlockGetter blocks, SpireFootprint footprint,
+    public static Optional<BuildGrowth> affordable(BlockGetter blocks, BuildFootprint footprint,
                                                    GooFraction pricePerBlock, ResourceKey<GooTypeDefinition> gooType,
                                                    GooRemainders remainders, int holdings) {
-        for (int rise = footprint.rise(); rise >= SpireFootprint.MIN_RISE; rise--) {
-            SpireGrowth growth = plan(blocks, footprint.withRise(rise), pricePerBlock);
+        for (int rise = footprint.rise(); rise >= BuildBounds.MIN_RISE; rise--) {
+            BuildGrowth growth = plan(blocks, footprint.withRise(rise), pricePerBlock);
             // decision melt-and-fabricate-move-the-exact-value-through-a-remainder-buffer
             boolean paidFor = new RemainderLedger(remainders).debitExact(gooType, growth.exactCost(), holdings)
                     .isPresent();
@@ -101,9 +108,24 @@ public record SpireGrowth(SpireFootprint footprint, List<BlockPos> columns, GooF
         return ledger.debitExact(gooType, exactCost, holdings);
     }
 
-    private static boolean columnOpen(BlockGetter blocks, BlockPos ground, int rise) {
+    /**
+     * Whether the rising hunk can carry the block in a cell: one a hand can
+     * break and holding no block entity, inside the world; bedrock stops a
+     * column's reach, and so does a chest, whose contents the hunk cannot hold.
+     * decision build-reaches-down-as-far-as-it-rises-and-lifts-the-ground-on-stone
+     *
+     * @param blocks the world
+     * @param cell   the cell
+     * @return true where the hunk can carry its block
+     */
+    static boolean carriable(BlockGetter blocks, BlockPos cell) {
+        BlockState state = blocks.getBlockState(cell);
+        return cell.getY() >= blocks.getMinY() && !state.hasBlockEntity() && state.getDestroySpeed(blocks, cell) >= 0;
+    }
+
+    private static boolean columnOpen(BlockGetter blocks, BlockPos ground, int rise, Direction face) {
         for (int height = 1; height <= rise; height++) {
-            if (!blocks.getBlockState(ground.above(height)).canBeReplaced()) {
+            if (!blocks.getBlockState(ground.relative(face, height)).canBeReplaced()) {
                 return false;
             }
         }

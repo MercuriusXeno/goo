@@ -142,7 +142,7 @@ class StepCodecTest {
             Map.entry("bore", new BoreStep(TagKey.create(Registries.BLOCK,
                     Identifier.fromNamespaceAndPath("goo", "bore_breakable")), new BreakPace(5, 1.5), new BoreDrillShape(0.6, 3, 10, 1), List.of(),
                     List.of())),
-            Map.entry("spire", new SpireStep()),
+            Map.entry("build", new BuildStep(16, 16)),
             Map.entry("petrify", new PetrifyStep(Expr.literal(2))),
             Map.entry("drain_petrify", new DrainPetrifyStep(Expr.literal(2.5))),
             Map.entry("wake_statue", new WakeStatueStep()),
