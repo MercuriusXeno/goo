@@ -91,6 +91,7 @@
   "goo.type.weird": "Weird",
   "goo.type.xeno": "Xeno",
   "goo.type.yore": "Yore",
+  "goo.type.zombie": "Zombie",
   "goo.type.zoo": "Zoo",
   "goo.type.untyped": "Untyped",
 
@@ -106,6 +107,7 @@
   "effect.goo.unstable_held": "Unstable",
   "effect.goo.void_held": "Emptiness",
   "effect.goo.weird_held": "Bounce",
+  "effect.goo.zombie_held": "Rotting",
   "effect.goo.zoo_held": "Menagerie",
   "effect.goo.mycosis": "Mycosis",
   "effect.goo.bio_toxin": "Bio Toxin",

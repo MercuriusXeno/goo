@@ -49,7 +49,7 @@ class GooTypePickerTest {
     @Test
     void everyTypeTakesACellOfASevenByFourGrid() {
         List<GooTypePicker.Cell> cells = new GooTypePicker(TYPES).cells();
-        assertEquals(26, cells.size());
+        assertEquals(TYPES.size(), cells.size());
         assertEquals(TYPES, cells.stream().map(GooTypePicker.Cell::type).toList());
         assertEquals(6, cells.stream().mapToInt(GooTypePicker.Cell::column).max().orElseThrow());
         assertEquals(3, cells.stream().mapToInt(GooTypePicker.Cell::row).max().orElseThrow());
@@ -105,7 +105,7 @@ class GooTypePickerTest {
         AtomicReference<String> picked = new AtomicReference<>();
         GooTypePicker picker = opened(targets, picked, null);
         GooTypePicker.Cell close = picker.closeCell();
-        assertEquals(new GooTypePicker.Cell(GooTypePicker.CLOSE, 5, 3), close);
+        assertEquals(cellAfterTheTypes(GooTypePicker.CLOSE, 0), close);
         assertTrue(targets.click(centerX(close), centerY(close)));
         assertFalse(picker.isOpen());
     }
@@ -119,10 +119,27 @@ class GooTypePickerTest {
         AtomicReference<String> picked = new AtomicReference<>();
         AtomicReference<Boolean> chose = new AtomicReference<>(false);
         GooTypePicker picker = opened(targets, picked, () -> chose.set(true));
-        GooTypePicker.Cell nothing = new GooTypePicker.Cell(GooTypePicker.NOTHING, 6, 3);
+        GooTypePicker.Cell nothing = cellAfterTheTypes(GooTypePicker.NOTHING, 1);
         assertTrue(targets.click(centerX(nothing), centerY(nothing)));
         assertTrue(chose.get());
         assertFalse(picker.isOpen());
+    }
+
+    /**
+     * Where every type, the close cell and the no-goo-type cell pass 7 by 4, the grid grows a fifth row to hold them,
+     * and without the no-goo-type cell it keeps its 4 (operator ruling 2026-11-18: "grow a 5th row").
+     */
+    @Test
+    void gridGrowsAFifthRowWhereItsCellsPassSevenByFour() {
+        GooTypePicker picker = new GooTypePicker(GooTypes.BUNDLED.stream().map(GooTypes::id).limit(27).toList());
+        assertEquals(5, picker.rows(true));
+        assertEquals(4, picker.rows(false));
+    }
+
+    // The cell standing the given places past the last type, row by row on a grid 7 wide.
+    private static GooTypePicker.Cell cellAfterTheTypes(String name, int past) {
+        int index = TYPES.size() + past;
+        return new GooTypePicker.Cell(name, index % GooTypePicker.COLUMNS, index / GooTypePicker.COLUMNS);
     }
 
     /**
@@ -148,13 +165,15 @@ class GooTypePickerTest {
         GooTypePicker picker = new GooTypePicker(TYPES);
         picker.open();
         picker.fitRows(2);
-        picker.scroll(-1);
-        picker.scroll(-1);
-        picker.scroll(-1);
-        assertEquals(2, picker.firstRow());
+        for (int turn = 0; turn < GooTypePicker.MAX_ROWS; turn++) {
+            picker.scroll(-1);
+        }
+        int lastFirst = picker.rows(true) - 2;
+        assertEquals(lastFirst, picker.firstRow());
         picker.layTargets(targets, LEFT, TOP, picked::set, null);
         GooTypePicker.Cell close = picker.closeCell();
-        assertTrue(targets.click(LEFT + close.column() * GooTypePicker.CELL + 1, TOP + GooTypePicker.CELL + 1));
+        assertTrue(targets.click(LEFT + close.column() * GooTypePicker.CELL + 1,
+                TOP + (close.row() - lastFirst) * GooTypePicker.CELL + 1));
         assertFalse(picker.isOpen());
     }
 
@@ -171,7 +190,7 @@ class GooTypePickerTest {
         picker.open(Set.of(), Set.of(disabled));
         DrawnFrame frame = new DrawnFrame();
         AtomicReference<String> picked = new AtomicReference<>();
-        picker.draw(frame.graphics, DrawnFrame.font(), frame.targets, LEFT, TOP, GooTypePicker.ROWS, picked::set,
+        picker.draw(frame.graphics, DrawnFrame.font(), frame.targets, LEFT, TOP, picker.rows(false), picked::set,
                 null);
         verify(frame.graphics).blit(any(), eq(GooTypeIcons.texture(disabled)), anyInt(), anyInt(), anyFloat(),
                 anyFloat(), anyInt(), anyInt(), anyInt(), anyInt(), eq(Palette.DISABLED));

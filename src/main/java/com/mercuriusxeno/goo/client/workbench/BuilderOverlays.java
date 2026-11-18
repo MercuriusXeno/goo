@@ -37,7 +37,6 @@ final class BuilderOverlays {
     private static final int EVERYWHERE = 100_000;
     private static final int EVERYWHERE_SPAN = EVERYWHERE + EVERYWHERE;
     private static final int GRID_WIDTH = GooTypePicker.COLUMNS * GooTypePicker.CELL;
-    private static final int GRID_HEIGHT = GooTypePicker.ROWS * GooTypePicker.CELL;
     // The search box, the pixel under it and the list's bottom border.
     private static final int DROPDOWN_CHROME = BOX_HEIGHT + 1 + 1;
     private static final int OPTION_ROW = ButtonPainter.HEIGHT;
@@ -126,12 +125,13 @@ final class BuilderOverlays {
 
     /**
      * @param at           where the opening control was clicked
+     * @param rows         the rows the grid fills
      * @param screenWidth  the screen's width
      * @param screenHeight the screen's height
      * @return where the goo type picker's grid stands
      */
-    static Placement placePicker(Anchor at, int screenWidth, int screenHeight) {
-        return place(at, GRID_WIDTH + 1, GRID_HEIGHT + 1, screenWidth, screenHeight);
+    static Placement placePicker(Anchor at, int rows, int screenWidth, int screenHeight) {
+        return place(at, GRID_WIDTH + 1, rows * GooTypePicker.CELL + 1, screenWidth, screenHeight);
     }
 
     /**
@@ -583,7 +583,7 @@ final class BuilderOverlays {
 
     private void drawPicker(GuiGraphicsExtractor graphics, Font font, ClickTargets targets) {
         Runnable nothing = pickerNothing;
-        Placement grid = placePicker(opener, lastScreenWidth, lastScreenHeight);
+        Placement grid = placePicker(opener, picker.rows(nothing != null), lastScreenWidth, lastScreenHeight);
         int gridRows = Math.max(1, (grid.height() - 1) / GooTypePicker.CELL);
         int gridTop = drawnTop(grid, opener, gridRows * GooTypePicker.CELL + 1);
         picker.draw(graphics, font, targets, grid.left(), gridTop, gridRows, type -> {

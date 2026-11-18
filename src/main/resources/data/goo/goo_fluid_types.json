@@ -605,6 +605,30 @@
     ]
   },
   {
+    "id": "zombie",
+    "seed": 41011,
+    "genParams": {
+      "viscosity": 1.5,
+      "decayRate": 0.04,
+      "ignitionChance": 0.006,
+      "ignitionStrength": 1.2,
+      "potHeatRate": 0.01,
+      "potInfluence": 0.85,
+      "neighborhoodReach": 1
+    },
+    "frametime": 3,
+    "shadowHue": 0.25,
+    "palette": [
+      { "position": 0.0, "color": "#1F1A0C" },
+      { "position": 0.2, "color": "#3B2C14" },
+      { "position": 0.4, "color": "#5E4428" },
+      { "position": 0.55, "color": "#3C5E2C" },
+      { "position": 0.7, "color": "#4A7234" },
+      { "position": 0.85, "color": "#56843E" },
+      { "position": 1.0, "color": "#7AA85A" }
+    ]
+  },
+  {
     "id": "zoo",
     "seed": 40977,
     "genParams": {
