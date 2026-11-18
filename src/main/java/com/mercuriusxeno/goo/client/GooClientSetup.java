@@ -320,7 +320,7 @@ public final class GooClientSetup {
                 GooBlocks.FROST_RIME.get(), GooBlocks.GLOW_WISPS.get(), GooBlocks.HEX_LEECH.get(),
                 GooBlocks.TYPHOON_UPDRAFT.get(), GooBlocks.JELLY_NECTAR.get(), GooBlocks.PULSE_SIGNAL.get(),
                 GooBlocks.METAL_SPIKES.get(), GooBlocks.NETHER_INFEST.get(), GooBlocks.LEAF_VINES.get(),
-                GooBlocks.SHROOM_MYCOSIS.get())) {
+                GooBlocks.SHROOM_SPORES.get())) {
             event.register(VolumeCellTint.sources(cell.binding().gooType(), ClientGooTypes::color), cell);
         }
     }
@@ -440,8 +440,8 @@ public final class GooClientSetup {
                 sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.INFEST_NETHER_REDS));
         event.registerSpriteSet(GooParticles.VINES_SPRAY_DRIP.get(),
                 sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.VINES_LEAF_GREENS));
-        event.registerSpriteSet(GooParticles.MYCOSIS_SPRAY_DRIP.get(),
-                sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.MYCOSIS_SHROOM_PURPLES));
+        event.registerSpriteSet(GooParticles.SPORES_SPRAY_DRIP.get(),
+                sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.SPORES_SHROOM_PURPLES));
     }
 
     /**
