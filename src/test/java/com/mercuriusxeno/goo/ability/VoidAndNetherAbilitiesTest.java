@@ -16,9 +16,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
- * Hole is the one Void ability named Hole, and Nether ships Decay and Undead alone; reads the
+ * Hole is the one Void ability named Hole, and Nether ships Decay, Undead and Tartarus; reads the
  * shipped ability files and en_us.json through the classpath.
  * decision anti-moves-from-nether-to-void
+ * decision tartarus-summons-a-gate-to-the-nether-like-end-and-zone
  */
 class VoidAndNetherAbilitiesTest {
 
@@ -48,12 +49,12 @@ class VoidAndNetherAbilitiesTest {
     }
 
     @Test
-    void netherShipsDecayAndUndead() {
+    void netherShipsDecayUndeadAndTartarus() {
         Set<String> nether = AbilityJson.files().stream().map(AbilityJson::decode)
                 .filter(ability -> ability.gooType() == GooTypes.NETHER)
                 .map(ability -> ability.id().getPath())
                 .collect(Collectors.toSet());
 
-        assertEquals(Set.of("nether_decay", "nether_undead"), nether);
+        assertEquals(Set.of("nether_decay", "nether_undead", "nether_tartarus"), nether);
     }
 }
