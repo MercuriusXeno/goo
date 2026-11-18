@@ -104,17 +104,21 @@ public final class GooTrailParticles {
      * @param pos      the blob's world position
      * @param heading  the blob's unit heading, which places the fog behind it
      * @param velocity the blob's velocity, blocks per tick
-     * @param type     the goo type
+     * @param rgb      the trail's color, 0xRRGGBB: the shot's portal color
      */
-    public static void spawnShotTrail(Vec3 pos, Vec3 heading, Vec3 velocity, ResourceKey<GooTypeDefinition> type) {
-        if (Minecraft.getInstance().level != null) {
-            spawnTrailAt(pos, new TrailMotion(heading, velocity), type);
+    public static void spawnShotTrail(Vec3 pos, Vec3 heading, Vec3 velocity, int rgb) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level != null) {
+            spawnTrailIn(mc, pos, new TrailMotion(heading, velocity), rgb);
         }
     }
 
     private static void spawnTrailAt(Vec3 pos, TrailMotion motion, ResourceKey<GooTypeDefinition> type) {
         Minecraft mc = Minecraft.getInstance();
-        int color = GooColors.get(mc.level.registryAccess(), type);
+        spawnTrailIn(mc, pos, motion, GooColors.get(mc.level.registryAccess(), type));
+    }
+
+    private static void spawnTrailIn(Minecraft mc, Vec3 pos, TrailMotion motion, int color) {
         spawnDripParticle(mc, pos, motion.blobVelocity(), color);
         spawnFogParticles(mc, pos, motion, color);
     }

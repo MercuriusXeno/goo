@@ -7,7 +7,6 @@
   "delivery": { "kind": "spontaneous", "range": 32 },
   "area": { "shape": "line" },
   "behaviors": [
-    { "type": "scan_visual", "visual": "quantum_blob" },
     { "type": "sound", "id": "minecraft:block.respawn_anchor.charge", "at": "host", "source": "blocks", "volume": 1, "pitch": 1.2 },
     { "type": "quantum_portal" }
   ],

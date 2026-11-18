@@ -5,9 +5,14 @@ import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.GloveButton;
 import com.mercuriusxeno.goo.ability.ThrowRange;
 import com.mercuriusxeno.goo.ability.program.PortalStep;
+import com.mercuriusxeno.goo.network.CastDart;
+import com.mercuriusxeno.goo.network.EntityVisuals;
 import com.mercuriusxeno.goo.network.GooThrowHandler;
 import com.mercuriusxeno.goo.network.GooThrowPayload;
 import com.mercuriusxeno.goo.network.PalmBlobChargePayload;
+import com.mercuriusxeno.goo.throwing.ThrowArc;
+import net.minecraft.core.Direction;
+import net.minecraft.core.GlobalPos;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ClipContext;
@@ -54,11 +59,49 @@ public final class PortalShots {
         if (portal.isEmpty() || shot.gate().isPresent()) {
             return;
         }
+        PortalColor color = PortalColor.pressedBy(button);
         alongTheLook(player, shot, ThrowRange.of(portal.get())).ifPresent(cast -> {
-            casting(player.getUUID(), PortalColor.pressedBy(button), () -> GooThrowHandler.execute(player, cast));
+            casting(player.getUUID(), color, () -> GooThrowHandler.execute(player, cast));
             // operator UAT 2026-11-17: the palm blob hops as it shoots, for the players watching too
             PalmBlobChargePayload.sendLift(player);
+            if (opened(player, cast, color)) {
+                dartTheShot(player, cast, color);
+            }
         });
+    }
+
+    /**
+     * Whether a shot opened its portal: the shooter's portal of its color now
+     * covers the face it struck.
+     *
+     * @param player the shooting player
+     * @param cast   the cast at the struck face
+     * @param color  the shot's color
+     * @return true where the portal opened
+     */
+    private static boolean opened(ServerPlayer player, GooThrowPayload cast, PortalColor color) {
+        Direction face = GooThrowHandler.directionFromOrdinal(cast.targetFace());
+        QuantumPortals portals = QuantumPortals.get(player.level());
+        return face != null && portals.portalAt(GlobalPos.of(player.level().dimension(), cast.targetPos()), face)
+                .filter(standing -> standing.color() == color
+                        && portals.portalsOf(player.getUUID()).contains(standing))
+                .isPresent();
+    }
+
+    /**
+     * Darts the shot from the lifted palm blob to the face it struck, a small
+     * fast Quantum blob in its portal's color, for the shooter and the players
+     * watching.
+     * operator UAT 2026-11-18: quantum goo's color is orange and blue; the shots fire orange on right
+     *
+     * @param player the shooting player
+     * @param cast   the cast at the struck face
+     * @param color  the shot's color
+     */
+    private static void dartTheShot(ServerPlayer player, GooThrowPayload cast, PortalColor color) {
+        Vec3 palm = ThrowArc.clampToReach(player.getEyePosition(), cast.origin(),
+                ThrowArc.HAND_REACH * player.getScale());
+        EntityVisuals.sendToWatchers(player, CastDart.dart(palm, cast.targetPoint(), color.shotVisual()));
     }
 
     /**

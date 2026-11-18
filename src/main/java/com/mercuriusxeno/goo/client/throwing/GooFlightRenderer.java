@@ -249,26 +249,39 @@ public final class GooFlightRenderer {
 
     /**
      * Draws a thrown blob as a flight draws it, its core, shell and tail
-     * streaking behind it along its velocity, scaled about its center; Portal's
-     * shot draws through this at its smaller size.
+     * streaking behind it along its velocity, scaled about its center, its
+     * shell and tail tinted a color of its own; Portal's shot draws through
+     * this at its smaller size, in its portal's color.
      * operator UAT 2026-11-18: the Portal shot is a real thrown blob, smaller and faster
+     * operator UAT 2026-11-18: quantum goo's color is orange and blue; the shots fire orange on right
      *
      * @param poseStack the pose stack, at the blob's center
      * @param buffers   the buffer source
-     * @param type      the goo type
+     * @param type      the goo type, whose fluid the blob wears
      * @param gameTime  the level game time in ticks
-     * @param velocity  the blob's velocity, blocks per tick
-     * @param scale     the blob's size against a flight's, 0 to 1
+     * @param flight    the blob's velocity, blocks per tick, its size against a flight's and its tint
      */
     public static void renderThrownBlob(PoseStack poseStack, MultiBufferSource buffers,
-                                        ResourceKey<GooTypeDefinition> type, float gameTime, Vec3 velocity,
-                                        float scale) {
+                                        ResourceKey<GooTypeDefinition> type, float gameTime, ShotLook flight) {
         poseStack.pushPose();
-        poseStack.scale(scale, scale, scale);
+        poseStack.scale(flight.scale(), flight.scale(), flight.scale());
         renderCore(poseStack, buffers, type, gameTime);
-        renderShell(poseStack, buffers, type);
-        renderTail(poseStack, buffers, type, velocity, gameTime);
+        RenderContext ctx = new RenderContext(poseStack.last(), buffers.getBuffer(GooSubmitter.renderType()),
+                GooSubmitter.fullbrightLight());
+        ctx.emitBox(ARGB.color(SHELL_ALPHA, flight.rgb()), boxAbout(BlobShape.CUBE.scaled(SHELL_HW)), spriteToUv(type));
+        emitCrossingTailQuads(poseStack, buffers.getBuffer(GooSubmitter.renderType()),
+                ARGB.color(TAIL_ALPHA, flight.rgb()), buildTailAxes(flight.velocity()), spriteToUv(type));
         poseStack.popPose();
+    }
+
+    /**
+     * How a thrown blob drawn on its own flies and looks.
+     *
+     * @param velocity the blob's velocity, blocks per tick
+     * @param scale    its size against a flight's, 0 to 1
+     * @param rgb      the tint its shell and tail wear, 0xRRGGBB
+     */
+    public record ShotLook(Vec3 velocity, float scale, int rgb) {
     }
 
     /**

@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.quantum.PortalColor;
 import com.mercuriusxeno.goo.client.throwing.GooFlightRenderer;
 import com.mercuriusxeno.goo.client.throwing.GooTrailParticles;
 import com.mercuriusxeno.goo.network.ScanWavePayload;
@@ -18,10 +19,11 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
- * Portal's shot: a Quantum blob the palm blob shoots, drawn as a thrown blob
- * flies, its core, shell and tail streaking behind it and its trail of drips
- * and fog shed each tick, smaller than a thrown blob and flying fast and
- * straight to the face the shot struck, where the portal opens.
+ * Portal's shot: a Quantum blob the palm blob shoots in its portal's color,
+ * blue from left click and orange from right, drawn as a thrown blob flies:
+ * its core, shell and tail streaking behind it and its trail of drips and fog
+ * shed each tick, smaller than a thrown blob and flying fast and straight to
+ * the face the shot struck, where the portal opens.
  * operator UAT 2026-11-17: have the palm blob shoot a smaller, high velocity blob at the target
  * operator UAT 2026-11-18: the shot is a real thrown blob, smaller and faster
  * shriek-bloom-portal-mitosis-and-dart-still-throw-a-blob
@@ -43,8 +45,9 @@ public final class QuantumBlobDarts {
      *
      * @param wave  the shot the server sent
      * @param start the client game tick it left the palm blob
+     * @param rgb   the shot's portal color, 0xRRGGBB
      */
-    private record Darting(ScanWavePayload wave, long start) {
+    private record Darting(ScanWavePayload wave, long start, int rgb) {
 
         /** @return the shot's velocity, blocks per tick, straight from the palm blob to the face */
         Vec3 velocity() {
@@ -61,13 +64,15 @@ public final class QuantumBlobDarts {
     }
 
     /**
-     * Starts a shot leaving the palm blob.
+     * Starts a shot leaving the palm blob, in its portal's color.
+     * operator UAT 2026-11-18: quantum goo's color is orange and blue; the shots fire orange on right
      *
      * @param wave     the shot the server sent
      * @param gameTime the client game tick it arrived on
+     * @param color    the shot's portal color
      */
-    static void start(ScanWavePayload wave, long gameTime) {
-        DARTING.add(new Darting(wave, gameTime));
+    static void start(ScanWavePayload wave, long gameTime, PortalColor color) {
+        DARTING.add(new Darting(wave, gameTime, PortalFaces.rgbOf(color)));
     }
 
     /**
@@ -98,7 +103,7 @@ public final class QuantumBlobDarts {
             float age = now - darting.start();
             if (!arrived(darting.wave().ticks(), age)) {
                 Vec3 velocity = darting.velocity();
-                GooTrailParticles.spawnShotTrail(darting.at(age), velocity.normalize(), velocity, GooTypes.QUANTUM);
+                GooTrailParticles.spawnShotTrail(darting.at(age), velocity.normalize(), velocity, darting.rgb());
             }
         }
     }
@@ -128,7 +133,8 @@ public final class QuantumBlobDarts {
             Vec3 at = darting.at(now - darting.start());
             pose.pushPose();
             pose.translate(at.x - camera.x, at.y - camera.y, at.z - camera.z);
-            GooFlightRenderer.renderThrownBlob(pose, buffers, GooTypes.QUANTUM, now, darting.velocity(), SHOT_SIZE);
+            GooFlightRenderer.renderThrownBlob(pose, buffers, GooTypes.QUANTUM, now,
+                    new GooFlightRenderer.ShotLook(darting.velocity(), SHOT_SIZE, darting.rgb()));
             pose.popPose();
         }
         buffers.endBatch();

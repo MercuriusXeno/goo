@@ -126,15 +126,21 @@ public final class PortalShotTests {
 
     private static final String A_SHOT_DARTS_A_QUANTUM_BLOB = "portal_shot_darts_a_quantum_blob_to_the_struck_face";
     /** The visual a Portal shot names, a small fast Quantum blob. */
-    private static final String QUANTUM_BLOB = "quantum_blob";
+    /** The visual a blue shot names, a small fast Quantum blob in the blue portal's color. */
+    private static final String BLUE_SHOT = "quantum_blob_blue";
+    /** The visual an orange shot names, a small fast Quantum blob in the orange portal's color. */
+    private static final String ORANGE_SHOT = "quantum_blob_orange";
     /** How far the dart's end may stand from the struck face's middle, float rounding only. */
     private static final double ON_THE_FACE = 0.01;
 
     /**
-     * A Portal shot sends the shooter's client a dart: a small fast Quantum
-     * blob from the palm blob to the face the shot struck
+     * Each Portal shot sends the shooter's client a dart: a small fast Quantum
+     * blob from the palm blob to the face the shot struck, in its portal's
+     * color, blue for the attack button and orange for the use button
      * (operator UAT 2026-11-17: have the palm blob shoot a smaller, high
-     * velocity blob at the target; decision shriek-bloom-portal-mitosis-and-dart-still-throw-a-blob).
+     * velocity blob at the target; operator UAT 2026-11-18: you said the shots
+     * would fire orange on right, both are blue; quantum goo's color is orange
+     * and blue; decision shriek-bloom-portal-mitosis-and-dart-still-throw-a-blob).
      *
      * @param helper the gametest helper
      */
@@ -143,16 +149,24 @@ public final class PortalShotTests {
         ServerPlayer player = shooter(helper, BEFORE_THE_WALLS);
         PacketRecorder seen = PacketRecorder.attachClaiming(player, ScanWavePayload.class);
         wall(helper, BLUE_WALL_TOP, 2);
+        wall(helper, ORANGE_WALL_TOP, 2);
         shootAt(helper, player, GloveButton.ATTACK, BLUE_WALL_TOP, Direction.SOUTH);
+        shootAt(helper, player, GloveButton.USE, ORANGE_WALL_TOP, Direction.SOUTH);
         List<ScanWavePayload> darts = seen.payloadsOf(ScanWavePayload.class);
-        Vec3 struck = faceCenter(helper, BLUE_WALL_TOP, Direction.SOUTH);
+        Vec3 blue = faceCenter(helper, BLUE_WALL_TOP, Direction.SOUTH);
+        Vec3 orange = faceCenter(helper, ORANGE_WALL_TOP, Direction.SOUTH);
         QuantumPortals.get(level).portalsOf(player.getUUID())
                 .forEach(portal -> PortalPairs.breakAt(level, portal.block().pos(), portal.face()));
         level.getServer().getPlayerList().remove(player);
-        helper.assertTrue(darts.size() == 1 && darts.getFirst().visual().equals(QUANTUM_BLOB)
-                && darts.getFirst().to().distanceTo(struck) < ON_THE_FACE, "A Portal shot should dart one quantum "
-                + "blob to the struck face " + struck + ", darts " + darts);
+        helper.assertTrue(darts.size() == 2 && dartsTo(darts.get(0), BLUE_SHOT, blue)
+                && dartsTo(darts.get(1), ORANGE_SHOT, orange), "The blue shot should dart a blue blob to " + blue
+                + " and the orange shot an orange one to " + orange + ", darts " + darts);
         helper.succeed();
+    }
+
+    /** Whether a dart names a visual and ends on a face. */
+    private static boolean dartsTo(ScanWavePayload dart, String visual, Vec3 face) {
+        return dart.visual().equals(visual) && dart.to().distanceTo(face) < ON_THE_FACE;
     }
 
     /**

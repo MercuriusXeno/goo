@@ -25,6 +25,9 @@ public enum PortalColor implements StringRepresentable {
     public static final StreamCodec<ByteBuf, PortalColor> STREAM_CODEC = ByteBufCodecs.BOOL.map(
             orange -> orange ? ORANGE : BLUE, color -> color == ORANGE);
 
+    /** The start of every shot visual's name, its color's name following. */
+    private static final String SHOT_VISUAL_PREFIX = "quantum_blob_";
+
     private final String serializedName;
 
     PortalColor(String serializedName) {
@@ -42,6 +45,17 @@ public enum PortalColor implements StringRepresentable {
      */
     public static PortalColor pressedBy(GloveButton button) {
         return button == GloveButton.ATTACK ? BLUE : ORANGE;
+    }
+
+    /**
+     * The visual a shot of this color darts from the palm blob: a small fast
+     * Quantum blob in this portal's color.
+     * operator UAT 2026-11-18: quantum goo's color is orange and blue; the shots fire orange on right
+     *
+     * @return the visual's name
+     */
+    public String shotVisual() {
+        return SHOT_VISUAL_PREFIX + serializedName;
     }
 
     @Override
