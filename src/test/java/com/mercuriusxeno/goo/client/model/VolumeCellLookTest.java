@@ -94,7 +94,8 @@ class VolumeCellLookTest {
                 new Cell("metal_spikes", CellBinding.SPIKES, "goo:fluid/metal_fluid", 0xCFCFCF),
                 new Cell("nether_infest", CellBinding.INFEST, "goo:fluid/nether_fluid", 0x723232),
                 new Cell("leaf_vines", CellBinding.VINES, "goo:fluid/leaf_fluid", 0x8DD75F),
-                new Cell("unstable_nitro", CellBinding.NITRO, "goo:fluid/unstable_fluid", 0x55FF22));
+                new Cell("unstable_nitro", CellBinding.NITRO, "goo:fluid/unstable_fluid", 0x55FF22),
+                new Cell("quantum_phase", CellBinding.PHASE, "goo:fluid/quantum_fluid", 0x6AD0F0));
     }
 
     @Nested
