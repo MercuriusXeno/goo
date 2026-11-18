@@ -25,7 +25,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * color, left click blue and right click orange, and the shot goes straight
  * along the shooter's look to the face it strikes, as Bulb's cast does,
  * wherever the client's aim fell. A shot the client aimed through a linked
- * gate keeps that aim, which the throw checks for itself. The shot then
+ * gate places nothing, since no portal is shot through a portal. The shot then
  * casts as any throw does, paying and refusing alike, its color held for
  * the cast alone.
  * portal-takes-over-left-and-right-click-for-blue-and-orange
@@ -41,8 +41,8 @@ public final class PortalShots {
 
     /**
      * Shoots Portal for a player by the button pressed; a shot naming an
-     * ability that places no portals, or striking nothing along the look,
-     * does nothing.
+     * ability that places no portals, aimed through a linked gate, or
+     * striking nothing along the look, does nothing.
      *
      * @param player the shooting player
      * @param button the button pressed
@@ -50,12 +50,11 @@ public final class PortalShots {
      */
     public static void shoot(ServerPlayer player, GloveButton button, GooThrowPayload shot) {
         Optional<AbilityDefinition> portal = portalNamed(player, shot.abilityId());
-        if (portal.isEmpty()) {
+        // operator UAT 2026-11-17: you aren't supposed to be able to shoot portals through portals
+        if (portal.isEmpty() || shot.gate().isPresent()) {
             return;
         }
-        Optional<GooThrowPayload> aimed = shot.gate().isPresent() ? Optional.of(shot)
-                : alongTheLook(player, shot, ThrowRange.of(portal.get()));
-        aimed.ifPresent(cast -> {
+        alongTheLook(player, shot, ThrowRange.of(portal.get())).ifPresent(cast -> {
             casting(player.getUUID(), PortalColor.pressedBy(button), () -> GooThrowHandler.execute(player, cast));
             // operator UAT 2026-11-17: the palm blob hops as it shoots, for the players watching too
             PalmBlobChargePayload.sendLift(player);

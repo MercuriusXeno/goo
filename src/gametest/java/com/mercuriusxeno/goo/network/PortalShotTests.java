@@ -86,6 +86,42 @@ public final class PortalShotTests {
         GooTestFunctions.registerTest(registrar, A_SECOND_BLUE_MOVES_THE_BLUE_PORTAL,
                 PortalShotTests::aSecondBlueMovesTheBluePortal);
         GooTestFunctions.registerTest(registrar, A_SHOT_DARTS_A_QUANTUM_BLOB, PortalShotTests::aShotDartsAQuantumBlob);
+        GooTestFunctions.registerTest(registrar, NO_SHOT_PASSES_A_PORTAL, PortalShotTests::noShotPassesAPortal);
+    }
+
+    private static final String NO_SHOT_PASSES_A_PORTAL = "portal_shot_through_a_portal_places_nothing";
+    /** A wall south of the blue portal, its north face toward it, which a shot out of the blue portal would strike. */
+    private static final BlockPos PAST_THE_BLUE = new BlockPos(4, 2, 6);
+
+    /**
+     * A shot aimed through the shooter's orange portal, at a wall past the
+     * blue one, places nothing: no portal is shot through a portal, and the
+     * pair stands where it was (operator UAT 2026-11-17: you aren't supposed
+     * to be able to shoot portals through portals).
+     *
+     * @param helper the gametest helper
+     */
+    public static void noShotPassesAPortal(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        ServerPlayer player = shooter(helper, BEFORE_THE_WALLS);
+        wall(helper, BLUE_WALL_TOP, 2);
+        wall(helper, ORANGE_WALL_TOP, 2);
+        wall(helper, PAST_THE_BLUE, 2);
+        shootAt(helper, player, GloveButton.ATTACK, BLUE_WALL_TOP, Direction.SOUTH);
+        shootAt(helper, player, GloveButton.USE, ORANGE_WALL_TOP, Direction.SOUTH);
+        QuantumPortals portals = QuantumPortals.get(level);
+        List<Portal> pair = portals.portalsOf(player.getUUID());
+        Portal orange = frameBelow(helper, ORANGE_WALL_TOP, Direction.SOUTH, PortalColor.ORANGE);
+        Vec3 onTheOrange = orange.gate().center();
+        player.lookAt(EntityAnchorArgument.Anchor.EYES, onTheOrange);
+        PortalShots.shoot(player, GloveButton.ATTACK, aimedAt(helper, player, PAST_THE_BLUE, Direction.NORTH)
+                .through(orange.gate(), onTheOrange));
+        List<Portal> after = portals.portalsOf(player.getUUID());
+        after.forEach(portal -> PortalPairs.breakAt(level, portal.block().pos(), portal.face()));
+        level.getServer().getPlayerList().remove(player);
+        helper.assertTrue(pair.size() == 2 && after.equals(pair), "A shot through the orange portal should place "
+                + "nothing, the pair standing as " + pair + ", holds " + after);
+        helper.succeed();
     }
 
     private static final String A_SHOT_DARTS_A_QUANTUM_BLOB = "portal_shot_darts_a_quantum_blob_to_the_struck_face";
