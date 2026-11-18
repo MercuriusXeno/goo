@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
-import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.SpikeTrapFixture;
 import com.mercuriusxeno.goo.ability.ChargeSize;
 import com.mercuriusxeno.goo.item.GooFormat;
@@ -18,10 +17,6 @@ class HeldGhostTest {
     private static final float TOLERANCE = 1e-6f;
     /** unstable_blast.json's cost, the price of the reference radius. */
     private static final int BLAST_COST = 1000;
-
-    private static HeldGhost ghostOf(HeldGhostVisual visual, String name) {
-        return ghostOf(visual, AbilityJson.decode(name));
-    }
 
     private static HeldGhost ghostOf(HeldGhostVisual visual, AbilityDefinition definition) {
         return visual.ghost(definition.area(), definition.behaviors());
@@ -54,8 +49,8 @@ class HeldGhostTest {
     }
 
     @Test
-    void fireballRingsOutwardToItsBlastReach() {
-        HeldGhost ghost = ghostOf(UnstableExplosionVisual.INSTANCE, "unstable_lurker");
+    void anUnstableGhostRingsOutwardToItsDome() {
+        HeldGhost ghost = ghostOf(UnstableExplosionVisual.INSTANCE, SpikeTrapFixture.definition());
         assertEquals(ghost.domeRadius(), ghost.ringRadius(), TOLERANCE);
     }
 }

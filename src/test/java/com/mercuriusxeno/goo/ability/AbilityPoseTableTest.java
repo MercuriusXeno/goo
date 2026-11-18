@@ -95,7 +95,7 @@ class AbilityPoseTableTest {
             Map.entry("typhoon_shulk", ArmPose.RESTING),
             Map.entry("typhoon_updraft", ArmPose.HELD_OUT),
             Map.entry("unstable_blast", ArmPose.RESTING),
-            Map.entry("unstable_lurker", ArmPose.SWUNG),
+            Map.entry("unstable_nitro", ArmPose.HELD_OUT),
             Map.entry("void_cancel", ArmPose.SWUNG),
             Map.entry("void_zone", ArmPose.HELD_OUT),
             Map.entry("void_hole", ArmPose.RESTING),

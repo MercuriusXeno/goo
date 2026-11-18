@@ -127,6 +127,14 @@ public record BlendPalette(float lightRed, float lightGreen, float lightBlue,
             0xFF / 255f, 0xF4 / 255f, 0xB0 / 255f, 0x2A / 255f, 0x3C / 255f, 0x9A / 255f);
 
     /**
+     * Nitro's spray drips, from unstable's bright green, 88FF44, to its wheel
+     * green, 39FF14, the two the unstable goo type's definition names.
+     * nitro-is-unstables-goo-that-explodes-in-a-chain-by-its-quantity
+     */
+    public static final BlendPalette NITRO_UNSTABLE_GREENS = new BlendPalette(
+            0x88 / 255f, 0xFF / 255f, 0x44 / 255f, 0x39 / 255f, 0xFF / 255f, 0x14 / 255f);
+
+    /**
      * The color a share of the way from the light end to the dark.
      *
      * @param blend the share, 0 at the light end and 1 at the dark
