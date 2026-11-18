@@ -6,10 +6,12 @@ import com.mercuriusxeno.goo.ability.Charge;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.data.PalmBuffers;
 import com.mercuriusxeno.goo.item.GooCasters;
+import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.item.ItemStack;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -17,21 +19,24 @@ import org.jspecify.annotations.Nullable;
  * throws keeps its own fill per player, from the 10% floor to 100%, born full.
  * Each weapon takes a share as it forms, 90% over the stack, 9% a knife and
  * 30% a javelin, and forms only where the fill less its share stays at or
- * above the floor. The weapons held reserve their shares: the fill refills
- * 1% a tick, only while its ability is selected in hand, and only to 100%
- * less the shares held. A throw frees its share and returns nothing; a
+ * above the floor. The weapons held reserve their shares: the fill refills,
+ * at the speed of what casts, only while its ability is selected in hand,
+ * and only to 100% less the shares held. A throw frees its share and returns nothing; a
  * release returns every held share.
  * decision palm-blob-is-a-buffer-that-right-click-turns-into-weapons
  * decision held-weapons-reserve-their-share-of-the-buffer
  * decision each-ability-has-its-own-buffer-that-fills-only-while-held
  * decision weapons-form-at-their-standing-pace-when-the-buffer-affords-a-share
+ * decision buffer-refills-at-a-constant-speed-set-by-the-glove
  */
 public final class PalmBuffer {
 
     /** Half percents a percent. */
     private static final double HALF_PERCENTS = 2.0;
-    /** The fill a tick of holding the ability refills, 1%, in half percents. */
+    /** The fill a tick the Goo Glove refills, 1%, in half percents. */
     static final int REFILL_A_TICK = 2;
+    /** The fill a tick raw goo held bare handed refills, 0.5%, in half percents. */
+    private static final int BARE_HANDED_REFILL = 1;
 
     private PalmBuffer() {
     }
@@ -126,9 +131,26 @@ public final class PalmBuffer {
             if (selected != null) {
                 String abilityId = selected.id().toString();
                 int heldShares = holds.heldIn(player, abilityId) * shareOf(selected.delivery().charge());
-                setFill(player, abilityId, refilled(fillOf(player, abilityId), heldShares, REFILL_A_TICK));
+                // buffer-refills-at-a-constant-speed-set-by-the-glove: read each tick, so a swap changes the speed at once
+                setFill(player, abilityId, refilled(fillOf(player, abilityId), heldShares, refillSpeedOf(player)));
             }
         }
+    }
+
+    /**
+     * The refill a tick of what casts, in half percents.
+     *
+     * @param tier the glove's tier, or null for raw goo held bare handed
+     * @return the refill a tick
+     */
+    static int refillSpeedOf(GooGloveItem.@Nullable GloveTier tier) {
+        return tier == null ? BARE_HANDED_REFILL : tier.bufferRefill();
+    }
+
+    // The refill a tick of the caster the player holds: its glove's tier, or the bare hand's.
+    private static int refillSpeedOf(ServerPlayer player) {
+        ItemStack caster = GooCasters.casterOf(player);
+        return refillSpeedOf(caster != null && caster.getItem() instanceof GooGloveItem glove ? glove.tier() : null);
     }
 
     private static @Nullable AbilityDefinition selectedStackingAbility(ServerPlayer player) {

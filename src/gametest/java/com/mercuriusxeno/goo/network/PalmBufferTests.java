@@ -60,6 +60,13 @@ public final class PalmBufferTests {
     private static final double JAVELIN_SHARE = 30;
     private static final double KNIFE_SHARE = 9;
     private static final double A_TICKS_REFILL = 1;
+    private static final double BARE_HANDED_TWENTY_TICKS_ON = 20;
+    private static final double GLOVE_TWENTY_TICKS_ON = 30;
+    private static final double GAUNTLET_TWENTY_TICKS_ON = 40;
+    private static final double EXO_TWENTY_TICKS_ON = 50;
+    private static final int EXO_WAIT = 15;
+    private static final int BARE_HANDED_WAIT = 60;
+    private static final int BARE_HANDED_MB = 100_000;
 
     private static final String DART_BUFFER_DROPS_A_SHARE_PER_JAVELIN = "palm_buffer_drops_a_share_per_javelin";
     private static final String KNIVES_BUFFER_DROPS_A_SHARE_PER_KNIFE = "palm_buffer_drops_a_share_per_knife";
@@ -96,6 +103,82 @@ public final class PalmBufferTests {
                 PalmBufferTests::eachAbilityHoldsItsOwnBuffer);
         GooTestFunctions.registerTest(registrar, A_WAITING_KNIFE_IS_PAID_FOR_AS_IT_FORMS,
                 PalmBufferTests::aWaitingKnifeIsPaidForAsItForms);
+        registerTheCasterSpeeds(registrar);
+    }
+
+    // buffer-refills-at-a-constant-speed-set-by-the-glove: each caster refills at its own speed
+    private static void registerTheCasterSpeeds(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, "palm_buffer_refills_bare_handed_at_half_a_percent",
+                helper -> refillsTwentyTicksTo(helper, bareHand(), BARE_HANDED_TWENTY_TICKS_ON));
+        GooTestFunctions.registerTest(registrar, "palm_buffer_refills_with_the_goo_glove_at_a_percent",
+                helper -> refillsTwentyTicksTo(helper, new ItemStack(GooItems.GOO_GLOVE.get()), GLOVE_TWENTY_TICKS_ON));
+        GooTestFunctions.registerTest(registrar, "palm_buffer_refills_with_the_goo_gauntlet_at_one_and_a_half",
+                helper -> refillsTwentyTicksTo(helper, new ItemStack(GooItems.GOO_GAUNTLET.get()),
+                        GAUNTLET_TWENTY_TICKS_ON));
+        GooTestFunctions.registerTest(registrar, "palm_buffer_refills_with_the_exo_gauntlet_at_two_percent",
+                helper -> refillsTwentyTicksTo(helper, new ItemStack(GooItems.EXO_GAUNTLET.get()),
+                        EXO_TWENTY_TICKS_ON));
+        GooTestFunctions.registerTest(registrar, "palm_buffer_exo_gauntlet_replaces_a_thrown_javelin_in_15_ticks",
+                helper -> replacesAThrownJavelinIn(helper, new ItemStack(GooItems.EXO_GAUNTLET.get()), EXO_WAIT));
+        GooTestFunctions.registerTest(registrar, "palm_buffer_bare_hand_replaces_a_thrown_javelin_in_60_ticks",
+                helper -> replacesAThrownJavelinIn(helper, bareHand(), BARE_HANDED_WAIT));
+    }
+
+    // Raw metal goo held bare handed, enough to pay every javelin thrown.
+    private static ItemStack bareHand() {
+        return GooStacks.createForOutput(GooTypes.METAL, BARE_HANDED_MB);
+    }
+
+    /**
+     * Dart drained to 10% by three throws and let go, then 20 ticks with the
+     * ability selected in the caster, reads the caster's refill.
+     *
+     * @param helper   the gametest helper
+     * @param inHand   what casts, a glove or raw goo
+     * @param expected the fill expected 20 ticks on, in percent
+     */
+    private static void refillsTwentyTicksTo(GameTestHelper helper, ItemStack inHand, double expected) {
+        ServerPlayer caster = casterSelecting(helper, GooTypes.METAL, METAL_DART, inHand);
+        hold(caster, GooTypes.METAL, METAL_DART, true);
+        helper.runAfterDelay(THREE_JAVELINS_TICKS, () -> {
+            for (int javelin = 0; javelin < 3; javelin++) {
+                KnivesThrowHandler.throwKnife(caster);
+            }
+            hold(caster, GooTypes.METAL, METAL_DART, false);
+        });
+        helper.runAfterDelay(THREE_JAVELINS_TICKS + TWENTY_TICKS, () -> {
+            double fill = PalmBuffer.percentOf(caster, METAL_DART);
+            helper.getLevel().getServer().getPlayerList().remove(caster);
+            helper.assertTrue(Math.abs(fill - expected) < WITHIN,
+                    "20 ticks from 10% should refill Dart's buffer to " + expected + "%, read " + fill);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * After one javelin is thrown from three held, right click down, the next
+     * forms on the tick the caster's refill brings the buffer to 40%.
+     *
+     * @param helper the gametest helper
+     * @param inHand what casts, a glove or raw goo
+     * @param wait   the ticks after the throw the next javelin forms on
+     */
+    private static void replacesAThrownJavelinIn(GameTestHelper helper, ItemStack inHand, int wait) {
+        ServerPlayer caster = casterSelecting(helper, GooTypes.METAL, METAL_DART, inHand);
+        GooServerState state = GooServerState.of(helper.getLevel().getServer());
+        List<Integer> held = new ArrayList<>();
+        hold(caster, GooTypes.METAL, METAL_DART, true);
+        helper.runAfterDelay(THREE_JAVELINS_TICKS, () -> {
+            KnivesThrowHandler.throwKnife(caster);
+            helper.runAfterDelay(wait - 1, () -> held.add(state.knifeHolds().formed(caster)));
+            helper.runAfterDelay(wait, () -> {
+                held.add(state.knifeHolds().formed(caster));
+                helper.getLevel().getServer().getPlayerList().remove(caster);
+                helper.assertTrue(held.equals(List.of(2, 3)), "The next javelin should form " + wait
+                        + " ticks after the throw, 2 held the tick before and 3 on it; held " + held);
+                helper.succeed();
+            });
+        });
     }
 
     /**
@@ -294,16 +377,21 @@ public final class PalmBufferTests {
         return GooSourceScanner.aggregateAvailable(caster).getOrDefault(GooTypes.CRYSTAL, 0);
     }
 
-    @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
     private static ServerPlayer casterSelecting(GameTestHelper helper, ResourceKey<GooTypeDefinition> type,
                                                 Identifier ability) {
+        return casterSelecting(helper, type, ability, new ItemStack(GooItems.GOO_GLOVE.get()));
+    }
+
+    @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
+    private static ServerPlayer casterSelecting(GameTestHelper helper, ResourceKey<GooTypeDefinition> type,
+                                                Identifier ability, ItemStack inHand) {
         AbilityDefinition definition = AbilityRegistry.of(helper.getLevel()).getAbility(ability);
         helper.assertTrue(definition != null, "Ability registry must hold " + ability);
         int price = definition.cost().exactIn(GooValues.of(helper.getLevel())).ceiling();
         ServerPlayer caster = helper.makeMockServerPlayerInLevel();
         Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(CASTER_POS));
         caster.snapTo(stand.x, stand.y, stand.z, 0f, 0f);
-        caster.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GooItems.GOO_GLOVE.get()));
+        caster.setItemInHand(InteractionHand.MAIN_HAND, inHand);
         select(caster, type, ability);
         caster.getInventory().add(GooStacks.createForOutput(type, PRICES * Math.max(1, price)));
         KnownRecipes.teachRequires(caster, definition);
