@@ -16,7 +16,6 @@ import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.resources.ResourceKey;
@@ -28,7 +27,9 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jspecify.annotations.Nullable;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
@@ -52,6 +53,8 @@ public final class HeldJavelins {
 
     /** Each caster's stack, by entity id. */
     private static final Map<Integer, Stack> STACKS = new HashMap<>();
+    /** Each caster's released stack returning to the palm blob, by entity id. */
+    private static final Map<Integer, StackReturn.Released> RETURNS = new HashMap<>();
     /** Ticks a javelin takes to form, Dart's form interval (metal_dart.json's stack_ticks). */
     static final double FORM_TICKS = 10;
 
@@ -77,16 +80,7 @@ public final class HeldJavelins {
      * @param context the network context
      */
     public static void onPayload(StackFormedPayload payload, IPayloadContext context) {
-        context.enqueueWork(() -> {
-            Minecraft mc = Minecraft.getInstance();
-            if (mc.level == null) {
-                return;
-            }
-            LocalPlayer local = mc.player;
-            counted(payload.casterId(), payload.formed(), mc.level.getGameTime(),
-                    local == null ? StackSounds.NO_ONE : local.getId(), StackSounds.selectedBy(local),
-                    cue -> StackSounds.playAt(local, cue));
-        });
+        StackSounds.take(payload, context, HeldJavelins::counted);
     }
 
     /**
@@ -102,15 +96,26 @@ public final class HeldJavelins {
      * @param localId  the local player's entity id
      * @param sounds   the local player's selected stack sounds
      * @param played   plays a cue at the local player
+     * @param released whether the count fell because the hold ended, every javelin held returning to the blob
      */
     static void counted(int casterId, int formed, long now, int localId, FormSounds sounds,
-                        Consumer<SoundCue> played) {
+                        Consumer<SoundCue> played, boolean released) {
         int before = formedBy(casterId);
+        StackReturn.noteRelease(RETURNS, casterId, before, formed, now, released);
         formed(casterId, formed, now);
-        if (casterId == localId && formed > before) {
-            sounds.form().ifPresent(played);
-        }
+        StackSounds.soundForming(casterId, localId, before, formed, sounds, played);
     }
+
+    /**
+     * The javelins a caster released returning to the palm blob, or null where none return.
+     *
+     * @param casterId the caster's entity id
+     * @return the return
+     */
+    static StackReturn.@Nullable Released returnOf(int casterId) {
+        return RETURNS.get(casterId);
+    }
+
 
     /**
      * Records a caster's formed count at a game time: 0 drops the stack.
@@ -199,6 +204,7 @@ public final class HeldJavelins {
     /** Drops every stack, as a disconnect does. */
     public static void clear() {
         STACKS.clear();
+        RETURNS.clear();
     }
 
     /**
@@ -215,24 +221,67 @@ public final class HeldJavelins {
 
     private static void drawEvery(RenderLevelStageEvent.AfterLevel event) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.level == null || STACKS.isEmpty()) {
+        if (mc.level == null || STACKS.isEmpty() && RETURNS.isEmpty()) {
             return;
         }
         float partial = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         double now = mc.level.getGameTime() + partial;
+        RETURNS.values().removeIf(release -> release.doneAt(now));
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
-        for (Map.Entry<Integer, Stack> entry : STACKS.entrySet()) {
-            if (mc.level.getEntity(entry.getKey()) instanceof Player caster && HoveringKnives.drawsInTheLevel(caster)) {
+        List<Integer> casters = new ArrayList<>(STACKS.keySet());
+        RETURNS.keySet().stream().filter(id -> !STACKS.containsKey(id)).forEach(casters::add);
+        for (Integer casterId : casters) {
+            if (mc.level.getEntity(casterId) instanceof Player caster && HoveringKnives.drawsInTheLevel(caster)) {
                 ResourceKey<GooTypeDefinition> type = gooTypeOf(caster);
-                layStack(event.getPoseStack(), caster, entry.getValue(), now, partial, camera,
+                List<HoveringKnives.Piece> pieces = piecesOf(caster, now, partial);
+                layStack(event.getPoseStack(), caster, pieces, partial, camera,
                         (at, heading, scale) -> GooFlightRenderer.emitTravelForm(at.last(),
                                 buffers.getBuffer(GooSubmitter.renderType()), type, TravelForm.DART, heading, scale));
                 drawCuboids(event.getPoseStack().last(), buffers.getBuffer(GooSubmitter.renderType()), caster,
-                        entry.getValue(), now, partial, camera);
+                        pieces, camera);
             }
         }
         buffers.endBatch(GooSubmitter.renderType());
+    }
+
+    /**
+     * A caster's javelins this frame: the triangle standing and forming, and
+     * any released javelins on their way back into the palm blob, each
+     * standing at its slot until its return starts, then travelling to the
+     * blob's middle as it turns back into its cuboid.
+     * decision released-weapons-turn-back-into-blobs-that-rejoin-the-palm-blob
+     *
+     * @param caster  the caster
+     * @param now     the game time, with the partial tick
+     * @param partial the frame's partial tick
+     * @return the javelins, each its tail's place and its javelin shape's weight
+     */
+    static List<HoveringKnives.Piece> piecesOf(Player caster, double now, float partial) {
+        Vec3 cube = StackAnchor.cubeOf(caster, partial);
+        float xRot = caster.getViewXRot(partial);
+        float yRot = caster.getViewYRot(partial);
+        List<HoveringKnives.Piece> pieces = new ArrayList<>();
+        Stack stack = STACKS.get(caster.getId());
+        if (stack != null) {
+            double age = now - stack.changedAt();
+            for (int index = 0; index < stack.count(); index++) {
+                pieces.add(new HoveringKnives.Piece(javelinAt(stack, index, cube, xRot, yRot, age),
+                        javelinDrawnScaleAt(stack, index, age)));
+            }
+        }
+        StackReturn.Released release = RETURNS.get(caster.getId());
+        if (release != null) {
+            for (int index = 0; index < release.released(); index++) {
+                float progress = StackReturn.progressAt(index, release.released(), now - release.at());
+                Vec3 slot = StackHover.pointOf(cube, xRot, yRot, StackHover.javelinSlot(index, release.released()));
+                if (progress < 1f) {
+                    pieces.add(new HoveringKnives.Piece(slot.lerp(cube, StackReturn.travelAt(progress)),
+                            StackReturn.weaponWeightAt(progress)));
+                }
+            }
+        }
+        return pieces;
     }
 
     /**
@@ -248,45 +297,39 @@ public final class HeldJavelins {
      */
     static void submitInHand(PoseStack poseStack, SubmitNodeCollector collector, Player caster, float partial,
                              Vec3 camera) {
-        Stack stack = STACKS.get(caster.getId());
-        if (stack == null || caster.level() == null) {
+        if (caster.level() == null || !STACKS.containsKey(caster.getId()) && !RETURNS.containsKey(caster.getId())) {
             return;
         }
         ResourceKey<GooTypeDefinition> type = gooTypeOf(caster);
-        double now = caster.level().getGameTime() + partial;
-        layStack(poseStack, caster, stack, now, partial, camera,
+        List<HoveringKnives.Piece> pieces = piecesOf(caster, caster.level().getGameTime() + partial, partial);
+        layStack(poseStack, caster, pieces, partial, camera,
                 (at, heading, scale) -> collector.submitCustomGeometry(at, GooSubmitter.renderType(),
                         (pose, consumer) -> GooFlightRenderer.emitTravelForm(pose, consumer, type, TravelForm.DART,
                                 heading, scale)));
         collector.submitCustomGeometry(poseStack, GooSubmitter.renderType(),
-                (pose, consumer) -> drawCuboids(pose, consumer, caster, stack, now, partial, camera));
+                (pose, consumer) -> drawCuboids(pose, consumer, caster, pieces, camera));
     }
 
     /**
-     * Draws the cuboid each forming javelin is cut from the palm blob as,
-     * where the javelin is on its way to its slot, shrinking as the javelin
-     * grows into its shape, so no fully formed javelin draws at the blob.
+     * Draws the cuboid each forming or returning javelin is while it is not
+     * yet, or no longer, a javelin, where it is on its way, shrinking as the
+     * javelin grows into its shape and whole as it merges with the blob, so no
+     * fully formed javelin draws at the blob.
      * decision weapons-form-from-a-goo-cuboid-leaving-the-palm-blob
+     * decision released-weapons-turn-back-into-blobs-that-rejoin-the-palm-blob
      *
-     * @param pose    the pose camera-relative points stand in
-     * @param c       a consumer of the translucent goo render type
-     * @param caster  the caster
-     * @param stack   the caster's javelins
-     * @param now     the game time, with the partial tick
-     * @param partial the frame's partial tick
-     * @param camera  the camera's position
+     * @param pose   the pose camera-relative points stand in
+     * @param c      a consumer of the translucent goo render type
+     * @param caster the caster
+     * @param pieces the caster's javelins this frame
+     * @param camera the camera's position
      */
-    static void drawCuboids(PoseStack.Pose pose, VertexConsumer c, Player caster, Stack stack, double now,
-                            float partial, Vec3 camera) {
-        Vec3 cube = StackAnchor.cubeOf(caster, partial);
-        double age = now - stack.changedAt();
-        for (int index = stack.previous(); index < stack.count(); index++) {
-            float weapon = javelinDrawnScaleAt(stack, index, age);
-            if (weapon < 1f) {
-                GooFlightRenderer.emitCuboidAt(pose, c, gooTypeOf(caster),
-                        javelinAt(stack, index, cube, caster.getViewXRot(partial), caster.getViewYRot(partial), age)
-                                .subtract(camera),
-                        (float) StackHover.cuboidEdgeOf(StackHover.JAVELINS) * (1f - weapon));
+    static void drawCuboids(PoseStack.Pose pose, VertexConsumer c, Player caster, List<HoveringKnives.Piece> pieces,
+                            Vec3 camera) {
+        for (HoveringKnives.Piece piece : pieces) {
+            if (piece.weapon() < 1f) {
+                GooFlightRenderer.emitCuboidAt(pose, c, gooTypeOf(caster), piece.at().subtract(camera),
+                        (float) StackHover.cuboidEdgeOf(StackHover.JAVELINS) * (1f - piece.weapon()));
             }
         }
     }
@@ -297,22 +340,18 @@ public final class HeldJavelins {
         void draw(PoseStack at, Vec3 heading, float scale);
     }
 
-    private static void layStack(PoseStack poseStack, Player caster, Stack stack, double now, float partial,
-                                 Vec3 camera, JavelinDraw draw) {
-        float xRot = caster.getViewXRot(partial);
-        float yRot = caster.getViewYRot(partial);
-        Vec3 cube = StackAnchor.cubeOf(caster, partial);
+    private static void layStack(PoseStack poseStack, Player caster, List<HoveringKnives.Piece> pieces,
+                                 float partial, Vec3 camera, JavelinDraw draw) {
         Vec3 crosshair = ThrownKnife.aimPointOf(caster, partial);
-        double age = now - stack.changedAt();
-        for (int index = 0; index < stack.count(); index++) {
-            Vec3 tail = javelinAt(stack, index, cube, xRot, yRot, age);
-            Vec3 heading = ThrownKnife.headingFrom(tail, crosshair);
-            float scale = javelinDrawnScaleAt(stack, index, age);
-            Vec3 at = ThrownKnife.drawnFromOf(tail, heading, true, scale).subtract(camera);
-            poseStack.pushPose();
-            poseStack.translate(at.x, at.y, at.z);
-            draw.draw(poseStack, heading, scale);
-            poseStack.popPose();
+        for (HoveringKnives.Piece piece : pieces) {
+            if (piece.weapon() > 0f) {
+                Vec3 heading = ThrownKnife.headingFrom(piece.at(), crosshair);
+                Vec3 at = ThrownKnife.drawnFromOf(piece.at(), heading, true, piece.weapon()).subtract(camera);
+                poseStack.pushPose();
+                poseStack.translate(at.x, at.y, at.z);
+                draw.draw(poseStack, heading, piece.weapon());
+                poseStack.popPose();
+            }
         }
     }
 

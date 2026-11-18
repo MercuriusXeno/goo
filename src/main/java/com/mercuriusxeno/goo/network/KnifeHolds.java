@@ -194,7 +194,7 @@ public final class KnifeHolds {
         if (ended != null) {
             ended.refund();
             if (ended.synced > 0) {
-                syncCount(ended, 0);
+                syncCount(ended, 0, true);
             }
         }
     }
@@ -298,7 +298,7 @@ public final class KnifeHolds {
             if (hold.player.isRemoved() || !GooThrowHandler.validateCaster(hold.player, hold.held.gooType())) {
                 live.remove();
                 hold.refund();
-                syncCount(hold, 0);
+                syncCount(hold, 0, true);
                 continue;
             }
             if (hold.throwsAt(now)) {
@@ -306,14 +306,14 @@ public final class KnifeHolds {
             }
             int formed = hold.settle(now);
             if (hold.syncs(formed)) {
-                syncCount(hold, formed);
+                syncCount(hold, formed, false);
             }
         }
     }
 
-    private static void syncCount(Hold hold, int formed) {
+    private static void syncCount(Hold hold, int formed, boolean released) {
         EntityVisuals.sendToWatchers(hold.player, new StackFormedPayload(hold.player.getId(), formed,
-                hold.held.ability().delivery().stacksJavelins()));
+                hold.held.ability().delivery().stacksJavelins(), released));
     }
 
     /** Drops every hold, as a server stop does. */

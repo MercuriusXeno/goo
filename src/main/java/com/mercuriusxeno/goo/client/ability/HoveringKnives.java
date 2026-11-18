@@ -17,7 +17,6 @@ import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.resources.ResourceKey;
@@ -59,6 +58,8 @@ public final class HoveringKnives {
 
     /** Each caster's fan, by entity id. */
     private static final Map<Integer, Fan> FANS = new HashMap<>();
+    /** Each caster's released stack returning to the palm blob, by entity id. */
+    private static final Map<Integer, StackReturn.Released> RETURNS = new HashMap<>();
 
     private HoveringKnives() {
     }
@@ -81,15 +82,7 @@ public final class HoveringKnives {
      * @param context the network context
      */
     public static void onPayload(StackFormedPayload payload, IPayloadContext context) {
-        context.enqueueWork(() -> {
-            Minecraft mc = Minecraft.getInstance();
-            if (mc.level != null) {
-                LocalPlayer local = mc.player;
-                counted(payload.casterId(), payload.formed(), mc.level.getGameTime(),
-                        local == null ? StackSounds.NO_ONE : local.getId(), StackSounds.selectedBy(local),
-                        cue -> StackSounds.playAt(local, cue));
-            }
-        });
+        StackSounds.take(payload, context, HoveringKnives::counted);
     }
 
     /**
@@ -104,15 +97,26 @@ public final class HoveringKnives {
      * @param localId  the local player's entity id
      * @param sounds   the local player's selected stack sounds
      * @param played   plays a cue at the local player
+     * @param released whether the count fell because the hold ended, every knife held returning to the blob
      */
     static void counted(int casterId, int formed, long now, int localId, FormSounds sounds,
-                        Consumer<SoundCue> played) {
+                        Consumer<SoundCue> played, boolean released) {
         int before = formedBy(casterId);
+        StackReturn.noteRelease(RETURNS, casterId, before, formed, now, released);
         formed(casterId, formed, now);
-        if (casterId == localId && formed > before) {
-            sounds.form().ifPresent(played);
-        }
+        StackSounds.soundForming(casterId, localId, before, formed, sounds, played);
     }
+
+    /**
+     * The knives a caster released returning to the palm blob, or null where none return.
+     *
+     * @param casterId the caster's entity id
+     * @return the return
+     */
+    static StackReturn.@Nullable Released returnOf(int casterId) {
+        return RETURNS.get(casterId);
+    }
+
 
     /**
      * Records a caster's formed count at a game time: 0 drops the fan.
@@ -154,6 +158,7 @@ public final class HoveringKnives {
     /** Drops every fan, as a disconnect does. */
     public static void clear() {
         FANS.clear();
+        RETURNS.clear();
     }
 
     /**
@@ -267,55 +272,105 @@ public final class HoveringKnives {
 
     private static void drawEvery(RenderLevelStageEvent.AfterLevel event) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.level == null || FANS.isEmpty()) {
+        if (mc.level == null || FANS.isEmpty() && RETURNS.isEmpty()) {
             return;
         }
         float partial = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         double now = mc.level.getGameTime() + partial;
+        RETURNS.values().removeIf(release -> release.doneAt(now));
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        Map<Player, List<Piece>> drawn = new HashMap<>();
+        for (Integer casterId : casters()) {
+            if (mc.level.getEntity(casterId) instanceof Player caster && drawsInTheLevel(caster)) {
+                drawn.put(caster, piecesOf(caster, now, partial));
+            }
+        }
         FlatQuadContext quads = new FlatQuadContext(event.getPoseStack().last(),
                 buffers.getBuffer(GooRenderTypes.CRYSTAL_SHARD_TYPE));
-        for (Map.Entry<Integer, Fan> entry : FANS.entrySet()) {
-            if (mc.level.getEntity(entry.getKey()) instanceof Player caster && drawsInTheLevel(caster)) {
-                drawFan(quads, caster, entry.getValue(), now - entry.getValue().changedAt(), partial, camera);
-            }
-        }
+        drawn.forEach((caster, pieces) -> drawKnives(quads, caster, pieces, partial, camera));
         buffers.endBatch(GooRenderTypes.CRYSTAL_SHARD_TYPE);
-        for (Map.Entry<Integer, Fan> entry : FANS.entrySet()) {
-            if (mc.level.getEntity(entry.getKey()) instanceof Player caster && drawsInTheLevel(caster)) {
-                drawCuboids(event.getPoseStack().last(), buffers.getBuffer(GooSubmitter.renderType()), caster,
-                        entry.getValue(), now - entry.getValue().changedAt(), partial, camera);
-            }
-        }
+        drawn.forEach((caster, pieces) -> drawCuboids(event.getPoseStack().last(),
+                buffers.getBuffer(GooSubmitter.renderType()), caster, pieces, camera));
         buffers.endBatch(GooSubmitter.renderType());
     }
 
+    // Every caster with a pyramid standing or knives returning.
+    private static List<Integer> casters() {
+        List<Integer> casters = new ArrayList<>(FANS.keySet());
+        RETURNS.keySet().stream().filter(id -> !FANS.containsKey(id)).forEach(casters::add);
+        return casters;
+    }
+
     /**
-     * Draws the cuboid each forming knife is cut from the palm blob as, where
-     * the knife is on its way to its slot, shrinking as the knife grows into
-     * its shape, so no fully formed knife draws at the blob.
-     * decision weapons-form-from-a-goo-cuboid-leaving-the-palm-blob
+     * One knife of a caster's pile as it draws this frame: where its butt
+     * stands and how far it is a knife rather than the cuboid it forms from
+     * or returns to.
      *
-     * @param pose    the pose camera-relative points stand in
-     * @param c       a consumer of the translucent goo render type
-     * @param caster  the caster
-     * @param fan     the caster's pyramid
-     * @param age     ticks since the pyramid's last change, with the partial tick
-     * @param partial the frame's partial tick
-     * @param camera  the camera's position
+     * @param at     its butt's place in the world
+     * @param weapon its knife shape's weight, 1 whole to 0 all cuboid
      */
-    static void drawCuboids(PoseStack.Pose pose, VertexConsumer c, Player caster, Fan fan, double age,
-                            float partial, Vec3 camera) {
+    record Piece(Vec3 at, float weapon) {
+    }
+
+    /**
+     * A caster's knives this frame: the pyramid standing and forming, and
+     * any released knives on their way back into the palm blob, each standing
+     * at its slot until its return starts, then travelling to the blob's
+     * middle as it turns back into its cuboid.
+     * decision released-weapons-turn-back-into-blobs-that-rejoin-the-palm-blob
+     *
+     * @param caster  the caster
+     * @param now     the game time, with the partial tick
+     * @param partial the frame's partial tick
+     * @return the knives
+     */
+    static List<Piece> piecesOf(Player caster, double now, float partial) {
         Vec3 cube = StackAnchor.cubeOf(caster, partial);
         float xRot = caster.getViewXRot(partial);
         float yRot = caster.getViewYRot(partial);
-        for (int index = fan.previous(); index < fan.count(); index++) {
-            float weapon = knifeScaleAt(fan, index, age);
-            if (weapon < 1f) {
-                GooFlightRenderer.emitCuboidAt(pose, c, gooTypeOf(caster),
-                        knifeAt(fan, index, cube, xRot, yRot, age).subtract(camera),
-                        (float) StackHover.cuboidEdgeOf(KNIVES) * (1f - weapon));
+        List<Piece> pieces = new ArrayList<>();
+        Fan fan = FANS.get(caster.getId());
+        if (fan != null) {
+            double age = now - fan.changedAt();
+            for (int index = 0; index < fan.count(); index++) {
+                pieces.add(new Piece(knifeAt(fan, index, cube, xRot, yRot, age), knifeDrawnScaleAt(fan, index, age)));
+            }
+        }
+        StackReturn.Released release = RETURNS.get(caster.getId());
+        if (release != null) {
+            for (int index = 0; index < release.released(); index++) {
+                float progress = StackReturn.progressAt(index, release.released(), now - release.at());
+                Vec3 slot = StackHover.pointOf(cube, xRot, yRot, StackHover.knifeSlot(index, release.released()));
+                if (progress < 1f) {
+                    pieces.add(new Piece(slot.lerp(cube, StackReturn.travelAt(progress)),
+                            StackReturn.weaponWeightAt(progress)));
+                }
+            }
+        }
+        return pieces;
+    }
+
+    /**
+     * Draws the cuboid each forming or returning knife is while it is not
+     * yet, or no longer, a knife, where it is on its way, shrinking as the
+     * knife grows into its shape and whole as it merges with the blob, so no
+     * fully formed knife draws at the blob.
+     * decision weapons-form-from-a-goo-cuboid-leaving-the-palm-blob
+     * decision released-weapons-turn-back-into-blobs-that-rejoin-the-palm-blob
+     *
+     * @param pose   the pose camera-relative points stand in
+     * @param c      a consumer of the translucent goo render type
+     * @param caster the caster
+     * @param pieces the caster's knives this frame
+     * @param camera the camera's position
+     */
+    static void drawCuboids(PoseStack.Pose pose, VertexConsumer c, Player caster, List<Piece> pieces,
+                            Vec3 camera) {
+        for (Piece piece : pieces) {
+            if (piece.weapon() < 1f) {
+                GooFlightRenderer.emitCuboidAt(pose, c, gooTypeOf(caster), piece.at().subtract(camera),
+                        (float) StackHover.cuboidEdgeOf(KNIVES) * (1f - piece.weapon()));
             }
         }
     }
@@ -328,8 +383,8 @@ public final class HoveringKnives {
     }
 
     /**
-     * Submits the local first-person player's pyramid in the hand's pass,
-     * with the lifted blob, laid out as the level would lay it and carried
+     * Submits the local first-person player's knives in the hand's pass,
+     * with the lifted blob, laid out as the level would lay them and carried
      * onto the same spot of the screen.
      *
      * @param poseStack the pose stack, its pose set onto the hand pass's camera-relative world axes
@@ -340,36 +395,30 @@ public final class HoveringKnives {
      */
     static void submitInHand(PoseStack poseStack, SubmitNodeCollector collector, Player caster, float partial,
                              Vec3 camera) {
-        Fan fan = FANS.get(caster.getId());
-        if (fan == null || caster.level() == null) {
+        if (caster.level() == null || !FANS.containsKey(caster.getId()) && !RETURNS.containsKey(caster.getId())) {
             return;
         }
-        double age = caster.level().getGameTime() + partial - fan.changedAt();
+        List<Piece> pieces = piecesOf(caster, caster.level().getGameTime() + partial, partial);
         collector.submitCustomGeometry(poseStack, GooRenderTypes.CRYSTAL_SHARD_TYPE,
-                (pose, consumer) -> drawFan(new FlatQuadContext(pose, consumer), caster, fan, age, partial, camera));
+                (pose, consumer) -> drawKnives(new FlatQuadContext(pose, consumer), caster, pieces, partial, camera));
         collector.submitCustomGeometry(poseStack, GooSubmitter.renderType(),
-                (pose, consumer) -> drawCuboids(pose, consumer, caster, fan, age, partial, camera));
+                (pose, consumer) -> drawCuboids(pose, consumer, caster, pieces, camera));
     }
 
-    private static void drawFan(FlatQuadContext quads, Player caster, Fan fan, double age, float partial,
-                                Vec3 camera) {
-        float xRot = caster.getViewXRot(partial);
-        float yRot = caster.getViewYRot(partial);
-        Vec3 cube = StackAnchor.cubeOf(caster, partial);
+    private static void drawKnives(FlatQuadContext quads, Player caster, List<Piece> pieces, float partial,
+                                   Vec3 camera) {
         Vec3 crosshair = ThrownKnife.aimPointOf(caster, partial);
-        List<Vec3> butts = new ArrayList<>();
         List<Vec3> middles = new ArrayList<>();
-        for (int index = 0; index < fan.count(); index++) {
-            Vec3 butt = knifeAt(fan, index, cube, xRot, yRot, age);
-            butts.add(butt);
-            middles.add(butt.lerp(crosshair, StackHover.KNIFE_LENGTH * HALF / butt.distanceTo(crosshair)));
+        for (Piece piece : pieces) {
+            middles.add(piece.at().lerp(crosshair, StackHover.KNIFE_LENGTH * HALF / piece.at().distanceTo(crosshair)));
         }
         // knives-hover-above-the-blob-cube-over-the-hand: farthest first, so nearer glass lays over farther
         for (int index : drawOrderOf(middles, camera)) {
-            Vec3 heading = ThrownKnife.headingFrom(butts.get(index), crosshair);
-            float scale = knifeDrawnScaleAt(fan, index, age);
-            GlassKunai.emit(quads, ThrownKnife.drawnFromOf(butts.get(index), heading, false, scale).subtract(camera),
-                    heading, 0f, scale);
+            Piece piece = pieces.get(index);
+            if (piece.weapon() > 0f) {
+                Vec3 heading = ThrownKnife.headingFrom(piece.at(), crosshair);
+                GlassKunai.emit(quads, ThrownKnife.drawnFromOf(piece.at(), heading, false, piece.weapon())
+                        .subtract(camera), heading, 0f, piece.weapon());
+            }
         }
-    }
-}
+    }}
