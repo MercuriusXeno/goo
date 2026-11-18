@@ -69,9 +69,40 @@ class GloveAimTest {
         assertEquals(ThrowRange.KNIVES_AND_DART_REACH, GloveAim.aimRangeOf(shipped("crystal_knives"), null));
     }
 
+    /**
+     * Every ability aims as far as its data file names, and 16 blocks where
+     * it names none.
+     * decision each-ability-names-its-range-and-the-shared-throw-range-retires
+     * decision abilities-leaving-the-shared-range-start-at-sixteen-blocks
+     */
     @Test
-    void aStreamAimsAsFarAsAnUnthrownAbilityAims() {
-        assertEquals(ThrowRange.UNTHROWN_AIM_RANGE, GloveAim.aimRangeOf(shipped("hex_drain"), null));
+    void aStreamAimsAsFarAsItsOwnReach() {
+        assertEquals(4, GloveAim.aimRangeOf(shipped("hex_drain"), null));
+    }
+
+    @Test
+    void clickAimsAsFarAsItsScanReads() {
+        assertEquals(32, GloveAim.aimRangeOf(shipped("deep_click"), null));
+    }
+
+    @Test
+    void frostOrbAimsAsFarAsItRolls() {
+        assertEquals(16, GloveAim.aimRangeOf(shipped("frost_orb"), null));
+    }
+
+    @Test
+    void laserAimsThirtyTwoBlocks() {
+        assertEquals(32, GloveAim.aimRangeOf(shipped("glow_laser"), null));
+    }
+
+    @Test
+    void aSelfAbilityNamingNoRangeAimsSixteenBlocks() {
+        assertEquals(16, GloveAim.aimRangeOf(shipped("ender_blink"), null));
+    }
+
+    @Test
+    void aDripStreamNamingNoRangeAimsSixteenBlocks() {
+        assertEquals(16, GloveAim.aimRangeOf(shipped("blaze_molten"), null));
     }
 
     @Test

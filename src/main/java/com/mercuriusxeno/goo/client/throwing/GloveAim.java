@@ -52,14 +52,14 @@ public final class GloveAim {
     /**
      * How far the glove aims for its selected ability: a grab's reach, so it
      * marks no mob it cannot lift, else the ability's own range; a glove
-     * holding no synced ability aims as an unthrown ability does.
+     * holding no synced ability aims as an ability naming no range does.
      *
      * @param player the local player
      * @return the aim range, in blocks
      */
     public static double aimRange(Player player) {
         ClientAbility ability = selectedAbility(player);
-        return ability == null ? ThrowRange.UNTHROWN_AIM_RANGE
+        return ability == null ? ThrowRange.UNNAMED_RANGE
                 : aimRangeOf(ability, Remote.entityReachLaid(player));
     }
 
