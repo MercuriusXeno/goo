@@ -87,6 +87,28 @@ class GooThrowHandlerTest {
         assertSame(edge, GooThrowHandler.capToRange(EYE, edge, GooThrowHandler.MAX_RANGE));
     }
 
+    /**
+     * A Mitosis throw aimed past its 16 blocks is thrown at the point 16
+     * blocks out along the same line.
+     * decision each-ability-names-its-range-and-the-shared-throw-range-retires
+     */
+    @Test
+    void aMitosisThrowAimedFortyBlocksOutIsThrownSixteenBlocksOutAlongItsLine() {
+        Vec3 far = EYE.add(new Vec3(1, 2, -3).normalize().scale(40));
+
+        Vec3 thrown = GooThrowHandler.pointThrownAt(EYE, far, AbilityJson.decode("weird_mitosis").delivery());
+
+        assertEquals(16, thrown.distanceTo(EYE), TOLERANCE);
+        assertEquals(1, thrown.subtract(EYE).normalize().dot(far.subtract(EYE).normalize()), TOLERANCE);
+    }
+
+    @Test
+    void aMitosisThrowAimedTenBlocksOutIsThrownAtTheAimedPoint() {
+        Vec3 near = EYE.add(new Vec3(1, 2, -3).normalize().scale(10));
+
+        assertSame(near, GooThrowHandler.pointThrownAt(EYE, near, AbilityJson.decode("weird_mitosis").delivery()));
+    }
+
     @Test
     void aMobAbilityNamingNoEntityIsRefusedAndOneNamingAnEntityIsNot() {
         assertTrue(GooThrowHandler.aimsNoMob(AbilityBadge.MOB, false));

@@ -733,6 +733,28 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
     }
 
     /**
+     * How far a throw or a cast aims and lands: the range an arc thrown at
+     * its aim, a beam, a spontaneous cast or an envelop names, and the range
+     * given where it names none. A rolling arc's range is how far it rolls,
+     * a stream's its reach and a scan's its read, never its aim.
+     * decision each-ability-names-its-range-and-the-shared-throw-range-retires
+     *
+     * @param unnamed the range a delivery naming none aims and lands within
+     * @return the range in blocks
+     */
+    public double throwRange(double unnamed) {
+        return range > 0 && thrownOrCastAtTheAim() ? range : unnamed;
+    }
+
+    private boolean thrownOrCastAtTheAim() {
+        return switch (kind) {
+            case ARC -> !rolls();
+            case BEAM, SPONTANEOUS, ENVELOP -> true;
+            case STREAM, SELF, SCAN -> false;
+        };
+    }
+
+    /**
      * The peak a flight flies between its start and its endpoint at the
      * throw: zero for a beam, the lob peak for a granny throw the delivery
      * allows, the share of the base peak the delivery names otherwise.
