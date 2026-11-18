@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.registry.GooBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.world.level.Level;
@@ -15,25 +14,30 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.function.LongFunction;
 import java.util.function.LongSupplier;
+import java.util.function.Predicate;
 
 /**
- * The Shatter cells this client draws shards over, held in client memory
- * only, since the cell is a plain block with no block entity and no chunk
- * storage: the chunk sections near the camera are scanned again every few
- * ticks, skipping any whose palette holds no Shatter cell, and the nearest
- * cells are kept. A cell's shards stay hidden in its goo until a living thing
- * comes within 4 blocks of it, then rise and fade in over the fade's ticks,
- * and sink back and fade out over as many once nothing living is that near,
- * so only cells something stands by draw shards and cast reflection rays.
- * Each cell's shard layout is drawn from a seed the client picks the first
- * time it sees the cell.
+ * The cells of one world goo this client draws something over as living
+ * things come near, Shatter's shards or Spikes' bristle, held in client
+ * memory only, since the cell is a plain block with no block entity and no
+ * chunk storage: the chunk sections near the camera are scanned again every
+ * few ticks, skipping any whose palette holds none of the goo's cells, and
+ * the nearest cells are kept. What a cell draws stays hidden in its goo
+ * until a living thing comes within 4 blocks of it, then rises over the
+ * fade's ticks, and sinks back over as many once nothing living is that
+ * near, so only cells something stands by draw. Each cell's layout is drawn
+ * from a seed the client picks the first time it sees the cell.
  * shatter-is-splattered-goo-and-shards-form-over-the-splatters
+ * urchin-rests-bristled-and-spears
  * razor-shards-appear-in-layers-ahead-of-the-dome
  * world-goo-fills-a-block-space-in-one-to-fifteen-layers
  * cloud-seed-per-client-ephemeral
+ *
+ * @param <L> the layout each cell draws
  */
-final class ShatterCells {
+final class NearCells<L> {
 
     /** How near a living thing stands to a cell's center to raise its shards, in blocks. */
     static final double NEAR_RADIUS = 4.0;
@@ -49,38 +53,42 @@ final class ShatterCells {
     /** The last scan's tick before any scan has run. */
     static final long NEVER_SCANNED = Long.MIN_VALUE;
 
-    private final Map<BlockPos, Cell> cells = new HashMap<>();
+    private final Map<BlockPos, Cell<L>> cells = new HashMap<>();
+    private final Predicate<BlockState> isCell;
+    private final LongFunction<L> layoutOf;
     private final LongSupplier seeds;
     private long lastScan = NEVER_SCANNED;
 
     /**
-     * One cell's shards: its layout, and how far they have risen out of its
+     * One cell's drawing: its layout, and how far it has risen out of its
      * goo this tick and the tick before, which a frame between reads between.
+     *
+     * @param <L> the layout the cell draws
      */
-    static final class Cell {
+    static final class Cell<L> {
 
-        private final ShatterCellShards.CellLayout layout;
+        private final L layout;
         private float shown;
         private float shownBefore;
 
         /**
-         * A cell whose shards stand hidden in its goo.
+         * A cell whose drawing stands hidden in its goo.
          *
-         * @param layout the cell's shard layout
+         * @param layout the cell's layout
          */
-        Cell(ShatterCellShards.CellLayout layout) {
+        Cell(L layout) {
             this.layout = layout;
         }
 
         /**
-         * @return the cell's shard layout
+         * @return the cell's layout
          */
-        ShatterCellShards.CellLayout layout() {
+        L layout() {
             return layout;
         }
 
         /**
-         * How far the cell's shards stand risen out of its goo at a frame.
+         * How far the cell's drawing stands risen out of its goo at a frame.
          *
          * @param partialTick the frame's share of the way from the last tick to the next
          * @return the shown share, 0 hidden to 1 at rest
@@ -96,18 +104,25 @@ final class ShatterCells {
     }
 
     /**
-     * An index seeding each cell's layout from a fresh random source.
+     * An index of one goo's cells seeding each cell's layout from a fresh random source.
+     *
+     * @param isCell   whether a block state is one of the goo's cells
+     * @param layoutOf the layout a seed draws
      */
-    ShatterCells() {
-        this(new Random()::nextLong);
+    NearCells(Predicate<BlockState> isCell, LongFunction<L> layoutOf) {
+        this(isCell, layoutOf, new Random()::nextLong);
     }
 
     /**
-     * An index seeding each cell's layout from the given source.
+     * An index of one goo's cells seeding each cell's layout from the given source.
      *
-     * @param seeds answers the seed of each new cell's layout
+     * @param isCell   whether a block state is one of the goo's cells
+     * @param layoutOf the layout a seed draws
+     * @param seeds    answers the seed of each new cell's layout
      */
-    ShatterCells(LongSupplier seeds) {
+    NearCells(Predicate<BlockState> isCell, LongFunction<L> layoutOf, LongSupplier seeds) {
+        this.isCell = isCell;
+        this.layoutOf = layoutOf;
         this.seeds = seeds;
     }
 
@@ -125,7 +140,7 @@ final class ShatterCells {
     }
 
     /**
-     * Whether a living thing stands near enough a cell to raise its shards.
+     * Whether a living thing stands near enough a cell to raise its drawing.
      *
      * @param cell   the cell
      * @param living where each living thing near the camera stands
@@ -150,7 +165,7 @@ final class ShatterCells {
     }
 
     /**
-     * Moves every cell's shards a tick toward risen where a living thing is near it, toward hidden where not.
+     * Moves every cell's drawing a tick toward risen where a living thing is near it, toward hidden where not.
      *
      * @param living where each living thing near the camera stands
      */
@@ -163,7 +178,7 @@ final class ShatterCells {
      *
      * @return the cells
      */
-    Map<BlockPos, Cell> cells() {
+    Map<BlockPos, Cell<L>> cells() {
         return cells;
     }
 
@@ -203,20 +218,19 @@ final class ShatterCells {
     }
 
     private void keep(List<BlockPos> nearest) {
-        Map<BlockPos, Cell> kept = new HashMap<>();
+        Map<BlockPos, Cell<L>> kept = new HashMap<>();
         for (BlockPos pos : nearest) {
-            Cell standing = cells.get(pos);
-            kept.put(pos, standing != null ? standing
-                    : new Cell(ShatterCellShards.layoutFromSeed(seeds.getAsLong())));
+            Cell<L> standing = cells.get(pos);
+            kept.put(pos, standing != null ? standing : new Cell<>(layoutOf.apply(seeds.getAsLong())));
         }
         cells.clear();
         cells.putAll(kept);
     }
 
-    private static void scanChunk(ChunkAccess chunk, int lowY, int highY, List<BlockPos> found) {
+    private void scanChunk(ChunkAccess chunk, int lowY, int highY, List<BlockPos> found) {
         for (int sy = Math.max(lowY, chunk.getMinSectionY()); sy <= Math.min(highY, chunk.getMaxSectionY()); sy++) {
             LevelChunkSection section = chunk.getSection(chunk.getSectionIndexFromSectionY(sy));
-            if (section.hasOnlyAir() || !section.getStates().maybeHas(ShatterCells::isShatter)) {
+            if (section.hasOnlyAir() || !section.getStates().maybeHas(isCell)) {
                 continue;
             }
             BlockPos base = new BlockPos(chunk.getPos().getMinBlockX(), SectionPos.sectionToBlockCoord(sy),
@@ -225,25 +239,15 @@ final class ShatterCells {
         }
     }
 
-    private static void scanSection(LevelChunkSection section, BlockPos base, List<BlockPos> found) {
+    private void scanSection(LevelChunkSection section, BlockPos base, List<BlockPos> found) {
         for (int x = 0; x < SECTION_SIZE; x++) {
             for (int y = 0; y < SECTION_SIZE; y++) {
                 for (int z = 0; z < SECTION_SIZE; z++) {
-                    if (isShatter(section.getBlockState(x, y, z))) {
+                    if (isCell.test(section.getBlockState(x, y, z))) {
                         found.add(base.offset(x, y, z));
                     }
                 }
             }
         }
-    }
-
-    /**
-     * Whether a block state is a Shatter cell.
-     *
-     * @param state the block state
-     * @return true for a Shatter cell
-     */
-    static boolean isShatter(BlockState state) {
-        return state.is(GooBlocks.CRYSTAL_SHATTER.get());
     }
 }

@@ -10,6 +10,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.jspecify.annotations.Nullable;
@@ -110,6 +111,19 @@ public final class SoundPlays {
             Goo.LOGGER.warn(LOG_UNKNOWN_SOUND, id);
         }
         return holder;
+    }
+
+    /**
+     * Plays the cue at a point on this client alone, as a client draws a
+     * visual the server sent it.
+     *
+     * @param level the client's level
+     * @param at    the point the sound plays at
+     * @param cue   the sound
+     */
+    public static void playLocally(Level level, Vec3 at, SoundCue cue) {
+        resolved(cue.sound()).ifPresent(holder -> level.playLocalSound(at.x(), at.y(), at.z(), holder.value(),
+                sourceOf(cue.source()), cue.volume(), cue.pitch(), false));
     }
 
     /**

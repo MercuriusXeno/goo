@@ -411,7 +411,7 @@ public final class GooItemTests {
     private static final Direction THROW_FACE = Direction.SOUTH;
     private static final int NO_TARGET_ENTITY = -1;
     private static final String DEEP_SHRIEK = "goo:deep_shriek";
-    private static final String METAL_URCHIN = "goo:metal_urchin";
+    private static final String SPIKE_TRAP = "goo:test_spike_trap";
     private static final String REMOVAL = "removal";
     /**
      * Ticks past the arc from the player to either wall, four blocks at one
@@ -478,7 +478,7 @@ public final class GooItemTests {
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(thrower));
         AbilityRegistry abilities = AbilityRegistry.of(helper.getLevel());
         AbilityDefinition shriek = abilities.getAbility(Identifier.parse(DEEP_SHRIEK));
-        AbilityDefinition spikes = abilities.getAbility(Identifier.parse(METAL_URCHIN));
+        AbilityDefinition spikes = abilities.getAbility(Identifier.parse(SPIKE_TRAP));
         ItemStack deep = GooStacks.createForOutput(GooTypes.DEEP, shriek.cost().in(GooValueTable.EMPTY));
         ItemStack metal = GooStacks.createForOutput(GooTypes.METAL, spikes.cost().in(GooValueTable.EMPTY));
         player.getInventory().add(deep);
@@ -487,7 +487,7 @@ public final class GooItemTests {
         KnownRecipes.teachRequires(player, spikes);
 
         GooThrowHandler.execute(player, throwAt(helper, GooTypes.DEEP, DEEP_SHRIEK, DEEP_WALL));
-        GooThrowHandler.execute(player, throwAt(helper, GooTypes.METAL, METAL_URCHIN, METAL_WALL));
+        GooThrowHandler.execute(player, throwAt(helper, GooTypes.METAL, SPIKE_TRAP, METAL_WALL));
         helper.assertTrue(deep.isEmpty(), GOO_NOT_SPENT + GooTypes.id(GooTypes.DEEP));
         helper.assertTrue(metal.isEmpty(), GOO_NOT_SPENT + GooTypes.id(GooTypes.METAL));
 

@@ -210,6 +210,8 @@ class StepCodecTest {
             Map.entry("float", new FloatStep(Expr.literal(100), Expr.literal(1))),
             Map.entry("updraft", new UpdraftStep(0.5, 0.4, 16, 0.15, 0.35, 0.15, 10)),
             Map.entry("signal", new SignalStep()),
+            Map.entry("spikes", new SpikesStep(List.of(EntityFilter.LIVING), 10, 0.25, List.of(),
+                    SoundCue.of(Identifier.parse("minecraft:item.axe.scrape")), 3)),
             Map.entry("phase_goo", new PhaseGooStep()),
             Map.entry("airborn", new AirbornStep(Expr.literal(0.6), Expr.literal(0.4), Expr.literal(0.2),
                     Expr.literal(0.4), Expr.literal(0.5), Expr.literal(1.2), Expr.literal(0.05))),
