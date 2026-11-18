@@ -21,6 +21,7 @@ class LunarRefusalTest {
     private static final String EN_US_JSON = "/assets/goo/lang/en_us.json";
     private static final String REFUSAL = "That's no moon!";
     private static final String TERRAN_REFUSAL = "That's not your world";
+    private static final String SUN_JOKE = "The big yellow one is the sun!";
 
     private static JsonObject lang() throws IOException {
         try (InputStream in = LunarRefusalTest.class.getResourceAsStream(EN_US_JSON)) {
@@ -36,6 +37,14 @@ class LunarRefusalTest {
     @Test
     void refusalReadsThatsNoMoon() throws IOException {
         assertEquals(REFUSAL, read(lang(), LunarSight.LUNAR_REFUSED));
+    }
+
+    /**
+     * decision pointing-at-the-sun-says-the-big-yellow-one-is-the-sun
+     */
+    @Test
+    void theSunJokeReadsTheBigYellowOneIsTheSun() throws IOException {
+        assertEquals(SUN_JOKE, read(lang(), LunarSight.SUN_REFUSED));
     }
 
     @Test

@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability.astral;
 
 import com.mercuriusxeno.goo.lunar.Lunar;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.MoonPhase;
 import net.minecraft.world.phys.Vec3;
@@ -162,6 +163,48 @@ class LunarSightTest {
         @Test
         void theTwoRefusalsReadApart() {
             assertNotEquals(LunarSight.LUNAR_REFUSED, LunarSight.TERRAN_REFUSED);
+        }
+    }
+
+    /**
+     * decision pointing-at-the-sun-says-the-big-yellow-one-is-the-sun
+     */
+    @Nested
+    class TheSunJoke {
+
+        /** A morning sun angle, the sun well up in the east. */
+        private static final float MORNING = -40F;
+        /** The midnight sun angle, the sun straight underfoot. */
+        private static final float SUN_AT_MIDNIGHT = 180F;
+
+        private static Stream<Arguments> eachDimensionAndItsOtherRefusal() {
+            return Stream.of(Arguments.of(Level.OVERWORLD, LunarSight.LUNAR_REFUSED),
+                    Arguments.of(Lunar.LEVEL, LunarSight.TERRAN_REFUSED));
+        }
+
+        @ParameterizedTest
+        @MethodSource("eachDimensionAndItsOtherRefusal")
+        void aLookAtTheSunByDaySaysTheBigYellowOneIsTheSun(ResourceKey<Level> dimension, String other) {
+            assertEquals(LunarSight.SUN_REFUSED,
+                    LunarSight.refusalKey(dimension, LunarSight.moonDirection(MORNING), MORNING));
+        }
+
+        @ParameterizedTest
+        @MethodSource("eachDimensionAndItsOtherRefusal")
+        void aLookWellOffTheSunShowsTheOtherRefusal(ResourceKey<Level> dimension, String other) {
+            assertEquals(other, LunarSight.refusalKey(dimension, DOWN, MORNING));
+        }
+
+        @ParameterizedTest
+        @MethodSource("eachDimensionAndItsOtherRefusal")
+        void aLookWhereTheSunStandsBelowTheHorizonShowsTheOtherRefusal(ResourceKey<Level> dimension, String other) {
+            assertEquals(other, LunarSight.refusalKey(dimension, LunarSight.moonDirection(SUN_AT_MIDNIGHT),
+                    SUN_AT_MIDNIGHT));
+        }
+
+        @Test
+        void aLookUpInADimensionWithNoSunShowsTheRefusal() {
+            assertEquals(LunarSight.LUNAR_REFUSED, LunarSight.refusalKey(Level.NETHER, UP, 0F));
         }
     }
 

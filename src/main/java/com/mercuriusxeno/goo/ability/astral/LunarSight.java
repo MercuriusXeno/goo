@@ -6,6 +6,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.MoonPhase;
 import net.minecraft.world.phys.Vec3;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * What Lunar finds along a caster's look: the moon, from the overworld while it stands above the horizon, or the blue
@@ -48,6 +49,16 @@ public final class LunarSight {
      */
     public static final String TERRAN_REFUSED = "goo.ability.astral.terran.refused";
 
+    /**
+     * The joke a cast held on the sun shows, "The big yellow one is the sun!". The sun's disc spans eight of its
+     * sprite's thirty-two texels on a quad of half width 30, inside the look reach a moon is held within, so the sun
+     * is held within that reach too.
+     * decision pointing-at-the-sun-says-the-big-yellow-one-is-the-sun
+     */
+    public static final String SUN_REFUSED = "goo.ability.astral.sun.refused";
+    /** The dimensions whose sky draws a sun Lunar can be held on. */
+    private static final Set<ResourceKey<Level>> SUNLIT = Set.of(Level.OVERWORLD, Lunar.LEVEL);
+
     /** What Lunar fixates on. */
     public enum Sky {
         /** The overworld's moon, which carries the caster to lunar. */
@@ -68,6 +79,23 @@ public final class LunarSight {
      * @param dimension the caster's dimension
      * @return the refusal's lang key
      */
+    /**
+     * The refusal a cast holding neither moon nor planet shows, the sun first: a look holding the sun while it stands
+     * above the horizon, in the overworld or on the moon, says "The big yellow one is the sun!", and any other look
+     * shows its dimension's refusal.
+     * decision pointing-at-the-sun-says-the-big-yellow-one-is-the-sun
+     *
+     * @param dimension       the caster's dimension
+     * @param look            the caster's look, any length
+     * @param sunAngleDegrees the dimension's sun angle, in degrees
+     * @return the refusal's lang key
+     */
+    public static String refusalKey(ResourceKey<Level> dimension, Vec3 look, float sunAngleDegrees) {
+        Vec3 sun = moonDirection(sunAngleDegrees);
+        boolean holdsTheSun = SUNLIT.contains(dimension) && sun.y() > 0.0 && holds(look, sun, LOOK_REACH_COSINE);
+        return holdsTheSun ? SUN_REFUSED : refusalKey(dimension);
+    }
+
     public static String refusalKey(ResourceKey<Level> dimension) {
         return Lunar.LEVEL.equals(dimension) ? TERRAN_REFUSED : LUNAR_REFUSED;
     }

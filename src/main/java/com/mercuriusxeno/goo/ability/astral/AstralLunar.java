@@ -121,14 +121,16 @@ public final class AstralLunar {
     }
 
     /**
-     * Shows the caster the refusal their dimension reads: "That's no moon!" in the overworld, "That's not your world"
-     * on the moon.
+     * Shows the caster the refusal their look and their dimension read: "The big yellow one is the sun!" held on the
+     * sun, else "That's no moon!" in the overworld and "That's not your world" on the moon.
      * decision terran-refusal-says-thats-not-your-world
+     * decision pointing-at-the-sun-says-the-big-yellow-one-is-the-sun
      *
      * @param caster the caster
      */
     public static void refuse(ServerPlayer caster) {
-        caster.sendSystemMessage(Component.translatable(LunarSight.refusalKey(caster.level().dimension())), true);
+        caster.sendSystemMessage(Component.translatable(LunarSight.refusalKey(caster.level().dimension(),
+                caster.getLookAngle(), sunAngleAt(caster))), true);
     }
 
     /**
@@ -267,6 +269,10 @@ public final class AstralLunar {
     private static MoonPhase planetPhaseAt(ServerPlayer caster) {
         return LunarSight.planetPhase(caster.level().environmentAttributes().getValue(EnvironmentAttributes.MOON_PHASE,
                 caster.position()));
+    }
+
+    private static float sunAngleAt(ServerPlayer caster) {
+        return caster.level().environmentAttributes().getValue(EnvironmentAttributes.SUN_ANGLE, caster.position());
     }
 
     private static float moonAngleAt(ServerPlayer caster) {
