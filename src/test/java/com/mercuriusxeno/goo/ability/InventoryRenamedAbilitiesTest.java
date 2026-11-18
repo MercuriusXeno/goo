@@ -56,19 +56,19 @@ class InventoryRenamedAbilitiesTest {
         return Stream.of(
                 Arguments.of("ender_seal", "Seal"),
                 Arguments.of("void_zone", "Zone"),
-                Arguments.of("quantum_phase_self", "Phase Self"),
-                Arguments.of("quantum_phase_other", "Phase Other"),
                 Arguments.of("blaze_molten", "Molten"),
                 Arguments.of("crystal_shatter", "Shatter"),
                 Arguments.of("crystal_glimmer", "Glimmer"),
                 Arguments.of("jelly_nectar", "Nectar"),
                 Arguments.of("void_cancel", "Cancel"),
                 Arguments.of("zoo_kin", "Kin"),
-                Arguments.of("rock_build", "Build"));
+                Arguments.of("rock_build", "Build"),
+                Arguments.of("unstable_nitro", "Nitro"));
     }
 
+    // quantum_phase names the Phase goo (decision phase-goo-puts-what-stands-in-it-out-of-phase).
     @ParameterizedTest
-    @ValueSource(strings = {"ender_zone", "quantum_phase", "quantum_phase_shift", "rock_spire"})
+    @ValueSource(strings = {"ender_zone", "quantum_phase_shift", "rock_spire"})
     void oldKeyShipsNoAbility(String oldId) {
         assertNull(InventoryRenamedAbilitiesTest.class.getResource(ABILITY_JSON.formatted(oldId)), oldId + " json");
         assertNull(InventoryRenamedAbilitiesTest.class.getResource(ABILITY_ICON.formatted(oldId)), oldId + " icon");
