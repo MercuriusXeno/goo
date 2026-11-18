@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.registry.GooMobEffects;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.server.ServerLifecycleHooks;
 import org.jspecify.annotations.Nullable;
 import java.util.concurrent.atomic.AtomicReference;
@@ -54,6 +55,21 @@ public final class HeldEffectName {
     }
 
     /**
+     * The name key of a type's held effect, read as its granted ability shows it to a player standing in a
+     * dimension.
+     * decision lunar-reads-as-terran-while-you-are-on-the-moon
+     *
+     * @param type       the goo type
+     * @param granted    the durative ability the type grants, null for none
+     * @param standingIn the dimension the player stands in
+     * @return the ability's shown key, or the type's own effect key for a type granting none
+     */
+    public static String nameKeyOf(ResourceKey<GooTypeDefinition> type, @Nullable AbilityDefinition granted,
+            ResourceKey<Level> standingIn) {
+        return nameKeyOf(type, granted != null ? granted.shownIn(standingIn).displayName() : null);
+    }
+
+    /**
      * Installs the reader of the client connection's durative ability names, from the client setup.
      *
      * @param connectionNames answers a type's durative ability displayName key, or null for none synced
@@ -67,7 +83,7 @@ public final class HeldEffectName {
         MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
         if (server != null) {
             AbilityDefinition granted = AbilityRegistry.of(server).durativeAbilityFor(type);
-            return granted != null ? granted.displayName() : null;
+            return granted != null ? granted.shownIn(StandingDimension.current()).displayName() : null;
         }
         return CONNECTION_NAMES.get().apply(type);
     }
