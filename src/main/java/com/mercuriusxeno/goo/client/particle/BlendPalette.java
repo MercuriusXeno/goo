@@ -120,6 +120,14 @@ public record BlendPalette(float lightRed, float lightGreen, float lightBlue,
             0x9A / 255f, 0x4E / 255f, 0x4E / 255f, 0x65 / 255f, 0x28 / 255f, 0x28 / 255f);
 
     /**
+     * Mycosis' spray drips, from shroom's bright purple, B66CD5, to its
+     * wheel purple, 8E44AD, the two the shroom goo type's definition names.
+     * mycosis-is-the-residual-goo-that-infests-with-mushrooms
+     */
+    public static final BlendPalette MYCOSIS_SHROOM_PURPLES = new BlendPalette(
+            0xB6 / 255f, 0x6C / 255f, 0xD5 / 255f, 0x8E / 255f, 0x44 / 255f, 0xAD / 255f);
+
+    /**
      * The color a share of the way from the light end to the dark.
      *
      * @param blend the share, 0 at the light end and 1 at the dark
