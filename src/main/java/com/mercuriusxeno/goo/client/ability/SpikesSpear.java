@@ -5,16 +5,16 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import org.joml.Vector3f;
 
 /**
- * Urchin's shot, one per strike in flight: one of the urchin's own chrome
+ * The spike trap's shot, one per strike in flight: one of the urchin's own chrome
  * spikes shooting out of it toward the struck mob. It arms over three
  * ticks, the tip poking out past the bristles; fires over the next three,
  * standing in the mob on the tick the damage lands; then retracts over
- * six. The spike is the cone every other Urchin view draws, drawn through
+ * six. The spike is the cone every other spike trap view draws, drawn through
  * Metal's chrome shader.
  * urchin-rests-bristled-and-spears
  * urchin-spines-return-to-the-original-spikes
  */
-final class UrchinSpear {
+final class SpikesSpear {
 
     /** Ticks the tip takes to poke out past the bristles. */
     static final int ARM_TICKS = 3;
@@ -37,7 +37,7 @@ final class UrchinSpear {
     private static final float SMOOTH_SQUARE = 3f;
     private static final float SMOOTH_CUBE = 2f;
 
-    private UrchinSpear() {
+    private SpikesSpear() {
     }
 
     /**
