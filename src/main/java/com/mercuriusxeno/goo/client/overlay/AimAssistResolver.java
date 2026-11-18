@@ -31,11 +31,6 @@ import java.util.function.Predicate;
 final class AimAssistResolver {
 
     /**
-     * Maximum range for goo throwing in blocks.
-     */
-    private static final double MAX_RANGE = AimState.MAX_RANGE;
-
-    /**
      * The shared aim-assist forgiveness half-angle in degrees. Targets within
      * this cone around the reticle are eligible even if the exact raytrace
      * misses their hitbox.
@@ -201,10 +196,23 @@ final class AimAssistResolver {
      * @return the inflated search box
      */
     private static AABB buildSearchBox(Vec3 from, Vec3 to, double coneDegrees) {
-        double coneRadius = MAX_RANGE * Math.tan(Math.toRadians(coneDegrees));
         return new AABB(from, from)
                 .expandTowards(to.subtract(from))
-                .inflate(coneRadius + 1.0);
+                .inflate(searchConeRadius(from, to, coneDegrees) + 1.0);
+    }
+
+    /**
+     * How wide the pick cone opens at the aim ray's end, the ray reaching
+     * the selected ability's own range.
+     * decision each-ability-names-its-range-and-the-shared-throw-range-retires
+     *
+     * @param from        ray start
+     * @param to          ray end
+     * @param coneDegrees the pick cone's half-angle
+     * @return the cone's radius at the ray's end, in blocks
+     */
+    static double searchConeRadius(Vec3 from, Vec3 to, double coneDegrees) {
+        return from.distanceTo(to) * Math.tan(Math.toRadians(coneDegrees));
     }
 
     /**

@@ -5,7 +5,7 @@
   "order": 10,
   "cost": 200,
   "requires": ["minecraft:spectral_arrow"],
-  "delivery": { "kind": "self", "ticks_per_charge": 20 },
+  "delivery": { "kind": "self", "range": 32, "ticks_per_charge": 20 },
   "behaviors": [
     {
       "type": "ray",

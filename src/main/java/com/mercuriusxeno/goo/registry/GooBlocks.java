@@ -13,6 +13,7 @@ import com.mercuriusxeno.goo.block.ability.MoltenCellBlock;
 import com.mercuriusxeno.goo.block.ability.NectarCellBlock;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
 import com.mercuriusxeno.goo.block.ability.RimeCellBlock;
+import com.mercuriusxeno.goo.block.ability.SignalCellBlock;
 import com.mercuriusxeno.goo.block.ability.UpdraftCellBlock;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.block.ability.WispBlock;
@@ -361,6 +362,28 @@ public class GooBlocks {
                     .noOcclusion()
                     .replaceable()
                     .noLootTable()
+                    .pushReaction(PushReaction.DESTROY));
+    /**
+     * Signal: the volume cell bound to Pulse's goo, the red goo Signal sprays
+     * onto a block's top, one to fifteen layers, ordinary ground underfoot
+     * and sounding as goo does, sending a redstone signal equal to its layers
+     * as a redstone block sends its own, carried by no block it lies against,
+     * dropping the pulse goo its layers cost through VolumeCellBlock.getDrops,
+     * no loot table (decisions extend-is-dropped-for-signal-an-in-world-pulse-goo,
+     * signal-goo-sends-a-redstone-signal-equal-to-its-layers,
+     * each-goo-type-ships-a-world-goo-on-the-volume-cell).
+     */
+    public static final DeferredBlock<SignalCellBlock> PULSE_SIGNAL = BLOCKS.registerBlock(
+            "pulse_signal", properties -> new SignalCellBlock(properties, CellBinding.SIGNAL),
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_RED)
+                    .friction(CellBinding.SIGNAL.surface().friction())
+                    .sound(SoundType.SLIME_BLOCK)
+                    .instabreak()
+                    .noOcclusion()
+                    .replaceable()
+                    .noLootTable()
+                    .isRedstoneConductor((state, level, pos) -> false)
                     .pushReaction(PushReaction.DESTROY));
     /**
      * Infest: the volume cell bound to Nether's goo, the dark red goo Infest
