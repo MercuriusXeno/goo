@@ -40,9 +40,7 @@ public final class TartarusPassage {
             player.sendSystemMessage(Component.translatable(TartarusHolds.NO_SAFE_FLOOR), true);
             return false;
         }
-        ConjuredDoors.sendDoorSound(player);
-        player.teleport(transitionTo(there, arrival.spot(), arrival.yaw()));
-        ConjuredDoors.sendDoorSound(player);
+        ConjuredDoors.carry(player, transitionTo(there, arrival.spot(), arrival.yaw()));
         ConjuredDoors.release(player, GateLook.NETHER_PORTAL);
         return true;
     }

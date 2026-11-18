@@ -92,6 +92,21 @@ class TartarusGateRendererTest {
             assertTrue(membrane(vertices).stream().allMatch(v -> v.color() == 0xFFFFFFFF), "the texture untinted");
         }
 
+        /**
+         * The render type draws a face from both sides, so a second face on the same plane z-fights the first and
+         * blends the texture twice: each texel of a whole doorway is covered once, two square blocks in all.
+         */
+        @Test
+        void aWholeDoorwayCoversEachTexelOnce() {
+            List<RecordingVertexConsumer.Vertex> doorway = membrane(submit(drawn(1, ConjuredDoor.Phase.ENVELOPING)));
+            double covered = 0;
+            for (int quad = 0; quad + 4 <= doorway.size(); quad += 4) {
+                covered += areaOf(doorway.subList(quad, quad + 4));
+            }
+
+            assertEquals(2, covered, EXACT, "two square blocks, each texel once");
+        }
+
         @Test
         void aDoorwayNotYetAppearingDrawsNothing() {
             assertTrue(submit(drawn(0, ConjuredDoor.Phase.GROWING)).isEmpty());
@@ -116,18 +131,21 @@ class TartarusGateRendererTest {
         return vertices.stream().filter(v -> within(PORTAL_UV, v)).toList();
     }
 
-    /** The area the quads' front faces cover: each quad's first four of its eight vertices. */
+    /** The area the quads cover, each four vertices one quad. */
     private static double frontArea(List<RecordingVertexConsumer.Vertex> vertices) {
         double area = 0;
-        for (int quad = 0; quad + 8 <= vertices.size(); quad += 8) {
-            List<RecordingVertexConsumer.Vertex> front = vertices.subList(quad, quad + 4);
-            double wide = front.stream().mapToDouble(RecordingVertexConsumer.Vertex::x).max().orElseThrow()
-                    - front.stream().mapToDouble(RecordingVertexConsumer.Vertex::x).min().orElseThrow();
-            double tall = front.stream().mapToDouble(RecordingVertexConsumer.Vertex::y).max().orElseThrow()
-                    - front.stream().mapToDouble(RecordingVertexConsumer.Vertex::y).min().orElseThrow();
-            area += wide * tall;
+        for (int quad = 0; quad + 4 <= vertices.size(); quad += 4) {
+            area += areaOf(vertices.subList(quad, quad + 4));
         }
         return area;
+    }
+
+    private static double areaOf(List<RecordingVertexConsumer.Vertex> quad) {
+        double wide = quad.stream().mapToDouble(RecordingVertexConsumer.Vertex::x).max().orElseThrow()
+                - quad.stream().mapToDouble(RecordingVertexConsumer.Vertex::x).min().orElseThrow();
+        double tall = quad.stream().mapToDouble(RecordingVertexConsumer.Vertex::y).max().orElseThrow()
+                - quad.stream().mapToDouble(RecordingVertexConsumer.Vertex::y).min().orElseThrow();
+        return wide * tall;
     }
 
     private static double offGrid(double blocks) {

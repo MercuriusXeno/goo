@@ -723,15 +723,15 @@ public final class ZoneTests {
     private static final String ZONE_DOOR_SOUNDS_THROUGH_THE_CHANGE = "zone_door_sounds_through_the_change";
     /** Vanilla's level event for the nether portal's travel sound, which a portal-sound transition sends. */
     private static final int PORTAL_TRAVEL_EVENT = 1032;
-    private static final String SHOULD_SOUND_THE_DOOR = "Entering should send the door's own sound at the envelop, "
-            + "near %s, and at arrival, near %s; door sounds sent at %s";
+    private static final String SHOULD_SOUND_THE_DOOR = "Entering should send the door's own sound once, at arrival, "
+            + "near %s, and none at the envelop, near %s; door sounds sent at %s";
     private static final String SHOULD_NOT_TRAVEL = "Entering should send no portal travel sound, sends %d";
 
     /**
-     * Entering the pocket sends the entering player the door's own sound as
-     * the door envelops them, where they cast from, and again on arrival,
-     * and no nether portal travel sound: the transition does nothing of its
-     * own (decision door-carries-its-own-sound-through-the-change).
+     * Entering the pocket sends the entering player the door's own sound
+     * once, on arrival, where a second play as the door enveloped them
+     * overlapped it, and no nether portal travel sound: the transition does
+     * nothing of its own (decision door-carries-its-own-sound-through-the-change).
      *
      * @param helper the gametest helper
      */
@@ -745,10 +745,8 @@ public final class ZoneTests {
             List<Vec3> doorSounds = packets.sentOf(ClientboundSoundPacket.class).stream()
                     .filter(sound -> GooSoundIds.ZONE_DOOR.equals(sound.getSound().value().location()))
                     .map(sound -> new Vec3(sound.getX(), sound.getY(), sound.getZ())).toList();
-            boolean atEnvelop = doorSounds.stream().anyMatch(at -> at.distanceTo(castFrom) < 1);
-            boolean atArrival = doorSounds.stream().anyMatch(at -> at.distanceTo(arrival) < 1);
-            helper.assertTrue(atEnvelop && atArrival, String.format(SHOULD_SOUND_THE_DOOR, castFrom, arrival,
-                    doorSounds));
+            boolean atArrival = doorSounds.size() == 1 && doorSounds.getFirst().distanceTo(arrival) < 1;
+            helper.assertTrue(atArrival, String.format(SHOULD_SOUND_THE_DOOR, arrival, castFrom, doorSounds));
             long travel = packets.sentOf(ClientboundLevelEventPacket.class).stream()
                     .filter(event -> event.getType() == PORTAL_TRAVEL_EVENT).count();
             helper.assertTrue(travel == 0, String.format(SHOULD_NOT_TRAVEL, travel));
