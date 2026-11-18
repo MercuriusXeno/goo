@@ -2,6 +2,9 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.program.MycosisStep;
+import com.mercuriusxeno.goo.block.ability.CellBinding;
+import com.mercuriusxeno.goo.block.ability.GoologgedFungus;
 import com.mercuriusxeno.goo.ability.kinetic.GrabEvents;
 import com.mercuriusxeno.goo.ability.program.VacuumPullStep;
 import com.mercuriusxeno.goo.ability.program.VacuumStep;
@@ -41,6 +44,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Consumer;
 
 /**
@@ -335,6 +339,7 @@ public final class VacuumTests {
         // iron bars, which neither melt nor cook and whose sides hold no vine, wall it and every layer stands for Vacuum
         helper.setBlock(laneCell(DECAYED).north(), Blocks.IRON_BARS);
         helper.setBlock(laneCell(DECAYED).south(), Blocks.IRON_BARS);
+        sealMycosisReach(helper);
         ServerPlayer vacuumer = vacuumer(helper);
         List<String> left = new ArrayList<>();
         int turn = drainHold(helper, DECAYED, VACUUMED_LAYERS) + 1 + BETWEEN_HOLDS;
@@ -349,6 +354,44 @@ public final class VacuumTests {
     }
 
     /**
+     * Leaves Mycosis no open floor in its reach: Mycosis grows a bud on each
+     * open floor in its reach, spending a layer each
+     * (mycosis-goo-disperses-spores-and-grows-shrooms-nearby-depleting), so
+     * stone fills its reach beside the lane, the iron bars aside, and bottom
+     * slabs, whose tops hold no bud, floor the lane two blocks out; its cell
+     * is laid with its own space already grown, and every layer stands for
+     * Vacuum.
+     *
+     * @param helper the gametest helper
+     */
+    private static void sealMycosisReach(GameTestHelper helper) {
+        BlockPos cell = laneCell(DECAYED);
+        int reach = Optional.ofNullable(AbilityRegistry.of(helper.getLevel()).getAbility(CellBinding.MYCOSIS_ABILITY))
+                .flatMap(mycosis -> MycosisStep.in(mycosis.behaviors())).map(MycosisStep::reach).orElse(0);
+        BlockPos.betweenClosedStream(cell.offset(-reach, -1, -reach), cell.offset(reach, 1, reach))
+                .filter(pos -> pos.getZ() != cell.getZ() && !pos.equals(cell.north()) && !pos.equals(cell.south()))
+                .map(BlockPos::immutable).forEach(pos -> helper.setBlock(pos, Blocks.STONE));
+        for (int out = 2; out <= reach; out++) {
+            helper.setBlock(laneCell(DECAYED - out).below(), Blocks.STONE_SLAB);
+            helper.setBlock(laneCell(DECAYED + out).below(), Blocks.STONE_SLAB);
+        }
+    }
+
+    /**
+     * A world goo's cell of the vacuumed layers, its own space already grown
+     * where its goo grows goologged fungus there, so no layer goes to a bud.
+     * mushrooms-and-buds-are-goo-logged-with-shroom-goo
+     *
+     * @param worldGoo the world goo
+     * @return the cell's state
+     */
+    private static BlockState vacuumedCellOf(VolumeCellBlock worldGoo) {
+        BlockState cell = worldGoo.defaultBlockState().setValue(VolumeCellBlock.LAYERS, VACUUMED_LAYERS);
+        return cell.hasProperty(GoologgedFungus.FUNGUS)
+                ? cell.setValue(GoologgedFungus.FUNGUS, GoologgedFungus.BROWN_MUSHROOM) : cell;
+    }
+
+    /**
      * Lays one world goo's cell at a tick, holds Vacuum over it, and reports
      * the cell where it stands afterward or returned other than its layers' goo.
      */
@@ -358,7 +401,7 @@ public final class VacuumTests {
         ResourceKey<GooTypeDefinition> type = worldGoo.binding().gooType();
         int[] before = new int[1];
         helper.runAfterDelay(from, () -> {
-            helper.setBlock(cell, worldGoo.defaultBlockState().setValue(VolumeCellBlock.LAYERS, VACUUMED_LAYERS));
+            helper.setBlock(cell, vacuumedCellOf(worldGoo));
             before[0] = gooReturned(helper, vacuumer, type);
         });
         int hold = drainHold(helper, DECAYED, VACUUMED_LAYERS);

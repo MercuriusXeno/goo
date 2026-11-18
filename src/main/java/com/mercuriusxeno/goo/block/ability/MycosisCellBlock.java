@@ -2,18 +2,26 @@ package com.mercuriusxeno.goo.block.ability;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.program.MycosisStep;
 import com.mercuriusxeno.goo.ability.program.UndeadInversion;
 import com.mercuriusxeno.goo.ability.spray.SprayPrograms;
 import com.mercuriusxeno.goo.registry.GooMobEffects;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.RandomSource;
+import net.minecraft.util.Util;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.InsideBlockEffectApplier;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.StateDefinition;
 import org.jspecify.annotations.NonNull;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
 
 /**
  * Shroom's Mycosis cell: the volume cell bound to Mycosis' goo, which
@@ -22,9 +30,16 @@ import org.jspecify.annotations.NonNull;
  * entity steps run on it, giving it the mycosis effect and the spores that
  * burst Mycosis from its corpse. A thing still carrying the effect is left
  * as it is, so the goo infects it anew once its infection lapses. The cell
- * spares the player who placed it.
+ * spares the player who placed it. On each tick its cadence falls on, the
+ * cell tends the nether wart and fungal buds in its reach and grows a
+ * goologged bud in its own space, ripening there into a mushroom, then a bud
+ * on each open spot in its reach, one a growing, each spending its layers;
+ * once no spot remains the goo idles with its layers kept.
  * mycosis-goo-infects-what-touches-it-as-the-spray-did
  * mycosis-is-the-residual-goo-that-infests-with-mushrooms
+ * mushrooms-and-buds-are-goo-logged-with-shroom-goo
+ * mycosis-goo-disperses-spores-and-grows-shrooms-nearby-depleting
+ * mycosis-grows-and-reaps-nether-wart
  */
 public class MycosisCellBlock extends VolumeCellBlock {
 
@@ -36,6 +51,93 @@ public class MycosisCellBlock extends VolumeCellBlock {
      */
     public MycosisCellBlock(Properties properties, CellBinding binding) {
         super(properties, binding);
+        registerDefaultState(defaultBlockState().setValue(GoologgedFungus.FUNGUS, GoologgedFungus.NONE));
+    }
+
+    @Override
+    protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
+        super.createBlockStateDefinition(builder);
+        builder.add(GoologgedFungus.FUNGUS);
+    }
+
+    /**
+     * Pours as any cell does, then, where the cell still stands, tends and
+     * grows fungus on a tick its cadence falls on and keeps a tick coming, a
+     * pending pour's or the next growing's, so saturated goo still tends.
+     */
+    @Override
+    protected void tick(@NonNull BlockState state, @NonNull ServerLevel level, @NonNull BlockPos pos,
+                        @NonNull RandomSource random) {
+        super.tick(state, level, pos, random);
+        if (!level.getBlockState(pos).is(this)) {
+            return;
+        }
+        MycosisStep.in(layingProgram(level)).ifPresent(mycosis -> {
+            if (InfestGnaw.gnawsAt(level.getGameTime(), mycosis.growTicks())) {
+                MycosisTending.tendAround(level, pos, mycosis.reach());
+                growFungus(level, pos, mycosis);
+            }
+            if (level.getBlockState(pos).is(this) && !level.getBlockTicks().hasScheduledTick(pos, this)) {
+                level.scheduleTick(pos, this, InfestGnaw.ticksToNextGnaw(level.getGameTime(), mycosis.growTicks()));
+            }
+        });
+    }
+
+    /**
+     * Ripens the cell's own goologged fungus one age, then grows the next
+     * bud where MycosisGrowth answers, in the cell's own space or on a
+     * valid spot in its reach, spending its layers; spent to nothing, the
+     * cell leaves its fungus standing alone. Saturated goo changes nothing.
+     * mushrooms-and-buds-are-goo-logged-with-shroom-goo
+     * mycosis-goo-disperses-spores-and-grows-shrooms-nearby-depleting
+     * mycosis-pays-per-mob-infected-and-fungus-tended
+     *
+     * @param level   the server level
+     * @param pos     the cell
+     * @param mycosis Mycosis' step
+     */
+    private void growFungus(ServerLevel level, BlockPos pos, MycosisStep mycosis) {
+        BlockState standing = level.getBlockState(pos);
+        GoologgedFungus fungus = GoologgedFungus.in(standing);
+        BlockState ripened = standing.setValue(GoologgedFungus.FUNGUS,
+                fungus.tended(level.getBlockState(pos.below()), level.getRandom()));
+        BlockState bud = mycosis.budState();
+        MycosisGrowth.Growth growth = MycosisGrowth.nextGrowth(validSpots(level, pos, mycosis.reach(), bud),
+                fungus == GoologgedFungus.NONE ? Set.of() : Set.of(pos), ripened.getValue(LAYERS),
+                mycosis.layersPerBud());
+        BlockState grown = growth.spot().filter(pos::equals)
+                .map(own -> ripened.setValue(GoologgedFungus.FUNGUS, GoologgedFungus.BUD_0)).orElse(ripened);
+        growth.spot().filter(spot -> !spot.equals(pos)).ifPresent(spot ->
+                level.setBlock(spot, bud, UPDATE_ALL));
+        BlockState after = growth.layersLeft() > 0 ? grown.setValue(LAYERS, growth.layersLeft())
+                : GoologgedFungus.in(grown).standingAlone(bud);
+        if (after != standing) {
+            level.setBlock(pos, after, UPDATE_ALL);
+        }
+    }
+
+    /**
+     * The spots a bud could stand in, in growing order: the cell's own space
+     * where it lies on a floor with room for a bud, then each open block in
+     * its reach a fungal bud could stand in, shuffled so the spores scatter.
+     * mycosis-goo-disperses-spores-and-grows-shrooms-nearby-depleting
+     *
+     * @param level the server level
+     * @param pos   the cell
+     * @param reach the blocks across it reaches
+     * @param bud   the fungal bud's state, whose rule says where a bud can stand
+     * @return the spots
+     */
+    private static List<BlockPos> validSpots(ServerLevel level, BlockPos pos, int reach, BlockState bud) {
+        List<BlockPos> valid = new ArrayList<>();
+        if (FungalBudBlock.standsOnAFloor(level, pos) && FungalBudBlock.hasRoomBeside(level, pos)) {
+            valid.add(pos);
+        }
+        List<BlockPos> around = new ArrayList<>(MycosisTending.inReach(pos, reach).stream()
+                .filter(spot -> level.getBlockState(spot).isAir() && bud.canSurvive(level, spot)).toList());
+        Util.shuffle(around, level.getRandom());
+        valid.addAll(around);
+        return valid;
     }
 
     /**
