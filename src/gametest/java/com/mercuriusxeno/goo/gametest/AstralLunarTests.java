@@ -90,7 +90,7 @@ public final class AstralLunarTests {
     private static final String UNPAID = "A caster who let go should keep their astral, held %d, now %d";
     private static final String STAYED_ON_LUNAR = "A caster who let go of the star should stay on lunar, stands in %s";
     private static final String WAY_HOME_KEPT = "A caster who let go of the star should keep their way home";
-    private static final String HIDDEN_UNPAID = "A caster refused the hidden planet should keep their astral, held %d,"
+    private static final String REFUSED_UNPAID = "A refused caster should keep their astral, held %d,"
             + " now %d";
     private static final String TERRAN_REFUSED_ONCE = "A press held %d ticks on lunar off the planet should show"
             + " \"That's not your world\" once, showed it %d times";
@@ -188,8 +188,7 @@ public final class AstralLunarTests {
             helper.assertTrue(caster.level() == overworld && caster.position().distanceTo(steppedTo) < SAME_SPOT,
                     String.format(STAYED_HOME, steppedTo, caster.level().dimension(), caster.position()));
             helper.assertFalse(caster.getData(GooAttachments.LUNAR_FIXATION).stands(), NO_FIXATION);
-            helper.assertTrue(astral(caster) == astralBefore,
-                    String.format(HIDDEN_UNPAID, astralBefore, astral(caster)));
+            helper.assertTrue(astral(caster) == astralBefore, String.format(UNPAID, astralBefore, astral(caster)));
             overworld.getServer().getPlayerList().remove(caster);
             helper.succeed();
         });
@@ -312,7 +311,7 @@ public final class AstralLunarTests {
                     String.format(STAYED_FOR_THE_SUN, stoodIn, caster.level().dimension()));
             helper.assertFalse(caster.getData(GooAttachments.LUNAR_FIXATION).stands(), SUN_HELD);
             helper.assertTrue(astral(caster) == astralBefore,
-                    String.format(HIDDEN_UNPAID, astralBefore, astral(caster)));
+                    String.format(REFUSED_UNPAID, astralBefore, astral(caster)));
             int jokes = refusalsSentTo(caster, SUN_JOKE_KEY);
             helper.assertTrue(jokes == 1, String.format(SUN_JOKED_ONCE, LET_GO_AFTER, jokes));
             helper.getLevel().getServer().getPlayerList().remove(caster);
@@ -345,7 +344,7 @@ public final class AstralLunarTests {
                     String.format(STAYED_ON_LUNAR, caster.level().dimension()));
             helper.assertFalse(caster.getData(GooAttachments.LUNAR_FIXATION).stands(), HIDDEN_HELD);
             helper.assertTrue(astral(caster) == astralBefore,
-                    String.format(HIDDEN_UNPAID, astralBefore, astral(caster)));
+                    String.format(REFUSED_UNPAID, astralBefore, astral(caster)));
             int refusals = refusalsSentTo(caster, TERRAN_REFUSAL_KEY);
             helper.assertTrue(refusals == 1, String.format(TERRAN_REFUSED_ONCE, LET_GO_AFTER, refusals));
             helper.getLevel().getServer().getPlayerList().remove(caster);
