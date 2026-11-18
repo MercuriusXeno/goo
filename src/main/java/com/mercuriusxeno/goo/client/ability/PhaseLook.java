@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.client.renderer.rendertype.RenderType;
@@ -14,6 +15,9 @@ import net.minecraft.world.entity.Entity;
  * How a phased entity draws: its body through the phase render type, grey,
  * translucent and faintly outlined, in place of its own, to every viewer.
  * The flag rides the render state, stamped from the phase the server synced.
+ * The inventory's paper doll of a phased player draws a readable ghost
+ * instead: its own skin, faded, with no grey wash and no outline, which the
+ * inventory's flat light spread over the whole body.
  * phase-shares-a-plane-between-the-phased
  * phased-things-draw-as-a-ghostly-image
  */
@@ -22,6 +26,9 @@ public final class PhaseLook {
     /** The render data marking an entity out of phase this frame. */
     public static final ContextKey<Boolean> PHASED =
             new ContextKey<>(Identifier.fromNamespaceAndPath(Goo.MODID, "phased"));
+    /** The render data marking a phased body drawn as the inventory's paper doll. */
+    public static final ContextKey<Boolean> PAPER_DOLL =
+            new ContextKey<>(Identifier.fromNamespaceAndPath(Goo.MODID, "phased_paper_doll"));
 
     /**
      * The body's alpha while phased, out of 255: about nine tenths there, a
@@ -56,6 +63,28 @@ public final class PhaseLook {
     }
 
     /**
+     * Marks a render state drawn as the inventory's paper doll, where it is phased.
+     * phased-things-draw-as-a-ghostly-image
+     *
+     * @param state the paper doll's render state
+     */
+    public static void markPaperDoll(EntityRenderState state) {
+        if (isPhased(state)) {
+            state.setRenderData(PAPER_DOLL, Boolean.TRUE);
+        }
+    }
+
+    /**
+     * Whether a render state is a phased paper doll.
+     *
+     * @param state the render state
+     * @return true for a phased body drawn in the inventory
+     */
+    public static boolean isPaperDoll(EntityRenderState state) {
+        return state.getRenderDataOrDefault(PAPER_DOLL, Boolean.FALSE);
+    }
+
+    /**
      * The render type a phased body draws through, over the skin its own type read.
      *
      * @param skin the entity's texture
@@ -63,6 +92,19 @@ public final class PhaseLook {
      */
     public static RenderType bodyType(Identifier skin) {
         return GooRenderTypes.gooPhase(skin);
+    }
+
+    /**
+     * The render type a phased body draws through: the phase type, or for the
+     * inventory's paper doll vanilla's translucent entity type over its own
+     * skin, a readable ghost under the phase alpha.
+     *
+     * @param state the body's render state
+     * @param skin  the entity's texture
+     * @return the render type
+     */
+    public static RenderType bodyType(EntityRenderState state, Identifier skin) {
+        return isPaperDoll(state) ? GooSubmitter.translucentOn(skin) : bodyType(skin);
     }
 
     /**
