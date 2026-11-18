@@ -2,7 +2,7 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
-import com.mercuriusxeno.goo.ability.program.MycosisStep;
+import com.mercuriusxeno.goo.ability.program.SporesStep;
 import com.mercuriusxeno.goo.block.ability.CellBinding;
 import com.mercuriusxeno.goo.block.ability.GoologgedFungus;
 import com.mercuriusxeno.goo.ability.kinetic.GrabEvents;
@@ -340,7 +340,7 @@ public final class VacuumTests {
         // iron bars, which neither melt nor cook and whose sides hold no vine, wall it and every layer stands for Vacuum
         helper.setBlock(laneCell(DECAYED).north(), Blocks.IRON_BARS);
         helper.setBlock(laneCell(DECAYED).south(), Blocks.IRON_BARS);
-        sealMycosisReach(helper);
+        sealSporesReach(helper);
         ServerPlayer vacuumer = vacuumer(helper);
         List<String> left = new ArrayList<>();
         int turn = drainHold(helper, DECAYED, VACUUMED_LAYERS) + 1 + BETWEEN_HOLDS;
@@ -355,7 +355,7 @@ public final class VacuumTests {
     }
 
     /**
-     * Leaves Mycosis no open floor in its reach: Mycosis grows a bud on each
+     * Leaves Spores no open floor in its reach: Spores grows a bud on each
      * open floor in its reach, spending a layer each
      * (mycosis-goo-disperses-spores-and-grows-shrooms-nearby-depleting), so
      * stone fills its reach beside the lane, the iron bars aside, and bottom
@@ -365,10 +365,10 @@ public final class VacuumTests {
      *
      * @param helper the gametest helper
      */
-    private static void sealMycosisReach(GameTestHelper helper) {
+    private static void sealSporesReach(GameTestHelper helper) {
         BlockPos cell = laneCell(DECAYED);
-        int reach = Optional.ofNullable(AbilityRegistry.of(helper.getLevel()).getAbility(CellBinding.MYCOSIS_ABILITY))
-                .flatMap(mycosis -> MycosisStep.in(mycosis.behaviors())).map(MycosisStep::reach).orElse(0);
+        int reach = Optional.ofNullable(AbilityRegistry.of(helper.getLevel()).getAbility(CellBinding.SPORES_ABILITY))
+                .flatMap(spores -> SporesStep.in(spores.behaviors())).map(SporesStep::reach).orElse(0);
         BlockPos.betweenClosedStream(cell.offset(-reach, -1, -reach), cell.offset(reach, 1, reach))
                 .filter(pos -> pos.getZ() != cell.getZ() && !pos.equals(cell.north()) && !pos.equals(cell.south()))
                 .map(BlockPos::immutable).forEach(pos -> helper.setBlock(pos, Blocks.STONE));

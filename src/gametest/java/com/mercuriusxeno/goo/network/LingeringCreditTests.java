@@ -48,7 +48,7 @@ public final class LingeringCreditTests {
     private static final String MYCOSIS_KEEPS_RALLY_AND_CHARM = "goo_lingering_credit_mycosis_keeps_rally_and_charm";
 
     private static final String LEAF_BIO = "goo:leaf_bio";
-    private static final Identifier SHROOM_MYCOSIS = Identifier.parse("goo:shroom_mycosis");
+    private static final Identifier SHROOM_SPORES = Identifier.parse("goo:shroom_spores");
 
     /** Where the first afflicted mob stands. */
     private static final BlockPos MOB_POS = new BlockPos(4, 1, 3);
@@ -151,7 +151,7 @@ public final class LingeringCreditTests {
         Mob charmed = still(helper.spawnWithNoFreeWill(EntityType.HUSK, SECOND_MOB_POS));
         ServerPlayer player = sprayer(helper);
         makeOwn(player, rallied, charmed);
-        AbilityDefinition mycosis = AbilityRegistry.of(helper.getLevel()).getAbility(SHROOM_MYCOSIS);
+        AbilityDefinition mycosis = AbilityRegistry.of(helper.getLevel()).getAbility(SHROOM_SPORES);
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             LandedDrips.strike(helper, player, mycosis, rallied);
             LandedDrips.strike(helper, player, mycosis, charmed);
@@ -254,7 +254,7 @@ public final class LingeringCreditTests {
     }
 
     private static void spray(GameTestHelper helper, ServerPlayer player) {
-        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.SHROOM), SHROOM_MYCOSIS.toString(),
+        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.SHROOM), SHROOM_SPORES.toString(),
                 player.getEyePosition(), player.getEyePosition());
         for (int held = 1; held <= SPRAY_TICKS; held++) {
             helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(player, tick));
@@ -271,8 +271,8 @@ public final class LingeringCreditTests {
         player.setXRot(LOOKING_AT_THE_MOB);
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GooItems.GOO_GLOVE.get()));
         player.getInventory().add(GooStacks.createForOutput(GooTypes.SHROOM, HELD_GOO * GooStacks.THOUSAND));
-        AbilityDefinition mycosis = AbilityRegistry.of(helper.getLevel()).getAbility(SHROOM_MYCOSIS);
-        helper.assertTrue(mycosis != null, String.format(ABILITY_REQUIRED, SHROOM_MYCOSIS));
+        AbilityDefinition mycosis = AbilityRegistry.of(helper.getLevel()).getAbility(SHROOM_SPORES);
+        helper.assertTrue(mycosis != null, String.format(ABILITY_REQUIRED, SHROOM_SPORES));
         KnownRecipes.teachRequires(player, mycosis);
         return player;
     }

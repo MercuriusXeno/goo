@@ -1,12 +1,12 @@
 {
   "gooType": "shroom",
-  "displayName": "goo.ability.shroom.mycosis",
-  "cost_mechanics": "goo.ability.shroom.mycosis.cost_mechanics",
+  "displayName": "goo.ability.shroom.spores",
+  "cost_mechanics": "goo.ability.shroom.spores.cost_mechanics",
   "badge": "residual",
   "order": 10,
   "cost": 96,
   "cost_formula": "%s/m³",
-  "requires": ["minecraft:nether_wart"],
+  "requires": ["minecraft:brown_mushroom", "minecraft:red_mushroom"],
   "delivery": {
     "kind": "stream",
     "drains_on_placement": true,
@@ -14,13 +14,13 @@
     "drips_per_tick": 2,
     "cone": 16,
     "ticks_per_charge": 20,
-    "particle": "goo:mycosis_spray_drip",
+    "particle": "goo:spores_spray_drip",
     "sound": { "id": "minecraft:block.honey_block.slide", "every": 10, "volume": 1.0, "pitch": 1.0, "pitch_spread": 0.1 }
   },
   "behaviors": [
-    { "type": "mycosis", "reach": 2, "grow_ticks": 20, "layers_per_bud": 1, "layers_per_network": 1 },
+    { "type": "spores", "reach": 2, "grow_ticks": 20, "layers_per_bud": 1, "layers_per_network": 1 },
     { "type": "potion", "effect": "goo:mycosis", "duration": 100, "amplifier": 0 },
-    { "type": "spore_host", "burst": "goo:shroom_mycosis", "radius": 3, "duration": 600 }
+    { "type": "spore_host", "burst": "goo:shroom_spores", "radius": 3, "duration": 600 }
   ],
   "tags": ["stream"]
 }

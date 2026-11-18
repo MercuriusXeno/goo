@@ -2,7 +2,7 @@ package com.mercuriusxeno.goo.block.ability;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
-import com.mercuriusxeno.goo.ability.program.MycosisStep;
+import com.mercuriusxeno.goo.ability.program.SporesStep;
 import com.mercuriusxeno.goo.ability.program.UndeadInversion;
 import com.mercuriusxeno.goo.ability.spray.SprayPrograms;
 import com.mercuriusxeno.goo.registry.GooMobEffects;
@@ -24,11 +24,11 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Shroom's Mycosis cell: the volume cell bound to Mycosis' goo, which
+ * Shroom's Spores cell: the volume cell bound to Spores' goo, which
  * infects a living thing touching it, standing on its top or wading in its
  * space, as the spore stream infected what it reached: the laying ability's
  * entity steps run on it, giving it the mycosis effect and the spores that
- * burst Mycosis from its corpse. A thing still carrying the effect is left
+ * burst Spores from its corpse. A thing still carrying the effect is left
  * as it is, so the goo infects it anew once its infection lapses. The cell
  * spares the player who placed it. On each tick its cadence falls on, the
  * cell tends the nether wart and fungal buds in its reach and grows a
@@ -44,15 +44,15 @@ import java.util.Set;
  * mycosis-grows-and-reaps-nether-wart
  * colonize-blob-grows-the-network
  */
-public class MycosisCellBlock extends VolumeCellBlock {
+public class SporesCellBlock extends VolumeCellBlock {
 
     /**
-     * Creates a Mycosis cell.
+     * Creates a Spores cell.
      *
      * @param properties the block properties
-     * @param binding    the Mycosis binding
+     * @param binding    the Spores binding
      */
-    public MycosisCellBlock(Properties properties, CellBinding binding) {
+    public SporesCellBlock(Properties properties, CellBinding binding) {
         super(properties, binding);
         registerDefaultState(defaultBlockState().setValue(GoologgedFungus.FUNGUS, GoologgedFungus.NONE));
     }
@@ -75,7 +75,7 @@ public class MycosisCellBlock extends VolumeCellBlock {
         if (!level.getBlockState(pos).is(this)) {
             return;
         }
-        MycosisStep.in(layingProgram(level)).ifPresent(mycosis -> {
+        SporesStep.in(layingProgram(level)).ifPresent(mycosis -> {
             if (InfestGnaw.gnawsAt(level.getGameTime(), mycosis.growTicks())) {
                 MycosisTending.tendAround(level, pos, mycosis.reach());
                 growFungus(level, pos, mycosis);
@@ -98,9 +98,9 @@ public class MycosisCellBlock extends VolumeCellBlock {
      *
      * @param level   the server level
      * @param pos     the cell
-     * @param mycosis Mycosis' step
+     * @param mycosis Spores' step
      */
-    private void growFungus(ServerLevel level, BlockPos pos, MycosisStep mycosis) {
+    private void growFungus(ServerLevel level, BlockPos pos, SporesStep mycosis) {
         BlockState standing = level.getBlockState(pos);
         GoologgedFungus fungus = GoologgedFungus.in(standing);
         BlockState ripened = standing.setValue(GoologgedFungus.FUNGUS,
@@ -131,9 +131,9 @@ public class MycosisCellBlock extends VolumeCellBlock {
      *
      * @param level   the server level
      * @param pos     the cell
-     * @param mycosis Mycosis' step
+     * @param mycosis Spores' step
      */
-    private void spreadNetwork(ServerLevel level, BlockPos pos, MycosisStep mycosis) {
+    private void spreadNetwork(ServerLevel level, BlockPos pos, SporesStep mycosis) {
         BlockState standing = level.getBlockState(pos);
         if (!standing.is(this) || standing.getValue(LAYERS) < mycosis.layersPerNetwork()) {
             return;
@@ -225,7 +225,7 @@ public class MycosisCellBlock extends VolumeCellBlock {
     }
 
     /**
-     * A Mycosis cell spares its placer, so the cell remembers who placed it.
+     * A Spores cell spares its placer, so the cell remembers who placed it.
      * standing-goo-thing-credits-whoever-placed-it
      */
     @Override

@@ -6,12 +6,12 @@ import com.mercuriusxeno.goo.ability.program.ChannelHost;
 import com.mercuriusxeno.goo.ability.program.EntityHost;
 import com.mercuriusxeno.goo.ability.program.FloorReach;
 import com.mercuriusxeno.goo.ability.program.HostKind;
-import com.mercuriusxeno.goo.ability.program.MycosisStep;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
 import com.mercuriusxeno.goo.ability.program.SimpleParticles;
+import com.mercuriusxeno.goo.ability.program.SporesStep;
 import com.mercuriusxeno.goo.ability.program.SurfaceHost;
-import com.mercuriusxeno.goo.block.ability.MycosisCellBlock;
+import com.mercuriusxeno.goo.block.ability.SporesCellBlock;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import net.minecraft.core.BlockPos;
@@ -108,7 +108,7 @@ public final class SprayPrograms {
         List<BlockPos> floors = FloorReach.inSphere(center, radius, cell -> FloorReach.isOpenFloor(level, cell));
         runOnFloors(level, floors, center, ability);
         // mycosis-goo-infects-what-touches-it-as-the-spray-did: the burst casts Mycosis, which is the goo
-        MycosisStep.in(ability.behaviors()).ifPresent(mycosis -> splashMycosis(level, floors));
+        SporesStep.in(ability.behaviors()).ifPresent(mycosis -> splashMycosis(level, floors));
     }
 
     /**
@@ -122,7 +122,7 @@ public final class SprayPrograms {
      * @param floors the floors the burst reached
      */
     private static void splashMycosis(ServerLevel level, List<BlockPos> floors) {
-        MycosisCellBlock cell = GooBlocks.SHROOM_MYCOSIS.get();
+        SporesCellBlock cell = GooBlocks.SHROOM_SPORES.get();
         for (BlockPos floor : floors) {
             BlockPos open = floor.above();
             if (level.getBlockState(open).isAir() && cell.onAFloor(level, open)) {
