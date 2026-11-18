@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.throwing;
 import com.mercuriusxeno.goo.ability.AbilityArea;
 import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.AbilityTags;
+import com.mercuriusxeno.goo.ability.BuildGrowth;
 import com.mercuriusxeno.goo.ability.Charge;
 import com.mercuriusxeno.goo.ability.ChargeSize;
 import com.mercuriusxeno.goo.ability.Delivery;
@@ -11,7 +12,6 @@ import com.mercuriusxeno.goo.ability.DurativeRoute;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.HeldRoute;
 import com.mercuriusxeno.goo.ability.RallyRelease;
-import com.mercuriusxeno.goo.ability.SpireGrowth;
 import com.mercuriusxeno.goo.ability.StreamSound;
 import com.mercuriusxeno.goo.ability.program.BlinkLanding;
 import com.mercuriusxeno.goo.ability.program.ChannelAim;
@@ -741,7 +741,7 @@ public final class GloveThrowSender {
 
     /**
      * The cost of a cast sized as it is made: a charged cast's size reached,
-     * or a Spire's planned stone.
+     * or a Build's planned stone.
      *
      * @param player  the local player
      * @param ability the selected ability, or null where the client holds no synced copy
@@ -753,9 +753,9 @@ public final class GloveThrowSender {
             // spontaneous-abilities-cast-at-the-target-with-no-thrown-blob: a sized cast reads the price of its size
             return OptionalInt.of(ChargeSize.costAt(ability.cost(), charged.getAsDouble()));
         }
-        if (player instanceof LocalPlayer local && SpireCast.footprint().isPresent()) {
-            // spire-grows-stone-out-of-the-top: a Spire reads the goo value of the stone it would grow
-            return OptionalInt.of(SpireCast.plannedGrowth(local).map(SpireGrowth::cost).orElse(0));
+        if (player instanceof LocalPlayer local && BuildCast.footprint().isPresent()) {
+            // spire-grows-stone-out-of-the-top: a Build reads the goo value of the stone it would grow
+            return OptionalInt.of(BuildCast.plannedGrowth(local).map(BuildGrowth::cost).orElse(0));
         }
         return OptionalInt.empty();
     }
