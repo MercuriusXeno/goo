@@ -21,14 +21,14 @@ import java.util.function.Predicate;
 
 /**
  * Gametests for lunar's depth zones, each reading as its own place: the shallow zone's breccia and its rubble caves,
- * the middle zone's caverns floored in crater ice and grown with impact glass, and the warrens' sculk-lined tunnels.
+ * the middle zone's bare rock caverns, and the warrens' sculk-lined tunnels.
  * decision lunar-underground-changes-by-depth-down-to-a-molten-iron-sea
+ * decision middle-caverns-are-bare-rock-with-no-ice-or-glass
  */
 @RegistersGameTests
 public final class LunarZoneTests {
     private static final String LUNAR_SHALLOW_ZONE_HOLDS_RUBBLE_CAVES = "lunar_shallow_zone_holds_rubble_caves";
-    private static final String LUNAR_MIDDLE_ZONE_HOLDS_ICE_AND_CRYSTAL_CAVERNS =
-            "lunar_middle_zone_holds_ice_and_crystal_caverns";
+    private static final String LUNAR_MIDDLE_CAVERNS_ARE_BARE_ROCK = "lunar_middle_caverns_are_bare_rock";
     private static final String LUNAR_WARRENS_TWIST_THROUGH_SCULK = "lunar_warrens_twist_through_sculk";
     /** How far from the origin a scan of the middle zone reaches each way, in blocks. */
     private static final int CAVERN_SCAN_REACH = 64;
@@ -45,8 +45,10 @@ public final class LunarZoneTests {
     private static final String NO_CAVE = "No column within %d blocks of the origin holds a rubble cave";
     private static final String ZONE_READS_BRECCIA = "The solid column %s should read breccia through the shallow zone, "
             + "reads %s at y %d";
-    private static final String NO_ICE_AND_CRYSTAL = "No air within %d blocks of the origin in the middle zone stands "
-            + "on crater ice beside or under impact glass";
+    private static final String NO_ROCK_CAVERN = "No cavern air within %d blocks of the origin in the middle zone "
+            + "borders rock";
+    private static final String CAVERNS_HOLD_ICE_OR_GLASS = "The middle zone within %d blocks of the origin should "
+            + "hold no crater ice and no impact glass, holds %d crater ice and %d impact glass, the first at %s";
     private static final String NO_SCULK_TUNNEL = "No air within %d blocks of the origin in the warren zone borders "
             + "sculk";
     private static final String CAVE_IS_OPEN = "The rubble cave column %s should read air at y %d, reads %s";
@@ -64,8 +66,8 @@ public final class LunarZoneTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, LUNAR_SHALLOW_ZONE_HOLDS_RUBBLE_CAVES,
                 LunarZoneTests::lunarShallowZoneHoldsRubbleCaves);
-        GooTestFunctions.registerTest(registrar, LUNAR_MIDDLE_ZONE_HOLDS_ICE_AND_CRYSTAL_CAVERNS,
-                LunarZoneTests::lunarMiddleZoneHoldsIceAndCrystalCaverns);
+        GooTestFunctions.registerTest(registrar, LUNAR_MIDDLE_CAVERNS_ARE_BARE_ROCK,
+                LunarZoneTests::lunarMiddleCavernsAreBareRock);
         GooTestFunctions.registerTest(registrar, LUNAR_WARRENS_TWIST_THROUGH_SCULK,
                 LunarZoneTests::lunarWarrensTwistThroughSculk);
     }
@@ -102,27 +104,43 @@ public final class LunarZoneTests {
     }
 
     /**
-     * Scans the middle zone's band in goo:lunar across a stretch, at the columns the seeded crystal caverns open, for
-     * a cavern's air standing on crater ice with impact glass beside it or over it.
+     * Scans the middle zone's whole band in goo:lunar across a stretch: some cavern air the seeded crystal caverns
+     * open borders rock, and no block in the band reads crater ice or impact glass.
      *
      * @param helper the gametest helper
      */
-    public static void lunarMiddleZoneHoldsIceAndCrystalCaverns(GameTestHelper helper) {
+    public static void lunarMiddleCavernsAreBareRock(GameTestHelper helper) {
         ServerLevel lunar = helper.getLevel().getServer().getLevel(Lunar.LEVEL);
         helper.assertTrue(lunar != null, LUNAR_REQUIRED);
         CrystalCaverns caverns = CrystalCaverns.seeded(lunar.getChunkSource().randomState()
                 .getOrCreateNoise(CrystalCaverns.NOISE));
+        boolean foundRockCavern = false;
+        int iceCount = 0;
+        int glassCount = 0;
+        BlockPos firstStray = null;
+        BlockPos.MutableBlockPos at = new BlockPos.MutableBlockPos();
         for (int x = -CAVERN_SCAN_REACH; x <= CAVERN_SCAN_REACH; x++) {
             for (int z = -CAVERN_SCAN_REACH; z <= CAVERN_SCAN_REACH; z++) {
+                lunar.getChunk(x >> 4, z >> 4);
                 for (int y = LunarDepths.WARREN_ZONE_TOP_Y; y < LunarDepths.CAVERN_ZONE_TOP_Y; y++) {
-                    if (caverns.isOpenAt(x, y, z) && standsOnIceByGlass(lunar, new BlockPos(x, y, z))) {
-                        helper.succeed();
-                        return;
+                    at.set(x, y, z);
+                    BlockState state = lunar.getBlockState(at);
+                    boolean ice = state.is(GooBlocks.CRATER_ICE.get());
+                    boolean glass = state.is(GooBlocks.IMPACT_GLASS.get());
+                    if ((ice || glass) && firstStray == null) {
+                        firstStray = at.immutable();
                     }
+                    iceCount += ice ? 1 : 0;
+                    glassCount += glass ? 1 : 0;
+                    foundRockCavern = foundRockCavern
+                            || caverns.isOpenAt(x, y, z) && state.isAir() && bordersRock(lunar, at.immutable());
                 }
             }
         }
-        helper.fail(String.format(NO_ICE_AND_CRYSTAL, CAVERN_SCAN_REACH));
+        helper.assertTrue(iceCount == 0 && glassCount == 0, String.format(CAVERNS_HOLD_ICE_OR_GLASS,
+                CAVERN_SCAN_REACH, iceCount, glassCount, firstStray));
+        helper.assertTrue(foundRockCavern, String.format(NO_ROCK_CAVERN, CAVERN_SCAN_REACH));
+        helper.succeed();
     }
 
     /**
@@ -161,13 +179,10 @@ public final class LunarZoneTests {
         return false;
     }
 
-    private static boolean standsOnIceByGlass(ServerLevel lunar, BlockPos air) {
-        lunar.getChunk(air.getX() >> 4, air.getZ() >> 4);
-        if (!lunar.getBlockState(air).isAir() || !lunar.getBlockState(air.below()).is(GooBlocks.CRATER_ICE.get())) {
-            return false;
-        }
+    private static boolean bordersRock(ServerLevel lunar, BlockPos air) {
         for (Direction side : Direction.values()) {
-            if (side != Direction.DOWN && lunar.getBlockState(air.relative(side)).is(GooBlocks.IMPACT_GLASS.get())) {
+            BlockState neighbor = lunar.getBlockState(air.relative(side));
+            if (neighbor.is(GooBlocks.ANORTHOSITE.get()) || neighbor.is(Blocks.BASALT)) {
                 return true;
             }
         }
