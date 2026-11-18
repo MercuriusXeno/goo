@@ -392,6 +392,16 @@ class AbilityLoaderTest {
     }
 
     /**
+     * Mitosis aims and lands within the 16 blocks its delivery names.
+     * decision each-ability-names-its-range-and-the-shared-throw-range-retires
+     * decision abilities-leaving-the-shared-range-start-at-sixteen-blocks
+     */
+    @Test
+    void mitosisDeliveryNamesASixteenBlockRange() {
+        assertEquals(16, AbilityJson.decode("weird_mitosis").delivery().range());
+    }
+
+    /**
      * Ender blink leaves an ender afterimage where the player stood, before
      * its teleport, and another where it lands, after it
      * (decision afterimage-is-one-shared-effect).

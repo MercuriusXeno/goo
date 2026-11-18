@@ -14,6 +14,7 @@ import com.mercuriusxeno.goo.item.GooCasters;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.client.Camera;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
@@ -49,16 +50,30 @@ public final class GloveAim {
 
     /**
      * How far the glove aims for its selected ability: a grab's reach, so it
-     * marks no mob it cannot lift, and the throw range for every other ability.
+     * marks no mob it cannot lift, else the range its delivery names, else the throw range.
      *
      * @param player     the local player
-     * @param throwRange the range every ability without a reach of its own aims to
+     * @param throwRange the range an ability naming none aims to
      * @return the aim range, in blocks
      */
     public static double aimRange(Player player, double throwRange) {
         ClientAbility ability = selectedAbility(player);
-        return ability == null ? throwRange
-                : GrabStep.reachOf(ability.behaviors(), Remote.entityReachLaid(player)).orElse(throwRange);
+        return ability == null ? throwRange : aimRangeOf(ability, Remote.entityReachLaid(player), throwRange);
+    }
+
+    /**
+     * How far the glove aims for an ability: a grab's reach, else the range its delivery names, else the
+     * throw range.
+     * decision each-ability-names-its-range-and-the-shared-throw-range-retires
+     *
+     * @param ability     the selected ability
+     * @param remoteReach the reach a laid remote adds to a grab, or null where none is laid
+     * @param throwRange  the range an ability naming none aims to
+     * @return the aim range, in blocks
+     */
+    static double aimRangeOf(ClientAbility ability, @Nullable AttributeModifier remoteReach, double throwRange) {
+        return GrabStep.reachOf(ability.behaviors(), remoteReach)
+                .orElse(ability.delivery().throwRange(throwRange));
     }
 
     /**

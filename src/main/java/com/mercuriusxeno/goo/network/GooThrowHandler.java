@@ -398,7 +398,7 @@ public final class GooThrowHandler {
         } else if (ability.delivery().rolls()) {
             rollGoo(player, payload, gooType, ability);
         } else if (aimedBadge(ability).aimsAPoint()) {
-            throwAtPoint(player, payload, gooType);
+            throwAtPoint(player, payload, gooType, ability.delivery());
         } else if (!aimsNoMob(aimedBadge(ability), payload.targetEntityId() >= 0)) {
             throwFlight(player, payload, gooType);
         }
@@ -488,30 +488,32 @@ public final class GooThrowHandler {
     }
 
     /**
-     * Throws an ability aiming a point at that point, capped onto the throw
-     * range along the throw's line rather than refused, so aiming at the sky
-     * throws to the range's end.
+     * Throws an ability aiming a point at that point, capped onto the
+     * ability's range along the throw's line rather than refused, so aiming
+     * at the sky throws to the range's end.
      * aim-point-follows-the-cursor
      *
-     * @param player  the throwing player
-     * @param payload the throw payload data
-     * @param gooType the validated goo type
+     * @param player   the throwing player
+     * @param payload  the throw payload data
+     * @param gooType  the validated goo type
+     * @param delivery the thrown ability's delivery
      */
     private static void throwAtPoint(ServerPlayer player, GooThrowPayload payload,
-            ResourceKey<GooTypeDefinition> gooType) {
+            ResourceKey<GooTypeDefinition> gooType, Delivery delivery) {
         Vec3 eye = player.getEyePosition();
         Optional<GateArc.Hop> hop = hopOf(player, payload);
         if (hop.isPresent()) {
             // aim-and-shots-carry-through-linked-gates: a point through a gate is reached or refused, never capped
             double length = throughDistance(eye, hop.get(), payload.targetPoint());
             GooFraction cost = resolveThrowCost(player, payload, gooType);
-            if (length > MAX_RANGE || refuses(player, payload, cost) || !validateSupply(player, gooType, cost)) {
+            if (length > delivery.throwRange(MAX_RANGE) || refuses(player, payload, cost)
+                    || !validateSupply(player, gooType, cost)) {
                 return;
             }
             depleteAndThrow(player, payload, gooType, length * length, cost);
             return;
         }
-        Vec3 capped = capToRange(eye, payload.targetPoint(), MAX_RANGE);
+        Vec3 capped = pointThrownAt(eye, payload.targetPoint(), delivery);
         GooThrowPayload aimed = capped.equals(payload.targetPoint()) ? payload : payload.aimedAt(capped);
         GooFraction cost = resolveThrowCost(player, aimed, gooType);
         if (refuses(player, aimed, cost) || !validateSupply(player, gooType, cost)) { return; }
@@ -549,6 +551,21 @@ public final class GooThrowHandler {
      * @param range the throw range in blocks
      * @return the point, or the point at the range's end along its line
      */
+    /**
+     * The point a throw aiming a point is thrown at: the aimed point, capped
+     * onto the range its delivery names along the line from the eye.
+     * aim-point-follows-the-cursor
+     * decision each-ability-names-its-range-and-the-shared-throw-range-retires
+     *
+     * @param eye      the thrower's eye
+     * @param point    the aimed point
+     * @param delivery the thrown ability's delivery
+     * @return the point the throw lands at
+     */
+    static Vec3 pointThrownAt(Vec3 eye, Vec3 point, Delivery delivery) {
+        return capToRange(eye, point, delivery.throwRange(MAX_RANGE));
+    }
+
     static Vec3 capToRange(Vec3 eye, Vec3 point, double range) {
         Vec3 line = point.subtract(eye);
         double length = line.length();
