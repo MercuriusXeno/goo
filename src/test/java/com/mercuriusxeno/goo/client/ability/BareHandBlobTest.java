@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.ability.AbilityTags;
-import com.mercuriusxeno.goo.ability.crystal.KnifeRain;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -17,9 +16,9 @@ import static org.mockito.Mockito.when;
 
 /**
  * A caster with no glove who holds raw goo in the right hand lifts and rests the palm blob as a glove does: the
- * lifted blob stands in the held goo's type at the steady point by that hand, a centered ability's blob rests below
- * the crosshair, Knives' floating blob floats ahead of that hand, and a hand holding neither glove nor raw goo
- * lifts no blob. The gloved hand's answers stand in LiftedPalmBlobTest and BlobRestTest.
+ * lifted blob stands in the held goo's type straight above that hand, a centered ability's blob rests below
+ * the crosshair, and a hand holding neither glove nor raw goo lifts no blob. The gloved hand's answers stand in
+ * LiftedPalmBlobTest and BlobRestTest.
  * decision raw-goo-items-work-bare-handed-for-the-held-type
  */
 class BareHandBlobTest {
@@ -27,8 +26,6 @@ class BareHandBlobTest {
     private static final long NOW = 400L;
     private static final long EASED = NOW + PalmBlobHop.LIFT_TICKS;
     private static final double DELTA = 1e-6;
-    /** How far Knives' floating blob has eased across the chest. */
-    private static final float ACROSS = 0.5f;
 
     private static void sprayEveryTickThroughTheEase() {
         for (long tick = NOW; tick <= EASED; tick++) {
@@ -49,7 +46,7 @@ class BareHandBlobTest {
     }
 
     @Test
-    void aBareHandsLiftedBlobStandsInTheHeldGoosTypeAtTheSteadyPointByThatHand() {
+    void aBareHandsLiftedBlobStandsInTheHeldGoosTypeStraightAboveThatHand() {
         try (SprayingClient client = SprayingClient.bareHanded(GooTypes.ASTRAL)) {
             client.at(EASED);
             sprayEveryTickThroughTheEase();
@@ -57,8 +54,7 @@ class BareHandBlobTest {
             LiftedPalmBlob.Blob blob = LiftedPalmBlob.blobOf(SprayingClient.CASTER, 0f).orElseThrow();
 
             assertEquals(GooTypes.ASTRAL, blob.type());
-            assertNear(SpraySource.inView(SprayingClient.EYE, SprayingClient.PITCH, SprayingClient.YAW, true),
-                    blob.place());
+            assertNear(SpraySource.of(SprayingClient.CASTER, SprayingClient.SENT_GLOVE, 0f), blob.place());
         }
     }
 
@@ -68,27 +64,18 @@ class BareHandBlobTest {
              MockedStatic<AbilitySyncHandler> synced = syncedAbility(true)) {
             Vec3 rest = BlobRest.of(SprayingClient.CASTER, SprayingClient.SENT_GLOVE, 0f);
 
-            assertNear(BlobRest.inView(SprayingClient.EYE, SprayingClient.PITCH, SprayingClient.YAW, true, true), rest);
+            assertNear(BlobRest.inView(SprayingClient.EYE, SprayingClient.PITCH, SprayingClient.YAW, true,
+                    BlobRest.Rest.CENTER_LINE), rest);
         }
     }
 
     @Test
-    void aBareHandsUncenteredAbilityRestsTheBlobAtTheSteadyPointByThatHand() {
+    void aBareHandsUncenteredAbilityRestsTheBlobStraightAboveThatHand() {
         try (SprayingClient client = SprayingClient.bareHanded(GooTypes.ASTRAL);
              MockedStatic<AbilitySyncHandler> synced = syncedAbility(false)) {
             Vec3 rest = BlobRest.of(SprayingClient.CASTER, SprayingClient.SENT_GLOVE, 0f);
 
-            assertNear(SpraySource.inView(SprayingClient.EYE, SprayingClient.PITCH, SprayingClient.YAW, true), rest);
-        }
-    }
-
-    @Test
-    void aBareHandsFloatingBlobFloatsAheadOfThatHand() {
-        try (SprayingClient client = SprayingClient.bareHanded(GooTypes.CRYSTAL)) {
-            Vec3 floating = BlobRest.floatingOf(SprayingClient.CASTER, SprayingClient.SENT_GLOVE, 0f, ACROSS);
-
-            assertNear(KnifeRain.floatPoint(SprayingClient.EYE, SprayingClient.YAW,
-                    Vec3.directionFromRotation(SprayingClient.PITCH, SprayingClient.YAW), true, ACROSS), floating);
+            assertNear(SpraySource.of(SprayingClient.CASTER, SprayingClient.SENT_GLOVE, 0f), rest);
         }
     }
 

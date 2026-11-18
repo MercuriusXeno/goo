@@ -45,6 +45,8 @@ class GloveInputGateTest {
         private boolean knifeInTheFan = true;
         private int knivesThrows;
         private int nextJavelins;
+        /** The javelins the server has formed for the hold; a throw takes one. */
+        private int javelinsFormed = 1;
         private final List<JavelinTurn> turns = new ArrayList<>();
 
         RecordingActions(boolean payloadSent, boolean stream) {
@@ -63,7 +65,7 @@ class GloveInputGateTest {
         }
 
         @Override
-        public boolean formsKnives() {
+        public boolean throwsFromTheHold() {
             return formsKnives;
         }
 
@@ -78,7 +80,13 @@ class GloveInputGateTest {
             turns.add(turn);
             if (turn == JavelinTurn.THROWN) {
                 nextJavelins++;
+                javelinsFormed--;
             }
+        }
+
+        @Override
+        public boolean holdsAFormedJavelin() {
+            return javelinsFormed > 0;
         }
 
         @Override
@@ -173,8 +181,8 @@ class GloveInputGateTest {
     }
 
     /**
-     * Dart's press: right click held forms one javelin in the hand over the
-     * lift, left click throws it once formed, and releasing right click
+     * Dart's press: right click held forms a javelin in the hand over the
+     * lift, left click throws one once the server has formed it, and releasing right click
      * reverts it, throwing nothing
      * (decision dart-forms-on-right-click-and-throws-on-left-click).
      */
@@ -198,7 +206,7 @@ class GloveInputGateTest {
 
             gate.tick(false, actions);
 
-            assertEquals(0, actions.throwsSent);
+            assertEquals(0, actions.knivesThrows);
             assertEquals(0f, gate.formShare());
             assertFalse(gate.isArmed());
         }
@@ -210,20 +218,21 @@ class GloveInputGateTest {
 
             assertTrue(gate.throwHeld(actions));
 
-            assertEquals(1, actions.throwsSent);
+            assertEquals(1, actions.knivesThrows);
             assertEquals(1, actions.poseReleases);
             assertTrue(gate.isArmed(), "the throw leaves right click's press standing");
         }
 
         @Test
-        void leftClickBeforeTheJavelinIsWholeSendsNone() {
+        void leftClickBeforeTheServerFormsAJavelinSendsNone() {
+            actions.javelinsFormed = 0;
             gate.arm();
             for (int tick = 0; tick < PalmBlobHop.LIFT_TICKS; tick++) {
                 gate.tick(true, actions);
             }
 
             assertFalse(gate.throwHeld(actions));
-            assertEquals(0, actions.throwsSent);
+            assertEquals(0, actions.knivesThrows);
             assertTrue(gate.isArmed());
         }
 
@@ -237,9 +246,10 @@ class GloveInputGateTest {
             assertEquals(0f, gate.formShare(), "the next javelin starts on the palm");
             assertFalse(gate.throwHeld(actions), "nothing is formed to throw yet");
             holdPastTheLift();
+            actions.javelinsFormed = 1;
             assertEquals(1f, gate.formShare());
             assertTrue(gate.throwHeld(actions));
-            assertEquals(2, actions.throwsSent);
+            assertEquals(2, actions.knivesThrows);
         }
 
         @Test

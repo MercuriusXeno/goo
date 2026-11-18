@@ -832,20 +832,6 @@ public final class GooRenderTypes {
             .build();
 
     /**
-     * Lunar's blue overworld star, drawn added over the sky in its own color, on the pocket sky's vertex shader.
-     * decision astral-sky-is-the-void-with-one-bright-blue-overworld-star
-     */
-    public static final RenderPipeline OVERWORLD_STAR = RenderPipeline.builder(
-                    RenderPipelines.MATRICES_PROJECTION_SNIPPET,
-                    RenderPipelines.GLOBALS_SNIPPET)
-            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "overworld_star"))
-            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "pocket_sky"))
-            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "overworld_star"))
-            .withColorTargetState(new ColorTargetState(BlendFunction.ADDITIVE))
-            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
-            .build();
-
-    /**
      * The Lunar trip's veil over the overworld's sky: black quads round the camera, alpha blended at the sky's dim
      * through vanilla's position-color shader, passing every depth test, so the day sky fades to the star void.
      * decision gate-fixates-your-view-on-the-moon-until-it-takes-you
@@ -857,23 +843,13 @@ public final class GooRenderTypes {
             .build();
 
     /**
-     * The Lunar trip's swelling moon: vanilla's celestial draw, the moon sprite added onto the frame, passing every
-     * depth test, so the moon swells over the darkened land as well as the sky.
+     * The Lunar trip's swelling moon or blue planet: vanilla's celestial draw, the sprite added onto the frame,
+     * passing every depth test, so the body swells over the darkened land as well as the sky.
      * decision gate-fixates-your-view-on-the-moon-until-it-takes-you
+     * decision planet-face-is-eight-hand-drawn-phase-sprites
      */
     public static final RenderPipeline LUNAR_MOON = RenderPipelines.CELESTIAL.toBuilder()
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "lunar_moon"))
-            .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
-            .withCull(false)
-            .build();
-
-    /**
-     * The Lunar trip home's swelling blue star: lunar's star draw passing every depth test, so the star swells over
-     * the darkened land as well as the sky.
-     * decision gate-on-the-blue-star-returns-you-exactly-where-you-left
-     */
-    public static final RenderPipeline LUNAR_STAR = OVERWORLD_STAR.toBuilder()
-            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "lunar_star"))
             .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
             .withCull(false)
             .build();
@@ -1380,49 +1356,6 @@ public final class GooRenderTypes {
             RenderSetup.builder(GOO_PORTAL_IDLE).setOutputTarget(OutputTarget.MAIN_TARGET).sortOnUpload()
                     .createRenderSetup());
 
-    /**
-     * A portal's outline through blocks while its owner chooses a partner: a
-     * thin glowing ring at the oval's edge passing every depth test, so a
-     * hidden portal can be found without covering what stands before it
-     * (decision portals-link-by-looking-through-portal-vision).
-     */
-    public static final RenderPipeline GOO_PORTAL_OUTLINE = RenderPipeline.builder(
-                    RenderPipelines.MATRICES_PROJECTION_SNIPPET, RenderPipelines.GLOBALS_SNIPPET)
-            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "goo_portal_outline"))
-            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_portal_idle"))
-            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_portal_outline"))
-            .withVertexFormat(DefaultVertexFormat.POSITION_TEX_LIGHTMAP_COLOR, VertexFormat.Mode.QUADS)
-            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
-            .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
-            .withCull(false)
-            .build();
-
-    /** RenderType for a portal's outline through blocks. */
-    public static final RenderType GOO_PORTAL_OUTLINE_TYPE = RenderType.create("goo_portal_outline",
-            RenderSetup.builder(GOO_PORTAL_OUTLINE).setOutputTarget(OutputTarget.MAIN_TARGET).sortOnUpload()
-                    .createRenderSetup());
-
-    /**
-     * The idle swirl's twin passing every depth test, for portal vision:
-     * while a player chooses a partner, every portal of theirs shows its
-     * swirl through walls.
-     */
-    public static final RenderPipeline GOO_PORTAL_VISION = RenderPipeline.builder(
-                    RenderPipelines.MATRICES_PROJECTION_SNIPPET, RenderPipelines.GLOBALS_SNIPPET)
-            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "goo_portal_vision"))
-            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_portal_idle"))
-            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_portal_idle"))
-            .withVertexFormat(DefaultVertexFormat.POSITION_TEX_LIGHTMAP_COLOR, VertexFormat.Mode.QUADS)
-            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
-            .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
-            .withCull(false)
-            .build();
-
-    /** RenderType for portal vision's swirls through walls. */
-    public static final RenderType GOO_PORTAL_VISION_TYPE = RenderType.create("goo_portal_vision",
-            RenderSetup.builder(GOO_PORTAL_VISION).setOutputTarget(OutputTarget.MAIN_TARGET).sortOnUpload()
-                    .createRenderSetup());
-
     /** Per-view memoized render types on the portal view pipeline. */
     private static final java.util.function.Function<Identifier, RenderType> GOO_PORTAL_VIEW_FACTORY =
             net.minecraft.util.Util.memoize(view -> RenderType.create(
@@ -1675,10 +1608,8 @@ public final class GooRenderTypes {
         event.registerPipeline(BLOCK_MINGLE_TRANSLUCENT);
         event.registerPipeline(VOIDSTONE);
         event.registerPipeline(POCKET_SKY);
-        event.registerPipeline(OVERWORLD_STAR);
         event.registerPipeline(LUNAR_SKY_VEIL);
         event.registerPipeline(LUNAR_MOON);
-        event.registerPipeline(LUNAR_STAR);
         event.registerPipeline(SKY_FUNNEL);
         event.registerPipeline(PETRIFY_FOG);
         event.registerPipeline(FIRE_FIELD);
@@ -1704,8 +1635,6 @@ public final class GooRenderTypes {
         event.registerPipeline(ROOM_COPY_SOLID);
         event.registerPipeline(ROOM_COPY_CUTOUT);
         event.registerPipeline(ROOM_COPY_TRANSLUCENT);
-        event.registerPipeline(GOO_PORTAL_OUTLINE);
-        event.registerPipeline(GOO_PORTAL_VISION);
         event.registerPipeline(GOO_PORTAL_HALO);
         event.registerPipeline(GOO_PORTAL_SWIRL_BAND);
         event.registerPipeline(MIASMA_VORTEX);

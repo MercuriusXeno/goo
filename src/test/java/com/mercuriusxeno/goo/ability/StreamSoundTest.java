@@ -82,7 +82,7 @@ class StreamSoundTest {
     }
 
     /**
-     * While Bore runs it loops Spire's earth rumble as it is, at the holder's
+     * While Bore runs it loops Build's earth rumble as it is, at the holder's
      * ears, and the plays the server sends nearby players never stack on
      * themselves (decision bore-loops-spires-earth-rumble).
      */
@@ -106,7 +106,7 @@ class StreamSoundTest {
         }
 
         @Test
-        void boreLoopsSpiresEarthRumbleAsItIs() {
+        void boreLoopsBuildsEarthRumbleAsItIs() {
             StreamSound sound = boreSound();
             assertEquals(com.mercuriusxeno.goo.registry.GooSoundIds.EARTH_RUMBLE, sound.sound());
             assertTrue(sound.loop(), "Bore's rumble should loop at the holder's ears");

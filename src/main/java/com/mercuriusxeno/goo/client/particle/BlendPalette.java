@@ -104,6 +104,30 @@ public record BlendPalette(float lightRed, float lightGreen, float lightBlue,
     public static final BlendPalette SPIKES_METAL_SILVERS = new BlendPalette(
             0xE8 / 255f, 0xE8 / 255f, 0xE8 / 255f, 0xC0 / 255f, 0xC0 / 255f, 0xC0 / 255f);
     /**
+     * Vines' spray drips, from leaf's bright green, A6F078, to its wheel
+     * green, 7EC850, the two the leaf goo type's definition names.
+     * vines-is-sprayed-slime-that-entangles-what-tries-to-cross
+     */
+    public static final BlendPalette VINES_LEAF_GREENS = new BlendPalette(
+            0xA6 / 255f, 0xF0 / 255f, 0x78 / 255f, 0x7E / 255f, 0xC8 / 255f, 0x50 / 255f);
+
+    /**
+     * Infest's spray drips, from nether's bright red, 9A4E4E, to its wheel
+     * red, 652828, the two the nether goo type's definition names.
+     * infest-is-nethers-goo-the-decay-effect-localized-around-the-goo
+     */
+    public static final BlendPalette INFEST_NETHER_REDS = new BlendPalette(
+            0x9A / 255f, 0x4E / 255f, 0x4E / 255f, 0x65 / 255f, 0x28 / 255f, 0x28 / 255f);
+
+    /**
+     * Nitro's spray drips, from unstable's bright green, 88FF44, to its wheel
+     * green, 39FF14, the two the unstable goo type's definition names.
+     * nitro-is-unstables-goo-that-explodes-in-a-chain-by-its-quantity
+     */
+    public static final BlendPalette NITRO_UNSTABLE_GREENS = new BlendPalette(
+            0x88 / 255f, 0xFF / 255f, 0x44 / 255f, 0x39 / 255f, 0xFF / 255f, 0x14 / 255f);
+
+    /**
      * Phase's spray drips, from quantum's highlight blue, 6AD0F0, to its
      * wheel blue, 3AA0E0, the two blues the quantum goo type's definition
      * names.

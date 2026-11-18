@@ -98,20 +98,20 @@ class AbilitySyncPayloadTest {
      */
     @Test
     void descriptionReachesTheClientAbility() {
-        String json = AbilityJson.read("rock_spire").replaceFirst("\\{",
-                "{ \"description\": \"goo.ability.rock.spire.lifted\",");
-        AbilityDefinition definition = AbilityJson.decodeText("rock_spire", json);
+        String json = AbilityJson.read("rock_build").replaceFirst("\\{",
+                "{ \"description\": \"goo.ability.rock.build.lifted\",");
+        AbilityDefinition definition = AbilityJson.decodeText("rock_build", json);
 
         ClientAbility client = ClientAbility.fromEntry(roundTrip(definition));
 
         assertEquals(definition.description(), client.description());
-        assertEquals("goo.ability.rock.spire.lifted", client.description());
+        assertEquals("goo.ability.rock.build.lifted", client.description());
     }
 
-    /** Knives' shoulder cast reaches the client from its shipped JSON. */
+    /** Knives' resting pose reaches the client from its shipped JSON. */
     @Test
     void knivesPoseRoundTripsFromItsJson() {
-        assertEquals(ArmPose.SHOULDER_CAST, roundTrip(AbilityJson.decode("crystal_knives")).pose());
+        assertEquals(ArmPose.RESTING, roundTrip(AbilityJson.decode("crystal_knives")).pose());
     }
 
     /**

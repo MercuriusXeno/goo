@@ -15,7 +15,7 @@ class MoteHomingTest {
 
     private static final double CLOSE = 1e-9;
     /** Vacuum's reach: a mote at the cone's far end starts this far from the blob. */
-    private static final double RANGE = 8;
+    private static final double RANGE = 9;
     private static final Vec3 BLOB = new Vec3(0, 65, 0);
     private static final Vec3 FARTHEST = BLOB.add(new Vec3(3, 1, 7).normalize().scale(RANGE));
 

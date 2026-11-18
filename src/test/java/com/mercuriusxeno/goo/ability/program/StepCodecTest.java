@@ -34,10 +34,6 @@ class StepCodecTest {
      */
     private static final Map<String, Step> SAMPLES = Map.ofEntries(
             Map.entry("wait", LeafSteps.WAIT.step(Expr.parse("4 + stacks").getOrThrow())),
-            Map.entry("await_entity", new AwaitEntityStep(SelectionShape.CUBE, Expr.literal(3),
-                    List.of(EntityFilter.LIVING, EntityFilter.NOT_ITEM))),
-            Map.entry("watch", new WatchStep(Expr.literal(10), Expr.literal(3),
-                    List.of(EntityFilter.LIVING, EntityFilter.MOB))),
             Map.entry("explode", new ExplodeStep(Expr.parse("2.5 + 1.0 * (stacks - 1)").getOrThrow(),
                     ExplosionMode.NONE)),
             Map.entry("damage", new DamageStep(Expr.parse("health / 2").getOrThrow(), DamageKind.CACTUS)),
@@ -79,6 +75,7 @@ class StepCodecTest {
             Map.entry("host", new HostStep(3, 8)),
             Map.entry("rime", new RimeStep(3, 20, 1, 4, 1.0F, 20)),
             Map.entry("leech_goo", new LeechGooStep(0.5, 0.3f, 0.1, 0.01, 10)),
+            Map.entry("vines", new VinesStep(1.5f, 1)),
             Map.entry("entities", new EntitiesStep(SelectionShape.SPHERE, Expr.literal(2.5),
                     List.of(EntityFilter.LIVING, EntityFilter.NOT_FIRE_IMMUNE),
                     List.of(LeafSteps.IGNITE.step(Expr.literal(5))))),
@@ -142,7 +139,7 @@ class StepCodecTest {
             Map.entry("bore", new BoreStep(TagKey.create(Registries.BLOCK,
                     Identifier.fromNamespaceAndPath("goo", "bore_breakable")), new BreakPace(5, 1.5), new BoreDrillShape(0.6, 3, 10, 1), List.of(),
                     List.of())),
-            Map.entry("spire", new SpireStep()),
+            Map.entry("build", new BuildStep(16, 16)),
             Map.entry("petrify", new PetrifyStep(Expr.literal(2))),
             Map.entry("drain_petrify", new DrainPetrifyStep(Expr.literal(2.5))),
             Map.entry("wake_statue", new WakeStatueStep()),
@@ -190,9 +187,8 @@ class StepCodecTest {
                     Expr.literal(2.6), Expr.literal(0.45), Expr.literal(0.2), Expr.literal(10), Expr.literal(5),
                     Expr.literal(6), Expr.literal(0.5))),
             Map.entry("hasten_regrow", new HastenRegrowStep(Expr.literal(2))),
-            Map.entry("root", new RootStep(Expr.literal(60), Expr.literal(4), Expr.literal(1), Expr.literal(1.5))),
             Map.entry("hit_or_miss", new HitOrMissStep(
-                    List.of(new RootStep(Expr.literal(60), Expr.literal(4), Expr.literal(1), Expr.literal(1.5))),
+                    List.of(LeafSteps.IGNITE.step(Expr.literal(5))),
                     List.of(new LingerStep(List.of(LeafSteps.DISCARD.step(Unit.INSTANCE)))))),
             Map.entry("charm", new CharmStep()),
             Map.entry("quantum_portal", new PortalStep()),
@@ -211,6 +207,8 @@ class StepCodecTest {
             Map.entry("signal", new SignalStep()),
             Map.entry("spikes", new SpikesStep(List.of(EntityFilter.LIVING), 10, 0.25, List.of(),
                     SoundCue.of(Identifier.parse("minecraft:item.axe.scrape")), 3)),
+            Map.entry("infest", new InfestStep(Identifier.fromNamespaceAndPath("goo", "decay"), 20, 2f, 0.1)),
+            Map.entry("nitro", new NitroStep(1.0, 0.2, 4)),
             Map.entry("phase_goo", new PhaseGooStep()),
             Map.entry("airborn", new AirbornStep(Expr.literal(0.6), Expr.literal(0.4), Expr.literal(0.2),
                     Expr.literal(0.4), Expr.literal(0.5), Expr.literal(1.2), Expr.literal(0.05))),
@@ -260,10 +258,6 @@ class StepCodecTest {
 
     @Test
     void optionalParamsDefault() {
-        Step step = decode("{\"type\": \"await_entity\", \"radius\": 3}").getOrThrow();
-        AwaitEntityStep await = assertInstanceOf(AwaitEntityStep.class, step);
-        assertEquals(SelectionShape.SPHERE, await.shape());
-        assertEquals(List.of(), await.where());
         ExplodeStep explode = assertInstanceOf(ExplodeStep.class,
                 decode("{\"type\": \"explode\", \"power\": 2}").getOrThrow());
         assertEquals(ExplosionMode.TNT, explode.mode());
@@ -304,16 +298,6 @@ class StepCodecTest {
         DamageStep damage = assertInstanceOf(DamageStep.class, step);
         assertEquals(8.0, damage.amount().evaluate(Variables.NONE));
         assertEquals(DamageKind.MAGIC, damage.source());
-    }
-
-    @Test
-    void proximityMineStepsDecode() {
-        String json = "[{\"type\": \"await_entity\", \"shape\": \"sphere\", \"radius\": 3.0, \"where\": [\"living\"]},"
-                + " {\"type\": \"explode\", \"power\": \"2.5 + 1.0 * (stacks - 1)\"}]";
-        List<Step> steps = StepTypes.LIST_CODEC.parse(JsonOps.INSTANCE, JsonParser.parseString(json)).getOrThrow();
-        assertEquals(2, steps.size());
-        assertInstanceOf(AwaitEntityStep.class, steps.get(0));
-        assertInstanceOf(ExplodeStep.class, steps.get(1));
     }
 
     // decision push-direction-enum-deleted
@@ -409,7 +393,8 @@ class StepCodecTest {
 
     @Test
     void unknownFilterRefuses() {
-        assertTrue(decode("{\"type\": \"await_entity\", \"radius\": 3, \"where\": [\"friendly\"]}").isError());
+        assertTrue(decode("{\"type\": \"entities\", \"radius\": 3, \"where\": [\"friendly\"], \"steps\": []}")
+                .isError());
     }
 
     @Test

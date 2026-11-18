@@ -15,12 +15,14 @@ import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.client.hud.MixedNumberLabel;
 import com.mercuriusxeno.goo.client.hud.MixedNumberSpacing;
 import com.mercuriusxeno.goo.client.hud.StatedGlyphs;
+import com.mercuriusxeno.goo.client.network.ShippedClientAbilities;
 import com.mercuriusxeno.goo.item.MixedNumber;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.network.CostMechanicsLookup;
 import com.mercuriusxeno.goo.client.network.OfferedAbility;
 import net.minecraft.world.item.ItemStack;
 import com.mercuriusxeno.goo.data.GooValueTable;
+import com.mercuriusxeno.goo.lunar.Lunar;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypeNames;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -38,6 +40,7 @@ import net.minecraft.network.chat.FormattedText;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
+import net.minecraft.world.level.Level;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
@@ -91,7 +94,7 @@ import static org.mockito.Mockito.when;
 class RadialWheelRendererTest {
 
     private static final String ASSETS_ROOT = "assets/";
-    private static final String TEXTURE_PATH = "textures/goo/ability/unstable_lurker.png";
+    private static final String TEXTURE_PATH = "textures/goo/ability/unstable_nitro.png";
 
     private static ClientAbility clientAbilityOf(AbilityDefinition definition) {
         return new ClientAbility(definition.id(), definition.displayName(), definition.icon(),
@@ -125,8 +128,8 @@ class RadialWheelRendererTest {
     }
 
     private static ClientAbility abilityWithIcon(String icon) {
-        return new ClientAbility(Identifier.fromNamespaceAndPath(Goo.MODID, "unstable_lurker"),
-                "ability.goo.unstable_lurker", icon, 0, List.of(), List.of(), 0, Delivery.ARC, AbilityBadge.WORLD, List.of());
+        return new ClientAbility(Identifier.fromNamespaceAndPath(Goo.MODID, "unstable_nitro"),
+                "ability.goo.unstable_nitro", icon, 0, List.of(), List.of(), 0, Delivery.ARC, AbilityBadge.WORLD, List.of());
     }
 
     /** The badge, not the label, marks the target kind (decision badge-marks-the-target-kind). */
@@ -138,7 +141,7 @@ class RadialWheelRendererTest {
             ClientAbility entity = new ClientAbility(Identifier.fromNamespaceAndPath(Goo.MODID, "hex_charm"),
                     "goo.ability.hex.charm", "", 0, List.of(AbilityTags.ENTITY), List.of(), 0, Delivery.ARC, AbilityBadge.MOB, List.of());
 
-            assertEquals(Component.translatable("goo.ability.hex.charm"), RadialWheelRenderer.buildLabel(entity));
+            assertEquals(Component.translatable("goo.ability.hex.charm"), RadialWheelRenderer.buildLabel(entity, Level.OVERWORLD));
         }
 
         /** decision badges-halve-and-sit-up-right-and-closer */
@@ -190,7 +193,7 @@ class RadialWheelRendererTest {
         @Test
         void everyShippedAbilityIconExistsUnderGooAssets() {
             assertAll(shippedAbilities().stream().map(ability -> (Executable) () -> {
-                Identifier icon = RadialWheelRenderer.resolveAbilityIcon(ability);
+                Identifier icon = RadialWheelRenderer.resolveAbilityIcon(ability, Level.OVERWORLD);
                 assertEquals(Goo.MODID, icon.getNamespace(), ability.id().toString());
                 String resource = ASSETS_ROOT + icon.getNamespace() + "/" + icon.getPath();
                 assertNotNull(RadialWheelRendererTest.class.getClassLoader().getResource(resource),
@@ -212,7 +215,7 @@ class RadialWheelRendererTest {
             Map<String, List<String>> abilitiesByIcon = new HashMap<>();
             List<String> typeIcons = new ArrayList<>();
             for (ClientAbility ability : shippedAbilities()) {
-                Identifier icon = RadialWheelRenderer.resolveAbilityIcon(ability);
+                Identifier icon = RadialWheelRenderer.resolveAbilityIcon(ability, Level.OVERWORLD);
                 String resource = ASSETS_ROOT + icon.getNamespace() + "/" + icon.getPath();
                 byte[] bytes = pngBytes(resource);
                 abilitiesByIcon.computeIfAbsent(HexFormat.of().formatHex(bytes), key -> new ArrayList<>())
@@ -1224,7 +1227,7 @@ class RadialWheelRendererTest {
         private static final int LINE_HEIGHT = 9;
         private static final int LINE_WIDTH = 40;
         private static final int TEXT_COLOR = 0xFFABCDEF;
-        private final List<Component> name = List.of(Component.literal("Unstable"), Component.literal("Lurker"));
+        private final List<Component> name = List.of(Component.literal("Unstable"), Component.literal("Nitro"));
         private final Component cost = Component.literal("1K | x1");
 
         private List<RadialWheelRenderer.PlacedLine> placed() {
@@ -1442,19 +1445,19 @@ class RadialWheelRendererTest {
         @Test
         void namespacedIconKeepsItsOwnNamespace() {
             assertEquals(Identifier.fromNamespaceAndPath(Goo.MODID, TEXTURE_PATH),
-                    RadialWheelRenderer.resolveAbilityIcon(abilityWithIcon(Goo.MODID + ":" + TEXTURE_PATH)));
+                    RadialWheelRenderer.resolveAbilityIcon(abilityWithIcon(Goo.MODID + ":" + TEXTURE_PATH), Level.OVERWORLD));
         }
 
         @Test
         void bareIconTakesTheGooNamespace() {
             assertEquals(Identifier.fromNamespaceAndPath(Goo.MODID, TEXTURE_PATH),
-                    RadialWheelRenderer.resolveAbilityIcon(abilityWithIcon(TEXTURE_PATH)));
+                    RadialWheelRenderer.resolveAbilityIcon(abilityWithIcon(TEXTURE_PATH), Level.OVERWORLD));
         }
 
         @Test
         void emptyIconFallsBackToTheConventionPath() {
             assertEquals(Identifier.fromNamespaceAndPath(Goo.MODID, TEXTURE_PATH),
-                    RadialWheelRenderer.resolveAbilityIcon(abilityWithIcon("")));
+                    RadialWheelRenderer.resolveAbilityIcon(abilityWithIcon(""), Level.OVERWORLD));
         }
     }
 
@@ -1570,6 +1573,28 @@ class RadialWheelRendererTest {
         void disabledOutweighsHovered() {
             assertEquals(RadialWheelRenderer.computeOverlayTint(false, true),
                     RadialWheelRenderer.computeOverlayTint(true, true));
+        }
+    }
+
+    /**
+     * decision lunar-reads-as-terran-while-you-are-on-the-moon
+     */
+    @Nested
+    class OnTheMoon {
+
+        private static final String TERRAN_KEY = "goo.ability.astral.terran";
+        private static final Identifier TERRAN_ICON = Identifier.parse("goo:textures/goo/ability/astral_terran.png");
+
+        private final ClientAbility lunar = ShippedClientAbilities.of("astral_lunar");
+
+        @Test
+        void thePetalNamesLunarTerran() {
+            assertEquals(Component.translatable(TERRAN_KEY), RadialWheelRenderer.buildLabel(lunar, Lunar.LEVEL));
+        }
+
+        @Test
+        void thePetalDrawsTheTerranIcon() {
+            assertEquals(TERRAN_ICON, RadialWheelRenderer.resolveAbilityIcon(lunar, Lunar.LEVEL));
         }
     }
 }

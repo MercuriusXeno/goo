@@ -69,7 +69,7 @@ public final class LunarWhiteout {
 
     /**
      * Shows the white screen in place of vanilla's terrain loading screen for a change Lunar makes, into lunar
-     * by the moon and out of it by the blue star.
+     * by the moon and out of it by the blue planet.
      * decision gate-on-the-blue-star-returns-you-exactly-where-you-left
      *
      * @param event the transition screen registration event

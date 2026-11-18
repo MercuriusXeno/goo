@@ -8,19 +8,15 @@ import com.mercuriusxeno.goo.ability.world.AbilityImpact;
 import com.mercuriusxeno.goo.ability.zoo.Rallied;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.registry.GooAttachments;
-import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.Identifier;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.damagesource.DamageType;
-import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -47,21 +43,6 @@ public final class StandingFieldCreditTests {
     private static final String UNTHROWN_SPIKE_TRAP_NAMES_NONE = "standing_credit_spike_trap_no_player_threw_names_no_entity";
     private static final String SPIKE_TRAP_KEEPS_RALLY_AND_CHARM = "standing_credit_spike_trap_keeps_rally_and_charm";
     private static final String SPIKE_TRAP_PLACER_SURVIVES_A_SAVE = "standing_credit_spike_trap_placer_survives_a_save";
-    private static final String LURKER_NAMES_ITS_THROWER = "standing_credit_lurker_names_the_player_who_threw_it";
-    private static final String UNTHROWN_LURKER_NAMES_NONE = "standing_credit_lurker_no_player_threw_names_no_entity";
-    private static final String VINES_THORNS_NAME_THEIR_THROWER =
-            "standing_credit_vines_thorns_name_the_player_who_threw_them";
-    private static final String UNSTABLE_LURKER = "goo:unstable_lurker";
-    private static final String LEAF_VINES = "goo:leaf_vines";
-    private static final String SHOULD_NAME = "%s should hit as %s naming %s, its latest such hit named %s";
-    /** The floor block missed Vines land on; they stand in the cell above it, where the husk stands. */
-    private static final BlockPos FLOOR_UNDER_THE_VINES = new BlockPos(3, 0, 3);
-    /** Ticks past the landing by which the vines' field has rooted the husk standing in it. */
-    private static final int ROOTED_BY_TICK = 5;
-    /** Ticks the rooted husk is shoved east, past the vines' first thorn. */
-    private static final int SHOVE_TICKS = 30;
-    /** A shove far past the root's leash in one tick. */
-    private static final Vec3 SHOVE = new Vec3(0.6, 0, 0);
 
     private static final String SPIKE_TRAP = "goo:test_spike_trap";
     private static final String ABILITIES_REQUIRED = "Ability registry must hold " + SPIKE_TRAP;
@@ -102,81 +83,6 @@ public final class StandingFieldCreditTests {
                 StandingFieldCreditTests::spikeTrapStrikeKeepsTheThrowersRallyAndCharm);
         GooTestFunctions.registerTest(registrar, SPIKE_TRAP_PLACER_SURVIVES_A_SAVE,
                 StandingFieldCreditTests::spikeTrapPlacerSurvivesASave);
-        GooTestFunctions.registerTest(registrar, LURKER_NAMES_ITS_THROWER,
-                StandingFieldCreditTests::lurkerBlastNamesThePlayerWhoThrewIt);
-        GooTestFunctions.registerTest(registrar, UNTHROWN_LURKER_NAMES_NONE,
-                StandingFieldCreditTests::lurkerBlastNoPlayerThrewNamesNoEntity);
-        GooTestFunctions.registerTest(registrar, VINES_THORNS_NAME_THEIR_THROWER,
-                StandingFieldCreditTests::vinesThornsNameThePlayerWhoThrewThem);
-    }
-
-    /**
-     * A Lurker landed for a mock player explodes on a pig that comes within its reach, the blast naming that
-     * player as minecraft:explosion.
-     *
-     * @param helper the gametest helper
-     */
-    public static void lurkerBlastNamesThePlayerWhoThrewIt(GameTestHelper helper) {
-        ServerPlayer thrower = throwerOverhead(helper);
-        Mob pig = hardy(helper.spawnWithNoFreeWill(EntityType.PIG, SOUTH_OF_THE_FIELD));
-        land(helper, STRUCK, UNSTABLE_LURKER, GooTypes.UNSTABLE, thrower.getUUID());
-        succeedOnceNamed(helper, pig, "Lurker's blast", DamageTypes.EXPLOSION, thrower);
-    }
-
-    /**
-     * A Lurker landed with no player behind it explodes on a pig within its reach, the blast naming no entity as
-     * minecraft:explosion.
-     *
-     * @param helper the gametest helper
-     */
-    public static void lurkerBlastNoPlayerThrewNamesNoEntity(GameTestHelper helper) {
-        Mob pig = hardy(helper.spawnWithNoFreeWill(EntityType.PIG, SOUTH_OF_THE_FIELD));
-        land(helper, STRUCK, UNSTABLE_LURKER, GooTypes.UNSTABLE, null);
-        succeedOnceNamed(helper, pig, "Lurker's blast", DamageTypes.EXPLOSION, null);
-    }
-
-    /**
-     * Leaf Vines missed onto the floor for a mock player stand, root a husk standing in them, and the thorns the
-     * husk takes once shoved off its root name that player as minecraft:sweet_berry_bush.
-     *
-     * @param helper the gametest helper
-     */
-    public static void vinesThornsNameThePlayerWhoThrewThem(GameTestHelper helper) {
-        ServerPlayer thrower = throwerOverhead(helper);
-        helper.setBlock(FLOOR_UNDER_THE_VINES, Blocks.STONE);
-        Mob husk = hardy(helper.spawnWithNoFreeWill(EntityType.HUSK, FLOOR_UNDER_THE_VINES.above()));
-        land(helper, FLOOR_UNDER_THE_VINES, LEAF_VINES, GooTypes.LEAF, thrower.getUUID());
-        for (int tick = ROOTED_BY_TICK; tick < ROOTED_BY_TICK + SHOVE_TICKS; tick++) {
-            helper.runAfterDelay(tick, () -> {
-                husk.setDeltaMovement(SHOVE);
-                husk.hurtMarked = true;
-            });
-        }
-        succeedOnceNamed(helper, husk, "Vines' thorns", DamageTypes.SWEET_BERRY_BUSH, thrower);
-    }
-
-    // a mob's last hit may be a fall or a fire it took since, so the test holds the latest hit of the type it awaits
-    private static void succeedOnceNamed(GameTestHelper helper, Mob mob, String hitBy, ResourceKey<DamageType> type,
-                                         @Nullable ServerPlayer player) {
-        DamageSource[] latest = {null};
-        helper.succeedWhen(() -> {
-            DamageSource now = mob.getLastDamageSource();
-            latest[0] = now != null && now.is(type) ? now : latest[0];
-            helper.assertTrue(latest[0] != null, String.format(NOT_STRUCK, mob.getName().getString()));
-            helper.assertTrue(latest[0].getEntity() == player, String.format(SHOULD_NAME, hitBy, type.identifier(),
-                    player == null ? "no one" : player.getName().getString(), causeOf(latest[0])));
-            if (player != null) {
-                helper.getLevel().getServer().getPlayerList().remove(player);
-            }
-        });
-    }
-
-    private static void land(GameTestHelper helper, BlockPos struck, String abilityId,
-                             ResourceKey<GooTypeDefinition> type, @Nullable UUID thrower) {
-        AbilityDefinition ability = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(abilityId));
-        helper.assertTrue(ability != null, "Ability registry must hold " + abilityId);
-        AbilityImpact.land(helper.getLevel(), helper.absolutePos(struck), type, Direction.UP, ability, null, 0,
-                thrower);
     }
 
     /**

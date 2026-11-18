@@ -204,10 +204,13 @@ class AbilityLoaderTest {
             assertNull(new AbilityRegistry(shippedById()).durativeAbilityFor(GooTypes.QUANTUM));
         }
 
-        /** decision goo-type-ships-without-a-durative-ability */
+        /**
+         * goo-type-ships-without-a-durative-ability
+         * nitro-is-unstables-goo-that-explodes-in-a-chain-by-its-quantity
+         */
         @Test
-        void unstableShipsBlastAndLurkerAndNoDurative() {
-            assertEquals(Set.of("unstable_blast", "unstable_lurker"), shippedPathsOf(GooTypes.UNSTABLE));
+        void unstableShipsBlastAndNitroAndNoDurative() {
+            assertEquals(Set.of("unstable_blast", "unstable_nitro"), shippedPathsOf(GooTypes.UNSTABLE));
             assertNull(new AbilityRegistry(shippedById()).durativeAbilityFor(GooTypes.UNSTABLE));
         }
 
@@ -428,7 +431,8 @@ class AbilityLoaderTest {
 
     /**
      * Every shipped arc, beam, spontaneous cast and envelop names its range:
-     * Zap 32, Knives and Dart none, every other 16.
+     * Zap, Build and Portal 32, Knives and Dart none, every other 16; Portal's 32
+     * reaches the far wall its shots land on (operator ruling 2026-11-17).
      * decision each-ability-names-its-range-and-the-shared-throw-range-retires
      * decision abilities-leaving-the-shared-range-start-at-sixteen-blocks
      * decision zap-starts-at-thirty-two-blocks
@@ -446,7 +450,7 @@ class AbilityLoaderTest {
         }
         Map<String, Double> expected = new TreeMap<>();
         named.keySet().forEach(name -> expected.put(name, switch (name) {
-            case "pulse_zap" -> 32.0;
+            case "pulse_zap", "rock_build", "quantum_portal" -> 32.0;
             case "crystal_knives", "metal_dart" -> 0.0;
             default -> 16.0;
         }));
@@ -527,19 +531,19 @@ class AbilityLoaderTest {
     @Nested
     class Description {
 
-        private static final String SPIRE = "rock_spire";
+        private static final String BUILD = "rock_build";
 
         @Test
         void jsonNamingADescriptionReadsThatKey() {
-            String json = AbilityJson.read(SPIRE).replaceFirst("\\{",
-                    "{ \"description\": \"goo.ability.rock.spire.lifted\",");
+            String json = AbilityJson.read(BUILD).replaceFirst("\\{",
+                    "{ \"description\": \"goo.ability.rock.build.lifted\",");
 
-            assertEquals("goo.ability.rock.spire.lifted", AbilityJson.decodeText(SPIRE, json).description());
+            assertEquals("goo.ability.rock.build.lifted", AbilityJson.decodeText(BUILD, json).description());
         }
 
         @Test
         void jsonNamingNoDescriptionReadsItsDisplayNamePlusDescription() {
-            assertEquals("goo.ability.rock.spire.description", AbilityJson.decode(SPIRE).description());
+            assertEquals("goo.ability.rock.build.description", AbilityJson.decode(BUILD).description());
         }
     }
 
@@ -552,7 +556,7 @@ class AbilityLoaderTest {
     class CostFormula {
 
         private static final List<String> DYNAMIC_ABILITIES = List.of("ender_blink",
-                "unstable_blast", "rock_spire", "rock_gouge", "yore_age");
+                "unstable_blast", "rock_build", "rock_gouge", "yore_age");
 
         @Test
         void eachDynamicAbilityCarriesItsFormula() {
@@ -629,11 +633,11 @@ class AbilityLoaderTest {
 
         @Test
         void plainCostAbilityLoadsNamingNoCostMechanics() {
-            // Blast prices in tnt, which reads nothing with no goo values loaded, so Lurker's plain number stands here
-            AbilityDefinition lurker = AbilityJson.decode("unstable_lurker");
+            // Blast prices in tnt, which reads nothing with no goo values loaded, so Shriek's plain number stands here
+            AbilityDefinition shriek = AbilityJson.decode("deep_shriek");
 
-            assertTrue(lurker.cost().in(GooValueTable.EMPTY) > 0, "Lurker's cost " + lurker.cost().in(GooValueTable.EMPTY));
-            assertEquals(Optional.empty(), lurker.costMechanics());
+            assertTrue(shriek.cost().in(GooValueTable.EMPTY) > 0, "Shriek's cost " + shriek.cost().in(GooValueTable.EMPTY));
+            assertEquals(Optional.empty(), shriek.costMechanics());
         }
     }
 

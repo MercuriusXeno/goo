@@ -10,10 +10,10 @@ import org.jspecify.annotations.NonNull;
 
 /**
  * Client-to-server payload: a Knives hold begins as right click goes down,
- * or ends as it comes up. The server owns the hold's stage clock between the
+ * or ends as it comes up. The server owns the hold's clock between the
  * two, so the knives it forms are the server's count.
  * decision knives-form-on-right-click-and-throw-on-left-click
- * decision knives-form-in-fibonacci-stages-to-twelve
+ * decision knives-charge-one-per-three-ticks-up-to-ten
  *
  * @param holding   true as the hold begins, false as it ends
  * @param gooTypeId the goo type string identifier

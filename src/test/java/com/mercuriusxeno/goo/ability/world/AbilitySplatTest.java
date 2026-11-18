@@ -62,9 +62,12 @@ class AbilitySplatTest {
         assertEquals(List.of(ANNOUNCE, RUN), splat.calls());
     }
 
+    /**
+     * A standing block that explodes after the splat plays its burnout when it explodes, not at the splat.
+     */
     @Test
-    void theMineRunsWithNoBurnoutAtTheSplat() {
-        RecordingSplat splat = new RecordingSplat(AbilityImpact.explodesLater(AbilityJson.decode("unstable_lurker")));
+    void aBlockThatExplodesLaterRunsWithNoBurnoutAtTheSplat() {
+        RecordingSplat splat = new RecordingSplat(true);
         AbilitySplat.resolve(splat);
         assertEquals(List.of(RUN), splat.calls());
     }

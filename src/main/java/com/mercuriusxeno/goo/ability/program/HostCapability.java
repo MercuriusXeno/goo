@@ -50,11 +50,6 @@ public enum HostCapability {
      */
     LINGER(LingerHost.class),
     /**
-     * A standing block that watches the entities around it and pulses to
-     * its viewers (decision lurker-blob-brightens-then-detonates).
-     */
-    WATCH(WatchHost.class),
-    /**
      * A landing where a blob can grow a shroom network
      * (decision colonize-blob-grows-the-network).
      */
@@ -120,7 +115,7 @@ public enum HostCapability {
      */
     ZONE(ZoneHost.class),
     /**
-     * A player Lunar can fix on the moon or the blue overworld star
+     * A player Lunar can fix on the moon or the blue planet
      * (decision gate-fixates-your-view-on-the-moon-until-it-takes-you).
      */
     ASTRAL_LUNAR(AstralLunarHost.class),
@@ -170,7 +165,7 @@ public enum HostCapability {
      */
     SPAWN_MOB(MobSpawnHost.class),
     /**
-     * The stone a Spire grows, the footprint and rise its submit planned
+     * The stone a Build grows, the footprint and rise its submit planned
      * (decision spire-grows-stone-out-of-the-top).
      */
     RAISE_GROUND(RaiseGroundHost.class),

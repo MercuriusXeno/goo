@@ -1,9 +1,11 @@
 package com.mercuriusxeno.goo.client.throwing;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.GloveButton;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.HeldRoute;
 import com.mercuriusxeno.goo.ability.program.ChannelAim;
+import com.mercuriusxeno.goo.client.ability.HeldJavelins;
 import com.mercuriusxeno.goo.client.ability.LiftedPalmBlob;
 import com.mercuriusxeno.goo.client.overlay.AimTracker;
 import com.mercuriusxeno.goo.item.GooCasters;
@@ -111,9 +113,14 @@ public final class GloveUseTracker {
      */
     public static void pressGlove(InteractionHand hand) {
         LocalPlayer player = Minecraft.getInstance().player;
-        if (player != null && SpireCast.selected(player)) {
+        if (player != null && BuildCast.selected(player)) {
             // spire-rips-walls-and-platforms: a footprint cast holds its own presses, never a throw
-            SpireCast.press(player, hand);
+            BuildCast.press(player, hand);
+            return;
+        }
+        if (player != null && PortalAim.selected(GloveAim.selectedAbilityId(player))) {
+            // operator UAT 2026-11-17: right click shoots the orange portal on press, as left click shoots the blue
+            PortalAim.shoot(player, GloveButton.USE);
             return;
         }
         if (!PRESS.isArmed()) {
@@ -278,13 +285,13 @@ public final class GloveUseTracker {
         }
         GloveInputGate.PressActions actions = pressActions(player);
         PRESS.tick(mc.options.keyUse.isDown(), actions);
+        // knives-throw-one-per-two-ticks-while-left-click-is-held: the held throw stops as left click lifts
+        KnivesHoldSender.watchTheLeftClick(mc.options.keyAttack.isDown());
         if (selectedEnvelops(player)) {
             // charm-like-abilities-lock-the-highlighted-mob-on-right-click
             CHARM_LIKE.tick(PRESS, actions);
         }
         liftThePalmBlob(mc, player);
-        // knives-paint-mobs-by-hovering-while-forming: the outline's pick joins the hold's paint
-        KnivesHoldSender.paint(highlightedMob(), GloveUseTracker::mobStands);
         // blast-charge-wubs-higher-at-each-stage: a sized charge wubs as it reaches each stage
         GloveThrowSender.wubTheCharge(player);
         // blast-charge-pulls-green-motes-into-the-shell-and-the-blob: the charge draws motes in as it grows
@@ -363,13 +370,18 @@ public final class GloveUseTracker {
         }
 
         @Override
-        public boolean formsKnives() {
-            return KnivesHoldSender.selectedFormsKnives(player);
+        public boolean throwsFromTheHold() {
+            return KnivesHoldSender.selectedThrowsFromTheHold(player);
         }
 
         @Override
         public boolean throwKnives() {
-            return KnivesHoldSender.throwKnives(player);
+            return KnivesHoldSender.throwKnives();
+        }
+
+        @Override
+        public boolean holdsAFormedJavelin() {
+            return HeldJavelins.formedBy(player.getId()) > 0;
         }
 
         @Override
@@ -384,7 +396,10 @@ public final class GloveUseTracker {
                 // dart-forms-on-right-click-and-throws-on-left-click: the next javelin forms from the blob behind it
                 LiftedPalmBlob.liftAfresh(player.getId(), player.getEyePosition(), player.level().getGameTime());
             }
-            shink(player, turn);
+            // dart-shinks-as-it-forms-and-pitched-down-as-it-reverts: each javelin's shink plays as the server forms it
+            if (turn != JavelinTurn.FORMS) {
+                shink(player, turn);
+            }
         }
     }
 
@@ -396,7 +411,7 @@ public final class GloveUseTracker {
      * @param player the local player
      * @param turn   the javelin's turn
      */
-    private static void shink(LocalPlayer player, JavelinTurn turn) {
+    public static void shink(LocalPlayer player, JavelinTurn turn) {
         GloveSelection selection = GooCasters.heldSelection(player);
         if (selection == null) {
             return;

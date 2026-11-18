@@ -12,8 +12,11 @@ import com.mercuriusxeno.goo.ability.program.MoltenStep;
 import com.mercuriusxeno.goo.ability.program.ShatterStep;
 import com.mercuriusxeno.goo.ability.program.SlickStep;
 import com.mercuriusxeno.goo.ability.program.Step;
+import com.mercuriusxeno.goo.ability.program.VinesStep;
 import com.mercuriusxeno.goo.ability.program.WispShed;
 import com.mercuriusxeno.goo.ability.program.WispsStep;
+import com.mercuriusxeno.goo.ability.root.RootEvents;
+import com.mercuriusxeno.goo.ability.root.Rooted;
 import com.mercuriusxeno.goo.block.ability.SlimeFlow.Side;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.item.GooStacks;
@@ -22,6 +25,8 @@ import com.mercuriusxeno.goo.network.FallingDripPayload;
 import com.mercuriusxeno.goo.network.RedHotPayload;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.throwing.DripFall;
+import com.mercuriusxeno.goo.type.Adhesion;
+import com.mercuriusxeno.goo.type.Cohesion;
 import com.mercuriusxeno.goo.type.GooColors;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.BlockPos;
@@ -110,8 +115,6 @@ public class VolumeCellBlock extends Block {
     public static final BooleanProperty CEILING = BooleanProperty.create("ceiling");
     /** The most layers one cell holds: a whole block of goo. */
     public static final int MAX_LAYERS = 15;
-    /** The adhesion of a goo that holds tops, every goo's rule before adhesion was read. */
-    private static final int HOLDS_TOPS = 1;
     /** Half a block, the middle of a cell across. */
     private static final double HALF = 0.5;
     /** How far a wall run's drip stands off its wall, as the runny streak stands: a tenth of a model pixel. */
@@ -744,14 +747,15 @@ public class VolumeCellBlock extends Block {
 
     /**
      * Whether a hit this cell deals credits whoever placed it, so the cell
-     * remembers its placer: a cutting cell's shards and a smiting cell's
-     * holy fire; a cell that hurts nothing remembers none.
+     * remembers its placer: an entangling cell, which spares it, and the
+     * cutting cell's shards and the smiting cell's holy fire, which credit
+     * it; a cell that neither spares nor hurts remembers none.
      * standing-goo-thing-credits-whoever-placed-it
      *
      * @return true where the cell remembers its placer
      */
     protected boolean creditsItsPlacer() {
-        return surface().cuts() || surface().smites();
+        return surface().cuts() || surface().smites() || surface().entangles();
     }
 
     /**
@@ -1547,8 +1551,8 @@ public class VolumeCellBlock extends Block {
 
     /**
      * Attaches the block's goo to each wall beside it its adhesion holds, as
-     * a drip striking that wall would: at 3 and up every side with a face to
-     * hold it, at 2 only over goo of its type, and at 4 its ceiling too, so
+     * a drip striking that wall would: at clings and hangs every side with a
+     * face to hold it, at gels only over goo of its type, and at hangs its ceiling too, so
      * goo resting against a wall clings to it in place of lying beside it.
      * operator UAT 2026-11-17: the wall has horizontally laying goo instead of vertically adhered goo
      * drip-striking-a-side-sticks-or-runs-by-adhesion
@@ -1560,7 +1564,7 @@ public class VolumeCellBlock extends Block {
      * @return the block's state with each held wall attached
      */
     private BlockState adhereToWalls(ServerLevel level, BlockPos pos, BlockState state) {
-        int adhesion = adhesionAt(level);
+        Adhesion adhesion = adhesionAt(level);
         boolean overItsGoo = level.getBlockState(pos.below()).is(this);
         BlockState adhered = state;
         for (Direction side : ATTACHABLE) {
@@ -1584,12 +1588,11 @@ public class VolumeCellBlock extends Block {
      * @param overItsGoo whether goo of its type stands in the cell below
      * @return true where the goo clings there
      */
-    static boolean holdsTheSide(int adhesion, Direction side, boolean overItsGoo) {
+    static boolean holdsTheSide(Adhesion adhesion, Direction side, boolean overItsGoo) {
         if (side == Direction.UP) {
-            return adhesion >= GooTypeDefinition.HOLDS_AN_UNDERSIDE;
+            return adhesion.keeps(Adhesion.HANGS);
         }
-        boolean holdsOverGoo = adhesion == GooTypeDefinition.HOLDS_WHERE_IT_STRIKES - 1 && overItsGoo;
-        return adhesion >= GooTypeDefinition.HOLDS_WHERE_IT_STRIKES || holdsOverGoo;
+        return adhesion.holdsASide(overItsGoo);
     }
 
     /**
@@ -1684,7 +1687,7 @@ public class VolumeCellBlock extends Block {
         List<Side> sides = new ArrayList<>(SIDES.stream().map(side -> sideOf(level, pos.relative(side), side))
                 .toList());
         int cohesion = cohesionAt(level);
-        int adhesion = adhesionAt(level);
+        Adhesion adhesion = adhesionAt(level);
         for (int tried = 0; tried < SIDES.size(); tried++) {
             Optional<Direction> toward = SlimeFlow.pour(state.getValue(LAYERS), cohesion, adhesion, sides);
             if (toward.isEmpty()) {
@@ -1768,15 +1771,16 @@ public class VolumeCellBlock extends Block {
 
     /**
      * The step in layers this cell holds over a neighbour before pouring,
-     * read from its goo type's cohesion; a cell whose goo type's definition
-     * does not load levels flat.
+     * the threshold of its goo type's cohesion rung; a cell whose goo type's
+     * definition does not load levels flat.
      * cohesion-is-the-step-the-goo-holds
      *
      * @param level the level, whose registries hold the goo type
-     * @return the cohesion
+     * @return the cohesion threshold in layers
      */
     public int cohesionAt(LevelReader level) {
-        return level.registryAccess().get(binding.gooType()).map(type -> type.value().cohesion()).orElse(0);
+        return level.registryAccess().get(binding.gooType()).map(type -> type.value().cohesion().threshold())
+                .orElse(Cohesion.RUNNY.threshold());
     }
 
     /**
@@ -1786,11 +1790,11 @@ public class VolumeCellBlock extends Block {
      * adhesion-is-a-ladder-of-holds
      *
      * @param level the level, whose registries hold the goo type
-     * @return the adhesion
+     * @return the adhesion rung
      */
-    public int adhesionAt(LevelReader level) {
+    public Adhesion adhesionAt(LevelReader level) {
         return level.registryAccess().get(binding.gooType()).map(type -> type.value().adhesion())
-                .orElse(HOLDS_TOPS);
+                .orElse(Adhesion.TOPS);
     }
 
     /**
@@ -1933,12 +1937,13 @@ public class VolumeCellBlock extends Block {
      * step names; on a cutting cell, the shards over it cut a thing moving
      * through them, on the server, by the laying ability's shatter step; a
      * smiting cell burns an undead standing on it; a slowing cell catches
-     * what stands on it.
+     * what stands on it; an entangling cell gives vines to what crosses it.
      * slick-coats-the-ground-with-kinetic-speed
      * slick-is-a-layered-cell-that-flows-thinner-and-faster-than-slime
      * each-shatter-cut-has-a-chance-to-deplete-a-layer
      * undead-touching-wisps-goo-erupt-in-flames-and-take-holy-damage-by-fill
      * leech-goo-slows-what-it-catches-and-the-spirits-damage-it
+     * vines-is-sprayed-slime-that-entangles-what-tries-to-cross
      */
     @Override
     public void stepOn(@NonNull Level level, @NonNull BlockPos pos, @NonNull BlockState state,
@@ -1952,6 +1957,7 @@ public class VolumeCellBlock extends Block {
         }
         smite(level, pos, state, entity);
         catchIn(level, entity);
+        entangle(level, pos, state, entity);
         super.stepOn(level, pos, state, entity);
     }
 
@@ -1959,9 +1965,11 @@ public class VolumeCellBlock extends Block {
      * Smites an undead inside a smiting cell's space, where a cell too thin
      * to stand on as the block under its feet still touches it, and catches a
      * thing inside a slowing cell's block space, wading in it or standing on
-     * a cell short of a whole block.
+     * a cell short of a whole block, and entangles a thing crossing an
+     * entangling cell's space.
      * undead-touching-wisps-goo-erupt-in-flames-and-take-holy-damage-by-fill
      * leech-goo-slows-what-it-catches-and-the-spirits-damage-it
+     * vines-is-sprayed-slime-that-entangles-what-tries-to-cross
      */
     @Override
     protected void entityInside(@NonNull BlockState state, @NonNull Level level, @NonNull BlockPos pos,
@@ -1969,6 +1977,7 @@ public class VolumeCellBlock extends Block {
                                 boolean pastEdges) {
         smite(level, pos, state, entity);
         catchIn(level, entity);
+        entangle(level, pos, state, entity);
         super.entityInside(state, level, pos, entity, effects, pastEdges);
     }
 
@@ -2006,6 +2015,26 @@ public class VolumeCellBlock extends Block {
     private void catchIn(Level level, Entity entity) {
         if (surface().slows()) {
             LeechGooStep.in(layingProgram(level)).ifPresent(leech -> LeechSlow.slowOnce(level, entity, leech));
+        }
+    }
+
+    /**
+     * Entangles a living thing crossing an entangling cell in the vines its
+     * layers give, by its laying ability's vines step, on the server, whose
+     * speed modifier reaches the client too; the player who placed the cell
+     * is spared.
+     * vines-is-sprayed-slime-that-entangles-what-tries-to-cross
+     * operator ruling 2026-11-17: the caster is spared their own goo
+     *
+     * @param level  the level the cell stands in
+     * @param pos    the cell
+     * @param state  the cell's state
+     * @param entity the entity touching the cell
+     */
+    private void entangle(Level level, BlockPos pos, BlockState state, Entity entity) {
+        if (surface().entangles() && level instanceof ServerLevel server) {
+            VinesStep.in(layingProgram(server)).ifPresent(vines -> RootEvents.entangle(entity,
+                    new Rooted.Touch(pos, state.getValue(LAYERS), vines.fireFactor()), creditedPlayerAt(server, pos)));
         }
     }
 

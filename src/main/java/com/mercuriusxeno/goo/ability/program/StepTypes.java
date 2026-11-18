@@ -47,8 +47,6 @@ public final class StepTypes {
 
     static {
         register(LeafSteps.WAIT.type());
-        register(AwaitEntityStep.TYPE);
-        register(WatchStep.TYPE);
         register(ExplodeStep.TYPE);
         register(DamageStep.TYPE);
         register(PotionStep.TYPE);
@@ -83,6 +81,7 @@ public final class StepTypes {
         register(HostStep.TYPE);
         register(RimeStep.TYPE);
         register(LeechGooStep.TYPE);
+        register(VinesStep.TYPE);
         register(PhaseGooStep.TYPE);
         register(EntitiesStep.TYPE);
         register(ParticlesStep.TYPE);
@@ -116,7 +115,7 @@ public final class StepTypes {
         register(UndeadStep.TYPE);
         register(LevelStep.TYPE);
         register(BoreStep.TYPE);
-        register(SpireStep.TYPE);
+        register(BuildStep.TYPE);
         register(PetrifyStep.TYPE);
         register(DrainPetrifyStep.TYPE);
         register(WakeStatueStep.TYPE);
@@ -151,7 +150,6 @@ public final class StepTypes {
         register(AstralLunarStep.TYPE);
         register(MeteorStep.TYPE);
         register(WormholeStep.TYPE);
-        register(RootStep.TYPE);
         register(HitOrMissStep.TYPE);
         register(BloomStep.TYPE);
         register(TickPlantsStep.TYPE);
@@ -173,6 +171,8 @@ public final class StepTypes {
         register(PneumaStep.TYPE);
         register(UpdraftStep.TYPE);
         register(SignalStep.TYPE);
+        register(InfestStep.TYPE);
+        register(NitroStep.TYPE);
         register(GrabStep.TYPE);
         register(GougeStep.TYPE);
         register(RemoteStep.TYPE);

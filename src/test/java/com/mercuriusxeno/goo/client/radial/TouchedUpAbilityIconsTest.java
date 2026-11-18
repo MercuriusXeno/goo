@@ -236,6 +236,74 @@ class TouchedUpAbilityIconsTest {
         return runs;
     }
 
+    /**
+     * decision terran-icon-is-a-waning-half-blue-planet-lit-on-the-left
+     */
+    @Nested
+    class TerranIcon {
+
+        /** The row the badge's outline, rim and inner ring cross at the left edge, as the Lunar badge lays them. */
+        private static final int BADGE_ROW = 8;
+        private static final int BADGE_RINGS = 3;
+
+        @Test
+        void itStandsAtTheLunarIconsSize() throws IOException {
+            BufferedImage lunar = read("astral_lunar");
+            BufferedImage terran = read("astral_terran");
+            assertEquals(lunar.getWidth(), terran.getWidth());
+            assertEquals(lunar.getHeight(), terran.getHeight());
+        }
+
+        @Test
+        void itsLitLeftHalfHoldsBlueSeaAndGreenLand() throws IOException {
+            BufferedImage terran = read("astral_terran");
+            List<Integer> left = planetTexels(terran, true);
+            assertTrue(left.stream().anyMatch(TerranIcon::isBlue), "the lit half holds no blue sea");
+            assertTrue(left.stream().anyMatch(TerranIcon::isGreen), "the lit half holds no green land");
+        }
+
+        @Test
+        void itsRightHalfLiesInShadow() throws IOException {
+            BufferedImage terran = read("astral_terran");
+            double left = meanBrightness(planetTexels(terran, true));
+            double right = meanBrightness(planetTexels(terran, false));
+            assertTrue(right < left, "the right half reads " + right + " against the left half's " + left);
+        }
+
+        /** The texels of the planet itself, its badge's rings left out, on the left or the right half. */
+        private List<Integer> planetTexels(BufferedImage icon, boolean leftHalf) throws IOException {
+            BufferedImage lunar = read("astral_lunar");
+            Set<Integer> badge = new HashSet<>();
+            for (int ring = 0; ring < BADGE_RINGS; ring++) {
+                badge.add(lunar.getRGB(ring, BADGE_ROW));
+            }
+            List<Integer> texels = new ArrayList<>();
+            int half = icon.getWidth() / 2;
+            for (int y = 0; y < icon.getHeight(); y++) {
+                for (int x = leftHalf ? 0 : half; x < (leftHalf ? half : icon.getWidth()); x++) {
+                    int argb = icon.getRGB(x, y);
+                    if (isOpaque(argb) && !badge.contains(argb)) {
+                        texels.add(argb);
+                    }
+                }
+            }
+            return texels;
+        }
+
+        private static boolean isBlue(int argb) {
+            return (argb & CHANNEL) > (argb >> 16 & CHANNEL) && (argb & CHANNEL) > (argb >> 8 & CHANNEL);
+        }
+
+        private static boolean isGreen(int argb) {
+            return (argb >> 8 & CHANNEL) > (argb >> 16 & CHANNEL) && (argb >> 8 & CHANNEL) > (argb & CHANNEL);
+        }
+
+        private static double meanBrightness(List<Integer> texels) {
+            return texels.stream().mapToInt(argb -> (argb >> 16 & CHANNEL) + (argb >> 8 & CHANNEL) + (argb & CHANNEL))
+                    .average().orElse(0);
+        }
+    }
+
     private static boolean isOpaque(int argb) {
         return (argb >>> ALPHA_SHIFT) > 0;
     }

@@ -8,12 +8,16 @@
   "requires": ["minecraft:amethyst_shard"],
   "delivery": {
     "kind": "arc",
-    "charge": { "max_ticks": 60, "stages": 5, "stage_ticks": 12 }
+    "throw_speed": 1.5,
+    "charge": { "max_ticks": 30, "stack": 10, "stack_ticks": 6, "throw_ticks": 5 },
+    "form_sound": { "id": "minecraft:block.amethyst_cluster.place", "volume": 1.0, "pitch": 1.2 },
+    "throw_sound": { "id": "minecraft:entity.snowball.throw", "volume": 0.5, "pitch": 0.4167 },
+    "throw_pitch_spread": 0.0833
   },
   "behaviors": [
     { "type": "damage", "amount": 2, "source": "attack", "knockback": false },
     { "type": "particles", "id": "minecraft:crit", "at": "target", "count": 2, "spread": 0.3, "speed": 0.1 }
   ],
   "tags": ["entity"],
-  "pose": "shoulder_cast"
+  "pose": "resting"
 }

@@ -1,6 +1,11 @@
 {
   "gooType": "astral",
   "displayName": "goo.ability.astral.lunar",
+  "dimension_face": {
+    "dimension": "goo:lunar",
+    "displayName": "goo.ability.astral.terran",
+    "icon": "textures/goo/ability/astral_terran.png"
+  },
   "cost_mechanics": "goo.ability.astral.lunar.cost_mechanics",
   "badge": "channeled",
   "order": 30,

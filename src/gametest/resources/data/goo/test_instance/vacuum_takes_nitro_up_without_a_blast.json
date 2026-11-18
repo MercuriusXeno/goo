@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:vacuum_takes_nitro_up_without_a_blast",
+  "environment": "minecraft:default",
+  "structure": "goo:light_bay",
+  "max_ticks": 400,
+  "setup_ticks": 0,
+  "required": true
+}
