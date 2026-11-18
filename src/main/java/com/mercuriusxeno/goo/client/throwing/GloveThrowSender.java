@@ -9,6 +9,7 @@ import com.mercuriusxeno.goo.ability.ChargeSize;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.ability.DurativeRoute;
+import com.mercuriusxeno.goo.ability.GloveButton;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.HeldRoute;
 import com.mercuriusxeno.goo.ability.RallyRelease;
@@ -38,6 +39,7 @@ import com.mercuriusxeno.goo.network.GooChargePayload;
 import com.mercuriusxeno.goo.network.GooStreamPayload;
 import com.mercuriusxeno.goo.network.GooThrowHandler;
 import com.mercuriusxeno.goo.network.GooThrowPayload;
+import com.mercuriusxeno.goo.network.PortalShotPayload;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -118,22 +120,7 @@ public final class GloveThrowSender {
         }
         return delivery.kind() == DeliveryKind.SELF
                 ? sendSelf(player, gooType, abilityId)
-                : choosesOrSendsAimed(player, gooType, abilityId);
-    }
-
-    /**
-     * Sends an aimed press: with Portal in hand on the player's own portals
-     * it chooses or links instead of throwing.
-     * portals-link-by-looking-through-portal-vision
-     *
-     * @param player    the local player
-     * @param gooType   the selected goo type
-     * @param abilityId the selected ability id string
-     * @return true when a payload was sent
-     */
-    private static boolean choosesOrSendsAimed(Player player, ResourceKey<GooTypeDefinition> gooType,
-            String abilityId) {
-        return PortalAim.selected(abilityId) && PortalAim.press(player) || sendAimed(player, gooType, abilityId);
+                : sendAimed(player, gooType, abilityId);
     }
 
     /**
@@ -604,6 +591,27 @@ public final class GloveThrowSender {
             return false;
         }
         sendPayload(payload);
+        return true;
+    }
+
+    /**
+     * Shoots Portal at the aimed target by a button, left click the blue
+     * portal and right click the orange one, when the player can afford it.
+     * portal-takes-over-left-and-right-click-for-blue-and-orange
+     *
+     * @param player the local player
+     * @param button the button pressed
+     * @return true when the shot was sent
+     */
+    public static boolean sendPortalShot(Player player, GloveButton button) {
+        GloveSelection selection = GooCasters.heldSelection(player);
+        ResourceKey<GooTypeDefinition> gooType = selection == null ? null : selection.getGooType();
+        GooThrowPayload payload = gooType == null ? null
+                : affordablePayload(player, AimTracker.currentTarget(), gooType, selection.abilityId());
+        if (payload == null) {
+            return false;
+        }
+        sendPayload(new PortalShotPayload(button, payload));
         return true;
     }
 
