@@ -59,6 +59,8 @@ class GooTypeDefinitionTest {
     private static final int WEIRD_COHESION = 4;
     /** Jelly's cohesion, the stiff rung just below firm (operator ruling 2026-11-17). */
     private static final int JELLY_COHESION = 8;
+    /** Leaf's cohesion, the stiff rung Jelly holds (operator ruling 2026-11-17). */
+    private static final int LEAF_COHESION = 8;
     private static final int WEIRD_ADHESION = 3;
     private static final int LEAF_ADHESION = 3;
     private static final int GLOW_ADHESION = 4;
@@ -278,8 +280,8 @@ class GooTypeDefinitionTest {
     }
 
     /**
-     * Every bundled type states a cohesion: weird holds a step of 4, blaze the thick rung of 4, jelly the stiff rung of 8, and
-     * every other type, kinetic among them, 0.
+     * Every bundled type states a cohesion: weird holds a step of 4, blaze the thick rung of 4, jelly and
+     * leaf the stiff rung of 8, and every other type, kinetic among them, 0.
      * cohesion-is-the-step-the-goo-holds
      * blaze-goo-is-adhesion-four-and-cohesion-five
      */
@@ -287,7 +289,7 @@ class GooTypeDefinitionTest {
     @MethodSource("bundledKeys")
     void bundledCohesionMatchesDecision(ResourceKey<GooTypeDefinition> key) throws Exception {
         int expected = key == GooTypes.WEIRD ? WEIRD_COHESION : key == GooTypes.BLAZE ? BLAZE_COHESION
-                : key == GooTypes.JELLY ? JELLY_COHESION : 0;
+                : key == GooTypes.JELLY ? JELLY_COHESION : key == GooTypes.LEAF ? LEAF_COHESION : 0;
         assertEquals(expected, decodeBundled(key).cohesion(), key::toString);
     }
 
