@@ -189,10 +189,26 @@ public final class NectarStick {
         }
     }
 
+    /**
+     * Whether goo beside a thing holds it: goo rising more than a step over
+     * its feet sticks a thing it does not yet hold, and goo rising over its
+     * feet at all keeps holding a thing already stuck, so a climber keeps
+     * climbing until its feet clear the top rather than letting go a step
+     * short of it and hopping.
+     * operator UAT 2026-11-17: a stack of Nectar a couple of blocks tall just had me hopping
+     *
+     * @param level  the level the goo stands in
+     * @param pos    the block of goo
+     * @param state  its state
+     * @param sides  the thing's box reaching a hair past its sides
+     * @param living the thing
+     * @return true where the goo holds the thing
+     */
     private static boolean towersBeside(Level level, BlockPos pos, BlockState state, AABB sides, LivingEntity living) {
+        double step = isStuck(living) ? 0 : living.maxUpStep();
         return state.getCollisionShape(level, pos, CollisionContext.empty()).toAabbs().stream()
                 .map(part -> part.move(pos))
-                .anyMatch(part -> part.intersects(sides) && towersOverStep(part.maxY, living.getY(), living.maxUpStep()));
+                .anyMatch(part -> part.intersects(sides) && towersOverStep(part.maxY, living.getY(), step));
     }
 
     /**
