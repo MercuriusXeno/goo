@@ -13,7 +13,6 @@ import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.item.GooCasters;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.network.GooBuildPayload;
-import com.mercuriusxeno.goo.network.GooThrowHandler;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.client.Minecraft;
@@ -172,8 +171,9 @@ public final class BuildCast {
     }
 
     /**
-     * The block face the look meets within the throw range, which a press pins:
-     * the ground, a wall or a ceiling.
+     * The block face the look meets within Build's range, which a press
+     * pins: the ground, a wall or a ceiling.
+     * decision each-ability-names-its-range-and-the-shared-throw-range-retires
      * decision build-goes-sideways
      *
      * @param player the local player
@@ -181,7 +181,7 @@ public final class BuildCast {
      */
     private static @Nullable BlockHitResult pinnedGround(LocalPlayer player) {
         Vec3 eye = player.getEyePosition();
-        Vec3 end = eye.add(player.getViewVector(1f).scale(GooThrowHandler.MAX_RANGE));
+        Vec3 end = eye.add(player.getViewVector(1f).scale(GloveAim.aimRange(player)));
         BlockHitResult hit = player.level().clip(new ClipContext(eye, end, ClipContext.Block.OUTLINE,
                 ClipContext.Fluid.NONE, player));
         return hit.getType() == HitResult.Type.BLOCK ? hit : null;

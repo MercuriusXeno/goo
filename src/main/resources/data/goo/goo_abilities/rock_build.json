@@ -7,7 +7,7 @@
   "cost": "$mundane_block",
   "cost_formula": "%s/m³",
   "requires": ["minecraft:gravel", "minecraft:sand"],
-  "delivery": { "kind": "arc" },
+  "delivery": { "kind": "arc", "range": 16 },
   "behaviors": [
     { "type": "build", "max_span": 16, "max_rise": 16 }
   ],
