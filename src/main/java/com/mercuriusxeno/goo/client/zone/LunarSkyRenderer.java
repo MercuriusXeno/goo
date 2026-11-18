@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.client.zone;
 
 import com.mercuriusxeno.goo.ability.astral.LunarSight;
-import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.buffers.GpuBufferSlice;
 import com.mojang.blaze3d.systems.RenderPass;
@@ -73,7 +72,7 @@ public final class LunarSkyRenderer implements CustomSkyboxRenderer {
         drawSun(modelViewMatrix, (float) Math.toDegrees(skyRenderState.sunAngle));
         if (drawsPlanet) {
             Vec3 planet = LunarSight.moonDirection((float) Math.toDegrees(skyRenderState.moonAngle));
-            BluePlanetRenderer.draw(GooRenderTypes.LUNAR_PLANET, new Matrix4f(modelViewMatrix).mul(LunarSky
+            BluePlanetRenderer.draw(RenderPipelines.CELESTIAL, new Matrix4f(modelViewMatrix).mul(LunarSky
                     .celestialPose(planet, PocketStarSkyRenderer.SKY_DISTANCE, LunarSky.PLANET_HALF_SIZE)),
                     LunarSight.planetPhase(skyRenderState.moonPhase));
         }

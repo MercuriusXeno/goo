@@ -4,17 +4,19 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.ability.astral.LunarSight;
 import net.minecraft.resources.Identifier;
-import net.minecraft.util.ARGB;
 import net.minecraft.world.level.MoonPhase;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import java.util.ArrayList;
-import java.util.BitSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -158,8 +160,8 @@ class LunarSkyTest {
         private static final float MOONS_WIDE = 4F;
         private static final float[] MOON_ANGLES = {0F, 45F, 300F};
         private static final double QUAD_TOLERANCE = 1e-4;
-        /** How far a pixel disc's share of its square strays from a true circle's at the face's size. */
-        private static final double DISC_SHARE_TOLERANCE = 0.02;
+        /** The texels across a planet sprite, and across vanilla's moon sprite. */
+        private static final float SPRITE_TEXELS = 32F;
 
         @Test
         void theDiscStandsFourVanillaMoonDiscsWide() {
@@ -182,67 +184,29 @@ class LunarSkyTest {
             }
         }
 
-        @Test
-        void theFaceIsTheDiscInscribedInTheFaceSquare() {
-            int pixels = LunarSky.FACE_SIZE * LunarSky.FACE_SIZE;
-            double discShare = (double) LunarSky.facePixels().cardinality() / pixels;
-            assertEquals(Math.PI / 4, discShare, DISC_SHARE_TOLERANCE);
+        @ParameterizedTest
+        @MethodSource("eachPlanetPhaseAndItsSprite")
+        void thePlanetDrawsTheSpriteOfItsPhase(MoonPhase planetPhase, String sprite) {
+            assertEquals(Identifier.fromNamespaceAndPath("goo", "textures/environment/blue_planet/" + sprite + ".png"),
+                    LunarSky.planetSprite(planetPhase));
         }
 
         @Test
-        void theFullPhaseLightsEveryFacePixel() {
-            assertEquals(LunarSky.facePixels(), LunarSky.litPixels(MoonPhase.FULL_MOON));
+        void aPlanetTexelSpansTheSkyUnitsAMoonTexelDoes() {
+            assertEquals(VANILLA_MOON_SIZE * 2 / SPRITE_TEXELS, LunarSky.PLANET_HALF_SIZE * 2 / SPRITE_TEXELS,
+                    QUAD_TOLERANCE);
         }
 
-        @Test
-        void aHalfPhaseLightsOneHalfOfTheFace() {
-            BitSet face = LunarSky.facePixels();
-            for (MoonPhase half : new MoonPhase[] {MoonPhase.FIRST_QUARTER, MoonPhase.THIRD_QUARTER}) {
-                BitSet lit = LunarSky.litPixels(half);
-                assertEquals(face.cardinality(), lit.cardinality() * 2, half.toString());
-                BitSet outside = (BitSet) lit.clone();
-                outside.andNot(face);
-                assertTrue(outside.isEmpty(), half + " lights pixels off the face");
-            }
-        }
-
-        @Test
-        void theWaningHalfLightsTheLeftAndTheWaxingHalfTheRight() {
-            assertTrue(onOneSide(LunarSky.litPixels(MoonPhase.THIRD_QUARTER), true));
-            assertTrue(onOneSide(LunarSky.litPixels(MoonPhase.FIRST_QUARTER), false));
-        }
-
-        @Test
-        void theDarkPhaseLightsNothingAndDrawsNoDisc() {
-            assertTrue(LunarSky.litPixels(MoonPhase.NEW_MOON).isEmpty());
-            assertFalse(LunarSky.planetDraws(MoonPhase.NEW_MOON));
-            assertTrue(LunarSky.planetDraws(MoonPhase.WAXING_CRESCENT));
-        }
-
-        @Test
-        void thePlainFaceIsBlueOnEveryFacePixel() {
-            int[] face = LunarSky.plainFace();
-            assertEquals(LunarSky.FACE_SIZE * LunarSky.FACE_SIZE, face.length);
-            LunarSky.facePixels().stream().forEach(pixel -> {
-                int color = face[pixel];
-                assertTrue(ARGB.blue(color) > ARGB.red(color) && ARGB.blue(color) > ARGB.green(color),
-                        "pixel " + pixel + " reads " + Integer.toHexString(color));
-            });
-        }
-
-        @Test
-        void theLitFaceShowsTheFaceWhereLitAndNothingElsewhere() {
-            int[] face = LunarSky.plainFace();
-            int[] lit = LunarSky.litFace(face, MoonPhase.FIRST_QUARTER);
-            assertEquals(LunarSky.FACE_SIZE * LunarSky.FACE_SIZE, lit.length);
-            BitSet litPixels = LunarSky.litPixels(MoonPhase.FIRST_QUARTER);
-            for (int pixel = 0; pixel < face.length; pixel++) {
-                assertEquals(litPixels.get(pixel) ? face[pixel] : 0, lit[pixel], "pixel " + pixel);
-            }
-        }
-
-        private static boolean onOneSide(BitSet lit, boolean left) {
-            return lit.stream().allMatch(pixel -> pixel % LunarSky.FACE_SIZE < LunarSky.FACE_SIZE / 2 == left);
+        static Stream<Arguments> eachPlanetPhaseAndItsSprite() {
+            return Stream.of(
+                    Arguments.of(MoonPhase.FULL_MOON, "full"),
+                    Arguments.of(MoonPhase.WANING_GIBBOUS, "waning_gibbous"),
+                    Arguments.of(MoonPhase.THIRD_QUARTER, "third_quarter"),
+                    Arguments.of(MoonPhase.WANING_CRESCENT, "waning_crescent"),
+                    Arguments.of(MoonPhase.NEW_MOON, "new"),
+                    Arguments.of(MoonPhase.WAXING_CRESCENT, "waxing_crescent"),
+                    Arguments.of(MoonPhase.FIRST_QUARTER, "first_quarter"),
+                    Arguments.of(MoonPhase.WAXING_GIBBOUS, "waxing_gibbous"));
         }
     }
 }

@@ -103,7 +103,7 @@ final class LunarTripBodies {
      * @param halfTangent the disc's half width as a tangent
      */
     static void drawPlanet(Matrix4fc view, Vec3 direction, MoonPhase planetPhase, double halfTangent) {
-        BluePlanetRenderer.draw(GooRenderTypes.LUNAR_PLANET_TRIP, new Matrix4f(view).mul(planetPose(direction,
+        BluePlanetRenderer.draw(GooRenderTypes.LUNAR_MOON, new Matrix4f(view).mul(planetPose(direction,
                 halfTangent)), planetPhase);
     }
 
