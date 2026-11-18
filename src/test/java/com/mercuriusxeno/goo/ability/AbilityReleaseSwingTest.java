@@ -36,12 +36,12 @@ class AbilityReleaseSwingTest {
             Map.entry("zoo_spawn", ArmPoseKind.NONE),
             Map.entry("glow_bulb", ArmPoseKind.HOLD_OUT),
             Map.entry("quantum_portal", ArmPoseKind.HOLD_OUT),
-            Map.entry("crystal_knives", ArmPoseKind.WIND_UP));
+            Map.entry("crystal_knives", ArmPoseKind.NONE));
 
     /** Each shipped arc ability that throws a blob from the hand, by file name. */
     private static final Set<String> THROWS_A_BLOB = Set.of(
             "blaze_ignite", "deep_shriek", "ender_seal",
-            "frost_orb", "leaf_bio", "leaf_bloom", "leaf_vines", "metal_dart",
+            "frost_orb", "leaf_bio", "leaf_bloom", "metal_dart",
             "quantum_tunnel", "shroom_spore", "unstable_lurker",
             "void_cancel", "weird_mitosis", "yore_age", "yore_expire", "zoo_allure");
 

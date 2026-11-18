@@ -4,6 +4,8 @@ import com.google.gson.JsonObject;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.program.DamageStep;
+import com.mercuriusxeno.goo.ability.program.Variables;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
@@ -17,7 +19,6 @@ import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.JsonOps;
-import com.mercuriusxeno.goo.ability.program.DamageStep;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
@@ -29,49 +30,64 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * Gametests for Crystal's Knives hold: a hold the client begins forms knives
- * on the server's stage clock, each knife paid as it forms, and letting go
- * ends it with nothing thrown; and a fractional ability cost paid twice
- * banks its half in the payer's remainder.
- * decision knives-form-in-fibonacci-stages-to-twelve
+ * Gametests for Crystal's Knives hold: a hold the client begins forms one
+ * knife per 6 ticks up to 10 on the server's clock, each knife paid as it
+ * forms, and letting go ends it with nothing thrown and every knife refunded;
+ * a left click throws a knife as a projectile along the look, which turns
+ * toward no mob and passes between a fence's rails; and a fractional ability
+ * cost paid twice banks its half in the payer's remainder.
+ * decision knives-charge-one-per-three-ticks-up-to-ten
+ * decision knives-pay-per-knife-as-each-forms
  * decision knives-form-on-right-click-and-throw-on-left-click
+ * decision knives-and-dart-function-as-projectiles
+ * decision knives-do-not-seek-you-just-throw-them
  */
 @RegistersGameTests
 public final class KnivesHoldTests {
-    private static final String KNIVES_HOLD_FORMS_ON_THE_SERVER_CLOCK = "knives_hold_forms_on_the_server_clock";
+    private static final String KNIVES_CHARGE_ONE_PER_SIX_TICKS_TO_TEN = "knives_charge_one_per_six_ticks_to_ten";
     private static final String FRACTIONAL_COST_BANKS_ITS_HALF = "fractional_cost_banks_its_half";
     private static final String KNIVES_PAY_PER_KNIFE_AS_EACH_FORMS = "knives_pay_per_knife_as_each_forms";
-    private static final String KNIVES_THROW_WITH_NOTHING_PAINTED_KEEPS_THE_FAN =
-            "knives_throw_with_nothing_painted_keeps_the_fan";
-    private static final String KNIVES_HOME_ON_A_MOB_THAT_MOVES = "knives_home_on_a_mob_that_moves";
-    private static final String KNIVES_THROWN_STAY_PAID_AND_THE_FAN_REFUNDS =
-            "knives_thrown_stay_paid_and_the_fan_refunds";
-    private static final String KNIVES_REFILL_A_STAGE_AFTER_A_THROW = "knives_refill_a_stage_after_a_throw";
+    private static final String KNIVES_THROW_WITH_NO_MOB_AHEAD_FLIES_A_KNIFE =
+            "knives_throw_with_no_mob_ahead_flies_a_knife";
+    private static final String KNIVES_DO_NOT_TURN_TOWARD_A_MOB_THAT_MOVES =
+            "knives_do_not_turn_toward_a_mob_that_moves";
+    private static final String KNIVES_PASS_BETWEEN_FENCE_RAILS_AND_STOP_ON_A_RAIL =
+            "knives_pass_between_fence_rails_and_stop_on_a_rail";
 
     private static final Identifier CRYSTAL_KNIVES = Identifier.fromNamespaceAndPath(Goo.MODID, "crystal_knives");
-    /** Two stages of twelve ticks: the first knife, then the second. */
-    private static final int TWO_STAGES = 24;
-    private static final int TWO_KNIVES = 2;
+    /** The ticks one knife takes to form. */
+    private static final int ONE_KNIFE_TICKS = 6;
+    /** The ticks two knives take to form. */
+    private static final int TWO_KNIVES_TICKS = 12;
+    /** The ticks ten knives take to form, the cap. */
+    private static final int TEN_KNIVES_TICKS = 60;
+    /** Twice the ticks the cap takes, which forms no knife past it. */
+    private static final int PAST_THE_CAP_TICKS = 120;
+    private static final int TEN_KNIVES = 10;
     private static final String ABILITY_REQUIRED = "Ability registry must hold crystal_knives";
-    private static final String SHOULD_FORM = "Two stages into the hold the server should have formed %s knives,"
+    private static final String SHOULD_FORM = "The hold should form 1 knife at 6 ticks, 10 at 60 and 10 at 120,"
             + " formed %s";
     private static final String SHOULD_END = "Letting go should leave the hold with no knives, read %s";
-    private static final String SHOULD_THROW_NOTHING = "Letting go should queue no knife to launch";
-    /** Three stages of twelve ticks, which form four knives where the goo covers them. */
-    private static final int THREE_STAGES = 36;
-    private static final int THREE_KNIVES = 3;
-    private static final String SHOULD_PAY = "Goo for 3 knives held through tick 36 should form 3 knives and leave"
-            + " 0 mB, formed %s and left %s mB";
-    private static final String SHOULD_KEEP_THE_FAN = "A throw with nothing painted should leave 2 knives in the fan"
-            + " and none flying, left %s";
-    private static final String SHOULD_STRIKE = "The knife should land %s damage on the husk that moved, landed %s";
-    private static final String SHOULD_LEAVE_TWO = "Throwing 2 of 4 knives should leave 2 in the fan, left %s";
-    private static final String SHOULD_REFUND = "The dismiss should leave the holdings at %s, 2 prices under %s,"
-            + " read %s";
+    private static final String SHOULD_THROW_NOTHING = "Letting go should leave no knife of the caster's in flight";
+    /** Goo for more knives than the cap, so only the cap stops the paying. */
+    private static final int TWELVE_PRICES = 12;
+    /** Goo for two knives, so no third forms to shift the slots the throws leave from. */
+    private static final int TWO_PRICES = 2;
+    private static final String SHOULD_PAY = "30 ticks of hold should spend 10 prices, %s mB, spent %s mB;"
+            + " letting go should return the goo to %s mB, read %s mB";
+    private static final String SHOULD_FLY = "A throw with 1 knife held and no mob ahead should leave 0 held and one"
+            + " knife flying along the look %s; held %s, flying %s";
+    private static final String SHOULD_KEEP_ITS_PATH = "A knife thrown at a husk that stepped aside should leave it"
+            + " at %s health, read %s, and end its flight, %s still flying";
+    private static final String SHOULD_PASS_THE_GAP = "A knife thrown between the rails should hurt the husk behind"
+            + " the fence, its health %s of %s";
+    private static final String SHOULD_STOP_ON_THE_RAIL = "A knife thrown at a rail should leave the husk at %s"
+            + " health, read %s";
     private static final int BAY_SIDE = 16;
     private static final BlockPos CASTER_POS = new BlockPos(8, 1, 1);
     /** A husk, which no daylight burns, so only the knives hurt it. */
@@ -79,26 +95,73 @@ public final class KnivesHoldTests {
     private static final float FACING_SOUTH = 0f;
     /** Blocks the husk steps sideways the tick after the throw. */
     private static final double SIDESTEP = 3;
-    private static final int ONE_STAGE = 12;
-    private static final int FOUR_KNIVES = 4;
-    private static final int TWO_KNIVES_THROWN = 2;
-    private static final int PLENTY_OF_PRICES = 10;
-    /** A knife's flight of six blocks at 1.5 a tick, with slack for the sidestep. */
-    private static final int FLIGHT_TICKS = 20;
+    /** Ticks past the throw by which a knife's flight has ended: it falls to the floor well inside them. */
+    private static final int FLIGHT_TICKS = 30;
+    /** The cosine a flight's heading must clear against the look to read as along it. */
+    private static final double ALONG_THE_LOOK = 0.999;
+    /** Where the caster stands before the fence line: in block 8's west rail arm, clear of each post. */
+    private static final Vec3 FENCE_CASTER = new Vec3(8.2, 1, 1.5);
+    /** The husk behind the fence, on the knives' path. */
+    private static final Vec3 FENCE_HUSK = new Vec3(8.2, 1, 5.5);
+    /** The fence line, joined east to west across the knives' path. */
+    private static final int FENCE_Z = 4;
+    private static final int FENCE_WEST = 6;
+    private static final int FENCE_EAST = 10;
+    private static final double PIXEL = 1 / 16.0;
+    /** The middle of the gap between a fence's rails, 9 to 12 pixels up. */
+    private static final double BETWEEN_THE_RAILS = 10.5 * PIXEL;
+    /** The middle of a fence's lower rail, 6 to 9 pixels up. */
+    private static final double ON_THE_LOWER_RAIL = 7.5 * PIXEL;
+    private static final double HALF_A_BLOCK = 0.5;
+    /** A knife's speed as it leaves, in blocks a tick (crystal_knives.json). */
+    private static final double KNIFE_SPEED = 1.5;
+    private static final String KNIVES_THROW_A_VOLLEY_EVERY_FIVE_TICKS_WHILE_LEFT_CLICK_IS_HELD =
+            "knives_throw_a_volley_every_five_ticks_while_left_click_is_held";
+    private static final String KNIVES_FIVE_TICKS_APART_BOTH_DAMAGE_ONE_MOB =
+            "knives_five_ticks_apart_both_damage_one_mob";
+    /** The read a tick past the 5th after the press, which sees the second volley the 5th tick's server tick lands. */
+    private static final int READ_SIX_TICKS_ON = 6;
+    private static final int NINE_TICKS = 9;
+    /** 5 on the press, then 3 of the 5 left 5 ticks on. */
+    private static final int FIRST_VOLLEY = 5;
+    private static final int TWO_VOLLEYS = 8;
+    private static final String SHOULD_THROW_ON_THE_HOLD = "Holding left click should throw half the knives held on"
+            + " the press, 5, then half of those left every 5 ticks, 8 by 6 ticks later, and none more in the 9 ticks"
+            + " after it lifts; thrown %s";
+    /** The 2 left of the second volley: the knife the clock reaches 6 ticks on waits for the buffer's refill. */
+    private static final int HELD_BENEATH_THE_THROW = 2;
+    private static final String SHOULD_CHARGE_BENEATH = "The next knife should wait for the buffer, 2 held"
+            + " 6 ticks on; held %s";
+    /** An unarmored pig 3 blocks ahead, in the knives' path. */
+    private static final BlockPos PIG_POS = new BlockPos(8, 1, 4);
     private static final float DAMAGE_WITHIN = 1e-3f;
-    private static final float ONE_AND_A_HALF_KNIVES = 1.5f;
-    private static final String SHOULD_WAIT = "The 11 ticks after throwing 1 of 4 knives should hold 3, held %s";
-    private static final String SHOULD_REFILL = "The 12th tick after the throw should fill the fan to 7 and pay 4 more"
-            + " prices, %s mB; held %s and paid %s mB";
-    private static final int THREE_LEFT = 3;
-    private static final int SEVEN_REFILLED = 7;
-    private static final int FOUR_REFILLED = 4;
-    private static final float HALF_A_KNIFE = 0.5f;
+    private static final String SHOULD_BOTH_DAMAGE = "Two knives 5 ticks apart should take %s from the pig,"
+            + " twice one knife's %s; it lost %s";
     private static final String FIELD_COST = "cost";
     /** A cost of 12 1/2 mB, written as the decimal an ability file may write. */
     private static final double TWELVE_AND_A_HALF = 12.5;
     private static final String SHOULD_CHARGE = "Payment %s of a 12 1/2 mB cost should take %s mB and bank %s,"
             + " took %s and banked %s";
+
+    private static final String KNIVES_FLY_FROM_THEIR_SLOT_STRAIGHT_AHEAD =
+            "knives_fly_from_their_slot_straight_ahead";
+    /** The wall the crosshair rests on, 5 blocks south of the caster, across the bay's middle. */
+    private static final int WALL_Z = 6;
+    private static final int WALL_WEST = 5;
+    private static final int WALL_EAST = 11;
+    private static final int WALL_TOP = 3;
+    /** How far straight ahead the throw aims, past the wall: no block in the way is consulted. */
+    private static final double AIM_AHEAD = 64;
+    /** The cosine a launch must clear against the line from its slot to the crosshair's point. */
+    private static final double AT_THE_CROSSHAIR = 0.99999;
+    private static final String SHOULD_HEAD_AT_THE_CROSSHAIR = "A knife should leave its slot %s heading at the"
+            + " point straight ahead %s, along %s; it left along %s";
+
+    private static final String KNIVES_THROW_HALF_THE_HELD_ROUNDED_UP = "knives_throw_half_the_held_rounded_up";
+    private static final int HALF_OF_TEN = 5;
+    private static final int THEN_HALF_OF_FIVE_ROUNDED_UP = 8;
+    private static final String SHOULD_THROW_HALF = "A throw from 10 knives should throw 5, and the next from the 5 left"
+            + " 3 more, 8 in all; thrown %s";
 
     private KnivesHoldTests() {
     }
@@ -109,223 +172,340 @@ public final class KnivesHoldTests {
      * @param registrar the test function registrar
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
-        GooTestFunctions.registerTest(registrar, KNIVES_HOLD_FORMS_ON_THE_SERVER_CLOCK,
-                KnivesHoldTests::holdFormsOnTheServerClock);
+        GooTestFunctions.registerTest(registrar, KNIVES_CHARGE_ONE_PER_SIX_TICKS_TO_TEN,
+                KnivesHoldTests::knivesChargeOnePerSixTicksToTen);
         GooTestFunctions.registerTest(registrar, FRACTIONAL_COST_BANKS_ITS_HALF,
                 KnivesHoldTests::fractionalCostBanksItsHalf);
         GooTestFunctions.registerTest(registrar, KNIVES_PAY_PER_KNIFE_AS_EACH_FORMS,
                 KnivesHoldTests::knivesPayPerKnifeAsEachForms);
-        GooTestFunctions.registerTest(registrar, KNIVES_THROW_WITH_NOTHING_PAINTED_KEEPS_THE_FAN,
-                KnivesHoldTests::throwWithNothingPaintedKeepsTheFan);
-        GooTestFunctions.registerTest(registrar, KNIVES_HOME_ON_A_MOB_THAT_MOVES,
-                KnivesHoldTests::knivesHomeOnAMobThatMoves);
-        GooTestFunctions.registerTest(registrar, KNIVES_THROWN_STAY_PAID_AND_THE_FAN_REFUNDS,
-                KnivesHoldTests::thrownKnivesStayPaidAndTheFanRefunds);
-        GooTestFunctions.registerTest(registrar, KNIVES_REFILL_A_STAGE_AFTER_A_THROW,
-                KnivesHoldTests::knivesRefillAStageAfterAThrow);
+        GooTestFunctions.registerTest(registrar, KNIVES_THROW_WITH_NO_MOB_AHEAD_FLIES_A_KNIFE,
+                KnivesHoldTests::knivesThrowWithNoMobAheadFliesAKnife);
+        GooTestFunctions.registerTest(registrar, KNIVES_DO_NOT_TURN_TOWARD_A_MOB_THAT_MOVES,
+                KnivesHoldTests::knivesDoNotTurnTowardAMobThatMoves);
+        GooTestFunctions.registerTest(registrar, KNIVES_PASS_BETWEEN_FENCE_RAILS_AND_STOP_ON_A_RAIL,
+                KnivesHoldTests::knivesPassBetweenFenceRailsAndStopOnARail);
+        GooTestFunctions.registerTest(registrar, KNIVES_THROW_A_VOLLEY_EVERY_FIVE_TICKS_WHILE_LEFT_CLICK_IS_HELD,
+                KnivesHoldTests::knivesThrowAVolleyEveryFiveTicksWhileLeftClickIsHeld);
+        GooTestFunctions.registerTest(registrar, KNIVES_FIVE_TICKS_APART_BOTH_DAMAGE_ONE_MOB,
+                KnivesHoldTests::knivesFiveTicksApartBothDamageOneMob);
+        GooTestFunctions.registerTest(registrar, KNIVES_THROW_HALF_THE_HELD_ROUNDED_UP,
+                KnivesHoldTests::knivesThrowHalfTheHeldRoundedUp);
+        GooTestFunctions.registerTest(registrar, KNIVES_FLY_FROM_THEIR_SLOT_STRAIGHT_AHEAD,
+                KnivesHoldTests::knivesFlyFromTheirSlotStraightAhead);
+    }
+
+    /**
+     * A mock player holding 10 knives, the charge stopped at its cap, holds
+     * left click: the hold throws half its knives on the press, 5, and half
+     * the 5 left 5 ticks later, 8 by the 6th tick, 2 held then, the next
+     * knife waiting for the buffer the ten knives drained to its floor;
+     * once left click lifts, it throws none in the 9 ticks after.
+     * decision knives-throw-one-per-two-ticks-while-left-click-is-held
+     *
+     * @param helper the gametest helper
+     */
+    public static void knivesThrowAVolleyEveryFiveTicksWhileLeftClickIsHeld(GameTestHelper helper) {
+        ServerPlayer caster = casterHolding(helper, TWELVE_PRICES);
+        standAt(helper, caster, Vec3.atBottomCenterOf(CASTER_POS), 0f);
+        GooServerState state = GooServerState.of(helper.getLevel().getServer());
+        List<Integer> thrown = new ArrayList<>();
+        holding(caster, true);
+
+        helper.runAfterDelay(TEN_KNIVES_TICKS, () -> {
+            pressLeftClick(caster, true);
+            thrown.add(state.knifeHolds().thrownBy(caster));
+        });
+        int[] heldSixTicksOn = new int[1];
+        helper.runAfterDelay(TEN_KNIVES_TICKS + READ_SIX_TICKS_ON, () -> {
+            thrown.add(state.knifeHolds().thrownBy(caster));
+            heldSixTicksOn[0] = state.knifeHolds().formed(caster);
+            pressLeftClick(caster, false);
+        });
+        helper.runAfterDelay(TEN_KNIVES_TICKS + READ_SIX_TICKS_ON + NINE_TICKS, () -> {
+            thrown.add(state.knifeHolds().thrownBy(caster));
+            helper.getLevel().getServer().getPlayerList().remove(caster);
+            helper.assertTrue(thrown.equals(List.of(FIRST_VOLLEY, TWO_VOLLEYS, TWO_VOLLEYS)),
+                    String.format(SHOULD_THROW_ON_THE_HOLD, thrown));
+            helper.assertTrue(heldSixTicksOn[0] == HELD_BENEATH_THE_THROW,
+                    String.format(SHOULD_CHARGE_BENEATH, heldSixTicksOn[0]));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A mock player holding 2 knives holds left click at an unarmored pig in
+     * the path: both knives strike it 5 ticks apart, and it loses twice one
+     * knife's damage, the second knife landing through the first's i-frames.
+     * decision knives-throw-one-per-two-ticks-while-left-click-is-held
+     *
+     * @param helper the gametest helper
+     */
+    public static void knivesFiveTicksApartBothDamageOneMob(GameTestHelper helper) {
+        layTheFloor(helper);
+        Mob pig = helper.spawnWithNoFreeWill(EntityType.PIG, PIG_POS);
+        ServerPlayer caster = casterHolding(helper, TWO_PRICES);
+        standAt(helper, caster, Vec3.atBottomCenterOf(CASTER_POS), 0f);
+        GooServerState state = GooServerState.of(helper.getLevel().getServer());
+        float oneKnife = damageOf(knives(helper)).amount().evaluateFloat(Variables.NONE);
+        holding(caster, true);
+
+        helper.runAfterDelay(TWO_KNIVES_TICKS, () -> {
+            aimThrough(state, caster, pig.getZ(), pig.getBoundingBox().getCenter().y);
+            pressLeftClick(caster, true);
+        });
+        helper.runAfterDelay(TWO_KNIVES_TICKS + FLIGHT_TICKS, () -> {
+            float lost = pig.getMaxHealth() - pig.getHealth();
+            helper.getLevel().getServer().getPlayerList().remove(caster);
+            helper.assertTrue(Math.abs(lost - 2 * oneKnife) < DAMAGE_WITHIN,
+                    String.format(SHOULD_BOTH_DAMAGE, 2 * oneKnife, oneKnife, lost));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A mock player facing a stone wall 5 blocks south throws one knife: it
+     * leaves the slot it hovered at heading at the point 64 blocks straight
+     * ahead along the look, past the wall: no block in the way is consulted.
+     * decision knives-hover-above-the-blob-cube-over-the-hand
+     *
+     * @param helper the gametest helper
+     */
+    public static void knivesFlyFromTheirSlotStraightAhead(GameTestHelper helper) {
+        layTheFloor(helper);
+        for (int x = WALL_WEST; x <= WALL_EAST; x++) {
+            for (int y = 1; y <= WALL_TOP; y++) {
+                helper.setBlock(new BlockPos(x, y, WALL_Z), Blocks.STONE);
+            }
+        }
+        ServerPlayer caster = casterHolding(helper, TWELVE_PRICES);
+        standAt(helper, caster, Vec3.atBottomCenterOf(CASTER_POS), 0f);
+        GooServerState state = GooServerState.of(helper.getLevel().getServer());
+        holding(caster, true);
+
+        helper.runAfterDelay(ONE_KNIFE_TICKS, () -> {
+            Vec3 eye = caster.getEyePosition();
+            Vec3 crosshair = eye.add(caster.getViewVector(1f).scale(AIM_AHEAD));
+            KnivesThrowHandler.throwKnife(caster);
+            List<ThrownKnives.Flight> flying = state.thrownKnives().flyingFrom(caster);
+            helper.getLevel().getServer().getPlayerList().remove(caster);
+            helper.assertTrue(flying.size() == 1, String.format(SHOULD_FLY, caster.getViewVector(1f), 0, flying));
+            Vec3 slot = flying.getFirst().position();
+            Vec3 toTheCrosshair = crosshair.subtract(slot).normalize();
+            Vec3 heading = flying.getFirst().velocity().normalize();
+            helper.assertTrue(heading.dot(toTheCrosshair) > AT_THE_CROSSHAIR,
+                    String.format(SHOULD_HEAD_AT_THE_CROSSHAIR, slot, crosshair, toTheCrosshair, heading));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A mock player holding 10 knives throws: half the knives held leave,
+     * rounded up, 5, and the next throw takes half of the 5 left, rounded up, 3.
+     * decision knives-throw-one-per-two-ticks-while-left-click-is-held
+     *
+     * @param helper the gametest helper
+     */
+    public static void knivesThrowHalfTheHeldRoundedUp(GameTestHelper helper) {
+        ServerPlayer caster = casterHolding(helper, TWELVE_PRICES);
+        standAt(helper, caster, Vec3.atBottomCenterOf(CASTER_POS), 0f);
+        GooServerState state = GooServerState.of(helper.getLevel().getServer());
+        holding(caster, true);
+
+        helper.runAfterDelay(TEN_KNIVES_TICKS, () -> {
+            List<Integer> thrown = new ArrayList<>();
+            KnivesThrowHandler.throwKnife(caster);
+            thrown.add(state.knifeHolds().thrownBy(caster));
+            KnivesThrowHandler.throwKnife(caster);
+            thrown.add(state.knifeHolds().thrownBy(caster));
+            helper.getLevel().getServer().getPlayerList().remove(caster);
+            helper.assertTrue(thrown.equals(List.of(HALF_OF_TEN, THEN_HALF_OF_FIVE_ROUNDED_UP)),
+                    String.format(SHOULD_THROW_HALF, thrown));
+            helper.succeed();
+        });
+    }
+
+    // Presses or lifts left click during the caster's hold, as the client tells the server.
+    private static void pressLeftClick(ServerPlayer caster, boolean down) {
+        KnivesThrowHandler.leftClick(caster, down);
+    }
+
+    private static DamageStep damageOf(AbilityDefinition knives) {
+        return knives.behaviors().stream().filter(DamageStep.class::isInstance).map(DamageStep.class::cast)
+                .findFirst().orElseThrow();
     }
 
     /**
      * A mock player begins a Knives hold through the hold payload's handler:
-     * 24 ticks on the server has formed 2 knives, and ending the hold leaves
-     * the count at 0 with no knife queued to launch.
+     * the server's count reads 1 at 6 ticks, 10 at 60 and still 10 at 120, and
+     * ending the hold leaves the count at 0 with no knife of its in flight.
+     * decision knives-charge-one-per-three-ticks-up-to-ten
      *
      * @param helper the gametest helper
      */
-    public static void holdFormsOnTheServerClock(GameTestHelper helper) {
-        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.CRYSTAL);
-        AbilityDefinition knives = AbilityRegistry.of(helper.getLevel()).getAbility(CRYSTAL_KNIVES);
-        helper.assertTrue(knives != null, ABILITY_REQUIRED);
-        KnownRecipes.teachRequires(caster, knives);
+    public static void knivesChargeOnePerSixTicksToTen(GameTestHelper helper) {
+        ServerPlayer caster = casterHolding(helper, TWELVE_PRICES);
         GooServerState state = GooServerState.of(helper.getLevel().getServer());
-        String crystal = GooTypes.id(GooTypes.CRYSTAL);
+        List<Integer> formed = new ArrayList<>();
+        holding(caster, true);
 
-        KnivesHoldHandler.hold(caster, new KnivesHoldPayload(true, crystal, CRYSTAL_KNIVES.toString()));
-
-        helper.runAfterDelay(TWO_STAGES, () -> {
-            int formed = state.knifeHolds().formed(caster);
-            KnivesHoldHandler.hold(caster, new KnivesHoldPayload(false, crystal, CRYSTAL_KNIVES.toString()));
+        helper.runAfterDelay(ONE_KNIFE_TICKS, () -> formed.add(state.knifeHolds().formed(caster)));
+        helper.runAfterDelay(TEN_KNIVES_TICKS, () -> formed.add(state.knifeHolds().formed(caster)));
+        helper.runAfterDelay(PAST_THE_CAP_TICKS, () -> {
+            formed.add(state.knifeHolds().formed(caster));
+            holding(caster, false);
             int afterLettingGo = state.knifeHolds().formed(caster);
-            boolean queued = state.homingKnives().hasPending();
+            boolean flying = !headingsFrom(state, caster).isEmpty();
             helper.getLevel().getServer().getPlayerList().remove(caster);
-            helper.assertTrue(formed == TWO_KNIVES, String.format(SHOULD_FORM, TWO_KNIVES, formed));
+            helper.assertTrue(formed.equals(List.of(1, TEN_KNIVES, TEN_KNIVES)), String.format(SHOULD_FORM, formed));
             helper.assertTrue(afterLettingGo == 0, String.format(SHOULD_END, afterLettingGo));
-            helper.assertFalse(queued, SHOULD_THROW_NOTHING);
+            helper.assertFalse(flying, SHOULD_THROW_NOTHING);
             helper.succeed();
         });
     }
 
     /**
-     * A mock player holding crystal goo for exactly 3 knives holds Knives
-     * through tick 36, the clock's fourth knife: 3 knives form, each paid as
-     * it forms, and the fourth, which the goo cannot cover, does not.
+     * A mock player holding crystal goo for 12 knives holds Knives for 30
+     * ticks: 10 knives form, each paid as it forms, and letting go refunds
+     * every one, the goo reading its starting amount.
      * decision knives-pay-per-knife-as-each-forms
      *
      * @param helper the gametest helper
      */
-    @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
     public static void knivesPayPerKnifeAsEachForms(GameTestHelper helper) {
-        AbilityDefinition knives = AbilityRegistry.of(helper.getLevel()).getAbility(CRYSTAL_KNIVES);
-        helper.assertTrue(knives != null, ABILITY_REQUIRED);
-        int price = knives.cost().exactIn(GooValues.of(helper.getLevel())).ceiling();
-        ServerPlayer caster = helper.makeMockServerPlayerInLevel();
-        caster.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GooItems.GOO_GLOVE.get()));
-        caster.getInventory().add(GooStacks.createForOutput(GooTypes.CRYSTAL, THREE_KNIVES * price));
-        KnownRecipes.teachRequires(caster, knives);
+        int price = priceOf(helper);
+        ServerPlayer caster = casterHolding(helper, TWELVE_PRICES);
         GooServerState state = GooServerState.of(helper.getLevel().getServer());
-        String crystal = GooTypes.id(GooTypes.CRYSTAL);
-
-        KnivesHoldHandler.hold(caster, new KnivesHoldPayload(true, crystal, CRYSTAL_KNIVES.toString()));
-
-        helper.runAfterDelay(THREE_STAGES, () -> {
-            int formed = state.knifeHolds().formed(caster);
-            int left = crystalHeld(caster);
-            helper.getLevel().getServer().getPlayerList().remove(caster);
-            helper.assertTrue(formed == THREE_KNIVES && left == 0, String.format(SHOULD_PAY, formed, left));
-            helper.succeed();
-        });
-    }
-
-    /**
-     * A mock player holding 2 knives left clicks with nothing painted: no
-     * knife is thrown and the server's count still reads 2.
-     * decision knives-with-no-target-stay-in-the-fan
-     *
-     * @param helper the gametest helper
-     */
-    public static void throwWithNothingPaintedKeepsTheFan(GameTestHelper helper) {
-        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.CRYSTAL);
-        KnownRecipes.teachRequires(caster, knives(helper));
-        GooServerState state = GooServerState.of(helper.getLevel().getServer());
-        holding(caster, true);
-
-        helper.runAfterDelay(TWO_STAGES, () -> {
-            KnivesThrowHandler.throwKnives(caster, new KnivesThrowPayload(List.of()));
-            int left = state.knifeHolds().formed(caster);
-            boolean flying = state.homingKnives().hasPending();
-            helper.getLevel().getServer().getPlayerList().remove(caster);
-            helper.assertTrue(left == TWO_KNIVES && !flying, String.format(SHOULD_KEEP_THE_FAN, left));
-            helper.succeed();
-        });
-    }
-
-    /**
-     * A mock player forms one knife, paints a husk ahead and throws; the
-     * tick after, the husk steps 3 blocks sideways, and the knife homes on
-     * it and lands the Knives damage.
-     * decision knives-home-on-their-painted-mob
-     *
-     * @param helper the gametest helper
-     */
-    public static void knivesHomeOnAMobThatMoves(GameTestHelper helper) {
-        layTheFloor(helper);
-        Mob husk = helper.spawnWithNoFreeWill(EntityType.HUSK, HUSK_POS);
-        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.CRYSTAL);
-        Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(CASTER_POS));
-        caster.snapTo(stand.x, stand.y, stand.z, FACING_SOUTH, 0f);
-        AbilityDefinition knives = knives(helper);
-        KnownRecipes.teachRequires(caster, knives);
-        float landed = damageOf(knives).landedOn(husk, caster);
-        holding(caster, true);
-
-        helper.runAfterDelay(ONE_STAGE, () -> {
-            KnivesThrowHandler.throwKnives(caster, new KnivesThrowPayload(List.of(husk.getId())));
-            helper.runAfterDelay(1, () -> husk.teleportTo(husk.getX() + SIDESTEP, husk.getY(), husk.getZ()));
-        });
-        helper.runAfterDelay(ONE_STAGE + FLIGHT_TICKS, () -> {
-            float fell = husk.getMaxHealth() - husk.getHealth();
-            helper.getLevel().getServer().getPlayerList().remove(caster);
-            helper.assertTrue(Math.abs(fell - landed) < DAMAGE_WITHIN, String.format(SHOULD_STRIKE, landed, fell));
-            helper.succeed();
-        });
-    }
-
-    /**
-     * A mock player forms 4 knives, throws them at a painted husk needing
-     * 2, then lets go: the throw leaves 2 in the fan, and the dismiss refunds
-     * those 2, the holdings ending 2 prices under their start.
-     * decision knives-pay-per-knife-as-each-forms
-     * decision knives-split-evenly-capped-at-the-kill
-     *
-     * @param helper the gametest helper
-     */
-    @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
-    public static void thrownKnivesStayPaidAndTheFanRefunds(GameTestHelper helper) {
-        layTheFloor(helper);
-        AbilityDefinition knives = knives(helper);
-        int price = knives.cost().exactIn(GooValues.of(helper.getLevel())).ceiling();
-        ServerPlayer caster = helper.makeMockServerPlayerInLevel();
-        Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(CASTER_POS));
-        caster.snapTo(stand.x, stand.y, stand.z, FACING_SOUTH, 0f);
-        caster.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GooItems.GOO_GLOVE.get()));
-        caster.getInventory().add(GooStacks.createForOutput(GooTypes.CRYSTAL, PLENTY_OF_PRICES * price));
-        KnownRecipes.teachRequires(caster, knives);
-        Mob husk = helper.spawnWithNoFreeWill(EntityType.HUSK, HUSK_POS);
-        husk.setHealth(damageOf(knives).landedOn(husk, caster) * ONE_AND_A_HALF_KNIVES);
         int start = crystalHeld(caster);
-        GooServerState state = GooServerState.of(helper.getLevel().getServer());
         holding(caster, true);
 
-        helper.runAfterDelay(THREE_STAGES, () -> {
-            boolean fourFormed = state.knifeHolds().formed(caster) == FOUR_KNIVES;
-            KnivesThrowHandler.throwKnives(caster, new KnivesThrowPayload(List.of(husk.getId())));
-            int left = state.knifeHolds().formed(caster);
+        helper.runAfterDelay(TEN_KNIVES_TICKS, () -> {
+            state.knifeHolds().formed(caster);
+            int spent = start - crystalHeld(caster);
             holding(caster, false);
             int end = crystalHeld(caster);
-            int expected = start - TWO_KNIVES_THROWN * price;
             helper.getLevel().getServer().getPlayerList().remove(caster);
-            helper.assertTrue(fourFormed && left == FOUR_KNIVES - TWO_KNIVES_THROWN,
-                    String.format(SHOULD_LEAVE_TWO, left));
-            helper.assertTrue(end == expected, String.format(SHOULD_REFUND, expected, start, end));
+            helper.assertTrue(spent == TEN_KNIVES * price && end == start,
+                    String.format(SHOULD_PAY, TEN_KNIVES * price, spent, start, end));
             helper.succeed();
         });
     }
 
     /**
-     * A mock player forms 4 knives and throws 1 at a painted husk needing 1:
-     * the fan holds 3 through the 11 ticks after the throw, and on the 12th it
-     * fills to 7, paying for the 4 knives refilled.
-     * decision knives-refill-from-the-stage-the-fan-rounds-up-to
-     * decision knives-stage-takes-twelve-ticks-with-no-cooldown
+     * A mock player holding 1 knife left clicks with no mob anywhere ahead:
+     * the hold holds 0 and the server flies one knife heading along the look.
+     * decision knives-and-dart-function-as-projectiles
      *
      * @param helper the gametest helper
      */
-    @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
-    public static void knivesRefillAStageAfterAThrow(GameTestHelper helper) {
+    public static void knivesThrowWithNoMobAheadFliesAKnife(GameTestHelper helper) {
         layTheFloor(helper);
-        AbilityDefinition knives = knives(helper);
-        int price = knives.cost().exactIn(GooValues.of(helper.getLevel())).ceiling();
-        ServerPlayer caster = helper.makeMockServerPlayerInLevel();
-        Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(CASTER_POS));
-        caster.snapTo(stand.x, stand.y, stand.z, FACING_SOUTH, 0f);
-        caster.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GooItems.GOO_GLOVE.get()));
-        caster.getInventory().add(GooStacks.createForOutput(GooTypes.CRYSTAL, PLENTY_OF_PRICES * price));
-        KnownRecipes.teachRequires(caster, knives);
-        Mob husk = helper.spawnWithNoFreeWill(EntityType.HUSK, HUSK_POS);
-        husk.setHealth(damageOf(knives).landedOn(husk, caster) * HALF_A_KNIFE);
+        ServerPlayer caster = casterHolding(helper, TWELVE_PRICES);
+        standAt(helper, caster, Vec3.atBottomCenterOf(CASTER_POS), 0f);
         GooServerState state = GooServerState.of(helper.getLevel().getServer());
         holding(caster, true);
-        List<Integer> waiting = new java.util.ArrayList<>();
-        int[] atTheThrow = new int[1];
 
-        helper.runAfterDelay(THREE_STAGES, () -> {
-            state.knifeHolds().formed(caster);
-            KnivesThrowHandler.throwKnives(caster, new KnivesThrowPayload(List.of(husk.getId())));
-            atTheThrow[0] = crystalHeld(caster);
-            for (int tick = 1; tick < ONE_STAGE; tick++) {
-                helper.runAfterDelay(tick, () -> waiting.add(state.knifeHolds().formed(caster)));
-            }
-            helper.runAfterDelay(ONE_STAGE, () -> {
-                int refilled = state.knifeHolds().formed(caster);
-                int paid = atTheThrow[0] - crystalHeld(caster);
-                helper.getLevel().getServer().getPlayerList().remove(caster);
-                helper.assertTrue(waiting.stream().allMatch(held -> held == THREE_LEFT), String.format(SHOULD_WAIT,
-                        waiting));
-                helper.assertTrue(refilled == SEVEN_REFILLED && paid == FOUR_REFILLED * price,
-                        String.format(SHOULD_REFILL, FOUR_REFILLED * price, refilled, paid));
-                helper.succeed();
-            });
+        helper.runAfterDelay(ONE_KNIFE_TICKS, () -> {
+            KnivesThrowHandler.throwKnife(caster);
+            int held = state.knifeHolds().formed(caster);
+            Vec3 look = caster.getViewVector(1f);
+            List<Vec3> headings = headingsFrom(state, caster);
+            helper.getLevel().getServer().getPlayerList().remove(caster);
+            helper.assertTrue(held == 0 && headings.size() == 1
+                    && headings.getFirst().normalize().dot(look) > ALONG_THE_LOOK,
+                    String.format(SHOULD_FLY, look, held, headings));
+            helper.succeed();
         });
+    }
+
+    /**
+     * A mock player throws a knife at a husk on the look line, and the tick
+     * after, the husk steps 3 blocks sideways: the knife keeps its path, its
+     * flight ends, and the husk takes no damage.
+     * decision knives-do-not-seek-you-just-throw-them
+     *
+     * @param helper the gametest helper
+     */
+    public static void knivesDoNotTurnTowardAMobThatMoves(GameTestHelper helper) {
+        layTheFloor(helper);
+        Mob husk = helper.spawnWithNoFreeWill(EntityType.HUSK, HUSK_POS);
+        ServerPlayer caster = casterHolding(helper, TWELVE_PRICES);
+        standAt(helper, caster, Vec3.atBottomCenterOf(CASTER_POS), 0f);
+        GooServerState state = GooServerState.of(helper.getLevel().getServer());
+        holding(caster, true);
+
+        helper.runAfterDelay(ONE_KNIFE_TICKS, () -> {
+            KnivesThrowHandler.throwKnife(caster);
+            helper.runAfterDelay(1, () -> husk.teleportTo(husk.getX() + SIDESTEP, husk.getY(), husk.getZ()));
+        });
+        helper.runAfterDelay(ONE_KNIFE_TICKS + FLIGHT_TICKS, () -> {
+            List<Vec3> flying = headingsFrom(state, caster);
+            helper.getLevel().getServer().getPlayerList().remove(caster);
+            helper.assertTrue(husk.getHealth() == husk.getMaxHealth() && flying.isEmpty(),
+                    String.format(SHOULD_KEEP_ITS_PATH, husk.getMaxHealth(), husk.getHealth(), flying));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A mock player before a fence line joined across its path, a husk behind
+     * it, throws one knife aimed between the rails, which hurts the husk, then
+     * one aimed at the lower rail, which stops at the fence.
+     * decision knives-and-dart-function-as-projectiles
+     *
+     * @param helper the gametest helper
+     */
+    public static void knivesPassBetweenFenceRailsAndStopOnARail(GameTestHelper helper) {
+        layTheFloor(helper);
+        for (int x = FENCE_WEST; x <= FENCE_EAST; x++) {
+            helper.setBlock(new BlockPos(x, 1, FENCE_Z), Blocks.OAK_FENCE);
+        }
+        Mob husk = helper.spawnWithNoFreeWill(EntityType.HUSK, HUSK_POS);
+        Vec3 behind = helper.absoluteVec(FENCE_HUSK);
+        husk.snapTo(behind.x, behind.y, behind.z, 0f, 0f);
+        ServerPlayer caster = casterHolding(helper, TWO_PRICES);
+        standAt(helper, caster, FENCE_CASTER, 0f);
+        GooServerState state = GooServerState.of(helper.getLevel().getServer());
+        double plane = helper.absoluteVec(new Vec3(0, 0, FENCE_Z + HALF_A_BLOCK)).z;
+        double fenceBase = helper.absoluteVec(new Vec3(0, 1, 0)).y;
+        float[] healthAfterTheGap = new float[1];
+        holding(caster, true);
+
+        helper.runAfterDelay(TWO_KNIVES_TICKS, () -> {
+            aimThrough(state, caster, plane, fenceBase + BETWEEN_THE_RAILS);
+            KnivesThrowHandler.throwKnife(caster);
+        });
+        helper.runAfterDelay(TWO_KNIVES_TICKS + FLIGHT_TICKS, () -> {
+            healthAfterTheGap[0] = husk.getHealth();
+            aimThrough(state, caster, plane, fenceBase + ON_THE_LOWER_RAIL);
+            KnivesThrowHandler.throwKnife(caster);
+        });
+        helper.runAfterDelay(TWO_KNIVES_TICKS + 2 * FLIGHT_TICKS, () -> {
+            float healthAfterTheRail = husk.getHealth();
+            helper.getLevel().getServer().getPlayerList().remove(caster);
+            helper.assertTrue(healthAfterTheGap[0] < husk.getMaxHealth(),
+                    String.format(SHOULD_PASS_THE_GAP, healthAfterTheGap[0], husk.getMaxHealth()));
+            helper.assertTrue(healthAfterTheRail == healthAfterTheGap[0],
+                    String.format(SHOULD_STOP_ON_THE_RAIL, healthAfterTheGap[0], healthAfterTheRail));
+            helper.succeed();
+        });
+    }
+
+    // Pitches the caster's look so the knife the hold formed last crosses a plane of z at a height, straight ahead.
+    private static void aimThrough(GooServerState state, ServerPlayer caster, double planeZ, double height) {
+        ThrowAim.aimAt(caster, new Vec3(caster.getEyePosition().x, height, planeZ), state.knifeHolds().formed(caster),
+                KNIFE_SPEED);
+    }
+
+    // The headings of the caster's knives in flight.
+    private static List<Vec3> headingsFrom(GooServerState state, ServerPlayer caster) {
+        return state.thrownKnives().flyingFrom(caster).stream().map(ThrownKnives.Flight::velocity).toList();
+    }
+
+    private static void standAt(GameTestHelper helper, ServerPlayer caster, Vec3 relative, float pitch) {
+        Vec3 stand = helper.absoluteVec(relative);
+        caster.snapTo(stand.x, stand.y, stand.z, FACING_SOUTH, pitch);
+        caster.setYHeadRot(FACING_SOUTH);
+        caster.yHeadRotO = FACING_SOUTH;
     }
 
     private static AbilityDefinition knives(GameTestHelper helper) {
@@ -334,9 +514,18 @@ public final class KnivesHoldTests {
         return knives;
     }
 
-    private static DamageStep damageOf(AbilityDefinition knives) {
-        return knives.behaviors().stream().filter(DamageStep.class::isInstance).map(DamageStep.class::cast)
-                .findFirst().orElseThrow();
+    private static int priceOf(GameTestHelper helper) {
+        return knives(helper).cost().exactIn(GooValues.of(helper.getLevel())).ceiling();
+    }
+
+    // A mock player with a glove in hand, Knives' requires taught and crystal goo for some knives' prices.
+    @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
+    private static ServerPlayer casterHolding(GameTestHelper helper, int prices) {
+        ServerPlayer caster = helper.makeMockServerPlayerInLevel();
+        caster.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GooItems.GOO_GLOVE.get()));
+        caster.getInventory().add(GooStacks.createForOutput(GooTypes.CRYSTAL, prices * priceOf(helper)));
+        KnownRecipes.teachRequires(caster, knives(helper));
+        return caster;
     }
 
     private static void holding(ServerPlayer caster, boolean holding) {
@@ -360,8 +549,7 @@ public final class KnivesHoldTests {
      * @param helper the gametest helper
      */
     public static void fractionalCostBanksItsHalf(GameTestHelper helper) {
-        AbilityDefinition knives = AbilityRegistry.of(helper.getLevel()).getAbility(CRYSTAL_KNIVES);
-        helper.assertTrue(knives != null, ABILITY_REQUIRED);
+        AbilityDefinition knives = knives(helper);
         AbilityDefinition halved = costing(knives, TWELVE_AND_A_HALF);
         ServerPlayer payer = SelfDeliveryTests.invoker(helper, GooTypes.CRYSTAL);
         GooFraction price = halved.cost().exactIn(GooValues.of(helper.getLevel()));

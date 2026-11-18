@@ -16,14 +16,17 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.chat.contents.TranslatableContents;
 import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.attribute.EnvironmentAttributes;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.portal.TeleportTransition;
 import net.minecraft.world.phys.Vec2;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 /**
  * Gametests for Lunar, a hold: holding the cast on the moon in the overworld holds the caster's gaze through
@@ -42,6 +45,13 @@ public final class AstralLunarTests {
             "lunar_let_go_early_leaves_you_where_you_stood";
     private static final String LUNAR_ON_THE_BLUE_STAR_RETURNS_YOU_EXACTLY = "lunar_on_the_blue_star_returns_you_exactly";
     private static final String LUNAR_ON_NEITHER_REFUSES = "lunar_on_neither_refuses";
+    private static final String LUNAR_ON_THE_HIDDEN_PLANET_REFUSES = "lunar_on_the_hidden_planet_refuses";
+    private static final String LUNAR_ON_THE_SUN_SAYS_THE_BIG_YELLOW_ONE = "lunar_on_the_sun_says_the_big_yellow_one";
+    private static final String TERRAN_ON_THE_SUN_SAYS_THE_BIG_YELLOW_ONE = "terran_on_the_sun_says_the_big_yellow_one";
+    private static final String TERRAN_OFF_THE_PLANET_SAYS_THATS_NOT_YOUR_WORLD =
+            "terran_off_the_planet_says_thats_not_your_world";
+    /** Where the hidden planet test stands its caster on lunar, high over the ground. */
+    private static final Vec3 ON_LUNAR = new Vec3(0.5, 160, 0.5);
 
     private static final Identifier ASTRAL_LUNAR = Identifier.parse("goo:astral_lunar");
     /** astral_lunar.json's fixation, the held ticks a full pull takes. */
@@ -80,11 +90,24 @@ public final class AstralLunarTests {
     private static final String UNPAID = "A caster who let go should keep their astral, held %d, now %d";
     private static final String STAYED_ON_LUNAR = "A caster who let go of the star should stay on lunar, stands in %s";
     private static final String WAY_HOME_KEPT = "A caster who let go of the star should keep their way home";
+    private static final String REFUSED_UNPAID = "A refused caster should keep their astral, held %d,"
+            + " now %d";
+    private static final String TERRAN_REFUSED_ONCE = "A press held %d ticks on lunar off the planet should show"
+            + " \"That's not your world\" once, showed it %d times";
+    private static final String SUN_JOKED_ONCE = "A press held %d ticks on the sun should show the sun joke once,"
+            + " showed it %d times";
+    private static final String SUN_HELD = "Lunar held on the sun should hold no fixation";
+    private static final String STAYED_FOR_THE_SUN = "A caster held on the sun should stay in %s, stands in %s";
+    private static final String HIDDEN_HELD = "Lunar held toward the hidden planet should hold no fixation";
     private static final String REFUSED = "Lunar held looking at neither moon nor star should hold no fixation";
     private static final String REFUSED_ONCE = "A press held %d ticks at neither moon nor star should show the refusal"
             + " once, showed it %d times";
-    /** The lang key Lunar's refusal reads, the one AstralLunar.TELL_REFUSED names. */
+    /** The lang key Lunar's refusal reads, the one LunarSight.LUNAR_REFUSED names. */
     private static final String REFUSAL_KEY = "goo.ability.astral.lunar.refused";
+    /** The lang key the sun joke reads, the one LunarSight.SUN_REFUSED names. */
+    private static final String SUN_JOKE_KEY = "goo.ability.astral.sun.refused";
+    /** The lang key Terran's refusal reads on the moon, the one LunarSight.TERRAN_REFUSED names. */
+    private static final String TERRAN_REFUSAL_KEY = "goo.ability.astral.terran.refused";
     private static final String STAYED ="A refused Lunar should leave the caster where they stood, %s, stands %s";
 
     private AstralLunarTests() {
@@ -103,6 +126,14 @@ public final class AstralLunarTests {
         GooTestFunctions.registerTest(registrar, LUNAR_ON_THE_BLUE_STAR_RETURNS_YOU_EXACTLY,
                 AstralLunarTests::lunarOnTheBlueStarReturnsYouExactly);
         GooTestFunctions.registerTest(registrar, LUNAR_ON_NEITHER_REFUSES, AstralLunarTests::lunarOnNeitherRefuses);
+        GooTestFunctions.registerTest(registrar, LUNAR_ON_THE_HIDDEN_PLANET_REFUSES,
+                AstralLunarTests::lunarOnTheHiddenPlanetRefuses);
+        GooTestFunctions.registerTest(registrar, TERRAN_OFF_THE_PLANET_SAYS_THATS_NOT_YOUR_WORLD,
+                AstralLunarTests::terranOffThePlanetSaysThatsNotYourWorld);
+        GooTestFunctions.registerTest(registrar, LUNAR_ON_THE_SUN_SAYS_THE_BIG_YELLOW_ONE,
+                AstralLunarTests::lunarOnTheSunSaysTheBigYellowOne);
+        GooTestFunctions.registerTest(registrar, TERRAN_ON_THE_SUN_SAYS_THE_BIG_YELLOW_ONE,
+                AstralLunarTests::terranOnTheSunSaysTheBigYellowOne);
     }
 
     /**
@@ -190,7 +221,7 @@ public final class AstralLunarTests {
                     caster.level().dimension(), caster.position()));
             arrivedInLunarAt[0] = caster.getData(GooAttachments.LUNAR_ARRIVAL).arrivedAt();
             dropRemainders(caster);
-            face(caster, Lunar.OVERWORLD_STAR_DIRECTION);
+            face(caster, moonFrom(caster));
         });
         holdFor(helper, caster, starFrom + 1, LET_GO_AFTER);
         int fullFrom = starFrom + LET_GO_AFTER + INSIDE_THE_FIXATION;
@@ -209,6 +240,114 @@ public final class AstralLunarTests {
             helper.assertTrue(caster.getData(GooAttachments.LUNAR_ARRIVAL).arrivedAt() > arrivedInLunarAt[0],
                     ARRIVAL_MARKED);
             overworld.getServer().getPlayerList().remove(caster);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * On lunar by a night the planet stands dark, the overworld's moon full, a caster holding the cast where the
+     * planet stands stays on lunar, holds no fixation, keeps every drop of their astral and is shown Terran's
+     * refusal, "That's not your world".
+     * decision lunar-refuses-the-return-while-the-blue-star-is-hidden
+     * decision terran-refusal-says-thats-not-your-world
+     *
+     * @param helper the gametest helper
+     */
+    public static void lunarOnTheHiddenPlanetRefuses(GameTestHelper helper) {
+        assertTerranRefuses(helper, AstralLunarTests::moonFrom);
+    }
+
+    /**
+     * On lunar by a night the planet shows full, a caster holding the cast at the ground stays on lunar, holds no
+     * fixation, keeps every drop of their astral and is shown Terran's refusal, "That's not your world".
+     * decision terran-refusal-says-thats-not-your-world
+     *
+     * @param helper the gametest helper
+     */
+    public static void terranOffThePlanetSaysThatsNotYourWorld(GameTestHelper helper) {
+        assertTerranRefuses(helper, caster -> new Vec3(0, -1, 0));
+    }
+
+    /**
+     * In the overworld by day, a caster holding Lunar toward the sun stays where they stood, holds no fixation, keeps
+     * every drop of their astral and is shown "The big yellow one is the sun!".
+     * decision pointing-at-the-sun-says-the-big-yellow-one-is-the-sun
+     *
+     * @param helper the gametest helper
+     */
+    public static void lunarOnTheSunSaysTheBigYellowOne(GameTestHelper helper) {
+        assertSunJoke(helper, caster(helper));
+    }
+
+    /**
+     * On lunar by day, a caster holding Terran toward lunar's sun stays on lunar, holds no fixation, keeps every drop
+     * of their astral and is shown "The big yellow one is the sun!".
+     * decision pointing-at-the-sun-says-the-big-yellow-one-is-the-sun
+     *
+     * @param helper the gametest helper
+     */
+    public static void terranOnTheSunSaysTheBigYellowOne(GameTestHelper helper) {
+        ServerPlayer caster = caster(helper);
+        ServerLevel lunar = helper.getLevel().getServer().getLevel(Lunar.LEVEL);
+        helper.assertTrue(lunar != null, LUNAR_REQUIRED);
+        caster.teleport(new TeleportTransition(lunar, ON_LUNAR, Vec3.ZERO, 0F, 0F, TeleportTransition.DO_NOTHING));
+        assertSunJoke(helper, caster);
+    }
+
+    /**
+     * Faces a caster at the sun of the level they stand in, holds the cast, and asserts the sun joke refused it.
+     *
+     * @param helper the gametest helper
+     * @param caster the caster, standing where the test wants them
+     */
+    private static void assertSunJoke(GameTestHelper helper, ServerPlayer caster) {
+        ResourceKey<Level> stoodIn = caster.level().dimension();
+        face(caster, sunFrom(caster));
+        int astralBefore = astral(caster);
+        refusalsSentTo(caster, SUN_JOKE_KEY);
+        holdFor(helper, caster, 1, LET_GO_AFTER);
+        helper.runAfterDelay(LET_GO_AFTER, () -> {
+            helper.assertTrue(caster.level().dimension() == stoodIn,
+                    String.format(STAYED_FOR_THE_SUN, stoodIn, caster.level().dimension()));
+            helper.assertFalse(caster.getData(GooAttachments.LUNAR_FIXATION).stands(), SUN_HELD);
+            helper.assertTrue(astral(caster) == astralBefore,
+                    String.format(REFUSED_UNPAID, astralBefore, astral(caster)));
+            int jokes = refusalsSentTo(caster, SUN_JOKE_KEY);
+            helper.assertTrue(jokes == 1, String.format(SUN_JOKED_ONCE, LET_GO_AFTER, jokes));
+            helper.getLevel().getServer().getPlayerList().remove(caster);
+            helper.succeed();
+        });
+    }
+
+    private static Vec3 sunFrom(ServerPlayer caster) {
+        return LunarSight.moonDirection(caster.level().environmentAttributes()
+                .getValue(EnvironmentAttributes.SUN_ANGLE, caster.position()));
+    }
+
+    /**
+     * Stands a caster on lunar facing where a look takes them, holds the cast, and asserts Terran refused it.
+     *
+     * @param helper the gametest helper
+     * @param look   the look the caster holds, from where they stand on lunar
+     */
+    private static void assertTerranRefuses(GameTestHelper helper, Function<ServerPlayer, Vec3> look) {
+        ServerPlayer caster = caster(helper);
+        ServerLevel lunar = helper.getLevel().getServer().getLevel(Lunar.LEVEL);
+        helper.assertTrue(lunar != null, LUNAR_REQUIRED);
+        caster.teleport(new TeleportTransition(lunar, ON_LUNAR, Vec3.ZERO, 0F, 0F, TeleportTransition.DO_NOTHING));
+        face(caster, look.apply(caster));
+        int astralBefore = astral(caster);
+        refusalsSentTo(caster, TERRAN_REFUSAL_KEY);
+        holdFor(helper, caster, 1, LET_GO_AFTER);
+        helper.runAfterDelay(LET_GO_AFTER, () -> {
+            helper.assertTrue(caster.level().dimension() == Lunar.LEVEL,
+                    String.format(STAYED_ON_LUNAR, caster.level().dimension()));
+            helper.assertFalse(caster.getData(GooAttachments.LUNAR_FIXATION).stands(), HIDDEN_HELD);
+            helper.assertTrue(astral(caster) == astralBefore,
+                    String.format(REFUSED_UNPAID, astralBefore, astral(caster)));
+            int refusals = refusalsSentTo(caster, TERRAN_REFUSAL_KEY);
+            helper.assertTrue(refusals == 1, String.format(TERRAN_REFUSED_ONCE, LET_GO_AFTER, refusals));
+            helper.getLevel().getServer().getPlayerList().remove(caster);
             helper.succeed();
         });
     }
@@ -247,12 +386,24 @@ public final class AstralLunarTests {
      * @return the refusals sent
      */
     private static int refusalsSentTo(ServerPlayer caster) {
+        return refusalsSentTo(caster, REFUSAL_KEY);
+    }
+
+    /**
+     * Counts, and drains, the action bar lines carrying one refusal the server has sent the caster since the last
+     * count.
+     *
+     * @param caster the caster
+     * @param key    the refusal's lang key
+     * @return the refusals sent
+     */
+    private static int refusalsSentTo(ServerPlayer caster, String key) {
         EmbeddedChannel channel = (EmbeddedChannel) caster.connection.getConnection().channel();
         int refusals = 0;
         for (Object sent = channel.readOutbound(); sent != null; sent = channel.readOutbound()) {
             if (sent instanceof ClientboundSystemChatPacket line && line.overlay()
                     && line.content().getContents() instanceof TranslatableContents said
-                    && REFUSAL_KEY.equals(said.getKey())) {
+                    && key.equals(said.getKey())) {
                 refusals++;
             }
         }

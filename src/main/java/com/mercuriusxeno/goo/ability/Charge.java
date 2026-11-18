@@ -7,23 +7,26 @@ import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 
 /**
- * A delivery's charge block: how long a hold takes to charge fully, and,
- * for a thrown ability that forms knives while held, how many stages the
- * knives form in and the ticks each stage takes. A charge naming a largest
- * size grows the cast's size with the hold, from the smallest a cast opens
- * at to that cap.
+ * A delivery's charge block: how long a hold takes to charge fully, and, for
+ * a held throw that stacks what it throws while held, Knives' knives or
+ * Dart's javelins, the most the hold stacks, the ticks each takes to form and
+ * A charge naming a largest size grows the cast's size with the hold, from
+ * the smallest a cast opens at to that cap.
  * decision nova-ring-grows-with-the-hold
- * decision knives-form-in-fibonacci-stages-to-twelve
- * decision knives-stage-takes-twelve-ticks-with-no-cooldown
+ * decision knives-charge-one-per-three-ticks-up-to-ten
+ * decision dart-stacks-three-javelins-one-per-ten-ticks
+ * decision knives-throw-one-per-two-ticks-while-left-click-is-held
+ * decision dart-throws-one-javelin-per-five-ticks-while-left-click-is-held
  * decision spontaneous-abilities-cast-at-the-target-with-no-thrown-blob
  *
  * @param maxTicks   the ticks of hold a full charge takes, 0 for a delivery that does not charge
- * @param stages     the stages the hold forms knives in, 0 for a charge forming none
- * @param stageTicks the ticks each stage takes to form
+ * @param stack      the most the hold stacks, 0 for a charge stacking nothing
+ * @param stackTicks the ticks each one stacked takes to form
+ * @param throwTicks the ticks between the throws a held left click makes, 0 for a hold throwing one per press
  * @param minSize    the size a charge opens at with no hold, in blocks, never under the smallest a cast opens at
  * @param maxSize    the size a full charge reaches, in blocks, {@link #NO_SIZE} for a charge sizing nothing
  */
-public record Charge(int maxTicks, int stages, int stageTicks, double minSize, double maxSize) {
+public record Charge(int maxTicks, int stack, int stackTicks, int throwTicks, double minSize, double maxSize) {
 
     /** The largest size of a charge that sizes nothing. */
     public static final double NO_SIZE = 0;
@@ -33,11 +36,12 @@ public record Charge(int maxTicks, int stages, int stageTicks, double minSize, d
     /** A delivery that does not charge. */
     public static final Charge NONE = new Charge(0, 0, 0);
 
-    /** Codec for the charge block, {@code "charge": {"max_ticks": 60, "stages": 5, "stage_ticks": 12}}. */
+    /** Codec for the charge block, {@code "charge": {"max_ticks": 30, "stack": 10, "stack_ticks": 3, "throw_ticks": 2}}. */
     public static final Codec<Charge> CODEC = RecordCodecBuilder.create(inst -> inst.group(
             Codec.INT.fieldOf("max_ticks").forGetter(Charge::maxTicks),
-            Codec.INT.optionalFieldOf("stages", 0).forGetter(Charge::stages),
-            Codec.INT.optionalFieldOf("stage_ticks", 0).forGetter(Charge::stageTicks),
+            Codec.INT.optionalFieldOf("stack", 0).forGetter(Charge::stack),
+            Codec.INT.optionalFieldOf("stack_ticks", 0).forGetter(Charge::stackTicks),
+            Codec.INT.optionalFieldOf("throw_ticks", 0).forGetter(Charge::throwTicks),
             // blast-charges-from-two-to-seven-blocks: a sizing charge names the size it opens at
             Codec.DOUBLE.optionalFieldOf("min_size", ChargeSize.MIN_RADIUS).forGetter(Charge::minSize),
             Codec.DOUBLE.optionalFieldOf("max_size", NO_SIZE).forGetter(Charge::maxSize)
@@ -46,12 +50,13 @@ public record Charge(int maxTicks, int stages, int stageTicks, double minSize, d
     /**
      * Stream codec carrying the charge on the ability sync and the flight
      * broadcast, floors included, so the client's preview grows to the size
-     * the server casts and its knives form on the server's stages.
+     * the server casts and its stack forms at the server's rate.
      */
     public static final StreamCodec<ByteBuf, Charge> STREAM_CODEC = StreamCodec.composite(
             ByteBufCodecs.VAR_INT, Charge::maxTicks,
-            ByteBufCodecs.VAR_INT, Charge::stages,
-            ByteBufCodecs.VAR_INT, Charge::stageTicks,
+            ByteBufCodecs.VAR_INT, Charge::stack,
+            ByteBufCodecs.VAR_INT, Charge::stackTicks,
+            ByteBufCodecs.VAR_INT, Charge::throwTicks,
             ByteBufCodecs.DOUBLE, Charge::minSize,
             ByteBufCodecs.DOUBLE, Charge::maxSize,
             Charge::new);
@@ -60,15 +65,16 @@ public record Charge(int maxTicks, int stages, int stageTicks, double minSize, d
      * A charge sizing nothing.
      *
      * @param maxTicks   the ticks of hold a full charge takes
-     * @param stages     the stages the hold forms knives in
-     * @param stageTicks the ticks each stage takes to form
+     * @param stack      the most the hold stacks
+     * @param stackTicks the ticks each one stacked takes to form
+ * @param throwTicks the ticks between the throws a held left click makes, 0 for a hold throwing one per press
      */
-    public Charge(int maxTicks, int stages, int stageTicks) {
-        this(maxTicks, stages, stageTicks, ChargeSize.MIN_RADIUS, NO_SIZE);
+    public Charge(int maxTicks, int stack, int stackTicks) {
+        this(maxTicks, stack, stackTicks, 0, ChargeSize.MIN_RADIUS, NO_SIZE);
     }
 
     /**
-     * A charge that forms no knives, charging over the ticks given.
+     * A charge that stacks nothing, charging over the ticks given.
      *
      * @param maxTicks the ticks of hold a full charge takes
      * @return the charge
@@ -78,37 +84,41 @@ public record Charge(int maxTicks, int stages, int stageTicks, double minSize, d
     }
 
     /**
-     * Whether the hold forms knives in stages rather than charging one cast.
-     * decision knives-form-in-fibonacci-stages-to-twelve
+     * Whether the hold stacks what it throws rather than charging one cast.
      *
-     * @return true for a charge naming stages
+     * @return true for a charge naming a stack
      */
-    public boolean formsInStages() {
-        return stages > 0;
+    public boolean stacks() {
+        return stack > 0;
     }
 
     /**
-     * The knives a hold has formed some ticks in.
-     * decision knives-form-in-fibonacci-stages-to-twelve
-     * decision knives-stage-takes-twelve-ticks-with-no-cooldown
+     * What a hold has stacked some ticks in.
+     * decision knives-charge-one-per-three-ticks-up-to-ten
      *
      * @param heldTicks the ticks the hold has run
-     * @return the knives formed, 0 for a charge forming none
+     * @return the count formed, 0 for a charge stacking nothing
      */
-    public int knivesFormedAt(int heldTicks) {
-        return KnifeStages.formedAt(heldTicks, stages, stageTicks);
+    public int stackedAt(int heldTicks) {
+        return stackedSinceThrow(0, heldTicks);
     }
 
     /**
-     * The knives the fan holds some ticks after a throw.
+     * What the hold holds some ticks after a throw: what the throw left, and
+     * one more each time one's ticks go by, never past the most the charge
+     * stacks.
+     * decision knives-charge-one-per-three-ticks-up-to-ten
      * decision knives-refill-from-the-stage-the-fan-rounds-up-to
      *
-     * @param left       the knives the throw left in the fan
+     * @param left       what the throw left
      * @param sinceThrow the ticks since the throw
-     * @return the knives in the fan
+     * @return the count held
      */
-    public int knivesSinceThrow(int left, int sinceThrow) {
-        return KnifeStages.formedSinceThrow(left, sinceThrow, stages, stageTicks);
+    public int stackedSinceThrow(int left, int sinceThrow) {
+        if (stackTicks <= 0 || sinceThrow < 0) {
+            return left;
+        }
+        return Math.min(stack, left + sinceThrow / stackTicks);
     }
 
     /**

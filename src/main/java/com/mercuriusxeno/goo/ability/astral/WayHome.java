@@ -5,7 +5,7 @@ import com.mojang.serialization.MapCodec;
 import java.util.Optional;
 
 /**
- * The place a caster left the overworld from when the moon took them, kept with the player until the blue star
+ * The place a caster left the overworld from when the moon took them, kept with the player until the blue planet
  * carries them back to it.
  * decision gate-on-the-blue-star-returns-you-exactly-where-you-left
  *

@@ -162,7 +162,7 @@ public final class BareHandCastTests {
         caster.teleport(new TeleportTransition(lunar, STRANDED_AT, Vec3.ZERO, 0F, 0F,
                 TeleportTransition.DO_NOTHING));
         caster.setItemInHand(InteractionHand.MAIN_HAND, GooStacks.createForOutput(GooTypes.ASTRAL, HELD_MB));
-        face(caster, Lunar.OVERWORLD_STAR_DIRECTION);
+        face(caster, moonFrom(caster));
         holdFor(helper, caster, GooTypes.ASTRAL, 1, FIXATION + HOLD_PAST);
         helper.runAfterDelay(PAST_THE_FIXATION, () -> {
             boolean home = caster.level().dimension() == Level.OVERWORLD;

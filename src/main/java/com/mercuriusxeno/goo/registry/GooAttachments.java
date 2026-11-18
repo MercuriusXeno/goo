@@ -40,6 +40,7 @@ import com.mercuriusxeno.goo.ability.zoo.Kin;
 import com.mercuriusxeno.goo.ability.zoo.Rallied;
 import com.mercuriusxeno.goo.data.GooRemainders;
 import com.mercuriusxeno.goo.data.KnownItems;
+import com.mercuriusxeno.goo.data.PalmBuffers;
 import com.mercuriusxeno.goo.item.SoulBoundStacks;
 import com.mojang.serialization.Codec;
 import net.minecraft.server.level.ServerPlayer;
@@ -168,6 +169,19 @@ public final class GooAttachments {
             ATTACHMENT_TYPES.register("known_items",
                     () -> AttachmentType.builder(() -> KnownItems.NONE)
                             .serialize(KnownItems.CODEC)
+                            .copyOnDeath()
+                            .build());
+
+    /**
+     * A player's palm blob buffers, one per ability that stacks what it
+     * throws, saved with the player and kept through death, so the blob
+     * remembers how full it was.
+     * decision each-ability-has-its-own-buffer-that-fills-only-while-held
+     */
+    public static final Supplier<AttachmentType<PalmBuffers>> PALM_BUFFERS =
+            ATTACHMENT_TYPES.register("palm_buffers",
+                    () -> AttachmentType.builder(() -> PalmBuffers.NONE)
+                            .serialize(PalmBuffers.CODEC, buffers -> !buffers.fills().isEmpty())
                             .copyOnDeath()
                             .build());
 
@@ -304,7 +318,7 @@ public final class GooAttachments {
                             .build());
 
     /**
-     * Where a caster left the overworld from when the moon took them, saved with the player until the blue star
+     * Where a caster left the overworld from when the moon took them, saved with the player until the blue planet
      * carries them back.
      * decision gate-on-the-blue-star-returns-you-exactly-where-you-left
      */

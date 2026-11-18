@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.ISidedProxy;
 import com.mercuriusxeno.goo.ability.DurativeRoute;
 import com.mercuriusxeno.goo.ability.HeldEffectIcon;
 import com.mercuriusxeno.goo.ability.HeldEffectName;
+import com.mercuriusxeno.goo.ability.StandingDimension;
 import com.mercuriusxeno.goo.ability.nether.HiveSwarm;
 import com.mercuriusxeno.goo.ability.oculus.OculusNodes;
 import com.mercuriusxeno.goo.ability.program.Step;
@@ -18,6 +19,7 @@ import com.mercuriusxeno.goo.client.ability.AilmentOverlayLayer;
 import com.mercuriusxeno.goo.client.ability.BeatRings;
 import com.mercuriusxeno.goo.client.ability.BlockTransforms;
 import com.mercuriusxeno.goo.client.ability.ChainBurnouts;
+import com.mercuriusxeno.goo.client.ability.ClientPalmBuffers;
 import com.mercuriusxeno.goo.client.ability.DownedPose;
 import com.mercuriusxeno.goo.client.ability.EncasedBodies;
 import com.mercuriusxeno.goo.client.ability.EncasementLayer;
@@ -26,6 +28,7 @@ import com.mercuriusxeno.goo.client.ability.FrozenPoses;
 import com.mercuriusxeno.goo.client.ability.GhostTrails;
 import com.mercuriusxeno.goo.client.ability.GlassKnives;
 import com.mercuriusxeno.goo.client.ability.GrabFlail;
+import com.mercuriusxeno.goo.client.ability.HeldJavelins;
 import com.mercuriusxeno.goo.client.ability.HeldSweepVisual;
 import com.mercuriusxeno.goo.client.ability.HoveringKnives;
 import com.mercuriusxeno.goo.client.ability.KinOutline;
@@ -151,10 +154,12 @@ public final class GooClientSetup {
         ISidedProxy.INSTANCE[0] = new ClientProxy();
         AbilityBlockEntity.installClientSteps(GooClientSetup::syncedSteps);
         GooTypes.readConnectionOrderFrom(GooClientSetup::connectionTypeOrder);
-        HeldEffectName.readConnectionNamesFrom(
-                type -> syncedDurativeAbility(type).map(ClientAbility::displayName).orElse(null));
-        HeldEffectIcon.readConnectionIconsFrom(
-                type -> syncedDurativeAbility(type).map(ClientAbility::iconTexture).orElse(null));
+        // lunar-reads-as-terran-while-you-are-on-the-moon: a held effect shows its ability's face where the player stands
+        StandingDimension.readFrom(ClientDimension::standingIn);
+        HeldEffectName.readConnectionNamesFrom(type -> syncedDurativeAbility(type)
+                .map(ability -> ability.shownIn(ClientDimension.standingIn()).displayName()).orElse(null));
+        HeldEffectIcon.readConnectionIconsFrom(type -> syncedDurativeAbility(type)
+                .map(ability -> ability.shownIn(ClientDimension.standingIn()).icon()).orElse(null));
         HiveSwarm.installBuzzLoops(FadingLoops::keepAlive);
     }
 
@@ -314,7 +319,7 @@ public final class GooClientSetup {
                 GooBlocks.BLAZE_MOLTEN.get(), GooBlocks.CRYSTAL_SHATTER.get(), GooBlocks.DEEP_HOST.get(),
                 GooBlocks.FROST_RIME.get(), GooBlocks.GLOW_WISPS.get(), GooBlocks.HEX_LEECH.get(),
                 GooBlocks.TYPHOON_UPDRAFT.get(), GooBlocks.JELLY_NECTAR.get(), GooBlocks.PULSE_SIGNAL.get(),
-                GooBlocks.METAL_SPIKES.get(), GooBlocks.NETHER_INFEST.get())) {
+                GooBlocks.METAL_SPIKES.get(), GooBlocks.NETHER_INFEST.get(), GooBlocks.LEAF_VINES.get())) {
             event.register(VolumeCellTint.sources(cell.binding().gooType(), ClientGooTypes::color), cell);
         }
     }
@@ -398,6 +403,7 @@ public final class GooClientSetup {
      * leech-goo-slows-what-it-catches-and-the-spirits-damage-it
      * nectar-is-sprayed-goo-with-a-guided-throw-near-a-mob
      * infest-is-nethers-goo-the-decay-effect-localized-around-the-goo
+     * vines-is-sprayed-slime-that-entangles-what-tries-to-cross
      *
      * @param event the event instance
      */
@@ -430,6 +436,8 @@ public final class GooClientSetup {
                 sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.SPIKES_METAL_SILVERS));
         event.registerSpriteSet(GooParticles.INFEST_SPRAY_DRIP.get(),
                 sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.INFEST_NETHER_REDS));
+        event.registerSpriteSet(GooParticles.VINES_SPRAY_DRIP.get(),
+                sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.VINES_LEAF_GREENS));
     }
 
     /**
@@ -522,7 +530,7 @@ public final class GooClientSetup {
     public static void registerCustomSkies(RegisterCustomEnvironmentEffectRendererEvent event) {
         event.registerSkyboxRenderer(PocketStarSky.ID, new PocketStarSkyRenderer());
         // decision astral-sky-is-the-void-with-one-bright-blue-overworld-star
-        event.registerSkyboxRenderer(LunarSky.ID, new LunarSkyRenderer());
+        event.registerSkyboxRenderer(LunarSky.ID, new LunarSkyRenderer(true));
     }
 
     /**
@@ -648,6 +656,8 @@ public final class GooClientSetup {
         MeteorScorches.clear();
         GlassKnives.clear();
         HoveringKnives.clear();
+        ClientPalmBuffers.clear();
+        HeldJavelins.clear();
         AbilityPoses.clear();
         PrismFormingSounds.CLIENT.clear();
     }
