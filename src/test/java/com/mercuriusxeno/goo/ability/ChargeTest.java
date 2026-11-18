@@ -58,13 +58,13 @@ class ChargeTest {
     }
 
     @Test
-    void shippedKnivesWearsHeldFormsOnePerSixTicksUpToTenAndThrowsOnePerThreeTicks() {
+    void shippedKnivesWearsHeldFormsOnePerSixTicksUpToTenAndThrowsEveryFiveTicks() {
         assertEquals(AbilityBadge.HELD, knivesAbility.badge());
         assertEquals(0, knives.stackedAt(5));
         assertEquals(1, knives.stackedAt(6));
         assertEquals(10, knives.stackedAt(60));
         assertEquals(10, knives.stackedAt(120));
-        assertEquals(3, knives.throwTicks());
+        assertEquals(5, knives.throwTicks());
     }
 
     @Test
