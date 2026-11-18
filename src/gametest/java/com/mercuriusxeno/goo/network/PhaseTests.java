@@ -1,34 +1,50 @@
 package com.mercuriusxeno.goo.network;
 
-import com.mercuriusxeno.goo.ability.AbilityDefinition;
-import com.mercuriusxeno.goo.ability.AbilityRegistry;
-import com.mercuriusxeno.goo.network.GooEffectScheduler.PendingEffect;
+import com.mercuriusxeno.goo.ability.quantum.OutOfPhase;
+import com.mercuriusxeno.goo.ability.quantum.PhaseEvents;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
+import com.mercuriusxeno.goo.gametest.SurvivalPlayers;
 import com.mercuriusxeno.goo.registry.GooAttachments;
-import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
-import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
-import com.mercuriusxeno.goo.gametest.GooTestFunctions;
-import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
- * Phase Self keeps the phased on their own plane: a zombie's hit on a phased
- * player lands nothing and the zombie cannot take the player as its target,
- * while a phased player's hit on a zombie Phase Other struck lands.
+ * The phased keep their own plane: a zombie's hit on a phased player lands
+ * nothing and the zombie cannot take the player as its target, a phased
+ * player's hit on a phased zombie lands and the zombie's on the player, and a
+ * phased zombie passes through a plain one. Each test lays the phase Phase
+ * goo lays straight onto its entities, since what the phase means is under
+ * test here and PhaseGooTests proves the goo lays it.
  * phase-shares-a-plane-between-the-phased
  */
 @RegistersGameTests
 public final class PhaseTests {
+
     private static final String PHASED_PLAYER_IGNORED = "phased_player_ignored_by_zombie";
     private static final String PHASED_PAIR_HURT = "phased_pair_hurt_each_other";
+    private static final String PHASED_MOB_PASSES_THROUGH = "phased_mob_passes_through_an_unphased_one";
+    private static final String PHASED_ZOMBIE_HUNTS = "phased_zombie_hunts_a_phased_player";
+    /** How far apart, across, two overlapping zombies start, so a push between them has a side to go. */
+    private static final double OVERLAP_OFFSET = 0.1;
+    /** Ticks two overlapping zombies are given to push each other apart. */
+    private static final int PUSH_TICKS = 20;
+    /** How far a zombie may drift and still count as unpushed. */
+    private static final double UNPUSHED = 0.02;
+    private static final BlockPos ZOMBIE_POS = new BlockPos(3, 1, 3);
+    private static final float HIT = 4.0F;
+    private static final int SETTLE_TICKS = 1;
+
+    private PhaseTests() {
+    }
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -39,20 +55,13 @@ public final class PhaseTests {
         GooTestFunctions.registerTest(registrar, PHASED_PLAYER_IGNORED, PhaseTests::phasedPlayerIgnoredByZombie);
         GooTestFunctions.registerTest(registrar, PHASED_PAIR_HURT, PhaseTests::phasedPairHurtEachOther);
         GooTestFunctions.registerTest(registrar, PHASED_MOB_PASSES_THROUGH, PhaseTests::phasedMobPassesThrough);
+        GooTestFunctions.registerTest(registrar, PHASED_ZOMBIE_HUNTS, PhaseTests::phasedZombieHuntsAPhasedPlayer);
     }
 
-    private static final String PHASED_MOB_PASSES_THROUGH = "phased_mob_passes_through_an_unphased_one";
-    /** How far apart, across, two overlapping zombies start, so a push between them has a side to go. */
-    private static final double OVERLAP_OFFSET = 0.1;
-    /** Ticks two overlapping zombies are given to push each other apart. */
-    private static final int PUSH_TICKS = 20;
-    /** How far a zombie may drift and still count as unpushed. */
-    private static final double UNPUSHED = 0.02;
-
     /**
-     * A zombie Phase Other struck and a plain zombie standing in the same
-     * spot do not push each other apart: bodies on opposite sides of phase
-     * pass through each other.
+     * A phased zombie and a plain zombie standing in the same spot do not
+     * push each other apart: bodies on opposite sides of phase pass through
+     * each other.
      *
      * @param helper the gametest helper
      */
@@ -62,9 +71,8 @@ public final class PhaseTests {
                 helper.setBlock(ZOMBIE_POS.below().offset(x, 0, z), Blocks.STONE);
             }
         }
-        ServerPlayer player = HeartOverlayTests.selfInvoked(helper, GooTypes.QUANTUM, PHASE_SELF);
         Mob phased = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, ZOMBIE_POS);
-        strike(helper, phased, player);
+        putOutOfPhase(phased);
         Mob plain = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, ZOMBIE_POS);
         plain.setPos(phased.getX() + OVERLAP_OFFSET, phased.getY(), phased.getZ());
         Vec3 phasedStart = phased.position();
@@ -74,33 +82,21 @@ public final class PhaseTests {
                     "A phased zombie should pass through a plain one, moved to " + phased.position());
             helper.assertTrue(plain.position().distanceTo(plainStart) < UNPUSHED,
                     "A plain zombie should pass through a phased one, moved to " + plain.position());
-            helper.getLevel().getServer().getPlayerList().remove(player);
             helper.succeed();
         });
     }
 
-
-    private static final Identifier PHASE_SELF = Identifier.parse("goo:quantum_phase_self");
-    private static final String PHASE_OTHER = "goo:quantum_phase_other";
-    private static final BlockPos ZOMBIE_POS = new BlockPos(3, 1, 3);
-    private static final float HIT = 4.0F;
-    private static final int SETTLE_TICKS = 1;
-
-    private PhaseTests() {
-    }
-
     /**
-     * A player holding Phase Self keeps full health under a zombie's hit, and the
+     * A phased player keeps full health under a zombie's hit, and the
      * zombie's aim at the player is turned away.
      *
      * @param helper the gametest helper
      */
     public static void phasedPlayerIgnoredByZombie(GameTestHelper helper) {
-        ServerPlayer player = HeartOverlayTests.selfInvoked(helper, GooTypes.QUANTUM, PHASE_SELF);
+        ServerPlayer player = SurvivalPlayers.placeIn(helper);
+        putOutOfPhase(player);
         Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, ZOMBIE_POS);
         helper.runAfterDelay(SETTLE_TICKS, () -> {
-            helper.assertTrue(player.getData(GooAttachments.OUT_OF_PHASE).standsAt(helper.getLevel().getGameTime()),
-                    "Phase Self should put the player out of phase");
             float health = player.getHealth();
             HeartOverlayTests.hurt(helper, player, helper.getLevel().damageSources().mobAttack(zombie), HIT);
             helper.assertTrue(player.getHealth() == health,
@@ -113,17 +109,16 @@ public final class PhaseTests {
     }
 
     /**
-     * A phased player's hit lands on a zombie Phase Other struck.
+     * A phased player's hit lands on a phased zombie, and the zombie's on the player.
      *
      * @param helper the gametest helper
      */
     public static void phasedPairHurtEachOther(GameTestHelper helper) {
-        ServerPlayer player = HeartOverlayTests.selfInvoked(helper, GooTypes.QUANTUM, PHASE_SELF);
+        ServerPlayer player = SurvivalPlayers.placeIn(helper);
+        putOutOfPhase(player);
         Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, ZOMBIE_POS);
+        putOutOfPhase(zombie);
         helper.runAfterDelay(SETTLE_TICKS, () -> {
-            strike(helper, zombie, player);
-            helper.assertTrue(zombie.getData(GooAttachments.OUT_OF_PHASE).standsAt(helper.getLevel().getGameTime()),
-                    "Phase Other should put the zombie out of phase");
             float zombieHealth = zombie.getHealth();
             zombie.hurtServer(helper.getLevel(), helper.getLevel().damageSources().playerAttack(player), HIT);
             helper.assertTrue(zombie.getHealth() < zombieHealth,
@@ -137,10 +132,27 @@ public final class PhaseTests {
         });
     }
 
-    private static void strike(GameTestHelper helper, Mob mob, ServerPlayer thrower) {
-        AbilityDefinition ability = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(PHASE_OTHER));
-        helper.assertTrue(ability != null, "The Phase Other ability should load");
-        GooEffectScheduler.applyEffect(new PendingEffect(0, helper.getLevel(), thrower, ability.gooType(),
-                mob.getId(), mob.blockPosition(), Direction.UP, PHASE_OTHER));
+    /**
+     * A free-willed zombie and a player both out of phase share a plane, so
+     * the zombie's own goals take the player as its target.
+     *
+     * @param helper the gametest helper
+     */
+    public static void phasedZombieHuntsAPhasedPlayer(GameTestHelper helper) {
+        ServerPlayer player = SurvivalPlayers.placeIn(helper);
+        putOutOfPhase(player);
+        Mob zombie = helper.spawn(EntityType.ZOMBIE, ZOMBIE_POS);
+        putOutOfPhase(zombie);
+        helper.succeedWhen(() -> {
+            helper.assertTrue(zombie.getTarget() == player,
+                    "A phased zombie should target a phased player, targets " + zombie.getTarget()
+                            + ", zombie phased " + PhaseEvents.phased(zombie) + ", player phased "
+                            + PhaseEvents.phased(player));
+            helper.getLevel().getServer().getPlayerList().remove(player);
+        });
+    }
+
+    private static void putOutOfPhase(Entity entity) {
+        entity.setData(GooAttachments.OUT_OF_PHASE, OutOfPhase.held());
     }
 }
