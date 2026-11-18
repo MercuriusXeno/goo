@@ -3,7 +3,7 @@ package com.mercuriusxeno.goo.network;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.hex.Charmed;
-import com.mercuriusxeno.goo.ability.zoo.Rallied;
+import com.mercuriusxeno.goo.ability.yarn.Led;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
@@ -36,16 +36,16 @@ import java.util.function.Consumer;
  * landing and Mycosis through its spray, and each tick of the effect after the
  * cast hurts the mob with its own damage type naming that player (decisions
  * lingering-goo-effect-credits-whoever-applied-it, goo-hit-keeps-its-kind-and-names-the-player-behind-it). The same
- * effect applied the same way to a mob the player rallied and a mob the player charmed hurts both with its type
- * and leaves the rally and the charm standing. They sit in the scheduler's package because its landing is
+ * effect applied the same way to a mob the player led and a mob the player charmed hurts both with its type
+ * and leaves the lead and the charm standing. They sit in the scheduler's package because its landing is
  * package-private.
  */
 @RegistersGameTests
 public final class LingeringCreditTests {
     private static final String TOXIN_NAMES_THE_APPLIER = "goo_lingering_credit_toxin_names_the_applier";
     private static final String MYCOSIS_NAMES_THE_APPLIER = "goo_lingering_credit_mycosis_names_the_applier";
-    private static final String TOXIN_KEEPS_RALLY_AND_CHARM = "goo_lingering_credit_toxin_keeps_rally_and_charm";
-    private static final String MYCOSIS_KEEPS_RALLY_AND_CHARM = "goo_lingering_credit_mycosis_keeps_rally_and_charm";
+    private static final String TOXIN_KEEPS_LEAD_AND_CHARM = "goo_lingering_credit_toxin_keeps_lead_and_charm";
+    private static final String MYCOSIS_KEEPS_LEAD_AND_CHARM = "goo_lingering_credit_mycosis_keeps_lead_and_charm";
 
     private static final String LEAF_BIO = "goo:leaf_bio";
     private static final Identifier SHROOM_MYCOSIS = Identifier.parse("goo:shroom_mycosis");
@@ -61,7 +61,7 @@ public final class LingeringCreditTests {
     private static final float LOOKING_AT_THE_MOB = 12f;
     private static final int SETTLE_TICKS = 1;
     private static final int SPRAY_TICKS = 3;
-    private static final float RALLY_DAMAGE = 6f;
+    private static final float LEAD_DAMAGE = 6f;
     /** Shroom goo the sprayer holds, thousands: enough to pay for the spray. */
     private static final int HELD_GOO = 25;
 
@@ -70,7 +70,7 @@ public final class LingeringCreditTests {
             + "applied it, last such hit named %s";
     private static final String SHOULD_KEEP = "A tick of %s should hurt the player's %s mob as %s and leave the %s "
             + "standing; it is %s and the mob was %s by the tick";
-    private static final String RALLY = "rally";
+    private static final String LEAD = "lead";
     private static final String CHARM = "charm";
     private static final String STANDING = "standing";
     private static final String ENDED = "ended";
@@ -87,10 +87,10 @@ public final class LingeringCreditTests {
         GooTestFunctions.registerTest(registrar, TOXIN_NAMES_THE_APPLIER, LingeringCreditTests::toxinNamesTheApplier);
         GooTestFunctions.registerTest(registrar, MYCOSIS_NAMES_THE_APPLIER,
                 LingeringCreditTests::mycosisNamesTheApplier);
-        GooTestFunctions.registerTest(registrar, TOXIN_KEEPS_RALLY_AND_CHARM,
-                LingeringCreditTests::toxinKeepsRallyAndCharm);
-        GooTestFunctions.registerTest(registrar, MYCOSIS_KEEPS_RALLY_AND_CHARM,
-                LingeringCreditTests::mycosisKeepsRallyAndCharm);
+        GooTestFunctions.registerTest(registrar, TOXIN_KEEPS_LEAD_AND_CHARM,
+                LingeringCreditTests::toxinKeepsLeadAndCharm);
+        GooTestFunctions.registerTest(registrar, MYCOSIS_KEEPS_LEAD_AND_CHARM,
+                LingeringCreditTests::mycosisKeepsLeadAndCharm);
     }
 
     /**
@@ -120,37 +120,37 @@ public final class LingeringCreditTests {
     }
 
     /**
-     * Leaf Bio blobs a mock player threw land on a husk it rallied and a husk it charmed, and the toxin's tick
-     * hurts both with magic, leaving the rally and the charm standing.
+     * Leaf Bio blobs a mock player threw land on a husk it led and a husk it charmed, and the toxin's tick
+     * hurts both with magic, leaving the lead and the charm standing.
      *
      * @param helper the gametest helper
      */
     @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
-    public static void toxinKeepsRallyAndCharm(GameTestHelper helper) {
-        Mob rallied = still(helper.spawnWithNoFreeWill(EntityType.HUSK, MOB_POS));
+    public static void toxinKeepsLeadAndCharm(GameTestHelper helper) {
+        Mob led = still(helper.spawnWithNoFreeWill(EntityType.HUSK, MOB_POS));
         Mob charmed = still(helper.spawnWithNoFreeWill(EntityType.HUSK, SECOND_MOB_POS));
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
-        makeOwn(player, rallied, charmed);
+        makeOwn(player, led, charmed);
         helper.runAfterDelay(SETTLE_TICKS, () -> {
-            land(helper, player, LEAF_BIO, rallied);
+            land(helper, player, LEAF_BIO, led);
             land(helper, player, LEAF_BIO, charmed);
         });
-        succeedOnceKept(helper, player, "Toxin", DamageTypes.MAGIC, rallied, charmed);
+        succeedOnceKept(helper, player, "Toxin", DamageTypes.MAGIC, led, charmed);
     }
 
     /**
-     * A mock player sprays Mycosis at a husk it rallied and a husk it charmed, and the spore poison's tick hurts
-     * both with magic, leaving the rally and the charm standing.
+     * A mock player sprays Mycosis at a husk it led and a husk it charmed, and the spore poison's tick hurts
+     * both with magic, leaving the lead and the charm standing.
      *
      * @param helper the gametest helper
      */
-    public static void mycosisKeepsRallyAndCharm(GameTestHelper helper) {
-        Mob rallied = still(helper.spawnWithNoFreeWill(EntityType.HUSK, MOB_POS));
+    public static void mycosisKeepsLeadAndCharm(GameTestHelper helper) {
+        Mob led = still(helper.spawnWithNoFreeWill(EntityType.HUSK, MOB_POS));
         Mob charmed = still(helper.spawnWithNoFreeWill(EntityType.HUSK, SECOND_MOB_POS));
         ServerPlayer player = sprayer(helper);
-        makeOwn(player, rallied, charmed);
+        makeOwn(player, led, charmed);
         spray(helper, player);
-        succeedOnceKept(helper, player, "Mycosis", DamageTypes.MAGIC, rallied, charmed);
+        succeedOnceKept(helper, player, "Mycosis", DamageTypes.MAGIC, led, charmed);
     }
 
     /**
@@ -174,8 +174,8 @@ public final class LingeringCreditTests {
         return mob;
     }
 
-    private static void makeOwn(ServerPlayer player, Mob rallied, Mob charmed) {
-        rallied.setData(GooAttachments.RALLIED, new Rallied(player.getUUID(), RALLY_DAMAGE));
+    private static void makeOwn(ServerPlayer player, Mob led, Mob charmed) {
+        led.setData(GooAttachments.LED, new Led(player.getUUID(), LEAD_DAMAGE));
         charmed.setData(GooAttachments.CHARMED, new Charmed(player.getUUID()));
     }
 
@@ -202,31 +202,31 @@ public final class LingeringCreditTests {
     }
 
     /**
-     * Passes the test once both mobs took a hit of the type with the rally and the charm standing, checked each
+     * Passes the test once both mobs took a hit of the type with the lead and the charm standing, checked each
      * tick.
      *
      * @param helper  the gametest helper
      * @param player  the player who applied the effect
      * @param effect  the effect, for the failure message
      * @param type    the damage type the effect's tick keeps
-     * @param rallied the player's rallied mob
+     * @param led the player's led mob
      * @param charmed the player's charmed mob
      */
     private static void succeedOnceKept(GameTestHelper helper, ServerPlayer player, String effect,
-                                        ResourceKey<DamageType> type, Mob rallied, Mob charmed) {
-        DamageSource[] ralliedLatest = {null};
+                                        ResourceKey<DamageType> type, Mob led, Mob charmed) {
+        DamageSource[] ledLatest = {null};
         DamageSource[] charmedLatest = {null};
         helper.succeedWhen(() -> {
-            ralliedLatest[0] = latestOfType(rallied, type, ralliedLatest[0]);
+            ledLatest[0] = latestOfType(led, type, ledLatest[0]);
             charmedLatest[0] = latestOfType(charmed, type, charmedLatest[0]);
-            assertKept(helper, effect, type, RALLY, rallied.hasData(GooAttachments.RALLIED), ralliedLatest[0]);
+            assertKept(helper, effect, type, LEAD, led.hasData(GooAttachments.LED), ledLatest[0]);
             assertKept(helper, effect, type, CHARM, charmed.hasData(GooAttachments.CHARMED), charmedLatest[0]);
             helper.getLevel().getServer().getPlayerList().remove(player);
         });
     }
 
     /**
-     * Asserts the mob took a hit of the type and its hold on the player, the rally or the charm, still stands.
+     * Asserts the mob took a hit of the type and its hold on the player, the lead or the charm, still stands.
      *
      * @param helper   the gametest helper
      * @param effect   the effect, for the failure message

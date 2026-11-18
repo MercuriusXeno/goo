@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.ability.zoo.Kin;
+import com.mercuriusxeno.goo.ability.yarn.Herd;
 import com.mercuriusxeno.goo.client.hud.MixedNumberSpacing;
 import com.mercuriusxeno.goo.client.hud.StatedGlyphs;
 import net.minecraft.world.entity.Mob;
@@ -18,8 +18,8 @@ import static org.mockito.Mockito.when;
 
 /**
  * Covers which mobs draw a life mark, how strongly, and where its parts
- * stand: a rallied or charmed mob draws it whole always, a mob Kin senses
- * draws it whole with no touch while Kin stands, and a mob only Heal or
+ * stand: a led or charmed mob draws it whole always, a mob Herd senses
+ * draws it whole with no touch while Herd stands, and a mob only Heal or
  * Drain touched keeps TouchedMobs' fade. TouchedMobs' fade is read through
  * its own method, so no fade constant is pinned here.
  * leader-shows-life-bars-while-it-stands
@@ -34,9 +34,9 @@ class LifeMarkBillboardTest {
     private static final int UNMARKED_ID = 13;
     private static final long TICK = 500L;
     private static final float EPSILON = 1e-6f;
-    /** A mob neither rallied nor charmed. */
+    /** A mob neither led nor charmed. */
     private static final boolean BARE = false;
-    /** A rallied or charmed mob, wearing a head mark. */
+    /** A led or charmed mob, wearing a head mark. */
     private static final boolean HEAD_MARKED = true;
     /** A mob on its feet. */
     private static final boolean STANDING = false;
@@ -44,14 +44,14 @@ class LifeMarkBillboardTest {
     private static final boolean DOWNED = true;
 
     private final TouchedMobs touched = new TouchedMobs();
-    private final KinSense kin = new KinSense();
+    private final HerdSense herd = new HerdSense();
 
     @BeforeEach
     void senseOneMobAndTouchAnother() {
         Mob sensed = mock(Mob.class);
         when(sensed.getId()).thenReturn(SENSED_ID);
         when(sensed.distanceToSqr(CENTER)).thenReturn(4.0);
-        kin.sense(new Kin(12, 4), List.of(sensed), CENTER, TICK);
+        herd.sense(new Herd(12, 4), List.of(sensed), CENTER, TICK);
         touched.touch(TOUCHED_ID, TICK);
     }
 
@@ -59,7 +59,7 @@ class LifeMarkBillboardTest {
     void sensedMobDrawsItsLifeMarkWholeWithoutATouch() {
         for (float later = 0; later < 200; later += 10) {
             float time = TICK + later;
-            assertEquals(1f, LifeMarkBillboard.markStrength(SENSED_ID, time, touched, kin, BARE, STANDING), EPSILON,
+            assertEquals(1f, LifeMarkBillboard.markStrength(SENSED_ID, time, touched, herd, BARE, STANDING), EPSILON,
                     "at " + time);
         }
     }
@@ -68,40 +68,40 @@ class LifeMarkBillboardTest {
     class HeadMarkedMob {
 
         private final TouchedMobs untouched = new TouchedMobs();
-        private final KinSense kinInactive = new KinSense();
+        private final HerdSense herdInactive = new HerdSense();
 
         @Test
-        void showsItsLifeMarkWholeWithNoTouchAndNoKin() {
+        void showsItsLifeMarkWholeWithNoTouchAndNoHerd() {
             for (long later = 0; later < 2000; later += 37) {
                 long tick = TICK + later;
-                assertTrue(LifeMarkBillboard.showsLifeMark(UNMARKED_ID, tick, untouched, kinInactive, HEAD_MARKED,
+                assertTrue(LifeMarkBillboard.showsLifeMark(UNMARKED_ID, tick, untouched, herdInactive, HEAD_MARKED,
                         STANDING), "at " + tick);
-                assertEquals(1f, LifeMarkBillboard.markStrength(UNMARKED_ID, tick + 0.5f, untouched, kinInactive,
+                assertEquals(1f, LifeMarkBillboard.markStrength(UNMARKED_ID, tick + 0.5f, untouched, herdInactive,
                         HEAD_MARKED, STANDING), EPSILON, "at " + tick);
             }
         }
     }
 
     @Test
-    void touchedMobOutsideKinKeepsItsFade() {
+    void touchedMobOutsideHerdKeepsItsFade() {
         for (float later = 0; later < 60; later += 1.5f) {
             float time = TICK + later;
             assertEquals(touched.opacity(TOUCHED_ID, time),
-                    LifeMarkBillboard.markStrength(TOUCHED_ID, time, touched, kin, BARE, STANDING), EPSILON,
+                    LifeMarkBillboard.markStrength(TOUCHED_ID, time, touched, herd, BARE, STANDING), EPSILON,
                     "at " + time);
         }
     }
 
     /**
-     * A downed mob whose rally ended, untouched and unsensed, draws its mark whole.
+     * A downed mob whose lead ended, untouched and unsensed, draws its mark whole.
      * downed-mob-shows-a-skull-and-its-negative-health
      */
     @Test
-    void downedMobDrawsItsLifeMarkWholeWithNoRally() {
+    void downedMobDrawsItsLifeMarkWholeWithNoLead() {
         TouchedMobs untouched = new TouchedMobs();
-        KinSense kinInactive = new KinSense();
-        assertTrue(LifeMarkBillboard.showsLifeMark(UNMARKED_ID, TICK, untouched, kinInactive, BARE, DOWNED));
-        assertEquals(1f, LifeMarkBillboard.markStrength(UNMARKED_ID, TICK, untouched, kinInactive, BARE, DOWNED),
+        HerdSense herdInactive = new HerdSense();
+        assertTrue(LifeMarkBillboard.showsLifeMark(UNMARKED_ID, TICK, untouched, herdInactive, BARE, DOWNED));
+        assertEquals(1f, LifeMarkBillboard.markStrength(UNMARKED_ID, TICK, untouched, herdInactive, BARE, DOWNED),
                 EPSILON);
     }
 
@@ -205,8 +205,8 @@ class LifeMarkBillboardTest {
 
     @Test
     void marksDrawForTouchedAndSensedMobsAlike() {
-        assertTrue(LifeMarkBillboard.showsLifeMark(SENSED_ID, TICK, touched, kin, BARE, STANDING));
-        assertTrue(LifeMarkBillboard.showsLifeMark(TOUCHED_ID, TICK, touched, kin, BARE, STANDING));
-        assertFalse(LifeMarkBillboard.showsLifeMark(UNMARKED_ID, TICK, touched, kin, BARE, STANDING));
+        assertTrue(LifeMarkBillboard.showsLifeMark(SENSED_ID, TICK, touched, herd, BARE, STANDING));
+        assertTrue(LifeMarkBillboard.showsLifeMark(TOUCHED_ID, TICK, touched, herd, BARE, STANDING));
+        assertFalse(LifeMarkBillboard.showsLifeMark(UNMARKED_ID, TICK, touched, herd, BARE, STANDING));
     }
 }

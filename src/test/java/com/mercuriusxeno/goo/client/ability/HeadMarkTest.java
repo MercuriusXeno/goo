@@ -8,19 +8,19 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
- * Covers which mark floats over a mob's head: Charm's heart, Rally's fist.
+ * Covers which mark floats over a mob's head: Charm's heart, Lead's fist.
  */
 class HeadMarkTest {
 
     @Test
-    void ralliedMobWearsTheFist() {
-        assertEquals(Optional.of(HeadMark.RALLY_FIST), HeadMark.of(false, true));
+    void ledMobWearsTheFist() {
+        assertEquals(Optional.of(HeadMark.LEAD_FIST), HeadMark.of(false, true));
     }
 
     @Test
-    void fistDrawsTheRallyFistTexture() {
-        assertEquals(Identifier.fromNamespaceAndPath(Goo.MODID, "textures/entity/rally_fist.png"),
-                HeadMark.RALLY_FIST.texture());
+    void fistDrawsTheLeadFistTexture() {
+        assertEquals(Identifier.fromNamespaceAndPath(Goo.MODID, "textures/entity/lead_fist.png"),
+                HeadMark.LEAD_FIST.texture());
     }
 
     @Test
@@ -29,7 +29,7 @@ class HeadMarkTest {
     }
 
     @Test
-    void charmedAndRalliedMobWearsTheHeart() {
+    void charmedAndLedMobWearsTheHeart() {
         assertEquals(Optional.of(HeadMark.CHARMED_HEART), HeadMark.of(true, true));
     }
 
