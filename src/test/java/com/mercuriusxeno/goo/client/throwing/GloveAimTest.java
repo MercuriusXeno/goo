@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.AbilityTags;
 import com.mercuriusxeno.goo.ability.Delivery;
+import com.mercuriusxeno.goo.ability.ThrowRange;
 import com.mercuriusxeno.goo.ability.program.GrabStep;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import net.minecraft.resources.Identifier;
@@ -18,8 +19,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  * tag (decision target-kind-configured-per-ability).
  */
 class GloveAimTest {
-
-    private static final double SHARED_THROW_RANGE = 64;
 
     private static ClientAbility ability(AbilityBadge badge, List<String> tags) {
         return new ClientAbility(Identifier.fromNamespaceAndPath(Goo.MODID, "aimed"), "ability.goo.aimed", "", 0,
@@ -38,15 +37,41 @@ class GloveAimTest {
      */
     @Test
     void anAbilityWhoseDeliveryNamesSixteenBlocksAimsSixteenBlocks() {
-        assertEquals(16, GloveAim.aimRangeOf(shipped("weird_mitosis"), null, SHARED_THROW_RANGE));
+        assertEquals(16, GloveAim.aimRangeOf(shipped("weird_mitosis"), null));
     }
 
     @Test
     void grabAimsAsFarAsItsReach() {
         ClientAbility grab = shipped("kinetic_grab");
 
-        assertEquals(GrabStep.reachOf(grab.behaviors(), null).orElseThrow(),
-                GloveAim.aimRangeOf(grab, null, SHARED_THROW_RANGE));
+        assertEquals(GrabStep.reachOf(grab.behaviors(), null).orElseThrow(), GloveAim.aimRangeOf(grab, null));
+    }
+
+    /**
+     * Zap aims 32 blocks, the range its delivery names, and Spire's cast ray
+     * reads the same aim range as every thrown ability.
+     * decision zap-starts-at-thirty-two-blocks
+     * decision each-ability-names-its-range-and-the-shared-throw-range-retires
+     */
+    @Test
+    void zapAimsThirtyTwoBlocks() {
+        assertEquals(32, GloveAim.aimRangeOf(shipped("pulse_zap"), null));
+    }
+
+    @Test
+    void spireAimsSixteenBlocks() {
+        assertEquals(16, GloveAim.aimRangeOf(shipped("rock_spire"), null));
+    }
+
+    @Test
+    void dartAndKnivesAimAsFarAsTheirOwnReach() {
+        assertEquals(ThrowRange.KNIVES_AND_DART_REACH, GloveAim.aimRangeOf(shipped("metal_dart"), null));
+        assertEquals(ThrowRange.KNIVES_AND_DART_REACH, GloveAim.aimRangeOf(shipped("crystal_knives"), null));
+    }
+
+    @Test
+    void aStreamAimsAsFarAsAnUnthrownAbilityAims() {
+        assertEquals(ThrowRange.UNTHROWN_AIM_RANGE, GloveAim.aimRangeOf(shipped("hex_drain"), null));
     }
 
     @Test
