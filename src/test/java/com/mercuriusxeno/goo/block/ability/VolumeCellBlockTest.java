@@ -78,6 +78,7 @@ class VolumeCellBlockTest {
         @Test
         void aBlocksCollisionStaysTheFlatBoxAtItsVolume() {
             BlockState twelve = mock(BlockState.class);
+            when(twelve.getBlock()).thenReturn(slime);
             when(twelve.getValue(VolumeCellBlock.LAYERS)).thenReturn(12);
             BlockState six = mock(BlockState.class);
             when(six.is(slime)).thenReturn(true);
@@ -681,6 +682,121 @@ class VolumeCellBlockTest {
             assertEquals(Optional.of(new VolumeCellBlock.Reclaim(GooTypes.HEX,
                             cost.times(LAYERS).dividedBy(FIFTEEN).floor())),
                     VolumeCellBlock.reclaimedBy(CellBinding.LEECH, LAYERS, cost));
+        }
+    }
+
+    /**
+     * How a block running down a wall divides its volume: goo running down
+     * a wall with nothing under it draws on that wall, never as a floor in
+     * midair; the same block over a floor keeps its fill on the floor.
+     * runny-goo-runs-down-the-wall-to-the-first-top-below
+     * attached-goo-draws-per-attachment-and-divides-its-volume
+     */
+    @Nested
+    class RunnyShares {
+
+        private static final int LAYERS = 3;
+        private static final int NO_COHESION = 0;
+
+        private BlockState runningDownTheWestWall() {
+            BlockState state = mock(BlockState.class);
+            when(state.getBlock()).thenReturn(mock(VolumeCellBlock.class));
+            when(state.getValue(VolumeCellBlock.LAYERS)).thenReturn(LAYERS);
+            when(state.getValue(VolumeCellBlock.NORTH)).thenReturn(SideCoat.BARE);
+            when(state.getValue(VolumeCellBlock.EAST)).thenReturn(SideCoat.BARE);
+            when(state.getValue(VolumeCellBlock.SOUTH)).thenReturn(SideCoat.BARE);
+            when(state.getValue(VolumeCellBlock.WEST)).thenReturn(SideCoat.RUNNY);
+            when(state.getValue(VolumeCellBlock.CEILING)).thenReturn(false);
+            return state;
+        }
+
+        @Test
+        void gooRunningDownAWallInMidairDrawsOnTheWallAndNoFloor() {
+            GooShares shares = VolumeCellBlock.sharesOf(runningDownTheWestWall(), false, NO_COHESION);
+
+            assertEquals(new GooShares(0, Map.of(Direction.WEST, (double) LAYERS)), shares);
+        }
+
+        /**
+         * operator UAT 2026-11-17: the client crashed drawing a goo block Vacuum broke, the block already air
+         */
+        @Test
+        void aBlockNoLongerGooSharesNothing() {
+            BlockState air = mock(BlockState.class);
+            when(air.getBlock()).thenReturn(mock(net.minecraft.world.level.block.Block.class));
+            when(air.getValue(any())).thenThrow(new IllegalArgumentException("air holds no layers"));
+
+            assertEquals(new GooShares(0, Map.of()), VolumeCellBlock.sharesOf(air, false, NO_COHESION));
+        }
+
+        @Test
+        void gooRunningDownAWallOntoAFloorKeepsItsFillOnTheFloor() {
+            GooShares shares = VolumeCellBlock.sharesOf(runningDownTheWestWall(), true, NO_COHESION);
+
+            assertEquals(new GooShares(LAYERS, Map.of()), shares);
+        }
+    }
+
+    /**
+     * How much a block drains into goo of its type below: a block no wall
+     * holds drains whole, as far as the room below goes; one a wall holds
+     * keeps its hold there and drains only what slips past it.
+     * drip-striking-a-side-sticks-or-runs-by-adhesion
+     */
+    @Nested
+    class DrainDown {
+
+        private static final int LAYERS = 5;
+        private static final int NOTHING_HELD = 0;
+        /** Jelly's hold on one wall: a layer plus one for its cohesion of 1. */
+        private static final int ONE_WALL_HOLD = 2;
+        private static final int ROOMY = 12;
+        private static final int TIGHT = 1;
+
+        @Test
+        void aBlockNoWallHoldsDrainsWhole() {
+            assertEquals(LAYERS, VolumeCellBlock.layersDrained(LAYERS, NOTHING_HELD, ROOMY));
+        }
+
+        @Test
+        void aBlockAWallHoldsKeepsItsHoldAndDrainsTheRest() {
+            assertEquals(LAYERS - ONE_WALL_HOLD, VolumeCellBlock.layersDrained(LAYERS, ONE_WALL_HOLD, ROOMY));
+        }
+
+        @Test
+        void aBlockWithinItsHoldDrainsNothing() {
+            assertEquals(0, VolumeCellBlock.layersDrained(ONE_WALL_HOLD, ONE_WALL_HOLD, ROOMY));
+        }
+
+        @Test
+        void theDrainStopsAtTheRoomBelow() {
+            assertEquals(TIGHT, VolumeCellBlock.layersDrained(LAYERS, NOTHING_HELD, TIGHT));
+        }
+    }
+
+    /**
+     * A broken Nectar cell gives back jelly goo, each layer a fifteenth of
+     * Nectar's cost as jelly_nectar.json ships it.
+     * nectar-is-sprayed-goo-with-a-guided-throw-near-a-mob
+     */
+    @Nested
+    class NectarReclaim {
+
+        private static final int LAYERS = 5;
+
+        @Test
+        void nectarIsJellyGooLaidByJellysNectar() {
+            assertEquals(List.of(GooTypes.JELLY, AbilityJson.idOf("jelly_nectar.json")),
+                    List.of(CellBinding.NECTAR.gooType(), CellBinding.NECTAR.layingAbility()));
+        }
+
+        @Test
+        void aBrokenNectarCellDropsJellyGooAtFifteenthsOfNectarsCost() {
+            GooFraction cost = AbilityJson.decode("jelly_nectar").cost().exactIn(GooValueTable.EMPTY);
+
+            assertEquals(Optional.of(new VolumeCellBlock.Reclaim(GooTypes.JELLY,
+                            cost.times(LAYERS).dividedBy(FIFTEEN).floor())),
+                    VolumeCellBlock.reclaimedBy(CellBinding.NECTAR, LAYERS, cost));
         }
     }
 
