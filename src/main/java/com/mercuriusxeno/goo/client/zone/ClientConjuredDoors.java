@@ -145,8 +145,9 @@ public final class ClientConjuredDoors {
      *
      * @param startedAt the client game tick it began playing, NaN while it waits on the cover
      * @param look      what the door is drawn with
+     * @param standsOff how far before the arriver it backs off to, in blocks
      */
-    record LocalRelease(double startedAt, GateLook look) {
+    record LocalRelease(double startedAt, GateLook look, double standsOff) {
     }
 
     /**
@@ -168,7 +169,7 @@ public final class ClientConjuredDoors {
      */
     static void takeLocalRelease(ConjuredDoor door, GateLook look) {
         if (localRelease == null && door.widened() >= 1) {
-            localRelease = new LocalRelease(Double.NaN, look);
+            localRelease = new LocalRelease(Double.NaN, look, door.standsOff());
         }
     }
 
@@ -195,14 +196,14 @@ public final class ClientConjuredDoors {
             return Optional.empty();
         }
         if (Double.isNaN(localRelease.startedAt())) {
-            localRelease = new LocalRelease(time, localRelease.look());
+            localRelease = new LocalRelease(time, localRelease.look(), localRelease.standsOff());
         }
         double tick = time - localRelease.startedAt();
         if (tick > ConjuredDoor.RELEASE_TICKS) {
             localRelease = null;
             return Optional.empty();
         }
-        ConjuredDoor door = ConjuredDoor.releasing(look.feet(), look.yaw(), tick);
+        ConjuredDoor door = ConjuredDoor.releasing(look.feet(), look.yaw(), tick, localRelease.standsOff());
         return Optional.of(new Drawn(door.at(), look.yaw(), door.unzipped(), door.widened(), localRelease.look(),
                 door.phase()));
     }
@@ -286,7 +287,7 @@ public final class ClientConjuredDoors {
         double since = time - seen.at();
         double step = stepBetween(since);
         double crossed = Mth.lerp(step, seen.before().crossed(), seen.now().crossed());
-        Vec3 at = ConjuredDoor.placedAt(look.feet(), look.yaw(), crossed);
+        Vec3 at = ConjuredDoor.placedAt(look.feet(), look.yaw(), crossed, seen.now().standsOff());
         return sharesAt(seen, since).map(shares -> new Drawn(at, look.yaw(), shares.unzipped(), shares.widened(),
                 seen.look(), seen.now().phase(), shares.collapsed()));
     }

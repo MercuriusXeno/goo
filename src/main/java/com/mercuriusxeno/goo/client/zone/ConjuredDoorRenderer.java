@@ -19,7 +19,7 @@ import java.util.Map;
 /**
  * Draws each door a player channeling has conjured, from its first tick,
  * through the drawing its look names: Zone's and End's door with the
- * starfield, Tartarus' gate with its own rift. A door whose caster has left
+ * starfield, Tartarus' gate with its own texel doorway. A door whose caster has left
  * this level went with them and draws no more.
  * decision crack-and-doorway-wear-the-end-portal-shader
  * decision tartarus-draws-its-own-portal-with-the-nether-portal-texture
@@ -97,7 +97,7 @@ public final class ConjuredDoorRenderer {
      * decision tartarus-draws-its-own-portal-with-the-nether-portal-texture
      *
      * @param look what the door is drawn with
-     * @return the starfield door's drawing, or Tartarus' own rift
+     * @return the starfield door's drawing, or Tartarus' own texel doorway
      */
     public static GateDrawing drawingFor(GateLook look) {
         return switch (look) {
