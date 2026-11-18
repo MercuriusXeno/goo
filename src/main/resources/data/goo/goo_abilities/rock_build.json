@@ -1,15 +1,15 @@
 {
   "gooType": "rock",
-  "displayName": "goo.ability.rock.spire",
-  "cost_mechanics": "goo.ability.rock.spire.cost_mechanics",
+  "displayName": "goo.ability.rock.build",
+  "cost_mechanics": "goo.ability.rock.build.cost_mechanics",
   "badge": "world",
   "order": 40,
   "cost": "$mundane_block",
   "cost_formula": "%s/m³",
   "requires": ["minecraft:gravel", "minecraft:sand"],
-  "delivery": { "kind": "arc", "range": 16 },
+  "delivery": { "kind": "arc", "range": 32 },
   "behaviors": [
-    { "type": "spire" }
+    { "type": "build", "max_span": 16, "max_rise": 16 }
   ],
   "tags": ["footprint"],
   "pose": "resting"
