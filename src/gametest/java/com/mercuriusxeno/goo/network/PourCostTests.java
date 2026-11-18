@@ -36,6 +36,12 @@ public final class PourCostTests {
     /** The mound's four full cells, the middle of the walled floor's inside. */
     private static final List<BlockPos> MOUND = List.of(new BlockPos(2, CELL_ROW, 2), new BlockPos(3, CELL_ROW, 2),
             new BlockPos(2, CELL_ROW, 3), new BlockPos(3, CELL_ROW, 3));
+    /**
+     * Four full cells in the walled floor's north west corner, so the cells between them and the far corner pass
+     * goo on.
+     */
+    private static final List<BlockPos> CORNER_MOUND = List.of(new BlockPos(1, CELL_ROW, 1),
+            new BlockPos(2, CELL_ROW, 1), new BlockPos(1, CELL_ROW, 2), new BlockPos(2, CELL_ROW, 2));
     /** The layers a whole block of goo holds. */
     private static final int WHOLE_BLOCK_LAYERS = 15;
     /**
@@ -44,7 +50,10 @@ public final class PourCostTests {
      */
     private static final int REST_TICKS = 20;
     private static final String STILL_POURING = "The slick mound should stand at rest";
-    private static final String LAYERS_LOST = "The walled floor should hold the mound's %d layers at rest, holds %d";
+    private static final String SLICK_MOUND_CELLS_MOVE_ONE_WAY = "slick_mound_cells_rise_or_fall_one_way_to_rest";
+    private static final String TWO_WAY = "Each cell should only rise or only fall on its way to rest; %s went both"
+            + " ways, the inside's layers each tick %s";
+    private static final String LAYERS_LOST ="The walled floor should hold the mound's %d layers at rest, holds %d";
 
     private PourCostTests() {
     }
@@ -57,6 +66,62 @@ public final class PourCostTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, SLICK_MOUND_POURS_TO_REST,
                 PourCostTests::slickMoundPoursToRestOnAWalledFloor);
+        GooTestFunctions.registerTest(registrar, SLICK_MOUND_CELLS_MOVE_ONE_WAY,
+                PourCostTests::slickMoundCellsRiseOrFallOneWayToRest);
+    }
+
+    /**
+     * Four full cells of slick in a corner of the walled floor pour to rest
+     * with every inside cell's layers, read each tick, only rising or only falling.
+     * connected-goo-cells-form-one-network-that-works-out-the-pour
+     *
+     * @param helper the gametest helper
+     */
+    public static void slickMoundCellsRiseOrFallOneWayToRest(GameTestHelper helper) {
+        layWalledFloor(helper);
+        for (BlockPos cell : CORNER_MOUND) {
+            helper.setBlock(cell, GooBlocks.KINETIC_SLICK.get().defaultBlockState()
+                    .setValue(VolumeCellBlock.LAYERS, WHOLE_BLOCK_LAYERS));
+        }
+        PourCost cost = PourCost.watch(helper);
+        List<List<Integer>> ticks = new ArrayList<>();
+        boolean[] judged = {false};
+        helper.onEachTick(() -> {
+            if (judged[0]) {
+                return;
+            }
+            ticks.add(OpenFloor.layersIn(helper, inside()));
+            if (cost.restedFor(REST_TICKS)) {
+                judged[0] = true;
+                cost.stop();
+                List<BlockPos> twoWay = new ArrayList<>();
+                for (int cell = 0; cell < inside().size(); cell++) {
+                    if (!oneWay(ticks, cell)) {
+                        twoWay.add(inside().get(cell));
+                    }
+                }
+                helper.assertTrue(twoWay.isEmpty(), String.format(TWO_WAY, twoWay, ticks));
+                helper.succeed();
+            }
+        });
+    }
+
+    private static boolean oneWay(List<List<Integer>> ticks, int cell) {
+        boolean rose = false;
+        boolean fell = false;
+        for (int tick = 1; tick < ticks.size(); tick++) {
+            int change = ticks.get(tick).get(cell) - ticks.get(tick - 1).get(cell);
+            rose |= change > 0;
+            fell |= change < 0;
+        }
+        return !(rose && fell);
+    }
+
+    private static void layMound(GameTestHelper helper) {
+        for (BlockPos cell : MOUND) {
+            helper.setBlock(cell, GooBlocks.KINETIC_SLICK.get().defaultBlockState()
+                    .setValue(VolumeCellBlock.LAYERS, WHOLE_BLOCK_LAYERS));
+        }
     }
 
     /**
@@ -72,10 +137,7 @@ public final class PourCostTests {
      */
     public static void slickMoundPoursToRestOnAWalledFloor(GameTestHelper helper) {
         layWalledFloor(helper);
-        for (BlockPos cell : MOUND) {
-            helper.setBlock(cell, GooBlocks.KINETIC_SLICK.get().defaultBlockState()
-                    .setValue(VolumeCellBlock.LAYERS, WHOLE_BLOCK_LAYERS));
-        }
+        layMound(helper);
         PourCost cost = PourCost.watch(helper);
         int poured = MOUND.size() * WHOLE_BLOCK_LAYERS;
         helper.succeedWhen(() -> {
