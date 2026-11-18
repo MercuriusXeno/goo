@@ -7,7 +7,7 @@ import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.overlay.AimTracker;
-import com.mercuriusxeno.goo.item.GooGloveItem;
+import com.mercuriusxeno.goo.item.GooCasters;
 import com.mercuriusxeno.goo.network.GooTouchHandler;
 import com.mercuriusxeno.goo.network.GooTouchHandler.AttackPress;
 import com.mercuriusxeno.goo.network.GrabThrowPayload;
@@ -92,7 +92,7 @@ public final class GloveAttackTracker {
             return;
         }
         ItemStack pressingHand = player.getItemInHand(event.getHand());
-        ClientAbility selected = selectedAbility(pressingHand);
+        ClientAbility selected = selectedAbility(player, pressingHand);
         boolean grabThrows = selected != null
                 && GrabStep.throwsOnAttack(GloveUseTracker.showsArea(), selected.behaviors());
         resolve(event, player, outcomeOf(GloveUseTracker.holdsAJavelin(player), GloveUseTracker.charging(),
@@ -141,19 +141,32 @@ public final class GloveAttackTracker {
      * @return the press
      */
     private static AttackPress pressOf(LocalPlayer player, ItemStack pressingHand) {
-        ClientAbility selected = selectedAbility(pressingHand);
+        ClientAbility selected = selectedAbility(player, pressingHand);
         TargetResult target = AimTracker.currentTarget();
-        return new AttackPress(pressingHand.getItem() instanceof GooGloveItem,
+        return new AttackPress(castsFrom(player, pressingHand),
                 selected == null ? null : selected.delivery(), selected == null ? null : selected.badge(),
                 target instanceof TargetResult.EntityTarget et ? et.entity() : null,
                 player.position(), player.entityInteractionRange());
     }
 
-    private static @Nullable ClientAbility selectedAbility(ItemStack pressingHand) {
-        if (!(pressingHand.getItem() instanceof GooGloveItem)) {
+    /**
+     * Whether the attack key presses with the player's caster, the glove or
+     * raw goo held bare handed.
+     * decision raw-goo-items-work-bare-handed-for-the-held-type
+     *
+     * @param player       the local player
+     * @param pressingHand the stack in the pressing hand
+     * @return true where the pressing hand holds the caster
+     */
+    private static boolean castsFrom(LocalPlayer player, ItemStack pressingHand) {
+        return pressingHand == GooCasters.casterOf(player);
+    }
+
+    private static @Nullable ClientAbility selectedAbility(LocalPlayer player, ItemStack pressingHand) {
+        if (!castsFrom(player, pressingHand)) {
             return null;
         }
-        GloveSelection selection = GooGloveItem.getSelection(pressingHand);
+        GloveSelection selection = GooCasters.selectionOf(pressingHand);
         return selection == null ? null : AbilitySyncHandler.findAbility(selection.abilityId());
     }
 }

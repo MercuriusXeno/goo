@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.client.extensions.common.IClientMobEffectExtensions;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -39,7 +40,7 @@ class HeldEffectIconsTest {
     private static final String SIGHT_ICON = "textures/goo/ability/shroom_sight.png";
     private static final List<ResourceKey<GooTypeDefinition>> GRANTING_NONE = List.of(
             GooTypes.ASTRAL, GooTypes.FROST, GooTypes.HEX, GooTypes.INFINITY, GooTypes.METAL, GooTypes.OPULENT,
-            GooTypes.UNSTABLE, GooTypes.VOID, GooTypes.WEIRD);
+            GooTypes.PULSE, GooTypes.UNSTABLE, GooTypes.VOID, GooTypes.WEIRD);
 
     private static AbilityRegistry shipped;
     private Map<ResourceKey<GooTypeDefinition>, IClientMobEffectExtensions> extensions;
@@ -54,7 +55,7 @@ class HeldEffectIconsTest {
 
     @BeforeEach
     void readConnectionIconsFromTheShippedAbilities() {
-        HeldEffectIcon.readConnectionIconsFrom(type -> HeldEffectIcon.textureOf(shipped.durativeAbilityFor(type)));
+        HeldEffectIcon.readConnectionIconsFrom(type -> HeldEffectIcon.textureOf(shipped.durativeAbilityFor(type), Level.OVERWORLD));
         extensions = HeldEffectIcons.extensionsFor(GooTypes.BUNDLED);
     }
 
@@ -82,7 +83,7 @@ class HeldEffectIconsTest {
         HeldEffectIcons.AbilityIconExtension extension =
                 assertInstanceOf(HeldEffectIcons.AbilityIconExtension.class, extensions.get(type));
         assertNotNull(extension.iconTexture(), () -> GooTypes.id(type) + " draws no brew effect icon");
-        assertEquals(HeldEffectIcon.textureOf(shipped.durativeAbilityFor(type)), extension.iconTexture(),
+        assertEquals(HeldEffectIcon.textureOf(shipped.durativeAbilityFor(type), Level.OVERWORLD), extension.iconTexture(),
                 () -> GooTypes.id(type) + "'s brew effect icon");
     }
 

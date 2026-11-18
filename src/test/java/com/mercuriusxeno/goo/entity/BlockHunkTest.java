@@ -19,7 +19,7 @@ import static org.mockito.Mockito.mockStatic;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * A rising hunk blocks movement, so nothing falls through Spire's stone
+ * A rising hunk blocks movement, so nothing falls through Build's stone
  * mid-rise, while a lifted hunk collides with nothing
  * (decision spire-carries-its-riders-up-with-the-rising-stone), and a hunk's
  * block picks its texture's variant by its home cell, not the cell it moves

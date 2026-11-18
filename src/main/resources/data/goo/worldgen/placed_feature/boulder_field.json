@@ -1,0 +1,12 @@
+{
+  "feature": "goo:boulder",
+  "placement": [
+    {
+      "type": "goo:giant_crater_boulders"
+    },
+    {
+      "type": "minecraft:heightmap",
+      "heightmap": "WORLD_SURFACE_WG"
+    }
+  ]
+}

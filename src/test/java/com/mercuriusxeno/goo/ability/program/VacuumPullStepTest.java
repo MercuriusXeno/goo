@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.ability.AbilityJson;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.player.Player;
@@ -24,6 +25,23 @@ class VacuumPullStepTest {
     private static final double STOP = 1.5;
     private static final double CLOSE = 1e-9;
     private static final Vec3 PLAYER = new Vec3(0, 1, 0);
+
+    /**
+     * The shipped pull keeps its speeds whatever Vacuum's cone is tuned to,
+     * the item pull and mob drag taking the cone at those speeds
+     * (decision vacuum-is-voids-held-cone-that-breaks-residuals-in-a-wave).
+     */
+    @Nested
+    class Shipped {
+
+        @Test
+        void theShippedPullKeepsItsAccelerationTopSpeedPaceAndStop() {
+            VacuumPullStep shipped = AbilityJson.decode("void_vacuum").behaviors().stream()
+                    .filter(VacuumPullStep.class::isInstance).map(VacuumPullStep.class::cast).findFirst().orElseThrow();
+
+            assertEquals(new VacuumPullStep(0.1, 0.5, PACE, STOP), shipped);
+        }
+    }
 
     @Nested
     class Pace {

@@ -12,11 +12,9 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -162,61 +160,6 @@ class TouchedUpAbilityIconsTest {
     }
 
     @Nested
-    class UpdraftIcon {
-
-        // updraft-icon-is-a-floating-slime-with-up-arrows
-        /** The floating slime typhoon_shulk.png drew before shulk-icon-is-a-shulker, '.' for a clear texel. */
-        private static final String[] FORMER_SHULK_SLIME = {
-            ".aaaaaa.",
-            "abbcccda",
-            "abecceda",
-            "acecdeda",
-            "accdddfa",
-            "acddeffa",
-            "adddfffa",
-            ".aaaaaa.",
-        };
-        private static final Map<Character, Integer> SLIME_COLORS = Map.of(
-                'a', 0x16231a, 'b', 0xa2cf96, 'c', 0x7fb077, 'd', 0x5f8f5c, 'e', 0x14211a, 'f', 0x456b47);
-        private static final Set<Integer> PRISM_COLORS = Set.of(0xf7fffc, 0xdcf7ee, 0xb5e3d6);
-
-        @Test
-        void carriesShulksFormerFloatingSlime() throws IOException {
-            BufferedImage icon = read("typhoon_updraft");
-            int side = FORMER_SHULK_SLIME.length;
-            boolean found = false;
-            for (int y = 0; y + side <= icon.getHeight() && !found; y++) {
-                for (int x = 0; x + side <= icon.getWidth() && !found; x++) {
-                    found = holdsSlimeAt(icon, x, y);
-                }
-            }
-            assertTrue(found, "typhoon_updraft.png should carry Shulk's former slime texel for texel");
-        }
-
-        @Test
-        void dropsThePrism() throws IOException {
-            for (int rgb : opaqueColors(read("typhoon_updraft"))) {
-                assertFalse(PRISM_COLORS.contains(rgb), String.format("#%06x is the former prism's color", rgb));
-            }
-        }
-
-        private boolean holdsSlimeAt(BufferedImage icon, int left, int top) {
-            for (int dy = 0; dy < FORMER_SHULK_SLIME.length; dy++) {
-                for (int dx = 0; dx < FORMER_SHULK_SLIME[dy].length(); dx++) {
-                    char texel = FORMER_SHULK_SLIME[dy].charAt(dx);
-                    int argb = icon.getRGB(left + dx, top + dy);
-                    boolean matches = texel == '.' ? !isOpaque(argb)
-                            : isOpaque(argb) && (argb & RGB) == SLIME_COLORS.get(texel);
-                    if (!matches) {
-                        return false;
-                    }
-                }
-            }
-            return true;
-        }
-    }
-
-    @Nested
     class GoopIcon {
 
         // goop-icon-is-a-block-with-slime-on-it
@@ -291,6 +234,74 @@ class TouchedUpAbilityIconsTest {
             }
         }
         return runs;
+    }
+
+    /**
+     * decision terran-icon-is-a-waning-half-blue-planet-lit-on-the-left
+     */
+    @Nested
+    class TerranIcon {
+
+        /** The row the badge's outline, rim and inner ring cross at the left edge, as the Lunar badge lays them. */
+        private static final int BADGE_ROW = 8;
+        private static final int BADGE_RINGS = 3;
+
+        @Test
+        void itStandsAtTheLunarIconsSize() throws IOException {
+            BufferedImage lunar = read("astral_lunar");
+            BufferedImage terran = read("astral_terran");
+            assertEquals(lunar.getWidth(), terran.getWidth());
+            assertEquals(lunar.getHeight(), terran.getHeight());
+        }
+
+        @Test
+        void itsLitLeftHalfHoldsBlueSeaAndGreenLand() throws IOException {
+            BufferedImage terran = read("astral_terran");
+            List<Integer> left = planetTexels(terran, true);
+            assertTrue(left.stream().anyMatch(TerranIcon::isBlue), "the lit half holds no blue sea");
+            assertTrue(left.stream().anyMatch(TerranIcon::isGreen), "the lit half holds no green land");
+        }
+
+        @Test
+        void itsRightHalfLiesInShadow() throws IOException {
+            BufferedImage terran = read("astral_terran");
+            double left = meanBrightness(planetTexels(terran, true));
+            double right = meanBrightness(planetTexels(terran, false));
+            assertTrue(right < left, "the right half reads " + right + " against the left half's " + left);
+        }
+
+        /** The texels of the planet itself, its badge's rings left out, on the left or the right half. */
+        private List<Integer> planetTexels(BufferedImage icon, boolean leftHalf) throws IOException {
+            BufferedImage lunar = read("astral_lunar");
+            Set<Integer> badge = new HashSet<>();
+            for (int ring = 0; ring < BADGE_RINGS; ring++) {
+                badge.add(lunar.getRGB(ring, BADGE_ROW));
+            }
+            List<Integer> texels = new ArrayList<>();
+            int half = icon.getWidth() / 2;
+            for (int y = 0; y < icon.getHeight(); y++) {
+                for (int x = leftHalf ? 0 : half; x < (leftHalf ? half : icon.getWidth()); x++) {
+                    int argb = icon.getRGB(x, y);
+                    if (isOpaque(argb) && !badge.contains(argb)) {
+                        texels.add(argb);
+                    }
+                }
+            }
+            return texels;
+        }
+
+        private static boolean isBlue(int argb) {
+            return (argb & CHANNEL) > (argb >> 16 & CHANNEL) && (argb & CHANNEL) > (argb >> 8 & CHANNEL);
+        }
+
+        private static boolean isGreen(int argb) {
+            return (argb >> 8 & CHANNEL) > (argb >> 16 & CHANNEL) && (argb >> 8 & CHANNEL) > (argb & CHANNEL);
+        }
+
+        private static double meanBrightness(List<Integer> texels) {
+            return texels.stream().mapToInt(argb -> (argb >> 16 & CHANNEL) + (argb >> 8 & CHANNEL) + (argb & CHANNEL))
+                    .average().orElse(0);
+        }
     }
 
     private static boolean isOpaque(int argb) {

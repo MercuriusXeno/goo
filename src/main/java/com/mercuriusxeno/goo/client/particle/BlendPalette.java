@@ -76,6 +76,49 @@ public record BlendPalette(float lightRed, float lightGreen, float lightBlue,
     public static final BlendPalette LEECH_HEX_VIOLETS = new BlendPalette(
             0x83 / 255f, 0x73 / 255f, 0xC8 / 255f, 0x5B / 255f, 0x4B / 255f, 0xA0 / 255f);
     /**
+     * Updraft's spray drips, from typhoon's bright white, FDFFFF, to its
+     * wheel green, D5F5E3, the two the typhoon goo type's definition names.
+     * updraft-is-typhoons-world-goo-that-lifts-the-entities-above-it
+     */
+    public static final BlendPalette UPDRAFT_TYPHOON_GREENS = new BlendPalette(
+            0xFD / 255f, 0xFF / 255f, 0xFF / 255f, 0xD5 / 255f, 0xF5 / 255f, 0xE3 / 255f);
+    /**
+     * Nectar's spray drips, from jelly's bright amber, FFB238, to its wheel
+     * orange, C2410C, the two the jelly goo type's definition names.
+     * nectar-is-sprayed-goo-with-a-guided-throw-near-a-mob
+     */
+    public static final BlendPalette NECTAR_JELLY_ORANGES = new BlendPalette(
+            0xFF / 255f, 0xB2 / 255f, 0x38 / 255f, 0xC2 / 255f, 0x41 / 255f, 0x0C / 255f);
+    /**
+     * Signal's spray drips, from pulse's bright red, F42828, to its wheel
+     * red, CC0000, the two the pulse goo type's definition names.
+     * extend-is-dropped-for-signal-an-in-world-pulse-goo
+     */
+    public static final BlendPalette SIGNAL_PULSE_REDS = new BlendPalette(
+            0xF4 / 255f, 0x28 / 255f, 0x28 / 255f, 0xCC / 255f, 0x00 / 255f, 0x00 / 255f);
+    /**
+     * Spikes' spray drips, from metal's bright silver, E8E8E8, to its wheel
+     * silver, C0C0C0, the two the metal goo type's definition names.
+     * spikes-is-a-coat-of-metal-goo-that-impales-what-walks-on-it
+     */
+    public static final BlendPalette SPIKES_METAL_SILVERS = new BlendPalette(
+            0xE8 / 255f, 0xE8 / 255f, 0xE8 / 255f, 0xC0 / 255f, 0xC0 / 255f, 0xC0 / 255f);
+    /**
+     * Vines' spray drips, from leaf's bright green, A6F078, to its wheel
+     * green, 7EC850, the two the leaf goo type's definition names.
+     * vines-is-sprayed-slime-that-entangles-what-tries-to-cross
+     */
+    public static final BlendPalette VINES_LEAF_GREENS = new BlendPalette(
+            0xA6 / 255f, 0xF0 / 255f, 0x78 / 255f, 0x7E / 255f, 0xC8 / 255f, 0x50 / 255f);
+
+    /**
+     * Infest's spray drips, from nether's bright red, 9A4E4E, to its wheel
+     * red, 652828, the two the nether goo type's definition names.
+     * infest-is-nethers-goo-the-decay-effect-localized-around-the-goo
+     */
+    public static final BlendPalette INFEST_NETHER_REDS = new BlendPalette(
+            0x9A / 255f, 0x4E / 255f, 0x4E / 255f, 0x65 / 255f, 0x28 / 255f, 0x28 / 255f);
+    /**
      * Dowsing's spray drips, from Astral's starlight, its bright FFF4B0, to
      * its night blue, its highlight 2A3C9A.
      * astral-world-goo-is-dowsing-an-x-ray-of-ore

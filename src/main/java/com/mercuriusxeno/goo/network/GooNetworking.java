@@ -50,6 +50,7 @@ public final class GooNetworking {
         r.playToClient(HolesSyncPayload.TYPE, HolesSyncPayload.STREAM_CODEC);
         r.playToClient(RoomEdgesSyncPayload.TYPE, RoomEdgesSyncPayload.STREAM_CODEC);
         r.playToClient(ConjuredDoorPayload.TYPE, ConjuredDoorPayload.STREAM_CODEC);
+        r.playToClient(ListenerSoundPayload.TYPE, ListenerSoundPayload.STREAM_CODEC);
         r.playToClient(GateCarriedPayload.TYPE, GateCarriedPayload.STREAM_CODEC);
         r.playToClient(PartnerChunkPayload.TYPE, PartnerChunkPayload.STREAM_CODEC);
         r.playToClient(PartnerChunksDropPayload.TYPE, PartnerChunksDropPayload.STREAM_CODEC);
@@ -82,6 +83,7 @@ public final class GooNetworking {
         r.playToClient(BlockTransformPayload.TYPE, BlockTransformPayload.STREAM_CODEC);
         r.playToClient(BlockExposurePayload.TYPE, BlockExposurePayload.STREAM_CODEC);
         r.playToClient(RedHotPayload.TYPE, RedHotPayload.STREAM_CODEC);
+        r.playToClient(FallingDripPayload.TYPE, FallingDripPayload.STREAM_CODEC);
         r.playToClient(AfterimagePayload.TYPE, AfterimagePayload.STREAM_CODEC);
         r.playToClient(ScanWavePayload.TYPE, ScanWavePayload.STREAM_CODEC);
         r.playToClient(TransformationPayload.TYPE, TransformationPayload.STREAM_CODEC);
@@ -105,6 +107,7 @@ public final class GooNetworking {
         r.playToClient(HeldSweepPayload.TYPE, HeldSweepPayload.STREAM_CODEC);
         r.playToClient(LaserPayload.TYPE, LaserPayload.STREAM_CODEC);
         r.playToClient(LeechPayload.TYPE, LeechPayload.STREAM_CODEC);
+        r.playToClient(SpikesRisePayload.TYPE, SpikesRisePayload.STREAM_CODEC);
         r.playToClient(TomePayload.TYPE, TomePayload.STREAM_CODEC);
         r.playToClient(NovaRingPayload.TYPE, NovaRingPayload.STREAM_CODEC);
         r.playToClient(HeaterFlamePayload.TYPE, HeaterFlamePayload.STREAM_CODEC);
@@ -113,6 +116,7 @@ public final class GooNetworking {
         r.playToClient(OreRevealPayload.TYPE, OreRevealPayload.STREAM_CODEC);
         r.playToClient(MeteorScorchPayload.TYPE, MeteorScorchPayload.STREAM_CODEC);
         r.playToClient(GlassKnifePayload.TYPE, GlassKnifePayload.STREAM_CODEC);
+        r.playToClient(KnivesFormedPayload.TYPE, KnivesFormedPayload.STREAM_CODEC);
         r.playToClient(ArmPosePayload.TYPE, ArmPosePayload.STREAM_CODEC);
         r.playToClient(PalmBlobLiftPayload.TYPE, PalmBlobLiftPayload.STREAM_CODEC);
     }
@@ -127,10 +131,12 @@ public final class GooNetworking {
         r.playToServer(CanisterUnlinkPayload.TYPE, CanisterUnlinkPayload.STREAM_CODEC, CanisterUnlinkHandler::handle);
         r.playToServer(GooThrowPayload.TYPE, GooThrowPayload.STREAM_CODEC, GooThrowHandler::handle);
         r.playToServer(GrabThrowPayload.TYPE, GrabThrowPayload.STREAM_CODEC, GrabThrowPayload::handle);
-        r.playToServer(GooSpirePayload.TYPE, GooSpirePayload.STREAM_CODEC, GooSpireHandler::handle);
+        r.playToServer(GooBuildPayload.TYPE, GooBuildPayload.STREAM_CODEC, GooBuildHandler::handle);
         r.playToServer(GooChargePayload.TYPE, GooChargePayload.STREAM_CODEC, GooThrowHandler::handleCharge);
         r.playToServer(GlovePosePayload.TYPE, GlovePosePayload.STREAM_CODEC, GooThrowHandler::handleGlovePose);
         r.playToServer(PalmBlobChargePayload.TYPE, PalmBlobChargePayload.STREAM_CODEC, PalmBlobChargePayload::handle);
+        r.playToServer(KnivesHoldPayload.TYPE, KnivesHoldPayload.STREAM_CODEC, KnivesHoldHandler::handle);
+        r.playToServer(KnivesThrowPayload.TYPE, KnivesThrowPayload.STREAM_CODEC, KnivesThrowHandler::handle);
         r.playToServer(GloveSelectPayload.TYPE, GloveSelectPayload.STREAM_CODEC, GloveSelectHandler::handle);
         r.playToServer(PlexerTargetPickPayload.TYPE, PlexerTargetPickPayload.STREAM_CODEC, PlexerTargetPickHandler::handle);
         r.playToServer(WorkbenchRequestPayload.TYPE, WorkbenchRequestPayload.STREAM_CODEC,

@@ -6,8 +6,8 @@ import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.client.ability.AbilityPoses;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
+import com.mercuriusxeno.goo.item.GooCasters;
 import com.mercuriusxeno.goo.network.GlovePosePayload;
-import com.mercuriusxeno.goo.network.KnifeRainSling;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
 import net.minecraft.world.InteractionHand;
@@ -41,7 +41,7 @@ public final class GlovePoses {
     /**
      * Plays the selection's release as a sent throw lets go: a blob thrown
      * swings the arm, and a pose with no release of its own eases it down;
-     * a cast throwing no blob, a scan, a spontaneous, an envelop or a Spire
+     * a cast throwing no blob, a scan, a spontaneous, an envelop or a Build
      * cast, or a Portal press that chooses, links or cancels, plays no swing.
      * decision use-key-throw-swings-no-more
      * decision diagnose-and-correct-hand-swings-outside-throws
@@ -58,7 +58,7 @@ public final class GlovePoses {
     }
 
     private static boolean releaseSwings(LocalPlayer player, ArmPose pose) {
-        GloveSelection selection = GloveThrowSender.heldSelection(player);
+        GloveSelection selection = GooCasters.heldSelection(player);
         return selection != null && PortalAim.selected(selection.abilityId())
                 ? PortalAim.lastSentSwings(pose)
                 : pose.swingsOnRelease();
@@ -74,7 +74,7 @@ public final class GlovePoses {
     }
 
     private static void show(LocalPlayer player, ArmPoseKind frame) {
-        AbilityPoses.pose(player.getId(), frame, KnifeRainSling.gloveOnTheRight(player));
+        AbilityPoses.pose(player.getId(), frame, GooCasters.casterOnTheRight(player));
         player.connection.send(new ServerboundCustomPayloadPacket(new GlovePosePayload(frame)));
     }
 
@@ -85,7 +85,7 @@ public final class GlovePoses {
      * @return the pose, or null with no selection or no synced copy
      */
     private static @Nullable ArmPose selectedPose(LocalPlayer player) {
-        GloveSelection selection = GloveThrowSender.heldSelection(player);
+        GloveSelection selection = GooCasters.heldSelection(player);
         ClientAbility ability = selection == null ? null : AbilitySyncHandler.findAbility(selection.abilityId());
         return ability == null ? null : ability.pose();
     }

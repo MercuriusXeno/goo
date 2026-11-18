@@ -2,8 +2,10 @@ package com.mercuriusxeno.goo.client.particle;
 
 import com.mercuriusxeno.goo.throwing.CoatRay;
 import com.mercuriusxeno.goo.throwing.DripArc;
+import net.minecraft.core.Direction;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.phys.Vec3;
+import java.util.Optional;
 
 /**
  * One Goop or Slick spray drip's flight: it flies the arc the server's drip
@@ -37,26 +39,26 @@ public record SprayDrip(int rgb, Vec3 velocity) {
      *
      * @param position where the drip stands
      * @param velocity the drip's velocity, blocks per tick
-     * @param clip     the blocks its segment may meet
-     * @param living   the living its segment may meet
-     * @param airspace where it may fly
-     * @return where the drip stands after the tick, and whether it splats there or is lost
+     * @param flight   what its flight runs against, the gravity of the level it flies in among it
+     * @return where the drip stands after the tick, whether it splats there or is lost, and the face it struck
      */
-    Step step(Vec3 position, Vec3 velocity, CoatRay.BlockClip clip, DripArc.LivingNear living,
-              DripArc.Airspace airspace) {
-        DripArc.Step arc = DripArc.step(position, velocity, clip, living, airspace);
+    Step step(Vec3 position, Vec3 velocity, DripArc.Flight flight) {
+        DripArc.Step arc = DripArc.step(position, velocity, flight);
         return new Step(arc.position(), arc.velocity(), arc.strike().isPresent() || arc.living().isPresent(),
-                arc.lost());
+                arc.lost(), arc.strike().map(CoatRay.BlockStrike::face));
     }
 
     /**
      * Where a tick of flight leaves a drip.
+     * diagnose-and-correct-the-spray-splat-lying-flat-and-z-fighting
      *
      * @param position where the drip stands
      * @param velocity the drip's velocity, blocks per tick
      * @param splats   whether the drip struck a block or a living thing, splatting there and leaving the world
      * @param lost     whether the drip left the airspace unstruck, leaving the world with no splat
+     * @param face     the block face it struck, its splat lying on it; empty while it flies or where it struck
+     *                 a living thing
      */
-    record Step(Vec3 position, Vec3 velocity, boolean splats, boolean lost) {
+    record Step(Vec3 position, Vec3 velocity, boolean splats, boolean lost, Optional<Direction> face) {
     }
 }

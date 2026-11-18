@@ -21,7 +21,8 @@ import java.util.Optional;
  *
  * @param kind           the delivery kind
  * @param blocksPerTick  a beam's speed in blocks per tick, and a scan's wave speed
- * @param range          a stream's reach in blocks, and how far a scan reads along the look
+ * @param range          how far the ability aims and lands, a stream's reach and a scan's read; 0 where
+ *                       it names none (decision each-ability-names-its-range-and-the-shared-throw-range-retires)
  * @param coneDegrees    a stream's cone, apex to rim, in degrees
  * @param ticksPerCharge a stream's ticks of hold one cost pays for
  * @param grannyAllowed  whether an arc may lob onto a top face
@@ -637,15 +638,16 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
     }
 
     /**
-     * Whether the release slings a fan of flecks across a cone rather than
-     * one blob along a line: an arc whose charge slings flecks, which shows no
-     * aim line of any kind.
+     * Whether the hold forms a fan of knives rather than one blob thrown
+     * along a line: an arc whose charge forms knives in stages, which shows
+     * no aim line of any kind.
      * knives-aims-a-spread-fan-not-a-blob-line
+     * knives-emerge-from-the-blob-and-hover-in-a-fan
      *
-     * @return true for an arc whose charge slings
+     * @return true for an arc whose charge forms knives
      */
     public boolean slingsAFan() {
-        return kind == DeliveryKind.ARC && charge.slings();
+        return kind == DeliveryKind.ARC && charge.formsInStages();
     }
 
     /**

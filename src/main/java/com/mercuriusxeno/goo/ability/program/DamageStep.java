@@ -9,11 +9,13 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.damagesource.CombatRules;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageSources;
 import net.minecraft.world.damagesource.DamageType;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
@@ -54,10 +56,10 @@ public record DamageStep(Expr amount, DamageKind source, boolean knockback,
             ResourceKey.create(Registries.DAMAGE_TYPE, Identifier.fromNamespaceAndPath(Goo.MODID, "expire"));
 
     /**
-     * Urchin's impale, goo's own copy of vanilla's stalagmite carrying its
+     * The metal spike trap's impale, goo's own copy of vanilla's stalagmite carrying its
      * death message. Vanilla's is_fall tag holds minecraft:stalagmite, so
      * every mob in the fall_damage_immune tag, a chicken, a cat, a bee, a
-     * blaze, took Urchin's stab and no damage; goo:stalagmite stands in no
+     * blaze, took the trap's stab and no damage; goo:stalagmite stands in no
      * fall tag.
      * urchin-rests-bristled-and-spears
      */
@@ -132,7 +134,7 @@ public record DamageStep(Expr amount, DamageKind source, boolean knockback,
             target.invulnerableTime = 0;
         }
         Vec3 before = target.getDeltaMovement();
-        target.hurtServer((ServerLevel) target.level(), damageSource(target, context.hostAs(TargetHost.class).thrower()),
+        target.hurtServer((ServerLevel) target.level(), damageSource(target, causeOf(context.hostAs(TargetHost.class))),
                 amount.evaluateFloat(context));
         if (!knockback) {
             // An attacker's hit knocks back on the server, so no knockback restores the motion the hit found.
@@ -143,6 +145,22 @@ public record DamageStep(Expr amount, DamageKind source, boolean knockback,
             target.invulnerableTime = invulnerableTicks.map(ticks -> ticks.evaluateInt(context)).orElse(0);
         }
         return true;
+    }
+
+    /**
+     * The damage the step lands on a target once its armor has taken its
+     * share, read with no program variables bound, which Knives' knives-to-kill
+     * counts by. Enchantment protection and resistance are left out.
+     * decision knives-split-evenly-capped-at-the-kill
+     *
+     * @param target  the entity the hit reaches
+     * @param thrower the player whose hit it is, or null
+     * @return the damage landed
+     */
+    public float landedOn(LivingEntity target, @Nullable Entity thrower) {
+        return CombatRules.getDamageAfterAbsorb(target, amount.evaluateFloat(Variables.NONE),
+                damageSource(target, thrower), target.getArmorValue(),
+                (float) target.getAttributeValue(Attributes.ARMOR_TOUGHNESS));
     }
 
     /**
@@ -161,6 +179,21 @@ public record DamageStep(Expr amount, DamageKind source, boolean knockback,
             return true;
         }
         return UndeadInversion.sparesCaster(target, context.hostAs(TargetHost.class).thrower());
+    }
+
+    /**
+     * The entity the step's hit names: the player a hit of its kind credits,
+     * a standing field's placer among them, or, for an attack, the thrower
+     * alone, since an attack naming a placer would turn a generic hit into
+     * that player's attack.
+     * standing-goo-thing-credits-whoever-placed-it
+     * goo-hit-keeps-its-kind-and-names-the-player-behind-it
+     *
+     * @param host the host bound to the target
+     * @return the entity behind the hit, or null for none
+     */
+    private @Nullable Entity causeOf(TargetHost host) {
+        return source == DamageKind.ATTACK ? host.thrower() : host.creditedTo();
     }
 
     /**

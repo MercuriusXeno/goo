@@ -16,11 +16,6 @@ import java.util.function.Predicate;
  */
 public final class AimState {
 
-    /**
-     * Maximum range for goo throwing in blocks.
-     */
-    public static final double MAX_RANGE = 64.0;
-
     private TargetResult target = TargetResult.NONE;
     private AimAssistResolver.@Nullable AimHit hit;
     private int outlineColor;
@@ -86,14 +81,15 @@ public final class AimState {
     }
 
     /**
-     * The outline an entity takes: the aimed-at one's, or a locked item's.
+     * The outline an entity takes: the aimed-at one's, a locked item's, or a painted mob's.
      *
      * @param entity    the entity being rendered
      * @param lockedNow whether a Grab locks an entity now, as this client sees its ailment
+     * @param painted   whether a Knives hold has painted an entity
      * @return the opaque outline color, or 0 when the glove outlines the entity not
      */
-    int outlineFor(Entity entity, Predicate<Entity> lockedNow) {
-        return outlines(entity, aimedMob(), lockedNow) ? outlineColor : 0;
+    int outlineFor(Entity entity, Predicate<Entity> lockedNow, Predicate<Entity> painted) {
+        return outlines(entity, aimedMob(), lockedNow, painted) ? outlineColor : 0;
     }
 
     /**
@@ -108,18 +104,22 @@ public final class AimState {
     }
 
     /**
-     * Whether the glove outlines an entity: the one the aim rests on, and
-     * every item a Grab press locked while its lock stands, so a sweep shows
-     * each item it took though the aim moved on.
+     * Whether the glove outlines an entity: the one the aim rests on, every
+     * item a Grab press locked while its lock stands, so a sweep shows each
+     * item it took though the aim moved on, and every mob a Knives hold has
+     * painted, though the aim left it.
      * decision sweeping-grab-locks-every-item-the-highlight-passes
+     * decision knives-paint-mobs-by-hovering-while-forming
      *
      * @param entity    the entity being rendered
      * @param aimed     the entity the aim rests on, or null
      * @param lockedNow whether a Grab locks an entity now
+     * @param painted   whether a Knives hold has painted an entity
      * @return true where the glove outlines it
      */
-    static boolean outlines(Entity entity, @Nullable Entity aimed, Predicate<Entity> lockedNow) {
-        return entity == aimed || entity instanceof ItemEntity && lockedNow.test(entity);
+    static boolean outlines(Entity entity, @Nullable Entity aimed, Predicate<Entity> lockedNow,
+                            Predicate<Entity> painted) {
+        return entity == aimed || entity instanceof ItemEntity && lockedNow.test(entity) || painted.test(entity);
     }
 
     /**

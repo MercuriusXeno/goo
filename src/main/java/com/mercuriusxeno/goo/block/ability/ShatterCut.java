@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.block.ability;
 
+import com.mercuriusxeno.goo.ability.GooHitCredit;
 import com.mercuriusxeno.goo.ability.program.EntityHost;
 import com.mercuriusxeno.goo.ability.program.EntityScan;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
@@ -13,7 +14,9 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * The cut the glass shards over a Shatter cell make on a living thing moving
@@ -22,8 +25,12 @@ import java.util.Set;
  * each cut rolls the step's deplete chance of taking one layer from the cell
  * under the shards, the cell gone with its last layer. A cut whose roll
  * misses leaves the goo whole; the damage is rapid, so a layer spent on
- * every cut would leave the goo gone in an instant.
+ * every cut would leave the goo gone in an instant. A cut credits the
+ * player who placed the cell, and nobody where no player did, and never
+ * lands on that player (operator ruling 2026-11-17: an ability never
+ * attacks its caster).
  * each-shatter-cut-has-a-chance-to-deplete-a-layer
+ * standing-goo-thing-credits-whoever-placed-it
  * shatter-is-splattered-goo-and-shards-form-over-the-splatters
  */
 final class ShatterCut {
@@ -42,10 +49,12 @@ final class ShatterCut {
      * @param step   the shatter step the cell's laying ability runs
      */
     static void cut(ServerLevel level, BlockPos pos, BlockState state, Entity entity, ShatterStep step) {
-        if (!(entity instanceof LivingEntity living) || !EntityScan.passes(living, Set.copyOf(step.where()), null)) {
+        Optional<UUID> sprayer = CellPlacers.of(level).placerAt(pos);
+        if (!(entity instanceof LivingEntity living) || !cutsThrough(living, step, sprayer)) {
             return;
         }
-        EntityHost host = new EntityHost(level, living, null);
+        // standing-goo-thing-credits-whoever-placed-it
+        EntityHost host = EntityHost.struckByField(level, living, GooHitCredit.placerOf(level, sprayer.orElse(null)));
         StepContext onTheThing = new StepContext(host, 0, 0);
         if (level.getGameTime() % Math.max(1, step.interval().evaluateInt(onTheThing)) != 0) {
             return;
@@ -57,6 +66,19 @@ final class ShatterCut {
             level.setBlock(pos, left > 0 ? state.setValue(VolumeCellBlock.LAYERS, left)
                     : Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
         }
+    }
+
+    /**
+     * Whether the shards cut a living thing moving through them: every filter
+     * keeps it and it is not the player who sprayed the cell.
+     *
+     * @param living  the thing in the shards
+     * @param step    the shatter step
+     * @param sprayer the player who sprayed the cell, empty where none did
+     * @return true where the shards cut the thing
+     */
+    private static boolean cutsThrough(LivingEntity living, ShatterStep step, Optional<UUID> sprayer) {
+        return EntityScan.passes(living, Set.copyOf(step.where()), null) && !SprayerSpared.spares(living, sprayer);
     }
 
     /**

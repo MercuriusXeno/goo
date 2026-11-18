@@ -31,7 +31,7 @@ public final class GooSoundIds {
     public static final Identifier BOING = Identifier.fromNamespaceAndPath(Goo.MODID, "effects.boing");
 
     /**
-     * Spire's rise: the mod's own synthesized dull earthquake rumble, looped
+     * Build's rise: the mod's own synthesized dull earthquake rumble, looped
      * at the rising stone for the whole climb
      * (decision spire-rumbles-like-a-dull-earthquake).
      */
@@ -123,6 +123,13 @@ public final class GooSoundIds {
      * (decision vacuum-sounds-a-suction-wind-and-rising-slurps).
      */
     public static final Identifier VACUUM_SLURP = Identifier.fromNamespaceAndPath(Goo.MODID, "effects.vacuum_slurp");
+
+    /**
+     * Lunar's rising tone: sent to the caster as the fixation begins, rising over the whole trip to peak as
+     * the white floods the view and Lunar carries them
+     * (decision gate-fixates-your-view-on-the-moon-until-it-takes-you).
+     */
+    public static final Identifier LUNAR_TONE = Identifier.fromNamespaceAndPath(Goo.MODID, "effects.lunar_tone");
 
     private GooSoundIds() {
     }

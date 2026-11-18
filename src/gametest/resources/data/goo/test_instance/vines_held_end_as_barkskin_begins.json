@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:vines_held_end_as_barkskin_begins",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 200,
+  "setup_ticks": 0,
+  "required": true
+}

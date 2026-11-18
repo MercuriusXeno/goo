@@ -4,18 +4,19 @@ import com.mercuriusxeno.goo.ability.AbilityTags;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.OwnMinions;
+import com.mercuriusxeno.goo.ability.ThrowRange;
 import com.mercuriusxeno.goo.ability.held.Remote;
 import com.mercuriusxeno.goo.ability.program.GrabStep;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.client.model.GloveSpecialRenderer;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
-import com.mercuriusxeno.goo.item.GooGloveItem;
+import com.mercuriusxeno.goo.item.GooCasters;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.client.Camera;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
@@ -50,16 +51,29 @@ public final class GloveAim {
 
     /**
      * How far the glove aims for its selected ability: a grab's reach, so it
-     * marks no mob it cannot lift, and the throw range for every other ability.
+     * marks no mob it cannot lift, else the ability's own range; a glove
+     * holding no synced ability aims as an ability naming no range does.
      *
-     * @param player     the local player
-     * @param throwRange the range every ability without a reach of its own aims to
+     * @param player the local player
      * @return the aim range, in blocks
      */
-    public static double aimRange(Player player, double throwRange) {
+    public static double aimRange(Player player) {
         ClientAbility ability = selectedAbility(player);
-        return ability == null ? throwRange
-                : GrabStep.reachOf(ability.behaviors(), Remote.entityReachLaid(player)).orElse(throwRange);
+        return ability == null ? ThrowRange.UNNAMED_RANGE
+                : aimRangeOf(ability, Remote.entityReachLaid(player));
+    }
+
+    /**
+     * How far the glove aims for an ability: a grab's reach, else the range it aims and lands within.
+     * decision each-ability-names-its-range-and-the-shared-throw-range-retires
+     *
+     * @param ability     the selected ability
+     * @param remoteReach the reach a laid remote adds to a grab, or null where none is laid
+     * @return the aim range, in blocks
+     */
+    static double aimRangeOf(ClientAbility ability, @Nullable AttributeModifier remoteReach) {
+        return GrabStep.reachOf(ability.behaviors(), remoteReach)
+                .orElse(ThrowRange.of(ability.badge(), ability.delivery()));
     }
 
     /**
@@ -109,21 +123,13 @@ public final class GloveAim {
     }
 
     /**
-     * Reads the selection off the glove in either hand, main hand first.
+     * Reads the selection off the player's caster.
      *
      * @param player the local player
-     * @return the selection, or null when neither hand holds a glove
+     * @return the selection, or null when the player holds no caster
      */
     private static @Nullable GloveSelection readGloveSelection(Player player) {
-        ItemStack main = player.getMainHandItem();
-        if (main.getItem() instanceof GooGloveItem) {
-            return GooGloveItem.getSelection(main);
-        }
-        ItemStack off = player.getOffhandItem();
-        if (off.getItem() instanceof GooGloveItem) {
-            return GooGloveItem.getSelection(off);
-        }
-        return null;
+        return GooCasters.heldSelection(player);
     }
 
     /**
@@ -155,31 +161,15 @@ public final class GloveAim {
     }
 
     /**
-     * The goo type the held glove throws, main hand first, or null when no
-     * glove holds a selection or the player carries none of that goo.
+     * The goo type the player's caster throws, or null when no caster holds
+     * a selection or the player carries none of that goo.
      *
      * @param player the local player
      * @return the selected type, or null
      */
     public static @Nullable ResourceKey<GooTypeDefinition> selectedGooType(Player player) {
-        ResourceKey<GooTypeDefinition> type = selectedTypeIn(player.getMainHandItem());
-        if (type == null) {
-            type = selectedTypeIn(player.getOffhandItem());
-        }
+        ResourceKey<GooTypeDefinition> type = GooCasters.selectedTypeOf(GooCasters.casterOf(player));
         return type != null && GloveUseTracker.isSelectedTypeAvailable() ? type : null;
-    }
-
-    /**
-     * The selected type if the stack is a glove with a selection.
-     *
-     * @param stack the item stack
-     * @return the selected type, or null
-     */
-    private static @Nullable ResourceKey<GooTypeDefinition> selectedTypeIn(ItemStack stack) {
-        if (stack.getItem() instanceof GooGloveItem) {
-            return GooGloveItem.getSelectedType(stack);
-        }
-        return null;
     }
 
     /**

@@ -11,6 +11,7 @@ import com.mercuriusxeno.goo.client.ability.GlassKnives;
 import com.mercuriusxeno.goo.client.ability.GnatSeek;
 import com.mercuriusxeno.goo.client.ability.HeaterFlames;
 import com.mercuriusxeno.goo.client.ability.HeldSweepVisual;
+import com.mercuriusxeno.goo.client.ability.HoveringKnives;
 import com.mercuriusxeno.goo.client.ability.LaserVisual;
 import com.mercuriusxeno.goo.client.ability.LeechWisps;
 import com.mercuriusxeno.goo.client.ability.LiftedPalmBlob;
@@ -19,11 +20,13 @@ import com.mercuriusxeno.goo.client.ability.PartnerView;
 import com.mercuriusxeno.goo.client.ability.ReapSlashBlades;
 import com.mercuriusxeno.goo.client.ability.ReapSwells;
 import com.mercuriusxeno.goo.client.ability.ScanVisuals;
+import com.mercuriusxeno.goo.client.ability.SpikesRise;
 import com.mercuriusxeno.goo.client.ability.StreamMotes;
 import com.mercuriusxeno.goo.client.ability.Tomes;
 import com.mercuriusxeno.goo.client.ability.VitalityVisual;
 import com.mercuriusxeno.goo.client.hole.ClientPortableHoles;
 import com.mercuriusxeno.goo.client.model.GooJoins;
+import com.mercuriusxeno.goo.client.sound.ListenerSounds;
 import com.mercuriusxeno.goo.client.zone.ClientConjuredDoors;
 import com.mercuriusxeno.goo.network.AbilitySyncPayload;
 import com.mercuriusxeno.goo.network.AfterimagePayload;
@@ -35,6 +38,7 @@ import com.mercuriusxeno.goo.network.BlockExposurePayload;
 import com.mercuriusxeno.goo.network.BlockTransformPayload;
 import com.mercuriusxeno.goo.network.ChainBurnoutPayload;
 import com.mercuriusxeno.goo.network.ConjuredDoorPayload;
+import com.mercuriusxeno.goo.network.FallingDripPayload;
 import com.mercuriusxeno.goo.network.GateCarriedPayload;
 import com.mercuriusxeno.goo.network.GhostTrailPayload;
 import com.mercuriusxeno.goo.network.GlassKnifePayload;
@@ -45,10 +49,12 @@ import com.mercuriusxeno.goo.network.GooValueSyncPayload;
 import com.mercuriusxeno.goo.network.HeaterFlamePayload;
 import com.mercuriusxeno.goo.network.HeldSweepPayload;
 import com.mercuriusxeno.goo.network.HolesSyncPayload;
+import com.mercuriusxeno.goo.network.KnivesFormedPayload;
 import com.mercuriusxeno.goo.network.KnownItemLearnedPayload;
 import com.mercuriusxeno.goo.network.KnownItemsSyncPayload;
 import com.mercuriusxeno.goo.network.LaserPayload;
 import com.mercuriusxeno.goo.network.LeechPayload;
+import com.mercuriusxeno.goo.network.ListenerSoundPayload;
 import com.mercuriusxeno.goo.network.LurkerPulsePayload;
 import com.mercuriusxeno.goo.network.MeteorScorchPayload;
 import com.mercuriusxeno.goo.network.MobHitPayload;
@@ -69,6 +75,7 @@ import com.mercuriusxeno.goo.network.RoomEdgesSyncPayload;
 import com.mercuriusxeno.goo.network.ScanWavePayload;
 import com.mercuriusxeno.goo.network.SculkerHeardPayload;
 import com.mercuriusxeno.goo.network.SculkerVibrationPayload;
+import com.mercuriusxeno.goo.network.SpikesRisePayload;
 import com.mercuriusxeno.goo.network.StreamHealedPayload;
 import com.mercuriusxeno.goo.network.StreamMotesPayload;
 import com.mercuriusxeno.goo.network.TomePayload;
@@ -111,6 +118,7 @@ public final class GooClientNetworking {
         event.register(HolesSyncPayload.TYPE, ClientHoles::handle);
         event.register(RoomEdgesSyncPayload.TYPE, ClientRoomEdges::handle);
         event.register(ConjuredDoorPayload.TYPE, ClientConjuredDoors::handle);
+        event.register(ListenerSoundPayload.TYPE, ListenerSounds::handle);
         event.register(GateCarriedPayload.TYPE, ClientGateCarry::handle);
         event.register(PartnerChunkPayload.TYPE, PartnerView::handle);
         event.register(PartnerChunksDropPayload.TYPE, PartnerView::handleDrop);
@@ -144,6 +152,7 @@ public final class GooClientNetworking {
         event.register(BlockTransformPayload.TYPE, BlockTransformHandler::handle);
         event.register(BlockExposurePayload.TYPE, BlockTransformHandler::handleExposure);
         event.register(RedHotPayload.TYPE, BlockTransformHandler::handleRedHot);
+        event.register(FallingDripPayload.TYPE, FallingDripHandler::handle);
         event.register(AfterimagePayload.TYPE, AfterimageHandler::handle);
         event.register(TransformationPayload.TYPE, TransformationHandler::handle);
         event.register(ModelShrinkPayload.TYPE, TransformationHandler::handleShrink);
@@ -158,7 +167,7 @@ public final class GooClientNetworking {
     /**
      * Registers the handlers for the abilities' own visuals: the held sweeps of
      * astral's Scry, crystal's Glimmer and metal's Magnet,
-     * glow's Laser, hex's leech and tomes, frost's Nova rings and
+     * glow's Laser, hex's leech and tomes, metal's Spikes rising, frost's Nova rings and
      * leaf's Reap swells.
      *
      * @param event the client payload handler registration event
@@ -167,6 +176,7 @@ public final class GooClientNetworking {
         event.register(HeldSweepPayload.TYPE, HeldSweepVisual::onPayload);
         event.register(LaserPayload.TYPE, LaserVisual::onPayload);
         event.register(LeechPayload.TYPE, LeechWisps::handle);
+        event.register(SpikesRisePayload.TYPE, SpikesRise::handle);
         event.register(TomePayload.TYPE, Tomes::handle);
         event.register(NovaRingPayload.TYPE, NovaRingHandler::handle);
         event.register(HeaterFlamePayload.TYPE, HeaterFlames::onPayload);
@@ -175,6 +185,7 @@ public final class GooClientNetworking {
         event.register(OreRevealPayload.TYPE, OreRevealHandler::handle);
         event.register(MeteorScorchPayload.TYPE, MeteorScorches::onPayload);
         event.register(GlassKnifePayload.TYPE, GlassKnives::onPayload);
+        event.register(KnivesFormedPayload.TYPE, HoveringKnives::onPayload);
         event.register(ArmPosePayload.TYPE, AbilityPoses::onPayload);
         event.register(PalmBlobLiftPayload.TYPE, LiftedPalmBlob::onPayload);
         event.register(ScanWavePayload.TYPE, ScanVisuals::onPayload);

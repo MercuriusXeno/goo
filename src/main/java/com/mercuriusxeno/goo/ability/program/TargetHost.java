@@ -27,6 +27,16 @@ public interface TargetHost extends StepHost {
      */
     @Nullable Entity thrower();
 
+    /**
+     * Returns the player a hit on the target credits: the thrower, or for a
+     * standing field's strike, the player who placed the field.
+     * standing-goo-thing-credits-whoever-placed-it
+     *
+     * @return the entity behind the hit, or null for none
+     */
+    default @Nullable Entity creditedTo() {
+        return thrower();
+    }
 
     /**
      * Sets the target moving and marks the motion for the target's client.

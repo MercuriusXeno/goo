@@ -1,173 +1,24 @@
 package com.mercuriusxeno.goo.ability.crystal;
 
-import com.mercuriusxeno.goo.ability.AbilityJson;
-import com.mercuriusxeno.goo.ability.Charge;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import java.util.Comparator;
-import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Knives' glass knives fly a fixed pattern, spaced evenly across the cone in
- * three staggered rows and leaving at even ticks across the sweep, and arc
- * under gravity (decisions knives-sling-then-morph-to-flechettes,
- * knives-land-in-staggered-rows-with-no-randomness).
+ * Knives' glove hand eases across the chest through the wind-up with the
+ * blob floating ahead of and above it, and sweeps out through the backhand
+ * (decisions knives-sling-then-morph-to-flechettes,
+ * knives-blob-floats-ahead-of-the-hand-and-spews-the-knives).
  */
 class KnifeRainTest {
 
-    private static final double TOLERANCE = 1e-9;
     /** Facing south, level. */
     private static final float SOUTH = 0f;
-    /** The charge Knives ships with: 3 knives across 5 degrees to 27 across 45. */
-    private static final Charge KNIVES = AbilityJson.decode("crystal_knives").delivery().charge();
-    /** Degrees two yaws may differ by and still read as one. */
-    private static final double YAW_WITHIN = 1e-4;
-    /** Blocks two landings may differ by and still read as one row. */
-    private static final double ROW_WITHIN = 1e-6;
-
-    /**
-     * The yaw a velocity flies at off a south look, in degrees, rising to
-     * the thrower's right.
-     *
-     * @param velocity the velocity
-     * @return the yaw
-     */
-    private static double yawOffSouth(Vec3 velocity) {
-        return Math.toDegrees(Math.atan2(-velocity.x, velocity.z));
-    }
-
-    /**
-     * The release's velocities ordered from the thrower's left to right.
-     *
-     * @param share the share of a full charge
-     * @return the velocities, leftmost first
-     */
-    private static List<Vec3> leftToRight(float share) {
-        return KnifeRain.releaseVelocities(SOUTH, 0f, KNIVES, share).stream()
-                .sorted(Comparator.comparingDouble(KnifeRainTest::yawOffSouth)).toList();
-    }
-
-    /**
-     * How far from where it left a knife lands, flown over flat ground at
-     * the height it left from.
-     *
-     * @param velocity the knife's velocity leaving the hand
-     * @return the blocks it carries, level, before it falls back to its height
-     */
-    private static double landingDistance(Vec3 velocity) {
-        Vec3 before = Vec3.ZERO;
-        for (int tick = 1; tick <= KnifeRain.MOST_FLIGHT_TICKS; tick++) {
-            Vec3 after = KnifeRain.positionAt(Vec3.ZERO, velocity, tick);
-            if (after.y <= 0) {
-                double share = before.y / (before.y - after.y);
-                return before.horizontalDistance() + (after.horizontalDistance() - before.horizontalDistance())
-                        * share;
-            }
-            before = after;
-        }
-        throw new AssertionError("the knife " + velocity + " never fell back to its height");
-    }
-
-    /**
-     * The same charge always slings the same knives, and no randomness
-     * enters the pattern (decision knives-land-in-staggered-rows-with-no-randomness).
-     */
-    @ParameterizedTest
-    @ValueSource(floats = {0f, 0.5f, 1f})
-    void theSameChargeAlwaysSlingsTheSameKnives(float share) {
-        assertEquals(KnifeRain.releaseVelocities(20f, -15f, KNIVES, share),
-                KnifeRain.releaseVelocities(20f, -15f, KNIVES, share), "the velocities should repeat");
-        int count = KNIVES.fleckCount(share);
-        assertArrayEquals(KnifeRain.launchTicks(count, KNIVES.sweepTicks()),
-                KnifeRain.launchTicks(count, KNIVES.sweepTicks()), "the launch ticks should repeat");
-    }
-
-    /**
-     * The knives space evenly left to right across the cone, centered on the
-     * look and inside the cone the charge gives
-     * (decision knives-land-in-staggered-rows-with-no-randomness).
-     */
-    @ParameterizedTest
-    @ValueSource(floats = {0f, 0.5f, 1f})
-    void theKnivesSpaceEvenlyAcrossTheConeCenteredOnTheLook(float share) {
-        double[] yaws = leftToRight(share).stream().mapToDouble(KnifeRainTest::yawOffSouth).toArray();
-        int count = yaws.length;
-
-        assertEquals(KNIVES.fleckCount(share), count);
-        double gap = yaws[1] - yaws[0];
-        assertTrue(gap > 0, "neighbouring knives should part, parted by " + gap);
-        for (int index = 1; index < count; index++) {
-            assertEquals(gap, yaws[index] - yaws[index - 1], YAW_WITHIN, "the gap left of knife " + index);
-        }
-        for (int index = 0; index < count; index++) {
-            assertEquals(-yaws[index], yaws[count - 1 - index], YAW_WITHIN, "knife " + index + " mirrors about the look");
-        }
-        double half = KNIVES.spreadDegrees(share) / 2;
-        assertTrue(Math.abs(yaws[0]) <= half + YAW_WITHIN && Math.abs(yaws[count - 1]) <= half + YAW_WITHIN,
-                "the outermost knives fly at " + yaws[0] + " and " + yaws[count - 1] + ", inside " + half);
-    }
-
-    /**
-     * The knives land in three rows, their depth stepping near, far, middle
-     * from the leftmost knife, so no two neighbours share a row and the rows
-     * offset like brickwork (decision knives-land-in-staggered-rows-with-no-randomness).
-     */
-    @Test
-    void aFullChargeLandsInThreeStaggeredRowsNearFarMiddle() {
-        double[] landings = leftToRight(1f).stream().mapToDouble(KnifeRainTest::landingDistance).toArray();
-        double near = landings[0];
-        double far = landings[1];
-        double middle = landings[2];
-
-        assertTrue(near + 1 < middle && middle + 1 < far, "the rows should stand apart, near " + near
-                + ", middle " + middle + ", far " + far);
-        double[] cycle = {near, far, middle};
-        int[] perRow = new int[3];
-        for (int index = 0; index < landings.length; index++) {
-            assertEquals(cycle[index % 3], landings[index], ROW_WITHIN, "knife " + index + " lands in row "
-                    + index % 3);
-            perRow[index % 3]++;
-        }
-        assertArrayEquals(new int[] {9, 9, 9}, perRow, "the 27 knives split nine to a row");
-    }
-
-    /**
-     * The knives leave the blob at even intervals across the backhand
-     * (decision knives-land-in-staggered-rows-with-no-randomness).
-     */
-    @ParameterizedTest
-    @ValueSource(ints = {3, 15, 27})
-    void theKnivesLeaveAtEvenTicksAcrossTheSweep(int count) {
-        int sweep = KNIVES.sweepTicks();
-        int[] ticks = KnifeRain.launchTicks(count, sweep);
-
-        assertEquals(count, ticks.length);
-        assertEquals(0, ticks[0], "the first knife leaves at once");
-        assertEquals(sweep, ticks[count - 1], "the last knife leaves at the sweep's end");
-        int fewest = Integer.MAX_VALUE;
-        int most = Integer.MIN_VALUE;
-        for (int index = 1; index < count; index++) {
-            int gap = ticks[index] - ticks[index - 1];
-            assertTrue(gap >= 0, "the ticks never go back, at knife " + index);
-            fewest = Math.min(fewest, gap);
-            most = Math.max(most, gap);
-        }
-        assertTrue(most - fewest <= 1, "the gaps should differ by a tick at most, ran " + fewest + " to " + most);
-    }
-
-    @Test
-    void knivesAreLobbedAboveTheLook() {
-        for (Vec3 velocity : KnifeRain.releaseVelocities(SOUTH, 0f, KNIVES, 1f)) {
-            assertTrue(velocity.y > 0, "a level look lobs every knife upward, " + velocity);
-        }
-    }
 
     // knives-aims-a-spread-fan-not-a-blob-line
     @Test
@@ -243,56 +94,5 @@ class KnifeRainTest {
             }
         }
 
-        @Test
-        void theKnivesLeaveTheFloatPointAtTheHandsReachForTheTicksHeld() {
-            assertEquals(0, KnifeRain.floatPoint(eye, yaw, look, true, KnifeRain.windUpAcross(18))
-                    .distanceTo(KnifeRain.leavesFrom(eye, yaw, look, true, 18, 0)), 1e-9);
-        }
-    }
-
-    // knives-leave-the-blob-at-a-snowballs-speed
-    @Test
-    void knivesLeaveTheBlobAtASnowballsSpeed() {
-        List<Vec3> velocities = KnifeRain.releaseVelocities(SOUTH, 0f, KNIVES, 1f);
-
-        for (Vec3 velocity : velocities) {
-            double speed = velocity.length();
-            assertTrue(speed >= 1.2 - TOLERANCE && speed <= 1.8 + TOLERANCE,
-                    "every knife leaves at 1.2 to 1.8 blocks a tick, left at " + speed);
-        }
-        double meanSpeed = velocities.stream().mapToDouble(Vec3::length).average().orElseThrow();
-        assertEquals(1.5, meanSpeed, 0.1, "the knives leave at a snowball's speed on average");
-    }
-
-    // knives-leave-the-blob-at-a-snowballs-speed
-    @Test
-    void aLevelThrowCarriesPastEighteenBlocks() {
-        Vec3 hand = new Vec3(0, 1.32, 0);
-        Vec3 velocity = Vec3.directionFromRotation(-KnifeRain.LIFT_DEGREES, SOUTH).scale(KnifeRain.SPEED);
-
-        double landing = Double.NaN;
-        Vec3 before = hand;
-        for (int tick = 1; tick <= KnifeRain.MOST_FLIGHT_TICKS; tick++) {
-            Vec3 after = KnifeRain.positionAt(hand, velocity, tick);
-            if (after.y <= 0) {
-                double share = before.y / (before.y - after.y);
-                landing = before.z + (after.z - before.z) * share;
-                break;
-            }
-            before = after;
-        }
-        assertTrue(landing >= 18, "a level throw from the hand carries 18 blocks or farther, landed at " + landing);
-    }
-
-    @Test
-    void aKnifeArcsDownUnderGravity() {
-        Vec3 start = new Vec3(0, 10, 0);
-        Vec3 velocity = new Vec3(0, 0.2, 1);
-
-        Vec3 next = KnifeRain.velocityAt(velocity, 1);
-        assertEquals(0.2 * KnifeRain.DRAG - KnifeRain.GRAVITY, next.y, TOLERANCE);
-        assertEquals(0, start.add(velocity).add(next).distanceTo(KnifeRain.positionAt(start, velocity, 2)), TOLERANCE);
-        assertTrue(KnifeRain.positionAt(start, velocity, 30).y < start.y, "the knife falls below where it left");
-        assertTrue(KnifeRain.positionAt(start, velocity, 30).z > 20, "the knife carries well ahead as it falls");
     }
 }

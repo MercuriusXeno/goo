@@ -36,13 +36,13 @@ class HeldDomeRendererTest {
     @Nested
     class ShowPredicate {
         @Test
-        void urchinWithAnArmedPressShowsTheDome() {
-            assertTrue(shows("metal_urchin", true));
+        void lurkerWithAnArmedPressShowsTheDome() {
+            assertTrue(shows("unstable_lurker", true));
         }
 
         @Test
-        void urchinWithNoPressShowsNoDome() {
-            assertFalse(shows("metal_urchin", false));
+        void lurkerWithNoPressShowsNoDome() {
+            assertFalse(shows("unstable_lurker", false));
         }
 
         @ParameterizedTest
@@ -51,10 +51,10 @@ class HeldDomeRendererTest {
             assertFalse(shows(name, true));
         }
 
-        /** knives-wears-the-free-badge: Knives slings knives and throws no blob, so it draws no dome. */
+        /** held-badge-marks-abilities-that-prepare-and-throw: Knives throws no blob, so it draws no dome. */
         @Test
-        void knivesUnderTheFreeBadgeShowsNoDome() {
-            assertEquals(AbilityBadge.FREE, AbilityJson.decode("crystal_knives").badge());
+        void knivesUnderTheHeldBadgeShowsNoDome() {
+            assertEquals(AbilityBadge.HELD, AbilityJson.decode("crystal_knives").badge());
             assertFalse(shows("crystal_knives", true));
         }
     }

@@ -376,6 +376,24 @@ public final class GooRenderTypes {
     public static final RenderType METEOR_ROCK_TYPE = burnoutType(METEOR_ROCK);
 
     /**
+     * Spikes goo's steel pyramids: plain colored quads, each face carrying
+     * its own shade under a fixed light, writing depth so a pyramid's near
+     * faces hide its far ones (operator UAT 2026-11-17: no glisten, edges that
+     * read).
+     * urchin-rests-bristled-and-spears
+     */
+    public static final RenderPipeline SPIKES_STEEL = RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "spikes_steel"))
+            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+            .withDepthStencilState(DepthStencilState.DEFAULT)
+            .withCull(false)
+            .build();
+
+    /** RenderType for Spikes goo's steel pyramids. */
+    public static final RenderType SPIKES_STEEL_TYPE = burnoutType(SPIKES_STEEL);
+
+    /**
      * Unstable goo's burnout explosion pipeline (decision
      * elemental-explosion-per-type): the fireball sphere and its shockwave
      * ring, additive with depth write off and both faces drawn, through
@@ -449,7 +467,7 @@ public final class GooRenderTypes {
     public static final RenderType METAL_EXPLOSION_TYPE = burnoutType(METAL_EXPLOSION);
 
     /**
-     * Urchin's chrome on a landed trap, its spines and spears: the metal
+     * The metal spike trap's chrome on a landed trap, its spines and spears: the metal
      * explosion shader writing depth, since they draw opaque, so the
      * translucent goo blob drawn after them stays behind the parts in front
      * of it rather than blending over them.
@@ -458,7 +476,7 @@ public final class GooRenderTypes {
     public static final RenderPipeline METAL_CHROME = shaderPairPipeline("metal_chrome", "metal_explosion",
             BlendFunction.TRANSLUCENT, DefaultVertexFormat.POSITION_COLOR_NORMAL, DepthStencilState.DEFAULT);
 
-    /** RenderType for Urchin's depth-writing chrome. */
+    /** RenderType for the metal spike trap's depth-writing chrome. */
     public static final RenderType METAL_CHROME_TYPE = burnoutType(METAL_CHROME);
 
     /**
@@ -889,17 +907,26 @@ public final class GooRenderTypes {
             .build();
 
     /**
-     * Lunar's blue overworld star, drawn added over the sky in its own color, on the pocket sky's vertex shader.
-     * decision astral-sky-is-the-void-with-one-bright-blue-overworld-star
+     * The Lunar trip's veil over the overworld's sky: black quads round the camera, alpha blended at the sky's dim
+     * through vanilla's position-color shader, passing every depth test, so the day sky fades to the star void.
+     * decision gate-fixates-your-view-on-the-moon-until-it-takes-you
      */
-    public static final RenderPipeline OVERWORLD_STAR = RenderPipeline.builder(
-                    RenderPipelines.MATRICES_PROJECTION_SNIPPET,
-                    RenderPipelines.GLOBALS_SNIPPET)
-            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "overworld_star"))
-            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "pocket_sky"))
-            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "overworld_star"))
-            .withColorTargetState(new ColorTargetState(BlendFunction.ADDITIVE))
-            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
+    public static final RenderPipeline LUNAR_SKY_VEIL = RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "lunar_sky_veil"))
+            .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
+            .withCull(false)
+            .build();
+
+    /**
+     * The Lunar trip's swelling moon or blue planet: vanilla's celestial draw, the sprite added onto the frame,
+     * passing every depth test, so the body swells over the darkened land as well as the sky.
+     * decision gate-fixates-your-view-on-the-moon-until-it-takes-you
+     * decision planet-face-is-eight-hand-drawn-phase-sprites
+     */
+    public static final RenderPipeline LUNAR_MOON = RenderPipelines.CELESTIAL.toBuilder()
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "lunar_moon"))
+            .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
+            .withCull(false)
             .build();
 
     /**
@@ -1380,41 +1407,6 @@ public final class GooRenderTypes {
             .withCull(false)
             .build();
 
-    /**
-     * A hole's mouth showing the view through it: the far side see-through
-     * over the wall inside a torn, shifting edge
-     * (decision hole-closes-the-space-to-an-opening-ahead).
-     */
-    public static final RenderPipeline GOO_HOLE_VIEW = RenderPipeline.builder(
-                    RenderPipelines.MATRICES_PROJECTION_SNIPPET, RenderPipelines.GLOBALS_SNIPPET)
-            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "goo_hole_view"))
-            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_portal_view"))
-            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_hole_view"))
-            .withSampler("Sampler0")
-            .withVertexFormat(DefaultVertexFormat.POSITION_TEX_LIGHTMAP_COLOR, VertexFormat.Mode.QUADS)
-            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
-            .withDepthStencilState(DepthStencilState.DEFAULT)
-            .withCull(false)
-            .build();
-
-    private static final java.util.function.Function<Identifier, RenderType> GOO_HOLE_VIEW_FACTORY =
-            net.minecraft.util.Util.memoize(view -> RenderType.create("goo_hole_view",
-                    RenderSetup.builder(GOO_HOLE_VIEW)
-                            .withTexture("Sampler0", view)
-                            .setOutputTarget(OutputTarget.MAIN_TARGET)
-                            .createRenderSetup()
-            ));
-
-    /**
-     * Returns the hole view render type over a hole mouth's view texture.
-     *
-     * @param view the view texture's id
-     * @return memoized RenderType
-     */
-    public static RenderType gooHoleView(Identifier view) {
-        return GOO_HOLE_VIEW_FACTORY.apply(view);
-    }
-
     /** The texel buffer each copy of a Zone room reads its translation from. */
     public static final String ROOM_COPY_TRANSLATIONS = "RoomCopyTranslations";
 
@@ -1768,7 +1760,8 @@ public final class GooRenderTypes {
         event.registerPipeline(BLOCK_MINGLE_TRANSLUCENT);
         event.registerPipeline(VOIDSTONE);
         event.registerPipeline(POCKET_SKY);
-        event.registerPipeline(OVERWORLD_STAR);
+        event.registerPipeline(LUNAR_SKY_VEIL);
+        event.registerPipeline(LUNAR_MOON);
         event.registerPipeline(SKY_FUNNEL);
         event.registerPipeline(PETRIFY_FOG);
         event.registerPipeline(FIRE_FIELD);
@@ -1791,7 +1784,6 @@ public final class GooRenderTypes {
         event.registerPipeline(GOO_PHASE);
         event.registerPipeline(GOO_PORTAL_VIEW);
         event.registerPipeline(GOO_PORTAL_IDLE);
-        event.registerPipeline(GOO_HOLE_VIEW);
         event.registerPipeline(ROOM_COPY_SOLID);
         event.registerPipeline(ROOM_COPY_CUTOUT);
         event.registerPipeline(ROOM_COPY_TRANSLUCENT);
@@ -1808,6 +1800,17 @@ public final class GooRenderTypes {
         event.registerPipeline(SCRY_FACES);
         event.registerPipeline(METEOR_SCORCH);
         event.registerPipeline(METEOR_ROCK);
+        registerSolidSurfacePipelines(event);
+    }
+
+    /**
+     * Registers the pipelines that draw solid surfaces in the world:
+     * Spikes' steel pyramids and the portable hole's mouth, carve and pit.
+     *
+     * @param event the event instance
+     */
+    private static void registerSolidSurfacePipelines(RegisterRenderPipelinesEvent event) {
+        event.registerPipeline(SPIKES_STEEL);
         event.registerPipeline(PORTABLE_HOLE_MOUTH);
         event.registerPipeline(PORTABLE_HOLE_CARVE);
         event.registerPipeline(PORTABLE_HOLE_PIT);

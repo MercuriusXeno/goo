@@ -110,6 +110,60 @@ public class GooParticles {
         PARTICLE_TYPES.register("leech_spray_drip", () -> new SimpleParticleType(false));
 
     /**
+     * Updraft's spray drip: the mod's blocky goo drip in typhoon's pale
+     * greens, flying its arc until it strikes a block's top, where it splats
+     * and the Updraft goo lands.
+     * updraft-is-typhoons-world-goo-that-lifts-the-entities-above-it
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> UPDRAFT_SPRAY_DRIP =
+        PARTICLE_TYPES.register("updraft_spray_drip", () -> new SimpleParticleType(false));
+
+    /**
+     * Nectar's spray drip: the mod's blocky goo drip in jelly's oranges,
+     * flying its arc until it strikes a block's top, where it splats and the
+     * Nectar goo lands.
+     * nectar-is-sprayed-goo-with-a-guided-throw-near-a-mob
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> NECTAR_SPRAY_DRIP =
+        PARTICLE_TYPES.register("nectar_spray_drip", () -> new SimpleParticleType(false));
+
+    /**
+     * Signal's spray drip: the mod's blocky goo drip in pulse's reds, flying
+     * its arc until it strikes a block's top, where it splats and the Signal
+     * goo lands.
+     * extend-is-dropped-for-signal-an-in-world-pulse-goo
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> SIGNAL_SPRAY_DRIP =
+        PARTICLE_TYPES.register("signal_spray_drip", () -> new SimpleParticleType(false));
+
+    /**
+     * Spikes' spray drip: the mod's blocky goo drip in metal's silvers,
+     * flying its arc until it strikes a block's top, where it splats and the
+     * Spikes goo lands.
+     * spikes-is-a-coat-of-metal-goo-that-impales-what-walks-on-it
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> SPIKES_SPRAY_DRIP =
+        PARTICLE_TYPES.register("spikes_spray_drip", () -> new SimpleParticleType(false));
+
+    /**
+     * Infest's spray drip: the mod's blocky goo drip in nether's dark reds,
+     * flying its arc until it strikes a block's top, where it splats and the
+     * Infest goo lands.
+     * infest-is-nethers-goo-the-decay-effect-localized-around-the-goo
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> INFEST_SPRAY_DRIP =
+        PARTICLE_TYPES.register("infest_spray_drip", () -> new SimpleParticleType(false));
+
+    /**
+     * Vines' spray drip: the mod's blocky goo drip in leaf's greens, flying
+     * its arc until it strikes a block's top, where it splats and the Vines
+     * goo lands.
+     * vines-is-sprayed-slime-that-entangles-what-tries-to-cross
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> VINES_SPRAY_DRIP =
+        PARTICLE_TYPES.register("vines_spray_drip", () -> new SimpleParticleType(false));
+
+    /**
      * Dowsing's spray drip: the mod's blocky goo drip in Astral's starlight
      * and night blue, flying its arc until it strikes, where it splats and the
      * Dowsing goo lands.

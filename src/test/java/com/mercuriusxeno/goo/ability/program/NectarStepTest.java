@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.ability.program;
 
-import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.entity.monster.Slime;
 import net.minecraft.world.entity.monster.zombie.Zombie;
@@ -12,16 +11,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 
 /**
- * Covers what Jelly's Nectar's program takes: the sound beside the nectar acts on
- * no entity, so the ability takes the animals and slimes the nectar takes and
- * no zombie or player (decision steps-declare-the-entities-they-take).
+ * Covers what Jelly's Nectar's program takes: the goo step beside the nectar
+ * acts on no entity, so the ability takes the animals and slimes the nectar
+ * takes and no zombie or player (decision steps-declare-the-entities-they-take).
  */
 class NectarStepTest {
 
-    private final List<Step> jellyFeed = List.of(
-            new NectarStep(Expr.literal(12), Expr.literal(100)),
-            new SoundStep(Identifier.fromNamespaceAndPath("minecraft", "entity.generic.eat"), FxAnchor.HOST,
-                    SoundKind.PLAYERS, Expr.literal(1), Expr.literal(1), Expr.literal(0)));
+    private final List<Step> jellyFeed = List.of(new NectarGooStep(2, 16, 12, 100, 0.5, 0.4, 0.2), new NectarStep());
 
     @Test
     void feedTakesAnAnimalAndASlime() {
@@ -30,7 +26,7 @@ class NectarStepTest {
     }
 
     @Test
-    void theSoundBesideTheFeedLeavesAZombieAndAPlayerUntaken() {
+    void theGooBesideTheFeedLeavesAZombieAndAPlayerUntaken() {
         assertFalse(Step.takenByAny(jellyFeed, mock(Zombie.class)));
         assertFalse(Step.takenByAny(jellyFeed, mock(Player.class)));
     }

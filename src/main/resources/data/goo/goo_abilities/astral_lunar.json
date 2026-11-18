@@ -1,0 +1,20 @@
+{
+  "gooType": "astral",
+  "displayName": "goo.ability.astral.lunar",
+  "dimension_face": {
+    "dimension": "goo:lunar",
+    "displayName": "goo.ability.astral.terran",
+    "icon": "textures/goo/ability/astral_terran.png"
+  },
+  "cost_mechanics": "goo.ability.astral.lunar.cost_mechanics",
+  "badge": "channeled",
+  "order": 30,
+  "cost": 0,
+  "cost_formula": "1000",
+  "delivery": { "kind": "self", "ticks_per_charge": 20 },
+  "behaviors": [
+    { "type": "astral_lunar", "fixation": 100, "cost": 1000 }
+  ],
+  "tags": ["self"],
+  "pose": "held_out"
+}

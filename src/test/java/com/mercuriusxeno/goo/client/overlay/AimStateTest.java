@@ -218,7 +218,7 @@ class AimStateTest {
         void twoLockedItemsAreOutlinedWithTheAimOnNeither() {
             Set<Entity> locked = Set.of(first, second);
             Set<Entity> outlined = java.util.stream.Stream.of(first, second, aimedAt)
-                    .filter(entity -> AimState.outlines(entity, aimedAt, locked::contains))
+                    .filter(entity -> AimState.outlines(entity, aimedAt, locked::contains, NONE_PAINTED))
                     .collect(java.util.stream.Collectors.toSet());
             assertEquals(Set.of(first, second, aimedAt), outlined);
         }
@@ -226,11 +226,36 @@ class AimStateTest {
         @Test
         void anItemWhoseLockEndedIsOutlinedOnlyWhileTheAimRestsOnIt() {
             Set<Entity> locked = Set.of();
-            assertTrue(AimState.outlines(first, first, locked::contains));
-            assertFalse(AimState.outlines(first, aimedAt, locked::contains));
-            assertFalse(AimState.outlines(first, null, locked::contains));
+            assertTrue(AimState.outlines(first, first, locked::contains, NONE_PAINTED));
+            assertFalse(AimState.outlines(first, aimedAt, locked::contains, NONE_PAINTED));
+            assertFalse(AimState.outlines(first, null, locked::contains, NONE_PAINTED));
         }
     }
+
+    /**
+     * Every mob a Knives hold has painted draws the glove outline while the
+     * hold stands, the aim resting on neither
+     * (decision knives-paint-mobs-by-hovering-while-forming).
+     */
+    @Nested
+    class PaintedMobOutline {
+
+        private final Mob firstPainted = mob(new AABB(0, 0, 0, 1, 1, 1));
+        private final Mob secondPainted = mob(new AABB(3, 0, 0, 4, 1, 1));
+        private final Mob unpainted = mob(new AABB(6, 0, 0, 7, 1, 1));
+
+        @Test
+        void twoPaintedMobsAreOutlinedWithTheAimOnNeither() {
+            Set<Entity> painted = Set.of(firstPainted, secondPainted);
+            Set<Entity> outlined = java.util.stream.Stream.of(firstPainted, secondPainted, unpainted)
+                    .filter(entity -> AimState.outlines(entity, null, NONE_LOCKED, painted::contains))
+                    .collect(java.util.stream.Collectors.toSet());
+            assertEquals(Set.of(firstPainted, secondPainted), outlined);
+        }
+    }
+
+    private static final java.util.function.Predicate<Entity> NONE_PAINTED = entity -> false;
+    private static final java.util.function.Predicate<Entity> NONE_LOCKED = entity -> false;
 
     private static AimState.Resolution picking(Entity mob) {
         return new AimState.Resolution(TargetResult.entity(mob, mob.getBoundingBox().getCenter()),

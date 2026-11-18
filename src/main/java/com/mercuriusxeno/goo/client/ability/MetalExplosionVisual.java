@@ -129,7 +129,7 @@ public final class MetalExplosionVisual implements BurnoutVisual, HeldGhostVisua
     }
 
     /**
-     * The urchin a live Urchin trap bristles as it shoots: the landing's
+     * The urchin a live metal spike trap bristles as it shoots: the landing's
      * flare out to a share of its reach, the band's place on the clock the
      * caller keeps.
      * urchin-rests-bristled-and-spears
@@ -231,7 +231,7 @@ public final class MetalExplosionVisual implements BurnoutVisual, HeldGhostVisua
     }
 
     /**
-     * Emits one of the urchin's spikes, the one spine mesh every Urchin
+     * Emits one of the urchin's spikes, the one spine mesh every spike trap
      * view draws: the landing flare's, the bristle's, the held ghost's and
      * each shot's.
      * urchin-spines-return-to-the-original-spikes

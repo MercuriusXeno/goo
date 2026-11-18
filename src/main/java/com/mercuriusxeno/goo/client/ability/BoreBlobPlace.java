@@ -3,7 +3,7 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.ability.program.BoreDrillShape;
 import com.mercuriusxeno.goo.ability.program.BoreStep;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
-import com.mercuriusxeno.goo.network.KnifeRainSling;
+import com.mercuriusxeno.goo.item.GooCasters;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
@@ -129,7 +129,8 @@ public final class BoreBlobPlace {
             return rest;
         }
         CameraEye.Sight sight = CameraEye.of(mc, caster, partialTick);
-        return easedFor(casterId, sight, rest, boundFor(mc, caster, sight, bore, rest), bore == null, now);
+        return easedFor(casterId, ViewFrame.of(sight, caster.getViewYRot(partialTick)), rest,
+                boundFor(mc, caster, sight, bore, rest), bore == null, now);
     }
 
     /**
@@ -150,7 +151,7 @@ public final class BoreBlobPlace {
         }
         ClientAbility ability = BlobRest.selectedAbility(caster);
         double reach = ability == null ? 0 : ability.delivery().reachingTo(caster.blockInteractionRange()).range();
-        Vec3 point = BoreDrill.pointAhead(mc.level, sight, bore, KnifeRainSling.gloveOnTheRight(caster), reach);
+        Vec3 point = BoreDrill.pointAhead(mc.level, sight, bore, GooCasters.casterOnTheRight(caster), reach);
         return placeFor(sight.eye(), sight.look(), point, rest, bore.shape());
     }
 
@@ -160,24 +161,23 @@ public final class BoreBlobPlace {
      * home at its rest, the memory is dropped.
      *
      * @param casterId the caster's entity id
-     * @param sight    the caster's sight this frame
+     * @param view     the caster's view this frame
      * @param rest     the blob's lifted rest by the glove
      * @param bound    where the blob is bound
      * @param homing   whether the bore has ended, so the blob is bound for its rest
      * @param now      the game time, with the frame's partial tick
      * @return the blob's place
      */
-    private static Vec3 easedFor(int casterId, CameraEye.Sight sight, Vec3 rest, Vec3 bound, boolean homing,
-                                 double now) {
+    static Vec3 easedFor(int casterId, ViewFrame view, Vec3 rest, Vec3 bound, boolean homing, double now) {
         Eased last = EASED.get(casterId);
-        Vec3 boundInView = inView(sight, bound);
-        Vec3 eased = last == null ? inView(sight, rest) : easedToward(last.inView(), boundInView, now - last.at());
+        Vec3 boundInView = view.inView(bound);
+        Vec3 eased = last == null ? view.inView(rest) : easedToward(last.inView(), boundInView, now - last.at());
         if (homing && eased.distanceTo(boundInView) < HOME) {
             EASED.remove(casterId);
             return rest;
         }
         EASED.put(casterId, new Eased(eased, last == null ? now : Math.max(now, last.at())));
-        return inWorld(sight, eased);
+        return view.inWorld(eased);
     }
 
     private static @Nullable BoreStep boreOf(Player caster) {
@@ -186,30 +186,55 @@ public final class BoreBlobPlace {
     }
 
     /**
-     * A world point's offset from a sight's eye along its look, right and up.
+     * A view's frame the blob is eased in: the eye, the look, and a right
+     * that lies level and turns with the yaw alone, so the frame turns
+     * smoothly through a look straight up or straight down rather than
+     * flipping about the look there.
+     * decision diagnose-and-correct-bore-behaving-weirdly-close-to-things
      *
-     * @param sight the sight
-     * @param point the world point
-     * @return the offset in the sight's frame
+     * @param eye   the eye
+     * @param look  the unit look
+     * @param right the unit right, square to the look
+     * @param up    the unit up, square to the look and the right
      */
-    static Vec3 inView(CameraEye.Sight sight, Vec3 point) {
-        Vec3 offset = point.subtract(sight.eye());
-        Vec3 up = upOf(sight.look());
-        Vec3 right = sight.look().cross(up);
-        return new Vec3(offset.dot(sight.look()), offset.dot(right), offset.dot(up));
-    }
+    record ViewFrame(Vec3 eye, Vec3 look, Vec3 right, Vec3 up) {
 
-    /**
-     * The world point at an offset in a sight's frame.
-     *
-     * @param sight  the sight
-     * @param inView the offset along its look, right and up
-     * @return the world point
-     */
-    static Vec3 inWorld(CameraEye.Sight sight, Vec3 inView) {
-        Vec3 up = upOf(sight.look());
-        Vec3 right = sight.look().cross(up);
-        return sight.eye().add(sight.look().scale(inView.x)).add(right.scale(inView.y)).add(up.scale(inView.z));
+        private static final float QUARTER_TURN = 90f;
+
+        /**
+         * The frame of a sight seen at a yaw.
+         *
+         * @param sight the sight
+         * @param yaw   the view's yaw in degrees
+         * @return the frame
+         */
+        static ViewFrame of(CameraEye.Sight sight, float yaw) {
+            Vec3 look = sight.look();
+            Vec3 level = Vec3.directionFromRotation(0f, yaw + QUARTER_TURN);
+            Vec3 right = level.subtract(look.scale(level.dot(look))).normalize();
+            return new ViewFrame(sight.eye(), look, right, right.cross(look));
+        }
+
+        /**
+         * A world point's offset from the eye along the look, right and up.
+         *
+         * @param point the world point
+         * @return the offset in the frame
+         */
+        Vec3 inView(Vec3 point) {
+            Vec3 offset = point.subtract(eye);
+            return new Vec3(offset.dot(look), offset.dot(right), offset.dot(up));
+        }
+
+        /**
+         * The world point at an offset in the frame.
+         *
+         * @param inView the offset along the look, right and up
+         * @return the world point
+         */
+        Vec3 inWorld(Vec3 inView) {
+            return eye.add(look.scale(inView.x)).add(right.scale(inView.y)).add(up.scale(inView.z));
+        }
     }
 
     /**

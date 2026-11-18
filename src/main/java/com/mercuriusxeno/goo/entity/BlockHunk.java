@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.entity;
 
 import com.mercuriusxeno.goo.ISidedProxy;
 import com.mercuriusxeno.goo.ability.GooHitCredit;
+import com.mercuriusxeno.goo.lunar.LunarGravity;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooEntities;
 import com.mojang.serialization.Codec;
@@ -202,22 +203,25 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
     }
 
     /**
-     * Raises blocks from below their cells into them: the hunk appears a rise
-     * below its target, climbs to it over the rise time and settles its blocks there.
+     * Raises blocks from behind their cells into them: the hunk appears a
+     * rise back from its target against the way it rises, climbs to it over
+     * the rise time and settles its blocks there.
+     * decision build-goes-sideways
      *
      * @param level     the server level
      * @param origin    the hunk's origin cell, where the block at offset zero settles
      * @param blocks    the blocks, each by its offset from the origin cell
-     * @param rise      how many blocks below the target the hunk starts
+     * @param rise      how many blocks back from the target the hunk starts
+     * @param way       the way the hunk rises: up out of the ground, or out of a wall or a ceiling
      * @param riseTicks the ticks the rise takes
      * @return the rising hunk, added to the level
      */
     public static BlockHunk raise(ServerLevel level, BlockPos origin, List<HunkBlock> blocks, int rise,
-                                  int riseTicks) {
+                                  Direction way, int riseTicks) {
         BlockHunk hunk = new BlockHunk(GooEntities.BLOCK_HUNK.get(), level);
         hunk.blocks = List.copyOf(blocks);
         hunk.target = Vec3.atBottomCenterOf(origin);
-        hunk.start = hunk.target.subtract(0, rise, 0);
+        hunk.start = hunk.target.subtract(Vec3.atLowerCornerOf(way.getUnitVec3i()).scale(rise));
         hunk.riseTicks = Math.max(1, riseTicks);
         hunk.riseStartTime = level.getGameTime();
         hunk.home = origin.immutable();
@@ -645,7 +649,7 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
     }
 
     /**
-     * Whether the hunk is a Spire pillar, rising from the ground, rather than a lifted chunk.
+     * Whether the hunk is a Build pillar, rising from the ground, rather than a lifted chunk.
      *
      * @return true for a rising pillar
      */
@@ -760,7 +764,7 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
         interpolation.cancel();
         setPos(positionAt(now));
         if (level().isClientSide() && climbsAt(now)) {
-            SpireRumble.play(this, now - riseStartTime);
+            BuildRumble.play(this, now - riseStartTime);
         }
         if (climbsAt(now)) {
             HunkRiders.rises(this);
@@ -866,7 +870,7 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
 
     /**
      * Whether a hunk blocks movement: a rising one is solid, so nothing falls
-     * through Spire's stone mid-rise, while a lifted one collides with nothing.
+     * through Build's stone mid-rise, while a lifted one collides with nothing.
      *
      * @param rising whether the hunk rises
      * @return true where entities collide with it
@@ -910,6 +914,11 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
         atSeatTicks = 0;
     }
 
+    @Override
+    protected double getDefaultGravity() {
+        return GRAVITY;
+    }
+
     /**
      * One tick of a let-go hunk moving on to its seat (SeatSlide), by its own
      * blocks against the world, becoming its blocks once there; held fast
@@ -919,7 +928,7 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
      */
     private void seatTick(ServerLevel level) {
         Vec3 there = Vec3.atBottomCenterOf(seat);
-        seatFall = Math.min(seatFall + GRAVITY, MOST_SEAT_FALL);
+        seatFall = Math.min(seatFall + GRAVITY * LunarGravity.scaleIn(level.dimension()), MOST_SEAT_FALL);
         Vec3 wanted = SeatSlide.step(position(), there, seatFall).subtract(position());
         Vec3 moved = allowedMove(position(), wanted);
         setPos(position().add(moved));
@@ -984,9 +993,8 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
      * @param level the server level
      */
     private void fly(ServerLevel level) {
-        if (!isNoGravity()) {
-            setDeltaMovement(getDeltaMovement().add(0, -GRAVITY, 0));
-        }
+        // decision lunar-gravity-is-one-sixth-of-the-overworlds: getGravity answers one sixth in lunar
+        setDeltaMovement(getDeltaMovement().add(0, -getGravity(), 0));
         Vec3 motion = getDeltaMovement();
         moveByItsBlocks(motion);
         boolean thrown = entityData.get(THROWN);

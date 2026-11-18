@@ -6,10 +6,17 @@ import com.mercuriusxeno.goo.block.ability.CellBinding;
 import com.mercuriusxeno.goo.block.ability.FungalBudBlock;
 import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
 import com.mercuriusxeno.goo.block.ability.HostCellBlock;
+import com.mercuriusxeno.goo.block.ability.InfestCellBlock;
 import com.mercuriusxeno.goo.block.ability.LightRailBlock;
 import com.mercuriusxeno.goo.block.ability.MagickedIceBlock;
+import com.mercuriusxeno.goo.block.ability.MoltenCellBlock;
+import com.mercuriusxeno.goo.block.ability.NectarCellBlock;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
 import com.mercuriusxeno.goo.block.ability.RimeCellBlock;
+import com.mercuriusxeno.goo.block.ability.SignalCellBlock;
+import com.mercuriusxeno.goo.block.ability.SpikesCellBlock;
+import com.mercuriusxeno.goo.block.ability.UpdraftCellBlock;
+import com.mercuriusxeno.goo.block.ability.VinesCellBlock;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.block.ability.WispBlock;
 import com.mercuriusxeno.goo.block.ability.ZapPulseBlock;
@@ -24,12 +31,17 @@ import com.mercuriusxeno.goo.block.vat.VatBlock;
 import com.mercuriusxeno.goo.block.zone.DimensionDoorBlock;
 import com.mercuriusxeno.goo.fluid.GooFluidBlock;
 import com.mercuriusxeno.goo.fluid.MoltenIronBlock;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.IceBlock;
 import net.minecraft.world.level.block.IronBarsBlock;
 import net.minecraft.world.level.block.LiquidBlock;
 import net.minecraft.world.level.block.SoundType;
+import net.minecraft.world.level.block.TintedGlassBlock;
 import net.minecraft.world.level.block.state.BlockBehaviour;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.MapColor;
 import net.minecraft.world.level.material.PushReaction;
 import net.neoforged.neoforge.registries.DeferredBlock;
@@ -197,13 +209,15 @@ public class GooBlocks {
     /**
      * Molten: the volume cell bound to Blaze's molten goo, the orange goo
      * Molten sprays onto a block's top or a lava source's surface, one to
-     * fifteen layers, ordinary ground underfoot, dropping the blaze goo its
-     * layers cost through VolumeCellBlock.getDrops, no loot table
+     * fifteen layers, ordinary ground underfoot that burns a living thing
+     * touching it as lava does, dropping the blaze goo its layers cost through
+     * VolumeCellBlock.getDrops, no loot table
      * (decisions molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava,
+     * molten-burns-mobs-as-hard-as-lava-and-a-hit-spends-a-layer,
      * each-goo-type-ships-a-world-goo-on-the-volume-cell).
      */
-    public static final DeferredBlock<VolumeCellBlock> BLAZE_MOLTEN = BLOCKS.registerBlock(
-            "blaze_molten", properties -> new VolumeCellBlock(properties, CellBinding.MOLTEN),
+    public static final DeferredBlock<MoltenCellBlock> BLAZE_MOLTEN = BLOCKS.registerBlock(
+            "blaze_molten", properties -> new MoltenCellBlock(properties, CellBinding.MOLTEN),
             () -> BlockBehaviour.Properties.of()
                     .mapColor(MapColor.FIRE)
                     .friction(CellBinding.MOLTEN.surface().friction())
@@ -304,6 +318,130 @@ public class GooBlocks {
             () -> BlockBehaviour.Properties.of()
                     .mapColor(MapColor.COLOR_PURPLE)
                     .friction(CellBinding.LEECH.surface().friction())
+                    .sound(SoundType.SLIME_BLOCK)
+                    .instabreak()
+                    .noOcclusion()
+                    .replaceable()
+                    .noLootTable()
+                    .pushReaction(PushReaction.DESTROY));
+    /**
+     * Updraft: the volume cell bound to Typhoon's goo, the pale green goo
+     * Updraft sprays onto a block's top, one to fifteen layers, ordinary
+     * ground underfoot and sounding as goo does, lifting what stands above it
+     * a block for each layer, dropping the typhoon goo its layers cost
+     * through VolumeCellBlock.getDrops, no loot table
+     * (decisions updraft-is-typhoons-world-goo-that-lifts-the-entities-above-it,
+     * updraft-goo-lifts-one-block-per-layer, each-goo-type-ships-a-world-goo-on-the-volume-cell).
+     */
+    public static final DeferredBlock<UpdraftCellBlock> TYPHOON_UPDRAFT = BLOCKS.registerBlock(
+            "typhoon_updraft", properties -> new UpdraftCellBlock(properties, CellBinding.UPDRAFT),
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_LIGHT_GREEN)
+                    .friction(CellBinding.UPDRAFT.surface().friction())
+                    .sound(SoundType.SLIME_BLOCK)
+                    .instabreak()
+                    .noOcclusion()
+                    .replaceable()
+                    .noLootTable()
+                    .pushReaction(PushReaction.DESTROY));
+    /**
+     * Nectar: the volume cell bound to Jelly's goo, the orange goo Nectar
+     * sprays onto a block's top, one to fifteen layers, ordinary ground
+     * underfoot and sounding as goo does, a food the mobs about it eat a
+     * layer at a time or fight over, dropping the jelly goo its layers cost
+     * through VolumeCellBlock.getDrops, no loot table
+     * (decisions nectar-is-sprayed-goo-with-a-guided-throw-near-a-mob,
+     * nectar-goo-keeps-feeds-effects-as-a-universal-food,
+     * each-goo-type-ships-a-world-goo-on-the-volume-cell).
+     */
+    public static final DeferredBlock<NectarCellBlock> JELLY_NECTAR = BLOCKS.registerBlock(
+            "jelly_nectar", properties -> new NectarCellBlock(properties, CellBinding.NECTAR),
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_ORANGE)
+                    .friction(CellBinding.NECTAR.surface().friction())
+                    .sound(SoundType.SLIME_BLOCK)
+                    .instabreak()
+                    .noOcclusion()
+                    .replaceable()
+                    .noLootTable()
+                    .pushReaction(PushReaction.DESTROY));
+    /**
+     * Signal: the volume cell bound to Pulse's goo, the red goo Signal sprays
+     * onto a block's top, one to fifteen layers, ordinary ground underfoot
+     * and sounding as goo does, sending a redstone signal equal to its layers
+     * as a redstone block sends its own, carried by no block it lies against,
+     * dropping the pulse goo its layers cost through VolumeCellBlock.getDrops,
+     * no loot table (decisions extend-is-dropped-for-signal-an-in-world-pulse-goo,
+     * signal-goo-sends-a-redstone-signal-equal-to-its-layers,
+     * each-goo-type-ships-a-world-goo-on-the-volume-cell).
+     */
+    public static final DeferredBlock<SignalCellBlock> PULSE_SIGNAL = BLOCKS.registerBlock(
+            "pulse_signal", properties -> new SignalCellBlock(properties, CellBinding.SIGNAL),
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_RED)
+                    .friction(CellBinding.SIGNAL.surface().friction())
+                    .isRedstoneConductor((state, level, pos) -> false)
+                    .sound(SoundType.SLIME_BLOCK)
+                    .instabreak()
+                    .noOcclusion()
+                    .replaceable()
+                    .noLootTable()
+                    .pushReaction(PushReaction.DESTROY));
+    /**
+     * Vines: the volume cell bound to Leaf's goo, the green goo Vines sprays
+     * onto a block's top or a wall, one to fifteen layers, ordinary ground
+     * underfoot and sounding as goo does, entangling what crosses it and
+     * growing goologged vines on the walls it coats
+     * (decisions vines-is-sprayed-slime-that-entangles-what-tries-to-cross,
+     * vines-goo-on-walls-places-goologged-vines-and-depletes,
+     * each-goo-type-ships-a-world-goo-on-the-volume-cell).
+     */
+    public static final DeferredBlock<VinesCellBlock> LEAF_VINES = BLOCKS.registerBlock(
+            "leaf_vines", properties -> new VinesCellBlock(properties, CellBinding.VINES),
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.PLANT)
+                    .friction(CellBinding.VINES.surface().friction())
+                    .sound(SoundType.SLIME_BLOCK)
+                    .instabreak()
+                    .noOcclusion()
+                    .replaceable()
+                    .noLootTable()
+                    .pushReaction(PushReaction.DESTROY));
+    /**
+     * Spikes: the volume cell bound to Metal's goo, the silver goo Spikes
+     * sprays onto a block's top, one to fifteen layers, ordinary ground
+     * underfoot that impales what walks on it and sounds as goo does,
+     * dropping the metal goo its layers cost through VolumeCellBlock.getDrops,
+     * no loot table
+     * (decisions spikes-is-a-coat-of-metal-goo-that-impales-what-walks-on-it,
+     * each-goo-type-ships-a-world-goo-on-the-volume-cell).
+     */
+    public static final DeferredBlock<SpikesCellBlock> METAL_SPIKES = BLOCKS.registerBlock(
+            "metal_spikes", properties -> new SpikesCellBlock(properties, CellBinding.SPIKES),
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.METAL)
+                    .friction(CellBinding.SPIKES.surface().friction())
+                    .sound(SoundType.SLIME_BLOCK)
+                    .instabreak()
+                    .noOcclusion()
+                    .replaceable()
+                    .noLootTable()
+                    .pushReaction(PushReaction.DESTROY));
+    /**
+     * Infest: the volume cell bound to Nether's goo, the dark red goo Infest
+     * sprays onto a block's top, one to fifteen layers, ordinary ground
+     * underfoot and sounding as goo does, gnawing what it lies on and biting
+     * what stands in it, dropping the nether goo its layers cost through
+     * VolumeCellBlock.getDrops, no loot table
+     * (decisions infest-is-nethers-goo-the-decay-effect-localized-around-the-goo,
+     * infest-gnaws-the-blocks-it-lies-on-and-bites-what-stands-in-it,
+     * each-goo-type-ships-a-world-goo-on-the-volume-cell).
+     */
+    public static final DeferredBlock<InfestCellBlock> NETHER_INFEST = BLOCKS.registerBlock(
+            "nether_infest", properties -> new InfestCellBlock(properties, CellBinding.INFEST),
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.NETHER)
+                    .friction(CellBinding.INFEST.surface().friction())
                     .sound(SoundType.SLIME_BLOCK)
                     .instabreak()
                     .noOcclusion()
@@ -462,6 +600,8 @@ public class GooBlocks {
     /** An iron block's hardness and blast resistance, which the iron core mines like. */
     private static final float IRON_BLOCK_HARDNESS = 5.0F;
     private static final float IRON_BLOCK_RESISTANCE = 6.0F;
+    /** Glass's hardness, which impact glass breaks like. */
+    private static final float GLASS_HARDNESS = 0.3F;
     /** Lava's light and its blast resistance. */
     private static final int MOLTEN_IRON_LIGHT = 15;
     private static final float MOLTEN_IRON_RESISTANCE = 100.0F;
@@ -481,6 +621,42 @@ public class GooBlocks {
             () -> BlockBehaviour.Properties.of().mapColor(MapColor.METAL).requiresCorrectToolForDrops()
                     .strength(IRON_BLOCK_HARDNESS, IRON_BLOCK_RESISTANCE).sound(SoundType.METAL));
 
+    /**
+     * Meteoric iron: the iron-nickel of fallen meteorites, veined through lunar's stone, mined like a raw iron block.
+     * decision lunar-ground-gains-meteoric-iron-impact-glass-breccia-and-crater-ice
+     */
+    public static final DeferredBlock<Block> METEORIC_IRON = BLOCKS.registerSimpleBlock("meteoric_iron",
+            () -> BlockBehaviour.Properties.of().mapColor(MapColor.RAW_IRON).requiresCorrectToolForDrops()
+                    .strength(IRON_BLOCK_HARDNESS, IRON_BLOCK_RESISTANCE).sound(SoundType.METAL));
+
+    /**
+     * Impact glass: lunar's regolith melted where meteorites struck, dark glass that holds back light as tinted
+     * glass does, mined like glass.
+     * decision lunar-ground-gains-meteoric-iron-impact-glass-breccia-and-crater-ice
+     */
+    public static final DeferredBlock<TintedGlassBlock> IMPACT_GLASS = BLOCKS.registerBlock("impact_glass",
+            TintedGlassBlock::new, () -> BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_BLACK)
+                    .strength(GLASS_HARDNESS).sound(SoundType.GLASS).noOcclusion()
+                    .isValidSpawn((state, level, pos, type) -> false).isRedstoneConductor(GooBlocks::never)
+                    .isSuffocating(GooBlocks::never).isViewBlocking(GooBlocks::never));
+
+    /**
+     * Breccia: rubble an impact fused into rock, anorthosite and basalt shards set in a dark matrix, ringing lunar's
+     * crater rims; mined like stone.
+     * decision lunar-ground-gains-meteoric-iron-impact-glass-breccia-and-crater-ice
+     */
+    public static final DeferredBlock<Block> BRECCIA = BLOCKS.registerSimpleBlock("breccia",
+            () -> BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_GRAY).requiresCorrectToolForDrops()
+                    .strength(STONE_HARDNESS, STONE_RESISTANCE).sound(SoundType.TUFF));
+
+    /**
+     * Crater ice: the ice lying in the floors of lunar's deepest craters, its only water; it melts and breaks to water
+     * as vanilla ice does.
+     * decision lunar-ground-gains-meteoric-iron-impact-glass-breccia-and-crater-ice
+     */
+    public static final DeferredBlock<IceBlock> CRATER_ICE = BLOCKS.registerBlock("crater_ice", IceBlock::new,
+            () -> BlockBehaviour.Properties.ofFullCopy(Blocks.ICE));
+
     /** Molten iron's liquid block, glowing as lava does. */
     public static final DeferredBlock<LiquidBlock> MOLTEN_IRON = BLOCKS.registerBlock(GooFluids.MOLTEN_IRON_PATH,
             p -> new MoltenIronBlock(GooFluids.MOLTEN_IRON_SOURCE.get(), p),
@@ -494,4 +670,16 @@ public class GooBlocks {
                     .liquid()
                     .sound(SoundType.EMPTY)
                     .lightLevel(state -> MOLTEN_IRON_LIGHT));
+
+    /**
+     * A state predicate answering false at every position, as vanilla's glass reads for its view and its weight.
+     *
+     * @param state the block state
+     * @param level the level holding it
+     * @param pos   its position
+     * @return false
+     */
+    private static boolean never(BlockState state, BlockGetter level, BlockPos pos) {
+        return false;
+    }
 }

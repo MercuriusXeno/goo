@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.zone;
 
 import com.mercuriusxeno.goo.ability.zone.ConjuredDoor;
+import com.mercuriusxeno.goo.ability.zone.GateLook;
 import com.mercuriusxeno.goo.network.ConjuredDoorPayload;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.AfterEach;
@@ -72,7 +73,7 @@ class ClientConjuredDoorsTest {
         @Test
         void turnsWithTheFramesLookAndStandsItsStandOffBeforeTheFeet() {
             ConjuredDoor held = ConjuredDoor.standing(FEET, 0f, 4, CHARGE);
-            ClientConjuredDoors.Seen seen = new ClientConjuredDoors.Seen(held, held, 0);
+            ClientConjuredDoors.Seen seen = new ClientConjuredDoors.Seen(held, held, 0, GateLook.STARFIELD);
 
             ClientConjuredDoors.Drawn first = ClientConjuredDoors.drawnAt(seen, 0.5,
                     new ClientConjuredDoors.Look(FEET, 0f)).orElseThrow();

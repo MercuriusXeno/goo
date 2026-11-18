@@ -3,11 +3,14 @@ package com.mercuriusxeno.goo.ability.program;
 import com.mercuriusxeno.goo.ability.petrify.Statues;
 import com.mercuriusxeno.goo.network.HoldMarks;
 import com.mercuriusxeno.goo.registry.GooBlocks;
+import com.mercuriusxeno.goo.registry.GooServerState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
+import org.jspecify.annotations.Nullable;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.function.Consumer;
 
 /**
@@ -33,6 +36,16 @@ public interface ChannelHost extends BlockBreakHost {
         return behaviors.stream()
                 .filter(step -> step.requires().contains(HostCapability.CHANNEL) == blockPass)
                 .toList();
+    }
+
+    /**
+     * The player whose goo the host places, whom a goo cell it feeds credits.
+     * standing-goo-thing-credits-whoever-placed-it
+     *
+     * @return the player's id, or null where no player places it
+     */
+    default @Nullable UUID placingPlayer() {
+        return null;
     }
 
     /**
@@ -106,6 +119,30 @@ public interface ChannelHost extends BlockBreakHost {
      * @return the hold's gradual break
      */
     GradualBreak gradualBreak();
+
+    /**
+     * Counts one tick Vacuum's cone reaches a goo cell toward its next layer,
+     * in the server's count store, so the count outlives the hold.
+     * vacuum-breaks-a-cell-the-tick-the-wave-reaches-it
+     *
+     * @param cell        the cell
+     * @param memoryTicks the ticks the count is kept after this one
+     * @return the cell's count after this tick
+     */
+    default int countVacuumTick(BlockPos cell, int memoryTicks) {
+        return GooServerState.of(level().getServer()).vacuumCounts().countTick(level().dimension(), cell,
+                level().getServer().getTickCount(), memoryTicks);
+    }
+
+    /**
+     * Drops a goo cell's Vacuum count, as its layer taken does.
+     * vacuum-breaks-a-cell-the-tick-the-wave-reaches-it
+     *
+     * @param cell the cell
+     */
+    default void forgetVacuumCount(BlockPos cell) {
+        GooServerState.of(level().getServer()).vacuumCounts().forget(level().dimension(), cell);
+    }
 
     /**
      * Toggles every lever, button, door, trapdoor or fence gate standing in

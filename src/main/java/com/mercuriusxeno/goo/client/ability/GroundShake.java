@@ -16,7 +16,7 @@ import com.mercuriusxeno.goo.client.throwing.GloveAim;
 import com.mercuriusxeno.goo.client.throwing.GloveThrowSender;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
 import com.mercuriusxeno.goo.data.GooValue;
-import com.mercuriusxeno.goo.network.KnifeRainSling;
+import com.mercuriusxeno.goo.item.GooCasters;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.SheetedDecalTextureGenerator;
@@ -396,7 +396,7 @@ public final class GroundShake {
         Level level = player.level();
         // bore-reaches-as-far-as-your-block-reach
         double reach = ability.delivery().reachingTo(player.blockInteractionRange()).range();
-        return boreZoneAlong(sight, bore, KnifeRainSling.gloveOnTheRight(player), reach,
+        return boreZoneAlong(sight, bore, GooCasters.casterOnTheRight(player), reach,
                 cell -> level.getBlockState(cell).isAir(),
                 cell -> level.getBlockState(cell).is(bore.breaks()));
     }
