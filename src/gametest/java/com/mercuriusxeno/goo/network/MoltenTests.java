@@ -346,8 +346,8 @@ public final class MoltenTests {
      * @param helper the gametest helper
      */
     public static void moltenStandsItsStepOverAnOpenNeighbour(GameTestHelper helper) {
-        int step = helper.getLevel().registryAccess().get(GooTypes.BLAZE).map(type -> type.value().cohesion())
-                .orElse(0);
+        int step = helper.getLevel().registryAccess().get(GooTypes.BLAZE).map(type -> type.value().cohesion()
+                .threshold()).orElse(0);
         helper.assertTrue(step > 0, String.format(NO_STEP, step));
         helper.setBlock(FLOOR, Blocks.DIRT);
         helper.setBlock(FLOOR.east(), Blocks.DIRT);

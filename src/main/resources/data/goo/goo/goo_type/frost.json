@@ -8,7 +8,7 @@
   "density": 1000,
   "viscosity": 800,
   "elasticity": 0.3,
-  "cohesion": 0,
+  "cohesion": "runny",
   "adhesion": 1,
   "temperature": 200,
   "extinguishes": true,
