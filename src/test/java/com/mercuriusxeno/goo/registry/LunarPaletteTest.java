@@ -52,7 +52,23 @@ class LunarPaletteTest {
             new PaletteColor(0x52555a, "iron_core"),
             new PaletteColor(0x3f4146, "iron_core"),
             new PaletteColor(0x333539, "iron_core"),
-            new PaletteColor(0x282a2e, "iron_core"));
+            new PaletteColor(0x282a2e, "iron_core"),
+            new PaletteColor(0xbdb9b4, "breccia matrix"),
+            new PaletteColor(0xb1ada8, "breccia matrix"),
+            new PaletteColor(0xa5a19c, "breccia matrix"),
+            new PaletteColor(0x99958f, "breccia matrix"),
+            new PaletteColor(0x8d8984, "breccia matrix"),
+            new PaletteColor(0x7f7b76, "breccia matrix"),
+            new PaletteColor(0x716d68, "breccia matrix"),
+            new PaletteColor(0xeef3f6, "crater_ice"),
+            new PaletteColor(0xdfe8ee, "crater_ice"),
+            new PaletteColor(0xcfdce5, "crater_ice"),
+            new PaletteColor(0xbecfdb, "crater_ice"),
+            new PaletteColor(0xadc1d0, "crater_ice"),
+            new PaletteColor(0x9cb3c4, "crater_ice"),
+            new PaletteColor(0xc9ccd1, "meteoric_iron glint"),
+            new PaletteColor(0x1d1e21, "impact_glass"),
+            new PaletteColor(0x121315, "impact_glass"));
 
     /**
      * A ground block's sprites: its own and the variants its blockstate picks among per block, sharing one border band.
@@ -66,8 +82,20 @@ class LunarPaletteTest {
     static final List<String> GROUND_SPRITES = Stream.of("anorthosite", "regolith")
             .flatMap(block -> variantsOf(block).stream()).toList();
 
-    /** The sprites under assets/goo/textures/block/ held to the palette: both ground blocks' variants and the iron core. */
-    static final List<String> LUNAR_SPRITES = Stream.concat(GROUND_SPRITES.stream(), Stream.of("iron_core")).toList();
+    /**
+     * The landform blocks' variants, each picked from drafts beside the ground blocks.
+     * decision lunar-repaints-are-picked-from-drafts-on-a-page
+     */
+    static final List<String> LANDFORM_SPRITES = Stream.of("meteoric_iron", "impact_glass", "breccia", "crater_ice")
+            .flatMap(block -> variantsOf(block).stream()).toList();
+
+    /** The sprites under assets/goo/textures/block/ held to the palette: every lunar block's variants. */
+    static final List<String> LUNAR_SPRITES = Stream.of(GROUND_SPRITES.stream(), Stream.of("iron_core"),
+            LANDFORM_SPRITES.stream()).flatMap(sprites -> sprites).toList();
+
+    /** Impact glass and crater ice draw translucent, so their pixels are held to the palette by color alone. */
+    static final List<String> TRANSLUCENT_SPRITES = Stream.of("impact_glass", "crater_ice")
+            .flatMap(block -> variantsOf(block).stream()).toList();
 
     static Stream<String> lunarSprites() {
         return LUNAR_SPRITES.stream();
@@ -78,11 +106,13 @@ class LunarPaletteTest {
     void everyPixelOfTheSpriteIsAPaletteColor(String sprite) throws IOException {
         BufferedImage image = gooBlock(sprite);
         Set<Integer> palette = LUNAR_PALETTE.stream().map(PaletteColor::rgb).collect(Collectors.toSet());
+        boolean translucent = TRANSLUCENT_SPRITES.contains(sprite);
         Set<Integer> offPalette = new TreeSet<>();
         for (int y = 0; y < image.getHeight(); y++) {
             for (int x = 0; x < image.getWidth(); x++) {
                 int argb = storedArgb(image, x, y);
-                if (argb >>> 24 != 0xff || !palette.contains(argb & 0xffffff)) {
+                boolean opaqueAsDrawn = translucent ? argb >>> 24 != 0 : argb >>> 24 == 0xff;
+                if (!opaqueAsDrawn || !palette.contains(argb & 0xffffff)) {
                     offPalette.add(argb);
                 }
             }
