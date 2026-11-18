@@ -109,6 +109,7 @@ public final class SlimeCoreQuads {
         private final float[] firsts;
         private final float[] seconds;
         private final boolean[][] held;
+        private final boolean[][] notched;
 
         /**
          * @param slab the slab the core stands in
@@ -119,12 +120,59 @@ public final class SlimeCoreQuads {
             this.firsts = cutsWithin(inset(plane.first().getOpposite()), WHOLE - inset(plane.first()));
             this.seconds = cutsWithin(inset(plane.second().getOpposite()), WHOLE - inset(plane.second()));
             this.held = new boolean[firsts.length - 1][seconds.length - 1];
+            this.notched = new boolean[firsts.length - 1][seconds.length - 1];
             for (int a = 0; a < held.length; a++) {
                 for (int b = 0; b < held[a].length; b++) {
-                    held[a][b] = roomAt(firsts[a], seconds[b]) || roomAt(firsts[a + 1], seconds[b])
-                            || roomAt(firsts[a], seconds[b + 1]) || roomAt(firsts[a + 1], seconds[b + 1]);
+                    notched[a][b] = inAnInnerCorner(a, b);
+                    held[a][b] = !notched[a][b] && roomAtACorner(a, b);
                 }
             }
+        }
+
+        /**
+         * Whether the slab over any of a patch's corners holds room for the core.
+         *
+         * @param a the patch's index along the first axis
+         * @param b its index along the second
+         * @return true where the core has room at a corner of the patch
+         */
+        private boolean roomAtACorner(int a, int b) {
+            return roomAt(firsts[a], seconds[b]) || roomAt(firsts[a + 1], seconds[b])
+                    || roomAt(firsts[a], seconds[b + 1]) || roomAt(firsts[a + 1], seconds[b + 1]);
+        }
+
+        /**
+         * Whether a patch stands in the margin of a corner the goo's edge
+         * turns in round, where the neighbours' cores stand in from the
+         * block past the corner, so the core is notched there to meet them.
+         * slime-core-slopes-with-the-pile-inside-its-contour
+         *
+         * @param a the patch's index along the first axis
+         * @param b its index along the second
+         * @return true where the core leaves the patch out
+         */
+        private boolean inAnInnerCorner(int a, int b) {
+            Direction alongFirst = marginEdge(firsts, a, plane.first());
+            Direction alongSecond = marginEdge(seconds, b, plane.second());
+            return alongFirst != null && alongSecond != null && slab.turnsInAt(alongFirst, alongSecond);
+        }
+
+        /**
+         * The edge whose margin a patch's span stands in along one axis.
+         *
+         * @param cuts     the cuts along the axis
+         * @param index    the patch's index along it
+         * @param positive the axis's positive edge
+         * @return that edge, or null where the span stands in neither end's margin
+         */
+        private static @Nullable Direction marginEdge(float[] cuts, int index, Direction positive) {
+            if (cuts[index + 1] <= SIDE_MARGIN + ROOM_SLACK) {
+                return positive.getOpposite();
+            }
+            if (cuts[index] >= WHOLE - SIDE_MARGIN - ROOM_SLACK) {
+                return positive;
+            }
+            return null;
         }
 
         /**
@@ -259,8 +307,12 @@ public final class SlimeCoreQuads {
             int besideA = acrossFirst ? a + step : a;
             int besideB = acrossFirst ? b : b + step;
             // slime-core-slopes-with-the-pile-inside-its-contour: inside its plan the core closes onto its floor
-            // where it has no room, so it ends there with no side; a side stands only on its open bound
-            return !inPlan(besideA, besideB) && opensAt(edge);
+            // where it has no room, so it ends there with no side; a side stands on its open bound and round
+            // the notch an inner corner cuts
+            if (inPlan(besideA, besideB)) {
+                return notched[besideA][besideB];
+            }
+            return opensAt(edge);
         }
 
         /**

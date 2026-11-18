@@ -105,6 +105,33 @@ class SlimeCoreQuadsTest {
         }
 
         /**
+         * At the inner corner of a film, a block whose north and east
+         * neighbours hold goo and whose north-east diagonal holds none keeps
+         * its core 2 px in from that corner, as its neighbours' cores stand 2
+         * px in from the empty block, and walls the notch it leaves: an east
+         * side at 14 px along the corner's north 2 px, a north side at 2 px
+         * along its east 2 px, so the core's outline runs on round the corner.
+         * slime-core-slopes-with-the-pile-inside-its-contour
+         * residual-always-draws-a-core-inside-a-one-eighth-margin
+         */
+        @Test
+        void anInnerCornerKeepsTheCoreInsetAndWalled() {
+            SameGooCells film = new SameGooCells().at(0, 0, 0, 1).at(0, 0, -1, 1).at(1, 0, 0, 1);
+            List<BakedQuad> core = coreOf(film);
+            float inner = 1 - SIDE_MARGIN;
+
+            assertTrue(core.stream().noneMatch(quad -> quad.direction().getAxis().isVertical() && allCorners(quad,
+                            at -> at.x() > inner - EPSILON && at.z() < SIDE_MARGIN + EPSILON)),
+                    "no core top or floor should stand in the corner's 2 px square");
+            assertTrue(core.stream().anyMatch(quad -> quad.direction() == Direction.EAST
+                            && allCorners(quad, at -> Math.abs(at.x() - inner) < EPSILON && at.z() < SIDE_MARGIN + EPSILON)),
+                    "the core should wall the notch with an east side at 14 px");
+            assertTrue(core.stream().anyMatch(quad -> quad.direction() == Direction.NORTH
+                            && allCorners(quad, at -> Math.abs(at.z() - SIDE_MARGIN) < EPSILON && at.x() > inner - EPSILON)),
+                    "the core should wall the notch with a north side at 2 px");
+        }
+
+        /**
          * A block of 1 alone keeps a core under its middle, where the slope leaves it room.
          * residual-always-draws-a-core-inside-a-one-eighth-margin
          */
@@ -303,7 +330,8 @@ class SlimeCoreQuadsTest {
         /**
          * A pile of Goop, a cone of blocks on stone with column tops over its
          * full middle: no block's core draws a side anywhere but its own outer
-         * bound, 2 px in from a side no goo continues past, so no wall stands
+         * bound, 2 px in from a side no goo continues past or round the notch
+         * at a corner the pile's edge turns in round, so no wall stands
          * inside the pile.
          * slime-core-slopes-with-the-pile-inside-its-contour
          */
@@ -361,11 +389,19 @@ class SlimeCoreQuadsTest {
                 float plane = face.getAxis() == Direction.Axis.X ? middleOf(quad).x() : middleOf(quad).z();
                 float bound = face.getAxisDirection() == Direction.AxisDirection.POSITIVE ? 1 - SIDE_MARGIN
                         : SIDE_MARGIN;
-                if (!top.rims().contains(face) || Math.abs(plane - bound) > EPSILON) {
+                if (!(top.rims().contains(face) || notchesAt(top, face)) || Math.abs(plane - bound) > EPSILON) {
                     inside.add(block + " " + face + " at " + plane);
                 }
             }
             return inside;
+        }
+
+        /** Whether the floor slab's goo turns in round a corner on a side, where the core walls a notch. */
+        private boolean notchesAt(SlimeTop top, Direction face) {
+            if (face.getAxis() == Direction.Axis.X) {
+                return top.turnsInAt(face, Direction.NORTH) || top.turnsInAt(face, Direction.SOUTH);
+            }
+            return top.turnsInAt(Direction.EAST, face) || top.turnsInAt(Direction.WEST, face);
         }
     }
 
