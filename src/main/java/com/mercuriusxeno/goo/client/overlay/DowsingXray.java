@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.overlay;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.block.ability.CellSurface;
+import com.mercuriusxeno.goo.block.ability.GooShares;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mojang.blaze3d.opengl.GlStateManager;
@@ -202,14 +203,15 @@ public final class DowsingXray {
             for (int sz = low.z(); sz <= high.z(); sz++) {
                 ChunkAccess chunk = level.getChunk(sx, sz, ChunkStatus.FULL, false);
                 if (chunk != null) {
-                    lensesInChunk(chunk, low.y(), high.y(), lenses);
+                    lensesInChunk(level, chunk, low.y(), high.y(), lenses);
                 }
             }
         }
         return lenses;
     }
 
-    private static void lensesInChunk(ChunkAccess chunk, int lowY, int highY, List<DowsingLens.Lens> lenses) {
+    private static void lensesInChunk(Level level, ChunkAccess chunk, int lowY, int highY,
+                                      List<DowsingLens.Lens> lenses) {
         for (int sy = Math.max(lowY, chunk.getMinSectionY()); sy <= Math.min(highY, chunk.getMaxSectionY()); sy++) {
             LevelChunkSection section = chunk.getSection(chunk.getSectionIndexFromSectionY(sy));
             if (section.hasOnlyAir() || !section.getStates().maybeHas(DowsingXray::isLens)) {
@@ -217,22 +219,30 @@ public final class DowsingXray {
             }
             BlockPos base = new BlockPos(chunk.getPos().getMinBlockX(), SectionPos.sectionToBlockCoord(sy),
                     chunk.getPos().getMinBlockZ());
-            lensesInSection(section, base, lenses);
+            lensesInSection(level, section, base, lenses);
         }
     }
 
-    private static void lensesInSection(LevelChunkSection section, BlockPos base, List<DowsingLens.Lens> lenses) {
+    private static void lensesInSection(Level level, LevelChunkSection section, BlockPos base,
+                                        List<DowsingLens.Lens> lenses) {
         for (int x = 0; x < SECTION_SIZE; x++) {
             for (int y = 0; y < SECTION_SIZE; y++) {
                 for (int z = 0; z < SECTION_SIZE; z++) {
                     BlockState state = section.getBlockState(x, y, z);
                     if (isLens(state)) {
-                        int layers = VolumeCellBlock.layersOf(state);
-                        lenses.add(new DowsingLens.Lens(gooOf(base.offset(x, y, z), layers), layers));
+                        lensesOfCell(level, base.offset(x, y, z), state, lenses);
                     }
                 }
             }
         }
+    }
+
+    // One lens for each box of the cell's goo, each reaching as far past the goo as the cell holds layers.
+    private static void lensesOfCell(Level level, BlockPos cell, BlockState state, List<DowsingLens.Lens> lenses) {
+        VolumeCellBlock block = (VolumeCellBlock) state.getBlock();
+        GooShares shares = VolumeCellBlock.sharesOf(state, block.onAFloor(level, cell), block.cohesionIn(level));
+        int layers = VolumeCellBlock.layersOf(state);
+        gooOf(cell, shares).forEach(goo -> lenses.add(new DowsingLens.Lens(goo, layers)));
     }
 
     private static boolean isLens(BlockState state) {
@@ -240,16 +250,17 @@ public final class DowsingXray {
     }
 
     /**
-     * The goo a cell holds, in world coordinates: a full block across, its
-     * layers' fifteenths of a block high.
+     * The goo a cell holds, in world coordinates, where the cell draws it: a
+     * slab on each wall or ceiling it hangs from and a fill on its floor.
+     * dowsing-goo-is-a-window-onto-the-ore-behind-it
+     * attached-goo-draws-per-attachment-and-divides-its-volume
      *
      * @param cell   the cell
-     * @param layers the layers it holds
-     * @return its goo's box
+     * @param shares how the cell's volume divides between its surfaces
+     * @return its goo's boxes
      */
-    private static AABB gooOf(BlockPos cell, int layers) {
-        return new AABB(cell.getX(), cell.getY(), cell.getZ(), cell.getX() + 1,
-                cell.getY() + (double) layers / VolumeCellBlock.MAX_LAYERS, cell.getZ() + 1);
+    static List<AABB> gooOf(BlockPos cell, GooShares shares) {
+        return VolumeCellBlock.boxOf(shares).toAabbs().stream().map(box -> box.move(cell)).toList();
     }
 
     /** A box's six faces, each wound to face outward so culling keeps only the faces toward the eye. */
