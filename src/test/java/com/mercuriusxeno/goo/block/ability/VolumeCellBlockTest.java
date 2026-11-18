@@ -608,6 +608,32 @@ class VolumeCellBlockTest {
     }
 
     /**
+     * A broken Infest cell gives back nether goo, each layer a fifteenth of
+     * Infest's cost as nether_infest.json ships it.
+     * infest-is-nethers-goo-the-decay-effect-localized-around-the-goo
+     */
+    @Nested
+    class InfestReclaim {
+
+        private static final int LAYERS = 8;
+
+        @Test
+        void infestIsNetherGooLaidByNethersInfest() {
+            assertEquals(List.of(GooTypes.NETHER, AbilityJson.idOf("nether_infest.json")),
+                    List.of(CellBinding.INFEST.gooType(), CellBinding.INFEST.layingAbility()));
+        }
+
+        @Test
+        void aBrokenInfestCellDropsNetherGooAtFifteenthsOfInfestsCost() {
+            GooFraction cost = AbilityJson.decode("nether_infest").cost().exactIn(GooValueTable.EMPTY);
+
+            assertEquals(Optional.of(new VolumeCellBlock.Reclaim(GooTypes.NETHER,
+                            cost.times(LAYERS).dividedBy(FIFTEEN).floor())),
+                    VolumeCellBlock.reclaimedBy(CellBinding.INFEST, LAYERS, cost));
+        }
+    }
+
+    /**
      * A broken Vines cell gives back leaf goo, each layer a fifteenth of
      * Vines' cost as leaf_vines.json ships it.
      * vines-is-sprayed-slime-that-entangles-what-tries-to-cross
