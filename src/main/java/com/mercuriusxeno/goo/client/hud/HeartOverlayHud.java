@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.hearts.HeartKind;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
 import com.mercuriusxeno.goo.ability.reserve.Reserve;
+import com.mercuriusxeno.goo.ability.xeno.EldritchEvents;
 import com.mercuriusxeno.goo.client.fade.Afterglow;
 import com.mercuriusxeno.goo.client.fade.Afterglows;
 import com.mercuriusxeno.goo.registry.GooAttachments;
@@ -49,6 +50,9 @@ import java.util.Optional;
  * effect ends, or another heart effect replaces it, the overlay last drawn
  * lingers and fades over a second
  * (decision brew-effect-visuals-linger-and-fade-over-a-second-after-the-effect-ends).
+ * While the player stands out of phase, its hearts draw blue and see-through
+ * over everything else, so a phased player can tell in first person
+ * (decision phased-things-draw-as-a-ghostly-image).
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class HeartOverlayHud {
@@ -72,6 +76,8 @@ public final class HeartOverlayHud {
     private static final Identifier ZOMBIE_HALF = sprite("zombie_half");
     private static final Identifier RESERVE_FULL = sprite("reserve_full");
     private static final Identifier RESERVE_HALF = sprite("reserve_half");
+    private static final Identifier PHASED_FULL = sprite("phased_full");
+    private static final Identifier PHASED_HALF = sprite("phased_half");
     /** Vanilla's red half heart, the health a travelling half leaves the bar as. */
     private static final Identifier HEALTH_HALF = Identifier.withDefaultNamespace("hud/heart/half");
     /** Pixels a reserve heart sits above, and right of, the health heart in front of it. */
@@ -142,6 +148,7 @@ public final class HeartOverlayHud {
                 float partialTick = deltaTracker.getGameTimeDeltaPartialTick(false);
                 paintOver(graphics, mc.gui, player, leftHeightBefore, partialTick);
                 paintTravels(graphics, mc.gui, player, leftHeightBefore, partialTick);
+                paintPhased(graphics, mc.gui, player, leftHeightBefore);
             }
         };
     }
@@ -181,6 +188,42 @@ public final class HeartOverlayHud {
             graphics.blitSprite(RenderPipelines.GUI_TEXTURED, HEALTH_HALF, x, y, HEART_SIZE, HEART_SIZE, 1f - progress);
             graphics.blitSprite(RenderPipelines.GUI_TEXTURED, RESERVE_HALF, x, y, HEART_SIZE, HEART_SIZE, progress);
         }
+    }
+
+    /**
+     * Paints a phased player's present hearts blue and see-through, over
+     * whatever vanilla and the other overlays drew.
+     * phased-things-draw-as-a-ghostly-image
+     *
+     * @param graphics         the gui graphics
+     * @param gui              the gui
+     * @param player           the local player
+     * @param leftHeightBefore the gui's left stack height before vanilla drew health
+     */
+    private static void paintPhased(GuiGraphicsExtractor graphics, Gui gui, LocalPlayer player, int leftHeightBefore) {
+        if (!EldritchEvents.isOutOfPhase(player)) {
+            return;
+        }
+        BarLayout layout = layout(graphics, gui, player, leftHeightBefore);
+        int health = Mth.ceil(player.getHealth());
+        for (int slot = 0; slot * HALF < health; slot++) {
+            int at = slot;
+            phasedSprite(Math.min(HALF, health - slot * HALF)).ifPresent(phased -> graphics.blitSprite(
+                    RenderPipelines.GUI_TEXTURED, phased, layout.x(at), layout.y(at), HEART_SIZE, HEART_SIZE));
+        }
+    }
+
+    /**
+     * The phased heart a slot of real health draws.
+     *
+     * @param realHalves the half hearts of real health in the slot
+     * @return the whole or half phased heart, empty for an empty slot
+     */
+    static Optional<Identifier> phasedSprite(int realHalves) {
+        if (realHalves >= HALF) {
+            return Optional.of(PHASED_FULL);
+        }
+        return realHalves > 0 ? Optional.of(PHASED_HALF) : Optional.empty();
     }
 
     /**
