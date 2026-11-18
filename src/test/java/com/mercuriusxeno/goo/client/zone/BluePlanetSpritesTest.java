@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.zone;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -16,8 +17,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Covers the blue planet's eight hand-drawn phase sprites, each read through the classpath as the 8x8 texels it
  * ships, as basic as the moon's face: a square of the overworld's sea and land filling the sprite, lit on the side its
- * phase lights, its unlit part still drawn, darkened.
+ * phase lights, its unlit part black, which the sky's additive draw shows as nothing.
  * decision planet-face-is-eight-hand-drawn-phase-sprites
+ * decision unlit-part-of-the-blue-planet-draws-nothing
  */
 class BluePlanetSpritesTest {
 
@@ -27,6 +29,9 @@ class BluePlanetSpritesTest {
     private static final int ALPHA_SHIFT = 24;
     private static final int RED_SHIFT = 16;
     private static final int GREEN_SHIFT = 8;
+    private static final int RGB = 0xFFFFFF;
+    /** The outline the unlit part once drew round the planet, as vanilla keeps one round its new moon. */
+    private static final int OUTLINE = 0x282E3A;
 
     private static BufferedImage read(String phase) throws IOException {
         String path = SPRITES + phase + ".png";
@@ -108,14 +113,29 @@ class BluePlanetSpritesTest {
         assertTrue(meanBrightness(discTexels(waxing, false)) > meanBrightness(discTexels(waxing, true)));
     }
 
-    @Test
-    void theUnlitHalfIsDrawnDarkerThanTheLitHalf() throws IOException {
-        BufferedImage waning = read("third_quarter");
-        List<Integer> unlit = discTexels(waning, false);
-        List<Integer> lit = discTexels(waning, true);
-        assertTrue(unlit.size() > TEXELS, "the unlit half draws " + unlit.size() + " texels of the disc");
-        int brightestUnlit = unlit.stream().mapToInt(BluePlanetSpritesTest::brightness).max().orElse(0);
-        assertTrue(brightestUnlit < meanBrightness(lit),
-                "the unlit half's brightest texel " + brightestUnlit + " should sit under the lit half's mean");
+    /**
+     * Each phase's unlit columns, counted from the side its phase darkens, and that side: the waxing phases dark on
+     * the left, the waning on the right.
+     * decision unlit-part-of-the-blue-planet-draws-nothing
+     *
+     * @param phase       the phase's sprite
+     * @param unlitWidth  the columns its unlit part spans
+     * @param darkOnLeft  whether the unlit part stands on the left
+     */
+    @ParameterizedTest
+    @CsvSource({"full, 0, true", "waning_gibbous, 2, false", "third_quarter, 4, false", "waning_crescent, 6, false",
+        "new, 8, true", "waxing_crescent, 6, true", "first_quarter, 4, true", "waxing_gibbous, 2, true"})
+    void theUnlitPartDrawsBlackAndTheLitPartKeepsItsFace(String phase, int unlitWidth, boolean darkOnLeft)
+            throws IOException {
+        BufferedImage sprite = read(phase);
+        for (int y = 0; y < TEXELS; y++) {
+            for (int x = 0; x < TEXELS; x++) {
+                int argb = sprite.getRGB(x, y);
+                boolean unlit = darkOnLeft ? x < unlitWidth : x >= TEXELS - unlitWidth;
+                String at = String.format("%s (%d, %d) holds #%06x", phase, x, y, argb & RGB);
+                assertTrue(unlit ? brightness(argb) == 0 : brightness(argb) > 0, at);
+                assertTrue((argb & RGB) != OUTLINE, at + ", the outline vanilla keeps round its new moon");
+            }
+        }
     }
 }
