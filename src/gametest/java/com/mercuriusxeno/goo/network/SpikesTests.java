@@ -57,12 +57,12 @@ public final class SpikesTests {
     private static final int LANE_EAST = 5;
     /** The Spikes cell's offset east of the lane's start, sunk in the lane so its top lies flush with the stone. */
     private static final int CELL_EAST = 2;
-    private static final String SPIKES_IMPALE_A_STANDER = "spikes_impale_a_player_standing_still_on_them";
-    /** The standing player's cell, sunk in stone in the middle of the bay. */
+    private static final String SPIKES_IMPALE_A_PLAYER = "spikes_impale_a_player_on_them";
+    /** The player's cell, sunk in stone in the middle of the bay. */
     private static final BlockPos STAND_FLOOR = new BlockPos(2, 1, 3);
-    /** Ticks the player stands still on the goo: past a joining player's 60 ticks of spawn immunity, and a cooldown more. */
-    private static final int STANDING_TICKS = 100;
-    private static final String NOT_IMPALED_STANDING = "A player standing still on a full Spikes cell for %d ticks"
+    /** Ticks the player stands on the goo: past a joining player's 60 ticks of spawn immunity, and a cooldown more. */
+    private static final int PLAYER_TICKS = 100;
+    private static final String NOT_IMPALED_PLAYER = "A player on a full Spikes cell for %d ticks"
             + " should have lost at least %.2f health: %.2f at the start, %.2f now";
     private static final String SPIKES_SPARE_THEIR_SPRAYER = "spikes_spare_the_player_who_sprayed_them";
     private static final String SPRAYER_HURT = "The player who sprayed the Spikes goo should stand on it unhurt for %d"
@@ -87,8 +87,8 @@ public final class SpikesTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, SPIKES_DRIP_LAYS_A_CELL, SpikesTests::spikesDripLaysAMetalCellOfOneLayer);
         GooTestFunctions.registerTest(registrar, SPIKES_IMPALE_A_WALKER, SpikesTests::spikesImpaleAZombieWalkingAcrossThem);
-        GooTestFunctions.registerTest(registrar, SPIKES_IMPALE_A_STANDER,
-                SpikesTests::spikesImpaleAPlayerStandingStillOnThem);
+        GooTestFunctions.registerTest(registrar, SPIKES_IMPALE_A_PLAYER,
+                SpikesTests::spikesImpaleAPlayerOnThem);
         GooTestFunctions.registerTest(registrar, SPIKES_SPARE_THEIR_SPRAYER,
                 SpikesTests::spikesSpareThePlayerWhoSprayedThem);
         GooTestFunctions.registerTest(registrar, SPIKES_STRIKE_WITH_NO_TICK,
@@ -150,63 +150,69 @@ public final class SpikesTests {
     }
 
     /**
-     * A survival player stands still on a full Spikes cell sunk in stone, sending no
-     * movement, as a player standing in the game does between its client's
-     * moves; after a while past the strike's cooldown its health reads lower
-     * than it started by at least the strike's damage, so the goo impales
-     * what stands on it as well as what walks.
+     * A survival player on a full Spikes cell sunk in stone, ticked as its
+     * connection ticks it; once past spawn immunity its health reads lower
+     * than it started by at least the strike's damage, so the cell's step
+     * reaches a player. The sprayer test below stands its player the same
+     * way, so this one shows its pass is no empty one.
+     * spikes-is-a-coat-of-metal-goo-that-impales-what-walks-on-it
      *
      * @param helper the gametest helper
      */
-    @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
-    public static void spikesImpaleAPlayerStandingStillOnThem(GameTestHelper helper) {
+    public static void spikesImpaleAPlayerOnThem(GameTestHelper helper) {
         AbilityDefinition spikes = AbilityRegistry.of(helper.getLevel()).getAbility(SPIKES);
         helper.assertTrue(spikes != null, ABILITY_REQUIRED);
         float strikeDamage = strikeDamageOf(spikes);
-        BlockPos cell = STAND_FLOOR;
-        sinkInStone(helper, cell);
-        helper.setBlock(cell, GooBlocks.METAL_SPIKES.get().defaultBlockState()
-                .setValue(VolumeCellBlock.LAYERS, VolumeCellBlock.MAX_LAYERS));
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
-        player.setGameMode(GameType.SURVIVAL);
-        Vec3 onTheGoo = Vec3.atBottomCenterOf(helper.absolutePos(cell.above()));
-        player.setPos(onTheGoo.x, onTheGoo.y, onTheGoo.z);
+        ServerPlayer player = playerOnACell(helper);
         float started = player.getHealth();
-        helper.runAfterDelay(STANDING_TICKS, () -> {
+        helper.runAfterDelay(PLAYER_TICKS, () -> {
             float now = player.getHealth();
             helper.getLevel().getServer().getPlayerList().remove(player);
             helper.assertTrue(now <= started - strikeDamage,
-                    String.format(NOT_IMPALED_STANDING, STANDING_TICKS, strikeDamage, started, now));
+                    String.format(NOT_IMPALED_PLAYER, PLAYER_TICKS, strikeDamage, started, now));
             helper.succeed();
         });
     }
 
     /**
-     * The survival player who sprayed a full Spikes cell stands still on it
-     * past spawn immunity and several cooldowns and keeps every point of
-     * health: the goo never hurts the player who sprayed it.
+     * The survival player who sprayed a full Spikes cell stands on it, ticked
+     * as its connection ticks it, past spawn immunity and several cooldowns and keeps every point
+     * of health: the goo never hurts the player who sprayed it.
      * operator ruling 2026-11-17: an ability never attacks its caster
      *
      * @param helper the gametest helper
      */
-    @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
     public static void spikesSpareThePlayerWhoSprayedThem(GameTestHelper helper) {
-        BlockPos cell = STAND_FLOOR;
-        sinkInStone(helper, cell);
-        helper.setBlock(cell, GooBlocks.METAL_SPIKES.get().defaultBlockState()
+        ServerPlayer player = playerOnACell(helper);
+        CellPlacers.of(helper.getLevel()).place(helper.absolutePos(STAND_FLOOR), player.getUUID());
+        float started = player.getHealth();
+        helper.runAfterDelay(PLAYER_TICKS, () -> {
+            float now = player.getHealth();
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            helper.assertTrue(now >= started, String.format(SPRAYER_HURT, PLAYER_TICKS, started, now));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A survival player on a full Spikes cell sunk in stone, ticked each
+     * tick as its connection ticks a joined player, which runs its block
+     * effects and so the cell's step.
+     *
+     * @param helper the gametest helper
+     * @return the player
+     */
+    @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
+    private static ServerPlayer playerOnACell(GameTestHelper helper) {
+        sinkInStone(helper, STAND_FLOOR);
+        helper.setBlock(STAND_FLOOR, GooBlocks.METAL_SPIKES.get().defaultBlockState()
                 .setValue(VolumeCellBlock.LAYERS, VolumeCellBlock.MAX_LAYERS));
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         player.setGameMode(GameType.SURVIVAL);
-        CellPlacers.of(helper.getLevel()).place(helper.absolutePos(cell), player.getUUID());
-        Vec3 onTheGoo = Vec3.atBottomCenterOf(helper.absolutePos(cell.above()));
+        Vec3 onTheGoo = Vec3.atBottomCenterOf(helper.absolutePos(STAND_FLOOR.above()));
         player.setPos(onTheGoo.x, onTheGoo.y, onTheGoo.z);
-        float started = player.getHealth();
-        helper.runAfterDelay(STANDING_TICKS, () -> {
-            float now = player.getHealth();
-            helper.getLevel().getServer().getPlayerList().remove(player);
-            helper.assertTrue(now >= started, String.format(SPRAYER_HURT, STANDING_TICKS, started, now));
-            helper.succeed();
-        });
+        helper.onEachTick(player::doTick);
+        return player;
     }
 
     /**
