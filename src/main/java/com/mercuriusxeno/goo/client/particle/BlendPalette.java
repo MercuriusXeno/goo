@@ -120,6 +120,14 @@ public record BlendPalette(float lightRed, float lightGreen, float lightBlue,
             0x9A / 255f, 0x4E / 255f, 0x4E / 255f, 0x65 / 255f, 0x28 / 255f, 0x28 / 255f);
 
     /**
+     * Mortar's spray drips, from rock's bright gray, B4B6B8, to its wheel
+     * brown, 7A5C44, the two the rock goo type's definition names.
+     * mortar-is-rocks-residual-a-petrification-and-hardening-goo
+     */
+    public static final BlendPalette MORTAR_ROCK_GRAYS = new BlendPalette(
+            0xB4 / 255f, 0xB6 / 255f, 0xB8 / 255f, 0x7A / 255f, 0x5C / 255f, 0x44 / 255f);
+
+    /**
      * The color a share of the way from the light end to the dark.
      *
      * @param blend the share, 0 at the light end and 1 at the dark
