@@ -1,0 +1,23 @@
+{
+  "gooType": "nether",
+  "displayName": "goo.ability.nether.infest",
+  "cost_mechanics": "goo.ability.nether.infest.cost_mechanics",
+  "badge": "residual",
+  "order": 30,
+  "cost": 96,
+  "cost_formula": "%s/m³",
+  "delivery": {
+    "kind": "stream",
+    "drains_on_placement": true,
+    "throw_speed": 0.84,
+    "drips_per_tick": 1,
+    "cone": 16,
+    "ticks_per_charge": 20,
+    "particle": "goo:infest_spray_drip",
+    "sound": { "id": "minecraft:block.honey_block.slide", "every": 10, "volume": 1.0, "pitch": 1.0, "pitch_spread": 0.1 }
+  },
+  "behaviors": [
+    { "type": "infest", "map": "goo:decay", "gnaw_ticks": 20, "damage": 2, "deplete_chance": 0.1 }
+  ],
+  "tags": ["stream"]
+}

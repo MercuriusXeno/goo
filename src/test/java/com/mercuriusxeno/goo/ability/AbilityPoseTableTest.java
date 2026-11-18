@@ -68,6 +68,7 @@ class AbilityPoseTableTest {
             Map.entry("metal_magnet", ArmPose.HELD_UP),
             Map.entry("metal_spikes", ArmPose.HELD_OUT),
             Map.entry("nether_decay", ArmPose.HELD_OUT),
+            Map.entry("nether_infest", ArmPose.HELD_OUT),
             Map.entry("nether_tartarus", ArmPose.HELD_OUT),
             Map.entry("nether_undead", ArmPose.HELD_UP),
             Map.entry("pulse_signal", ArmPose.HELD_OUT),
