@@ -40,14 +40,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class CostMechanicsTest {
 
     private static final int MUNDANE_BLOCK_ROCK = 7;
-    private static final String SPIRE_PER_BLOCK_FORMULA = MUNDANE_BLOCK_ROCK + "/m³";
+    private static final String BUILD_PER_BLOCK_FORMULA = MUNDANE_BLOCK_ROCK + "/m³";
     private static final int NO_HOLDINGS = 0;
     private static final int NO_REAGENTS = 0;
 
     private static final Map<String, String> LANG = Map.of(
             "goo.ability.cost_mechanics.upkeep", "%s a second",
             "goo.ability.ender.blink.cost_mechanics", "%s per block, %s through a wall, %s percent to an oculus",
-            "goo.ability.rock.spire.cost_mechanics", "%s per block raised");
+            "goo.ability.rock.build.cost_mechanics", "%s per block raised");
 
     private static final IGooValueLookup VALUES = GooValueTable.ofEffectiveValues(Map.of(), new PrefabValues(Map.of(),
             Map.of("mundane_block", new GooValue(Map.of(GooTypes.ROCK, MUNDANE_BLOCK_ROCK)))));
@@ -129,20 +129,20 @@ class CostMechanicsTest {
     }
 
     /**
-     * Spire's cost is its price per block grown, so the petal and the crosshair panel read its per-block formula and
+     * Build's cost is its price per block grown, so the petal and the crosshair panel read its per-block formula and
      * its cost mechanics name the per-block mB, never that mB as a flat total.
      * decision spire-cost-field-prices-each-cubic-meter-of-stone-at-mundane-block
      * decision dynamic-costs-keep-the-mb-quantity
      */
     @Test
-    void spireReadsItsPerBlockPriceOnThePetalThePanelAndItsCostMechanics() {
+    void buildReadsItsPerBlockPriceOnThePetalThePanelAndItsCostMechanics() {
         standing = ClientGooValues.readFrom(() -> VALUES);
-        ClientAbility spire = clientOf(AbilityJson.decode("rock_spire"));
+        ClientAbility build = clientOf(AbilityJson.decode("rock_build"));
 
-        assertTrue(spire.pricedDynamically());
-        assertEquals(SPIRE_PER_BLOCK_FORMULA, spire.petalLabel(NO_HOLDINGS, NO_REAGENTS));
-        assertEquals(SPIRE_PER_BLOCK_FORMULA, spire.costLabel());
-        assertTrue(textOf("rock_spire").contains(MUNDANE_BLOCK_ROCK + " per block raised"), textOf("rock_spire"));
+        assertTrue(build.pricedDynamically());
+        assertEquals(BUILD_PER_BLOCK_FORMULA, build.petalLabel(NO_HOLDINGS, NO_REAGENTS));
+        assertEquals(BUILD_PER_BLOCK_FORMULA, build.costLabel());
+        assertTrue(textOf("rock_build").contains(MUNDANE_BLOCK_ROCK + " per block raised"), textOf("rock_build"));
     }
 
     /**

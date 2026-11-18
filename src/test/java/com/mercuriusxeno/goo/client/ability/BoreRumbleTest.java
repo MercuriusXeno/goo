@@ -9,7 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Bore plays two of Spire's rumbles: a quiet ambient whir while held, and a
+ * Bore plays two of Build's rumbles: a quiet ambient whir while held, and a
  * louder rumble while it is making progress destroying blocks
  * (decision bore-loops-spires-earth-rumble).
  */

@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.client.overlay;
 
-import com.mercuriusxeno.goo.ability.SpireFootprint;
+import com.mercuriusxeno.goo.ability.BuildFootprint;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.LineContext;
@@ -25,17 +25,17 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Draws Spire's preview in place of a wireframe: the ripple echo, the face
+ * Draws Build's preview in place of a wireframe: the ripple echo, the face
  * bullseye's RippleRings grown across the footprint, each ring a glowing
  * rectangle scaled from the footprint's center out to its edge in the goo
  * type's color, fading as it grows, over a steady outline of that edge; and, once the footprint is fixed and the
- * rise is being set, ghost stone, the stone Spire grows drawn translucent and
+ * rise is being set, ghost stone, the stone Build grows drawn translucent and
  * full bright through the moving-block shader, only its outer faces, each
  * also drawn facing in, so it reads as one solid ghost with no seams between
  * its blocks, from outside or from within the footprint.
  * decision spire-previews-as-a-surface-ripple-and-ghost-stone
  */
-final class SpirePreviewRenderer {
+final class BuildPreviewRenderer {
 
     /** A ring's alpha at its birth, out of 255, the face bullseye's own. */
     static final int RING_PEAK_ALPHA = 160;
@@ -45,11 +45,11 @@ final class SpirePreviewRenderer {
     static final int GHOST_ALPHA = 150;
     /** How far the ghost stone leans toward the goo type's color, 0 for plain stone. */
     static final float GHOST_TINT = 0.35f;
-    /** The stone Spire grows, which the ghost draws. */
+    /** The stone Build grows, which the ghost draws. */
     private static final BlockState STONE = Blocks.STONE.defaultBlockState();
     private static final float WHITE = 255f;
 
-    private SpirePreviewRenderer() {
+    private BuildPreviewRenderer() {
     }
 
     /**
@@ -63,23 +63,23 @@ final class SpirePreviewRenderer {
      * @param rgb        the goo type's highlight color
      * @param nowSeconds the real-time clock the rings run on
      */
-    static void render(PoseStack ps, MultiBufferSource.BufferSource buf, Vec3 camPos, SpireFootprint footprint,
+    static void render(PoseStack ps, MultiBufferSource.BufferSource buf, Vec3 camPos, BuildFootprint footprint,
                        boolean rising, int rgb, double nowSeconds) {
         drawRings(ps, buf, camPos, footprint, rgb, nowSeconds);
         if (rising) {
-            drawGhostStone(Minecraft.getInstance(), ps, buf, camPos, SpirePreview.ghostCells(footprint), rgb);
+            drawGhostStone(Minecraft.getInstance(), ps, buf, camPos, BuildPreview.ghostCells(footprint), rgb);
         }
     }
 
     private static void drawRings(PoseStack ps, MultiBufferSource.BufferSource buf, Vec3 camPos,
-                                  SpireFootprint footprint, int rgb, double nowSeconds) {
+                                  BuildFootprint footprint, int rgb, double nowSeconds) {
         float width = Minecraft.getInstance().getWindow().getAppropriateLineWidth();
         LineContext lines = new LineContext(ps.last(), buf.getBuffer(GooRenderTypes.LINES_GLOW));
-        lines.emitPolyline(camPos, SpirePreview.edgeOutline(footprint), ARGB.color(EDGE_ALPHA, rgb), width);
+        lines.emitPolyline(camPos, BuildPreview.edgeOutline(footprint), ARGB.color(EDGE_ALPHA, rgb), width);
         for (double phase : RippleRings.ringPhases(nowSeconds)) {
             int alpha = (int) (RING_PEAK_ALPHA * RippleRings.ringOpacity(phase));
             if (RippleRings.isAlive(phase) && alpha > 0) {
-                lines.emitPolyline(camPos, SpirePreview.ringCorners(footprint, phase), ARGB.color(alpha, rgb), width);
+                lines.emitPolyline(camPos, BuildPreview.ringCorners(footprint, phase), ARGB.color(alpha, rgb), width);
             }
         }
         buf.endBatch(GooRenderTypes.LINES_GLOW);
@@ -98,10 +98,10 @@ final class SpirePreviewRenderer {
         for (BlockPos cell : cells) {
             List<BlockStateModelPart> parts = new ArrayList<>();
             model.collectParts(mc.level, cell, STONE, RandomSource.create(STONE.getSeed(cell)), parts);
-            for (Direction side : SpirePreview.outerFaces(cell, all)) {
-                drawFace(ps, consumer, look, parts, new SpirePreview.Face(cell, side), camPos);
+            for (Direction side : BuildPreview.outerFaces(cell, all)) {
+                drawFace(ps, consumer, look, parts, new BuildPreview.Face(cell, side), camPos);
             }
-            for (SpirePreview.Face inward : SpirePreview.inwardFaces(cell, all)) {
+            for (BuildPreview.Face inward : BuildPreview.inwardFaces(cell, all)) {
                 drawFace(ps, consumer, look, parts, inward, camPos);
             }
         }
@@ -109,7 +109,7 @@ final class SpirePreviewRenderer {
     }
 
     private static void drawFace(PoseStack ps, VertexConsumer consumer, QuadInstance look,
-                                 List<BlockStateModelPart> parts, SpirePreview.Face face, Vec3 camPos) {
+                                 List<BlockStateModelPart> parts, BuildPreview.Face face, Vec3 camPos) {
         ps.pushPose();
         ps.translate(face.cell().getX() - camPos.x, face.cell().getY() - camPos.y, face.cell().getZ() - camPos.z);
         for (BlockStateModelPart part : parts) {
