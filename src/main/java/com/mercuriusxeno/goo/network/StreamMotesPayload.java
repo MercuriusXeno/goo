@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.throwing.ConvergingCone;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
@@ -31,9 +32,12 @@ import org.jspecify.annotations.NonNull;
  * @param strikesLiving whether a drawn drip ends on a living thing it meets, as the server's drip does
  * @param held        the hold's tick the drips were thrown on, which seeds their places in the cone
  * @param drips       the drips the server threw this tick, each drawn on its own arc; 0 for motes off the arc
+ * @param eye         the caster's eye the drips' cone centers from, the apex for motes off the arc
+ * @param lands       how far from the eye the drips' cone lands, in blocks; 0 for motes off the arc
  */
 public record StreamMotesPayload(int casterId, Vec3 apex, Vec3 axis, Identifier particle, double coneDegrees,
-                                 double speed, double throwSpeed, boolean strikesLiving, int held, int drips)
+                                 double speed, double throwSpeed, boolean strikesLiving, int held, int drips,
+                                 Vec3 eye, double lands)
         implements CustomPacketPayload {
 
     /** Payload type ID for registration. */
@@ -52,7 +56,19 @@ public record StreamMotesPayload(int casterId, Vec3 apex, Vec3 axis, Identifier 
             ByteBufCodecs.BOOL, StreamMotesPayload::strikesLiving,
             ByteBufCodecs.VAR_INT, StreamMotesPayload::held,
             ByteBufCodecs.VAR_INT, StreamMotesPayload::drips,
+            Vec3.STREAM_CODEC, StreamMotesPayload::eye,
+            ByteBufCodecs.DOUBLE, StreamMotesPayload::lands,
             StreamMotesPayload::new);
+
+    /**
+     * The cone the server's drips this tick converge on, which the drawn drips converge on too.
+     * residual-spray-cone-centers-on-the-look-from-the-blob
+     *
+     * @return the cone
+     */
+    public ConvergingCone cone() {
+        return new ConvergingCone(eye, axis, lands);
+    }
 
     @Override
     public @NonNull Type<? extends CustomPacketPayload> type() {

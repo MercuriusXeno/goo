@@ -52,6 +52,30 @@ class GloveThrowSenderTest {
     }
 
     /**
+     * A held spray's tick tells the server its drips leave the lifted blob,
+     * where the drawn drips leave; any other held cast's tick keeps the glove.
+     * residual-spray-cone-centers-on-the-look-from-the-blob
+     */
+    @Nested
+    class SprayTicksLeaveTheBlob {
+
+        private final Vec3 blob = new Vec3(0.2, 65.1, 0.7);
+        private final Vec3 glove = new Vec3(0.4, 64.9, 0.6);
+
+        @Test
+        void aSprayTickSendsTheBlobAsItsOrigin() {
+            assertEquals(blob, GloveThrowSender.heldTickOrigin(AbilityJson.decode("weird_goop").delivery(), blob,
+                    glove), "a held Goop tick should send the blob its drips leave");
+        }
+
+        @Test
+        void aHeldTickThrowingNoDripsSendsTheGlove() {
+            assertEquals(glove, GloveThrowSender.heldTickOrigin(AbilityJson.decode("nether_decay").delivery(), blob,
+                    glove), "a held Decay tick should send the glove its cone opens from");
+        }
+    }
+
+    /**
      * A throw carries the cast origin as the start the server sends for the
      * flight, the beam and Zap's bolt, and as the glove hand Click's wave
      * leaves: the lifted palm blob where it stands as right click lets go.

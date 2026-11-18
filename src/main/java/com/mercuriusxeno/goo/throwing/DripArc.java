@@ -29,6 +29,13 @@ public final class DripArc {
     public static final double DRAG = 0.99F;
     /** The living near a drip that strikes no living thing: none. */
     public static final LivingNear NO_LIVING = (from, to) -> List.of();
+    /** The step a throw's flight times are tried at, in ticks. */
+    private static final double THROW_SCAN_TICKS = 0.25;
+    /** The flight times a throw onto a point tries, out to 200 ticks. */
+    private static final int THROW_TRIES = 800;
+    /** The halvings that close in on the flight time a throw just reaches its point over. */
+    private static final int FLIGHT_TIME_HALVINGS = 40;
+    private static final double HALF = 0.5;
 
     private DripArc() {
     }
@@ -114,6 +121,113 @@ public final class DripArc {
      */
     public static Vec3 launch(Vec3 axis, double coneDegrees, CoatRay.ConeShare share, double throwSpeed) {
         return StreamCone.launchDirection(axis, coneDegrees, share.tilt(), share.turn()).scale(throwSpeed);
+    }
+
+    /**
+     * A drip's launch onto a point at its exit speed: the lowest arc, under
+     * the gravity and the drag it flies through, that reaches the point, or
+     * the arc passing nearest it where none reaches it.
+     * residual-spray-cone-centers-on-the-look-from-the-blob: each drip flies a plain arc from the blob to its spot
+     *
+     * @param from      where the drip leaves
+     * @param target    the point it is thrown onto
+     * @param exitSpeed its exit speed, blocks per tick
+     * @param gravity   the pull on it each tick
+     * @return the launch velocity, blocks per tick
+     */
+    public static Vec3 launchOnto(Vec3 from, Vec3 target, double exitSpeed, double gravity) {
+        Vec3 line = target.subtract(from);
+        double nearest = 0;
+        double nearestShortfall = Double.MAX_VALUE;
+        double before = 0;
+        for (int tried = 1; tried <= THROW_TRIES; tried++) {
+            double ticks = tried * THROW_SCAN_TICKS;
+            double shortfall = shortfallOver(line, ticks, exitSpeed, gravity);
+            if (shortfall <= 0) {
+                return aimedOver(line, flightTimeBetween(line, before, ticks, exitSpeed, gravity), exitSpeed, gravity);
+            }
+            if (shortfall < nearestShortfall) {
+                nearestShortfall = shortfall;
+                nearest = ticks;
+            }
+            before = ticks;
+        }
+        return aimedOver(line, nearest, exitSpeed, gravity);
+    }
+
+    /**
+     * The flight time, between one too short and one long enough, over which a throw just reaches the point.
+     *
+     * @param line      from where the drip leaves to the point
+     * @param tooShort  a flight time the throw falls short over
+     * @param enough    a flight time the throw reaches the point within
+     * @param exitSpeed the drip's exit speed, blocks per tick
+     * @param gravity   the pull on it each tick
+     * @return the flight time, in ticks
+     */
+    private static double flightTimeBetween(Vec3 line, double tooShort, double enough, double exitSpeed,
+                                            double gravity) {
+        double low = tooShort;
+        double high = enough;
+        for (int halving = 0; halving < FLIGHT_TIME_HALVINGS; halving++) {
+            double middle = (low + high) * HALF;
+            if (shortfallOver(line, middle, exitSpeed, gravity) > 0) {
+                low = middle;
+            } else {
+                high = middle;
+            }
+        }
+        return high;
+    }
+
+    /**
+     * The launch whose arc stands on the point after a flight time: aimed
+     * above the point by what gravity pulls the drip down over that time.
+     *
+     * @param line      from where the drip leaves to the point
+     * @param ticks     the flight time, in ticks
+     * @param exitSpeed the drip's exit speed, blocks per tick
+     * @param gravity   the pull on it each tick
+     * @return the launch velocity, blocks per tick
+     */
+    private static Vec3 aimedOver(Vec3 line, double ticks, double exitSpeed, double gravity) {
+        Vec3 aim = line.add(0, gravity * fallOver(ticks), 0);
+        return aim.lengthSqr() == 0 ? new Vec3(0, -exitSpeed, 0) : aim.normalize().scale(exitSpeed);
+    }
+
+    /**
+     * How far short of the point a throw at the exit speed falls over a
+     * flight time: positive while it falls short, at most zero once it reaches.
+     *
+     * @param line      from where the drip leaves to the point
+     * @param ticks     the flight time, in ticks
+     * @param exitSpeed the drip's exit speed, blocks per tick
+     * @param gravity   the pull on it each tick
+     * @return the shortfall, in blocks
+     */
+    private static double shortfallOver(Vec3 line, double ticks, double exitSpeed, double gravity) {
+        return line.add(0, gravity * fallOver(ticks), 0).length() - exitSpeed * carriedOver(ticks);
+    }
+
+    /**
+     * How far a launch velocity of one block a tick carries a drip over a
+     * flight time, drag slowing it each tick: the sum of drag's powers.
+     *
+     * @param ticks the flight time, in ticks
+     * @return the distance carried, in blocks
+     */
+    private static double carriedOver(double ticks) {
+        return DRAG * (1 - Math.pow(DRAG, ticks)) / (1 - DRAG);
+    }
+
+    /**
+     * How far a pull of one block a tick per tick drags a drip down over a flight time.
+     *
+     * @param ticks the flight time, in ticks
+     * @return the fall, in blocks
+     */
+    private static double fallOver(double ticks) {
+        return DRAG / (1 - DRAG) * (ticks - carriedOver(ticks));
     }
 
     /**
