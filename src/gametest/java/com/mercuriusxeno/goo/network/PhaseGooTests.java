@@ -42,6 +42,13 @@ public final class PhaseGooTests {
     private static final String VILLAGER_LOST_TO_ITS_ZOMBIE = "phase_goo_phases_a_villager_and_its_zombie_loses_it";
     private static final String STEPPING_OFF_ENDS_THE_PHASE = "phase_goo_stepping_off_ends_the_phase";
     private static final String SHIFTS_SOUND = "phase_goo_sounds_each_shift";
+    private static final String HOLDS_ITS_ZONE = "phase_goo_holds_a_thing_hovering_in_its_zone";
+    /** Feet over a full cell's top inside the shipped zone of two blocks, a jump's height and some. */
+    private static final double IN_THE_ZONE = 1.5;
+    /** Feet over a full cell's top past the shipped zone. */
+    private static final double OVER_THE_ZONE = 3.0;
+    private static final String DROPPED_IN_THE_ZONE = "A zombie %.1f over Phase goo's top should stay out of phase";
+    private static final String HELD_OVER_THE_ZONE = "A zombie %.1f over Phase goo's top should be back in phase";
     private static final Identifier SHIFT_SOUND = Identifier.parse("minecraft:block.respawn_anchor.deplete");
     /** The pitches the zombie's two shifts sound at: out of phase high, back into phase low. */
     private static final List<Float> SHIFT_PITCHES = List.of(1.6F, 0.9F);
@@ -83,6 +90,7 @@ public final class PhaseGooTests {
                 PhaseGooTests::phasesAVillagerAndItsZombieLosesIt);
         GooTestFunctions.registerTest(registrar, STEPPING_OFF_ENDS_THE_PHASE, PhaseGooTests::steppingOffEndsThePhase);
         GooTestFunctions.registerTest(registrar, SHIFTS_SOUND, PhaseGooTests::soundsEachShift);
+        GooTestFunctions.registerTest(registrar, HOLDS_ITS_ZONE, PhaseGooTests::holdsAThingHoveringInItsZone);
     }
 
     /**
@@ -181,6 +189,35 @@ public final class PhaseGooTests {
                 helper.getLevel().getServer().getPlayerList().remove(listener);
                 helper.assertTrue(pitches.equals(SHIFT_PITCHES), String.format(SHIFTS_UNHEARD, pitches));
                 helper.succeed();
+            });
+        });
+    }
+
+    /**
+     * A zombie standing in a full Phase cell, lifted to hover a jump's height
+     * over the goo's top, stays out of phase; lifted past the zone over it,
+     * it is back in phase. The zombie takes no gravity, so it hovers where
+     * it is put.
+     * phase-goo-puts-what-stands-in-it-out-of-phase
+     *
+     * @param helper the gametest helper
+     */
+    public static void holdsAThingHoveringInItsZone(GameTestHelper helper) {
+        BlockPos cell = wallTheCell(helper);
+        helper.setBlock(cell, GooBlocks.QUANTUM_PHASE.get().defaultBlockState()
+                .setValue(VolumeCellBlock.LAYERS, VolumeCellBlock.MAX_LAYERS));
+        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, cell.above());
+        zombie.setNoGravity(true);
+        Vec3 gooTop = Vec3.atBottomCenterOf(helper.absolutePos(cell.above()));
+        helper.runAfterDelay(SETTLE_TICKS, () -> {
+            zombie.teleportTo(gooTop.x, gooTop.y + IN_THE_ZONE, gooTop.z);
+            helper.runAfterDelay(SETTLE_TICKS, () -> {
+                helper.assertTrue(phasedNow(helper, zombie), String.format(DROPPED_IN_THE_ZONE, IN_THE_ZONE));
+                zombie.teleportTo(gooTop.x, gooTop.y + OVER_THE_ZONE, gooTop.z);
+                helper.runAfterDelay(SETTLE_TICKS, () -> {
+                    helper.assertTrue(!phasedNow(helper, zombie), String.format(HELD_OVER_THE_ZONE, OVER_THE_ZONE));
+                    helper.succeed();
+                });
             });
         });
     }
