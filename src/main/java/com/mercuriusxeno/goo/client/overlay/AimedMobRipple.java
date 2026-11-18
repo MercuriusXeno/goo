@@ -2,10 +2,12 @@ package com.mercuriusxeno.goo.client.overlay;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.ability.AfterimageRenderer;
 import com.mercuriusxeno.goo.client.ability.PortalView;
 import com.mercuriusxeno.goo.client.throwing.GloveAim;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.resources.ResourceKey;
@@ -75,7 +77,8 @@ public final class AimedMobRipple {
             return;
         }
         EntityRenderState pose = mc.getEntityRenderDispatcher().extractEntity(mob, partialTick);
-        AfterimageRenderer.drawPulses(event, pose, mob.getPosition(partialTick), ClientGooTypes.highlight(type),
+        AfterimageRenderer.drawPulses(new LevelFrame(event.getModelViewMatrix(), new PoseStack(),
+                event.getLevelRenderState()), pose, mob.getPosition(partialTick), ClientGooTypes.highlight(type),
                 List.of(mark.pulse()));
     }
 }

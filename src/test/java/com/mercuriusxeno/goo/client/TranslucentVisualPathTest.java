@@ -2,8 +2,21 @@ package com.mercuriusxeno.goo.client;
 
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.TranslucentVisualPath.Registration;
+import com.mercuriusxeno.goo.client.ability.AfterimageRenderer;
 import com.mercuriusxeno.goo.client.ability.AirbornWind;
 import com.mercuriusxeno.goo.client.ability.BeatRings;
+import com.mercuriusxeno.goo.client.ability.BlockMingleRenderer;
+import com.mercuriusxeno.goo.client.ability.BoreDrill;
+import com.mercuriusxeno.goo.client.ability.LiftedPalmBlob;
+import com.mercuriusxeno.goo.client.ability.LunarTripView;
+import com.mercuriusxeno.goo.client.ability.PartnerMeshes;
+import com.mercuriusxeno.goo.client.ability.RollingGooRenderer;
+import com.mercuriusxeno.goo.client.ability.SculkerEchoRenderer;
+import com.mercuriusxeno.goo.client.ability.SculkerGlassRenderer;
+import com.mercuriusxeno.goo.client.ability.SculkerSenses;
+import com.mercuriusxeno.goo.client.ability.SculkerVision;
+import com.mercuriusxeno.goo.client.ability.Tomes;
+import com.mercuriusxeno.goo.client.ability.TransformationRenderer;
 import com.mercuriusxeno.goo.client.ability.CrystalShatterVisual;
 import com.mercuriusxeno.goo.client.ability.FireStream;
 import com.mercuriusxeno.goo.client.ability.FloatPlatform;
@@ -114,6 +127,25 @@ class TranslucentVisualPathTest {
     }
 
     /**
+     * A portal view renders its partner level through LevelRenderer.renderLevel
+     * alone, which never posts AfterLevel, so the portal's pass draws the
+     * once-the-level-is-drawn routes itself, post effects aside.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
+     */
+    @Test
+    void aPortalsPassDrawsTheVisualsItsLevelHolds() {
+        boolean called = new com.tngtech.archunit.core.importer.ClassFileImporter()
+                .importClasses(com.mercuriusxeno.goo.client.ability.PortalView.class)
+                .get(com.mercuriusxeno.goo.client.ability.PortalView.class).getMethodCallsFromSelf().stream()
+                .anyMatch(call -> call.getTarget().getName().equals("drawAfterAPortalsLevel")
+                        && call.getTargetOwner().isEquivalentTo(TranslucentVisualPath.class));
+        assertAll(
+                () -> assertEquals(List.of(SortRoute.THROUGH_BLOCKS, SortRoute.FAR_TO_NEAR),
+                        TranslucentVisualPath.portalRoutes()),
+                () -> assertTrue(called, "PortalView draws the path's AfterLevel routes after its level"));
+    }
+
+    /**
      * Spikes goo's steel pyramids write their own depth, so they draw with
      * the opaque world, right after the opaque blocks, and every translucent
      * thing drawn later sorts against them.
@@ -126,6 +158,69 @@ class TranslucentVisualPathTest {
                 () -> assertEquals(List.of(SortRoute.OPAQUE_SHAPE), routesOf(SpikesBristle.class)),
                 () -> assertEquals(List.of(SortRoute.OPAQUE_SHAPE), routesOf(SpikesRise.class)),
                 () -> assertTrue(GooRenderTypes.SPIKES_STEEL.getDepthStencilState().writeDepth()));
+    }
+
+    /**
+     * The blob, body and sense visuals, each registered under its routes and
+     * drawing through pipelines that test depth, save the parts drawn with
+     * the opaque blocks, with the sky, as a post effect or through walls by decision.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
+     * decision diagnose-and-correct-translucent-goo-visuals-that-depth-sort-wrong
+     */
+    @Nested
+    class BlobBodyAndSenseVisuals {
+
+        @Test
+        void eachRegistersUnderItsRoutes() {
+            Map<Class<?>, Set<SortRoute>> routes = new LinkedHashMap<>();
+            routes.put(AfterimageRenderer.class, Set.of(SortRoute.FAR_TO_NEAR));
+            routes.put(BlockMingleRenderer.class, Set.of(SortRoute.ON_OPAQUE_FACES, SortRoute.FAR_TO_NEAR));
+            routes.put(LiftedPalmBlob.class, Set.of(SortRoute.FAR_TO_NEAR));
+            routes.put(PartnerMeshes.class, Set.of(SortRoute.OPAQUE_SHAPE, SortRoute.FAR_TO_NEAR));
+            routes.put(RollingGooRenderer.class, Set.of(SortRoute.FAR_TO_NEAR));
+            routes.put(TransformationRenderer.class, Set.of(SortRoute.FAR_TO_NEAR));
+            routes.put(Tomes.class, Set.of(SortRoute.FAR_TO_NEAR));
+            routes.put(SculkerVision.class, Set.of(SortRoute.SCREEN_SPACE));
+            routes.put(SculkerGlassRenderer.class, Set.of(SortRoute.SCREEN_SPACE));
+            routes.put(SculkerEchoRenderer.class, Set.of(SortRoute.SCREEN_SPACE));
+            routes.put(SculkerSenses.class, Set.of(SortRoute.THROUGH_BLOCKS));
+            routes.put(LunarTripView.class, Set.of(SortRoute.SKY, SortRoute.THROUGH_BLOCKS));
+            routes.put(BoreDrill.class, Set.of(SortRoute.FAR_TO_NEAR));
+            assertAll(routes.entrySet().stream().map(entry -> () -> assertEquals(entry.getValue(),
+                    Set.copyOf(routesOf(entry.getKey())), entry.getKey().getSimpleName())));
+        }
+
+        /** The sense view dims the world first, then draws its glass, then its echoes over both. */
+        @Test
+        void sculkersSenseViewComposesInOrder() {
+            assertEquals(List.of(SculkerVision.class, SculkerGlassRenderer.class, SculkerEchoRenderer.class),
+                    TranslucentVisualPath.REGISTRATIONS.stream().map(Registration::visual)
+                            .filter(visual -> visual.getSimpleName().startsWith("Sculker")
+                                    && visual != SculkerSenses.class).toList());
+        }
+
+        @Test
+        void eachSortedPartTestsDepthAgainstTheLevel() {
+            List<RenderPipeline> sorted = List.of(RenderPipelines.ENTITY_TRANSLUCENT, RenderPipelines.LINES_TRANSLUCENT,
+                    GooRenderTypes.BLOCK_MINGLE_TRANSLUCENT, GooRenderTypes.SCULKER_GLASS);
+            assertAll(sorted.stream().map(pipeline -> () -> assertEquals(CompareOp.LESS_THAN_OR_EQUAL,
+                    pipeline.getDepthStencilState().depthTest(), pipeline.getLocation().toString())));
+        }
+
+        /** Bore's drill clips itself against a copy of the level's depth in its shader, clouds included. */
+        @Test
+        void boresDrillReadsTheLevelsDepth() {
+            assertTrue(GooRenderTypes.BORE_DRILL.getSamplers().contains(GooRenderTypes.BORE_DRILL_DEPTH_SAMPLER));
+        }
+
+        @Test
+        void theSkyAndTheSenseViewDrawWhereTheirRoutesSay() {
+            List<SortRoute> afterLevel = Arrays.stream(SortRoute.values())
+                    .filter(route -> route.stage() == RenderLevelStageEvent.AfterLevel.class).toList();
+            assertAll(
+                    () -> assertEquals(RenderLevelStageEvent.AfterSky.class, SortRoute.SKY.stage()),
+                    () -> assertEquals(SortRoute.SCREEN_SPACE, afterLevel.get(0)));
+        }
     }
 
     /**

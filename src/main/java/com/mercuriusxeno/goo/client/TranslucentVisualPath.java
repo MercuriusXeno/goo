@@ -3,8 +3,11 @@ package com.mercuriusxeno.goo.client;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
+import com.mercuriusxeno.goo.client.ability.AfterimageRenderer;
 import com.mercuriusxeno.goo.client.ability.AirbornWind;
 import com.mercuriusxeno.goo.client.ability.BeatRings;
+import com.mercuriusxeno.goo.client.ability.BlockMingleRenderer;
+import com.mercuriusxeno.goo.client.ability.BoreDrill;
 import com.mercuriusxeno.goo.client.ability.CrystalShatterVisual;
 import com.mercuriusxeno.goo.client.ability.FireStream;
 import com.mercuriusxeno.goo.client.ability.FloatPlatform;
@@ -18,30 +21,43 @@ import com.mercuriusxeno.goo.client.ability.HoveringKnives;
 import com.mercuriusxeno.goo.client.ability.LaserScorch;
 import com.mercuriusxeno.goo.client.ability.LaserVisual;
 import com.mercuriusxeno.goo.client.ability.LevelCursor;
+import com.mercuriusxeno.goo.client.ability.LiftedPalmBlob;
+import com.mercuriusxeno.goo.client.ability.LunarTripView;
 import com.mercuriusxeno.goo.client.ability.MeteorMarkers;
 import com.mercuriusxeno.goo.client.ability.MeteorScorches;
 import com.mercuriusxeno.goo.client.ability.MiasmaVortex;
 import com.mercuriusxeno.goo.client.ability.NovaChargeGhost;
 import com.mercuriusxeno.goo.client.ability.NovaRings;
+import com.mercuriusxeno.goo.client.ability.PartnerMeshes;
 import com.mercuriusxeno.goo.client.ability.PetrifyFog;
 import com.mercuriusxeno.goo.client.ability.PneumaWind;
 import com.mercuriusxeno.goo.client.ability.ReapSlashBlades;
 import com.mercuriusxeno.goo.client.ability.RelayLasers;
+import com.mercuriusxeno.goo.client.ability.RollingGooRenderer;
+import com.mercuriusxeno.goo.client.ability.SculkerEchoRenderer;
+import com.mercuriusxeno.goo.client.ability.SculkerGlassRenderer;
+import com.mercuriusxeno.goo.client.ability.SculkerSenses;
+import com.mercuriusxeno.goo.client.ability.SculkerVision;
 import com.mercuriusxeno.goo.client.ability.SignalRings;
 import com.mercuriusxeno.goo.client.ability.SpikesBristle;
 import com.mercuriusxeno.goo.client.ability.SpikesRise;
+import com.mercuriusxeno.goo.client.ability.Tomes;
+import com.mercuriusxeno.goo.client.ability.TransformationRenderer;
 import com.mercuriusxeno.goo.client.ability.WindLines;
 import com.mercuriusxeno.goo.client.ability.WispGlow;
 import com.mercuriusxeno.goo.client.ability.ZapBolts;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.state.level.LevelRenderState;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.joml.Matrix4fStack;
+import org.joml.Matrix4fc;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 
@@ -75,7 +91,6 @@ public final class TranslucentVisualPath {
             new Registration(AirbornWind.class, SortRoute.FAR_TO_NEAR, AirbornWind::collect),
             new Registration(PneumaWind.class, SortRoute.FAR_TO_NEAR, PneumaWind::collect),
             new Registration(GrowthBreeze.class, SortRoute.FAR_TO_NEAR, GrowthBreeze::collect),
-            new Registration(HeatWaveEffect.class, SortRoute.SCREEN_SPACE, HeatWaveEffect::collect),
             new Registration(WispGlow.class, SortRoute.FAR_TO_NEAR, WispGlow::collect),
             new Registration(SpikesBristle.class, SortRoute.OPAQUE_SHAPE, SpikesBristle::collect),
             new Registration(SpikesRise.class, SortRoute.OPAQUE_SHAPE, SpikesRise::collect),
@@ -92,9 +107,36 @@ public final class TranslucentVisualPath {
             new Registration(HeldSweepVisual.class, SortRoute.FAR_TO_NEAR, HeldSweepVisual::collect),
             new Registration(HeldSweepVisual.class, SortRoute.THROUGH_BLOCKS, HeldSweepVisual::collectFaces),
             new Registration(LevelCursor.class, SortRoute.FAR_TO_NEAR, LevelCursor::collect),
-            new Registration(HeadMarks.class, SortRoute.THROUGH_BLOCKS, HeadMarks::collect));
+            new Registration(HeadMarks.class, SortRoute.THROUGH_BLOCKS, HeadMarks::collect),
+            new Registration(AfterimageRenderer.class, SortRoute.FAR_TO_NEAR, AfterimageRenderer::collect),
+            new Registration(BlockMingleRenderer.class, SortRoute.ON_OPAQUE_FACES, BlockMingleRenderer::collectCoat),
+            new Registration(BlockMingleRenderer.class, SortRoute.FAR_TO_NEAR, BlockMingleRenderer::collect),
+            new Registration(LiftedPalmBlob.class, SortRoute.FAR_TO_NEAR, LiftedPalmBlob::collect),
+            new Registration(RollingGooRenderer.class, SortRoute.FAR_TO_NEAR, RollingGooRenderer::collect),
+            new Registration(TransformationRenderer.class, SortRoute.FAR_TO_NEAR, TransformationRenderer::collect),
+            new Registration(Tomes.class, SortRoute.FAR_TO_NEAR, Tomes::collect),
+            new Registration(PartnerMeshes.class, SortRoute.OPAQUE_SHAPE, PartnerMeshes::collectSolid),
+            new Registration(PartnerMeshes.class, SortRoute.FAR_TO_NEAR, PartnerMeshes::collect),
+            new Registration(SculkerVision.class, SortRoute.SCREEN_SPACE, SculkerVision::collect),
+            new Registration(SculkerGlassRenderer.class, SortRoute.SCREEN_SPACE, SculkerGlassRenderer::collect),
+            new Registration(SculkerEchoRenderer.class, SortRoute.SCREEN_SPACE, SculkerEchoRenderer::collect),
+            new Registration(HeatWaveEffect.class, SortRoute.SCREEN_SPACE, HeatWaveEffect::collect),
+            new Registration(SculkerSenses.class, SortRoute.THROUGH_BLOCKS, SculkerSenses::collect),
+            new Registration(LunarTripView.class, SortRoute.SKY, LunarTripView::collectSky),
+            new Registration(LunarTripView.class, SortRoute.THROUGH_BLOCKS, LunarTripView::collect),
+            new Registration(BoreDrill.class, SortRoute.FAR_TO_NEAR, BoreDrill::collect));
 
     private TranslucentVisualPath() {
+    }
+
+    /**
+     * Draws what belongs with the sky, behind everything after it.
+     *
+     * @param event the level render stage event
+     */
+    @SubscribeEvent
+    public static void onAfterSky(RenderLevelStageEvent.AfterSky event) {
+        drawStage(event, RenderLevelStageEvent.AfterSky.class);
     }
 
     /**
@@ -125,14 +167,46 @@ public final class TranslucentVisualPath {
     // RenderSystem's model view is set to the level's while the draws run: LevelRenderer pops its view off the
     // model view stack before AfterLevel, and every render type draw reads the stack's top.
     private static void drawStage(RenderLevelStageEvent event, Class<? extends RenderLevelStageEvent> stage) {
-        LevelFrame frame = new LevelFrame(event.getModelViewMatrix(), new PoseStack(), event.getLevelRenderState());
+        drawRoutes(event.getModelViewMatrix(), event.getLevelRenderState(), routesAt(stage));
+    }
+
+    /**
+     * Draws the once-the-level-is-drawn routes at the end of a portal's own
+     * pass: LevelRenderer.renderLevel never posts AfterLevel, GameRenderer
+     * does, so a portal view rendering the partner level through
+     * renderLevel alone would draw no far-to-near visual. A post effect
+     * stays with the frame, so the screen-space route draws only there.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
+     *
+     * @param modelView        the portal camera's view this pass
+     * @param levelRenderState the level's render state this pass
+     */
+    public static void drawAfterAPortalsLevel(Matrix4fc modelView, LevelRenderState levelRenderState) {
+        drawRoutes(modelView, levelRenderState, portalRoutes());
+    }
+
+    /**
+     * The routes a portal's pass draws once its level is drawn: every route
+     * at AfterLevel but the screen-space one, in declared order.
+     *
+     * @return the routes
+     */
+    static List<SortRoute> portalRoutes() {
+        return routesAt(RenderLevelStageEvent.AfterLevel.class).stream()
+                .filter(route -> route != SortRoute.SCREEN_SPACE).toList();
+    }
+
+    private static List<SortRoute> routesAt(Class<? extends RenderLevelStageEvent> stage) {
+        return Arrays.stream(SortRoute.values()).filter(route -> route.stage() == stage).toList();
+    }
+
+    private static void drawRoutes(Matrix4fc modelView, LevelRenderState levelRenderState, List<SortRoute> routes) {
+        LevelFrame frame = new LevelFrame(modelView, new PoseStack(), levelRenderState);
         Matrix4fStack modelViewStack = RenderSystem.getModelViewStack();
         modelViewStack.pushMatrix();
-        modelViewStack.set(event.getModelViewMatrix());
-        for (SortRoute route : SortRoute.values()) {
-            if (route.stage() == stage) {
-                farToNear(drawsOf(route, frame)).forEach(draw -> draw.draw().run());
-            }
+        modelViewStack.set(modelView);
+        for (SortRoute route : routes) {
+            farToNear(drawsOf(route, frame)).forEach(draw -> draw.draw().run());
         }
         Minecraft.getInstance().renderBuffers().bufferSource().endBatch();
         modelViewStack.popMatrix();

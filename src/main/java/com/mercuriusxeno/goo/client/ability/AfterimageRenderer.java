@@ -1,7 +1,8 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mojang.blaze3d.buffers.GpuBufferSlice;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.pipeline.RenderTarget;
@@ -22,10 +23,6 @@ import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fStack;
 import org.joml.Vector3f;
@@ -46,7 +43,6 @@ import java.util.function.Consumer;
  * edge crosses it.
  * Decision afterimage-is-one-shared-effect.
  */
-@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class AfterimageRenderer {
 
     /** Mask channels the ripple buffer holds, one per silhouette. */
@@ -80,19 +76,31 @@ public final class AfterimageRenderer {
     }
 
     /**
-     * Draws the live afterimages after the level, dropping each whose ripple
-     * has played out.
+     * Drops each afterimage whose ripple has played out and hands the shared
+     * path one draw for the bodies' afterimages and one for the blocks',
+     * each sorted by its nearest afterimage. The masks test a copy of the
+     * level's depth; the perimeter then paints over the whole frame.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
      *
-     * @param event the level render stage event
+     * @param frame the frame being drawn
+     * @param draws where the afterimages' draws go
      */
-    @SubscribeEvent
-    public static void onAfterLevel(RenderLevelStageEvent.AfterLevel event) {
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) {
             return;
         }
-        drawRipples(event, Afterimages.CLIENT.live(mc.level.getGameTime()));
-        drawBlockRipples(event, Afterimages.BLOCKS.live(mc.level.getGameTime()));
+        Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        List<Afterimages.Afterimage<EntityRenderState>> bodies = Afterimages.CLIENT.live(mc.level.getGameTime());
+        if (!bodies.isEmpty()) {
+            draws.accept(SortedDraw.nearestOf(bodies.stream().map(Afterimages.Afterimage::position), camera,
+                    () -> drawRipples(frame, bodies)));
+        }
+        List<Afterimages.Afterimage<List<AABB>>> blocks = Afterimages.BLOCKS.live(mc.level.getGameTime());
+        if (!blocks.isEmpty()) {
+            draws.accept(SortedDraw.nearestOf(blocks.stream().map(Afterimages.Afterimage::position), camera,
+                    () -> drawBlockRipples(frame, blocks)));
+        }
     }
 
     /**
@@ -101,19 +109,18 @@ public final class AfterimageRenderer {
      * afterimage, standing at the destination
      * (decision ripple-outline-is-the-blink-cursor).
      *
-     * @param event       the level render stage event
+     * @param frame       the frame being drawn
      * @param afterimages the afterimages to draw
      */
-    public static void drawRipples(RenderLevelStageEvent.AfterLevel event,
-            List<Afterimages.Afterimage<EntityRenderState>> afterimages) {
+    public static void drawRipples(LevelFrame frame, List<Afterimages.Afterimage<EntityRenderState>> afterimages) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || afterimages.isEmpty()) {
             return;
         }
-        inRippleFrame(event, frame -> {
+        inRippleFrame(frame, ripples -> {
             for (Afterimages.Afterimage<EntityRenderState> afterimage : afterimages) {
-                drawRipple(mc, new PoseStack(), frame.camera(), afterimage, frame.gameTime(), frame.main(),
-                        frame.ripple());
+                drawRipple(mc, new PoseStack(), ripples.camera(), afterimage, ripples.gameTime(), ripples.main(),
+                        ripples.ripple());
             }
         });
     }
@@ -123,26 +130,26 @@ public final class AfterimageRenderer {
      * boxes, grown by each silhouette's growth, rippling out of where it stood.
      * reap-breeze-harvests-and-replants
      *
-     * @param event       the level render stage event
+     * @param frame       the frame being drawn
      * @param afterimages the blocks' afterimages to draw
      */
-    public static void drawBlockRipples(RenderLevelStageEvent.AfterLevel event,
-            List<Afterimages.Afterimage<List<AABB>>> afterimages) {
+    public static void drawBlockRipples(LevelFrame frame, List<Afterimages.Afterimage<List<AABB>>> afterimages) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || afterimages.isEmpty()) {
             return;
         }
-        inRippleFrame(event, frame -> {
+        inRippleFrame(frame, ripples -> {
             for (Afterimages.Afterimage<List<AABB>> afterimage : afterimages) {
-                List<Afterimages.Pulse> pulses = afterimage.pulses(frame.gameTime());
+                List<Afterimages.Pulse> pulses = afterimage.pulses(ripples.gameTime());
                 if (pulses.isEmpty()) {
                     continue;
                 }
-                Vec3 corner = afterimage.position().subtract(frame.camera().pos);
+                Vec3 corner = afterimage.position().subtract(ripples.camera().pos);
                 Matrix4f boxToView = new Matrix4f().translation((float) corner.x, (float) corner.y, (float) corner.z);
-                RenderSystem.getDevice().createCommandEncoder().clearColorTexture(frame.ripple().getColorTexture(), 0);
+                RenderSystem.getDevice().createCommandEncoder().clearColorTexture(ripples.ripple().getColorTexture(),
+                        0);
                 fillBoxMasks(mc.renderBuffers().bufferSource(), boxToView, afterimage.snapshot(), pulses);
-                paintPerimeter(frame.main(), frame.ripple(), afterimage.rgb());
+                paintPerimeter(ripples.main(), ripples.ripple(), afterimage.rgb());
             }
         });
     }
@@ -164,24 +171,24 @@ public final class AfterimageRenderer {
      * over the frame, spreading out from each body's edge.
      * decision sculker-sight-persists-where-echoes-have-touched
      *
-     * @param event    the level render stage event
+     * @param frame    the frame being drawn
      * @param outlines the bodies to outline
      * @param rgb      the glow's color
      */
-    public static void drawSoftOutlines(RenderLevelStageEvent.AfterLevel event, List<SoftOutline> outlines, int rgb) {
+    public static void drawSoftOutlines(LevelFrame frame, List<SoftOutline> outlines, int rgb) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || outlines.isEmpty()) {
             return;
         }
-        inRippleFrame(event, frame -> {
-            RenderSystem.getDevice().createCommandEncoder().clearColorAndDepthTextures(frame.ripple().getColorTexture(),
-                    0, frame.ripple().getDepthTexture(), FARTHEST);
+        inRippleFrame(frame, ripples -> {
+            RenderSystem.getDevice().createCommandEncoder().clearColorAndDepthTextures(
+                    ripples.ripple().getColorTexture(), 0, ripples.ripple().getDepthTexture(), FARTHEST);
             boolean drew = false;
             for (SoftOutline outline : outlines) {
-                drew |= fillSoftMask(mc, frame, outline);
+                drew |= fillSoftMask(mc, ripples, outline);
             }
             if (drew) {
-                paintThrough(GooRenderTypes.GOO_SOFT_OUTLINE, SOFT_PASS_LABEL, frame.main(), frame.ripple(), rgb);
+                paintThrough(GooRenderTypes.GOO_SOFT_OUTLINE, SOFT_PASS_LABEL, ripples.main(), ripples.ripple(), rgb);
             }
         });
     }
@@ -219,22 +226,23 @@ public final class AfterimageRenderer {
     /**
      * Readies the ripple buffer and the view a frame's ripples draw in, and draws them.
      *
-     * @param event  the level render stage event
+     * @param frame  the frame being drawn
      * @param drawer draws the frame's ripples
      */
-    private static void inRippleFrame(RenderLevelStageEvent.AfterLevel event, Consumer<RippleFrame> drawer) {
+    private static void inRippleFrame(LevelFrame frame, Consumer<RippleFrame> drawer) {
         Minecraft mc = Minecraft.getInstance();
         float gameTime = mc.level.getGameTime() + mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         RenderTarget main = mc.getMainRenderTarget();
         RenderTarget ripple = RippleTarget.sizedTo(main);
         ripple.copyDepthFrom(main);
-        // AfterLevel fires once the level has popped its view rotation off the model view stack,
-        // so the masks, laid in camera-relative world space, take the event's view matrix back.
+        // The masks, laid in camera-relative world space, draw in the level's view. It is set, not multiplied
+        // in: inside the shared path the stack's top is the view already, and a caller at AfterLevel outside the
+        // path finds the level's view popped off it.
         Matrix4fStack modelView = RenderSystem.getModelViewStack();
         modelView.pushMatrix();
-        modelView.mul(event.getModelViewMatrix());
+        modelView.set(frame.modelView());
         try {
-            drawer.accept(new RippleFrame(event.getLevelRenderState().cameraRenderState, gameTime, main, ripple));
+            drawer.accept(new RippleFrame(frame.levelRenderState().cameraRenderState, gameTime, main, ripple));
         } finally {
             modelView.popMatrix();
         }
@@ -289,21 +297,21 @@ public final class AfterimageRenderer {
      * the aimed mob's mark ripples through here at its own pace and strength
      * (decision active-target-indicators-carry-depth-and-animation).
      *
-     * @param event    the level render stage event
+     * @param frame    the frame being drawn
      * @param snapshot the body's render state this frame
      * @param position the world point it stands at
      * @param rgb      the color its perimeter paints in
      * @param pulses   the silhouettes standing this frame
      */
-    public static void drawPulses(RenderLevelStageEvent.AfterLevel event, EntityRenderState snapshot, Vec3 position,
-            int rgb, List<Afterimages.Pulse> pulses) {
+    public static void drawPulses(LevelFrame frame, EntityRenderState snapshot, Vec3 position, int rgb,
+            List<Afterimages.Pulse> pulses) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || pulses.isEmpty()) {
             return;
         }
         Afterimages.Afterimage<EntityRenderState> body = new Afterimages.Afterimage<>(snapshot, position, rgb, 0L, 1);
-        inRippleFrame(event, frame -> drawBody(mc, new PoseStack(), frame.camera(), body, pulses, frame.main(),
-                frame.ripple()));
+        inRippleFrame(frame, ripples -> drawBody(mc, new PoseStack(), ripples.camera(), body, pulses, ripples.main(),
+                ripples.ripple()));
     }
 
     /**

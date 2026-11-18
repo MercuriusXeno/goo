@@ -29,6 +29,20 @@ public enum SortRoute {
     OPAQUE_SHAPE(RenderLevelStageEvent.AfterOpaqueBlocks.class),
 
     /**
+     * Drawn with the sky, behind everything the level draws after it, such
+     * as Lunar's black veil and void stars.
+     */
+    SKY(RenderLevelStageEvent.AfterSky.class),
+
+    /**
+     * A post effect over the finished frame, such as Flames' heat shimmer,
+     * or Sculker's sense view, whose dim runs first and whose glass and
+     * echoes compose over it in their registered order. Drawn first once the
+     * level is drawn, so every other goo visual draws over the dimmed world.
+     */
+    SCREEN_SPACE(RenderLevelStageEvent.AfterLevel.class),
+
+    /**
      * Drawn regardless of depth, under a standing decision that shows it
      * through blocks, such as the x-ray overlays and the held ghost's second
      * pass (decision held-visual-ghosts-the-landing-in-two-passes). Drawn
@@ -45,13 +59,7 @@ public enum SortRoute {
      * Fabulous until order-independent transparency lands on 26.3 (decision
      * goo-translucency-draws-through-order-independent-transparency).
      */
-    FAR_TO_NEAR(RenderLevelStageEvent.AfterLevel.class),
-
-    /**
-     * A post effect over the finished frame, such as Flames' heat shimmer:
-     * it holds no depth to sort, so the path only hands it the frame.
-     */
-    SCREEN_SPACE(RenderLevelStageEvent.AfterLevel.class);
+    FAR_TO_NEAR(RenderLevelStageEvent.AfterLevel.class);
 
     private final Class<? extends RenderLevelStageEvent> stage;
 

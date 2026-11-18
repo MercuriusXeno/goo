@@ -107,7 +107,9 @@ public final class HeatWaveEffect {
             SLOT.hide(mc.gameRenderer);
             return;
         }
-        showShimmer(mc, region, ((mc.level.getGameTime() % Integer.MAX_VALUE) + partialTick) / TICKS_PER_SECOND);
+        float seconds = ((mc.level.getGameTime() % Integer.MAX_VALUE) + partialTick) / TICKS_PER_SECOND;
+        // The shimmer shows in its draw, so it runs after Sculker's dim, registered ahead of it on the same route.
+        draws.accept(new SortedDraw(0, () -> showShimmer(mc, region, seconds)));
     }
 
     /**
