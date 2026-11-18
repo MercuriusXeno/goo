@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.throwing;
 
+import com.mercuriusxeno.goo.ability.BuildBounds;
 import com.mercuriusxeno.goo.ability.BuildFootprint;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
@@ -17,6 +18,7 @@ class BuildChoreographyTest {
     /** An eye three blocks above the corner's top face, two blocks west of the corner. */
     private static final Vec3 EYE = new Vec3(8.5, 68, 10.5);
     private static final float LEVEL_PITCH = 30f;
+    private static final BuildBounds BOUNDS = new BuildBounds(8, 8);
 
     /** A look from the eye down onto the top face of the ground cell at an x, z. */
     private static Vec3 lookAt(double x, double z) {
@@ -26,7 +28,7 @@ class BuildChoreographyTest {
     /** Pins the corner, drags to the cell two east, and releases. */
     private static BuildChoreography sizedAndReleased() {
         BuildChoreography cast = new BuildChoreography();
-        cast.press(CORNER);
+        cast.press(CORNER, BOUNDS);
         cast.tick(true, EYE, lookAt(12.5, 10.5), LEVEL_PITCH);
         cast.tick(false, EYE, lookAt(12.5, 10.5), LEVEL_PITCH);
         return cast;
@@ -40,7 +42,7 @@ class BuildChoreographyTest {
             BuildChoreography cast = sizedAndReleased();
             cast.tick(false, EYE, lookAt(12.5, 10.5), LEVEL_PITCH - 3 * BuildChoreography.DEGREES_PER_BLOCK);
 
-            Optional<BuildFootprint> submitted = cast.press(CORNER);
+            Optional<BuildFootprint> submitted = cast.press(CORNER, BOUNDS);
 
             assertEquals(Optional.of(new BuildFootprint(CORNER, new BlockPos(12, 64, 10), 4)), submitted);
             assertEquals(BuildChoreography.Phase.IDLE, cast.phase());
@@ -49,23 +51,23 @@ class BuildChoreographyTest {
         @Test
         void pressesWhileTheDragHoldsSubmitNothing() {
             BuildChoreography cast = new BuildChoreography();
-            cast.press(CORNER);
+            cast.press(CORNER, BOUNDS);
             cast.tick(true, EYE, lookAt(12.5, 10.5), LEVEL_PITCH);
 
-            assertEquals(Optional.empty(), cast.press(CORNER));
+            assertEquals(Optional.empty(), cast.press(CORNER, BOUNDS));
             assertEquals(BuildChoreography.Phase.SIZING, cast.phase());
         }
 
         @Test
         void theHeldKeyAfterASubmitPinsNoNewCorner() {
             BuildChoreography cast = sizedAndReleased();
-            cast.press(CORNER);
+            cast.press(CORNER, BOUNDS);
 
-            cast.press(CORNER);
+            cast.press(CORNER, BOUNDS);
             assertEquals(BuildChoreography.Phase.IDLE, cast.phase());
 
             cast.tick(false, EYE, lookAt(12.5, 10.5), LEVEL_PITCH);
-            cast.press(CORNER);
+            cast.press(CORNER, BOUNDS);
             assertEquals(BuildChoreography.Phase.SIZING, cast.phase());
         }
     }
@@ -81,7 +83,7 @@ class BuildChoreographyTest {
             cast.cancel();
 
             assertEquals(Optional.empty(), cast.footprint());
-            assertEquals(Optional.empty(), cast.press(CORNER));
+            assertEquals(Optional.empty(), cast.press(CORNER, BOUNDS));
             assertEquals(BuildChoreography.Phase.SIZING, cast.phase());
         }
 
@@ -89,7 +91,7 @@ class BuildChoreographyTest {
         void aPressOnNoGroundPinsNothing() {
             BuildChoreography cast = new BuildChoreography();
 
-            cast.press(null);
+            cast.press(null, BOUNDS);
 
             assertEquals(BuildChoreography.Phase.IDLE, cast.phase());
             assertEquals(Optional.empty(), cast.footprint());
@@ -101,19 +103,19 @@ class BuildChoreographyTest {
 
         @Test
         void thePitchAtReleaseRisesTheLowest() {
-            assertEquals(BuildFootprint.MIN_RISE, BuildChoreography.riseFromPitch(LEVEL_PITCH, LEVEL_PITCH));
+            assertEquals(BuildBounds.MIN_RISE, BuildChoreography.riseFromPitch(LEVEL_PITCH, LEVEL_PITCH, BOUNDS));
         }
 
         @Test
         void eachStepUpRisesOneBlock() {
             assertEquals(3, BuildChoreography.riseFromPitch(LEVEL_PITCH,
-                    LEVEL_PITCH - 2 * BuildChoreography.DEGREES_PER_BLOCK));
+                    LEVEL_PITCH - 2 * BuildChoreography.DEGREES_PER_BLOCK, BOUNDS));
         }
 
         @Test
         void theRiseHoldsWithinItsCaps() {
-            assertEquals(BuildFootprint.MAX_RISE, BuildChoreography.riseFromPitch(LEVEL_PITCH, -90f));
-            assertEquals(BuildFootprint.MIN_RISE, BuildChoreography.riseFromPitch(LEVEL_PITCH, 90f));
+            assertEquals(BOUNDS.maxRise(), BuildChoreography.riseFromPitch(LEVEL_PITCH, -90f, BOUNDS));
+            assertEquals(BuildBounds.MIN_RISE, BuildChoreography.riseFromPitch(LEVEL_PITCH, 90f, BOUNDS));
         }
     }
 

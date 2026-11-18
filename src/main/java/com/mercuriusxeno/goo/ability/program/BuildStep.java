@@ -1,8 +1,11 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.ability.BuildBounds;
 import com.mercuriusxeno.goo.ability.BuildGrowth;
 import com.mercuriusxeno.goo.entity.BlockHunk;
+import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
@@ -23,8 +26,12 @@ import java.util.stream.Stream;
  * ground under it stays as it stood.
  * decision spire-grows-stone-out-of-the-top
  * decision spire-entity-izes-its-blocks-and-raises-them-smoothly
+ * decision build-dimensions-reach-sixteen-by-sixteen-by-sixteen
+ *
+ * @param maxSpan the widest the footprint runs on either axis, in blocks
+ * @param maxRise the highest the Build rises, in blocks
  */
-public record BuildStep() implements Step {
+public record BuildStep(int maxSpan, int maxRise) implements Step {
 
     private static final String NAME = "build";
     /** The ticks the stone takes to rise from the ground into its cells. */
@@ -33,11 +40,40 @@ public record BuildStep() implements Step {
     private static final double DUST_SPREAD = 0.4;
     private static final double DUST_SPEED = 0.1;
 
-    /** Codec for the step, which takes no params. */
-    public static final MapCodec<BuildStep> CODEC = MapCodec.unit(new BuildStep());
+    private static final String FIELD_MAX_SPAN = "max_span";
+    private static final String FIELD_MAX_RISE = "max_rise";
+
+    /** Codec for the step: its bounds, each sixteen where the file names none. */
+    public static final MapCodec<BuildStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
+            Codec.intRange(1, Integer.MAX_VALUE).optionalFieldOf(FIELD_MAX_SPAN, BuildBounds.SIXTEEN_CUBED.maxSpan())
+                    .forGetter(BuildStep::maxSpan),
+            Codec.intRange(BuildBounds.MIN_RISE, Integer.MAX_VALUE)
+                    .optionalFieldOf(FIELD_MAX_RISE, BuildBounds.SIXTEEN_CUBED.maxRise()).forGetter(BuildStep::maxRise)
+    ).apply(inst, BuildStep::new));
 
     /** The registered type. */
     public static final StepType<BuildStep> TYPE = new StepType<>(NAME, CODEC);
+
+    /**
+     * The bounds the step caps a cast at.
+     *
+     * @return the span and the rise
+     */
+    public BuildBounds bounds() {
+        return new BuildBounds(maxSpan, maxRise);
+    }
+
+    /**
+     * The bounds an ability's program caps its cast at: its build step's, or
+     * sixteen by sixteen by sixteen where it runs none.
+     *
+     * @param behaviors the ability's step program
+     * @return the bounds
+     */
+    public static BuildBounds boundsOf(List<Step> behaviors) {
+        return behaviors.stream().filter(BuildStep.class::isInstance).map(BuildStep.class::cast).findFirst()
+                .map(BuildStep::bounds).orElse(BuildBounds.SIXTEEN_CUBED);
+    }
 
     @Override
     public StepType<BuildStep> type() {

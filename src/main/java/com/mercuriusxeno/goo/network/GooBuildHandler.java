@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityTags;
 import com.mercuriusxeno.goo.ability.BuildFootprint;
 import com.mercuriusxeno.goo.ability.BuildGrowth;
+import com.mercuriusxeno.goo.ability.program.BuildStep;
 import com.mercuriusxeno.goo.ability.program.FootprintHost;
 import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
@@ -34,6 +35,7 @@ import java.util.OptionalInt;
  * decision spire-rips-walls-and-platforms
  * decision spire-grows-stone-out-of-the-top
  * decision spire-cost-field-prices-each-cubic-meter-of-stone-at-mundane-block
+ * decision build-dimensions-reach-sixteen-by-sixteen-by-sixteen
  */
 public final class GooBuildHandler {
 
@@ -67,28 +69,27 @@ public final class GooBuildHandler {
      */
     public static void cast(ServerPlayer player, GooBuildPayload payload) {
         ResourceKey<GooTypeDefinition> gooType = GooTypes.known(payload.gooTypeId());
-        if (gooType == null || !withinReach(player, gooType, payload.footprint())) {
+        if (gooType == null || !GooThrowHandler.validateCaster(player, gooType)) {
             return;
         }
         AbilityDefinition ability = GooThrowHandler.usableAbility(player, payload.abilityId(), gooType);
-        if (castable(player, ability)) {
+        if (castable(player, ability) && withinReach(player, ability, payload.footprint())) {
             grow(player, payload, gooType, ability);
         }
     }
 
     /**
-     * Whether the submit is one the player can make: a caster held that casts the type, the
-     * footprint within its caps, and both corners within the throw range of
-     * the player's eye.
+     * Whether the submit is one the player can make: the footprint within the
+     * bounds the ability's build step sets, and both corners within the throw
+     * range of the player's eye.
      *
      * @param player    the casting player
-     * @param gooType   the build's goo type
+     * @param ability   the ability cast
      * @param footprint the footprint as submitted
      * @return true for a submit in reach
      */
-    private static boolean withinReach(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType,
-                                       BuildFootprint footprint) {
-        return GooThrowHandler.validateCaster(player, gooType) && footprint.withinCaps()
+    private static boolean withinReach(ServerPlayer player, AbilityDefinition ability, BuildFootprint footprint) {
+        return BuildStep.boundsOf(ability.behaviors()).admits(footprint)
                 && inRange(player, footprint.corner()) && inRange(player, footprint.opposite());
     }
 

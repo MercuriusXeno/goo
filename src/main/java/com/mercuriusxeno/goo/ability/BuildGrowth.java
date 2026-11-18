@@ -66,7 +66,7 @@ public record BuildGrowth(BuildFootprint footprint, List<BlockPos> columns, GooF
     public static Optional<BuildGrowth> affordable(BlockGetter blocks, BuildFootprint footprint,
                                                    GooFraction pricePerBlock, ResourceKey<GooTypeDefinition> gooType,
                                                    GooRemainders remainders, int holdings) {
-        for (int rise = footprint.rise(); rise >= BuildFootprint.MIN_RISE; rise--) {
+        for (int rise = footprint.rise(); rise >= BuildBounds.MIN_RISE; rise--) {
             BuildGrowth growth = plan(blocks, footprint.withRise(rise), pricePerBlock);
             // decision melt-and-fabricate-move-the-exact-value-through-a-remainder-buffer
             boolean paidFor = new RemainderLedger(remainders).debitExact(gooType, growth.exactCost(), holdings)

@@ -9,7 +9,7 @@
   "requires": ["minecraft:gravel", "minecraft:sand"],
   "delivery": { "kind": "arc" },
   "behaviors": [
-    { "type": "build" }
+    { "type": "build", "max_span": 16, "max_rise": 16 }
   ],
   "tags": ["footprint"],
   "pose": "resting"

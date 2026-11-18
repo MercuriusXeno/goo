@@ -7,7 +7,7 @@ import java.util.List;
 /**
  * The ground a Build grows stone over: a rectangle of ground cells on the
  * pinned corner's level, the drag sizing it, and the rise the pitch sets,
- * each capped so one cast stays a wall or a platform.
+ * each capped by the ability's {@link BuildBounds}.
  * decision spire-rips-walls-and-platforms
  * decision spire-grows-stone-out-of-the-top
  *
@@ -16,39 +16,6 @@ import java.util.List;
  * @param rise     how many stone blocks grow above each ground cell
  */
 public record BuildFootprint(BlockPos corner, BlockPos opposite, int rise) {
-
-    /** The widest a footprint runs on either axis, in blocks. */
-    public static final int MAX_SPAN = 8;
-    /** The highest the stone grows, in blocks. */
-    public static final int MAX_RISE = 8;
-    /** The lowest rise a cast makes, however little the pitch moved. */
-    public static final int MIN_RISE = 1;
-
-    /**
-     * A footprint the caster asked for, cut to the caps: the opposite corner
-     * pulled within the span of the pinned one and onto its level, the rise
-     * held between the lowest and the highest.
-     *
-     * @param corner   the pinned ground cell
-     * @param dragged  the ground cell the drag reached
-     * @param rise     the rise asked for
-     * @return the capped footprint
-     */
-    public static BuildFootprint capped(BlockPos corner, BlockPos dragged, int rise) {
-        BlockPos opposite = new BlockPos(clampSpan(corner.getX(), dragged.getX()), corner.getY(),
-                clampSpan(corner.getZ(), dragged.getZ()));
-        return new BuildFootprint(corner.immutable(), opposite, Math.clamp(rise, MIN_RISE, MAX_RISE));
-    }
-
-    /**
-     * Whether a footprint as sent stands within the caps, the check the server
-     * makes before it grows anything.
-     *
-     * @return true for a footprint on one level within the span and rise caps
-     */
-    public boolean withinCaps() {
-        return spansWithinCaps() && rise >= MIN_RISE && rise <= MAX_RISE;
-    }
 
     /**
      * The same footprint at another rise.
@@ -91,18 +58,5 @@ public record BuildFootprint(BlockPos corner, BlockPos opposite, int rise) {
     public BlockPos max() {
         return new BlockPos(Math.max(corner.getX(), opposite.getX()), corner.getY(),
                 Math.max(corner.getZ(), opposite.getZ()));
-    }
-
-    private boolean spansWithinCaps() {
-        return corner.getY() == opposite.getY() && span(corner.getX(), opposite.getX()) <= MAX_SPAN
-                && span(corner.getZ(), opposite.getZ()) <= MAX_SPAN;
-    }
-
-    private static int clampSpan(int from, int to) {
-        return Math.clamp(to, from - (MAX_SPAN - 1), from + (MAX_SPAN - 1));
-    }
-
-    private static int span(int from, int to) {
-        return Math.abs(to - from) + 1;
     }
 }
