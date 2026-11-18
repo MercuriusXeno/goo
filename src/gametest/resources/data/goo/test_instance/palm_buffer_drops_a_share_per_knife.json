@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:palm_buffer_drops_a_share_per_knife",
+  "environment": "minecraft:default",
+  "structure": "goo:light_bay",
+  "max_ticks": 200,
+  "setup_ticks": 0,
+  "required": true
+}

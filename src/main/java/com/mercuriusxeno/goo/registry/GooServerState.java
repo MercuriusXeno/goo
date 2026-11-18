@@ -12,6 +12,7 @@ import com.mercuriusxeno.goo.block.ability.WispClaims;
 import com.mercuriusxeno.goo.network.DripFlights;
 import com.mercuriusxeno.goo.network.GooEffectScheduler;
 import com.mercuriusxeno.goo.network.KnifeHolds;
+import com.mercuriusxeno.goo.network.PalmBuffer;
 import com.mercuriusxeno.goo.network.ScanWaves;
 import com.mercuriusxeno.goo.network.StreamHolds;
 import com.mercuriusxeno.goo.network.ThrownKnives;
@@ -221,6 +222,8 @@ public final class GooServerState {
         morphBirths.bearArrived(currentTick);
         blockExposures.decay(server);
         streamHolds.releaseLapsed(currentTick);
+        // each-ability-has-its-own-buffer-that-fills-only-while-held: the buffers refill before the holds settle
+        PalmBuffer.refillEvery(server, knifeHolds);
         knifeHolds.tick(currentTick);
         thrownKnives.tick(currentTick);
     }
