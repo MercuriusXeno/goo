@@ -1,9 +1,9 @@
 {
   "type": "minecraft:function",
-  "function": "goo:portal_placing_links_to_the_last_placed",
+  "function": "goo:portals_place_a_pair_and_carry",
   "environment": "minecraft:default",
   "structure": "goo:light_bay",
-  "max_ticks": 40,
+  "max_ticks": 100,
   "setup_ticks": 0,
   "required": true
 }

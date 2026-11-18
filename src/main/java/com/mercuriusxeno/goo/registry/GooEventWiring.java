@@ -6,7 +6,7 @@ import com.mercuriusxeno.goo.ability.AbilityRegistrySource;
 import com.mercuriusxeno.goo.ability.aging.Aging;
 import com.mercuriusxeno.goo.ability.aging.AgingTable;
 import com.mercuriusxeno.goo.ability.blockmap.BlockMaps;
-import com.mercuriusxeno.goo.ability.quantum.PortalChoice;
+import com.mercuriusxeno.goo.ability.quantum.PortalPairs;
 import com.mercuriusxeno.goo.block.ability.LayerFalls;
 import com.mercuriusxeno.goo.block.ability.ServerFallLanding;
 import com.mercuriusxeno.goo.command.GooCommand;
@@ -190,7 +190,7 @@ public final class GooEventWiring {
                     GooValueSync.sendToPlayer(player);
                     PacketDistributor.sendToPlayer(player, abilityPayload);
                     PlayerKnowledge.sendToPlayer(player);
-                    PortalChoice.sync(player);
+                    PortalPairs.sync(player);
                 });
     }
 
