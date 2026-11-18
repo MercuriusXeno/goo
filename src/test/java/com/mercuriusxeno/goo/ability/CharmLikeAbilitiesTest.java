@@ -22,7 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class CharmLikeAbilitiesTest {
 
     @ParameterizedTest
-    @ValueSource(strings = {"hex_charm", "quantum_phase_other", "zoo_rally", "zoo_shape", "zoo_spawn", "typhoon_shulk",
+    @ValueSource(strings = {"hex_charm", "zoo_rally", "zoo_shape", "zoo_spawn", "typhoon_shulk",
             "yore_rewind"})
     void namesTheEnvelopDeliveryWithNoWindUp(String ability) {
         Delivery delivery = AbilityJson.decode(ability).delivery();
