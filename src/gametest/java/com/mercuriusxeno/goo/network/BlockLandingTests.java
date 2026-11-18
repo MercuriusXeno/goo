@@ -39,7 +39,7 @@ public final class BlockLandingTests {
     private static final BlockPos FACE_POS = WALL_POS.south();
     /** Marks a pending effect aimed at a block rather than an entity. */
     private static final int NO_ENTITY = -1;
-    private static final String METAL_URCHIN = "goo:metal_urchin";
+    private static final String SPIKE_TRAP = "goo:test_spike_trap";
     private static final String MARKER_WRONG_ABILITY = "The landed marker does not carry the thrown ability";
 
     private BlockLandingTests() {
@@ -64,9 +64,9 @@ public final class BlockLandingTests {
      * @param helper the gametest helper
      */
     public static void abilityLandsItsMarker(GameTestHelper helper) {
-        landOnWall(helper, METAL_URCHIN);
+        landOnWall(helper, SPIKE_TRAP);
         AbilityBlockEntity marker = helper.getBlockEntity(FACE_POS, AbilityBlockEntity.class);
-        helper.assertTrue(METAL_URCHIN.equals(marker.getAbilityId()), MARKER_WRONG_ABILITY);
+        helper.assertTrue(SPIKE_TRAP.equals(marker.getAbilityId()), MARKER_WRONG_ABILITY);
         helper.succeed();
     }
 }
