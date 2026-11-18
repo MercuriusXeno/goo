@@ -32,6 +32,9 @@ public final class BuildChoreography {
 
     /** Degrees of pitch that raise the rise one block, looking up from the pitch at release. */
     public static final float DEGREES_PER_BLOCK = 6f;
+    /** Below this, the look runs too near the push's line to aim along it. */
+    private static final double PARALLEL = 1e-6;
+    private static final double HALF = 0.5;
 
     private Phase phase = Phase.IDLE;
     private @Nullable BlockPos corner;
@@ -75,7 +78,8 @@ public final class BuildChoreography {
     /**
      * Advances the cast one client tick: while sizing, a held key drags the
      * footprint to the ground cell the look meets and a released key fixes
-     * it; while rising, the pitch sets the rise.
+     * it; while rising, the pitch sets the rise of a footprint on the
+     * ground, and the look sets how far one on a wall or a ceiling pushes out.
      *
      * @param useKeyDown whether the use key is held this tick
      * @param eye        the player's eye
@@ -95,7 +99,8 @@ public final class BuildChoreography {
                 rise = BuildBounds.MIN_RISE;
             }
         } else if (phase == Phase.RISING) {
-            rise = riseFromPitch(pitchAtRelease, pitch, bounds);
+            rise = face == Direction.UP ? riseFromPitch(pitchAtRelease, pitch, bounds)
+                    : footprint().flatMap(fixed -> pushFromLook(fixed, eye, look, bounds)).orElse(rise);
         }
     }
 
@@ -138,6 +143,46 @@ public final class BuildChoreography {
     public static int riseFromPitch(float pitchAtRelease, float pitch, BuildBounds bounds) {
         int climbed = (int) Math.floor((pitchAtRelease - pitch) / DEGREES_PER_BLOCK);
         return bounds.capRise(BuildBounds.MIN_RISE + (long) climbed);
+    }
+
+    /**
+     * How far a footprint on a wall or a ceiling pushes out where the look
+     * aims: the distance out along the face's normal, from the footprint's
+     * middle, of the point on that line the look passes nearest, so the push
+     * ends where the player aims.
+     * decision build-goes-sideways
+     *
+     * @param footprint the fixed footprint
+     * @param eye       the player's eye
+     * @param look      the player's look, a unit vector
+     * @param bounds    the bounds the push holds within
+     * @return the push, within the bounds, or empty where the look runs along the normal or aims behind the eye
+     */
+    public static Optional<Integer> pushFromLook(BuildFootprint footprint, Vec3 eye, Vec3 look, BuildBounds bounds) {
+        Vec3 normal = Vec3.atLowerCornerOf(footprint.face().getUnitVec3i());
+        Vec3 middle = faceMiddle(footprint);
+        double along = normal.dot(look);
+        double square = 1 - along * along;
+        if (square < PARALLEL) {
+            return Optional.empty();
+        }
+        Vec3 toMiddle = middle.subtract(eye);
+        double out = (along * look.dot(toMiddle) - normal.dot(toMiddle)) / square;
+        double ahead = (look.dot(toMiddle) - along * normal.dot(toMiddle)) / square;
+        if (ahead < 0) {
+            return Optional.empty();
+        }
+        return Optional.of(bounds.capRise(Math.round(out)));
+    }
+
+    private static Vec3 faceMiddle(BuildFootprint footprint) {
+        Vec3 low = Vec3.atLowerCornerOf(footprint.min());
+        Vec3 middle = low.add(Vec3.atLowerCornerOf(footprint.max()).add(1, 1, 1)).scale(HALF);
+        Direction face = footprint.face();
+        Direction.Axis normal = face.getAxis();
+        double plane = face.getAxisDirection() == Direction.AxisDirection.POSITIVE
+                ? footprint.max().get(normal) + 1 : footprint.min().get(normal);
+        return middle.with(normal, plane);
     }
 
     /**
