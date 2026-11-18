@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.ability.program.MiasmaVortexStep;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
@@ -43,10 +44,10 @@ public final class MiasmaVortex {
      * away after the hold ends, sorted by the middle of its cone.
      * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
      *
-     * @param modelView the level's model view matrix this frame
-     * @param draws     where the vortex's draw goes
+     * @param frame the frame being drawn
+     * @param draws where the vortex's draw goes
      */
-    public static void collect(Matrix4fc modelView, Consumer<SortedDraw> draws) {
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
         if (player == null) {
@@ -67,7 +68,7 @@ public final class MiasmaVortex {
         Vec3 hand = CastOrigin.ofLocal(mc).subtract(camera.position());
         VortexCone vortex = VortexCone.along(hand, player.getViewVector(partialTick), drawn.delivery().range(),
                 drawn.delivery().coneDegrees());
-        draws.accept(sortedDrawOf(vortex, lastColors, shown, modelView));
+        draws.accept(sortedDrawOf(vortex, lastColors, shown, frame.modelView()));
     }
 
     private static SortedDraw sortedDrawOf(VortexCone vortex, MiasmaVortexPass.Colors colors,

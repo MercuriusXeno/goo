@@ -4,6 +4,8 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.crystal.KnifeHoming;
 import com.mercuriusxeno.goo.client.FlatQuadContext;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.network.GlassKnifePayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -24,12 +26,12 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 /**
  * Knives' glass knives in flight on this client: each leaves its fan slot as
@@ -212,21 +214,28 @@ public final class GlassKnives {
     }
 
     /**
-     * Draws every knife after translucent blocks: in flight between its
-     * tick points, or stuck at its end.
+     * Hands the shared path every knife, in flight between its tick points
+     * or stuck at its end, and every sliver, sorted by the nearest knife.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
      *
-     * @param event the level render stage event
+     * @param frame the frame being drawn
+     * @param draws where the knives' draw goes
      */
-    @SubscribeEvent
-    public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.level == null || LIVE.isEmpty() && SLIVERS.isEmpty()) {
+        ClientLevel level = mc.level;
+        if (level == null || LIVE.isEmpty() && SLIVERS.isEmpty()) {
             return;
         }
-        double now = mc.level.getGameTime() + mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        draws.accept(SortedDraw.nearestOf(LIVE.stream().map(knife -> knife.lastKnown), camera,
+                () -> drawKnives(mc, level, frame, camera)));
+    }
+
+    private static void drawKnives(Minecraft mc, ClientLevel level, LevelFrame frame, Vec3 camera) {
+        double now = level.getGameTime() + mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
-        FlatQuadContext quads = new FlatQuadContext(event.getPoseStack().last(),
+        FlatQuadContext quads = new FlatQuadContext(frame.poseStack().last(),
                 buffers.getBuffer(GooRenderTypes.CRYSTAL_SHARD_TYPE));
         for (Knife knife : LIVE) {
             drawKnife(quads, knife, now - knife.startTick - 1, camera);

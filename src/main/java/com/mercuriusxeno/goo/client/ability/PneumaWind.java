@@ -1,7 +1,8 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.client.LineContext;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
@@ -11,12 +12,9 @@ import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * Pneuma's look while held: soft motes of air, drawn as the same really soft
@@ -25,7 +23,6 @@ import java.util.List;
  * hold reads as a breath being taken. The motes ride along with the head.
  * pneuma-overfills-the-air-meter-with-a-brief-airless-immunity
  */
-@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class PneumaWind {
 
     /** Ticks a mote takes from leaving to reaching the mouth. */
@@ -134,12 +131,14 @@ public final class PneumaWind {
 
     /**
      * Spawns this tick's motes while the local player holds Pneuma, drops
-     * spent ones and draws the rest.
+     * spent ones and hands the shared path the rest, sorted by the player's
+     * eye they stream into.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
      *
-     * @param event the level render stage event
+     * @param frame the frame being drawn
+     * @param draws where the motes' draw goes
      */
-    @SubscribeEvent
-    public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
         if (player == null || mc.level == null) {
@@ -152,7 +151,10 @@ public final class PneumaWind {
         }
         LIVE.removeIf(mote -> now - mote.startTick() >= LIFE_TICKS);
         if (!LIVE.isEmpty()) {
-            drawMotes(event, mc, player, now);
+            float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
+            Vec3 camera = mc.gameRenderer.getMainCamera().position();
+            draws.accept(new SortedDraw(player.getEyePosition(partialTick).distanceToSqr(camera),
+                    () -> drawMotes(frame, mc, player, now)));
         }
     }
 
@@ -167,14 +169,13 @@ public final class PneumaWind {
                 mouth(look), now));
     }
 
-    private static void drawMotes(RenderLevelStageEvent.AfterTranslucentBlocks event, Minecraft mc,
-                                  LocalPlayer player, long now) {
+    private static void drawMotes(LevelFrame frame, Minecraft mc, LocalPlayer player, long now) {
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         Vec3 eye = CameraEye.of(mc, player, partialTick).eye();
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         RenderType type = RenderTypes.linesTranslucent();
-        LineContext lines = new LineContext(event.getPoseStack().last(), buffers.getBuffer(type));
+        LineContext lines = new LineContext(frame.poseStack().last(), buffers.getBuffer(type));
         for (Mote mote : LIVE) {
             drawMote(lines, camera, eye, mote, now + partialTick - mote.startTick());
         }
