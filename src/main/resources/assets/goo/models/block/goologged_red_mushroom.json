@@ -1,4 +1,0 @@
-{
-  "parent": "minecraft:block/red_mushroom",
-  "render_type": "minecraft:cutout"
-}
