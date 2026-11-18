@@ -31,6 +31,8 @@ import com.mercuriusxeno.goo.client.ability.NovaRings;
 import com.mercuriusxeno.goo.client.ability.PartnerMeshes;
 import com.mercuriusxeno.goo.client.ability.PetrifyFog;
 import com.mercuriusxeno.goo.client.ability.PneumaWind;
+import com.mercuriusxeno.goo.client.ability.PortalFaces;
+import com.mercuriusxeno.goo.client.ability.PortalView;
 import com.mercuriusxeno.goo.client.ability.ReapSlashBlades;
 import com.mercuriusxeno.goo.client.ability.RelayLasers;
 import com.mercuriusxeno.goo.client.ability.RollingGooRenderer;
@@ -46,6 +48,10 @@ import com.mercuriusxeno.goo.client.ability.TransformationRenderer;
 import com.mercuriusxeno.goo.client.ability.WindLines;
 import com.mercuriusxeno.goo.client.ability.WispGlow;
 import com.mercuriusxeno.goo.client.ability.ZapBolts;
+import com.mercuriusxeno.goo.client.hole.HoleMouths;
+import com.mercuriusxeno.goo.client.hole.HolePits;
+import com.mercuriusxeno.goo.client.zone.RoomCopyRenderer;
+import com.mercuriusxeno.goo.client.zone.VoidstoneFaces;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
@@ -124,7 +130,14 @@ public final class TranslucentVisualPath {
             new Registration(SculkerSenses.class, SortRoute.THROUGH_BLOCKS, SculkerSenses::collect),
             new Registration(LunarTripView.class, SortRoute.SKY, LunarTripView::collectSky),
             new Registration(LunarTripView.class, SortRoute.THROUGH_BLOCKS, LunarTripView::collect),
-            new Registration(BoreDrill.class, SortRoute.FAR_TO_NEAR, BoreDrill::collect));
+            new Registration(BoreDrill.class, SortRoute.FAR_TO_NEAR, BoreDrill::collect),
+            new Registration(PortalFaces.class, SortRoute.FAR_TO_NEAR, PortalFaces::collect),
+            new Registration(PortalView.class, SortRoute.SKY, PortalView::collectSky),
+            new Registration(HoleMouths.class, SortRoute.FAR_TO_NEAR, HoleMouths::collect),
+            new Registration(HolePits.class, SortRoute.OPAQUE_SHAPE, HolePits::collect),
+            new Registration(RoomCopyRenderer.class, SortRoute.OPAQUE_SHAPE, RoomCopyRenderer::collectSolid),
+            new Registration(RoomCopyRenderer.class, SortRoute.FAR_TO_NEAR, RoomCopyRenderer::collect),
+            new Registration(VoidstoneFaces.class, SortRoute.OPAQUE_SHAPE, VoidstoneFaces::collect));
 
     private TranslucentVisualPath() {
     }

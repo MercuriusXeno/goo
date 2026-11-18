@@ -1,11 +1,12 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.quantum.Gate;
 import com.mercuriusxeno.goo.ability.quantum.GatePassage;
 import com.mercuriusxeno.goo.ability.quantum.Portal;
 import com.mercuriusxeno.goo.ability.quantum.QuantumPortals;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.throwing.GloveAim;
 import com.mercuriusxeno.goo.client.throwing.PortalAim;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -21,13 +22,10 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
@@ -45,7 +43,6 @@ import java.util.function.Function;
  * portals-link-by-looking-through-portal-vision
  * hole-closes-the-space-to-an-opening-ahead
  */
-@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class PortalFaces {
 
     /** The blue portal's color: the entry, and any portal not yet the exit. */
@@ -175,21 +172,30 @@ public final class PortalFaces {
     }
 
     /**
-     * Draws the gates once the world has drawn.
+     * Hands the shared path the gates once the world has drawn, in the
+     * frame's pass and in a view's own, as one draw sorted by the nearest
+     * gate's face: halos, views, idle swirls and blinking swirls, then the
+     * outlines, which pass every depth test and so draw last over its own
+     * halos, views and swirls, the draw keeping that order within itself.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
      *
-     * @param event the level render stage event
+     * @param frame the frame being drawn
+     * @param draws where the gates' draw goes
      */
-    @SubscribeEvent
-    public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
         if (player == null || mc.level == null) {
             return;
         }
         Vec3 camera = PortalView.drawing() ? PortalView.cameraPosition() : mc.gameRenderer.getMainCamera().position();
-        PoseStack.Pose pose = event.getPoseStack().last();
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         List<Drawn> gates = gatesIn(mc.level.dimension());
+        draws.accept(SortedDraw.nearestOf(gates.stream().map(drawn -> drawn.ovalBox().getCenter()), camera,
+                () -> drawGates(frame.poseStack().last(), mc.renderBuffers().bufferSource(), camera, player, gates)));
+    }
+
+    private static void drawGates(PoseStack.Pose pose, MultiBufferSource.BufferSource buffers, Vec3 camera,
+            LocalPlayer player, List<Drawn> gates) {
         drawHalos(pose, buffers, camera, gates);
         if (PortalView.drawing()) {
             drawViews(pose, buffers, camera, gates);
