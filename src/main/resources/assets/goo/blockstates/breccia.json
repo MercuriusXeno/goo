@@ -1,5 +1,10 @@
 {
   "variants": {
-    "": { "model": "goo:block/breccia" }
+    "": [
+      { "model": "goo:block/breccia" },
+      { "model": "goo:block/breccia_2" },
+      { "model": "goo:block/breccia_3" },
+      { "model": "goo:block/breccia_4" }
+    ]
   }
 }
