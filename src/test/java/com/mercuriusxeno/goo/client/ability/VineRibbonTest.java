@@ -10,7 +10,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * A vine strand's spine: it runs from where it leaves to where it latches,
  * a rooted mob's strands leave its body and end on the knot at the root,
  * bending to the ground when slack and straight when strained, and a
- * strand reaches only as far as it has grown
+ * strand reaches only as far as it has grown; its texture repeats along its
+ * length rather than stretching over it
  * (decision vines-unpack-root-and-thorn).
  */
 class VineRibbonTest {
@@ -74,5 +75,33 @@ class VineRibbonTest {
     void aMobOnItsRootStrainsNothingAndOneAtTheLeashStrainsWhole() {
         assertEquals(0, VineTendrils.strainOf(ROOT, ROOT), EPSILON);
         assertEquals(1, VineTendrils.strainOf(ROOT, ROOT.add(0, 0, 2)), EPSILON);
+    }
+
+    @Test
+    void aLongStrandRepeatsTheSpriteEveryHalfBlockRatherThanStretchingIt() {
+        List<VineRibbon.Piece> pieces = VineRibbon.tilePieces(java.util.Collections.nCopies(8, 0.5),
+                VineRibbon.SPRITE_BLOCKS);
+        assertEquals(8, pieces.size());
+        for (VineRibbon.Piece piece : pieces) {
+            assertEquals(0f, piece.vFrom(), EPSILON);
+            assertEquals(1f, piece.vTo(), EPSILON);
+        }
+    }
+
+    @Test
+    void aSegmentCrossingTheSpritesEdgeSplitsThereAndTheSpriteStartsAgain() {
+        List<VineRibbon.Piece> pieces = VineRibbon.tilePieces(List.of(0.3, 0.3), VineRibbon.SPRITE_BLOCKS);
+        assertEquals(rounded(List.of(new VineRibbon.Piece(0, 0, 1, 0f, 0.6f),
+                new VineRibbon.Piece(1, 0, 2.0 / 3, 0.6f, 1f), new VineRibbon.Piece(1, 2.0 / 3, 1, 0f, 0.2f))),
+                rounded(pieces));
+    }
+
+    private static List<VineRibbon.Piece> rounded(List<VineRibbon.Piece> pieces) {
+        return pieces.stream().map(p -> new VineRibbon.Piece(p.segment(), round(p.from()), round(p.to()),
+                (float) round(p.vFrom()), (float) round(p.vTo()))).toList();
+    }
+
+    private static double round(double value) {
+        return Math.round(value * 1e6) / 1e6;
     }
 }
