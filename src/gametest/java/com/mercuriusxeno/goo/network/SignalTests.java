@@ -9,6 +9,7 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
@@ -16,6 +17,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.RedstoneLampBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.List;
 import java.util.function.Consumer;
 
 /**
@@ -32,6 +34,19 @@ public final class SignalTests {
 
     private static final String SIGNAL_CELL_SENDS_ITS_LAYERS = "signal_cell_sends_its_layers";
     private static final String SIGNAL_LIGHTS_A_LAMP_BESIDE_IT = "signal_lights_a_lamp_beside_it";
+    private static final String SIGNAL_HOLDS_ITS_LAYERS_ON_OPEN_GROUND = "signal_holds_its_layers_on_open_ground";
+    private static final String SIGNAL_DRIP_UNDER_A_CEILING_CLINGS_TO_IT = "signal_drip_under_a_ceiling_clings_to_it";
+    /** The open ground's middle cell, where every drip of the open ground test lands. */
+    private static final BlockPos OPEN_CELL = new BlockPos(3, 1, 3);
+    /** A stone block hung in open air, three blocks over the floor, whose underside a drip strikes. */
+    private static final BlockPos HUNG_BLOCK = new BlockPos(3, 4, 3);
+    /** The open cell under the hung block, below its struck underside. */
+    private static final BlockPos UNDER_THE_HUNG_BLOCK = HUNG_BLOCK.below();
+    /** Ticks a laid cell is watched for a pour or a fall, past several of a cell's waits between pours. */
+    private static final int SETTLING_TICKS = 60;
+    private static final String SPREAD = "Signal on open ground should keep all %d layers in its cell, the cross reads %s";
+    private static final String NOT_ON_THE_CEILING = "A Signal drip striking a block's underside should leave a cell"
+            + " attached to that ceiling, stands %s";
     private static final Identifier SIGNAL = Identifier.parse("goo:pulse_signal");
     /** The room spans 0 to 4 across and 0 to 4 up, stone but for the shaft over the floor block. */
     private static final int ROOM_EDGE = 4;
@@ -62,6 +77,10 @@ public final class SignalTests {
         GooTestFunctions.registerTest(registrar, SIGNAL_CELL_SENDS_ITS_LAYERS, SignalTests::signalCellSendsItsLayers);
         GooTestFunctions.registerTest(registrar, SIGNAL_LIGHTS_A_LAMP_BESIDE_IT,
                 SignalTests::signalLightsALampBesideIt);
+        GooTestFunctions.registerTest(registrar, SIGNAL_HOLDS_ITS_LAYERS_ON_OPEN_GROUND,
+                SignalTests::signalHoldsItsLayersOnOpenGround);
+        GooTestFunctions.registerTest(registrar, SIGNAL_DRIP_UNDER_A_CEILING_CLINGS_TO_IT,
+                SignalTests::signalDripUnderACeilingClingsToIt);
     }
 
     /**
@@ -109,6 +128,58 @@ public final class SignalTests {
                 })
                 .thenExecute(() -> helper.getLevel().getServer().getPlayerList().remove(caster))
                 .thenSucceed();
+    }
+
+    /**
+     * Fifteen Signal drips landing on one cell of open stone ground fill it,
+     * and sixty ticks on the cell still holds all fifteen and its four side
+     * cells hold none: pulse's goo is firm, so the layers a player lays are
+     * the signal the cell sends.
+     * signal-goo-sends-a-redstone-signal-equal-to-its-layers
+     * cohesion-is-the-step-the-goo-holds
+     *
+     * @param helper the gametest helper
+     */
+    public static void signalHoldsItsLayersOnOpenGround(GameTestHelper helper) {
+        OpenFloor.layAround(helper, OPEN_CELL);
+        AbilityDefinition signal = signalAbility(helper);
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.PULSE);
+        KnownRecipes.teachRequires(caster, signal);
+        LandedDrips.landOn(helper, caster, signal, OPEN_CELL, VolumeCellBlock.MAX_LAYERS);
+        helper.getLevel().getServer().getPlayerList().remove(caster);
+        List<Integer> heldWhole = List.of(VolumeCellBlock.MAX_LAYERS, 0, 0, 0, 0);
+        helper.runAfterDelay(SETTLING_TICKS, () -> {
+            List<Integer> cross = OpenFloor.layersIn(helper, OpenFloor.crossAt(OPEN_CELL));
+            helper.assertTrue(heldWhole.equals(cross), String.format(SPREAD, VolumeCellBlock.MAX_LAYERS, cross));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * One Signal drip striking the underside of a stone block hung in open
+     * air leaves a Signal cell under it, attached to that ceiling, and sixty
+     * ticks on the cell still hangs there: pulse's adhesion holds an underside.
+     * signal-goo-sends-a-redstone-signal-equal-to-its-layers
+     * adhesion-is-a-ladder-of-holds
+     *
+     * @param helper the gametest helper
+     */
+    public static void signalDripUnderACeilingClingsToIt(GameTestHelper helper) {
+        helper.setBlock(HUNG_BLOCK, Blocks.STONE);
+        for (int y = 1; y < HUNG_BLOCK.getY(); y++) {
+            helper.setBlock(new BlockPos(HUNG_BLOCK.getX(), y, HUNG_BLOCK.getZ()), Blocks.AIR);
+        }
+        AbilityDefinition signal = signalAbility(helper);
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.PULSE);
+        KnownRecipes.teachRequires(caster, signal);
+        LandedDrips.landOnSide(helper, caster, signal, HUNG_BLOCK, Direction.DOWN, 1);
+        helper.getLevel().getServer().getPlayerList().remove(caster);
+        helper.runAfterDelay(SETTLING_TICKS, () -> {
+            BlockState cell = helper.getBlockState(UNDER_THE_HUNG_BLOCK);
+            boolean clinging = cell.is(GooBlocks.PULSE_SIGNAL.get()) && cell.getValue(VolumeCellBlock.CEILING);
+            helper.assertTrue(clinging, String.format(NOT_ON_THE_CEILING, cell));
+            helper.succeed();
+        });
     }
 
     private static AbilityDefinition signalAbility(GameTestHelper helper) {
