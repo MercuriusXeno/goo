@@ -382,7 +382,8 @@ class DeliveryTest {
                     Identifier.fromNamespaceAndPath("goo", "glow_wisps"),
                     Identifier.fromNamespaceAndPath("goo", "hex_leech"),
                     Identifier.fromNamespaceAndPath("goo", "typhoon_updraft"),
-                    Identifier.fromNamespaceAndPath("goo", "jelly_nectar")), throwing);
+                    Identifier.fromNamespaceAndPath("goo", "jelly_nectar"),
+                    Identifier.fromNamespaceAndPath("goo", "pulse_signal")), throwing);
         }
     }
 
@@ -409,7 +410,8 @@ class DeliveryTest {
         void eachSprayThrowsTheSixDripsATickItDraws() {
             assertEquals(SLICK_DRIPS, AbilityJson.decode("kinetic_slick").delivery().dripsPerTick());
             for (String spray : Set.of("weird_goop", "blaze_molten", "crystal_shatter",
-                    "deep_host", "frost_rime", "glow_wisps", "hex_leech", "typhoon_updraft", "jelly_nectar")) {
+                    "deep_host", "frost_rime", "glow_wisps", "hex_leech", "typhoon_updraft", "jelly_nectar",
+                    "pulse_signal")) {
                 assertEquals(SIX_DRIPS, AbilityJson.decode(spray).delivery().dripsPerTick(), spray);
             }
         }
@@ -417,7 +419,8 @@ class DeliveryTest {
         @Test
         void eachSprayLeavesFasterByTheCastersSpeed() {
             for (String spray : Set.of("weird_goop", "kinetic_slick", "blaze_molten", "crystal_shatter",
-                    "deep_host", "frost_rime", "glow_wisps", "hex_leech", "typhoon_updraft", "jelly_nectar")) {
+                    "deep_host", "frost_rime", "glow_wisps", "hex_leech", "typhoon_updraft", "jelly_nectar",
+                    "pulse_signal")) {
                 Delivery delivery = AbilityJson.decode(spray).delivery();
 
                 assertEquals(delivery.throwSpeed() + RAMPED, delivery.exitSpeedAt(RAMPED), 1e-9, spray);

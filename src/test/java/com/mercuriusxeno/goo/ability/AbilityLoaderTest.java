@@ -59,6 +59,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -232,6 +233,16 @@ class AbilityLoaderTest {
                     shippedPathsOf(GooTypes.FROST));
             assertNull(new AbilityRegistry(shippedById()).durativeAbilityFor(GooTypes.FROST));
         }
+
+        /**
+         * extend-is-dropped-for-signal-an-in-world-pulse-goo
+         * goo-type-ships-without-a-durative-ability
+         */
+        @Test
+        void pulseShipsTickZapAndSignalAndNoDurative() {
+            assertEquals(Set.of("pulse_tick", "pulse_zap", "pulse_signal"), shippedPathsOf(GooTypes.PULSE));
+            assertNull(new AbilityRegistry(shippedById()).durativeAbilityFor(GooTypes.PULSE));
+        }
     }
 
     /**
@@ -389,6 +400,47 @@ class AbilityLoaderTest {
     static Stream<AbilityDefinition> shippedBrews() {
         return AbilityJson.files().stream().map(AbilityJson::decode)
                 .filter(ability -> DurativeRoute.isDurative(ability.delivery(), ability.badge()));
+    }
+
+    /**
+     * Mitosis aims and lands within the 16 blocks its delivery names.
+     * decision each-ability-names-its-range-and-the-shared-throw-range-retires
+     * decision abilities-leaving-the-shared-range-start-at-sixteen-blocks
+     */
+    @Test
+    void mitosisDeliveryNamesASixteenBlockRange() {
+        assertEquals(16, AbilityJson.decode("weird_mitosis").delivery().range());
+    }
+
+    /**
+     * Every shipped arc, beam, spontaneous cast and envelop names its range:
+     * Zap and Portal 32, Knives and Dart none, every other 16; Portal's 32
+     * reaches the far wall its shots land on (operator ruling 2026-11-17).
+     * decision each-ability-names-its-range-and-the-shared-throw-range-retires
+     * decision abilities-leaving-the-shared-range-start-at-sixteen-blocks
+     * decision zap-starts-at-thirty-two-blocks
+     */
+    @Test
+    void everyShippedThrownOrCastAbilityNamesItsRange() {
+        Set<DeliveryKind> thrownOrCast = Set.of(DeliveryKind.ARC, DeliveryKind.BEAM, DeliveryKind.SPONTANEOUS,
+                DeliveryKind.ENVELOP);
+        Map<String, Double> named = new TreeMap<>();
+        for (Path file : AbilityJson.files()) {
+            AbilityDefinition ability = AbilityJson.decode(file);
+            if (thrownOrCast.contains(ability.delivery().kind())) {
+                named.put(ability.id().getPath(), ability.delivery().range());
+            }
+        }
+        Map<String, Double> expected = new TreeMap<>();
+        named.keySet().forEach(name -> expected.put(name, switch (name) {
+            case "pulse_zap", "quantum_portal" -> 32.0;
+            case "crystal_knives", "metal_dart" -> 0.0;
+            default -> 16.0;
+        }));
+
+        assertTrue(named.keySet().containsAll(Set.of("weird_mitosis", "pulse_zap", "void_hole", "zoo_spawn",
+                "crystal_knives", "metal_dart")), "the walk missed the shipped inventory: " + named.keySet());
+        assertEquals(expected, named);
     }
 
     /**

@@ -143,14 +143,14 @@ class PortalFacesTest {
         void aBluePortalsHaloReachesTheMarginPastItsFrameInBlue() {
             int rgb = PortalFaces.colorOf(WALL);
 
-            assertHaloAround(rgb, ARGB.color(PortalFaces.CLEAN_EDGE, PortalFaces.BLUE_RGB));
+            assertHaloAround(rgb, ARGB.opaque(PortalFaces.BLUE_RGB));
         }
 
         @Test
         void anOrangePortalsHaloReachesTheMarginPastItsFrameInOrange() {
             int rgb = PortalFaces.colorOf(WALL.withColor(PortalColor.ORANGE));
 
-            assertHaloAround(rgb, ARGB.color(PortalFaces.CLEAN_EDGE, PortalFaces.ORANGE_RGB));
+            assertHaloAround(rgb, ARGB.opaque(PortalFaces.ORANGE_RGB));
         }
 
         private void assertHaloAround(int rgb, int color) {
@@ -218,7 +218,7 @@ class PortalFacesTest {
                 assertTrue(onOval(xs.getAllValues().get(i) - 0.5F, ys.getAllValues().get(i) - 65F, LINE[0],
                         LINE[1]), "Every vertex of the sleeve should stand on the band's line");
             }
-            verify(consumer, times(vertices)).setColor(ARGB.color(PortalFaces.CLEAN_EDGE, PortalFaces.ORANGE_RGB));
+            verify(consumer, times(vertices)).setColor(ARGB.opaque(PortalFaces.ORANGE_RGB));
         }
 
         @Test
@@ -262,7 +262,7 @@ class PortalFacesTest {
                             + "stands at " + x + ", " + y);
                 }
             }
-            verify(consumer, times(vertices)).setColor(ARGB.color(PortalFaces.CLEAN_EDGE, expectedRgb));
+            verify(consumer, times(vertices)).setColor(ARGB.opaque(expectedRgb));
             verify(consumer, times(vertices)).setUv2(AROUND_BY_UP[0], AROUND_BY_UP[1]);
         }
     }
@@ -350,7 +350,7 @@ class PortalFacesTest {
                     java.util.Set.of(new BlockPos(1, 64, -1)));
 
             assertOnFace(lit, 0, 1F - LIFT, "x");
-            verify(lit.consumer(), times(CORNERS)).setColor(ARGB.color(PortalFaces.CLEAN_EDGE, PortalFaces.BLUE_RGB));
+            verify(lit.consumer(), times(CORNERS)).setColor(ARGB.opaque(PortalFaces.BLUE_RGB));
         }
 
         @Test
@@ -367,7 +367,7 @@ class PortalFacesTest {
                     java.util.Set.of(new BlockPos(0, 66, -1)));
 
             assertOnFace(lit, 1, 66F - LIFT, "y");
-            verify(lit.consumer(), times(CORNERS)).setColor(ARGB.color(PortalFaces.CLEAN_EDGE,
+            verify(lit.consumer(), times(CORNERS)).setColor(ARGB.opaque(
                     PortalFaces.ORANGE_RGB));
         }
 
@@ -383,14 +383,14 @@ class PortalFacesTest {
                     org.mockito.ArgumentMatchers.anyFloat());
         }
 
-        /** A hole's mouth lights a corner face in its own color with the torn edge's mark. */
+        /** A hole's mouth lights a corner face on its low side in its own color. */
         @Test
-        void aMouthLightsItsCornerInItsColorWithTheTornMark() {
+        void aMouthLightsItsLowSideCornerInItsColor() {
             Captured lit = emitCorners(new PortalFaces.Drawn(FRAME, PortalFaces.ORANGE_RGB, true),
                     java.util.Set.of(new BlockPos(-1, 65, -1)));
 
             assertOnFace(lit, 0, 0F + LIFT, "x");
-            verify(lit.consumer(), times(CORNERS)).setColor(ARGB.color(PortalFaces.TORN_EDGE, PortalFaces.ORANGE_RGB));
+            verify(lit.consumer(), times(CORNERS)).setColor(ARGB.opaque(PortalFaces.ORANGE_RGB));
         }
 
         private Captured emitCorners(PortalFaces.Drawn gate, java.util.Set<BlockPos> solid) {
@@ -431,9 +431,103 @@ class PortalFacesTest {
     }
 
     /**
+     * A Tunnel mouth draws its rim through the portals' drawing, its oval
+     * standing two texels inside its blocks each way across the face: its
+     * halo, swirl band and sleeve emit what a Portal's on that oval's box do,
+     * in its own color, and its corner glow counts the inset from the rim
+     * (decision tunnel-drops-its-crisp-wiggly-outline-and-looks-like-the-portals).
+     */
+    @Nested
+    class TunnelMouth {
+
+        /** A three by three mouth on the north face of (0, 64, 0) to (3, 67, 1). */
+        private static final Gate WALL_MOUTH = new Gate(Level.OVERWORLD, new AABB(0, 64, 0, 3, 67, 1),
+                Direction.NORTH, new Vec3(0, 1, 0));
+        /** A one by two mouth on the floor of (5, 63, 0) to (6, 64, 2). */
+        private static final Gate FLOOR_MOUTH = new Gate(Level.OVERWORLD, new AABB(5, 63, 0, 6, 64, 2),
+                Direction.UP, new Vec3(0, 0, 1));
+
+        /** A drawn gate's box as its oval fills it, grown full open. */
+        private static final Function<PortalFaces.Drawn, AABB> OVAL_OF = PortalFaces.Drawn::ovalBox;
+        /** A one by two wall mouth on the north face of (0, 64, 0) to (1, 66, 1). */
+        private static final Gate ONE_BY_TWO_WALL_MOUTH = new Gate(Level.OVERWORLD, new AABB(0, 64, 0, 1, 66, 1),
+                Direction.NORTH, new Vec3(0, 1, 0));
+        /** How far a face coordinate may stand from where the test reckons it, float rounding only. */
+        private static final float NEAR = 1.0e-4F;
+
+        @Test
+        void aMouthsOvalStandsTwoTexelsInsideItsBlocksEachWayAcrossTheFace() {
+            double in = 2.0 / 16;
+            assertEquals(new AABB(in, 64 + in, 0, 3 - in, 67 - in, 1),
+                    new PortalFaces.Drawn(WALL_MOUTH, PortalFaces.BLUE_RGB, true).ovalBox(), "A wall mouth");
+            assertEquals(new AABB(5 + in, 63, in, 6 - in, 64, 2 - in),
+                    new PortalFaces.Drawn(FLOOR_MOUTH, PortalFaces.ORANGE_RGB, true).ovalBox(), "A floor mouth");
+            assertEquals(WALL_MOUTH.blocks(), new PortalFaces.Drawn(WALL_MOUTH, PortalFaces.BLUE_RGB, false).ovalBox(),
+                    "A portal's oval fills its whole blocks");
+        }
+
+        @Test
+        void aWallMouthDrawsItsRimAsAPortalOnItsOvalsBoxDoes() {
+            assertDrawsAsAPortal(WALL_MOUTH, PortalFaces.BLUE_RGB);
+        }
+
+        @Test
+        void aFloorMouthDrawsItsRimAsAPortalOnItsOvalsBoxDoes() {
+            assertDrawsAsAPortal(FLOOR_MOUTH, PortalFaces.ORANGE_RGB);
+        }
+
+        /**
+         * A mouth's corner glow unfolds its face past the halo quad around
+         * its inset oval, so the glow on a side wall's face counts the inset
+         * as distance from the rim: on the face of the block east of a one by
+         * two mouth, the quad's first face coordinate runs from the wall's
+         * reach past that halo quad's east edge out the margin.
+         */
+        @Test
+        void aMouthsCornerGlowUnfoldsPastTheHaloAroundItsInsetOval() {
+            VertexConsumer consumer = mock(VertexConsumer.class, Answers.RETURNS_SELF);
+            ArgumentCaptor<Float> us = ArgumentCaptor.forClass(Float.class);
+            PortalFaces.Drawn mouth = new PortalFaces.Drawn(ONE_BY_TWO_WALL_MOUTH, PortalFaces.BLUE_RGB, true);
+
+            PortalFaces.emitCornerGlows(new PoseStack().last(), consumer, List.of(mouth), OVAL_OF,
+                    (pos, face) -> pos.equals(new BlockPos(1, 64, -1)));
+
+            verify(consumer, times(CORNERS)).setUv(us.capture(), org.mockito.ArgumentMatchers.anyFloat());
+            double low = PortalFaces.MOUTH_INSET - PortalFaces.HALO_MARGIN;
+            double wide = 1 - 2 * PortalFaces.MOUTH_INSET + 2 * PortalFaces.HALO_MARGIN;
+            for (double height : new double[] {0, PortalFaces.HALO_MARGIN}) {
+                float expected = (float) ((1 + PortalFaces.HALO_MARGIN + height - low) / wide);
+                assertTrue(us.getAllValues().stream().anyMatch(u -> Math.abs(u - expected) < NEAR),
+                        "The corner face should unfold to " + expected + " at " + height + " off the wall, unfolds to "
+                                + us.getAllValues());
+            }
+        }
+
+        private void assertDrawsAsAPortal(Gate gate, int rgb) {
+            PortalFaces.Drawn mouth = new PortalFaces.Drawn(gate, rgb, true);
+            PortalFaces.Drawn portal = new PortalFaces.Drawn(new Gate(gate.dimension(), mouth.ovalBox(), gate.face(),
+                    gate.up()), rgb, false);
+            PoseStack.Pose pose = new PoseStack().last();
+            assertEquals(emitted(pose, portal, BLOCKS_OF), emitted(pose, mouth, OVAL_OF),
+                    "A Tunnel mouth's halo, swirl band and sleeve should emit what a Portal's on its oval's box do");
+        }
+
+        /** Every call the halo, swirl band and sleeve emitters make for one gate, in order. */
+        private List<String> emitted(PoseStack.Pose pose, PortalFaces.Drawn drawn,
+                Function<PortalFaces.Drawn, AABB> boxOf) {
+            VertexConsumer consumer = mock(VertexConsumer.class, Answers.RETURNS_SELF);
+            PortalFaces.emitHalos(pose, consumer, List.of(drawn), boxOf);
+            PortalFaces.emitSwirlBands(pose, consumer, List.of(drawn), boxOf);
+            PortalFaces.emitSleeves(pose, consumer, List.of(drawn), boxOf);
+            return org.mockito.Mockito.mockingDetails(consumer).getInvocations().stream()
+                    .map(call -> call.getMethod().getName() + java.util.Arrays.toString(call.getArguments()))
+                    .toList();
+        }
+    }
+
+    /**
      * Each of a wormhole's two mouths wears the portals' halo, the same
-     * margin past its own box, in the mouth's own color, its edge marked
-     * torn so the halo starts at the tear
+     * margin past its own box, in the mouth's own color
      * (decision hole-mouths-wear-the-portal-halo).
      */
     @Nested
@@ -459,7 +553,7 @@ class PortalFacesTest {
                     verify(consumer).addVertex(pose, x, y, -0.01F);
                 }
             }
-            verify(consumer, times(CORNERS)).setColor(ARGB.color(PortalFaces.TORN_EDGE, PortalFaces.BLUE_RGB));
+            verify(consumer, times(CORNERS)).setColor(ARGB.opaque(PortalFaces.BLUE_RGB));
             verify(consumer, times(CORNERS)).setUv2(64, 64);
         }
 
@@ -476,126 +570,8 @@ class PortalFacesTest {
                     verify(consumer).addVertex(pose, x, 64.01F, z);
                 }
             }
-            verify(consumer, times(CORNERS)).setColor(ARGB.color(PortalFaces.TORN_EDGE, PortalFaces.ORANGE_RGB));
+            verify(consumer, times(CORNERS)).setColor(ARGB.opaque(PortalFaces.ORANGE_RGB));
             verify(consumer, times(CORNERS)).setUv2(THIRTY_TWO_BY_FORTY_EIGHT[0], THIRTY_TWO_BY_FORTY_EIGHT[1]);
-        }
-    }
-
-    /**
-     * Each of a wormhole's two mouths wears the portals' swirl band beside its
-     * surface glow, arching off the face along its normal to the same named
-     * depth, in the mouth's own color, its edge marked torn and its arch
-     * straddling the middle of the tear, for the shader to start it at the
-     * tear (decision hole-mouths-wear-the-tornadic-halo).
-     */
-    @Nested
-    class MouthSwirlBand {
-
-        /** A three by three mouth on the north face of (0, 64, 0) to (3, 67, 1), its face the plane z 0. */
-        private static final Gate WALL_MOUTH = new Gate(Level.OVERWORLD, new AABB(0, 64, 0, 3, 67, 1),
-                Direction.NORTH, new Vec3(0, 1, 0));
-        /** A one by two mouth on the floor of (5, 63, 0) to (6, 64, 2), its face the plane y 64. */
-        private static final Gate FLOOR_MOUTH = new Gate(Level.OVERWORLD, new AABB(5, 63, 0, 6, 64, 2),
-                Direction.UP, new Vec3(0, 0, 1));
-        /** How far a vertex may stand from where the test reckons it, float rounding only. */
-        private static final float NEAR = 1.0e-4F;
-        /** The middle of a mouth's tear, as a share of the oval's radius. */
-        private static final double TORN_MIDDLE = 0.92;
-
-        /** A three by three mouth's arch: 8.67 blocks around the tear's middle and two texels across. */
-        @Test
-        void aThreeByThreeMouthsSwirlBandArchesOverItsTearToTheNamedDepthInItsColor() {
-            Captured band = emitBoth(new PortalFaces.Drawn(WALL_MOUTH, PortalFaces.BLUE_RGB, true));
-
-            assertSpans(band.normals(), -0.01F, -0.01F - (float) PortalFaces.BAND_DEPTH);
-            assertStraddlesTheTear(band.atTheFace(-0.01F), new float[] {1.5F, 65.5F}, new double[] {1.5, 1.5});
-            verify(band.consumer(), times(band.vertices()))
-                    .setColor(ARGB.color(PortalFaces.TORN_EDGE, PortalFaces.BLUE_RGB));
-            verify(band.consumer(), times(band.vertices())).setUv2(139, 2);
-        }
-
-        /** A one by two floor mouth's arch: 4.46 blocks around the tear's middle and two texels across. */
-        @Test
-        void aOneByTwoMouthsSwirlBandArchesOverItsTearToTheNamedDepthInItsColor() {
-            Captured band = emitBoth(new PortalFaces.Drawn(FLOOR_MOUTH, PortalFaces.ORANGE_RGB, true));
-
-            assertSpans(band.normals(), 64.01F, 64.01F + (float) PortalFaces.BAND_DEPTH);
-            assertStraddlesTheTear(band.atTheFace(64.01F), new float[] {5.5F, 1F}, new double[] {0.5, 1});
-            verify(band.consumer(), times(band.vertices()))
-                    .setColor(ARGB.color(PortalFaces.TORN_EDGE, PortalFaces.ORANGE_RGB));
-            verify(band.consumer(), times(band.vertices())).setUv2(71, 2);
-        }
-
-        private void assertStraddlesTheTear(List<float[]> atTheFace, float[] middle, double[] half) {
-            assertTrue(!atTheFace.isEmpty() && atTheFace.stream().allMatch(at -> onOval(at[0] - middle[0],
-                    at[1] - middle[1], half[0] * TORN_MIDDLE - PortalFaces.BAND_INSET - PortalFaces.BAND_INSIDE,
-                    half[1] * TORN_MIDDLE - PortalFaces.BAND_INSET - PortalFaces.BAND_INSIDE) || onOval(at[0] - middle[0], at[1] - middle[1],
-                    half[0] * TORN_MIDDLE - PortalFaces.BAND_INSET + PortalFaces.BAND_OUTSIDE,
-                    half[1] * TORN_MIDDLE - PortalFaces.BAND_INSET + PortalFaces.BAND_OUTSIDE)),
-                    "Every vertex on the face should land the named distance inside or outside the tear's middle");
-        }
-
-        /**
-         * Emits a mouth's surface glow and its swirl band into one consumer, as
-         * the frame does, and captures the swirl band's vertices.
-         */
-        private Captured emitBoth(PortalFaces.Drawn mouth) {
-            VertexConsumer glow = mock(VertexConsumer.class, Answers.RETURNS_SELF);
-            PoseStack.Pose pose = new PoseStack().last();
-            PortalFaces.emitHalos(pose, glow, List.of(mouth), BLOCKS_OF);
-            ArgumentCaptor<Float> xs = ArgumentCaptor.forClass(Float.class);
-            ArgumentCaptor<Float> ys = ArgumentCaptor.forClass(Float.class);
-            ArgumentCaptor<Float> zs = ArgumentCaptor.forClass(Float.class);
-            VertexConsumer band = mock(VertexConsumer.class, Answers.RETURNS_SELF);
-            PortalFaces.emitSwirlBands(pose, band, List.of(mouth), BLOCKS_OF);
-            verify(band, atLeastOnce()).addVertex(eq(pose), xs.capture(), ys.capture(), zs.capture());
-            verify(glow, times(CORNERS)).setColor(ARGB.color(PortalFaces.TORN_EDGE, mouth.rgb()));
-            return new Captured(band, mouth.gate().face(), xs.getAllValues(), ys.getAllValues(),
-                    zs.getAllValues());
-        }
-
-        private void assertSpans(List<Float> normals, float face, float far) {
-            assertEquals(face, normals.stream().min((a, b) -> Float.compare(Math.abs(a - face), Math.abs(b - face)))
-                    .orElseThrow(), NEAR, "The swirl band should land on the face");
-            assertEquals(far, normals.stream().min((a, b) -> Float.compare(Math.abs(a - far), Math.abs(b - far)))
-                    .orElseThrow(), NEAR, "The swirl band should peak off the face at the named depth");
-            float low = Math.min(face, far) - NEAR;
-            float high = Math.max(face, far) + NEAR;
-            assertTrue(normals.stream().allMatch(at -> at >= low && at <= high),
-                    "Every vertex should stand between the face and the named depth");
-        }
-
-        /**
-         * A swirl band's captured vertices.
-         *
-         * @param consumer the swirl band's consumer
-         * @param side     the face
-         * @param xs       each vertex's x
-         * @param ys       each vertex's y
-         * @param zs       each vertex's z
-         */
-        private record Captured(VertexConsumer consumer, Direction side, List<Float> xs,
-                List<Float> ys, List<Float> zs) {
-
-            int vertices() {
-                return zs.size();
-            }
-
-            List<Float> normals() {
-                return side.getAxis() == Direction.Axis.Y ? ys : zs;
-            }
-
-            /** Each vertex on the face, by its two coordinates across the face. */
-            List<float[]> atTheFace(float face) {
-                List<float[]> points = new java.util.ArrayList<>();
-                for (int i = 0; i < vertices(); i++) {
-                    if (Math.abs(normals().get(i) - face) < NEAR) {
-                        points.add(side.getAxis() == Direction.Axis.Y ? new float[] {xs.get(i), zs.get(i)}
-                                : new float[] {xs.get(i), ys.get(i)});
-                    }
-                }
-                return points;
-            }
         }
     }
 }
