@@ -164,6 +164,15 @@ public class GooParticles {
         PARTICLE_TYPES.register("vines_spray_drip", () -> new SimpleParticleType(false));
 
     /**
+     * Mycosis' spray drip: the mod's blocky goo drip in shroom's purples,
+     * flying its arc until it strikes a block's top, where it splats and the
+     * Mycosis goo lands.
+     * mycosis-is-the-residual-goo-that-infests-with-mushrooms
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> MYCOSIS_SPRAY_DRIP =
+        PARTICLE_TYPES.register("mycosis_spray_drip", () -> new SimpleParticleType(false));
+
+    /**
      * A snowflake crystal flitting weightlessly along Cold's wind (decision
      * cold-streams-wind-lines-and-snowflakes).
      */

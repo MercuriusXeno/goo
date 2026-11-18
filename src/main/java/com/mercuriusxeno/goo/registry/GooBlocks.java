@@ -10,6 +10,7 @@ import com.mercuriusxeno.goo.block.ability.InfestCellBlock;
 import com.mercuriusxeno.goo.block.ability.LightRailBlock;
 import com.mercuriusxeno.goo.block.ability.MagickedIceBlock;
 import com.mercuriusxeno.goo.block.ability.MoltenCellBlock;
+import com.mercuriusxeno.goo.block.ability.MycosisCellBlock;
 import com.mercuriusxeno.goo.block.ability.NectarCellBlock;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
 import com.mercuriusxeno.goo.block.ability.RimeCellBlock;
@@ -442,6 +443,27 @@ public class GooBlocks {
             () -> BlockBehaviour.Properties.of()
                     .mapColor(MapColor.NETHER)
                     .friction(CellBinding.INFEST.surface().friction())
+                    .sound(SoundType.SLIME_BLOCK)
+                    .instabreak()
+                    .noOcclusion()
+                    .replaceable()
+                    .noLootTable()
+                    .pushReaction(PushReaction.DESTROY));
+    /**
+     * Mycosis: the volume cell bound to Shroom's goo, the purple goo Mycosis
+     * sprays onto a block's top, one to fifteen layers, ordinary ground
+     * underfoot and sounding as goo does, infecting what touches it,
+     * dropping the shroom goo its layers cost through
+     * VolumeCellBlock.getDrops, no loot table
+     * (decisions mycosis-is-the-residual-goo-that-infests-with-mushrooms,
+     * mycosis-goo-infects-what-touches-it-as-the-spray-did,
+     * each-goo-type-ships-a-world-goo-on-the-volume-cell).
+     */
+    public static final DeferredBlock<MycosisCellBlock> SHROOM_MYCOSIS = BLOCKS.registerBlock(
+            "shroom_mycosis", properties -> new MycosisCellBlock(properties, CellBinding.MYCOSIS),
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_PURPLE)
+                    .friction(CellBinding.MYCOSIS.surface().friction())
                     .sound(SoundType.SLIME_BLOCK)
                     .instabreak()
                     .noOcclusion()

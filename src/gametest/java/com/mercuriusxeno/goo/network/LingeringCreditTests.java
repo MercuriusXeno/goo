@@ -139,8 +139,10 @@ public final class LingeringCreditTests {
     }
 
     /**
-     * A mock player sprays Mycosis at a husk it rallied and a husk it charmed, and the spore poison's tick hurts
-     * both with magic, leaving the rally and the charm standing.
+     * A Mycosis drip a mock player threw strikes a husk it rallied and another a husk it charmed, and the spore
+     * poison's tick hurts both with magic, leaving the rally and the charm standing. Each husk takes its own drip,
+     * since Mycosis' drips strike only the living under its aim.
+     * mycosis-goo-infects-what-touches-it-as-the-spray-did
      *
      * @param helper the gametest helper
      */
@@ -149,7 +151,11 @@ public final class LingeringCreditTests {
         Mob charmed = still(helper.spawnWithNoFreeWill(EntityType.HUSK, SECOND_MOB_POS));
         ServerPlayer player = sprayer(helper);
         makeOwn(player, rallied, charmed);
-        spray(helper, player);
+        AbilityDefinition mycosis = AbilityRegistry.of(helper.getLevel()).getAbility(SHROOM_MYCOSIS);
+        helper.runAfterDelay(SETTLE_TICKS, () -> {
+            LandedDrips.strike(helper, player, mycosis, rallied);
+            LandedDrips.strike(helper, player, mycosis, charmed);
+        });
         succeedOnceKept(helper, player, "Mycosis", DamageTypes.MAGIC, rallied, charmed);
     }
 
