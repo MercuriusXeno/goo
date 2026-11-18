@@ -1,0 +1,16 @@
+{
+  "gooType": "rock",
+  "displayName": "goo.ability.rock.build",
+  "cost_mechanics": "goo.ability.rock.build.cost_mechanics",
+  "badge": "world",
+  "order": 40,
+  "cost": "$mundane_block",
+  "cost_formula": "%s/m³",
+  "requires": ["minecraft:gravel", "minecraft:sand"],
+  "delivery": { "kind": "arc", "range": 32 },
+  "behaviors": [
+    { "type": "build", "max_span": 16, "max_rise": 16 }
+  ],
+  "tags": ["footprint"],
+  "pose": "resting"
+}

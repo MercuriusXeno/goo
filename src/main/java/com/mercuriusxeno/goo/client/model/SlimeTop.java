@@ -243,6 +243,29 @@ public final class SlimeTop {
     }
 
     /**
+     * Whether a corner of the slab is an inner corner of its goo: a slab
+     * continues past both edges meeting there, and none past the corner, so
+     * the goo's edge turns in round it, as round the corner a film makes
+     * where it bends.
+     * slime-core-slopes-with-the-pile-inside-its-contour
+     *
+     * @param alongFirst  the corner's edge across the plane's first axis
+     * @param alongSecond its edge across the plane's second axis
+     * @return true where the goo's edge turns round the corner
+     */
+    public boolean turnsInAt(Direction alongFirst, Direction alongSecond) {
+        if (opens(alongFirst) || opens(alongSecond)) {
+            return false;
+        }
+        Vec3i diagonal = alongFirst.getUnitVec3i().offset(alongSecond.getUnitVec3i());
+        return !continuesAcross(around, plane, column.base() > 0, diagonal);
+    }
+
+    private boolean opens(Direction edge) {
+        return rims.contains(edge) || joins.contains(edge);
+    }
+
+    /**
      * The slab joining this one round an outside edge, read from the same
      * cells: it stands in the space diagonal to this block across that edge,
      * on the face of the solid block this slab clings to that the edge turns onto.

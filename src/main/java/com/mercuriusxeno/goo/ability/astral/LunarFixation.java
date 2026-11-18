@@ -6,7 +6,7 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * A caster Lunar holds: their gaze fixed on the moon or the blue overworld star, standing still where
+ * A caster Lunar holds: their gaze fixed on the moon or the blue planet, standing still where
  * they cast while it swells to fill their view, for as long as they hold the cast, until the fixation's ticks run
  * out and Lunar carries them. A caster who lets go first is released: the fixation stops standing and keeps the
  * game time it was let go, so their client runs the trip back from where it had reached. Synced to the caster's
@@ -14,7 +14,7 @@ import net.minecraft.world.phys.Vec3;
  * decision gate-fixates-your-view-on-the-moon-until-it-takes-you
  * decision holding-right-click-pulls-the-moon-and-early-release-cancels
  *
- * @param sky        what the caster fixates on, the moon or the overworld star
+ * @param sky        what the caster fixates on, the moon or the blue planet
  * @param direction  the unit direction it stands along
  * @param anchor     where the caster stands held
  * @param startedAt  the game time the fixation began

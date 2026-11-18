@@ -1,0 +1,116 @@
+package com.mercuriusxeno.goo.network;
+
+import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.AbilityDefinition;
+import com.mercuriusxeno.goo.ability.AbilityTags;
+import com.mercuriusxeno.goo.ability.BuildGrowth;
+import com.mercuriusxeno.goo.ability.program.BuildStep;
+import com.mercuriusxeno.goo.ability.program.FootprintHost;
+import com.mercuriusxeno.goo.ability.program.HostKind;
+import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
+import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
+import com.mercuriusxeno.goo.data.GooValues;
+import com.mercuriusxeno.goo.data.IRemainderLedger;
+import com.mercuriusxeno.goo.item.GooSourceScanner;
+import com.mercuriusxeno.goo.registry.GooCapabilities;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import com.mercuriusxeno.goo.type.GooTypes;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
+import java.util.Optional;
+import java.util.OptionalInt;
+
+/**
+ * Server side of a Build's submit: the footprint is checked against the
+ * ability's bounds alone, wherever the caster stands, planned against the
+ * cells it grows into, its rise lowered
+ * to what the caster's goo pays for, and grown, charging the ability's cost
+ * per stone block grown. The client held the choreography; the server
+ * trusts none of it.
+ * decision spire-rips-walls-and-platforms
+ * decision spire-grows-stone-out-of-the-top
+ * decision spire-cost-field-prices-each-cubic-meter-of-stone-at-mundane-block
+ * decision build-dimensions-reach-sixteen-by-sixteen-by-sixteen
+ */
+public final class GooBuildHandler {
+
+    private static final String LOG_PROGRAM_REFUSED = "Ability {} program refused for the footprint host: {}";
+
+    private GooBuildHandler() {
+    }
+
+    /**
+     * Handles the submit on the server thread.
+     *
+     * @param payload the submit
+     * @param context the network context
+     */
+    public static void handle(GooBuildPayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            if (context.player() instanceof ServerPlayer player) {
+                cast(player, payload);
+            }
+        });
+    }
+
+    /**
+     * Grows a Build for a player: refused whole for a glove-less player, an
+     * unknown type, an ability the player may not use or that is not cast by
+     * its footprint, a missing reagent, a footprint past the bounds, or a
+     * footprint the goo cannot grow a stone block over.
+     *
+     * @param player  the casting player
+     * @param payload the submit
+     */
+    public static void cast(ServerPlayer player, GooBuildPayload payload) {
+        ResourceKey<GooTypeDefinition> gooType = GooTypes.known(payload.gooTypeId());
+        if (gooType == null || !GooThrowHandler.validateCaster(player, gooType)) {
+            return;
+        }
+        AbilityDefinition ability = GooThrowHandler.usableAbility(player, payload.abilityId(), gooType);
+        if (ability != null && castable(player, ability)
+                && BuildStep.boundsOf(ability.behaviors()).admits(payload.footprint())) {
+            grow(player, payload, gooType, ability);
+        }
+    }
+
+    private static boolean castable(ServerPlayer player, AbilityDefinition ability) {
+        return ability.hasTag(AbilityTags.FOOTPRINT)
+                && GooThrowHandler.holdsReagents(player, ability);
+    }
+
+    /**
+     * Plans the growth at the highest rise the goo pays for, charges its stone
+     * and runs the program on the planned footprint.
+     *
+     * @param player  the casting player
+     * @param payload the submit
+     * @param gooType the ability's goo type
+     * @param ability the ability
+     */
+    private static void grow(ServerPlayer player, GooBuildPayload payload, ResourceKey<GooTypeDefinition> gooType,
+                             AbilityDefinition ability) {
+        ServerLevel level = player.level();
+        int holdings = GooSourceScanner.aggregateAvailable(player).getOrDefault(gooType, 0);
+        IRemainderLedger ledger = GooCapabilities.remainderLedgerOf(player);
+        // spire-cost-field-prices-each-cubic-meter-of-stone-at-mundane-block
+        Optional<BuildGrowth> plan = BuildGrowth.affordable(level, payload.footprint(),
+                ability.cost().exactIn(GooValues.of(level)), gooType, ledger.remainders(), holdings);
+        if (plan.isEmpty()) {
+            return;
+        }
+        OptionalInt charged = plan.get().chargeThrough(ledger, gooType, holdings);
+        if (charged.isEmpty()) {
+            return;
+        }
+        GooSourceScanner.deplete(player, gooType, charged.getAsInt());
+        GooThrowHandler.consumeReagents(player, payload.abilityId(), gooType);
+        try {
+            ProgramBehavior.forHost(ability.behaviors(), HostKind.FOOTPRINT).tick(new FootprintHost(level, plan.get()));
+        } catch (ProgramLoadException e) {
+            Goo.LOGGER.error(LOG_PROGRAM_REFUSED, ability.id(), e.getMessage());
+        }
+    }
+}

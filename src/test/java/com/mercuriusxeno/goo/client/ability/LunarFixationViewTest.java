@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.ability.astral.LunarFixation;
 import com.mercuriusxeno.goo.ability.astral.LunarSight;
-import com.mercuriusxeno.goo.lunar.Lunar;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
@@ -19,7 +18,7 @@ import static org.mockito.Mockito.when;
 
 /**
  * The Lunar fixation view's hold on the caster: the field of view stays as it stands, and the look stays where the
- * caster held it when the fixation began, for the moon and the blue star alike, whatever the mouse does.
+ * caster held it when the fixation began, for the moon and the blue planet alike, whatever the mouse does.
  * decision gate-fixates-your-view-on-the-moon-until-it-takes-you
  * decision lunar-just-looks-at-the-moon-without-turning-your-body
  */
@@ -41,8 +40,10 @@ class LunarFixationViewTest {
     private static final float MOON_PAST_ZENITH = 4F;
     /** A look two degrees east of the zenith, so the moon just past it stands behind the caster's facing. */
     private static final float JUST_SHORT_OF_STRAIGHT_UP = -88F;
-    /** Just inside the look reach Lunar holds the star within, in degrees off its center. */
-    private static final double EDGE_OF_REACH = 7.5;
+    /** A moon angle standing the blue planet well up in lunar's western sky. */
+    private static final float PLANET_UP_IN_THE_WEST = 40F;
+    /** Just inside the planet's disc, past the reach a smaller body holds, in degrees off its center. */
+    private static final double EDGE_OF_THE_DISC = 11.0;
     private static final float MOUSE_PITCH_PUSH = 30F;
     private static final float MOUSE_YAW_PUSH = 45F;
 
@@ -142,37 +143,37 @@ class LunarFixationViewTest {
     }
 
     @Nested
-    class OnTheBlueStar {
+    class OnTheBluePlanet {
 
-        private final Vec3 star = Lunar.OVERWORLD_STAR_DIRECTION;
-        private final LunarFixation onStar = fixationOn(LunarSight.Sky.OVERWORLD_STAR, star);
-        private final float centerPitch = pitchAlong(star);
-        private final float centerYaw = yawAlong(star);
-        private final float edgeYaw = (float) (EDGE_OF_REACH / Math.cos(Math.toRadians(centerPitch)));
+        private final Vec3 planet = LunarSight.moonDirection(PLANET_UP_IN_THE_WEST);
+        private final LunarFixation onPlanet = fixationOn(LunarSight.Sky.BLUE_PLANET, planet);
+        private final float centerPitch = pitchAlong(planet);
+        private final float centerYaw = yawAlong(planet);
+        private final float edgeYaw = (float) (EDGE_OF_THE_DISC / Math.cos(Math.toRadians(centerPitch)));
 
         @Test
-        void aLookOnTheStarsCenterStaysWhereItWas() {
-            assertLookHeldEveryTick(onStar, centerPitch, centerYaw);
+        void aLookOnThePlanetsCenterStaysWhereItWas() {
+            assertLookHeldEveryTick(onPlanet, centerPitch, centerYaw);
         }
 
         @Test
-        void aLookAtTheEdgeAboveTheStarStaysWhereItWas() {
-            assertLookHeldEveryTick(onStar, centerPitch - (float) EDGE_OF_REACH, centerYaw);
+        void aLookAtTheDiscsEdgeAboveThePlanetsCenterStaysWhereItWas() {
+            assertLookHeldEveryTick(onPlanet, centerPitch - (float) EDGE_OF_THE_DISC, centerYaw);
         }
 
         @Test
-        void aLookAtTheEdgeBelowTheStarStaysWhereItWas() {
-            assertLookHeldEveryTick(onStar, centerPitch + (float) EDGE_OF_REACH, centerYaw);
+        void aLookAtTheDiscsEdgeBelowThePlanetsCenterStaysWhereItWas() {
+            assertLookHeldEveryTick(onPlanet, centerPitch + (float) EDGE_OF_THE_DISC, centerYaw);
         }
 
         @Test
-        void aLookAtTheEdgeLeftOfTheStarStaysWhereItWas() {
-            assertLookHeldEveryTick(onStar, centerPitch, centerYaw - edgeYaw);
+        void aLookAtTheDiscsEdgeLeftOfThePlanetsCenterStaysWhereItWas() {
+            assertLookHeldEveryTick(onPlanet, centerPitch, centerYaw - edgeYaw);
         }
 
         @Test
-        void aLookAtTheEdgeRightOfTheStarStaysWhereItWas() {
-            assertLookHeldEveryTick(onStar, centerPitch, centerYaw + edgeYaw);
+        void aLookAtTheDiscsEdgeRightOfThePlanetsCenterStaysWhereItWas() {
+            assertLookHeldEveryTick(onPlanet, centerPitch, centerYaw + edgeYaw);
         }
     }
 

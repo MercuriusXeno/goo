@@ -26,6 +26,7 @@ import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.level.Level;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
@@ -69,7 +70,7 @@ import java.util.stream.Stream;
  * @param costMechanics the translation key to a format string explaining how an ability costing nothing up
  *                    front charges, empty for an ability naming none; its positional placeholders (%s) fill
  *                    in the order the ability's kind reads its numbers: a durative ability its upkeep a second; a blink
- *                    its per-block price, its wall price and its oculus percent; a Spire its cost, the
+ *                    its per-block price, its wall price and its oculus percent; a Build its cost, the
  *                    price per block grown; any other the names of the items it consumes
  *                    (decision zero-cost-field-formats-the-cost-mechanics)
  * @param costFormula the short formula a dynamically priced ability's petal reads in place of a
@@ -77,6 +78,8 @@ import java.util.stream.Stream;
  *                    (decision dynamic-costs-keep-the-mb-quantity)
  * @param freeWhile   the self ability whose standing on the thrower makes this one cost nothing, empty for none
  *                    (decision click-costs-one-mb-and-nothing-under-sculker)
+ * @param dimensionFace the name and the icon the ability shows a player standing in one dimension, empty for none
+ *                    (decision lunar-reads-as-terran-while-you-are-on-the-moon)
  */
 public record AbilityDefinition(
         Identifier id,
@@ -102,8 +105,20 @@ public record AbilityDefinition(
         String description,
         Optional<String> costMechanics,
         Optional<String> costFormula,
-        Optional<Identifier> freeWhile
+        Optional<Identifier> freeWhile,
+        Optional<DimensionFace> dimensionFace
 ) {
+
+    /**
+     * The name and the icon this ability shows a player standing in a dimension.
+     * decision lunar-reads-as-terran-while-you-are-on-the-moon
+     *
+     * @param standingIn the dimension the player stands in
+     * @return the name key and the icon texture shown
+     */
+    public ShownFace shownIn(ResourceKey<Level> standingIn) {
+        return ShownFace.of(id, displayName, icon, dimensionFace, standingIn);
+    }
 
     /**
      * What a throw costs the thrower in exact mB: nothing while the self
@@ -165,7 +180,7 @@ public record AbilityDefinition(
                              Optional<String> costMechanics) {
         this(id, gooType, displayName, icon, order, AbilityPrice.flat(cost), delivery, behaviors, tags, badge,
                 requires, area, indicator, consumes, onPrism, onBlocks, AbilityPrice.flat(upkeep), downSound,
-                distancePrice, pose, description, costMechanics, Optional.empty(), Optional.empty());
+                distancePrice, pose, description, costMechanics, Optional.empty(), Optional.empty(), Optional.empty());
     }
 
     /**
@@ -490,6 +505,7 @@ public record AbilityDefinition(
     private static final String FIELD_ON_BLOCKS = "on_blocks";
     private static final String FIELD_UPKEEP = "upkeep";
     private static final String FIELD_DOWN_SOUND = "down_sound";
+    private static final String FIELD_DIMENSION_FACE = "dimension_face";
     /** The upkeep of an ability that holds nothing. */
     public static final int NO_UPKEEP = 0;
     /** The cost of a held durative effect, which starts free and pays its upkeep after. */
@@ -599,13 +615,14 @@ public record AbilityDefinition(
      * @param icon        the texture path for its radial icon, empty for the convention path
      * @param order       its sort order within the type's list
      * @param description the translation key for what it does, empty for the displayName default
+     * @param dimensionFace the name and the icon it shows a player standing in one dimension, empty for none
      */
     private record Heading(ResourceKey<GooTypeDefinition> gooType, String displayName, String icon, int order,
-                           Optional<String> description) {
+                           Optional<String> description, Optional<DimensionFace> dimensionFace) {
 
         static Heading of(AbilityDefinition def) {
             return new Heading(def.gooType(), def.displayName(), def.icon(), def.order(),
-                    Optional.of(def.description()));
+                    Optional.of(def.description()), def.dimensionFace());
         }
 
         String descriptionKey() {
@@ -619,7 +636,9 @@ public record AbilityDefinition(
             Codec.STRING.optionalFieldOf(FIELD_ICON, NO_ICON).forGetter(Heading::icon),
             Codec.INT.optionalFieldOf(FIELD_ORDER, 0).forGetter(Heading::order),
             // ability-json-carries-a-description
-            Codec.STRING.optionalFieldOf(FIELD_DESCRIPTION).forGetter(Heading::description)
+            Codec.STRING.optionalFieldOf(FIELD_DESCRIPTION).forGetter(Heading::description),
+            // lunar-reads-as-terran-while-you-are-on-the-moon
+            DimensionFace.CODEC.optionalFieldOf(FIELD_DIMENSION_FACE).forGetter(Heading::dimensionFace)
     ).apply(inst, Heading::new));
 
     /**
@@ -667,7 +686,8 @@ public record AbilityDefinition(
                         steps, tags, badge, requires, area, shows, consumes, reactions.onPrism(),
                         reactions.onBlocks(), AbilityPrice.of(held.upkeep(), heading.gooType()), held.downSound(),
                         price.distancePrice(), pose.orElseGet(() -> ArmPose.defaultFor(delivery.kind())),
-                        heading.descriptionKey(), price.costMechanics(), price.costFormula(), price.freeWhile())));
+                        heading.descriptionKey(), price.costMechanics(), price.costFormula(), price.freeWhile(),
+                        heading.dimensionFace())));
     }
 
     /**

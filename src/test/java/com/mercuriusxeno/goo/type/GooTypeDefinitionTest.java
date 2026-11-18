@@ -14,6 +14,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -61,7 +62,10 @@ class GooTypeDefinitionTest {
     private static final int JELLY_COHESION = 8;
     /** Metal's cohesion, the soft rung, so a Spikes coat keeps some thickness where it lands (operator ruling 2026-11-17). */
     private static final int METAL_COHESION = 2;
+    /** Leaf's cohesion, the stiff rung Jelly holds (operator ruling 2026-11-17). */
+    private static final int LEAF_COHESION = 8;
     private static final int WEIRD_ADHESION = 3;
+    private static final int LEAF_ADHESION = 3;
     private static final int GLOW_ADHESION = 4;
     private static final int JELLY_ADHESION = 3;
     private static final int BLAZE_COHESION = 4;
@@ -70,6 +74,10 @@ class GooTypeDefinitionTest {
     /** Pulse's goo holds where it is laid, firm and clinging to an underside, so its layers set its signal at will. */
     private static final int PULSE_COHESION = GooTypeDefinition.FIRM_COHESION;
     private static final int PULSE_ADHESION = GooTypeDefinition.HOLDS_AN_UNDERSIDE;
+    /** Nether's goo pours past two layers of step, the soft rung (operator ruling 2026-11-17). */
+    private static final int NETHER_COHESION = 2;
+    /** Nether's goo holds a block's side where it strikes, the clings rung (operator ruling 2026-11-17). */
+    private static final int NETHER_ADHESION = 3;
 
     static Stream<ResourceKey<GooTypeDefinition>> bundledKeys() {
         return GooTypes.BUNDLED.stream();
@@ -282,35 +290,41 @@ class GooTypeDefinitionTest {
     }
 
     /**
-     * Every bundled type states a cohesion: weird holds a step of 4, blaze the thick rung of 4, jelly the stiff rung of 8,
-     * pulse the firm 15, and every other type, kinetic among them, 0.
+     * Every bundled type states a cohesion: weird holds a step of 4, blaze the thick rung of 4, jelly and
+     * leaf the stiff rung of 8, pulse the firm 15, metal and nether the soft 2, and every other type,
+     * kinetic among them, 0.
      * cohesion-is-the-step-the-goo-holds
      * blaze-goo-is-adhesion-four-and-cohesion-five
      * signal-goo-sends-a-redstone-signal-equal-to-its-layers
+     * operator ruling 2026-11-17: nether's cohesion is soft
      */
     @ParameterizedTest
     @MethodSource("bundledKeys")
     void bundledCohesionMatchesDecision(ResourceKey<GooTypeDefinition> key) throws Exception {
-        int expected = key == GooTypes.WEIRD ? WEIRD_COHESION : key == GooTypes.BLAZE ? BLAZE_COHESION
-                : key == GooTypes.JELLY ? JELLY_COHESION : key == GooTypes.PULSE ? PULSE_COHESION
-                : key == GooTypes.METAL ? METAL_COHESION : 0;
-        assertEquals(expected, decodeBundled(key).cohesion(), key::toString);
+        Map<ResourceKey<GooTypeDefinition>, Integer> stated = Map.of(GooTypes.WEIRD, WEIRD_COHESION,
+                GooTypes.BLAZE, BLAZE_COHESION, GooTypes.JELLY, JELLY_COHESION, GooTypes.PULSE, PULSE_COHESION,
+                GooTypes.METAL, METAL_COHESION, GooTypes.NETHER, NETHER_COHESION, GooTypes.LEAF, LEAF_COHESION);
+        assertEquals(stated.getOrDefault(key, 0), decodeBundled(key).cohesion(), key::toString);
     }
 
     /**
-     * Every bundled type states an adhesion: kinetic clings to nothing, weird and jelly hold a side
-     * where they strike, glow, blaze and pulse hold an underside, and every other type holds tops.
+     * Every bundled type states an adhesion: kinetic clings to nothing, weird, jelly, nether and leaf hold a
+     * side where they strike, glow, blaze and pulse hold an underside, and every other type holds tops.
      * adhesion-is-a-ladder-of-holds
      * signal-goo-sends-a-redstone-signal-equal-to-its-layers
      * nectar-is-the-sticky-goo-you-climb-that-nerfs-jumping-and-speed
+     * vines-goo-on-walls-places-goologged-vines-and-depletes
      * blaze-goo-is-adhesion-four-and-cohesion-five
+     * operator ruling 2026-11-17: nether clings
      */
     @ParameterizedTest
     @MethodSource("bundledKeys")
     void bundledAdhesionMatchesDecision(ResourceKey<GooTypeDefinition> key) throws Exception {
-        int expected = key == GooTypes.KINETIC ? 0 : key == GooTypes.WEIRD ? WEIRD_ADHESION
-                : key == GooTypes.GLOW ? GLOW_ADHESION : key == GooTypes.BLAZE ? BLAZE_ADHESION
-                : key == GooTypes.JELLY ? JELLY_ADHESION : key == GooTypes.PULSE ? PULSE_ADHESION : COMMON_ADHESION;
+        Map<ResourceKey<GooTypeDefinition>, Integer> stated = Map.of(GooTypes.KINETIC, 0,
+                GooTypes.WEIRD, WEIRD_ADHESION, GooTypes.GLOW, GLOW_ADHESION, GooTypes.BLAZE, BLAZE_ADHESION,
+                GooTypes.JELLY, JELLY_ADHESION, GooTypes.PULSE, PULSE_ADHESION, GooTypes.NETHER, NETHER_ADHESION,
+                GooTypes.LEAF, LEAF_ADHESION);
+        int expected = stated.getOrDefault(key, COMMON_ADHESION);
         assertEquals(expected, decodeBundled(key).adhesion(), key::toString);
     }
 

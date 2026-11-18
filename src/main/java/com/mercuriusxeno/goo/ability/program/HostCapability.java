@@ -120,7 +120,7 @@ public enum HostCapability {
      */
     ZONE(ZoneHost.class),
     /**
-     * A player Lunar can fix on the moon or the blue overworld star
+     * A player Lunar can fix on the moon or the blue planet
      * (decision gate-fixates-your-view-on-the-moon-until-it-takes-you).
      */
     ASTRAL_LUNAR(AstralLunarHost.class),
@@ -170,7 +170,7 @@ public enum HostCapability {
      */
     SPAWN_MOB(MobSpawnHost.class),
     /**
-     * The stone a Spire grows, the footprint and rise its submit planned
+     * The stone a Build grows, the footprint and rise its submit planned
      * (decision spire-grows-stone-out-of-the-top).
      */
     RAISE_GROUND(RaiseGroundHost.class),
