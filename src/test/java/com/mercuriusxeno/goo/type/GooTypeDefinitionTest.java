@@ -69,8 +69,8 @@ class GooTypeDefinitionTest {
     /** Pulse's goo holds where it is laid, firm and clinging to an underside, so its layers set its signal at will. */
     private static final int PULSE_COHESION = GooTypeDefinition.FIRM_COHESION;
     private static final int PULSE_ADHESION = GooTypeDefinition.HOLDS_AN_UNDERSIDE;
-    /** Nether's goo pours past one layer of step, the loose rung (operator ruling 2026-11-17). */
-    private static final int NETHER_COHESION = 1;
+    /** Nether's goo pours past two layers of step, the soft rung (operator ruling 2026-11-17). */
+    private static final int NETHER_COHESION = 2;
     /** Nether's goo holds a block's side where it strikes, the clings rung (operator ruling 2026-11-17). */
     private static final int NETHER_ADHESION = 3;
 
@@ -286,11 +286,11 @@ class GooTypeDefinitionTest {
 
     /**
      * Every bundled type states a cohesion: weird holds a step of 4, blaze the thick rung of 4, jelly the stiff rung of 8,
-     * pulse the firm 15, nether the loose 1, and every other type, kinetic among them, 0.
+     * pulse the firm 15, nether the soft 2, and every other type, kinetic among them, 0.
      * cohesion-is-the-step-the-goo-holds
      * blaze-goo-is-adhesion-four-and-cohesion-five
      * signal-goo-sends-a-redstone-signal-equal-to-its-layers
-     * operator ruling 2026-11-17: nether's cohesion is loose
+     * operator ruling 2026-11-17: nether's cohesion is soft
      */
     @ParameterizedTest
     @MethodSource("bundledKeys")
