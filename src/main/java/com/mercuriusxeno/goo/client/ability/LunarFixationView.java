@@ -63,6 +63,33 @@ public final class LunarFixationView {
     }
 
     /**
+     * Turns the local caster by the mouse's turn, as MouseHandler.turnPlayer does on every frame between ticks.
+     *
+     * @param player    the local caster
+     * @param yawTurn   the mouse's sideways turn
+     * @param pitchTurn the mouse's upward turn
+     */
+    public static void turnByTheMouse(LocalPlayer player, double yawTurn, double pitchTurn) {
+        turnUnlessHeld(player, player.getData(GooAttachments.LUNAR_FIXATION), yawTurn, pitchTurn);
+    }
+
+    /**
+     * Turns a caster by a mouse turn unless a standing fixation holds their look: the mouse turns the view on every
+     * frame between ticks, so a hold set once a tick alone would let each frame turn and the next tick spring back.
+     * decision diagnose-and-correct-the-moon-twitch-on-the-first-grab
+     *
+     * @param caster    the caster
+     * @param fixation  the fixation that holds them, or none
+     * @param yawTurn   the mouse's sideways turn
+     * @param pitchTurn the mouse's upward turn
+     */
+    static void turnUnlessHeld(Entity caster, LunarFixation fixation, double yawTurn, double pitchTurn) {
+        if (!fixation.stands()) {
+            caster.turn(yawTurn, pitchTurn);
+        }
+    }
+
+    /**
      * Sets a held caster's look this tick and the last tick's look both to the look they hold, so nothing drawn
      * between the two turns as the hold takes.
      * decision diagnose-and-correct-the-moon-twitch-on-the-first-grab
