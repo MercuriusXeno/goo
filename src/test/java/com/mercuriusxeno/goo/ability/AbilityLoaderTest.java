@@ -199,10 +199,13 @@ class AbilityLoaderTest {
                     shippedPathsOf(GooTypes.QUANTUM));
         }
 
-        /** decision goo-type-ships-without-a-durative-ability */
+        /**
+         * goo-type-ships-without-a-durative-ability
+         * nitro-is-unstables-goo-that-explodes-in-a-chain-by-its-quantity
+         */
         @Test
-        void unstableShipsBlastAndLurkerAndNoDurative() {
-            assertEquals(Set.of("unstable_blast", "unstable_lurker"), shippedPathsOf(GooTypes.UNSTABLE));
+        void unstableShipsBlastAndNitroAndNoDurative() {
+            assertEquals(Set.of("unstable_blast", "unstable_nitro"), shippedPathsOf(GooTypes.UNSTABLE));
             assertNull(new AbilityRegistry(shippedById()).durativeAbilityFor(GooTypes.UNSTABLE));
         }
 
@@ -625,11 +628,11 @@ class AbilityLoaderTest {
 
         @Test
         void plainCostAbilityLoadsNamingNoCostMechanics() {
-            // Blast prices in tnt, which reads nothing with no goo values loaded, so Lurker's plain number stands here
-            AbilityDefinition lurker = AbilityJson.decode("unstable_lurker");
+            // Blast prices in tnt, which reads nothing with no goo values loaded, so Shriek's plain number stands here
+            AbilityDefinition shriek = AbilityJson.decode("deep_shriek");
 
-            assertTrue(lurker.cost().in(GooValueTable.EMPTY) > 0, "Lurker's cost " + lurker.cost().in(GooValueTable.EMPTY));
-            assertEquals(Optional.empty(), lurker.costMechanics());
+            assertTrue(shriek.cost().in(GooValueTable.EMPTY) > 0, "Shriek's cost " + shriek.cost().in(GooValueTable.EMPTY));
+            assertEquals(Optional.empty(), shriek.costMechanics());
         }
     }
 

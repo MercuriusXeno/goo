@@ -198,7 +198,8 @@ public final class LunarTripView {
             SkyRenderState sky = event.getLevelRenderState().skyRenderState;
             // The moon brightens from vanilla's rain-dimmed moon to full as the sky gives way to the void.
             float brightness = Mth.lerp(LunarTrip.skyDim(trip.progress()), sky.rainBrightness, FULL);
-            LunarTripBodies.drawMoon(event.getModelViewMatrix(), trip.fixation().direction(), sky.moonPhase,
+            // The frame's moon angle, before the half turn that took vanilla's own moon behind the caster.
+            LunarTripBodies.drawMoon(event.getModelViewMatrix(), sky.moonAngle - HALF_TURN, sky.moonPhase,
                     LunarTrip.moonHalfTangent(trip.progress()), brightness);
         } else {
             MoonPhase planetPhase = LunarSight.planetPhase(event.getLevelRenderState().skyRenderState.moonPhase);
