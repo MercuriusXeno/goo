@@ -2,12 +2,15 @@ package com.mercuriusxeno.goo.ability;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.mercuriusxeno.goo.lunar.Lunar;
 import com.mercuriusxeno.goo.registry.GooMobEffects;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import java.io.IOException;
@@ -66,5 +69,20 @@ class HeldEffectNameTest {
     private static String translate(String key) {
         assertTrue(lang.has(key), () -> EN_US + " lacks " + key);
         return lang.get(key).getAsString();
+    }
+
+    /**
+     * decision lunar-reads-as-terran-while-you-are-on-the-moon
+     */
+    @Nested
+    class OnTheMoon {
+
+        private static final String TERRAN_KEY = "goo.ability.astral.terran";
+
+        @Test
+        void aHeldEffectGrantedByLunarReadsTerran() {
+            assertEquals(TERRAN_KEY, HeldEffectName.nameKeyOf(GooTypes.ASTRAL, AbilityJson.decode("astral_lunar"),
+                    Lunar.LEVEL));
+        }
     }
 }

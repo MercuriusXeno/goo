@@ -9,9 +9,11 @@ import com.mercuriusxeno.goo.ability.AbilityPrice;
 import com.mercuriusxeno.goo.ability.ArmPose;
 import com.mercuriusxeno.goo.ability.ChargeSize;
 import com.mercuriusxeno.goo.ability.Delivery;
+import com.mercuriusxeno.goo.ability.DimensionFace;
 import com.mercuriusxeno.goo.ability.DistancePrice;
 import com.mercuriusxeno.goo.ability.HeldRoute;
 import com.mercuriusxeno.goo.ability.IndicatorShowing;
+import com.mercuriusxeno.goo.ability.ShownFace;
 import com.mercuriusxeno.goo.ability.program.BlinkLanding;
 import com.mercuriusxeno.goo.ability.program.ExtendStep;
 import com.mercuriusxeno.goo.ability.program.GougeStep;
@@ -27,6 +29,7 @@ import com.mercuriusxeno.goo.network.AbilitySyncPayload;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jspecify.annotations.Nullable;
 import java.util.IllegalFormatException;
@@ -127,6 +130,8 @@ public final class AbilitySyncHandler {
      *                    (decision dynamic-costs-keep-the-mb-quantity)
      * @param freeWhile   the self ability whose standing makes a throw free, empty for none
      *                    (decision click-costs-one-mb-and-nothing-under-sculker)
+     * @param dimensionFace the name and the icon the ability shows a player standing in one dimension, empty for
+     *                    none (decision lunar-reads-as-terran-while-you-are-on-the-moon)
      */
     public record ClientAbility(Identifier id, String displayName, String icon,
                                 int order, List<String> tags,
@@ -135,7 +140,54 @@ public final class AbilitySyncHandler {
                                 IndicatorShowing indicator, List<Identifier> consumes, AbilityPrice upkeepPrice,
                                 DistancePrice distancePrice, List<Step> onPrism, ArmPose pose, String description,
                                 Optional<String> costMechanics, Optional<String> costFormula,
-                                Optional<Identifier> freeWhile) {
+                                Optional<Identifier> freeWhile, Optional<DimensionFace> dimensionFace) {
+
+        /**
+         * A client ability showing one face wherever the player stands.
+         *
+         * @param id            the ability resource identifier
+         * @param displayName   the translation key
+         * @param icon          the icon texture path override
+         * @param order         the sort order
+         * @param tags          categorical tags
+         * @param behaviors     the ability's step program
+         * @param costPrice     what a throw costs
+         * @param delivery      how the ability leaves the glove
+         * @param badge         the target kind the radial marks on the icon
+         * @param requires      the items the player must know before its radial petal unlocks
+         * @param area          the area the glove draws while right click is held
+         * @param indicator     when the ability's indicator shows
+         * @param consumes      the items a throw takes, one of each
+         * @param upkeepPrice   what a held durative effect pays each tick it stands
+         * @param distancePrice what a blink adds to the cost for its trip
+         * @param onPrism       the steps a landing on a prism runs, empty for none
+         * @param pose          the arm pose the glove arm takes in place of the swing
+         * @param description   the translation key for what the ability does
+         * @param costMechanics the format key explaining how a zero-cost ability charges, empty for none
+         * @param costFormula   the short formula a dynamically priced ability's petal reads, empty for none
+         * @param freeWhile     the self ability whose standing makes a throw free, empty for none
+         */
+        public ClientAbility(Identifier id, String displayName, String icon, int order, List<String> tags,
+                             List<Step> behaviors, AbilityPrice costPrice, Delivery delivery, AbilityBadge badge,
+                             List<Identifier> requires, AbilityArea area, IndicatorShowing indicator,
+                             List<Identifier> consumes, AbilityPrice upkeepPrice, DistancePrice distancePrice,
+                             List<Step> onPrism, ArmPose pose, String description, Optional<String> costMechanics,
+                             Optional<String> costFormula, Optional<Identifier> freeWhile) {
+            this(id, displayName, icon, order, tags, behaviors, costPrice, delivery, badge, requires, area,
+                    indicator, consumes, upkeepPrice, distancePrice, onPrism, pose, description, costMechanics,
+                    costFormula, freeWhile, Optional.empty());
+        }
+
+        /**
+         * The name and the icon this ability shows a player standing in a dimension.
+         * decision lunar-reads-as-terran-while-you-are-on-the-moon
+         *
+         * @param standingIn the dimension the player stands in
+         * @return the name key and the icon texture shown
+         */
+        public ShownFace shownIn(ResourceKey<Level> standingIn) {
+            return ShownFace.of(id, displayName, icon, dimensionFace, standingIn);
+        }
 
         /**
          * A client ability no standing self ability makes free.
@@ -489,7 +541,7 @@ public final class AbilitySyncHandler {
                     entry.cost(), entry.delivery(), entry.badge(), entry.requires(), entry.area(),
                     entry.indicator(), entry.consumes(), entry.upkeep(), entry.distancePrice(), entry.onPrism(),
                     entry.pose(), entry.description(), entry.costMechanics(), entry.costFormula(),
-                    entry.freeWhile());
+                    entry.freeWhile(), entry.dimensionFace());
         }
 
         /**

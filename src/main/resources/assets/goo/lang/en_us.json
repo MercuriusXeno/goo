@@ -191,6 +191,7 @@
   "goo.ability.astral.lunar.description": "Look at the moon and it takes you to it; on the moon, look at the blue star to go home.",
   "goo.ability.astral.lunar.cost_mechanics": "1000 astral, paid when the moon or the star takes you.",
   "goo.ability.astral.lunar.refused": "That's no moon!",
+  "goo.ability.astral.terran": "Terran",
   "goo.ability.astral.scry": "Scry",
   "goo.ability.astral.scry.description": "Hold to see the spaces around you.",
   "goo.ability.deep.shriek": "Shriek",

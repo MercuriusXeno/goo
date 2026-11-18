@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.hud;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.GloveSelection;
+import com.mercuriusxeno.goo.ability.ShownFace;
 import com.mercuriusxeno.goo.client.ability.ClientRoomEdges;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
@@ -23,6 +24,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.level.Level;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -130,7 +132,8 @@ public final class CrosshairFuelPanel {
      */
     public static List<FuelCell> rowCells(ResourceKey<GooTypeDefinition> type, ClientAbility ability, int holdings,
                                           int reagentSets, StandingUpkeep standing, String aimedCostLabel) {
-        return rowCells(type, ability, holdings, reagentSets, standing, OptionalDouble.empty(), aimedCostLabel);
+        return rowCells(type, ability, holdings, reagentSets, standing, OptionalDouble.empty(), aimedCostLabel,
+                Level.OVERWORLD);
     }
 
     /**
@@ -146,13 +149,16 @@ public final class CrosshairFuelPanel {
      * @param standing       the upkeep already standing on the type
      * @param roomExtent     the extent of the Zone room the player stands in, empty outside the pocket
      * @param aimedCostLabel the live cost at the aim, which a dynamic ability's row reads
+     * @param standingIn     the dimension the player stands in, whose face the ability shows
+     *                       (decision lunar-reads-as-terran-while-you-are-on-the-moon)
      * @return the row's cells, left to right
      */
     public static List<FuelCell> rowCells(ResourceKey<GooTypeDefinition> type, ClientAbility ability, int holdings,
                                           int reagentSets, StandingUpkeep standing, OptionalDouble roomExtent,
-                                          String aimedCostLabel) {
-        List<FuelCell> cells = new ArrayList<>(List.of(new TypeIcon(type), new AbilityName(ability.displayName()),
-                new AbilityIcon(ability.iconTexture())));
+                                          String aimedCostLabel, ResourceKey<Level> standingIn) {
+        ShownFace shown = ability.shownIn(standingIn);
+        List<FuelCell> cells = new ArrayList<>(List.of(new TypeIcon(type), new AbilityName(shown.displayName()),
+                new AbilityIcon(shown.icon())));
         // dynamic-costs-keep-the-mb-quantity: a dynamic ability's row reads the live mB at the aim
         cells.add(new Count(AffordedCount.reckon(ability, holdings, reagentSets, standing, roomExtent)
                 .map(AffordedCount::label).orElse(aimedCostLabel)));
@@ -189,7 +195,7 @@ public final class CrosshairFuelPanel {
         int holdings = GooSourceScanner.aggregateAvailable(player).getOrDefault(type, 0);
         List<FuelCell> cells = rowCells(type, ability, holdings, ReagentScanner.setsHeld(player, ability.consumes()),
                 StandingUpkeep.on(player.getData(GooAttachments.HELD_EFFECTS), type),
-                ClientRoomEdges.extentWhereStanding(player.level().dimension()), cost.get());
+                ClientRoomEdges.extentWhereStanding(player.level().dimension()), cost.get(), player.level().dimension());
         paint(graphics, font, cells, graphics.guiWidth(), graphics.guiHeight());
     }
 

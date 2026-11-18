@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.client.extensions.common.IClientMobEffectExtensions;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -54,7 +55,7 @@ class HeldEffectIconsTest {
 
     @BeforeEach
     void readConnectionIconsFromTheShippedAbilities() {
-        HeldEffectIcon.readConnectionIconsFrom(type -> HeldEffectIcon.textureOf(shipped.durativeAbilityFor(type)));
+        HeldEffectIcon.readConnectionIconsFrom(type -> HeldEffectIcon.textureOf(shipped.durativeAbilityFor(type), Level.OVERWORLD));
         extensions = HeldEffectIcons.extensionsFor(GooTypes.BUNDLED);
     }
 
@@ -82,7 +83,7 @@ class HeldEffectIconsTest {
         HeldEffectIcons.AbilityIconExtension extension =
                 assertInstanceOf(HeldEffectIcons.AbilityIconExtension.class, extensions.get(type));
         assertNotNull(extension.iconTexture(), () -> GooTypes.id(type) + " draws no brew effect icon");
-        assertEquals(HeldEffectIcon.textureOf(shipped.durativeAbilityFor(type)), extension.iconTexture(),
+        assertEquals(HeldEffectIcon.textureOf(shipped.durativeAbilityFor(type), Level.OVERWORLD), extension.iconTexture(),
                 () -> GooTypes.id(type) + "'s brew effect icon");
     }
 
