@@ -1,10 +1,8 @@
 package com.mercuriusxeno.goo.client.zone;
 
-import com.mercuriusxeno.goo.network.PlanetFacePayload;
 import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.buffers.GpuBufferSlice;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.platform.NativeImage;
 import com.mojang.blaze3d.systems.RenderPass;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.textures.GpuTextureView;
@@ -14,9 +12,8 @@ import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.texture.DynamicTexture;
+import net.minecraft.client.renderer.texture.AbstractTexture;
 import net.minecraft.world.level.MoonPhase;
-import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
 import org.joml.Vector3f;
@@ -26,12 +23,12 @@ import java.util.OptionalDouble;
 import java.util.OptionalInt;
 
 /**
- * Draws the blue planet's disc: its face, the overworld's biomes as the server sampled them, lit by its phase as
- * LunarSky lights it, on a texture the disc's quad lays as vanilla's sky lays its moon sprite. Lunar's sky and the
- * Lunar trip home draw the one planet through it, so the disc that swells is the disc the sky showed.
+ * Draws the blue planet's disc: the hand-drawn sprite of its phase on a quad laid as vanilla's sky lays its moon
+ * sprite, drawn as vanilla draws its moon, its black space adding nothing to the sky. Lunar's sky and the Lunar trip
+ * home draw the one planet through it, so the disc that swells is the disc the sky showed.
  * decision blue-star-is-a-planet-four-moons-wide-drawn-in-phases
  * decision blue-star-takes-the-moons-place-with-the-opposite-phase
- * decision planet-face-is-procgen-from-the-overworlds-biomes
+ * decision planet-face-is-eight-hand-drawn-phase-sprites
  */
 public final class BluePlanetRenderer {
 
@@ -44,37 +41,9 @@ public final class BluePlanetRenderer {
     /** The texture corners the flat quad's corners take, turned as vanilla lays its moon sprite. */
     private static final float[][] CORNER_UVS = {{1F, 1F}, {0F, 1F}, {0F, 0F}, {1F, 0F}};
 
-    /** The face the disc shows: the plain sea until the server sends the overworld's own. */
-    private static int[] face = LunarSky.plainFace();
-    private static @Nullable DynamicTexture texture;
-    private static @Nullable MoonPhase shownPhase;
     private static @Nullable GpuBuffer quad;
 
     private BluePlanetRenderer() {
-    }
-
-    /**
-     * Takes the face the server sampled from the overworld's biomes, so the disc shows this world's continents.
-     * decision planet-face-is-procgen-from-the-overworlds-biomes
-     *
-     * @param payload the face payload
-     * @param context the network context
-     */
-    public static void handle(PlanetFacePayload payload, IPayloadContext context) {
-        context.enqueueWork(() -> showFace(payload.colors()));
-    }
-
-    /**
-     * Shows a face map on the disc, in the sky and on the trip home alike, under the phase shading.
-     *
-     * @param colors the face map's colors, ARGB, row by row from the north
-     */
-    static void showFace(int[] colors) {
-        if (colors.length != LunarSky.FACE_SIZE * LunarSky.FACE_SIZE) {
-            return;
-        }
-        face = LunarSky.shadedFace(colors);
-        shownPhase = null;
     }
 
     /**
@@ -85,10 +54,8 @@ public final class BluePlanetRenderer {
      * @param planetPhase the planet's phase
      */
     public static void draw(RenderPipeline pipeline, Matrix4fc pose, MoonPhase planetPhase) {
-        if (!LunarSky.planetDraws(planetPhase)) {
-            return;
-        }
-        DynamicTexture lit = textureIn(planetPhase);
+        AbstractTexture sprite = Minecraft.getInstance().getTextureManager()
+                .getTexture(LunarSky.planetSprite(planetPhase));
         GpuBuffer vertices = quad();
         RenderSystem.AutoStorageIndexBuffer sequential = RenderSystem.getSequentialBuffer(VertexFormat.Mode.QUADS);
         GpuBuffer indices = sequential.getBuffer(QUAD_INDICES);
@@ -101,35 +68,11 @@ public final class BluePlanetRenderer {
             pass.setPipeline(pipeline);
             RenderSystem.bindDefaultUniforms(pass);
             pass.setUniform(DYNAMIC_TRANSFORMS, transforms);
-            pass.bindTexture(SAMPLER, lit.getTextureView(), lit.getSampler());
+            pass.bindTexture(SAMPLER, sprite.getTextureView(), sprite.getSampler());
             pass.setVertexBuffer(0, vertices);
             pass.setIndexBuffer(indices, sequential.type());
             pass.drawIndexed(0, 0, QUAD_INDICES, 1);
         }
-    }
-
-    /**
-     * The face texture as a phase lights it, written again whenever the phase it shows changes.
-     *
-     * @param planetPhase the planet's phase
-     * @return the texture
-     */
-    private static DynamicTexture textureIn(MoonPhase planetPhase) {
-        DynamicTexture built = texture;
-        if (built == null) {
-            built = new DynamicTexture(() -> LABEL, LunarSky.FACE_SIZE, LunarSky.FACE_SIZE, true);
-            texture = built;
-        }
-        if (shownPhase != planetPhase) {
-            NativeImage pixels = built.getPixels();
-            int[] shown = LunarSky.litFace(face, planetPhase);
-            for (int pixel = 0; pixel < shown.length; pixel++) {
-                pixels.setPixel(pixel % LunarSky.FACE_SIZE, pixel / LunarSky.FACE_SIZE, shown[pixel]);
-            }
-            built.upload();
-            shownPhase = planetPhase;
-        }
-        return built;
     }
 
     private static GpuBuffer quad() {
