@@ -43,6 +43,7 @@
     "CloudRendererSculkerMixin",
     "ClientPacketListenerGooMixin",
     "ClientPacketListenerGateCarryMixin",
+    "GameRendererPhasedHandsMixin",
     "GameRendererPortalViewMixin",
     "InterpolationHandlerGateCarryMixin",
     "InventoryScreenPhasedDollMixin",
