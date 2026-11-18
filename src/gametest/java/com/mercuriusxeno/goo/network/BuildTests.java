@@ -46,6 +46,7 @@ public final class BuildTests {
     private static final String BUILD_LIFTS_A_WALL = "build_lifts_a_wall_of_ground_on_stone";
     private static final String BUILD_LIFTS_THE_SURFACE = "build_lifts_the_surface_two_higher_on_stone";
     private static final String BUILD_PUSHES_OUT_OF_A_WALL = "build_pushes_a_wall_out_two_on_stone";
+    private static final String BUILD_GROWS_FOR_A_FAR_CASTER = "build_grows_for_a_caster_far_from_its_footprint";
     private static final String BUILD_CARRIES_A_RIDER = "build_carries_a_rider_up_with_the_stone";
     private static final String BUILD_LETS_A_PLAYER_RIDE = "build_accepts_a_riding_players_moves";
     private static final String BUILD_LIFTS_AN_OVERTAKEN_RIDER = "build_lifts_a_rider_the_stone_overtook";
@@ -76,6 +77,8 @@ public final class BuildTests {
      */
     private static final int RIDING_PLAYER_RISE = 2;
     private static final BlockPos CASTER_POS = new BlockPos(0, 1, 5);
+    /** A caster standing 24 blocks back from the bay, past any reach the pin click has. */
+    private static final BlockPos FAR_CASTER_POS = new BlockPos(0, 1, -24);
     private static final int CASTER_GOO = 100 * GooStacks.THOUSAND;
     private static final String ABILITY_REQUIRED = "goo:rock_build must be loaded";
     private static final String STONE_MISSING = "The cell at %s should hold %s, holds %s";
@@ -105,6 +108,8 @@ public final class BuildTests {
         GooTestFunctions.registerTest(registrar, BUILD_LIFTS_THE_SURFACE,
                 BuildTests::buildLiftsTheSurfaceTwoHigherOnStone);
         GooTestFunctions.registerTest(registrar, BUILD_PUSHES_OUT_OF_A_WALL, BuildTests::buildPushesAWallOutTwoOnStone);
+        GooTestFunctions.registerTest(registrar, BUILD_GROWS_FOR_A_FAR_CASTER,
+                BuildTests::buildGrowsForACasterFarFromItsFootprint);
         GooTestFunctions.registerTest(registrar, BUILD_CARRIES_A_RIDER, BuildTests::buildCarriesARiderUp);
         GooTestFunctions.registerTest(registrar, BUILD_LETS_A_PLAYER_RIDE, BuildTests::buildAcceptsARidingPlayersMoves);
         GooTestFunctions.registerTest(registrar, BUILD_LIFTS_AN_OVERTAKEN_RIDER, BuildTests::buildLiftsARiderTheStoneOvertook);
@@ -190,6 +195,26 @@ public final class BuildTests {
                 assertHolds(helper, face.south().north(WALL_RISE), Blocks.DIRT.defaultBlockState(), STONE_MISSING);
                 assertHolds(helper, face, Blocks.STONE.defaultBlockState(), STONE_MISSING);
                 assertHolds(helper, face.south(), Blocks.STONE.defaultBlockState(), STONE_MISSING);
+            }
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A footprint submitted by a caster standing far from it still grows: the
+     * server checks the footprint against Build's bounds alone, so a strip
+     * sixteen long stands whichever end the caster pinned it from.
+     * decision build-dimensions-reach-sixteen-by-sixteen-by-sixteen
+     *
+     * @param helper the gametest helper
+     */
+    public static void buildGrowsForACasterFarFromItsFootprint(GameTestHelper helper) {
+        layTheGround(helper);
+        submit(helper, CORNER, OPPOSITE, RISE, Direction.UP, FAR_CASTER_POS);
+        helper.runAfterDelay(BuildStep.RISE_TICKS + SETTLE_SLACK_TICKS, () -> {
+            for (int x = CORNER.getX(); x <= OPPOSITE.getX(); x++) {
+                assertHolds(helper, new BlockPos(x, CORNER.getY(), CORNER.getZ()), Blocks.STONE.defaultBlockState(),
+                        STONE_MISSING);
             }
             helper.succeed();
         });
@@ -329,6 +354,10 @@ public final class BuildTests {
         return submit(helper, CORNER, OPPOSITE, RISE, Direction.UP);
     }
 
+    private static int submit(GameTestHelper helper, BlockPos corner, BlockPos opposite, int rise, Direction face) {
+        return submit(helper, corner, opposite, rise, face, CASTER_POS);
+    }
+
     /**
      * Submits a footprint as a caster holding a glove, the reagents and rock goo.
      *
@@ -337,12 +366,14 @@ public final class BuildTests {
      * @param opposite the footprint's far corner, relative to the test
      * @param rise     the rise
      * @param face     the face the footprint lies on
+     * @param standing where the caster stands, relative to the test
      * @return the mB of rock goo the growth spent
      */
     @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
-    private static int submit(GameTestHelper helper, BlockPos corner, BlockPos opposite, int rise, Direction face) {
+    private static int submit(GameTestHelper helper, BlockPos corner, BlockPos opposite, int rise, Direction face,
+                              BlockPos standing) {
         ServerPlayer caster = helper.makeMockServerPlayerInLevel();
-        Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(CASTER_POS));
+        Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(standing));
         caster.setPos(stand.x, stand.y, stand.z);
         caster.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GooItems.GOO_GLOVE.get()));
         caster.getInventory().add(GooStacks.createForOutput(GooTypes.ROCK, CASTER_GOO));

@@ -414,7 +414,7 @@ class AbilityLoaderTest {
 
     /**
      * Every shipped arc, beam, spontaneous cast and envelop names its range:
-     * Zap 32, Knives and Dart none, every other 16.
+     * Zap and Build 32, Knives and Dart none, every other 16.
      * decision each-ability-names-its-range-and-the-shared-throw-range-retires
      * decision abilities-leaving-the-shared-range-start-at-sixteen-blocks
      * decision zap-starts-at-thirty-two-blocks
@@ -432,7 +432,7 @@ class AbilityLoaderTest {
         }
         Map<String, Double> expected = new TreeMap<>();
         named.keySet().forEach(name -> expected.put(name, switch (name) {
-            case "pulse_zap" -> 32.0;
+            case "pulse_zap", "rock_build" -> 32.0;
             case "crystal_knives", "metal_dart" -> 0.0;
             default -> 16.0;
         }));

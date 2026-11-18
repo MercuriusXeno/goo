@@ -3,9 +3,7 @@ package com.mercuriusxeno.goo.network;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityTags;
-import com.mercuriusxeno.goo.ability.BuildFootprint;
 import com.mercuriusxeno.goo.ability.BuildGrowth;
-import com.mercuriusxeno.goo.ability.ThrowRange;
 import com.mercuriusxeno.goo.ability.program.BuildStep;
 import com.mercuriusxeno.goo.ability.program.FootprintHost;
 import com.mercuriusxeno.goo.ability.program.HostKind;
@@ -17,18 +15,17 @@ import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.registry.GooCapabilities;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
-import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import java.util.Optional;
 import java.util.OptionalInt;
 
 /**
- * Server side of a Build's submit: the footprint is checked against the caps
- * and Build's range, planned against the cells above it, its rise lowered
+ * Server side of a Build's submit: the footprint is checked against the
+ * ability's bounds alone, wherever the caster stands, planned against the
+ * cells it grows into, its rise lowered
  * to what the caster's goo pays for, and grown, charging the ability's cost
  * per stone block grown. The client held the choreography; the server
  * trusts none of it.
@@ -61,8 +58,8 @@ public final class GooBuildHandler {
     /**
      * Grows a Build for a player: refused whole for a glove-less player, an
      * unknown type, an ability the player may not use or that is not cast by
-     * its footprint, a missing reagent, a footprint past the caps or Build's
-     * range, or a footprint the goo cannot grow a stone block over.
+     * its footprint, a missing reagent, a footprint past the bounds, or a
+     * footprint the goo cannot grow a stone block over.
      *
      * @param player  the casting player
      * @param payload the submit
@@ -73,39 +70,10 @@ public final class GooBuildHandler {
             return;
         }
         AbilityDefinition ability = GooThrowHandler.usableAbility(player, payload.abilityId(), gooType);
-        if (ability != null && castable(player, ability) && withinReach(player, ability, payload.footprint())) {
+        if (ability != null && castable(player, ability)
+                && BuildStep.boundsOf(ability.behaviors()).admits(payload.footprint())) {
             grow(player, payload, gooType, ability);
         }
-    }
-
-    /**
-     * Whether the submit is one the player can make: the footprint within the
-     * bounds the ability's build step sets, and both corners within Build's
-     * range of the player's eye.
-     *
-     * @param player    the casting player
-     * @param ability   the ability cast
-     * @param footprint the footprint as submitted
-     * @return true for a submit in reach
-     */
-    private static boolean withinReach(ServerPlayer player, AbilityDefinition ability, BuildFootprint footprint) {
-        Vec3 eye = player.getEyePosition();
-        double range = ThrowRange.of(ability);
-        return BuildStep.boundsOf(ability.behaviors()).admits(footprint)
-                && inRange(eye, footprint.corner(), range) && inRange(eye, footprint.opposite(), range);
-    }
-
-    /**
-     * Whether a footprint corner's cell stands within range of the eye.
-     * decision each-ability-names-its-range-and-the-shared-throw-range-retires
-     *
-     * @param eye   the caster's eye
-     * @param cell  the corner cell
-     * @param range Build's range in blocks
-     * @return true for a cell in range
-     */
-    static boolean inRange(Vec3 eye, BlockPos cell, double range) {
-        return eye.distanceTo(Vec3.atCenterOf(cell)) <= range;
     }
 
     private static boolean castable(ServerPlayer player, AbilityDefinition ability) {
