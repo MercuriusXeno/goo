@@ -6,6 +6,7 @@ import com.google.gson.JsonParser;
 import com.google.gson.JsonPrimitive;
 import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mojang.serialization.JsonOps;
+import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -42,6 +43,11 @@ class AbilityBadgeTest {
             { "gooType": "typhoon", "displayName": "goo.ability.fixture", "badge": "%s", "cost": 96,
               "delivery": { "kind": "stream" }, "behaviors": [],
               "on_prism": [ { "type": "coat" } ] }""";
+    /** A stream naming a required item, with the badge left for the test to write. */
+    private static final String STREAM_REQUIRING_AN_ITEM = """
+            { "gooType": "blaze", "displayName": "goo.ability.fixture", "badge": "%s", "cost": 96,
+              "delivery": { "kind": "stream" }, "behaviors": [],
+              "requires": [ "minecraft:lava_bucket" ] }""";
 
     /** The delivery field a held channel writes; its codec default hides whether the JSON wrote it. */
     private static final String TICKS_PER_CHARGE_FIELD = "ticks_per_charge";
@@ -271,6 +277,24 @@ class AbilityBadgeTest {
         assertTrue(message.contains("on_prism"), message);
         assertFalse(AbilityJson.decodeText(RESIDUAL_FIXTURE, STREAM_REACTING_TO_PRISMS.formatted("free"))
                 .onPrism().isEmpty(), "a free stream keeps its prism reaction");
+    }
+
+    /**
+     * An ability wearing the residual badge that names a required item fails
+     * to load, its error naming the ability, while the same JSON wearing
+     * another badge loads with its requirement.
+     * decision no-residual-is-locked-behind-recipes
+     */
+    @Test
+    void residualNamingARequiredItemIsRefused() {
+        IllegalStateException refusal = assertThrows(IllegalStateException.class,
+                () -> AbilityJson.decodeText(RESIDUAL_FIXTURE, STREAM_REQUIRING_AN_ITEM.formatted("residual")));
+        String message = refusal.getMessage();
+
+        assertTrue(message.contains(RESIDUAL_FIXTURE), message);
+        assertTrue(message.contains("requires"), message);
+        assertEquals(List.of(Identifier.withDefaultNamespace("lava_bucket")),
+                AbilityJson.decodeText(RESIDUAL_FIXTURE, STREAM_REQUIRING_AN_ITEM.formatted("free")).requires());
     }
 
     /**

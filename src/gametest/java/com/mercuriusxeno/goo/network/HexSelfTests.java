@@ -4,14 +4,16 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.hex.Charmed;
 import com.mercuriusxeno.goo.ability.hex.RandomEnchantment;
-import com.mercuriusxeno.goo.ability.zoo.Rallied;
+import com.mercuriusxeno.goo.ability.yarn.Led;
 import com.mercuriusxeno.goo.data.GooValueTable;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import com.mercuriusxeno.goo.gametest.SurvivalPlayers;
+import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooItems;
-import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
@@ -32,12 +34,10 @@ import net.minecraft.world.item.enchantment.EnchantmentInstance;
 import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.item.enchantment.ItemEnchantments;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.ArrayList;
 import java.util.List;
-import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
-import com.mercuriusxeno.goo.gametest.GooTestFunctions;
-import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for hex's self abilities, invoked from the glove the way a
@@ -48,7 +48,7 @@ public final class HexSelfTests {
     private static final String ENCHANT_GIVES_BOOK = "enchant_gives_one_level_one_book";
     private static final String FUSE_TWO_SHARPNESS_ONE = "fuse_two_sharpness_one";
     private static final String DRAIN_HEALS_THE_CASTER = "drain_heals_the_caster";
-    private static final String DRAIN_SPARES_RALLIED = "drain_spares_the_casters_rallied_cow";
+    private static final String DRAIN_SPARES_LED = "drain_spares_the_casters_led_cow";
     private static final String DRAIN_SPARES_CHARMED = "drain_spares_the_casters_charmed_mob";
 
     /**
@@ -60,7 +60,7 @@ public final class HexSelfTests {
         GooTestFunctions.registerTest(registrar, ENCHANT_GIVES_BOOK, HexSelfTests::enchantGivesOneLevelOneBook);
         GooTestFunctions.registerTest(registrar, FUSE_TWO_SHARPNESS_ONE, HexSelfTests::fuseTwoSharpnessOne);
         GooTestFunctions.registerTest(registrar, DRAIN_HEALS_THE_CASTER, HexSelfTests::drainHealsTheCaster);
-        GooTestFunctions.registerTest(registrar, DRAIN_SPARES_RALLIED, HexSelfTests::drainSparesRalliedCow);
+        GooTestFunctions.registerTest(registrar, DRAIN_SPARES_LED, HexSelfTests::drainSparesLedCow);
         GooTestFunctions.registerTest(registrar, DRAIN_SPARES_CHARMED, HexSelfTests::drainSparesCharmedMob);
     }
 
@@ -96,7 +96,7 @@ public final class HexSelfTests {
     private static final int HOLD_TICKS = 20;
     private static final String SHOULD_SPARE_OWN = "Drain should leave the caster's own %s at %.2f, stands at %.2f";
     private static final String SHOULD_DRAIN_UNOWNED = "Drain should take health from the unowned zombie, %.2f of %.2f";
-    private static final float RALLY_DAMAGE = 6f;
+    private static final float LEAD_DAMAGE = 6f;
 
     private HexSelfTests() {
     }
@@ -130,17 +130,17 @@ public final class HexSelfTests {
     }
 
     /**
-     * Drain held over a cow its caster rallied and an unowned zombie leaves
-     * the cow whole and drains the zombie; the rally is laid again each held
-     * tick, since a rally whose caster holds no Rally stands down
+     * Drain held over a cow its caster led and an unowned zombie leaves
+     * the cow whole and drains the zombie; the lead is laid again each held
+     * tick, since a lead whose caster holds no Lead stands down
      * (decision drain-skips-your-rallied-and-charmed-mobs).
      *
      * @param helper the gametest helper
      */
-    public static void drainSparesRalliedCow(GameTestHelper helper) {
+    public static void drainSparesLedCow(GameTestHelper helper) {
         Mob cow = helper.spawnWithNoFreeWill(EntityType.COW, NEAR_ZOMBIE_POS);
-        drainSparesOwn(helper, cow, "rallied cow", caster -> cow.setData(GooAttachments.RALLIED,
-                new Rallied(caster.getUUID(), RALLY_DAMAGE)));
+        drainSparesOwn(helper, cow, "led cow", caster -> cow.setData(GooAttachments.LED,
+                new Led(caster.getUUID(), LEAD_DAMAGE)));
     }
 
     /**

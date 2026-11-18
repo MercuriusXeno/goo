@@ -1,9 +1,0 @@
-{
-  "type": "minecraft:function",
-  "function": "goo:rallied_cow_spares_a_zombie_charmed_after_it_struck",
-  "environment": "goo:rallied_cow_and_charmed_zombie_alone",
-  "structure": "goo:test_bay",
-  "max_ticks": 100,
-  "setup_ticks": 0,
-  "required": true
-}

@@ -1,0 +1,26 @@
+{
+  "light_level": 0,
+  "saturation_fill": 0.5,
+  "wheel": "B88A5E",
+  "bright": "FFFBF0",
+  "highlight": "CBAE88",
+  "edge": "EDE2CA",
+  "density": 1000,
+  "viscosity": 1000,
+  "elasticity": 0.35,
+  "cohesion": "stiff",
+  "adhesion": "clings",
+  "temperature": 300,
+  "extinguishes": false,
+  "levity": 1.0,
+  "base_flight_time": 3,
+  "map_color": "wool",
+  "textures": {
+    "goo_tiny": "goo:item/yarn_goo_tiny",
+    "goo_small": "goo:item/yarn_goo_small",
+    "goo_base": "goo:item/yarn_goo_base",
+    "goo_large": "goo:item/yarn_goo_large",
+    "fluid_still": "goo:fluid/yarn_fluid",
+    "fluid_flowing": "goo:fluid/yarn_fluid"
+  }
+}
