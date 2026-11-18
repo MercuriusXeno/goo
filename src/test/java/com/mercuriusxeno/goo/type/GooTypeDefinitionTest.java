@@ -57,9 +57,12 @@ class GooTypeDefinitionTest {
     private static final int BLAZE_TEMPERATURE = 1300;
     private static final int FROST_TEMPERATURE = 200;
     private static final int WEIRD_COHESION = 4;
+    /** Jelly's cohesion, the stiff rung just below firm (operator ruling 2026-11-17). */
+    private static final int JELLY_COHESION = 8;
     private static final int WEIRD_ADHESION = 3;
     private static final int LEAF_ADHESION = 3;
     private static final int GLOW_ADHESION = 4;
+    private static final int JELLY_ADHESION = 3;
     private static final int BLAZE_COHESION = 4;
     private static final int BLAZE_ADHESION = 4;
     private static final int COMMON_ADHESION = 1;
@@ -275,22 +278,24 @@ class GooTypeDefinitionTest {
     }
 
     /**
-     * Every bundled type states a cohesion: weird holds a step of 4, blaze the thick rung of 4, and every
-     * other type, kinetic among them, 0.
+     * Every bundled type states a cohesion: weird holds a step of 4, blaze the thick rung of 4, jelly the stiff rung of 8, and
+     * every other type, kinetic among them, 0.
      * cohesion-is-the-step-the-goo-holds
      * blaze-goo-is-adhesion-four-and-cohesion-five
      */
     @ParameterizedTest
     @MethodSource("bundledKeys")
     void bundledCohesionMatchesDecision(ResourceKey<GooTypeDefinition> key) throws Exception {
-        int expected = key == GooTypes.WEIRD ? WEIRD_COHESION : key == GooTypes.BLAZE ? BLAZE_COHESION : 0;
+        int expected = key == GooTypes.WEIRD ? WEIRD_COHESION : key == GooTypes.BLAZE ? BLAZE_COHESION
+                : key == GooTypes.JELLY ? JELLY_COHESION : 0;
         assertEquals(expected, decodeBundled(key).cohesion(), key::toString);
     }
 
     /**
-     * Every bundled type states an adhesion: kinetic clings to nothing, weird and leaf hold a side
-     * where they strike, glow and blaze hold an underside, and every other type holds tops.
+     * Every bundled type states an adhesion: kinetic clings to nothing, weird, jelly and leaf hold a
+     * side where they strike, glow and blaze hold an underside, and every other type holds tops.
      * adhesion-is-a-ladder-of-holds
+     * nectar-is-the-sticky-goo-you-climb-that-nerfs-jumping-and-speed
      * vines-goo-on-walls-places-goologged-vines-and-depletes
      * blaze-goo-is-adhesion-four-and-cohesion-five
      */
@@ -299,7 +304,8 @@ class GooTypeDefinitionTest {
     void bundledAdhesionMatchesDecision(ResourceKey<GooTypeDefinition> key) throws Exception {
         int expected = key == GooTypes.KINETIC ? 0 : key == GooTypes.WEIRD ? WEIRD_ADHESION
                 : key == GooTypes.LEAF ? LEAF_ADHESION : key == GooTypes.GLOW ? GLOW_ADHESION
-                : key == GooTypes.BLAZE ? BLAZE_ADHESION : COMMON_ADHESION;
+                : key == GooTypes.BLAZE ? BLAZE_ADHESION : key == GooTypes.JELLY ? JELLY_ADHESION
+                : COMMON_ADHESION;
         assertEquals(expected, decodeBundled(key).adhesion(), key::toString);
     }
 
