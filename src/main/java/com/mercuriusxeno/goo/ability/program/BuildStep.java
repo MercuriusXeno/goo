@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.ability.BuildBounds;
+import com.mercuriusxeno.goo.ability.BuildColumn;
 import com.mercuriusxeno.goo.ability.BuildGrowth;
 import com.mercuriusxeno.goo.entity.BlockHunk;
 import com.mojang.serialization.Codec;
@@ -10,6 +11,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
@@ -19,12 +21,13 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 /**
- * Build's step: the stone for the cells above each planned footprint cell,
- * from one above the ground through the rise, rises out of the ground as one
- * hunk of blocks over the rise time, dust thrown off the ground where each
- * column breaks out, and settles into its cells when the rise ends; the
- * ground under it stays as it stood.
+ * Build's step: each planned column's reached blocks and the stone grown
+ * under them rise together as one hunk of blocks over the rise time, the
+ * reached cells emptied as it starts, dust thrown off the ground where each
+ * column breaks out, and settle into their cells when the rise ends, the
+ * lifted blocks standing the rise higher on the stone.
  * decision spire-grows-stone-out-of-the-top
+ * decision build-reaches-down-as-far-as-it-rises-and-lifts-the-ground-on-stone
  * decision spire-entity-izes-its-blocks-and-raises-them-smoothly
  * decision build-dimensions-reach-sixteen-by-sixteen-by-sixteen
  *
@@ -89,8 +92,8 @@ public record BuildStep(int maxSpan, int maxRise) implements Step {
     }
 
     /**
-     * Raises stone over every planned column, from the cell above the ground
-     * up, as one hunk climbing out of the ground into its cells.
+     * Lifts every planned column's reached blocks on the stone grown under
+     * them, as one hunk climbing the rise into its cells.
      *
      * @param level  the server level
      * @param growth the planned growth
@@ -100,16 +103,33 @@ public record BuildStep(int maxSpan, int maxRise) implements Step {
             return;
         }
         BlockState stone = Blocks.STONE.defaultBlockState();
-        int rise = growth.footprint().rise();
-        BlockPos origin = growth.columns().getFirst().above();
+        BlockPos origin = growth.columns().getFirst().ground().above();
         List<BlockHunk.HunkBlock> blocks = new ArrayList<>();
-        for (BlockPos ground : growth.columns()) {
-            for (int height = 1; height <= rise; height++) {
-                blocks.add(new BlockHunk.HunkBlock(ground.above(height).subtract(origin), stone));
+        for (BuildColumn column : growth.columns()) {
+            column.stoneCells().forEach(cell -> blocks.add(new BlockHunk.HunkBlock(cell.subtract(origin), stone)));
+            for (BlockPos cell : column.liftedCells()) {
+                BlockState lifted = level.getBlockState(cell);
+                if (!lifted.isAir()) {
+                    blocks.add(new BlockHunk.HunkBlock(column.liftedTo(cell).subtract(origin), lifted));
+                }
             }
-            throwDust(level, ground.above(), stone);
+            throwDust(level, column.ground().above(), stone);
         }
-        BlockHunk.raise(level, origin, blocks, rise, RISE_TICKS);
+        emptyTheReach(level, growth.columns());
+        BlockHunk.raise(level, origin, blocks, growth.footprint().rise(), RISE_TICKS);
+    }
+
+    /**
+     * Empties the cells the columns reached, which the hunk now carries,
+     * telling the clients alone, so no neighbor falls or flows into them
+     * while the hunk fills them.
+     *
+     * @param level   the server level
+     * @param columns the planned columns
+     */
+    private static void emptyTheReach(ServerLevel level, List<BuildColumn> columns) {
+        BlockState air = Blocks.AIR.defaultBlockState();
+        columns.forEach(column -> column.liftedCells().forEach(cell -> level.setBlock(cell, air, Block.UPDATE_CLIENTS)));
     }
 
     private static void throwDust(ServerLevel level, BlockPos cell, BlockState state) {
