@@ -4,14 +4,18 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.HeardSounds;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
+import com.mercuriusxeno.goo.gametest.PacketRecorder;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
+import com.mercuriusxeno.goo.gametest.SurvivalPlayers;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.network.protocol.game.ClientboundSoundPacket;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityType;
@@ -20,6 +24,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.List;
 import java.util.function.Consumer;
 
 /**
@@ -36,6 +41,14 @@ public final class PhaseGooTests {
     private static final String DRIP_LAYS_ONE_LAYER = "phase_goo_drip_lays_a_cell_of_one_layer";
     private static final String VILLAGER_LOST_TO_ITS_ZOMBIE = "phase_goo_phases_a_villager_and_its_zombie_loses_it";
     private static final String STEPPING_OFF_ENDS_THE_PHASE = "phase_goo_stepping_off_ends_the_phase";
+    private static final String SHIFTS_SOUND = "phase_goo_sounds_each_shift";
+    private static final Identifier SHIFT_SOUND = Identifier.parse("minecraft:block.respawn_anchor.deplete");
+    /** The pitches the zombie's two shifts sound at: out of phase high, back into phase low. */
+    private static final List<Float> SHIFT_PITCHES = List.of(1.6F, 0.9F);
+    /** How near this test's goo a sound plays to count, so the next bay's phase tests sound apart. */
+    private static final double OWN_BAY_REACH = 5.0;
+    private static final String SHIFTS_UNHEARD = "A player beside the goo should hear the zombie phase out at 1.6 and back"
+            + " in at 0.9, heard pitches %s";
     /** Bare stone three blocks east of the walled cell, where the zombie is moved off the goo. */
     private static final BlockPos OFF_THE_GOO = new BlockPos(5, 2, 2);
     /** The ticks after stepping off by which the phase has ended. */
@@ -69,6 +82,7 @@ public final class PhaseGooTests {
         GooTestFunctions.registerTest(registrar, VILLAGER_LOST_TO_ITS_ZOMBIE,
                 PhaseGooTests::phasesAVillagerAndItsZombieLosesIt);
         GooTestFunctions.registerTest(registrar, STEPPING_OFF_ENDS_THE_PHASE, PhaseGooTests::steppingOffEndsThePhase);
+        GooTestFunctions.registerTest(registrar, SHIFTS_SOUND, PhaseGooTests::soundsEachShift);
     }
 
     /**
@@ -134,6 +148,38 @@ public final class PhaseGooTests {
             helper.runAfterDelay(STEP_OFF_TICKS, () -> {
                 helper.assertTrue(!phasedNow(helper, zombie), String.format(STILL_PHASED, STEP_OFF_TICKS,
                         zombie.getData(GooAttachments.OUT_OF_PHASE).expiresAt(), helper.getLevel().getGameTime()));
+                helper.succeed();
+            });
+        });
+    }
+
+    /**
+     * A player beside the goo hears a zombie slip out of phase as it stands
+     * in a Phase cell, high, and step back into phase once moved onto bare
+     * stone, low.
+     * phase-goo-puts-what-stands-in-it-out-of-phase
+     *
+     * @param helper the gametest helper
+     */
+    public static void soundsEachShift(GameTestHelper helper) {
+        BlockPos cell = wallTheCell(helper);
+        helper.setBlock(OFF_THE_GOO.below(), Blocks.STONE);
+        ServerPlayer listener = SurvivalPlayers.placeIn(helper);
+        PacketRecorder heard = PacketRecorder.attachTo(listener);
+        helper.setBlock(cell, GooBlocks.QUANTUM_PHASE.get().defaultBlockState()
+                .setValue(VolumeCellBlock.LAYERS, VolumeCellBlock.MAX_LAYERS));
+        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, cell.above());
+        helper.runAfterDelay(SETTLE_TICKS, () -> {
+            Vec3 off = Vec3.atBottomCenterOf(helper.absolutePos(OFF_THE_GOO));
+            zombie.teleportTo(off.x, off.y, off.z);
+            helper.runAfterDelay(SETTLE_TICKS, () -> {
+                Vec3 goo = Vec3.atCenterOf(helper.absolutePos(cell));
+                List<Float> pitches = HeardSounds.of(heard, SHIFT_SOUND).stream()
+                        .filter(sound -> goo.distanceTo(new Vec3(sound.getX(), sound.getY(), sound.getZ()))
+                                < OWN_BAY_REACH)
+                        .map(ClientboundSoundPacket::getPitch).toList();
+                helper.getLevel().getServer().getPlayerList().remove(listener);
+                helper.assertTrue(pitches.equals(SHIFT_PITCHES), String.format(SHIFTS_UNHEARD, pitches));
                 helper.succeed();
             });
         });
