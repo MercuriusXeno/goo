@@ -5,7 +5,7 @@
   "order": 4,
   "cost": 1000,
   "requires": ["minecraft:poisonous_potato"],
-  "delivery": { "kind": "arc" },
+  "delivery": { "kind": "arc", "range": 16 },
   "behaviors": [
     { "type": "toxin", "effect": "goo:bio_toxin", "share_per_second": 0.06, "duration": 100, "max_amplitude": 2 }
   ],
