@@ -315,8 +315,8 @@ public record SlimeCoreModel(BlockStateModel shell, BakedQuad.MaterialInfo core,
             if (!beside.is(state.getBlock())) {
                 return 0;
             }
-            return VolumeCellBlock.attachedSidesOf(beside) == 0 ? VolumeCellBlock.layersOf(beside)
-                    : sharesOf(level, pos.offset(dx, dy, dz), beside).floor();
+            // operator UAT 2026-11-17: goo running down a wall in midair is not sitting on a block
+            return sharesOf(level, pos.offset(dx, dy, dz), beside).floor();
         }
 
         @Override

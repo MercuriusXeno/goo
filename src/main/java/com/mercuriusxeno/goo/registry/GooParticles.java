@@ -119,6 +119,15 @@ public class GooParticles {
         PARTICLE_TYPES.register("updraft_spray_drip", () -> new SimpleParticleType(false));
 
     /**
+     * Nectar's spray drip: the mod's blocky goo drip in jelly's oranges,
+     * flying its arc until it strikes a block's top, where it splats and the
+     * Nectar goo lands.
+     * nectar-is-sprayed-goo-with-a-guided-throw-near-a-mob
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> NECTAR_SPRAY_DRIP =
+        PARTICLE_TYPES.register("nectar_spray_drip", () -> new SimpleParticleType(false));
+
+    /**
      * A snowflake crystal flitting weightlessly along Cold's wind (decision
      * cold-streams-wind-lines-and-snowflakes).
      */

@@ -3,11 +3,13 @@ package com.mercuriusxeno.goo.registry;
 import com.mercuriusxeno.goo.ability.frost.GlacialFields;
 import com.mercuriusxeno.goo.ability.petrify.BlockExposures;
 import com.mercuriusxeno.goo.ability.program.MorphBirths;
+import com.mercuriusxeno.goo.ability.program.VacuumCounts;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockFallScheduler;
 import com.mercuriusxeno.goo.block.ability.HostFreeCells;
 import com.mercuriusxeno.goo.block.ability.HostSpreaders;
 import com.mercuriusxeno.goo.block.ability.LayerFalls;
 import com.mercuriusxeno.goo.block.ability.MoltenHeats;
+import com.mercuriusxeno.goo.block.ability.NectarFights;
 import com.mercuriusxeno.goo.block.ability.WispClaims;
 import com.mercuriusxeno.goo.network.DripFlights;
 import com.mercuriusxeno.goo.network.GooEffectScheduler;
@@ -38,10 +40,12 @@ public final class GooServerState {
     private final ScanWaves scanWaves = new ScanWaves();
     private final DripFlights dripFlights = new DripFlights();
     private final MoltenHeats moltenHeats = new MoltenHeats();
+    private final NectarFights nectarFights = new NectarFights();
     private final LayerFalls layerFalls = new LayerFalls();
     private final HostSpreaders hostSpreaders = new HostSpreaders();
     private final HostFreeCells hostFreeCells = new HostFreeCells();
     private final WispClaims wispClaims = new WispClaims();
+    private final VacuumCounts vacuumCounts = new VacuumCounts();
 
     /**
      * Answers the state the server holds.
@@ -163,6 +167,16 @@ public final class GooServerState {
     }
 
     /**
+     * The fights over Nectar cells
+     * (decision nectar-goo-keeps-feeds-effects-as-a-universal-food).
+     *
+     * @return the nectar fights
+     */
+    public NectarFights nectarFights() {
+        return nectarFights;
+    }
+
+    /**
      * The sculk charges Host goo started from deaths near it
      * (decision mob-dying-on-or-near-host-goo-spreads-sculk-from-the-goo).
      *
@@ -190,6 +204,13 @@ public final class GooServerState {
      */
     public WispClaims wispClaims() {
         return wispClaims;
+    }
+
+    /**
+     * @return the ticks Vacuum has counted on each goo cell toward its next layer
+     */
+    public VacuumCounts vacuumCounts() {
+        return vacuumCounts;
     }
 
     /**
@@ -221,6 +242,7 @@ public final class GooServerState {
         morphBirths.bearArrived(currentTick);
         blockExposures.decay(server);
         streamHolds.releaseLapsed(currentTick);
+        vacuumCounts.dropForgotten(currentTick);
         knifeHolds.tick(currentTick);
         homingKnives.tick(currentTick);
     }
@@ -241,8 +263,10 @@ public final class GooServerState {
         dripFlights.clear();
         layerFalls.clear();
         moltenHeats.clear();
+        nectarFights.clear();
         hostSpreaders.clear();
         hostFreeCells.clear();
         wispClaims.clear();
+        vacuumCounts.clear();
     }
 }
