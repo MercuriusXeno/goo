@@ -9,7 +9,7 @@
   "viscosity": 1500,
   "elasticity": 0.3,
   "cohesion": "soft",
-  "adhesion": 3,
+  "adhesion": "clings",
   "temperature": 900,
   "extinguishes": false,
   "levity": 1.0,

@@ -39,14 +39,14 @@ import java.util.Locale;
  *                       0 landing dead to 1 keeping all of it
  * @param cohesion       the rung naming the step in layers the type's world goo holds over a neighbour
  *                       before pouring, runny levelling flat to firm never pouring
- * @param adhesion       the rung of the adhesion ladder the type's world goo clings at, 0 clinging to nothing
- *                       to 3 holding a block's side where it strikes
+ * @param adhesion       the rung of the adhesion ladder the type's world goo clings at, slips clinging to
+ *                       nothing to hangs holding a block's underside where it strikes
  */
 public record GooTypeDefinition(int peakLight, float saturationFill, int wheel, int bright, int highlight, int edge,
                                 int density, int viscosity, int temperature, boolean extinguishes, MapColor mapColor,
                                 float levity, int baseFlightTime, GooTypeTextures textures,
                                 int vesselSourcePerMb, HueCycle hueCycle, float elasticity, Cohesion cohesion,
-                                int adhesion) {
+                                Adhesion adhesion) {
 
     /**
      * JSON key of {@link #peakLight}.
@@ -126,20 +126,6 @@ public record GooTypeDefinition(int peakLight, float saturationFill, int wheel, 
      */
     public static final String ADHESION = "adhesion";
     /**
-     * The adhesion that clings to nothing: goo that runs off any top with an open edge.
-     */
-    public static final int CLINGS_TO_NOTHING = 0;
-    /**
-     * The top rung of the adhesion ladder: goo that holds a block's side where it strikes.
-     */
-    public static final int HOLDS_WHERE_IT_STRIKES = 3;
-    /**
-     * The ladder's top rung: goo that holds a block's underside where it strikes, and every hold below.
-     * adhesion-is-a-ladder-of-holds
-     * glow-goo-is-adhesion-four
-     */
-    public static final int HOLDS_AN_UNDERSIDE = 4;
-    /**
      * The rate of a type whose JSON leaves {@link #VESSEL_SOURCE_PER_MB} out.
      */
     public static final int NO_VESSEL_SOURCE = 0;
@@ -205,13 +191,13 @@ public record GooTypeDefinition(int peakLight, float saturationFill, int wheel, 
      * @param cohesion   the rung naming the step in layers the type's world goo holds before pouring
      * @param adhesion   the rung of the adhesion ladder the type's world goo clings at
      */
-    private record Tail(HueCycle hueCycle, float elasticity, Cohesion cohesion, int adhesion) {
+    private record Tail(HueCycle hueCycle, float elasticity, Cohesion cohesion, Adhesion adhesion) {
 
         static final MapCodec<Tail> MAP_CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
                 HueCycle.MAP_CODEC.forGetter(Tail::hueCycle),
                 Codec.floatRange(0f, 1f).fieldOf(ELASTICITY).forGetter(Tail::elasticity),
                 Cohesion.CODEC.fieldOf(COHESION).forGetter(Tail::cohesion),
-                Codec.intRange(CLINGS_TO_NOTHING, HOLDS_AN_UNDERSIDE).fieldOf(ADHESION).forGetter(Tail::adhesion)
+                Adhesion.CODEC.fieldOf(ADHESION).forGetter(Tail::adhesion)
         ).apply(instance, Tail::new));
 
         static Tail of(GooTypeDefinition definition) {

@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.block;
 
+import com.mercuriusxeno.goo.type.Adhesion;
 import com.mercuriusxeno.goo.type.Cohesion;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypeTextures;
@@ -66,7 +67,7 @@ class GooLightContributionTest {
     private static GooTypeDefinition lit(int peak, float saturation) {
         return new GooTypeDefinition(peak, saturation, ANY_COLOR, ANY_COLOR, ANY_COLOR, ANY_COLOR,
                 WATER_LIKE, WATER_LIKE, WATER_LIKE, false, MapColor.STONE, 1.0f, 3, GooTypeTextures.NONE,
-                GooTypeDefinition.NO_VESSEL_SOURCE, HueCycle.NONE, 0f, Cohesion.RUNNY, 1);
+                GooTypeDefinition.NO_VESSEL_SOURCE, HueCycle.NONE, 0f, Cohesion.RUNNY, Adhesion.TOPS);
     }
 
     /**
