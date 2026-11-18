@@ -1,11 +1,12 @@
 package com.mercuriusxeno.goo.client.overlay;
 
-import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.program.BlinkLanding;
 import com.mercuriusxeno.goo.ability.program.TeleportStep;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.ability.AfterimageRenderer;
 import com.mercuriusxeno.goo.client.ability.Afterimages;
+import com.mercuriusxeno.goo.client.ability.PortalView;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.throwing.BlinkAim;
@@ -13,21 +14,17 @@ import com.mercuriusxeno.goo.client.throwing.GloveAim;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
 import com.mercuriusxeno.goo.type.GooColors;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
-import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalDouble;
+import java.util.function.Consumer;
 
 /**
  * The blink cursor: the player's silhouette ripple standing where blink
@@ -41,7 +38,6 @@ import java.util.OptionalDouble;
  * is held, or whenever the ability is selected.
  * Decision ripple-outline-is-the-blink-cursor.
  */
-@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class BlinkCursor {
 
     /** Game ticks between one ripple of the cursor starting and the next. */
@@ -54,24 +50,41 @@ public final class BlinkCursor {
     }
 
     /**
-     * Draws the cursor's ripple after the level while the selected ability shows it.
+     * Hands the shared path the cursor's ripples while the selected ability
+     * shows it, sorted by where the blink would land, in the main frame
+     * alone.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
+     * decision ripple-outline-is-the-blink-cursor
      *
-     * @param event the level render stage event
+     * @param frame the frame being drawn
+     * @param draws where the ripples' draw goes
      */
-    @SubscribeEvent
-    public static void onAfterLevel(RenderLevelStageEvent.AfterLevel event) {
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
+        // It drew only at AfterLevel, which a portal view's pass never posts; the path runs AfterLevel routes there.
+        if (PortalView.drawing()) {
+            return;
+        }
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
         if (player == null || mc.level == null) {
             return;
         }
+        collectRipples(frame, mc, player, draws);
+    }
+
+    private static void collectRipples(LevelFrame frame, Minecraft mc, LocalPlayer player,
+                                       Consumer<SortedDraw> draws) {
         ClientAbility ability = selectedAbility(player);
         ResourceKey<GooTypeDefinition> type = GloveAim.selectedGooType(player);
-        if (type != null && ability != null && showsCursor(ability, GloveUseTracker.showsArea())) {
-            float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-            Optional<BlinkLanding> trip = BlinkAim.trip(player, ability, partialTick);
-            AfterimageRenderer.drawRipples(new LevelFrame(event.getModelViewMatrix(), new PoseStack(),
-                    event.getLevelRenderState()), ripplesAt(mc, player, trip, type, partialTick));
+        if (type == null || ability == null || !showsCursor(ability, GloveUseTracker.showsArea())) {
+            return;
+        }
+        float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
+        Optional<BlinkLanding> trip = BlinkAim.trip(player, ability, partialTick);
+        List<Afterimages.Afterimage<EntityRenderState>> ripples = ripplesAt(mc, player, trip, type, partialTick);
+        if (!ripples.isEmpty()) {
+            draws.accept(SortedDraw.nearestOf(ripples.stream().map(Afterimages.Afterimage::position),
+                    mc.gameRenderer.getMainCamera().position(), () -> AfterimageRenderer.drawRipples(frame, ripples)));
         }
     }
 

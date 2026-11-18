@@ -180,6 +180,10 @@ public final class BoreDrill {
      * @param draws where the vortex's draw goes
      */
     public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
+        // It drew only at AfterLevel, which a portal view's pass never posts; the path runs AfterLevel routes there.
+        if (PortalView.drawing()) {
+            return;
+        }
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
         if (player == null || mc.level == null) {
@@ -188,16 +192,22 @@ public final class BoreDrill {
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         boolean held = holdsBore(player);
         updatePresence(held, mc.level.getGameTime() + partialTick);
-        if (presence <= 0 || lastStep == null) {
+        BoreStep step = lastStep;
+        if (presence <= 0 || step == null) {
             return;
         }
+        draws.accept(sortedDrawOf(vortexOf(mc, player, step, partialTick, held), presence, frame.modelView()));
+    }
+
+    private static ConeSections.Volume vortexOf(Minecraft mc, LocalPlayer player, BoreStep step, float partialTick,
+                                                boolean held) {
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
         ConeSections.Volume full = volume(CastOrigin.ofLocal(mc).subtract(camera),
-                pointAhead(mc.level, CameraEye.of(mc, player, partialTick), lastStep,
+                pointAhead(mc.level, CameraEye.of(mc, player, partialTick), step,
                         GooCasters.casterOnTheRight(player), lastReach).subtract(camera),
-                lastStep.shape(), player.getViewYRot(partialTick));
+                step.shape(), player.getViewYRot(partialTick));
         double poured = held ? emergedShare(GloveUseTracker.channelTicks() + partialTick) : 1;
-        draws.accept(sortedDrawOf(emerged(full, poured), presence, frame.modelView()));
+        return emerged(full, poured);
     }
 
     // The vortex is laid out about the camera, so its middle's length is its distance from the camera.

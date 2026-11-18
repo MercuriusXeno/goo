@@ -1,7 +1,8 @@
 package com.mercuriusxeno.goo.client.overlay;
 
-import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
@@ -11,11 +12,8 @@ import net.minecraft.data.AtlasIds;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * Shows the gem ore Glimmer revealed through walls: each ore block drawn as
@@ -24,7 +22,6 @@ import java.util.List;
  * life's end, through the pipelines Sight shows fungus by.
  * decision glitter-sphere-icons-gem-ore-groups
  */
-@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class OreXray {
 
     /** The ore's own color, a little translucent at full show. */
@@ -41,25 +38,31 @@ public final class OreXray {
     }
 
     /**
-     * Draws the revealed ore through walls once the world has drawn.
+     * Hands the shared path the revealed ore, drawn through walls, sorted by
+     * the nearest ore block showing.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
+     * decision glitter-sphere-icons-gem-ore-groups
      *
-     * @param event the level render stage event
+     * @param frame the frame being drawn
+     * @param draws where the ore's draw goes
      */
-    @SubscribeEvent
-    public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) {
             return;
         }
         double now = mc.level.getGameTime() + mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         List<OreSightings.Sighting> showing = OreSightings.CLIENT.showingAt(now);
-        if (showing.isEmpty()) {
-            return;
+        if (!showing.isEmpty()) {
+            draws.accept(SortedDraw.nearestOf(showing.stream().map(sighting -> Vec3.atCenterOf(sighting.pos())),
+                    mc.gameRenderer.getMainCamera().position(), () -> drawOre(mc, frame.poseStack(), showing)));
         }
+    }
+
+    private static void drawOre(Minecraft mc, PoseStack poseStack, List<OreSightings.Sighting> showing) {
         Identifier atlas = mc.getAtlasManager().getAtlasOrThrow(AtlasIds.BLOCKS).location();
-        drawPass(mc, event.getPoseStack(), GooRenderTypes.fungusXray(atlas), showing, ORE_RGB, ORE_ALPHA, 1f);
-        drawPass(mc, event.getPoseStack(), GooRenderTypes.fungusGlow(atlas), showing, GLOW_RGB, GLOW_ALPHA,
-                GLOW_SWELL);
+        drawPass(mc, poseStack, GooRenderTypes.fungusXray(atlas), showing, ORE_RGB, ORE_ALPHA, 1f);
+        drawPass(mc, poseStack, GooRenderTypes.fungusGlow(atlas), showing, GLOW_RGB, GLOW_ALPHA, GLOW_SWELL);
     }
 
     /**

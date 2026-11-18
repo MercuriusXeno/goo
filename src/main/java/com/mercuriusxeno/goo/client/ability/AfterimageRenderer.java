@@ -86,6 +86,10 @@ public final class AfterimageRenderer {
      * @param draws where the afterimages' draws go
      */
     public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
+        // It drew only at AfterLevel, which a portal view's pass never posts; the path runs AfterLevel routes there.
+        if (PortalView.drawing()) {
+            return;
+        }
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) {
             return;

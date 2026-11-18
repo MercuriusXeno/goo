@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.client.ability.AirbornWind;
 import com.mercuriusxeno.goo.client.ability.BeatRings;
 import com.mercuriusxeno.goo.client.ability.BlockMingleRenderer;
 import com.mercuriusxeno.goo.client.ability.BoreDrill;
+import com.mercuriusxeno.goo.client.ability.ChainBurnoutRenderer;
 import com.mercuriusxeno.goo.client.ability.CrystalShatterVisual;
 import com.mercuriusxeno.goo.client.ability.FireStream;
 import com.mercuriusxeno.goo.client.ability.FloatPlatform;
@@ -50,6 +51,20 @@ import com.mercuriusxeno.goo.client.ability.WispGlow;
 import com.mercuriusxeno.goo.client.ability.ZapBolts;
 import com.mercuriusxeno.goo.client.hole.HoleMouths;
 import com.mercuriusxeno.goo.client.hole.HolePits;
+import com.mercuriusxeno.goo.client.hud.CanisterHudRenderer;
+import com.mercuriusxeno.goo.client.hud.CrucibleHudRenderer;
+import com.mercuriusxeno.goo.client.hud.PlexerHudRenderer;
+import com.mercuriusxeno.goo.client.hud.VatHudRenderer;
+import com.mercuriusxeno.goo.client.model.GooJoins;
+import com.mercuriusxeno.goo.client.overlay.AimedMobRipple;
+import com.mercuriusxeno.goo.client.overlay.BlinkCursor;
+import com.mercuriusxeno.goo.client.overlay.FungusXray;
+import com.mercuriusxeno.goo.client.overlay.GasketOverlayRenderer;
+import com.mercuriusxeno.goo.client.overlay.GooTargetHighlighter;
+import com.mercuriusxeno.goo.client.overlay.OculusXray;
+import com.mercuriusxeno.goo.client.overlay.OreXray;
+import com.mercuriusxeno.goo.client.overlay.TransmitTargetMarker;
+import com.mercuriusxeno.goo.client.throwing.GooFlightRenderer;
 import com.mercuriusxeno.goo.client.zone.RoomCopyRenderer;
 import com.mercuriusxeno.goo.client.zone.VoidstoneFaces;
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -137,7 +152,26 @@ public final class TranslucentVisualPath {
             new Registration(HolePits.class, SortRoute.OPAQUE_SHAPE, HolePits::collect),
             new Registration(RoomCopyRenderer.class, SortRoute.OPAQUE_SHAPE, RoomCopyRenderer::collectSolid),
             new Registration(RoomCopyRenderer.class, SortRoute.FAR_TO_NEAR, RoomCopyRenderer::collect),
-            new Registration(VoidstoneFaces.class, SortRoute.OPAQUE_SHAPE, VoidstoneFaces::collect));
+            new Registration(VoidstoneFaces.class, SortRoute.OPAQUE_SHAPE, VoidstoneFaces::collect),
+            new Registration(AimedMobRipple.class, SortRoute.FAR_TO_NEAR, AimedMobRipple::collect),
+            new Registration(BlinkCursor.class, SortRoute.FAR_TO_NEAR, BlinkCursor::collect),
+            new Registration(FungusXray.class, SortRoute.THROUGH_BLOCKS, FungusXray::collect),
+            new Registration(OculusXray.class, SortRoute.THROUGH_BLOCKS, OculusXray::collect),
+            new Registration(OreXray.class, SortRoute.THROUGH_BLOCKS, OreXray::collect),
+            new Registration(TransmitTargetMarker.class, SortRoute.THROUGH_BLOCKS, TransmitTargetMarker::collect),
+            new Registration(GooFlightRenderer.class, SortRoute.FAR_TO_NEAR, GooFlightRenderer::collect),
+            new Registration(GooJoins.class, SortRoute.FAR_TO_NEAR, GooJoins::collect),
+            new Registration(ChainBurnoutRenderer.class, SortRoute.FAR_TO_NEAR, ChainBurnoutRenderer::collect),
+            new Registration(GooTargetHighlighter.class, SortRoute.ON_OPAQUE_FACES,
+                    GooTargetHighlighter::collectOutline),
+            new Registration(GooTargetHighlighter.class, SortRoute.THROUGH_BLOCKS,
+                    GooTargetHighlighter::collectThroughBlocks),
+            new Registration(GooTargetHighlighter.class, SortRoute.FAR_TO_NEAR, GooTargetHighlighter::collect),
+            new Registration(GasketOverlayRenderer.class, SortRoute.ON_OPAQUE_FACES, GasketOverlayRenderer::collect),
+            new Registration(CanisterHudRenderer.class, SortRoute.FAR_TO_NEAR, CanisterHudRenderer::collect),
+            new Registration(CrucibleHudRenderer.class, SortRoute.FAR_TO_NEAR, CrucibleHudRenderer::collect),
+            new Registration(PlexerHudRenderer.class, SortRoute.FAR_TO_NEAR, PlexerHudRenderer::collect),
+            new Registration(VatHudRenderer.class, SortRoute.FAR_TO_NEAR, VatHudRenderer::collect));
 
     private TranslucentVisualPath() {
     }
