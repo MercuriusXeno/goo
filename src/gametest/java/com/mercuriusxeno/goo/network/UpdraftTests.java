@@ -3,11 +3,13 @@ package com.mercuriusxeno.goo.network;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.program.UpdraftStep;
+import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import com.mercuriusxeno.goo.gametest.SurvivalPlayers;
+import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -47,6 +49,7 @@ public final class UpdraftTests {
     private static final String GLIDES_A_FALLING_MOB_DOWN = "updraft_glides_a_falling_mob_down";
     private static final String REFILLS_A_LIFTED_ZOMBIES_AIR = "updraft_refills_a_lifted_zombies_air";
     private static final String REFILLS_AIR_IN_THE_GLIDE_ZONE = "updraft_refills_air_in_the_glide_zone";
+    private static final String LEAVES_A_PRISM_PLAIN = "updraft_leaves_a_prism_plain";
     private static final Identifier UPDRAFT = Identifier.parse("goo:typhoon_updraft");
     /** The stone the walled tests lay, two blocks deep across the bay. */
     private static final int STONE_TOP_Y = 2;
@@ -110,6 +113,13 @@ public final class UpdraftTests {
     private static final String AIR_NOT_FULL = "A zombie the cell lifts should read %d air %d ticks after its first"
             + " lift, reads %d";
     private static final String GLIDE_AIR_NOT_RISEN = "A player in the glide zone should gain air from 0, reads %d";
+    /** The prism the Updraft stream is held on. */
+    private static final BlockPos PRISM_POS = new BlockPos(2, 1, 2);
+    /** Three blocks south of the prism, where the player holds Updraft on it. */
+    private static final BlockPos PRISM_STAND = new BlockPos(2, 1, 5);
+    /** Ticks past the hold the prism is read at, so the hold's last stream tick has landed. */
+    private static final int PRISM_SETTLE_TICKS = 2;
+    private static final String PRISM_HOLDS_A_COMBO = "Updraft held on a prism should leave it plain, it holds '%s'";
     private static final String NOT_LIFTED = "After %d ticks the zombie should stand above the cell's top %.2f, stands at %.2f";
 
     private UpdraftTests() {
@@ -128,6 +138,7 @@ public final class UpdraftTests {
         GooTestFunctions.registerTest(registrar, REFILLS_A_LIFTED_ZOMBIES_AIR, UpdraftTests::refillsALiftedZombiesAir);
         GooTestFunctions.registerTest(registrar, REFILLS_AIR_IN_THE_GLIDE_ZONE, UpdraftTests::refillsAirInTheGlideZone);
         GooTestFunctions.registerTest(registrar, GLIDES_A_FALLING_MOB_DOWN, UpdraftTests::glidesAFallingMobDown);
+        GooTestFunctions.registerTest(registrar, LEAVES_A_PRISM_PLAIN, UpdraftTests::leavesAPrismPlain);
     }
 
     /**
@@ -230,6 +241,29 @@ public final class UpdraftTests {
             helper.getLevel().getServer().getPlayerList().remove(player);
             helper.assertTrue(highestRise[0] == CLIENTS_MOTION.y,
                     String.format(PLAYER_MOTION_WRITTEN, CLIENTS_MOTION, highestRise[0]));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Updraft's stream held on a bare prism through the real stream path for
+     * the ticks a combo's conversion takes leaves the prism a plain prism
+     * holding no combo.
+     * updraft-sheds-its-prism-effect
+     * floatstone-lift-leaves-the-mod
+     *
+     * @param helper the gametest helper
+     */
+    public static void leavesAPrismPlain(GameTestHelper helper) {
+        helper.setBlock(PRISM_POS.below(), Blocks.STONE);
+        helper.setBlock(PRISM_POS, GooBlocks.PRISM.get());
+        int hold = PrismChanneler.hold(helper, UPDRAFT);
+        ServerPlayer holder = PrismChanneler.holdOn(helper, GooTypes.TYPHOON, UPDRAFT, PRISM_POS, PRISM_STAND, hold);
+        helper.runAfterDelay(hold + PRISM_SETTLE_TICKS, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(holder);
+            helper.assertBlockPresent(GooBlocks.PRISM.get(), PRISM_POS);
+            String combo = helper.getBlockEntity(PRISM_POS, PrismBlockEntity.class).getCombo();
+            helper.assertTrue(combo.isEmpty(), String.format(PRISM_HOLDS_A_COMBO, combo));
             helper.succeed();
         });
     }
