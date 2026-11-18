@@ -10,9 +10,8 @@
 // The halo breaks into feathered tongues that circle the oval like a vortex while its outer reach
 // ripples in and out, never resting; every term reads the snapped texel center, so the motion steps
 // texel to texel (decision portal-halo-turns-and-ripples).
-// A hole's mouth wears the same halo, starting at the torn edge its own shader draws rather than a
-// clean oval, so the band along the tear stays as it draws; the vertex alpha marks the torn edge,
-// nothing for a portal and whole for a mouth (decision hole-mouths-wear-the-portal-halo).
+// A hole's mouth wears the same halo around the same clean oval (decisions
+// hole-mouths-wear-the-portal-halo, tunnel-drops-its-crisp-wiggly-outline-and-looks-like-the-portals).
 
 in vec2 frameCoord;
 flat in vec2 texels;
@@ -73,8 +72,7 @@ void main() {
     vec2 wallAt = at - past - sign(past) * HALO_MARGIN_TEXELS;
     vec2 across = (wallAt - HALO_MARGIN_TEXELS) / oval * 2.0 - 1.0;
     float around = atan(across.y, across.x);
-    float edge = mix(1.0, holeTornEdge(around, GameTime), frameColor.a);
-    float inPlane = -portalTexelsInside(across, oval, edge);
+    float inPlane = -portalTexelsInside(across, oval, 1.0);
     // The distance from the rim: across the wall plane, and up off it on a corner face.
     float beyond = length(vec2(max(inPlane, 0.0), height));
     if (beyond <= 0.0) {
