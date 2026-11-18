@@ -796,8 +796,6 @@
     "goo:meteoric_iron": "45 $iron_nugget + 2 $lunar",
     "goo:native_iron": "$iron_block + 2 $lunar",
     "goo:astral_crystal": "16 $lunar",
-    "goo:lunar_diamond_ore": "$mundane_block + 9 $iron_nugget + $lunar + 4 diamond",
-    "goo:lunar_gold_ore": "$mundane_block + 9 $iron_nugget + $lunar + 4 raw_gold",
     "goo:impact_glass": "$mundane_block + 2 $quartz + 2 $lunar",
     "goo:breccia": "$mundane_block + 4 $iron_nugget + $lunar",
     "goo:crater_ice": "ice + $lunar",
@@ -1021,8 +1019,6 @@
         "#deepslate_ores",
         "nether_gold_ore",
         "nether_quartz_ore",
-        "goo:lunar_diamond_ore",
-        "goo:lunar_gold_ore",
         "#restricted"
     ],
     "_conversions": {

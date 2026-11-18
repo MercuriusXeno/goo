@@ -1,6 +1,6 @@
 {
   "type": "minecraft:function",
-  "function": "goo:lunar_warrens_hold_diamond_gold_and_ancient_debris",
+  "function": "goo:lunar_warrens_hold_ancient_debris_and_no_diamond_or_gold",
   "environment": "minecraft:default",
   "structure": "goo:test_bay",
   "max_ticks": 400,
