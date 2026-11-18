@@ -3,13 +3,16 @@ package com.mercuriusxeno.goo.block.ability;
 import java.util.function.DoubleSupplier;
 
 /**
- * The roll each block stage an Infest cell gnaws and each bite it lands
- * makes: a draw under the chance takes one layer from the cell.
+ * The roll a residual cell makes each time it acts on what is around it,
+ * each block stage an Infest cell gnaws and each bite it lands, each mob a
+ * Mortar cell petrifies a step and each block it hardens: a draw under the
+ * chance takes one layer from the cell.
  * infest-has-a-chance-to-deplete-as-it-gnaws-and-bites
+ * mortar-has-a-chance-to-deplete-as-it-petrifies-and-hardens
  */
-public final class InfestDeplete {
+public final class LayerDeplete {
 
-    private InfestDeplete() {
+    private LayerDeplete() {
     }
 
     /**
@@ -25,8 +28,8 @@ public final class InfestDeplete {
     }
 
     /**
-     * The layers a cell holds after a tick's rolls, one for each block stage
-     * gnawed and each bite landed.
+     * The layers a cell holds after a tick's rolls, one for each act the cell
+     * made on what is around it.
      *
      * @param layers the layers before the rolls
      * @param rolls  the rolls the tick makes
