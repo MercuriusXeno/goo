@@ -21,7 +21,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -47,8 +46,6 @@ public record HeldEffects(List<Held> held) {
 
     /** A player holding no effect. */
     public static final HeldEffects NONE = new HeldEffects(List.of());
-    /** An Extend covers the other effects' upkeep on one tick of every this many. */
-    private static final int COVERED_EVERY = 2;
 
     private static final String FIELD_HELD = "held";
 
@@ -166,17 +163,6 @@ public record HeldEffects(List<Held> held) {
             return lays.contains(LaidState.HEART_OVERLAY);
         }
 
-        /**
-         * Answers whether the effect is the Extend, whose paid upkeep covers
-         * alternate ticks of every other held effect's
-         * (decision extender-multiplies-the-next-self-duration).
-         *
-         * @return true for the Extend
-         */
-        public boolean extendsOthers() {
-            return lays.contains(LaidState.EXTEND);
-        }
-
         private static Set<LaidState> laidSet(Collection<LaidState> laid) {
             return laid.isEmpty() ? Set.of() : Collections.unmodifiableSet(EnumSet.copyOf(laid));
         }
@@ -285,10 +271,7 @@ public record HeldEffects(List<Held> held) {
     /**
      * Advances the effects one tick: each effect started before now pays its
      * upkeep from what its goo type holds, effects sharing a type drawing in
-     * the order they started, and an effect the inventory cannot pay ends. An
-     * Extend pays first, and on the ticks its payment covers, every other
-     * effect stands without paying
-     * (decision extender-multiplies-the-next-self-duration).
+     * the order they started, and an effect the inventory cannot pay ends.
      *
      * @param available the mB the inventory holds of a goo type
      * @param now       the game time
@@ -312,64 +295,15 @@ public record HeldEffects(List<Held> held) {
             return new Ticked(this, List.of(), Map.of(), remainders);
         }
         TickPurse purse = new TickPurse(available, new HashMap<>(), new RemainderLedger(remainders), now);
-        Set<Held> paidExtends = payExtends(purse);
-        boolean covered = paidExtends.stream().anyMatch(extend -> creditsThisTick(extend, now));
         List<Held> kept = new ArrayList<>();
         List<Held> ended = new ArrayList<>();
         for (Held standing : held) {
-            boolean stood = standing.extendsOthers() ? paidExtends.contains(standing)
-                    : standsBeside(standing, covered, purse);
-            (stood ? kept : ended).add(standing);
+            (stands(standing, purse) ? kept : ended).add(standing);
         }
         HeldEffects after = ended.isEmpty() ? this : new HeldEffects(kept);
         return new Ticked(after, List.copyOf(ended), Map.copyOf(purse.drawn()), purse.ledger().remainders());
     }
 
-
-    /**
-     * Answers whether an effect other than an Extend stands through a
-     * tick: an effect stands unpaid on a tick an Extend covers, and
-     * pays as usual otherwise.
-     *
-     * @param standing the effect
-     * @param covered  whether an Extend's payment covers this tick
-     * @param purse    what the tick pays from
-     * @return true when the effect stands after the tick
-     */
-    private static boolean standsBeside(Held standing, boolean covered, TickPurse purse) {
-        return covered || stands(standing, purse);
-    }
-
-    /**
-     * Draws each Extend's upkeep ahead of the other effects'.
-     *
-     * @param purse what the tick pays from
-     * @return the Extends standing through the tick
-     */
-    private Set<Held> payExtends(TickPurse purse) {
-        Set<Held> paid = new HashSet<>();
-        for (Held standing : held) {
-            if (standing.extendsOthers() && stands(standing, purse)) {
-                paid.add(standing);
-            }
-        }
-        return paid;
-    }
-
-    /**
-     * Answers whether a standing Extend's payment this tick covers the
-     * other effects' upkeep: every second tick it pays, so each other
-     * effect pays its own goo on alternate ticks
-     * (decision extender-multiplies-the-next-self-duration).
-     *
-     * @param extend the Extend, standing through the tick
-     * @param now      the game time
-     * @return true on a tick the Extend's payment covers
-     */
-    static boolean creditsThisTick(Held extend, long now) {
-        long since = now - extend.startedAt();
-        return since > 0 && since % COVERED_EVERY == 0;
-    }
 
     /**
      * Answers whether one effect stands through a tick, drawing its upkeep
@@ -408,10 +342,7 @@ public record HeldEffects(List<Held> held) {
     /**
      * How long each goo type's holdings keep its effects paid: the mB the
      * inventory holds of the type over the upkeep its effects draw a tick,
-     * which the effect list shows as the time left. While an Extend stands,
-     * every other effect pays on alternate ticks alone, so its upkeep counts
-     * half and its time shows doubled
-     * (decision extender-multiplies-the-next-self-duration).
+     * which the effect list shows as the time left.
      *
      * @param available the mB the inventory holds of a goo type
      * @return per goo type holding an effect, the ticks its holdings pay for
@@ -424,42 +355,19 @@ public record HeldEffects(List<Held> held) {
     }
 
     /**
-     * The mB a tick each goo type's effects draw, the rate ticksLeft divides by: while an
-     * Extend stands every other effect's upkeep counts half
-     * (decision extender-multiplies-the-next-self-duration).
+     * The mB a tick each goo type's effects draw, the rate ticksLeft divides by.
      * time-counts-net-standing-upkeep
      *
      * @return per goo type holding a paying effect, its upkeep a tick
      */
     public Map<ResourceKey<GooTypeDefinition>, Double> upkeepPerTick() {
-        boolean extended = extended();
         Map<ResourceKey<GooTypeDefinition>, Double> upkeep = new HashMap<>();
         for (Held standing : held) {
             if (standing.upkeep().isPositive()) {
-                double paid = extended && !standing.extendsOthers()
-                        ? standing.upkeep().toDouble() / COVERED_EVERY : standing.upkeep().toDouble();
-                upkeep.merge(standing.gooType(), paid, Double::sum);
+                upkeep.merge(standing.gooType(), standing.upkeep().toDouble(), Double::sum);
             }
         }
         return Map.copyOf(upkeep);
-    }
-
-    /**
-     * Whether an Extend stands, halving every other effect's upkeep.
-     *
-     * @return true while one stands
-     */
-    public boolean extended() {
-        return held.stream().anyMatch(Held::extendsOthers);
-    }
-
-    /**
-     * The share of its upkeep an effect pays while an Extend stands.
-     *
-     * @return the divisor an extended upkeep counts under
-     */
-    public static int extendedDivisor() {
-        return COVERED_EVERY;
     }
 
     /**

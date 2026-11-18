@@ -4,7 +4,7 @@
   "badge": "mob",
   "order": 0,
   "cost": 500,
-  "delivery": { "kind": "arc" },
+  "delivery": { "kind": "arc", "range": 16 },
   "behaviors": [
     {
       "type": "target",

@@ -90,6 +90,13 @@ public record BlendPalette(float lightRed, float lightGreen, float lightBlue,
     public static final BlendPalette NECTAR_JELLY_ORANGES = new BlendPalette(
             0xFF / 255f, 0xB2 / 255f, 0x38 / 255f, 0xC2 / 255f, 0x41 / 255f, 0x0C / 255f);
     /**
+     * Signal's spray drips, from pulse's bright red, F42828, to its wheel
+     * red, CC0000, the two the pulse goo type's definition names.
+     * extend-is-dropped-for-signal-an-in-world-pulse-goo
+     */
+    public static final BlendPalette SIGNAL_PULSE_REDS = new BlendPalette(
+            0xF4 / 255f, 0x28 / 255f, 0x28 / 255f, 0xCC / 255f, 0x00 / 255f, 0x00 / 255f);
+    /**
      * Vines' spray drips, from leaf's bright green, A6F078, to its wheel
      * green, 7EC850, the two the leaf goo type's definition names.
      * vines-is-sprayed-slime-that-entangles-what-tries-to-cross

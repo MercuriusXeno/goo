@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.ability.AbilityTags;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.OwnMinions;
+import com.mercuriusxeno.goo.ability.ThrowRange;
 import com.mercuriusxeno.goo.ability.held.Remote;
 import com.mercuriusxeno.goo.ability.program.GrabStep;
 import com.mercuriusxeno.goo.ability.program.Step;
@@ -14,6 +15,7 @@ import com.mercuriusxeno.goo.item.GooCasters;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.client.Camera;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
@@ -49,16 +51,29 @@ public final class GloveAim {
 
     /**
      * How far the glove aims for its selected ability: a grab's reach, so it
-     * marks no mob it cannot lift, and the throw range for every other ability.
+     * marks no mob it cannot lift, else the ability's own range; a glove
+     * holding no synced ability aims as an ability naming no range does.
      *
-     * @param player     the local player
-     * @param throwRange the range every ability without a reach of its own aims to
+     * @param player the local player
      * @return the aim range, in blocks
      */
-    public static double aimRange(Player player, double throwRange) {
+    public static double aimRange(Player player) {
         ClientAbility ability = selectedAbility(player);
-        return ability == null ? throwRange
-                : GrabStep.reachOf(ability.behaviors(), Remote.entityReachLaid(player)).orElse(throwRange);
+        return ability == null ? ThrowRange.UNNAMED_RANGE
+                : aimRangeOf(ability, Remote.entityReachLaid(player));
+    }
+
+    /**
+     * How far the glove aims for an ability: a grab's reach, else the range it aims and lands within.
+     * decision each-ability-names-its-range-and-the-shared-throw-range-retires
+     *
+     * @param ability     the selected ability
+     * @param remoteReach the reach a laid remote adds to a grab, or null where none is laid
+     * @return the aim range, in blocks
+     */
+    static double aimRangeOf(ClientAbility ability, @Nullable AttributeModifier remoteReach) {
+        return GrabStep.reachOf(ability.behaviors(), remoteReach)
+                .orElse(ThrowRange.of(ability.badge(), ability.delivery()));
     }
 
     /**
