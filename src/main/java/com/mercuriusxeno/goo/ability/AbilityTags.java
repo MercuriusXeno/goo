@@ -49,9 +49,8 @@ public final class AbilityTags {
     public static final String FOOTPRINT = "footprint";
 
     /**
-     * An unstable ability whose standing block Ignite's landing sets off as
-     * a fiery explosion, as Lurker's mine is
-     * (decision ignite-fire-and-explosive-combo).
+     * An ability whose standing block Ignite's landing sets off as a fiery
+     * explosion (decision ignite-fire-and-explosive-combo).
      */
     public static final String EXPLOSIVE = "explosive";
 

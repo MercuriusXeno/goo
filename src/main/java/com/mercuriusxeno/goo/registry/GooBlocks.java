@@ -11,6 +11,7 @@ import com.mercuriusxeno.goo.block.ability.LightRailBlock;
 import com.mercuriusxeno.goo.block.ability.MagickedIceBlock;
 import com.mercuriusxeno.goo.block.ability.MoltenCellBlock;
 import com.mercuriusxeno.goo.block.ability.NectarCellBlock;
+import com.mercuriusxeno.goo.block.ability.NitroCellBlock;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
 import com.mercuriusxeno.goo.block.ability.RimeCellBlock;
 import com.mercuriusxeno.goo.block.ability.SignalCellBlock;
@@ -452,11 +453,10 @@ public class GooBlocks {
     /**
      * Spores: the volume cell bound to Shroom's goo, the purple goo Spores
      * sprays onto a block's top, one to fifteen layers, ordinary ground
-     * underfoot and sounding as goo does, infecting what touches it,
+     * underfoot and sounding as goo does, budding the ground at its edges,
      * dropping the shroom goo its layers cost through
      * VolumeCellBlock.getDrops, no loot table
-     * (decisions mycosis-is-the-residual-goo-that-infests-with-mushrooms,
-     * mycosis-goo-infects-what-touches-it-as-the-spray-did,
+     * (decisions spores-is-shrooms-residual-a-passive-mycosis,
      * each-goo-type-ships-a-world-goo-on-the-volume-cell).
      */
     public static final DeferredBlock<SporesCellBlock> SHROOM_SPORES = BLOCKS.registerBlock(
@@ -464,6 +464,27 @@ public class GooBlocks {
             () -> BlockBehaviour.Properties.of()
                     .mapColor(MapColor.COLOR_PURPLE)
                     .friction(CellBinding.SPORES.surface().friction())
+                    .sound(SoundType.SLIME_BLOCK)
+                    .instabreak()
+                    .noOcclusion()
+                    .replaceable()
+                    .noLootTable()
+                    .pushReaction(PushReaction.DESTROY));
+    /**
+     * Nitro: the volume cell bound to Unstable's goo, the green goo Nitro
+     * sprays onto a block's top, one to fifteen layers, sounding as goo
+     * does, exploding in a chain by its layers when a living thing touches
+     * it, dropping the unstable goo its layers cost through
+     * VolumeCellBlock.getDrops, no loot table
+     * (decisions nitro-is-unstables-goo-that-explodes-in-a-chain-by-its-quantity,
+     * nitro-explodes-when-touched-heated-shocked-pulsed-or-struck,
+     * each-goo-type-ships-a-world-goo-on-the-volume-cell).
+     */
+    public static final DeferredBlock<NitroCellBlock> UNSTABLE_NITRO = BLOCKS.registerBlock(
+            "unstable_nitro", properties -> new NitroCellBlock(properties, CellBinding.NITRO),
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_LIGHT_GREEN)
+                    .friction(CellBinding.NITRO.surface().friction())
                     .sound(SoundType.SLIME_BLOCK)
                     .instabreak()
                     .noOcclusion()

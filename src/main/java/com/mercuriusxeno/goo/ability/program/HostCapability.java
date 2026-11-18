@@ -50,11 +50,6 @@ public enum HostCapability {
      */
     LINGER(LingerHost.class),
     /**
-     * A standing block that watches the entities around it and pulses to
-     * its viewers (decision lurker-blob-brightens-then-detonates).
-     */
-    WATCH(WatchHost.class),
-    /**
      * A one-tick host anchored at a point, which can run steps on each open
      * floor around it (decision colonize-blob-grows-the-network).
      */

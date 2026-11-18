@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.ability;
 
-import com.mercuriusxeno.goo.ability.program.AwaitEntityStep;
 import com.mercuriusxeno.goo.ability.program.BloomStep;
 import com.mercuriusxeno.goo.ability.program.EntitiesStep;
 import com.mercuriusxeno.goo.ability.program.ExplodeStep;
@@ -528,7 +527,6 @@ public record AbilityDefinition(
     private static final List<Function<Step, Optional<Expr>>> RADIUS_READERS = List.of(
             radiusOf(FieldEffectStep.class, FieldEffectStep::radius),
             radiusOf(EntitiesStep.class, EntitiesStep::radius),
-            radiusOf(AwaitEntityStep.class, AwaitEntityStep::radius),
             radiusOf(BloomStep.class, BloomStep::radius),
             radiusOf(FloorsStep.class, FloorsStep::radius));
 
