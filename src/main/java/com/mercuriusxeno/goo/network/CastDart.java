@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.program.ScanVisualStep;
 import net.minecraft.world.phys.Vec3;
+import java.util.Optional;
 
 /**
  * The visual a spontaneous cast darts from the lifted palm blob to the place
@@ -28,5 +29,18 @@ public final class CastDart {
      */
     static ScanWavePayload wave(Vec3 castOrigin, Vec3 place, ScanVisualStep visual) {
         return new ScanWavePayload(castOrigin, place, DART_TICKS, visual.visual(), visual.trail());
+    }
+
+    /**
+     * The dart a cast names by a visual of its own choosing, with no trail:
+     * a Portal shot's blob in its portal's color.
+     *
+     * @param castOrigin the lifted palm blob the cast leaves
+     * @param place      where the cast makes its effect
+     * @param visual     the visual's name
+     * @return the payload every watching client draws
+     */
+    public static ScanWavePayload dart(Vec3 castOrigin, Vec3 place, String visual) {
+        return new ScanWavePayload(castOrigin, place, DART_TICKS, visual, Optional.empty());
     }
 }

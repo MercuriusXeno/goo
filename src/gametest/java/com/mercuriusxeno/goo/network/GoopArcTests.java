@@ -997,10 +997,11 @@ public final class GoopArcTests {
      * Goop's cohesion, read from the goo type registry.
      *
      * @param helper the gametest helper
-     * @return the cohesion
+     * @return the cohesion rung's threshold in layers
      */
     private static int cohesionOfGoop(GameTestHelper helper) {
-        return helper.getLevel().registryAccess().get(GooTypes.WEIRD).map(type -> type.value().cohesion()).orElse(0);
+        return helper.getLevel().registryAccess().get(GooTypes.WEIRD).map(type -> type.value().cohesion().threshold())
+                .orElse(0);
     }
 
     private static int layersIn(GameTestHelper helper, BlockPos cell) {
