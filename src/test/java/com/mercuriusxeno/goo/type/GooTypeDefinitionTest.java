@@ -57,8 +57,8 @@ class GooTypeDefinitionTest {
     private static final int BLAZE_TEMPERATURE = 1300;
     private static final int FROST_TEMPERATURE = 200;
     private static final int WEIRD_COHESION = 4;
-    /** Jelly's cohesion (operator ruling 2026-11-17: 0 is too low for Nectar to stay on walls). */
-    private static final int JELLY_COHESION = 1;
+    /** Jelly's cohesion, the stiff rung just below firm (operator ruling 2026-11-17). */
+    private static final int JELLY_COHESION = 8;
     private static final int WEIRD_ADHESION = 3;
     private static final int GLOW_ADHESION = 4;
     private static final int JELLY_ADHESION = 3;
@@ -277,7 +277,7 @@ class GooTypeDefinitionTest {
     }
 
     /**
-     * Every bundled type states a cohesion: weird holds a step of 4, blaze the thick rung of 4, jelly 1, and
+     * Every bundled type states a cohesion: weird holds a step of 4, blaze the thick rung of 4, jelly the stiff rung of 8, and
      * every other type, kinetic among them, 0.
      * cohesion-is-the-step-the-goo-holds
      * blaze-goo-is-adhesion-four-and-cohesion-five

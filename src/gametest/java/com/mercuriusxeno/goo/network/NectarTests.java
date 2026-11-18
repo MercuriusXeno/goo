@@ -55,6 +55,7 @@ public final class NectarTests {
     private static final String SNEAKING_SINKS_DOWN_THE_COAT = "nectar_sneaking_sinks_down_a_wall_coat";
     private static final String SNEAKING_SINKS_PRESSED_TO_THE_WALL = "nectar_sneaking_sinks_pressed_against_a_wall";
     private static final String PILLAR_HOLDS_WHAT_PRESSES_IT = "nectar_pillar_holds_what_presses_against_it";
+    private static final String HOLDS_ON_NEAR_THE_TOP = "nectar_stack_holds_a_climber_a_step_short_of_its_top";
     private static final String WALL_COAT_STAYS = "nectar_on_a_wall_stays_on_it";
     private static final String COATS_A_CLIMBABLE_COLUMN = "nectar_coats_a_wall_column_to_climb";
     private static final String COAT_OVER_FLOOR_GOO_STAYS = "nectar_on_a_wall_over_floor_goo_stays_on_it";
@@ -75,9 +76,9 @@ public final class NectarTests {
     /** Where the calf stands for the strike test, on open stone. */
     private static final BlockPos CALF_FLOOR = new BlockPos(2, 1, 2);
     /** The drips the wall hold test lands on one wall, more than one wall holds. */
-    private static final int WALL_DRIPS = 5;
-    /** The layers one wall holds of jelly's goo: a layer plus one for its cohesion of 1. */
-    private static final int ONE_WALL_HOLDS = 2;
+    private static final int WALL_DRIPS = 12;
+    /** The layers one wall holds of jelly's goo: a layer plus one for each point of its stiff cohesion of 8. */
+    private static final int ONE_WALL_HOLDS = 9;
     /** Ticks for the wall's goo to run down whatever its hold lets go, past a few of jelly's pours. */
     private static final int WALL_SETTLE_TICKS = 60;
     /** The column test's wall: three stone blocks stacked over the bay's floor. */
@@ -137,6 +138,12 @@ public final class NectarTests {
     private static final int PILLAR_HEIGHT = 3;
     /** How far east of the pillar's face a zombie pressed against it stands: half its width and a hair. */
     private static final double PRESSED_TO_THE_PILLAR = 0.3 + 0.01;
+    /** The layers the top block of the climbed stack holds, a thin cap over a whole block. */
+    private static final int THIN_CAP = 3;
+    /** How far under the stack's top a climber's feet stand once moved up it: less than a step. */
+    private static final double SHORT_OF_THE_TOP = 0.3;
+    private static final String LET_GO_NEAR_THE_TOP = "A zombie stuck to a stack of Nectar a step short of its top should"
+            + " hold on, still stuck %b, dropped %.2f in %d ticks";
     private static final String FELL_OFF_THE_PILLAR = "A zombie pressed against a pillar of Nectar should hang there,"
             + " dropped %.2f in %d ticks, the pillar beside it %s";
     /** How far off the wall a zombie pressed to a one-layer coat stands, its box against the coat's face. */
@@ -176,6 +183,7 @@ public final class NectarTests {
         GooTestFunctions.registerTest(registrar, SNEAKING_SINKS_PRESSED_TO_THE_WALL,
                 NectarTests::sneakingSinksPressedAgainstAWall);
         GooTestFunctions.registerTest(registrar, PILLAR_HOLDS_WHAT_PRESSES_IT, NectarTests::pillarHoldsWhatPressesAgainstIt);
+        GooTestFunctions.registerTest(registrar, HOLDS_ON_NEAR_THE_TOP, NectarTests::stackHoldsAClimberAStepShortOfItsTop);
         GooTestFunctions.registerTest(registrar, WALL_COAT_STAYS, NectarTests::wallCoatStaysOnIt);
         GooTestFunctions.registerTest(registrar, COATS_A_CLIMBABLE_COLUMN, NectarTests::coatsAWallColumnToClimb);
         GooTestFunctions.registerTest(registrar, COAT_OVER_FLOOR_GOO_STAYS, NectarTests::coatOverFloorGooStays);
@@ -434,17 +442,56 @@ public final class NectarTests {
         });
     }
 
+    /**
+     * A zombie stuck to a stack of Nectar, a whole block capped with a thin
+     * block, in a stone slot over open air, then moved up until its feet
+     * stand less than a step under the stack's top, holds on there, where it
+     * would let go and hop if goo had to rise a step over its feet to keep it.
+     * operator UAT 2026-11-17: a stack of Nectar a couple of blocks tall just had me hopping
+     *
+     * @param helper the gametest helper
+     */
+    public static void stackHoldsAClimberAStepShortOfItsTop(GameTestHelper helper) {
+        helper.setBlock(PILLAR_FOOT, Blocks.STONE);
+        for (int up = 1; up <= 2; up++) {
+            BlockPos goo = PILLAR_FOOT.above(up);
+            helper.setBlock(goo.west(), Blocks.STONE);
+            helper.setBlock(goo.north(), Blocks.STONE);
+            helper.setBlock(goo.south(), Blocks.STONE);
+            helper.setBlock(goo.east(), Blocks.AIR);
+            helper.setBlock(goo.above().east(), Blocks.AIR);
+            helper.setBlock(goo, GooBlocks.JELLY_NECTAR.get().defaultBlockState()
+                    .setValue(VolumeCellBlock.LAYERS, up == 2 ? THIN_CAP : VolumeCellBlock.MAX_LAYERS));
+        }
+        helper.setBlock(PILLAR_FOOT.east(), Blocks.AIR);
+        double top = helper.absolutePos(PILLAR_FOOT.above(2)).getY() + (double) THIN_CAP / VolumeCellBlock.MAX_LAYERS;
+        BlockPos beside = PILLAR_FOOT.above().east();
+        Vec3 pressed = new Vec3(beside.getX() + PRESSED_TO_THE_PILLAR, beside.getY() + 0.2, beside.getZ() + 0.5);
+        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, pressed);
+        helper.runAfterDelay(STUCK_TICKS, () -> {
+            helper.assertTrue(stuck(zombie), NEVER_STUCK);
+            zombie.teleportTo(zombie.getX(), top - SHORT_OF_THE_TOP, zombie.getZ());
+            double heldAt = zombie.getY();
+            helper.runAfterDelay(LEFT_TICKS, () -> {
+                double dropped = heldAt - zombie.getY();
+                helper.assertTrue(stuck(zombie) && Math.abs(dropped) <= HANG_SLACK,
+                        String.format(LET_GO_NEAR_THE_TOP, stuck(zombie), dropped, LEFT_TICKS));
+                helper.succeed();
+            });
+        });
+    }
+
     private static boolean stuck(Mob mob) {
         AttributeInstance gravity = mob.getAttribute(Attributes.GRAVITY);
         return gravity != null && gravity.hasModifier(NECTAR_STUCK);
     }
 
     /**
-     * Five Nectar drips striking a stone wall's east side, clear of any
+     * Twelve Nectar drips striking a stone wall's east side, clear of any
      * floor, leave the wall coated: once the goo has had time to run, the
-     * cell east of the wall still holds the two layers one wall holds of
-     * jelly's goo, attached to its west side, the rest run down.
-     * operator ruling 2026-11-17: a cohesion of 0 is too low for Nectar to stay on walls; jelly takes 1
+     * cell east of the wall still holds the nine layers one wall holds of
+     * jelly's stiff goo, attached to its west side, the rest run down.
+     * operator ruling 2026-11-17: jelly's cohesion is the stiff rung, just below firm
      *
      * @param helper the gametest helper
      */
@@ -503,8 +550,8 @@ public final class NectarTests {
 
     /**
      * Nectar coating a wall's face over floor goo at the wall's foot stays on
-     * the wall: five drips struck on the face above the floor goo leave the
-     * block there holding the two layers one wall holds of jelly's goo,
+     * the wall: twelve drips struck on the face above the floor goo leave the
+     * block there holding the nine layers one wall holds of jelly's goo,
      * attached, the floor goo under it taking only what slips past that hold.
      * drip-striking-a-side-sticks-or-runs-by-adhesion
      *
