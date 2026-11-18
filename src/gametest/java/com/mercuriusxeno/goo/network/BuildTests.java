@@ -12,6 +12,7 @@ import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooItems;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
@@ -44,6 +45,7 @@ import java.util.function.Consumer;
 public final class BuildTests {
     private static final String BUILD_LIFTS_A_WALL = "build_lifts_a_wall_of_ground_on_stone";
     private static final String BUILD_LIFTS_THE_SURFACE = "build_lifts_the_surface_two_higher_on_stone";
+    private static final String BUILD_PUSHES_OUT_OF_A_WALL = "build_pushes_a_wall_out_two_on_stone";
     private static final String BUILD_CARRIES_A_RIDER = "build_carries_a_rider_up_with_the_stone";
     private static final String BUILD_LETS_A_PLAYER_RIDE = "build_accepts_a_riding_players_moves";
     private static final String BUILD_LIFTS_AN_OVERTAKEN_RIDER = "build_lifts_a_rider_the_stone_overtook";
@@ -58,6 +60,12 @@ public final class BuildTests {
     /** The one-cell footprint the surface test lifts, over ground three deep. */
     private static final BlockPos SURFACE = new BlockPos(2, 3, 2);
     private static final int SURFACE_RISE = 2;
+    /** The wall's north face layer, the wall standing from here south to the bay's edge. */
+    private static final int WALL_Z = 3;
+    /** The wall footprint's corners on that face, two by two. */
+    private static final BlockPos WALL_CORNER = new BlockPos(1, 2, WALL_Z);
+    private static final BlockPos WALL_OPPOSITE = new BlockPos(2, 3, WALL_Z);
+    private static final int WALL_RISE = 2;
     /** The two marker blocks stacked at the surface, top first. */
     private static final List<Block> MARKERS = List.of(Blocks.GOLD_BLOCK, Blocks.DIAMOND_BLOCK);
     /** The footprint's ground cells along X, each a different block, none of them the stone Build grows. */
@@ -96,6 +104,7 @@ public final class BuildTests {
         GooTestFunctions.registerTest(registrar, BUILD_LIFTS_A_WALL, BuildTests::buildLiftsAWallOfGroundOnStone);
         GooTestFunctions.registerTest(registrar, BUILD_LIFTS_THE_SURFACE,
                 BuildTests::buildLiftsTheSurfaceTwoHigherOnStone);
+        GooTestFunctions.registerTest(registrar, BUILD_PUSHES_OUT_OF_A_WALL, BuildTests::buildPushesAWallOutTwoOnStone);
         GooTestFunctions.registerTest(registrar, BUILD_CARRIES_A_RIDER, BuildTests::buildCarriesARiderUp);
         GooTestFunctions.registerTest(registrar, BUILD_LETS_A_PLAYER_RIDE, BuildTests::buildAcceptsARidingPlayersMoves);
         GooTestFunctions.registerTest(registrar, BUILD_LIFTS_AN_OVERTAKEN_RIDER, BuildTests::buildLiftsARiderTheStoneOvertook);
@@ -149,7 +158,7 @@ public final class BuildTests {
         for (int depth = 0; depth < MARKERS.size(); depth++) {
             helper.setBlock(SURFACE.below(depth), MARKERS.get(depth));
         }
-        submit(helper, SURFACE, SURFACE, SURFACE_RISE);
+        submit(helper, SURFACE, SURFACE, SURFACE_RISE, Direction.UP);
         helper.runAfterDelay(BuildStep.RISE_TICKS + SETTLE_SLACK_TICKS, () -> {
             for (int depth = 0; depth < MARKERS.size(); depth++) {
                 assertHolds(helper, SURFACE.below(depth).above(SURFACE_RISE), MARKERS.get(depth).defaultBlockState(),
@@ -157,6 +166,31 @@ public final class BuildTests {
                 assertHolds(helper, SURFACE.below(depth), Blocks.STONE.defaultBlockState(), STONE_MISSING);
             }
             assertHolds(helper, SURFACE.below(MARKERS.size()), Blocks.DIRT.defaultBlockState(), STONE_MISSING);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A two by two footprint on the north face of a wall of gold markers,
+     * risen two, pushes the markers two north out of the wall on the two stone
+     * grown in the cells the reach left.
+     * decision build-goes-sideways
+     *
+     * @param helper the gametest helper
+     */
+    public static void buildPushesAWallOutTwoOnStone(GameTestHelper helper) {
+        for (BlockPos cell : BlockPos.betweenClosed(WALL_CORNER, new BlockPos(WALL_OPPOSITE.getX(), WALL_OPPOSITE.getY(), WALL_Z + 2))) {
+            helper.setBlock(cell, cell.getZ() == WALL_Z ? Blocks.GOLD_BLOCK : Blocks.DIRT);
+        }
+        submit(helper, WALL_CORNER, WALL_OPPOSITE, WALL_RISE, Direction.NORTH);
+        helper.runAfterDelay(BuildStep.RISE_TICKS + SETTLE_SLACK_TICKS, () -> {
+            for (BlockPos cell : BlockPos.betweenClosed(WALL_CORNER, WALL_OPPOSITE)) {
+                BlockPos face = cell.immutable();
+                assertHolds(helper, face.north(WALL_RISE), Blocks.GOLD_BLOCK.defaultBlockState(), STONE_MISSING);
+                assertHolds(helper, face.south().north(WALL_RISE), Blocks.DIRT.defaultBlockState(), STONE_MISSING);
+                assertHolds(helper, face, Blocks.STONE.defaultBlockState(), STONE_MISSING);
+                assertHolds(helper, face.south(), Blocks.STONE.defaultBlockState(), STONE_MISSING);
+            }
             helper.succeed();
         });
     }
@@ -188,7 +222,7 @@ public final class BuildTests {
     @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
     public static void buildAcceptsARidingPlayersMoves(GameTestHelper helper) {
         layTheGround(helper);
-        submit(helper, CORNER, OPPOSITE, RIDING_PLAYER_RISE);
+        submit(helper, CORNER, OPPOSITE, RIDING_PLAYER_RISE, Direction.UP);
         ServerPlayer rider = helper.makeMockServerPlayerInLevel();
         helper.runAfterDelay(BuildStep.RISE_TICKS / 2, () -> {
             double top = hunksIn(helper).getFirst().getBoundingBox().maxY;
@@ -292,7 +326,7 @@ public final class BuildTests {
      * @return the mB of rock goo the growth spent
      */
     private static int submit(GameTestHelper helper) {
-        return submit(helper, CORNER, OPPOSITE, RISE);
+        return submit(helper, CORNER, OPPOSITE, RISE, Direction.UP);
     }
 
     /**
@@ -302,10 +336,11 @@ public final class BuildTests {
      * @param corner   the footprint's pinned corner, relative to the test
      * @param opposite the footprint's far corner, relative to the test
      * @param rise     the rise
+     * @param face     the face the footprint lies on
      * @return the mB of rock goo the growth spent
      */
     @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
-    private static int submit(GameTestHelper helper, BlockPos corner, BlockPos opposite, int rise) {
+    private static int submit(GameTestHelper helper, BlockPos corner, BlockPos opposite, int rise, Direction face) {
         ServerPlayer caster = helper.makeMockServerPlayerInLevel();
         Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(CASTER_POS));
         caster.setPos(stand.x, stand.y, stand.z);
@@ -313,7 +348,7 @@ public final class BuildTests {
         caster.getInventory().add(GooStacks.createForOutput(GooTypes.ROCK, CASTER_GOO));
         KnownRecipes.teachRequires(caster, build(helper));
         GooBuildHandler.cast(caster, new GooBuildPayload(GooTypes.id(GooTypes.ROCK), ROCK_BUILD,
-                helper.absolutePos(corner), helper.absolutePos(opposite), rise));
+                helper.absolutePos(corner), helper.absolutePos(opposite), rise, face));
         int spent = CASTER_GOO - GooSourceScanner.aggregateAvailable(caster).getOrDefault(GooTypes.ROCK, 0);
         helper.getLevel().getServer().getPlayerList().remove(caster);
         return spent;

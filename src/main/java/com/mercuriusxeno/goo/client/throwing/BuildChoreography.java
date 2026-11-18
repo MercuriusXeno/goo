@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.throwing;
 import com.mercuriusxeno.goo.ability.BuildBounds;
 import com.mercuriusxeno.goo.ability.BuildFootprint;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 import java.util.Optional;
@@ -15,6 +16,7 @@ import java.util.Optional;
  * so a cast abandoned at any point leaves the world untouched.
  * decision spire-rips-walls-and-platforms
  * decision build-dimensions-reach-sixteen-by-sixteen-by-sixteen
+ * decision build-goes-sideways
  */
 public final class BuildChoreography {
 
@@ -34,6 +36,7 @@ public final class BuildChoreography {
     private Phase phase = Phase.IDLE;
     private @Nullable BlockPos corner;
     private @Nullable BlockPos dragged;
+    private Direction face = Direction.UP;
     private float pitchAtRelease;
     private int rise = BuildBounds.MIN_RISE;
     private BuildBounds bounds = BuildBounds.SIXTEEN_CUBED;
@@ -45,10 +48,11 @@ public final class BuildChoreography {
      * press while the rise is being set, and is ignored while the drag holds.
      *
      * @param pinned the ground cell the look meets, or null where it meets none
+     * @param struck the face of that cell the look meets, which the footprint lies on
      * @param reach  the bounds of the ability cast, which a pinning press holds the cast to
      * @return the footprint to submit, present only on the submitting press
      */
-    public Optional<BuildFootprint> press(@Nullable BlockPos pinned, BuildBounds reach) {
+    public Optional<BuildFootprint> press(@Nullable BlockPos pinned, Direction struck, BuildBounds reach) {
         if (awaitingKeyUp) {
             return Optional.empty();
         }
@@ -62,6 +66,7 @@ public final class BuildChoreography {
             corner = pinned.immutable();
             dragged = corner;
             bounds = reach;
+            face = struck;
             phase = Phase.SIZING;
         }
         return Optional.empty();
@@ -83,7 +88,7 @@ public final class BuildChoreography {
         }
         if (phase == Phase.SIZING && corner != null) {
             if (useKeyDown) {
-                groundCellUnderLook(corner, eye, look).ifPresent(cell -> dragged = cell);
+                cellUnderLook(corner, face, eye, look).ifPresent(cell -> dragged = cell);
             } else {
                 phase = Phase.RISING;
                 pitchAtRelease = pitch;
@@ -118,7 +123,7 @@ public final class BuildChoreography {
         if (phase == Phase.IDLE || corner == null || dragged == null) {
             return Optional.empty();
         }
-        return Optional.of(bounds.cap(corner, dragged, rise));
+        return Optional.of(bounds.cap(corner, dragged, rise, face));
     }
 
     /**
@@ -136,21 +141,30 @@ public final class BuildChoreography {
     }
 
     /**
-     * The ground cell the look meets on the corner's level: where the look's
-     * line crosses the top face of the corner's layer.
+     * The cell the look meets in the plane of the face the corner was pinned
+     * on: where the look's line crosses that face's layer, on the side the
+     * face looks out of.
+     * decision build-goes-sideways
      *
      * @param corner the pinned ground cell
+     * @param face   the face the corner was pinned on
      * @param eye    the player's eye
      * @param look   the player's look, a unit vector
-     * @return the cell, or empty where the look never comes down to that face
+     * @return the cell, or empty where the look never comes back to that face
      */
-    public static Optional<BlockPos> groundCellUnderLook(BlockPos corner, Vec3 eye, Vec3 look) {
-        double top = corner.getY() + 1.0;
-        if (look.y >= 0 || eye.y <= top) {
+    public static Optional<BlockPos> cellUnderLook(BlockPos corner, Direction face, Vec3 eye, Vec3 look) {
+        Direction.Axis normal = face.getAxis();
+        int outward = face.getAxisDirection().getStep();
+        double plane = corner.get(normal) + (outward > 0 ? 1.0 : 0.0);
+        if (look.get(normal) * outward >= 0 || (eye.get(normal) - plane) * outward <= 0) {
             return Optional.empty();
         }
-        double reach = (top - eye.y) / look.y;
-        Vec3 hit = eye.add(look.scale(reach));
-        return Optional.of(new BlockPos((int) Math.floor(hit.x), corner.getY(), (int) Math.floor(hit.z)));
+        Vec3 hit = eye.add(look.scale((plane - eye.get(normal)) / look.get(normal)));
+        int[] cell = new int[Direction.Axis.VALUES.length];
+        for (Direction.Axis axis : Direction.Axis.VALUES) {
+            cell[axis.ordinal()] = axis == normal ? corner.get(axis) : (int) Math.floor(hit.get(axis));
+        }
+        return Optional.of(new BlockPos(cell[Direction.Axis.X.ordinal()], cell[Direction.Axis.Y.ordinal()],
+                cell[Direction.Axis.Z.ordinal()]));
     }
 }

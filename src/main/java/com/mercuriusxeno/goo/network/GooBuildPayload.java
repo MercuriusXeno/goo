@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.network;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.BuildFootprint;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
@@ -19,9 +20,10 @@ import org.jspecify.annotations.NonNull;
  * @param corner    the ground cell the press pinned
  * @param opposite  the ground cell across the footprint
  * @param rise      the rise the pitch set, in blocks
+ * @param face      the face the press pinned, whose normal the rise runs along (decision build-goes-sideways)
  */
 public record GooBuildPayload(String gooTypeId, String abilityId, BlockPos corner, BlockPos opposite,
-                              int rise) implements CustomPacketPayload {
+                              int rise, Direction face) implements CustomPacketPayload {
 
     /** Payload type ID for registration. */
     public static final Type<GooBuildPayload> TYPE =
@@ -40,7 +42,7 @@ public record GooBuildPayload(String gooTypeId, String abilityId, BlockPos corne
      * @return the footprint as submitted, before the server checks its caps
      */
     public BuildFootprint footprint() {
-        return new BuildFootprint(corner, opposite, rise);
+        return new BuildFootprint(corner, opposite, rise, face);
     }
 
     private static void encode(FriendlyByteBuf buf, GooBuildPayload payload) {
@@ -49,10 +51,11 @@ public record GooBuildPayload(String gooTypeId, String abilityId, BlockPos corne
         buf.writeBlockPos(payload.corner);
         buf.writeBlockPos(payload.opposite);
         buf.writeVarInt(payload.rise);
+        buf.writeEnum(payload.face);
     }
 
     private static GooBuildPayload decode(FriendlyByteBuf buf) {
         return new GooBuildPayload(buf.readUtf(), buf.readUtf(), buf.readBlockPos(), buf.readBlockPos(),
-                buf.readVarInt());
+                buf.readVarInt(), buf.readEnum(Direction.class));
     }
 }

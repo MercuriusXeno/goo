@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.data.GooRemainders;
 import com.mercuriusxeno.goo.data.RemainderLedger;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.state.BlockState;
 import org.junit.jupiter.api.BeforeEach;
@@ -130,6 +131,48 @@ class BuildGrowthTest {
             assertEquals(List.of(SHALLOW_GROUND.above(2), SHALLOW_GROUND.above(3)),
                     column.liftedCells().stream().map(column::liftedTo).toList());
             assertEquals(List.of(SHALLOW_GROUND.below(), SHALLOW_GROUND, SHALLOW_GROUND.above()), column.stoneCells());
+        }
+    }
+
+    /**
+     * A footprint on a wall reaches into the wall and pushes what it reached out along the wall's normal on stone.
+     * decision build-goes-sideways
+     */
+    @Nested
+    class Sideways {
+
+        private static final int RISE = 2;
+        /** The wall's face layer, its blocks filling every cell from here south. */
+        private static final int WALL_Z = 10;
+        private static final BlockPos WALL_CORNER = new BlockPos(0, 64, WALL_Z);
+        private static final BlockPos WALL_OPPOSITE = new BlockPos(1, 65, WALL_Z);
+
+        private final BlockGetter wall = mock(BlockGetter.class);
+
+        @BeforeEach
+        void standTheWall() {
+            BlockState open = mock(BlockState.class);
+            when(open.canBeReplaced()).thenReturn(true);
+            BlockState brick = mock(BlockState.class);
+            when(wall.getMinY()).thenReturn(-64);
+            when(wall.getBlockState(any(BlockPos.class)))
+                    .thenAnswer(call -> call.<BlockPos>getArgument(0).getZ() >= WALL_Z ? brick : open);
+        }
+
+        @Test
+        void aRiseOfTwoOnANorthFacingWallPushesTheReachedBlocksTwoNorthWithStoneBehindThem() {
+            BuildGrowth growth = BuildGrowth.plan(wall,
+                    new BuildFootprint(WALL_CORNER, WALL_OPPOSITE, RISE, Direction.NORTH), PER_BLOCK);
+
+            assertEquals(4, growth.columns().size());
+            for (BuildColumn column : growth.columns()) {
+                BlockPos face = column.ground();
+                BlockPos behind = face.south();
+                assertEquals(List.of(behind, face), column.liftedCells());
+                assertEquals(List.of(behind.north(RISE), face.north(RISE)),
+                        column.liftedCells().stream().map(column::liftedTo).toList());
+                assertEquals(List.of(behind, face), column.stoneCells());
+            }
         }
     }
 

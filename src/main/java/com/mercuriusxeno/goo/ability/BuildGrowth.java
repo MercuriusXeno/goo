@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.data.IRemainderLedger;
 import com.mercuriusxeno.goo.data.RemainderLedger;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.state.BlockState;
@@ -19,7 +20,9 @@ import java.util.OptionalInt;
  * as far as it rises and lifts the blocks it reached by the rise on stone
  * grown in the cells they leave (BuildColumn). A column grows only where
  * every cell above the ground the rise fills can be replaced; the rest of
- * the footprint grows nothing and costs nothing.
+ * the footprint grows nothing and costs nothing. A footprint on a wall
+ * reaches into the wall and pushes out along its normal the same way.
+ * decision build-goes-sideways
  * The goo spent is the ability's exact per-block price for every stone block
  * grown, charged through the caster's ledger. The client prices its preview
  * through the same plan the server grows by.
@@ -45,8 +48,9 @@ public record BuildGrowth(BuildFootprint footprint, List<BuildColumn> columns, G
     public static BuildGrowth plan(BlockGetter blocks, BuildFootprint footprint, GooFraction pricePerBlock) {
         List<BuildColumn> columns = new ArrayList<>();
         for (BlockPos ground : footprint.groundCells()) {
-            if (columnOpen(blocks, ground, footprint.rise())) {
-                columns.add(BuildColumn.reaching(ground, footprint.rise(), cell -> carriable(blocks, cell)));
+            if (columnOpen(blocks, ground, footprint.rise(), footprint.face())) {
+                columns.add(BuildColumn.reaching(ground, footprint.rise(), footprint.face(),
+                        cell -> carriable(blocks, cell)));
             }
         }
         GooFraction cost = pricePerBlock.times((long) columns.size() * footprint.rise());
@@ -119,9 +123,9 @@ public record BuildGrowth(BuildFootprint footprint, List<BuildColumn> columns, G
         return cell.getY() >= blocks.getMinY() && !state.hasBlockEntity() && state.getDestroySpeed(blocks, cell) >= 0;
     }
 
-    private static boolean columnOpen(BlockGetter blocks, BlockPos ground, int rise) {
+    private static boolean columnOpen(BlockGetter blocks, BlockPos ground, int rise, Direction face) {
         for (int height = 1; height <= rise; height++) {
-            if (!blocks.getBlockState(ground.above(height)).canBeReplaced()) {
+            if (!blocks.getBlockState(ground.relative(face, height)).canBeReplaced()) {
                 return false;
             }
         }

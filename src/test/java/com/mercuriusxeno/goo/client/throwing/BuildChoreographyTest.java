@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.throwing;
 import com.mercuriusxeno.goo.ability.BuildBounds;
 import com.mercuriusxeno.goo.ability.BuildFootprint;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -28,7 +29,7 @@ class BuildChoreographyTest {
     /** Pins the corner, drags to the cell two east, and releases. */
     private static BuildChoreography sizedAndReleased() {
         BuildChoreography cast = new BuildChoreography();
-        cast.press(CORNER, BOUNDS);
+        cast.press(CORNER, Direction.UP, BOUNDS);
         cast.tick(true, EYE, lookAt(12.5, 10.5), LEVEL_PITCH);
         cast.tick(false, EYE, lookAt(12.5, 10.5), LEVEL_PITCH);
         return cast;
@@ -42,7 +43,7 @@ class BuildChoreographyTest {
             BuildChoreography cast = sizedAndReleased();
             cast.tick(false, EYE, lookAt(12.5, 10.5), LEVEL_PITCH - 3 * BuildChoreography.DEGREES_PER_BLOCK);
 
-            Optional<BuildFootprint> submitted = cast.press(CORNER, BOUNDS);
+            Optional<BuildFootprint> submitted = cast.press(CORNER, Direction.UP, BOUNDS);
 
             assertEquals(Optional.of(new BuildFootprint(CORNER, new BlockPos(12, 64, 10), 4)), submitted);
             assertEquals(BuildChoreography.Phase.IDLE, cast.phase());
@@ -51,23 +52,23 @@ class BuildChoreographyTest {
         @Test
         void pressesWhileTheDragHoldsSubmitNothing() {
             BuildChoreography cast = new BuildChoreography();
-            cast.press(CORNER, BOUNDS);
+            cast.press(CORNER, Direction.UP, BOUNDS);
             cast.tick(true, EYE, lookAt(12.5, 10.5), LEVEL_PITCH);
 
-            assertEquals(Optional.empty(), cast.press(CORNER, BOUNDS));
+            assertEquals(Optional.empty(), cast.press(CORNER, Direction.UP, BOUNDS));
             assertEquals(BuildChoreography.Phase.SIZING, cast.phase());
         }
 
         @Test
         void theHeldKeyAfterASubmitPinsNoNewCorner() {
             BuildChoreography cast = sizedAndReleased();
-            cast.press(CORNER, BOUNDS);
+            cast.press(CORNER, Direction.UP, BOUNDS);
 
-            cast.press(CORNER, BOUNDS);
+            cast.press(CORNER, Direction.UP, BOUNDS);
             assertEquals(BuildChoreography.Phase.IDLE, cast.phase());
 
             cast.tick(false, EYE, lookAt(12.5, 10.5), LEVEL_PITCH);
-            cast.press(CORNER, BOUNDS);
+            cast.press(CORNER, Direction.UP, BOUNDS);
             assertEquals(BuildChoreography.Phase.SIZING, cast.phase());
         }
     }
@@ -83,7 +84,7 @@ class BuildChoreographyTest {
             cast.cancel();
 
             assertEquals(Optional.empty(), cast.footprint());
-            assertEquals(Optional.empty(), cast.press(CORNER, BOUNDS));
+            assertEquals(Optional.empty(), cast.press(CORNER, Direction.UP, BOUNDS));
             assertEquals(BuildChoreography.Phase.SIZING, cast.phase());
         }
 
@@ -91,7 +92,7 @@ class BuildChoreographyTest {
         void aPressOnNoGroundPinsNothing() {
             BuildChoreography cast = new BuildChoreography();
 
-            cast.press(null, BOUNDS);
+            cast.press(null, Direction.UP, BOUNDS);
 
             assertEquals(BuildChoreography.Phase.IDLE, cast.phase());
             assertEquals(Optional.empty(), cast.footprint());
@@ -125,12 +126,23 @@ class BuildChoreographyTest {
         @Test
         void theLookFindsTheGroundCellOnTheCornersLevel() {
             assertEquals(Optional.of(new BlockPos(13, 64, 9)),
-                    BuildChoreography.groundCellUnderLook(CORNER, EYE, lookAt(13.5, 9.5)));
+                    BuildChoreography.cellUnderLook(CORNER, Direction.UP, EYE, lookAt(13.5, 9.5)));
+        }
+
+        /** decision build-goes-sideways */
+        @Test
+        void theLookFindsTheCellInAWallsPlane() {
+            Vec3 eye = new Vec3(10.5, 65.5, 6.5);
+            Vec3 look = new Vec3(12.5, 66.5, CORNER.getZ()).subtract(eye).normalize();
+
+            assertEquals(Optional.of(new BlockPos(12, 66, CORNER.getZ())),
+                    BuildChoreography.cellUnderLook(CORNER, Direction.NORTH, eye, look));
+            assertTrue(BuildChoreography.cellUnderLook(CORNER, Direction.NORTH, eye, look.reverse()).isEmpty());
         }
 
         @Test
         void aLookAboveTheHorizonFindsNoGround() {
-            assertTrue(BuildChoreography.groundCellUnderLook(CORNER, EYE, new Vec3(1, 0.2, 0).normalize()).isEmpty());
+            assertTrue(BuildChoreography.cellUnderLook(CORNER, Direction.UP, EYE, new Vec3(1, 0.2, 0).normalize()).isEmpty());
         }
     }
 }

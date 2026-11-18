@@ -18,7 +18,7 @@ import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.level.ClipContext;
@@ -78,11 +78,13 @@ public final class BuildCast {
             castHand = hand;
             castAbility = selection.abilityId();
         }
-        Optional<BuildFootprint> submitted = CAST.press(pinnedGround(player), boundsOf(selection));
+        BlockHitResult pinned = pinnedGround(player);
+        Optional<BuildFootprint> submitted = CAST.press(pinned == null ? null : pinned.getBlockPos(),
+                pinned == null ? Direction.UP : pinned.getDirection(), boundsOf(selection));
         submitted.ifPresent(footprint -> {
             player.connection.send(new ServerboundCustomPayloadPacket(new GooBuildPayload(
                     GooTypes.id(selection.getGooType()), selection.abilityId(), footprint.corner(),
-                    footprint.opposite(), footprint.rise())));
+                    footprint.opposite(), footprint.rise(), footprint.face())));
             // diagnose-and-correct-hand-swings-outside-throws: Build throws no blob, so its resting pose plays no swing
             GlovePoses.release(player, hand);
         });
@@ -170,16 +172,18 @@ public final class BuildCast {
     }
 
     /**
-     * The ground cell the look meets within the throw range, which a press pins.
+     * The block face the look meets within the throw range, which a press pins:
+     * the ground, a wall or a ceiling.
+     * decision build-goes-sideways
      *
      * @param player the local player
-     * @return the cell, or null where the look meets no block in range
+     * @return the hit, or null where the look meets no block in range
      */
-    private static @Nullable BlockPos pinnedGround(LocalPlayer player) {
+    private static @Nullable BlockHitResult pinnedGround(LocalPlayer player) {
         Vec3 eye = player.getEyePosition();
         Vec3 end = eye.add(player.getViewVector(1f).scale(GooThrowHandler.MAX_RANGE));
         BlockHitResult hit = player.level().clip(new ClipContext(eye, end, ClipContext.Block.OUTLINE,
                 ClipContext.Fluid.NONE, player));
-        return hit.getType() == HitResult.Type.BLOCK ? hit.getBlockPos() : null;
+        return hit.getType() == HitResult.Type.BLOCK ? hit : null;
     }
 }
