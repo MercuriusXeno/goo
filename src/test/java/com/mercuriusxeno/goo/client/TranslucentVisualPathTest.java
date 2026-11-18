@@ -14,6 +14,8 @@ import com.mercuriusxeno.goo.client.ability.MiasmaVortex;
 import com.mercuriusxeno.goo.client.ability.PneumaWind;
 import com.mercuriusxeno.goo.client.ability.ReapSlashBlades;
 import com.mercuriusxeno.goo.client.ability.RelayLasers;
+import com.mercuriusxeno.goo.client.ability.SpikesBristle;
+import com.mercuriusxeno.goo.client.ability.SpikesRise;
 import com.mercuriusxeno.goo.client.ability.WindLines;
 import com.mercuriusxeno.goo.client.ability.WispGlow;
 import com.mercuriusxeno.goo.client.ability.ZapBolts;
@@ -32,6 +34,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * The shared path translucent goo visuals draw through: the stage each sort
@@ -95,6 +98,21 @@ class TranslucentVisualPathTest {
     @Test
     void drainsVortexDrawsFarToNear() {
         assertEquals(List.of(SortRoute.FAR_TO_NEAR), routesOf(MiasmaVortex.class));
+    }
+
+    /**
+     * Spikes goo's steel pyramids write their own depth, so they draw with
+     * the opaque world, right after the opaque blocks, and every translucent
+     * thing drawn later sorts against them.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
+     */
+    @Test
+    void spikesSteelDrawsWithTheOpaqueBlocks() {
+        assertAll(
+                () -> assertEquals(RenderLevelStageEvent.AfterOpaqueBlocks.class, SortRoute.OPAQUE_SHAPE.stage()),
+                () -> assertEquals(List.of(SortRoute.OPAQUE_SHAPE), routesOf(SpikesBristle.class)),
+                () -> assertEquals(List.of(SortRoute.OPAQUE_SHAPE), routesOf(SpikesRise.class)),
+                () -> assertTrue(GooRenderTypes.SPIKES_STEEL.getDepthStencilState().writeDepth()));
     }
 
     /**

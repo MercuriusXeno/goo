@@ -3,6 +3,8 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -19,12 +21,12 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.joml.Vector3f;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.SplittableRandom;
+import java.util.function.Consumer;
 
 /**
  * Spikes goo bristling as this client sees it: each Spikes cell near the
@@ -178,22 +180,28 @@ public final class SpikesBristle {
     }
 
     /**
-     * Draws every bristling cell's pyramids grown their share out of its blob's midline.
+     * Hands the shared path every bristling cell's pyramids grown their share
+     * out of its blob's midline: opaque steel writing its own depth, drawn
+     * with the opaque blocks.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
      *
-     * @param event the level render stage event
+     * @param frame the frame being drawn
+     * @param draws where the pyramids' draw goes
      */
-    @SubscribeEvent
-    public static void onAfterOpaqueBlocks(RenderLevelStageEvent.AfterOpaqueBlocks event) {
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.level == null || CELLS.cells().isEmpty()) {
+        Level level = mc.level;
+        if (level == null || CELLS.cells().isEmpty()) {
             return;
         }
+        draws.accept(new SortedDraw(0, () -> drawPyramids(mc, level, frame.poseStack().last())));
+    }
+
+    private static void drawPyramids(Minecraft mc, Level level, PoseStack.Pose pose) {
         float partial = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
-        PoseStack.Pose pose = event.getPoseStack().last();
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         VertexConsumer steel = buffers.getBuffer(GooRenderTypes.SPIKES_STEEL_TYPE);
-        Level level = mc.level;
         CELLS.cells().forEach((pos, cell) -> {
             float shown = cell.shownAt(partial);
             BlockState state = level.getBlockState(pos);
