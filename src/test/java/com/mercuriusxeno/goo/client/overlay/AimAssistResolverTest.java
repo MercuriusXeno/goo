@@ -58,6 +58,19 @@ class AimAssistResolverTest {
     }
 
     /**
+     * The cone's search reaches as wide as the aim ray it runs along, so
+     * Zap's 32 block ray searches a 32 block cone.
+     * decision each-ability-names-its-range-and-the-shared-throw-range-retires
+     */
+    @Test
+    void theSearchConeWidensToTheAimRaysLength() {
+        double degrees = AimAssistResolver.AIM_ASSIST_DEGREES;
+
+        assertEquals(32 * Math.tan(Math.toRadians(degrees)),
+                AimAssistResolver.searchConeRadius(Vec3.ZERO, new Vec3(0, 0, 32), degrees), 1e-9);
+    }
+
+    /**
      * Grab picks with a cone of its own, wider than the shared one, the mob
      * nearest the look winning inside it
      * (decision grab-cone-picks-more-aggressively-than-other-goo-types).
