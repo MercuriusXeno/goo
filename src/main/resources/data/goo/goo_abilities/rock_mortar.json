@@ -17,7 +17,7 @@
     "sound": { "id": "minecraft:block.honey_block.slide", "every": 10, "volume": 1.0, "pitch": 1.0, "pitch_spread": 0.1 }
   },
   "behaviors": [
-    { "type": "mortar", "map": "goo:calcify", "ticks": 10, "fill": "7.5 / pow(max_health, 0.5)", "deplete_chance": 0.1 }
+    { "type": "mortar", "map": "goo:calcify", "ticks": 10, "fill": "7.5 / pow(max_health, 0.5)", "standing_ticks_per_layer": 20 }
   ],
   "tags": ["stream"]
 }

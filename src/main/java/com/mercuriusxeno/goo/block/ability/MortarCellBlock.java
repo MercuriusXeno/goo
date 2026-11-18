@@ -4,17 +4,19 @@ import com.mercuriusxeno.goo.ability.blockmap.BlockMap;
 import com.mercuriusxeno.goo.ability.blockmap.BlockMaps;
 import com.mercuriusxeno.goo.ability.program.MortarStep;
 import com.mercuriusxeno.goo.ability.program.PetrifyStep;
+import com.mercuriusxeno.goo.registry.GooAttachments;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.InsideBlockEffectApplier;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.AABB;
 import org.jspecify.annotations.NonNull;
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -25,11 +27,11 @@ import java.util.function.Predicate;
 
 /**
  * Rock's Mortar cell: the volume cell bound to Mortar's goo, Petrify's
- * effects left standing. On each tick its cadence falls on it petrifies each
- * mob standing in it one step, as Petrify's fog does each held tick, and
- * hardens the block under it and the block behind each side it coats one
- * stage along Petrify's calcify map. Each petrifying step and each block
- * hardened rolls the step's chance to take a layer; the goo is never turned
+ * effects left standing. Each tick a mob stands in it, the mob petrifies by
+ * Petrify's own fill, as under Petrify's fog; on each tick its cadence falls
+ * on, it hardens the block under it and the block behind each side it coats
+ * one stage along Petrify's calcify map. Each block hardened costs a layer,
+ * and each second a mob stands in it costs a layer; the goo is never turned
  * into anything else, and a cell losing its last layer is gone. The cell
  * credits the player who placed it for the statues it makes.
  * mortar-is-rocks-residual-a-petrification-and-hardening-goo
@@ -129,9 +131,23 @@ public class MortarCellBlock extends VolumeCellBlock {
     }
 
     /**
-     * Pours as any cell does, then, where the cell still stands, petrifies
-     * and hardens on a tick its cadence falls on and keeps a tick coming, a
-     * pending pour's or the next act's.
+     * The layers a cell holds after what it spent: one for each block it
+     * hardened and one for each second a mob stood in it.
+     * mortar-has-a-chance-to-deplete-as-it-petrifies-and-hardens
+     *
+     * @param layers          the layers before
+     * @param hardened        the blocks hardened
+     * @param standingSeconds the seconds a mob stood in the cell
+     * @return the layers left, 0 where the costs took them all
+     */
+    public static int layersAfterCosts(int layers, int hardened, int standingSeconds) {
+        return Math.max(0, layers - hardened - standingSeconds);
+    }
+
+    /**
+     * Pours as any cell does, then, where the cell still stands, hardens on a
+     * tick its cadence falls on and keeps a tick coming, a pending pour's or
+     * the next hardening's.
      */
     @Override
     protected void tick(@NonNull BlockState state, @NonNull ServerLevel level, @NonNull BlockPos pos,
@@ -142,7 +158,7 @@ public class MortarCellBlock extends VolumeCellBlock {
         }
         MortarStep.in(layingProgram(level)).ifPresent(mortar -> {
             if (CellReach.actsAt(level.getGameTime(), mortar.ticks())) {
-                petrifyAndHarden(level, pos, mortar);
+                spend(level, pos, harden(level, pos, level.getBlockState(pos), mortar), 0);
             }
             if (level.getBlockState(pos).is(this) && !level.getBlockTicks().hasScheduledTick(pos, this)) {
                 level.scheduleTick(pos, this, CellReach.ticksToNextAct(level.getGameTime(), mortar.ticks()));
@@ -151,28 +167,80 @@ public class MortarCellBlock extends VolumeCellBlock {
     }
 
     /**
-     * Hardens what the cell lies on, petrifies what stands in it, and stands
-     * the cell lower by the layers its rolls took, gone where they took them all.
-     * mortar-has-a-chance-to-deplete-as-it-petrifies-and-hardens
-     *
-     * @param level  the server level
-     * @param pos    the cell
-     * @param mortar Mortar's step
+     * Petrifies a mob standing on the cell, as on any cell's top.
      */
-    private void petrifyAndHarden(ServerLevel level, BlockPos pos, MortarStep mortar) {
-        int rolls = harden(level, pos, level.getBlockState(pos), mortar) + petrify(level, pos, mortar);
-        BlockState after = level.getBlockState(pos);
-        if (rolls == 0 || !after.is(this)) {
+    @Override
+    public void stepOn(@NonNull Level level, @NonNull BlockPos pos, @NonNull BlockState state,
+                       @NonNull Entity entity) {
+        petrifyWhatStands(level, pos, entity);
+        super.stepOn(level, pos, state, entity);
+    }
+
+    /**
+     * Petrifies a mob standing in the cell's goo.
+     */
+    @Override
+    protected void entityInside(@NonNull BlockState state, @NonNull Level level, @NonNull BlockPos pos,
+                                @NonNull Entity entity, @NonNull InsideBlockEffectApplier effects,
+                                boolean pastEdges) {
+        petrifyWhatStands(level, pos, entity);
+        super.entityInside(state, level, pos, entity, effects, pastEdges);
+    }
+
+    /**
+     * Petrifies a mob standing in the cell one tick's fill through Petrify's
+     * own step, once a tick however many hooks report it, and spends a layer
+     * on each tick a whole second falls on while it stands there.
+     * operator ruling 2026-11-18: petrify at Petrify's pace; one layer per second a mob stands
+     *
+     * @param level  the level
+     * @param pos    the cell
+     * @param entity the entity touching the cell
+     */
+    private void petrifyWhatStands(Level level, BlockPos pos, Entity entity) {
+        if (!(level instanceof ServerLevel server) || !(entity instanceof Mob mob)
+                || !petrifiesThisTick(server, pos, mob)) {
             return;
         }
-        int layers = after.getValue(LAYERS);
-        int left = LayerDeplete.layersAfterRolls(layers, rolls, level.getRandom()::nextDouble,
-                mortar.depleteChance());
-        if (left == 0) {
-            level.setBlock(pos, Blocks.AIR.defaultBlockState(), UPDATE_ALL);
-        } else if (left != layers) {
-            level.setBlock(pos, after.setValue(LAYERS, left), UPDATE_ALL);
+        MortarStep.in(layingProgram(level)).ifPresent(mortar -> {
+            boolean paysASecond = CellReach.actsAt(server.getGameTime(), mortar.standingTicksPerLayer());
+            PetrifyStep.petrifyOneStep(server, mob, mortar.fillFor(mob), creditedPlayerAt(server, pos));
+            if (paysASecond) {
+                spend(server, pos, 0, 1);
+            }
+        });
+    }
+
+    /**
+     * Whether a mob takes this tick's petrify from the cell: it lives, it
+     * stands in the cell, and no hook has filled its gauge this tick.
+     *
+     * @param level the server level
+     * @param pos   the cell
+     * @param mob   the mob touching the cell
+     * @return true where the mob petrifies this tick
+     */
+    private static boolean petrifiesThisTick(ServerLevel level, BlockPos pos, Mob mob) {
+        boolean filledThisTick = mob.getData(GooAttachments.PETRIFICATION).lastFill() == level.getGameTime();
+        return mob.isAlive() && !filledThisTick && CellReach.standsIn(pos, mob.blockPosition(), mob.getOnPos());
+    }
+
+    /**
+     * Stands the cell lower by what it spent, gone where it spent every layer.
+     * mortar-has-a-chance-to-deplete-as-it-petrifies-and-hardens
+     *
+     * @param level           the server level
+     * @param pos             the cell
+     * @param hardened        the blocks it hardened
+     * @param standingSeconds the seconds a mob stood in it
+     */
+    private void spend(ServerLevel level, BlockPos pos, int hardened, int standingSeconds) {
+        BlockState state = level.getBlockState(pos);
+        if (hardened + standingSeconds == 0 || !state.is(this)) {
+            return;
         }
+        int left = layersAfterCosts(state.getValue(LAYERS), hardened, standingSeconds);
+        level.setBlock(pos, left == 0 ? Blocks.AIR.defaultBlockState() : state.setValue(LAYERS, left), UPDATE_ALL);
     }
 
     /**
@@ -198,25 +266,6 @@ public class MortarCellBlock extends VolumeCellBlock {
             }
         }
         return hardened;
-    }
-
-    /**
-     * Petrifies each mob standing in the cell one step, through Petrify's own step.
-     *
-     * @param level  the server level
-     * @param pos    the cell
-     * @param mortar Mortar's step
-     * @return the mobs petrified
-     */
-    private int petrify(ServerLevel level, BlockPos pos, MortarStep mortar) {
-        Entity placer = creditedPlayerAt(level, pos);
-        int petrified = 0;
-        for (Mob mob : level.getEntitiesOfClass(Mob.class, new AABB(pos).expandTowards(0, 1, 0),
-                mob -> mob.isAlive() && CellReach.standsIn(pos, mob.blockPosition(), mob.getOnPos()))) {
-            PetrifyStep.petrifyOneStep(level, mob, mortar.fillFor(mob), placer);
-            petrified++;
-        }
-        return petrified;
     }
 
     /**
