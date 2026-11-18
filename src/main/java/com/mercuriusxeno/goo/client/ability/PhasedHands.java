@@ -81,7 +81,8 @@ public final class PhasedHands {
 
     /**
      * The color a held item's quad draws under the phase fade: its tint
-     * layer's color, or white for a quad no layer tints, at the phase alpha.
+     * layer's color, or white for a quad no layer tints, at the player's own
+     * phase alpha.
      *
      * @param tints     the item layer's tint colors
      * @param tintIndex the quad's tint index, UNTINTED for none
@@ -89,7 +90,7 @@ public final class PhasedHands {
      */
     static int fadedColor(int[] tints, int tintIndex) {
         int color = tintIndex >= 0 && tintIndex < tints.length ? tints[tintIndex] : WHITE;
-        return PhaseLook.bodyTint(color);
+        return PhaseLook.ownTint(color);
     }
 
     // The translucent sheet beside the one the quad's own item render type draws on, blocks' or items'.
@@ -150,6 +151,6 @@ public final class PhasedHands {
         arm.zRot = event.getArm() == HumanoidArm.RIGHT ? ARM_TILT : -ARM_TILT;
         event.getSubmitNodeCollector().submitModelPart(arm, event.getPoseStack(),
                 PhaseLook.bodyType(player.getSkin().body().texturePath()), event.getPackedLight(),
-                OverlayTexture.NO_OVERLAY, null, PhaseLook.bodyTint(WHITE), null);
+                OverlayTexture.NO_OVERLAY, null, PhaseLook.ownTint(WHITE), null);
     }
 }

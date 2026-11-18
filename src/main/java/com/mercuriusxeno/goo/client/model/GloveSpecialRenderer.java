@@ -204,7 +204,7 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
         nodeCollector.submitCustomGeometry(poseStack, ghost ? GooSubmitter.renderType() : bodyType(),
                 (pose, c) -> {
                     QuadInstance qi = new QuadInstance();
-                    qi.setColor(ghost ? PhaseLook.bodyTint(COLOR_WHITE) : COLOR_WHITE);
+                    qi.setColor(ghost ? PhaseLook.ownTint(COLOR_WHITE) : COLOR_WHITE);
                     qi.setLightCoords(packedLight);
                     qi.setOverlayCoords(OverlayTexture.NO_OVERLAY);
                     for (BakedQuad quad : model.getAll()) {
@@ -238,7 +238,7 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
         boolean ghost = PhasedHands.ghosting();
         Identifier texture = skin.body().texturePath();
         RenderType type = bareArmType(texture, ghost);
-        int tint = ghost ? PhaseLook.bodyTint(COLOR_WHITE) : COLOR_WHITE;
+        int tint = ghost ? PhaseLook.ownTint(COLOR_WHITE) : COLOR_WHITE;
         poseStack.pushPose();
         arm.standInGloveBody(poseStack);
         nodeCollector.submitModelPart(arm.arm(), poseStack, type, packedLight, OverlayTexture.NO_OVERLAY, null, tint,
