@@ -9,6 +9,7 @@ import net.minecraft.network.protocol.game.ClientboundSoundPacket;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.level.portal.TeleportTransition;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -49,6 +50,13 @@ public final class ConjuredDoors {
     private static final float CONJURE_VOLUME = 0.8f;
     /** The door's sound plays where its player stands, as loud as the door's conjuring. */
     private static final float DOOR_VOLUME = 0.8f;
+    /** The conjuring clip's length, 1.4 seconds, in ticks. */
+    private static final float CLIP_TICKS = 28f;
+    /** The pitches a sound plays at, at most and at least. */
+    private static final float LOWEST_PITCH = 0.5f;
+    private static final float HIGHEST_PITCH = 2f;
+    /** A hold's first tick. */
+    private static final int FIRST_HELD = 1;
 
     /** Each caster's door and the server tick its channel last stood it. */
     private static final Map<UUID, Standing> DOORS = new ConcurrentHashMap<>();
@@ -118,22 +126,59 @@ public final class ConjuredDoors {
         ConjuredDoor door = ConjuredDoor.standing(caster.position(), caster.getYRot(), held, charge,
                 standsOffFor(caster, look));
         Standing before = DOORS.put(caster.getUUID(), new Standing(door, level.getServer().getTickCount(), look));
-        if (before == null) {
-            showConjuring(level, door, look);
+        if (conjuresAt(held)) {
+            showConjuring(level, door, look, conjurePitchFor(charge));
         }
         sendDoor(caster, door, look);
         return before == null;
     }
 
     /**
+     * The pitch the conjuring clip plays at for a channel's charge, so the
+     * clip spans the whole channel and ends on the tick the door takes its
+     * caster: the operator found it ending early and overlapping the door's.
+     * decision door-carries-its-own-sound-through-the-change
+     *
+     * @param charge the ticks the channel's charge takes
+     * @return the pitch, within the range a sound plays at
+     */
+    static float conjurePitchFor(int charge) {
+        return Math.clamp(CLIP_TICKS / Math.max(1, charge), LOWEST_PITCH, HIGHEST_PITCH);
+    }
+
+    /**
+     * Whether a hold's tick conjures the door's sound and burst: its first
+     * alone, so a door stood again after a late tick sounds no second time.
+     *
+     * @param held the hold's tick count
+     * @return true on the hold's first tick
+     */
+    static boolean conjuresAt(int held) {
+        return held == FIRST_HELD;
+    }
+
+    /**
+     * Carries a player through their door and sounds it once, where they arrive.
+     * decision door-carries-its-own-sound-through-the-change
+     *
+     * @param player     the player the door carries
+     * @param transition where it carries them
+     */
+    public static void carry(ServerPlayer player, TeleportTransition transition) {
+        player.teleport(transition);
+        sendDoorSound(player);
+    }
+
+    /**
      * Sends the door's own sound to the player it carries, where they stand,
      * on their own connection, so the level change cuts no sound a level
-     * played: once as the door envelops them, once as they arrive.
+     * played: once, as they arrive, where a second play as the door enveloped
+     * them overlapped it.
      * decision door-carries-its-own-sound-through-the-change
      *
      * @param player the player the door carries
      */
-    public static void sendDoorSound(ServerPlayer player) {
+    static void sendDoorSound(ServerPlayer player) {
         player.connection.send(new ClientboundSoundPacket(GooSounds.ZONE_DOOR, SoundSource.PLAYERS,
                 player.getX(), player.getY(), player.getZ(), DOOR_VOLUME, 1f, player.getRandom().nextLong()));
     }
@@ -214,15 +259,16 @@ public final class ConjuredDoors {
      * @param level the caster's level
      * @param door  the door, at its start
      * @param look  what the door is drawn with
+     * @param pitch the pitch the conjuring clip plays at
      */
-    private static void showConjuring(ServerLevel level, ConjuredDoor door, GateLook look) {
+    private static void showConjuring(ServerLevel level, ConjuredDoor door, GateLook look, float pitch) {
         Vec3 middle = door.at().add(0, DOOR_MIDDLE, 0);
         if (look == GateLook.STARFIELD) {
             level.sendParticles(ParticleTypes.REVERSE_PORTAL, middle.x, middle.y, middle.z, CONJURE_PARTICLES,
                     CONJURE_SPREAD, CONJURE_TALL, CONJURE_SPREAD, CONJURE_SPEED);
         }
         level.playSound(null, middle.x, middle.y, middle.z, GooSounds.ZONE_CONJURE.get(), SoundSource.PLAYERS,
-                CONJURE_VOLUME, 1f);
+                CONJURE_VOLUME, pitch);
     }
 
     /**

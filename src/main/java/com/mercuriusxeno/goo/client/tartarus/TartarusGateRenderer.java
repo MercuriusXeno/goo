@@ -32,7 +32,7 @@ public final class TartarusGateRenderer implements GateDrawing {
     public static final Identifier TEXTURE = Identifier.withDefaultNamespace("block/nether_portal");
     /** A white texel on the block atlas, which the motes tint. */
     static final Identifier FLAT_TEXTURE = Identifier.fromNamespaceAndPath(Goo.MODID, "block/flat_white");
-    /** How far before the doorway a mote draws, so it shows over it from either side, in blocks. */
+    /** How far before the doorway a mote draws, so it never shares the doorway's plane, in blocks. */
     private static final double MOTE_LIFT = 0.002;
     private static final double TEXEL = 1.0 / TexelDoorway.TEXELS;
     private static final double HALF = 0.5;
@@ -174,7 +174,9 @@ public final class TartarusGateRenderer implements GateDrawing {
         }
 
         /**
-         * Emits a quad from its lower edge to its upper, both ways round; the UVs pair with the corners in order.
+         * Emits a quad from its lower edge to its upper, once: the render type culls no face, so it shows from
+         * either side, and a second face on the same plane z-fought it and blended the texture twice, the tearing
+         * the operator saw. The UVs pair with the corners in order.
          *
          * @param left  its left edge across, in blocks
          * @param right its right edge across, in blocks
@@ -189,9 +191,6 @@ public final class TartarusGateRenderer implements GateDrawing {
             double[][] corners = {{left, low}, {right, low}, {right, high}, {left, high}};
             for (int index = 0; index < corners.length; index++) {
                 vertex(corners[index], lift, uvs[index], plane.facing(), color);
-            }
-            for (int index = corners.length - 1; index >= 0; index--) {
-                vertex(corners[index], -lift, uvs[index], plane.facing().reverse(), color);
             }
         }
 
