@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.throwing;
 
+import com.mercuriusxeno.goo.ability.BuildBounds;
 import com.mercuriusxeno.goo.ability.BuildFootprint;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
@@ -13,6 +14,7 @@ import java.util.Optional;
  * and the next press submits. Nothing reaches the server until that submit,
  * so a cast abandoned at any point leaves the world untouched.
  * decision spire-rips-walls-and-platforms
+ * decision build-dimensions-reach-sixteen-by-sixteen-by-sixteen
  */
 public final class BuildChoreography {
 
@@ -33,7 +35,8 @@ public final class BuildChoreography {
     private @Nullable BlockPos corner;
     private @Nullable BlockPos dragged;
     private float pitchAtRelease;
-    private int rise = BuildFootprint.MIN_RISE;
+    private int rise = BuildBounds.MIN_RISE;
+    private BuildBounds bounds = BuildBounds.SIXTEEN_CUBED;
     /** True from a submit until the use key comes up, so the held key's repeat pins no new corner. */
     private boolean awaitingKeyUp;
 
@@ -42,9 +45,10 @@ public final class BuildChoreography {
      * press while the rise is being set, and is ignored while the drag holds.
      *
      * @param pinned the ground cell the look meets, or null where it meets none
+     * @param reach  the bounds of the ability cast, which a pinning press holds the cast to
      * @return the footprint to submit, present only on the submitting press
      */
-    public Optional<BuildFootprint> press(@Nullable BlockPos pinned) {
+    public Optional<BuildFootprint> press(@Nullable BlockPos pinned, BuildBounds reach) {
         if (awaitingKeyUp) {
             return Optional.empty();
         }
@@ -57,6 +61,7 @@ public final class BuildChoreography {
         if (phase == Phase.IDLE && pinned != null) {
             corner = pinned.immutable();
             dragged = corner;
+            bounds = reach;
             phase = Phase.SIZING;
         }
         return Optional.empty();
@@ -82,10 +87,10 @@ public final class BuildChoreography {
             } else {
                 phase = Phase.RISING;
                 pitchAtRelease = pitch;
-                rise = BuildFootprint.MIN_RISE;
+                rise = BuildBounds.MIN_RISE;
             }
         } else if (phase == Phase.RISING) {
-            rise = riseFromPitch(pitchAtRelease, pitch);
+            rise = riseFromPitch(pitchAtRelease, pitch, bounds);
         }
     }
 
@@ -94,7 +99,7 @@ public final class BuildChoreography {
         phase = Phase.IDLE;
         corner = null;
         dragged = null;
-        rise = BuildFootprint.MIN_RISE;
+        rise = BuildBounds.MIN_RISE;
     }
 
     /**
@@ -113,7 +118,7 @@ public final class BuildChoreography {
         if (phase == Phase.IDLE || corner == null || dragged == null) {
             return Optional.empty();
         }
-        return Optional.of(BuildFootprint.capped(corner, dragged, rise));
+        return Optional.of(bounds.cap(corner, dragged, rise));
     }
 
     /**
@@ -122,11 +127,12 @@ public final class BuildChoreography {
      *
      * @param pitchAtRelease the pitch when the drag released, in degrees
      * @param pitch          the pitch now, in degrees, negative looking up
-     * @return the rise, within the caps
+     * @param bounds         the bounds the rise holds within
+     * @return the rise, within the bounds
      */
-    public static int riseFromPitch(float pitchAtRelease, float pitch) {
+    public static int riseFromPitch(float pitchAtRelease, float pitch, BuildBounds bounds) {
         int climbed = (int) Math.floor((pitchAtRelease - pitch) / DEGREES_PER_BLOCK);
-        return Math.clamp(BuildFootprint.MIN_RISE + (long) climbed, BuildFootprint.MIN_RISE, BuildFootprint.MAX_RISE);
+        return bounds.capRise(BuildBounds.MIN_RISE + (long) climbed);
     }
 
     /**

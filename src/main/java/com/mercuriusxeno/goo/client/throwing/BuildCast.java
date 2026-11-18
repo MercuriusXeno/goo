@@ -2,9 +2,11 @@ package com.mercuriusxeno.goo.client.throwing;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityTags;
+import com.mercuriusxeno.goo.ability.BuildBounds;
 import com.mercuriusxeno.goo.ability.BuildFootprint;
 import com.mercuriusxeno.goo.ability.BuildGrowth;
 import com.mercuriusxeno.goo.ability.GloveSelection;
+import com.mercuriusxeno.goo.ability.program.BuildStep;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.data.GooValues;
@@ -76,7 +78,7 @@ public final class BuildCast {
             castHand = hand;
             castAbility = selection.abilityId();
         }
-        Optional<BuildFootprint> submitted = CAST.press(pinnedGround(player));
+        Optional<BuildFootprint> submitted = CAST.press(pinnedGround(player), boundsOf(selection));
         submitted.ifPresent(footprint -> {
             player.connection.send(new ServerboundCustomPayloadPacket(new GooBuildPayload(
                     GooTypes.id(selection.getGooType()), selection.abilityId(), footprint.corner(),
@@ -84,6 +86,18 @@ public final class BuildCast {
             // diagnose-and-correct-hand-swings-outside-throws: Build throws no blob, so its resting pose plays no swing
             GlovePoses.release(player, hand);
         });
+    }
+
+    /**
+     * The bounds the selected ability caps its cast at, read off its synced build step.
+     * decision build-dimensions-reach-sixteen-by-sixteen-by-sixteen
+     *
+     * @param selection the glove's selection
+     * @return the bounds, sixteen by sixteen by sixteen where the client holds no synced copy of the ability
+     */
+    private static BuildBounds boundsOf(GloveSelection selection) {
+        ClientAbility ability = AbilitySyncHandler.findAbility(selection.abilityId());
+        return ability == null ? BuildBounds.SIXTEEN_CUBED : BuildStep.boundsOf(ability.behaviors());
     }
 
     /**
