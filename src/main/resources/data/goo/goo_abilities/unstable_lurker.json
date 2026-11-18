@@ -5,7 +5,7 @@
   "order": 2,
   "cost": 1000,
   "requires": ["minecraft:tnt"],
-  "delivery": { "kind": "arc" },
+  "delivery": { "kind": "arc", "range": 16 },
   "area": { "shape": "sphere" },
   "behaviors": [
     {

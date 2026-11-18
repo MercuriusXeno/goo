@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.ability.program;
 
-import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.phys.Vec3;
@@ -49,11 +48,6 @@ public interface AnchoredWorldHost extends EntityScanHost {
     @Override
     default void forEntity(int entityId, Consumer<TargetHost> body) {
         BlockAnchoredActions.forEntity(level(), entityId, null, body);
-    }
-
-    @Override
-    default void rideShaftAbove(int cap, double rise, double sink) {
-        EntityLift.rideShaft(level(), BlockPos.containing(anchor()).above(), cap, rise, sink);
     }
 
     @Override

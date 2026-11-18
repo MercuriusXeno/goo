@@ -10,7 +10,6 @@ import com.mercuriusxeno.goo.client.ability.BeatRings;
 import com.mercuriusxeno.goo.client.ability.BlockTransforms;
 import com.mercuriusxeno.goo.client.ability.TransformationRenderer;
 import com.mercuriusxeno.goo.client.ability.Transformations;
-import com.mercuriusxeno.goo.client.ability.UpdraftWind;
 import com.mercuriusxeno.goo.client.ber.style.HeaterPrismStyle;
 import com.mercuriusxeno.goo.client.ber.style.OculusLids;
 import com.mercuriusxeno.goo.client.ber.style.OculusStyle;
@@ -83,7 +82,6 @@ public class PrismRenderer implements BlockEntityRenderer<PrismBlockEntity, Pris
         extractGlow(prism, state, partialTick, cameraPos);
         extractPulse(prism, state);
         extractOculus(prism, state, partialTick, cameraPos);
-        extractLift(prism, state);
     }
 
     /**
@@ -102,19 +100,6 @@ public class PrismRenderer implements BlockEntityRenderer<PrismBlockEntity, Pris
         if (state.decayShare > 0f && HeaterPrismStyle.glowsWhileCharging(state.decayTint)) {
             // prism-conversion-creeps-over-the-hold: the glow rises with the ember, ending at the heater's full bright
             state.lightCoords = HeaterPrismStyle.warmingLight(state.lightCoords, state.decayShare);
-        }
-    }
-
-    /**
-     * Reports a lift's shaft, so its wind rises up it.
-     * lift-prism-levitates-the-block-above
-     *
-     * @param prism the prism
-     * @param state the render state
-     */
-    private static void extractLift(PrismBlockEntity prism, PrismRenderState state) {
-        if (!state.combo.isEmpty() && prism.getLevel() != null) {
-            UpdraftWind.seeLift(prism.getBlockPos(), state.combo, prism.getLevel(), prism.getLevel().getGameTime());
         }
     }
 

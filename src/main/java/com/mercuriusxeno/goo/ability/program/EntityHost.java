@@ -217,12 +217,6 @@ public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entit
     }
 
     @Override
-    public void rideShaftAbove(int cap, double rise, double sink) {
-        EntityLift.rideShaft(level, target.blockPosition().above(), cap, rise, sink);
-    }
-
-
-    @Override
     public void spawnParticles(ParticleBurst burst) {
         SimpleParticles.resolve(burst.particle()).ifPresent(particle -> level.sendParticles(particle,
                 target.getX(), target.getY(BODY_CENTER) + burst.lift(), target.getZ(),

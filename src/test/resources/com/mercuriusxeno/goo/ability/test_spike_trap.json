@@ -4,7 +4,7 @@
   "badge": "world",
   "order": 90,
   "cost": 1000,
-  "delivery": { "kind": "arc" },
+  "delivery": { "kind": "arc", "range": 16 },
   "behaviors": [
     {
       "type": "linger",

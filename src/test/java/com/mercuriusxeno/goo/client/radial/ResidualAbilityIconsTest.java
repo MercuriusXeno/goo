@@ -29,11 +29,13 @@ class ResidualAbilityIconsTest {
     // residual-icons-draw-one-gray-block-with-the-types-goo-on-top
     // residual-icon-style-reaches-all-seven-and-later-world-goos
     // updraft-icon-is-a-floating-slime-with-up-arrows
+    // operator ruling 2026-11-17: Nectar takes the residual block icon, mark A, a heart, over its own goo
     // every-residual-goo-ability-wears-the-residual-badge-and-takes-the-residual-icon
     // each-residual-icon-draws-its-goo-in-its-own-shape
     /** The icons drawing the residual style; a later residual joins by its icon's name. */
     static final List<String> RESIDUAL_ICONS = List.of("weird_goop", "kinetic_slick", "blaze_molten", "deep_host",
-            "crystal_shatter", "hex_leech", "typhoon_updraft", "metal_spikes");
+            "crystal_shatter", "hex_leech", "typhoon_updraft", "jelly_nectar",
+            "pulse_signal", "metal_spikes");
 
     private static final String SHATTER = "crystal_shatter";
     private static final String ABILITY_ICONS = "/assets/goo/textures/goo/ability/";
