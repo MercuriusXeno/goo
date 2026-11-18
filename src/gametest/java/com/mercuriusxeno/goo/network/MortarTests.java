@@ -40,6 +40,16 @@ public final class MortarTests {
 
     private static final String DRIP_LAYS_A_LAYER = "mortar_drip_lays_a_layer_on_a_top";
     private static final String DRIP_HOLDS_A_SIDE = "mortar_drip_holds_the_side_it_strikes";
+    private static final String NO_HOLD_ON_A_STATUE = "mortar_drip_holds_no_statue_side";
+    /** The statue the side drip strikes, two blocks over the bay floor, where the stone wall stands in its sibling. */
+    private static final BlockPos STATUE = new BlockPos(3, 3, 4);
+    private static final String PETRIFIES_AT_PETRIFYS_PACE = "mortar_petrifies_at_petrifys_pace";
+    /** The full cell the pace cow stands on, laid on stone, which the calcify map hardens no further. */
+    private static final BlockPos PACE_CELL = new BlockPos(5, 2, 5);
+    /** Ticks the pace cow stands before its gauge is read. */
+    private static final int PACE_TICKS = 20;
+    /** The fills the gauge must hold by then: half the ticks, room for the cow to settle onto the cell. */
+    private static final int PACE_FILLS = PACE_TICKS / 2;
     private static final String PETRIFIES_AND_HARDENS = "mortar_petrifies_its_mob_and_hardens_its_block";
     /** The full cell the cow stands on, laid on cobblestone, the calcify map's rung below stone that does not fall. */
     private static final BlockPos PETRIFY_CELL = new BlockPos(2, 2, 2);
@@ -55,7 +65,9 @@ public final class MortarTests {
     private static final String ABILITY_REQUIRED = "The ability registry must hold rock_mortar";
     private static final String DRIP_LAYERS_WRONG = "The cell over the floor should be Mortar of 1 layer, stands %s";
     private static final String NOT_PETRIFIED = "The cow on the Mortar should petrify past %s, stands at %s";
+    private static final String TOO_SLOW = "The cow should petrify %s or more in %d ticks, as Petrify's fog does, stands at %s";
     private static final String NOT_HARDENED = "The block under the Mortar should be %s, stands %s";
+    private static final String HELD_BY_A_STATUE = "The cell beside the statue should hold no Mortar on it, stands %s";
     private static final String SIDE_NOT_HELD = "The cell beside the wall should be Mortar attached east, stands %s";
 
     private MortarTests() {
@@ -69,6 +81,8 @@ public final class MortarTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, DRIP_LAYS_A_LAYER, MortarTests::dripLaysALayerOnATop);
         GooTestFunctions.registerTest(registrar, DRIP_HOLDS_A_SIDE, MortarTests::dripHoldsTheSideItStrikes);
+        GooTestFunctions.registerTest(registrar, NO_HOLD_ON_A_STATUE, MortarTests::dripHoldsNoStatueSide);
+        GooTestFunctions.registerTest(registrar, PETRIFIES_AT_PETRIFYS_PACE, MortarTests::petrifiesAtPetrifysPace);
         GooTestFunctions.registerTest(registrar, PETRIFIES_AND_HARDENS, MortarTests::petrifiesItsMobAndHardensItsBlock);
     }
 
@@ -123,6 +137,33 @@ public final class MortarTests {
     }
 
     /**
+     * One Mortar drip striking a statue's west face beside an open cell with
+     * nothing under it leaves no Mortar holding the statue once the cell has
+     * had time to pour: a statue's sides are no solid wall, so the goo runs off
+     * them as it runs off air.
+     *
+     * @param helper the gametest helper
+     */
+    public static void dripHoldsNoStatueSide(GameTestHelper helper) {
+        BlockPos beside = STATUE.west();
+        helper.setBlock(STATUE, GooBlocks.STATUE.get());
+        helper.setBlock(beside, Blocks.AIR);
+        helper.setBlock(beside.below(), Blocks.AIR);
+        AbilityDefinition mortar = mortar(helper);
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.ROCK);
+        KnownRecipes.teachRequires(caster, mortar);
+        LandedDrips.landOnSide(helper, caster, mortar, STATUE, Direction.WEST, 1);
+        helper.getLevel().getServer().getPlayerList().remove(caster);
+        helper.runAfterDelay(POUR_TICKS, () -> {
+            BlockState cell = helper.getBlockState(beside);
+            boolean held = cell.is(GooBlocks.ROCK_MORTAR.get())
+                    && VolumeCellBlock.coatOn(cell, Direction.EAST) == SideCoat.ATTACHED;
+            helper.assertFalse(held, String.format(HELD_BY_A_STATUE, cell));
+            helper.succeed();
+        });
+    }
+
+    /**
      * A cow standing on a full Mortar cell laid on cobblestone and walled in
      * stone gains petrification, and the cobblestone under the cell hardens to the
      * calcify map's next rung, once the cell's cadence has passed.
@@ -145,6 +186,30 @@ public final class MortarTests {
             helper.assertTrue(gauge > start, String.format(NOT_PETRIFIED, start, gauge));
             BlockState under = helper.getBlockState(PETRIFY_CELL.below());
             helper.assertTrue(under.is(hardened), String.format(NOT_HARDENED, hardened, under));
+        });
+    }
+
+    /**
+     * A cow standing on a full Mortar cell petrifies every tick by the step's
+     * fill, as Petrify's fog fills it each held tick, so within a second its
+     * gauge holds at least half a second's fills.
+     *
+     * @param helper the gametest helper
+     */
+    public static void petrifiesAtPetrifysPace(GameTestHelper helper) {
+        MortarStep step = MortarStep.in(mortar(helper).behaviors()).orElseThrow();
+        helper.setBlock(PACE_CELL.below(), Blocks.STONE);
+        for (Direction side : Direction.Plane.HORIZONTAL) {
+            helper.setBlock(PACE_CELL.relative(side), Blocks.STONE);
+        }
+        helper.setBlock(PACE_CELL, GooBlocks.ROCK_MORTAR.get().defaultBlockState()
+                .setValue(VolumeCellBlock.LAYERS, VolumeCellBlock.MAX_LAYERS));
+        Mob cow = helper.spawnWithNoFreeWill(EntityType.COW, Vec3.atBottomCenterOf(PACE_CELL.above()));
+        float least = step.fillFor(cow) * PACE_FILLS;
+        helper.runAfterDelay(PACE_TICKS, () -> {
+            float gauge = cow.getData(GooAttachments.PETRIFICATION).gauge();
+            helper.assertTrue(gauge >= least, String.format(TOO_SLOW, least, PACE_TICKS, gauge));
+            helper.succeed();
         });
     }
 

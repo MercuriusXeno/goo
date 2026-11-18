@@ -4,11 +4,9 @@ import java.util.function.DoubleSupplier;
 
 /**
  * The roll a residual cell makes each time it acts on what is around it,
- * each block stage an Infest cell gnaws and each bite it lands, each mob a
- * Mortar cell petrifies a step and each block it hardens: a draw under the
- * chance takes one layer from the cell.
+ * each block stage an Infest cell gnaws and each bite it lands: a draw
+ * under the chance takes one layer from the cell.
  * infest-has-a-chance-to-deplete-as-it-gnaws-and-bites
- * mortar-has-a-chance-to-deplete-as-it-petrifies-and-hardens
  */
 public final class LayerDeplete {
 
