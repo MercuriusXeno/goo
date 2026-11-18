@@ -1,10 +1,13 @@
 package com.mercuriusxeno.goo.network;
 
+import com.mercuriusxeno.goo.ability.quantum.PortalColor;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.GloveButton;
 import com.mercuriusxeno.goo.ability.quantum.GatePassage;
 import com.mercuriusxeno.goo.ability.quantum.PartnerStreaming;
 import com.mercuriusxeno.goo.ability.quantum.Portal;
 import com.mercuriusxeno.goo.ability.quantum.PortalChoice;
+import com.mercuriusxeno.goo.ability.quantum.PortalShots;
 import com.mercuriusxeno.goo.ability.quantum.PortalTether;
 import com.mercuriusxeno.goo.ability.quantum.QuantumPortals;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
@@ -14,6 +17,7 @@ import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.network.GooEffectScheduler.PendingEffect;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.type.GooTypes;
+import net.minecraft.commands.arguments.EntityAnchorArgument;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.GlobalPos;
@@ -245,8 +249,7 @@ public final class PortalTests {
         standAt(helper, player, Vec3.atBottomCenterOf(AWAY));
         helper.setBlock(THIRD, Blocks.GLASS);
         helper.setBlock(THIRD.above(), Blocks.GLASS);
-        GooEffectScheduler.applyEffect(new PendingEffect(0, level, player, GooTypes.QUANTUM, NO_ENTITY,
-                helper.absolutePos(THIRD), Direction.SOUTH, PORTAL));
+        castBlue(helper, player, THIRD, Direction.SOUTH);
         helper.assertTrue(QuantumPortals.get(level).portalsOf(player.getUUID()).isEmpty(),
                 "A portal cast on glass should place nothing, holds " + QuantumPortals.get(level).portalsOf(
                         player.getUUID()));
@@ -278,8 +281,10 @@ public final class PortalTests {
         int held = com.mercuriusxeno.goo.item.GooSourceScanner.aggregateAvailable(player).getOrDefault(GooTypes.QUANTUM, 0);
         com.mercuriusxeno.goo.item.GooGloveItem.setSelection(player.getMainHandItem(),
                 com.mercuriusxeno.goo.ability.GloveSelection.ofAbility(GooTypes.QUANTUM, Identifier.parse(PORTAL)));
-        GooThrowHandler.execute(player, new GooThrowPayload(GooTypes.id(GooTypes.QUANTUM), NO_ENTITY,
-                helper.absolutePos(THIRD), Direction.SOUTH.ordinal(), false, PORTAL, player.getEyePosition()));
+        Vec3 onTheGlass = Vec3.atCenterOf(helper.absolutePos(THIRD)).add(0, 0, HALF_A_BLOCK);
+        player.lookAt(EntityAnchorArgument.Anchor.EYES, onTheGlass);
+        PortalShots.shoot(player, GloveButton.ATTACK, new GooThrowPayload(GooTypes.id(GooTypes.QUANTUM), NO_ENTITY,
+                helper.absolutePos(THIRD), Direction.SOUTH.ordinal(), false, PORTAL, player.getEyePosition(), onTheGlass));
         int after = com.mercuriusxeno.goo.item.GooSourceScanner.aggregateAvailable(player).getOrDefault(GooTypes.QUANTUM, 0);
         helper.assertTrue(after == held, "A Portal throw where no frame fits should cost nothing, held " + held
                 + " then " + after);
@@ -696,7 +701,7 @@ public final class PortalTests {
         helper.setBlock(first, Blocks.STONE);
         helper.setBlock(first.south(), Blocks.STONE);
         Portal portal = new Portal(GlobalPos.of(helper.getLevel().dimension(), helper.absolutePos(first)),
-                Direction.UP, Direction.SOUTH);
+                Direction.UP, Direction.SOUTH, PortalColor.BLUE);
         PortalChoice.place(helper.getLevel(), owner.getUUID(), portal);
         return portal;
     }
@@ -732,7 +737,7 @@ public final class PortalTests {
         BlockPos farBlock = helper.absolutePos(FIRST).east(FAR);
         level.setBlockAndUpdate(farBlock, Blocks.STONE.defaultBlockState());
         level.setBlockAndUpdate(farBlock.above(), Blocks.STONE.defaultBlockState());
-        Portal far = new Portal(GlobalPos.of(level.dimension(), farBlock), Direction.SOUTH, Direction.UP);
+        Portal far = new Portal(GlobalPos.of(level.dimension(), farBlock), Direction.SOUTH, Direction.UP, PortalColor.BLUE);
         PortalChoice.place(level, player.getUUID(), far);
         PortalChoice.choose(player, Optional.of(near));
         PortalChoice.link(player, far);
@@ -874,7 +879,7 @@ public final class PortalTests {
         BlockPos floor = farBlock.south(PAST_THE_PARTNER);
         level.setBlockAndUpdate(floor, Blocks.STONE.defaultBlockState());
         level.setBlockAndUpdate(floor.above(), Blocks.AIR.defaultBlockState());
-        Portal far = new Portal(GlobalPos.of(level.dimension(), farBlock), Direction.SOUTH, Direction.UP);
+        Portal far = new Portal(GlobalPos.of(level.dimension(), farBlock), Direction.SOUTH, Direction.UP, PortalColor.BLUE);
         PortalChoice.place(level, player.getUUID(), far);
         PortalChoice.choose(player, Optional.of(near));
         PortalChoice.link(player, far);
@@ -927,7 +932,7 @@ public final class PortalTests {
         level.setBlockAndUpdate(floor, Blocks.STONE.defaultBlockState());
         level.setBlockAndUpdate(floor.above(), Blocks.AIR.defaultBlockState());
         level.setBlockAndUpdate(floor.above(2), Blocks.AIR.defaultBlockState());
-        Portal far = new Portal(GlobalPos.of(level.dimension(), farBlock), Direction.SOUTH, Direction.UP);
+        Portal far = new Portal(GlobalPos.of(level.dimension(), farBlock), Direction.SOUTH, Direction.UP, PortalColor.BLUE);
         PortalChoice.place(level, player.getUUID(), far);
         PortalChoice.choose(player, Optional.of(near));
         PortalChoice.link(player, far);
@@ -1005,7 +1010,7 @@ public final class PortalTests {
         nether.setBlockAndUpdate(block.above(), Blocks.STONE.defaultBlockState());
         nether.setBlockAndUpdate(block.south(), Blocks.AIR.defaultBlockState());
         nether.setBlockAndUpdate(block.above().south(), Blocks.AIR.defaultBlockState());
-        return new Portal(GlobalPos.of(nether.dimension(), block), Direction.SOUTH, Direction.UP);
+        return new Portal(GlobalPos.of(nether.dimension(), block), Direction.SOUTH, Direction.UP, PortalColor.BLUE);
     }
 
     private static final String HIT_BREAKS_THE_PORTAL = "portal_breaks_when_hit_and_the_wall_stands";
@@ -1034,6 +1039,7 @@ public final class PortalTests {
     }
 
     private static final String PORTAL = "goo:quantum_portal";
+    private static final double HALF_A_BLOCK = 0.5;
     private static final int NO_ENTITY = -1;
     /** The lower blocks of the three wall frames, each cast on its south or north face. */
     private static final BlockPos FIRST = new BlockPos(1, 1, 1);
@@ -1114,13 +1120,20 @@ public final class PortalTests {
         });
     }
 
-    /** Builds a two-tall stone wall at a cell and casts a portal on its face, answering the frame expected. */
+    /** Builds a two-tall stone wall at a cell and casts a blue portal on its face, answering the frame expected. */
     private static Portal castAt(GameTestHelper helper, ServerPlayer caster, BlockPos lower, Direction face) {
         helper.setBlock(lower, Blocks.STONE);
         helper.setBlock(lower.above(), Blocks.STONE);
-        GooEffectScheduler.applyEffect(new PendingEffect(0, helper.getLevel(), caster, GooTypes.QUANTUM,
-                NO_ENTITY, helper.absolutePos(lower), face, PORTAL));
-        return new Portal(GlobalPos.of(helper.getLevel().dimension(), helper.absolutePos(lower)), face, Direction.UP);
+        castBlue(helper, caster, lower, face);
+        return new Portal(GlobalPos.of(helper.getLevel().dimension(), helper.absolutePos(lower)), face, Direction.UP,
+                PortalColor.BLUE);
+    }
+
+    /** Lands a blue Portal shot's program on a block's face. */
+    private static void castBlue(GameTestHelper helper, ServerPlayer caster, BlockPos struck, Direction face) {
+        PortalShots.casting(caster.getUUID(), PortalColor.BLUE, () -> GooEffectScheduler.applyEffect(
+                new PendingEffect(0, helper.getLevel(), caster, GooTypes.QUANTUM, NO_ENTITY, helper.absolutePos(struck),
+                        face, PORTAL)));
     }
 
     /** A tether stands where forcing the chunk again changes nothing. */

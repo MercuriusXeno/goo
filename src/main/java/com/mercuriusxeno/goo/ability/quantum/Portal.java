@@ -24,14 +24,16 @@ import java.util.stream.Stream;
  * @param block the frame's first block
  * @param face  the face of its blocks the frame covers
  * @param along the way from the first block to the second: up on a wall, the caster's facing on a floor or ceiling
+ * @param color the color it opens in, blue or orange
  */
-public record Portal(GlobalPos block, Direction face, Direction along) {
+public record Portal(GlobalPos block, Direction face, Direction along, PortalColor color) {
 
     /** Saves a portal. */
     public static final Codec<Portal> CODEC = RecordCodecBuilder.create(inst -> inst.group(
             GlobalPos.CODEC.fieldOf("block").forGetter(Portal::block),
             Direction.CODEC.fieldOf("face").forGetter(Portal::face),
-            Direction.CODEC.optionalFieldOf("along", Direction.UP).forGetter(Portal::along)
+            Direction.CODEC.optionalFieldOf("along", Direction.UP).forGetter(Portal::along),
+            PortalColor.CODEC.optionalFieldOf("color", PortalColor.BLUE).forGetter(Portal::color)
     ).apply(inst, Portal::new));
 
     /** Sends a portal. */
@@ -39,6 +41,7 @@ public record Portal(GlobalPos block, Direction face, Direction along) {
             GlobalPos.STREAM_CODEC, Portal::block,
             Direction.STREAM_CODEC, Portal::face,
             Direction.STREAM_CODEC, Portal::along,
+            PortalColor.STREAM_CODEC, Portal::color,
             Portal::new);
 
     private static final double HALF = 0.5;
@@ -58,10 +61,11 @@ public record Portal(GlobalPos block, Direction face, Direction along) {
      * @param struck the struck block
      * @param face   the struck face
      * @param facing the caster's horizontal facing
+     * @param color  the color the cast opens
      * @return the frame, empty where none fits
      */
     public static Optional<Portal> frameAt(Predicate<BlockPos> solid, Predicate<BlockPos> open,
-            Predicate<BlockPos> taken, GlobalPos struck, Direction face, Direction facing) {
+            Predicate<BlockPos> taken, GlobalPos struck, Direction face, Direction facing, PortalColor color) {
         Direction along = face.getAxis().isHorizontal() ? Direction.UP : facing;
         BlockPos pos = struck.pos();
         // A wall frame opens down from the struck block, so one thrown level with the eye opens before the
@@ -69,7 +73,7 @@ public record Portal(GlobalPos block, Direction face, Direction along) {
         Stream<BlockPos> firsts = face.getAxis().isHorizontal() ? Stream.of(pos.below(), pos)
                 : Stream.of(pos, pos.relative(along.getOpposite()));
         return firsts
-                .map(first -> new Portal(GlobalPos.of(struck.dimension(), first), face, along))
+                .map(first -> new Portal(GlobalPos.of(struck.dimension(), first), face, along, color))
                 .filter(frame -> Stream.of(frame.block().pos(), frame.second())
                         .allMatch(cell -> solid.test(cell) && open.test(cell.relative(face)) && !taken.test(cell)))
                 .findFirst();
@@ -83,11 +87,12 @@ public record Portal(GlobalPos block, Direction face, Direction along) {
      * @param struck the struck block
      * @param face   the struck face
      * @param facing the caster's horizontal facing
+     * @param color  the color the cast opens
      * @return the frame, empty where none fits
      */
     public static Optional<Portal> frameAt(Predicate<BlockPos> solid, Predicate<BlockPos> open, GlobalPos struck,
-            Direction face, Direction facing) {
-        return frameAt(solid, open, pos -> false, struck, face, facing);
+            Direction face, Direction facing, PortalColor color) {
+        return frameAt(solid, open, pos -> false, struck, face, facing, color);
     }
 
     /**
@@ -100,14 +105,16 @@ public record Portal(GlobalPos block, Direction face, Direction along) {
      * @param struck the struck block
      * @param face   the struck face
      * @param facing the caster's horizontal facing
+     * @param color  the color the cast opens
      * @return the frame, empty where none fits
      */
-    public static Optional<Portal> frameOn(ServerLevel level, BlockPos struck, Direction face, Direction facing) {
+    public static Optional<Portal> frameOn(ServerLevel level, BlockPos struck, Direction face, Direction facing,
+            PortalColor color) {
         QuantumPortals standing = QuantumPortals.get(level);
         return frameAt(pos -> level.getBlockState(pos).isSolidRender(),
                 pos -> level.getBlockState(pos).getCollisionShape(level, pos).isEmpty(),
                 pos -> standing.portalAt(GlobalPos.of(level.dimension(), pos), face).isPresent(),
-                GlobalPos.of(level.dimension(), struck), face, facing);
+                GlobalPos.of(level.dimension(), struck), face, facing, color);
     }
 
     /**

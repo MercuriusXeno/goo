@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.ability.quantum.PortalColor;
 import com.mercuriusxeno.goo.ability.quantum.Gate;
 import com.mercuriusxeno.goo.ability.quantum.GatePassage;
 import com.mercuriusxeno.goo.ability.quantum.Portal;
@@ -48,10 +49,10 @@ class PortalFacesTest {
     private static final int[] THIRTY_TWO_BY_FORTY_EIGHT = {32, 48};
     /** A wall portal on the north face of (0, 64, 0), its frame (0, 64, 0) to (1, 66, 1). */
     private static final Portal WALL_PORTAL = new Portal(GlobalPos.of(Level.OVERWORLD, new BlockPos(0, 64, 0)),
-            Direction.NORTH, Direction.UP);
+            Direction.NORTH, Direction.UP, PortalColor.BLUE);
     /** The portal it links to, the entry of the pair. */
     private static final Portal OTHER_PORTAL = new Portal(GlobalPos.of(Level.OVERWORLD, new BlockPos(9, 64, 0)),
-            Direction.NORTH, Direction.UP);
+            Direction.NORTH, Direction.UP, PortalColor.BLUE);
     /** A drawn gate's box as its blocks stand, grown full open. */
     private static final Function<PortalFaces.Drawn, AABB> BLOCKS_OF = drawn -> drawn.gate().blocks();
 
@@ -134,10 +135,10 @@ class PortalFacesTest {
 
         /** A wall portal on the north face of (0, 64, 0), its frame (0, 64, 0) to (1, 66, 1). */
         private static final Portal WALL = new Portal(GlobalPos.of(Level.OVERWORLD, new BlockPos(0, 64, 0)),
-                Direction.NORTH, Direction.UP);
+                Direction.NORTH, Direction.UP, PortalColor.BLUE);
         /** The portal it links to, the entry of the pair. */
         private static final Portal ENTRY = new Portal(GlobalPos.of(Level.OVERWORLD, new BlockPos(9, 64, 0)),
-                Direction.NORTH, Direction.UP);
+                Direction.NORTH, Direction.UP, PortalColor.BLUE);
         /** The frame's corners on x, half a block out each side. */
         private static final float[] XS = {-0.5F, 1.5F};
         /** The frame's corners on y, half a block out each end. */

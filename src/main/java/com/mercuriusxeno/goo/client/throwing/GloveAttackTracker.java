@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.throwing;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.program.GrabStep;
+import com.mercuriusxeno.goo.ability.program.PortalStep;
 import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
@@ -17,6 +18,7 @@ import net.minecraft.world.item.ItemStack;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.InputEvent;
 import org.jspecify.annotations.Nullable;
 
@@ -29,20 +31,28 @@ import org.jspecify.annotations.Nullable;
  * glove press holds a Grab, the press throws the held entity instead and
  * lands no punch, and while a charge stands it cancels the charge, landing
  * no punch and no touch. While right click holds Dart's javelin, the press
- * throws it once whole and lands no punch.
+ * throws it once whole and lands no punch. With Portal selected the press
+ * shoots the blue portal and does nothing else, no punch, touch, break or
+ * cancel, the attack key held down shooting once.
  * decision attack-key-touches-plus-punches
  * decision dart-forms-on-right-click-and-throws-on-left-click
  * decision grab-holds-and-throws-a-physics-body
  * decision abilities-not-channeled-charge-and-cancel-on-left-click
+ * decision portal-takes-over-left-and-right-click-for-blue-and-orange
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class GloveAttackTracker {
+
+    /** Whether the attack key stood down as the last client tick ended, so a press held on shoots no more. */
+    private static boolean attackDownLastTick;
 
     private GloveAttackTracker() {
     }
 
     /** What an attack-key press does with the glove. */
     enum AttackOutcome {
+        /** Shoots the blue portal, landing no punch, touch or break. */
+        SHOOT_PORTAL,
         /** Throws the javelin right click holds, once whole, landing no punch. */
         THROW_JAVELIN,
         /** Throws the entity a channeled Grab holds, landing no punch. */
@@ -56,18 +66,25 @@ public final class GloveAttackTracker {
     }
 
     /**
-     * What an attack-key press does: a javelin right click holds is thrown,
+     * What an attack-key press does: with Portal selected it shoots the blue
+     * portal whatever else stands, a javelin right click holds is thrown,
      * a channeled Grab throws its held mob, a charge standing cancels, a
      * press that touches touches, and any other stays vanilla.
      * decision dart-forms-on-right-click-and-throws-on-left-click
+     * decision portal-takes-over-left-and-right-click-for-blue-and-orange
      *
+     * @param shootsPortal  whether the pressing hand's selection is Portal
      * @param holdsAJavelin whether right click holds a javelin forming or formed
      * @param charging      whether a charge stands, a press that is not channeled previewing
      * @param grabThrows    whether a channeled Grab holds a mob to throw
      * @param touches       whether the press touches what it aims at
      * @return the outcome
      */
-    static AttackOutcome outcomeOf(boolean holdsAJavelin, boolean charging, boolean grabThrows, boolean touches) {
+    static AttackOutcome outcomeOf(boolean shootsPortal, boolean holdsAJavelin, boolean charging, boolean grabThrows,
+                                   boolean touches) {
+        if (shootsPortal) {
+            return AttackOutcome.SHOOT_PORTAL;
+        }
         if (holdsAJavelin) {
             return AttackOutcome.THROW_JAVELIN;
         }
@@ -95,7 +112,8 @@ public final class GloveAttackTracker {
         ClientAbility selected = selectedAbility(player, pressingHand);
         boolean grabThrows = selected != null
                 && GrabStep.throwsOnAttack(GloveUseTracker.showsArea(), selected.behaviors());
-        resolve(event, player, outcomeOf(GloveUseTracker.holdsAJavelin(player), GloveUseTracker.charging(),
+        boolean shootsPortal = selected != null && PortalStep.placesPortals(selected.behaviors());
+        resolve(event, player, outcomeOf(shootsPortal, GloveUseTracker.holdsAJavelin(player), GloveUseTracker.charging(),
                 grabThrows, GooTouchHandler.attackTouches(pressOf(player, pressingHand))));
     }
 
@@ -108,6 +126,38 @@ public final class GloveAttackTracker {
      */
     private static void resolve(InputEvent.InteractionKeyMappingTriggered event, LocalPlayer player,
                                 AttackOutcome outcome) {
+        if (outcome == AttackOutcome.SHOOT_PORTAL) {
+            shootThePortal(event, player);
+        } else {
+            resolveTheGlovePress(event, player, outcome);
+        }
+    }
+
+    /**
+     * Shoots the blue portal on a fresh press, taking the press from vanilla
+     * whether it shoots or not, so it lands no punch and breaks no block.
+     * portal-takes-over-left-and-right-click-for-blue-and-orange
+     *
+     * @param event  the key interaction
+     * @param player the local player
+     */
+    private static void shootThePortal(InputEvent.InteractionKeyMappingTriggered event, LocalPlayer player) {
+        event.setCanceled(true);
+        event.setSwingHand(false);
+        if (shootsOnThisPress(attackDownLastTick)) {
+            GloveThrowSender.sendPortalShot(player);
+        }
+    }
+
+    /**
+     * Carries out what an attack-key press does with any selection but Portal.
+     *
+     * @param event   the key interaction
+     * @param player  the local player
+     * @param outcome what the press does
+     */
+    private static void resolveTheGlovePress(InputEvent.InteractionKeyMappingTriggered event, LocalPlayer player,
+                                             AttackOutcome outcome) {
         switch (outcome) {
             case THROW_JAVELIN -> {
                 // dart-forms-on-right-click-and-throws-on-left-click: the click throws the javelin whole in the hand
@@ -126,10 +176,32 @@ public final class GloveAttackTracker {
                 GloveUseTracker.cancelCharge(player);
             }
             case TOUCH -> GloveThrowSender.sendThrow(player, 0);
-            case VANILLA -> {
-                // the press stays vanilla's
+            case SHOOT_PORTAL, VANILLA -> {
+                // the press stays vanilla's; resolve shoots Portal before this
             }
         }
+    }
+
+    /**
+     * Whether an attack-key interaction shoots Portal: a fresh press does,
+     * and the interaction vanilla repeats each tick the key stays down does not.
+     * portal-takes-over-left-and-right-click-for-blue-and-orange
+     *
+     * @param downLastTick whether the attack key stood down as the last tick ended
+     * @return true for a fresh press
+     */
+    static boolean shootsOnThisPress(boolean downLastTick) {
+        return !downLastTick;
+    }
+
+    /**
+     * Notes whether the attack key stands down as the client tick ends.
+     *
+     * @param event the client's tick
+     */
+    @SubscribeEvent
+    public static void onClientTick(ClientTickEvent.Post event) {
+        attackDownLastTick = Minecraft.getInstance().options.keyAttack.isDown();
     }
 
     /**

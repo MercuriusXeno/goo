@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.network;
 
+import com.mercuriusxeno.goo.ability.quantum.PortalColor;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.program.GrabStep;
@@ -700,9 +701,9 @@ public final class GrabChannelTests {
         }
         ServerLevel level = helper.getLevel();
         Portal near = new Portal(GlobalPos.of(level.dimension(), helper.absolutePos(NEAR_PORTAL)), Direction.WEST,
-                Direction.UP);
+                Direction.UP, PortalColor.BLUE);
         Portal far = new Portal(GlobalPos.of(level.dimension(), helper.absolutePos(FAR_PORTAL)), Direction.EAST,
-                Direction.UP);
+                Direction.UP, PortalColor.BLUE);
         PortalChoice.place(level, player.getUUID(), near);
         PortalChoice.place(level, player.getUUID(), far);
         Pig pig = helper.spawn(EntityType.PIG, PAST_THE_WALL);
@@ -777,9 +778,9 @@ public final class GrabChannelTests {
         helper.setBlock(FLOOR_PORTAL.east(), Blocks.STONE);
         ServerLevel level = helper.getLevel();
         Portal floor = new Portal(GlobalPos.of(level.dimension(), helper.absolutePos(FLOOR_PORTAL)), Direction.UP,
-                Direction.EAST);
+                Direction.EAST, PortalColor.BLUE);
         Portal far = new Portal(GlobalPos.of(level.dimension(), helper.absolutePos(FAR_PORTAL)), Direction.EAST,
-                Direction.UP);
+                Direction.UP, PortalColor.BLUE);
         PortalChoice.place(level, player.getUUID(), floor);
         PortalChoice.place(level, player.getUUID(), far);
         Pig pig = helper.spawn(EntityType.PIG, PAST_THE_WALL);
@@ -847,9 +848,9 @@ public final class GrabChannelTests {
         }
         ServerLevel level = helper.getLevel();
         Portal near = new Portal(GlobalPos.of(level.dimension(), helper.absolutePos(NEAR_PILLAR)), Direction.WEST,
-                Direction.UP);
+                Direction.UP, PortalColor.BLUE);
         Portal far = new Portal(GlobalPos.of(level.dimension(), helper.absolutePos(FAR_PILLAR)), Direction.EAST,
-                Direction.UP);
+                Direction.UP, PortalColor.BLUE);
         PortalChoice.place(level, player.getUUID(), near);
         PortalChoice.place(level, player.getUUID(), far);
         Zombie zombie = helper.spawn(EntityType.ZOMBIE, IN_PLAIN_SIGHT);
@@ -921,9 +922,9 @@ public final class GrabChannelTests {
         }
         ServerLevel level = helper.getLevel();
         Portal west = new Portal(GlobalPos.of(level.dimension(), helper.absolutePos(FACING_WEST_WALL)), Direction.EAST,
-                Direction.UP);
+                Direction.UP, PortalColor.BLUE);
         Portal east = new Portal(GlobalPos.of(level.dimension(), helper.absolutePos(FACING_EAST_WALL)), Direction.WEST,
-                Direction.UP);
+                Direction.UP, PortalColor.BLUE);
         PortalChoice.place(level, player.getUUID(), west);
         PortalChoice.place(level, player.getUUID(), east);
         Pig pig = helper.spawn(EntityType.PIG, BETWEEN);
@@ -991,9 +992,9 @@ public final class GrabChannelTests {
         }
         ServerLevel level = helper.getLevel();
         Portal west = new Portal(GlobalPos.of(level.dimension(), helper.absolutePos(AIMED_INTO)), Direction.EAST,
-                Direction.UP);
+                Direction.UP, PortalColor.BLUE);
         Portal east = new Portal(GlobalPos.of(level.dimension(), helper.absolutePos(BEHIND_THE_HOLDER)),
-                Direction.WEST, Direction.UP);
+                Direction.WEST, Direction.UP, PortalColor.BLUE);
         PortalChoice.place(level, player.getUUID(), west);
         PortalChoice.place(level, player.getUUID(), east);
         Pig pig = helper.spawn(EntityType.PIG, BETWEEN_THE_PAIR);
@@ -1060,9 +1061,9 @@ public final class GrabChannelTests {
         }
         ServerLevel level = helper.getLevel();
         Portal west = new Portal(GlobalPos.of(level.dimension(), helper.absolutePos(CUSP_WEST)), Direction.EAST,
-                Direction.UP);
+                Direction.UP, PortalColor.BLUE);
         Portal east = new Portal(GlobalPos.of(level.dimension(), helper.absolutePos(CUSP_EAST)), Direction.WEST,
-                Direction.UP);
+                Direction.UP, PortalColor.BLUE);
         PortalChoice.place(level, player.getUUID(), west);
         PortalChoice.place(level, player.getUUID(), east);
         // A silverfish, its box small enough to hang between the player and the east portal.
@@ -1127,9 +1128,9 @@ public final class GrabChannelTests {
         }
         ServerLevel level = helper.getLevel();
         Portal west = new Portal(GlobalPos.of(level.dimension(), helper.absolutePos(AHEAD_WEST)), Direction.EAST,
-                Direction.UP);
+                Direction.UP, PortalColor.BLUE);
         Portal east = new Portal(GlobalPos.of(level.dimension(), helper.absolutePos(BEHIND_EAST)), Direction.WEST,
-                Direction.UP);
+                Direction.UP, PortalColor.BLUE);
         PortalChoice.place(level, player.getUUID(), west);
         PortalChoice.place(level, player.getUUID(), east);
         // A silverfish, its box small enough to hang between the player and the east portal.
@@ -1236,9 +1237,9 @@ public final class GrabChannelTests {
         }
         ServerLevel level = helper.getLevel();
         Portal near = new Portal(GlobalPos.of(level.dimension(), helper.absolutePos(NEAR_PORTAL)), Direction.WEST,
-                Direction.UP);
+                Direction.UP, PortalColor.BLUE);
         Portal far = new Portal(GlobalPos.of(level.dimension(), helper.absolutePos(FAR_PORTAL)), Direction.EAST,
-                Direction.UP);
+                Direction.UP, PortalColor.BLUE);
         PortalChoice.place(level, player.getUUID(), near);
         PortalChoice.place(level, player.getUUID(), far);
         Pig pig = helper.spawn(EntityType.PIG, pigAt);

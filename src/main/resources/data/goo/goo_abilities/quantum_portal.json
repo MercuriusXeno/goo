@@ -4,10 +4,12 @@
   "badge": "world",
   "order": 60,
   "cost": 1000,
-  "delivery": { "kind": "arc" },
+  "delivery": { "kind": "spontaneous" },
+  "area": { "shape": "line" },
   "behaviors": [
     { "type": "sound", "id": "minecraft:block.respawn_anchor.charge", "at": "host", "source": "blocks", "volume": 1, "pitch": 1.2 },
     { "type": "quantum_portal" }
   ],
-  "tags": []
+  "tags": [],
+  "pose": "held_out"
 }

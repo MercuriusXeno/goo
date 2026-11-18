@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.throwing;
 
+import com.mercuriusxeno.goo.ability.quantum.PortalColor;
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.ArmPose;
 import com.mercuriusxeno.goo.ability.quantum.Portal;
@@ -32,9 +33,9 @@ class PortalAimTest {
     private static final ResourceKey<Level> OVERWORLD =
             ResourceKey.create(Registries.DIMENSION, Identifier.withDefaultNamespace("overworld"));
     private static final Portal HERE = new Portal(GlobalPos.of(OVERWORLD, new BlockPos(0, 64, 0)), Direction.SOUTH,
-            Direction.UP);
+            Direction.UP, PortalColor.BLUE);
     private static final Portal THERE = new Portal(GlobalPos.of(OVERWORLD, new BlockPos(9, 64, 0)), Direction.SOUTH,
-            Direction.UP);
+            Direction.UP, PortalColor.BLUE);
 
     @Test
     void sneakingOnAPortalStartsChoosingIt() {
@@ -86,8 +87,9 @@ class PortalAimTest {
         }
 
         @Test
-        void portalResolvesTheSwungPose() {
-            assertEquals(ArmPose.SWUNG, AbilityJson.decode("quantum_portal").pose());
+        void portalHoldsItsArmOutAsBulbDoes() {
+            // portal-has-no-bullet-drop-and-goes-where-you-point-like-bulb: Portal casts straight, throwing no blob
+            assertEquals(ArmPose.HELD_OUT, AbilityJson.decode("quantum_portal").pose());
         }
     }
 }
