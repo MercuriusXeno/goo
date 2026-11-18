@@ -2,6 +2,8 @@ package com.mercuriusxeno.goo.ability.end;
 
 import com.mercuriusxeno.goo.ability.program.EndStep;
 import com.mercuriusxeno.goo.ability.program.Step;
+import com.mercuriusxeno.goo.ability.program.TartarusStep;
+import com.mercuriusxeno.goo.ability.tartarus.TartarusAvailability;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 import java.util.List;
@@ -11,6 +13,8 @@ import java.util.List;
  * client drawing it and the server refusing it: in the End it grays out for
  * a player who came by no End gate, holding no way back.
  * decision end-is-grayed-out-in-the-end-unless-you-came-by-the-ability
+ * Tartarus grays out through the same seam where its gate leads nowhere.
+ * decision tartarus-in-the-nether-takes-you-to-the-overworld-at-eight-times-your-spot
  */
 public enum EndAvailability {
     /** The player may channel End. */
@@ -30,8 +34,9 @@ public enum EndAvailability {
     }
 
     /**
-     * Whether an ability running a program grays out for a player: only End's
-     * does, by {@link #of}; every other ability stands available.
+     * Whether an ability running a program grays out for a player: End's does,
+     * by {@link #of}, and Tartarus', by {@link TartarusAvailability#of}; every
+     * other ability stands available.
      *
      * @param program      the ability's steps
      * @param standingIn   the level the player stands in
@@ -40,6 +45,9 @@ public enum EndAvailability {
      */
     public static boolean graysOut(List<? extends Step> program, ResourceKey<Level> standingIn,
                                    boolean holdsWayBack) {
-        return program.stream().anyMatch(EndStep.class::isInstance) && of(standingIn, holdsWayBack) == GRAYED_OUT;
+        boolean endGraysOut = program.stream().anyMatch(EndStep.class::isInstance)
+                && of(standingIn, holdsWayBack) == GRAYED_OUT;
+        return endGraysOut || TartarusStep.in(program).isPresent()
+                && TartarusAvailability.of(standingIn) == GRAYED_OUT;
     }
 }

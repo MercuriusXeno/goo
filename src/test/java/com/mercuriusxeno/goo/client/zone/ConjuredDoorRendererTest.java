@@ -85,7 +85,7 @@ class ConjuredDoorRendererTest {
             return null;
         }).when(collector).submitCustomGeometry(any(PoseStack.class), any(RenderType.class), any());
 
-        ConjuredDoorRenderer.submitDoor(collector, new PoseStack(), door, FEET);
+        ConjuredDoorRenderer.submitDoor(collector, new PoseStack(), door, FEET, 0);
         return new Submitted(types, vertices);
     }
 }
