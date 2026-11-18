@@ -1,9 +1,9 @@
 {
   "type": "minecraft:function",
-  "function": "goo:spores_infected_zombie_dying_leaves_goo_where_it_fell",
+  "function": "goo:mycosis_buds_at_the_feet",
   "environment": "minecraft:default",
   "structure": "goo:test_bay",
-  "max_ticks": 80,
+  "max_ticks": 440,
   "setup_ticks": 0,
   "required": true
 }

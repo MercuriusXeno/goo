@@ -323,6 +323,8 @@
   "goo.ability.rock.gouge.cost_mechanics": "Costs %s to grab a chunk.",
   "goo.ability.rock.stoneskin": "Stoneskin",
   "goo.ability.rock.stoneskin.description": "Stone hearts fill your missing ones and resist blows, but explosions and pickaxes crack them and regeneration stops.",
+  "goo.ability.shroom.mycosis": "Mycosis",
+  "goo.ability.shroom.mycosis.description": "Spray spores that poison, slow and weaken mobs, which burst into spores on death.",
   "goo.ability.shroom.spores": "Spores",
   "goo.ability.shroom.spores.cost_mechanics": "Costs %s per block of Spores laid, a fifteenth of it per layer.",
   "goo.ability.shroom.spores.description": "Held stream sprays Spores, a fungal goo that poisons, slows and weakens whatever touches it; an infected mob dies into a splash of Spores.",

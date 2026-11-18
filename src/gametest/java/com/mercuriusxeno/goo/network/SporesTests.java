@@ -27,14 +27,12 @@ import net.minecraft.world.level.block.NetherWartBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 /**
  * Shroom's Spores as a world goo through the real paths: one of its
  * stream's drips lays a one-layer Spores cell, a zombie standing in the goo
- * carries the mycosis effect and the spores, and an infected zombie dying on
- * bare floor leaves Spores goo where it fell; the goo grows a goologged
+ * carries the mycosis effect and the spores; the goo grows a goologged
  * bud in its own space and buds on the open floor in its reach, and tends
  * the nether wart there, and spreads the mycelium it lies on. Each test walls its cells in stone so no cell
  * pours its layers away.
@@ -50,7 +48,6 @@ public final class SporesTests {
 
     private static final String DRIP_LAYS_A_SHROOM_CELL = "spores_drip_lays_a_shroom_cell_of_one_layer";
     private static final String GOO_INFECTS_A_ZOMBIE = "spores_goo_infects_a_zombie_standing_in_it";
-    private static final String DEAD_LEAVE_GOO = "spores_infected_zombie_dying_leaves_goo_where_it_fell";
     private static final String GROWS_BUDS = "spores_goo_grows_a_goologged_bud_and_one_beside_it";
     private static final String TENDS_WART = "spores_goo_grows_and_reaps_nether_wart";
     private static final String SPREADS_MYCELIUM = "spores_goo_on_mycelium_spreads_it_to_the_dirt_beside";
@@ -74,13 +71,10 @@ public final class SporesTests {
     private static final BlockPos DRIP_FLOOR = new BlockPos(2, 1, 2);
     /** The full cell the zombie stands on. */
     private static final BlockPos INFECTING_CELL = new BlockPos(1, 2, 1);
-    /** The bare cell the infected zombie dies in, its floor stone and no goo near it. */
-    private static final BlockPos FELL_CELL = new BlockPos(3, 2, 3);
     private static final String ABILITY_REQUIRED = "The ability registry must hold shroom_spores";
     private static final String DRIP_LAYERS_WRONG = "The cell over the floor should be Spores of 1 layer, stands %s";
     private static final String NOT_INFECTED = "The zombie standing in Spores should carry the mycosis effect";
     private static final String NOT_SPORED = "The zombie standing in Spores should carry spores";
-    private static final String NO_GOO_WHERE_IT_FELL = "The infected zombie should leave Spores where it fell, stands %s";
     private static final String NOT_GROWN = "The cell should hold a goologged bud at %d layers and a bud should stand"
             + " beside it; the cell stands %s and the spot %s";
     private static final String NOT_SPREAD = "The dirt beside should be mycelium and the cell stand at %d layers;"
@@ -99,7 +93,6 @@ public final class SporesTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, DRIP_LAYS_A_SHROOM_CELL, SporesTests::dripLaysAShroomCell);
         GooTestFunctions.registerTest(registrar, GOO_INFECTS_A_ZOMBIE, SporesTests::gooInfectsAZombie);
-        GooTestFunctions.registerTest(registrar, DEAD_LEAVE_GOO, SporesTests::infectedZombieDyingLeavesGoo);
         GooTestFunctions.registerTest(registrar, GROWS_BUDS, SporesTests::gooGrowsAGoologgedBudAndOneBesideIt);
         GooTestFunctions.registerTest(registrar, TENDS_WART, SporesTests::gooGrowsAndReapsNetherWart);
         GooTestFunctions.registerTest(registrar, SPREADS_MYCELIUM, SporesTests::gooOnMyceliumSpreadsItToTheDirtBeside);
@@ -141,32 +134,6 @@ public final class SporesTests {
         helper.succeedWhen(() -> {
             helper.assertTrue(zombie.hasEffect(GooMobEffects.MYCOSIS), NOT_INFECTED);
             helper.assertTrue(zombie.hasData(GooAttachments.SPORED), NOT_SPORED);
-        });
-    }
-
-    /**
-     * A zombie infected on a full Spores cell, moved onto bare stone floor
-     * away from the goo and killed there, leaves a Spores cell where it fell.
-     * mycosis-goo-infects-what-touches-it-as-the-spray-did
-     *
-     * @param helper the gametest helper
-     */
-    public static void infectedZombieDyingLeavesGoo(GameTestHelper helper) {
-        layFullCell(helper, INFECTING_CELL);
-        helper.setBlock(FELL_CELL.below(), Blocks.STONE);
-        helper.setBlock(FELL_CELL, Blocks.AIR);
-        Mob zombie = helmetedZombieOn(helper, INFECTING_CELL);
-        AtomicBoolean killed = new AtomicBoolean();
-        helper.succeedWhen(() -> {
-            if (!killed.get()) {
-                helper.assertTrue(zombie.hasData(GooAttachments.SPORED), NOT_SPORED);
-                Vec3 fell = Vec3.atBottomCenterOf(helper.absolutePos(FELL_CELL));
-                zombie.teleportTo(fell.x, fell.y, fell.z);
-                zombie.kill(helper.getLevel());
-                killed.set(true);
-            }
-            BlockState left = helper.getBlockState(FELL_CELL);
-            helper.assertTrue(left.is(GooBlocks.SHROOM_SPORES.get()), String.format(NO_GOO_WHERE_IT_FELL, left));
         });
     }
 
