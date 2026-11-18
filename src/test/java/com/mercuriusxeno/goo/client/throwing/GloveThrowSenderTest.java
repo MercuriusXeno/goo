@@ -70,7 +70,7 @@ class GloveThrowSenderTest {
 
         @Test
         void aHeldTickThrowingNoDripsSendsTheGlove() {
-            assertEquals(glove, GloveThrowSender.heldTickOrigin(AbilityJson.decode("nether_decay").delivery(), blob,
+            assertEquals(glove, GloveThrowSender.heldTickOrigin(AbilityJson.decode("zombie_decay").delivery(), blob,
                     glove), "a held Decay tick should send the glove its cone opens from");
         }
     }
