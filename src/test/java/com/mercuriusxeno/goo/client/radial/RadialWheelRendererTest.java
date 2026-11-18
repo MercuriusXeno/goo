@@ -94,7 +94,7 @@ import static org.mockito.Mockito.when;
 class RadialWheelRendererTest {
 
     private static final String ASSETS_ROOT = "assets/";
-    private static final String TEXTURE_PATH = "textures/goo/ability/unstable_lurker.png";
+    private static final String TEXTURE_PATH = "textures/goo/ability/unstable_nitro.png";
 
     private static ClientAbility clientAbilityOf(AbilityDefinition definition) {
         return new ClientAbility(definition.id(), definition.displayName(), definition.icon(),
@@ -128,8 +128,8 @@ class RadialWheelRendererTest {
     }
 
     private static ClientAbility abilityWithIcon(String icon) {
-        return new ClientAbility(Identifier.fromNamespaceAndPath(Goo.MODID, "unstable_lurker"),
-                "ability.goo.unstable_lurker", icon, 0, List.of(), List.of(), 0, Delivery.ARC, AbilityBadge.WORLD, List.of());
+        return new ClientAbility(Identifier.fromNamespaceAndPath(Goo.MODID, "unstable_nitro"),
+                "ability.goo.unstable_nitro", icon, 0, List.of(), List.of(), 0, Delivery.ARC, AbilityBadge.WORLD, List.of());
     }
 
     /** The badge, not the label, marks the target kind (decision badge-marks-the-target-kind). */
@@ -1227,7 +1227,7 @@ class RadialWheelRendererTest {
         private static final int LINE_HEIGHT = 9;
         private static final int LINE_WIDTH = 40;
         private static final int TEXT_COLOR = 0xFFABCDEF;
-        private final List<Component> name = List.of(Component.literal("Unstable"), Component.literal("Lurker"));
+        private final List<Component> name = List.of(Component.literal("Unstable"), Component.literal("Nitro"));
         private final Component cost = Component.literal("1K | x1");
 
         private List<RadialWheelRenderer.PlacedLine> placed() {

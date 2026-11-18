@@ -449,6 +449,25 @@ public class GooBlocks {
                     .noLootTable()
                     .pushReaction(PushReaction.DESTROY));
     /**
+     * Nitro: the volume cell bound to Unstable's goo, the green goo Nitro
+     * sprays onto a block's top, one to fifteen layers, ordinary ground
+     * underfoot and sounding as goo does, dropping the unstable goo its
+     * layers cost through VolumeCellBlock.getDrops, no loot table
+     * (decisions nitro-is-unstables-goo-that-explodes-in-a-chain-by-its-quantity,
+     * each-goo-type-ships-a-world-goo-on-the-volume-cell).
+     */
+    public static final DeferredBlock<VolumeCellBlock> UNSTABLE_NITRO = BLOCKS.registerBlock(
+            "unstable_nitro", properties -> new VolumeCellBlock(properties, CellBinding.NITRO),
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_LIGHT_GREEN)
+                    .friction(CellBinding.NITRO.surface().friction())
+                    .sound(SoundType.SLIME_BLOCK)
+                    .instabreak()
+                    .noOcclusion()
+                    .replaceable()
+                    .noLootTable()
+                    .pushReaction(PushReaction.DESTROY));
+    /**
      * Prism: the milky quartz crystal Crystal's Prism grows, the host every
      * prism combo grows on (decision prism-blob-becomes-a-milky-quartz-crystal).
      */
