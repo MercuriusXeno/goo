@@ -1,5 +1,10 @@
 {
   "variants": {
-    "": { "model": "goo:block/crater_ice" }
+    "": [
+      { "model": "goo:block/crater_ice" },
+      { "model": "goo:block/crater_ice_2" },
+      { "model": "goo:block/crater_ice_3" },
+      { "model": "goo:block/crater_ice_4" }
+    ]
   }
 }

@@ -3,7 +3,6 @@ package com.mercuriusxeno.goo.ability.held;
 import com.mercuriusxeno.goo.ability.program.AirbornStep;
 import com.mercuriusxeno.goo.ability.program.AncientStep;
 import com.mercuriusxeno.goo.ability.program.EludeStep;
-import com.mercuriusxeno.goo.ability.program.ExtendStep;
 import com.mercuriusxeno.goo.ability.program.GluttonyStep;
 import com.mercuriusxeno.goo.ability.program.HeartOverlayStep;
 import com.mercuriusxeno.goo.ability.program.KinStep;
@@ -43,7 +42,11 @@ public enum LaidState {
     UNDEAD,
     /** Elude (decision elude-moves-you-to-a-random-safe-spot-on-mob-or-projectile-damage). */
     ELUDE,
-    /** The Extend's mark, laid by an extend step (decision extender-multiplies-the-next-self-duration). */
+    /**
+     * Laid by no step, Extend having left the mod for Signal (decisions
+     * extender-multiplies-the-next-self-duration, extend-is-dropped-for-signal-an-in-world-pulse-goo);
+     * it stands so a saved held effect naming it still loads.
+     */
     EXTEND,
     /** Float's flight (decision tailwind-and-airborn-merge-into-float). */
     AIRBORN,
@@ -97,7 +100,6 @@ public enum LaidState {
             Map.entry(LuxStep.class, LUX),
             Map.entry(UndeadStep.class, UNDEAD),
             Map.entry(EludeStep.class, ELUDE),
-            Map.entry(ExtendStep.class, EXTEND),
             Map.entry(AirbornStep.class, AIRBORN),
             Map.entry(RemoteStep.class, REMOTE),
             Map.entry(UnveilStep.class, UNVEIL),

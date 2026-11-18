@@ -5,7 +5,7 @@
   "order": 0,
   "cost": 1000,
   "requires": ["minecraft:shulker_shell"],
-  "delivery": { "kind": "envelop", "spews": "shulker_bullet" },
+  "delivery": { "kind": "envelop", "range": 16, "spews": "shulker_bullet" },
   "behaviors": [
     { "type": "target", "where": ["living"], "steps": [] }
   ],

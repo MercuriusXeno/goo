@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.ChargeSize;
+import com.mercuriusxeno.goo.ability.ThrowRange;
 import com.mercuriusxeno.goo.ability.world.AbilityImpact;
 import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
@@ -9,6 +10,7 @@ import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.phys.Vec3;
 
 /**
  * Server side of a spontaneous cast sized by its charge: on release it lands
@@ -24,7 +26,7 @@ public final class GooChargedCastHandler {
 
     /**
      * Casts a sized ability at the target its release aimed: refused whole for
-     * a target past the throw range or a size the goo cannot pay for.
+     * a target past the ability's range or a size the goo cannot pay for.
      *
      * @param player    the casting player
      * @param gooType   the ability's goo type
@@ -34,7 +36,7 @@ public final class GooChargedCastHandler {
      */
     static void cast(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType, AbilityDefinition ability,
                      GooThrowPayload aimed, int heldTicks) {
-        if (player.getEyePosition().distanceTo(aimed.targetPoint()) > GooThrowHandler.MAX_RANGE) {
+        if (!reaches(player.getEyePosition(), aimed.targetPoint(), ability)) {
             return;
         }
         int holdings = GooSourceScanner.aggregateAvailable(player).getOrDefault(gooType, 0);
@@ -51,5 +53,18 @@ public final class GooChargedCastHandler {
         // direct-goo-hit-credits-its-caster: the landing names its caster, so a charged Blast's hits name them
         AbilityImpact.land(player.level(), aimed.targetPos(), gooType, face == null ? Direction.UP : face, ability,
                 aimed.targetPoint(), size, player.getUUID());
+    }
+
+    /**
+     * Whether a charged cast's target stands within its ability's range of the eye.
+     * decision each-ability-names-its-range-and-the-shared-throw-range-retires
+     *
+     * @param eye     the caster's eye
+     * @param target  the aimed target point
+     * @param ability the cast ability
+     * @return true for a target in range
+     */
+    static boolean reaches(Vec3 eye, Vec3 target, AbilityDefinition ability) {
+        return eye.distanceTo(target) <= ThrowRange.of(ability);
     }
 }
