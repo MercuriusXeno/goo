@@ -69,6 +69,37 @@ class ConventionTest {
             "net.minecraft.client..", "com.mercuriusxeno.goo.client..", "com.mojang.blaze3d.."
     };
     private static final String GOO_PATH = "/com/mercuriusxeno/goo/";
+    private static final String GOO_PACKAGE_PREFIX = "com.mercuriusxeno.goo.";
+    private static final String TRANSLUCENT_VISUAL_PATH = GOO_PACKAGE_PREFIX + "client.TranslucentVisualPath";
+    private static final String LEVEL_RENDER_STAGE = "net.neoforged.neoforge.client.event.RenderLevelStageEvent";
+    /**
+     * The client classes still subscribing to a level render stage themselves,
+     * each struck as its task moves it onto the shared path; the list retires
+     * once the path is the one subscriber.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
+     */
+    private static final Set<String> NOT_YET_ON_THE_SORTING_PATH = Set.of(
+            "client.ability.AfterimageRenderer", "client.ability.AirbornWind", "client.ability.BeatRings",
+            "client.ability.BlockMingleRenderer", "client.ability.BoreDrill", "client.ability.ChainBurnoutRenderer",
+            "client.ability.CrystalShatterVisual", "client.ability.FireStream", "client.ability.FloatPlatform",
+            "client.ability.GlassKnives", "client.ability.GroundShake", "client.ability.GrowthBreeze",
+            "client.ability.HeadMarks", "client.ability.HeatWaveEffect", "client.ability.HeldSweepVisual",
+            "client.ability.HoveringKnives", "client.ability.LaserScorch", "client.ability.LaserVisual",
+            "client.ability.LevelCursor", "client.ability.LiftedPalmBlob", "client.ability.LunarTripView",
+            "client.ability.MeteorMarkers", "client.ability.MeteorScorches", "client.ability.NovaChargeGhost",
+            "client.ability.NovaRings", "client.ability.PartnerMeshes", "client.ability.PetrifyFog",
+            "client.ability.PneumaWind", "client.ability.PortalFaces", "client.ability.PortalView",
+            "client.ability.ReapSlashBlades", "client.ability.RelayLasers", "client.ability.RollingGooRenderer",
+            "client.ability.SculkerEchoRenderer", "client.ability.SculkerGlassRenderer", "client.ability.SculkerSenses",
+            "client.ability.SculkerVision", "client.ability.SignalRings", "client.ability.Tomes",
+            "client.ability.TransformationRenderer", "client.ability.WindLines", "client.ability.WispGlow",
+            "client.ability.ZapBolts", "client.hole.HoleMouths", "client.hole.HolePits",
+            "client.hud.CanisterHudRenderer", "client.hud.CrucibleHudRenderer", "client.hud.PlexerHudRenderer",
+            "client.hud.VatHudRenderer", "client.model.GooJoins", "client.overlay.AimedMobRipple",
+            "client.overlay.BlinkCursor", "client.overlay.FungusXray", "client.overlay.GasketOverlayRenderer",
+            "client.overlay.GooTargetHighlighter", "client.overlay.OculusXray", "client.overlay.OreXray",
+            "client.overlay.TransmitTargetMarker", "client.throwing.GooFlightRenderer",
+            "client.zone.RoomCopyRenderer", "client.zone.VoidstoneFaces");
     /**
      * The main and tools classes split into slices imported side by side, since one
      * import of them all took seconds (decision slow-tests-take-a-seam). The first
@@ -223,6 +254,45 @@ class ConventionTest {
                         .and(target(owner(loadedAssignableTo(LevelLightEngine.class)))))
                 .because("the server light engine drains its own queue on its tick;"
                         + " a manual drain throws (decision light-kick-never-drains)"));
+    }
+
+    /**
+     * No class under client but TranslucentVisualPath subscribes to a level
+     * render stage, a lambda handed to addListener included, so every goo
+     * visual drawn on a stage draws through the path that depth sorts it;
+     * the not-yet-moved list names the ones a later task moves.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
+     */
+    @Test
+    void levelStageDrawsGoThroughTheSortingPath() {
+        checkMain(classes()
+                .that().resideInAPackage(CLIENT_PACKAGE)
+                .and().doNotHaveFullyQualifiedName(TRANSLUCENT_VISUAL_PATH)
+                .and(DescribedPredicate.not(notYetOnTheSortingPath()))
+                .should(subscribeToNoLevelRenderStage())
+                .because("translucent goo visuals depth sort through the one shared path"
+                        + " (decision translucent-goo-visuals-draw-through-one-checked-sorting-path)"));
+    }
+
+    private static DescribedPredicate<JavaClass> notYetOnTheSortingPath() {
+        return DescribedPredicate.describe("named by the not-yet-moved list", cls -> {
+            String topLevel = cls.getName().split("\\$", 2)[0];
+            return topLevel.startsWith(GOO_PACKAGE_PREFIX)
+                    && NOT_YET_ON_THE_SORTING_PATH.contains(topLevel.substring(GOO_PACKAGE_PREFIX.length()));
+        });
+    }
+
+    private static ArchCondition<JavaClass> subscribeToNoLevelRenderStage() {
+        return new ArchCondition<>("subscribe to no level render stage") {
+            @Override
+            public void check(JavaClass cls, ConditionEvents events) {
+                cls.getMethods().stream()
+                        .filter(method -> method.getRawParameterTypes().stream()
+                                .anyMatch(type -> type.getName().startsWith(LEVEL_RENDER_STAGE)))
+                        .forEach(method -> events.add(SimpleConditionEvent.violated(method,
+                                method.getFullName() + " takes a level render stage outside TranslucentVisualPath")));
+            }
+        };
     }
 
     /**
