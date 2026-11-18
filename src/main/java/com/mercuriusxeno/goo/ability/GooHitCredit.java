@@ -16,7 +16,7 @@ import java.util.UUID;
  * the player as its cause and keeps the uncredited hit's direct entity, a
  * thrown hunk's or none, so it pushes the struck mob from where the uncredited
  * hit did. Goo's own listeners read a credited hit through {@link #causeOf},
- * as the uncredited hit it stands in for, so minion sparing, rally, charm,
+ * as the uncredited hit it stands in for, so minion sparing, lead, charm,
  * downed and the rest act as they did before goo hits named their player.
  * direct-goo-hit-credits-its-caster
  * goo-hit-keeps-its-kind-and-names-the-player-behind-it
@@ -29,7 +29,7 @@ public final class GooHitCredit {
     /**
      * The source a goo hit hurts with: the uncredited source naming the player
      * behind it, or the uncredited source itself where no player stands behind
-     * it, the player strikes itself, the target is that player's own rallied
+     * it, the player strikes itself, the target is that player's own led
      * or charmed mob, or the uncredited source names a position of its own,
      * which a credited source cannot carry.
      *

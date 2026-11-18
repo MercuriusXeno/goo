@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:refused_lead_at_a_charmed_cow_pays_nothing",
+  "environment": "goo:lead_reload",
+  "structure": "goo:test_bay",
+  "max_ticks": 20,
+  "setup_ticks": 0,
+  "required": true
+}

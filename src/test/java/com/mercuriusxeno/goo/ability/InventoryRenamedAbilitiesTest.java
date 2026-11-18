@@ -27,6 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * decision ten-abilities-take-their-inventory-names-and-keys
  * decision rename-rekeys-everything-that-names-the-ability
  * decision spire-is-renamed-build
+ * decision kin-becomes-herd-and-rally-becomes-lead-on-yarn
  */
 class InventoryRenamedAbilitiesTest {
 
@@ -61,7 +62,8 @@ class InventoryRenamedAbilitiesTest {
                 Arguments.of("crystal_glimmer", "Glimmer"),
                 Arguments.of("jelly_nectar", "Nectar"),
                 Arguments.of("void_cancel", "Cancel"),
-                Arguments.of("zoo_kin", "Kin"),
+                Arguments.of("yarn_herd", "Herd"),
+                Arguments.of("yarn_lead", "Lead"),
                 Arguments.of("rock_build", "Build"),
                 Arguments.of("unstable_nitro", "Nitro"));
     }
@@ -94,7 +96,8 @@ class InventoryRenamedAbilitiesTest {
                         "rock_stoneskin")),
                 Arguments.of("jelly", Set.of("jelly_gluttony", "jelly_heal", "jelly_nectar", "jelly_reserve")),
                 Arguments.of("void", Set.of("void_cancel", "void_hole", "void_vacuum", "void_zone")),
-                Arguments.of("zoo", Set.of("zoo_allure", "zoo_kin", "zoo_rally", "zoo_shape", "zoo_spawn")));
+                Arguments.of("zoo", Set.of("zoo_allure", "zoo_shape", "zoo_spawn")),
+                Arguments.of("yarn", Set.of("yarn_herd", "yarn_lead")));
     }
 
     @Test

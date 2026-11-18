@@ -30,7 +30,7 @@ class AbilityReleaseSwingTest {
             Map.entry("hex_charm", ArmPoseKind.NONE),
             Map.entry("typhoon_shulk", ArmPoseKind.NONE),
             Map.entry("yore_rewind", ArmPoseKind.NONE),
-            Map.entry("zoo_rally", ArmPoseKind.NONE),
+            Map.entry("yarn_lead", ArmPoseKind.NONE),
             Map.entry("zoo_shape", ArmPoseKind.NONE),
             Map.entry("zoo_spawn", ArmPoseKind.NONE),
             Map.entry("glow_bulb", ArmPoseKind.HOLD_OUT),
