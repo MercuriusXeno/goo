@@ -1,21 +1,24 @@
 package com.mercuriusxeno.goo.block.ability;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.program.PhaseGooStep;
 import com.mercuriusxeno.goo.ability.quantum.OutOfPhase;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.tick.EntityTickEvent;
-import java.util.Optional;
-import java.util.stream.Stream;
 
 /**
- * Puts a living thing standing in Phase goo out of phase on the server, each
- * of its ticks, a player stepping in or a mob walked or lured in alike. The
+ * Puts a living thing standing in Phase goo, or hovering in the zone over
+ * its top, out of phase on the server, each of its ticks, a player stepping
+ * in or a mob walked or lured in alike, so a jump over the goo keeps it. The
  * phase reaches only a couple of ticks past now, so it stands while the
  * thing stands there and expires when it steps off. A phase already standing
  * longer is kept. The phase is the out-of-phase state, with all it means:
@@ -41,6 +44,8 @@ public final class PhaseGooEvents {
     private static final float OUT_OF_PHASE_PITCH = 1.6F;
     /** The pitch the thing steps back into phase at, lower, the way back. */
     private static final float INTO_PHASE_PITCH = 0.9F;
+    /** How many blocks under its feet a thing's goo is sought: its own block and the tallest zone's worth. */
+    private static final int ZONE_REACH = (int) Math.ceil(PhaseGooStep.MOST_ZONE_HEIGHT) + 1;
 
     private PhaseGooEvents() {
     }
@@ -56,7 +61,7 @@ public final class PhaseGooEvents {
         if (!(event.getEntity() instanceof LivingEntity living) || !(living.level() instanceof ServerLevel level)) {
             return;
         }
-        boolean inGoo = phaseCellUnder(living).isPresent();
+        boolean inGoo = heldByTheGoo(living);
         PhaseShift shift = PhaseShift.of(inGoo, living.getData(GooAttachments.OUT_OF_PHASE), level.getGameTime());
         if (inGoo) {
             phaseIn(level, living);
@@ -76,17 +81,34 @@ public final class PhaseGooEvents {
     }
 
     /**
-     * The Phase cell a living thing stands in: one filling the block its
-     * feet are in, or else one holding it up.
+     * Whether Phase goo holds a living thing: the first block with a body at
+     * or under its feet is a Phase cell, and its feet stand in the goo or in
+     * the zone over the goo's top the laying ability's step names, so a jump
+     * over the goo keeps the phase. The search ends at the first block with
+     * a body, so a thing on ordinary ground reads one block.
+     * phase-goo-puts-what-stands-in-it-out-of-phase
      *
      * @param living the living thing
-     * @return the cell, empty where no Phase goo holds it
+     * @return true where the goo or its zone holds it
      */
-    private static Optional<BlockPos> phaseCellUnder(LivingEntity living) {
-        return Stream.of(living.blockPosition(), living.getOnPos())
-                .filter(pos -> VolumeCellBlock.hasSurface(living.level().getBlockState(pos).getBlock(),
-                        CellSurface.PHASE))
-                .findFirst();
+    private static boolean heldByTheGoo(LivingEntity living) {
+        Level level = living.level();
+        BlockPos.MutableBlockPos pos = living.blockPosition().mutable();
+        for (int down = 0; down <= ZONE_REACH; down++, pos.move(Direction.DOWN)) {
+            BlockState state = level.getBlockState(pos);
+            if (state.getBlock() instanceof VolumeCellBlock cell && cell.surface() == CellSurface.PHASE) {
+                return holds(level, pos, state, cell, living.getY());
+            }
+            if (!state.getCollisionShape(level, pos).isEmpty()) {
+                return false;
+            }
+        }
+        return false;
+    }
+
+    private static boolean holds(Level level, BlockPos pos, BlockState state, VolumeCellBlock cell, double feetY) {
+        double gooTop = pos.getY() + (double) VolumeCellBlock.layersOf(state) / VolumeCellBlock.MAX_LAYERS;
+        return PhaseGooStep.in(cell.layingProgram(level)).map(phase -> phase.holds(feetY - gooTop)).orElse(false);
     }
 
     private static void phaseIn(ServerLevel level, LivingEntity living) {
