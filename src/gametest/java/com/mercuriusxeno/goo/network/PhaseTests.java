@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.quantum.OutOfPhase;
+import com.mercuriusxeno.goo.ability.quantum.PhaseEvents;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import com.mercuriusxeno.goo.gametest.SurvivalPlayers;
@@ -31,6 +32,7 @@ public final class PhaseTests {
     private static final String PHASED_PLAYER_IGNORED = "phased_player_ignored_by_zombie";
     private static final String PHASED_PAIR_HURT = "phased_pair_hurt_each_other";
     private static final String PHASED_MOB_PASSES_THROUGH = "phased_mob_passes_through_an_unphased_one";
+    private static final String PHASED_ZOMBIE_HUNTS = "phased_zombie_hunts_a_phased_player";
     /** How far apart, across, two overlapping zombies start, so a push between them has a side to go. */
     private static final double OVERLAP_OFFSET = 0.1;
     /** Ticks two overlapping zombies are given to push each other apart. */
@@ -53,6 +55,7 @@ public final class PhaseTests {
         GooTestFunctions.registerTest(registrar, PHASED_PLAYER_IGNORED, PhaseTests::phasedPlayerIgnoredByZombie);
         GooTestFunctions.registerTest(registrar, PHASED_PAIR_HURT, PhaseTests::phasedPairHurtEachOther);
         GooTestFunctions.registerTest(registrar, PHASED_MOB_PASSES_THROUGH, PhaseTests::phasedMobPassesThrough);
+        GooTestFunctions.registerTest(registrar, PHASED_ZOMBIE_HUNTS, PhaseTests::phasedZombieHuntsAPhasedPlayer);
     }
 
     /**
@@ -126,6 +129,26 @@ public final class PhaseTests {
                     "A phased zombie's hit should land on a phased player, health " + player.getHealth());
             helper.getLevel().getServer().getPlayerList().remove(player);
             helper.succeed();
+        });
+    }
+
+    /**
+     * A free-willed zombie and a player both out of phase share a plane, so
+     * the zombie's own goals take the player as its target.
+     *
+     * @param helper the gametest helper
+     */
+    public static void phasedZombieHuntsAPhasedPlayer(GameTestHelper helper) {
+        ServerPlayer player = SurvivalPlayers.placeIn(helper);
+        putOutOfPhase(player);
+        Mob zombie = helper.spawn(EntityType.ZOMBIE, ZOMBIE_POS);
+        putOutOfPhase(zombie);
+        helper.succeedWhen(() -> {
+            helper.assertTrue(zombie.getTarget() == player,
+                    "A phased zombie should target a phased player, targets " + zombie.getTarget()
+                            + ", zombie phased " + PhaseEvents.phased(zombie) + ", player phased "
+                            + PhaseEvents.phased(player));
+            helper.getLevel().getServer().getPlayerList().remove(player);
         });
     }
 
