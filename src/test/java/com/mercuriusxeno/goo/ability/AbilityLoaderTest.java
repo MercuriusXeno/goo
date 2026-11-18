@@ -85,7 +85,7 @@ class AbilityLoaderTest {
     /** The one brew that starts silent (decision rally-drops-its-sound-and-gets-its-sprite). */
     private static final Identifier SILENT_BREW = Identifier.fromNamespaceAndPath(Goo.MODID, "zoo_rally");
     /** The proving example of a world ability that stays after its blob lands. */
-    private static final String LINGERING = "metal_urchin";
+    private static final String LINGERING = "deep_shriek";
     /** The ability whose program ends the tick it lands. */
     private static final String BLAST = "unstable_blast";
 
@@ -215,6 +215,15 @@ class AbilityLoaderTest {
             assertEquals(Set.of("hex_charm", "hex_enchant", "hex_fuse", "hex_drain", "hex_leech"),
                     shippedPathsOf(GooTypes.HEX));
             assertNull(new AbilityRegistry(shippedById()).durativeAbilityFor(GooTypes.HEX));
+        }
+
+        /**
+         * metal-world-goo-is-named-spikes
+         * spikes-is-a-coat-of-metal-goo-that-impales-what-walks-on-it
+         */
+        @Test
+        void metalShipsDartMagnetAndSpikes() {
+            assertEquals(Set.of("metal_dart", "metal_magnet", "metal_spikes"), shippedPathsOf(GooTypes.METAL));
         }
 
         @Test
@@ -414,7 +423,7 @@ class AbilityLoaderTest {
 
     /**
      * Every shipped arc, beam, spontaneous cast and envelop names its range:
-     * Zap 32, Knives and Dart none, every other 16.
+     * Zap and Build 32, Knives and Dart none, every other 16.
      * decision each-ability-names-its-range-and-the-shared-throw-range-retires
      * decision abilities-leaving-the-shared-range-start-at-sixteen-blocks
      * decision zap-starts-at-thirty-two-blocks
@@ -432,7 +441,7 @@ class AbilityLoaderTest {
         }
         Map<String, Double> expected = new TreeMap<>();
         named.keySet().forEach(name -> expected.put(name, switch (name) {
-            case "pulse_zap" -> 32.0;
+            case "pulse_zap", "rock_build" -> 32.0;
             case "crystal_knives", "metal_dart" -> 0.0;
             default -> 16.0;
         }));
@@ -513,19 +522,19 @@ class AbilityLoaderTest {
     @Nested
     class Description {
 
-        private static final String SPIRE = "rock_spire";
+        private static final String BUILD = "rock_build";
 
         @Test
         void jsonNamingADescriptionReadsThatKey() {
-            String json = AbilityJson.read(SPIRE).replaceFirst("\\{",
-                    "{ \"description\": \"goo.ability.rock.spire.lifted\",");
+            String json = AbilityJson.read(BUILD).replaceFirst("\\{",
+                    "{ \"description\": \"goo.ability.rock.build.lifted\",");
 
-            assertEquals("goo.ability.rock.spire.lifted", AbilityJson.decodeText(SPIRE, json).description());
+            assertEquals("goo.ability.rock.build.lifted", AbilityJson.decodeText(BUILD, json).description());
         }
 
         @Test
         void jsonNamingNoDescriptionReadsItsDisplayNamePlusDescription() {
-            assertEquals("goo.ability.rock.spire.description", AbilityJson.decode(SPIRE).description());
+            assertEquals("goo.ability.rock.build.description", AbilityJson.decode(BUILD).description());
         }
     }
 
@@ -538,7 +547,7 @@ class AbilityLoaderTest {
     class CostFormula {
 
         private static final List<String> DYNAMIC_ABILITIES = List.of("ender_blink",
-                "unstable_blast", "rock_spire", "rock_gouge", "yore_age");
+                "unstable_blast", "rock_build", "rock_gouge", "yore_age");
 
         @Test
         void eachDynamicAbilityCarriesItsFormula() {

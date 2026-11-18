@@ -223,6 +223,15 @@ public final class GooAttachments {
             ATTACHMENT_TYPES.register("nectar_stuck_at", () -> AttachmentType.builder(() -> -1L).build());
 
     /**
+     * The game time Spikes goo last struck an entity, so a thing walking on
+     * it is struck again only once the spikes step's cooldown has passed,
+     * however many cells it crosses; never saved.
+     * spikes-is-a-coat-of-metal-goo-that-impales-what-walks-on-it
+     */
+    public static final Supplier<AttachmentType<Long>> SPIKES_STRUCK_AT =
+            ATTACHMENT_TYPES.register("spikes_struck_at", () -> AttachmentType.builder(() -> -1L).build());
+
+    /**
      * Where an entity stood before its latest goo teleport, kept for the
      * steps after the teleport in the same program, a ghost trail among
      * them, and never saved (decision ghost-trail-spans-the-blink).

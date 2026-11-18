@@ -1,8 +1,8 @@
 package com.mercuriusxeno.goo.client.overlay;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.BuildFootprint;
 import com.mercuriusxeno.goo.ability.Delivery;
-import com.mercuriusxeno.goo.ability.SpireFootprint;
 import com.mercuriusxeno.goo.ability.quantum.Gate;
 import com.mercuriusxeno.goo.block.ability.FaceSupport;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
@@ -13,10 +13,10 @@ import com.mercuriusxeno.goo.client.ability.HeldDomeRenderer;
 import com.mercuriusxeno.goo.client.ability.PortalView;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
+import com.mercuriusxeno.goo.client.throwing.BuildCast;
 import com.mercuriusxeno.goo.client.throwing.GloveAim;
 import com.mercuriusxeno.goo.client.throwing.GloveThrowSender;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
-import com.mercuriusxeno.goo.client.throwing.SpireCast;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Camera;
@@ -204,7 +204,7 @@ public final class GooTargetHighlighter {
     }
 
     /**
-     * Draws the preview of a cast sized as it is made: a Spire's footprint
+     * Draws the preview of a cast sized as it is made: a Build's footprint
      * (decision spire-rips-walls-and-platforms) or a charge-sized ability's
      * dome (decision spontaneous-abilities-cast-at-the-target-with-no-thrown-blob).
      *
@@ -213,10 +213,10 @@ public final class GooTargetHighlighter {
      * @return true where a sized cast drew its preview in place of the held ghost
      */
     private static boolean renderSizedPreview(@Nullable String abilityId, HighlightFrame frame) {
-        Optional<SpireFootprint> footprint = SpireCast.footprint();
+        Optional<BuildFootprint> footprint = BuildCast.footprint();
         if (footprint.isPresent()) {
-            SpirePreviewRenderer.render(frame.ps(), frame.buf(), frame.camera().position(), footprint.get(),
-                    SpireCast.rising(), ClientGooTypes.highlight(frame.selectedType()), realTimeSeconds());
+            BuildPreviewRenderer.render(frame.ps(), frame.buf(), frame.camera().position(), footprint.get(),
+                    BuildCast.rising(), ClientGooTypes.highlight(frame.selectedType()), realTimeSeconds());
             return true;
         }
         if (GloveThrowSender.selectedSizesByCharge(abilityId)) {

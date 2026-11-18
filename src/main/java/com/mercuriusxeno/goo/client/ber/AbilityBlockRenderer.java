@@ -4,8 +4,7 @@ import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.ability.LurkerPulses;
 import com.mercuriusxeno.goo.client.ability.MarkerOrbVisual;
-import com.mercuriusxeno.goo.client.ability.UrchinVisual;
-import com.mercuriusxeno.goo.client.ability.VineTrapVisual;
+import com.mercuriusxeno.goo.client.ability.SpikesVisual;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
@@ -29,8 +28,7 @@ import org.jspecify.annotations.Nullable;
  * <p>Active visualizers:
  * <ul>
  *   <li>{@link MarkerOrbVisual} - the slime-like orb while the program runs</li>
- *   <li>{@link UrchinVisual} - Urchin's bristle and the spike each shot shoots</li>
- *   <li>{@link VineTrapVisual} - the Vines trap's knot and tendrils on the ground</li>
+ *   <li>{@link SpikesVisual} - the metal spike trap's bristle and the spike each shot shoots</li>
  * </ul>
  */
 public class AbilityBlockRenderer
@@ -99,18 +97,13 @@ public class AbilityBlockRenderer
         extractTargetAndFace(be, state);
         state.abilityId = be.getAbilityId();
         state.lurkerGlow = LurkerPulses.CLIENT.glowAt(be.getBlockPos(), state.gameTime);
-        UrchinVisual.extract(be, state);
-        VineTrapVisual.extract(be, state);
+        SpikesVisual.extract(be, state);
     }
 
     @Override
     public void submit(AbilityBlockRenderState state, PoseStack poseStack,
                        SubmitNodeCollector nodeCollector, CameraRenderState cameraState) {
-        if (state.vinesTrap) {
-            VineTrapVisual.submit(state, poseStack, nodeCollector);
-            return;
-        }
         MarkerOrbVisual.submit(state, poseStack, nodeCollector);
-        UrchinVisual.submit(state, poseStack, nodeCollector);
+        SpikesVisual.submit(state, poseStack, nodeCollector);
     }
 }

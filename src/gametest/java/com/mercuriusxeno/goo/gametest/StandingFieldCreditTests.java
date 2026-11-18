@@ -33,8 +33,8 @@ import java.util.UUID;
 import java.util.function.Consumer;
 
 /**
- * Gametests for the hits a standing goo field deals: Urchin's spikes, landed through the shipped ability, strike
- * naming the player who threw Urchin and keeping goo:stalagmite, strike naming no one where no player threw it,
+ * Gametests for the hits a standing goo field deals: the metal spike trap fixture's spikes, landed through the ability registry, strike
+ * naming the player who threw the trap and keeping goo:stalagmite, strike naming no one where no player threw it,
  * leave that player's rally and charm standing on the mobs struck, and the field's block entity carries the
  * player through a save.
  * standing-goo-thing-credits-whoever-placed-it
@@ -43,37 +43,26 @@ import java.util.function.Consumer;
  */
 @RegistersGameTests
 public final class StandingFieldCreditTests {
-    private static final String URCHIN_NAMES_ITS_THROWER = "standing_credit_urchin_names_the_player_who_threw_it";
-    private static final String UNTHROWN_URCHIN_NAMES_NONE = "standing_credit_urchin_no_player_threw_names_no_entity";
-    private static final String URCHIN_KEEPS_RALLY_AND_CHARM = "standing_credit_urchin_keeps_rally_and_charm";
-    private static final String URCHIN_PLACER_SURVIVES_A_SAVE = "standing_credit_urchin_placer_survives_a_save";
+    private static final String SPIKE_TRAP_NAMES_ITS_THROWER = "standing_credit_spike_trap_names_the_player_who_threw_it";
+    private static final String UNTHROWN_SPIKE_TRAP_NAMES_NONE = "standing_credit_spike_trap_no_player_threw_names_no_entity";
+    private static final String SPIKE_TRAP_KEEPS_RALLY_AND_CHARM = "standing_credit_spike_trap_keeps_rally_and_charm";
+    private static final String SPIKE_TRAP_PLACER_SURVIVES_A_SAVE = "standing_credit_spike_trap_placer_survives_a_save";
     private static final String LURKER_NAMES_ITS_THROWER = "standing_credit_lurker_names_the_player_who_threw_it";
     private static final String UNTHROWN_LURKER_NAMES_NONE = "standing_credit_lurker_no_player_threw_names_no_entity";
-    private static final String VINES_THORNS_NAME_THEIR_THROWER =
-            "standing_credit_vines_thorns_name_the_player_who_threw_them";
     private static final String UNSTABLE_LURKER = "goo:unstable_lurker";
-    private static final String LEAF_VINES = "goo:leaf_vines";
     private static final String SHOULD_NAME = "%s should hit as %s naming %s, its latest such hit named %s";
-    /** The floor block missed Vines land on; they stand in the cell above it, where the husk stands. */
-    private static final BlockPos FLOOR_UNDER_THE_VINES = new BlockPos(3, 0, 3);
-    /** Ticks past the landing by which the vines' field has rooted the husk standing in it. */
-    private static final int ROOTED_BY_TICK = 5;
-    /** Ticks the rooted husk is shoved east, past the vines' first thorn. */
-    private static final int SHOVE_TICKS = 30;
-    /** A shove far past the root's leash in one tick. */
-    private static final Vec3 SHOVE = new Vec3(0.6, 0, 0);
 
-    private static final String METAL_URCHIN = "goo:metal_urchin";
-    private static final String ABILITIES_REQUIRED = "Ability registry must hold " + METAL_URCHIN;
-    private static final String NOT_STRUCK = "The Urchin field has not struck the %s yet";
+    private static final String SPIKE_TRAP = "goo:test_spike_trap";
+    private static final String ABILITIES_REQUIRED = "Ability registry must hold " + SPIKE_TRAP;
+    private static final String NOT_STRUCK = "The spike trap field has not struck the %s yet";
     private static final String SHOULD_NAME_THE_THROWER =
-            "Urchin's strike should name the player who threw it as goo:stalagmite, last hit by %s from %s";
+            "The spike trap's strike should name the player who threw it as goo:stalagmite, last hit by %s from %s";
     private static final String SHOULD_NAME_NONE =
-            "Urchin's strike with no player behind it should name no entity as goo:stalagmite, last hit by %s from %s";
-    private static final String SHOULD_KEEP = "The thrower's own %s should keep its %s after Urchin struck it, holds it %s";
-    private static final String PLACER_LOST = "The reloaded Urchin block entity holds placer %s, the player who threw it was %s";
+            "The spike trap's strike with no player behind it should name no entity as goo:stalagmite, last hit by %s from %s";
+    private static final String SHOULD_KEEP = "The thrower's own %s should keep its %s after the spike trap struck it, holds it %s";
+    private static final String PLACER_LOST = "The reloaded spike trap block entity holds placer %s, the player who threw it was %s";
 
-    /** The block Urchin's goo lands on; the field stands in the cell above it. */
+    /** The block the spike trap's goo lands on; the field stands in the cell above it. */
     private static final BlockPos STRUCK = new BlockPos(3, 1, 3);
     private static final BlockPos FIELD = STRUCK.above();
     /** Two mob cells, each two and a half blocks from the field's center, inside its 3.75 block reach. */
@@ -81,7 +70,7 @@ public final class StandingFieldCreditTests {
     private static final BlockPos EAST_OF_THE_FIELD = new BlockPos(5, 1, 3);
     /** Blocks above the field the thrower hangs, out of the field's reach so it strikes only the mobs. */
     private static final int THROWER_HEIGHT = 12;
-    /** Health enough for a mob to outlast every charge an Urchin field holds. */
+    /** Health enough for a mob to outlast every charge a spike trap field holds. */
     private static final float HARDY_HEALTH = 1024f;
     private static final float RALLY_DAMAGE = 6f;
 
@@ -94,20 +83,18 @@ public final class StandingFieldCreditTests {
      * @param registrar the test function registrar
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
-        GooTestFunctions.registerTest(registrar, URCHIN_NAMES_ITS_THROWER,
-                StandingFieldCreditTests::urchinStrikeNamesThePlayerWhoThrewIt);
-        GooTestFunctions.registerTest(registrar, UNTHROWN_URCHIN_NAMES_NONE,
-                StandingFieldCreditTests::urchinStrikeNoPlayerThrewNamesNoEntity);
-        GooTestFunctions.registerTest(registrar, URCHIN_KEEPS_RALLY_AND_CHARM,
-                StandingFieldCreditTests::urchinStrikeKeepsTheThrowersRallyAndCharm);
-        GooTestFunctions.registerTest(registrar, URCHIN_PLACER_SURVIVES_A_SAVE,
-                StandingFieldCreditTests::urchinPlacerSurvivesASave);
+        GooTestFunctions.registerTest(registrar, SPIKE_TRAP_NAMES_ITS_THROWER,
+                StandingFieldCreditTests::spikeTrapStrikeNamesThePlayerWhoThrewIt);
+        GooTestFunctions.registerTest(registrar, UNTHROWN_SPIKE_TRAP_NAMES_NONE,
+                StandingFieldCreditTests::spikeTrapStrikeNoPlayerThrewNamesNoEntity);
+        GooTestFunctions.registerTest(registrar, SPIKE_TRAP_KEEPS_RALLY_AND_CHARM,
+                StandingFieldCreditTests::spikeTrapStrikeKeepsTheThrowersRallyAndCharm);
+        GooTestFunctions.registerTest(registrar, SPIKE_TRAP_PLACER_SURVIVES_A_SAVE,
+                StandingFieldCreditTests::spikeTrapPlacerSurvivesASave);
         GooTestFunctions.registerTest(registrar, LURKER_NAMES_ITS_THROWER,
                 StandingFieldCreditTests::lurkerBlastNamesThePlayerWhoThrewIt);
         GooTestFunctions.registerTest(registrar, UNTHROWN_LURKER_NAMES_NONE,
                 StandingFieldCreditTests::lurkerBlastNoPlayerThrewNamesNoEntity);
-        GooTestFunctions.registerTest(registrar, VINES_THORNS_NAME_THEIR_THROWER,
-                StandingFieldCreditTests::vinesThornsNameThePlayerWhoThrewThem);
     }
 
     /**
@@ -135,26 +122,6 @@ public final class StandingFieldCreditTests {
         succeedOnceNamed(helper, pig, "Lurker's blast", DamageTypes.EXPLOSION, null);
     }
 
-    /**
-     * Leaf Vines missed onto the floor for a mock player stand, root a husk standing in them, and the thorns the
-     * husk takes once shoved off its root name that player as minecraft:sweet_berry_bush.
-     *
-     * @param helper the gametest helper
-     */
-    public static void vinesThornsNameThePlayerWhoThrewThem(GameTestHelper helper) {
-        ServerPlayer thrower = throwerOverhead(helper);
-        helper.setBlock(FLOOR_UNDER_THE_VINES, Blocks.STONE);
-        Mob husk = hardy(helper.spawnWithNoFreeWill(EntityType.HUSK, FLOOR_UNDER_THE_VINES.above()));
-        land(helper, FLOOR_UNDER_THE_VINES, LEAF_VINES, GooTypes.LEAF, thrower.getUUID());
-        for (int tick = ROOTED_BY_TICK; tick < ROOTED_BY_TICK + SHOVE_TICKS; tick++) {
-            helper.runAfterDelay(tick, () -> {
-                husk.setDeltaMovement(SHOVE);
-                husk.hurtMarked = true;
-            });
-        }
-        succeedOnceNamed(helper, husk, "Vines' thorns", DamageTypes.SWEET_BERRY_BUSH, thrower);
-    }
-
     // a mob's last hit may be a fall or a fire it took since, so the test holds the latest hit of the type it awaits
     private static void succeedOnceNamed(GameTestHelper helper, Mob mob, String hitBy, ResourceKey<DamageType> type,
                                          @Nullable ServerPlayer player) {
@@ -180,14 +147,14 @@ public final class StandingFieldCreditTests {
     }
 
     /**
-     * Urchin, landed for a mock player, strikes a pig in its field with goo:stalagmite naming that player.
+     * The spike trap, landed for a mock player, strikes a pig in its field with goo:stalagmite naming that player.
      *
      * @param helper the gametest helper
      */
-    public static void urchinStrikeNamesThePlayerWhoThrewIt(GameTestHelper helper) {
+    public static void spikeTrapStrikeNamesThePlayerWhoThrewIt(GameTestHelper helper) {
         ServerPlayer thrower = throwerOverhead(helper);
         Mob pig = hardy(helper.spawnWithNoFreeWill(EntityType.PIG, SOUTH_OF_THE_FIELD));
-        landUrchin(helper, thrower.getUUID());
+        landSpikeTrap(helper, thrower.getUUID());
         helper.succeedWhen(() -> {
             DamageSource last = struck(helper, pig, "pig");
             helper.assertTrue(last.getEntity() == thrower && last.is(DamageStep.STALAGMITE),
@@ -197,13 +164,13 @@ public final class StandingFieldCreditTests {
     }
 
     /**
-     * Urchin, landed with no player behind it, strikes a pig in its field with goo:stalagmite naming no entity.
+     * The spike trap, landed with no player behind it, strikes a pig in its field with goo:stalagmite naming no entity.
      *
      * @param helper the gametest helper
      */
-    public static void urchinStrikeNoPlayerThrewNamesNoEntity(GameTestHelper helper) {
+    public static void spikeTrapStrikeNoPlayerThrewNamesNoEntity(GameTestHelper helper) {
         Mob pig = hardy(helper.spawnWithNoFreeWill(EntityType.PIG, SOUTH_OF_THE_FIELD));
-        landUrchin(helper, null);
+        landSpikeTrap(helper, null);
         helper.succeedWhen(() -> {
             DamageSource last = struck(helper, pig, "pig");
             helper.assertTrue(last.getEntity() == null && last.is(DamageStep.STALAGMITE),
@@ -212,18 +179,18 @@ public final class StandingFieldCreditTests {
     }
 
     /**
-     * Urchin, landed for a mock player, strikes a cow that player rallied and a husk that player charmed, and
+     * The spike trap, landed for a mock player, strikes a cow that player rallied and a husk that player charmed, and
      * both the rally and the charm still stand once each has been struck.
      *
      * @param helper the gametest helper
      */
-    public static void urchinStrikeKeepsTheThrowersRallyAndCharm(GameTestHelper helper) {
+    public static void spikeTrapStrikeKeepsTheThrowersRallyAndCharm(GameTestHelper helper) {
         ServerPlayer thrower = throwerOverhead(helper);
         Mob cow = hardy(helper.spawnWithNoFreeWill(EntityType.COW, SOUTH_OF_THE_FIELD));
         cow.setData(GooAttachments.RALLIED, new Rallied(thrower.getUUID(), RALLY_DAMAGE));
         Mob husk = hardy(helper.spawnWithNoFreeWill(EntityType.HUSK, EAST_OF_THE_FIELD));
         husk.setData(GooAttachments.CHARMED, new Charmed(thrower.getUUID()));
-        landUrchin(helper, thrower.getUUID());
+        landSpikeTrap(helper, thrower.getUUID());
         helper.succeedWhen(() -> {
             struck(helper, cow, "rallied cow");
             struck(helper, husk, "charmed husk");
@@ -236,14 +203,14 @@ public final class StandingFieldCreditTests {
     }
 
     /**
-     * Urchin's block entity, landed for a player, saves to a tag through its codec, and a fresh block entity
+     * The spike trap's block entity, landed for a player, saves to a tag through its codec, and a fresh block entity
      * loaded from that tag holds the same player as the field's placer.
      *
      * @param helper the gametest helper
      */
-    public static void urchinPlacerSurvivesASave(GameTestHelper helper) {
+    public static void spikeTrapPlacerSurvivesASave(GameTestHelper helper) {
         UUID thrower = UUID.randomUUID();
-        landUrchin(helper, thrower);
+        landSpikeTrap(helper, thrower);
         AbilityBlockEntity standing = helper.getBlockEntity(FIELD, AbilityBlockEntity.class);
         CompoundTag saved = standing.saveCustomOnly(helper.getLevel().registryAccess());
         AbilityBlockEntity reloaded = new AbilityBlockEntity(standing.getBlockPos(), standing.getBlockState());
@@ -253,11 +220,11 @@ public final class StandingFieldCreditTests {
         helper.succeed();
     }
 
-    private static void landUrchin(GameTestHelper helper, @Nullable UUID thrower) {
+    private static void landSpikeTrap(GameTestHelper helper, @Nullable UUID thrower) {
         helper.setBlock(STRUCK, Blocks.STONE);
-        AbilityDefinition urchin = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(METAL_URCHIN));
-        helper.assertTrue(urchin != null, ABILITIES_REQUIRED);
-        AbilityImpact.land(helper.getLevel(), helper.absolutePos(STRUCK), GooTypes.METAL, Direction.UP, urchin,
+        AbilityDefinition spikeTrap = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(SPIKE_TRAP));
+        helper.assertTrue(spikeTrap != null, ABILITIES_REQUIRED);
+        AbilityImpact.land(helper.getLevel(), helper.absolutePos(STRUCK), GooTypes.METAL, Direction.UP, spikeTrap,
                 null, 0, thrower);
     }
 

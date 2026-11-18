@@ -6,7 +6,11 @@ import com.mercuriusxeno.goo.ability.end.EndDestination;
 import com.mercuriusxeno.goo.ability.end.EndGatePassage;
 import com.mercuriusxeno.goo.ability.end.EndWayBack;
 import com.mercuriusxeno.goo.ability.pulse.ZapDevice;
+import com.mercuriusxeno.goo.ability.tartarus.TartarusArrival;
+import com.mercuriusxeno.goo.ability.tartarus.TartarusHolds;
+import com.mercuriusxeno.goo.ability.tartarus.TartarusPassage;
 import com.mercuriusxeno.goo.ability.zone.ConjuredDoors;
+import com.mercuriusxeno.goo.ability.zone.GateLook;
 import com.mercuriusxeno.goo.ability.zone.ZoneRooms;
 import com.mercuriusxeno.goo.item.GooCasters;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
@@ -47,7 +51,7 @@ import java.util.function.Consumer;
 public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<ChannelAim> channelAim, float charge,
                          PlacementPrice placementPrice)
         implements TargetHost, ExplodeHost, EntityScanHost, ChannelHost, FrostHost, ZoneHost, AstralLunarHost,
-        EndHost {
+        EndHost, TartarusHost {
 
     /** The share of the player's height Nova emanates from. */
     private static final double HALF_HEIGHT = 0.5;
@@ -311,6 +315,25 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<Channe
     @Override
     public void carryThroughEndGate(EndDestination destination) {
         EndGatePassage.carry(player, destination);
+    }
+
+    /** Where the player's Tartarus hold carries them (decision
+     * tartarus-sets-you-on-the-nearest-safe-floor-at-the-scaled-spot-or-refuses). */
+    @Override
+    public Optional<TartarusArrival> tartarusArrival() {
+        return TartarusHolds.arrivalOf(player);
+    }
+
+    /** Conjures Tartarus' gate before the player, as End's is, drawn with the nether
+     * portal's texture (decision tartarus-summons-a-gate-to-the-nether-like-end-and-zone). */
+    @Override
+    public void conjureTartarusGate(int held, int charge) {
+        ConjuredDoors.conjure(player, held, charge, GateLook.NETHER_PORTAL);
+    }
+
+    @Override
+    public void carryThroughTartarusGate(TartarusArrival arrival) {
+        TartarusPassage.carry(player, arrival);
     }
 
     @Override

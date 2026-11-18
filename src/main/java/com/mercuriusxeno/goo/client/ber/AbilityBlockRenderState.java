@@ -46,8 +46,8 @@ public class AbilityBlockRenderState extends BlockEntityRenderState {
      */
     public java.util.List<org.joml.Vector3f> spikeAims = java.util.List.of();
 
-    /** How far out Urchin's spines stand this frame, as a share of the landing flare's, zero at rest. */
-    public float urchinBristle;
+    /** How far out the metal spike trap's spines stand this frame, as a share of the landing flare's, zero at rest. */
+    public float spikesBristle;
 
     /** The spike age at which a spike reaches full extension and lands. */
     public int spikeStrikeTick;
@@ -57,10 +57,4 @@ public class AbilityBlockRenderState extends BlockEntityRenderState {
 
     /** How brightly a watching marker glows as its enemy closes, 0 at rest. */
     public float lurkerGlow;
-
-    /** True when the marker is a Vines trap waiting on the ground (decision vines-unpack-root-and-thorn). */
-    public boolean vinesTrap;
-
-    /** How far the trap's blob has unpacked into its knot and tendrils, 0 to 1. */
-    public float vinesUnpacked;
 }

@@ -1,31 +1,28 @@
 package com.mercuriusxeno.goo.client.zone;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.zone.GateLook;
+import com.mercuriusxeno.goo.client.tartarus.TartarusGateRenderer;
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.SubmitNodeCollector;
-import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.SubmitCustomGeometryEvent;
 import org.jspecify.annotations.Nullable;
-import java.util.List;
 import java.util.Map;
 
 /**
- * Draws each door a player channeling Zone has conjured as a pixel
- * unzipping into a slash and widening into a doorway, from its first tick,
- * its outline filled with the End portal's starfield, seen from either
- * side, facing its caster. A door whose caster has left this level went
- * with them and draws no more.
+ * Draws each door a player channeling has conjured, from its first tick,
+ * through the drawing its look names: Zone's and End's door with the
+ * starfield, Tartarus' gate with its own texel doorway. A door whose caster has left
+ * this level went with them and draws no more.
  * decision crack-and-doorway-wear-the-end-portal-shader
- * decision door-opens-from-a-thin-crack-in-the-air
- * decision door-unzips-from-a-starfield-pixel-then-widens-into-you
+ * decision tartarus-draws-its-own-portal-with-the-nether-portal-texture
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class ConjuredDoorRenderer {
@@ -53,9 +50,10 @@ public final class ConjuredDoorRenderer {
         }
         ClientLevel level = mc.level;
         Vec3 camera = event.getLevelRenderState().cameraRenderState.pos;
+        double time = level.getGameTime() + mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         drawnThisFrame(mc, level).forEach((caster, door) -> {
             if (level.getEntity(caster) != null) {
-                submitDoor(event.getSubmitNodeCollector(), event.getPoseStack(), door, camera);
+                submitDoor(event.getSubmitNodeCollector(), event.getPoseStack(), door, camera, time);
             }
         });
     }
@@ -81,52 +79,30 @@ public final class ConjuredDoorRenderer {
     }
 
     /**
-     * Submits one door's outline under the End portal render type, whose
-     * vertices carry their position alone, as the End gate submits its square.
+     * Submits one door through the drawing its look names.
      *
      * @param collector the collector the frame submits to
      * @param poseStack the frame's pose
      * @param door      the door drawn
      * @param camera    the camera's world position
+     * @param time      the client game tick and the frame's partial tick
      */
     static void submitDoor(SubmitNodeCollector collector, PoseStack poseStack, ClientConjuredDoors.Drawn door,
-                           Vec3 camera) {
-        Vec3[] corners = cornersOf(door, camera);
-        collector.submitCustomGeometry(poseStack, RenderTypes.endPortal(),
-                (pose, consumer) -> emitBothWaysRound(pose, consumer, corners));
+                           Vec3 camera, double time) {
+        drawingFor(door.look()).submit(collector, poseStack, door, camera, time);
     }
 
     /**
-     * The door's outline corners, stood upright at its foot across the way
-     * its caster faced, relative to the camera.
+     * The drawing a door's look names.
+     * decision tartarus-draws-its-own-portal-with-the-nether-portal-texture
      *
-     * @param door   the door drawn
-     * @param camera the camera's world position
-     * @return the corners in order around the outline
+     * @param look what the door is drawn with
+     * @return the starfield door's drawing, or Tartarus' own texel doorway
      */
-    private static Vec3[] cornersOf(ClientConjuredDoors.Drawn door, Vec3 camera) {
-        double radians = Math.toRadians(door.yaw());
-        Vec3 across = new Vec3(Math.cos(radians), 0, Math.sin(radians));
-        Vec3 foot = door.at().subtract(camera);
-        List<DoorCrack.Corner> outline = DoorCrack.outline(door.unzipped(), door.widened());
-        Vec3[] corners = new Vec3[outline.size()];
-        for (int index = 0; index < corners.length; index++) {
-            DoorCrack.Corner corner = outline.get(index);
-            corners[index] = foot.add(across.scale(corner.across())).add(0, corner.up(), 0);
-        }
-        return corners;
-    }
-
-    private static void emitBothWaysRound(PoseStack.Pose pose, VertexConsumer consumer, Vec3[] corners) {
-        for (Vec3 corner : corners) {
-            vertex(pose, consumer, corner);
-        }
-        for (int index = corners.length - 1; index >= 0; index--) {
-            vertex(pose, consumer, corners[index]);
-        }
-    }
-
-    private static void vertex(PoseStack.Pose pose, VertexConsumer consumer, Vec3 at) {
-        consumer.addVertex(pose, (float) at.x, (float) at.y, (float) at.z);
+    public static GateDrawing drawingFor(GateLook look) {
+        return switch (look) {
+            case STARFIELD -> StarfieldDoorDrawing.INSTANCE;
+            case NETHER_PORTAL -> TartarusGateRenderer.INSTANCE;
+        };
     }
 }

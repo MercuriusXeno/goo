@@ -36,8 +36,8 @@ public final class EndTests {
     private static final String END_GRAYED_OUT_REFUSES = "end_grayed_out_in_the_end_refuses_the_channel";
 
     private static final Identifier ENDER_END = Identifier.parse("goo:ender_end");
-    /** The hold End's gate asks before it carries its caster: a second. */
-    private static final int CHARGE_TICKS = 20;
+    /** The hold End's gate asks before it carries its caster: two seconds, the operator's twice as slow trip. */
+    private static final int CHARGE_TICKS = 40;
     /** The tick of the hold the test reads the gate standing, halfway through the charge. */
     private static final int MID_CHANNEL = CHARGE_TICKS / 2;
     /** Ticks after a channel is let go by which its gate is gone. */
