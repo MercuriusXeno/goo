@@ -32,7 +32,7 @@ class RallyReleaseTest {
 
     @Test
     void anAbilityThatDoesNotRallyReleasesNothing() {
-        assertFalse(RallyRelease.releasesOwnRally(AbilityJson.decode("unstable_lurker").behaviors(), CASTER,
+        assertFalse(RallyRelease.releasesOwnRally(AbilityJson.decode("deep_shriek").behaviors(), CASTER,
                 new Rallied(CASTER, RALLY_DAMAGE)));
     }
 }

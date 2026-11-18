@@ -31,7 +31,7 @@ import static org.mockito.Mockito.when;
 class ThrowCostTest {
 
     private static final String ABILITIES = "data/goo/goo_abilities/";
-    private static final String LURKER = ABILITIES + "unstable_lurker.json";
+    private static final String SHRIEK = ABILITIES + "deep_shriek.json";
 
     private static JsonElement read(String resource) throws IOException {
         try (InputStream in = ThrowCostTest.class.getClassLoader().getResourceAsStream(resource)) {
@@ -44,10 +44,10 @@ class ThrowCostTest {
     // a bare name reads as a vanilla item, so the word refused is one no item id spells
     @ValueSource(strings = {"{\"formula\": \"quadratic\", \"baseCost\": 1000}", "-1", "\"Cheap\""})
     void costThatIsNoAmountRefusesNamingIt(String cost) throws IOException {
-        JsonElement json = read(LURKER);
+        JsonElement json = read(SHRIEK);
         json.getAsJsonObject().add("cost", JsonParser.parseString(cost));
 
-        DataResult<AbilityDefinition> parsed = AbilityDefinition.codecFor(AbilityJson.idOfResource(LURKER))
+        DataResult<AbilityDefinition> parsed = AbilityDefinition.codecFor(AbilityJson.idOfResource(SHRIEK))
                 .parse(JsonOps.INSTANCE, json);
 
         assertTrue(parsed.error().isPresent(), "an ability costing " + cost + " loaded");
@@ -67,10 +67,10 @@ class ThrowCostTest {
         private static final Identifier COBBLESTONE = Identifier.withDefaultNamespace("cobblestone");
         private static final int COBBLESTONE_MB = 250;
 
-        private static AbilityDefinition lurkerCosting(String cost) throws IOException {
-            JsonElement json = read(LURKER);
+        private static AbilityDefinition shriekCosting(String cost) throws IOException {
+            JsonElement json = read(SHRIEK);
             json.getAsJsonObject().addProperty("cost", cost);
-            return AbilityDefinition.codecFor(AbilityJson.idOfResource(LURKER))
+            return AbilityDefinition.codecFor(AbilityJson.idOfResource(SHRIEK))
                     .parse(JsonOps.INSTANCE, json).getOrThrow();
         }
 
@@ -82,10 +82,10 @@ class ThrowCostTest {
 
         @Test
         void anItemHoldingNoneOfTheAbilitysTypeChargesZero() throws IOException {
-            AbilityDefinition lurker = lurkerCosting("3 * minecraft:cobblestone");
+            AbilityDefinition shriek = shriekCosting("3 * minecraft:cobblestone");
             IGooValueLookup values = valuingCobblestone(new GooValue(Map.of(GooTypes.ROCK, COBBLESTONE_MB)));
 
-            assertEquals(0, lurker.cost().in(values));
+            assertEquals(0, shriek.cost().in(values));
         }
     }
 }

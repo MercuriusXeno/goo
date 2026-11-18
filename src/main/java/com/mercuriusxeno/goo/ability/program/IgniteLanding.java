@@ -22,7 +22,7 @@ import java.util.stream.Stream;
  * ignite-fire-and-explosive-combo
  * <p>
  * The operator's rulings (idea ignite-combo-rulings): the combo goes off at
- * Lurker's own power, 2.5; fire in vanilla's one in
+ * power 2.5; fire in vanilla's one in
  * three of the cleared floor cells; both burnouts with vanilla's boom.
  */
 final class IgniteLanding {
