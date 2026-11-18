@@ -37,7 +37,8 @@ class GooTypesTest {
             GooTypes.REGISTRY, Identifier.fromNamespaceAndPath("gootest", "seventeenth"));
     private static final List<String> BUNDLED_IDS = List.of(
             "astral", "blaze", "crystal", "deep", "ender", "frost", "glow", "hex", "infinity", "jelly", "kinetic", "leaf",
-            "metal", "nether", "opulent", "pulse", "quantum", "rock", "shroom", "typhoon", "unstable", "void", "weird", "xeno", "yore", "zoo");
+            "metal", "nether", "opulent", "pulse", "quantum", "rock", "shroom", "typhoon", "unstable", "void", "weird", "xeno", "yore", "zombie", "zoo");
+    private static final String ZOMBIE = "zombie";
     private static final String TYPE_JSON = "/data/goo/goo/goo_type/%s.json";
     private static final String TEXTURES = "textures";
     private static final String TEXTURE_PNG = "/assets/%s/textures/%s.png";
@@ -162,6 +163,32 @@ class GooTypesTest {
         JsonObject lang = readJson(EN_US).getAsJsonObject();
         String langKey = "goo.type." + id;
         assertTrue(lang.has(langKey), () -> EN_US + " lacks " + langKey);
+    }
+
+    /**
+     * Zombie loads from its bundled JSON with its four colors, every texture it
+     * names ships, and its type name reads Zombie.
+     * decision zoo-leaves-and-zombie-goo-replaces-it-as-z
+     * decision zombie-goo-is-colored-after-zombie-flesh-and-decay-stops-being-maroon
+     */
+    @Test
+    void zombieStandsWithItsColorsTexturesAndName() throws IOException {
+        assertTrue(GooTypes.BUNDLED.contains(GooTypes.bundled(ZOMBIE)), "zombie is not a bundled type");
+        JsonElement json = readJson(TYPE_JSON.formatted(ZOMBIE));
+        GooTypeDefinition zombie = GooTypeDefinition.CODEC.parse(JsonOps.INSTANCE, json).getOrThrow();
+        JsonObject type = json.getAsJsonObject();
+        for (String color : List.of(GooTypeDefinition.WHEEL, GooTypeDefinition.BRIGHT,
+                GooTypeDefinition.HIGHLIGHT, GooTypeDefinition.EDGE)) {
+            assertTrue(type.has(color), () -> "zombie names no " + color + " color");
+        }
+        GooTypeTextures textures = zombie.textures();
+        for (var texture : List.of(textures.gooTiny(), textures.gooSmall(), textures.gooBase(),
+                textures.gooLarge(), textures.fluidStill(), textures.fluidFlowing())) {
+            Identifier sprite = texture.orElseThrow();
+            assertShipped(TEXTURE_PNG.formatted(sprite.getNamespace(), sprite.getPath()));
+        }
+        assertShipped(TYPE_ICON.formatted(ZOMBIE));
+        assertEquals("Zombie", readJson(EN_US).getAsJsonObject().get("goo.type." + ZOMBIE).getAsString());
     }
 
     static Stream<ResourceKey<GooTypeDefinition>> bundledKeys() {
