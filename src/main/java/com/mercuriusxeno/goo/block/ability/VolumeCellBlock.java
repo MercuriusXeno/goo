@@ -1046,6 +1046,8 @@ public class VolumeCellBlock extends Block {
     @Override
     protected void tick(@NonNull BlockState state, @NonNull ServerLevel level, @NonNull BlockPos pos,
                         @NonNull RandomSource random) {
+        // goo-pour-cost-is-measured-before-and-after-the-network
+        PourTickWatch.ran(pos);
         if (heatTouched(level, pos, state)) {
             return;
         }
