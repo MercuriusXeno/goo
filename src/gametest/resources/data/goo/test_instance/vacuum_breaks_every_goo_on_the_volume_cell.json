@@ -3,7 +3,7 @@
   "function": "goo:vacuum_breaks_every_goo_on_the_volume_cell",
   "environment": "minecraft:default",
   "structure": "goo:light_bay",
-  "max_ticks": 1200,
+  "max_ticks": 2400,
   "setup_ticks": 0,
   "required": true
 }

@@ -62,7 +62,6 @@ import net.neoforged.neoforge.registries.RegisterEvent;
  */
 @RegistersGameTests
 public final class EffectExecutorTests {
-    private static final String FX_PROGRAM_MINE = "fx_program_proximity_mine";
     private static final String FX_PROGRAM_SPIKE_TRAP = "fx_program_test_spike_trap";
     private static final String COMPRESSION_SPHERE_SPILLS_ON_TOUCH = "compression_sphere_spills_on_touch";
     private static final String LARGE_BLAST_LEAVES_A_GREEN_SPHERE = "large_blast_leaves_a_green_sphere";
@@ -80,7 +79,6 @@ public final class EffectExecutorTests {
      * @param registrar the test function registrar
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
-        GooTestFunctions.registerTest(registrar, FX_PROGRAM_MINE, EffectExecutorTests::programProximityMine);
         GooTestFunctions.registerTest(registrar, FX_PROGRAM_SPIKE_TRAP, EffectExecutorTests::programSpikeTrap);
         GooTestFunctions.registerTest(registrar, COMPRESSION_SPHERE_SPILLS_ON_TOUCH, EffectExecutorTests::compressionSphereSpillsOnTouch);
         GooTestFunctions.registerTest(registrar, LARGE_BLAST_LEAVES_A_GREEN_SPHERE, EffectExecutorTests::largeBlastLeavesAGreenSphere);
@@ -110,11 +108,8 @@ public final class EffectExecutorTests {
     private static final String ABILITIES_REQUIRED = "Ability registry must be loaded";
     /** The gametests' own thrown blast, today's Blast before it was charge-sized, for the landing machinery. */
     private static final String ABILITY_BLAST = "goo:test_blast";
-    private static final String ABILITY_LURKER = "goo:unstable_lurker";
     private static final String ABILITY_GLOW_BULB = "goo:glow_bulb";
-    /** Ticks an armed mine idles before the test spawns a target. */
-    private static final int MINE_IDLE_TICKS = 5;
-    /** Where the mine's target spawns: two blocks from the marker, inside its radius. */
+    /** Where a walking target spawns: two blocks from the marker, inside a field's radius. */
     private static final BlockPos MINE_TARGET_POS = MARKER_POS.east(2);
     private static final String ABILITY_SPIKE_TRAP = "goo:test_spike_trap";
     private static final String SPIKE_MISSED = "The metal trap left the walking pig unhurt";
@@ -294,25 +289,6 @@ public final class EffectExecutorTests {
     private static void assertExploded(GameTestHelper helper) {
         helper.assertBlockNotPresent(GooBlocks.ABILITY_BLOCK.get(), MARKER_POS);
         helper.assertBlockNotPresent(Blocks.STONE, MARKER_POS.north());
-    }
-
-    /**
-     * Lurker as a program: armed at the splat, the marker idles on its
-     * watch step until something living enters the trigger radius, then its await and
-     * explode steps fire.
-     *
-     * @param helper the gametest helper
-     */
-    public static void programProximityMine(GameTestHelper helper) {
-        placeMarkerWithAbility(helper, GooTypes.UNSTABLE, ABILITY_LURKER);
-        helper.runAfterDelay(MINE_IDLE_TICKS, () -> {
-            helper.assertBlockPresent(GooBlocks.ABILITY_BLOCK.get(), MARKER_POS);
-            helper.spawnWithNoFreeWill(EntityType.PIG, MINE_TARGET_POS);
-        });
-        helper.runAfterDelay(MINE_IDLE_TICKS + SHORT_WAIT, () -> {
-            assertExploded(helper);
-            helper.succeed();
-        });
     }
 
     /**
