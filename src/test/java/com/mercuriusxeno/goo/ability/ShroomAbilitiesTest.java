@@ -17,10 +17,11 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
  * Shroom's shipped roster and its residual goo, read from the shipped
- * ability files and en_us.json through the classpath: Spore left, and the
- * residual goo ships as Spores.
+ * ability files and en_us.json through the classpath: Spore left, Mycosis
+ * came back as the held stream, and the residual goo ships as Spores.
  * colonize-is-dropped-and-its-power-moves-into-mycosis-goo
  * spores-is-shrooms-residual-a-passive-mycosis
+ * mycosis-is-put-back-as-the-held-spore-stream
  */
 class ShroomAbilitiesTest {
 
@@ -38,13 +39,13 @@ class ShroomAbilitiesTest {
     }
 
     @Test
-    void shroomShipsSporesTransmitAndSight() {
+    void shroomShipsMycosisSporesTransmitAndSight() {
         Set<String> shroom = AbilityJson.files().stream().map(AbilityJson::decode)
                 .filter(ability -> ability.gooType() == GooTypes.SHROOM)
                 .map(ability -> ability.id().getPath())
                 .collect(Collectors.toSet());
 
-        assertEquals(Set.of(SPORES, "shroom_transmit", "shroom_sight"), shroom);
+        assertEquals(Set.of("shroom_mycosis", SPORES, "shroom_transmit", "shroom_sight"), shroom);
     }
 
     @Test

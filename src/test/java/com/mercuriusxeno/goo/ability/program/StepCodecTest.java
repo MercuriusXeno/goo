@@ -181,6 +181,7 @@ class StepCodecTest {
             Map.entry("meteor", new MeteorStep(Expr.literal(4), 40)),
             Map.entry("bloom", new BloomStep(Expr.literal(4), Expr.literal(8), Expr.literal(64))),
             Map.entry("tick_plants", new TickPlantsStep()),
+            Map.entry("tend_fungi", new TendFungiStep()),
             Map.entry("verdant", new VerdantStep(Identifier.parse("goo:greening"), 5, 40, 8, 4, 1.5f, 6)),
             Map.entry("toxin",new ToxinStep(Identifier.parse("goo:bio_toxin"), Expr.literal(0.06),
                     Expr.literal(100), 2)),

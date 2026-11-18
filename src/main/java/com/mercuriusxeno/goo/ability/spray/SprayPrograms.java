@@ -9,11 +9,7 @@ import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
 import com.mercuriusxeno.goo.ability.program.SimpleParticles;
-import com.mercuriusxeno.goo.ability.program.SporesStep;
 import com.mercuriusxeno.goo.ability.program.SurfaceHost;
-import com.mercuriusxeno.goo.block.ability.SporesCellBlock;
-import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
-import com.mercuriusxeno.goo.registry.GooBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
@@ -27,9 +23,7 @@ import java.util.List;
  * Runs a sprayed ability where its spray reaches: its behaviors on each
  * living entity, its {@code on_blocks} steps on each floor. A stream's cone
  * and a spored corpse's burst share it, so a burst is the same spray the
- * stream sprays, and the burst of a spray laying Mycosis goo splashes that
- * goo where the corpse fell (decisions mycosis-spore-stream-buds-and-poisons,
- * mycosis-goo-infects-what-touches-it-as-the-spray-did).
+ * stream sprays (decision mycosis-spore-stream-buds-and-poisons).
  */
 public final class SprayPrograms {
 
@@ -105,29 +99,7 @@ public final class SprayPrograms {
                 living -> living.isAlive() && living.position().distanceTo(center) <= radius)) {
             runOnLiving(level, living, null, ability);
         }
-        List<BlockPos> floors = FloorReach.inSphere(center, radius, cell -> FloorReach.isOpenFloor(level, cell));
-        runOnFloors(level, floors, center, ability);
-        // mycosis-goo-infects-what-touches-it-as-the-spray-did: the burst casts Mycosis, which is the goo
-        SporesStep.in(ability.behaviors()).ifPresent(mycosis -> splashMycosis(level, floors));
-    }
-
-    /**
-     * Lays a one-layer Mycosis cell in the open cell over each floor a burst
-     * reaches that can hold a world goo, the goo an infected corpse leaves
-     * where it fell; the radius of the spores that infected it is the
-     * splash's size.
-     * mycosis-goo-infects-what-touches-it-as-the-spray-did
-     *
-     * @param level  the server level
-     * @param floors the floors the burst reached
-     */
-    private static void splashMycosis(ServerLevel level, List<BlockPos> floors) {
-        SporesCellBlock cell = GooBlocks.SHROOM_SPORES.get();
-        for (BlockPos floor : floors) {
-            BlockPos open = floor.above();
-            if (level.getBlockState(open).isAir() && cell.onAFloor(level, open)) {
-                level.setBlockAndUpdate(open, cell.defaultBlockState().setValue(VolumeCellBlock.LAYERS, 1));
-            }
-        }
+        runOnFloors(level, FloorReach.inSphere(center, radius, cell -> FloorReach.isOpenFloor(level, cell)), center,
+                ability);
     }
 }

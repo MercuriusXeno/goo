@@ -48,7 +48,7 @@ public final class LingeringCreditTests {
     private static final String MYCOSIS_KEEPS_RALLY_AND_CHARM = "goo_lingering_credit_mycosis_keeps_rally_and_charm";
 
     private static final String LEAF_BIO = "goo:leaf_bio";
-    private static final Identifier SHROOM_SPORES = Identifier.parse("goo:shroom_spores");
+    private static final Identifier SHROOM_MYCOSIS = Identifier.parse("goo:shroom_mycosis");
 
     /** Where the first afflicted mob stands. */
     private static final BlockPos MOB_POS = new BlockPos(4, 1, 3);
@@ -139,10 +139,8 @@ public final class LingeringCreditTests {
     }
 
     /**
-     * A Mycosis drip a mock player threw strikes a husk it rallied and another a husk it charmed, and the spore
-     * poison's tick hurts both with magic, leaving the rally and the charm standing. Each husk takes its own drip,
-     * since Mycosis' drips strike only the living under its aim.
-     * mycosis-goo-infects-what-touches-it-as-the-spray-did
+     * A mock player sprays Mycosis at a husk it rallied and a husk it charmed, and the spore poison's tick hurts
+     * both with magic, leaving the rally and the charm standing.
      *
      * @param helper the gametest helper
      */
@@ -151,11 +149,7 @@ public final class LingeringCreditTests {
         Mob charmed = still(helper.spawnWithNoFreeWill(EntityType.HUSK, SECOND_MOB_POS));
         ServerPlayer player = sprayer(helper);
         makeOwn(player, rallied, charmed);
-        AbilityDefinition mycosis = AbilityRegistry.of(helper.getLevel()).getAbility(SHROOM_SPORES);
-        helper.runAfterDelay(SETTLE_TICKS, () -> {
-            LandedDrips.strike(helper, player, mycosis, rallied);
-            LandedDrips.strike(helper, player, mycosis, charmed);
-        });
+        spray(helper, player);
         succeedOnceKept(helper, player, "Mycosis", DamageTypes.MAGIC, rallied, charmed);
     }
 
@@ -254,7 +248,7 @@ public final class LingeringCreditTests {
     }
 
     private static void spray(GameTestHelper helper, ServerPlayer player) {
-        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.SHROOM), SHROOM_SPORES.toString(),
+        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.SHROOM), SHROOM_MYCOSIS.toString(),
                 player.getEyePosition(), player.getEyePosition());
         for (int held = 1; held <= SPRAY_TICKS; held++) {
             helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(player, tick));
@@ -271,8 +265,8 @@ public final class LingeringCreditTests {
         player.setXRot(LOOKING_AT_THE_MOB);
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GooItems.GOO_GLOVE.get()));
         player.getInventory().add(GooStacks.createForOutput(GooTypes.SHROOM, HELD_GOO * GooStacks.THOUSAND));
-        AbilityDefinition mycosis = AbilityRegistry.of(helper.getLevel()).getAbility(SHROOM_SPORES);
-        helper.assertTrue(mycosis != null, String.format(ABILITY_REQUIRED, SHROOM_SPORES));
+        AbilityDefinition mycosis = AbilityRegistry.of(helper.getLevel()).getAbility(SHROOM_MYCOSIS);
+        helper.assertTrue(mycosis != null, String.format(ABILITY_REQUIRED, SHROOM_MYCOSIS));
         KnownRecipes.teachRequires(player, mycosis);
         return player;
     }
