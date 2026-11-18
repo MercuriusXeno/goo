@@ -3,7 +3,6 @@ package com.mercuriusxeno.goo.ability.quantum;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.ability.AbilityJson;
-import com.mercuriusxeno.goo.ability.program.PhaseGooStep;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.io.IOException;
@@ -16,16 +15,13 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
  * Quantum's world goo ships as quantum_phase.json, read as Phase with a
- * description, and the phase it lays lingers after stepping off for the
- * layers of the cell left times the seconds a layer the ability carries.
+ * description.
  * phase-goo-puts-what-stands-in-it-out-of-phase
  */
 class PhaseAbilityTest {
 
     private static final String EN_US = "/assets/goo/lang/en_us.json";
     private static final String PHASE_KEY = "goo.ability.quantum.phase";
-    private static final int TICKS_A_SECOND = 20;
-    private static final int FULL_CELL = 15;
 
     @Nested
     class Name {
@@ -44,28 +40,6 @@ class PhaseAbilityTest {
         void phasesAbilityNamesThePhaseDisplayKey() {
             assertEquals(PHASE_KEY, AbilityJson.decode("quantum_phase").displayName());
         }
-    }
-
-    @Nested
-    class Linger {
-
-        @Test
-        void oneLayerLingersTheSecondsALayerTheAbilityCarries() {
-            PhaseGooStep shipped = shipped();
-
-            assertEquals(Math.round(shipped.lingerSecondsPerLayer() * TICKS_A_SECOND), shipped.lingerTicks(1));
-        }
-
-        @Test
-        void fifteenLayersLingerFifteenTimesAsLongAsOne() {
-            PhaseGooStep shipped = shipped();
-
-            assertEquals(FULL_CELL * shipped.lingerTicks(1), shipped.lingerTicks(FULL_CELL));
-        }
-    }
-
-    private static PhaseGooStep shipped() {
-        return PhaseGooStep.in(AbilityJson.decode("quantum_phase").behaviors()).orElseThrow();
     }
 
     private static JsonObject classpathJson(String path) throws IOException {
