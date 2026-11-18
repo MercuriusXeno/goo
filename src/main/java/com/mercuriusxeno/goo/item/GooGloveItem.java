@@ -41,21 +41,33 @@ public class GooGloveItem extends Item {
 
     /**
      * The glove tiers, each spelling the attack damage its main-hand melee
-     * hit adds over the fist.
+     * hit adds over the fist, and how fast it refills the palm blob's buffer.
      * decision glove-damage-by-tier
+     * decision buffer-refills-at-a-constant-speed-set-by-the-glove
      */
     public enum GloveTier {
-        /** The goo glove. */
-        GLOVE(2),
-        /** The goo gauntlet. */
-        GAUNTLET(4),
-        /** The exo gauntlet. */
-        EXO_GAUNTLET(6);
+        /** The goo glove: 1% a tick. */
+        GLOVE(2, 2),
+        /** The goo gauntlet: 1.5% a tick. */
+        GAUNTLET(4, 3),
+        /** The exo gauntlet: 2% a tick. */
+        EXO_GAUNTLET(6, 4);
 
         private final double attackDamageBonus;
+        private final int bufferRefill;
 
-        GloveTier(double attackDamageBonus) {
+        GloveTier(double attackDamageBonus, int bufferRefill) {
             this.attackDamageBonus = attackDamageBonus;
+            this.bufferRefill = bufferRefill;
+        }
+
+        /**
+         * How fast this tier refills the palm blob's buffer.
+         *
+         * @return the refill a tick, in half percents
+         */
+        public int bufferRefill() {
+            return bufferRefill;
         }
 
         /**
@@ -83,13 +95,27 @@ public class GooGloveItem extends Item {
                 .build();
     }
 
+    /** The glove's tier. */
+    private final GloveTier tier;
+
     /**
-     * Creates a goo glove item with the given properties.
+     * Creates a goo glove item of a tier with the given properties.
      *
      * @param properties the item properties
+     * @param tier       the glove's tier
      */
-    public GooGloveItem(Properties properties) {
+    public GooGloveItem(Properties properties, GloveTier tier) {
         super(properties);
+        this.tier = tier;
+    }
+
+    /**
+     * The glove's tier.
+     *
+     * @return the tier
+     */
+    public GloveTier tier() {
+        return tier;
     }
 
     /**
