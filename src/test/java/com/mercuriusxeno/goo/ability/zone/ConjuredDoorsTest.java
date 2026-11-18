@@ -28,7 +28,7 @@ import static org.mockito.Mockito.when;
  */
 class ConjuredDoorsTest {
 
-    private static final int CHARGE = 20;
+    private static final int CHARGE = 40;
     private static final int CASTER_ID = 41;
     private static final Vec3 FEET = new Vec3(10.5, 64, -3.5);
     /** Facing south, the way yaw 0 looks. */

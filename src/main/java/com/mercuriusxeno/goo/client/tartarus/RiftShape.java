@@ -30,9 +30,12 @@ public record RiftShape(double open, double close, double swell, double time) {
     /** The tallest a rift stands, swollen with its tip licking up, and the widest either side. */
     public static final double TALLEST = 2.15 * 1.15 + 0.08;
     public static final double WIDEST = 0.5 * 1.15 + 0.06;
-    /** The conjured door grows over the charge less its enveloping ticks, 14 of Tartarus' 20; the rift opens in 11. */
-    static final double GROWING_TICKS = 14;
-    static final double OPENING_TICKS = 11;
+    /**
+     * The conjured door grows over the charge less its enveloping ticks, 28 of Tartarus' 40; the rift opens in 22,
+     * the draft's 11 of 14 at the operator's twice as slow trip.
+     */
+    static final double GROWING_TICKS = 28;
+    static final double OPENING_TICKS = 22;
 
     private static final double FULL_TALL = 2.15;
     private static final double FULL_HALF = 0.5;
@@ -71,7 +74,6 @@ public record RiftShape(double open, double close, double swell, double time) {
     private static final double EMBER_SWAY_SPEED = 0.6;
     private static final double EMBER_RISES = 0.07;
     private static final double EMBERS_START = 0.05;
-    private static final double EMBERS_STOP = 0.95;
     private static final int EMBER_ORANGE = 0xFF_FF963C;
     private static final int EMBER_PURPLE = 0xFF_BE5AFF;
     private static final double LIFE_SEED_SCALE = 3.1;
@@ -194,13 +196,16 @@ public record RiftShape(double open, double close, double swell, double time) {
     /**
      * Each ember this moment, a pure function of the time so every frame
      * of a moment shows the same ones; none while the rift barely stands.
+     * Every ember dims as the rift sinks, so they fade out with it rather
+     * than all at once; the operator saw them end too abruptly.
      *
      * @param each takes each ember
      */
     public void embers(Consumer<Ember> each) {
-        if (open <= EMBERS_START || close >= EMBERS_STOP) {
+        if (open <= EMBERS_START || close >= 1) {
             return;
         }
+        double remaining = 1 - smooth(close);
         for (int index = 0; index < EMBERS; index++) {
             double life = EMBER_LIFE + EMBER_LIFE_SPREAD * hash(index * LIFE_SEED_SCALE);
             double age = mod(time + hash(index) * life, life);
@@ -209,7 +214,7 @@ public record RiftShape(double open, double close, double swell, double time) {
                     + EMBER_SWAY * Math.sin(age * EMBER_SWAY_SPEED + index);
             double up = EMBER_LOWEST + hash(index * Y_SEED) * EMBER_START_RISE * open + age * EMBER_RISES;
             int color = hash(index) > HALF ? EMBER_ORANGE : EMBER_PURPLE;
-            each.accept(new Ember(across, up, withAlpha(color, fade)));
+            each.accept(new Ember(across, up, withAlpha(color, fade * remaining)));
         }
     }
 

@@ -14,7 +14,7 @@ import java.util.stream.Stream;
  * Zone's door stand, and the tick the hold reaches its charge carries them
  * through it onto the safe spot their hold's first tick found. A hold that
  * found none was refused before it paid, and stands nothing. Tartarus is
- * {@code tartarus charge=20 reach=4}.
+ * {@code tartarus charge=40 reach=4}.
  * decision tartarus-summons-a-gate-to-the-nether-like-end-and-zone
  * decision tartarus-sets-you-on-the-nearest-safe-floor-at-the-scaled-spot-or-refuses
  *

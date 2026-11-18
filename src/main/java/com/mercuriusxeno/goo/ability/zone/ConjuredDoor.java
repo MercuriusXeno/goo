@@ -29,8 +29,12 @@ public record ConjuredDoor(Vec3 at, float yaw, double unzipped, double widened, 
 
     /** How far before the caster's feet the door stands while it grows, in blocks. */
     public static final double STANDS_OFF = 1.5;
-    /** The charge's last ticks, over which the door moves into the caster. */
-    static final int ENVELOP_TICKS = 6;
+    /**
+     * The charge's last ticks, over which the door moves into the caster. The
+     * operator ruled the whole trip of End, Zone and Tartarus twice as slow, so
+     * this and the release's ticks doubled with their 40-tick charge.
+     */
+    static final int ENVELOP_TICKS = 12;
 
     /** Sends a door. */
     public static final StreamCodec<ByteBuf, ConjuredDoor> STREAM_CODEC = StreamCodec.composite(
@@ -53,9 +57,9 @@ public record ConjuredDoor(Vec3 at, float yaw, double unzipped, double widened, 
     }
 
     /** The ticks a releasing door takes to move off its arriver, narrowing to a slash. */
-    public static final int MOVE_OFF_TICKS = 10;
+    public static final int MOVE_OFF_TICKS = 20;
     /** The ticks the slash then takes to zip up to a pixel: a starting value for the operator to judge. */
-    public static final int ZIP_UP_TICKS = 10;
+    public static final int ZIP_UP_TICKS = 20;
     /** The ticks a whole release takes. */
     public static final int RELEASE_TICKS = MOVE_OFF_TICKS + ZIP_UP_TICKS;
 
