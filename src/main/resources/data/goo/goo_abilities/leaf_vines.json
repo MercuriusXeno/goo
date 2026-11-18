@@ -5,7 +5,7 @@
   "order": 0,
   "cost": 1000,
   "requires": ["minecraft:vine"],
-  "delivery": { "kind": "arc" },
+  "delivery": { "kind": "arc", "range": 16 },
   "behaviors": [
     {
       "type": "hit_or_miss",

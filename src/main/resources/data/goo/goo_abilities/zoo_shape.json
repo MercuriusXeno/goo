@@ -4,7 +4,7 @@
   "badge": "mob",
   "order": 20,
   "cost": 2000,
-  "delivery": { "kind": "envelop" },
+  "delivery": { "kind": "envelop", "range": 16 },
   "behaviors": [
     {
       "type": "target",
