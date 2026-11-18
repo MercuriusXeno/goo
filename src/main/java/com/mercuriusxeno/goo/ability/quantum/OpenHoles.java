@@ -117,14 +117,32 @@ public final class OpenHoles {
      * @return true when a hole was dismissed
      */
     public static boolean dismissAt(ServerLevel level, BlockPos block, Direction face) {
-        boolean dismissed = OPEN.removeIf(hole -> hole.dimension().equals(level.dimension())
-                && (mouthOn(hole.entry(), block, face) || mouthOn(hole.exit(), block, face)));
+        boolean dismissed = OPEN.removeIf(hole -> mouthOn(hole, level.dimension(), block, face));
         if (dismissed) {
             level.playSound(null, block.getX() + HALF, block.getY() + HALF, block.getZ() + HALF,
                     SoundEvents.BEACON_DEACTIVATE, SoundSource.BLOCKS, 1.0F, DISMISS_PITCH);
             sync(level.getServer());
         }
         return dismissed;
+    }
+
+    /**
+     * Whether an open hole's mouth covers a block's face, which a new mouth
+     * may not lie over, as it may not lie over a portal.
+     * hole-closes-the-space-to-an-opening-ahead
+     *
+     * @param dimension the level the block stands in
+     * @param block     the block
+     * @param face      the block's face
+     * @return true where an open mouth covers it
+     */
+    public static boolean mouthAt(ResourceKey<Level> dimension, BlockPos block, Direction face) {
+        return OPEN.stream().anyMatch(hole -> mouthOn(hole, dimension, block, face));
+    }
+
+    private static boolean mouthOn(Hole hole, ResourceKey<Level> dimension, BlockPos block, Direction face) {
+        return hole.dimension().equals(dimension) && (mouthOn(hole.entry(), block, face)
+                || mouthOn(hole.exit(), block, face));
     }
 
     private static boolean mouthOn(Gate mouth, BlockPos block, Direction face) {
