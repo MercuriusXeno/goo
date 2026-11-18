@@ -4,6 +4,8 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.zone.RoomExtent;
 import com.mercuriusxeno.goo.ability.zone.ZoneRooms;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.ability.ClientRoomEdges;
 import com.mercuriusxeno.goo.client.ability.PortalView;
 import com.mojang.blaze3d.buffers.GpuBuffer;
@@ -30,7 +32,6 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.client.event.SubmitCustomGeometryEvent;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
@@ -39,6 +40,7 @@ import org.joml.Vector4f;
 import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.OptionalInt;
+import java.util.function.Consumer;
 
 /**
  * Draws the copies of the Zone room the player stands in, out to the
@@ -75,36 +77,49 @@ public final class RoomCopyRenderer {
     }
 
     /**
-     * Draws the copies' solid and cutout blocks once the frame's own are drawn.
+     * Hands the shared path the copies' solid and cutout blocks, laying the
+     * room's meshes out afresh first: opaque, writing their depth, drawn
+     * with the opaque blocks, so they sort by nothing.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
+     * decision room-tiles-to-render-distance-held-to-the-picture
      *
-     * @param event the level stage event
+     * @param frame the frame being drawn
+     * @param draws where the copies' draw goes
      */
-    @SubscribeEvent
-    public static void onAfterOpaqueBlocks(RenderLevelStageEvent.AfterOpaqueBlocks event) {
-        seenCopies(event.getLevelRenderState()).ifPresent(copies -> {
-            try (copies) {
-                drawLayer(copies, ChunkSectionLayer.SOLID, GooRenderTypes.ROOM_COPY_SOLID, event.getModelViewMatrix());
-                drawLayer(copies, ChunkSectionLayer.CUTOUT, GooRenderTypes.ROOM_COPY_CUTOUT,
-                        event.getModelViewMatrix());
-            }
-        });
+    public static void collectSolid(LevelFrame frame, Consumer<SortedDraw> draws) {
+        drawsFor(frame.levelRenderState()).ifPresent(seen -> draws.accept(new SortedDraw(0,
+                () -> drawSolid(frame, seen))));
     }
 
     /**
-     * Draws the copies' translucent blocks once the frame's translucent
-     * blocks are drawn. The copies' floor stars draw with the room's own,
-     * through VoidstoneFaces, from the pocket's floor where each copy stands.
+     * Hands the shared path the copies' translucent blocks, one instanced
+     * batch drawn before every other far-to-near draw. The copies' floor
+     * stars draw with the room's own, through VoidstoneFaces, from the
+     * pocket's floor where each copy stands.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
+     * decision room-tiles-to-render-distance-held-to-the-picture
      *
-     * @param event the level stage event
+     * @param frame the frame being drawn
+     * @param draws where the copies' draw goes
      */
-    @SubscribeEvent
-    public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
-        seenCopies(event.getLevelRenderState()).ifPresent(copies -> {
-            try (copies) {
-                drawLayer(copies, ChunkSectionLayer.TRANSLUCENT, GooRenderTypes.ROOM_COPY_TRANSLUCENT,
-                        event.getModelViewMatrix());
-            }
-        });
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
+        // Vanilla draws its translucent terrain before any goo visual, and the copies are that terrain tiled out, so
+        // they sort as the farthest draw and run first.
+        drawsFor(frame.levelRenderState()).ifPresent(seen -> draws.accept(new SortedDraw(Double.MAX_VALUE,
+                () -> drawTranslucent(frame, seen))));
+    }
+
+    private static void drawSolid(LevelFrame frame, RoomCopyDraws.Draws seen) {
+        try (Copies copies = copiesOf(frame.levelRenderState(), seen)) {
+            drawLayer(copies, ChunkSectionLayer.SOLID, GooRenderTypes.ROOM_COPY_SOLID, frame.modelView());
+            drawLayer(copies, ChunkSectionLayer.CUTOUT, GooRenderTypes.ROOM_COPY_CUTOUT, frame.modelView());
+        }
+    }
+
+    private static void drawTranslucent(LevelFrame frame, RoomCopyDraws.Draws seen) {
+        try (Copies copies = copiesOf(frame.levelRenderState(), seen)) {
+            drawLayer(copies, ChunkSectionLayer.TRANSLUCENT, GooRenderTypes.ROOM_COPY_TRANSLUCENT, frame.modelView());
+        }
     }
 
     /**
@@ -165,10 +180,9 @@ public final class RoomCopyRenderer {
         }
     }
 
-    private static Optional<Copies> seenCopies(LevelRenderState state) {
-        return drawsFor(state).map(draws -> new Copies(state.cameraRenderState.pos, draws,
-                RenderSystem.getDevice().createBuffer(() -> TRANSLATIONS_LABEL, GpuBuffer.USAGE_UNIFORM_TEXEL_BUFFER,
-                        draws.translations())));
+    private static Copies copiesOf(LevelRenderState state, RoomCopyDraws.Draws draws) {
+        return new Copies(state.cameraRenderState.pos, draws, RenderSystem.getDevice().createBuffer(
+                () -> TRANSLATIONS_LABEL, GpuBuffer.USAGE_UNIFORM_TEXEL_BUFFER, draws.translations()));
     }
 
     /**

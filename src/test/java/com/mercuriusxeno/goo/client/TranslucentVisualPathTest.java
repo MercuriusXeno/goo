@@ -7,16 +7,6 @@ import com.mercuriusxeno.goo.client.ability.AirbornWind;
 import com.mercuriusxeno.goo.client.ability.BeatRings;
 import com.mercuriusxeno.goo.client.ability.BlockMingleRenderer;
 import com.mercuriusxeno.goo.client.ability.BoreDrill;
-import com.mercuriusxeno.goo.client.ability.LiftedPalmBlob;
-import com.mercuriusxeno.goo.client.ability.LunarTripView;
-import com.mercuriusxeno.goo.client.ability.PartnerMeshes;
-import com.mercuriusxeno.goo.client.ability.RollingGooRenderer;
-import com.mercuriusxeno.goo.client.ability.SculkerEchoRenderer;
-import com.mercuriusxeno.goo.client.ability.SculkerGlassRenderer;
-import com.mercuriusxeno.goo.client.ability.SculkerSenses;
-import com.mercuriusxeno.goo.client.ability.SculkerVision;
-import com.mercuriusxeno.goo.client.ability.Tomes;
-import com.mercuriusxeno.goo.client.ability.TransformationRenderer;
 import com.mercuriusxeno.goo.client.ability.CrystalShatterVisual;
 import com.mercuriusxeno.goo.client.ability.FireStream;
 import com.mercuriusxeno.goo.client.ability.FloatPlatform;
@@ -30,21 +20,37 @@ import com.mercuriusxeno.goo.client.ability.HoveringKnives;
 import com.mercuriusxeno.goo.client.ability.LaserScorch;
 import com.mercuriusxeno.goo.client.ability.LaserVisual;
 import com.mercuriusxeno.goo.client.ability.LevelCursor;
+import com.mercuriusxeno.goo.client.ability.LiftedPalmBlob;
+import com.mercuriusxeno.goo.client.ability.LunarTripView;
 import com.mercuriusxeno.goo.client.ability.MeteorMarkers;
 import com.mercuriusxeno.goo.client.ability.MeteorScorches;
 import com.mercuriusxeno.goo.client.ability.MiasmaVortex;
 import com.mercuriusxeno.goo.client.ability.NovaChargeGhost;
 import com.mercuriusxeno.goo.client.ability.NovaRings;
+import com.mercuriusxeno.goo.client.ability.PartnerMeshes;
 import com.mercuriusxeno.goo.client.ability.PetrifyFog;
 import com.mercuriusxeno.goo.client.ability.PneumaWind;
-import com.mercuriusxeno.goo.client.ability.SignalRings;
+import com.mercuriusxeno.goo.client.ability.PortalFaces;
+import com.mercuriusxeno.goo.client.ability.PortalView;
 import com.mercuriusxeno.goo.client.ability.ReapSlashBlades;
 import com.mercuriusxeno.goo.client.ability.RelayLasers;
+import com.mercuriusxeno.goo.client.ability.RollingGooRenderer;
+import com.mercuriusxeno.goo.client.ability.SculkerEchoRenderer;
+import com.mercuriusxeno.goo.client.ability.SculkerGlassRenderer;
+import com.mercuriusxeno.goo.client.ability.SculkerSenses;
+import com.mercuriusxeno.goo.client.ability.SculkerVision;
+import com.mercuriusxeno.goo.client.ability.SignalRings;
 import com.mercuriusxeno.goo.client.ability.SpikesBristle;
 import com.mercuriusxeno.goo.client.ability.SpikesRise;
+import com.mercuriusxeno.goo.client.ability.Tomes;
+import com.mercuriusxeno.goo.client.ability.TransformationRenderer;
 import com.mercuriusxeno.goo.client.ability.WindLines;
 import com.mercuriusxeno.goo.client.ability.WispGlow;
 import com.mercuriusxeno.goo.client.ability.ZapBolts;
+import com.mercuriusxeno.goo.client.hole.HoleMouths;
+import com.mercuriusxeno.goo.client.hole.HolePits;
+import com.mercuriusxeno.goo.client.zone.RoomCopyRenderer;
+import com.mercuriusxeno.goo.client.zone.VoidstoneFaces;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.platform.CompareOp;
 import net.minecraft.client.renderer.RenderPipelines;
@@ -58,6 +64,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -158,6 +165,46 @@ class TranslucentVisualPathTest {
                 () -> assertEquals(List.of(SortRoute.OPAQUE_SHAPE), routesOf(SpikesBristle.class)),
                 () -> assertEquals(List.of(SortRoute.OPAQUE_SHAPE), routesOf(SpikesRise.class)),
                 () -> assertTrue(GooRenderTypes.SPIKES_STEEL.getDepthStencilState().writeDepth()));
+    }
+
+    /**
+     * The portal, hole and zone visuals, each registered under its routes,
+     * the far-to-near ones testing depth and the opaque shapes writing it.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
+     * decision diagnose-and-correct-translucent-goo-visuals-that-depth-sort-wrong
+     */
+    @Nested
+    class PortalHoleAndZoneVisuals {
+
+        @Test
+        void eachRegistersUnderItsRoutes() {
+            Map<Class<?>, Set<SortRoute>> routes = new LinkedHashMap<>();
+            routes.put(PortalFaces.class, Set.of(SortRoute.FAR_TO_NEAR));
+            routes.put(PortalView.class, Set.of(SortRoute.SKY));
+            routes.put(HoleMouths.class, Set.of(SortRoute.FAR_TO_NEAR));
+            routes.put(HolePits.class, Set.of(SortRoute.OPAQUE_SHAPE));
+            routes.put(RoomCopyRenderer.class, Set.of(SortRoute.OPAQUE_SHAPE, SortRoute.FAR_TO_NEAR));
+            routes.put(VoidstoneFaces.class, Set.of(SortRoute.OPAQUE_SHAPE));
+            List<Class<?>> sky = TranslucentVisualPath.REGISTRATIONS.stream()
+                    .filter(registration -> registration.route() == SortRoute.SKY).map(Registration::visual).toList();
+            assertAll(Stream.concat(routes.entrySet().stream().map(entry -> () -> assertEquals(entry.getValue(),
+                            Set.copyOf(routesOf(entry.getKey())), entry.getKey().getSimpleName())),
+                    Stream.of(() -> assertEquals(PortalView.class, sky.getLast(), "PortalView swaps last"))));
+        }
+
+        @Test
+        void sortedPartsTestDepthAndOpaqueShapesWriteIt() {
+            List<RenderPipeline> sorted = List.of(GooRenderTypes.GOO_PORTAL_HALO, GooRenderTypes.GOO_PORTAL_SWIRL_BAND,
+                    GooRenderTypes.GOO_PORTAL_VIEW, GooRenderTypes.GOO_PORTAL_IDLE, GooRenderTypes.PORTABLE_HOLE_MOUTH,
+                    GooRenderTypes.ROOM_COPY_TRANSLUCENT);
+            List<RenderPipeline> opaque = List.of(GooRenderTypes.PORTABLE_HOLE_CARVE, GooRenderTypes.PORTABLE_HOLE_PIT,
+                    GooRenderTypes.ROOM_COPY_SOLID, GooRenderTypes.ROOM_COPY_CUTOUT, GooRenderTypes.VOIDSTONE);
+            assertAll(Stream.concat(
+                    sorted.stream().map(pipeline -> () -> assertEquals(CompareOp.LESS_THAN_OR_EQUAL,
+                            pipeline.getDepthStencilState().depthTest(), pipeline.getLocation().toString())),
+                    opaque.stream().map(pipeline -> () -> assertTrue(pipeline.getDepthStencilState().writeDepth(),
+                            pipeline.getLocation().toString()))));
+        }
     }
 
     /**

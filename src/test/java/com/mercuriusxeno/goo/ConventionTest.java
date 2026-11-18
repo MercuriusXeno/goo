@@ -79,13 +79,12 @@ class ConventionTest {
      * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
      */
     private static final Set<String> NOT_YET_ON_THE_SORTING_PATH = Set.of(
-            "client.ability.ChainBurnoutRenderer", "client.ability.PortalFaces", "client.ability.PortalView",
-            "client.hole.HoleMouths", "client.hole.HolePits", "client.hud.CanisterHudRenderer",
-            "client.hud.CrucibleHudRenderer", "client.hud.PlexerHudRenderer", "client.hud.VatHudRenderer",
-            "client.model.GooJoins", "client.overlay.AimedMobRipple", "client.overlay.BlinkCursor",
-            "client.overlay.FungusXray", "client.overlay.GasketOverlayRenderer", "client.overlay.GooTargetHighlighter",
-            "client.overlay.OculusXray", "client.overlay.OreXray", "client.overlay.TransmitTargetMarker",
-            "client.throwing.GooFlightRenderer", "client.zone.RoomCopyRenderer", "client.zone.VoidstoneFaces");
+            "client.ability.ChainBurnoutRenderer", "client.hud.CanisterHudRenderer", "client.hud.CrucibleHudRenderer",
+            "client.hud.PlexerHudRenderer", "client.hud.VatHudRenderer", "client.model.GooJoins",
+            "client.overlay.AimedMobRipple", "client.overlay.BlinkCursor", "client.overlay.FungusXray",
+            "client.overlay.GasketOverlayRenderer", "client.overlay.GooTargetHighlighter", "client.overlay.OculusXray",
+            "client.overlay.OreXray", "client.overlay.TransmitTargetMarker", "client.throwing.GooFlightRenderer",
+            "client.zone.VoidstoneFaces");
     /**
      * The main and tools classes split into slices imported side by side, since one
      * import of them all took seconds (decision slow-tests-take-a-seam). The first

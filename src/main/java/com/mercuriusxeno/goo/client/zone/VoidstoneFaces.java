@@ -1,8 +1,9 @@
 package com.mercuriusxeno.goo.client.zone;
 
-import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.zone.ZoneRooms;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.ability.PortalView;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -17,14 +18,13 @@ import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.Shapes;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.jspecify.annotations.Nullable;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 /**
  * Draws every voidstone face around the player through the voidstone shader,
@@ -40,7 +40,6 @@ import java.util.Map;
  * decision boundary-cut-voidstone-draws-without-its-stars
  * decision room-tiles-to-render-distance-held-to-the-picture
  */
-@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class VoidstoneFaces {
 
     private static final int SECTION_BLOCKS = 16;
@@ -96,12 +95,17 @@ public final class VoidstoneFaces {
     }
 
     /**
-     * Draws the voidstone faces around the player once the world's blocks are drawn.
+     * Finds the voidstone faces around the player, scanning the frame's
+     * budget of new sections, and hands the shared path their one batch:
+     * opaque, writing its depth with a bias, drawn with the opaque blocks,
+     * so it sorts by nothing.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
+     * decision room-tiles-to-render-distance-held-to-the-picture
      *
-     * @param event the level stage event
+     * @param frame the frame being drawn
+     * @param draws where the faces' draw goes
      */
-    @SubscribeEvent
-    public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
         Minecraft mc = Minecraft.getInstance();
         ClientLevel level = mc.level;
         if (level != cachedLevel) {
@@ -113,50 +117,83 @@ public final class VoidstoneFaces {
         }
         // inside a view through a linked portal the faces stand around the camera the view is drawn from
         Vec3 camera = PortalView.drawing() ? PortalView.cameraPosition() : mc.gameRenderer.getMainCamera().position();
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
-        VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.VOIDSTONE_TYPE);
-        PoseStack.Pose pose = event.getPoseStack().last();
+        List<SectionFaces> sections = sectionsAround(level, camera, mc.options.getEffectiveRenderDistance());
+        draws.accept(new SortedDraw(0, () -> drawFaces(frame.poseStack().last(), mc.renderBuffers().bufferSource(),
+                camera, sections)));
+    }
+
+    /**
+     * One section's showing voidstone faces, packed as a scan packs them.
+     *
+     * @param faces    the faces
+     * @param sectionX the section's x
+     * @param sectionY the section's y
+     * @param sectionZ the section's z
+     */
+    private record SectionFaces(int[] faces, int sectionX, int sectionY, int sectionZ) {
+    }
+
+    private static List<SectionFaces> sectionsAround(ClientLevel level, Vec3 camera, int reach) {
         int floorSection = SectionPos.blockToSectionCoord(ZoneRooms.ROOM_FLOOR_Y);
         int centerX = SectionPos.blockToSectionCoord(camera.x);
         int centerZ = SectionPos.blockToSectionCoord(camera.z);
-        int reach = mc.options.getEffectiveRenderDistance();
+        List<SectionFaces> sections = new ArrayList<>();
         scansThisFrame = 0;
         // ring by ring out from the camera, so the sections a frame's scan budget reaches first are the nearest
         for (int ring = 0; ring <= reach; ring++) {
-            for (int sectionX = centerX - ring; sectionX <= centerX + ring; sectionX++) {
-                int step = sectionX == centerX - ring || sectionX == centerX + ring ? 1
-                        : Math.max(1, SIDES_PER_RING * ring);
-                for (int sectionZ = centerZ - ring; sectionZ <= centerZ + ring; sectionZ += step) {
-                    drawSection(level, consumer, pose, camera, sectionX, floorSection, sectionZ);
+            addRing(level, SectionPos.of(centerX, floorSection, centerZ), ring, sections);
+        }
+        return sections;
+    }
+
+    private static void addRing(ClientLevel level, SectionPos center, int ring, List<SectionFaces> sections) {
+        for (int sectionX = center.x() - ring; sectionX <= center.x() + ring; sectionX++) {
+            int step = sectionX == center.x() - ring || sectionX == center.x() + ring ? 1
+                    : Math.max(1, SIDES_PER_RING * ring);
+            for (int sectionZ = center.z() - ring; sectionZ <= center.z() + ring; sectionZ += step) {
+                int[] faces = facesOf(level, sectionX, center.y(), sectionZ);
+                if (faces.length > 0) {
+                    sections.add(new SectionFaces(faces, sectionX, center.y(), sectionZ));
                 }
             }
         }
-        buffers.endBatch(GooRenderTypes.VOIDSTONE_TYPE);
     }
 
-    private static void drawSection(ClientLevel level, VertexConsumer consumer, PoseStack.Pose pose, Vec3 camera,
-                                    int sectionX, int sectionY, int sectionZ) {
+    private static int[] facesOf(ClientLevel level, int sectionX, int sectionY, int sectionZ) {
         long key = SectionPos.asLong(sectionX, sectionY, sectionZ);
         int[] faces = SECTIONS.get(key);
         if (level.getChunkSource().getChunk(sectionX, sectionZ, false) == null) {
             // the pocket's floor stands whole everywhere (decision voidstone-floor-stands-whole-and-growth-moves-
             // the-boundary), so a chunk the client has yet to receive, as after crossing a room wider than the
             // client's view, still draws its floor and the ground never flashes away
-            faces = wholeFloorOf(sectionY);
-        } else if (faces == null) {
+            return wholeFloorOf(sectionY);
+        }
+        if (faces == null) {
             // a frame scans a bounded number of new sections, so chunks loading by the hundred spread over frames
             if (scansThisFrame >= SCANS_PER_FRAME) {
-                return;
+                return NO_FACES;
             }
             faces = scan(level, sectionX, sectionY, sectionZ);
             SECTIONS.put(key, faces);
         }
-        int cornerX = SectionPos.sectionToBlockCoord(sectionX);
-        int cornerZ = SectionPos.sectionToBlockCoord(sectionZ);
-        double originX = cornerX - camera.x;
-        double originY = SectionPos.sectionToBlockCoord(sectionY) - camera.y;
-        double originZ = cornerZ - camera.z;
-        for (int face : faces) {
+        return faces;
+    }
+
+    private static void drawFaces(PoseStack.Pose pose, MultiBufferSource.BufferSource buffers, Vec3 camera,
+                                  List<SectionFaces> sections) {
+        VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.VOIDSTONE_TYPE);
+        for (SectionFaces section : sections) {
+            drawSection(consumer, pose, camera, section);
+        }
+        buffers.endBatch(GooRenderTypes.VOIDSTONE_TYPE);
+    }
+
+    private static void drawSection(VertexConsumer consumer, PoseStack.Pose pose, Vec3 camera,
+                                    SectionFaces section) {
+        double originX = SectionPos.sectionToBlockCoord(section.sectionX()) - camera.x;
+        double originY = SectionPos.sectionToBlockCoord(section.sectionY()) - camera.y;
+        double originZ = SectionPos.sectionToBlockCoord(section.sectionZ()) - camera.z;
+        for (int face : section.faces()) {
             float blockX = (float) (originX + (face & AXIS_MASK));
             float blockY = (float) (originY + (face >> AXIS_BITS & AXIS_MASK));
             float blockZ = (float) (originZ + (face >> Z_SHIFT & AXIS_MASK));
