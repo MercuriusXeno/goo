@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.client.FlatQuadContext;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
@@ -41,7 +42,7 @@ import java.util.Map;
  * sinking back once nothing living is near; a cell whose shards stand
  * hidden draws nothing. Each face reflects what its own ray off the camera's
  * view meets in the world, eased across ticks. The cells come from
- * {@link ShatterCells}, and the shards draw after the translucent blocks.
+ * {@link NearCells}, and the shards draw after the translucent blocks.
  * shatter-is-splattered-goo-and-shards-form-over-the-splatters
  * razor-shards-appear-in-layers-ahead-of-the-dome
  * razor-keeps-its-look-gated-on-glass
@@ -101,7 +102,8 @@ public final class CrystalShatterVisual {
      */
     private static final double STALE_EASING_TICKS = 100;
 
-    private static final ShatterCells CELLS = new ShatterCells();
+    private static final NearCells<ShatterCellShards.CellLayout> CELLS =
+            new NearCells<>(CrystalShatterVisual::isShatter, ShatterCellShards::layoutFromSeed);
     private static @Nullable Level cellsLevel;
 
     /**
@@ -173,7 +175,7 @@ public final class CrystalShatterVisual {
      * @return the feet of every living thing within the scan's reach and a near radius past it
      */
     private static List<Vec3> livingNear(Level level, Vec3 eye) {
-        double reach = ShatterCells.REACH + ShatterCells.NEAR_RADIUS;
+        double reach = NearCells.REACH + NearCells.NEAR_RADIUS;
         return level.getEntitiesOfClass(LivingEntity.class, new AABB(eye, eye).inflate(reach),
                 living -> living.isAlive() && !living.isSpectator()).stream().map(LivingEntity::position).toList();
     }
@@ -214,6 +216,16 @@ public final class CrystalShatterVisual {
     }
 
     /**
+     * Whether a block state is a Shatter cell.
+     *
+     * @param state the block state
+     * @return true for a Shatter cell
+     */
+    static boolean isShatter(BlockState state) {
+        return state.is(GooBlocks.CRYSTAL_SHATTER.get());
+    }
+
+    /**
      * Draws one cell's shards where its cell still stands and its shards stand risen at all.
      *
      * @param poseStack the level's pose stack, at the camera
@@ -222,11 +234,12 @@ public final class CrystalShatterVisual {
      * @param cell      the cell's layout and shown share
      * @param frame     what every cell drawn this frame shares
      */
-    private static void drawCell(PoseStack poseStack, VertexConsumer consumer, BlockPos pos, ShatterCells.Cell cell,
+    private static void drawCell(PoseStack poseStack, VertexConsumer consumer, BlockPos pos,
+                                 NearCells.Cell<ShatterCellShards.CellLayout> cell,
                                  Frame frame) {
         BlockState state = frame.level().getBlockState(pos);
         float shown = cell.shownAt(frame.partialTick());
-        if (shown <= 0f || !ShatterCells.isShatter(state)) {
+        if (shown <= 0f || !isShatter(state)) {
             return;
         }
         List<ShatterCellShards.CellShard> shards = ShatterCellShards.shardsOver(pos,

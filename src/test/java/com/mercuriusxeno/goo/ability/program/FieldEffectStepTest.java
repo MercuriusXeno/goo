@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import com.google.gson.JsonParser;
-import com.mercuriusxeno.goo.ability.AbilityJson;
+import com.mercuriusxeno.goo.ability.SpikeTrapFixture;
 import com.mojang.serialization.JsonOps;
 import net.minecraft.resources.Identifier;
 import org.jspecify.annotations.Nullable;
@@ -37,7 +37,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * The metal_urchin program, decoded from its JSON,
+ * The metal spike trap fixture's program, decoded from its JSON,
  * compose the field-effect-with-controller sub-chain. Each strike body's
  * damage acts on the entity itself, which no unit test can build, so the
  * body here swaps its damage for a probe sound at the target and each
@@ -51,7 +51,6 @@ import static org.mockito.Mockito.when;
  */
 class FieldEffectStepTest {
 
-    private static final String METAL_URCHIN = "/data/goo/goo_abilities/metal_urchin.json";
     private static final int WALKER_ID = 7;
     private static final int OTHER_WALKER_ID = 9;
     private static final int IDLE_TICKS = 40;
@@ -87,15 +86,13 @@ class FieldEffectStepTest {
         aims.close();
     }
 
-    private static List<Step> program(String resource) {
-        String fileName = resource.substring(resource.lastIndexOf('/') + 1);
-        return LingerStep.bodyOf(AbilityJson.decode(fileName.substring(0, fileName.length() - ".json".length()))
-                .behaviors()).orElseThrow();
+    private static List<Step> trapBody() {
+        return LingerStep.bodyOf(SpikeTrapFixture.definition().behaviors()).orElseThrow();
     }
 
-    /** The shipped metal field, whose timings the tests below run on rather than copy. */
+    /** The fixture's metal field, whose timings the tests below run on rather than copy. */
     private static FieldEffectStep metalField() {
-        return fieldEffectOf(program(METAL_URCHIN));
+        return fieldEffectOf(trapBody());
     }
 
     private static int strikeTick() {
@@ -115,7 +112,7 @@ class FieldEffectStepTest {
     }
 
     private static List<Step> metalProgram() throws IOException {
-        return withProbedStrikes(program(METAL_URCHIN));
+        return withProbedStrikes(trapBody());
     }
 
     /**
@@ -291,7 +288,7 @@ class FieldEffectStepTest {
     @Test
     void theMetalFieldStrikesWhatIsLivingAliveNoItemAndNotSneaking() {
         assertEquals(List.of(EntityFilter.LIVING, EntityFilter.ALIVE, EntityFilter.NOT_ITEM, EntityFilter.NOT_SNEAKING),
-                fieldEffectOf(program(METAL_URCHIN)).where());
+                fieldEffectOf(trapBody()).where());
     }
 
     @Test
@@ -333,7 +330,7 @@ class FieldEffectStepTest {
     @Test
     void aFieldSoundsItsExpandAsItOpensAndItsAmbientOnARollUnderItsChance() {
         MarkerHost host = marker(List.of());
-        ProgramBehavior program = ProgramBehavior.forHost(withSounds(program(METAL_URCHIN)), HostKind.MARKER);
+        ProgramBehavior program = ProgramBehavior.forHost(withSounds(trapBody()), HostKind.MARKER);
 
         when(host.rollFraction()).thenReturn(AMBIENT_CHANCE + ROLL_STEP);
         program.tick(host);
@@ -360,7 +357,7 @@ class FieldEffectStepTest {
 
     @Test
     void aFieldEffectStandsAgainstBreaking() {
-        assertTrue(fieldEffectOf(program(METAL_URCHIN)).standsAgainstBreaking());
+        assertTrue(fieldEffectOf(trapBody()).standsAgainstBreaking());
     }
 
     @Test

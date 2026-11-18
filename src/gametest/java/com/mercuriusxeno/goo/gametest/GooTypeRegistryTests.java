@@ -69,7 +69,7 @@ public final class GooTypeRegistryTests {
     private static final String CAPTURE_LACKS_SEVENTEENTH = "GooTypes.order() should hold the datapack type";
     private static final String MARKER_TYPE_LOST = "Ability block should reload with the type it saved";
     private static final BlockPos MARKER_POS = new BlockPos(1, 1, 1);
-    private static final Identifier METAL_URCHIN = Identifier.fromNamespaceAndPath(Goo.MODID, "metal_urchin");
+    private static final Identifier SPIKE_TRAP = Identifier.fromNamespaceAndPath(Goo.MODID, "test_spike_trap");
     private static final String ABILITIES_REQUIRED = "Ability registry must be loaded";
 
     private GooTypeRegistryTests() {
@@ -101,10 +101,10 @@ public final class GooTypeRegistryTests {
      */
     public static void abilityBlockReloadsType(GameTestHelper helper) {
         helper.setBlock(MARKER_POS.below(), Blocks.STONE);
-        AbilityDefinition metalUrchin = AbilityRegistry.of(helper.getLevel()).getAbility(METAL_URCHIN);
-        helper.assertTrue(metalUrchin != null, ABILITIES_REQUIRED);
+        AbilityDefinition spikeTrap = AbilityRegistry.of(helper.getLevel()).getAbility(SPIKE_TRAP);
+        helper.assertTrue(spikeTrap != null, ABILITIES_REQUIRED);
         AbilityImpact.land(helper.getLevel(), helper.absolutePos(MARKER_POS.below()), GooTypes.METAL, Direction.UP,
-                metalUrchin);
+                spikeTrap);
         AbilityBlockEntity marker = helper.getBlockEntity(MARKER_POS, AbilityBlockEntity.class);
         CompoundTag saved = marker.getUpdateTag(helper.getLevel().registryAccess());
 
@@ -127,7 +127,7 @@ public final class GooTypeRegistryTests {
      */
     public static void gloveSelectionReloadsItsType(GameTestHelper helper) {
         ItemStack glove = new ItemStack(GooItems.GOO_GLOVE.get());
-        GooGloveItem.setSelection(glove, GloveSelection.ofAbility(GooTypes.METAL, METAL_URCHIN));
+        GooGloveItem.setSelection(glove, GloveSelection.ofAbility(GooTypes.METAL, SPIKE_TRAP));
         RegistryOps<Tag> ops = helper.getLevel().registryAccess().createSerializationContext(NbtOps.INSTANCE);
         Tag saved = ItemStack.CODEC.encodeStart(ops, glove).getOrThrow();
         GloveSelection selection = GooGloveItem.getSelection(ItemStack.CODEC.parse(ops, saved).getOrThrow());
