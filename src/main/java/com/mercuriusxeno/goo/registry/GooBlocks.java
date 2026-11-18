@@ -16,6 +16,7 @@ import com.mercuriusxeno.goo.block.ability.RimeCellBlock;
 import com.mercuriusxeno.goo.block.ability.SignalCellBlock;
 import com.mercuriusxeno.goo.block.ability.SpikesCellBlock;
 import com.mercuriusxeno.goo.block.ability.UpdraftCellBlock;
+import com.mercuriusxeno.goo.block.ability.VinesCellBlock;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.block.ability.WispBlock;
 import com.mercuriusxeno.goo.block.ability.ZapPulseBlock;
@@ -379,12 +380,32 @@ public class GooBlocks {
             () -> BlockBehaviour.Properties.of()
                     .mapColor(MapColor.COLOR_RED)
                     .friction(CellBinding.SIGNAL.surface().friction())
+                    .isRedstoneConductor((state, level, pos) -> false)
                     .sound(SoundType.SLIME_BLOCK)
                     .instabreak()
                     .noOcclusion()
                     .replaceable()
                     .noLootTable()
-                    .isRedstoneConductor((state, level, pos) -> false)
+                    .pushReaction(PushReaction.DESTROY));
+    /**
+     * Vines: the volume cell bound to Leaf's goo, the green goo Vines sprays
+     * onto a block's top or a wall, one to fifteen layers, ordinary ground
+     * underfoot and sounding as goo does, entangling what crosses it and
+     * growing goologged vines on the walls it coats
+     * (decisions vines-is-sprayed-slime-that-entangles-what-tries-to-cross,
+     * vines-goo-on-walls-places-goologged-vines-and-depletes,
+     * each-goo-type-ships-a-world-goo-on-the-volume-cell).
+     */
+    public static final DeferredBlock<VinesCellBlock> LEAF_VINES = BLOCKS.registerBlock(
+            "leaf_vines", properties -> new VinesCellBlock(properties, CellBinding.VINES),
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.PLANT)
+                    .friction(CellBinding.VINES.surface().friction())
+                    .sound(SoundType.SLIME_BLOCK)
+                    .instabreak()
+                    .noOcclusion()
+                    .replaceable()
+                    .noLootTable()
                     .pushReaction(PushReaction.DESTROY));
     /**
      * Spikes: the volume cell bound to Metal's goo, the silver goo Spikes

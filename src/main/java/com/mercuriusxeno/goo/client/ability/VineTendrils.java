@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.ability.root.RootEvents;
 import com.mercuriusxeno.goo.ability.root.Rooted;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.GooSubmitter;
@@ -43,6 +42,8 @@ public final class VineTendrils {
     private static final double LIFT = 0.02;
     /** Half a slack strand's width, and the share it thins by at the leash. */
     private static final double HALF_WIDTH = 0.07;
+    /** How far across the ground from the anchor a strand pulls taut. */
+    static final double STRAIN_BLOCKS = 1.0;
     private static final double THIN_AT_LEASH = 0.5;
     /** A turn of the strands around the body, so they leave between the mob's legs. */
     private static final double FIRST_ANGLE = Math.PI / TENDRILS;
@@ -143,7 +144,7 @@ public final class VineTendrils {
     static double strainOf(Vec3 root, Vec3 feet) {
         double dx = feet.x - root.x;
         double dz = feet.z - root.z;
-        return Math.min(1, Math.sqrt(dx * dx + dz * dz) / RootEvents.LEASH_BLOCKS);
+        return Math.min(1, Math.sqrt(dx * dx + dz * dz) / STRAIN_BLOCKS);
     }
 
     /**

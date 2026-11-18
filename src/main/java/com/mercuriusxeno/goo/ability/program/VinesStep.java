@@ -1,0 +1,100 @@
+package com.mercuriusxeno.goo.ability.program;
+
+import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
+import com.mercuriusxeno.goo.registry.GooBlocks;
+import com.mercuriusxeno.goo.throwing.CoatRay;
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.MapCodec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Stream;
+
+/**
+ * Leaf's Vines block step: Leaf's goo lands where each of the stream's
+ * drips strikes, one layer for each drip, through the volume cell's one
+ * landing, as Goop lays its slime and Leech its hex goo. A living thing
+ * crossing the goo is held by its vines, which deal it no damage, and goo
+ * coating a wall grows goologged vines on it. The step names what fire
+ * damage to a held thing is multiplied by and the layers each vine grown on
+ * a wall spends: {@code vines fire_factor=1.5 layers_per_vine=1}.
+ * vines-is-sprayed-slime-that-entangles-what-tries-to-cross
+ * vines-deal-no-thorn-damage-and-attacking-the-mob-frees-it
+ * vines-unpack-root-and-thorn
+ * vines-goo-on-walls-places-goologged-vines-and-depletes
+ * each-goo-type-ships-a-world-goo-on-the-volume-cell
+ * drip-creates-a-volume-cell-immediately
+ * drip-on-a-standing-cell-increases-it
+ *
+ * @param fireFactor    what fire damage to a held thing that is not fire immune is multiplied by
+ * @param layersPerVine the layers each vine the goo grows on a wall spends
+ */
+public record VinesStep(float fireFactor, int layersPerVine) implements TakesNoEntity, DripLanding {
+
+    private static final String NAME = "vines";
+    private static final String FIELD_FIRE_FACTOR = "fire_factor";
+    private static final String FIELD_LAYERS_PER_VINE = "layers_per_vine";
+    /** The most fire damage is multiplied by. */
+    private static final float MOST_FIRE_FACTOR = 10.0F;
+
+    /**
+     * Codec for the step's params.
+     */
+    public static final MapCodec<VinesStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
+            Codec.floatRange(1, MOST_FIRE_FACTOR).fieldOf(FIELD_FIRE_FACTOR).forGetter(VinesStep::fireFactor),
+            Codec.intRange(1, VolumeCellBlock.MAX_LAYERS).fieldOf(FIELD_LAYERS_PER_VINE)
+                    .forGetter(VinesStep::layersPerVine)
+    ).apply(inst, VinesStep::new));
+
+    /**
+     * The registered type.
+     */
+    public static final StepType<VinesStep> TYPE = new StepType<>(NAME, CODEC);
+
+    /**
+     * The vines step a program carries, the first where it carries several.
+     *
+     * @param program the ability's steps
+     * @return the vines step, empty where the program lays no Vines goo
+     */
+    public static Optional<VinesStep> in(List<Step> program) {
+        return program.stream().filter(VinesStep.class::isInstance).map(VinesStep.class::cast).findFirst();
+    }
+
+    @Override
+    public StepType<VinesStep> type() {
+        return TYPE;
+    }
+
+    /**
+     * Runs nothing on the hold's tick: the stream's drips lay the Vines goo as they strike.
+     *
+     * @param context the step's context
+     * @return true, the step never fails
+     */
+    @Override
+    public boolean tick(StepContext context) {
+        return true;
+    }
+
+    @Override
+    public Optional<CellFed> cellFed(ChannelHost host, CoatRay.BlockStrike strike) {
+        return CellLanding.cellFed(host, strike, GooBlocks.LEAF_VINES.get());
+    }
+
+    @Override
+    public void feed(ChannelHost host, CellFed fed) {
+        CellLanding.feed(host, fed, GooBlocks.LEAF_VINES.get());
+    }
+
+    @Override
+    public Stream<Expr> expressions() {
+        return Stream.empty();
+    }
+
+    @Override
+    public Set<HostCapability> requires() {
+        return Set.of(HostCapability.CHANNEL);
+    }
+}

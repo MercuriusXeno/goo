@@ -103,6 +103,13 @@ public record BlendPalette(float lightRed, float lightGreen, float lightBlue,
      */
     public static final BlendPalette SPIKES_METAL_SILVERS = new BlendPalette(
             0xE8 / 255f, 0xE8 / 255f, 0xE8 / 255f, 0xC0 / 255f, 0xC0 / 255f, 0xC0 / 255f);
+    /**
+     * Vines' spray drips, from leaf's bright green, A6F078, to its wheel
+     * green, 7EC850, the two the leaf goo type's definition names.
+     * vines-is-sprayed-slime-that-entangles-what-tries-to-cross
+     */
+    public static final BlendPalette VINES_LEAF_GREENS = new BlendPalette(
+            0xA6 / 255f, 0xF0 / 255f, 0x78 / 255f, 0x7E / 255f, 0xC8 / 255f, 0x50 / 255f);
 
     /**
      * Infest's spray drips, from nether's bright red, 9A4E4E, to its wheel

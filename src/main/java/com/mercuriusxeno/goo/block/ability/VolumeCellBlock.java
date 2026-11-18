@@ -12,8 +12,11 @@ import com.mercuriusxeno.goo.ability.program.MoltenStep;
 import com.mercuriusxeno.goo.ability.program.ShatterStep;
 import com.mercuriusxeno.goo.ability.program.SlickStep;
 import com.mercuriusxeno.goo.ability.program.Step;
+import com.mercuriusxeno.goo.ability.program.VinesStep;
 import com.mercuriusxeno.goo.ability.program.WispShed;
 import com.mercuriusxeno.goo.ability.program.WispsStep;
+import com.mercuriusxeno.goo.ability.root.RootEvents;
+import com.mercuriusxeno.goo.ability.root.Rooted;
 import com.mercuriusxeno.goo.block.ability.SlimeFlow.Side;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.item.GooStacks;
@@ -744,14 +747,15 @@ public class VolumeCellBlock extends Block {
 
     /**
      * Whether a hit this cell deals credits whoever placed it, so the cell
-     * remembers its placer: a cutting cell's shards and a smiting cell's
-     * holy fire; a cell that hurts nothing remembers none.
+     * remembers its placer: an entangling cell, which spares it, and the
+     * cutting cell's shards and the smiting cell's holy fire, which credit
+     * it; a cell that neither spares nor hurts remembers none.
      * standing-goo-thing-credits-whoever-placed-it
      *
      * @return true where the cell remembers its placer
      */
     protected boolean creditsItsPlacer() {
-        return surface().cuts() || surface().smites();
+        return surface().cuts() || surface().smites() || surface().entangles();
     }
 
     /**
@@ -1933,12 +1937,13 @@ public class VolumeCellBlock extends Block {
      * step names; on a cutting cell, the shards over it cut a thing moving
      * through them, on the server, by the laying ability's shatter step; a
      * smiting cell burns an undead standing on it; a slowing cell catches
-     * what stands on it.
+     * what stands on it; an entangling cell gives vines to what crosses it.
      * slick-coats-the-ground-with-kinetic-speed
      * slick-is-a-layered-cell-that-flows-thinner-and-faster-than-slime
      * each-shatter-cut-has-a-chance-to-deplete-a-layer
      * undead-touching-wisps-goo-erupt-in-flames-and-take-holy-damage-by-fill
      * leech-goo-slows-what-it-catches-and-the-spirits-damage-it
+     * vines-is-sprayed-slime-that-entangles-what-tries-to-cross
      */
     @Override
     public void stepOn(@NonNull Level level, @NonNull BlockPos pos, @NonNull BlockState state,
@@ -1952,6 +1957,7 @@ public class VolumeCellBlock extends Block {
         }
         smite(level, pos, state, entity);
         catchIn(level, entity);
+        entangle(level, pos, state, entity);
         super.stepOn(level, pos, state, entity);
     }
 
@@ -1959,9 +1965,11 @@ public class VolumeCellBlock extends Block {
      * Smites an undead inside a smiting cell's space, where a cell too thin
      * to stand on as the block under its feet still touches it, and catches a
      * thing inside a slowing cell's block space, wading in it or standing on
-     * a cell short of a whole block.
+     * a cell short of a whole block, and entangles a thing crossing an
+     * entangling cell's space.
      * undead-touching-wisps-goo-erupt-in-flames-and-take-holy-damage-by-fill
      * leech-goo-slows-what-it-catches-and-the-spirits-damage-it
+     * vines-is-sprayed-slime-that-entangles-what-tries-to-cross
      */
     @Override
     protected void entityInside(@NonNull BlockState state, @NonNull Level level, @NonNull BlockPos pos,
@@ -1969,6 +1977,7 @@ public class VolumeCellBlock extends Block {
                                 boolean pastEdges) {
         smite(level, pos, state, entity);
         catchIn(level, entity);
+        entangle(level, pos, state, entity);
         super.entityInside(state, level, pos, entity, effects, pastEdges);
     }
 
@@ -2006,6 +2015,26 @@ public class VolumeCellBlock extends Block {
     private void catchIn(Level level, Entity entity) {
         if (surface().slows()) {
             LeechGooStep.in(layingProgram(level)).ifPresent(leech -> LeechSlow.slowOnce(level, entity, leech));
+        }
+    }
+
+    /**
+     * Entangles a living thing crossing an entangling cell in the vines its
+     * layers give, by its laying ability's vines step, on the server, whose
+     * speed modifier reaches the client too; the player who placed the cell
+     * is spared.
+     * vines-is-sprayed-slime-that-entangles-what-tries-to-cross
+     * operator ruling 2026-11-17: the caster is spared their own goo
+     *
+     * @param level  the level the cell stands in
+     * @param pos    the cell
+     * @param state  the cell's state
+     * @param entity the entity touching the cell
+     */
+    private void entangle(Level level, BlockPos pos, BlockState state, Entity entity) {
+        if (surface().entangles() && level instanceof ServerLevel server) {
+            VinesStep.in(layingProgram(server)).ifPresent(vines -> RootEvents.entangle(entity,
+                    new Rooted.Touch(pos, state.getValue(LAYERS), vines.fireFactor()), creditedPlayerAt(server, pos)));
         }
     }
 
