@@ -48,7 +48,7 @@ class GloveAimTest {
     }
 
     /**
-     * Zap aims 32 blocks, the range its delivery names, and Spire's cast ray
+     * Zap aims 32 blocks, the range its delivery names, and Build's cast ray
      * reads the same aim range as every thrown ability.
      * decision zap-starts-at-thirty-two-blocks
      * decision each-ability-names-its-range-and-the-shared-throw-range-retires
@@ -59,8 +59,8 @@ class GloveAimTest {
     }
 
     @Test
-    void spireAimsSixteenBlocks() {
-        assertEquals(16, GloveAim.aimRangeOf(shipped("rock_spire"), null));
+    void buildAimsThirtyTwoBlocks() {
+        assertEquals(32, GloveAim.aimRangeOf(shipped("rock_build"), null));
     }
 
     @Test

@@ -608,6 +608,32 @@ class VolumeCellBlockTest {
     }
 
     /**
+     * A broken Infest cell gives back nether goo, each layer a fifteenth of
+     * Infest's cost as nether_infest.json ships it.
+     * infest-is-nethers-goo-the-decay-effect-localized-around-the-goo
+     */
+    @Nested
+    class InfestReclaim {
+
+        private static final int LAYERS = 8;
+
+        @Test
+        void infestIsNetherGooLaidByNethersInfest() {
+            assertEquals(List.of(GooTypes.NETHER, AbilityJson.idOf("nether_infest.json")),
+                    List.of(CellBinding.INFEST.gooType(), CellBinding.INFEST.layingAbility()));
+        }
+
+        @Test
+        void aBrokenInfestCellDropsNetherGooAtFifteenthsOfInfestsCost() {
+            GooFraction cost = AbilityJson.decode("nether_infest").cost().exactIn(GooValueTable.EMPTY);
+
+            assertEquals(Optional.of(new VolumeCellBlock.Reclaim(GooTypes.NETHER,
+                            cost.times(LAYERS).dividedBy(FIFTEEN).floor())),
+                    VolumeCellBlock.reclaimedBy(CellBinding.INFEST, LAYERS, cost));
+        }
+    }
+
+    /**
      * A broken Wisps cell gives back glow goo, each layer a fifteenth of
      * Wisps' cost as glow_wisps.json ships it
      * (decision glow-world-goo-is-named-wisps-and-takes-the-holds-place).
@@ -797,6 +823,32 @@ class VolumeCellBlockTest {
             assertEquals(Optional.of(new VolumeCellBlock.Reclaim(GooTypes.PULSE,
                             cost.times(LAYERS).dividedBy(FIFTEEN).floor())),
                     VolumeCellBlock.reclaimedBy(CellBinding.SIGNAL, LAYERS, cost));
+        }
+    }
+
+    /**
+     * A broken Spikes cell gives back metal goo, each layer a fifteenth of
+     * Spikes' cost as metal_spikes.json ships it.
+     * spikes-is-a-coat-of-metal-goo-that-impales-what-walks-on-it
+     */
+    @Nested
+    class SpikesReclaim {
+
+        private static final int LAYERS = 11;
+
+        @Test
+        void spikesIsMetalGooLaidByMetalsSpikes() {
+            assertEquals(List.of(GooTypes.METAL, AbilityJson.idOf("metal_spikes.json")),
+                    List.of(CellBinding.SPIKES.gooType(), CellBinding.SPIKES.layingAbility()));
+        }
+
+        @Test
+        void aBrokenSpikesCellDropsMetalGooAtFifteenthsOfSpikesCost() {
+            GooFraction cost = AbilityJson.decode("metal_spikes").cost().exactIn(GooValueTable.EMPTY);
+
+            assertEquals(Optional.of(new VolumeCellBlock.Reclaim(GooTypes.METAL,
+                            cost.times(LAYERS).dividedBy(FIFTEEN).floor())),
+                    VolumeCellBlock.reclaimedBy(CellBinding.SPIKES, LAYERS, cost));
         }
     }
 

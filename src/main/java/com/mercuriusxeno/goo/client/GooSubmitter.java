@@ -328,7 +328,7 @@ public final class GooSubmitter {
 
     /**
      * Submits geometry on Metal's chrome shader, the one the burnout urchin
-     * draws with, writing depth, for the Urchin trap's spines and spears.
+     * draws with, writing depth, for the metal spike trap's spines and spears.
      * urchin-rests-bristled-and-spears
      *
      * @param poseStack     the pose stack
