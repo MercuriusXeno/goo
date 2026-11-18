@@ -11,10 +11,9 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 /**
- * Places a Quantum portal on the face the blob struck, for its caster, and
- * finishes. With the ability in hand, right clicking one of the caster's
- * portals chooses its partner instead of throwing. Quantum's Portal is
- * {@code quantum_portal}.
+ * Places a Quantum portal of the shot's color on the face the cast struck,
+ * for its caster, and finishes. Quantum's Portal is {@code quantum_portal}.
+ * player-holds-one-pair-of-portals
  * portals-link-by-looking-through-portal-vision
  */
 public record PortalStep() implements TargetGatedStep {
@@ -60,8 +59,8 @@ public record PortalStep() implements TargetGatedStep {
     }
 
     /**
-     * Whether an ability places portals, so a right click on one of its
-     * caster's portals chooses a partner rather than throwing.
+     * Whether an ability places portals, whose left click and right click
+     * shoot the blue and the orange portal.
      *
      * @param behaviors an ability's top-level steps
      * @return true where a portal step stands among them

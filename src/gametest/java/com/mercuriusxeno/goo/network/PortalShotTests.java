@@ -3,13 +3,14 @@ package com.mercuriusxeno.goo.network;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.GloveButton;
 import com.mercuriusxeno.goo.ability.quantum.Portal;
-import com.mercuriusxeno.goo.ability.quantum.PortalChoice;
+import com.mercuriusxeno.goo.ability.quantum.PortalPairs;
 import com.mercuriusxeno.goo.ability.quantum.PortalColor;
 import com.mercuriusxeno.goo.ability.quantum.PortalShots;
 import com.mercuriusxeno.goo.ability.quantum.QuantumPortals;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
+import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.commands.arguments.EntityAnchorArgument;
 import net.minecraft.core.BlockPos;
@@ -23,6 +24,8 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import java.util.function.Consumer;
 
 /**
@@ -39,15 +42,20 @@ public final class PortalShotTests {
             "portal_attack_places_blue_and_use_places_orange";
     private static final String LANDS_WHERE_THE_LOOK_STRIKES_FAR_AND_UP =
             "portal_lands_where_the_look_strikes_far_and_up";
+    private static final String A_SECOND_BLUE_MOVES_THE_BLUE_PORTAL = "portal_a_second_blue_moves_the_blue_portal";
 
     private static final Identifier PORTAL = Identifier.parse("goo:quantum_portal");
     private static final int NO_ENTITY = -1;
     private static final double HALF = 0.5;
+    /** The shots' worth of Quantum goo a shooter holds beside what it starts with, enough for every shot a test takes. */
+    private static final int SHOTS_HELD = 4;
 
     /** The upper block of the wall the left click aims at; its frame opens down over the block below. */
     private static final BlockPos BLUE_WALL_TOP = new BlockPos(4, 2, 2);
     /** The upper block of the wall the right click aims at. */
     private static final BlockPos ORANGE_WALL_TOP = new BlockPos(11, 2, 2);
+    /** The upper block of the wall a second left click aims at, between the other two. */
+    private static final BlockPos SECOND_BLUE_WALL_TOP = new BlockPos(8, 2, 2);
     /** Where the shooter stands in the light bay, before both walls' faces. */
     private static final Vec3 BEFORE_THE_WALLS = new Vec3(8.5, 1, 9.5);
 
@@ -74,6 +82,39 @@ public final class PortalShotTests {
                 PortalShotTests::attackPlacesBlueAndUsePlacesOrange);
         GooTestFunctions.registerTest(registrar, LANDS_WHERE_THE_LOOK_STRIKES_FAR_AND_UP,
                 PortalShotTests::landsWhereTheLookStrikesFarAndUp);
+        GooTestFunctions.registerTest(registrar, A_SECOND_BLUE_MOVES_THE_BLUE_PORTAL,
+                PortalShotTests::aSecondBlueMovesTheBluePortal);
+    }
+
+    /**
+     * One player shoots blue at one wall, orange at a second and blue at a
+     * third: two portals stand for them, the blue one moved to the third wall
+     * and the orange one on the second, each the other's partner
+     * (decision player-holds-one-pair-of-portals).
+     *
+     * @param helper the gametest helper
+     */
+    public static void aSecondBlueMovesTheBluePortal(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        ServerPlayer player = shooter(helper, BEFORE_THE_WALLS);
+        wall(helper, BLUE_WALL_TOP, 2);
+        wall(helper, ORANGE_WALL_TOP, 2);
+        wall(helper, SECOND_BLUE_WALL_TOP, 2);
+        shootAt(helper, player, GloveButton.ATTACK, BLUE_WALL_TOP, Direction.SOUTH);
+        shootAt(helper, player, GloveButton.USE, ORANGE_WALL_TOP, Direction.SOUTH);
+        shootAt(helper, player, GloveButton.ATTACK, SECOND_BLUE_WALL_TOP, Direction.SOUTH);
+        QuantumPortals portals = QuantumPortals.get(level);
+        List<Portal> placed = portals.portalsOf(player.getUUID());
+        Portal blue = frameBelow(helper, SECOND_BLUE_WALL_TOP, Direction.SOUTH, PortalColor.BLUE);
+        Portal orange = frameBelow(helper, ORANGE_WALL_TOP, Direction.SOUTH, PortalColor.ORANGE);
+        boolean linked = portals.partnerOf(blue).equals(Optional.of(orange))
+                && portals.partnerOf(orange).equals(Optional.of(blue));
+        placed.forEach(portal -> PortalPairs.breakAt(level, portal.block().pos(), portal.face()));
+        level.getServer().getPlayerList().remove(player);
+        helper.assertTrue(Set.copyOf(placed).equals(Set.of(blue, orange)) && placed.size() == 2, "Two portals "
+                + "should stand, blue on the third wall and orange on the second, holds " + placed);
+        helper.assertTrue(linked, "The blue and orange portals should each name the other as partner");
+        helper.succeed();
     }
 
     /**
@@ -94,7 +135,7 @@ public final class PortalShotTests {
         List<Portal> placed = QuantumPortals.get(level).portalsOf(player.getUUID());
         Portal blue = frameBelow(helper, BLUE_WALL_TOP, Direction.SOUTH, PortalColor.BLUE);
         Portal orange = frameBelow(helper, ORANGE_WALL_TOP, Direction.SOUTH, PortalColor.ORANGE);
-        placed.forEach(portal -> PortalChoice.breakAt(level, portal.block().pos(), portal.face()));
+        placed.forEach(portal -> PortalPairs.breakAt(level, portal.block().pos(), portal.face()));
         level.getServer().getPlayerList().remove(player);
         helper.assertTrue(placed.contains(blue), "The attack button should place a blue portal, holds " + placed);
         helper.assertTrue(placed.contains(orange), "The use button should place an orange portal, holds " + placed);
@@ -121,7 +162,7 @@ public final class PortalShotTests {
         PortalShots.shoot(player, GloveButton.ATTACK, aimedAt(helper, player, foot, Direction.WEST));
         List<Portal> placed = QuantumPortals.get(level).portalsOf(player.getUUID());
         Portal struck = frameBelow(helper, looked, Direction.WEST, PortalColor.BLUE);
-        placed.forEach(portal -> PortalChoice.breakAt(level, portal.block().pos(), portal.face()));
+        placed.forEach(portal -> PortalPairs.breakAt(level, portal.block().pos(), portal.face()));
         level.getServer().getPlayerList().remove(player);
         helper.assertTrue(placed.equals(List.of(struck)), "The portal should open on the face the look strikes, "
                 + struck.block().pos() + ", holds " + placed + ", the look rising "
@@ -131,10 +172,11 @@ public final class PortalShotTests {
 
     /**
      * A player holding a glove with Portal selected and known, and Quantum
-     * goo to pay for it, standing at a spot.
+     * goo to pay for every shot, standing at a spot.
      */
     private static ServerPlayer shooter(GameTestHelper helper, Vec3 feet) {
         ServerPlayer player = SelfDeliveryTests.invoker(helper, GooTypes.QUANTUM, PORTAL);
+        player.getInventory().add(GooStacks.createForOutput(GooTypes.QUANTUM, SHOTS_HELD * GooStacks.THOUSAND));
         KnownRecipes.teachRequires(player, AbilityRegistry.of(helper.getLevel()).getAbility(PORTAL));
         Vec3 at = helper.absoluteVec(feet);
         player.teleportTo(at.x, at.y, at.z);

@@ -4,14 +4,11 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.quantum.Gate;
 import com.mercuriusxeno.goo.ability.quantum.GatePassage;
 import com.mercuriusxeno.goo.ability.quantum.Portal;
-import com.mercuriusxeno.goo.ability.quantum.QuantumPortals;
+import com.mercuriusxeno.goo.ability.quantum.PortalColor;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
-import com.mercuriusxeno.goo.client.throwing.GloveAim;
-import com.mercuriusxeno.goo.client.throwing.PortalAim;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.core.BlockPos;
@@ -33,44 +30,30 @@ import java.util.function.BiPredicate;
 import java.util.function.Function;
 
 /**
- * Draws every gate as an oval on the face it covers, blue or orange: the
- * local player's portals, the blue entry and unlinked ones blue and the exit
- * orange, and each open hole's mouths, blue on the struck side and orange on
- * the far side. A gate whose view drew this frame shows the far side flush
- * inside its oval under a rim of its color; one with no view shows its idle
- * swirl. With Portal in the glove, the portal being paired blinks its swirl
- * in place of its view the whole time its owner chooses, and the one aimed
- * at, while choosing or sneaking, blinks brighter; both stand behind what
- * stands before them. While choosing, every portal of the owner's shows a
- * thin outline through the blocks, to find and pick one from afar. Inside a
+ * Draws every gate as an oval on the face it covers, blue or orange: each
+ * portal in its own color, and each open hole's mouths, blue on the struck
+ * side and orange on the far side. A gate whose view drew this frame shows
+ * the far side flush inside its oval under a rim of its color; one with no
+ * view, a portal standing alone among them, shows its idle swirl. Inside a
  * view's own pass the views within it draw, and only an inert gate swirls.
+ * player-holds-one-pair-of-portals
  * portals-link-by-looking-through-portal-vision
  * hole-closes-the-space-to-an-opening-ahead
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class PortalFaces {
 
-    /** The blue portal's color: the entry, and any portal not yet the exit. */
+    /** The blue portal's color. */
     static final int BLUE_RGB = 0x3A7BFF;
-    /** The orange portal's color: the exit. */
+    /** The orange portal's color. */
     static final int ORANGE_RGB = 0xFF8A1E;
     /** A block texture's texels a side, the grid a gate's face draws on. */
     private static final int TEXELS_PER_BLOCK = 16;
     private static final int OPAQUE = 255;
     /** The idle swirl's alpha: nearly solid, a little of the wall showing through its dark heart. */
     private static final int SWIRL_ALPHA = 235;
-    /** A portal's outline through blocks while its owner chooses. */
-    private static final int OUTLINE_ALPHA = 200;
-    /** The faintest the portal aimed at blinks down to, brighter than the one being paired. */
-    private static final float AIMED_BLINK_LOW = 140F;
-    /** How fast the portal aimed at blinks, in radians a tick, quicker than the one being paired. */
-    private static final float AIMED_BLINK_RATE = 1.1F;
-    /** The faintest a faced portal's strobe dims to. */
-    private static final float STROBE_LOW = 60F;
-    /** How fast a faced portal strobes, in radians a tick. */
-    private static final float STROBE_RATE = 0.6F;
-    /** Half a wave's swing, which lifts a sine from minus one to one into nothing to full. */
-    private static final float HALF_WAVE = 0.5F;
+    /** Half a span: the middle of two corners, and half a box's size. */
+    private static final double HALF_WAVE = 0.5;
     /** How far off its blocks a gate's face stands, so the two never fight for depth. */
     private static final double FACE_LIFT = 0.01;
     /**
@@ -130,15 +113,14 @@ public final class PortalFaces {
     }
 
     /**
-     * The color a portal draws in: orange for the exit of any linked pair,
-     * blue for every other, an entry or an inert portal.
+     * The color a portal draws in: its own, blue or orange.
+     * portal-takes-over-left-and-right-click-for-blue-and-orange
      *
      * @param portal the portal
-     * @param links  every linked pair
      * @return 0xRRGGBB
      */
-    static int colorOf(Portal portal, List<QuantumPortals.Link> links) {
-        return links.stream().anyMatch(link -> link.exit().equals(portal)) ? ORANGE_RGB : BLUE_RGB;
+    static int colorOf(Portal portal) {
+        return portal.color() == PortalColor.ORANGE ? ORANGE_RGB : BLUE_RGB;
     }
 
     /**
@@ -174,8 +156,7 @@ public final class PortalFaces {
     @SubscribeEvent
     public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
         Minecraft mc = Minecraft.getInstance();
-        LocalPlayer player = mc.player;
-        if (player == null || mc.level == null) {
+        if (mc.player == null || mc.level == null) {
             return;
         }
         Vec3 camera = PortalView.drawing() ? PortalView.cameraPosition() : mc.gameRenderer.getMainCamera().position();
@@ -183,129 +164,26 @@ public final class PortalFaces {
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         List<Drawn> gates = gatesIn(mc.level.dimension());
         drawHalos(pose, buffers, camera, gates);
-        if (PortalView.drawing()) {
-            drawViews(pose, buffers, camera, gates);
-            drawIdle(pose, buffers, camera, gates);
-            return;
-        }
-        drawWorldPass(pose, buffers, camera, player, gates);
-    }
-
-    /**
-     * Draws the gates in the world's own pass: the views and idle swirls,
-     * then the portals a right click with Portal in the glove works on
-     * blinking, and while choosing, every portal's outline through blocks.
-     *
-     * @param pose    the pose
-     * @param buffers the frame's buffers
-     * @param camera  the camera's position
-     * @param player  the local player
-     * @param gates   the gates the frame draws
-     */
-    private static void drawWorldPass(PoseStack.Pose pose, MultiBufferSource.BufferSource buffers, Vec3 camera,
-            LocalPlayer player, List<Drawn> gates) {
-        Minecraft mc = Minecraft.getInstance();
-        boolean holding = PortalAim.selected(GloveAim.selectedAbilityId(player));
-        Optional<Portal> chosen = holding ? ClientPortals.choosing() : Optional.empty();
-        Optional<Portal> aimed = holding && (chosen.isPresent() || PortalAim.working(player))
-                ? PortalAim.faced(player) : Optional.empty();
-        List<Portal> blinking = new ArrayList<>(chosen.stream().toList());
-        aimed.filter(portal -> !blinking.contains(portal)).ifPresent(blinking::add);
-        gates.removeIf(drawn -> blinking.stream().anyMatch(portal -> portal.gate().equals(drawn.gate())));
         drawViews(pose, buffers, camera, gates);
         drawIdle(pose, buffers, camera, gates);
-        float time = player.tickCount + mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        drawBlinking(pose, buffers, camera, blinking, aimed, time);
-        if (chosen.isPresent()) {
-            drawOutlines(pose, buffers, camera, player, blinking, aimed, time);
-        }
-    }
-
-    /**
-     * How strongly a blinking portal shows this frame: the portal being
-     * paired blinks the whole time its owner chooses, and the one aimed at
-     * blinks brighter and quicker.
-     *
-     * @param aimed whether the portal is the one aimed at
-     * @param time  the ticks, with the frame's share of one
-     * @return the alpha
-     */
-    private static int blinkAlpha(boolean aimed, float time) {
-        float wave = HALF_WAVE + HALF_WAVE * Mth.sin(time * (aimed ? AIMED_BLINK_RATE : STROBE_RATE));
-        return (int) Mth.lerp(wave, aimed ? AIMED_BLINK_LOW : STROBE_LOW, OPAQUE);
-    }
-
-    /**
-     * Draws the portals a right click with Portal in the glove works on, the
-     * one being paired and the one aimed at, as their swirl blinking in place
-     * of their view, behind whatever stands before them as any face does.
-     *
-     * @param pose     the pose
-     * @param buffers  the frame's buffers
-     * @param camera   the camera's position
-     * @param blinking the portals blinking
-     * @param aimed    the portal aimed at, empty for none
-     * @param time     the ticks, with the frame's share of one
-     */
-    private static void drawBlinking(PoseStack.Pose pose, MultiBufferSource.BufferSource buffers, Vec3 camera,
-            List<Portal> blinking, Optional<Portal> aimed, float time) {
-        if (blinking.isEmpty()) {
-            return;
-        }
-        VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.GOO_PORTAL_IDLE_TYPE);
-        for (Portal portal : blinking) {
-            int alpha = blinkAlpha(aimed.isPresent() && aimed.get().equals(portal), time);
-            emitOval(pose, consumer, portal.blocks().move(camera.reverse()), portal.face(),
-                    ARGB.color(alpha, colorOf(portal, ClientPortals.links())));
-        }
-        buffers.endBatch(GooRenderTypes.GOO_PORTAL_IDLE_TYPE);
-    }
-
-    /**
-     * While its owner chooses a partner, draws a thin outline of every one of
-     * its portals in the level through the blocks, so one hidden or far away
-     * can be found and picked without covering what stands before it; the
-     * one being paired and the one aimed at blink with their swirl.
-     *
-     * @param pose     the pose
-     * @param buffers  the frame's buffers
-     * @param camera   the camera's position
-     * @param player   the local player
-     * @param blinking the portals blinking
-     * @param aimed    the portal aimed at, empty for none
-     * @param time     the ticks, with the frame's share of one
-     */
-    private static void drawOutlines(PoseStack.Pose pose, MultiBufferSource.BufferSource buffers, Vec3 camera,
-            LocalPlayer player, List<Portal> blinking, Optional<Portal> aimed, float time) {
-        VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.GOO_PORTAL_OUTLINE_TYPE);
-        for (Portal portal : ClientPortals.portals()) {
-            if (portal.block().dimension().equals(player.level().dimension())) {
-                int alpha = blinking.contains(portal)
-                        ? blinkAlpha(aimed.isPresent() && aimed.get().equals(portal), time) : OUTLINE_ALPHA;
-                emitOval(pose, consumer, portal.blocks().move(camera.reverse()), portal.face(),
-                        ARGB.color(alpha, colorOf(portal, ClientPortals.links())));
-            }
-        }
-        buffers.endBatch(GooRenderTypes.GOO_PORTAL_OUTLINE_TYPE);
     }
 
     /**
      * Every gate in a level the frame draws: the local player's portals,
-     * every pair another player linked, and each open hole's two mouths.
+     * every other player's linked pair, and each open hole's two mouths.
      *
      * @param dimension the level drawn
      * @return the gates
      */
     static List<Drawn> gatesIn(ResourceKey<Level> dimension) {
         List<Drawn> gates = new ArrayList<>();
-        ClientPortals.portals().forEach(portal -> gates.add(new Drawn(portal.gate(),
-                colorOf(portal, ClientPortals.links()), false)));
+        ClientPortals.portals().forEach(portal -> gates.add(new Drawn(portal.gate(), colorOf(portal), false)));
         // linked-partner-chunks-stream-to-any-viewer
         ClientPortals.links().stream()
                 .filter(link -> !ClientPortals.portals().contains(link.entry()))
                 .forEach(link -> {
-                    gates.add(new Drawn(link.entry().gate(), BLUE_RGB, false));
-                    gates.add(new Drawn(link.exit().gate(), ORANGE_RGB, false));
+                    gates.add(new Drawn(link.entry().gate(), colorOf(link.entry()), false));
+                    gates.add(new Drawn(link.exit().gate(), colorOf(link.exit()), false));
                 });
         ClientHoles.holes().forEach(hole -> {
             gates.add(new Drawn(hole.entry(), BLUE_RGB, true));

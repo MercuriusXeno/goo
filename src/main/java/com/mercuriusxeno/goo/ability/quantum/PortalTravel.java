@@ -39,7 +39,7 @@ public final class PortalTravel {
                 portals.links().stream().flatMap(link -> Stream.of(link.entry(), link.exit())))
                 .distinct().filter(portal -> fallen(server, portal)).toList();
         for (Portal portal : fallen) {
-            PortalChoice.breakAt(server.getLevel(portal.block().dimension()), portal.block().pos(), portal.face());
+            PortalPairs.breakAt(server.getLevel(portal.block().dimension()), portal.block().pos(), portal.face());
         }
     }
 
@@ -53,7 +53,7 @@ public final class PortalTravel {
     @SubscribeEvent
     public static void onChangedDimension(PlayerEvent.PlayerChangedDimensionEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
-            PortalChoice.sync(player);
+            PortalPairs.sync(player);
         }
     }
 
@@ -65,7 +65,7 @@ public final class PortalTravel {
      */
     @SubscribeEvent
     public static void onLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
-        PortalChoice.forget(event.getEntity().getUUID());
+        PortalPairs.forget(event.getEntity().getUUID());
     }
 
     /**
@@ -78,7 +78,7 @@ public final class PortalTravel {
     @SubscribeEvent
     public static void onRespawn(PlayerEvent.PlayerRespawnEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
-            PortalChoice.sync(player);
+            PortalPairs.sync(player);
         }
     }
 
