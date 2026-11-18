@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.block.ability;
 
+import com.mercuriusxeno.goo.lunar.LunarGravity;
 import com.mercuriusxeno.goo.registry.GooSounds;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Entity;
@@ -17,8 +18,11 @@ import java.util.WeakHashMap;
  * fourteen blocks up; without jump held the bounce is near-lossless, a small
  * decay a bounce so it takes a long time to die out, and sneaking dampens it
  * as the neutral bounce once did. Each bounce sounds a short boing. Every
- * entity bounces: players, mobs, items and projectiles.
+ * entity bounces: players, mobs, items and projectiles. Under a weaker
+ * gravity every bounce peaks as much higher as the pull is weaker, the
+ * ceiling six times as high in lunar.
  * bounce-ramps-jump-height-while-jump-is-held
+ * goop-bounce-height-is-proportionate-to-gravity
  * ramp-tops-out-on-the-fourth-held-bounce-at-fourteen-blocks
  * neutral-bounce-is-near-lossless-and-bounces-every-entity
  * sneak-bounce-dampens-as-the-neutral-bounce-did
@@ -54,8 +58,10 @@ public final class SlimeCoatBounce {
     static final double HIGHEST_LAUNCH = 1.74;
     /** A launch below this settles the lander on the coat rather than hopping it. */
     static final double SETTLED_LAUNCH = 0.1;
-    /** Ticks without a bounce after which a lander's ramp starts afresh, two seconds. */
+    /** Ticks without a bounce after which a lander's ramp starts afresh in the overworld, two seconds. */
     static final long FORGET_TICKS = 40;
+    /** The overworld's share of its own gravity, under which the bounce reads its overworld numbers unconverted. */
+    private static final double OVERWORLD_SCALE = 1;
     private static final float BOING_VOLUME = 0.6f;
     private static final float BOING_PITCH = 1.0f;
     private static final float BOING_PITCH_PER_LAUNCH = 0.35f;
@@ -118,6 +124,11 @@ public final class SlimeCoatBounce {
         long gameTime();
 
         /**
+         * @return the share of the overworld's gravity it falls under
+         */
+        double gravityScale();
+
+        /**
          * Sends it up off the coat.
          *
          * @param speed the upward speed, 0 where it settles
@@ -136,7 +147,61 @@ public final class SlimeCoatBounce {
     }
 
     /**
-     * How fast a lander leaves the coat.
+     * How fast a lander leaves the coat under a share of the overworld's gravity: the overworld's bounce, taken on
+     * the overworld launches the fall and the launch before stand for, and sent up at the launch that climbs that
+     * bounce's height over the share, so every bounce, and the ceiling, peaks the share's inverse as high.
+     * goop-bounce-height-is-proportionate-to-gravity
+     *
+     * @param arrivingFall   how fast it fell onto the coat, in blocks a tick
+     * @param previousLaunch how fast it left the coat the bounce before, 0 for none
+     * @param jumpHeld       whether the lander holds jump
+     * @param sneaking       whether the lander sneaks, which decays the bounce even with jump held
+     * @param gravityScale   the share of the overworld's gravity the lander falls under
+     * @return the upward speed it leaves at, 0 where it settles
+     */
+    static double launch(double arrivingFall, double previousLaunch, boolean jumpHeld, boolean sneaking,
+            double gravityScale) {
+        if (gravityScale == OVERWORLD_SCALE) {
+            return launch(arrivingFall, previousLaunch, jumpHeld, sneaking);
+        }
+        double overworldLaunch = launch(LaunchUnderGravity.overworldFallOf(arrivingFall, gravityScale),
+                LaunchUnderGravity.overworldLaunchOf(previousLaunch, gravityScale), jumpHeld, sneaking);
+        return LaunchUnderGravity.launchIn(overworldLaunch, gravityScale);
+    }
+
+    /**
+     * The height a ramp tops out at over the coat under a share of the overworld's gravity, the overworld's
+     * fourteen blocks over that share.
+     * goop-bounce-height-is-proportionate-to-gravity
+     *
+     * @param gravityScale the share of the overworld's gravity the lander falls under
+     * @return the blocks the highest launch climbs
+     */
+    static double ceilingIn(double gravityScale) {
+        return LaunchUnderGravity.peakOf(launch(HIGHEST_LAUNCH, HIGHEST_LAUNCH, true, false, gravityScale),
+                gravityScale);
+    }
+
+    /**
+     * The ticks without a bounce after which a ramp starts afresh under a share of the overworld's gravity: the
+     * overworld's two seconds, stretched as a flight to the ceiling stretches, so a lander in flight between two
+     * bounces keeps its ramp.
+     * goop-bounce-height-is-proportionate-to-gravity
+     *
+     * @param gravityScale the share of the overworld's gravity the lander falls under
+     * @return the ticks
+     */
+    static long forgetTicksIn(double gravityScale) {
+        if (gravityScale == OVERWORLD_SCALE) {
+            return FORGET_TICKS;
+        }
+        double ceilingFlight = LaunchUnderGravity.flightTicksOf(
+                LaunchUnderGravity.launchIn(HIGHEST_LAUNCH, gravityScale), gravityScale);
+        return Math.round(FORGET_TICKS * ceilingFlight / LaunchUnderGravity.flightTicksOf(HIGHEST_LAUNCH, 1));
+    }
+
+    /**
+     * How fast a lander leaves the coat in the overworld.
      *
      * @param arrivingFall   how fast it fell onto the coat, in blocks a tick
      * @param previousLaunch how fast it left the coat the bounce before, 0 for none
@@ -175,8 +240,10 @@ public final class SlimeCoatBounce {
         Map<Object, Launched> launches = lander.clientSide() ? CLIENT_LAUNCHES : SERVER_LAUNCHES;
         Launched before = launches.get(lander.identity());
         // bounce-ramps-jump-height-while-jump-is-held: a lander back after a pause starts its ramp afresh
-        double previous = before == null || lander.gameTime() - before.at() > FORGET_TICKS ? 0 : before.speed();
-        double launch = launch(lander.fallSpeed(), previous, lander.jumpHeld(), lander.sneaking());
+        double gravityScale = lander.gravityScale();
+        boolean forgotten = before == null || lander.gameTime() - before.at() > forgetTicksIn(gravityScale);
+        double previous = forgotten ? 0 : before.speed();
+        double launch = launch(lander.fallSpeed(), previous, lander.jumpHeld(), lander.sneaking(), gravityScale);
         lander.launch(launch);
         launches.put(lander.identity(), new Launched(launch, lander.gameTime()));
         if (launch > 0) {
@@ -219,6 +286,11 @@ public final class SlimeCoatBounce {
         @Override
         public long gameTime() {
             return entity.level().getGameTime();
+        }
+
+        @Override
+        public double gravityScale() {
+            return LunarGravity.scaleIn(entity.level().dimension());
         }
 
         @Override
