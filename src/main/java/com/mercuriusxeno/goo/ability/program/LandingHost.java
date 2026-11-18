@@ -4,7 +4,9 @@ import com.mercuriusxeno.goo.ability.aging.Aging;
 import com.mercuriusxeno.goo.ability.hole.HoleOpening;
 import com.mercuriusxeno.goo.ability.pulse.ZapDevice;
 import com.mercuriusxeno.goo.ability.quantum.Portal;
-import com.mercuriusxeno.goo.ability.quantum.PortalChoice;
+import com.mercuriusxeno.goo.ability.quantum.PortalColor;
+import com.mercuriusxeno.goo.ability.quantum.PortalPairs;
+import com.mercuriusxeno.goo.ability.quantum.PortalShots;
 import com.mercuriusxeno.goo.ability.quantum.Wormhole;
 import com.mercuriusxeno.goo.ability.spore.ShroomNetwork;
 import com.mercuriusxeno.goo.block.ability.AbilityBlock;
@@ -148,11 +150,13 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
     @Override
     public boolean placePortal() {
         ServerPlayer player = caster == null ? null : level.getServer().getPlayerList().getPlayer(caster);
-        if (player == null) {
+        Optional<PortalColor> color = PortalShots.colorOf(caster);
+        if (player == null || color.isEmpty()) {
             return false;
         }
-        Optional<Portal> frame = Portal.frameOn(level, cell.relative(face.getOpposite()), face, player.getDirection());
-        frame.ifPresent(portal -> PortalChoice.place(level, caster, portal));
+        Optional<Portal> frame = Portal.frameOn(level, cell.relative(face.getOpposite()), face, player.getDirection(),
+                color.get());
+        frame.ifPresent(portal -> PortalPairs.place(level, caster, portal));
         return frame.isPresent();
     }
 

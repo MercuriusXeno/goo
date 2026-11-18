@@ -1,9 +1,9 @@
 {
   "type": "minecraft:function",
-  "function": "goo:portals_place_choose_link_and_carry",
+  "function": "goo:portal_attack_places_blue_and_use_places_orange",
   "environment": "minecraft:default",
   "structure": "goo:light_bay",
-  "max_ticks": 100,
+  "max_ticks": 40,
   "setup_ticks": 0,
   "required": true
 }

@@ -142,8 +142,7 @@ public final class GooNetworking {
         r.playToServer(PlexerTargetPickPayload.TYPE, PlexerTargetPickPayload.STREAM_CODEC, PlexerTargetPickHandler::handle);
         r.playToServer(WorkbenchRequestPayload.TYPE, WorkbenchRequestPayload.STREAM_CODEC,
                 WorkbenchRequestHandler::handle);
-        r.playToServer(PortalChoosePayload.TYPE, PortalChoosePayload.STREAM_CODEC, PortalChoosePayload::handle);
-        r.playToServer(PortalLinkPayload.TYPE, PortalLinkPayload.STREAM_CODEC, PortalLinkPayload::handle);
+        r.playToServer(PortalShotPayload.TYPE, PortalShotPayload.STREAM_CODEC, PortalShotPayload::handle);
         r.playToServer(GateCrossedPayload.TYPE, GateCrossedPayload.STREAM_CODEC, GateCrossedPayload::handle);
     }
 }
