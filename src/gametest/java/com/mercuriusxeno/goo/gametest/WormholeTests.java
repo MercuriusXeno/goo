@@ -73,6 +73,8 @@ public final class WormholeTests {
         GooTestFunctions.registerTest(registrar, KEEPS_OFF_A_PORTAL_ON_THE_FAR_FACE,
                 WormholeTests::keepsOffAPortalOnTheFarFace);
         GooTestFunctions.registerTest(registrar, KEEPS_OFF_AN_OPEN_HOLE, WormholeTests::keepsOffAnOpenHole);
+        GooTestFunctions.registerTest(registrar, JOINING_PLAYER_IS_TOLD_THE_OPEN_HOLES,
+                WormholeTests::joiningPlayerIsToldTheOpenHoles);
         GooTestFunctions.registerTest(registrar, THROUGH_TO_A_FULL_OPENING, WormholeTests::throughToAFullOpening);
         GooTestFunctions.registerTest(registrar, THROUGH_TO_A_NARROW_OPENING, WormholeTests::throughToANarrowOpening);
         GooTestFunctions.registerTest(registrar, REFUSED_WITH_NO_OPENING, WormholeTests::refusedWithNoOpening);
@@ -549,6 +551,35 @@ public final class WormholeTests {
                     + portal.blocks() + ", covering it: " + over.stream().map(Gate::blocks).toList());
             helper.succeed();
         });
+    }
+
+    private static final String JOINING_PLAYER_IS_TOLD_THE_OPEN_HOLES = "tunnel_joining_player_is_told_the_open_holes";
+
+    /**
+     * A player joining a level where a hole stands open is told the holes
+     * standing there, so the client counts that first word as the level's
+     * standing holes shown full size, and the next hole opened grows open
+     * from nothing rather than popping in at full size.
+     *
+     * @param helper the gametest helper
+     */
+    public static void joiningPlayerIsToldTheOpenHoles(GameTestHelper helper) {
+        buildWall(helper);
+        ServerPlayer caster = caster(helper);
+        com.mercuriusxeno.goo.ability.quantum.Wormhole.open(helper.getLevel(), caster, helper.absolutePos(STRUCK),
+                Direction.NORTH, holeReach(helper), lifetime(helper));
+        PacketRecorder told = PacketRecorder.attachClaiming(caster, com.mercuriusxeno.goo.network.HolesSyncPayload.class);
+        net.neoforged.neoforge.common.NeoForge.EVENT_BUS.post(
+                new net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent(caster));
+        List<Gate> toldOf = told.payloadsOf(com.mercuriusxeno.goo.network.HolesSyncPayload.class).stream()
+                .flatMap(payload -> payload.holes().stream()).map(com.mercuriusxeno.goo.network.HolesSyncPayload.Pair::entry)
+                .toList();
+        OpenHoles.dismissAt(helper.getLevel(), helper.absolutePos(STRUCK), Direction.NORTH);
+        helper.getLevel().getServer().getPlayerList().remove(caster);
+        helper.assertTrue(toldOf.stream().anyMatch(mouth -> mouth.covers(helper.absolutePos(STRUCK))),
+                "A player joining should be told the hole standing open at " + helper.absolutePos(STRUCK)
+                        + ", told of " + toldOf.stream().map(Gate::blocks).toList());
+        helper.succeed();
     }
 
     private static final String KEEPS_OFF_AN_OPEN_HOLE = "tunnel_keeps_off_an_open_hole";

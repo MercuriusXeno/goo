@@ -14,6 +14,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.server.ServerStoppedEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
@@ -86,14 +87,47 @@ public final class OpenHoles {
      * @param server the server
      */
     static void sync(MinecraftServer server) {
-        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-            HolesSyncPayload payload = new HolesSyncPayload(OPEN.stream()
-                    .filter(hole -> hole.dimension().equals(player.level().dimension()))
-                    .map(hole -> new HolesSyncPayload.Pair(hole.entry(), hole.exit())).toList());
-            // A listener that never negotiated the mod's channels, a gametest's mock player, gets no sync.
-            if (player.connection.hasChannel(payload)) {
-                PacketDistributor.sendToPlayer(player, payload);
-            }
+        server.getPlayerList().getPlayers().forEach(OpenHoles::syncTo);
+    }
+
+    /**
+     * Tells one player the holes standing open in their level.
+     *
+     * @param player the player
+     */
+    private static void syncTo(ServerPlayer player) {
+        HolesSyncPayload payload = new HolesSyncPayload(OPEN.stream()
+                .filter(hole -> hole.dimension().equals(player.level().dimension()))
+                .map(hole -> new HolesSyncPayload.Pair(hole.entry(), hole.exit())).toList());
+        // A listener that never negotiated the mod's channels, a gametest's mock player, gets no sync.
+        if (player.connection.hasChannel(payload)) {
+            PacketDistributor.sendToPlayer(player, payload);
+        }
+    }
+
+    /**
+     * Tells a player joining the holes standing in their level, so the
+     * client shows those full size and grows open only the holes opened
+     * after.
+     *
+     * @param event the login event
+     */
+    @SubscribeEvent
+    public static void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player) {
+            syncTo(player);
+        }
+    }
+
+    /**
+     * Tells a player changing level the holes standing in their new one.
+     *
+     * @param event the dimension change event
+     */
+    @SubscribeEvent
+    public static void onPlayerChangedDimension(PlayerEvent.PlayerChangedDimensionEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player) {
+            syncTo(player);
         }
     }
 
