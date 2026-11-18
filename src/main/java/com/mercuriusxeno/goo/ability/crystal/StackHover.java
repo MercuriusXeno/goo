@@ -212,6 +212,29 @@ public final class StackHover {
     }
 
     /**
+     * The edge of the cuboid a forming weapon is cut from the palm blob as:
+     * the weapon's share of the full blob's volume, the stack's 90% over its
+     * count, so 0.448 of the full edge for a knife and 0.669 for a javelin.
+     * decision palm-blob-and-cutaway-cuboid-size-by-the-buffers-volume
+     *
+     * @param stack the most the hold stacks
+     * @return the edge, in blocks
+     */
+    public static double cuboidEdgeOf(int stack) {
+        return stack <= 0 ? 0 : edgeAtFill(shareOf(stack));
+    }
+
+    /**
+     * One weapon's share of the full blob's volume: the stack's 90% over its count.
+     *
+     * @param stack the most the hold stacks
+     * @return the share, 0 to 1
+     */
+    public static double shareOf(int stack) {
+        return stack <= 0 ? 0 : STACK_SHARE / stack;
+    }
+
+    /**
      * The cube's edge at a count held, at the largest fill that count allows:
      * 100% less the held shares, the stack's 90% over its count each, so the
      * cube stands at the 10% floor with the stack full and never vanishes.

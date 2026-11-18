@@ -2,17 +2,25 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.FormSounds;
+import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.crystal.StackHover;
 import com.mercuriusxeno.goo.ability.crystal.ThrownKnife;
 import com.mercuriusxeno.goo.ability.program.SoundCue;
 import com.mercuriusxeno.goo.client.FlatQuadContext;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.GooSubmitter;
+import com.mercuriusxeno.goo.client.throwing.GooFlightRenderer;
+import com.mercuriusxeno.goo.item.GooCasters;
 import com.mercuriusxeno.goo.network.StackFormedPayload;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.SubmitNodeCollector;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
@@ -169,8 +177,8 @@ public final class HoveringKnives {
             Vec3 was = StackHover.pointOf(cube, xRot, yRot, StackHover.knifeSlot(index, fan.previous()));
             return was.lerp(slot, easedAt(age));
         }
-        Vec3 spawn = StackHover.pointOf(cube, xRot, yRot, StackHover.spawnSlot(index, KNIVES));
-        return spawn.lerp(slot, easedAt(age));
+        // weapons-form-from-a-goo-cuboid-leaving-the-palm-blob: the cuboid leaves the blob's middle for the slot
+        return cube.lerp(slot, easedAt(age));
     }
     /**
      * A knife's size an age after the fan's last change: whole for a knife
@@ -229,7 +237,19 @@ public final class HoveringKnives {
     }
 
     static float easedAt(double age) {
-        float share = (float) Math.clamp(age / EASE_TICKS, 0.0, 1.0);
+        return easedOver(age, EASE_TICKS);
+    }
+
+    /**
+     * How far an ease in and out has run: none at its start, all at its end,
+     * behind a straight line near its start and ahead of it near its end.
+     *
+     * @param age   ticks since it began, with the partial tick
+     * @param ticks the ticks it takes
+     * @return the share run, 0 to 1
+     */
+    static float easedOver(double age, double ticks) {
+        float share = (float) Math.clamp(age / ticks, 0.0, 1.0);
         return share * share * (SMOOTH_SQUARE - SMOOTH_CUBE * share);
     }
 
@@ -262,6 +282,49 @@ public final class HoveringKnives {
             }
         }
         buffers.endBatch(GooRenderTypes.CRYSTAL_SHARD_TYPE);
+        for (Map.Entry<Integer, Fan> entry : FANS.entrySet()) {
+            if (mc.level.getEntity(entry.getKey()) instanceof Player caster && drawsInTheLevel(caster)) {
+                drawCuboids(event.getPoseStack().last(), buffers.getBuffer(GooSubmitter.renderType()), caster,
+                        entry.getValue(), now - entry.getValue().changedAt(), partial, camera);
+            }
+        }
+        buffers.endBatch(GooSubmitter.renderType());
+    }
+
+    /**
+     * Draws the cuboid each forming knife is cut from the palm blob as, where
+     * the knife is on its way to its slot, shrinking as the knife grows into
+     * its shape, so no fully formed knife draws at the blob.
+     * decision weapons-form-from-a-goo-cuboid-leaving-the-palm-blob
+     *
+     * @param pose    the pose camera-relative points stand in
+     * @param c       a consumer of the translucent goo render type
+     * @param caster  the caster
+     * @param fan     the caster's pyramid
+     * @param age     ticks since the pyramid's last change, with the partial tick
+     * @param partial the frame's partial tick
+     * @param camera  the camera's position
+     */
+    static void drawCuboids(PoseStack.Pose pose, VertexConsumer c, Player caster, Fan fan, double age,
+                            float partial, Vec3 camera) {
+        Vec3 cube = StackAnchor.cubeOf(caster, partial);
+        float xRot = caster.getViewXRot(partial);
+        float yRot = caster.getViewYRot(partial);
+        for (int index = fan.previous(); index < fan.count(); index++) {
+            float weapon = knifeScaleAt(fan, index, age);
+            if (weapon < 1f) {
+                GooFlightRenderer.emitCuboidAt(pose, c, gooTypeOf(caster),
+                        knifeAt(fan, index, cube, xRot, yRot, age).subtract(camera),
+                        (float) StackHover.cuboidEdgeOf(KNIVES) * (1f - weapon));
+            }
+        }
+    }
+
+    // The goo a caster's knives are cut from: the selected type, Crystal's where it names none.
+    private static ResourceKey<GooTypeDefinition> gooTypeOf(Player caster) {
+        GloveSelection selection = GooCasters.heldSelection(caster);
+        ResourceKey<GooTypeDefinition> type = selection == null ? null : selection.getGooType();
+        return type == null ? GooTypes.CRYSTAL : type;
     }
 
     /**
@@ -284,6 +347,8 @@ public final class HoveringKnives {
         double age = caster.level().getGameTime() + partial - fan.changedAt();
         collector.submitCustomGeometry(poseStack, GooRenderTypes.CRYSTAL_SHARD_TYPE,
                 (pose, consumer) -> drawFan(new FlatQuadContext(pose, consumer), caster, fan, age, partial, camera));
+        collector.submitCustomGeometry(poseStack, GooSubmitter.renderType(),
+                (pose, consumer) -> drawCuboids(pose, consumer, caster, fan, age, partial, camera));
     }
 
     private static void drawFan(FlatQuadContext quads, Player caster, Fan fan, double age, float partial,

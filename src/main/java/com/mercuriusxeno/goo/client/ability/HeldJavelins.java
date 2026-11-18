@@ -14,6 +14,7 @@ import com.mercuriusxeno.goo.network.StackFormedPayload;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -51,6 +52,8 @@ public final class HeldJavelins {
 
     /** Each caster's stack, by entity id. */
     private static final Map<Integer, Stack> STACKS = new HashMap<>();
+    /** Ticks a javelin takes to form, Dart's form interval (metal_dart.json's stack_ticks). */
+    static final double FORM_TICKS = 10;
 
     private HeldJavelins() {
     }
@@ -164,10 +167,10 @@ public final class HeldJavelins {
         if (index < stack.previous()) {
             // dart-javelins-hover-over-the-shrinking-blob-cube: a standing javelin shifts as the centered pile widens
             Vec3 was = StackHover.pointOf(cube, xRot, yRot, StackHover.javelinSlot(index, stack.previous()));
-            return was.lerp(slot, HoveringKnives.easedAt(age));
+            return was.lerp(slot, formedAt(age));
         }
-        Vec3 spawn = StackHover.pointOf(cube, xRot, yRot, StackHover.spawnSlot(index, StackHover.JAVELINS));
-        return spawn.lerp(slot, HoveringKnives.easedAt(age));
+        // weapons-form-from-a-goo-cuboid-leaving-the-palm-blob: the cuboid leaves the blob's middle for the slot
+        return cube.lerp(slot, formedAt(age));
     }
 
     /**
@@ -179,7 +182,18 @@ public final class HeldJavelins {
      * @return the drawn size, 1 a thrown javelin's
      */
     static float javelinDrawnScaleAt(Stack stack, int index, double age) {
-        return index < stack.previous() ? 1f : HoveringKnives.easedAt(age);
+        return index < stack.previous() ? 1f : formedAt(age);
+    }
+
+    /**
+     * How far a javelin's forming has run: eased in and out over the form
+     * interval, Dart's 10 ticks, so it stands formed before the next begins.
+     *
+     * @param age ticks since the change, with the partial tick
+     * @return the share run, 0 to 1
+     */
+    static float formedAt(double age) {
+        return HoveringKnives.easedOver(age, FORM_TICKS);
     }
 
     /** Drops every stack, as a disconnect does. */
@@ -214,6 +228,8 @@ public final class HeldJavelins {
                 layStack(event.getPoseStack(), caster, entry.getValue(), now, partial, camera,
                         (at, heading, scale) -> GooFlightRenderer.emitTravelForm(at.last(),
                                 buffers.getBuffer(GooSubmitter.renderType()), type, TravelForm.DART, heading, scale));
+                drawCuboids(event.getPoseStack().last(), buffers.getBuffer(GooSubmitter.renderType()), caster,
+                        entry.getValue(), now, partial, camera);
             }
         }
         buffers.endBatch(GooSubmitter.renderType());
@@ -237,10 +253,42 @@ public final class HeldJavelins {
             return;
         }
         ResourceKey<GooTypeDefinition> type = gooTypeOf(caster);
-        layStack(poseStack, caster, stack, caster.level().getGameTime() + partial, partial, camera,
+        double now = caster.level().getGameTime() + partial;
+        layStack(poseStack, caster, stack, now, partial, camera,
                 (at, heading, scale) -> collector.submitCustomGeometry(at, GooSubmitter.renderType(),
                         (pose, consumer) -> GooFlightRenderer.emitTravelForm(pose, consumer, type, TravelForm.DART,
                                 heading, scale)));
+        collector.submitCustomGeometry(poseStack, GooSubmitter.renderType(),
+                (pose, consumer) -> drawCuboids(pose, consumer, caster, stack, now, partial, camera));
+    }
+
+    /**
+     * Draws the cuboid each forming javelin is cut from the palm blob as,
+     * where the javelin is on its way to its slot, shrinking as the javelin
+     * grows into its shape, so no fully formed javelin draws at the blob.
+     * decision weapons-form-from-a-goo-cuboid-leaving-the-palm-blob
+     *
+     * @param pose    the pose camera-relative points stand in
+     * @param c       a consumer of the translucent goo render type
+     * @param caster  the caster
+     * @param stack   the caster's javelins
+     * @param now     the game time, with the partial tick
+     * @param partial the frame's partial tick
+     * @param camera  the camera's position
+     */
+    static void drawCuboids(PoseStack.Pose pose, VertexConsumer c, Player caster, Stack stack, double now,
+                            float partial, Vec3 camera) {
+        Vec3 cube = StackAnchor.cubeOf(caster, partial);
+        double age = now - stack.changedAt();
+        for (int index = stack.previous(); index < stack.count(); index++) {
+            float weapon = javelinDrawnScaleAt(stack, index, age);
+            if (weapon < 1f) {
+                GooFlightRenderer.emitCuboidAt(pose, c, gooTypeOf(caster),
+                        javelinAt(stack, index, cube, caster.getViewXRot(partial), caster.getViewYRot(partial), age)
+                                .subtract(camera),
+                        (float) StackHover.cuboidEdgeOf(StackHover.JAVELINS) * (1f - weapon));
+            }
+        }
     }
 
     /** Draws one javelin about the pose's origin, pointed along a heading at a size. */
