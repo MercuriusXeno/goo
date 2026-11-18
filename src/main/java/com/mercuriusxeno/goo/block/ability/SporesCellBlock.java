@@ -13,10 +13,8 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.InsideBlockEffectApplier;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.StateDefinition;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
@@ -59,13 +57,6 @@ public class SporesCellBlock extends VolumeCellBlock {
      */
     public SporesCellBlock(Properties properties, CellBinding binding) {
         super(properties, binding);
-        registerDefaultState(defaultBlockState().setValue(GoologgedFungus.FUNGUS, GoologgedFungus.NONE));
-    }
-
-    @Override
-    protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        super.createBlockStateDefinition(builder);
-        builder.add(GoologgedFungus.FUNGUS);
     }
 
     /**

@@ -4,7 +4,7 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.program.SporesStep;
 import com.mercuriusxeno.goo.ability.spray.Spored;
-import com.mercuriusxeno.goo.block.ability.GoologgedFungus;
+import com.mercuriusxeno.goo.block.ability.FungalBudBlock;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
@@ -58,6 +58,17 @@ public final class SporesTests {
     private static final String DEATH_NEAR_THE_GOO = "spores_zombie_dying_near_the_goo_grows_mycelium";
     private static final String STREAM_DEATH_CONVERTS_NOTHING = "spores_stream_spored_zombie_dying_converts_no_dirt";
     private static final Identifier MYCOSIS = Identifier.parse("goo:shroom_mycosis");
+    private static final String DRIPS_SPARE_SHROOMS = "spores_drips_on_a_mushroom_and_a_bud_leave_them_standing";
+    private static final String POUR_SPARES_SHROOMS = "spores_cell_pours_around_a_mushroom_and_a_bud_beside_it";
+    private static final String RIPENING_SPARES_GOO = "spores_bud_ripening_beside_the_goo_keeps_both_spaces";
+    private static final String NO_BUD_ON_STONE = "spores_cell_walled_in_stone_in_daylight_buds_nothing";
+    private static final String UNRIPE_KEEPS_ITS_SPACE = "spores_ripe_bud_whose_mushroom_cannot_stand_stays_a_bud";
+    /** The floor the red mushroom stands on for the drip test. */
+    private static final BlockPos MUSHROOM_FLOOR = new BlockPos(1, 1, 1);
+    /** The floor the fungal bud stands on for the drip test, apart from the mushroom. */
+    private static final BlockPos BUD_FLOOR = new BlockPos(4, 1, 1);
+    /** Ticks the pour and ripening tests wait, past several of the cell's pours and periods. */
+    private static final int SETTLE_TICKS = 100;
     /** Where the spored zombie is moved to die, its floor a patch of grass block, dirt, coarse dirt, stone and sand. */
     private static final BlockPos FELL = new BlockPos(5, 2, 5);
     /** The second zombie, standing inside the burst's radius of where the first falls. */
@@ -87,6 +98,13 @@ public final class SporesTests {
     private static final String BYSTANDER_CLEAN = "The burst from the corpse should poison the bystander";
     private static final String NOT_CONVERTED = "%s under the corpse should be mycelium, stands %s";
     private static final String CONVERTED = "%s under the corpse should stand as it stood, stands %s";
+    private static final String SHROOM_DISPLACED = "%s should still stand with no Spores in its space, stands %s";
+    private static final String NOT_RIPENED = "The bud beside the goo should ripen to a mushroom and stay, stands %s";
+    private static final String NOT_A_BUD = "A ripe bud whose mushroom cannot stand on stone in daylight should stay"
+            + " a bud with no Spores in its space, stands %s";
+    private static final String BUDDED_ON_STONE = "A Spores cell walled in stone in daylight should bud nothing and"
+            + " keep its %d layers: %d buds placed, the cell stands %s";
+    private static final String CELL_DISPLACED = "The Spores cell should keep its space and its %d layers, stands %s";
     private static final String CELL_SPENT = "The Spores cell should hold its %d layers after the death, stands %s";
 
     private SporesTests() {
@@ -106,6 +124,11 @@ public final class SporesTests {
         GooTestFunctions.registerTest(registrar, DEATH_BURSTS_AND_MYCELIUM, SporesTests::deathOffTheGooBurstsAndGrowsMycelium);
         GooTestFunctions.registerTest(registrar, DEATH_NEAR_THE_GOO, SporesTests::deathNearTheGooGrowsMycelium);
         GooTestFunctions.registerTest(registrar, STREAM_DEATH_CONVERTS_NOTHING, SporesTests::streamSporedDeathConvertsNoDirt);
+        GooTestFunctions.registerTest(registrar, DRIPS_SPARE_SHROOMS, SporesTests::dripsOnShroomsLeaveThemStanding);
+        GooTestFunctions.registerTest(registrar, POUR_SPARES_SHROOMS, SporesTests::cellPoursAroundShroomsBesideIt);
+        GooTestFunctions.registerTest(registrar, RIPENING_SPARES_GOO, SporesTests::budRipeningBesideTheGooKeepsBothSpaces);
+        GooTestFunctions.registerTest(registrar, NO_BUD_ON_STONE, SporesTests::cellOnStoneInDaylightBudsNothing);
+        GooTestFunctions.registerTest(registrar, UNRIPE_KEEPS_ITS_SPACE, SporesTests::budWhoseMushroomCannotStandStaysABud);
     }
 
     /**
@@ -131,7 +154,7 @@ public final class SporesTests {
     }
 
     /**
-     * A full Spores cell walled in stone places a fungal bud on an edge
+     * A full Spores cell walled in mycelium places a fungal bud on an edge
      * space, a wall top beside it, places none inside itself, and stands
      * lower by the step's layers a bud for each bud it placed.
      * spores-goo-spends-on-edge-growth-and-grows-to-buds
@@ -140,15 +163,39 @@ public final class SporesTests {
      */
     public static void cellBudsItsEdgesAndSpendsTheirLayers(GameTestHelper helper) {
         layFullCell(helper, CELL);
+        // a bud grows only where its mushroom can, so the wall tops it buds are mycelium
+        for (Direction side : Direction.Plane.HORIZONTAL) {
+            helper.setBlock(CELL.relative(side), Blocks.MYCELIUM);
+        }
         int perBud = SporesStep.in(spores(helper).behaviors()).orElseThrow().layersPerBud();
         helper.succeedWhen(() -> {
             long buds = edgeSpaces(CELL).filter(space -> helper.getBlockState(space).is(GooBlocks.FUNGAL_BUD.get()))
                     .count();
             BlockState cell = helper.getBlockState(CELL);
             int expected = VolumeCellBlock.MAX_LAYERS - (int) buds * perBud;
-            helper.assertTrue(buds > 0 && cell.is(GooBlocks.SHROOM_SPORES.get()) && !GoologgedFungus.holdsFungus(cell)
+            helper.assertTrue(buds > 0 && cell.is(GooBlocks.SHROOM_SPORES.get())
                     && cell.getValue(VolumeCellBlock.LAYERS) == expected,
                     String.format(NOT_BUDDED, perBud, buds, cell));
+        });
+    }
+
+    /**
+     * A full Spores cell walled in stone in daylight, whose wall tops no
+     * mushroom could grow on, places no bud on them and keeps every layer
+     * after several of its periods.
+     * operator ruling 2026-11-18: Mycosis should fizzle instead of plant buds where mushrooms aren't allowed to grow
+     *
+     * @param helper the gametest helper
+     */
+    public static void cellOnStoneInDaylightBudsNothing(GameTestHelper helper) {
+        layFullCell(helper, CELL);
+        helper.runAfterDelay(SEVERAL_PERIODS, () -> {
+            long buds = edgeSpaces(CELL).filter(space -> helper.getBlockState(space).is(GooBlocks.FUNGAL_BUD.get()))
+                    .count();
+            BlockState cell = helper.getBlockState(CELL);
+            helper.assertTrue(buds == 0 && cell.getValue(VolumeCellBlock.LAYERS) == VolumeCellBlock.MAX_LAYERS,
+                    String.format(BUDDED_ON_STONE, VolumeCellBlock.MAX_LAYERS, buds, cell));
+            helper.succeed();
         });
     }
 
@@ -288,6 +335,126 @@ public final class SporesTests {
             helper.assertTrue(dirt.is(Blocks.DIRT), String.format(CONVERTED, Blocks.DIRT, dirt));
             helper.succeed();
         });
+    }
+
+    /**
+     * One Spores drip lands on a red mushroom and one on a fungal bud, each
+     * standing on stone, and both blocks still stand with no Spores goo in
+     * their spaces.
+     * spores-goo-and-shrooms-never-displace-each-other
+     *
+     * @param helper the gametest helper
+     */
+    public static void dripsOnShroomsLeaveThemStanding(GameTestHelper helper) {
+        Map<BlockPos, Block> shrooms = Map.of(MUSHROOM_FLOOR.above(), Blocks.RED_MUSHROOM,
+                BUD_FLOOR.above(), GooBlocks.FUNGAL_BUD.get());
+        shrooms.forEach((pos, block) -> {
+            helper.setBlock(pos.below(), Blocks.STONE);
+            helper.setBlock(pos, block);
+        });
+        AbilityDefinition spores = spores(helper);
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.SHROOM);
+        KnownRecipes.teachRequires(caster, spores);
+        LandedDrips.landOn(helper, caster, spores, MUSHROOM_FLOOR, 1);
+        LandedDrips.landOn(helper, caster, spores, BUD_FLOOR, 1);
+        helper.getLevel().getServer().getPlayerList().remove(caster);
+        helper.runAfterDelay(SETTLE_TICKS, () -> {
+            shrooms.forEach((pos, block) -> {
+                BlockState now = helper.getBlockState(pos);
+                helper.assertTrue(now.is(block), String.format(SHROOM_DISPLACED, block, now));
+            });
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A full Spores cell on a stone floor with a brown mushroom on mycelium,
+     * where vanilla keeps a mushroom standing in any light, on one side and a
+     * fungal bud on stone on another, its other sides walled, pours none of
+     * its goo into either space, and both still stand.
+     * spores-goo-and-shrooms-never-displace-each-other
+     *
+     * @param helper the gametest helper
+     */
+    public static void cellPoursAroundShroomsBesideIt(GameTestHelper helper) {
+        layFullCell(helper, CELL);
+        Map<BlockPos, Block> shrooms = Map.of(CELL.east(), Blocks.BROWN_MUSHROOM, CELL.west(),
+                GooBlocks.FUNGAL_BUD.get());
+        shrooms.forEach((pos, block) -> {
+            helper.setBlock(pos.below(), block == Blocks.BROWN_MUSHROOM ? Blocks.MYCELIUM : Blocks.STONE);
+            helper.setBlock(pos, block);
+        });
+        helper.runAfterDelay(SETTLE_TICKS, () -> {
+            shrooms.forEach((pos, block) -> {
+                BlockState now = helper.getBlockState(pos);
+                helper.assertTrue(now.is(block), String.format(SHROOM_DISPLACED, block, now));
+            });
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A fungal bud at its last age on mycelium beside a full Spores cell
+     * ripens into its mushroom in its own space; past several of the cell's
+     * periods the mushroom still stands and the cell keeps its space, lower
+     * only by the layers of the buds it placed on its edges.
+     * spores-goo-and-shrooms-never-displace-each-other
+     *
+     * @param helper the gametest helper
+     */
+    public static void budRipeningBesideTheGooKeepsBothSpaces(GameTestHelper helper) {
+        layFullCell(helper, CELL);
+        BlockPos budAt = ripeBudBeside(helper, Blocks.MYCELIUM);
+        int perBud = SporesStep.in(spores(helper).behaviors()).orElseThrow().layersPerBud();
+        helper.runAfterDelay(SETTLE_TICKS, () -> {
+            BlockState ripened = helper.getBlockState(budAt);
+            helper.assertTrue(ripened.is(Blocks.BROWN_MUSHROOM) || ripened.is(Blocks.RED_MUSHROOM),
+                    String.format(NOT_RIPENED, ripened));
+            long buds = edgeSpaces(CELL).filter(space -> helper.getBlockState(space).is(GooBlocks.FUNGAL_BUD.get()))
+                    .count();
+            int left = VolumeCellBlock.MAX_LAYERS - (int) buds * perBud;
+            BlockState cell = helper.getBlockState(CELL);
+            helper.assertTrue(cell.is(GooBlocks.SHROOM_SPORES.get()) && cell.getValue(VolumeCellBlock.LAYERS) == left,
+                    String.format(CELL_DISPLACED, left, cell));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A fungal bud at its last age on stone in daylight, beside a full Spores
+     * cell, whose mushroom could not stand there, stays a bud when it ripens,
+     * and past several of the cell's periods the goo has poured none of
+     * itself into its space.
+     * spores-goo-and-shrooms-never-displace-each-other
+     *
+     * @param helper the gametest helper
+     */
+    public static void budWhoseMushroomCannotStandStaysABud(GameTestHelper helper) {
+        layFullCell(helper, CELL);
+        BlockPos budAt = ripeBudBeside(helper, Blocks.STONE);
+        helper.runAfterDelay(SETTLE_TICKS, () -> {
+            BlockState bud = helper.getBlockState(budAt);
+            helper.assertTrue(bud.is(GooBlocks.FUNGAL_BUD.get()), String.format(NOT_A_BUD, bud));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Stands a fungal bud at its last age east of the cell on the given
+     * floor, and ripens it on the next tick as a random tick would.
+     *
+     * @param helper the gametest helper
+     * @param floor  the block the bud stands on
+     * @return the bud's space, relative to the test
+     */
+    private static BlockPos ripeBudBeside(GameTestHelper helper, Block floor) {
+        BlockPos budAt = CELL.east();
+        helper.setBlock(budAt.below(), floor);
+        helper.setBlock(budAt, GooBlocks.FUNGAL_BUD.get().defaultBlockState().setValue(FungalBudBlock.AGE,
+                FungalBudBlock.MAX_AGE));
+        helper.runAfterDelay(1, () -> helper.getBlockState(budAt).randomTick(helper.getLevel(),
+                helper.absolutePos(budAt), helper.getLevel().getRandom()));
+        return budAt;
     }
 
     /**

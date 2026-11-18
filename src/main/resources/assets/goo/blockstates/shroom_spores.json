@@ -14,14 +14,6 @@
     {"when": {"layers": "12"}, "apply": {"type": "goo:slime_core", "shell": {"model": "goo:block/shroom_spores_shell"}, "layers": 12, "drips": {"model": "goo:block/shroom_spores_drips_12"}}},
     {"when": {"layers": "13"}, "apply": {"type": "goo:slime_core", "shell": {"model": "goo:block/shroom_spores_shell"}, "layers": 13, "drips": {"model": "goo:block/shroom_spores_drips_13"}}},
     {"when": {"layers": "14"}, "apply": {"type": "goo:slime_core", "shell": {"model": "goo:block/shroom_spores_shell"}, "layers": 14, "drips": {"model": "goo:block/shroom_spores_drips_14"}}},
-    {"when": {"layers": "15"}, "apply": {"type": "goo:slime_core", "shell": {"model": "goo:block/shroom_spores_shell"}, "layers": 15, "drips": {"model": "goo:block/shroom_spores_drips_15"}}},
-    {"when": {"fungus": "bud_0"}, "apply": {"model": "goo:block/fungal_bud_small"}},
-    {"when": {"fungus": "bud_1"}, "apply": {"model": "goo:block/fungal_bud_small"}},
-    {"when": {"fungus": "bud_2"}, "apply": {"model": "goo:block/fungal_bud"}},
-    {"when": {"fungus": "bud_3"}, "apply": {"model": "goo:block/fungal_bud"}},
-    {"when": {"fungus": "brown_mushroom"}, "apply": {"model": "goo:block/goologged_brown_mushroom"}},
-    {"when": {"fungus": "red_mushroom"}, "apply": {"model": "goo:block/goologged_red_mushroom"}},
-    {"when": {"fungus": "crimson_fungus"}, "apply": {"model": "goo:block/goologged_crimson_fungus"}},
-    {"when": {"fungus": "warped_fungus"}, "apply": {"model": "goo:block/goologged_warped_fungus"}}
+    {"when": {"layers": "15"}, "apply": {"type": "goo:slime_core", "shell": {"model": "goo:block/shroom_spores_shell"}, "layers": 15, "drips": {"model": "goo:block/shroom_spores_drips_15"}}}
   ]
 }

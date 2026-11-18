@@ -1,4 +1,0 @@
-{
-  "parent": "minecraft:block/warped_fungus",
-  "render_type": "minecraft:cutout"
-}
