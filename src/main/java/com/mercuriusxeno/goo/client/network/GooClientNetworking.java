@@ -56,7 +56,6 @@ import com.mercuriusxeno.goo.network.KnownItemsSyncPayload;
 import com.mercuriusxeno.goo.network.LaserPayload;
 import com.mercuriusxeno.goo.network.LeechPayload;
 import com.mercuriusxeno.goo.network.ListenerSoundPayload;
-import com.mercuriusxeno.goo.network.LurkerPulsePayload;
 import com.mercuriusxeno.goo.network.MeteorScorchPayload;
 import com.mercuriusxeno.goo.network.MobHitPayload;
 import com.mercuriusxeno.goo.network.ModelShrinkPayload;
@@ -137,7 +136,6 @@ public final class GooClientNetworking {
     private static void registerAbilityVisualHandlers(RegisterClientPayloadHandlersEvent event) {
         event.register(ChainBurnoutPayload.TYPE, ChainBurnoutHandler::handle);
         event.register(BlastShardsPayload.TYPE, BlastShards::onPayload);
-        event.register(LurkerPulsePayload.TYPE, LurkerPulseHandler::handle);
         event.register(SculkerHeardPayload.TYPE, SculkerHeardHandler::handle);
         event.register(SculkerVibrationPayload.TYPE, SculkerVibrationHandler::handle);
         registerEffectHandlers(event);

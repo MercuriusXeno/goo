@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.ability;
 
-import com.mercuriusxeno.goo.ability.program.AwaitEntityStep;
 import com.mercuriusxeno.goo.ability.program.EntitiesStep;
 import com.mercuriusxeno.goo.ability.program.EntityFilter;
 import com.mercuriusxeno.goo.ability.program.ExplodeStep;
@@ -102,17 +101,6 @@ class AbilityDefinitionTest {
     void expireStrikesAMobThatIsNoBoss() {
         TargetStep target = (TargetStep) AbilityJson.decode("yore_expire").behaviors().getFirst();
         assertEquals(List.of(EntityFilter.MOB, EntityFilter.NOT_BOSS), target.where());
-    }
-
-    /**
-     * Lurker's trigger keeps every living entity, so a player standing in its radius sets it off as a zombie does.
-     */
-    @Test
-    void lurkersTriggerKeepsEveryLivingEntity() {
-        AwaitEntityStep trigger = LingerStep.bodyOf(AbilityJson.decode("unstable_lurker").behaviors()).orElseThrow()
-                .stream().filter(AwaitEntityStep.class::isInstance).map(AwaitEntityStep.class::cast)
-                .findFirst().orElseThrow();
-        assertEquals(List.of(EntityFilter.LIVING), trigger.where());
     }
 
     private static AbilityDefinition requiring(String requires) {

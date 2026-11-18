@@ -114,7 +114,7 @@ class AbilityBadgeTest {
                 .map(definition -> definition.id().getPath()).collect(Collectors.toSet());
         assertEquals(Set.of("weird_goop", "kinetic_slick", "blaze_molten", "deep_host", "frost_rime", "hex_leech",
                 "typhoon_updraft", "jelly_nectar", "pulse_signal", "metal_spikes", "nether_infest",
-                "leaf_vines"), wearers);
+                "leaf_vines", "unstable_nitro"), wearers);
     }
 
     /** decision self-badge-becomes-instant-with-a-noita-trigger-star */
