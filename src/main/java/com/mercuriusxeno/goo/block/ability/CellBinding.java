@@ -12,8 +12,8 @@ import net.minecraft.resources.ResourceKey;
  * a whole block of it and whose program names what the cell's surface does,
  * that surface, and the fluid sources the goo's drips stop at and its cell
  * lies on as on a sturdy top. Weird's slime, Kinetic's slick, Blaze's molten,
- * Crystal's shatter, Deep's host, Frost's rime, Glow's wisps, Hex's leech
- * Typhoon's updraft and Jelly's nectar are bound so far, and another goo
+ * Crystal's shatter, Deep's host, Frost's rime, Glow's wisps, Hex's leech,
+ * Typhoon's updraft, Jelly's nectar and Pulse's signal are bound so far, and another goo
  * type ships its world goo as another binding.
  * slime-and-slick-are-one-volume-cell-tech
  * each-goo-type-ships-a-world-goo-on-the-volume-cell
@@ -26,6 +26,7 @@ import net.minecraft.resources.ResourceKey;
  * leech-goo-slows-what-it-catches-and-the-spirits-damage-it
  * updraft-is-typhoons-world-goo-that-lifts-the-entities-above-it
  * nectar-is-sprayed-goo-with-a-guided-throw-near-a-mob
+ * extend-is-dropped-for-signal-an-in-world-pulse-goo
  *
  * @param gooType      the goo type the cell holds and drops when broken
  * @param layingAbility the ability laying the goo, whose cost prices a whole block of it
@@ -56,6 +57,9 @@ public record CellBinding(ResourceKey<GooTypeDefinition> gooType, Identifier lay
 
     /** The ability laying Jelly's goo, Nectar, whose cost prices a whole block of it and whose step names its guide. */
     public static final Identifier NECTAR_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "jelly_nectar");
+
+    /** The ability laying Pulse's goo, Signal, whose cost prices a whole block of it. */
+    public static final Identifier SIGNAL_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "pulse_signal");
 
     /** The ability laying Glow's goo, Wisps, whose cost prices a whole block of it. */
     public static final Identifier WISPS_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "glow_wisps");
@@ -101,5 +105,13 @@ public record CellBinding(ResourceKey<GooTypeDefinition> gooType, Identifier lay
      * nectar-is-sprayed-goo-with-a-guided-throw-near-a-mob
      */
     public static final CellBinding NECTAR = new CellBinding(GooTypes.JELLY, NECTAR_ABILITY, CellSurface.POOL,
+            FluidFooting.NONE);
+    /**
+     * Pulse's goo: Signal lays it, it stands as ordinary ground, and it sends
+     * a redstone signal equal to its layers.
+     * extend-is-dropped-for-signal-an-in-world-pulse-goo
+     * signal-goo-sends-a-redstone-signal-equal-to-its-layers
+     */
+    public static final CellBinding SIGNAL = new CellBinding(GooTypes.PULSE, SIGNAL_ABILITY, CellSurface.POOL,
             FluidFooting.NONE);
 }

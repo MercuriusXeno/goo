@@ -4,7 +4,7 @@
   "badge": "world",
   "order": 10,
   "cost": 1000,
-  "delivery": { "kind": "spontaneous" },
+  "delivery": { "kind": "spontaneous", "range": 16 },
   "behaviors": [
     { "type": "hole_open", "lifetime": 200, "refresh": 100 }
   ],
