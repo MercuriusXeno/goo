@@ -23,7 +23,7 @@ import static org.mockito.Mockito.when;
 /**
  * A Dowsing cell is a lens onto ore: a gem or metal ore is a candidate to
  * draw where any part of it lies behind the cell's goo from the eye, as far
- * past the goo as the cell holds layers, in blocks. The cell lies on the
+ * past the goo as its patch is deep, in blocks. The cell lies on the
  * block under it, its goo standing in the cell at the origin, and the eye
  * looks down on it.
  * astral-world-goo-is-dowsing-an-x-ray-of-ore
@@ -101,29 +101,57 @@ class DowsingLensTest {
     }
 
     /**
-     * Cells draw grouped by their layer count, so a thin cell beside a thick
-     * one never shows the thick cell's deeper ore through its own goo.
+     * One connected patch of Dowsing goo shows ore as deep as its thickest
+     * cell, every cell of it; two cells are one patch where they share a
+     * face, and patches that do not touch each keep their own depth.
+     * dowsing-patch-shows-ore-as-deep-as-its-thickest-cell
      * dowsing-shows-ore-one-block-deep-per-layer
      */
     @Nested
-    class Groups {
+    class Patches {
 
-        /** High over the thin cell, so an ore under the thick cell beside it lies behind both. */
-        private static final Vec3 EYE_HIGH_OVER_THE_THIN_CELL = new Vec3(0.5, 40, 0.5);
+        /** West of the cells at the thin goo's height, looking east along their row, so an ore down the row lies behind both. */
+        private static final Vec3 EYE_WEST_ALONG_THE_ROW = new Vec3(-20, 0.03, 0.5);
 
         @Test
-        void anOreTenBlocksPastTheGooShowsInTheFifteenLayerGroupAndNotTheOneLayerGroup() {
-            BlockPos thick = CELL.east();
-            BlockPos tenPast = thick.below(10);
-            Function<BlockPos, BlockState> blocks = lookup(Map.of(tenPast, gemOre()));
-            List<DowsingLens.Lens> lenses = List.of(new DowsingLens.Lens(gooOf(ONE_LAYER), ONE_LAYER),
-                    new DowsingLens.Lens(gooOf(WHOLE_BLOCK).move(1, 0, 0), WHOLE_BLOCK));
+        void aOneLayerCellBesideAFifteenLayerCellShowsFifteenBlocksDeepAndNoDeeper() {
+            Map<BlockPos, Integer> layers = Map.of(CELL, ONE_LAYER, CELL.east(), WHOLE_BLOCK);
+            BlockPos atTheReach = CELL.below(WHOLE_BLOCK);
+            BlockPos pastTheReach = CELL.below(WHOLE_BLOCK + 1);
+            Function<BlockPos, BlockState> blocks = lookup(Map.of(atTheReach, gemOre(), pastTheReach, gemOre()));
 
-            Map<Integer, Set<BlockPos>> grouped = DowsingLens.oreShownByLayers(EYE_HIGH_OVER_THE_THIN_CELL, lenses,
+            int depth = DowsingLens.patchDepths(layers.keySet(), pos -> layers.getOrDefault(pos, 0)).get(CELL);
+
+            assertEquals(Set.of(atTheReach), DowsingLens.oreShown(EYE_OVER_THE_CELL, gooOf(ONE_LAYER), depth, blocks));
+        }
+
+        @Test
+        void aOneLayerCellJoinedToAFifteenLayerCellThroughOneLayerCellsTakesFifteen() {
+            Map<BlockPos, Integer> layers = new java.util.HashMap<>();
+            for (int east = 0; east < 5; east++) {
+                layers.put(CELL.east(east), ONE_LAYER);
+            }
+            layers.put(CELL.east(5), WHOLE_BLOCK);
+
+            assertEquals(WHOLE_BLOCK, DowsingLens.patchDepths(Set.of(CELL), pos -> layers.getOrDefault(pos, 0))
+                    .get(CELL));
+        }
+
+        @Test
+        void aOneLayerPatchApartFromAFifteenLayerPatchShowsNoOreTenBlocksPast() {
+            BlockPos thick = CELL.east(2);
+            Map<BlockPos, Integer> layers = Map.of(CELL, ONE_LAYER, thick, WHOLE_BLOCK);
+            BlockPos tenPastTheThickGoo = thick.east(11);
+            Function<BlockPos, BlockState> blocks = lookup(Map.of(tenPastTheThickGoo, gemOre()));
+            Map<BlockPos, Integer> depths = DowsingLens.patchDepths(layers.keySet(),
+                    pos -> layers.getOrDefault(pos, 0));
+
+            Set<BlockPos> thinShows = DowsingLens.oreShown(EYE_WEST_ALONG_THE_ROW, gooOf(ONE_LAYER), depths.get(CELL),
                     blocks);
+            Set<BlockPos> thickShows = DowsingLens.oreShown(EYE_WEST_ALONG_THE_ROW, gooOf(WHOLE_BLOCK).move(2, 0, 0),
+                    depths.get(thick), blocks);
 
-            assertEquals(List.of(Set.of(tenPast), Set.of()),
-                    List.of(grouped.getOrDefault(WHOLE_BLOCK, Set.of()), grouped.getOrDefault(ONE_LAYER, Set.of())));
+            assertEquals(List.of(Set.of(tenPastTheThickGoo), Set.of()), List.of(thickShows, thinShows));
         }
     }
 
