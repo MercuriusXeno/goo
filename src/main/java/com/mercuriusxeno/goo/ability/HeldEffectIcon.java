@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.server.ServerLifecycleHooks;
 import org.jspecify.annotations.Nullable;
 import java.util.concurrent.atomic.AtomicReference;
@@ -37,19 +38,21 @@ public final class HeldEffectIcon {
     public static @Nullable Identifier of(ResourceKey<GooTypeDefinition> type) {
         MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
         if (server != null) {
-            return textureOf(AbilityRegistry.of(server).durativeAbilityFor(type));
+            return textureOf(AbilityRegistry.of(server).durativeAbilityFor(type), StandingDimension.current());
         }
         return CONNECTION_ICONS.get().apply(type);
     }
 
     /**
-     * The icon texture of a granted durative ability, as the radial resolves it.
+     * The icon texture of a granted durative ability, as the radial resolves it for a player standing in a dimension.
+     * decision lunar-reads-as-terran-while-you-are-on-the-moon
      *
-     * @param granted the durative ability a type grants, null for none
-     * @return the ability's icon texture, or null for none
+     * @param granted    the durative ability a type grants, null for none
+     * @param standingIn the dimension the player stands in
+     * @return the ability's shown icon texture, or null for none
      */
-    public static @Nullable Identifier textureOf(@Nullable AbilityDefinition granted) {
-        return granted != null ? AbilityIconTexture.of(granted.id(), granted.icon()) : null;
+    public static @Nullable Identifier textureOf(@Nullable AbilityDefinition granted, ResourceKey<Level> standingIn) {
+        return granted != null ? granted.shownIn(standingIn).icon() : null;
     }
 
     /**

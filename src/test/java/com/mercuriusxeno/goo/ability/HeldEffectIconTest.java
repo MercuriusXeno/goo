@@ -1,12 +1,16 @@
 package com.mercuriusxeno.goo.ability;
 
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
+import com.mercuriusxeno.goo.lunar.Lunar;
 import com.mercuriusxeno.goo.network.AbilitySyncPayload;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.level.Level;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import java.io.IOException;
@@ -45,7 +49,7 @@ class HeldEffectIconTest {
     void brewEffectDrawsTheIconTheRadialDrawsForItsAbility(ResourceKey<GooTypeDefinition> type) throws IOException {
         AbilityDefinition granted = shipped.durativeAbilityFor(type);
 
-        Identifier icon = HeldEffectIcon.textureOf(granted);
+        Identifier icon = HeldEffectIcon.textureOf(granted, Level.OVERWORLD);
 
         if (granted == null) {
             assertNull(icon, () -> GooTypes.id(type) + " grants no brew ability");
@@ -62,5 +66,19 @@ class HeldEffectIconTest {
 
     static Stream<ResourceKey<GooTypeDefinition>> bundledKeys() {
         return GooTypes.BUNDLED.stream();
+    }
+
+    /**
+     * decision lunar-reads-as-terran-while-you-are-on-the-moon
+     */
+    @Nested
+    class OnTheMoon {
+
+        private static final Identifier TERRAN_ICON = Identifier.parse("goo:textures/goo/ability/astral_terran.png");
+
+        @Test
+        void aHeldEffectGrantedByLunarDrawsTheTerranIcon() {
+            assertEquals(TERRAN_ICON, HeldEffectIcon.textureOf(AbilityJson.decode("astral_lunar"), Lunar.LEVEL));
+        }
     }
 }

@@ -22,6 +22,7 @@ import com.mercuriusxeno.goo.client.hud.CrosshairFuelPanel.TypeIcon;
 import com.mercuriusxeno.goo.client.ClientGooValues;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.network.AffordedCount;
+import com.mercuriusxeno.goo.client.network.ShippedClientAbilities;
 import com.mercuriusxeno.goo.client.network.StandingUpkeep;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.data.GooValueTable;
@@ -29,9 +30,11 @@ import com.mercuriusxeno.goo.data.IGooValueLookup;
 import com.mercuriusxeno.goo.data.PrefabValues;
 import com.mercuriusxeno.goo.item.GooFormat;
 import com.mercuriusxeno.goo.item.MixedNumber;
+import com.mercuriusxeno.goo.lunar.Lunar;
 import com.mercuriusxeno.goo.network.AbilitySyncPayload;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.level.Level;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -166,7 +169,7 @@ class CrosshairFuelPanelTest {
                     new AbilityIcon(zone.iconTexture()), new Count(GooFormat.formatDuration(ticks)));
 
             assertEquals(expected, CrosshairFuelPanel.rowCells(GooTypes.VOID, zone, HOLDING, Integer.MAX_VALUE,
-                    StandingUpkeep.NONE, OptionalDouble.of(RoomExtent.LAID), NOT_READ));
+                    StandingUpkeep.NONE, OptionalDouble.of(RoomExtent.LAID), NOT_READ, Level.OVERWORLD));
         }
 
     }
@@ -281,6 +284,25 @@ class CrosshairFuelPanelTest {
             assertEquals(214f, rect.y());
             assertEquals(316f, rect.x() + rect.w());
             assertEquals(236f, rect.y() + rect.h());
+        }
+    }
+
+    /**
+     * decision lunar-reads-as-terran-while-you-are-on-the-moon
+     */
+    @Nested
+    class OnTheMoon {
+
+        private static final String TERRAN_KEY = "goo.ability.astral.terran";
+        private static final Identifier TERRAN_ICON = Identifier.parse("goo:textures/goo/ability/astral_terran.png");
+
+        @Test
+        void theRowNamesLunarTerranAndDrawsItsIcon() {
+            ClientAbility lunar = ShippedClientAbilities.of("astral_lunar");
+            List<FuelCell> row = CrosshairFuelPanel.rowCells(GooTypes.ASTRAL, lunar, 2000, 0, StandingUpkeep.NONE,
+                    OptionalDouble.empty(), "", Lunar.LEVEL);
+            assertEquals(new AbilityName(TERRAN_KEY), row.get(1));
+            assertEquals(new AbilityIcon(TERRAN_ICON), row.get(2));
         }
     }
 }

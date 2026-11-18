@@ -15,11 +15,15 @@ import com.mercuriusxeno.goo.client.hud.PanelRow;
 import com.mercuriusxeno.goo.client.hud.StatedGlyphs;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.network.CostMechanicsLookup;
+import com.mercuriusxeno.goo.client.network.ShippedClientAbilities;
 import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mercuriusxeno.goo.item.MixedNumber;
+import com.mercuriusxeno.goo.lunar.Lunar;
 import com.mercuriusxeno.goo.network.AbilitySyncPayload;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.level.Level;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.List;
@@ -56,7 +60,7 @@ class AbilityExplanationPanelTest {
     }
 
     private static List<String> rowTexts(ClientAbility ability) {
-        return AbilityExplanationPanel.rows(ability, LOOKUP, TEXT_WIDTH, String::length).stream()
+        return AbilityExplanationPanel.rows(ability, LOOKUP, TEXT_WIDTH, String::length, Level.OVERWORLD).stream()
                 .map(row -> row.segments().stream().map(PanelRow.TextSegment::text).collect(Collectors.joining()))
                 .toList();
     }
@@ -87,7 +91,7 @@ class AbilityExplanationPanelTest {
         ClientAbility goop = ClientAbility.fromEntry(AbilitySyncPayload.gloveEntries(GooTypes.WEIRD,
                 List.of(AbilityJson.decodeText("weird_goop", json))).getFirst());
         ToIntFunction<String> spaced = MixedNumberLabel.spacedWidth(StatedGlyphs::widthOf);
-        PanelRow mechanics = AbilityExplanationPanel.rows(goop, lang, TEXT_WIDTH, spaced).getLast();
+        PanelRow mechanics = AbilityExplanationPanel.rows(goop, lang, TEXT_WIDTH, spaced, Level.OVERWORLD).getLast();
         MixedNumberSpacing.Laid laid = MixedNumberSpacing.lay(new MixedNumber("21", "¹", "₃"), StatedGlyphs.VANILLA);
         float numberLeft = StatedGlyphs.widthOf(before);
         List<MixedNumberSpacing.Piece> expected = new ArrayList<>();
@@ -109,5 +113,22 @@ class AbilityExplanationPanelTest {
         int left = AbilityExplanationPanel.panelLeft(frame);
 
         assertTrue(left > CENTER_X + RADIUS, "panel left " + left + ", wheel right " + (CENTER_X + RADIUS));
+    }
+
+    /**
+     * decision lunar-reads-as-terran-while-you-are-on-the-moon
+     */
+    @Nested
+    class OnTheMoon {
+
+        private static final String TERRAN_KEY = "goo.ability.astral.terran";
+
+        @Test
+        void thePanelsLabelNamesLunarTerran() {
+            List<PanelRow> rows = AbilityExplanationPanel.rows(ShippedClientAbilities.of("astral_lunar"), LOOKUP,
+                    TEXT_WIDTH, String::length, Lunar.LEVEL);
+            assertEquals(TERRAN_KEY, rows.getFirst().segments().stream().map(PanelRow.TextSegment::text)
+                    .collect(Collectors.joining()));
+        }
     }
 }
