@@ -20,8 +20,12 @@ import org.jspecify.annotations.NonNull;
  * @param casterId the caster's entity id
  * @param formed   the count formed, 0 for no hold
  * @param javelins whether the hold stacks Dart's javelins rather than Knives' knives
+ * @param released whether the count fell because the hold ended, its weapons returning to the blob, rather than
+ *                 because one was thrown
+ * decision released-weapons-turn-back-into-blobs-that-rejoin-the-palm-blob
  */
-public record StackFormedPayload(int casterId, int formed, boolean javelins) implements CustomPacketPayload {
+public record StackFormedPayload(int casterId, int formed, boolean javelins, boolean released)
+        implements CustomPacketPayload {
 
     /** Payload type ID for registration. */
     public static final Type<StackFormedPayload> TYPE =
@@ -32,6 +36,7 @@ public record StackFormedPayload(int casterId, int formed, boolean javelins) imp
             ByteBufCodecs.VAR_INT, StackFormedPayload::casterId,
             ByteBufCodecs.VAR_INT, StackFormedPayload::formed,
             ByteBufCodecs.BOOL, StackFormedPayload::javelins,
+            ByteBufCodecs.BOOL, StackFormedPayload::released,
             StackFormedPayload::new);
 
     @Override

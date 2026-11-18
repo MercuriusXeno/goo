@@ -74,11 +74,11 @@ class HoveringKnivesTest {
         com.mercuriusxeno.goo.ability.FormSounds knives =
                 com.mercuriusxeno.goo.ability.AbilityJson.decode("crystal_knives").delivery().formSounds();
         java.util.List<com.mercuriusxeno.goo.ability.program.SoundCue> played = new java.util.ArrayList<>();
-        HoveringKnives.counted(CASTER, 1, 0, CASTER, knives, played::add);
-        HoveringKnives.counted(CASTER, 2, 3, CASTER, knives, played::add);
-        HoveringKnives.counted(CASTER, 2, 4, CASTER, knives, played::add);
-        HoveringKnives.counted(CASTER, 1, 5, CASTER, knives, played::add);
-        HoveringKnives.counted(CASTER + 1, 1, 6, CASTER, knives, played::add);
+        HoveringKnives.counted(CASTER, 1, 0, CASTER, knives, played::add, false);
+        HoveringKnives.counted(CASTER, 2, 3, CASTER, knives, played::add, false);
+        HoveringKnives.counted(CASTER, 2, 4, CASTER, knives, played::add, false);
+        HoveringKnives.counted(CASTER, 1, 5, CASTER, knives, played::add, false);
+        HoveringKnives.counted(CASTER + 1, 1, 6, CASTER, knives, played::add, false);
 
         assertEquals(2, played.size(), "two knives formed for the local player should clink twice, " + played);
         played.forEach(cue -> assertEquals("minecraft:block.amethyst_cluster.place", cue.sound().toString()));
@@ -141,4 +141,22 @@ class HoveringKnivesTest {
         assertEquals(1f, volumes.getFirst(), 1e-4f, "the blob starts at its volume before");
         assertEquals(0.91f, volumes.getLast(), 1e-4f, "and ends a knife's share less");
         ClientPalmBuffers.clear();
+    }
+
+    // released-weapons-turn-back-into-blobs-that-rejoin-the-palm-blob: a release returns every knife, a throw none
+    @Test
+    void aReleaseStartsAReturnForEveryKnifeHeldAndAThrowStartsNone() {
+        com.mercuriusxeno.goo.ability.FormSounds none = com.mercuriusxeno.goo.ability.FormSounds.NONE;
+        HoveringKnives.counted(CASTER, 3, 0, CASTER, none, cue -> { }, false);
+        HoveringKnives.counted(CASTER, 0, 5, CASTER, none, cue -> { }, true);
+        assertEquals(3, java.util.Objects.requireNonNull(HoveringKnives.returnOf(CASTER)).released(),
+                "a release of 3 should return 3");
+        HoveringKnives.clear();
+
+        HoveringKnives.counted(CASTER, 3, 0, CASTER, none, cue -> { }, false);
+        HoveringKnives.counted(CASTER, 2, 5, CASTER, none, cue -> { }, false);
+        assertNull(HoveringKnives.returnOf(CASTER), "a throw from 3 returns none");
+        HoveringKnives.counted(CASTER, 1, 8, CASTER, none, cue -> { }, false);
+        HoveringKnives.counted(CASTER, 0, 11, CASTER, none, cue -> { }, false);
+        assertNull(HoveringKnives.returnOf(CASTER), "a throw of the only knife held returns none");
     }}

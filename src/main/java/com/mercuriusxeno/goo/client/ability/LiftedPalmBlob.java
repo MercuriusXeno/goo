@@ -390,7 +390,8 @@ public final class LiftedPalmBlob {
     static float stackShareOf(int casterId, double now) {
         // palm-blob-and-cutaway-cuboid-size-by-the-buffers-volume: the cube draws at the buffer's fill, by volume
         if (ClientPalmBuffers.holdsABuffer(casterId)) {
-            double fill = ClientPalmBuffers.fillAt(casterId, now) + leavingShareOf(casterId, now);
+            double fill = ClientPalmBuffers.fillAt(casterId, now) + leavingShareOf(casterId, now)
+                    - returningShareOf(casterId, now);
             return (float) (StackHover.edgeAtFill(fill) / StackHover.edgeAtFill(1));
         }
         HoveringKnives.Fan fan = HoveringKnives.fanOf(casterId);
@@ -426,6 +427,24 @@ public final class LiftedPalmBlob {
         }
         return Math.max(0, stack.count() - stack.previous()) * StackHover.shareOf(StackHover.JAVELINS)
                 * (1 - HeldJavelins.formedAt(now - stack.changedAt()));
+    }
+
+    /**
+     * The share of the blob a caster's released weapons have still to bring
+     * back to it: the server returned their shares at the release, held back
+     * from the drawn blob and given to it by ease as each cuboid merges, so
+     * the blob grows as they rejoin it.
+     * decision released-weapons-turn-back-into-blobs-that-rejoin-the-palm-blob
+     *
+     * @param casterId the caster's entity id
+     * @param now      the game time, with the frame's partial tick
+     * @return the share still out, 0 to 1
+     */
+    static double returningShareOf(int casterId, double now) {
+        StackReturn.Released knives = HoveringKnives.returnOf(casterId);
+        StackReturn.Released javelins = HeldJavelins.returnOf(casterId);
+        return (knives == null ? 0 : StackReturn.outstandingShareOf(knives, StackHover.KNIVES, now))
+                + (javelins == null ? 0 : StackReturn.outstandingShareOf(javelins, StackHover.JAVELINS, now));
     }
 
     /**

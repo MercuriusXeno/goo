@@ -51,10 +51,10 @@ class HeldJavelinsTest {
         com.mercuriusxeno.goo.ability.FormSounds dart =
                 com.mercuriusxeno.goo.ability.AbilityJson.decode("metal_dart").delivery().formSounds();
         java.util.List<com.mercuriusxeno.goo.ability.program.SoundCue> played = new java.util.ArrayList<>();
-        HeldJavelins.counted(CASTER, 1, 0, CASTER, dart, played::add);
-        HeldJavelins.counted(CASTER, 1, 4, CASTER, dart, played::add);
-        HeldJavelins.counted(CASTER, 0, 5, CASTER, dart, played::add);
-        HeldJavelins.counted(CASTER + 1, 1, 6, CASTER, dart, played::add);
+        HeldJavelins.counted(CASTER, 1, 0, CASTER, dart, played::add, false);
+        HeldJavelins.counted(CASTER, 1, 4, CASTER, dart, played::add, false);
+        HeldJavelins.counted(CASTER, 0, 5, CASTER, dart, played::add, false);
+        HeldJavelins.counted(CASTER + 1, 1, 6, CASTER, dart, played::add, false);
 
         assertEquals(1, played.size(), "one javelin formed for the local player should scrape once, " + played);
         assertEquals("minecraft:item.axe.scrape", played.getFirst().sound().toString());
@@ -94,5 +94,29 @@ class HeldJavelinsTest {
         float last = LiftedPalmBlob.stackShareOf(CASTER, 10);
         assertEquals(1f, first * first * first, 1e-4f, "the blob starts at its volume before");
         assertEquals(0.7f, last * last * last, 1e-4f, "and ends a javelin's share less");
+        ClientPalmBuffers.clear();
+    }
+
+    // released-weapons-turn-back-into-blobs-that-rejoin-the-palm-blob: the blob grows by ease as each blob rejoins it
+    @Test
+    void theBlobGrowsByEaseAsEachReleasedJavelinRejoinsIt() {
+        com.mercuriusxeno.goo.ability.FormSounds none = com.mercuriusxeno.goo.ability.FormSounds.NONE;
+        HeldJavelins.counted(CASTER, 3, 0, CASTER, none, cue -> { }, false);
+        HeldJavelins.counted(CASTER, 0, 10, CASTER, none, cue -> { }, true);
+        ClientPalmBuffers.synced(CASTER, 200, 2, 200, 10);
+        float before = -1f;
+        for (double now = 10; now <= 19; now += 0.25) {
+            float edge = LiftedPalmBlob.stackShareOf(CASTER, now);
+            float volume = edge * edge * edge;
+            assertTrue(volume >= before - 1e-6f, "the blob should never shrink as the javelins return, " + volume
+                    + " after " + before + " at " + now);
+            before = volume;
+        }
+        float atRelease = LiftedPalmBlob.stackShareOf(CASTER, 10);
+        assertEquals(0.1f, atRelease * atRelease * atRelease, 1e-4f, "the blob starts the return at 10%");
+        float afterTheFirstMerge = LiftedPalmBlob.stackShareOf(CASTER, 15);
+        assertEquals(0.4f, afterTheFirstMerge * afterTheFirstMerge * afterTheFirstMerge, 1e-4f,
+                "one share gained as the first merges");
+        assertEquals(1f, before, 1e-4f, "and 100% once all three are back");
         ClientPalmBuffers.clear();
     }}

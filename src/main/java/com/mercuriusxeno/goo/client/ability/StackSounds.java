@@ -5,11 +5,16 @@ import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.program.SoundCue;
 import com.mercuriusxeno.goo.client.throwing.GloveThrowSender;
 import com.mercuriusxeno.goo.item.GooCasters;
+import com.mercuriusxeno.goo.network.StackFormedPayload;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jspecify.annotations.Nullable;
+import java.util.function.Consumer;
 
 /**
  * Plays the sounds a held throw's stack makes on this client, Knives' and
@@ -23,6 +28,52 @@ final class StackSounds {
     static final int NO_ONE = -1;
 
     private StackSounds() {
+    }
+
+    /** Takes a count the server sent for a caster: Knives' or Dart's own record of it. */
+    @FunctionalInterface
+    interface Counter {
+        void counted(int casterId, int formed, long now, int localId, FormSounds sounds, Consumer<SoundCue> played,
+                     boolean released);
+    }
+
+    /**
+     * Takes a count the server sent, on the client's thread, with the local
+     * player's selected sounds played at the local player.
+     *
+     * @param payload the count
+     * @param context the network context
+     * @param counter the stack taking it
+     */
+    static void take(StackFormedPayload payload, IPayloadContext context, Counter counter) {
+        context.enqueueWork(() -> {
+            Minecraft mc = Minecraft.getInstance();
+            if (mc.level != null) {
+                LocalPlayer local = mc.player;
+                counter.counted(payload.casterId(), payload.formed(), mc.level.getGameTime(),
+                        local == null ? NO_ONE : local.getId(), selectedBy(local), cue -> playAt(local, cue),
+                        payload.released());
+            }
+        });
+    }
+
+    /**
+     * Plays the form cue once where a count rose for the local player, and
+     * none where it held or fell, or rose for another caster.
+     * decision knives-and-javelins-sound-as-each-forms-and-is-thrown
+     *
+     * @param casterId the caster's entity id
+     * @param localId  the local player's entity id
+     * @param before   the count held before
+     * @param formed   the count held now
+     * @param sounds   the local player's selected stack sounds
+     * @param played   plays a cue at the local player
+     */
+    static void soundForming(int casterId, int localId, int before, int formed, FormSounds sounds,
+                             Consumer<SoundCue> played) {
+        if (casterId == localId && formed > before) {
+            sounds.form().ifPresent(played);
+        }
     }
 
     /**
