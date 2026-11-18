@@ -9,6 +9,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.material.MapColor;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -16,6 +17,7 @@ import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Optional;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -41,7 +43,7 @@ class GooTypeDefinitionTest {
     private static final String ALL_COLORS =
             ", \"wheel\": \"112233\", \"bright\": \"445566\", \"highlight\": \"778899\", \"edge\": \"AABBCC\"";
     private static final String WATER_LIKE_FLUID =
-            ", \"density\": 1000, \"viscosity\": 1000, \"elasticity\": 0.5, \"cohesion\": 0, \"adhesion\": 1,"
+            ", \"density\": 1000, \"viscosity\": 1000, \"elasticity\": 0.5, \"cohesion\": \"runny\", \"adhesion\": 1,"
             + " \"temperature\": 300,"
             + " \"extinguishes\": false,"
             + " \"map_color\": \"stone\"";
@@ -57,25 +59,26 @@ class GooTypeDefinitionTest {
     private static final int BLAZE_VISCOSITY = 800;
     private static final int BLAZE_TEMPERATURE = 1300;
     private static final int FROST_TEMPERATURE = 200;
-    private static final int WEIRD_COHESION = 4;
+    private static final Pattern COHESION_FIELD = Pattern.compile("\"cohesion\": [^,]+");
+    private static final Cohesion WEIRD_COHESION = Cohesion.THICK;
     /** Jelly's cohesion, the stiff rung just below firm (operator ruling 2026-11-17). */
-    private static final int JELLY_COHESION = 8;
+    private static final Cohesion JELLY_COHESION = Cohesion.STIFF;
     /** Metal's cohesion, the soft rung, so a Spikes coat keeps some thickness where it lands (operator ruling 2026-11-17). */
-    private static final int METAL_COHESION = 2;
+    private static final Cohesion METAL_COHESION = Cohesion.SOFT;
     /** Leaf's cohesion, the stiff rung Jelly holds (operator ruling 2026-11-17). */
-    private static final int LEAF_COHESION = 8;
+    private static final Cohesion LEAF_COHESION = Cohesion.STIFF;
     private static final int WEIRD_ADHESION = 3;
     private static final int LEAF_ADHESION = 3;
     private static final int GLOW_ADHESION = 4;
     private static final int JELLY_ADHESION = 3;
-    private static final int BLAZE_COHESION = 4;
+    private static final Cohesion BLAZE_COHESION = Cohesion.THICK;
     private static final int BLAZE_ADHESION = 4;
     private static final int COMMON_ADHESION = 1;
     /** Pulse's goo holds where it is laid, firm and clinging to an underside, so its layers set its signal at will. */
-    private static final int PULSE_COHESION = GooTypeDefinition.FIRM_COHESION;
+    private static final Cohesion PULSE_COHESION = Cohesion.FIRM;
     private static final int PULSE_ADHESION = GooTypeDefinition.HOLDS_AN_UNDERSIDE;
     /** Nether's goo pours past two layers of step, the soft rung (operator ruling 2026-11-17). */
-    private static final int NETHER_COHESION = 2;
+    private static final Cohesion NETHER_COHESION = Cohesion.SOFT;
     /** Nether's goo holds a block's side where it strikes, the clings rung (operator ruling 2026-11-17). */
     private static final int NETHER_ADHESION = 3;
 
@@ -290,9 +293,8 @@ class GooTypeDefinitionTest {
     }
 
     /**
-     * Every bundled type states a cohesion: weird holds a step of 4, blaze the thick rung of 4, jelly and
-     * leaf the stiff rung of 8, pulse the firm 15, metal and nether the soft 2, and every other type,
-     * kinetic among them, 0.
+     * Every bundled type names a cohesion rung: weird and blaze thick, jelly and leaf stiff, pulse firm,
+     * metal and nether soft, and every other type, kinetic among them, runny.
      * cohesion-is-the-step-the-goo-holds
      * blaze-goo-is-adhesion-four-and-cohesion-five
      * signal-goo-sends-a-redstone-signal-equal-to-its-layers
@@ -301,10 +303,36 @@ class GooTypeDefinitionTest {
     @ParameterizedTest
     @MethodSource("bundledKeys")
     void bundledCohesionMatchesDecision(ResourceKey<GooTypeDefinition> key) throws Exception {
-        Map<ResourceKey<GooTypeDefinition>, Integer> stated = Map.of(GooTypes.WEIRD, WEIRD_COHESION,
+        Map<ResourceKey<GooTypeDefinition>, Cohesion> stated = Map.of(GooTypes.WEIRD, WEIRD_COHESION,
                 GooTypes.BLAZE, BLAZE_COHESION, GooTypes.JELLY, JELLY_COHESION, GooTypes.PULSE, PULSE_COHESION,
                 GooTypes.METAL, METAL_COHESION, GooTypes.NETHER, NETHER_COHESION, GooTypes.LEAF, LEAF_COHESION);
-        assertEquals(stated.getOrDefault(key, 0), decodeBundled(key).cohesion(), key::toString);
+        assertEquals(stated.getOrDefault(key, Cohesion.RUNNY), decodeBundled(key).cohesion(), key::toString);
+    }
+
+    /**
+     * A type naming a cohesion rung decodes to that rung's threshold in layers.
+     * cohesion-is-the-step-the-goo-holds
+     */
+    @ParameterizedTest
+    @CsvSource({"runny, 0", "loose, 1", "soft, 2", "thick, 4", "stiff, 8", "firm, 15"})
+    void aCohesionRungDecodesToItsThreshold(String rung, int layers) {
+        assertEquals(layers, decode(withCohesion("\"" + rung + "\"")).cohesion().threshold(), rung);
+    }
+
+    /**
+     * A cohesion stated as a number is refused, so a type names its rung.
+     */
+    @Test
+    void refusesCohesionAsANumber() {
+        assertTrue(parse(withCohesion("4")).isError());
+    }
+
+    /**
+     * A cohesion naming no rung of the six is refused.
+     */
+    @Test
+    void refusesCohesionOffTheRungs() {
+        assertTrue(parse(withCohesion("\"gooey\"")).isError());
     }
 
     /**
@@ -346,12 +374,8 @@ class GooTypeDefinitionTest {
                 + "}").getOrThrow().adhesion());
     }
 
-    /**
-     * A cohesion past fifteen layers is refused, since no step stands taller than a whole cell.
-     */
-    @Test
-    void refusesCohesionPastAWholeCell() {
-        assertTrue(parse(BODY_BEFORE_FLIGHT.replace("\"cohesion\": 0", "\"cohesion\": 16") + FLIGHT + "}").isError());
+    private static String withCohesion(String spelled) {
+        return COHESION_FIELD.matcher(BODY_BEFORE_FLIGHT).replaceFirst("\"cohesion\": " + spelled) + FLIGHT + "}";
     }
 
     private static float expectedLevity(ResourceKey<GooTypeDefinition> key) {

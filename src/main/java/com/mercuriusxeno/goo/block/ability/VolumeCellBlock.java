@@ -25,6 +25,7 @@ import com.mercuriusxeno.goo.network.FallingDripPayload;
 import com.mercuriusxeno.goo.network.RedHotPayload;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.throwing.DripFall;
+import com.mercuriusxeno.goo.type.Cohesion;
 import com.mercuriusxeno.goo.type.GooColors;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.BlockPos;
@@ -1772,15 +1773,16 @@ public class VolumeCellBlock extends Block {
 
     /**
      * The step in layers this cell holds over a neighbour before pouring,
-     * read from its goo type's cohesion; a cell whose goo type's definition
-     * does not load levels flat.
+     * the threshold of its goo type's cohesion rung; a cell whose goo type's
+     * definition does not load levels flat.
      * cohesion-is-the-step-the-goo-holds
      *
      * @param level the level, whose registries hold the goo type
-     * @return the cohesion
+     * @return the cohesion threshold in layers
      */
     public int cohesionAt(LevelReader level) {
-        return level.registryAccess().get(binding.gooType()).map(type -> type.value().cohesion()).orElse(0);
+        return level.registryAccess().get(binding.gooType()).map(type -> type.value().cohesion().threshold())
+                .orElse(Cohesion.RUNNY.threshold());
     }
 
     /**
