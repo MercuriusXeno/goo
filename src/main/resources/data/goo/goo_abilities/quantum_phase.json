@@ -2,7 +2,7 @@
   "gooType": "quantum",
   "displayName": "goo.ability.quantum.phase",
   "cost_mechanics": "goo.ability.quantum.phase.cost_mechanics",
-  "badge": "channeled",
+  "badge": "residual",
   "order": 30,
   "cost": 96,
   "cost_formula": "%s/m³",
