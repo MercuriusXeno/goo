@@ -2,6 +2,8 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.program.FlamesStep;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.throwing.GloveAim;
@@ -18,10 +20,6 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
 import org.joml.Vector3f;
@@ -29,6 +27,7 @@ import org.joml.Vector3fc;
 import org.joml.Vector4f;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.system.MemoryStack;
+import java.util.function.Consumer;
 
 /**
  * Flames' heat wave: while right click holds Flames, the view shimmers like
@@ -38,7 +37,6 @@ import org.lwjgl.system.MemoryStack;
  * decision flames-absorbs-broil-and-cooks-blocks
  * decision heat-wave-shrinks-to-a-local-shimmer
  */
-@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class HeatWaveEffect {
 
     /** The chain at {@code assets/goo/post_effect/heat_wave.json}. */
@@ -86,13 +84,15 @@ public final class HeatWaveEffect {
 
     /**
      * Eases the heat toward full while Flames runs and toward none
-     * otherwise, then draws the shimmer around the flame's reach point or
-     * releases it.
+     * otherwise, then shows the shimmer around the flame's reach point or
+     * releases it: a post effect over the finished frame, which the shared
+     * path hands the frame on its screen-space route and which hands back no draw.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
      *
-     * @param event the level render stage event
+     * @param frame the frame being drawn
+     * @param draws unused, the shimmer drawing over the finished frame
      */
-    @SubscribeEvent
-    public static void onAfterLevel(RenderLevelStageEvent.AfterLevel event) {
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
         heat = easedHeat(heat, player != null && heatsUp(player), mc.getDeltaTracker().getRealtimeDeltaTicks());
@@ -101,7 +101,7 @@ public final class HeatWaveEffect {
             return;
         }
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        ShimmerRegion region = regionThisFrame(mc, player, event.getLevelRenderState().cameraRenderState,
+        ShimmerRegion region = regionThisFrame(mc, player, frame.levelRenderState().cameraRenderState,
                 partialTick);
         if (region == null) {
             SLOT.hide(mc.gameRenderer);

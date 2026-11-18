@@ -1,10 +1,11 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityArea;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.WindStep;
 import com.mercuriusxeno.goo.client.LineContext;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.particle.VoidMoteParticle;
 import com.mercuriusxeno.goo.registry.GooParticles;
@@ -20,14 +21,11 @@ import net.minecraft.util.ARGB;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 /**
@@ -44,7 +42,6 @@ import java.util.stream.Stream;
  * cold-streams-wind-lines-and-snowflakes
  * vacuum-wind-lines-are-gusts-streaks-flying-into-the-blob
  */
-@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class WindLines {
 
     /** The client's wind. */
@@ -791,12 +788,13 @@ public final class WindLines {
 
     /**
      * Drops the spent lines, drops this tick's snowflakes along the rest and
-     * draws them.
+     * hands the shared path their draw, sorted by the rider they stream past.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
      *
-     * @param event the level render stage event
+     * @param frame the frame being drawn
+     * @param draws where the lines' draw goes
      */
-    @SubscribeEvent
-    public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) {
             return;
@@ -807,19 +805,34 @@ public final class WindLines {
             return;
         }
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        double gameTime = now + partialTick;
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
         Vec3 rider = mc.player == null ? Vec3.ZERO : mc.player.getPosition(partialTick);
+        List<Line> live = List.copyOf(CLIENT.live);
+        draws.accept(new SortedDraw(rider.distanceToSqr(camera),
+                () -> drawLines(mc, frame, live, new LinesAt(now + partialTick, camera, rider))));
+        CLIENT.dropAlongLines(mc, now, mc.player == null ? Vec3.ZERO : mc.player.position());
+    }
+
+    /**
+     * Where this frame's lines draw from.
+     *
+     * @param gameTime the game time this frame, partial tick included
+     * @param camera   the camera's place in the world
+     * @param rider    the local player's place, which the lines stream past
+     */
+    private record LinesAt(double gameTime, Vec3 camera, Vec3 rider) {
+    }
+
+    private static void drawLines(Minecraft mc, LevelFrame frame, List<Line> live, LinesAt at) {
         Vec3 blob = CastOrigin.ofLocal(mc);
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         RenderType type = RenderTypes.linesTranslucent();
-        LineContext lines = new LineContext(event.getPoseStack().last(), buffers.getBuffer(type));
-        for (Line line : CLIENT.live) {
-            double age = gameTime - line.startTick();
-            drawLine(lines, camera, line, age, anchorOf(line, rider).add(followShift(line, age, blob)));
+        LineContext lines = new LineContext(frame.poseStack().last(), buffers.getBuffer(type));
+        for (Line line : live) {
+            double age = at.gameTime() - line.startTick();
+            drawLine(lines, at.camera(), line, age, anchorOf(line, at.rider()).add(followShift(line, age, blob)));
         }
         buffers.endBatch(type);
-        CLIENT.dropAlongLines(mc, now, mc.player == null ? Vec3.ZERO : mc.player.position());
     }
 
     /**

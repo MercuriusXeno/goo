@@ -5,6 +5,8 @@ import com.mercuriusxeno.goo.ability.program.RayStep;
 import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.TargetResult;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.overlay.AimTracker;
 import com.mercuriusxeno.goo.client.throwing.GloveAim;
 import com.mercuriusxeno.goo.client.throwing.GloveThrowSender;
@@ -29,7 +31,6 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
@@ -37,6 +38,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Consumer;
 
 /**
  * Laser's ray as every client tracking the caster sees it: glow's beam of
@@ -106,12 +108,13 @@ public final class LaserVisual {
     }
 
     /**
-     * Draws every ray still showing once the world has drawn.
+     * Hands the shared path every ray still showing, sorted by its nearest caster.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
      *
-     * @param event the level render stage event
+     * @param frame the frame being drawn
+     * @param draws where the rays' draw goes
      */
-    @SubscribeEvent
-    public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || RAYS.isEmpty()) {
             RAYS.clear();
@@ -122,14 +125,21 @@ public final class LaserVisual {
         long now = level.getGameTime();
         RAYS.entrySet().removeIf(entry -> level.getEntity(entry.getKey()) == null
                 || now - entry.getValue().arrivedAt() > LINGER_TICKS);
+        Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        draws.accept(SortedDraw.nearestOf(RAYS.keySet().stream()
+                        .map(level::getEntity).filter(Objects::nonNull).map(Entity::position), camera,
+                () -> drawEveryRay(mc, level, frame.poseStack(), now)));
+    }
+
+    private static void drawEveryRay(Minecraft mc, ClientLevel level, PoseStack poseStack, long now) {
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.glowBeam(BeaconRenderer.BEAM_LOCATION));
         BeamPhase phase = new BeamPhase(Mth.frac(-(now + partialTick) * SCROLL_PER_TICK),
                 GlowBeamMesh.breath(now + (double) partialTick));
-        List<Vec3> cores = drawRays(mc, level, event.getPoseStack(), consumer, partialTick, phase);
+        List<Vec3> cores = drawRays(mc, level, poseStack, consumer, partialTick, phase);
         buffers.endBatch(GooRenderTypes.glowBeam(BeaconRenderer.BEAM_LOCATION));
-        drawCores(event.getPoseStack(), buffers, cores);
+        drawCores(poseStack, buffers, cores);
     }
 
     /**
