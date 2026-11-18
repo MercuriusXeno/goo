@@ -62,9 +62,7 @@ public final class GradualBreak {
     /**
      * Progresses every block a step is breaking this tick, finishing each one
      * that completes through the step's own break, in the order the rates
-     * run; Vacuum's breaks do, each its quiet break with its few particles,
-     * its break sound and its slurp.
-     * decision vacuum-breaks-a-cell-the-tick-the-wave-reaches-it
+     * run.
      *
      * @param rates  each block the step is breaking with the share of a break it gains this tick
      * @param host   the host that cracks the blocks

@@ -30,15 +30,19 @@ public final class LaserHum extends AbstractTickableSoundInstance {
     /**
      * Creates the hum on a caster.
      *
-     * @param caster the player holding the ray
+     * @param caster     the player holding the ray
+     * @param atListener whether the caster is the local player, whose own hum sits at their head
      */
-    public LaserHum(Entity caster) {
+    public LaserHum(Entity caster, boolean atListener) {
         super(SoundEvents.BEACON_AMBIENT, SoundSource.PLAYERS, SoundInstance.createUnseededRandom());
         this.caster = caster;
         this.looping = true;
         this.delay = 0;
         this.volume = VOLUME;
         this.pitch = START_PITCH;
+        // goo-sound-at-the-listener-reaches-both-ears
+        this.relative = atListener;
+        this.attenuation = atListener ? Attenuation.NONE : Attenuation.LINEAR;
         follow();
     }
 
@@ -67,6 +71,9 @@ public final class LaserHum extends AbstractTickableSoundInstance {
     }
 
     private void follow() {
+        if (relative) {
+            return;
+        }
         x = caster.getX();
         y = caster.getEyeY();
         z = caster.getZ();

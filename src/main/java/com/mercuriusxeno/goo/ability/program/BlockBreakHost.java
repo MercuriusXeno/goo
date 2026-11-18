@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.network.BlockTransformPayload;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.registry.GooSounds;
@@ -10,7 +11,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
@@ -26,7 +26,7 @@ import org.jspecify.annotations.Nullable;
  * blob's landing (decisions flatten-disc-cursor-breaks-above-the-plane,
  * bore-vortex-with-a-worldspace-shake, crush-blob-breaks-along-its-strike).
  */
-public interface BlockBreakHost extends StepHost {
+public interface BlockBreakHost extends StepHost, BlockFinishHost {
 
     /** Chunks of debris one broken block throws. */
     int DEBRIS_CHUNKS = 12;
@@ -48,13 +48,6 @@ public interface BlockBreakHost extends StepHost {
     float BREAK_VOLUME_SHARE = 0.5f;
     /** The highest breaker id a block's cracks travel under, below every entity's id. */
     int HIGHEST_CRACKER_ID = -1;
-
-    /**
-     * The level the host's blocks stand in.
-     *
-     * @return the server level
-     */
-    ServerLevel level();
 
     /**
      * The entity breaking the blocks, which their loot and break event credit.
@@ -104,18 +97,6 @@ public interface BlockBreakHost extends StepHost {
      */
     default BlockState stateAt(BlockPos pos) {
         return level().getBlockState(pos);
-    }
-
-    /**
-     * Transforms the block at a position into another, which every watching
-     * client draws as the old block mingling into the new
-     * (decision petrify-stone-encasement-and-calcify-map).
-     *
-     * @param pos the position
-     * @param to  the state it becomes
-     */
-    default void transformBlock(BlockPos pos, BlockState to) {
-        transform(level(), pos, to);
     }
 
     /**
@@ -201,20 +182,6 @@ public interface BlockBreakHost extends StepHost {
     }
 
     /**
-     * Leaves an item at rest at a point, unthrown, where a cooked block's
-     * result stands in the cell it emptied
-     * (decision blocks-that-cook-into-items-cook-like-blocks).
-     *
-     * @param at    the point
-     * @param stack the item
-     */
-    default void restItem(Vec3 at, ItemStack stack) {
-        ItemEntity item = new ItemEntity(level(), at.x, at.y, at.z, stack, 0, 0, 0);
-        item.setDefaultPickUpDelay();
-        level().addFreshEntity(item);
-    }
-
-    /**
      * Whether a block is finishing its step on its own.
      *
      * @param pos the block
@@ -287,6 +254,23 @@ public interface BlockBreakHost extends StepHost {
         Block.dropResources(state, level, pos, level.getBlockEntity(pos), breaker, new ItemStack(Items.IRON_PICKAXE));
         level.setBlock(pos, level.getFluidState(pos).createLegacyBlock(), Block.UPDATE_ALL);
         level.gameEvent(GameEvent.BLOCK_DESTROY, pos, GameEvent.Context.of(breaker, state));
+    }
+
+    /**
+     * Takes one layer off the world goo cell at a position, dropping the goo
+     * that layer gives back; a cell on its last layer, or a block holding no
+     * layers, breaks quietly with its drops.
+     * vacuum-breaks-a-cell-the-tick-the-wave-reaches-it
+     *
+     * @param pos the cell
+     */
+    default void takeLayer(BlockPos pos) {
+        BlockState state = stateAt(pos);
+        if (state.getBlock() instanceof VolumeCellBlock cell && VolumeCellBlock.layersOf(state) > 1) {
+            cell.takeTopLayer(level(), pos, state);
+        } else {
+            breakBlockQuietly(pos);
+        }
     }
 
     /**

@@ -171,7 +171,6 @@ public final class StepTypes {
         register(AirbornStep.TYPE);
         register(PneumaStep.TYPE);
         register(UpdraftStep.TYPE);
-        register(LiftStep.TYPE);
         register(GrabStep.TYPE);
         register(GougeStep.TYPE);
         register(RemoteStep.TYPE);

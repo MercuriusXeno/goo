@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.registry;
 import com.mercuriusxeno.goo.ability.frost.GlacialFields;
 import com.mercuriusxeno.goo.ability.petrify.BlockExposures;
 import com.mercuriusxeno.goo.ability.program.MorphBirths;
+import com.mercuriusxeno.goo.ability.program.VacuumCounts;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockFallScheduler;
 import com.mercuriusxeno.goo.block.ability.HostFreeCells;
 import com.mercuriusxeno.goo.block.ability.HostSpreaders;
@@ -44,6 +45,7 @@ public final class GooServerState {
     private final HostSpreaders hostSpreaders = new HostSpreaders();
     private final HostFreeCells hostFreeCells = new HostFreeCells();
     private final WispClaims wispClaims = new WispClaims();
+    private final VacuumCounts vacuumCounts = new VacuumCounts();
 
     /**
      * Answers the state the server holds.
@@ -205,6 +207,13 @@ public final class GooServerState {
     }
 
     /**
+     * @return the ticks Vacuum has counted on each goo cell toward its next layer
+     */
+    public VacuumCounts vacuumCounts() {
+        return vacuumCounts;
+    }
+
+    /**
      * @return how long each player has held a stream
      */
     public StreamHolds streamHolds() {
@@ -233,6 +242,7 @@ public final class GooServerState {
         morphBirths.bearArrived(currentTick);
         blockExposures.decay(server);
         streamHolds.releaseLapsed(currentTick);
+        vacuumCounts.dropForgotten(currentTick);
         knifeHolds.tick(currentTick);
         homingKnives.tick(currentTick);
     }
@@ -257,5 +267,6 @@ public final class GooServerState {
         hostSpreaders.clear();
         hostFreeCells.clear();
         wispClaims.clear();
+        vacuumCounts.clear();
     }
 }

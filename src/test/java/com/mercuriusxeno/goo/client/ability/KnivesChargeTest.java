@@ -2,6 +2,9 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.ability.ArmPoseKind;
 import com.mercuriusxeno.goo.ability.Charge;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
+import net.minecraft.client.resources.sounds.SoundInstance;
+import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
@@ -91,6 +94,28 @@ class KnivesChargeTest {
         void aWoundUpKnifeFormingChargeShowsTheShareItReached() {
             assertEquals(0.7f, KnivesCharge.palmShareOf(KNIVES, true, 0.7f), TOLERANCE);
             assertEquals(1f, KnivesCharge.palmShareOf(KNIVES, true, 1.5f), TOLERANCE);
+        }
+    }
+
+    // goo-sound-at-the-listener-reaches-both-ears: the chimes ring at the local caster's own eye
+    @Nested
+    class ChimesAtTheCastersEye {
+
+        private final Vec3 eye = new Vec3(12.3, 65.62, -7.9);
+
+        @Test
+        void aStagesChimePlaysAtTheListenerUnattenuated() {
+            SimpleSoundInstance chime = KnivesCharge.chimeOf(eye, 0.5f);
+            assertTrue(chime.isRelative());
+            assertEquals(SoundInstance.Attenuation.NONE, chime.getAttenuation());
+        }
+
+        @Test
+        void theLastStagesResonancePlaysAtTheListenerUnattenuated() {
+            SimpleSoundInstance resonance = KnivesCharge.resonanceOf(eye);
+            assertTrue(resonance.isRelative());
+            assertEquals(SoundInstance.Attenuation.NONE,
+                    resonance.getAttenuation());
         }
     }
 }

@@ -3,18 +3,21 @@ package com.mercuriusxeno.goo.block.ability;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.GooHitCredit;
 import com.mercuriusxeno.goo.ability.program.LeechGooStep;
+import com.mercuriusxeno.goo.ability.program.SoundCue;
+import com.mercuriusxeno.goo.ability.program.SoundKind;
+import com.mercuriusxeno.goo.ability.program.SoundPlays;
 import com.mercuriusxeno.goo.network.EntityVisuals;
 import com.mercuriusxeno.goo.network.LeechPayload;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
@@ -143,9 +146,20 @@ public final class LeechDrain {
             depleteAt(level, cell.orElseThrow(), leech.orElseThrow());
             source.heal(drained);
             EntityVisuals.sendToWatchers(victim, new LeechPayload(victim.getId(), source.getId(), drained, true));
-            victim.level().playSound(null, victim.getX(), victim.getY(BODY_CENTER), victim.getZ(),
-                    SoundEvents.SOUL_ESCAPE, SoundSource.PLAYERS, DRAIN_VOLUME,
-                    DRAIN_PITCH + victim.getRandom().nextFloat() * DRAIN_PITCH_SPREAD);
+            soundTheDrain(level, victim);
         }
+    }
+
+    /**
+     * Plays a drained strike's sound at its victim's body centre.
+     *
+     * @param level  the level
+     * @param victim the drained victim
+     */
+    public static void soundTheDrain(ServerLevel level, LivingEntity victim) {
+        // goo-sound-at-the-listener-reaches-both-ears: a player victim's body centre sits under their eye
+        SoundPlays.playAtHeadOf(level, victim, new Vec3(victim.getX(), victim.getY(BODY_CENTER), victim.getZ()),
+                new SoundCue(SoundEvents.SOUL_ESCAPE.value().location(), SoundKind.PLAYERS, DRAIN_VOLUME,
+                        DRAIN_PITCH + victim.getRandom().nextFloat() * DRAIN_PITCH_SPREAD));
     }
 }

@@ -29,7 +29,6 @@ import com.mercuriusxeno.goo.client.ability.GrabFlail;
 import com.mercuriusxeno.goo.client.ability.HeldSweepVisual;
 import com.mercuriusxeno.goo.client.ability.HoveringKnives;
 import com.mercuriusxeno.goo.client.ability.KinOutline;
-import com.mercuriusxeno.goo.client.ability.LiftWind;
 import com.mercuriusxeno.goo.client.ability.MeteorScorches;
 import com.mercuriusxeno.goo.client.ability.MobAilments;
 import com.mercuriusxeno.goo.client.ability.MobCoatLayer;
@@ -627,7 +626,6 @@ public final class GooClientSetup {
         clearCrystalVisuals();
         WindLines.CLIENT.clear();
         UpdraftWind.clear();
-        LiftWind.clear();
         BlockTransforms.CLIENT.clear();
         Afterimages.CLIENT.clear();
         Transformations.CLIENT.clear();

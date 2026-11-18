@@ -5,12 +5,14 @@ import com.mercuriusxeno.goo.ability.ArmPoseKind;
 import com.mercuriusxeno.goo.ability.Charge;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.GloveSelection;
+import com.mercuriusxeno.goo.client.sound.ListenerSounds;
 import com.mercuriusxeno.goo.client.throwing.GloveThrowSender;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
 import com.mercuriusxeno.goo.item.GooCasters;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
@@ -144,7 +146,7 @@ public final class KnivesCharge {
             shownLocally = 0;
             return;
         }
-        chime(mc.level, player, charge, GloveThrowSender.selectedDelivery(selectedAbility(player)),
+        chime(player, charge, GloveThrowSender.selectedDelivery(selectedAbility(player)),
                 GloveUseTracker.heldTicks());
     }
 
@@ -198,19 +200,42 @@ public final class KnivesCharge {
         return posed == null ? 0f : AbilityPoses.acrossAt(posed, now - posed.since());
     }
 
-    private static void chime(ClientLevel level, LocalPlayer player, Charge charge, Delivery delivery,
+    private static void chime(LocalPlayer player, Charge charge, Delivery delivery,
                               int heldTicks) {
         float share = delivery.chargeShare(heldTicks);
         int shown = stagesFormedAt(charge, heldTicks);
         if (shown > shownLocally) {
-            level.playLocalSound(player.getX(), player.getEyeY(), player.getZ(), SoundEvents.AMETHYST_BLOCK_CHIME,
-                    SoundSource.PLAYERS, CHIME_VOLUME, CHIME_PITCH_LOW + share * CHIME_PITCH_SPAN, false);
+            ListenerSounds.play(chimeOf(player.getEyePosition(), share));
             if (shown >= charge.stages()) {
-                level.playLocalSound(player.getX(), player.getEyeY(), player.getZ(),
-                        SoundEvents.AMETHYST_BLOCK_RESONATE, SoundSource.PLAYERS, FULL_VOLUME, FULL_PITCH, false);
+                ListenerSounds.play(resonanceOf(player.getEyePosition()));
             }
             shownLocally = shown;
         }
+    }
+
+    /**
+     * The chime a knife's forming stage rings at the caster's eye, higher as the charge grows.
+     * goo-sound-at-the-listener-reaches-both-ears
+     *
+     * @param eye   the local caster's eye
+     * @param share how far the charge has grown, 0 to 1
+     * @return the chime
+     */
+    static SimpleSoundInstance chimeOf(Vec3 eye, float share) {
+        return ListenerSounds.heardAt(SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.PLAYERS, CHIME_VOLUME,
+                CHIME_PITCH_LOW + share * CHIME_PITCH_SPAN, eye, true);
+    }
+
+    /**
+     * The resonance the last stage rings at the caster's eye.
+     * goo-sound-at-the-listener-reaches-both-ears
+     *
+     * @param eye the local caster's eye
+     * @return the resonance
+     */
+    static SimpleSoundInstance resonanceOf(Vec3 eye) {
+        return ListenerSounds.heardAt(SoundEvents.AMETHYST_BLOCK_RESONATE, SoundSource.PLAYERS, FULL_VOLUME,
+                FULL_PITCH, eye, true);
     }
 
     private static @Nullable String selectedAbility(Player player) {

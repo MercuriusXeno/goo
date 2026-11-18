@@ -1,11 +1,18 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
+import net.minecraft.client.resources.sounds.SoundInstance;
+import net.minecraft.resources.Identifier;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.world.phys.Vec3;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import java.util.ArrayList;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -58,6 +65,33 @@ class SoundWavesTest {
         assertEquals(0, echoes.getFirst());
         for (int i = 1; i < echoes.size(); i++) {
             assertTrue(echoes.get(i) - echoes.get(i - 1) >= SoundWaves.LEAST_ECHO_GAP, echoes.toString());
+        }
+    }
+
+    // goo-sound-at-the-listener-reaches-both-ears: the first echo leaves the local player's own glove hand
+    @Nested
+    class WhereAnEchoPlays {
+
+        private static final double EPSILON = 1e-9;
+        private final Vec3 eye = new Vec3(12.3, 65.62, -7.9);
+        private final SoundEvent click = SoundEvent.createVariableRangeEvent(
+                Identifier.fromNamespaceAndPath("goo", "effects.click"));
+
+        @Test
+        void theFirstEchoFromTheLocalHandPlaysAtTheListenerUnattenuated() {
+            SimpleSoundInstance echo = SoundWaves.echoOf(click, eye.add(0.3, -0.3, 0.4), 0f, eye);
+            assertTrue(echo.isRelative());
+            assertEquals(SoundInstance.Attenuation.NONE, echo.getAttenuation());
+        }
+
+        @Test
+        void anEchoAnotherPlayerCausedPlaysAtItsPoint() {
+            Vec3 elsewhere = eye.add(6, -0.3, 1);
+            SimpleSoundInstance echo = SoundWaves.echoOf(click, elsewhere, 0f, eye);
+            assertFalse(echo.isRelative());
+            assertEquals(elsewhere.x, echo.getX(), EPSILON);
+            assertEquals(elsewhere.y, echo.getY(), EPSILON);
+            assertEquals(elsewhere.z, echo.getZ(), EPSILON);
         }
     }
 }

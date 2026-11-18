@@ -170,16 +170,24 @@ public final class GooStreamHandler {
     }
 
     /**
-     * Plays one beat of the held ability's sound at the player, its pitch strayed a little.
+     * Plays one beat of the held ability's sound at the player, its pitch
+     * strayed a little: everyone near hears it at the holder's eye, and the
+     * holder hears it at the listener, or, for a looped sound, hears their
+     * own fading loop instead.
      *
      * @param player the streaming player
      * @param sound  the stream's sound
      */
     private static void playStreamSound(ServerPlayer player, StreamSound sound) {
-        float pitch = sound.pitchFor(player.getRandom().nextFloat());
-        // decay-gnats-degrade-each-block-once: a looped sound's holder hears its own fading loop instead
-        SoundPlays.playExcept(player.level(), sound.loop() ? player : null, player.getEyePosition(),
-                new SoundCue(sound.sound(), SoundKind.PLAYERS, sound.volume(), pitch));
+        SoundCue cue = new SoundCue(sound.sound(), SoundKind.PLAYERS, sound.volume(),
+                sound.pitchFor(player.getRandom().nextFloat()));
+        if (sound.loop()) {
+            // decay-gnats-degrade-each-block-once
+            SoundPlays.playExcept(player.level(), player, player.getEyePosition(), cue);
+        } else {
+            // diagnose-and-correct-the-spray-squelch-playing-in-one-ear
+            SoundPlays.playAtListener(player.level(), player, player.getEyePosition(), cue);
+        }
     }
 
     /**

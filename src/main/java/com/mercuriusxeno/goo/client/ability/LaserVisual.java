@@ -99,7 +99,7 @@ public final class LaserVisual {
                         mc.level.getGameTime()));
                 Entity caster = mc.level.getEntity(payload.casterId());
                 if (starting && caster != null) {
-                    mc.getSoundManager().play(new LaserHum(caster));
+                    mc.getSoundManager().play(new LaserHum(caster, caster == mc.player));
                 }
             }
         });
