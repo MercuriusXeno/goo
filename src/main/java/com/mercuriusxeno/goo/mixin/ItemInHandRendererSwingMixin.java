@@ -12,10 +12,11 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Records the turn vanilla's swing lays on the first-person hand, from the
- * hand's pose on either side of it, and forgets it once that hand is drawn,
- * so the glove's lifted blob can take the swing back out.
+ * Records the carry and turn vanilla's swing lays on the first-person hand,
+ * from the hand's pose on either side of it, and forgets them once that hand
+ * is drawn, so the glove's lifted blob can take the swing back out.
  * decision blob-holds-its-angle-through-a-throws-swing
+ * palm-blob-lifts-as-the-spray-source: the lifted blob stands above the palm as it rests unswung
  */
 @Mixin(ItemInHandRenderer.class)
 public abstract class ItemInHandRendererSwingMixin {
@@ -24,15 +25,16 @@ public abstract class ItemInHandRendererSwingMixin {
     private final Matrix4f goo$beforeTheSwing = new Matrix4f();
 
     /**
-     * Keeps the hand's pose before the swing turns it.
+     * Keeps the hand's pose before the swing carries and turns it.
      *
-     * @param poseStack   the hand's pose stack
-     * @param arm         the arm swinging
-     * @param attackValue how far through the swing
-     * @param ci          the callback
+     * @param attack    how far through the swing
+     * @param poseStack the hand's pose stack
+     * @param invert    1 for the right arm, -1 for the left
+     * @param arm       the arm swinging
+     * @param ci        the callback
      */
-    @Inject(method = "applyItemArmAttackTransform", at = @At("HEAD"))
-    private void goo$keepThePoseBeforeTheSwing(PoseStack poseStack, HumanoidArm arm, float attackValue,
+    @Inject(method = "swingArm", at = @At("HEAD"))
+    private void goo$keepThePoseBeforeTheSwing(float attack, PoseStack poseStack, int invert, HumanoidArm arm,
                                                CallbackInfo ci) {
         goo$beforeTheSwing.set(poseStack.last().pose());
     }

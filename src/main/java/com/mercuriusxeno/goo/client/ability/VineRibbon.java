@@ -12,8 +12,9 @@ import java.util.List;
 /**
  * One vine strand drawn as a ribbon of the vine texture along a spine: a
  * quadratic curve from where the strand leaves to where it latches, grown
- * part of the way along while it reaches out. Each segment shows a quarter
- * of the vine sprite, so the leaves keep their size along a long strand,
+ * part of the way along while it reaches out. The vine sprite repeats every
+ * half block along the strand, so its leaves keep their size however long
+ * the strand runs, a strand reaching back to a root blocks away included,
  * and every quad is emitted both ways round so the ribbon shows from either
  * side.
  * vines-unpack-root-and-thorn
@@ -26,8 +27,11 @@ public final class VineRibbon {
     /** Segments one strand is cut into. */
     static final int SEGMENTS = 8;
 
-    /** Segments one sprite spans along a strand. */
-    private static final int SEGMENTS_PER_SPRITE = 4;
+    /** How far along a strand one vine sprite runs before it repeats, in blocks. */
+    static final double SPRITE_BLOCKS = 0.5;
+
+    /** A length short enough to read as none, so a piece ending on a sprite's edge starts the next sprite. */
+    private static final double NONE = 1e-9;
 
     /** The weight a quadratic curve's middle term gives its control point. */
     private static final double CONTROL_WEIGHT = 2;
@@ -72,7 +76,50 @@ public final class VineRibbon {
     }
 
     /**
-     * Emits a ribbon along a spine, each point widened either side by its own side vector.
+     * One stretch of a strand drawn as one quad: part of one spine segment,
+     * showing part of one vine sprite.
+     *
+     * @param segment the spine segment it lies on
+     * @param from    where along the segment it starts, 0 to 1
+     * @param to      where along the segment it ends, 0 to 1
+     * @param vFrom   where down the sprite it starts, 0 to 1
+     * @param vTo     where down the sprite it ends, 0 to 1
+     */
+    record Piece(int segment, double from, double to, float vFrom, float vTo) {
+    }
+
+    /**
+     * Cuts a strand's segments into pieces by length, so the sprite runs
+     * down a set distance and starts again: no piece crosses a sprite's edge,
+     * and a segment crossing one splits there.
+     *
+     * @param lengths      each spine segment's length, in blocks
+     * @param spriteBlocks how far one sprite runs along the strand
+     * @return the pieces, in order along the strand
+     */
+    static List<Piece> tilePieces(List<Double> lengths, double spriteBlocks) {
+        List<Piece> pieces = new ArrayList<>();
+        double intoSprite = 0;
+        for (int k = 0; k < lengths.size(); k++) {
+            double length = lengths.get(k);
+            double at = 0;
+            while (length - at > NONE) {
+                double step = Math.min(spriteBlocks - intoSprite, length - at);
+                pieces.add(new Piece(k, at / length, (at + step) / length, (float) (intoSprite / spriteBlocks),
+                        (float) ((intoSprite + step) / spriteBlocks)));
+                at += step;
+                intoSprite += step;
+                if (spriteBlocks - intoSprite <= NONE) {
+                    intoSprite = 0;
+                }
+            }
+        }
+        return pieces;
+    }
+
+    /**
+     * Emits a ribbon along a spine, each point widened either side by its own
+     * side vector, the sprite repeating along its length.
      *
      * @param ctx    the render context, carrying the tint and the light
      * @param spine  the points along the strand
@@ -81,14 +128,19 @@ public final class VineRibbon {
      * @param uv     the vine sprite's UV rect
      */
     static void emit(RenderContext ctx, List<Vec3> spine, List<Vec3> sides, Vec3 normal, GooRenderUtil.UvRect uv) {
-        float spanV = (uv.v1() - uv.v0()) / SEGMENTS_PER_SPRITE;
+        List<Double> lengths = new ArrayList<>(spine.size());
         for (int k = 0; k + 1 < spine.size(); k++) {
-            float v0 = uv.v0() + spanV * (k % SEGMENTS_PER_SPRITE);
-            float v1 = v0 + spanV;
-            Vec3 a = spine.get(k);
-            Vec3 b = spine.get(k + 1);
-            Vec3 sa = sides.get(k);
-            Vec3 sb = sides.get(k + 1);
+            lengths.add(spine.get(k).distanceTo(spine.get(k + 1)));
+        }
+        float height = uv.v1() - uv.v0();
+        for (Piece piece : tilePieces(lengths, SPRITE_BLOCKS)) {
+            int k = piece.segment();
+            Vec3 a = spine.get(k).lerp(spine.get(k + 1), piece.from());
+            Vec3 b = spine.get(k).lerp(spine.get(k + 1), piece.to());
+            Vec3 sa = sides.get(k).lerp(sides.get(k + 1), piece.from());
+            Vec3 sb = sides.get(k).lerp(sides.get(k + 1), piece.to());
+            float v0 = uv.v0() + height * piece.vFrom();
+            float v1 = uv.v0() + height * piece.vTo();
             Vec3[] corners = {a.subtract(sa), a.add(sa), b.add(sb), b.subtract(sb)};
             float[] us = {uv.u0(), uv.u1(), uv.u1(), uv.u0()};
             float[] vs = {v0, v0, v1, v1};

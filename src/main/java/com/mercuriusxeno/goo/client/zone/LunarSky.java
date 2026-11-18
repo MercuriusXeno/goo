@@ -1,44 +1,114 @@
 package com.mercuriusxeno.goo.client.zone;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.lunar.Lunar;
+import com.mercuriusxeno.goo.ability.astral.LunarSight;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.level.MoonPhase;
 import net.minecraft.world.phys.Vec3;
+import org.joml.Matrix4f;
+import org.joml.Vector3f;
+import java.util.List;
 
 /**
- * Lunar's sky: the void, PocketStarSky's sea of dim stars with no sun or moon, and one bright blue star standing
- * fixed high in the south east, larger and brighter than any star of the sea, as Venus stands in our sky but bigger.
- * That star is the overworld, and Astral's gate home looks at it.
+ * Lunar's sky: the void, PocketStarSky's sea of dim stars, a sun crossing it on the overworld's clock, and the blue
+ * planet, the overworld, four moons wide, standing where the overworld's sky would stand its moon and lit by the
+ * phase opposite the moon's, its face hand-drawn. Astral's gate home looks at the planet.
  * decision astral-sky-is-the-void-with-one-bright-blue-overworld-star
+ * decision lunar-has-a-day-and-night-and-a-sun-on-the-overworlds-clock
+ * decision blue-star-is-a-planet-four-moons-wide-drawn-in-phases
+ * decision blue-star-takes-the-moons-place-with-the-opposite-phase
+ * decision planet-face-is-eight-hand-drawn-phase-sprites
  */
 public final class LunarSky {
 
     /** The custom skybox goo:lunar's dimension type names, under NeoForge's custom_skybox attribute. */
     public static final Identifier ID = Identifier.fromNamespaceAndPath(Goo.MODID, "lunar_void");
 
-    /** A pale bright blue, its blue past the brightest star of the sea. */
-    private static final float RED = 0.45F;
-    private static final float GREEN = 0.7F;
-    private static final float BLUE = 1.0F;
-    /** Its half width at the sky's distance, near four times the brightest star of the sea. */
-    private static final float HALF_SIZE = 0.9F;
-
+    /** Vanilla's moon quad's half width at the sky's distance, SkyRenderer's moon size. */
+    public static final float VANILLA_MOON_HALF_WIDTH = 20F;
+    /** The share of vanilla's moon sprite's width its disc spans: eight of its thirty-two texels. */
+    public static final double MOON_DISC_SHARE = 8.0 / 32.0;
     /**
-     * The overworld as lunar's sky shows it.
-     *
-     * @param direction the unit direction it stands along from the camera
-     * @param red       its red, zero to one
-     * @param green     its green, zero to one
-     * @param blue      its blue, zero to one
-     * @param halfSize  its core's half width at the sky's distance
+     * The blue planet's half width at the sky's distance, four of vanilla's moon discs wide; its disc fills its quad,
+     * so its 32 texels span the sky units vanilla's moon's 32 texels do.
+     * decision blue-star-is-a-planet-four-moons-wide-drawn-in-phases
      */
-    public record OverworldStar(Vec3 direction, float red, float green, float blue, float halfSize) {
-    }
+    public static final float PLANET_HALF_SIZE = (float) (LunarSight.PLANET_DISC_HALF_TANGENT
+            * PocketStarSkyRenderer.SKY_DISTANCE);
 
-    /** The one overworld star. */
-    public static final OverworldStar OVERWORLD_STAR = new OverworldStar(
-            Lunar.OVERWORLD_STAR_DIRECTION, RED, GREEN, BLUE, HALF_SIZE);
+    /** A celestial quad before its turn: a unit square lying flat, as vanilla builds its sun and moon quads. */
+    public static final List<Vector3f> FLAT_QUAD = List.of(new Vector3f(-1F, 0F, -1F), new Vector3f(1F, 0F, -1F),
+            new Vector3f(1F, 0F, 1F), new Vector3f(-1F, 0F, 1F));
+
+    /** Vanilla turns its whole sky a quarter turn about the vertical before it turns its sun and moon. */
+    private static final float SKY_QUARTER_TURN = (float) Math.toRadians(-90.0);
+    /** Where the planet's hand-drawn phase sprites stand, one a phase. */
+    private static final String PLANET_SPRITES = "textures/environment/blue_planet/";
+    private static final String PNG = ".png";
+    /** The full and the new phase's sprites, named for the planet where vanilla names its moon's for the moon. */
+    private static final String FULL_SPRITE = "full";
+    private static final String NEW_SPRITE = "new";
 
     private LunarSky() {
+    }
+
+    /**
+     * The hand-drawn sprite the planet draws in a phase, named as vanilla names its moon's: the waning phases lit on
+     * the left, the waxing on the right, the full and the new by their own names.
+     * decision planet-face-is-eight-hand-drawn-phase-sprites
+     *
+     * @param planetPhase the planet's phase
+     * @return the sprite's texture
+     */
+    public static Identifier planetSprite(MoonPhase planetPhase) {
+        String name = switch (planetPhase) {
+            case FULL_MOON -> FULL_SPRITE;
+            case NEW_MOON -> NEW_SPRITE;
+            default -> planetPhase.getSerializedName();
+        };
+        return Identifier.fromNamespaceAndPath(Goo.MODID, PLANET_SPRITES + name + PNG);
+    }
+
+    /**
+     * The sun's direction from the camera at a sun angle, as vanilla's sky turns it: overhead at noon's angle, on the
+     * eastern horizon at sunrise's, on the western at sunset's and underfoot at midnight's. Vanilla turns its sun and
+     * its moon the same way, each by its own angle.
+     * decision lunar-has-a-day-and-night-and-a-sun-on-the-overworlds-clock
+     *
+     * @param sunAngleDegrees the sun angle attribute, in degrees
+     * @return the unit direction
+     */
+    public static Vec3 sunDirection(float sunAngleDegrees) {
+        return LunarSight.moonDirection(sunAngleDegrees);
+    }
+
+    /**
+     * The turn that carries the flat quad to a celestial body along a direction, as vanilla's sky turns its moon: a
+     * quarter turn about the vertical, the body's angle about the east-west axis, then out to its distance at its
+     * half width.
+     *
+     * @param direction the body's unit direction, one a moon angle gives
+     * @param distance  how far off it stands
+     * @param halfWidth its half width there
+     * @return the turn, from the flat quad to the body
+     */
+    public static Matrix4f celestialPose(Vec3 direction, float distance, float halfWidth) {
+        float angle = (float) Math.atan2(-direction.x(), direction.y());
+        return new Matrix4f().rotateY(SKY_QUARTER_TURN).rotateX(angle).translate(0F, distance, 0F)
+                .scale(halfWidth, 1F, halfWidth);
+    }
+
+    /**
+     * The planet quad's corners where lunar's sky draws them at a moon angle: centered along the moon's direction at
+     * the sky's distance, at the planet's half width.
+     * decision blue-star-takes-the-moons-place-with-the-opposite-phase
+     *
+     * @param moonAngleDegrees lunar's moon angle, in degrees
+     * @return the four corners, in the flat quad's order
+     */
+    public static List<Vector3f> planetCorners(float moonAngleDegrees) {
+        Matrix4f pose = celestialPose(LunarSight.moonDirection(moonAngleDegrees), PocketStarSkyRenderer.SKY_DISTANCE,
+                PLANET_HALF_SIZE);
+        return FLAT_QUAD.stream().map(corner -> pose.transformPosition(corner, new Vector3f())).toList();
     }
 }

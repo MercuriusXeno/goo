@@ -1,9 +1,8 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.zone.BluePlanetRenderer;
 import com.mercuriusxeno.goo.client.zone.LunarSky;
-import com.mercuriusxeno.goo.client.zone.LunarSkyRenderer;
-import com.mercuriusxeno.goo.client.zone.PocketStarSkyRenderer;
 import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.buffers.GpuBufferSlice;
 import com.mojang.blaze3d.systems.RenderPass;
@@ -26,20 +25,20 @@ import org.joml.Matrix4fc;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
 import org.jspecify.annotations.Nullable;
+import java.util.List;
 import java.util.OptionalDouble;
 import java.util.OptionalInt;
 
 /**
  * The bodies the Lunar trip swells over the frame: vanilla's moon, its sprite on its quad as vanilla's sky lays it,
- * and lunar's blue star, its core and halos as lunar's sky lays them, each grown about its own center, passing every
- * depth test so it swells over the darkened land as well as the sky.
+ * and lunar's blue planet, its lit face on its disc as lunar's sky lays it, each grown about its own center, passing
+ * every depth test so it swells over the darkened land as well as the sky.
  * decision gate-fixates-your-view-on-the-moon-until-it-takes-you
  * decision gate-on-the-blue-star-returns-you-exactly-where-you-left
  */
 final class LunarTripBodies {
 
     private static final String MOON_LABEL = "goo_lunar_moon";
-    private static final String STAR_LABEL = "goo_lunar_star";
     private static final int CORNERS = 4;
     private static final int QUAD_INDICES = 6;
     private static final float FULL = 1F;
@@ -52,7 +51,6 @@ final class LunarTripBodies {
 
     private static @Nullable GpuBuffer moonPhases;
     private static @Nullable GpuTextureView moonPhasesAtlas;
-    private static PocketStarSkyRenderer.@Nullable SkyQuads star;
 
     private LunarTripBodies() {
     }
@@ -93,24 +91,37 @@ final class LunarTripBodies {
     }
 
     /**
-     * Draws lunar's blue star in its own blue, its core at a half width's tangent: the sky's star grown about its
-     * center, brought in to a unit off so even a star covering the view stands well inside the far plane.
+     * Draws the blue planet's disc in its phase along a direction, at a half width's tangent: lunar's sky's planet
+     * grown about its center, brought in to a unit off so even a planet covering the view stands well inside the far
+     * plane.
+     * decision gate-on-the-blue-star-returns-you-exactly-where-you-left
+     * decision blue-star-is-a-planet-four-moons-wide-drawn-in-phases
      *
-     * @param view            the view's rotation
-     * @param coreHalfTangent the core's half width as a tangent
+     * @param view        the view's rotation
+     * @param direction   the planet's unit direction, the one the fixation holds
+     * @param planetPhase the planet's phase
+     * @param halfTangent the disc's half width as a tangent
      */
-    static void drawStar(Matrix4fc view, double coreHalfTangent) {
-        if (star == null) {
-            star = LunarSkyRenderer.buildOverworldStar(STAR_LABEL);
-        }
-        Vec3 along = LunarSky.OVERWORLD_STAR.direction();
-        Vector3f center = new Vector3f((float) along.x(), (float) along.y(), (float) along.z())
-                .mul(PocketStarSkyRenderer.SKY_DISTANCE);
-        float growth = (float) (coreHalfTangent / LunarTrip.RESTING_STAR_HALF_TANGENT);
-        Matrix4f grown = new Matrix4f(view).scale(FULL / PocketStarSkyRenderer.SKY_DISTANCE)
-                .translate(center).scale(growth).translate(center.negate(new Vector3f()));
-        PocketStarSkyRenderer.drawQuads(GooRenderTypes.LUNAR_STAR, star, grown, STAR_LABEL,
-                new Vector4f(FULL, FULL, FULL, FULL));
+    static void drawPlanet(Matrix4fc view, Vec3 direction, MoonPhase planetPhase, double halfTangent) {
+        BluePlanetRenderer.draw(GooRenderTypes.LUNAR_MOON, new Matrix4f(view).mul(planetPose(direction,
+                halfTangent)), planetPhase);
+    }
+
+    /**
+     * The planet disc's corners as the trip home draws them: centered a unit off along the direction, at the half
+     * width's tangent.
+     *
+     * @param direction   the planet's unit direction
+     * @param halfTangent the disc's half width as a tangent
+     * @return the four corners, in the flat quad's order
+     */
+    static List<Vector3f> planetCorners(Vec3 direction, double halfTangent) {
+        Matrix4f pose = planetPose(direction, halfTangent);
+        return LunarSky.FLAT_QUAD.stream().map(corner -> pose.transformPosition(corner, new Vector3f())).toList();
+    }
+
+    private static Matrix4f planetPose(Vec3 direction, double halfTangent) {
+        return LunarSky.celestialPose(direction, FULL, (float) halfTangent);
     }
 
     /**

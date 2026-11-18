@@ -206,10 +206,11 @@ public final class GooThrowHandler {
         if (payload.gate().isPresent() && hopOf(player, payload, ThrowRange.of(ability)).isEmpty()) {
             return;
         }
-        if (cleared(player, payload, ability)) {
+        if (!ability.delivery().stacksJavelins() && cleared(player, payload, ability)) {
             deliver(player, payload, gooType, ability);
         }
     }
+
 
     /**
      * Whether a throw goes ahead: the ability is throwable and no step of it

@@ -13,9 +13,9 @@ import net.minecraft.resources.ResourceKey;
  * that surface, and the fluid sources the goo's drips stop at and its cell
  * lies on as on a sturdy top. Weird's slime, Kinetic's slick, Blaze's molten,
  * Crystal's shatter, Deep's host, Frost's rime, Glow's wisps, Hex's leech,
- * Typhoon's updraft, Jelly's nectar, Pulse's signal, Metal's spikes and Nether's infest are bound so far,
- * and another goo
- * type ships its world goo as another binding.
+ * Typhoon's updraft, Jelly's nectar, Pulse's signal, Metal's spikes,
+ * Nether's infest and Leaf's vines are bound so far, and another goo type
+ * ships its world goo as another binding.
  * slime-and-slick-are-one-volume-cell-tech
  * each-goo-type-ships-a-world-goo-on-the-volume-cell
  * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
@@ -30,6 +30,7 @@ import net.minecraft.resources.ResourceKey;
  * extend-is-dropped-for-signal-an-in-world-pulse-goo
  * spikes-is-a-coat-of-metal-goo-that-impales-what-walks-on-it
  * infest-is-nethers-goo-the-decay-effect-localized-around-the-goo
+ * vines-is-sprayed-slime-that-entangles-what-tries-to-cross
  *
  * @param gooType      the goo type the cell holds and drops when broken
  * @param layingAbility the ability laying the goo, whose cost prices a whole block of it
@@ -68,6 +69,9 @@ public record CellBinding(ResourceKey<GooTypeDefinition> gooType, Identifier lay
 
     /** The ability laying Metal's goo, Spikes, whose cost prices a whole block of it. */
     public static final Identifier SPIKES_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "metal_spikes");
+
+    /** The ability laying Leaf's goo, Vines, whose cost prices a whole block of it. */
+    public static final Identifier VINES_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "leaf_vines");
 
     /** The ability laying Glow's goo, Wisps, whose cost prices a whole block of it. */
     public static final Identifier WISPS_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "glow_wisps");
@@ -134,5 +138,12 @@ public record CellBinding(ResourceKey<GooTypeDefinition> gooType, Identifier lay
      * infest-is-nethers-goo-the-decay-effect-localized-around-the-goo
      */
     public static final CellBinding INFEST = new CellBinding(GooTypes.NETHER, INFEST_ABILITY, CellSurface.POOL,
+            FluidFooting.NONE);
+    /**
+     * Leaf's goo: Vines lays it, it stands as ordinary ground, and it
+     * entangles what crosses it.
+     * vines-is-sprayed-slime-that-entangles-what-tries-to-cross
+     */
+    public static final CellBinding VINES = new CellBinding(GooTypes.LEAF, VINES_ABILITY, CellSurface.ENTANGLE,
             FluidFooting.NONE);
 }
