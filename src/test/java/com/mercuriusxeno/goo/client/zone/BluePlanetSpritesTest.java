@@ -14,15 +14,15 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Covers the blue planet's eight hand-drawn phase sprites, each read through the classpath as the 32x32 texels it
- * ships: a square of the overworld's sea and land filling the sprite as vanilla's moon is a square, lit on the side its
+ * Covers the blue planet's eight hand-drawn phase sprites, each read through the classpath as the 8x8 texels it
+ * ships, as basic as the moon's face: a square of the overworld's sea and land filling the sprite, lit on the side its
  * phase lights, its unlit part still drawn, darkened.
  * decision planet-face-is-eight-hand-drawn-phase-sprites
  */
 class BluePlanetSpritesTest {
 
     private static final String SPRITES = "/assets/goo/textures/environment/blue_planet/";
-    private static final int TEXELS = 32;
+    private static final int TEXELS = 8;
     private static final int CHANNEL = 0xFF;
     private static final int ALPHA_SHIFT = 24;
     private static final int RED_SHIFT = 16;
@@ -73,7 +73,7 @@ class BluePlanetSpritesTest {
     @ParameterizedTest
     @ValueSource(strings = {"full", "waning_gibbous", "third_quarter", "waning_crescent", "new", "waxing_crescent",
         "first_quarter", "waxing_gibbous"})
-    void eachPhaseIsAThirtyTwoTexelSquare(String phase) throws IOException {
+    void eachPhaseIsAnEightTexelSquare(String phase) throws IOException {
         BufferedImage sprite = read(phase);
         assertEquals(TEXELS, sprite.getWidth(), phase);
         assertEquals(TEXELS, sprite.getHeight(), phase);

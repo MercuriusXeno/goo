@@ -160,8 +160,9 @@ class LunarSkyTest {
         private static final float MOONS_WIDE = 4F;
         private static final float[] MOON_ANGLES = {0F, 45F, 300F};
         private static final double QUAD_TOLERANCE = 1e-4;
-        /** The texels across a planet sprite, and across vanilla's moon sprite. */
-        private static final float SPRITE_TEXELS = 32F;
+        /** The texels across vanilla's moon sprite, and across the planet's, as basic as the moon's eight-texel face. */
+        private static final float MOON_SPRITE_TEXELS = 32F;
+        private static final float PLANET_SPRITE_TEXELS = 8F;
 
         @Test
         void theDiscStandsFourVanillaMoonDiscsWide() {
@@ -192,9 +193,9 @@ class LunarSkyTest {
         }
 
         @Test
-        void aPlanetTexelSpansTheSkyUnitsAMoonTexelDoes() {
-            assertEquals(VANILLA_MOON_SIZE * 2 / SPRITE_TEXELS, LunarSky.PLANET_HALF_SIZE * 2 / SPRITE_TEXELS,
-                    QUAD_TOLERANCE);
+        void aPlanetTexelIsFourMoonTexelsWide() {
+            assertEquals(MOONS_WIDE * VANILLA_MOON_SIZE * 2 / MOON_SPRITE_TEXELS,
+                    LunarSky.PLANET_HALF_SIZE * 2 / PLANET_SPRITE_TEXELS, QUAD_TOLERANCE);
         }
 
         static Stream<Arguments> eachPlanetPhaseAndItsSprite() {
