@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.ability.quantum;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.GloveButton;
+import com.mercuriusxeno.goo.ability.ThrowRange;
 import com.mercuriusxeno.goo.ability.program.PortalStep;
 import com.mercuriusxeno.goo.network.GooThrowHandler;
 import com.mercuriusxeno.goo.network.GooThrowPayload;
@@ -47,10 +48,12 @@ public final class PortalShots {
      * @param shot   the cast the client aimed
      */
     public static void shoot(ServerPlayer player, GloveButton button, GooThrowPayload shot) {
-        if (!placesPortals(player, shot.abilityId())) {
+        Optional<AbilityDefinition> portal = portalNamed(player, shot.abilityId());
+        if (portal.isEmpty()) {
             return;
         }
-        Optional<GooThrowPayload> aimed = shot.gate().isPresent() ? Optional.of(shot) : alongTheLook(player, shot);
+        Optional<GooThrowPayload> aimed = shot.gate().isPresent() ? Optional.of(shot)
+                : alongTheLook(player, shot, ThrowRange.of(portal.get()));
         aimed.ifPresent(cast -> casting(player.getUUID(), PortalColor.pressedBy(button),
                 () -> GooThrowHandler.execute(player, cast)));
     }
@@ -74,15 +77,17 @@ public final class PortalShots {
 
     /**
      * A shot re-aimed at the block face the shooter's look strikes within
-     * the throw range.
+     * Portal's range.
+     * each-ability-names-its-range-and-the-shared-throw-range-retires
      *
      * @param player the shooting player
      * @param shot   the cast the client aimed
-     * @return the shot at the struck face, empty where the look strikes no block
+     * @param range  Portal's range in blocks
+     * @return the shot at the struck face, empty where the look strikes no block within the range
      */
-    private static Optional<GooThrowPayload> alongTheLook(ServerPlayer player, GooThrowPayload shot) {
+    private static Optional<GooThrowPayload> alongTheLook(ServerPlayer player, GooThrowPayload shot, double range) {
         Vec3 eye = player.getEyePosition();
-        Vec3 end = eye.add(player.getLookAngle().scale(GooThrowHandler.MAX_RANGE));
+        Vec3 end = eye.add(player.getLookAngle().scale(range));
         BlockHitResult hit = player.level().clip(new ClipContext(eye, end, ClipContext.Block.COLLIDER,
                 ClipContext.Fluid.NONE, player));
         return hit.getType() == HitResult.Type.BLOCK
@@ -91,16 +96,16 @@ public final class PortalShots {
     }
 
     /**
-     * Whether an ability id names an ability that places portals.
+     * The ability a shot names, where it places portals.
      *
      * @param player    the shooting player
      * @param abilityId the shot's ability id string
-     * @return true for Portal
+     * @return Portal, empty for an id naming no ability that places portals
      */
-    private static boolean placesPortals(ServerPlayer player, String abilityId) {
+    private static Optional<AbilityDefinition> portalNamed(ServerPlayer player, String abilityId) {
         Identifier id = Identifier.tryParse(abilityId);
         AbilityDefinition ability = id == null ? null : AbilityRegistry.of(player.level()).getAbility(id);
-        return ability != null && PortalStep.placesPortals(ability.behaviors());
+        return Optional.ofNullable(ability).filter(named -> PortalStep.placesPortals(named.behaviors()));
     }
 
     /**
