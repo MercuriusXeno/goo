@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.ability.astral.LunarSight;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
+import com.mercuriusxeno.goo.client.zone.LunarSkyRenderer;
 import com.mercuriusxeno.goo.client.zone.PocketStarSkyRenderer;
 import com.mercuriusxeno.goo.lunar.Lunar;
 import com.mercuriusxeno.goo.registry.GooAttachments;
@@ -16,6 +17,7 @@ import net.minecraft.client.renderer.state.level.SkyRenderState;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.MoonPhase;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -33,10 +35,12 @@ import java.util.function.Consumer;
  * overworld: the sky dims to the star void under a black veil the pocket's stars fade in over, the land drops into
  * darkness as the fog closes to black around them, and the moon itself swells along the fixation until it covers
  * the view; vanilla's own moon is turned behind the caster, so the moon that swells is the one moon. Home from
- * lunar the trip mirrors it: lunar's sky is already the void, the land goes dark the same way, and the blue star
- * swells in its own blue, lunar's sky drawing its sea alone while the trip draws the star.
+ * lunar the trip mirrors it: lunar's sky is already the void, the land goes dark the same way, and the blue planet
+ * swells in its phase from the direction the fixation holds, lunar's sky drawing its sea and sun while the trip draws
+ * the planet.
  * decision gate-fixates-your-view-on-the-moon-until-it-takes-you
  * decision gate-on-the-blue-star-returns-you-exactly-where-you-left
+ * decision blue-star-is-a-planet-four-moons-wide-drawn-in-phases
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class LunarTripView {
@@ -54,8 +58,10 @@ public final class LunarTripView {
     private static final float FULL = 1F;
     private static final float HALF_TURN = (float) Math.PI;
 
-    /** The pocket's sea of stars: the overworld's dimmed sky, and lunar's sky with its star taken by the trip. */
+    /** The pocket's sea of stars, which the overworld's sky dims to. */
     private static final PocketStarSkyRenderer VOID_STARS = new PocketStarSkyRenderer();
+    /** Lunar's sky with its planet taken by the trip, which swells it. */
+    private static final LunarSkyRenderer SKY_WITHOUT_THE_PLANET = new LunarSkyRenderer(false);
     private static PocketStarSkyRenderer.@Nullable SkyQuads veil;
 
     private LunarTripView() {
@@ -64,7 +70,7 @@ public final class LunarTripView {
     /**
      * A trip the local caster is on this frame.
      *
-     * @param sky       what swells, the moon or the blue star
+     * @param sky       what swells, the moon or the blue planet
      * @param fixation  the fixation holding them
      * @param progress  the share of it run, zero to one
      */
@@ -72,7 +78,7 @@ public final class LunarTripView {
     }
 
     /**
-     * The trip the local caster is on this frame: a moon fixation in the overworld or a blue star fixation in
+     * The trip the local caster is on this frame: a moon fixation in the overworld or a blue planet fixation in
      * lunar, held, or let go of and still running back.
      * decision holding-right-click-pulls-the-moon-and-early-release-cancels
      *
@@ -99,7 +105,7 @@ public final class LunarTripView {
 
     /**
      * Takes the swelling body out of the sky for the trip: vanilla's moon turns behind the caster, and lunar's sky
-     * draws its sea alone.
+     * draws its sea and sun without the planet.
      *
      * @param event the level render state extraction event
      */
@@ -114,7 +120,7 @@ public final class LunarTripView {
             SkyRenderState sky = state.skyRenderState;
             sky.moonAngle += HALF_TURN;
         } else {
-            state.customSkyboxRenderer = VOID_STARS;
+            state.customSkyboxRenderer = SKY_WITHOUT_THE_PLANET;
         }
     }
 
@@ -189,7 +195,7 @@ public final class LunarTripView {
     }
 
     /**
-     * Hands the shared path the swelling moon or blue star, drawn over the
+     * Hands the shared path the swelling moon or blue planet, drawn over the
      * whole frame through blocks, in the caster's own view alone, so it
      * sorts by nothing.
      * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
@@ -214,7 +220,9 @@ public final class LunarTripView {
             LunarTripBodies.drawMoon(frame.modelView(), trip.fixation().direction(), sky.moonPhase,
                     LunarTrip.moonHalfTangent(trip.progress()), brightness);
         } else {
-            LunarTripBodies.drawStar(frame.modelView(), LunarTrip.starHalfTangent(trip.progress()));
+            MoonPhase planetPhase = LunarSight.planetPhase(frame.levelRenderState().skyRenderState.moonPhase);
+            LunarTripBodies.drawPlanet(frame.modelView(), trip.fixation().direction(), planetPhase,
+                    LunarTrip.planetHalfTangent(trip.progress()));
         }
     }
 }

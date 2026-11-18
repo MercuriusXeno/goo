@@ -3,12 +3,14 @@ package com.mercuriusxeno.goo.ability.program;
 import com.mercuriusxeno.goo.block.ability.SideCoat;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.throwing.CoatRay;
+import com.mercuriusxeno.goo.type.Adhesion;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import java.util.Optional;
@@ -17,7 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 /**
  * A drip's strike feeds the cell over a struck top that can hold a world
  * goo, or the cell of its goo it struck short of a whole block; a strike on
- * a block's side at adhesion 3 coats that side's wall in the open cell
+ * a block's side at clings coats that side's wall in the open cell
  * beside it; a strike on a top that holds none feeds nothing, for Goop and
  * Slick alike (decisions goop-and-slick-coat-lands-where-each-drip-arc-strikes,
  * slime-and-slick-are-one-volume-cell-tech, drip-striking-a-side-sticks-or-runs-by-adhesion,
@@ -31,14 +33,12 @@ class CellLandingTest {
     private static final BlockPos WALL = new BlockPos(3, 1, 2);
     /** A wall whose west neighbour already holds a film against it. */
     private static final BlockPos FILMED_WALL = new BlockPos(3, 1, 9);
-    private static final int HOLDS_WHERE_IT_STRIKES = 3;
     /** The cell under an overhang, walled east and south. */
     private static final BlockPos UNDER_THE_OVERHANG = new BlockPos(12, 2, 12);
     /** An overhang whose cell below touches no wall. */
     private static final BlockPos OPEN_OVERHANG = new BlockPos(20, 5, 20);
     /** The floor an open overhang's drip drops to. */
     private static final BlockPos DROP_FLOOR = new BlockPos(20, 0, 20);
-    private static final int HOLDS_TOPS = 1;
     /** A full block of goo standing in open air, no wall. */
     private static final BlockPos GOO_WALL = new BlockPos(3, 1, 15);
 
@@ -164,25 +164,25 @@ class CellLandingTest {
         @Test
         void aDripStrikingAFullBlocksTopFeedsTheGooOverIt() {
             assertEquals(Optional.of(CellFed.fill(OVER)),
-                    CellLanding.cellFedBy(strike(FULL, Direction.UP), HOLDS_WHERE_IT_STRIKES, full));
+                    CellLanding.cellFedBy(strike(FULL, Direction.UP), Adhesion.CLINGS, full));
         }
 
         @Test
         void aDripStrikingAFullBlockUnderAnOverhangSpillsWhereItCameFrom() {
             assertEquals(Optional.of(CellFed.fill(SPILL)), CellLanding.cellFedBy(
-                    strike(FULL_UNDER_OVERHANG, Direction.WEST), HOLDS_WHERE_IT_STRIKES, full));
+                    strike(FULL_UNDER_OVERHANG, Direction.WEST), Adhesion.CLINGS, full));
         }
 
         @Test
         void aDripStrikingTheOverhangOverAFullBlockSpillsAwayFromItsWall() {
             assertEquals(Optional.of(CellFed.fill(SPILL)), CellLanding.cellFedBy(
-                    strike(FULL_UNDER_OVERHANG.above(), Direction.DOWN), HOLDS_WHERE_IT_STRIKES, full));
+                    strike(FULL_UNDER_OVERHANG.above(), Direction.DOWN), Adhesion.CLINGS, full));
         }
 
         @Test
         void aDripStrikingTheWallAFullBlockClingsToFeedsTheGooOverIt() {
             assertEquals(Optional.of(CellFed.fill(OVER)),
-                    CellLanding.cellFedBy(strike(WALL_BY_FULL, Direction.WEST), HOLDS_WHERE_IT_STRIKES, full));
+                    CellLanding.cellFedBy(strike(WALL_BY_FULL, Direction.WEST), Adhesion.CLINGS, full));
         }
     }
 
@@ -193,34 +193,32 @@ class CellLandingTest {
      * drip-striking-a-side-sticks-or-runs-by-adhesion).
      */
     @ParameterizedTest
-    @ValueSource(ints = {0, 3, 4})
-    void aDripStrikingTheSideOfGooFallsPastIt(int adhesion) {
+    @EnumSource(value = Adhesion.class, names = {"SLIPS", "CLINGS", "HANGS"})
+    void aDripStrikingTheSideOfGooFallsPastIt(Adhesion adhesion) {
         assertEquals(Optional.of(CellFed.falling(GOO_WALL.west())),
                 CellLanding.cellFedBy(strike(GOO_WALL, Direction.WEST), adhesion, cells));
     }
 
     /**
-     * Adhesion 4 holds a block's underside where the drip strikes: the drip
+     * Hangs holds a block's underside where the drip strikes: the drip
      * joins the volume of the block under the struck block and marks its
-     * ceiling attached; below 4 the strike takes the route goo holding no
-     * ceiling takes, and 4 keeps the side holds below it (decisions
+     * ceiling attached; below hangs the strike takes the route goo holding no
+     * ceiling takes, and hangs keeps the side holds below it (decisions
      * adhesion-is-a-ladder-of-holds, drip-striking-a-ceiling-runs-down-a-wall-or-drops).
      */
     @Nested
-    class AdhesionFour {
-
-        private static final int HOLDS_AN_UNDERSIDE = 4;
+    class Hangs {
 
         @ParameterizedTest
-        @ValueSource(ints = {0, 1, 2, 3, 4})
-        void onlyAdhesionFourHoldsAnUnderside(int adhesion) {
+        @CsvSource({"SLIPS, false", "TOPS, false", "GELS, false", "CLINGS, false", "HANGS, true"})
+        void onlyHangsHoldsAnUnderside(Adhesion adhesion, boolean holdsTheUnderside) {
             BlockPos overhang = UNDER_THE_OVERHANG.above();
             CoatRay.BlockStrike nearTheEast = new CoatRay.BlockStrike(
                     new Vec3(overhang.getX() + 0.9, overhang.getY(), overhang.getZ() + 0.5), overhang, Direction.DOWN);
             Optional<CellFed> fed = CellLanding.cellFedBy(nearTheEast, adhesion, cells);
             Optional<CellFed> open = CellLanding.cellFedBy(strike(OPEN_OVERHANG, Direction.DOWN), adhesion, cells);
 
-            if (adhesion == HOLDS_AN_UNDERSIDE) {
+            if (holdsTheUnderside) {
                 assertEquals(Optional.of(CellFed.film(UNDER_THE_OVERHANG, Direction.UP)), fed);
                 assertEquals(Optional.of(CellFed.film(OPEN_OVERHANG.below(), Direction.UP)), open);
             } else {
@@ -232,7 +230,7 @@ class CellLandingTest {
         /**
          * A block attached to a ceiling alone, with no floor, holds one layer
          * plus its goo's cohesion; the strike past that takes the route
-         * below 4, down the nearest wall or falling to the first top below.
+         * below hangs, down the nearest wall or falling to the first top below.
          */
         @ParameterizedTest
         @ValueSource(ints = {0, 4})
@@ -240,20 +238,20 @@ class CellLandingTest {
             for (int volume = 1; volume <= 1 + cohesion; volume++) {
                 CellLanding.Cells holding = ceilingHolding(volume - 1, cohesion, true);
                 assertEquals(Optional.of(CellFed.film(UNDER_THE_OVERHANG, Direction.UP)),
-                        CellLanding.cellFedBy(strike(UNDER_THE_OVERHANG.above(), Direction.DOWN), HOLDS_AN_UNDERSIDE,
+                        CellLanding.cellFedBy(strike(UNDER_THE_OVERHANG.above(), Direction.DOWN), Adhesion.HANGS,
                                 holding), "strike " + volume + " at cohesion " + cohesion);
             }
             assertEquals(Optional.of(CellFed.runny(UNDER_THE_OVERHANG, Direction.EAST)),
-                    CellLanding.cellFedBy(strike(UNDER_THE_OVERHANG.above(), Direction.DOWN), HOLDS_AN_UNDERSIDE,
+                    CellLanding.cellFedBy(strike(UNDER_THE_OVERHANG.above(), Direction.DOWN), Adhesion.HANGS,
                             ceilingHolding(1 + cohesion, cohesion, true)));
             assertEquals(Optional.of(CellFed.falling(UNDER_THE_OVERHANG)),
-                    CellLanding.cellFedBy(strike(UNDER_THE_OVERHANG.above(), Direction.DOWN), HOLDS_AN_UNDERSIDE,
+                    CellLanding.cellFedBy(strike(UNDER_THE_OVERHANG.above(), Direction.DOWN), Adhesion.HANGS,
                             ceilingHolding(1 + cohesion, cohesion, false)));
         }
 
         @Test
-        void adhesionFourHoldsASideWhereItStrikes() {
-            assertEquals(SideCoat.ATTACHED, CellLanding.sideCoatFor(HOLDS_AN_UNDERSIDE, SideCoat.BARE, false));
+        void hangsHoldsASideWhereItStrikes() {
+            assertEquals(SideCoat.ATTACHED, CellLanding.sideCoatFor(Adhesion.HANGS, SideCoat.BARE, false));
         }
 
         /**
@@ -326,7 +324,7 @@ class CellLandingTest {
                     new Vec3(overhang.getX() + 0.9, overhang.getY(), overhang.getZ() + 0.5), overhang, Direction.DOWN);
 
             assertEquals(Optional.of(CellFed.runny(UNDER_THE_OVERHANG, Direction.EAST)),
-                    CellLanding.cellFedBy(nearTheEast, HOLDS_WHERE_IT_STRIKES, cells));
+                    CellLanding.cellFedBy(nearTheEast, Adhesion.CLINGS, cells));
         }
 
         /**
@@ -337,7 +335,7 @@ class CellLandingTest {
         @Test
         void aStrikeOnAnUndersideTouchingNoWallFallsFromTheCellUnderIt() {
             assertEquals(Optional.of(CellFed.falling(OPEN_OVERHANG.below())),
-                    CellLanding.cellFedBy(strike(OPEN_OVERHANG, Direction.DOWN), 0, cells));
+                    CellLanding.cellFedBy(strike(OPEN_OVERHANG, Direction.DOWN), Adhesion.SLIPS, cells));
         }
     }
 
@@ -349,26 +347,21 @@ class CellLandingTest {
     @Nested
     class Ladder {
 
-        @Test
-        void adhesionZeroAndOneRunAtABareSide() {
-            assertEquals(SideCoat.RUNNY, CellLanding.sideCoatFor(0, SideCoat.BARE, true));
-            assertEquals(SideCoat.RUNNY, CellLanding.sideCoatFor(HOLDS_TOPS, SideCoat.BARE, true));
-        }
-
-        @Test
-        void adhesionTwoHoldsOnlyOverGooOfItsType() {
-            assertEquals(SideCoat.ATTACHED, CellLanding.sideCoatFor(2, SideCoat.BARE, true));
-            assertEquals(SideCoat.RUNNY, CellLanding.sideCoatFor(2, SideCoat.BARE, false));
-        }
-
-        @Test
-        void adhesionThreeHoldsWhereItStrikes() {
-            assertEquals(SideCoat.ATTACHED, CellLanding.sideCoatFor(HOLDS_WHERE_IT_STRIKES, SideCoat.BARE, false));
+        /**
+         * Each rung's coat at a bare side, over goo of its type and over none: slips and tops run,
+         * gels holds only over its goo, clings and hangs hold where they strike.
+         */
+        @ParameterizedTest
+        @CsvSource({"SLIPS, RUNNY, RUNNY", "TOPS, RUNNY, RUNNY", "GELS, ATTACHED, RUNNY",
+                "CLINGS, ATTACHED, ATTACHED", "HANGS, ATTACHED, ATTACHED"})
+        void eachRungCoatsABareSideByTheHoldsItKeeps(Adhesion adhesion, SideCoat overItsGoo, SideCoat overNone) {
+            assertEquals(overItsGoo, CellLanding.sideCoatFor(adhesion, SideCoat.BARE, true), "over its goo");
+            assertEquals(overNone, CellLanding.sideCoatFor(adhesion, SideCoat.BARE, false), "over none");
         }
 
         @ParameterizedTest
-        @ValueSource(ints = {0, 1, 2, 3})
-        void aSideAlreadyHoldingItsLayerRunsAtAnyAdhesion(int adhesion) {
+        @EnumSource(Adhesion.class)
+        void aSideAlreadyHoldingItsLayerRunsAtAnyAdhesion(Adhesion adhesion) {
             assertEquals(SideCoat.RUNNY, CellLanding.sideCoatFor(adhesion, SideCoat.ATTACHED, true));
         }
     }
@@ -384,22 +377,22 @@ class CellLandingTest {
     @ValueSource(ints = {0, 1, 4, 15})
     void aWallHoldsALayerPerPointOfCohesionThenRuns(int cohesion) {
         int holds = Math.min(VolumeCellBlock.MAX_LAYERS, 1 + cohesion);
-        assertEquals(SideCoat.ATTACHED, CellLanding.sideCoatFor(HOLDS_WHERE_IT_STRIKES, cohesion,
+        assertEquals(SideCoat.ATTACHED, CellLanding.sideCoatFor(Adhesion.CLINGS, cohesion,
                 new CellLanding.Beside(SideCoat.BARE, 0, 0, false, false)), "the first strike on a bare wall");
         for (int volume = 1; volume < holds; volume++) {
-            assertEquals(SideCoat.ATTACHED, CellLanding.sideCoatFor(HOLDS_WHERE_IT_STRIKES, cohesion,
+            assertEquals(SideCoat.ATTACHED, CellLanding.sideCoatFor(Adhesion.CLINGS, cohesion,
                     new CellLanding.Beside(SideCoat.ATTACHED, volume, 1, false, false)),
                     "a strike on a block holding " + volume + " at cohesion " + cohesion);
         }
-        assertEquals(SideCoat.RUNNY, CellLanding.sideCoatFor(HOLDS_WHERE_IT_STRIKES, cohesion,
+        assertEquals(SideCoat.RUNNY, CellLanding.sideCoatFor(Adhesion.CLINGS, cohesion,
                 new CellLanding.Beside(SideCoat.ATTACHED, holds, 1, false, false)),
                 "the strike past " + holds + " at cohesion " + cohesion);
     }
 
     @Test
-    void aSideStrikeAtAdhesionZeroRunsDownTheWallInTheCellBesideIt() {
+    void aSideStrikeThatSlipsRunsDownTheWallInTheCellBesideIt() {
         assertEquals(Optional.of(CellFed.runny(WALL.west(), Direction.EAST)),
-                CellLanding.cellFedBy(strike(WALL, Direction.WEST), 0, cells));
+                CellLanding.cellFedBy(strike(WALL, Direction.WEST), Adhesion.SLIPS, cells));
     }
 
     private static CoatRay.BlockStrike strike(BlockPos block, Direction face) {
@@ -409,29 +402,29 @@ class CellLandingTest {
     @Test
     void aStrikeOnAFloorsTopFeedsTheCellOverIt() {
         assertEquals(Optional.of(CellFed.fill(FLOOR.above())),
-                CellLanding.cellFedBy(strike(FLOOR, Direction.UP), HOLDS_TOPS, cells));
+                CellLanding.cellFedBy(strike(FLOOR, Direction.UP), Adhesion.TOPS, cells));
     }
 
     @Test
     void aStrikeOnAStandingCellFeedsThatCell() {
-        assertEquals(Optional.of(CellFed.fill(CELL)), CellLanding.cellFedBy(strike(CELL, Direction.UP), HOLDS_TOPS,
+        assertEquals(Optional.of(CellFed.fill(CELL)), CellLanding.cellFedBy(strike(CELL, Direction.UP), Adhesion.TOPS,
                 cells));
     }
 
     @Test
     void aStrikeOnATopHoldingNoCellFeedsNothing() {
-        assertEquals(Optional.empty(), CellLanding.cellFedBy(strike(SLAB, Direction.UP), HOLDS_TOPS, cells));
+        assertEquals(Optional.empty(), CellLanding.cellFedBy(strike(SLAB, Direction.UP), Adhesion.TOPS, cells));
     }
 
     /**
-     * At adhesion 3 a side strike coats the open cell beside the struck face,
+     * At clings a side strike coats the open cell beside the struck face,
      * on the cell's side facing the struck block.
      */
     @ParameterizedTest
     @EnumSource(value = Direction.class, names = {"NORTH", "EAST", "SOUTH", "WEST"})
-    void aSideStrikeAtAdhesionThreeCoatsTheWallInTheCellBesideIt(Direction face) {
+    void aSideStrikeThatClingsCoatsTheWallInTheCellBesideIt(Direction face) {
         assertEquals(Optional.of(CellFed.film(WALL.relative(face), face.getOpposite())),
-                CellLanding.cellFedBy(strike(WALL, face), HOLDS_WHERE_IT_STRIKES, cells));
+                CellLanding.cellFedBy(strike(WALL, face), Adhesion.CLINGS, cells));
     }
 
     /**
@@ -441,7 +434,7 @@ class CellLandingTest {
     @Test
     void aStrikeOnAFilmsFaceRunsOnThatFilmsSide() {
         assertEquals(Optional.of(CellFed.runny(FILMED_WALL.west(), Direction.EAST)),
-                CellLanding.cellFedBy(strike(FILMED_WALL.west(), Direction.WEST), HOLDS_WHERE_IT_STRIKES, cells));
+                CellLanding.cellFedBy(strike(FILMED_WALL.west(), Direction.WEST), Adhesion.CLINGS, cells));
     }
 
     /**
@@ -449,7 +442,7 @@ class CellLandingTest {
      */
     @Test
     void aStrikeOnTheSideOfItsGoosFillJoinsThatFill() {
-        assertEquals(Optional.of(CellFed.fill(CELL)), CellLanding.cellFedBy(strike(CELL, Direction.WEST), 0, cells));
+        assertEquals(Optional.of(CellFed.fill(CELL)), CellLanding.cellFedBy(strike(CELL, Direction.WEST), Adhesion.SLIPS, cells));
     }
 
     /**
@@ -467,6 +460,6 @@ class CellLandingTest {
     @Test
     void aSideStrikeOnAWallAlreadyFilmedRuns() {
         assertEquals(Optional.of(CellFed.runny(FILMED_WALL.west(), Direction.EAST)),
-                CellLanding.cellFedBy(strike(FILMED_WALL, Direction.WEST), HOLDS_WHERE_IT_STRIKES, cells));
+                CellLanding.cellFedBy(strike(FILMED_WALL, Direction.WEST), Adhesion.CLINGS, cells));
     }
 }

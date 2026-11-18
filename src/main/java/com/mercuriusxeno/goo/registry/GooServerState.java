@@ -10,13 +10,16 @@ import com.mercuriusxeno.goo.block.ability.HostSpreaders;
 import com.mercuriusxeno.goo.block.ability.LayerFalls;
 import com.mercuriusxeno.goo.block.ability.MoltenHeats;
 import com.mercuriusxeno.goo.block.ability.NectarFights;
+import com.mercuriusxeno.goo.block.ability.NitroFuses;
 import com.mercuriusxeno.goo.block.ability.WispClaims;
 import com.mercuriusxeno.goo.network.DripFlights;
 import com.mercuriusxeno.goo.network.GooEffectScheduler;
-import com.mercuriusxeno.goo.network.HomingKnives;
 import com.mercuriusxeno.goo.network.KnifeHolds;
+import com.mercuriusxeno.goo.network.PalmBuffer;
+import com.mercuriusxeno.goo.network.PalmBufferSyncs;
 import com.mercuriusxeno.goo.network.ScanWaves;
 import com.mercuriusxeno.goo.network.StreamHolds;
+import com.mercuriusxeno.goo.network.ThrownKnives;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.Level;
 import org.jspecify.annotations.Nullable;
@@ -31,7 +34,8 @@ public final class GooServerState {
 
     private final GooEffectScheduler gooEffects = new GooEffectScheduler();
     private final KnifeHolds knifeHolds = new KnifeHolds();
-    private final HomingKnives homingKnives = new HomingKnives();
+    private final PalmBufferSyncs palmBufferSyncs = new PalmBufferSyncs();
+    private final ThrownKnives thrownKnives = new ThrownKnives();
     private final MorphBirths morphBirths = new MorphBirths();
     private final BlockExposures blockExposures = new BlockExposures();
     private final AbilityBlockFallScheduler markerFalls = new AbilityBlockFallScheduler();
@@ -41,6 +45,7 @@ public final class GooServerState {
     private final DripFlights dripFlights = new DripFlights();
     private final MoltenHeats moltenHeats = new MoltenHeats();
     private final NectarFights nectarFights = new NectarFights();
+    private final NitroFuses nitroFuses = new NitroFuses();
     private final LayerFalls layerFalls = new LayerFalls();
     private final HostSpreaders hostSpreaders = new HostSpreaders();
     private final HostFreeCells hostFreeCells = new HostFreeCells();
@@ -86,7 +91,7 @@ public final class GooServerState {
 
     /**
      * Each player's Knives hold and the knives it has formed
-     * (decision knives-form-in-fibonacci-stages-to-twelve).
+     * (decision knives-charge-one-per-three-ticks-up-to-ten).
      *
      * @return the Knives holds
      */
@@ -95,12 +100,12 @@ public final class GooServerState {
     }
 
     /**
-     * Knives' thrown knives in flight (decision knives-home-on-their-painted-mob).
+     * Knives' thrown knives in flight (decision knives-and-dart-function-as-projectiles).
      *
-     * @return the homing knives
+     * @return the thrown knives
      */
-    public HomingKnives homingKnives() {
-        return homingKnives;
+    public ThrownKnives thrownKnives() {
+        return thrownKnives;
     }
 
     /**
@@ -177,6 +182,16 @@ public final class GooServerState {
     }
 
     /**
+     * The Nitro cells a blast has lit, each going off a beat later
+     * (decision nitro-is-unstables-goo-that-explodes-in-a-chain-by-its-quantity).
+     *
+     * @return the lit Nitro fuses
+     */
+    public NitroFuses nitroFuses() {
+        return nitroFuses;
+    }
+
+    /**
      * The sculk charges Host goo started from deaths near it
      * (decision mob-dying-on-or-near-host-goo-spreads-sculk-from-the-goo).
      *
@@ -239,12 +254,18 @@ public final class GooServerState {
         if (dripFlights.hasPending()) {
             dripFlights.tick(server);
         }
+        if (nitroFuses.hasPending()) {
+            nitroFuses.burnDown(currentTick);
+        }
         morphBirths.bearArrived(currentTick);
         blockExposures.decay(server);
         streamHolds.releaseLapsed(currentTick);
         vacuumCounts.dropForgotten(currentTick);
+        // each-ability-has-its-own-buffer-that-fills-only-while-held: the buffers refill before the holds settle
+        PalmBuffer.refillEvery(server, knifeHolds);
         knifeHolds.tick(currentTick);
-        homingKnives.tick(currentTick);
+        palmBufferSyncs.syncEvery(server, knifeHolds, currentTick);
+        thrownKnives.tick(currentTick);
     }
 
     /**
@@ -253,7 +274,8 @@ public final class GooServerState {
     public void clear() {
         gooEffects.clear();
         knifeHolds.clear();
-        homingKnives.clear();
+        palmBufferSyncs.clear();
+        thrownKnives.clear();
         blockExposures.clear();
         markerFalls.clear();
         streamHolds.clear();
@@ -264,6 +286,7 @@ public final class GooServerState {
         layerFalls.clear();
         moltenHeats.clear();
         nectarFights.clear();
+        nitroFuses.clear();
         hostSpreaders.clear();
         hostFreeCells.clear();
         wispClaims.clear();

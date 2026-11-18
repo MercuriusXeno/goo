@@ -72,14 +72,13 @@ class ProgramHostLoadTest {
 
     @Test
     void markerOnlyStepOnEntityHostRefusesAtLoadNamingStepAndHost() {
-        List<Step> steps = List.of(
-                new AwaitEntityStep(SelectionShape.SPHERE, Expr.literal(3), List.of(EntityFilter.LIVING)),
+        List<Step> steps = List.of(LeafSteps.WAIT.step(Expr.literal(3)),
                 new DamageStep(Expr.literal(8), DamageKind.MAGIC));
 
         ProgramLoadException refusal = assertThrows(ProgramLoadException.class,
                 () -> ProgramBehavior.forHost(steps, HostKind.ENTITY));
 
-        assertTrue(refusal.getMessage().contains("await_entity"), refusal.getMessage());
+        assertTrue(refusal.getMessage().contains("wait"), refusal.getMessage());
         assertTrue(refusal.getMessage().contains(ENTITY_LABEL), refusal.getMessage());
     }
 
@@ -182,15 +181,14 @@ class ProgramHostLoadTest {
     }
 
     @Test
-    void aLingeringMineLoadsForTheLandingAndItsWaitRefusesTheLandingOutsideTheLinger() {
-        List<Step> body = List.of(
-                new AwaitEntityStep(SelectionShape.SPHERE, Expr.literal(3), List.of(EntityFilter.LIVING)),
+    void aLingeringFuseLoadsForTheLandingAndItsWaitRefusesTheLandingOutsideTheLinger() {
+        List<Step> body = List.of(LeafSteps.WAIT.step(Expr.literal(3)),
                 new ExplodeStep(expr("2.5"), ExplosionMode.TNT));
 
         assertDoesNotThrow(() -> ProgramBehavior.forHost(List.of(new LingerStep(body)), HostKind.LANDING));
         ProgramLoadException refusal = assertThrows(ProgramLoadException.class,
                 () -> ProgramBehavior.forHost(body, HostKind.LANDING));
-        assertTrue(refusal.getMessage().contains("await_entity"), refusal.getMessage());
+        assertTrue(refusal.getMessage().contains("wait"), refusal.getMessage());
     }
 
     @Test
@@ -256,10 +254,10 @@ class ProgramHostLoadTest {
 
     /** The marker ticks and holds a placed face, and is no target. */
     @Test
-    void theMarkerHostProvidesItsFifteenCapabilities() {
+    void theMarkerHostProvidesItsFourteenCapabilities() {
         assertEquals(Set.of(HostCapability.PLACED_FACE, HostCapability.TICKING, HostCapability.EXPLODE,
                         HostCapability.ENTITY_SCAN, HostCapability.PLACE_BLOCK, HostCapability.FIELD_EFFECT,
-                        HostCapability.WATCH, HostCapability.STATE_WRITE,
+                        HostCapability.STATE_WRITE,
                         HostCapability.LEVEL, HostCapability.SHRIEK, HostCapability.GREENING,
                         HostCapability.EMIT_POWER, HostCapability.BEAT, HostCapability.RELAY, HostCapability.FROST),
                 HostKind.MARKER.capabilities());

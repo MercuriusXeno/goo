@@ -9,16 +9,11 @@ import net.minecraft.network.codec.StreamCodec;
  * {@link ArmPose} an ability names holds the arm in one frame while the use
  * key is held and plays another on release. Client and server share one
  * build, so the synced order changes with it.
- * decision knives-sling-then-morph-to-flechettes
  * decision ability-json-names-its-arm-pose
  */
 public enum ArmPoseKind {
     /** The arm eases back to the pose vanilla gives it. */
     NONE,
-    /** The glove hand drawn across to the opposite shoulder, a charge being held. */
-    WIND_UP,
-    /** The glove arm sweeping out from the opposite shoulder to the glove side, a charge let go. */
-    FLING,
     /** The glove arm held out toward the aim. */
     HOLD_OUT,
     /** The glove hand raised to face height. */
@@ -35,6 +30,6 @@ public enum ArmPoseKind {
      * @return true for a held frame
      */
     public boolean holds() {
-        return this == WIND_UP || this == HOLD_OUT || this == HOLD_UP;
+        return this == HOLD_OUT || this == HOLD_UP;
     }
 }

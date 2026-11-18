@@ -4,17 +4,19 @@ import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
 
 /**
- * The turn vanilla's swing laid on the first-person hand being drawn, kept
- * so the glove's model can be carried back to where it would stand unswung.
- * ItemInHandRenderer.applyItemArmAttackTransform turns the hand's pose by the
- * swing; this holds the pose before that turn against the pose after it, for
- * the hand renderArmWithItem draws now, and nothing outside that draw.
+ * The carry and turn vanilla's swing laid on the first-person hand being
+ * drawn, kept so the glove's model can be carried back to where it would
+ * stand unswung. ItemInHandRenderer.swingArm carries the hand's pose and
+ * applyItemArmAttackTransform turns it; this holds the pose before the swing
+ * against the pose after it, for the hand renderArmWithItem draws now, and
+ * nothing outside that draw.
  * decision blob-holds-its-angle-through-a-throws-swing
+ * palm-blob-lifts-as-the-spray-source
  */
 public final class FirstPersonSwing {
 
     private static final Matrix4fc NO_SWING = new Matrix4f();
-    /** The swung pose onto the unswung one, in the hand pass's camera-relative world axes. */
+    /** The swung pose onto the unswung one, in the hand pass's camera-relative world axes, carry and turn. */
     private static volatile Matrix4fc swingUndone = NO_SWING;
 
     private FirstPersonSwing() {

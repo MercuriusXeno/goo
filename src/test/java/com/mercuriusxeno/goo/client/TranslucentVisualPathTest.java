@@ -16,6 +16,7 @@ import com.mercuriusxeno.goo.client.ability.GroundShake;
 import com.mercuriusxeno.goo.client.ability.GrowthBreeze;
 import com.mercuriusxeno.goo.client.ability.HeadMarks;
 import com.mercuriusxeno.goo.client.ability.HeatWaveEffect;
+import com.mercuriusxeno.goo.client.ability.HeldJavelins;
 import com.mercuriusxeno.goo.client.ability.HeldSweepVisual;
 import com.mercuriusxeno.goo.client.ability.HoveringKnives;
 import com.mercuriusxeno.goo.client.ability.LaserScorch;
@@ -33,6 +34,7 @@ import com.mercuriusxeno.goo.client.ability.PetrifyFog;
 import com.mercuriusxeno.goo.client.ability.PneumaWind;
 import com.mercuriusxeno.goo.client.ability.PortalFaces;
 import com.mercuriusxeno.goo.client.ability.PortalView;
+import com.mercuriusxeno.goo.client.ability.QuantumBlobDarts;
 import com.mercuriusxeno.goo.client.ability.ReapSlashBlades;
 import com.mercuriusxeno.goo.client.ability.RelayLasers;
 import com.mercuriusxeno.goo.client.ability.RollingGooRenderer;
@@ -214,6 +216,14 @@ class TranslucentVisualPathTest {
                     Set.copyOf(routesOf(entry.getKey())), entry.getKey().getSimpleName())));
         }
 
+        /** Dart's held javelins and Quantum's blob darts, which the base brought drawing on a stage of their own. */
+        @Test
+        void theJavelinsAndDartsDrawFarToNear() {
+            assertAll(
+                    () -> assertEquals(List.of(SortRoute.FAR_TO_NEAR), routesOf(HeldJavelins.class)),
+                    () -> assertEquals(List.of(SortRoute.FAR_TO_NEAR), routesOf(QuantumBlobDarts.class)));
+        }
+
         /**
          * The held ghost's through-blocks pass draws before its over-blocks
          * pass, as it did inside one draw (decision held-visual-ghosts-the-landing-in-two-passes),
@@ -239,7 +249,8 @@ class TranslucentVisualPathTest {
         @Test
         void visualsThatDrewOnlyAfterTheLevelKeepOutOfPortalViews() {
             List<Class<?>> afterLevelOnly = List.of(AfterimageRenderer.class, SculkerSenses.class, BoreDrill.class,
-                    BlinkCursor.class, AimedMobRipple.class);
+                    BlinkCursor.class, AimedMobRipple.class, GlassKnives.class, HoveringKnives.class,
+                    HeldJavelins.class);
             com.tngtech.archunit.core.domain.JavaClasses imported = new com.tngtech.archunit.core.importer
                     .ClassFileImporter().importClasses(afterLevelOnly);
             assertAll(afterLevelOnly.stream().map(visual -> () -> assertTrue(imported.get(visual).getMethods().stream()

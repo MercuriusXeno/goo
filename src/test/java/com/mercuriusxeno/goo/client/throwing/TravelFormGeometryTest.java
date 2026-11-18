@@ -18,7 +18,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * The dart travel form's tail draws flat fins, evenly spaced around the shaft
  * and each lying in a plane holding the shaft's axis, and no rear cone
- * (decision dart-flutes-draw-as-fins); checked over a table of directions.
+ * (decision dart-flutes-draw-as-fins), each rooted on the body and drawn on both faces, the body closed at its
+ * tail and the sprite lying one sprite a block on every face; checked over a table of directions.
  */
 class TravelFormGeometryTest {
 
@@ -26,6 +27,10 @@ class TravelFormGeometryTest {
     private static final float TWO_PI = (float) (2 * Math.PI);
     private static final int LIGHT = 0x00F000F0;
     private static final GooRenderUtil.UvRect UV = new GooRenderUtil.UvRect(0.25f, 0.5f, 0.75f, 0.875f);
+    /** The shortest edge a stretch is read across, past the rounding of a point where a cone closes. */
+    private static final float STRETCH_EDGE_LEAST = 1e-3f;
+    /** How far an edge's texture may stray from its length, as a share of it: the cone's slant against its axis. */
+    private static final float STRETCH_WITHIN = 0.05f;
 
     static Stream<Vector3f> directions() {
         return Stream.of(
@@ -89,27 +94,86 @@ class TravelFormGeometryTest {
             }
             assertTrue(fin.rootLead().dot(dir) - fin.rootTrail().dot(dir) > TOLERANCE,
                     "the root lies along the shaft");
-            assertEquals(0f, radialOf(fin.rootLead(), dir).length(), TOLERANCE, "root on the axis");
-            assertEquals(0f, radialOf(fin.rootTrail(), dir).length(), TOLERANCE, "root on the axis");
+        }
+    }
+
+    // The body's radius at a place along the shaft: the shaft's behind the cone's base, the cone narrowing ahead of it.
+    private static float bodyRadiusAt(float axial) {
+        float radius = TravelForm.DART.frontRadius();
+        return axial <= 0f ? radius : radius * (1f - axial / TravelForm.DART.frontLength());
+    }
+
+    private static List<RecordingVertexConsumer.Vertex> emitted(Vector3f dir) {
+        RecordingVertexConsumer consumer = new RecordingVertexConsumer();
+        TravelFormGeometry.emit(new RenderContext(new PoseStack().last(), consumer, LIGHT),
+                TravelForm.DART, dir, 1f, UV);
+        return consumer.vertices();
+    }
+
+    private static Vector3f at(RecordingVertexConsumer.Vertex v) {
+        return new Vector3f(v.x(), v.y(), v.z());
+    }
+
+    // dart-flutes-draw-as-fins: each fin grows out of the body, not out of its axis inside it
+    @ParameterizedTest
+    @MethodSource("directions")
+    void eachFinRootsOnTheBodysSurface(Vector3f dir) {
+        for (TravelFormGeometry.Fin fin : TravelFormGeometry.fins(TravelForm.DART, dir, 1f)) {
+            for (Vector3f root : List.of(fin.rootLead(), fin.rootTrail())) {
+                assertEquals(bodyRadiusAt(root.dot(dir)), radialOf(root, dir).length(), TOLERANCE,
+                        "a fin's root should stand on the body's surface at " + root.dot(dir));
+            }
         }
     }
 
     @ParameterizedTest
     @MethodSource("directions")
-    void dartEmitsTheFrontConeAndFinsAndNoRearCone(Vector3f dir) {
-        RecordingVertexConsumer consumer = new RecordingVertexConsumer();
-        TravelFormGeometry.emit(new RenderContext(new PoseStack().last(), consumer, LIGHT),
-                TravelForm.DART, dir, 1f, UV);
-        List<TravelFormGeometry.Fin> fins = TravelFormGeometry.fins(TravelForm.DART, dir, 1f);
-        List<Vector3f> finCorners = fins.stream().flatMap(fin -> corners(fin).stream()).toList();
+    void theBodyIsClosedAtItsTail(Vector3f dir) {
+        float tail = -TravelForm.DART.fins().sweep();
+        List<RecordingVertexConsumer.Vertex> vertices = emitted(dir);
+        boolean closed = false;
+        for (int quad = 0; quad + 3 < vertices.size(); quad += 4) {
+            List<RecordingVertexConsumer.Vertex> face = vertices.subList(quad, quad + 4);
+            boolean atTheTail = face.stream().allMatch(v -> Math.abs(at(v).dot(dir) - tail) < TOLERANCE);
+            boolean facingBack = new Vector3f(face.getFirst().nx(), face.getFirst().ny(), face.getFirst().nz())
+                    .dot(dir) < -1 + TOLERANCE;
+            closed |= atTheTail && facingBack;
+        }
+        assertTrue(closed, "a face should close the body at its tail, facing back");
+        assertTrue(vertices.stream().allMatch(v -> at(v).dot(dir) > tail - TOLERANCE),
+                "nothing should stand behind the tail");
+    }
 
-        assertTrue(fins.size() >= 3);
-        assertEquals(TravelFormGeometry.FRONT_SIDES * 4 + fins.size() * 4, consumer.vertices().size());
-        for (RecordingVertexConsumer.Vertex v : consumer.vertices()) {
-            Vector3f at = new Vector3f(v.x(), v.y(), v.z());
-            if (at.dot(dir) < -TOLERANCE) {
-                assertTrue(finCorners.stream().anyMatch(corner -> corner.distance(at) < TOLERANCE),
-                        "a vertex behind the shaft that no fin holds: " + at);
+    @ParameterizedTest
+    @MethodSource("directions")
+    void eachFinShowsFromBothFaces(Vector3f dir) {
+        List<RecordingVertexConsumer.Vertex> vertices = emitted(dir);
+        for (TravelFormGeometry.Fin fin : TravelFormGeometry.fins(TravelForm.DART, dir, 1f)) {
+            List<Vector3f> normals = vertices.stream()
+                    .filter(v -> at(v).distance(fin.tipTrail()) < TOLERANCE)
+                    .map(v -> new Vector3f(v.nx(), v.ny(), v.nz())).toList();
+            assertTrue(normals.stream().anyMatch(n -> normals.stream().anyMatch(m -> n.dot(m) < -1 + TOLERANCE)),
+                    "a fin should draw on both its faces, normals " + normals);
+        }
+    }
+
+    // The sprite lies on every face at one sprite a block, so no face stretches it.
+    @ParameterizedTest
+    @MethodSource("directions")
+    void theTextureLiesOneSpriteABlockOnEveryFace(Vector3f dir) {
+        float spanU = UV.u1() - UV.u0();
+        float spanV = UV.v1() - UV.v0();
+        List<RecordingVertexConsumer.Vertex> vertices = emitted(dir);
+        for (int quad = 0; quad + 3 < vertices.size(); quad += 4) {
+            for (int corner = 0; corner < 4; corner++) {
+                RecordingVertexConsumer.Vertex from = vertices.get(quad + corner);
+                RecordingVertexConsumer.Vertex to = vertices.get(quad + (corner + 1) % 4);
+                float edge = at(from).distance(at(to));
+                if (edge > STRETCH_EDGE_LEAST) {
+                    float texture = (float) Math.hypot((to.u() - from.u()) / spanU, (to.v() - from.v()) / spanV);
+                    assertEquals(edge, texture, edge * STRETCH_WITHIN, "an edge " + edge
+                            + " blocks long should take " + edge + " sprites of texture, took " + texture);
+                }
             }
         }
     }

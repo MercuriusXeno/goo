@@ -6,7 +6,11 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-/** PalmJavelin, the share of Dart's javelin the lifted palm blob shows over the press, against shipped deliveries. */
+/**
+ * PalmJavelin, the share of a travel form the lifted palm blob shows over
+ * the press, against shipped deliveries: Dart's blob stays the cube its
+ * javelins hover over, whatever the lift (decision dart-javelins-hover-over-the-shrinking-blob-cube).
+ */
 class PalmJavelinTest {
 
     private static final float NONE = 0f;
@@ -16,10 +20,10 @@ class PalmJavelinTest {
     private final Delivery dart = AbilityJson.decode("metal_dart").delivery();
 
     @Test
-    void dartsPalmBlobIsTheCuboidAtNoChargeAndTheJavelinAtFullCharge() {
+    void dartsPalmBlobStaysTheCubeItsJavelinsHoverOverWhateverTheLift() {
         assertEquals(NONE, PalmJavelin.morphAt(dart, NONE));
-        assertEquals(HALF, PalmJavelin.morphAt(dart, HALF));
-        assertEquals(WHOLE, PalmJavelin.morphAt(dart, WHOLE));
+        assertEquals(NONE, PalmJavelin.morphAt(dart, HALF));
+        assertEquals(NONE, PalmJavelin.morphAt(dart, WHOLE));
     }
 
     @Test

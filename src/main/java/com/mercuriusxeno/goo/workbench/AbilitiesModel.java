@@ -35,7 +35,9 @@ public final class AbilitiesModel {
     /** The mechanism Knives' cost reads under: the price of one knife. */
     private static final String COST_PER_KNIFE = "cost_per_knife";
     private static final String CHARGE = "charge";
-    private static final String STAGES = "stages";
+    private static final String STACK = "stack";
+    private static final String FORM = "form";
+    private static final String DART_FORM = "dart";
     private static final String UPKEEP = "upkeep";
     private static final List<String> COST_FIELDS = List.of(COST, UPKEEP);
     private static final String ABILITIES = "abilities";
@@ -140,12 +142,19 @@ public final class AbilitiesModel {
         return kind != null && kind.isJsonPrimitive() ? kind.getAsString() : DELIVERY;
     }
 
-    // The root cost of a delivery whose charge names stages, which forms knives, prices one knife.
+    // The root cost of a delivery whose charge names a stack prices one knife; Dart's javelins each cost it at the throw.
     private static boolean pricesAKnife(JsonObject file, List<String> path) {
         return path.equals(List.of(COST)) && Optional.ofNullable(file.get(DELIVERY)).filter(JsonElement::isJsonObject)
+                .filter(delivery -> !formsADart(delivery.getAsJsonObject()))
                 .map(delivery -> delivery.getAsJsonObject().get(CHARGE)).filter(JsonElement::isJsonObject)
-                .map(charge -> charge.getAsJsonObject().get(STAGES)).filter(JsonElement::isJsonPrimitive)
+                .map(charge -> charge.getAsJsonObject().get(STACK)).filter(JsonElement::isJsonPrimitive)
                 .map(JsonElement::getAsInt).orElse(0) > 0;
+    }
+
+    // Whether a delivery names the dart form, Dart's.
+    private static boolean formsADart(JsonObject delivery) {
+        JsonElement form = delivery.get(FORM);
+        return form != null && form.isJsonPrimitive() && DART_FORM.equals(form.getAsString());
     }
 
     private static Optional<String> stepTypeOf(JsonElement at) {

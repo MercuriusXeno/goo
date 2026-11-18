@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.ability.ArmPoseKind;
 import com.mercuriusxeno.goo.ability.Charge;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.GloveSelection;
+import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.throwing.GloveThrowSender;
 import com.mercuriusxeno.goo.item.GooCasters;
 import org.mockito.MockedStatic;
@@ -17,27 +18,33 @@ import static org.mockito.Mockito.when;
 /**
  * Every player's glove selecting Knives, its charge Knives' own, the local
  * hold reaching a set share of a full charge, and the caster of a
- * {@link SprayingClient} winding up and letting it go tick by tick, each tick
- * holding the floating blob as the client tick does. Close it to restore the
+ * {@link SprayingClient} holding it tick by tick. Close it to restore the
  * statics it swaps.
  */
 public final class KnivesCharging implements AutoCloseable {
 
-    /** Knives' charge, as crystal_knives.json gives it: 5 stages of 12 ticks. */
-    public static final Charge KNIVES = new Charge(60, 5, 12);
+    /** Knives' charge, as crystal_knives.json gives it: one knife per 3 ticks up to 10. */
+    public static final Charge KNIVES = new Charge(30, 10, 3);
 
     private final MockedStatic<GloveThrowSender> sender;
     private final MockedStatic<GooCasters> casters;
+    /** The synced abilities, answering Knives' own for its selection. */
+    private final MockedStatic<AbilitySyncHandler> synced;
 
     private KnivesCharging(float share) {
         Delivery knives = mock(Delivery.class);
         when(knives.charge()).thenReturn(KNIVES);
+        when(knives.formsKnives()).thenReturn(true);
         when(knives.chargeShare(anyInt())).thenReturn(share);
         casters = mockStatic(GooCasters.class, CALLS_REAL_METHODS);
         casters.when(() -> GooCasters.heldSelection(any()))
                 .thenReturn(new GloveSelection("goo:crystal", "goo:crystal_knives"));
         sender = mockStatic(GloveThrowSender.class);
         sender.when(() -> GloveThrowSender.selectedDelivery(any())).thenReturn(knives);
+        AbilitySyncHandler.ClientAbility ability = mock(AbilitySyncHandler.ClientAbility.class);
+        when(ability.delivery()).thenReturn(knives);
+        synced = mockStatic(AbilitySyncHandler.class, CALLS_REAL_METHODS);
+        synced.when(() -> AbilitySyncHandler.findAbility("goo:crystal_knives")).thenReturn(ability);
     }
 
     /**
@@ -51,49 +58,26 @@ public final class KnivesCharging implements AutoCloseable {
     }
 
     /**
-     * Winds the caster's arm up at a tick and holds its charge every tick through another.
+     * Holds the caster's Knives press in an arm frame tick by tick: the arm
+     * posed in it, the press lifting the blob each tick as the glove press does.
      *
      * @param client the client
-     * @param from   the tick the wind-up begins
+     * @param frame  the arm frame the hold poses
+     * @param from   the first tick held
      * @param last   the last tick held
      */
-    public void windUp(SprayingClient client, long from, long last) {
+    public void holdIn(SprayingClient client, ArmPoseKind frame, long from, long last) {
         client.at(from);
-        AbilityPoses.pose(SprayingClient.CASTER, ArmPoseKind.WIND_UP, true);
-        holdThrough(client, from, last);
-    }
-
-    /**
-     * Lets the caster's hold go at a tick, dropping the arm as letting go of
-     * right click does, and runs the client's ticks through another.
-     * decision knives-form-on-right-click-and-throw-on-left-click
-     *
-     * @param client the client
-     * @param letGo  the tick the hold is let go
-     * @param last   the last tick run
-     */
-    public void letGo(SprayingClient client, long letGo, long last) {
-        client.at(letGo);
-        AbilityPoses.pose(SprayingClient.CASTER, ArmPoseKind.NONE, true);
-        holdThrough(client, letGo, last);
-    }
-
-    /**
-     * Runs the client's ticks, each holding every floating blob as the client tick does.
-     *
-     * @param client the client
-     * @param from   the first tick
-     * @param last   the last tick
-     */
-    public void holdThrough(SprayingClient client, long from, long last) {
+        AbilityPoses.pose(SprayingClient.CASTER, frame, true);
         for (long tick = from; tick <= last; tick++) {
             client.at(tick);
-            KnivesCharge.holdTheFloatingBlobs(tick);
+            LiftedPalmBlob.held(SprayingClient.CASTER, SprayingClient.SENT_GLOVE, tick);
         }
     }
 
     @Override
     public void close() {
+        synced.close();
         sender.close();
         casters.close();
         AbilityPoses.clear();
