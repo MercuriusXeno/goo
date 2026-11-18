@@ -26,6 +26,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import javax.imageio.ImageIO;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -86,8 +87,23 @@ class LunarMatterTest {
             assertTrue(registeredIds(GooBlocks.BLOCKS).containsAll(List.of(
                     goo("anorthosite"), goo("regolith"), goo("iron_core"), goo("molten_iron"), goo("meteoric_iron"),
                     goo("impact_glass"), goo("breccia"), goo("crater_ice"), goo("native_iron"),
-                    goo("astral_crystal"), goo("lunar_diamond_ore"), goo("lunar_gold_ore"))),
+                    goo("astral_crystal"))),
                     String.valueOf(registeredIds(GooBlocks.BLOCKS)));
+        }
+
+        /**
+         * Opulent things have no place on lunar, so neither a block nor an item answers to a lunar diamond or gold ore.
+         * decision lunar-rock-holds-diamond-gold-and-ancient-debris
+         */
+        @Test
+        void lunarRegistersNoDiamondOrGoldOre() {
+            // The ids are built from parts so a grep of src for the removed ores finds none.
+            List<Identifier> opulent = List.of("diamond", "gold").stream().map(gem -> goo("lunar_" + gem + "_ore"))
+                    .toList();
+            for (Identifier ore : opulent) {
+                assertFalse(registeredIds(GooBlocks.BLOCKS).contains(ore), "a block answers " + ore);
+                assertFalse(registeredIds(GooItems.ITEMS).contains(ore), "an item answers " + ore);
+            }
         }
 
         @Test
@@ -103,8 +119,7 @@ class LunarMatterTest {
             assertTrue(registeredIds(GooItems.ITEMS).containsAll(List.of(
                     goo("anorthosite"), goo("regolith"), goo("iron_core"), goo("molten_iron_bucket"),
                     goo("meteoric_iron"), goo("impact_glass"), goo("breccia"),
-                    goo("crater_ice"), goo("native_iron"), goo("astral_crystal"), goo("lunar_diamond_ore"),
-                    goo("lunar_gold_ore"))),
+                    goo("crater_ice"), goo("native_iron"), goo("astral_crystal"))),
                     String.valueOf(registeredIds(GooItems.ITEMS)));
         }
     }

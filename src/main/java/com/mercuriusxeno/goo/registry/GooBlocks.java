@@ -32,13 +32,10 @@ import com.mercuriusxeno.goo.block.zone.DimensionDoorBlock;
 import com.mercuriusxeno.goo.fluid.GooFluidBlock;
 import com.mercuriusxeno.goo.fluid.MoltenIronBlock;
 import net.minecraft.core.BlockPos;
-import net.minecraft.util.valueproviders.ConstantInt;
-import net.minecraft.util.valueproviders.UniformInt;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.AmethystClusterBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.DropExperienceBlock;
 import net.minecraft.world.level.block.IceBlock;
 import net.minecraft.world.level.block.IronBarsBlock;
 import net.minecraft.world.level.block.LiquidBlock;
@@ -588,10 +585,6 @@ public class GooBlocks {
     private static final float ASTRAL_CRYSTAL_HEIGHT = 7.0F;
     private static final float ASTRAL_CRYSTAL_WIDTH = 10.0F;
     private static final int ASTRAL_CRYSTAL_LIGHT = 5;
-    /** The lunar ores break and pay experience as vanilla's stone ores do. */
-    private static final float ORE_HARDNESS = 3.0F;
-    private static final int DIAMOND_ORE_LEAST_XP = 3;
-    private static final int DIAMOND_ORE_MOST_XP = 7;
     private static final float IRON_BLOCK_RESISTANCE = 6.0F;
     /** Glass's hardness, which impact glass breaks like. */
     private static final float GLASS_HARDNESS = 0.3F;
@@ -641,26 +634,6 @@ public class GooBlocks {
             () -> BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_BLUE).forceSolidOn().noOcclusion()
                     .sound(SoundType.AMETHYST_CLUSTER).strength(1.5F).lightLevel(state -> ASTRAL_CRYSTAL_LIGHT)
                     .pushReaction(PushReaction.DESTROY));
-
-    /**
-     * Lunar diamond ore: diamond set in the smooth pale anorthosite of the eldritch warrens, dropping and paying out
-     * experience as vanilla's diamond ore does.
-     * decision lunar-rock-holds-diamond-gold-and-ancient-debris
-     */
-    public static final DeferredBlock<DropExperienceBlock> LUNAR_DIAMOND_ORE = BLOCKS.registerBlock("lunar_diamond_ore",
-            properties -> new DropExperienceBlock(UniformInt.of(DIAMOND_ORE_LEAST_XP, DIAMOND_ORE_MOST_XP), properties),
-            () -> BlockBehaviour.Properties.of().mapColor(MapColor.STONE).requiresCorrectToolForDrops()
-                    .strength(ORE_HARDNESS, ORE_HARDNESS));
-
-    /**
-     * Lunar gold ore: gold set in the smooth pale anorthosite of the eldritch warrens, dropping raw gold as vanilla's
-     * gold ore does.
-     * decision lunar-rock-holds-diamond-gold-and-ancient-debris
-     */
-    public static final DeferredBlock<DropExperienceBlock> LUNAR_GOLD_ORE = BLOCKS.registerBlock("lunar_gold_ore",
-            properties -> new DropExperienceBlock(ConstantInt.of(0), properties),
-            () -> BlockBehaviour.Properties.of().mapColor(MapColor.STONE).requiresCorrectToolForDrops()
-                    .strength(ORE_HARDNESS, ORE_HARDNESS));
 
     /**
      * Impact glass: lunar's regolith melted where meteorites struck, dark glass that holds back light as tinted
