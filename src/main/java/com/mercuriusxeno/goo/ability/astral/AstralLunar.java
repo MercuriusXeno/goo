@@ -39,11 +39,6 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class AstralLunar {
 
-    /**
-     * The tell a cast looking at neither the moon nor the planet shows, "That's no moon!", once a press.
-     * decision lunar-refusal-says-thats-no-moon
-     */
-    static final String TELL_REFUSED = "goo.ability.astral.lunar.refused";
     /** How far a held caster may drift from where they cast before the server sets them back, in blocks. */
     private static final double DRIFT = 1e-3;
     private static final float TONE_VOLUME = 1F;
@@ -126,12 +121,14 @@ public final class AstralLunar {
     }
 
     /**
-     * Shows the caster Lunar's refusal.
+     * Shows the caster the refusal their dimension reads: "That's no moon!" in the overworld, "That's not your world"
+     * on the moon.
+     * decision terran-refusal-says-thats-not-your-world
      *
      * @param caster the caster
      */
     public static void refuse(ServerPlayer caster) {
-        caster.sendSystemMessage(Component.translatable(TELL_REFUSED), true);
+        caster.sendSystemMessage(Component.translatable(LunarSight.refusalKey(caster.level().dimension())), true);
     }
 
     /**

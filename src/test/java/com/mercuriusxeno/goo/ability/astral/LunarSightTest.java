@@ -12,6 +12,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import java.util.Optional;
 import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 /**
  * Lunar looks for the moon in the overworld and for the blue planet in the moon's place in lunar, and finds neither
@@ -138,6 +139,29 @@ class LunarSightTest {
         @Test
         void aLookAwayFromThePlanetInLunarFindsNothing() {
             assertEquals(Optional.empty(), LunarSight.skyAt(Lunar.LEVEL, DOWN, MIDNIGHT, LIT));
+        }
+    }
+
+    /**
+     * decision lunar-refusal-says-thats-no-moon
+     * decision terran-refusal-says-thats-not-your-world
+     */
+    @Nested
+    class TheRefusal {
+
+        @Test
+        void onTheMoonTerranRefusesWithThatsNotYourWorld() {
+            assertEquals(LunarSight.TERRAN_REFUSED, LunarSight.refusalKey(Lunar.LEVEL));
+        }
+
+        @Test
+        void inTheOverworldLunarRefusesWithThatsNoMoon() {
+            assertEquals(LunarSight.LUNAR_REFUSED, LunarSight.refusalKey(Level.OVERWORLD));
+        }
+
+        @Test
+        void theTwoRefusalsReadApart() {
+            assertNotEquals(LunarSight.LUNAR_REFUSED, LunarSight.TERRAN_REFUSED);
         }
     }
 

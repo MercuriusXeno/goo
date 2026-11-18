@@ -36,6 +36,18 @@ public final class LunarSight {
     /** The moon's phases run a cycle of eight; the planet stands half of it on. */
     private static final int HALF_A_CYCLE = MoonPhase.COUNT / 2;
 
+    /**
+     * The tell a cast holding neither the moon nor the planet shows in the overworld, "That's no moon!", once a
+     * press.
+     * decision lunar-refusal-says-thats-no-moon
+     */
+    public static final String LUNAR_REFUSED = "goo.ability.astral.lunar.refused";
+    /**
+     * The tell Terran shows on the moon held anywhere but the showing planet, "That's not your world".
+     * decision terran-refusal-says-thats-not-your-world
+     */
+    public static final String TERRAN_REFUSED = "goo.ability.astral.terran.refused";
+
     /** What Lunar fixates on. */
     public enum Sky {
         /** The overworld's moon, which carries the caster to lunar. */
@@ -45,6 +57,19 @@ public final class LunarSight {
     }
 
     private LunarSight() {
+    }
+
+    /**
+     * The refusal a cast holding neither moon nor planet shows: "That's no moon!" in the overworld and "That's not
+     * your world" on the moon, where the hold reads as Terran and a hidden planet refuses alike.
+     * decision lunar-refusal-says-thats-no-moon
+     * decision terran-refusal-says-thats-not-your-world
+     *
+     * @param dimension the caster's dimension
+     * @return the refusal's lang key
+     */
+    public static String refusalKey(ResourceKey<Level> dimension) {
+        return Lunar.LEVEL.equals(dimension) ? TERRAN_REFUSED : LUNAR_REFUSED;
     }
 
     /**
