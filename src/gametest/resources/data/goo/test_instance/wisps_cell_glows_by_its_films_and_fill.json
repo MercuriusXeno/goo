@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:wisps_cell_glows_by_its_films_and_fill",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 80,
+  "setup_ticks": 0,
+  "required": true
+}

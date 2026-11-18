@@ -1,9 +1,0 @@
-{
-  "type": "minecraft:function",
-  "function": "goo:rallied_cows_swap_slots_in_the_other_rally_order",
-  "environment": "goo:rally_movement_alone",
-  "structure": "goo:test_bay",
-  "max_ticks": 200,
-  "setup_ticks": 0,
-  "required": true
-}

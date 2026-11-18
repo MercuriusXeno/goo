@@ -5,8 +5,8 @@ import net.minecraft.world.entity.Entity;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Which entities are minions at all: a mob holding any charm or any rally,
- * whoever charmed or rallied it. {@link OwnMinions} asks whose minion a mob
+ * Which entities are minions at all: a mob holding any charm or any lead,
+ * whoever charmed or led it. {@link OwnMinions} asks whose minion a mob
  * is; this asks whether it is anyone's.
  * diagnose-and-correct-minions-killing-each-other
  */
@@ -16,12 +16,12 @@ public final class Minions {
     }
 
     /**
-     * Whether an entity holds a charm or a rally.
+     * Whether an entity holds a charm or a lead.
      *
      * @param entity the entity asked about, or null for none
-     * @return true for a charmed or rallied entity
+     * @return true for a charmed or led entity
      */
     public static boolean isMinion(@Nullable Entity entity) {
-        return entity != null && (entity.hasData(GooAttachments.CHARMED) || entity.hasData(GooAttachments.RALLIED));
+        return entity != null && (entity.hasData(GooAttachments.CHARMED) || entity.hasData(GooAttachments.LED));
     }
 }
