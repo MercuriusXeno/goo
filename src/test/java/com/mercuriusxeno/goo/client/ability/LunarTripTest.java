@@ -262,4 +262,44 @@ class LunarTripTest {
             assertTrue(rises(progress -> LunarTrip.moonHalfTangent((float) progress)));
         }
     }
+
+    /**
+     * decision lunar-moon-moves-from-the-first-tick-on-the-slow-ease
+     */
+    @Nested
+    class SwellFromTheFirstTick {
+        private static final int FIXATION_TICKS = 100;
+        /**
+         * How far a ratio may read below the one before it and still stand level: the noise a float progress leaves,
+         * near 1e-8 over the steady creep, against the rush's steps of near 1e-4.
+         */
+        private static final double LEVEL = 1e-7;
+
+        private static double moonAtTick(int tick) {
+            return LunarTrip.moonHalfTangent((float) tick / FIXATION_TICKS);
+        }
+
+        @Test
+        void moonGrowsFromTheFirstTickOnEveryTickToCoverTheWidestView() {
+            assertTrue(moonAtTick(1) > LunarTrip.RESTING_MOON_HALF_TANGENT, "at tick 1 the moon's half width "
+                    + moonAtTick(1) + " should stand above its resting " + LunarTrip.RESTING_MOON_HALF_TANGENT);
+            for (int tick = 2; tick <= FIXATION_TICKS; tick++) {
+                assertTrue(moonAtTick(tick) > moonAtTick(tick - 1), "at tick " + tick + " the moon's half width "
+                        + moonAtTick(tick) + " should stand above tick " + (tick - 1) + "'s " + moonAtTick(tick - 1));
+            }
+            assertTrue(moonAtTick(FIXATION_TICKS) >= LunarTrip.WIDEST_VIEW_HALF_TANGENT);
+        }
+
+        @Test
+        void moonsGrowthFromTickToTickStartsAboveNoneAndNeverFalls() {
+            double before = moonAtTick(1) / moonAtTick(0);
+            assertTrue(before > 1.0, "the first tick's growth ratio " + before + " should stand above 1");
+            for (int tick = 2; tick <= FIXATION_TICKS; tick++) {
+                double ratio = moonAtTick(tick) / moonAtTick(tick - 1);
+                assertTrue(ratio >= before - LEVEL, "the growth ratio into tick " + tick + ", " + ratio
+                        + ", should stand at or above the one before it, " + before);
+                before = ratio;
+            }
+        }
+    }
 }
