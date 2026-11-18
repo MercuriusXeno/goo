@@ -11,6 +11,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.block.AmethystClusterBlock;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
@@ -32,6 +33,9 @@ public final class LunarZoneTests {
     private static final String LUNAR_MIDDLE_CAVERNS_ARE_BARE_ROCK = "lunar_middle_caverns_are_bare_rock";
     private static final String LUNAR_WARRENS_TWIST_THROUGH_SCULK = "lunar_warrens_twist_through_sculk";
     private static final String LUNAR_RUBBLE_CAVES_HOLD_NATIVE_IRON_LODES = "lunar_rubble_caves_hold_native_iron_lodes";
+    private static final String LUNAR_MIDDLE_CAVERNS_GROW_ASTRAL_CRYSTAL = "lunar_middle_caverns_grow_astral_crystal";
+    /** The most astral crystal one chunk holds on average, so a cluster stays a find. */
+    private static final int ASTRAL_CRYSTAL_CEILING_PER_CHUNK = 8;
     /** How many chunks from the origin a deposit scan reaches each way. */
     private static final int DEPOSIT_CHUNK_REACH = 4;
     /** The most native iron one chunk holds on average, so a lode stays a find rather than a seam. */
@@ -61,6 +65,11 @@ public final class LunarZoneTests {
             + "and %d native iron, holds %d";
     private static final String NO_NATIVE_IRON_BELOW = "The bands under the shallow zone over %d chunks should hold no "
             + "native iron, hold %d, the first at %s";
+    private static final String ASTRAL_CRYSTAL_IN_MIDDLE_BAND = "The middle zone over %d chunks should hold between 1 "
+            + "and %d astral crystal, holds %d";
+    private static final String NO_ASTRAL_CRYSTAL_OUTSIDE = "The shallow zone and the warrens over %d chunks should "
+            + "hold no astral crystal, hold %d, the first at %s";
+    private static final String CRYSTAL_ON_ROCK = "The astral crystal at %s should grow from rock, grows from %s";
     private static final String CAVE_IS_OPEN = "The rubble cave column %s should read air at y %d, reads %s";
     private static final String CAVE_IN_BRECCIA = "The rubble cave column %s should read breccia %s the cave at y %d, "
             + "reads %s";
@@ -82,6 +91,8 @@ public final class LunarZoneTests {
                 LunarZoneTests::lunarWarrensTwistThroughSculk);
         GooTestFunctions.registerTest(registrar, LUNAR_RUBBLE_CAVES_HOLD_NATIVE_IRON_LODES,
                 LunarZoneTests::lunarRubbleCavesHoldNativeIronLodes);
+        GooTestFunctions.registerTest(registrar, LUNAR_MIDDLE_CAVERNS_GROW_ASTRAL_CRYSTAL,
+                LunarZoneTests::lunarMiddleCavernsGrowAstralCrystal);
     }
 
     /**
@@ -218,6 +229,60 @@ public final class LunarZoneTests {
                 String.format(NATIVE_IRON_IN_SHALLOW_BAND, chunks, ceiling, shallow));
         helper.assertTrue(below == 0, String.format(NO_NATIVE_IRON_BELOW, chunks, below, firstBelow));
         helper.succeed();
+    }
+
+    /**
+     * Counts goo:astral_crystal over a square of chunks in goo:lunar, from the warrens up through the shallow zone:
+     * the middle zone holds some, under a ceiling per chunk, each growing from the rock its facing turns away from,
+     * and the shallow zone and the warrens hold none.
+     * decision astral-crystal-is-lunars-scarce-rich-block
+     *
+     * @param helper the gametest helper
+     */
+    public static void lunarMiddleCavernsGrowAstralCrystal(GameTestHelper helper) {
+        ServerLevel lunar = helper.getLevel().getServer().getLevel(Lunar.LEVEL);
+        helper.assertTrue(lunar != null, LUNAR_REQUIRED);
+        int middle = 0;
+        int outside = 0;
+        BlockPos firstOutside = null;
+        BlockPos.MutableBlockPos at = new BlockPos.MutableBlockPos();
+        for (int chunkX = -DEPOSIT_CHUNK_REACH; chunkX < DEPOSIT_CHUNK_REACH; chunkX++) {
+            for (int chunkZ = -DEPOSIT_CHUNK_REACH; chunkZ < DEPOSIT_CHUNK_REACH; chunkZ++) {
+                lunar.getChunk(chunkX, chunkZ);
+                for (int x = chunkX * 16; x < chunkX * 16 + 16; x++) {
+                    for (int z = chunkZ * 16; z < chunkZ * 16 + 16; z++) {
+                        for (int y = LunarDepths.SEA_ZONE_TOP_Y; y < LunarDepths.SHALLOW_ZONE_TOP_Y; y++) {
+                            BlockState state = lunar.getBlockState(at.set(x, y, z));
+                            if (!state.is(GooBlocks.ASTRAL_CRYSTAL.get())) {
+                                continue;
+                            }
+                            assertGrowsFromRock(helper, lunar, at.immutable(), state);
+                            if (y >= LunarDepths.WARREN_ZONE_TOP_Y && y < LunarDepths.CAVERN_ZONE_TOP_Y) {
+                                middle++;
+                            } else {
+                                outside++;
+                                firstOutside = firstOutside == null ? at.immutable() : firstOutside;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        int chunks = 4 * DEPOSIT_CHUNK_REACH * DEPOSIT_CHUNK_REACH;
+        int ceiling = chunks * ASTRAL_CRYSTAL_CEILING_PER_CHUNK;
+        helper.assertTrue(middle >= 1 && middle <= ceiling,
+                String.format(ASTRAL_CRYSTAL_IN_MIDDLE_BAND, chunks, ceiling, middle));
+        helper.assertTrue(outside == 0, String.format(NO_ASTRAL_CRYSTAL_OUTSIDE, chunks, outside, firstOutside));
+        helper.succeed();
+    }
+
+    private static void assertGrowsFromRock(GameTestHelper helper, ServerLevel lunar, BlockPos crystal,
+            BlockState state) {
+        Direction facing = state.getValue(AmethystClusterBlock.FACING);
+        BlockPos root = crystal.relative(facing.getOpposite());
+        BlockState rock = lunar.getBlockState(root);
+        helper.assertTrue(rock.isFaceSturdy(lunar, root, facing) && !rock.is(GooBlocks.ASTRAL_CRYSTAL.get()),
+                String.format(CRYSTAL_ON_ROCK, crystal, rock));
     }
 
     private static boolean bordersSculk(ServerLevel lunar, BlockPos air) {

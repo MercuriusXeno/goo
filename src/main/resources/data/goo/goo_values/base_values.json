@@ -795,6 +795,7 @@
     "goo:iron_core": "$iron_block + $lunar",
     "goo:meteoric_iron": "45 $iron_nugget + 2 $lunar",
     "goo:native_iron": "$iron_block + 2 $lunar",
+    "goo:astral_crystal": "16 $lunar",
     "goo:impact_glass": "$mundane_block + 2 $quartz + 2 $lunar",
     "goo:breccia": "$mundane_block + 4 $iron_nugget + $lunar",
     "goo:crater_ice": "ice + $lunar",

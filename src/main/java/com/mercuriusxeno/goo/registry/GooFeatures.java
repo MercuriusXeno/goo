@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.lunar.AstralCrystalClusterFeature;
 import com.mercuriusxeno.goo.lunar.BoulderFeature;
 import com.mercuriusxeno.goo.lunar.CraterPoolsFeature;
 import net.minecraft.core.registries.Registries;
@@ -31,6 +32,13 @@ public final class GooFeatures {
      */
     public static final DeferredHolder<Feature<?>, CraterPoolsFeature> CRATER_POOLS = FEATURES.register("crater_pools",
             CraterPoolsFeature::new);
+
+    /**
+     * {@code goo:astral_crystal_cluster}, a small cluster of astral crystal on the rock of lunar's middle caverns.
+     * decision astral-crystal-is-lunars-scarce-rich-block
+     */
+    public static final DeferredHolder<Feature<?>, AstralCrystalClusterFeature> ASTRAL_CRYSTAL_CLUSTER =
+            FEATURES.register("astral_crystal_cluster", AstralCrystalClusterFeature::new);
 
     private GooFeatures() {
     }

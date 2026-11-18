@@ -73,6 +73,8 @@ public class GooItems {
             GooBlocks.METEORIC_IRON);
     public static final DeferredItem<BlockItem> NATIVE_IRON = ITEMS.registerSimpleBlockItem("native_iron",
             GooBlocks.NATIVE_IRON);
+    public static final DeferredItem<BlockItem> ASTRAL_CRYSTAL = ITEMS.registerSimpleBlockItem("astral_crystal",
+            GooBlocks.ASTRAL_CRYSTAL);
     public static final DeferredItem<BlockItem> IMPACT_GLASS = ITEMS.registerSimpleBlockItem("impact_glass",
             GooBlocks.IMPACT_GLASS);
     public static final DeferredItem<BlockItem> BRECCIA = ITEMS.registerSimpleBlockItem("breccia", GooBlocks.BRECCIA);
