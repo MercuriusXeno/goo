@@ -90,7 +90,8 @@ class VolumeCellLookTest {
                 new Cell("hex_leech", CellBinding.LEECH, "goo:fluid/hex_fluid", 0x6A5AAF),
                 new Cell("typhoon_updraft", CellBinding.UPDRAFT, "goo:fluid/typhoon_fluid", 0xE4FFF2),
                 new Cell("jelly_nectar", CellBinding.NECTAR, "goo:fluid/jelly_fluid", 0xE8505B),
-                new Cell("pulse_signal", CellBinding.SIGNAL, "goo:fluid/pulse_fluid", 0xDB0F0F));
+                new Cell("pulse_signal", CellBinding.SIGNAL, "goo:fluid/pulse_fluid", 0xDB0F0F),
+                new Cell("metal_spikes", CellBinding.SPIKES, "goo:fluid/metal_fluid", 0xCFCFCF));
     }
 
     @Nested

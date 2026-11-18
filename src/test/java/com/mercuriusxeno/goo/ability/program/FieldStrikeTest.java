@@ -11,7 +11,7 @@ import static org.mockito.Mockito.when;
 
 /**
  * A strike in flight re-aims at its entity's body center as the entity
- * moves, keeping its entity and its age, so Urchin's spear stands where
+ * moves, keeping its entity and its age, so the metal trap's spear stands where
  * the mob stands when the damage lands (decision urchin-rests-bristled-and-spears).
  */
 class FieldStrikeTest {
