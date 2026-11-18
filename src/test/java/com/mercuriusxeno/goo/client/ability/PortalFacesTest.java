@@ -469,8 +469,27 @@ class PortalFacesTest {
                     new PortalFaces.Drawn(WALL_MOUTH, PortalFaces.BLUE_RGB, true).ovalBox(), "A wall mouth");
             assertEquals(new AABB(5 + in, 63, in, 6 - in, 64, 2 - in),
                     new PortalFaces.Drawn(FLOOR_MOUTH, PortalFaces.ORANGE_RGB, true).ovalBox(), "A floor mouth");
-            assertEquals(WALL_MOUTH.blocks(), new PortalFaces.Drawn(WALL_MOUTH, PortalFaces.BLUE_RGB, false).ovalBox(),
-                    "A portal's oval fills its whole blocks");
+        }
+
+        /**
+         * A Portal's oval stands the mouth inset inside its blocks each way
+         * across the face and spans them whole along the normal, the box a
+         * Tunnel mouth on the same blocks takes
+         * (decision portal-mouths-draw-shy-of-their-edges-like-tunnels).
+         */
+        @Test
+        void aPortalsOvalStandsTwoTexelsInsideItsBlocksAsATunnelMouthsDoes() {
+            double in = PortalFaces.MOUTH_INSET;
+            assertEquals(2.0 / 16, in, "The mouth inset is two texels");
+            assertEquals(new AABB(in, 64 + in, 0, 3 - in, 67 - in, 1),
+                    new PortalFaces.Drawn(WALL_MOUTH, PortalFaces.BLUE_RGB, false).ovalBox(), "A wall portal");
+            assertEquals(new AABB(5 + in, 63, in, 6 - in, 64, 2 - in),
+                    new PortalFaces.Drawn(FLOOR_MOUTH, PortalFaces.ORANGE_RGB, false).ovalBox(), "A floor portal");
+            for (Gate gate : List.of(WALL_MOUTH, FLOOR_MOUTH)) {
+                assertEquals(new PortalFaces.Drawn(gate, PortalFaces.BLUE_RGB, true).ovalBox(),
+                        new PortalFaces.Drawn(gate, PortalFaces.BLUE_RGB, false).ovalBox(),
+                        "A portal's oval should be the box a Tunnel mouth on " + gate.blocks() + " takes");
+            }
         }
 
         @Test
