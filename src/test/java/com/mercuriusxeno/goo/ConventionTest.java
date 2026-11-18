@@ -69,22 +69,8 @@ class ConventionTest {
             "net.minecraft.client..", "com.mercuriusxeno.goo.client..", "com.mojang.blaze3d.."
     };
     private static final String GOO_PATH = "/com/mercuriusxeno/goo/";
-    private static final String GOO_PACKAGE_PREFIX = "com.mercuriusxeno.goo.";
-    private static final String TRANSLUCENT_VISUAL_PATH = GOO_PACKAGE_PREFIX + "client.TranslucentVisualPath";
+    private static final String TRANSLUCENT_VISUAL_PATH = "com.mercuriusxeno.goo.client.TranslucentVisualPath";
     private static final String LEVEL_RENDER_STAGE = "net.neoforged.neoforge.client.event.RenderLevelStageEvent";
-    /**
-     * The client classes still subscribing to a level render stage themselves,
-     * each struck as its task moves it onto the shared path; the list retires
-     * once the path is the one subscriber.
-     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
-     */
-    private static final Set<String> NOT_YET_ON_THE_SORTING_PATH = Set.of(
-            "client.ability.ChainBurnoutRenderer", "client.hud.CanisterHudRenderer", "client.hud.CrucibleHudRenderer",
-            "client.hud.PlexerHudRenderer", "client.hud.VatHudRenderer", "client.model.GooJoins",
-            "client.overlay.AimedMobRipple", "client.overlay.BlinkCursor", "client.overlay.FungusXray",
-            "client.overlay.GasketOverlayRenderer", "client.overlay.GooTargetHighlighter", "client.overlay.OculusXray",
-            "client.overlay.OreXray", "client.overlay.TransmitTargetMarker", "client.throwing.GooFlightRenderer",
-            "client.zone.VoidstoneFaces");
     /**
      * The main and tools classes split into slices imported side by side, since one
      * import of them all took seconds (decision slow-tests-take-a-seam). The first
@@ -244,8 +230,8 @@ class ConventionTest {
     /**
      * No class under client but TranslucentVisualPath subscribes to a level
      * render stage, a lambda handed to addListener included, so every goo
-     * visual drawn on a stage draws through the path that depth sorts it;
-     * the not-yet-moved list names the ones a later task moves.
+     * visual drawn on a stage draws through the path that depth sorts it.
+     * A method merely taking a stage event as a parameter counts.
      * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
      */
     @Test
@@ -253,18 +239,9 @@ class ConventionTest {
         checkMain(classes()
                 .that().resideInAPackage(CLIENT_PACKAGE)
                 .and().doNotHaveFullyQualifiedName(TRANSLUCENT_VISUAL_PATH)
-                .and(DescribedPredicate.not(notYetOnTheSortingPath()))
                 .should(subscribeToNoLevelRenderStage())
                 .because("translucent goo visuals depth sort through the one shared path"
                         + " (decision translucent-goo-visuals-draw-through-one-checked-sorting-path)"));
-    }
-
-    private static DescribedPredicate<JavaClass> notYetOnTheSortingPath() {
-        return DescribedPredicate.describe("named by the not-yet-moved list", cls -> {
-            String topLevel = cls.getName().split("\\$", 2)[0];
-            return topLevel.startsWith(GOO_PACKAGE_PREFIX)
-                    && NOT_YET_ON_THE_SORTING_PATH.contains(topLevel.substring(GOO_PACKAGE_PREFIX.length()));
-        });
     }
 
     private static ArchCondition<JavaClass> subscribeToNoLevelRenderStage() {

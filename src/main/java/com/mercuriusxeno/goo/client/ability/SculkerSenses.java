@@ -97,6 +97,10 @@ public final class SculkerSenses {
      * @param draws where the glow's draw goes
      */
     public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
+        // It drew only at AfterLevel, which a portal view's pass never posts; the path runs AfterLevel routes there.
+        if (PortalView.drawing()) {
+            return;
+        }
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || HEARD.isEmpty()) {
             return;

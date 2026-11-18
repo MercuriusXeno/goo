@@ -1,12 +1,13 @@
 package com.mercuriusxeno.goo.client.throwing;
 
-import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.TravelForm;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.CuboidBounds;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.RenderContext;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.ability.PortalView;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -18,13 +19,10 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.joml.Vector3f;
 import org.jspecify.annotations.Nullable;
 import java.util.Collection;
+import java.util.function.Consumer;
 
 /**
  * Renders goo flights as multi-layer animated projectiles.
@@ -33,7 +31,6 @@ import java.util.Collection;
  * Tail: billboarded sprite quads behind the velocity vector.
  * Particles: drip sparks and color-tinted bubbles shed along the trail.
  */
-@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class GooFlightRenderer {
 
     /**
@@ -133,29 +130,51 @@ public final class GooFlightRenderer {
     }
 
     /**
-     * Renders all active goo flights after translucent blocks so the shell blends correctly.
+     * Hands the shared path one draw per goo flight the pass drawing now
+     * shows, each sorted by where the flight is this frame, and spawns each
+     * blob's trail from the main frame alone. A view through a gate draws
+     * from its own camera.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
+     * decision aim-and-shots-carry-through-linked-gates
      *
-     * @param event the event instance
+     * @param frame the frame being drawn
+     * @param draws where each flight's draw goes
      */
-    @SubscribeEvent
-    public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
         Collection<GooFlightManager.GooFlight> flights = GooFlightManager.getActiveFlights();
-        if (flights.isEmpty()) {
-            return;
-        }
-
         Minecraft mc = Minecraft.getInstance();
-        if (mc.level == null) {
+        if (flights.isEmpty() || mc.level == null) {
             return;
         }
-
         boolean view = PortalView.drawing();
-        FlightFrame ctx = buildFlightFrame(mc, event.getPoseStack(),
+        FlightFrame ctx = buildFlightFrame(mc, frame.poseStack(),
                 view ? PortalView.camera() : mc.gameRenderer.getMainCamera());
         for (GooFlightManager.GooFlight flight : flights) {
-            if (!view || seenInThisView(flight, ctx.partialTick)) {
-                renderFlight(ctx, flight, !view);
-            }
+            collectFlight(ctx, flight, view, draws);
+        }
+    }
+
+    private static void collectFlight(FlightFrame ctx, GooFlightManager.GooFlight flight, boolean view,
+                                      Consumer<SortedDraw> draws) {
+        if (view && !seenInThisView(flight, ctx.partialTick)) {
+            return;
+        }
+        if (!view) {
+            spawnTrail(ctx, flight);
+        }
+        double distance = flight.getPosition(ctx.partialTick).distanceToSqr(ctx.camera.position());
+        draws.accept(new SortedDraw(distance, () -> {
+            renderFlight(ctx, flight);
+            ctx.buffers.endBatch();
+        }));
+    }
+
+    // thrown-blob-trail-takes-the-blobs-velocity: a straight flight's beam sheds no trail
+    private static void spawnTrail(FlightFrame ctx, GooFlightManager.GooFlight flight) {
+        if (!flight.delivery.fliesStraight()) {
+            GooTrailParticles.spawnTrailParticles(flight.getPosition(ctx.partialTick), flight,
+                    new GooTrailParticles.TrailMotion(flight.getVelocity(ctx.partialTick),
+                            flight.getTickVelocity(ctx.partialTick)), flight.gooType);
         }
     }
 
@@ -189,16 +208,15 @@ public final class GooFlightRenderer {
     }
 
     /**
-     * Renders a single flight: core, shell, tail, and particles. The
-     * flight position and velocity are sampled at the current partial
-     * tick so the goo interpolates smoothly at render FPS rather than
-     * snapping once per 20 Hz client tick.
+     * Renders a single flight: core, shell and tail. The flight position
+     * and velocity are sampled at the current partial tick so the goo
+     * interpolates smoothly at render FPS rather than snapping once per
+     * 20 Hz client tick.
      *
-     * @param ctx       the per-frame render context
-     * @param flight    the flight to render
-     * @param mainFrame whether the main frame draws it, which alone spawns its trail
+     * @param ctx    the per-frame render context
+     * @param flight the flight to render
      */
-    private static void renderFlight(FlightFrame ctx, GooFlightManager.GooFlight flight, boolean mainFrame) {
+    private static void renderFlight(FlightFrame ctx, GooFlightManager.GooFlight flight) {
         Vec3 pos = flight.getPosition(ctx.partialTick);
         Vec3 vel = flight.getVelocity(ctx.partialTick);
 
@@ -214,12 +232,6 @@ public final class GooFlightRenderer {
             renderFlightLayers(ctx, flight.gooType, vel);
         }
         ctx.poseStack.popPose();
-
-        if (mainFrame) {
-            // thrown-blob-trail-takes-the-blobs-velocity
-            GooTrailParticles.spawnTrailParticles(pos, flight,
-                    new GooTrailParticles.TrailMotion(vel, flight.getTickVelocity(ctx.partialTick)), flight.gooType);
-        }
     }
 
     /**

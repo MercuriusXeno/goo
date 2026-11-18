@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.client.overlay;
 
-import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.BuildFootprint;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.quantum.Gate;
@@ -8,6 +7,8 @@ import com.mercuriusxeno.goo.block.ability.FaceSupport;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.TargetResult;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.ability.ChargeMotes;
 import com.mercuriusxeno.goo.client.ability.HeldDomeRenderer;
 import com.mercuriusxeno.goo.client.ability.PortalView;
@@ -25,25 +26,28 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 import java.util.Optional;
 import java.util.OptionalDouble;
+import java.util.function.Consumer;
 
 /**
  * Draws the glove's aim each frame from the frame's {@link AimTracker}: a
  * goo-colored outline and face ripple on the targeted block or ability block
- * at the opaque stage, with no fill over the block, and the held ghost after
- * translucent features. The entity outline rides the render state modifier
+ * with the opaque blocks, with no fill over the block, and the held ghost once
+ * the level is drawn. The entity outline rides the render state modifier
  * AimTracker registers (decision render-context-is-the-one-emitter).
  */
-@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class GooTargetHighlighter {
 
     private static final double NANOS_PER_SECOND = 1e9;
+
+    /**
+     * The held ghost {@link #collectThroughBlocks} resolved this frame, which
+     * {@link #collect} draws over blocks and clears.
+     */
+    private static @Nullable HeldShow shown;
 
     private GooTargetHighlighter() {
     }
@@ -71,80 +75,147 @@ public final class GooTargetHighlighter {
     }
 
     /**
-     * Renders the targeted block or ability block highlight.
+     * Hands the shared path the targeted block's or ability block's outline,
+     * water cube and bullseye rings, which lie on the block's faces, so they
+     * sort by nothing. In a view through a gate it hands the marks of a
+     * target the aim reached through that gate, seen from the view's camera,
+     * so they show on the far side through the view.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
+     * decision aim-and-shots-carry-through-linked-gates
      *
-     * @param event the event instance
+     * @param frame the frame being drawn
+     * @param draws where the marks' draw goes
      */
-    @SubscribeEvent
-    public static void onAfterOpaqueFeatures(RenderLevelStageEvent.AfterOpaqueFeatures event) {
-        if (PortalView.drawing()) {
-            drawMarksThroughTheGate(event);
+    public static void collectOutline(LevelFrame frame, Consumer<SortedDraw> draws) {
+        Minecraft mc = Minecraft.getInstance();
+        boolean view = PortalView.drawing();
+        ResourceKey<GooTypeDefinition> selectedType = markedType(mc, view);
+        if (selectedType == null) {
             return;
         }
+        TargetResult target = AimTracker.currentTarget();
+        AimIndicator indicator = indicatorFor(target, GloveAim.selectedAbilityId(mc.player));
+        HighlightFrame highlight = new HighlightFrame(frame.poseStack(), mc.renderBuffers().bufferSource(),
+                view ? PortalView.camera() : mc.gameRenderer.getMainCamera(), mc, selectedType);
+        draws.accept(new SortedDraw(0, () -> {
+            renderIndicator(target, indicator, highlight);
+            highlight.buf().endBatch();
+        }));
+    }
+
+    // The goo type whose marks draw in the pass drawing now, or null: the main frame draws a near-side target's,
+    // a view through a gate a target's the aim reached through that gate (aim-and-shots-carry-through-linked-gates).
+    private static @Nullable ResourceKey<GooTypeDefinition> markedType(Minecraft mc, boolean view) {
+        boolean drawn = mc.player != null && (view || mc.level != null) && mc.options.getCameraType().isFirstPerson();
+        if (!drawn || !drawsMarks(view, PortalView.viewedGate(), AimTracker.currentTarget().passage())) {
+            return null;
+        }
+        return GloveAim.selectedGooType(mc.player);
+    }
+
+    /**
+     * Resolves the selected ability's held ghost for this frame and hands the
+     * shared path each of its layers' through-blocks pass, sorted by the
+     * aimed point. The frame's upkeep runs here rather than in
+     * {@link #collect}: the path draws THROUGH_BLOCKS before FAR_TO_NEAR, so
+     * this runs first each frame, queues a released charge's motes before
+     * WispGlow hands its far-to-near draws, and leaves the ghost the
+     * over-blocks pass then draws.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
+     * decision held-visual-ghosts-the-landing-in-two-passes
+     *
+     * @param frame the frame being drawn
+     * @param draws where the through-blocks pass's draw goes
+     */
+    public static void collectThroughBlocks(LevelFrame frame, Consumer<SortedDraw> draws) {
+        if (PortalView.drawing()) {
+            return;
+        }
+        HeldShow show = heldShow(frame);
+        shown = show;
+        if (show != null && show.ghost() != null) {
+            HeldDomeRenderer.GhostAt ghost = show.ghost();
+            HighlightFrame highlight = show.highlight();
+            draws.accept(new SortedDraw(show.distanceSquared(), () -> HeldDomeRenderer.drawThroughBlocks(
+                    highlight.ps(), highlight.buf(), highlight.camera().position(), ghost, show.nowSeconds())));
+        }
+    }
+
+    /**
+     * Hands the shared path the held ghost {@link #collectThroughBlocks}
+     * resolved this frame: each layer's over-blocks pass and its rings, or a
+     * Build's footprint (decision spire-rips-walls-and-platforms), sorted by
+     * the aimed point. It draws once the level
+     * is drawn, so a prism's crystal, a translucent feature writing depth,
+     * draws under the ghost standing in front of it rather than over it.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
+     * decision held-visual-ghosts-the-landing-in-two-passes
+     *
+     * @param frame the frame being drawn
+     * @param draws where the over-blocks pass's draw goes
+     */
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
+        HeldShow show = shown;
+        if (PortalView.drawing() || show == null) {
+            return;
+        }
+        shown = null;
+        if (show.footprint().isPresent() || show.ghost() != null) {
+            draws.accept(new SortedDraw(show.distanceSquared(), () -> drawOverBlocks(show)));
+        }
+    }
+
+    /**
+     * What the held ghost shows this frame, resolved once so its two passes
+     * draw the same ghost on the same clock.
+     *
+     * @param highlight  what the frame draws with
+     * @param aimed      the aimed point, null where nothing is aimed at
+     * @param footprint  a Build's footprint, sized as the cast is made
+     * @param ghost      the ghost, null where none draws
+     * @param nowSeconds seconds on the real-time clock the rings run on
+     */
+    private record HeldShow(HighlightFrame highlight, @Nullable Vec3 aimed, Optional<BuildFootprint> footprint,
+                            HeldDomeRenderer.@Nullable GhostAt ghost, double nowSeconds) {
+
+        /**
+         * The squared distance from the camera to the aimed point, where the ghost sorts.
+         *
+         * @return the distance, zero where nothing is aimed at
+         */
+        double distanceSquared() {
+            return aimed == null ? 0 : aimed.distanceToSqr(highlight.camera().position());
+        }
+    }
+
+    private static @Nullable HeldShow heldShow(LevelFrame frame) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null || !mc.options.getCameraType().isFirstPerson()) {
-            return;
+            return null;
         }
         ResourceKey<GooTypeDefinition> selectedType = GloveAim.selectedGooType(mc.player);
         if (selectedType == null) {
-            return;
+            return null;
         }
-        TargetResult target = AimTracker.currentTarget();
-        String abilityId = GloveAim.selectedAbilityId(mc.player);
-        HighlightFrame frame = new HighlightFrame(event.getPoseStack(), mc.renderBuffers().bufferSource(),
+        HighlightFrame highlight = new HighlightFrame(frame.poseStack(), mc.renderBuffers().bufferSource(),
                 mc.gameRenderer.getMainCamera(), mc, selectedType);
-        if (drawsMarks(false, null, target.passage())) {
-            renderIndicator(target, indicatorFor(target, abilityId), frame);
-        }
-    }
-
-    /**
-     * Draws the selected ability's held ghost once the translucent features
-     * have drawn, so a prism's crystal, a translucent feature writing depth,
-     * draws under the ghost standing in front of it rather than over it.
-     *
-     * @param event the event instance
-     */
-    @SubscribeEvent
-    public static void onAfterTranslucentFeatures(RenderLevelStageEvent.AfterTranslucentFeatures event) {
-        Minecraft mc = Minecraft.getInstance();
-        if (PortalView.drawing() || mc.player == null || mc.level == null
-                || !mc.options.getCameraType().isFirstPerson()) {
-            return;
-        }
-        ResourceKey<GooTypeDefinition> selectedType = GloveAim.selectedGooType(mc.player);
-        if (selectedType == null) {
-            return;
-        }
-        renderHeldDome(AimTracker.currentTarget(), GloveAim.selectedAbilityId(mc.player),
-                new HighlightFrame(event.getPoseStack(), mc.renderBuffers().bufferSource(),
-                        mc.gameRenderer.getMainCamera(), mc, selectedType));
-    }
-
-    /**
-     * In a view through a gate, draws the marks of a target the aim reached
-     * through that gate, seen from the view's camera, so the outline and the
-     * ripple show on the far side through the view; the held ghost stays the
-     * frame's own.
-     * aim-and-shots-carry-through-linked-gates
-     *
-     * @param event the view pass's render stage event
-     */
-    private static void drawMarksThroughTheGate(RenderLevelStageEvent.AfterOpaqueFeatures event) {
-        Minecraft mc = Minecraft.getInstance();
         TargetResult target = AimTracker.currentTarget();
-        if (mc.player == null || !mc.options.getCameraType().isFirstPerson()
-                || !drawsMarks(true, PortalView.viewedGate(), target.passage())) {
-            return;
+        Optional<BuildFootprint> footprint = BuildCast.footprint();
+        HeldDomeRenderer.GhostAt ghost = footprint.isPresent() ? null
+                : heldGhost(target, GloveAim.selectedAbilityId(mc.player), highlight);
+        return new HeldShow(highlight, target.point(), footprint, ghost, realTimeSeconds());
+    }
+
+    private static void drawOverBlocks(HeldShow show) {
+        HighlightFrame frame = show.highlight();
+        int ringRgb = ClientGooTypes.highlight(frame.selectedType());
+        show.footprint().ifPresent(footprint -> BuildPreviewRenderer.render(frame.ps(), frame.buf(),
+                frame.camera().position(), footprint, BuildCast.rising(), ringRgb, show.nowSeconds()));
+        HeldDomeRenderer.GhostAt ghost = show.ghost();
+        if (ghost != null) {
+            HeldDomeRenderer.drawOverBlocks(frame.ps(), frame.buf(), frame.camera().position(), ghost, ringRgb,
+                    show.nowSeconds());
         }
-        ResourceKey<GooTypeDefinition> selectedType = GloveAim.selectedGooType(mc.player);
-        if (selectedType == null) {
-            return;
-        }
-        String abilityId = GloveAim.selectedAbilityId(mc.player);
-        renderIndicator(target, indicatorFor(target, abilityId),
-                new HighlightFrame(event.getPoseStack(), mc.renderBuffers().bufferSource(), PortalView.camera(), mc,
-                        selectedType));
     }
 
     /**
@@ -169,25 +240,27 @@ public final class GooTargetHighlighter {
     }
 
     /**
-     * Draws the selected ability's held ghost at the aim point while right
-     * click holds an armed press.
+     * The selected ability's held ghost at the aim point while right click
+     * holds an armed press, or a sized cast's ghost at the spot its charge
+     * rooted at.
      * held-visual-ghosts-the-landing-in-two-passes
      *
      * @param target    the aim target
      * @param abilityId the selected ability id
      * @param frame     what the frame draws with
+     * @return the ghost, or null where none draws
      */
-    private static void renderHeldDome(TargetResult target, @Nullable String abilityId, HighlightFrame frame) {
-        if (renderSizedPreview(abilityId, frame)) {
-            return;
+    private static HeldDomeRenderer.@Nullable GhostAt heldGhost(TargetResult target, @Nullable String abilityId,
+                                                                HighlightFrame frame) {
+        if (GloveThrowSender.selectedSizesByCharge(abilityId)) {
+            return sizedGhost(frame);
         }
         ClientAbility ability = abilityId == null ? null : AbilitySyncHandler.findAbility(abilityId);
         if (ability == null || !HeldDomeRenderer.showsDome(ability.delivery(), ability.badge(), ability.area(),
                 GloveUseTracker.showsArea())) {
-            return;
+            return null;
         }
-        HeldDomeRenderer.render(frame.ps(), frame.buf(), frame.camera().position(), target, ability,
-                frame.selectedType(), ClientGooTypes.highlight(frame.selectedType()), realTimeSeconds());
+        return HeldDomeRenderer.ghostAt(target, ability, frame.selectedType());
     }
 
     /**
@@ -204,54 +277,31 @@ public final class GooTargetHighlighter {
     }
 
     /**
-     * Draws the preview of a cast sized as it is made: a Build's footprint
-     * (decision spire-rips-walls-and-platforms) or a charge-sized ability's
-     * dome (decision spontaneous-abilities-cast-at-the-target-with-no-thrown-blob).
-     *
-     * @param abilityId the selected ability id
-     * @param frame     what the frame draws with
-     * @return true where a sized cast drew its preview in place of the held ghost
-     */
-    private static boolean renderSizedPreview(@Nullable String abilityId, HighlightFrame frame) {
-        Optional<BuildFootprint> footprint = BuildCast.footprint();
-        if (footprint.isPresent()) {
-            BuildPreviewRenderer.render(frame.ps(), frame.buf(), frame.camera().position(), footprint.get(),
-                    BuildCast.rising(), ClientGooTypes.highlight(frame.selectedType()), realTimeSeconds());
-            return true;
-        }
-        if (GloveThrowSender.selectedSizesByCharge(abilityId)) {
-            renderSizedDome(frame);
-            return true;
-        }
-        return false;
-    }
-
-    /**
-     * Draws a sized ability's ghost at the spot its charge rooted at, at the
-     * size its charge has reached, following the charge as right click holds
+     * A sized ability's ghost at the spot its charge rooted at, at the size
+     * its charge has reached, following the charge as right click holds
      * (decision spontaneous-abilities-cast-at-the-target-with-no-thrown-blob).
+     * A released charge's motes queue here, once a frame, for WispGlow to draw.
      *
      * @param frame what the frame draws with
+     * @return the ghost, or null where no charge stands
      */
-    private static void renderSizedDome(HighlightFrame frame) {
+    private static HeldDomeRenderer.@Nullable GhostAt sizedGhost(HighlightFrame frame) {
         float partialTick = frame.mc().getDeltaTracker().getGameTimeDeltaPartialTick(false);
         // blast-eases-between-stages-at-a-second-each: the spheroid eases while the cast keeps its whole stage
         OptionalDouble size = GloveThrowSender.drawnChargeRadius(frame.mc().player, partialTick);
         if (frame.mc().level == null) {
-            return;
+            return null;
         }
         double now = frame.mc().level.getGameTime() + partialTick;
         // a released charge's motes still draw as they are pushed out and fade
         ChargeMotes.render(now);
         if (size.isEmpty()) {
-            return;
+            return null;
         }
         // blast-charge-pulls-green-motes-into-the-shell-and-the-blob: the spheroid swells on the palm blob's beat
         float swelled = (float) (size.getAsDouble() * ChargeMotes.spheroidSwell(now));
         // blast-roots-to-the-spot-the-cast-began: the spheroid draws where the charge began, not where the aim is
-        HeldDomeRenderer.renderSized(frame.ps(), frame.buf(), frame.camera().position(),
-                GloveThrowSender.chargeAnchor(), swelled, frame.selectedType(),
-                ClientGooTypes.highlight(frame.selectedType()), realTimeSeconds());
+        return HeldDomeRenderer.sizedGhostAt(GloveThrowSender.chargeAnchor(), swelled, frame.selectedType());
     }
 
     /**

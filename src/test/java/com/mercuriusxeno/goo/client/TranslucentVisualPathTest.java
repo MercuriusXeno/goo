@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.client.ability.AirbornWind;
 import com.mercuriusxeno.goo.client.ability.BeatRings;
 import com.mercuriusxeno.goo.client.ability.BlockMingleRenderer;
 import com.mercuriusxeno.goo.client.ability.BoreDrill;
+import com.mercuriusxeno.goo.client.ability.ChainBurnoutRenderer;
 import com.mercuriusxeno.goo.client.ability.CrystalShatterVisual;
 import com.mercuriusxeno.goo.client.ability.FireStream;
 import com.mercuriusxeno.goo.client.ability.FloatPlatform;
@@ -49,6 +50,20 @@ import com.mercuriusxeno.goo.client.ability.WispGlow;
 import com.mercuriusxeno.goo.client.ability.ZapBolts;
 import com.mercuriusxeno.goo.client.hole.HoleMouths;
 import com.mercuriusxeno.goo.client.hole.HolePits;
+import com.mercuriusxeno.goo.client.hud.CanisterHudRenderer;
+import com.mercuriusxeno.goo.client.hud.CrucibleHudRenderer;
+import com.mercuriusxeno.goo.client.hud.PlexerHudRenderer;
+import com.mercuriusxeno.goo.client.hud.VatHudRenderer;
+import com.mercuriusxeno.goo.client.model.GooJoins;
+import com.mercuriusxeno.goo.client.overlay.AimedMobRipple;
+import com.mercuriusxeno.goo.client.overlay.BlinkCursor;
+import com.mercuriusxeno.goo.client.overlay.FungusXray;
+import com.mercuriusxeno.goo.client.overlay.GasketOverlayRenderer;
+import com.mercuriusxeno.goo.client.overlay.GooTargetHighlighter;
+import com.mercuriusxeno.goo.client.overlay.OculusXray;
+import com.mercuriusxeno.goo.client.overlay.OreXray;
+import com.mercuriusxeno.goo.client.overlay.TransmitTargetMarker;
+import com.mercuriusxeno.goo.client.throwing.GooFlightRenderer;
 import com.mercuriusxeno.goo.client.zone.RoomCopyRenderer;
 import com.mercuriusxeno.goo.client.zone.VoidstoneFaces;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
@@ -165,6 +180,75 @@ class TranslucentVisualPathTest {
                 () -> assertEquals(List.of(SortRoute.OPAQUE_SHAPE), routesOf(SpikesBristle.class)),
                 () -> assertEquals(List.of(SortRoute.OPAQUE_SHAPE), routesOf(SpikesRise.class)),
                 () -> assertTrue(GooRenderTypes.SPIKES_STEEL.getDepthStencilState().writeDepth()));
+    }
+
+    /**
+     * The overlays, flights, joins, burnouts, highlights, gasket overlays and
+     * in-world panels: the last visuals that drew on a stage of their own.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
+     * decision diagnose-and-correct-translucent-goo-visuals-that-depth-sort-wrong
+     */
+    @Nested
+    class OverlayFlightAndJoinVisuals {
+
+        @Test
+        void eachRegistersUnderItsRoutes() {
+            Map<Class<?>, Set<SortRoute>> routes = new LinkedHashMap<>();
+            routes.put(AimedMobRipple.class, Set.of(SortRoute.FAR_TO_NEAR));
+            routes.put(BlinkCursor.class, Set.of(SortRoute.FAR_TO_NEAR));
+            routes.put(FungusXray.class, Set.of(SortRoute.THROUGH_BLOCKS));
+            routes.put(OculusXray.class, Set.of(SortRoute.THROUGH_BLOCKS));
+            routes.put(OreXray.class, Set.of(SortRoute.THROUGH_BLOCKS));
+            routes.put(TransmitTargetMarker.class, Set.of(SortRoute.THROUGH_BLOCKS));
+            routes.put(GooFlightRenderer.class, Set.of(SortRoute.FAR_TO_NEAR));
+            routes.put(GooJoins.class, Set.of(SortRoute.FAR_TO_NEAR));
+            routes.put(ChainBurnoutRenderer.class, Set.of(SortRoute.FAR_TO_NEAR));
+            routes.put(GooTargetHighlighter.class,
+                    Set.of(SortRoute.ON_OPAQUE_FACES, SortRoute.THROUGH_BLOCKS, SortRoute.FAR_TO_NEAR));
+            routes.put(GasketOverlayRenderer.class, Set.of(SortRoute.ON_OPAQUE_FACES));
+            routes.put(CanisterHudRenderer.class, Set.of(SortRoute.FAR_TO_NEAR));
+            routes.put(CrucibleHudRenderer.class, Set.of(SortRoute.FAR_TO_NEAR));
+            routes.put(PlexerHudRenderer.class, Set.of(SortRoute.FAR_TO_NEAR));
+            routes.put(VatHudRenderer.class, Set.of(SortRoute.FAR_TO_NEAR));
+            assertAll(routes.entrySet().stream().map(entry -> () -> assertEquals(entry.getValue(),
+                    Set.copyOf(routesOf(entry.getKey())), entry.getKey().getSimpleName())));
+        }
+
+        /**
+         * The held ghost's through-blocks pass draws before its over-blocks
+         * pass, as it did inside one draw (decision held-visual-ghosts-the-landing-in-two-passes),
+         * and the explosions and the ghost draw once a prism's crystal, a
+         * translucent feature writing depth, stands, so it draws under an
+         * explosion standing in front of it: the level is drawn by AfterLevel.
+         */
+        @Test
+        void theHeldGhostDrawsThroughThenOverAfterThePrismsDepth() {
+            List<SortRoute> afterLevel = Arrays.stream(SortRoute.values())
+                    .filter(route -> route.stage() == RenderLevelStageEvent.AfterLevel.class).toList();
+            assertAll(
+                    () -> assertTrue(afterLevel.indexOf(SortRoute.THROUGH_BLOCKS)
+                            < afterLevel.indexOf(SortRoute.FAR_TO_NEAR)),
+                    () -> assertEquals(RenderLevelStageEvent.AfterLevel.class, SortRoute.FAR_TO_NEAR.stage()));
+        }
+
+        /**
+         * A visual that drew only at AfterLevel never drew inside a portal
+         * view's pass, which posts no AfterLevel; the path runs the AfterLevel
+         * routes there too, so each keeps out of the view by its own gate.
+         */
+        @Test
+        void visualsThatDrewOnlyAfterTheLevelKeepOutOfPortalViews() {
+            List<Class<?>> afterLevelOnly = List.of(AfterimageRenderer.class, SculkerSenses.class, BoreDrill.class,
+                    BlinkCursor.class, AimedMobRipple.class);
+            com.tngtech.archunit.core.domain.JavaClasses imported = new com.tngtech.archunit.core.importer
+                    .ClassFileImporter().importClasses(afterLevelOnly);
+            assertAll(afterLevelOnly.stream().map(visual -> () -> assertTrue(imported.get(visual).getMethods().stream()
+                    .filter(method -> method.getName().equals("collect"))
+                    .anyMatch(method -> method.getMethodCallsFromSelf().stream().anyMatch(call ->
+                            call.getTarget().getName().equals("drawing")
+                                    && call.getTargetOwner().isEquivalentTo(PortalView.class))),
+                    visual.getSimpleName() + ".collect gates on PortalView.drawing()")));
+        }
     }
 
     /**
