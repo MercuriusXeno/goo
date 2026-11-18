@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.registry;
 
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import java.awt.image.BufferedImage;
@@ -12,6 +13,7 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import static com.mercuriusxeno.goo.registry.SpritePixels.gooBlock;
 import static com.mercuriusxeno.goo.registry.SpritePixels.storedArgb;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -30,54 +32,39 @@ class LunarPaletteTest {
         }
     }
 
+    private static final String ROCK_AND_METAL_DRAWERS = "anorthosite, regolith, breccia, meteoric_iron, iron_core "
+            + "and native_iron";
+
+    /** The lunar rock and metal blocks, which draw from the silver-grey ramp alone. */
+    static final List<String> ROCK_AND_METAL_BLOCKS = List.of("anorthosite", "regolith", "breccia", "meteoric_iron",
+            "iron_core", "native_iron");
+
     /**
-     * Anorthosite's pale feldspar grain and its mid brown-grey specks, after the operator's sample rock, with off-white
-     * glints the ground blocks share; regolith, the dust of the pale parts; the iron core's form B steel. A landform
-     * sprite joining the palette draws from these, or adds a color beside them.
+     * The silver-grey ramp, sixteen cool steel tones dark to light, first drawn by native iron's drafts.
+     * decision lunar-rock-and-metal-blocks-draw-from-the-silver-grey-ramp
+     */
+    static final List<Integer> SILVER_RAMP = List.of(0x1d1e21, 0x282a2e, 0x333539, 0x3f4146, 0x47494e, 0x52555a,
+            0x5d6065, 0x696c71, 0x717479, 0x7d8085, 0x8c8f94, 0x9ea2a8,
+            0xb0b4ba, 0xc0c4c9, 0xd0d3d7, 0xe2e5e8);
+
+    /**
+     * The lunar palette: the silver-grey ramp, which every rock and metal block draws from, beside crater ice's blues and
+     * impact glass's near-blacks, which keep the colors they have. A sprite joining the palette draws from these, or
+     * adds a color beside them.
+     * decision lunar-rock-and-metal-blocks-draw-from-the-silver-grey-ramp
      * decision lunar-textures-get-form-and-texture-before-color
      */
-    static final List<PaletteColor> LUNAR_PALETTE = List.of(
-            new PaletteColor(0xdcd3cd, "anorthosite and regolith glints"),
-            new PaletteColor(0xc8bdb6, "anorthosite"),
-            new PaletteColor(0xb4a8a1, "anorthosite"),
-            new PaletteColor(0x9f938d, "anorthosite"),
-            new PaletteColor(0x8c817c, "anorthosite"),
-            new PaletteColor(0x6e6460, "anorthosite"),
-            new PaletteColor(0x564e4b, "anorthosite"),
-            new PaletteColor(0xcfc5be, "regolith"),
-            new PaletteColor(0xc2b7b0, "regolith"),
-            new PaletteColor(0xa69a93, "regolith"),
-            new PaletteColor(0xb0b4ba, "iron_core"),
-            new PaletteColor(0x8c8f94, "iron_core"),
-            new PaletteColor(0x717479, "iron_core"),
-            new PaletteColor(0x52555a, "iron_core"),
-            new PaletteColor(0x3f4146, "iron_core"),
-            new PaletteColor(0x333539, "iron_core"),
-            new PaletteColor(0x282a2e, "iron_core"),
-            new PaletteColor(0xbdb9b4, "breccia matrix"),
-            new PaletteColor(0xb1ada8, "breccia matrix"),
-            new PaletteColor(0xa5a19c, "breccia matrix"),
-            new PaletteColor(0x99958f, "breccia matrix"),
-            new PaletteColor(0x8d8984, "breccia matrix"),
-            new PaletteColor(0x7f7b76, "breccia matrix"),
-            new PaletteColor(0x716d68, "breccia matrix"),
-            new PaletteColor(0xeef3f6, "crater_ice"),
-            new PaletteColor(0xdfe8ee, "crater_ice"),
-            new PaletteColor(0xcfdce5, "crater_ice"),
-            new PaletteColor(0xbecfdb, "crater_ice"),
-            new PaletteColor(0xadc1d0, "crater_ice"),
-            new PaletteColor(0x9cb3c4, "crater_ice"),
-            new PaletteColor(0xc9ccd1, "meteoric_iron glint"),
-            new PaletteColor(0x1d1e21, "impact_glass and native_iron"),
-            new PaletteColor(0x121315, "impact_glass"),
-            new PaletteColor(0x47494e, "native_iron"),
-            new PaletteColor(0x5d6065, "native_iron"),
-            new PaletteColor(0x696c71, "native_iron"),
-            new PaletteColor(0x7d8085, "native_iron"),
-            new PaletteColor(0x9ea2a8, "native_iron"),
-            new PaletteColor(0xc0c4c9, "native_iron"),
-            new PaletteColor(0xd0d3d7, "native_iron"),
-            new PaletteColor(0xe2e5e8, "native_iron"));
+    static final List<PaletteColor> LUNAR_PALETTE = Stream.concat(
+            SILVER_RAMP.stream().map(rgb -> new PaletteColor(rgb, ROCK_AND_METAL_DRAWERS)),
+            Stream.of(
+                    new PaletteColor(0xeef3f6, "crater_ice"),
+                    new PaletteColor(0xdfe8ee, "crater_ice"),
+                    new PaletteColor(0xcfdce5, "crater_ice"),
+                    new PaletteColor(0xbecfdb, "crater_ice"),
+                    new PaletteColor(0xadc1d0, "crater_ice"),
+                    new PaletteColor(0x9cb3c4, "crater_ice"),
+                    new PaletteColor(0x1d1e21, "impact_glass"),
+                    new PaletteColor(0x121315, "impact_glass"))).toList();
 
     /**
      * A ground block's sprites: its own and the variants its blockstate picks among per block, sharing one border band.
@@ -134,5 +121,45 @@ class LunarPaletteTest {
         }
         assertTrue(offPalette.isEmpty(), sprite + " draws off the palette: "
                 + offPalette.stream().map(argb -> String.format("#%08x", argb)).collect(Collectors.joining(" ")));
+    }
+
+    /** The rock and metal blocks' sprites, every variant their blockstates pick among. */
+    static Stream<String> rockAndMetalSprites() {
+        return LUNAR_SPRITES.stream().filter(sprite -> ROCK_AND_METAL_BLOCKS.stream()
+                .anyMatch(block -> sprite.equals(block) || sprite.startsWith(block + "_")));
+    }
+
+    /**
+     * A rock or metal sprite draws the silver-grey ramp alone, so no rock picks up an ice blue the wider palette
+     * allows.
+     * decision lunar-rock-and-metal-blocks-draw-from-the-silver-grey-ramp
+     */
+    @ParameterizedTest
+    @MethodSource("rockAndMetalSprites")
+    void everyPixelOfARockOrMetalSpriteIsARampTone(String sprite) throws IOException {
+        BufferedImage image = gooBlock(sprite);
+        Set<Integer> offRamp = new TreeSet<>();
+        for (int y = 0; y < image.getHeight(); y++) {
+            for (int x = 0; x < image.getWidth(); x++) {
+                int argb = storedArgb(image, x, y);
+                if (argb >>> 24 != 0xff || !SILVER_RAMP.contains(argb & 0xffffff)) {
+                    offRamp.add(argb);
+                }
+            }
+        }
+        assertTrue(offRamp.isEmpty(), sprite + " draws off the silver-grey ramp: "
+                + offRamp.stream().map(argb -> String.format("#%08x", argb)).collect(Collectors.joining(" ")));
+    }
+
+    /**
+     * Every palette color a rock or metal block draws is a ramp tone, and every ramp tone is one of them.
+     * decision lunar-rock-and-metal-blocks-draw-from-the-silver-grey-ramp
+     */
+    @Test
+    void theRockAndMetalBlocksPaletteColorsAreTheRamp() {
+        Set<Integer> drawnByRock = LUNAR_PALETTE.stream()
+                .filter(color -> ROCK_AND_METAL_BLOCKS.stream().anyMatch(color.drawnBy()::contains))
+                .map(PaletteColor::rgb).collect(Collectors.toCollection(TreeSet::new));
+        assertEquals(new TreeSet<>(SILVER_RAMP), drawnByRock);
     }
 }
