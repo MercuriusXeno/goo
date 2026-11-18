@@ -19,8 +19,9 @@ import java.util.stream.Stream;
  * mycosis effect and the spores, run on a living thing a drip strikes and
  * on one touching the goo, and an infected thing's death bursts the goo
  * where it fell. The step names the reach a cell grows and tends fungus in,
- * the ticks between its growings, and the layers each bud it grows spends:
- * {@code mycosis reach=2 grow_ticks=20 layers_per_bud=1}.
+ * the ticks between its growings, the layers each bud it grows spends, and
+ * the layers each block of shroom network it spreads spends:
+ * {@code mycosis reach=2 grow_ticks=20 layers_per_bud=1 layers_per_network=1}.
  * mycosis-is-the-residual-goo-that-infests-with-mushrooms
  * mycosis-goo-infects-what-touches-it-as-the-spray-did
  * mycosis-spore-stream-buds-and-poisons
@@ -29,17 +30,21 @@ import java.util.stream.Stream;
  * drip-on-a-standing-cell-increases-it
  * mycosis-goo-disperses-spores-and-grows-shrooms-nearby-depleting
  * mycosis-grows-and-reaps-nether-wart
+ * colonize-blob-grows-the-network
  *
  * @param reach        the blocks around a cell, across and one up or down, it grows and tends fungus in
  * @param growTicks    the ticks between a cell's growings and tendings
  * @param layersPerBud the layers each bud a cell grows spends
+ * @param layersPerNetwork the layers each block of shroom network a cell spreads spends
  */
-public record MycosisStep(int reach, int growTicks, int layersPerBud) implements TakesNoEntity, DripLanding {
+public record MycosisStep(int reach, int growTicks, int layersPerBud, int layersPerNetwork)
+        implements TakesNoEntity, DripLanding {
 
     private static final String NAME = "mycosis";
     private static final String FIELD_REACH = "reach";
     private static final String FIELD_GROW_TICKS = "grow_ticks";
     private static final String FIELD_LAYERS_PER_BUD = "layers_per_bud";
+    private static final String FIELD_LAYERS_PER_NETWORK = "layers_per_network";
     /** The farthest a cell reaches, past which its scan of the blocks around it grows costly. */
     private static final int MOST_REACH = 8;
     /** The longest a cell waits between growings, a minute. */
@@ -52,7 +57,9 @@ public record MycosisStep(int reach, int growTicks, int layersPerBud) implements
             Codec.intRange(1, MOST_REACH).fieldOf(FIELD_REACH).forGetter(MycosisStep::reach),
             Codec.intRange(1, MOST_GROW_TICKS).fieldOf(FIELD_GROW_TICKS).forGetter(MycosisStep::growTicks),
             Codec.intRange(1, VolumeCellBlock.MAX_LAYERS).fieldOf(FIELD_LAYERS_PER_BUD)
-                    .forGetter(MycosisStep::layersPerBud)
+                    .forGetter(MycosisStep::layersPerBud),
+            Codec.intRange(1, VolumeCellBlock.MAX_LAYERS).fieldOf(FIELD_LAYERS_PER_NETWORK)
+                    .forGetter(MycosisStep::layersPerNetwork)
     ).apply(inst, MycosisStep::new));
 
     /**

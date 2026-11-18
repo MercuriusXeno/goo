@@ -33,13 +33,16 @@ import java.util.Set;
  * spares the player who placed it. On each tick its cadence falls on, the
  * cell tends the nether wart and fungal buds in its reach and grows a
  * goologged bud in its own space, ripening there into a mushroom, then a bud
- * on each open spot in its reach, one a growing, each spending its layers;
- * once no spot remains the goo idles with its layers kept.
+ * on each open spot in its reach, one a growing; lying on a shroom network,
+ * it also spreads that network a block a growing. Each bud and each network
+ * block spends layers, and once nothing remains to grow or take the goo
+ * idles with its layers kept.
  * mycosis-goo-infects-what-touches-it-as-the-spray-did
  * mycosis-is-the-residual-goo-that-infests-with-mushrooms
  * mushrooms-and-buds-are-goo-logged-with-shroom-goo
  * mycosis-goo-disperses-spores-and-grows-shrooms-nearby-depleting
  * mycosis-grows-and-reaps-nether-wart
+ * colonize-blob-grows-the-network
  */
 public class MycosisCellBlock extends VolumeCellBlock {
 
@@ -76,6 +79,7 @@ public class MycosisCellBlock extends VolumeCellBlock {
             if (InfestGnaw.gnawsAt(level.getGameTime(), mycosis.growTicks())) {
                 MycosisTending.tendAround(level, pos, mycosis.reach());
                 growFungus(level, pos, mycosis);
+                spreadNetwork(level, pos, mycosis);
             }
             if (level.getBlockState(pos).is(this) && !level.getBlockTicks().hasScheduledTick(pos, this)) {
                 level.scheduleTick(pos, this, InfestGnaw.ticksToNextGnaw(level.getGameTime(), mycosis.growTicks()));
@@ -114,6 +118,34 @@ public class MycosisCellBlock extends VolumeCellBlock {
         if (after != standing) {
             level.setBlock(pos, after, UPDATE_ALL);
         }
+    }
+
+    /**
+     * Spreads the shroom network the cell lies on by one block, the nearest
+     * in its reach it can take over, spending the layers a network block
+     * costs; goo short of them, on no network or with nothing left to take
+     * spreads nothing and keeps its layers.
+     * colonize-blob-grows-the-network
+     * colonize-is-dropped-and-its-power-moves-into-mycosis-goo
+     * mycosis-pays-per-mob-infected-and-fungus-tended
+     *
+     * @param level   the server level
+     * @param pos     the cell
+     * @param mycosis Mycosis' step
+     */
+    private void spreadNetwork(ServerLevel level, BlockPos pos, MycosisStep mycosis) {
+        BlockState standing = level.getBlockState(pos);
+        if (!standing.is(this) || standing.getValue(LAYERS) < mycosis.layersPerNetwork()) {
+            return;
+        }
+        BlockPos floor = pos.below();
+        ShroomNetwork.of(level.getBlockState(floor)).ifPresent(network ->
+                network.nextTaken(level, floor, mycosis.reach()).ifPresent(taken -> {
+                    network.take(level, taken);
+                    int left = standing.getValue(LAYERS) - mycosis.layersPerNetwork();
+                    level.setBlock(pos, left > 0 ? standing.setValue(LAYERS, left)
+                            : GoologgedFungus.in(standing).standingAlone(mycosis.budState()), UPDATE_ALL);
+                }));
     }
 
     /**

@@ -36,13 +36,14 @@ import java.util.function.Consumer;
  * carries the mycosis effect and the spores, and an infected zombie dying on
  * bare floor leaves Mycosis goo where it fell; the goo grows a goologged
  * bud in its own space and buds on the open floor in its reach, and tends
- * the nether wart there. Each test walls its cells in stone so no cell
+ * the nether wart there, and spreads the mycelium it lies on. Each test walls its cells in stone so no cell
  * pours its layers away.
  * mycosis-is-the-residual-goo-that-infests-with-mushrooms
  * mycosis-goo-infects-what-touches-it-as-the-spray-did
  * mushrooms-and-buds-are-goo-logged-with-shroom-goo
  * mycosis-goo-disperses-spores-and-grows-shrooms-nearby-depleting
  * mycosis-grows-and-reaps-nether-wart
+ * colonize-blob-grows-the-network
  */
 @RegistersGameTests
 public final class MycosisTests {
@@ -52,6 +53,11 @@ public final class MycosisTests {
     private static final String DEAD_LEAVE_GOO = "mycosis_infected_zombie_dying_leaves_goo_where_it_fell";
     private static final String GROWS_BUDS = "mycosis_goo_grows_a_goologged_bud_and_one_beside_it";
     private static final String TENDS_WART = "mycosis_goo_grows_and_reaps_nether_wart";
+    private static final String SPREADS_MYCELIUM = "mycosis_goo_on_mycelium_spreads_it_to_the_dirt_beside";
+    /** The full cell the network test lays on mycelium, sealed in stone but for the dirt beside its floor. */
+    private static final BlockPos NETWORK_CELL = new BlockPos(2, 2, 2);
+    /** The dirt beside the mycelium the network cell lies on, under glass so no bud grows over it. */
+    private static final BlockPos DIRT_BESIDE = NETWORK_CELL.below().east();
     /** The full cell the growth test lays, sealed in stone but for one open spot in its reach. */
     private static final BlockPos GROWING_CELL = new BlockPos(2, 2, 2);
     /** The one open spot over stone in the growing cell's reach, two blocks east. */
@@ -77,6 +83,8 @@ public final class MycosisTests {
     private static final String NO_GOO_WHERE_IT_FELL = "The infected zombie should leave Mycosis where it fell, stands %s";
     private static final String NOT_GROWN = "The cell should hold a goologged bud at %d layers and a bud should stand"
             + " beside it; the cell stands %s and the spot %s";
+    private static final String NOT_SPREAD = "The dirt beside should be mycelium and the cell stand at %d layers;"
+            + " the dirt stands %s and the cell %s";
     private static final String NOT_TENDED = "The young wart should age and the ripe one stand replanted at age 0 with"
             + " its wart dropped; the young stands %s and the ripe %s";
 
@@ -94,6 +102,7 @@ public final class MycosisTests {
         GooTestFunctions.registerTest(registrar, DEAD_LEAVE_GOO, MycosisTests::infectedZombieDyingLeavesGoo);
         GooTestFunctions.registerTest(registrar, GROWS_BUDS, MycosisTests::gooGrowsAGoologgedBudAndOneBesideIt);
         GooTestFunctions.registerTest(registrar, TENDS_WART, MycosisTests::gooGrowsAndReapsNetherWart);
+        GooTestFunctions.registerTest(registrar, SPREADS_MYCELIUM, MycosisTests::gooOnMyceliumSpreadsItToTheDirtBeside);
     }
 
     /**
@@ -209,6 +218,34 @@ public final class MycosisTests {
                     && ripe.is(Blocks.NETHER_WART) && ripe.getValue(NetherWartBlock.AGE) == 0,
                     String.format(NOT_TENDED, young, ripe));
             helper.assertItemEntityPresent(Items.NETHER_WART, RIPE_WART, ITEM_SEARCH_RADIUS);
+        });
+    }
+
+    /**
+     * A full Mycosis cell lying on mycelium, its own space already grown and
+     * its reach sealed in stone but for dirt beside the mycelium under glass,
+     * turns the dirt to mycelium and stands lower by a network block's layers.
+     * colonize-blob-grows-the-network
+     * colonize-is-dropped-and-its-power-moves-into-mycosis-goo
+     *
+     * @param helper the gametest helper
+     */
+    public static void gooOnMyceliumSpreadsItToTheDirtBeside(GameTestHelper helper) {
+        BlockPos.betweenClosedStream(NETWORK_CELL.offset(-SEAL_REACH, -1, -SEAL_REACH),
+                NETWORK_CELL.offset(SEAL_REACH, 1, SEAL_REACH)).forEach(pos -> helper.setBlock(pos, Blocks.STONE));
+        helper.setBlock(NETWORK_CELL.below(), Blocks.MYCELIUM);
+        helper.setBlock(DIRT_BESIDE, Blocks.DIRT);
+        helper.setBlock(DIRT_BESIDE.above(), Blocks.GLASS);
+        helper.setBlock(NETWORK_CELL, GooBlocks.SHROOM_MYCOSIS.get().defaultBlockState()
+                .setValue(VolumeCellBlock.LAYERS, VolumeCellBlock.MAX_LAYERS)
+                .setValue(GoologgedFungus.FUNGUS, GoologgedFungus.BROWN_MUSHROOM));
+        int left = VolumeCellBlock.MAX_LAYERS
+                - MycosisStep.in(mycosis(helper).behaviors()).orElseThrow().layersPerNetwork();
+        helper.succeedWhen(() -> {
+            BlockState dirt = helper.getBlockState(DIRT_BESIDE);
+            BlockState cell = helper.getBlockState(NETWORK_CELL);
+            helper.assertTrue(dirt.is(Blocks.MYCELIUM) && cell.is(GooBlocks.SHROOM_MYCOSIS.get())
+                    && cell.getValue(VolumeCellBlock.LAYERS) == left, String.format(NOT_SPREAD, left, dirt, cell));
         });
     }
 
