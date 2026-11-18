@@ -37,12 +37,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * decision lunar-ground-gains-meteoric-iron-impact-glass-breccia-and-crater-ice
  * decision astral-matter-values-carry-the-dimensions-types
  * decision native-iron-lodes-are-worth-whole-iron-blocks
+ * decision astral-crystal-is-lunars-scarce-rich-block
  */
 class LunarMatterTest {
 
     private static final String BASE_VALUES = "/data/goo/goo_values/base_values.json";
     private static final int SPRITE_SIZE = 16;
     private static final int IRON_BLOCK_NUGGETS = 81;
+    private static final int ASTRAL_CRYSTAL_MULTIPLE = 8;
 
     private static Set<Identifier> registeredIds(DeferredRegister<?> register) {
         return register.getEntries().stream().map(DeferredHolder::getId).collect(Collectors.toSet());
@@ -83,7 +85,8 @@ class LunarMatterTest {
         void lunarBlocksRegisterUnderTheModId() {
             assertTrue(registeredIds(GooBlocks.BLOCKS).containsAll(List.of(
                     goo("anorthosite"), goo("regolith"), goo("iron_core"), goo("molten_iron"), goo("meteoric_iron"),
-                    goo("impact_glass"), goo("breccia"), goo("crater_ice"), goo("native_iron"))),
+                    goo("impact_glass"), goo("breccia"), goo("crater_ice"), goo("native_iron"),
+                    goo("astral_crystal"))),
                     String.valueOf(registeredIds(GooBlocks.BLOCKS)));
         }
 
@@ -100,17 +103,18 @@ class LunarMatterTest {
             assertTrue(registeredIds(GooItems.ITEMS).containsAll(List.of(
                     goo("anorthosite"), goo("regolith"), goo("iron_core"), goo("molten_iron_bucket"),
                     goo("meteoric_iron"), goo("impact_glass"), goo("breccia"),
-                    goo("crater_ice"), goo("native_iron"))),
+                    goo("crater_ice"), goo("native_iron"), goo("astral_crystal"))),
                     String.valueOf(registeredIds(GooItems.ITEMS)));
         }
     }
 
-    /** Native iron drops itself when mined. */
-    @Test
-    void nativeIronDropsItself() throws IOException {
-        JsonObject entry = resourceJson("/data/goo/loot_table/blocks/native_iron.json").getAsJsonArray("pools").get(0)
+    /** Native iron and astral crystal each drop themselves when mined. */
+    @ParameterizedTest
+    @ValueSource(strings = {"native_iron", "astral_crystal"})
+    void lunarFindsDropThemselves(String block) throws IOException {
+        JsonObject entry = resourceJson("/data/goo/loot_table/blocks/" + block + ".json").getAsJsonArray("pools").get(0)
                 .getAsJsonObject().getAsJsonArray("entries").get(0).getAsJsonObject();
-        assertEquals("goo:native_iron", entry.get("name").getAsString());
+        assertEquals("goo:" + block, entry.get("name").getAsString());
     }
 
     @Nested
@@ -267,6 +271,23 @@ class LunarMatterTest {
             GooValue ironBlock = nugget.multiply(IRON_BLOCK_NUGGETS);
             assertTrue(nativeIron.exact(GooTypes.METAL).compareTo(ironBlock.exact(GooTypes.METAL)) >= 0,
                     "goo:native_iron " + nativeIron + " carries less metal than iron_block " + ironBlock);
+        }
+
+        /**
+         * Astral crystal is lunar's scarce rich block: one carries at least eight times anorthosite's astral and xeno.
+         * decision astral-crystal-is-lunars-scarce-rich-block
+         */
+        @Test
+        void astralCrystalCarriesEightTimesAnorthositesAstralAndXeno() throws IOException {
+            Map<Identifier, GooValue> values = shippedBaseValues();
+            GooValue crystal = values.get(goo("astral_crystal"));
+            GooValue anorthosite = values.get(goo("anorthosite"));
+            assertNotNull(crystal, "base_values.json values no goo:astral_crystal");
+            GooValue floor = anorthosite.multiply(ASTRAL_CRYSTAL_MULTIPLE);
+            for (ResourceKey<GooTypeDefinition> type : List.of(GooTypes.ASTRAL, GooTypes.XENO)) {
+                assertTrue(crystal.exact(type).compareTo(floor.exact(type)) >= 0,
+                        "goo:astral_crystal " + crystal + " carries under eight anorthosite's " + type.identifier());
+            }
         }
 
         /** Regolith is glass dust and impact glass is the regolith melted, so both carry crystal. */
