@@ -8,6 +8,7 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
@@ -25,7 +26,9 @@ import java.util.stream.Stream;
  * under them rise together as one hunk of blocks over the rise time, the
  * reached cells emptied as it starts, dust thrown off the ground where each
  * column breaks out, and settle into their cells when the rise ends, the
- * lifted blocks standing the rise higher on the stone.
+ * lifted blocks standing the rise higher on the stone; a footprint on a
+ * wall or a ceiling pushes them out along the face's normal instead.
+ * decision build-goes-sideways
  * decision spire-grows-stone-out-of-the-top
  * decision build-reaches-down-as-far-as-it-rises-and-lifts-the-ground-on-stone
  * decision spire-entity-izes-its-blocks-and-raises-them-smoothly
@@ -103,7 +106,8 @@ public record BuildStep(int maxSpan, int maxRise) implements Step {
             return;
         }
         BlockState stone = Blocks.STONE.defaultBlockState();
-        BlockPos origin = growth.columns().getFirst().ground().above();
+        Direction face = growth.footprint().face();
+        BlockPos origin = growth.columns().getFirst().ground().relative(face);
         List<BlockHunk.HunkBlock> blocks = new ArrayList<>();
         for (BuildColumn column : growth.columns()) {
             column.stoneCells().forEach(cell -> blocks.add(new BlockHunk.HunkBlock(cell.subtract(origin), stone)));
@@ -113,10 +117,10 @@ public record BuildStep(int maxSpan, int maxRise) implements Step {
                     blocks.add(new BlockHunk.HunkBlock(column.liftedTo(cell).subtract(origin), lifted));
                 }
             }
-            throwDust(level, column.ground().above(), stone);
+            throwDust(level, column.ground().relative(face), stone);
         }
         emptyTheReach(level, growth.columns());
-        BlockHunk.raise(level, origin, blocks, growth.footprint().rise(), RISE_TICKS);
+        BlockHunk.raise(level, origin, blocks, growth.footprint().rise(), face, RISE_TICKS);
     }
 
     /**

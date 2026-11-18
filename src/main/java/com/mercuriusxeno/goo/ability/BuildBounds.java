@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 
 /**
  * How far one Build reaches: the widest its footprint runs on either side and
@@ -19,19 +20,39 @@ public record BuildBounds(int maxSpan, int maxRise) {
     public static final int MIN_RISE = 1;
 
     /**
-     * A footprint the caster asked for, cut to the bounds: the opposite corner
-     * pulled within the span of the pinned one and onto its level, the rise
-     * held between the lowest and the highest.
+     * A footprint on the ground the caster asked for, cut to the bounds.
      *
      * @param corner  the pinned ground cell
      * @param dragged the ground cell the drag reached
      * @param rise    the rise asked for
-     * @return the capped footprint
+     * @return the capped footprint, rising up
      */
     public BuildFootprint cap(BlockPos corner, BlockPos dragged, int rise) {
-        BlockPos opposite = new BlockPos(clampSpan(corner.getX(), dragged.getX()), corner.getY(),
-                clampSpan(corner.getZ(), dragged.getZ()));
-        return new BuildFootprint(corner.immutable(), opposite, capRise(rise));
+        return cap(corner, dragged, rise, Direction.UP);
+    }
+
+    /**
+     * A footprint the caster asked for, cut to the bounds: the opposite corner
+     * pulled within the span of the pinned one and into the plane of the face
+     * it was pinned on, the rise held between the lowest and the highest.
+     * decision build-goes-sideways
+     *
+     * @param corner  the pinned ground cell
+     * @param dragged the ground cell the drag reached
+     * @param rise    the rise asked for
+     * @param face    the face the corner was pinned on
+     * @return the capped footprint
+     */
+    public BuildFootprint cap(BlockPos corner, BlockPos dragged, int rise, Direction face) {
+        Direction.Axis normal = face.getAxis();
+        int[] opposite = new int[Direction.Axis.VALUES.length];
+        for (Direction.Axis axis : Direction.Axis.VALUES) {
+            int from = corner.get(axis);
+            opposite[axis.ordinal()] = axis == normal ? from : clampSpan(from, dragged.get(axis));
+        }
+        return new BuildFootprint(corner.immutable(), new BlockPos(opposite[Direction.Axis.X.ordinal()],
+                opposite[Direction.Axis.Y.ordinal()], opposite[Direction.Axis.Z.ordinal()]),
+                capRise(rise), face);
     }
 
     /**
@@ -49,15 +70,22 @@ public record BuildBounds(int maxSpan, int maxRise) {
      * server makes before it grows anything.
      *
      * @param footprint the footprint as sent
-     * @return true for a footprint on one level within the span and the rise
+     * @return true for a footprint in its face's plane within the span and the rise
      */
     public boolean admits(BuildFootprint footprint) {
-        return spansWithin(footprint.corner(), footprint.opposite()) && footprint.rise() == capRise(footprint.rise());
+        return spansWithin(footprint) && footprint.rise() == capRise(footprint.rise());
     }
 
-    private boolean spansWithin(BlockPos corner, BlockPos opposite) {
-        return corner.getY() == opposite.getY() && span(corner.getX(), opposite.getX()) <= maxSpan
-                && span(corner.getZ(), opposite.getZ()) <= maxSpan;
+    private boolean spansWithin(BuildFootprint footprint) {
+        Direction.Axis normal = footprint.face().getAxis();
+        for (Direction.Axis axis : Direction.Axis.VALUES) {
+            int from = footprint.corner().get(axis);
+            int to = footprint.opposite().get(axis);
+            if (axis == normal ? from != to : span(from, to) > maxSpan) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private int clampSpan(int from, int to) {
