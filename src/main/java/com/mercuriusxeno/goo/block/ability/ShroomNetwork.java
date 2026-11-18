@@ -1,4 +1,4 @@
-package com.mercuriusxeno.goo.ability.spore;
+package com.mercuriusxeno.goo.block.ability;
 
 import com.mercuriusxeno.goo.Goo;
 import net.minecraft.core.BlockPos;
@@ -7,6 +7,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.TagKey;
+import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -14,12 +15,13 @@ import java.util.Optional;
 import java.util.function.Predicate;
 
 /**
- * The shroom networks Spore grows: each is the blocks its family tag
+ * The shroom networks Mycosis goo spreads: each is the blocks its family tag
  * under {@code goo:shroom_network} holds, the ground block it spreads as,
  * and the ground it can take over. Crimson and warped nylium take
  * netherrack, sculk takes what vanilla sculk spreads over, and mycelium
- * takes dirt and grass. A block on no network grows none
- * (decision colonize-blob-grows-the-network).
+ * takes dirt and grass. A block on no network grows none.
+ * colonize-blob-grows-the-network
+ * colonize-is-dropped-and-its-power-moves-into-mycosis-goo
  */
 public enum ShroomNetwork {
     /** Crimson nylium, its fungi and its trees. */
@@ -48,7 +50,7 @@ public enum ShroomNetwork {
     /**
      * The network a block belongs to.
      *
-     * @param landed the block the blob landed on
+     * @param landed the block the goo lies on
      * @return the network that spreads from it, or empty for a block of none
      */
     public static Optional<ShroomNetwork> of(BlockState landed) {
@@ -61,25 +63,33 @@ public enum ShroomNetwork {
     }
 
     /**
-     * Grows this network over the ground around a center: each block it can
-     * take over within the radius, open to the air above it, becomes its
-     * ground.
+     * The next block this network takes over around a center, the nearest
+     * first: a block it can take over within the radius, open to the air
+     * above it.
      *
-     * @param level  the server level
+     * @param level  the level
      * @param center the block the spread grows from
      * @param radius the spread's reach in blocks
-     * @return the blocks taken over
+     * @return the block to take over, empty where none in reach can be
      */
-    public int spread(ServerLevel level, BlockPos center, int radius) {
+    public Optional<BlockPos> nextTaken(LevelReader level, BlockPos center, int radius) {
         Predicate<BlockPos> takes = pos -> level.getBlockState(pos).is(colonizable)
                 && !level.getBlockState(pos.above()).isSolidRender();
-        int taken = 0;
         for (BlockPos pos : BlockPos.withinManhattan(center, radius, radius, radius)) {
             if (pos.distSqr(center) <= (double) radius * radius && takes.test(pos)) {
-                level.setBlock(pos, ground.defaultBlockState(), Block.UPDATE_ALL);
-                taken++;
+                return Optional.of(pos.immutable());
             }
         }
-        return taken;
+        return Optional.empty();
+    }
+
+    /**
+     * Turns a block into this network's ground.
+     *
+     * @param level the server level
+     * @param pos   the block taken over
+     */
+    public void take(ServerLevel level, BlockPos pos) {
+        level.setBlock(pos, ground.defaultBlockState(), Block.UPDATE_ALL);
     }
 }

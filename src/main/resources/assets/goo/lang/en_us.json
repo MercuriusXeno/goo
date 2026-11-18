@@ -326,8 +326,6 @@
   "goo.ability.shroom.mycosis": "Mycosis",
   "goo.ability.shroom.mycosis.cost_mechanics": "Costs %s per block of Mycosis laid, a fifteenth of it per layer.",
   "goo.ability.shroom.mycosis.description": "Held stream sprays Mycosis, a fungal goo that poisons, slows and weakens whatever touches it; an infected mob dies into a splash of Mycosis.",
-  "goo.ability.shroom.spore": "Spore",
-  "goo.ability.shroom.spore.description": "The blob spreads the shroom network it lands on, or buds a new one, infecting nearby mobs.",
   "goo.ability.shroom.transmit": "Transmit",
   "goo.ability.shroom.transmit.description": "Near a fungus, move to the fungus block you aim at.",
   "goo.ability.shroom.sight": "Sight",

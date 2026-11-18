@@ -102,7 +102,6 @@ public final class StepTypes {
         register(GhostTrailStep.TYPE);
         register(HeartOverlayStep.TYPE);
         register(SporeHostStep.TYPE);
-        register(SporeStep.TYPE);
         register(FloorsStep.TYPE);
         register(TransmitStep.TYPE);
         register(SightStep.TYPE);

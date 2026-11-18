@@ -10,7 +10,6 @@ import com.mercuriusxeno.goo.ability.program.FloorsStep;
 import com.mercuriusxeno.goo.ability.program.MeteorStep;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.SoundCue;
-import com.mercuriusxeno.goo.ability.program.SporeStep;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.StepTypes;
 import com.mercuriusxeno.goo.ability.program.Variables;
@@ -531,8 +530,6 @@ public record AbilityDefinition(
             radiusOf(EntitiesStep.class, EntitiesStep::radius),
             radiusOf(AwaitEntityStep.class, AwaitEntityStep::radius),
             radiusOf(BloomStep.class, BloomStep::radius),
-            // colonize-blob-grows-the-network
-            radiusOf(SporeStep.class, SporeStep::radius),
             radiusOf(FloorsStep.class, FloorsStep::radius));
 
     /**
