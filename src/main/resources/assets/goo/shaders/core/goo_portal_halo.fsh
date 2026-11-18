@@ -23,8 +23,9 @@ out vec4 fragColor;
 // a block, counted at sixteen texels a block.
 const float HALO_MARGIN_TEXELS = 8.0;
 // How many texels out from the oval's edge the halo fades to nothing at its longest tongue's still
-// reach, short of the quad's border.
-const float HALO_REACH_TEXELS = 2.5;
+// reach, short of the quad's border; with the ripple's swing it sums to HALO_REACH_LIMIT, so the
+// longest tongue's ripple peaks at the limit.
+const float HALO_REACH_TEXELS = 1.6;
 // How strongly the halo glows on the texels touching the oval's edge.
 const float HALO_STRENGTH = 0.5;
 // GameTime runs from zero to one over a day of 24000 ticks; this many seconds make one day. Each
@@ -36,14 +37,15 @@ const float HALO_TURN_SECONDS = 8.0;
 // How many seconds the outer reach takes to ripple out and back once, tuned by eye.
 const float HALO_RIPPLE_SECONDS = 1.0;
 // How many texels the outer reach ripples in and out by.
-const float HALO_RIPPLE_TEXELS = 0.5;
+const float HALO_RIPPLE_TEXELS = 0.4;
 // How many tongues the halo breaks into around the oval, the coarsest of its noise's three layers.
 const float HALO_TONGUES = 5.0;
 // The share of the reach a tongue's gap still keeps, so the halo thins between tongues and never parts.
 const float HALO_GAP_REACH = 0.45;
-// The texel distance a ripple never carries the reach past: 3 texels from the rim at most
-// (decision surface-glow-reaches-three-texels).
-const float HALO_REACH_LIMIT = 3.0;
+// The texel distance a ripple never carries the reach past: 2 texels from the rim at most, the
+// distance a mouth stands inside its blocks, so the glow ends at the blocks' edge
+// (decision surface-glow-reaches-two-texels).
+const float HALO_REACH_LIMIT = 2.0;
 // How deep the turning noise breaks the glow's strength between tongues, the band by the rim among it,
 // as a share of full strength, so no texel of the glow sits still (decision
 // surface-glow-reaches-shorter-and-moves-inside). Tuned by eye.
