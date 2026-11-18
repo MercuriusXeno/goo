@@ -18,7 +18,8 @@
     "sound": { "id": "minecraft:block.honey_block.slide", "every": 10, "volume": 1.0, "pitch": 1.0, "pitch_spread": 0.1 }
   },
   "behaviors": [
-    { "type": "spores", "period": 20, "layers_per_bud": 1, "particle": "goo:spore" }
+    { "type": "spores", "period": 20, "layers_per_bud": 1, "particle": "goo:spore",
+      "burst": "goo:shroom_mycosis", "spore_radius": 3, "spore_ticks": 600, "death_reach": 3 }
   ],
   "tags": ["stream"]
 }
