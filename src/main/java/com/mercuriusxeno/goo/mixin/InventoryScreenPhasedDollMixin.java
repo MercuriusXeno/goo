@@ -23,7 +23,10 @@ public abstract class InventoryScreenPhasedDollMixin {
      * @param entity the entity the doll draws
      * @param cir    the render state vanilla extracted
      */
-    @Inject(method = "extractRenderState", at = @At("RETURN"))
+    // The screen's own extractRenderState(GuiGraphicsExtractor, int, int, float) shares the name,
+    // so the descriptor pins the doll's.
+    @Inject(method = "extractRenderState(Lnet/minecraft/world/entity/LivingEntity;)"
+            + "Lnet/minecraft/client/renderer/entity/state/EntityRenderState;", at = @At("RETURN"))
     private static void goo$markPhasedPaperDoll(LivingEntity entity, CallbackInfoReturnable<EntityRenderState> cir) {
         PhaseLook.markPaperDoll(cir.getReturnValue());
     }
