@@ -56,10 +56,10 @@ public record DamageStep(Expr amount, DamageKind source, boolean knockback,
             ResourceKey.create(Registries.DAMAGE_TYPE, Identifier.fromNamespaceAndPath(Goo.MODID, "expire"));
 
     /**
-     * Urchin's impale, goo's own copy of vanilla's stalagmite carrying its
+     * The metal spike trap's impale, goo's own copy of vanilla's stalagmite carrying its
      * death message. Vanilla's is_fall tag holds minecraft:stalagmite, so
      * every mob in the fall_damage_immune tag, a chicken, a cat, a bee, a
-     * blaze, took Urchin's stab and no damage; goo:stalagmite stands in no
+     * blaze, took the trap's stab and no damage; goo:stalagmite stands in no
      * fall tag.
      * urchin-rests-bristled-and-spears
      */

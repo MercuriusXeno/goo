@@ -46,8 +46,8 @@ public class AbilityBlockRenderState extends BlockEntityRenderState {
      */
     public java.util.List<org.joml.Vector3f> spikeAims = java.util.List.of();
 
-    /** How far out Urchin's spines stand this frame, as a share of the landing flare's, zero at rest. */
-    public float urchinBristle;
+    /** How far out the metal spike trap's spines stand this frame, as a share of the landing flare's, zero at rest. */
+    public float spikesBristle;
 
     /** The spike age at which a spike reaches full extension and lands. */
     public int spikeStrikeTick;
