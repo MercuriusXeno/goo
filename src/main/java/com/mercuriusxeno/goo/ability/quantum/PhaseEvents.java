@@ -20,7 +20,7 @@ import org.jspecify.annotations.Nullable;
  * Keeps phased entities on their own plane: a hit lands only between two
  * entities on the same side of phase, a mob never takes a target across it,
  * save an eldritch player, and a mob whose target crosses it drops that
- * target. A faded phase is ended here.
+ * target. A faded phase reads as in phase; its own thing's tick ends it.
  * phase-shares-a-plane-between-the-phased
  */
 @EventBusSubscriber(modid = Goo.MODID)
@@ -72,20 +72,16 @@ public final class PhaseEvents {
     }
 
     /**
-     * Whether an entity stands out of phase on the server; a faded phase is ended here.
+     * Whether an entity stands out of phase on the server. A faded phase reads
+     * false and stays laid, so its own thing's tick ends it and sounds the
+     * step back into phase (PhaseGooEvents).
      *
      * @param entity the entity, or null for none
      * @return true while its phase stands
      */
     public static boolean phased(@Nullable Entity entity) {
-        if (entity == null || entity.level().isClientSide() || !entity.hasData(GooAttachments.OUT_OF_PHASE)) {
-            return false;
-        }
-        if (entity.getData(GooAttachments.OUT_OF_PHASE).standsAt(entity.level().getGameTime())) {
-            return true;
-        }
-        entity.removeData(GooAttachments.OUT_OF_PHASE);
-        return false;
+        return entity != null && !entity.level().isClientSide() && entity.hasData(GooAttachments.OUT_OF_PHASE)
+                && entity.getData(GooAttachments.OUT_OF_PHASE).standsAt(entity.level().getGameTime());
     }
 
     /**
