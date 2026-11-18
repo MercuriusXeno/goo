@@ -34,7 +34,7 @@ public final class ClientConjuredDoors {
     /** Client ticks a door outlasts its last update before it starts to collapse. */
     static final int OUTLASTS = 2;
     /** Client ticks a collapsing door takes to shrink to nothing. */
-    static final int COLLAPSE_TICKS = 5;
+    static final int COLLAPSE_TICKS = 10;
 
     private static final Map<Integer, Seen> DOORS = new HashMap<>();
     /** The local player's release into their room while one waits or plays. */
