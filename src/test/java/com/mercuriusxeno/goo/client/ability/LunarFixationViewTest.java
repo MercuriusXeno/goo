@@ -186,46 +186,66 @@ class LunarFixationViewTest {
         private static final float HELD_PITCH = -60F;
         private static final float HELD_YAW = 120F;
         private static final double MOUSE_PUSH = 40.0;
+        /** The degrees Entity.turn turns a mouse push into: 0.15 a unit. */
+        private static final float MOUSE_TURN = (float) MOUSE_PUSH * 0.15F;
         private static final int TICKS = 4;
+        /** The frames a tick draws between it and the next, each turned by the mouse. */
+        private static final int FRAMES_A_TICK = 3;
 
         /**
-         * Runs a client tick as the caster's client does: the last tick's look kept, the mouse turning the caster
-         * between ticks, and the view's hold at the tick's end.
+         * Runs a client tick as the caster's client does: the last tick's look kept, then the view's hold at the
+         * tick's end.
          *
-         * @param caster     the held caster
-         * @param kept       the look kept from the tick before
-         * @param fixation   the fixation holding them
-         * @param mouseTurns whether the mouse turns them this tick
+         * @param caster   the held caster
+         * @param kept     the look kept from the tick before
+         * @param fixation the fixation holding them
          * @return the look kept
          */
         private static LunarFixationView.HeldLook tick(Player caster, LunarFixationView.HeldLook kept,
-                LunarFixation fixation, boolean mouseTurns) {
+                LunarFixation fixation) {
             caster.xRotO = caster.getXRot();
             caster.yRotO = caster.getYRot();
-            if (mouseTurns) {
-                caster.turn(MOUSE_PUSH, MOUSE_PUSH);
-            }
             LunarFixationView.HeldLook look = LunarFixationView.lookOnTick(kept, fixation, caster.getXRot(),
                     caster.getYRot());
             LunarFixationView.holdView(caster, look);
             return look;
         }
 
+        private static void assertHeld(Player caster, String at) {
+            assertAll(at,
+                    () -> assertEquals(HELD_PITCH, caster.getXRot(), EXACT, "this tick's pitch"),
+                    () -> assertEquals(HELD_YAW, caster.getYRot(), EXACT, "this tick's yaw"),
+                    () -> assertEquals(HELD_PITCH, caster.xRotO, EXACT, "the last tick's pitch"),
+                    () -> assertEquals(HELD_YAW, caster.yRotO, EXACT, "the last tick's yaw"));
+        }
+
         @Test
-        void thisTicksAndTheLastTicksLookStayOnTheLookHeldBeforeTheFixationArrived() {
+        void everyFrameDrawsTheLookHeldBeforeTheFixationArrivedThoughTheMouseTurns() {
             Player caster = mock(Player.class, Answers.CALLS_REAL_METHODS);
             caster.setXRot(HELD_PITCH);
             caster.setYRot(HELD_YAW);
             LunarFixation fixation = fixationOn(LunarSight.Sky.MOON, LunarSight.moonDirection(0F));
             LunarFixationView.HeldLook look = LunarFixationView.HeldLook.NONE;
             for (int tick = 0; tick <= TICKS; tick++) {
-                look = tick(caster, look, fixation, tick > 0);
-                assertAll("tick " + tick + " after the fixation arrived",
-                        () -> assertEquals(HELD_PITCH, caster.getXRot(), EXACT, "this tick's pitch"),
-                        () -> assertEquals(HELD_YAW, caster.getYRot(), EXACT, "this tick's yaw"),
-                        () -> assertEquals(HELD_PITCH, caster.xRotO, EXACT, "the last tick's pitch"),
-                        () -> assertEquals(HELD_YAW, caster.yRotO, EXACT, "the last tick's yaw"));
+                look = tick(caster, look, fixation);
+                assertHeld(caster, "tick " + tick + " after the fixation arrived");
+                // Minecraft.runTick turns the caster by the mouse on every frame after the tick, as
+                // MouseHandler.turnPlayer hands it on.
+                for (int frame = 1; frame <= FRAMES_A_TICK; frame++) {
+                    LunarFixationView.turnUnlessHeld(caster, fixation, MOUSE_PUSH, MOUSE_PUSH);
+                    assertHeld(caster, "frame " + frame + " after tick " + tick + ", the mouse turned");
+                }
             }
+        }
+
+        @Test
+        void theMouseTurnsACasterNoFixationHolds() {
+            Player caster = mock(Player.class, Answers.CALLS_REAL_METHODS);
+            caster.setXRot(HELD_PITCH);
+            caster.setYRot(HELD_YAW);
+            LunarFixationView.turnUnlessHeld(caster, LunarFixation.NONE, MOUSE_PUSH, MOUSE_PUSH);
+            assertAll(() -> assertEquals(HELD_PITCH + MOUSE_TURN, caster.getXRot(), EXACT, "pitch"),
+                    () -> assertEquals(HELD_YAW + MOUSE_TURN, caster.getYRot(), EXACT, "yaw"));
         }
     }
 
