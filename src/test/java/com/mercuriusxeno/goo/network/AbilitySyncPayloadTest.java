@@ -108,10 +108,10 @@ class AbilitySyncPayloadTest {
         assertEquals("goo.ability.rock.build.lifted", client.description());
     }
 
-    /** Knives' shoulder cast reaches the client from its shipped JSON. */
+    /** Knives' resting pose reaches the client from its shipped JSON. */
     @Test
     void knivesPoseRoundTripsFromItsJson() {
-        assertEquals(ArmPose.SHOULDER_CAST, roundTrip(AbilityJson.decode("crystal_knives")).pose());
+        assertEquals(ArmPose.RESTING, roundTrip(AbilityJson.decode("crystal_knives")).pose());
     }
 
     /**

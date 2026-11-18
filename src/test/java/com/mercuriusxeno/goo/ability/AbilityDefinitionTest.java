@@ -270,18 +270,9 @@ class AbilityDefinitionTest {
             assertTrue(ArmPose.SWUNG.swingsOnRelease());
             assertFalse(ArmPose.HELD_OUT.swingsOnRelease());
             assertFalse(ArmPose.HELD_UP.swingsOnRelease());
-            assertFalse(ArmPose.SHOULDER_CAST.swingsOnRelease());
             assertFalse(ArmPose.RESTING.swingsOnRelease());
             assertEquals(ArmPoseKind.NONE, ArmPose.HELD_OUT.releaseFrame());
             assertEquals(ArmPoseKind.HOLD_UP, ArmPose.HELD_UP.holdFrame());
-        }
-
-        @Test
-        void knivesCastsFromTheShoulder() {
-            AbilityDefinition knives = AbilityJson.decode("crystal_knives");
-            assertEquals(ArmPose.SHOULDER_CAST, knives.pose());
-            assertEquals(ArmPoseKind.WIND_UP, knives.pose().holdFrame());
-            assertEquals(ArmPoseKind.FLING, knives.pose().releaseFrame());
         }
 
         // crystal-shards-becomes-crystal-knives-everywhere

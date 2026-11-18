@@ -44,7 +44,6 @@ class DeliveryTest {
     private static final int BASE_FLIGHT_TIME = 3;
     private static final double SIXTEEN_BLOCKS = 16;
     private static final Vec3 SIXTEEN_AWAY = START.add(0, 0, SIXTEEN_BLOCKS);
-    private static final String PEAK_SHARE = "peak_share";
 
     private static DataResult<AbilityDefinition> decode(String deliveryField) {
         return AbilityDefinition.codecFor(ID)
@@ -124,11 +123,11 @@ class DeliveryTest {
             assertEquals(60, delivery.chargeTicks());
         }
 
-        // knives-form-in-fibonacci-stages-to-twelve
+        // knives-charge-one-per-three-ticks-up-to-ten
         @Test
-        void crystalKnivesFormsItsKnivesInStages() {
+        void crystalKnivesFormsKnives() {
             Delivery knives = AbilityJson.decode("crystal_knives").delivery();
-            assertTrue(knives.charge().formsInStages());
+            assertTrue(knives.formsKnives());
         }
 
         // knives-aims-a-spread-fan-not-a-blob-line
@@ -313,35 +312,20 @@ class DeliveryTest {
         }
 
         /**
-         * The shipped dart flies 2.5 blocks a tick at every distance, Metal's
-         * levity and base flight time passed in
-         * (decision dart-flies-low-and-straight-at-double-speed).
+         * The shipped Dart and Knives leave as projectiles at their own speeds,
+         * a javelin 2.5 blocks a tick and a knife 1.5, throwing no drips, and a
+         * bare arc keeps the base peak and its type's flight time (decisions
+         * knives-and-javelins-drop-like-an-arrow, knives-and-dart-function-as-projectiles).
          */
         @Test
-        void dartFliesTwoAndAHalfBlocksATickAtEveryDistance() {
+        void dartAndKnivesLeaveAtTheirThrowSpeedsAndABareArcKeepsTheBasePeak() {
             Delivery dart = AbilityJson.decode("metal_dart").delivery();
-            assertEquals(2, dart.travelTicks(4, LEVITY, BASE_FLIGHT_TIME));
-            assertEquals(7, dart.travelTicks(SIXTEEN_BLOCKS, LEVITY, BASE_FLIGHT_TIME));
-            assertEquals(13, dart.travelTicks(32, LEVITY, BASE_FLIGHT_TIME));
-        }
+            Delivery knives = AbilityJson.decode("crystal_knives").delivery();
+            assertEquals(2.5, dart.throwSpeed(), TOLERANCE);
+            assertEquals(1.5, knives.throwSpeed(), TOLERANCE);
+            assertFalse(dart.throwsDrips() || knives.throwsDrips(), "a projectile throws no drips");
 
-        /**
-         * The shipped dart flies a peak above zero and no higher than a
-         * quarter of the base peak, the share metal_dart.json names, while a
-         * bare arc keeps the base peak and its type's flight time
-         * (decision dart-flies-low-and-straight-at-double-speed).
-         */
-        @Test
-        void dartFliesALowPeakTheShareItsJsonNamesAndABareArcKeepsTheBasePeak() {
-            JsonObject json = JsonParser.parseString(AbilityJson.read("metal_dart")).getAsJsonObject()
-                    .getAsJsonObject("delivery");
-            assertTrue(json.has(PEAK_SHARE), "metal_dart.json names no " + PEAK_SHARE);
             double basePeak = ThrowArc.basePeak(SIXTEEN_BLOCKS);
-            double dartPeak = AbilityJson.decode("metal_dart").delivery().peak(START, SIXTEEN_AWAY, false);
-            assertEquals(basePeak * json.get(PEAK_SHARE).getAsDouble(), dartPeak, TOLERANCE);
-            assertTrue(dartPeak > 0, "the dart flies no peak");
-            assertTrue(dartPeak <= basePeak / 4, "the dart's peak " + dartPeak + " tops a quarter of " + basePeak);
-
             Delivery bare = deliveryOf("\"delivery\": { \"kind\": \"arc\" },");
             assertEquals(basePeak, bare.peak(START, SIXTEEN_AWAY, false), TOLERANCE);
             assertEquals((int) ThrowArc.travelTicks(SIXTEEN_BLOCKS, LEVITY, BASE_FLIGHT_TIME),

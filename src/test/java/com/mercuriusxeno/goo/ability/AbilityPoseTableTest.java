@@ -29,7 +29,7 @@ class AbilityPoseTableTest {
             Map.entry("crystal_glimmer", ArmPose.HELD_UP),
             Map.entry("crystal_prism", ArmPose.RESTING),
             Map.entry("crystal_scales", ArmPose.HELD_UP),
-            Map.entry("crystal_knives", ArmPose.SHOULDER_CAST),
+            Map.entry("crystal_knives", ArmPose.RESTING),
             Map.entry("deep_click", ArmPose.RESTING),
             Map.entry("deep_host", ArmPose.HELD_OUT),
             Map.entry("frost_rime", ArmPose.HELD_OUT),
@@ -121,6 +121,19 @@ class AbilityPoseTableTest {
     void eachShippedAbilityResolvesItsRuledPose(Path file) {
         AbilityDefinition ability = AbilityJson.decode(file);
         assertEquals(RULED.get(ability.id().getPath()), ability.pose(), ability.id().toString());
+    }
+
+    /**
+     * Knives holds and throws with the hand where vanilla draws it, at the
+     * glove's side: its hold and release frames are both the frame that moves
+     * the hand nowhere, so its across-the-chest share stands at zero through
+     * the hold and every throw (decision knives-hand-stays-at-its-side-off-the-screen-center).
+     */
+    @Test
+    void knivesHoldsAndThrowsWithTheHandAtItsSide() {
+        ArmPose knives = AbilityJson.decode("crystal_knives").pose();
+        assertEquals(ArmPoseKind.NONE, knives.holdFrame());
+        assertEquals(ArmPoseKind.NONE, knives.releaseFrame());
     }
 
     @Test

@@ -36,8 +36,12 @@ public final class OwnMinionTests {
     private static final BlockPos MOB_POS = new BlockPos(3, 1, 3);
     /** Two blocks west of the mob, inside a player's reach of three. */
     private static final BlockPos PLAYER_POS = MOB_POS.west(2);
-    private static final int SETTLE_TICKS = 1;
-    private static final int NO_ENTITY = -1;
+    /** The ticks Dart's hold takes to form its first javelin, which a throw takes. */
+    private static final int ONE_JAVELIN_TICKS = 10;
+    /** Ticks past a throw by which the javelin has struck or passed its mob. */
+    private static final int FLIGHT_TICKS = 10;
+    /** A javelin's speed as it leaves, in blocks a tick (metal_dart.json). */
+    private static final double JAVELIN_SPEED = 2.5;
     private static final int HELD_GOO = 4;
     private static final float RALLY_DAMAGE = 6f;
     private static final String METAL_DART = "goo:metal_dart";
@@ -89,12 +93,15 @@ public final class OwnMinionTests {
     public static void dartStrikesUnownedMob(GameTestHelper helper) {
         Mob cow = helper.spawnWithNoFreeWill(EntityType.COW, MOB_POS);
         ServerPlayer player = thrower(helper, GooTypes.METAL);
-        helper.runAfterDelay(SETTLE_TICKS, () -> {
+        formAJavelin(player);
+        helper.runAfterDelay(ONE_JAVELIN_TICKS, () -> {
             float before = cow.getHealth();
-            GooThrowHandler.execute(player, payload(GooTypes.METAL, METAL_DART, player, cow));
-            helper.getLevel().getServer().getPlayerList().remove(player);
-            helper.assertTrue(cow.getHealth() < before, String.format(SHOULD_STRIKE, before, cow.getHealth()));
-            helper.succeed();
+            throwAJavelinAt(player, cow);
+            helper.runAfterDelay(FLIGHT_TICKS, () -> {
+                helper.getLevel().getServer().getPlayerList().remove(player);
+                helper.assertTrue(cow.getHealth() < before, String.format(SHOULD_STRIKE, before, cow.getHealth()));
+                helper.succeed();
+            });
         });
     }
 
@@ -105,24 +112,34 @@ public final class OwnMinionTests {
      */
     private static void assertSpared(GameTestHelper helper, ServerPlayer player, Mob mob, String kind,
             Runnable makeOwn) {
-        helper.runAfterDelay(SETTLE_TICKS, () -> {
+        formAJavelin(player);
+        helper.runAfterDelay(ONE_JAVELIN_TICKS, () -> {
             makeOwn.run();
             float before = mob.getHealth();
-            GooThrowHandler.execute(player, payload(GooTypes.METAL, METAL_DART, player, mob));
-            helper.getLevel().getServer().getPlayerList().remove(player);
-            helper.assertTrue(mob.getHealth() == before, String.format(SHOULD_SPARE, kind, before, mob.getHealth()));
-            helper.succeed();
+            throwAJavelinAt(player, mob);
+            helper.runAfterDelay(FLIGHT_TICKS, () -> {
+                helper.getLevel().getServer().getPlayerList().remove(player);
+                helper.assertTrue(mob.getHealth() == before,
+                        String.format(SHOULD_SPARE, kind, before, mob.getHealth()));
+                helper.succeed();
+            });
         });
+    }
+
+    // Begins a Dart hold, which forms the javelin a throw takes (dart-stacks-three-javelins-one-per-ten-ticks).
+    private static void formAJavelin(ServerPlayer player) {
+        KnivesHoldHandler.hold(player, new KnivesHoldPayload(true, GooTypes.id(GooTypes.METAL), METAL_DART));
     }
 
     private static void rally(GameTestHelper helper, Mob mob, ServerPlayer caster) {
         mob.setData(GooAttachments.RALLIED, new Rallied(caster.getUUID(), RALLY_DAMAGE));
     }
 
-    private static GooThrowPayload payload(ResourceKey<GooTypeDefinition> gooType, String ability,
-            ServerPlayer player, Mob target) {
-        return new GooThrowPayload(GooTypes.id(gooType), target.getId(), BlockPos.ZERO, NO_ENTITY, false,
-                ability, player.getEyePosition());
+    // Throws the javelin the hold formed at a mob in its path, as left click does.
+    private static void throwAJavelinAt(ServerPlayer player, Mob mob) {
+        ThrowAim.aimAt(player, mob.getBoundingBox().getCenter(), 1, JAVELIN_SPEED);
+        KnivesThrowHandler.leftClick(player, true);
+        KnivesThrowHandler.leftClick(player, false);
     }
 
     @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement

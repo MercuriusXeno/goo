@@ -9,11 +9,11 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * How far the lifted palm blob has become its ability's travel form in the
- * hand: Dart's blob turns into the javelin as the press lifts it off the
- * palm, so the thrown goo entity leaves the hand already a dart. Only a
- * delivery whose form morphs in the hand does this; every other ability's
- * blob stays a cuboid.
+ * hand, as the press lifts it off the palm, for a delivery whose form morphs
+ * in the hand and stacks nothing; Dart's blob stays the cube its stacked
+ * javelins hover over, and every other ability's blob stays a cuboid.
  * shriek-bloom-portal-mitosis-and-dart-still-throw-a-blob
+ * decision dart-javelins-hover-over-the-shrinking-blob-cube
  */
 public final class PalmJavelin {
 
@@ -30,7 +30,8 @@ public final class PalmJavelin {
      * @return the share of the form, 0 the cuboid to 1 the form whole
      */
     public static float morphAt(@Nullable Delivery delivery, float liftShare) {
-        if (delivery == null || !delivery.morphsInHand()) {
+        // dart-javelins-hover-over-the-shrinking-blob-cube: a stacking delivery's javelins hover over the cube instead
+        if (delivery == null || !delivery.morphsInHand() || delivery.charge().stacks()) {
             return 0f;
         }
         return Math.clamp(liftShare, 0f, 1f);

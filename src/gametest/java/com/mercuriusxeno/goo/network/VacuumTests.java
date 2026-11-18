@@ -330,10 +330,11 @@ public final class VacuumTests {
         layTheFloor(helper);
         helper.setBlock(laneCell(DECAYED - 1).below(), Blocks.STONE_SLAB);
         helper.setBlock(laneCell(DECAYED + 1).below(), Blocks.STONE_SLAB);
-        // Molten clings to the cell's walls and cooks stone, so smooth stone, which neither melts nor cooks, walls
-        // it and every layer stands for Vacuum (molten-heats-every-block-its-cell-touches)
-        helper.setBlock(laneCell(DECAYED).north(), Blocks.SMOOTH_STONE);
-        helper.setBlock(laneCell(DECAYED).south(), Blocks.SMOOTH_STONE);
+        // Molten clings to the cell's walls and cooks stone (molten-heats-every-block-its-cell-touches), and Vines
+        // spends a layer on each wall a vine can hang on (vines-goo-on-walls-places-goologged-vines-and-depletes), so
+        // iron bars, which neither melt nor cook and whose sides hold no vine, wall it and every layer stands for Vacuum
+        helper.setBlock(laneCell(DECAYED).north(), Blocks.IRON_BARS);
+        helper.setBlock(laneCell(DECAYED).south(), Blocks.IRON_BARS);
         ServerPlayer vacuumer = vacuumer(helper);
         List<String> left = new ArrayList<>();
         int turn = drainHold(helper, DECAYED, VACUUMED_LAYERS) + 1 + BETWEEN_HOLDS;

@@ -5,7 +5,6 @@ import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooItems;
-import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -26,12 +25,12 @@ import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
- * Gametests for the touch: a glove use with metal Dart, a mob ability,
- * lands at once on a mob within the player's entity interaction range and
- * throws a flight at one beyond it, through the real throw path
- * (decision mob-ability-touches-at-reach). They sit in the scheduler's
- * package to read its pending effects. The mob is a husk, which takes no
- * daylight burn that would move its health between throw and arrival.
+ * Gametests for metal Dart's javelin, a mob ability thrown as a projectile:
+ * it strikes a husk in its path at any distance, inside the old touch reach
+ * or beyond it, through the real throw path (decisions
+ * knives-and-dart-function-as-projectiles, dart-does-not-seek-or-highlight).
+ * The mob is a husk, which takes no daylight burn that would move its health
+ * between throw and arrival.
  */
 @RegistersGameTests
 public final class TouchDeliveryTests {
@@ -55,8 +54,10 @@ public final class TouchDeliveryTests {
     private static final BlockPos FAR_MOB_POS = new BlockPos(11, 1, 8);
     /** Eight blocks west of the far mob, beyond a player's reach of three. */
     private static final BlockPos FAR_PLAYER_POS = FAR_MOB_POS.west(8);
-    private static final int SETTLE_TICKS = 1;
-    private static final int NO_ENTITY = -1;
+    /** The ticks Dart's hold takes to form its first javelin, which a throw takes. */
+    private static final int ONE_JAVELIN_TICKS = 10;
+    /** A javelin's speed as it leaves, in blocks a tick (metal_dart.json). */
+    private static final double JAVELIN_SPEED = 2.5;
     private static final int HELD_GOO = 4;
     private static final Identifier METAL_DART = Identifier.parse("goo:metal_dart");
     private static final String ABILITY_REQUIRED = "Ability registry must hold metal_dart";
@@ -68,78 +69,69 @@ public final class TouchDeliveryTests {
     private static final int DART_COST = 1000;
     private static final String SHOULD_TAKE_DAMAGE = "Husk should lose 8 health past its armor the tick it is touched, lost %.3f";
     private static final String SHOULD_BE_THE_THROWERS_ATTACK = "Dart's hit should be the thrower's attack";
-    private static final String SHOULD_DRAIN_COST = "A touch should drain 1000 mB of metal goo, drained %d mB";
     private static final String SHOULD_DRAIN_COST_ONCE = "A throw should drain 1000 mB of metal goo once, drained %d mB";
-    private static final String SHOULD_SCHEDULE_FLIGHT = "A throw beyond reach should schedule one flight, scheduled %d";
-    private static final String SHOULD_TAKE_DAMAGE_ON_ARRIVAL = "Husk beyond reach should lose 8 health past its armor on arrival";
 
     private TouchDeliveryTests() {
     }
 
     /**
-     * A mock player uses metal Dart on a husk two blocks ahead: the husk
-     * loses health and the player metal goo in that tick.
+     * A mock player throws metal Dart's javelin at a husk two blocks ahead,
+     * inside the old touch reach: the javelin flies to it, and the husk loses
+     * Dart's damage past its armor to the thrower's attack, the throw draining
+     * Dart's cost once.
+     * decision knives-and-dart-function-as-projectiles
      *
      * @param helper the gametest helper
      */
     public static void dartTouchesWithinReach(GameTestHelper helper) {
-        dart(helper);
-        Mob husk = helper.spawnWithNoFreeWill(EntityType.HUSK, NEAR_MOB_POS);
-        ServerPlayer player = thrower(helper, NEAR_PLAYER_POS);
-        helper.runAfterDelay(SETTLE_TICKS, () -> {
-            float healthBefore = husk.getHealth();
-            int heldBefore = metalHeld(player);
-            GooThrowHandler.execute(player, dartPayload(player, husk));
-            float lost = healthBefore - husk.getHealth();
-            int drained = heldBefore - metalHeld(player);
-            helper.getLevel().getServer().getPlayerList().remove(player);
-            helper.assertTrue(struckByTheThrower(husk, player), SHOULD_BE_THE_THROWERS_ATTACK);
-            helper.assertTrue(Math.abs(lost - dartDamagePastArmor(husk)) < HEALTH_TOLERANCE,
-                    String.format(SHOULD_TAKE_DAMAGE, lost));
-            helper.assertTrue(drained == DART_COST, String.format(SHOULD_DRAIN_COST, drained));
-            helper.succeed();
-        });
+        dartStrikesAlongItsFlight(helper, NEAR_MOB_POS, NEAR_PLAYER_POS);
     }
 
     /**
-     * A mock player uses metal Dart on a husk eight blocks ahead: one
-     * flight is scheduled, and the husk loses health once the flight arrives.
+     * A mock player throws metal Dart's javelin at a husk eight blocks ahead,
+     * beyond the old touch reach: the javelin flies to it, and the husk loses
+     * Dart's damage past its armor to the thrower's attack, the throw draining
+     * Dart's cost once.
+     * decision knives-and-dart-function-as-projectiles
      *
      * @param helper the gametest helper
      */
     public static void dartThrowsBeyondReach(GameTestHelper helper) {
+        dartStrikesAlongItsFlight(helper, FAR_MOB_POS, FAR_PLAYER_POS);
+    }
+
+    // A javelin thrown at a husk in its path strikes it with Dart's damage, at whatever distance.
+    private static void dartStrikesAlongItsFlight(GameTestHelper helper, BlockPos mobPos, BlockPos playerPos) {
         dart(helper);
-        Mob husk = helper.spawnWithNoFreeWill(EntityType.HUSK, FAR_MOB_POS);
-        ServerPlayer player = thrower(helper, FAR_PLAYER_POS);
-        helper.runAfterDelay(SETTLE_TICKS, () -> {
+        Mob husk = helper.spawnWithNoFreeWill(EntityType.HUSK, mobPos);
+        ServerPlayer player = thrower(helper, playerPos);
+        formAJavelin(player);
+        helper.runAfterDelay(ONE_JAVELIN_TICKS, () -> {
             float healthBefore = husk.getHealth();
             int heldBefore = metalHeld(player);
-            GooEffectScheduler effects = GooServerState.of(helper.getLevel().getServer()).gooEffects();
-            int pendingBefore = effects.pendingCount();
-            GooThrowHandler.execute(player, dartPayload(player, husk));
-            int scheduled = effects.pendingCount() - pendingBefore;
+            ThrowAim.aimAt(player, husk.getBoundingBox().getCenter(), 1, JAVELIN_SPEED);
+            KnivesThrowHandler.leftClick(player, true);
+            KnivesThrowHandler.leftClick(player, false);
             int drained = heldBefore - metalHeld(player);
-            helper.assertTrue(scheduled == 1, String.format(SHOULD_SCHEDULE_FLIGHT, scheduled));
             helper.assertTrue(drained == DART_COST, String.format(SHOULD_DRAIN_COST_ONCE, drained));
             helper.succeedWhen(() -> {
                 helper.assertTrue(struckByTheThrower(husk, player), SHOULD_BE_THE_THROWERS_ATTACK);
-                helper.assertTrue(Math.abs(healthBefore - husk.getHealth() - dartDamagePastArmor(husk))
-                        < HEALTH_TOLERANCE, SHOULD_TAKE_DAMAGE_ON_ARRIVAL);
-                // The thrower stays listed until arrival, since the arriving effect names it.
+                float lost = healthBefore - husk.getHealth();
+                helper.assertTrue(Math.abs(lost - dartDamagePastArmor(husk)) < HEALTH_TOLERANCE,
+                        String.format(SHOULD_TAKE_DAMAGE, lost));
                 helper.getLevel().getServer().getPlayerList().remove(player);
             });
         });
     }
-
     private static AbilityDefinition dart(GameTestHelper helper) {
         AbilityDefinition dart = AbilityRegistry.of(helper.getLevel()).getAbility(METAL_DART);
         helper.assertTrue(dart != null, ABILITY_REQUIRED);
         return dart;
     }
 
-    private static GooThrowPayload dartPayload(ServerPlayer player, Mob target) {
-        return new GooThrowPayload(GooTypes.id(GooTypes.METAL), target.getId(), BlockPos.ZERO, NO_ENTITY, false,
-                METAL_DART.toString(), player.getEyePosition());
+    // Begins a Dart hold, which forms the javelin a throw takes (dart-stacks-three-javelins-one-per-ten-ticks).
+    private static void formAJavelin(ServerPlayer player) {
+        KnivesHoldHandler.hold(player, new KnivesHoldPayload(true, GooTypes.id(GooTypes.METAL), METAL_DART.toString()));
     }
 
     /**
