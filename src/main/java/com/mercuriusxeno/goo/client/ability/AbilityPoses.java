@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.ArmPoseKind;
-import com.mercuriusxeno.goo.ability.crystal.KnifeRain;
 import com.mercuriusxeno.goo.network.ArmPosePayload;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
@@ -25,34 +24,19 @@ import java.util.Map;
  * The poses abilities hold the glove arm in on this client, in place of the
  * swing: each player's pose with the game time it began, laid over the
  * arm vanilla posed on the player's model, and over the glove hand in
- * first person. A slinging charge eases the glove hand left across the
- * chest while it is held, subtly and never up to the shoulder, reaching its
- * furthest at full charge, then backhands the arm out to the glove side
- * from wherever it got to on release and lets it fall back. A held-out arm
- * points along the player's aim, and a raised one holds the hand up at face
- * height; a held pose let go eases back down. A blob thrown takes vanilla's
- * swing, which is no pose of this class. Every pose moves the first-person
- * hand too: the wind-up across the chest, the fling out to the glove side,
- * held out forward toward the crosshair, and held up lifted a little.
- * decision knives-sling-then-morph-to-flechettes
+ * first person. A held-out arm points along the player's aim, and a raised
+ * one holds the hand up at face height; a held pose let go eases back down.
+ * A blob thrown takes vanilla's swing, which is no pose of this class. Every
+ * pose moves the first-person hand too: held out forward toward the
+ * crosshair, and held up lifted a little.
  * decision ability-json-names-its-arm-pose
  * decision use-key-throw-swings-no-more
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class AbilityPoses {
 
-    /** Ticks the wind-up takes to ease the hand across the chest: Knives' full charge. */
-    static final float WIND_UP_TICKS = KnifeRain.WIND_UP_TICKS;
-    /** Ticks the fling takes to sweep the arm out. */
-    static final float FLING_OUT_TICKS = KnifeRain.BACKHAND_OUT_TICKS;
-    /** Ticks the arm holds flung out. */
-    static final float FLING_HOLD_TICKS = KnifeRain.BACKHAND_HOLD_TICKS;
-    /** Ticks the arm takes to fall back to vanilla's pose after the fling. */
-    static final float FLING_RETURN_TICKS = KnifeRain.BACKHAND_RETURN_TICKS;
-    /** The arm eased across the chest, the hand at chest height before the body: raised a little and turned in. */
-    static final Angles WOUND = new Angles(-1.05f, -0.55f);
-    /** The arm flung out to the glove side, a little above level. */
-    static final Angles FLUNG = new Angles(-1.65f, 0.95f);
+    /** The angles a frame holding no pose lays over the arm, at no weight. */
+    static final Angles UNPOSED = new Angles(0f, 0f);
     /** Ticks a held-out or raised arm takes to ease into its hold. */
     static final float HOLD_EASE_TICKS = 4f;
     /** Ticks a held pose let go takes to ease back to vanilla's. */
@@ -63,10 +47,6 @@ public final class AbilityPoses {
     static final Angles RAISED = new Angles(-2.1f, -0.15f);
     /** How far into a pose its steady hold is read, past any ease. */
     private static final double STEADY_AGE = 1000;
-    /** The first-person hand left across the chest while wound up, turned in and tilted, and no higher. */
-    static final HandOffset WOUND_HAND = new HandOffset(-0.26f, 0f, 0f, 20f, 6f);
-    /** The first-person hand out to the glove side while flung. */
-    static final HandOffset FLUNG_HAND = new HandOffset(0.18f, 0f, 0f, -30f, 0f);
     /** The first-person hand pushed forward and in toward the crosshair while held out. */
     static final HandOffset HELD_OUT_HAND = new HandOffset(-0.1f, 0.04f, 0.22f, 0f, 0f);
     /** The first-person hand lifted a little and forward while raised, its wrist kept inside the screen. */
@@ -93,10 +73,6 @@ public final class AbilityPoses {
      * @param yRot the turn, negative across the chest
      */
     record Angles(float xRot, float yRot) {
-
-        Angles lerp(float share, Angles to) {
-            return new Angles(Mth.lerp(share, xRot, to.xRot), Mth.lerp(share, yRot, to.yRot));
-        }
     }
 
     /**
@@ -165,33 +141,19 @@ public final class AbilityPoses {
     }
 
     /**
-     * Where a pose holds the arm an age into it: the wind-up eases the hand
-     * across the chest over the charge and holds it there; the fling
-     * backhands from where the wind-up got to out, holds, and falls back,
-     * after which it is over. A held-out arm eases level along the aim and a
-     * raised one to face height, each holding there.
+     * Where a pose holds the arm an age into it: a held-out arm eases level
+     * along the aim and a raised one to face height, each holding there.
      *
      * @param kind the pose
      * @param age  ticks since it began
      * @param from how far the pose before it had eased, 0 to 1
-     * @return the arm's hold, at weight 0 once the pose is over
+     * @return the arm's hold, at weight 0 for no pose
      */
     static Held heldAt(ArmPoseKind kind, double age, float from) {
-        return kind.holds() ? holdAt(kind, (float) age, from) : playedAt(kind, (float) age, from);
-    }
-
-    private static Held holdAt(ArmPoseKind kind, float age, float from) {
         return switch (kind) {
-            case HOLD_OUT -> new Held(AIMED, easedIn(age / HOLD_EASE_TICKS, from), 1f);
-            case HOLD_UP -> new Held(RAISED, easedIn(age / HOLD_EASE_TICKS, from));
-            default -> new Held(WOUND, easedIn(age / WIND_UP_TICKS, from));
-        };
-    }
-
-    private static Held playedAt(ArmPoseKind kind, float age, float from) {
-        return switch (kind) {
-            case FLING -> flingAt(age, from);
-            default -> new Held(WOUND, 0f);
+            case HOLD_OUT -> new Held(AIMED, easedIn((float) age / HOLD_EASE_TICKS, from), 1f);
+            case HOLD_UP -> new Held(RAISED, easedIn((float) age / HOLD_EASE_TICKS, from));
+            case NONE -> new Held(UNPOSED, 0f);
         };
     }
 
@@ -216,22 +178,12 @@ public final class AbilityPoses {
         return Mth.lerp(smooth(share), from, 1f);
     }
 
-    private static Held flingAt(float age, float from) {
-        if (age < FLING_OUT_TICKS) {
-            float out = smooth(age / FLING_OUT_TICKS);
-            return new Held(WOUND.lerp(out, FLUNG), Mth.lerp(out, from, 1f));
-        }
-        float holding = age - FLING_OUT_TICKS - FLING_HOLD_TICKS;
-        return new Held(FLUNG, 1f - smooth(holding / FLING_RETURN_TICKS));
-    }
-
     /**
      * Whether a pose is over an age into it, so the store drops it.
      *
      * @param posed the pose
      * @param age   ticks since it began
-     * @return true for a fling that has fallen back, a held pose
-     *         eased down, or no pose
+     * @return true for a held pose eased down, or no pose
      */
     static boolean overAt(Posed posed, double age) {
         if (posed.lowering()) {
@@ -239,8 +191,7 @@ public final class AbilityPoses {
         }
         return switch (posed.kind()) {
             case NONE -> true;
-            case FLING -> age >= FLING_OUT_TICKS + FLING_HOLD_TICKS + FLING_RETURN_TICKS;
-            case WIND_UP, HOLD_OUT, HOLD_UP -> false;
+            case HOLD_OUT, HOLD_UP -> false;
         };
     }
 
@@ -251,7 +202,7 @@ public final class AbilityPoses {
 
     /**
      * Sets a player's pose from now. No pose lets a held pose ease back
-     * down and leaves a fling to finish.
+     * down.
      *
      * @param entityId   the player's entity id
      * @param kind       the pose
@@ -274,8 +225,8 @@ public final class AbilityPoses {
 
     /**
      * The pose a player takes when told a frame: a held pose let go eases
-     * down from where it got to, a fling told nothing plays on,
-     * the same frame still held carries on, and any other frame starts now
+     * down from where it got to, the same frame still held carries on, and
+     * any other frame starts now
      * from wherever the arm had eased.
      *
      * @param held       the pose held until now, or null
@@ -373,8 +324,8 @@ public final class AbilityPoses {
 
     /**
      * Moves the local player's glove hand in first person by whichever pose
-     * it holds: left across the chest while wound up, and out to the glove side as it flings; forward toward the
-     * crosshair while held out; up a little while raised. Drops the poses
+     * it holds: forward toward the crosshair while held out; up a little
+     * while raised. Drops the poses
      * that are over.
      * decision ability-json-names-its-arm-pose
      *
@@ -408,9 +359,7 @@ public final class AbilityPoses {
 
     /**
      * Where a pose moves the first-person glove hand an age into it, eased
-     * by the same weight that lays the pose over the arm on the model. The
-     * fling sweeps from wound to flung over its out ticks, so it starts
-     * where the wind-up left the hand.
+     * by the same weight that lays the pose over the arm on the model.
      *
      * @param posed the pose
      * @param age   ticks since it began
@@ -419,41 +368,14 @@ public final class AbilityPoses {
     static HandOffset handAt(Posed posed, double age) {
         HandOffset furthest = switch (posed.kind()) {
             case NONE -> VANILLA_HAND;
-            case WIND_UP -> WOUND_HAND;
-            case FLING -> WOUND_HAND.lerp(outShare(age), FLUNG_HAND);
             case HOLD_OUT -> HELD_OUT_HAND;
             case HOLD_UP -> RAISED_HAND;
         };
         return furthest.scaled(heldAt(posed, age).weight());
     }
 
-    /**
-     * How far a pose has eased the glove hand across the chest an age into
-     * it: the wind-up's ease, then the backhand sweeping the hand from
-     * wherever the wind-up got to out past the glove side and back.
-     * knives-blob-floats-ahead-of-the-hand-and-spews-the-knives: the floating blob moves with the hand
-     *
-     * @param posed the pose, or null for none
-     * @param age   ticks since it began
-     * @return the share across, 0 at the glove side to 1 at the wind-up's furthest, negative flung out past it
-     */
-    static float acrossAt(Posed posed, double age) {
-        if (posed == null) {
-            return 0f;
-        }
-        return switch (posed.kind()) {
-            case WIND_UP -> heldAt(posed, age).weight();
-            case FLING -> KnifeRain.backhandAcross(posed.from(), age);
-            default -> 0f;
-        };
-    }
-
     private static HumanoidArm gloveArm(Posed posed) {
         return posed.gloveRight() ? HumanoidArm.RIGHT : HumanoidArm.LEFT;
-    }
-
-    private static float outShare(double age) {
-        return smooth((float) age / FLING_OUT_TICKS);
     }
 
     private static HumanoidArm armOf(LocalPlayer player, InteractionHand hand) {

@@ -4,11 +4,9 @@ import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.RecordingVertexConsumer;
-import com.mercuriusxeno.goo.client.ability.HandPassView;
-import com.mercuriusxeno.goo.client.ability.KnivesCharge;
-import com.mercuriusxeno.goo.client.ability.KnivesCharging;
 import com.mercuriusxeno.goo.client.ability.LiftedPalmBlob;
 import com.mercuriusxeno.goo.client.ability.PalmBlobHop;
+import com.mercuriusxeno.goo.client.ability.SpraySource;
 import com.mercuriusxeno.goo.client.ability.SprayingClient;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
 import com.mercuriusxeno.goo.client.throwing.GooFlightRenderer;
@@ -35,8 +33,6 @@ import org.joml.Vector3f;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.MockedStatic;
 import java.io.IOException;
 import java.io.InputStream;
@@ -217,7 +213,7 @@ class GloveSpecialRendererTest {
             assertFalse(data.palmLifted(), "the palm should draw its blob again once the settling blob arrives");
             assertFalse(data.heldInView(), "another player's glove is not the one held before the eyes");
             assertEquals(GooTypes.ZOO, data.selectedType());
-            assertEquals(KnivesCharge.palmScaleAt(0f), data.blobScale(), "the palm blob should be at rest size");
+            assertEquals(1f, data.blobScale(), "the palm blob should be at rest size");
         }
     }
 
@@ -249,7 +245,7 @@ class GloveSpecialRendererTest {
     }
 
     @Test
-    void aLiftAtTheEasesEndDrawsTheCoreInTheHandsPassWhereTheSprayingSourceShows() {
+    void aLiftAtTheEasesEndDrawsTheCoreInTheHandsPassStraightAboveWhereThePalmBlobRests() {
         try (SprayingClient client = SprayingClient.local(GooTypes.ZOO);
              MockedStatic<GloveBodyModels> models = bodiless()) {
             long eased = SPRAYED + PalmBlobHop.LIFT_TICKS;
@@ -259,117 +255,14 @@ class GloveSpecialRendererTest {
             }
 
             Vec3 lifted = coreDrawnAt(new GloveSpecialRenderer.GloveData(null, GooTypes.ZOO, 0f, 1f, true, true));
+            Vec3 resting = coreDrawnAt(new GloveSpecialRenderer.GloveData(null, GooTypes.ZOO, 0f, 1f, false, true));
 
-            Vec3 shown = HandPassView.toHandPass(SprayingClient.sourceOffTheEye(), client.camera().rotation(),
-                    SprayingClient.WORLD_FOV, new Matrix4f());
-            assertEquals(0, lifted.distanceTo(shown), WITHIN, "the eased blob should draw where the spray source "
-                    + "shows, " + shown + ", drawn at " + lifted);
-        }
-    }
-
-    /**
-     * Knives' charge lifts the blob off the palm from its first tick, leaving
-     * the palm nothing to draw; the hand's pass faces the floating blob along
-     * the look whatever the glove's turn; and once the blob settles after the
-     * backhand's sweep the palm draws its blob at rest size again (decisions
-     * knives-blob-floats-ahead-of-the-hand-and-spews-the-knives, charge-swells-the-palm-blob).
-     */
-    @Nested
-    class KnivesChargeFloatsTheBlob {
-
-        /** The hand turned as the wind-up begins and as it reaches its furthest across the chest. */
-        private static final Quaternionf AT_THE_START = new Quaternionf().rotationXYZ(1.2f, 0.4f, -0.3f);
-        private static final Quaternionf AT_THE_FURTHEST = new Quaternionf().rotationXYZ(0.9f, -0.5f, 0.35f);
-        /** A hand turned so the palm's own frame stands half a turn from the look's. */
-        private static final Quaternionf FACING_BACK = new Quaternionf().rotationY((float) Math.PI);
-        /** The furthest any turn stands from the nearest quarter-turn squaring of a cube: about 62.8 degrees. */
-        private static final double LEAST_SQUARING_TURN_DEGREES = 62.9;
-
-        @ParameterizedTest
-        @ValueSource(booleans = {true, false})
-        void fromTheChargesFirstTickThePalmHasNoBlobToDraw(boolean local) {
-            try (SprayingClient client = local ? SprayingClient.local(GooTypes.CRYSTAL)
-                    : SprayingClient.another(GooTypes.CRYSTAL);
-                 KnivesCharging knives = KnivesCharging.heldTo(0f);
-                 MockedStatic<GloveUseTracker> tracker = mockStatic(GloveUseTracker.class)) {
-                tracker.when(GloveUseTracker::isSelectedTypeAvailable).thenReturn(true);
-                knives.windUp(client, SPRAYED, SPRAYED);
-
-                assertTrue(new GloveSpecialRenderer().extractArgument(client.glove()).palmLifted(),
-                        "from the charge's first tick the palm should draw no blob");
-            }
-        }
-
-        @Test
-        void theHandsPassFacesTheFloatingBlobAlongTheLookWhateverTheGlovesTurn() {
-            try (SprayingClient client = SprayingClient.local(GooTypes.CRYSTAL);
-                 KnivesCharging knives = KnivesCharging.heldTo(0f);
-                 MockedStatic<GloveBodyModels> models = bodiless()) {
-                knives.windUp(client, SPRAYED, SPRAYED + PalmBlobHop.LIFT_TICKS);
-                Quaternionf facing = LiftedPalmBlob.facingTheLook(SprayingClient.PITCH, SprayingClient.YAW);
-                GloveSpecialRenderer.GloveData lifted = new GloveSpecialRenderer.GloveData(null, GooTypes.CRYSTAL,
-                        0f, 1f, true, true);
-
-                for (Quaternionf handTurn : List.of(AT_THE_START, AT_THE_FURTHEST)) {
-                    Quaternionf drawn = coreTurnDrawnAt(lifted, handTurn);
-
-                    for (Vector3f axis : List.of(new Vector3f(1, 0, 0), new Vector3f(0, 1, 0), new Vector3f(0, 0, 1))) {
-                        assertSquaredToTheLook(facing, new Vector3f(axis).rotate(drawn));
-                    }
-                }
-            }
-        }
-
-        /** No spin: off the palm the blob turns no further than the least turn squaring a cube to the look. */
-        @Test
-        void risingOffThePalmTheBlobTurnsOnlyTheLeastWayOntoTheLook() {
-            GloveSpecialRenderer.GloveData lifted = new GloveSpecialRenderer.GloveData(null, GooTypes.CRYSTAL,
-                    0f, 1f, true, true);
-            List<Double> turns = new ArrayList<>();
-            for (Quaternionf handTurn : List.of(AT_THE_START, AT_THE_FURTHEST, FACING_BACK)) {
-                Quaternionf onThePalm;
-                Quaternionf risen;
-                try (SprayingClient client = SprayingClient.local(GooTypes.CRYSTAL);
-                     KnivesCharging knives = KnivesCharging.heldTo(0f);
-                     MockedStatic<GloveBodyModels> models = bodiless()) {
-                    knives.windUp(client, SPRAYED, SPRAYED);
-                    onThePalm = coreTurnDrawnAt(lifted, handTurn);
-                    knives.holdThrough(client, SPRAYED + 1, SPRAYED + PalmBlobHop.LIFT_TICKS);
-                    risen = coreTurnDrawnAt(lifted, handTurn);
-                }
-
-                double turned = Math.toDegrees(onThePalm.difference(risen, new Quaternionf()).angle());
-                turns.add(Math.min(turned, 360 - turned));
-            }
-            assertTrue(turns.stream().allMatch(turned -> turned <= LEAST_SQUARING_TURN_DEGREES), "rising off the "
-                    + "palm the blob should turn no further than the least squaring turn, turned " + turns + " degrees");
-        }
-
-        @Test
-        void fromTheSettlesEndAfterLettingGoThePalmCarriesItsBlobAtRestSize() {
-            long letGo = SPRAYED + 20;
-            long settled = letGo - 1 + LiftedPalmBlob.STREAM_GAP_TICKS + 1 + PalmBlobHop.SETTLE_TICKS;
-            try (SprayingClient client = SprayingClient.local(GooTypes.CRYSTAL);
-                 KnivesCharging knives = KnivesCharging.heldTo(1f);
-                 MockedStatic<GloveUseTracker> tracker = mockStatic(GloveUseTracker.class)) {
-                tracker.when(GloveUseTracker::isSelectedTypeAvailable).thenReturn(true);
-                knives.windUp(client, SPRAYED, letGo - 1);
-                knives.letGo(client, letGo, settled);
-
-                GloveSpecialRenderer.GloveData data = new GloveSpecialRenderer().extractArgument(client.glove());
-
-                assertFalse(data.palmLifted(), "once settled the palm should draw its blob");
-                assertEquals(KnivesCharge.palmScaleAt(0f), data.blobScale(), "the palm blob should be at rest size");
-            }
-        }
-
-        /** Asserts an axis of the blob lies along one of the look's own axes, either way. */
-        private static void assertSquaredToTheLook(Quaternionf facing, Vector3f axis) {
-            float along = 0f;
-            for (Vector3f lookAxis : List.of(new Vector3f(1, 0, 0), new Vector3f(0, 1, 0), new Vector3f(0, 0, 1))) {
-                along = Math.max(along, Math.abs(lookAxis.rotate(facing).dot(axis)));
-            }
-            assertEquals(1f, along, 1e-4f, "the blob's axis " + axis + " should lie along one of the look's axes");
+            Vec3 off = lifted.subtract(resting);
+            Vec3 up = client.viewUp();
+            assertEquals(SpraySource.RISE_ABOVE_THE_PALM, off.dot(up), WITHIN, "the eased blob should draw the rise "
+                    + "above where the palm blob rests, " + resting + ", drawn at " + lifted);
+            assertEquals(0, off.subtract(up.scale(off.dot(up))).length(), WITHIN, "the eased blob should draw "
+                    + "straight above where the palm blob rests, " + resting + ", drawn at " + lifted);
         }
     }
 
@@ -470,16 +363,14 @@ class GloveSpecialRendererTest {
      * and in the inventory slot alike, lies pressed on the palm: thin along
      * the palm's normal and spread across it, its face toward the palm just
      * clear of the palm's face and its edge against the fingers, never inside
-     * the hand, at rest and at Knives' full charge, which swells it evenly
-     * (decision palm-blob-rests-pressed-and-stands-into-the-cube).
+     * the hand (decision palm-blob-rests-pressed-and-stands-into-the-cube).
      */
     @Nested
     class PressedOnThePalm {
 
-        @ParameterizedTest
-        @ValueSource(floats = {0f, 1f})
-        void theShellLiesOnThePalmsFaceWithItsEdgeAgainstTheFingers(float chargeShare) throws IOException {
-            Box shell = shellDrawnAt(KnivesCharge.palmScaleAt(chargeShare));
+        @Test
+        void theShellLiesOnThePalmsFaceWithItsEdgeAgainstTheFingers() throws IOException {
+            Box shell = shellDrawnAt(1f);
             float palmFace = elementOfTheGloveBody("body").min().z();
 
             assertEquals(GloveSpecialRenderer.PALM_FLOOR_PX / PIXELS, shell.min().y(), WITHIN,
@@ -491,10 +382,9 @@ class GloveSpecialRendererTest {
         /**
          * operator ruling 2026-11-13: the blob was drawn into the hand and clipped through it settling back
          */
-        @ParameterizedTest
-        @ValueSource(floats = {0f, 1f})
-        void theShellOverlapsNoPartOfTheGlove(float chargeShare) throws IOException {
-            Box shell = shellDrawnAt(KnivesCharge.palmScaleAt(chargeShare));
+        @Test
+        void theShellOverlapsNoPartOfTheGlove() throws IOException {
+            Box shell = shellDrawnAt(1f);
             for (String part : List.of("body", "cuff", "finger_plate")) {
                 Box glove = elementOfTheGloveBody(part);
 
@@ -505,7 +395,7 @@ class GloveSpecialRendererTest {
 
         @Test
         void theRestingShellIsSpreadAcrossThePalmAndThinOffIt() {
-            Vector3f rest = shellDrawnAt(KnivesCharge.palmScaleAt(0f)).size();
+            Vector3f rest = shellDrawnAt(1f).size();
 
             assertEquals(rest.x(), rest.y(), WITHIN, "the pressed shell should run as far along the palm as across it");
             assertTrue(rest.x() > rest.z(), "the pressed shell " + rest + " should be wider than it is thick off the "
@@ -520,7 +410,7 @@ class GloveSpecialRendererTest {
          */
         @Test
         void theRestingShellsSidesStandInsideTheHandsSides() throws IOException {
-            Box shell = shellDrawnAt(KnivesCharge.palmScaleAt(0f));
+            Box shell = shellDrawnAt(1f);
             Box hand = elementOfTheGloveBody("body");
 
             assertTrue(shell.min().x() > hand.min().x() + SIDE_CLEARANCE, "the shell's side " + shell.min().x()
@@ -546,17 +436,6 @@ class GloveSpecialRendererTest {
         private static Vector3f cornerOf(JsonArray pixels) {
             return new Vector3f(pixels.get(0).getAsFloat(), pixels.get(1).getAsFloat(), pixels.get(2).getAsFloat())
                     .div(PIXELS);
-        }
-
-        @Test
-        void knivesFullChargeSwellsThePressedShellEvenly() {
-            Vector3f rest = shellDrawnAt(KnivesCharge.palmScaleAt(0f)).size();
-            Vector3f fullest = shellDrawnAt(KnivesCharge.palmScaleAt(1f)).size();
-
-            float full = KnivesCharge.palmScaleAt(1f);
-            assertEquals(full * rest.x(), fullest.x(), WITHIN, "the full charge's width");
-            assertEquals(full * rest.z(), fullest.z(), WITHIN, "the full charge's depth");
-            assertEquals(full * rest.y(), fullest.y(), WITHIN, "the full charge's height");
         }
 
         /**

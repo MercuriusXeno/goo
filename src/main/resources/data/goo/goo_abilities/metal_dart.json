@@ -4,9 +4,12 @@
   "badge": "held",
   "order": 10,
   "cost": 1000,
-  "delivery": { "kind": "arc", "transform_at": 0, "form": "dart", "arc_speed": 2.5, "peak_share": 0.25,
+  "delivery": { "kind": "arc", "transform_at": 0, "form": "dart", "throw_speed": 2.5,
+    "charge": { "max_ticks": 0, "stack": 3, "stack_ticks": 10, "throw_ticks": 5 },
     "form_sound": { "id": "minecraft:item.axe.scrape", "volume": 0.8, "pitch": 1.5 },
-    "revert_sound": { "id": "minecraft:item.axe.scrape", "volume": 0.8, "pitch": 1.0 } },
+    "revert_sound": { "id": "minecraft:item.axe.scrape", "volume": 0.8, "pitch": 1.0 },
+    "throw_sound": { "id": "minecraft:item.trident.throw", "volume": 0.8, "pitch": 1.0 },
+    "throw_pitch_spread": 0.3 },
   "behaviors": [
     { "type": "damage", "amount": 8.0, "source": "attack" }
   ],

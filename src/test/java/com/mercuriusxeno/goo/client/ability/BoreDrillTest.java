@@ -34,7 +34,7 @@ class BoreDrillTest {
     /** Yaw 0 looks along +Z. */
     private static final float YAW = 0f;
     /** Where the lifted blob rests by a glove in the right hand: right is -X facing +Z. */
-    private static final Vec3 RIGHT_HAND_REST = SpraySource.inView(EYE, 0f, YAW, true);
+    private static final Vec3 RIGHT_HAND_REST = BoreBlobPlaceTest.gloveRestIn(EYE, 0f, YAW, true);
     private static final int SAMPLES = 64;
     private static final Predicate<BlockPos> NOTHING = cell -> false;
 
@@ -77,6 +77,14 @@ class BoreDrillTest {
      */
     @Nested
     class TheMouth {
+
+        /** The drill's blob lifts by the glove, at the rest GloveRest's numbers give for the view. */
+        @Test
+        void itLiftsFromTheGloveRest() {
+            Vec3 rest = BlobRest.inView(EYE, 0f, YAW, true, BlobRest.Rest.of(BoreBlobPlaceTest.syncedBore()));
+            assertEquals(0, rest.distanceTo(RIGHT_HAND_REST), 1e-6, "Bore's rest should be the glove rest "
+                    + RIGHT_HAND_REST + ", is " + rest);
+        }
 
         @Test
         void itStandsAtTheBlobsEasedPlaceAndItsFarEndAtTheTipPastThePoint() {
