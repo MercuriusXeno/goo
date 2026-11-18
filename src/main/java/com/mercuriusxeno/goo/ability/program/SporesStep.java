@@ -17,13 +17,14 @@ import java.util.stream.Stream;
 /**
  * Shroom's Spores block step: shroom goo lands where each of the stream's
  * drips strikes, one layer for each drip, through the volume cell's one
- * landing, as Infest lays its nether goo. The step names what a Spores cell
- * does on its period, a passive Mycosis: it emits its spore particle, and it
- * places one fungal bud on an edge space, spending a fixed count of layers.
+ * landing, as Infest lays its nether goo. The step names what a Spores
+ * cell does, a passive Mycosis: on a display tick it puffs its spore particle
+ * on a random chance, as mycelium puffs its own, and on its period it places
+ * one fungal bud on an edge space, spending a fixed count of layers.
  * A mob standing on the goo carries spores bursting the named ability, at
  * the named radius, lasting the named ticks, and a mob dying within the
  * death reach of a cell bursts the same way:
- * {@code spores period=20 layers_per_bud=1 particle=goo:spore burst=goo:shroom_mycosis spore_radius=3
+ * {@code spores period=20 layers_per_bud=1 particle=goo:spore spore_chance=0.1 burst=goo:shroom_mycosis spore_radius=3
  * spore_ticks=600 death_reach=3}.
  * spores-is-shrooms-residual-a-passive-mycosis
  * spores-goo-spends-on-edge-growth-and-grows-to-buds
@@ -32,21 +33,23 @@ import java.util.stream.Stream;
  * drip-on-a-standing-cell-increases-it
  * mobs-on-spores-goo-turn-death-into-shrooms-and-mycelium
  *
- * @param period       the ticks between a cell's spore emissions and buddings
+ * @param period       the ticks between a cell's buddings
  * @param layersPerBud the layers each bud a cell places spends
- * @param particle     the particle a cell emits on its period
+ * @param particle     the particle a cell puffs
+ * @param sporeChance  the chance a cell puffs its particle on a display tick
  * @param burst        the ability a mob the goo spored bursts from its corpse
  * @param sporeRadius  the burst's reach in blocks, and the reach its mycelium grows in
  * @param sporeTicks   the ticks a mob's spores last once it leaves the goo
  * @param deathReach   the blocks from a cell a mob that never stood on it dies within to burst
  */
-public record SporesStep(int period, int layersPerBud, Identifier particle, Identifier burst, float sporeRadius,
-                         int sporeTicks, int deathReach) implements TakesNoEntity, DripLanding {
+public record SporesStep(int period, int layersPerBud, Identifier particle, float sporeChance, Identifier burst,
+                         float sporeRadius, int sporeTicks, int deathReach) implements TakesNoEntity, DripLanding {
 
     private static final String NAME = "spores";
     private static final String FIELD_PERIOD = "period";
     private static final String FIELD_LAYERS_PER_BUD = "layers_per_bud";
     private static final String FIELD_PARTICLE = "particle";
+    private static final String FIELD_SPORE_CHANCE = "spore_chance";
     private static final String FIELD_BURST = "burst";
     private static final String FIELD_SPORE_RADIUS = "spore_radius";
     private static final String FIELD_SPORE_TICKS = "spore_ticks";
@@ -66,6 +69,7 @@ public record SporesStep(int period, int layersPerBud, Identifier particle, Iden
             Codec.intRange(1, VolumeCellBlock.MAX_LAYERS).fieldOf(FIELD_LAYERS_PER_BUD)
                     .forGetter(SporesStep::layersPerBud),
             Identifier.CODEC.fieldOf(FIELD_PARTICLE).forGetter(SporesStep::particle),
+            Codec.floatRange(0f, 1f).fieldOf(FIELD_SPORE_CHANCE).forGetter(SporesStep::sporeChance),
             Identifier.CODEC.fieldOf(FIELD_BURST).forGetter(SporesStep::burst),
             Codec.floatRange(0f, MOST_REACH).fieldOf(FIELD_SPORE_RADIUS).forGetter(SporesStep::sporeRadius),
             Codec.intRange(1, MOST_SPORE_TICKS).fieldOf(FIELD_SPORE_TICKS).forGetter(SporesStep::sporeTicks),
@@ -117,15 +121,16 @@ public record SporesStep(int period, int layersPerBud, Identifier particle, Iden
     }
 
     /**
-     * What a cell emits at a game time: its spore particle on each period, nothing between.
+     * What a cell puffs on a display tick: its spore particle for a roll under the chance, nothing otherwise.
      * spores-is-shrooms-residual-a-passive-mycosis
+     * operator ruling 2026-11-18: give them a random tick chance on these spores
      *
-     * @param gameTime the game time
-     * @param cell     the cell
-     * @return the emission, empty between periods
+     * @param roll a random number from 0 below 1
+     * @param cell the cell
+     * @return the emission, empty for a roll at or over the chance
      */
-    public Optional<SporeEmission> emissionAt(long gameTime, BlockPos cell) {
-        return onPeriod(gameTime) ? Optional.of(new SporeEmission(particle, cell)) : Optional.empty();
+    public Optional<SporeEmission> emissionFor(float roll, BlockPos cell) {
+        return roll < sporeChance ? Optional.of(new SporeEmission(particle, cell)) : Optional.empty();
     }
 
     /**

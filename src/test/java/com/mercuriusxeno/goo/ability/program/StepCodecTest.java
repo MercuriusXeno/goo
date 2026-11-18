@@ -208,7 +208,7 @@ class StepCodecTest {
             Map.entry("spikes", new SpikesStep(List.of(EntityFilter.LIVING), 10, 0.25, List.of(),
                     SoundCue.of(Identifier.parse("minecraft:item.axe.scrape")), 3)),
             Map.entry("infest", new InfestStep(Identifier.fromNamespaceAndPath("goo", "decay"), 20, 2f, 0.1)),
-            Map.entry("spores", new SporesStep(20, 1, Identifier.fromNamespaceAndPath("goo", "spore"),
+            Map.entry("spores", new SporesStep(20, 1, Identifier.fromNamespaceAndPath("goo", "spore"), 0.1f,
                     Identifier.fromNamespaceAndPath("goo", "shroom_mycosis"), 3f, 600, 3)),
             Map.entry("nitro", new NitroStep(1.0, 0.2, 4)),
             Map.entry("airborn", new AirbornStep(Expr.literal(0.6), Expr.literal(0.4), Expr.literal(0.2),
