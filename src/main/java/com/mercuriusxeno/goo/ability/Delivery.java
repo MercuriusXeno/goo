@@ -21,7 +21,8 @@ import java.util.Optional;
  *
  * @param kind           the delivery kind
  * @param blocksPerTick  a beam's speed in blocks per tick, and a scan's wave speed
- * @param range          a stream's reach in blocks, and how far a scan reads along the look
+ * @param range          how far the ability aims and lands, a stream's reach and a scan's read; 0 where
+ *                       it names none (decision each-ability-names-its-range-and-the-shared-throw-range-retires)
  * @param coneDegrees    a stream's cone, apex to rim, in degrees
  * @param ticksPerCharge a stream's ticks of hold one cost pays for
  * @param grannyAllowed  whether an arc may lob onto a top face
@@ -730,35 +731,6 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
      */
     public boolean rolls() {
         return kind == DeliveryKind.ARC && range > 0 && blocksPerTick < DEFAULT_BLOCKS_PER_TICK;
-    }
-
-    /**
-     * How far a throw or a cast aims and lands: the range an arc thrown at
-     * its aim, a beam, a spontaneous cast or an envelop names, and the range
-     * given where it names none. A rolling arc's range is how far it rolls,
-     * a stream's its reach and a scan's its read, never its aim.
-     * decision each-ability-names-its-range-and-the-shared-throw-range-retires
-     *
-     * @param unnamed the range a delivery naming none aims and lands within
-     * @return the range in blocks
-     */
-    public double throwRange(double unnamed) {
-        return range > 0 && thrownOrCastAtTheAim() ? range : unnamed;
-    }
-
-    /**
-     * Whether the ability lands at the glove's aim: an arc thrown there, a
-     * beam, a spontaneous cast or an envelop; a rolling arc rolls its range
-     * along the look instead.
-     *
-     * @return true for a delivery landing at the aim
-     */
-    public boolean thrownOrCastAtTheAim() {
-        return switch (kind) {
-            case ARC -> !rolls();
-            case BEAM, SPONTANEOUS, ENVELOP -> true;
-            case STREAM, SELF, SCAN -> false;
-        };
     }
 
     /**

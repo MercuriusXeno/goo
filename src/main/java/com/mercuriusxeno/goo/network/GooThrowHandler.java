@@ -542,14 +542,6 @@ public final class GooThrowHandler {
     }
 
     /**
-     * Caps a point onto the range around the eye, along the line from the eye.
-     *
-     * @param eye   the thrower's eye
-     * @param point the aimed point
-     * @param range the throw range in blocks
-     * @return the point, or the point at the range's end along its line
-     */
-    /**
      * The point a throw aiming a point is thrown at: the aimed point, capped
      * onto the thrown ability's range along the line from the eye.
      * aim-point-follows-the-cursor
@@ -576,6 +568,14 @@ public final class GooThrowHandler {
         return distanceSquared <= range * range;
     }
 
+    /**
+     * Caps a point onto the range around the eye, along the line from the eye.
+     *
+     * @param eye   the thrower's eye
+     * @param point the aimed point
+     * @param range the throw range in blocks
+     * @return the point, or the point at the range's end along its line
+     */
     static Vec3 capToRange(Vec3 eye, Vec3 point, double range) {
         Vec3 line = point.subtract(eye);
         double length = line.length();
