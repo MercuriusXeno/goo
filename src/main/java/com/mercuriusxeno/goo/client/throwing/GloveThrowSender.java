@@ -156,7 +156,8 @@ public final class GloveThrowSender {
             return false;
         }
         var connection = Minecraft.getInstance().getConnection();
-        Vec3 origin = lineOrigin();
+        Vec3 drawnFrom = throwOrigin();
+        Vec3 origin = heldTickOrigin(selectedDelivery(abilityId), drawnFrom, lineOrigin());
         if (connection != null) {
             // decision outlined-target-is-the-one-pick: the tick names the entity the glove outlines
             connection.send(new ServerboundCustomPayloadPacket(
@@ -164,12 +165,27 @@ public final class GloveThrowSender {
                             .targeting(outlinedEntityId())));
         }
         // every-ability-casts-from-the-lifted-palm-blob: the server's cone keeps the glove, the drawn effect leaves the blob
-        Vec3 drawnFrom = throwOrigin();
         VitalityVisual.drawFog(player, abilityId, selectedArea(abilityId), drawnFrom);
         WindLines.blow(player, abilityId, selectedArea(abilityId), drawnFrom);
         ReserveVisual.drawDrain(player, abilityId);
         loopStreamSound(player, abilityId);
         return true;
+    }
+
+    /**
+     * Where a held tick tells the server its cast leaves: the lifted blob
+     * for a stream throwing drips, so the server's drips leave where the
+     * drawn ones do, and the glove for any other held cast.
+     * residual-spray-cone-centers-on-the-look-from-the-blob: a spray's drips leave the blob, server's and drawn alike
+     * every-ability-casts-from-the-lifted-palm-blob: any other server cone keeps the glove
+     *
+     * @param delivery the held ability's delivery
+     * @param blob     where the lifted blob stands
+     * @param glove    the goo in the glove as the glove last drew it
+     * @return the origin the tick sends
+     */
+    static Vec3 heldTickOrigin(Delivery delivery, Vec3 blob, Vec3 glove) {
+        return delivery.throwsDrips() ? blob : glove;
     }
 
     /**

@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.program.SimpleParticles;
 import com.mercuriusxeno.goo.client.particle.BlendPalette;
 import com.mercuriusxeno.goo.ability.Delivery;
@@ -91,7 +92,11 @@ class StreamMotesTest {
     private static final double THROW_SPEED = 0.84;
     /** The spray's axis, south and down. */
     private static final Vec3 SPRAY_AXIS = new Vec3(0, -0.5, 1).normalize();
-    private static final double CONE_DEGREES = 16;
+    /** Goop's delivery, whose cone the drips land in. */
+    private static final Delivery GOOP = AbilityJson.decode("weird_goop").delivery();
+    private static final double CONE_DEGREES = GOOP.coneDegrees();
+    /** How far from the eye the spray's cone lands, in blocks. */
+    private static final double SPRAY_LANDS = 3;
     /** The hold's tick the spray tick is sent on, which seeds the tick's drips' places in the cone. */
     private static final int SPRAY_HELD = 9;
     /** The drips the server throws on the spray tick. */
@@ -197,7 +202,7 @@ class StreamMotesTest {
         verify(minecraft.particleEngine, atLeastOnce()).createParticle(any(), anyDouble(), anyDouble(), anyDouble(),
                 x.capture(), y.capture(), z.capture());
         List<Vec3> shareLaunches = CoatRay.scatteredShares(SPRAY_HELD, SPRAY_DRIPS).stream()
-                .map(share -> DripArc.launch(SPRAY_AXIS, CONE_DEGREES, share, THROW_SPEED)).toList();
+                .map(share -> serverLaunch(sprayTick(caster), share)).toList();
         for (int i = 0; i < x.getAllValues().size(); i++) {
             Vec3 drawn = new Vec3(x.getAllValues().get(i), y.getAllValues().get(i), z.getAllValues().get(i));
             assertTrue(shareLaunches.stream().anyMatch(launch -> launch.distanceTo(drawn) <= SAME_LAUNCH),
@@ -221,7 +226,7 @@ class StreamMotesTest {
         verify(minecraft.particleEngine, atLeastOnce()).createParticle(any(), anyDouble(), anyDouble(), anyDouble(),
                 x.capture(), y.capture(), z.capture());
         List<Vec3> unmatched = new ArrayList<>(CoatRay.scatteredShares(SPRAY_HELD, SPRAY_DRIPS).stream()
-                .map(share -> DripArc.launch(SPRAY_AXIS, CONE_DEGREES, share, THROW_SPEED)).toList());
+                .map(share -> serverLaunch(sprayTick(caster), share)).toList());
         List<Vec3> strays = new ArrayList<>();
         for (int i = 0; i < x.getAllValues().size(); i++) {
             Vec3 drawn = new Vec3(x.getAllValues().get(i), y.getAllValues().get(i), z.getAllValues().get(i));
@@ -232,6 +237,47 @@ class StreamMotesTest {
         assertTrue(unmatched.isEmpty() && strays.isEmpty(), "the drawn drips should fly the server's "
                 + SPRAY_DRIPS + " arcs once each; unmatched server arcs " + unmatched + ", drawn drips the server"
                 + " throws none on " + strays);
+    }
+
+    /**
+     * residual-spray-cone-centers-on-the-look-from-the-blob: every drip leaves the blob, and the client draws the
+     * drips the server throws
+     */
+    @Test
+    void drawnDripsLeaveTheBlobOnTheServersLaunches() {
+        Caster caster = moving(Vec3.ZERO);
+        double[] now = {-LIFTED_FOR};
+        List<SprayDripParticle> drips = new ArrayList<>();
+        Minecraft minecraft = clientDrawing(drips, caster, true, now);
+        whileDrawing(minecraft, new ArrayList<>(), () -> {
+            for (long tick = (long) -LIFTED_FOR; tick <= 0; tick++) {
+                now[0] = tick;
+                LiftedPalmBlob.held(CASTER, sourceOf(caster, tick), tick);
+            }
+            Vec3 blob = LiftedPalmBlob.placeOf(CASTER, 0f).orElseThrow();
+            StreamMotesPayload tick = sprayTickFrom(blob, EYE);
+            StreamMotes.handle(tick, runningAtOnce());
+            now[0] = FIRST_TICK;
+
+            List<CoatRay.ConeShare> shares = CoatRay.scatteredShares(SPRAY_HELD, SPRAY_DRIPS);
+            assertEquals(shares.size(), drips.size(), "the client should draw each drip the server threw");
+            ArgumentCaptor<Double> x = ArgumentCaptor.forClass(Double.class);
+            ArgumentCaptor<Double> y = ArgumentCaptor.forClass(Double.class);
+            ArgumentCaptor<Double> z = ArgumentCaptor.forClass(Double.class);
+            verify(minecraft.particleEngine, atLeastOnce()).createParticle(any(), anyDouble(), anyDouble(),
+                    anyDouble(), x.capture(), y.capture(), z.capture());
+            for (int i = 0; i < drips.size(); i++) {
+                Vec3 server = serverLaunch(tick, shares.get(i));
+                Vec3 drawn = new Vec3(x.getAllValues().get(i), y.getAllValues().get(i), z.getAllValues().get(i));
+                assertTrue(drawn.distanceTo(server) <= SAME_LAUNCH, "a drawn drip should launch as the server's"
+                        + " drip for its share, " + server + ", launches at " + drawn);
+                drips.get(i).tick();
+                Vec3 onItsArc = arcFrom(tick.apex(), server, (double) i / shares.size());
+                Vec3 left = drawnAt(drips.get(i), 0f);
+                assertTrue(left.distanceTo(onItsArc) <= LEFT_THE_BLOB, "a drawn drip should leave the spray source "
+                        + tick.apex() + " on its arc at " + onItsArc + ", left from " + left);
+            }
+        });
     }
 
     @Test
@@ -340,14 +386,24 @@ class StreamMotesTest {
     private static StreamMotesPayload sporeTick(Caster caster) {
         return new StreamMotesPayload(CASTER, sourceOf(caster, -1), SPRAY_AXIS,
                 Identifier.fromNamespaceAndPath("goo", "spore"), 50, GooStreamHandler.restingSpeed(3),
-                Delivery.NO_THROW_SPEED, false, 0, 0);
+                Delivery.NO_THROW_SPEED, false, 0, 0, sourceOf(caster, -1), 0);
     }
 
     /** The stream's tick as the server sends it for a caster, its glove a tick before the tick reaches the client. */
     private static StreamMotesPayload sprayTick(Caster caster) {
-        return new StreamMotesPayload(CASTER, sourceOf(caster, -1), SPRAY_AXIS,
-                Identifier.fromNamespaceAndPath("goo", "goop_spray_drip"), CONE_DEGREES, 0, THROW_SPEED, false,
-                SPRAY_HELD, SPRAY_DRIPS);
+        return sprayTickFrom(sourceOf(caster, -1), caster.eye().apply(-1));
+    }
+
+    /** The stream's tick as the server sends it, its drips leaving a place onto a cone from an eye. */
+    private static StreamMotesPayload sprayTickFrom(Vec3 blob, Vec3 eye) {
+        return new StreamMotesPayload(CASTER, blob, SPRAY_AXIS, Identifier.fromNamespaceAndPath("goo",
+                "goop_spray_drip"), CONE_DEGREES, 0, THROW_SPEED, false, SPRAY_HELD, SPRAY_DRIPS, eye, SPRAY_LANDS);
+    }
+
+    /** The launch the server's drip takes for a share of a tick: from the tick's blob onto the tick's cone. */
+    private static Vec3 serverLaunch(StreamMotesPayload tick, CoatRay.ConeShare share) {
+        return GooStreamHandler.dripLaunch(new GooStreamHandler.DripThrow(tick.apex(), tick.cone(), tick.throwSpeed(),
+                DripArc.GRAVITY), GOOP, share);
     }
 
     /**
@@ -366,7 +422,7 @@ class StreamMotesTest {
             gloves.when(() -> GooGloveItem.getSelectedType(any())).thenReturn(GooTypes.ZOO);
             particles.when(() -> SimpleParticles.resolve(any())).thenReturn(Optional.of(mock(SimpleParticleType.class)));
             rays.when(() -> CoatRay.clipping(any())).thenReturn((CoatRay.BlockClip) (from, to) -> Optional.empty());
-            arcs.when(() -> DripArc.launch(any(), anyDouble(), any(), anyDouble())).thenAnswer(call -> {
+            arcs.when(() -> DripArc.launchOnto(any(), any(), anyDouble(), anyDouble())).thenAnswer(call -> {
                 Vec3 launch = (Vec3) call.callRealMethod();
                 launches.add(launch);
                 return launch;
