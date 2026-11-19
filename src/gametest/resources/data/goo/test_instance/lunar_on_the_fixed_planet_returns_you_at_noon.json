@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:lunar_on_the_fixed_planet_returns_you_at_noon",
+  "environment": "goo:astral_noon_planet_full_still",
+  "structure": "goo:test_bay",
+  "max_ticks": 400,
+  "setup_ticks": 0,
+  "required": true
+}

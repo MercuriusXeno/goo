@@ -89,8 +89,10 @@ public final class AstralLunar {
         if (sky.isEmpty()) {
             return false;
         }
-        caster.setData(GooAttachments.LUNAR_FIXATION, LunarFixation.held(sky.get(),
-                LunarSight.moonDirection(moonAngle), caster.position(), caster.level().getGameTime(), duration));
+        // decision blue-planet-hangs-fixed-with-its-height-set-by-x
+        Vec3 held = LunarSight.skyDirection(caster.level().dimension(), caster.getX(), moonAngle);
+        caster.setData(GooAttachments.LUNAR_FIXATION, LunarFixation.held(sky.get(), held, caster.position(),
+                caster.level().getGameTime(), duration));
         HOLDS.put(caster.getUUID(), new Hold(caster.level().getServer().getTickCount(), cost));
         sendTone(caster);
         return true;

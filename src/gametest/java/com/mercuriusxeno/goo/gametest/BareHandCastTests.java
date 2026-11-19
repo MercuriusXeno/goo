@@ -240,8 +240,8 @@ public final class BareHandCastTests {
     }
 
     private static Vec3 moonFrom(ServerPlayer caster) {
-        return LunarSight.moonDirection(caster.level().environmentAttributes()
-                .getValue(EnvironmentAttributes.MOON_ANGLE, caster.position()));
+        return LunarSight.skyDirection(caster.level().dimension(), caster.getX(), caster.level()
+                .environmentAttributes().getValue(EnvironmentAttributes.MOON_ANGLE, caster.position()));
     }
 
     private static void face(ServerPlayer caster, Vec3 direction) {
