@@ -19,14 +19,14 @@ import org.jspecify.annotations.NonNull;
  * decision mister-draws-mist-and-lays-one-layer-on-bare-spots
  *
  * @param casterId  the spraying player
- * @param eye       the cone's apex, the caster's eye
+ * @param from      where the mist leaves, the sprayer's nozzle as the server heard it
  * @param axis      the cone's axis
  * @param coneShape the cone's widths across and up and down
  * @param particle  the goo's spray particle
  * @param gooType   the sprayed goo type, whose colours the mist takes
  * @param reach     how far the mist reaches, in blocks
  */
-public record SprayMistPayload(int casterId, Vec3 eye, Vec3 axis, ConeShape coneShape, Identifier particle,
+public record SprayMistPayload(int casterId, Vec3 from, Vec3 axis, ConeShape coneShape, Identifier particle,
                                ResourceKey<GooTypeDefinition> gooType, double reach) implements CustomPacketPayload {
 
     /** Payload type ID for registration. */
@@ -36,7 +36,7 @@ public record SprayMistPayload(int casterId, Vec3 eye, Vec3 axis, ConeShape cone
     /** Stream codec for encoding/decoding. */
     public static final StreamCodec<FriendlyByteBuf, SprayMistPayload> STREAM_CODEC = StreamCodec.composite(
             ByteBufCodecs.VAR_INT, SprayMistPayload::casterId,
-            Vec3.STREAM_CODEC, SprayMistPayload::eye,
+            Vec3.STREAM_CODEC, SprayMistPayload::from,
             Vec3.STREAM_CODEC, SprayMistPayload::axis,
             ConeShape.STREAM_CODEC, SprayMistPayload::coneShape,
             Identifier.STREAM_CODEC, SprayMistPayload::particle,
