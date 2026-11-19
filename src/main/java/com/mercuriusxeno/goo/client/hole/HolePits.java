@@ -1,8 +1,9 @@
 package com.mercuriusxeno.goo.client.hole;
 
-import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.hole.HoleFrame;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.network.PortableHolesSyncPayload;
 import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.buffers.GpuBufferSlice;
@@ -27,10 +28,6 @@ import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
 import org.joml.Vector3f;
@@ -39,6 +36,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.List;
 import java.util.OptionalDouble;
 import java.util.OptionalInt;
+import java.util.function.Consumer;
 
 /**
  * Opens the space behind each portable hole's mouth, once the world's opaque
@@ -50,7 +48,6 @@ import java.util.OptionalInt;
  * holding their own depth, hide them everywhere else, at any footprint.
  * decision hole-items-are-a-three-dimensional-soup-sunk-in-the-hole
  */
-@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class HolePits {
 
     private static final String CARVE_PASS = "Goo portable hole carve";
@@ -74,12 +71,17 @@ public final class HolePits {
     }
 
     /**
-     * Carves and fills every drawn mouth's pit.
+     * Hands the shared path every drawn mouth's pit, carved then filled, as
+     * one draw with the opaque blocks: the carve and the pit write the depth
+     * the items and every translucent thing drawn later sort against, so it
+     * sorts by nothing.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
+     * decision hole-items-are-a-three-dimensional-soup-sunk-in-the-hole
      *
-     * @param event the level render stage event
+     * @param frame the frame being drawn
+     * @param draws where the pits' draw goes
      */
-    @SubscribeEvent
-    public static void onAfterOpaqueBlocks(RenderLevelStageEvent.AfterOpaqueBlocks event) {
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) {
             return;
@@ -91,8 +93,13 @@ public final class HolePits {
             return;
         }
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
-        carve(drawn, time, camera, event.getModelViewMatrix());
-        fill(mc, event.getPoseStack().last(), drawn, camera);
+        draws.accept(new SortedDraw(0, () -> drawPits(mc, frame, drawn, time, camera)));
+    }
+
+    private static void drawPits(Minecraft mc, LevelFrame frame, List<PortableHolesSyncPayload.Mouth> drawn,
+                                 float time, Vec3 camera) {
+        carve(drawn, time, camera, frame.modelView());
+        fill(mc, frame.poseStack().last(), drawn, camera);
     }
 
     /**

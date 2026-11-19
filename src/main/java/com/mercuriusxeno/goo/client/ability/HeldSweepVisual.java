@@ -1,9 +1,10 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.program.HeldSweepPace;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.network.HeldSweepPayload;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -19,10 +20,6 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
@@ -31,6 +28,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.ToIntFunction;
@@ -45,7 +43,6 @@ import java.util.function.ToIntFunction;
  * decision held-sweeps-share-one-fast-shell-visual
  * decision scry-sphere-reveals-faces-and-glistens-mobs
  */
-@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class HeldSweepVisual {
 
     /** The most walls one pulse holds lit at once; past it that front lights no more. */
@@ -143,13 +140,19 @@ public final class HeldSweepVisual {
     }
 
     /**
-     * Moves every front on, drops the finished pulses and the walls no
-     * pulse leaves from any more, and draws what still shows.
+     * Moves every front on, drops the finished pulses and the walls no pulse
+     * leaves from any more, and hands the shared path the lit walls, which
+     * show through walls (decision held-sweeps-share-one-fast-shell-visual),
+     * sorted by the nearest lit wall. The frame's upkeep runs here rather
+     * than in {@link #collect}: the path draws THROUGH_BLOCKS before
+     * FAR_TO_NEAR, so this runs first each frame, and the fronts' shell then
+     * draws from the state it left.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
      *
-     * @param event the level render stage event
+     * @param frame the frame being drawn
+     * @param draws where the walls' draw goes
      */
-    @SubscribeEvent
-    public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
+    public static void collectFaces(LevelFrame frame, Consumer<SortedDraw> draws) {
         Minecraft mc = Minecraft.getInstance();
         ClientLevel level = mc.level;
         if (level == null || PULSES.isEmpty()) {
@@ -160,15 +163,40 @@ public final class HeldSweepVisual {
             return;
         }
         double now = level.getGameTime() + mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
+        moveFrontsOn(level, mc.player, now);
+        List<WallGlow> walls = wallsToDraw(PULSES.values(), now);
+        Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        draws.accept(SortedDraw.nearestOf(walls.stream().map(wall -> Vec3.atCenterOf(wall.face().pos())), camera,
+                () -> drawWalls(frame.poseStack().last(), mc.renderBuffers().bufferSource(), camera, walls)));
+    }
+
+    /**
+     * Hands the shared path the travelling fronts' shell, sorted by the
+     * nearest front's center, from the state {@link #collectFaces} moved on
+     * this frame.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
+     *
+     * @param frame the frame being drawn
+     * @param draws where the shell's draw goes
+     */
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null || PULSES.isEmpty()) {
+            return;
+        }
+        double now = clientTime();
+        List<HeldSweepPulse> travelling = PULSES.values().stream().filter(pulse -> pulse.travelling(now)).toList();
+        Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        draws.accept(SortedDraw.nearestOf(travelling.stream().map(pulse -> pulse.field().center()), camera,
+                () -> drawFronts(frame.poseStack().last(), buffers, camera, travelling, now)));
+    }
+
+    private static void moveFrontsOn(ClientLevel level, @Nullable Entity caster, double now) {
         advanceAll(PULSES, now, at -> level.getBlockState(at).isAir(),
                 at -> level.getBlockState(at).getShape(level, at).toAabbs());
         FIELDS.values().removeIf(field -> PULSES.values().stream().noneMatch(pulse -> pulse.field() == field));
-        paintCrossedMobs(level, mc.player, now);
-        Vec3 camera = mc.gameRenderer.getMainCamera().position();
-        PoseStack.Pose pose = event.getPoseStack().last();
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
-        drawFronts(pose, buffers, camera, now);
-        drawWalls(pose, buffers, camera, now);
+        paintCrossedMobs(level, caster, now);
     }
 
     /**
@@ -190,21 +218,19 @@ public final class HeldSweepVisual {
     }
 
     private static void drawFronts(PoseStack.Pose pose, MultiBufferSource.BufferSource buffers, Vec3 camera,
-                                   double now) {
+                                   List<HeldSweepPulse> travelling, double now) {
         VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.GLOW_SHELL_TYPE);
-        for (HeldSweepPulse pulse : PULSES.values()) {
-            if (pulse.travelling(now)) {
-                ColorSphere.emit(pose, consumer, pulse.field().center().subtract(camera),
-                        (float) pulse.drawnRadius(now), ARGB.color(SPHERE_ALPHA, pulse.tintRgb()));
-            }
+        for (HeldSweepPulse pulse : travelling) {
+            ColorSphere.emit(pose, consumer, pulse.field().center().subtract(camera),
+                    (float) pulse.drawnRadius(now), ARGB.color(SPHERE_ALPHA, pulse.tintRgb()));
         }
         buffers.endBatch(GooRenderTypes.GLOW_SHELL_TYPE);
     }
 
     private static void drawWalls(PoseStack.Pose pose, MultiBufferSource.BufferSource buffers, Vec3 camera,
-                                  double now) {
+                                  List<WallGlow> walls) {
         VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.SCRY_FACES_TYPE);
-        for (WallGlow wall : wallsToDraw(PULSES.values(), now)) {
+        for (WallGlow wall : walls) {
             int color = ARGB.color(Math.round(FACE_ALPHA * wall.glow()), wall.tintRgb());
             Vec3 corner = Vec3.atLowerCornerOf(wall.face().pos()).subtract(camera);
             for (AABB box : wall.face().boxes()) {

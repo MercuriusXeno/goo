@@ -1,33 +1,35 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import net.minecraft.client.Minecraft;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.world.phys.Vec3;
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * Draws every live burnout explosion through the visual its goo type names,
- * after the translucent features so the additive layers blend over the world
- * and over a prism's crystal, a translucent feature writing depth that would
- * otherwise draw over an explosion standing in front of it
- * (decision elemental-explosion-per-type).
+ * once the level is drawn, after a prism's crystal, a translucent feature
+ * writing depth, so the additive layers blend over the world and over the
+ * crystal behind an explosion rather than the crystal drawing over an
+ * explosion standing in front of it (decision elemental-explosion-per-type).
  */
-@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class ChainBurnoutRenderer {
 
     private ChainBurnoutRenderer() {
     }
 
     /**
-     * Draws the live burnouts, dropping each whose explosion has run its duration.
+     * Drops each burnout whose explosion has run its duration and hands the
+     * shared path one draw per live burnout, each sorted by its center.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
+     * decision elemental-explosion-per-type
      *
-     * @param event the level render stage event
+     * @param frame the frame being drawn
+     * @param draws where each burnout's draw goes
      */
-    @SubscribeEvent
-    public static void onAfterTranslucentFeatures(RenderLevelStageEvent.AfterTranslucentFeatures event) {
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) {
             return;
@@ -37,10 +39,15 @@ public final class ChainBurnoutRenderer {
             return;
         }
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        BurnoutFrame frame = new BurnoutFrame(event.getPoseStack(), mc.renderBuffers().bufferSource(),
-                mc.gameRenderer.getMainCamera().position(), mc.level.getGameTime() + partialTick);
+        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        BurnoutFrame burnoutFrame = new BurnoutFrame(frame.poseStack(), buffers, camera,
+                mc.level.getGameTime() + partialTick);
         for (ChainBurnouts.Burnout burnout : burnouts) {
-            burnout.visual().render(burnout, frame);
+            draws.accept(new SortedDraw(Vec3.atCenterOf(burnout.pos()).distanceToSqr(camera), () -> {
+                burnout.visual().render(burnout, burnoutFrame);
+                buffers.endBatch();
+            }));
         }
     }
 }

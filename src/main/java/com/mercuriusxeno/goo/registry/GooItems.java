@@ -82,6 +82,11 @@ public class GooItems {
             GooBlocks.CRATER_ICE);
     public static final DeferredItem<BucketItem> MOLTEN_IRON_BUCKET = ITEMS.registerItem("molten_iron_bucket",
             props -> new BucketItem(GooFluids.MOLTEN_IRON_SOURCE.get(), props.craftRemainder(Items.BUCKET).stacksTo(1)));
+    /**
+     * Moonrock, a stone carrying lunar's gravity to whoever holds it (decision
+     * lunar-stone-carries-one-sixth-gravity-while-held).
+     */
+    public static final DeferredItem<Item> MOONROCK = ITEMS.registerSimpleItem("moonrock");
     // --- Canister ---
     public static final DeferredItem<CanisterItem> CANISTER = ITEMS.registerItem("canister",
             props -> new CanisterItem(GooBlocks.CANISTER.get(), props.stacksTo(1).useBlockDescriptionPrefix()));
