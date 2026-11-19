@@ -2,70 +2,66 @@ package com.mercuriusxeno.goo.client.radial;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityBadge;
+import com.mercuriusxeno.goo.ability.held.HeldEffects;
+import com.mercuriusxeno.goo.client.ClientKnownItems;
 import com.mercuriusxeno.goo.client.network.ClientAbilities;
+import com.mercuriusxeno.goo.client.network.OfferedAbility;
+import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.SprayerItem;
 import com.mercuriusxeno.goo.item.SprayerSetting;
 import com.mercuriusxeno.goo.network.SprayerSelectPayload;
-import com.mercuriusxeno.goo.type.GooTypeNames;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.OptionalDouble;
 
 /**
- * The sprayer's wheel, open while the glove menu key is held with the sprayer in hand: a ring of petals, one for
- * each of the canister's sprayable goo types in its own goo with its icon, and inside the hub a grid of the six
- * nozzles in two staggered rows over a divider and the three flow steps under it. Clicking a petal or an icon sets
- * that one setting and leaves the wheel open; letting go of the key over a goo petal sets it and closes, and letting
- * go anywhere else, an icon included, closes with nothing picked: an icon takes a click alone. The current nozzle and flow sit on a lit square, and whatever is under the cursor grows and names
- * itself in the middle.
+ * The sprayer's wheel, open while the glove menu key is held with the sprayer in hand: the glove's wheel over the
+ * canister's sprayable goo types, each type petal opening onto its ability petals as the glove's do, and in the
+ * hub's inert zone a three by three grid of small bordered buttons, the six nozzles over a divider and the three flow
+ * steps under it. Letting go of the key over an ability petal sprays that goo and closes; clicking a button sets that
+ * nozzle or flow and leaves the wheel open; letting go anywhere else, a button included, closes with nothing picked.
  * decision sprayer-wheel-picks-nozzle-flow-and-goo-type
  * decision spray-item-sprays-more-or-less-per-tick
  * decision spray-item-takes-different-nozzles-doing-different-things
  * decision radial-selects-on-g-release
- * operator ruling 2026-11-18: icons inside the hub, nozzles on top and flow on the bottom, each left to right; the
- * goo petals contract; options can be clicked
+ * operator ruling 2026-11-19: the sprayer is another glove whose type petals open onto its abilities, with the
+ * nozzle and flow buttons in the inert zone: three by three, aligned, a tight divider, small bordered buttons that
+ * take a click alone
  */
-public final class SprayerRadialScreen extends Screen {
+public final class SprayerRadialScreen extends EasedWheelScreen {
 
-    private static final int HALF = 2;
-    /** Where the goo petals start and end, as fractions of the wheel's radius. */
-    private static final double RING_INNER = 0.44;
-    private static final double RING_OUTER = 0.9;
-    /**
-     * The hub's grid: the screen gap a half step across stands for, and a row down.
-     * operator ruling 2026-11-18: arrange the icons as 2 4 6 over 1 3 5, a divider, then 1 2 3
-     */
-    private static final int HALF_STEP = 12;
-    private static final int ROW = 22;
-    /** The row the hovered name sits on, under the flow steps. */
-    private static final double NAME_ROW = 2.1;
-    private static final int DIVIDER = 0x80FFFFFF;
-    /** A goo petal's icon, drawn at its middle. */
-    private static final int GOO_ICON_SIZE = 16;
-    /** An icon's side on screen, its sixteen pixels drawn one to one, and under the cursor. */
-    private static final int ICON_SIZE = 16;
-    private static final int HOVERED_ICON_SIZE = 20;
-    /** How far inside the hub's edge an icon's center sits, past half its side. */
-    /** How near the cursor must come to an icon's center to rest on it. */
-    private static final int ICON_REACH = 10;
-    private static final int TEXTURE_SIDE = 16;
+    /** The screen gap between neighbouring buttons' centers, across and down. */
+    private static final int STEP = 16;
+    /** A button's side, its border included, and the icon drawn inside it. */
+    private static final int BUTTON = 14;
+    private static final int ICON = 12;
+    /** How near the cursor must come to a button's center to rest on it: half its side. */
+    private static final int BUTTON_REACH = BUTTON / HALF;
     private static final int WHITE = 0xFFFFFFFF;
-    private static final int HOVERED = 0xFFFFF29A;
-    private static final int RESTING = 0xB0C8C8C8;
-    /** The square lit behind the current nozzle and flow. */
-    private static final int CURRENT_SQUARE = 0x55FFFFFF;
+    private static final int BORDER = 0xC0D8D8D8;
+    private static final int HOVERED_BORDER = 0xFFFFF29A;
+    private static final int FACE = 0x80303030;
+    /** The face of the button holding the current nozzle or flow. */
+    private static final int CURRENT_FACE = 0xA0707070;
+    private static final int DIVIDER = 0x80FFFFFF;
+    /** The step down the hovered button's name sits at, under the flow steps. */
+    private static final double NAME_ROW = 2.2;
     private static final String ICON_FOLDER = "textures/gui/sprayer/";
     private static final String FLOW_ICON = "flow_";
     private static final String NOZZLE_ICON = "nozzle_";
@@ -74,20 +70,24 @@ public final class SprayerRadialScreen extends Screen {
     private static final String NO_TYPE_PICKED = "";
 
     private final SprayerWheel model;
-    private final List<SprayerWheel.RingPetal> ring;
+    private final List<List<OfferedAbility>> abilities;
+    private final Map<ResourceKey<GooTypeDefinition>, Integer> available;
+    private final RadialWheel wheel;
     private SprayerSetting kept;
-    private SprayerWheel.@Nullable RingPetal hovered;
+    private SprayerWheel.@Nullable RingPetal hoveredButton;
 
-    private SprayerRadialScreen(SprayerWheel model, SprayerSetting kept) {
-        super(Component.empty());
+    private SprayerRadialScreen(SprayerWheel model, List<List<OfferedAbility>> abilities,
+                                Map<ResourceKey<GooTypeDefinition>, Integer> available, SprayerSetting kept) {
         this.model = model;
-        this.ring = model.ring();
+        this.abilities = abilities;
+        this.available = available;
         this.kept = kept;
+        this.wheel = new RadialWheel(model.types().size(), type -> abilities.get(type).size());
     }
 
     /**
-     * Opens the wheel over the held sprayer: its canister's sprayable goo types, none for an empty sprayer, beside
-     * the flow steps and the nozzles, which an empty sprayer sets too.
+     * Opens the wheel over the held sprayer: its canister's goo types that have a residual, each opening onto its
+     * residual, beside the nozzle and flow buttons, which an empty sprayer sets too.
      * operator report 2026-11-18: an empty sprayer opened no wheel
      */
     public static void open() {
@@ -98,113 +98,97 @@ public final class SprayerRadialScreen extends Screen {
         }
         ItemStack sprayer = SprayerItem.heldSprayer(player);
         ClientAbilities synced = ClientAbilities.current();
-        SprayerWheel model = SprayerWheel.of(CanisterItem.getFluidContent(SprayerItem.fittedCanister(sprayer)),
+        CanisterFluidContent content = CanisterItem.getFluidContent(SprayerItem.fittedCanister(sprayer));
+        SprayerWheel model = SprayerWheel.of(content,
                 type -> synced.forType(type).stream().anyMatch(ability -> ability.badge() == AbilityBadge.RESIDUAL));
-        mc.setScreen(new SprayerRadialScreen(model, SprayerItem.settingOf(sprayer)));
+        List<List<OfferedAbility>> abilities = model.types().stream()
+                .map(type -> synced.offeredForType(type, ClientKnownItems.current()).stream()
+                        .filter(offered -> offered.ability().badge() == AbilityBadge.RESIDUAL).toList())
+                .toList();
+        mc.setScreen(new SprayerRadialScreen(model, abilities, content.gooVolumes(), SprayerItem.settingOf(sprayer)));
     }
 
     @Override
-    public boolean isPauseScreen() {
-        return false;
-    }
-
-    private int radius() {
-        return (int) RadialWheel.outerRadius(width, height);
+    RadialWheel wheel() {
+        return wheel;
     }
 
     @Override
     public void mouseMoved(double x, double y) {
-        double dx = x - width / (double) HALF;
-        double dy = y - height / (double) HALF;
-        double distance = Math.hypot(dx, dy) / radius();
-        hovered = distance >= RING_INNER && distance <= RING_OUTER ? petalAt(RadialWheel.angleOf(dx, dy))
-                : iconAt(x, y);
+        super.mouseMoved(x, y);
+        hoveredButton = buttonAt(x, y);
     }
 
-    private SprayerWheel.@Nullable RingPetal petalAt(double angle) {
-        int type = model.gooAt(angle);
-        return type == SprayerWheel.NONE ? null : new SprayerWheel.RingPetal(SprayerWheel.Group.GOO, type);
-    }
-
-    private SprayerWheel.@Nullable RingPetal iconAt(double x, double y) {
-        for (SprayerWheel.RingPetal icon : ring) {
-            int[] at = iconCenter(width / HALF, height / HALF, icon);
-            if (icon.group() != SprayerWheel.Group.GOO && Math.hypot(x - at[0], y - at[1]) <= ICON_REACH) {
-                return icon;
+    private SprayerWheel.@Nullable RingPetal buttonAt(double x, double y) {
+        for (SprayerWheel.RingPetal button : model.ring()) {
+            int[] at = buttonCenter(button);
+            if (button.group() != SprayerWheel.Group.GOO && Math.abs(x - at[0]) <= BUTTON_REACH
+                    && Math.abs(y - at[1]) <= BUTTON_REACH) {
+                return button;
             }
         }
         return null;
     }
 
     /**
-     * Paints the goo petals, the icons around the inside of the hub, and the name of whatever is under the cursor.
+     * Draws the glove's wheel over the sprayer's goo types and their abilities at the frame's true partial tick, then
+     * the nozzle and flow buttons in the hub over it.
+     * decision petal-moves-animate
      */
     @Override
     public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float frameDelta) {
         super.extractBackground(graphics, mouseX, mouseY, frameDelta);
-        Canvas canvas = new Canvas(width / HALF, height / HALF, radius());
-        for (SprayerWheel.RingPetal at : ring) {
-            if (at.group() == SprayerWheel.Group.GOO) {
-                paintPetal(graphics, canvas, at);
-            } else {
-                paintIcon(graphics, at);
+        float partialTick = minecraft.getDeltaTracker().getGameTimeDeltaPartialTick(false);
+        float gameTime = minecraft.level == null ? 0f : minecraft.level.getGameTime() + partialTick;
+        RadialWheelRenderer.Hoverables drawn = RadialWheelRenderer.render(graphics, font,
+                new RadialWheelRenderer.Frame(wheel, model.types(), abilities, available, width / HALF, height / HALF,
+                        radius(), PetalLook.LIVE, partialTick, Map.of(), gameTime,
+                        reagents -> Integer.MAX_VALUE, HeldEffects.NONE, OptionalDouble.empty()));
+        RadialWheelRenderer.nameWhatTheCursorRestsOn(graphics, font, drawn, mouseX, mouseY);
+        paintButtons(graphics);
+    }
+
+    private void paintButtons(GuiGraphicsExtractor graphics) {
+        for (SprayerWheel.RingPetal at : model.ring()) {
+            if (at.group() != SprayerWheel.Group.GOO) {
+                paintButton(graphics, at);
             }
         }
-        int dividerY = canvas.centerY() + (int) Math.round(model.dividerRow() * ROW);
-        int dividerHalf = (model.nozzles().size() / HALF + 1) * HALF_STEP;
-        graphics.fill(canvas.centerX() - dividerHalf, dividerY, canvas.centerX() + dividerHalf, dividerY + 1, DIVIDER);
-        if (hovered != null) {
-            RadialWheelRenderer.outlinedText(graphics, font, nameOf(hovered), canvas.centerX(),
-                    canvas.centerY() + (int) Math.round(NAME_ROW * ROW) - font.lineHeight / HALF, WHITE);
+        int centerX = width / HALF;
+        int dividerY = height / HALF + (int) Math.round(model.dividerRow() * STEP);
+        int dividerHalf = model.flows().size() * STEP / HALF;
+        graphics.fill(centerX - dividerHalf, dividerY, centerX + dividerHalf, dividerY + 1, DIVIDER);
+        if (hoveredButton != null) {
+            RadialWheelRenderer.outlinedText(graphics, font, nameOf(hoveredButton), centerX,
+                    height / HALF + (int) Math.round(NAME_ROW * STEP) - font.lineHeight / HALF, WHITE);
         }
     }
 
-    private void paintPetal(GuiGraphicsExtractor graphics, Canvas canvas, SprayerWheel.RingPetal at) {
-        double start = model.gooStartOf(at.index());
-        RadialWheel.PetalArc arc = new RadialWheel.PetalArc(at.index(), RadialWheel.NONE, start, model.gooArc(),
-                RING_OUTER, null, 0, 1, RING_INNER);
-        int tint = at.equals(hovered) ? HOVERED : isCurrent(at) ? WHITE : RESTING;
-        PetalPainter.paint(graphics, canvas, PetalLook.LIVE.fluidFace(model.types().get(at.index())), arc, tint);
-        // operator report 2026-11-18: the goo petals stopped drawing their icons
-        double middle = start + model.gooArc() / HALF;
-        double distance = (RING_INNER + RING_OUTER) / HALF * canvas.radius();
-        int x = canvas.centerX() + (int) Math.round(Math.sin(middle) * distance) - GOO_ICON_SIZE / HALF;
-        int y = canvas.centerY() - (int) Math.round(Math.cos(middle) * distance) - GOO_ICON_SIZE / HALF;
-        graphics.blit(RenderPipelines.GUI_TEXTURED, RadialWheelRenderer.typeIcon(model.types().get(at.index())), x, y,
-                0.0f, 0.0f, GOO_ICON_SIZE, GOO_ICON_SIZE, GOO_ICON_SIZE, GOO_ICON_SIZE, WHITE);
-    }
-
-    private void paintIcon(GuiGraphicsExtractor graphics, SprayerWheel.RingPetal at) {
-        int[] center = iconCenter(width / HALF, height / HALF, at);
-        if (isCurrent(at)) {
-            int half = ICON_SIZE / HALF + 1;
-            graphics.fill(center[0] - half, center[1] - half, center[0] + half, center[1] + half, CURRENT_SQUARE);
-        }
-        int size = at.equals(hovered) ? HOVERED_ICON_SIZE : ICON_SIZE;
-        graphics.blit(RenderPipelines.GUI_TEXTURED, iconOf(at), center[0] - size / HALF, center[1] - size / HALF,
-                0.0f, 0.0f, size, size, TEXTURE_SIDE, TEXTURE_SIDE, TEXTURE_SIDE, TEXTURE_SIDE, WHITE);
+    private void paintButton(GuiGraphicsExtractor graphics, SprayerWheel.RingPetal at) {
+        int[] center = buttonCenter(at);
+        int left = center[0] - BUTTON / HALF;
+        int top = center[1] - BUTTON / HALF;
+        graphics.fill(left, top, left + BUTTON, top + BUTTON, at.equals(hoveredButton) ? HOVERED_BORDER : BORDER);
+        graphics.fill(left + 1, top + 1, left + BUTTON - 1, top + BUTTON - 1, isCurrent(at) ? CURRENT_FACE : FACE);
+        graphics.blit(RenderPipelines.GUI_TEXTURED, iconOf(at), center[0] - ICON / HALF, center[1] - ICON / HALF,
+                0.0f, 0.0f, ICON, ICON, ICON, ICON, WHITE);
     }
 
     /**
-     * Where an icon's center sits on screen: its place on the hub's grid.
+     * Where a button's center sits on screen: its place on the hub's grid.
      *
-     * @param centerX the wheel's center, x
-     * @param centerY the wheel's center, y
-     * @param icon    a nozzle or flow icon
-     * @return the icon's center
+     * @param button a nozzle or flow button
+     * @return the button's center
      */
-    private int[] iconCenter(int centerX, int centerY, SprayerWheel.RingPetal icon) {
-        double[] offset = model.hubOffsetOf(icon);
-        return new int[]{centerX + (int) Math.round(offset[0] * HALF_STEP),
-                centerY + (int) Math.round(offset[1] * ROW)};
+    private int[] buttonCenter(SprayerWheel.RingPetal button) {
+        double[] offset = model.hubOffsetOf(button);
+        return new int[]{width / HALF + (int) Math.round(offset[0] * STEP),
+                height / HALF + (int) Math.round(offset[1] * STEP)};
     }
 
     private boolean isCurrent(SprayerWheel.RingPetal at) {
-        return switch (at.group()) {
-            case GOO -> kept.pickedType().map(model.types().get(at.index())::equals).orElse(at.index() == 0);
-            case FLOW -> kept.flow() == model.flows().get(at.index());
-            case NOZZLE -> kept.nozzle() == model.nozzles().get(at.index());
-        };
+        return at.group() == SprayerWheel.Group.FLOW ? kept.flow() == model.flows().get(at.index())
+                : kept.nozzle() == model.nozzles().get(at.index());
     }
 
     private Identifier iconOf(SprayerWheel.RingPetal at) {
@@ -215,31 +199,30 @@ public final class SprayerRadialScreen extends Screen {
     }
 
     private Component nameOf(SprayerWheel.RingPetal at) {
-        return switch (at.group()) {
-            case GOO -> GooTypeNames.name(model.types().get(at.index()));
-            case FLOW -> Component.translatable(model.flows().get(at.index()).langKey());
-            case NOZZLE -> Component.translatable(model.nozzles().get(at.index()).langKey());
-        };
+        return Component.translatable(at.group() == SprayerWheel.Group.FLOW
+                ? model.flows().get(at.index()).langKey() : model.nozzles().get(at.index()).langKey());
     }
 
     /**
-     * Sets the clicked petal's or icon's setting and leaves the wheel open for the next.
+     * Sets the clicked button's nozzle or flow and leaves the wheel open for the next.
      *
      * @param event       the click
      * @param doubleClick whether it is a double click
-     * @return true where a petal or icon was clicked
+     * @return true where a button was clicked
      */
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-        if (hovered == null) {
+        if (hoveredButton == null) {
             return super.mouseClicked(event, doubleClick);
         }
-        keep(model.picked(kept, hovered));
+        keep(model.picked(kept, hoveredButton));
         return true;
     }
 
     /**
-     * Reads the glove menu key's release, since an open screen takes the keyboard from the mapping.
+     * Reads the glove menu key's release, since an open screen takes the keyboard from the mapping: over an ability
+     * petal, once the petals have landed, the sprayer sprays that goo; anywhere else nothing is picked.
+     * decision mid-animation-input-does-nothing
      *
      * @param event the key release event
      * @return true if the event was handled
@@ -249,9 +232,9 @@ public final class SprayerRadialScreen extends Screen {
         if (!GloveRadialKey.MAPPING.matches(event)) {
             return super.keyReleased(event);
         }
-        // operator ruling 2026-11-18: the icons in the hub take a click alone; letting go over one picks nothing
-        if (hovered != null && hovered.group() == SprayerWheel.Group.GOO) {
-            keep(model.picked(kept, hovered));
+        RadialWheel.Outcome pick = GloveRadialKeyGate.settledPick(wheel.isAnimating(), wheel.click());
+        if (pick.selects() && !abilities.get(pick.type()).get(pick.ability()).refused()) {
+            keep(new SprayerSetting(Optional.of(model.types().get(pick.type())), kept.flow(), kept.nozzle()));
         }
         onClose();
         return true;
@@ -274,15 +257,5 @@ public final class SprayerRadialScreen extends Screen {
             mc.getConnection().send(new ServerboundCustomPayloadPacket(new SprayerSelectPayload(
                     picked.pickedType().map(GooTypes::id).orElse(NO_TYPE_PICKED), picked.flow(), picked.nozzle())));
         }
-    }
-
-    /**
-     * Where the sprayer's wheel draws.
-     *
-     * @param centerX the wheel's center, x
-     * @param centerY the wheel's center, y
-     * @param radius  the wheel's outer radius
-     */
-    private record Canvas(int centerX, int centerY, int radius) implements PetalCanvas {
     }
 }
