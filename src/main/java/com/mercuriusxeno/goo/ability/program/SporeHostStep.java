@@ -13,7 +13,7 @@ import java.util.stream.Stream;
  * Spores the host's target and finishes: until the spores fade, the
  * target's death bursts the named ability's spray from its corpse. Mycosis
  * spores what its cone reaches with
- * {@code spore_host burst=goo:shroom_mycosis radius=3 duration=600}
+ * {@code spore_host burst=goo:sculk_mycosis radius=3 duration=600}
  * (decision mycosis-spore-stream-buds-and-poisons).
  *
  * @param burst    the ability the corpse bursts

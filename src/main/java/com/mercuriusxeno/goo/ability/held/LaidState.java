@@ -9,7 +9,6 @@ import com.mercuriusxeno.goo.ability.program.LowerCaseEnumCodec;
 import com.mercuriusxeno.goo.ability.program.LuxStep;
 import com.mercuriusxeno.goo.ability.program.RemoteStep;
 import com.mercuriusxeno.goo.ability.program.SculkerStep;
-import com.mercuriusxeno.goo.ability.program.SightStep;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.UndeadStep;
 import com.mercuriusxeno.goo.ability.program.UnveilStep;
@@ -32,7 +31,10 @@ public enum LaidState {
     HEART_OVERLAY,
     /** Gluttony and its banks, laid by a gluttony step (decision gluttony-overheals-and-overhungers). */
     GLUTTONY,
-    /** Fungal sight (decision sight-lengthens-shift-and-outlines-fungus). */
+    /**
+     * Laid by no step, Sight having left the mod for Sculker's shroom vision (decision
+     * sculker-absorbs-sight-as-shroom-vision); it stands so a saved held effect naming it still loads.
+     */
     SIGHT,
     /** Lux's night vision and gaze glisten (decision lux-night-vision-without-particles). */
     LUX,
@@ -101,7 +103,6 @@ public enum LaidState {
     private static final Map<Class<? extends Step>, LaidState> LAID_BY = Map.ofEntries(
             Map.entry(HeartOverlayStep.class, HEART_OVERLAY),
             Map.entry(GluttonyStep.class, GLUTTONY),
-            Map.entry(SightStep.class, SIGHT),
             Map.entry(LuxStep.class, LUX),
             Map.entry(UndeadStep.class, UNDEAD),
             Map.entry(EludeStep.class, ELUDE),

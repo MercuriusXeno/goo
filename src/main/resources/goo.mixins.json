@@ -19,7 +19,7 @@
     "LevelDarkSideNightMixin",
     "ItemEntityFleckMotionMixin",
     "LivingEntityHeldFallsMixin",
-    "LivingEntityHostDeathMixin",
+    "LivingEntityCreepDeathMixin",
     "LivingEntityLunarAirlessMixin",
     "LivingEntityPneumaBreathMixin",
     "LivingEntitySculkerSilenceMixin",

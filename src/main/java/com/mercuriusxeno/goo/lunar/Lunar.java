@@ -18,8 +18,10 @@ public final class Lunar {
             Identifier.fromNamespaceAndPath(Goo.MODID, "lunar"));
 
     /**
-     * How far the light side runs either way of x = 0: half the moon, its border standing at 7.5 million.
+     * Half the light side's width along x, in blocks: the light side runs from minus this to plus this, half the
+     * moon, and the dark side is every x past it.
      * decision dark-side-is-the-half-of-the-moon-past-the-light-side
+     * decision traversal-to-the-moon-always-lands-on-the-light-side
      */
     public static final int LIGHT_SIDE_HALF_WIDTH = 3_750_000;
 
