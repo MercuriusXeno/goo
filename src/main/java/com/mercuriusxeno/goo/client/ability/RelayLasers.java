@@ -6,6 +6,8 @@ import com.mercuriusxeno.goo.block.ability.PrismBlock;
 import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.LineContext;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.ber.style.PulsePrismStyle;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -21,9 +23,9 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * The relay link's mark: a thin red laser between every two relay prisms
@@ -73,20 +75,26 @@ public final class RelayLasers {
     }
 
     /**
-     * Draws each link between relays after the translucent blocks.
+     * Hands the shared path each link between relays, sorted by the nearest relay.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
      *
-     * @param event the level render stage event
+     * @param frame the frame being drawn
+     * @param draws where the links' draw goes
      */
-    @SubscribeEvent
-    public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
         Minecraft mc = Minecraft.getInstance();
         List<BlockPos> standing = relays;
         if (mc.level == null || standing.size() < RELAYS_IN_A_LINK) {
             return;
         }
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
-        LineContext lines = new LineContext(event.getPoseStack().last(), buffers.getBuffer(GooRenderTypes.LINES_GLOW));
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        draws.accept(SortedDraw.nearestOf(standing.stream().map(Vec3::atCenterOf), camera,
+                () -> drawLinks(mc, frame, standing, camera)));
+    }
+
+    private static void drawLinks(Minecraft mc, LevelFrame frame, List<BlockPos> standing, Vec3 camera) {
+        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        LineContext lines = new LineContext(frame.poseStack().last(), buffers.getBuffer(GooRenderTypes.LINES_GLOW));
         float width = mc.getWindow().getAppropriateLineWidth() * WIDTH_SCALE;
         for (int i = 0; i < standing.size(); i++) {
             for (int j = i + 1; j < standing.size(); j++) {

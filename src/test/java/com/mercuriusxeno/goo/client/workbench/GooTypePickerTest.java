@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.network.chat.contents.TranslatableContents;
 import org.junit.jupiter.api.Test;
 import java.util.List;
+import java.util.stream.IntStream;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -49,7 +50,7 @@ class GooTypePickerTest {
     @Test
     void everyTypeTakesACellOfASevenByFourGrid() {
         List<GooTypePicker.Cell> cells = new GooTypePicker(TYPES).cells();
-        assertEquals(27, cells.size());
+        assertEquals(TYPES.size(), cells.size());
         assertEquals(TYPES, cells.stream().map(GooTypePicker.Cell::type).toList());
         assertEquals(6, cells.stream().mapToInt(GooTypePicker.Cell::column).max().orElseThrow());
         assertEquals(3, cells.stream().mapToInt(GooTypePicker.Cell::row).max().orElseThrow());
@@ -58,14 +59,15 @@ class GooTypePickerTest {
 
     /**
      * While the types, the close cell and the no-goo-type cell overflow 7 by 4, the grid grows a row for them, and
-     * holds 4 rows once they fit (operator ruling 2026-11-18, yarn standing beside yore and zoo).
+     * holds 4 rows once they fit (operator ruling 2026-11-18).
      * decision goo-type-picker-is-a-seven-by-four-icon-grid
      */
     @Test
     void gridGrowsARowWhileItsCellsOverflowSevenByFour() {
-        GooTypePicker overflowing = new GooTypePicker(TYPES.subList(0, 27));
+        List<String> many = IntStream.range(0, 27).mapToObj(index -> "type_" + index).toList();
+        GooTypePicker overflowing = new GooTypePicker(many);
         assertEquals(5, overflowing.rows());
-        GooTypePicker fitting = new GooTypePicker(TYPES.subList(0, 26));
+        GooTypePicker fitting = new GooTypePicker(many.subList(0, 26));
         assertEquals(GooTypePicker.ROWS, fitting.rows());
     }
 
@@ -118,7 +120,7 @@ class GooTypePickerTest {
         AtomicReference<String> picked = new AtomicReference<>();
         GooTypePicker picker = opened(targets, picked, null);
         GooTypePicker.Cell close = picker.closeCell();
-        assertEquals(new GooTypePicker.Cell(GooTypePicker.CLOSE, 6, 3), close);
+        assertEquals(cellAfterTheTypes(GooTypePicker.CLOSE, 0), close);
         assertTrue(targets.click(centerX(close), centerY(close)));
         assertFalse(picker.isOpen());
     }
@@ -132,10 +134,16 @@ class GooTypePickerTest {
         AtomicReference<String> picked = new AtomicReference<>();
         AtomicReference<Boolean> chose = new AtomicReference<>(false);
         GooTypePicker picker = opened(targets, picked, () -> chose.set(true));
-        GooTypePicker.Cell nothing = new GooTypePicker.Cell(GooTypePicker.NOTHING, 0, 4);
+        GooTypePicker.Cell nothing = cellAfterTheTypes(GooTypePicker.NOTHING, 1);
         assertTrue(targets.click(centerX(nothing), centerY(nothing)));
         assertTrue(chose.get());
         assertFalse(picker.isOpen());
+    }
+
+    // The cell standing the given places past the last type, row by row on a grid 7 wide.
+    private static GooTypePicker.Cell cellAfterTheTypes(String name, int past) {
+        int index = TYPES.size() + past;
+        return new GooTypePicker.Cell(name, index % GooTypePicker.COLUMNS, index / GooTypePicker.COLUMNS);
     }
 
     /**

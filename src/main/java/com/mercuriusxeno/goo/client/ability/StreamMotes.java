@@ -152,7 +152,7 @@ public final class StreamMotes {
      */
     private static void launchMote(Minecraft mc, StreamMotesPayload payload, SimpleParticleType particle,
                                    CoatRay.ConeShare share) {
-        // every-ability-casts-from-the-lifted-palm-blob: Rewind's and Mycosis' motes leave the lifted blob
+        // every-ability-casts-from-the-lifted-palm-blob: Revert's and Mycosis' motes leave the lifted blob
         Vec3 apex = CastOrigin.of(payload.casterId(), payload.apex(), 0f);
         Vec3 launch = GooStreamHandler.moteLaunch(payload, share);
         Particle mote = mc.particleEngine.createParticle(particle, apex.x, apex.y, apex.z, launch.x, launch.y,

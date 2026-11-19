@@ -31,7 +31,13 @@ public final class GloveSelectTests {
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, GLOVE_TYPE_ONLY_REFUSED, GloveSelectTests::typeAndAbilitySelectionHeld);
+        GooTestFunctions.registerTest(registrar, PLAYER_WHO_LEARNED_NOTHING_SELECTS_MOLTEN,
+                GloveSelectTests::playerWhoLearnedNothingSelectsMolten);
     }
+
+    private static final String PLAYER_WHO_LEARNED_NOTHING_SELECTS_MOLTEN = "player_who_learned_nothing_selects_molten";
+    private static final String BLAZE_MOLTEN = "goo:blaze_molten";
+    private static final String MOLTEN_NOT_HELD = "The glove of a player who learned nothing does not hold Molten";
 
 
     private static final String BLAZE_ID = GooTypes.id(GooTypes.BLAZE);
@@ -56,6 +62,25 @@ public final class GloveSelectTests {
         GloveSelection held = GooGloveItem.getSelection(glove);
         helper.assertTrue(held != null && BLAZE_ID.equals(held.gooTypeId())
                 && BLAZE_IGNITE.equals(held.abilityId()), ABILITY_NOT_HELD);
+
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        helper.succeed();
+    }
+
+    /**
+     * A player who has learned nothing sends Molten to an empty glove, which
+     * the glove holds, since a residual sits behind no recipe.
+     * decision no-residual-is-locked-behind-recipes
+     *
+     * @param helper the gametest helper
+     */
+    @SuppressWarnings(REMOVAL) // vanilla marks the mock server player helper for removal and names no replacement
+    public static void playerWhoLearnedNothingSelectsMolten(GameTestHelper helper) {
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ItemStack glove = new ItemStack(GooItems.GOO_GLOVE.get());
+        GloveSelectHandler.resolveAndApply(player, glove, new GloveSelectPayload(BLAZE_ID, BLAZE_MOLTEN));
+        GloveSelection held = GooGloveItem.getSelection(glove);
+        helper.assertTrue(held != null && BLAZE_MOLTEN.equals(held.abilityId()), MOLTEN_NOT_HELD);
 
         helper.getLevel().getServer().getPlayerList().remove(player);
         helper.succeed();

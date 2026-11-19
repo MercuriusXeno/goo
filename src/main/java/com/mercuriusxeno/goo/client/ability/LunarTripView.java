@@ -4,6 +4,8 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.astral.LunarFixation;
 import com.mercuriusxeno.goo.ability.astral.LunarSight;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.zone.LunarSkyRenderer;
 import com.mercuriusxeno.goo.client.zone.PocketStarSkyRenderer;
 import com.mercuriusxeno.goo.lunar.Lunar;
@@ -21,11 +23,12 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ExtractLevelRenderStateEvent;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.client.event.ViewportEvent;
+import org.joml.Matrix4fc;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
 import org.jspecify.annotations.Nullable;
+import java.util.function.Consumer;
 
 /**
  * Draws the Lunar trip on the caster's client while a fixation holds them, by LunarTrip's curves. Out from the
@@ -122,13 +125,17 @@ public final class LunarTripView {
     }
 
     /**
-     * Dims the overworld's sky to the star void: a black veil over vanilla's sky at the dim, and the pocket's stars
-     * over it.
+     * Hands the shared path the overworld's sky dimmed to the star void: a
+     * black veil over vanilla's sky at the dim, and the pocket's stars over
+     * it, drawn with the sky behind everything the level draws after it, so
+     * it sorts by nothing.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
+     * decision gate-fixates-your-view-on-the-moon-until-it-takes-you
      *
-     * @param event the stage the sky pass ends on
+     * @param frame the frame being drawn
+     * @param draws where the veil's draw goes
      */
-    @SubscribeEvent
-    public static void onAfterSky(RenderLevelStageEvent.AfterSky event) {
+    public static void collectSky(LevelFrame frame, Consumer<SortedDraw> draws) {
         Trip trip = trip();
         if (trip == null || trip.sky() != LunarSight.Sky.MOON) {
             return;
@@ -137,6 +144,10 @@ public final class LunarTripView {
         if (dim <= 0F) {
             return;
         }
+        draws.accept(new SortedDraw(0, () -> drawVeil(frame.modelView(), dim)));
+    }
+
+    private static void drawVeil(Matrix4fc modelView, float dim) {
         if (veil == null) {
             veil = PocketStarSkyRenderer.buildQuads(VEIL_LABEL, VEIL_FACES.length, builder -> {
                 for (Vec3 face : VEIL_FACES) {
@@ -144,9 +155,9 @@ public final class LunarTripView {
                 }
             });
         }
-        PocketStarSkyRenderer.drawQuads(GooRenderTypes.LUNAR_SKY_VEIL, veil, event.getModelViewMatrix(), VEIL_LABEL,
+        PocketStarSkyRenderer.drawQuads(GooRenderTypes.LUNAR_SKY_VEIL, veil, modelView, VEIL_LABEL,
                 new Vector4f(FULL, FULL, FULL, dim));
-        VOID_STARS.drawStars(event.getModelViewMatrix(), dim);
+        VOID_STARS.drawStars(modelView, dim);
     }
 
     /**
@@ -184,26 +195,34 @@ public final class LunarTripView {
     }
 
     /**
-     * Draws the swelling moon or blue planet over the whole frame, in the caster's own view alone.
+     * Hands the shared path the swelling moon or blue planet, drawn over the
+     * whole frame through blocks, in the caster's own view alone, so it
+     * sorts by nothing.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
+     * decision gate-fixates-your-view-on-the-moon-until-it-takes-you
      *
-     * @param event the stage the level ends on
+     * @param frame the frame being drawn
+     * @param draws where the body's draw goes
      */
-    @SubscribeEvent
-    public static void onAfterLevel(RenderLevelStageEvent.AfterLevel event) {
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
         Trip trip = trip();
         if (trip == null || PortalView.drawing()) {
             return;
         }
+        draws.accept(new SortedDraw(0, () -> drawBody(frame, trip)));
+    }
+
+    private static void drawBody(LevelFrame frame, Trip trip) {
         if (trip.sky() == LunarSight.Sky.MOON) {
-            SkyRenderState sky = event.getLevelRenderState().skyRenderState;
+            SkyRenderState sky = frame.levelRenderState().skyRenderState;
             // The moon brightens from vanilla's rain-dimmed moon to full as the sky gives way to the void.
             float brightness = Mth.lerp(LunarTrip.skyDim(trip.progress()), sky.rainBrightness, FULL);
             // The frame's moon angle, before the half turn that took vanilla's own moon behind the caster.
-            LunarTripBodies.drawMoon(event.getModelViewMatrix(), sky.moonAngle - HALF_TURN, sky.moonPhase,
+            LunarTripBodies.drawMoon(frame.modelView(), sky.moonAngle - HALF_TURN, sky.moonPhase,
                     LunarTrip.moonHalfTangent(trip.progress()), brightness);
         } else {
-            MoonPhase planetPhase = LunarSight.planetPhase(event.getLevelRenderState().skyRenderState.moonPhase);
-            LunarTripBodies.drawPlanet(event.getModelViewMatrix(), trip.fixation().direction(), planetPhase,
+            MoonPhase planetPhase = LunarSight.planetPhase(frame.levelRenderState().skyRenderState.moonPhase);
+            LunarTripBodies.drawPlanet(frame.modelView(), trip.fixation().direction(), planetPhase,
                     LunarTrip.planetHalfTangent(trip.progress()));
         }
     }

@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.sound.ListenerSounds;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -11,12 +12,9 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * The frost novas playing on this client: each is frost's fog ring laid flat
@@ -24,7 +22,6 @@ import java.util.List;
  * charge resolved with a burst of snowflakes riding the edge, then fading.
  * nova-ring-grows-with-the-hold
  */
-@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class NovaRings {
 
     /** The client's novas. */
@@ -171,12 +168,14 @@ public final class NovaRings {
     }
 
     /**
-     * Draws the live novas after translucent blocks.
+     * Hands the shared path one draw per live nova, dropping the novas that
+     * have played out first, each sorted by the nova's center.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
      *
-     * @param event the level render stage event
+     * @param frame the frame being drawn
+     * @param draws where each nova's draw goes
      */
-    @SubscribeEvent
-    public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) {
             return;
@@ -186,12 +185,17 @@ public final class NovaRings {
             return;
         }
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        BurnoutFrame frame = new BurnoutFrame(event.getPoseStack(), mc.renderBuffers().bufferSource(),
-                mc.gameRenderer.getMainCamera().position(), mc.level.getGameTime() + partialTick);
+        Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        BurnoutFrame burnout = new BurnoutFrame(frame.poseStack(), mc.renderBuffers().bufferSource(), camera,
+                mc.level.getGameTime() + partialTick);
         for (Ring ring : rings) {
-            float progress = ring.progress(frame.gameTime());
-            FrostExplosionVisual.drawDisc(frame, ring.corner(), Direction.UP, 0f, ring.reach() * spread(progress),
-                    progress, fog(progress), ring.seed());
+            draws.accept(new SortedDraw(ring.center().distanceToSqr(camera), () -> drawRing(burnout, ring)));
         }
+    }
+
+    private static void drawRing(BurnoutFrame frame, Ring ring) {
+        float progress = ring.progress(frame.gameTime());
+        FrostExplosionVisual.drawDisc(frame, ring.corner(), Direction.UP, 0f, ring.reach() * spread(progress),
+                progress, fog(progress), ring.seed());
     }
 }

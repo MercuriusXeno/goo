@@ -1,7 +1,8 @@
 package com.mercuriusxeno.goo.client.model;
 
-import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.client.GooSubmitter;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.throwing.BlobShape;
 import com.mercuriusxeno.goo.client.throwing.GooFlightRenderer;
 import com.mercuriusxeno.goo.item.GooStacks;
@@ -15,16 +16,13 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 
 /**
  * The joins running on this client: each absorbed goo cuboid drawn flowing
@@ -32,7 +30,6 @@ import java.util.concurrent.ConcurrentHashMap;
  * its own volume's to the summed volume's.
  * decision combining-flecks-join-into-one-cuboid
  */
-@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class GooJoins {
 
     /** How long a join's ease runs, in ticks. */
@@ -141,25 +138,48 @@ public final class GooJoins {
     }
 
     /**
-     * Draws every running join's absorbed cuboids flowing into their
-     * anchors, and forgets each join whose ease has run.
+     * Forgets each join whose ease has run and hands the shared path every
+     * running join's absorbed cuboids flowing into their anchors, sorted by
+     * the nearest bridge.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
+     * decision combining-flecks-join-into-one-cuboid
      *
-     * @param event the level render stage event
+     * @param frame the frame being drawn
+     * @param draws where the joins' draw goes
      */
-    @SubscribeEvent
-    public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || RUNNING.isEmpty()) {
             return;
         }
         double now = mc.level.getGameTime() + mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         RUNNING.values().removeIf(running -> now - running.began() > JOIN_TICKS);
-        Vec3 camera = mc.gameRenderer.getMainCamera().position();
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        List<Drawn> drawn = new ArrayList<>();
         for (Running running : RUNNING.values()) {
-            for (GooJoin.Bridge bridge : running.join().drawnAt(running.shareAt(now)).bridges()) {
-                drawBridge(event.getPoseStack(), buffers, running.type(), bridge, camera, (float) now);
-            }
+            running.join().drawnAt(running.shareAt(now)).bridges()
+                    .forEach(bridge -> drawn.add(new Drawn(running.type(), bridge)));
+        }
+        if (drawn.isEmpty()) {
+            return;
+        }
+        Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        draws.accept(SortedDraw.nearestOf(drawn.stream().map(each -> each.bridge().leading()
+                .add(each.bridge().trailing()).scale(HALF)), camera, () -> drawBridges(frame, drawn, camera, now)));
+    }
+
+    /**
+     * A bridge this frame draws and the goo type it draws in.
+     *
+     * @param type   the anchor's goo type
+     * @param bridge the bridge
+     */
+    private record Drawn(ResourceKey<GooTypeDefinition> type, GooJoin.Bridge bridge) {
+    }
+
+    private static void drawBridges(LevelFrame frame, List<Drawn> drawn, Vec3 camera, double now) {
+        MultiBufferSource.BufferSource buffers = Minecraft.getInstance().renderBuffers().bufferSource();
+        for (Drawn each : drawn) {
+            drawBridge(frame.poseStack(), buffers, each.type(), each.bridge(), camera, (float) now);
         }
         buffers.endBatch();
     }

@@ -4,6 +4,8 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.program.SoundPlays;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.network.SpikesRisePayload;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -17,11 +19,11 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.joml.Vector3f;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * Spikes goo's strike as this client sees it: one steel triangular pyramid
@@ -120,22 +122,28 @@ public final class SpikesRise {
     }
 
     /**
-     * Draws every strike's spikes rising out of the goo under the thing it
-     * struck, in Metal's chrome, while the cell and the thing both stand.
+     * Hands the shared path every strike's spikes rising out of the goo under
+     * the thing it struck, in Metal's chrome, while the cell and the thing
+     * both stand: opaque steel writing its own depth, drawn with the opaque blocks.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
      *
-     * @param event the level render stage event
+     * @param levelFrame the frame being drawn
+     * @param draws      where the spikes' draw goes
      */
-    @SubscribeEvent
-    public static void onAfterOpaqueBlocks(RenderLevelStageEvent.AfterOpaqueBlocks event) {
+    public static void collect(LevelFrame levelFrame, Consumer<SortedDraw> draws) {
         Minecraft mc = Minecraft.getInstance();
         ClientLevel level = mc.level;
         if (level == null || RISES.isEmpty()) {
             return;
         }
+        draws.accept(new SortedDraw(0, () -> drawRises(mc, level, levelFrame.poseStack().last())));
+    }
+
+    private static void drawRises(Minecraft mc, ClientLevel level, PoseStack.Pose pose) {
         float partial = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         double now = level.getGameTime() + partial;
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
-        Frame frame = new Frame(event.getPoseStack().last(), buffers.getBuffer(GooRenderTypes.SPIKES_STEEL_TYPE),
+        Frame frame = new Frame(pose, buffers.getBuffer(GooRenderTypes.SPIKES_STEEL_TYPE),
                 mc.gameRenderer.getMainCamera().position(), partial);
         for (Rise rise : RISES) {
             drawRise(level, rise, extension((float) (now - rise.startedAt), rise.payload.retractFrame()), frame);

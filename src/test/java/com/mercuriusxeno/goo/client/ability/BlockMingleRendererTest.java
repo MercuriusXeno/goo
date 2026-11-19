@@ -42,7 +42,7 @@ class BlockMingleRendererTest {
 
     @Test
     void aTintedExposureDrawsInItsTintOpaque() {
-        assertEquals(0xFF000000 | DegradeStep.NETHER_MAROON,
-                BlockMingleRenderer.mingleColor(DegradeStep.NETHER_MAROON));
+        assertEquals(0xFF000000 | DegradeStep.ZOMBIE_ROT,
+                BlockMingleRenderer.mingleColor(DegradeStep.ZOMBIE_ROT));
     }
 }

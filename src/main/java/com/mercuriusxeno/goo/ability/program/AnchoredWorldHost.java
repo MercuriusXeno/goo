@@ -36,7 +36,7 @@ public interface AnchoredWorldHost extends EntityScanHost {
 
     @Override
     default boolean anyEntityWithin(SelectionShape shape, double radius, Set<EntityFilter> filters) {
-        return EntityScan.anyEntityWithin(level(), anchor(), shape, radius, filters, null);
+        return EntityScan.anyEntityWithin(level(), anchor(), shape, radius, filters, null, null);
     }
 
     @Override

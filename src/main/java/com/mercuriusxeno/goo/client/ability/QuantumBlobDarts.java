@@ -2,6 +2,8 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.quantum.PortalColor;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.throwing.GooFlightRenderer;
 import com.mercuriusxeno.goo.client.throwing.GooTrailParticles;
 import com.mercuriusxeno.goo.network.ScanWavePayload;
@@ -14,9 +16,9 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Consumer;
 
 /**
  * Portal's shot: a Quantum blob the palm blob shoots in its portal's color,
@@ -109,34 +111,39 @@ public final class QuantumBlobDarts {
     }
 
     /**
-     * Draws each shot where it flies this frame and lets the arrived ones go.
+     * Hands the shared path each shot where it flies this frame, in the
+     * camera's view or a portal view's, each sorted by its own distance, and
+     * lets the arrived ones go. The path draws it far to near after the
+     * level, clouds included, so no cloud shows through it.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
      *
-     * @param event the level render stage event
+     * @param frame the frame being drawn
+     * @param draws where each shot's draw goes
      */
-    @SubscribeEvent
-    public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) {
             DARTING.clear();
             return;
         }
-        if (DARTING.isEmpty()) {
-            return;
-        }
         float partial = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         float now = mc.level.getGameTime() + partial;
-        Vec3 camera = PortalView.drawing() ? PortalView.cameraPosition() : mc.gameRenderer.getMainCamera().position();
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         DARTING.removeIf(darting -> arrived(darting.wave().ticks(), now - darting.start()));
-        PoseStack pose = event.getPoseStack();
+        Vec3 camera = PortalView.drawing() ? PortalView.cameraPosition() : mc.gameRenderer.getMainCamera().position();
         for (Darting darting : DARTING) {
             Vec3 at = darting.at(now - darting.start());
-            pose.pushPose();
-            pose.translate(at.x - camera.x, at.y - camera.y, at.z - camera.z);
-            GooFlightRenderer.renderThrownBlob(pose, buffers, GooTypes.QUANTUM, now,
-                    new GooFlightRenderer.ShotLook(darting.velocity(), SHOT_SIZE, darting.rgb()));
-            pose.popPose();
+            draws.accept(new SortedDraw(at.distanceToSqr(camera),
+                    () -> drawShot(mc, frame.poseStack(), darting, at.subtract(camera), now)));
         }
+    }
+
+    private static void drawShot(Minecraft mc, PoseStack pose, Darting darting, Vec3 offset, float now) {
+        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        pose.pushPose();
+        pose.translate(offset.x, offset.y, offset.z);
+        GooFlightRenderer.renderThrownBlob(pose, buffers, GooTypes.QUANTUM, now,
+                new GooFlightRenderer.ShotLook(darting.velocity(), SHOT_SIZE, darting.rgb()));
+        pose.popPose();
         buffers.endBatch();
     }
 }

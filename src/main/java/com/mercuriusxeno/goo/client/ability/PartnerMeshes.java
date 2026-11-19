@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.ability.SectionMeshes.Built;
 import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.buffers.GpuBufferSlice;
@@ -24,16 +26,17 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.OptionalDouble;
 import java.util.OptionalInt;
 import java.util.Set;
+import java.util.function.Consumer;
 
 /**
  * Draws the streamed far side of a linked pair inside the portal pass: each
@@ -74,18 +77,49 @@ public final class PartnerMeshes {
      *
      * @param event the level render stage event
      */
-    @SubscribeEvent
-    public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
+    /**
+     * Hands the shared path the partner's solid and cutout terrain while a
+     * portal view draws, rebuilding the meshes first: opaque, writing its
+     * depth, drawn with the opaque blocks.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
+     *
+     * @param frame the frame being drawn
+     * @param draws where the terrain's draw goes
+     */
+    public static void collectSolid(LevelFrame frame, Consumer<SortedDraw> draws) {
         if (!PortalView.drawing() || !PortalView.drawsStreamed()) {
             return;
         }
         rebuild(PartnerView.CLIENT);
-        Matrix4f view = new Matrix4f(RenderSystem.getModelViewMatrix()).mul(event.getPoseStack().last().pose());
+        draws.accept(new SortedDraw(0, () -> drawLayers(frame, List.of(ChunkSectionLayer.SOLID,
+                ChunkSectionLayer.CUTOUT))));
+    }
+
+    /**
+     * Hands the shared path the partner's translucent terrain while a portal
+     * view draws, which the view's pass draws once its level is drawn,
+     * sorted by the partner's mouth.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
+     *
+     * @param frame the frame being drawn
+     * @param draws where the terrain's draw goes
+     */
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
+        if (!PortalView.drawing() || !PortalView.drawsStreamed()) {
+            return;
+        }
+        draws.accept(new SortedDraw(Vec3.atCenterOf(PortalView.partnerMouth().center())
+                .distanceToSqr(PortalView.cameraPosition()),
+                () -> drawLayers(frame, List.of(ChunkSectionLayer.TRANSLUCENT))));
+    }
+
+    private static void drawLayers(LevelFrame frame, List<ChunkSectionLayer> layers) {
+        Matrix4f view = new Matrix4f(frame.modelView());
         Vec3 camera = PortalView.cameraPosition();
         Map<SectionPos, VisibilitySet> held = new HashMap<>();
         GRAPH.values().forEach(held::putAll);
         Set<SectionPos> seen = PartnerSectionGraph.visible(PortalView.partnerMouth(), held, PortalView::frustumHolds);
-        for (ChunkSectionLayer layer : ChunkSectionLayer.values()) {
+        for (ChunkSectionLayer layer : layers) {
             for (Map<LevelChunkSection[], java.util.List<Built>> chunk : BUILT.values()) {
                 chunk.values().forEach(sections -> sections.stream().filter(built -> seen.contains(built.section()))
                         .forEach(built -> draw(built, layer, view, camera)));

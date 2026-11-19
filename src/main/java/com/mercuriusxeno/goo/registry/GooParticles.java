@@ -31,7 +31,7 @@ public class GooParticles {
         PARTICLE_TYPES.register("spore", () -> new SimpleParticleType(false));
 
     /**
-     * A maroon gnat darting in Decay's swarm, the particle its stream sprays
+     * A rotting gnat darting in Decay's swarm, the particle its stream sprays
      * along the cone (decision decay-gnats-degrade-each-block-once).
      */
     public static final DeferredHolder<ParticleType<?>, SimpleParticleType> GNAT =
@@ -74,13 +74,13 @@ public class GooParticles {
         PARTICLE_TYPES.register("shatter_spray_drip", () -> new SimpleParticleType(false));
 
     /**
-     * Host's spray drip: the mod's blocky goo drip in deep's teals, flying
-     * its arc until it strikes a block's top, where it splats and the Host
+     * Creep's spray drip: the mod's blocky goo drip in sculk's teals, flying
+     * its arc until it strikes a block's top, where it splats and the Creep
      * goo lands.
-     * host-is-a-sculky-slime-that-sculk-spreads-eagerly-through
+     * host-and-spores-combine-into-one-residual
      */
-    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> HOST_SPRAY_DRIP =
-        PARTICLE_TYPES.register("host_spray_drip", () -> new SimpleParticleType(false));
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> CREEP_SPRAY_DRIP =
+        PARTICLE_TYPES.register("creep_spray_drip", () -> new SimpleParticleType(false));
 
     /**
      * Rime's spray drip: the mod's blocky goo drip in frost's pale blues,
@@ -146,10 +146,11 @@ public class GooParticles {
         PARTICLE_TYPES.register("spikes_spray_drip", () -> new SimpleParticleType(false));
 
     /**
-     * Infest's spray drip: the mod's blocky goo drip in nether's dark reds,
+     * Infest's spray drip: the mod's blocky goo drip in zombie's greens and meat browns,
      * flying its arc until it strikes a block's top, where it splats and the
      * Infest goo lands.
      * infest-is-nethers-goo-the-decay-effect-localized-around-the-goo
+     * zombie-goo-is-the-undead-and-takes-the-decay-abilities
      */
     public static final DeferredHolder<ParticleType<?>, SimpleParticleType> INFEST_SPRAY_DRIP =
         PARTICLE_TYPES.register("infest_spray_drip", () -> new SimpleParticleType(false));
@@ -172,6 +173,16 @@ public class GooParticles {
     public static final DeferredHolder<ParticleType<?>, SimpleParticleType> VINES_SPRAY_DRIP =
         PARTICLE_TYPES.register("vines_spray_drip", () -> new SimpleParticleType(false));
 
+
+    /**
+     * Stitch's spray drip: the mod's blocky goo drip in yarn's tans, flying
+     * its arc until it strikes a block's top, where it splats and the Stitch
+     * goo lands.
+     * stitch-is-yarns-residual-that-turns-slimes-into-passive-mobs
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> STITCH_SPRAY_DRIP =
+        PARTICLE_TYPES.register("stitch_spray_drip", () -> new SimpleParticleType(false));
+
     /**
      * Phase's spray drip: the mod's blocky goo drip in quantum's blues,
      * flying its arc until it strikes a block's top, where it splats and the
@@ -180,6 +191,15 @@ public class GooParticles {
      */
     public static final DeferredHolder<ParticleType<?>, SimpleParticleType> PHASE_SPRAY_DRIP =
         PARTICLE_TYPES.register("phase_spray_drip", () -> new SimpleParticleType(false));
+
+    /**
+     * Mortar's spray drip: the mod's blocky goo drip in rock's gray and
+     * brown, flying its arc until it strikes a block, where it splats and the
+     * Mortar goo lands.
+     * mortar-is-rocks-residual-a-petrification-and-hardening-goo
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> MORTAR_SPRAY_DRIP =
+        PARTICLE_TYPES.register("mortar_spray_drip", () -> new SimpleParticleType(false));
 
     /**
      * A snowflake crystal flitting weightlessly along Cold's wind (decision

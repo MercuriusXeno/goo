@@ -1,7 +1,8 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.QuadInstance;
 import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -18,12 +19,9 @@ import net.minecraft.data.AtlasIds;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * Draws each playing block transform: the old block's model, on the block's
@@ -33,7 +31,6 @@ import java.util.List;
  * next block's model mingled in over it by the share built
  * (decision petrify-stone-encasement-and-calcify-map).
  */
-@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class BlockMingleRenderer {
 
     /** Units the overlay coordinates carry the progress in; must match PROGRESS_UNITS in block_mingle.vsh. */
@@ -49,23 +46,55 @@ public final class BlockMingleRenderer {
     }
 
     /**
-     * Draws the playing transforms after the translucent blocks.
+     * Hands the shared path the playing transforms' opaque coat: the quads
+     * the mingle pipeline draws opaque on the block's own faces, depth biased
+     * in front of them, drawn right after the opaque blocks, so it sorts by
+     * nothing.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
      *
-     * @param event the level render stage event
+     * @param frame the frame being drawn
+     * @param draws where the coat's draw goes
      */
-    @SubscribeEvent
-    public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
+    public static void collectCoat(LevelFrame frame, Consumer<SortedDraw> draws) {
+        List<Mingle> mingles = minglesThisFrame();
+        if (!mingles.isEmpty()) {
+            draws.accept(new SortedDraw(0, () -> drawPass(frame.poseStack(), mingles,
+                    GooRenderTypes.blockMingle(blockAtlas()), false)));
+        }
+    }
+
+    /**
+     * Hands the shared path the playing transforms' translucent quads, a
+     * translucent block mingling in see-through, sorted by the nearest
+     * mingling block.
+     * coat-is-a-green-slime-film-over-the-blocks-own-texture
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
+     *
+     * @param frame the frame being drawn
+     * @param draws where the translucent quads' draw goes
+     */
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
+        List<Mingle> mingles = minglesThisFrame();
+        if (!mingles.isEmpty()) {
+            draws.accept(SortedDraw.nearestOf(mingles.stream().map(mingle -> Vec3.atCenterOf(mingle.pos())),
+                    Minecraft.getInstance().gameRenderer.getMainCamera().position(),
+                    () -> drawPass(frame.poseStack(), mingles, GooRenderTypes.blockMingleTranslucent(blockAtlas()),
+                            true)));
+        }
+    }
+
+    // Both collects read the mingles through here, the coat's at AfterOpaqueBlocks and the translucent quads' at
+    // AfterLevel; the upkeep, dropping the transforms, exposures and heats that have run, is idempotent within a
+    // game tick, so the later read finds what the earlier left.
+    private static List<Mingle> minglesThisFrame() {
         Minecraft mc = Minecraft.getInstance();
         ClientLevel level = mc.level;
         if (level == null) {
-            return;
+            return List.of();
         }
         List<BlockTransforms.Transform> live = BlockTransforms.CLIENT.live(level.getGameTime());
         List<BlockTransforms.Exposure> exposing = BlockTransforms.CLIENT.exposing(level.getGameTime());
         List<BlockTransforms.RedHot> heating = BlockTransforms.CLIENT.heating(level.getGameTime());
-        if (live.isEmpty() && exposing.isEmpty() && heating.isEmpty()) {
-            return;
-        }
         float gameTime = level.getGameTime() + mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         List<Mingle> mingles = minglesOf(level, live, exposing, gameTime);
         // stone-goes-red-hot-before-molten-turns-it-to-lava: the block's own face heats in, red hot, by the share
@@ -73,7 +102,11 @@ public final class BlockMingleRenderer {
             mingles.add(new Mingle(redHot.pos(), level.getBlockState(redHot.pos()), 1f - redHot.share(gameTime),
                     mingleColor(RED_HOT), redHot.seed()));
         }
-        drawAll(event.getPoseStack(), mingles);
+        return mingles;
+    }
+
+    private static Identifier blockAtlas() {
+        return Minecraft.getInstance().getAtlasManager().getAtlasOrThrow(AtlasIds.BLOCKS).location();
     }
 
     /**
@@ -100,20 +133,6 @@ public final class BlockMingleRenderer {
                     mingleColor(mingling.tint()), BlockTransforms.CLIENT.seedOf(exposure)));
         }
         return mingles;
-    }
-
-    /**
-     * Draws the mingles into one batch.
-     *
-     * @param poseStack the level's pose stack, camera relative
-     * @param mingles   the states mingling over their blocks
-     */
-    private static void drawAll(PoseStack poseStack, List<Mingle> mingles) {
-        Minecraft mc = Minecraft.getInstance();
-        Identifier atlas = mc.getAtlasManager().getAtlasOrThrow(AtlasIds.BLOCKS).location();
-        drawPass(poseStack, mingles, GooRenderTypes.blockMingle(atlas), false);
-        // coat-is-a-green-slime-film-over-the-blocks-own-texture: a translucent block mingles in see-through
-        drawPass(poseStack, mingles, GooRenderTypes.blockMingleTranslucent(atlas), true);
     }
 
     /**

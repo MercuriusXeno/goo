@@ -21,13 +21,15 @@ import net.minecraft.util.ARGB;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 import java.util.Map;
+import java.util.function.Function;
 
 /**
  * Draws the selected ability's held ghost at the aim point while right click
  * is held, in two passes: the landing's dome through its own shader at a share
- * of its opacity, depth tested, with rings pulsing across the aimed face; then
+ * of its opacity, depth tested, with rings pulsing across the aimed face; and
  * the same dome fainter with depth ignored, so the part inside blocks shows
- * through them.
+ * through them. Each pass draws through its own entry point, the fainter one
+ * first, so the shared path can draw them under their own sort routes.
  * every-instant-aoe-shows-its-indicator-while-held
  * held-visual-ghosts-the-landing-in-two-passes
  */
@@ -53,7 +55,7 @@ public final class HeldDomeRenderer {
             Map.entry(GooTypes.FROST, FrostExplosionVisual.INSTANCE),
             Map.entry(GooTypes.JELLY, MoteCloudGhost.JELLY),
             Map.entry(GooTypes.METAL, MetalExplosionVisual.INSTANCE),
-            Map.entry(GooTypes.SHROOM, MoteCloudGhost.SHROOM),
+            Map.entry(GooTypes.SCULK, MoteCloudGhost.SCULK),
             Map.entry(GooTypes.ROCK, RockExplosionVisual.INSTANCE),
             Map.entry(GooTypes.UNSTABLE, UnstableExplosionVisual.INSTANCE),
             Map.entry(GooTypes.WEIRD, MoteCloudGhost.WEIRD));
@@ -126,53 +128,42 @@ public final class HeldDomeRenderer {
     }
 
     /**
-     * Draws the selected ability's ghost where the target anchors it.
+     * The selected ability's ghost where the target anchors it.
      *
-     * @param poseStack  the pose stack, camera relative
-     * @param buffers    the buffer source
-     * @param camera     the camera's world position
-     * @param target     the aim target
-     * @param ability    the selected ability
-     * @param type       the selected goo type
-     * @param ringRgb    the goo type's highlight color
-     * @param nowSeconds seconds on the real-time clock the rings run on
+     * @param target  the aim target
+     * @param ability the selected ability
+     * @param type    the selected goo type
+     * @return the placed ghost, or null where its type holds none or nothing is aimed at
      */
-    public static void render(PoseStack poseStack, MultiBufferSource.BufferSource buffers, Vec3 camera,
-                              TargetResult target, ClientAbility ability, ResourceKey<GooTypeDefinition> type,
-                              int ringRgb, double nowSeconds) {
+    public static @Nullable GhostAt ghostAt(TargetResult target, ClientAbility ability,
+                                            ResourceKey<GooTypeDefinition> type) {
         HeldGhostVisual visual = ghostOf(type);
         DomeAnchor anchor = anchorOf(target);
         if (visual == null || anchor == null) {
-            return;
+            return null;
         }
-        draw(poseStack, buffers, camera, new GhostAt(visual, anchor, visual.ghost(ability.area(), ability.behaviors())),
-                ringRgb, nowSeconds);
+        return new GhostAt(visual, anchor, visual.ghost(ability.area(), ability.behaviors()));
     }
 
     /**
-     * Draws a sized ability's ghost at the aimed target, at the size its
-     * charge has reached, its rings as its type's ghost names them, Blast's
-     * pulsing out to that size
+     * A sized ability's ghost at the aimed target, at the size its charge
+     * has reached, its rings as its type's ghost names them, Blast's pulsing
+     * out to that size
      * (decision spontaneous-abilities-cast-at-the-target-with-no-thrown-blob).
      *
-     * @param poseStack  the pose stack, camera relative
-     * @param buffers    the buffer source
-     * @param camera     the camera's world position
-     * @param target     the aim target
-     * @param radius     the size the charge has reached, in blocks
-     * @param type       the selected goo type
-     * @param ringRgb    the goo type's highlight color
-     * @param nowSeconds seconds on the real-time clock the rings run on
+     * @param target the aim target
+     * @param radius the size the charge has reached, in blocks
+     * @param type   the selected goo type
+     * @return the placed ghost, or null where its type holds none or nothing is aimed at
      */
-    public static void renderSized(PoseStack poseStack, MultiBufferSource.BufferSource buffers, Vec3 camera,
-                                   TargetResult target, float radius, ResourceKey<GooTypeDefinition> type,
-                                   int ringRgb, double nowSeconds) {
+    public static @Nullable GhostAt sizedGhostAt(TargetResult target, float radius,
+                                                 ResourceKey<GooTypeDefinition> type) {
         HeldGhostVisual visual = ghostOf(type);
         DomeAnchor anchor = anchorOf(target);
         if (visual == null || anchor == null) {
-            return;
+            return null;
         }
-        draw(poseStack, buffers, camera, new GhostAt(visual, anchor, visual.sizedGhost(radius)), ringRgb, nowSeconds);
+        return new GhostAt(visual, anchor, visual.sizedGhost(radius));
     }
 
     /**
@@ -182,26 +173,55 @@ public final class HeldDomeRenderer {
      * @param anchor where it draws
      * @param ghost  its dome and rings
      */
-    private record GhostAt(HeldGhostVisual visual, DomeAnchor anchor, HeldGhost ghost) {
+    public record GhostAt(HeldGhostVisual visual, DomeAnchor anchor, HeldGhost ghost) {
     }
 
-    private static void draw(PoseStack poseStack, MultiBufferSource.BufferSource buffers, Vec3 camera, GhostAt at,
-                             int ringRgb, double nowSeconds) {
-        HeldGhostVisual visual = at.visual();
-        DomeAnchor anchor = at.anchor();
-        HeldGhost ghost = at.ghost();
+    /**
+     * Draws a ghost's through-blocks pass: each layer fainter, with depth
+     * ignored, so the part inside blocks shows through them. It draws before
+     * {@link #drawOverBlocks}.
+     * decision held-visual-ghosts-the-landing-in-two-passes
+     *
+     * @param poseStack  the pose stack, camera relative
+     * @param buffers    the buffer source
+     * @param camera     the camera's world position
+     * @param at         the ghost and where it draws
+     * @param nowSeconds seconds on the real-time clock the layers run on
+     */
+    public static void drawThroughBlocks(PoseStack poseStack, MultiBufferSource.BufferSource buffers, Vec3 camera,
+                                         GhostAt at, double nowSeconds) {
+        drawLayers(poseStack, buffers, camera, at, nowSeconds, HeldLayer::throughBlocks, THROUGH_BLOCKS_OPACITY);
+    }
+
+    /**
+     * Draws a ghost's over-blocks pass, each layer depth tested at a share of
+     * the landing's opacity, then its rings across the aimed face.
+     * decision held-visual-ghosts-the-landing-in-two-passes
+     *
+     * @param poseStack  the pose stack, camera relative
+     * @param buffers    the buffer source
+     * @param camera     the camera's world position
+     * @param at         the ghost and where it draws
+     * @param ringRgb    the goo type's highlight color
+     * @param nowSeconds seconds on the real-time clock the layers and rings run on
+     */
+    public static void drawOverBlocks(PoseStack poseStack, MultiBufferSource.BufferSource buffers, Vec3 camera,
+                                      GhostAt at, int ringRgb, double nowSeconds) {
+        drawLayers(poseStack, buffers, camera, at, nowSeconds, HeldLayer::overBlocks, HELD_OPACITY);
+        drawRings(poseStack, buffers, camera, at.anchor(), at.ghost(), ringRgb, nowSeconds);
+    }
+
+    private static void drawLayers(PoseStack poseStack, MultiBufferSource.BufferSource buffers, Vec3 camera,
+                                   GhostAt at, double nowSeconds, Function<HeldLayer, RenderType> passType,
+                                   float opacity) {
         poseStack.pushPose();
-        Vec3 corner = anchor.domeCorner().subtract(camera);
+        Vec3 corner = at.anchor().domeCorner().subtract(camera);
         poseStack.translate(corner.x, corner.y, corner.z);
-        HeldPass pass = new HeldPass(ghost, anchor.face(), nowSeconds);
-        for (HeldLayer layer : visual.heldLayers()) {
-            pass.draw(poseStack, buffers, layer, layer.throughBlocks(), THROUGH_BLOCKS_OPACITY);
-        }
-        for (HeldLayer layer : visual.heldLayers()) {
-            pass.draw(poseStack, buffers, layer, layer.overBlocks(), HELD_OPACITY);
+        HeldPass pass = new HeldPass(at.ghost(), at.anchor().face(), nowSeconds);
+        for (HeldLayer layer : at.visual().heldLayers()) {
+            pass.draw(poseStack, buffers, layer, passType.apply(layer), opacity);
         }
         poseStack.popPose();
-        drawRings(poseStack, buffers, camera, anchor, ghost, ringRgb, nowSeconds);
     }
 
     /**

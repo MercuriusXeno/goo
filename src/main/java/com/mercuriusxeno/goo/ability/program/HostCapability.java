@@ -50,11 +50,6 @@ public enum HostCapability {
      */
     LINGER(LingerHost.class),
     /**
-     * A landing where a blob can grow a shroom network
-     * (decision colonize-blob-grows-the-network).
-     */
-    SPORE(SporeHost.class),
-    /**
      * A one-tick host anchored at a point, which can run steps on each open
      * floor around it (decision colonize-blob-grows-the-network).
      */
@@ -134,11 +129,6 @@ public enum HostCapability {
      * zap-ticks-the-device-and-stuns).
      */
     POWER_PULSE(PowerPulseHost.class),
-    /**
-     * A landing that can start aging the block it landed on (decision
-     * old-blob-ages-valuables-slowly).
-     */
-    AGING(AgingHost.class),
     /**
      * A host whose own block can give redstone power to its neighbors
      * (decision metronome-prism-pulses-at-the-learned-rate).

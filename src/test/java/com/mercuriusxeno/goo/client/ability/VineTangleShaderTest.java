@@ -47,12 +47,12 @@ class VineTangleShaderTest {
 
         @Test
         void aSpiderHandsItsSixtyFourByThirtyTwoSkin() {
-            assertUnpacksTo(64, 32, VineTangleLayer.skinSizeCoords(SpiderModel.createSpiderBodyLayer().bakeRoot()));
+            assertUnpacksTo(64, 32, TangleLayer.skinSizeCoords(SpiderModel.createSpiderBodyLayer().bakeRoot()));
         }
 
         @Test
         void aZombieHandsItsSixtyFourSquareSkin() {
-            assertUnpacksTo(64, 64, VineTangleLayer.skinSizeCoords(LayerDefinition.create(
+            assertUnpacksTo(64, 64, TangleLayer.skinSizeCoords(LayerDefinition.create(
                     HumanoidModel.createMesh(CubeDeformation.NONE, 0f), 64, 64).bakeRoot()));
         }
 

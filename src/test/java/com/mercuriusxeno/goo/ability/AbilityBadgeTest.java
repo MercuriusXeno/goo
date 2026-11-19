@@ -6,6 +6,7 @@ import com.google.gson.JsonParser;
 import com.google.gson.JsonPrimitive;
 import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mojang.serialization.JsonOps;
+import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -42,6 +43,11 @@ class AbilityBadgeTest {
             { "gooType": "typhoon", "displayName": "goo.ability.fixture", "badge": "%s", "cost": 96,
               "delivery": { "kind": "stream" }, "behaviors": [],
               "on_prism": [ { "type": "coat" } ] }""";
+    /** A stream naming a required item, with the badge left for the test to write. */
+    private static final String STREAM_REQUIRING_AN_ITEM = """
+            { "gooType": "blaze", "displayName": "goo.ability.fixture", "badge": "%s", "cost": 96,
+              "delivery": { "kind": "stream" }, "behaviors": [],
+              "requires": [ "minecraft:lava_bucket" ] }""";
 
     /** The delivery field a held channel writes; its codec default hides whether the JSON wrote it. */
     private static final String TICKS_PER_CHARGE_FIELD = "ticks_per_charge";
@@ -91,12 +97,12 @@ class AbilityBadgeTest {
      * @param badge   the badge it wears
      */
     @ParameterizedTest
-    @CsvSource({"kinetic_grab, HELD", "rock_gouge, HELD", "blaze_flames, CHANNELED", "typhoon_gust, CHANNELED",
+    @CsvSource({"kinetic_grab, HELD", "rock_gouge, HELD", "blaze_flames, CHANNELED", "sculk_mycosis, CHANNELED", "typhoon_gust, CHANNELED",
             "frost_cold, CHANNELED", "weird_goop, RESIDUAL", "kinetic_slick, RESIDUAL", "blaze_molten, RESIDUAL",
-            "deep_host, RESIDUAL", "frost_rime, RESIDUAL", "hex_leech, RESIDUAL", "typhoon_updraft, RESIDUAL",
+            "sculk_creep, RESIDUAL", "frost_rime, RESIDUAL", "hex_leech, RESIDUAL", "typhoon_updraft, RESIDUAL",
             "jelly_nectar, RESIDUAL", "pulse_signal, RESIDUAL", "metal_spikes, RESIDUAL",
-            "nether_infest, RESIDUAL", "leaf_vines, RESIDUAL", "unstable_nitro, RESIDUAL",
-            "quantum_phase, RESIDUAL"})
+            "zombie_infest, RESIDUAL", "leaf_vines, RESIDUAL", "unstable_nitro, RESIDUAL",
+            "quantum_phase, RESIDUAL", "rock_mortar, RESIDUAL", "yarn_stitch, RESIDUAL"})
     void shippedAbilityWearsItsControlBadge(String ability, AbilityBadge badge) {
         assertEquals(badge, AbilityJson.decode(ability).badge(), ability);
     }
@@ -113,9 +119,9 @@ class AbilityBadgeTest {
         Set<String> wearers = AbilityJson.files().stream().map(AbilityJson::decode)
                 .filter(definition -> definition.badge() == AbilityBadge.RESIDUAL)
                 .map(definition -> definition.id().getPath()).collect(Collectors.toSet());
-        assertEquals(Set.of("weird_goop", "kinetic_slick", "blaze_molten", "deep_host", "frost_rime", "hex_leech",
-                "typhoon_updraft", "jelly_nectar", "pulse_signal", "metal_spikes", "nether_infest",
-                "leaf_vines", "unstable_nitro", "quantum_phase"), wearers);
+        assertEquals(Set.of("weird_goop", "kinetic_slick", "blaze_molten", "sculk_creep", "frost_rime", "hex_leech",
+                "typhoon_updraft", "jelly_nectar", "pulse_signal", "metal_spikes", "zombie_infest",
+                "leaf_vines", "unstable_nitro", "quantum_phase", "rock_mortar", "yarn_stitch"), wearers);
     }
 
     /** decision self-badge-becomes-instant-with-a-noita-trigger-star */
@@ -236,7 +242,7 @@ class AbilityBadgeTest {
      */
     @ParameterizedTest
     @CsvSource({"pulse_relay, pulse_zap", "pulse_metronome, pulse_tick",
-            "nether_hive, nether_decay", "glow_reflector, glow_laser",
+            "nether_hive, zombie_decay", "glow_reflector, glow_laser",
             "leaf_verdant, leaf_growth", "frost_glacial, frost_cold", "ender_oculus, ender_blink",
             "blaze_heater, blaze_flames"})
     void aFoldedPrismCardLoadsNoDefinitionAndItsHostReacts(String card, String host) {
@@ -271,6 +277,24 @@ class AbilityBadgeTest {
         assertTrue(message.contains("on_prism"), message);
         assertFalse(AbilityJson.decodeText(RESIDUAL_FIXTURE, STREAM_REACTING_TO_PRISMS.formatted("free"))
                 .onPrism().isEmpty(), "a free stream keeps its prism reaction");
+    }
+
+    /**
+     * An ability wearing the residual badge that names a required item fails
+     * to load, its error naming the ability, while the same JSON wearing
+     * another badge loads with its requirement.
+     * decision no-residual-is-locked-behind-recipes
+     */
+    @Test
+    void residualNamingARequiredItemIsRefused() {
+        IllegalStateException refusal = assertThrows(IllegalStateException.class,
+                () -> AbilityJson.decodeText(RESIDUAL_FIXTURE, STREAM_REQUIRING_AN_ITEM.formatted("residual")));
+        String message = refusal.getMessage();
+
+        assertTrue(message.contains(RESIDUAL_FIXTURE), message);
+        assertTrue(message.contains("requires"), message);
+        assertEquals(List.of(Identifier.withDefaultNamespace("lava_bucket")),
+                AbilityJson.decodeText(RESIDUAL_FIXTURE, STREAM_REQUIRING_AN_ITEM.formatted("free")).requires());
     }
 
     /**

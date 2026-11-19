@@ -6,6 +6,8 @@ import com.mercuriusxeno.goo.ability.program.FuseBooksStep;
 import com.mercuriusxeno.goo.ability.program.TomeKind;
 import com.mercuriusxeno.goo.ability.program.TomeStep;
 import com.mercuriusxeno.goo.client.GooSubmitter;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.particle.HexWispParticle;
@@ -43,12 +45,14 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jspecify.annotations.Nullable;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Objects;
+import java.util.function.Consumer;
+import java.util.stream.Stream;
 
 /**
  * Enchant's and Fuse's floating tomes. While right click holds Enchant and
@@ -383,12 +387,14 @@ public final class Tomes {
     }
 
     /**
-     * Draws the held tome and every playing choreography after the translucent world.
+     * Hands the shared path the held tome and every playing choreography,
+     * sorted by the nearest of the local player and the casters playing one.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
      *
-     * @param event the level render stage event
+     * @param frame the frame being drawn
+     * @param draws where the tomes' draw goes
      */
-    @SubscribeEvent
-    public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
         Minecraft mc = Minecraft.getInstance();
         ClientLevel level = mc.level;
         LocalPlayer player = mc.player;
@@ -396,10 +402,18 @@ public final class Tomes {
             return;
         }
         bakeBookOnce(mc);
+        Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        Stream<Vec3> casters = Stream.<Entity>concat(Stream.of(player), SHOWS.keySet().stream().map(level::getEntity)
+                .filter(Objects::nonNull)).map(Entity::position);
+        draws.accept(SortedDraw.nearestOf(casters, camera, () -> drawTomes(mc, level, player, frame, camera)));
+    }
+
+    private static void drawTomes(Minecraft mc, ClientLevel level, LocalPlayer player, LevelFrame frame,
+                                  Vec3 camera) {
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         float time = level.getGameTime() + partialTick;
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
-        Pen pen = new Pen(event.getPoseStack(), buffers, mc, mc.gameRenderer.getMainCamera().position());
+        Pen pen = new Pen(frame.poseStack(), buffers, mc, camera);
         if (showsHeld(player)) {
             drawHeld(pen, player, partialTick, time);
         }

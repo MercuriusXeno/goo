@@ -1,9 +1,10 @@
 package com.mercuriusxeno.goo.client.overlay;
 
-import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.program.FungusAim;
 import com.mercuriusxeno.goo.ability.program.TransmitStep;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.ability.SporeMotes;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
@@ -21,13 +22,10 @@ import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
 import net.minecraft.util.Util;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.jspecify.annotations.Nullable;
 import java.util.Optional;
 import java.util.SplittableRandom;
+import java.util.function.Consumer;
 
 /**
  * Transmit's target marker: while the press is held near a fungus, the
@@ -36,7 +34,6 @@ import java.util.SplittableRandom;
  * would stand, both drawn through walls so the mark reads behind them.
  * fungal-shift-blinks-to-the-aimed-fungus
  */
-@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class TransmitTargetMarker {
 
     /** How far the flare swells past the block. */
@@ -88,12 +85,15 @@ public final class TransmitTargetMarker {
     }
 
     /**
-     * Draws the marker after the translucent world while a held Transmit aims at fungus.
+     * Hands the shared path the marker while a held Transmit aims at fungus,
+     * drawn through walls, sorted by the aimed fungus.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
+     * decision fungal-shift-blinks-to-the-aimed-fungus
      *
-     * @param event the level render stage event
+     * @param frame the frame being drawn
+     * @param draws where the marker's draw goes
      */
-    @SubscribeEvent
-    public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
         if (player == null || mc.level == null) {
@@ -103,7 +103,9 @@ public final class TransmitTargetMarker {
         if (!showsMarker(ability, GloveUseTracker.showsArea())) {
             return;
         }
-        aimedFungus(player, ability).ifPresent(pos -> draw(mc, event.getPoseStack(), pos));
+        aimedFungus(player, ability).ifPresent(pos -> draws.accept(new SortedDraw(
+                Vec3.atCenterOf(pos).distanceToSqr(mc.gameRenderer.getMainCamera().position()),
+                () -> draw(mc, frame.poseStack(), pos))));
     }
 
     /**
@@ -138,7 +140,7 @@ public final class TransmitTargetMarker {
             boolean near = FungusAim.standsNearFungus(player.level(), player,
                     TransmitStep.fungusNear(ability.behaviors()).orElse(0));
             target = near ? FungusAim.aimedFungus(player.level(), player,
-                    TransmitStep.reachOf(player, TransmitStep.fungusRange(ability.behaviors()).orElseThrow()))
+                    TransmitStep.fungusRange(ability.behaviors()).orElseThrow())
                     : Optional.empty();
             targetAt = tick;
             targetYaw = player.getYRot();

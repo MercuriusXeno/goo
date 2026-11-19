@@ -12,10 +12,11 @@ import net.minecraft.resources.ResourceKey;
  * a whole block of it and whose program names what the cell's surface does,
  * that surface, and the fluid sources the goo's drips stop at and its cell
  * lies on as on a sturdy top. Weird's slime, Kinetic's slick, Blaze's molten,
- * Crystal's shatter, Deep's host, Frost's rime, Glow's wisps, Hex's leech,
+ * Crystal's shatter, Sculk's creep, Frost's rime, Glow's wisps, Hex's leech,
  * Typhoon's updraft, Jelly's nectar, Pulse's signal, Metal's spikes,
- * Nether's infest, Leaf's vines, Unstable's nitro and Quantum's phase are bound
- * so far, and another goo type ships its world goo as another binding.
+ * Zombie's infest, Leaf's vines, Unstable's nitro, Quantum's phase, Rock's
+ * mortar and Yarn's stitch are bound so far, and another goo type ships its
+ * world goo as another binding.
  * slime-and-slick-are-one-volume-cell-tech
  * each-goo-type-ships-a-world-goo-on-the-volume-cell
  * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
@@ -31,8 +32,10 @@ import net.minecraft.resources.ResourceKey;
  * spikes-is-a-coat-of-metal-goo-that-impales-what-walks-on-it
  * infest-is-nethers-goo-the-decay-effect-localized-around-the-goo
  * vines-is-sprayed-slime-that-entangles-what-tries-to-cross
+ * host-and-spores-combine-into-one-residual
  * nitro-is-unstables-goo-that-explodes-in-a-chain-by-its-quantity
  * phase-goo-puts-what-stands-in-it-out-of-phase
+ * mortar-is-rocks-residual-a-petrification-and-hardening-goo
  *
  * @param gooType      the goo type the cell holds and drops when broken
  * @param layingAbility the ability laying the goo, whose cost prices a whole block of it
@@ -51,8 +54,8 @@ public record CellBinding(ResourceKey<GooTypeDefinition> gooType, Identifier lay
     /** The ability laying Crystal's shatter goo, Shatter, whose cost prices a whole block of it. */
     public static final Identifier SHATTER_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "crystal_shatter");
 
-    /** The ability laying Deep's sculky slime, Host, whose cost prices a whole block of it. */
-    public static final Identifier HOST_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "deep_host");
+    /** The ability laying Sculk's sculky slime, Creep, whose cost prices a whole block of it. */
+    public static final Identifier CREEP_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "sculk_creep");
     /** The ability laying Frost's endothermic goo, Rime, whose cost prices a whole block of it. */
     public static final Identifier RIME_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "frost_rime");
     /** The ability laying Hex's goo, Leech, whose cost prices a whole block of it and whose step names its slow. */
@@ -63,8 +66,8 @@ public record CellBinding(ResourceKey<GooTypeDefinition> gooType, Identifier lay
 
     /** The ability laying Jelly's goo, Nectar, whose cost prices a whole block of it and whose step names its guide. */
     public static final Identifier NECTAR_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "jelly_nectar");
-    /** The ability laying Nether's goo, Infest, whose cost prices a whole block of it. */
-    public static final Identifier INFEST_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "nether_infest");
+    /** The ability laying Zombie's goo, Infest, whose cost prices a whole block of it. */
+    public static final Identifier INFEST_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "zombie_infest");
     /** The ability laying Quantum's goo, Phase, whose cost prices a whole block of it and whose step names its linger. */
     public static final Identifier PHASE_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "quantum_phase");
 
@@ -79,6 +82,11 @@ public record CellBinding(ResourceKey<GooTypeDefinition> gooType, Identifier lay
 
     /** The ability laying Unstable's goo, Nitro, whose cost prices a whole block of it. */
     public static final Identifier NITRO_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "unstable_nitro");
+
+    /** The ability laying Yarn's goo, Stitch, whose cost prices a whole block of it and whose step names its fire. */
+    public static final Identifier STITCH_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "yarn_stitch");
+    /** The ability laying Rock's goo, Mortar, whose cost prices a whole block of it. */
+    public static final Identifier MORTAR_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "rock_mortar");
 
     /** The ability laying Glow's goo, Wisps, whose cost prices a whole block of it. */
     public static final Identifier WISPS_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "glow_wisps");
@@ -95,8 +103,11 @@ public record CellBinding(ResourceKey<GooTypeDefinition> gooType, Identifier lay
     /** Crystal's shatter goo: Shatter lays it, and glass shards hang over it. */
     public static final CellBinding SHATTER = new CellBinding(GooTypes.CRYSTAL, SHATTER_ABILITY, CellSurface.SHARDS,
             FluidFooting.NONE);
-    /** Deep's sculky slime: Host lays it, and it stands as ordinary ground. */
-    public static final CellBinding HOST = new CellBinding(GooTypes.DEEP, HOST_ABILITY, CellSurface.POOL,
+    /**
+     * Sculk's sculky slime: Creep lays it, and it stands as ordinary ground.
+     * host-and-spores-combine-into-one-residual
+     */
+    public static final CellBinding CREEP = new CellBinding(GooTypes.SCULK, CREEP_ABILITY, CellSurface.POOL,
             FluidFooting.NONE);
     /**
      * Frost's endothermic goo: Rime lays it, it is as slippery as ice, and it
@@ -141,10 +152,11 @@ public record CellBinding(ResourceKey<GooTypeDefinition> gooType, Identifier lay
     public static final CellBinding SPIKES = new CellBinding(GooTypes.METAL, SPIKES_ABILITY, CellSurface.IMPALE,
             FluidFooting.NONE);
     /**
-     * Nether's goo: Infest lays it, and it stands as ordinary ground.
+     * Zombie's goo: Infest lays it, and it stands as ordinary ground.
      * infest-is-nethers-goo-the-decay-effect-localized-around-the-goo
+     * zombie-goo-is-the-undead-and-takes-the-decay-abilities
      */
-    public static final CellBinding INFEST = new CellBinding(GooTypes.NETHER, INFEST_ABILITY, CellSurface.POOL,
+    public static final CellBinding INFEST = new CellBinding(GooTypes.ZOMBIE, INFEST_ABILITY, CellSurface.POOL,
             FluidFooting.NONE);
     /**
      * Leaf's goo: Vines lays it, it stands as ordinary ground, and it
@@ -165,5 +177,19 @@ public record CellBinding(ResourceKey<GooTypeDefinition> gooType, Identifier lay
      * phase-goo-puts-what-stands-in-it-out-of-phase
      */
     public static final CellBinding PHASE = new CellBinding(GooTypes.QUANTUM, PHASE_ABILITY, CellSurface.PHASE,
+            FluidFooting.NONE);
+    /**
+     * Rock's goo: Mortar lays it, and it stands as ordinary ground.
+     * mortar-is-rocks-residual-a-petrification-and-hardening-goo
+     */
+    public static final CellBinding MORTAR = new CellBinding(GooTypes.ROCK, MORTAR_ABILITY, CellSurface.POOL,
+            FluidFooting.NONE);
+    /**
+     * Yarn's goo: Stitch lays it, it stands as ordinary ground, a passive
+     * passes it and a hostile in it is tangled.
+     * stitch-is-yarns-residual-that-turns-slimes-into-passive-mobs
+     * passives-move-through-stitch-and-hostiles-tangle-in-it
+     */
+    public static final CellBinding STITCH = new CellBinding(GooTypes.YARN, STITCH_ABILITY, CellSurface.TANGLE,
             FluidFooting.NONE);
 }

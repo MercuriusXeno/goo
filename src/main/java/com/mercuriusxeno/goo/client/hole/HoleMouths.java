@@ -1,8 +1,9 @@
 package com.mercuriusxeno.goo.client.hole;
 
-import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.hole.HoleFrame;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.network.PortableHolesSyncPayload;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -13,11 +14,8 @@ import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * Draws each Void portable hole's mouth across the faces it opens on: an oval
@@ -29,7 +27,6 @@ import java.util.List;
  * decision hole-is-an-in-world-portable-hole-for-items
  * decision hole-animates-open-and-closed
  */
-@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class HoleMouths {
 
     /** How far the mouth stands off its face, so it never sinks into it. */
@@ -59,12 +56,14 @@ public final class HoleMouths {
     }
 
     /**
-     * Draws every open mouth once the world's translucent blocks have drawn.
+     * Hands the shared path every open mouth once the world has drawn, as
+     * one draw sorted by the nearest mouth.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
      *
-     * @param event the level render stage event
+     * @param frame the frame being drawn
+     * @param draws where the mouths' draw goes
      */
-    @SubscribeEvent
-    public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) {
             return;
@@ -75,8 +74,13 @@ public final class HoleMouths {
             return;
         }
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
-        PoseStack.Pose pose = event.getPoseStack().last();
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        draws.accept(SortedDraw.nearestOf(drawn.stream()
+                        .map(mouth -> HoleFrame.openingOn(mouth.footprint(), mouth.face()).getCenter()), camera,
+                () -> drawMouths(frame.poseStack().last(), mc.renderBuffers().bufferSource(), drawn, camera, time)));
+    }
+
+    private static void drawMouths(PoseStack.Pose pose, MultiBufferSource.BufferSource buffers,
+                                   List<PortableHolesSyncPayload.Mouth> drawn, Vec3 camera, float time) {
         VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.PORTABLE_HOLE_MOUTH_TYPE);
         for (PortableHolesSyncPayload.Mouth mouth : drawn) {
             float open = ClientPortableHoles.openShare(mouth, time);
