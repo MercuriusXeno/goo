@@ -16,7 +16,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Tests that the recolored goo types' UI channels, read from their type JSON
  * through the classpath, read apart from the types they sat on, that xeno
- * wears quantum's former purples, that yore's fluid is aeon's oil slick, and that quantum wears
+ * wears quantum's former purples, that yore's and infinity's fluids are aeon's oil slick, that
+ * infinity's channels wear yore's pearl sheen, and that quantum wears
  * its icon's blue and a brighter, oranger orange than its former red orange.
  */
 class GooTypeColorsTest {
@@ -27,6 +28,18 @@ class GooTypeColorsTest {
     private static final long AEON_SEED = 40_975L;
     private static final int AEON_FRAMETIME = 5;
     private static final float AEON_VISCOSITY = 2.5f;
+    private static final String AEON_OIL_SLICK_FLUID = """
+            {"seed": 40975,
+             "genParams": {"viscosity": 2.5, "decayRate": 0.015, "ignitionChance": 0.003, "ignitionStrength": 0.7,
+                           "potHeatRate": 0.005, "potInfluence": 0.9, "neighborhoodReach": 1},
+             "frametime": 5, "shadowHue": -1,
+             "palette": [{"position": 0.0, "color": "#E898B8"}, {"position": 0.15, "color": "#F0E0B0"},
+                         {"position": 0.3, "color": "#88D0F0"}, {"position": 0.45, "color": "#F8E0D0"},
+                         {"position": 0.6, "color": "#A0F0C0"}, {"position": 0.75, "color": "#D8B8F8"},
+                         {"position": 0.9, "color": "#F8D898"}, {"position": 1.0, "color": "#F8F0E8"}]}
+            """;
+    private static final int PEARL_CYCLE_TICKS = 160;
+    private static final float PEARL_SWING_DEGREES = 240f;
     private static final String ICON_BLUE = "3AA0E0";
     private static final String ICON_HIGHLIGHT = "6AD0F0";
     private static final String ICON_ORANGE = "FF8A40";
@@ -70,6 +83,28 @@ class GooTypeColorsTest {
         assertEquals(AEON_FRAMETIME, yore.get("frametime").getAsInt(), "yore's frametime");
         assertEquals(AEON_VISCOSITY, yore.getAsJsonObject("genParams").get("viscosity").getAsFloat(),
                 "yore's viscosity");
+    }
+
+    @Test
+    void infinityWearsAeonsOilSlickFluid() throws IOException {
+        // infinity-swaps-to-aeons-good-opalescent-oil-slick: aeon's fluid config as it stood before 8b83cec5
+        JsonObject infinity = fluidEntry("infinity").deepCopy();
+        infinity.remove("id");
+        assertEquals(JsonParser.parseString(AEON_OIL_SLICK_FLUID), infinity, "infinity's fluid config");
+    }
+
+    @Test
+    void infinityTypeJsonWearsYoresPearlSheen() throws IOException {
+        // infinity-swaps-to-aeons-good-opalescent-oil-slick
+        List<String> pearlSheen = List.of("DCD0F0", "F8F4FF", "F4DCE8", "D8F0EA");
+        for (int index = 0; index < CHANNELS.size(); index++) {
+            assertEquals(pearlSheen.get(index), channel("infinity", CHANNELS.get(index)),
+                    "infinity's " + CHANNELS.get(index));
+        }
+        JsonObject infinity = typeJson("infinity");
+        assertEquals(PEARL_CYCLE_TICKS, infinity.get(HueCycle.HUE_CYCLE_TICKS).getAsInt(), "infinity's hue cycle");
+        assertEquals(PEARL_SWING_DEGREES, infinity.get(HueCycle.HUE_SWING_DEGREES).getAsFloat(), "infinity's swing");
+        assertEquals(1, infinity.get("vessel_source_per_mb").getAsInt(), "infinity's vessel source rate");
     }
 
     @Test
@@ -154,12 +189,15 @@ class GooTypeColorsTest {
     }
 
     private static String channel(String type, String name) throws IOException {
+        return typeJson(type).get(name).getAsString().toUpperCase(java.util.Locale.ROOT);
+    }
+
+    private static JsonObject typeJson(String type) throws IOException {
         String path = TYPE_JSON_FORMAT.formatted(type);
         try (InputStream in = GooTypeColorsTest.class.getResourceAsStream(path)) {
             assertNotNull(in, "missing on the classpath: " + path);
             try (Reader reader = new InputStreamReader(in, StandardCharsets.UTF_8)) {
-                JsonObject json = JsonParser.parseReader(reader).getAsJsonObject();
-                return json.get(name).getAsString().toUpperCase(java.util.Locale.ROOT);
+                return JsonParser.parseReader(reader).getAsJsonObject();
             }
         }
     }
