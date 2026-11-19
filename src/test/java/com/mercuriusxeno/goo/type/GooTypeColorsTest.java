@@ -18,8 +18,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Tests that the recolored goo types' UI channels, read from their type JSON
  * through the classpath, read apart from the types they sat on, that xeno
- * wears quantum's former purples, that infinity's fluid and channels wear palette B's oil slick
- * and its icon is pearl, and that quantum wears
+ * wears quantum's former purples, that nether wears the obsidian flesh palette the operator
+ * picked, that infinity's fluid and channels wear palette B's oil slick and its icon is pearl,
+ * and that quantum wears
  * its icon's blue and a brighter, oranger orange than its former red orange.
  */
 class GooTypeColorsTest {
@@ -66,6 +67,16 @@ class GooTypeColorsTest {
         for (int index = 0; index < CHANNELS.size(); index++) {
             assertEquals(quantumsFormer.get(index), channel("xeno", CHANNELS.get(index)),
                     "xeno's " + CHANNELS.get(index));
+        }
+    }
+
+    @Test
+    void netherWearsTheObsidianFleshPalette() throws IOException {
+        // nether-is-a-deeper-maroon-mixed-with-obsidians-colors: the operator's pick "A, obsidian flesh"
+        List<String> obsidianFlesh = List.of("5C1C2A", "8C3A48", "6A4650", "2E1C44");
+        for (int index = 0; index < CHANNELS.size(); index++) {
+            assertEquals(obsidianFlesh.get(index), channel("nether", CHANNELS.get(index)),
+                    "nether's " + CHANNELS.get(index));
         }
     }
 
