@@ -14,8 +14,8 @@ import net.minecraft.resources.ResourceKey;
  * lies on as on a sturdy top. Weird's slime, Kinetic's slick, Blaze's molten,
  * Crystal's shatter, Sculk's creep, Frost's rime, Glow's wisps, Hex's leech,
  * Typhoon's updraft, Jelly's nectar, Pulse's signal, Metal's spikes,
- * Nether's infest, Leaf's vines, Unstable's nitro and Quantum's phase
- * are bound so far, and another goo type ships its world goo
+ * Nether's infest, Leaf's vines, Unstable's nitro, Quantum's phase and Rock's
+ * mortar are bound so far, and another goo type ships its world goo
  * as another binding.
  * slime-and-slick-are-one-volume-cell-tech
  * each-goo-type-ships-a-world-goo-on-the-volume-cell
@@ -35,6 +35,7 @@ import net.minecraft.resources.ResourceKey;
  * host-and-spores-combine-into-one-residual
  * nitro-is-unstables-goo-that-explodes-in-a-chain-by-its-quantity
  * phase-goo-puts-what-stands-in-it-out-of-phase
+ * mortar-is-rocks-residual-a-petrification-and-hardening-goo
  *
  * @param gooType      the goo type the cell holds and drops when broken
  * @param layingAbility the ability laying the goo, whose cost prices a whole block of it
@@ -81,6 +82,9 @@ public record CellBinding(ResourceKey<GooTypeDefinition> gooType, Identifier lay
 
     /** The ability laying Unstable's goo, Nitro, whose cost prices a whole block of it. */
     public static final Identifier NITRO_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "unstable_nitro");
+
+    /** The ability laying Rock's goo, Mortar, whose cost prices a whole block of it. */
+    public static final Identifier MORTAR_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "rock_mortar");
 
     /** The ability laying Glow's goo, Wisps, whose cost prices a whole block of it. */
     public static final Identifier WISPS_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "glow_wisps");
@@ -170,5 +174,11 @@ public record CellBinding(ResourceKey<GooTypeDefinition> gooType, Identifier lay
      * phase-goo-puts-what-stands-in-it-out-of-phase
      */
     public static final CellBinding PHASE = new CellBinding(GooTypes.QUANTUM, PHASE_ABILITY, CellSurface.PHASE,
+            FluidFooting.NONE);
+    /**
+     * Rock's goo: Mortar lays it, and it stands as ordinary ground.
+     * mortar-is-rocks-residual-a-petrification-and-hardening-goo
+     */
+    public static final CellBinding MORTAR = new CellBinding(GooTypes.ROCK, MORTAR_ABILITY, CellSurface.POOL,
             FluidFooting.NONE);
 }

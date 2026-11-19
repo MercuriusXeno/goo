@@ -10,6 +10,7 @@ import com.mercuriusxeno.goo.block.ability.InfestCellBlock;
 import com.mercuriusxeno.goo.block.ability.LightRailBlock;
 import com.mercuriusxeno.goo.block.ability.MagickedIceBlock;
 import com.mercuriusxeno.goo.block.ability.MoltenCellBlock;
+import com.mercuriusxeno.goo.block.ability.MortarCellBlock;
 import com.mercuriusxeno.goo.block.ability.NectarCellBlock;
 import com.mercuriusxeno.goo.block.ability.NitroCellBlock;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
@@ -484,6 +485,27 @@ public class GooBlocks {
             () -> BlockBehaviour.Properties.of()
                     .mapColor(MapColor.COLOR_LIGHT_GREEN)
                     .friction(CellBinding.NITRO.surface().friction())
+                    .sound(SoundType.SLIME_BLOCK)
+                    .instabreak()
+                    .noOcclusion()
+                    .replaceable()
+                    .noLootTable()
+                    .pushReaction(PushReaction.DESTROY));
+    /**
+     * Mortar: the volume cell bound to Rock's goo, the stony goo Mortar
+     * sprays onto a block's top or clings with to its sides, one to fifteen
+     * layers, ordinary ground underfoot and sounding as goo does, petrifying
+     * what stands in it and hardening what it lies on, dropping the rock goo
+     * its layers cost through VolumeCellBlock.getDrops, no loot table
+     * (decisions mortar-is-rocks-residual-a-petrification-and-hardening-goo,
+     * mortar-has-a-chance-to-deplete-as-it-petrifies-and-hardens,
+     * each-goo-type-ships-a-world-goo-on-the-volume-cell).
+     */
+    public static final DeferredBlock<MortarCellBlock> ROCK_MORTAR = BLOCKS.registerBlock(
+            "rock_mortar", properties -> new MortarCellBlock(properties, CellBinding.MORTAR),
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.STONE)
+                    .friction(CellBinding.MORTAR.surface().friction())
                     .sound(SoundType.SLIME_BLOCK)
                     .instabreak()
                     .noOcclusion()
