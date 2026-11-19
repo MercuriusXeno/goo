@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.ability.program.EludeStep;
 import com.mercuriusxeno.goo.ability.program.GluttonyStep;
 import com.mercuriusxeno.goo.ability.program.HeartOverlayStep;
 import com.mercuriusxeno.goo.ability.program.HerdStep;
+import com.mercuriusxeno.goo.ability.program.InvertStep;
 import com.mercuriusxeno.goo.ability.program.LowerCaseEnumCodec;
 import com.mercuriusxeno.goo.ability.program.LuxStep;
 import com.mercuriusxeno.goo.ability.program.RemoteStep;
@@ -68,8 +69,13 @@ public enum LaidState {
     LEAD,
     /** The dive's swim through stone and its vision (decision dive-is-a-brew-of-warden-senses-and-free-swimming-through-solid-blocks). */
     SCULKER,
-    /** Yarn's Herd, last since the client sync numbers states by order (decision leader-is-zoos-brew-ability). */
-    HERD;
+    /** Yarn's Herd (decision leader-is-zoos-brew-ability). */
+    HERD,
+    /**
+     * Nether's turned gravity, last since the client sync numbers states by order
+     * (decision invert-flips-your-gravity-and-lets-you-walk-on-ceilings).
+     */
+    INVERT;
 
     /** Codec for the saved state. */
     public static final Codec<LaidState> CODEC = LowerCaseEnumCodec.of(LaidState.class, "laid state");
@@ -108,7 +114,8 @@ public enum LaidState {
             Map.entry(UnveilStep.class, UNVEIL),
             Map.entry(AncientStep.class, ANCIENT),
             Map.entry(SculkerStep.class, SCULKER),
-            Map.entry(HerdStep.class, HERD));
+            Map.entry(HerdStep.class, HERD),
+            Map.entry(InvertStep.class, INVERT));
 
     private static Stream<Step> withDescendants(Step step) {
         return Stream.concat(Stream.of(step), step.children().flatMap(LaidState::withDescendants));
