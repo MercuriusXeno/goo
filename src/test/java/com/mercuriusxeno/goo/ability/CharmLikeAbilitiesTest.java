@@ -16,24 +16,24 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Covers the shipped mob abilities cast like Charm: each names the envelop
- * delivery with no charge holding back the release, and Rewind wears the mob badge
+ * delivery with no charge holding back the release, and Revert wears the mob badge
  * (decision charm-like-abilities-lock-the-highlighted-mob-on-right-click).
  */
 class CharmLikeAbilitiesTest {
 
     @ParameterizedTest
     @ValueSource(strings = {"hex_charm", "yarn_lead", "zoo_shape", "zoo_spawn", "typhoon_shulk",
-            "yore_rewind"})
+            "xeno_revert"})
     void namesTheEnvelopDeliveryWithNoWindUp(String ability) {
         Delivery delivery = AbilityJson.decode(ability).delivery();
         assertTrue(delivery.envelops() && !delivery.charges(),
                 ability + " delivers by " + delivery.kind() + " winding up " + delivery.chargeTicks() + " ticks");
     }
 
-    /** Rewind leaves the channeled badge for the mob badge the other charm-like casts wear. */
+    /** Revert leaves the channeled badge for the mob badge the other charm-like casts wear. */
     @Test
-    void rewindWearsTheMobBadge() {
-        assertEquals(AbilityBadge.MOB, AbilityJson.decode("yore_rewind").badge());
+    void revertWearsTheMobBadge() {
+        assertEquals(AbilityBadge.MOB, AbilityJson.decode("xeno_revert").badge());
     }
 
     /**
