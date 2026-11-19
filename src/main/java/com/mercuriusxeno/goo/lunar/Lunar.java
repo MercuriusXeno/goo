@@ -21,7 +21,7 @@ public final class Lunar {
      * How far the light side runs either way of x = 0: half the moon, its border standing at 7.5 million.
      * decision dark-side-is-the-half-of-the-moon-past-the-light-side
      */
-    public static final double LIGHT_SIDE_HALF_WIDTH = 3_750_000;
+    public static final int LIGHT_SIDE_HALF_WIDTH = 3_750_000;
 
     private Lunar() {
     }

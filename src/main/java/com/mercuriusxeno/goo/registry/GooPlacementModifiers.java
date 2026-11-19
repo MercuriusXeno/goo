@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.lunar.CraterFloorFilter;
+import com.mercuriusxeno.goo.lunar.DarkSideCount;
 import com.mercuriusxeno.goo.lunar.GiantCraterBoulders;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.level.levelgen.placement.PlacementModifierType;
@@ -33,6 +34,13 @@ public final class GooPlacementModifiers {
     public static final DeferredHolder<PlacementModifierType<?>, PlacementModifierType<GiantCraterBoulders>>
             GIANT_CRATER_BOULDERS = PLACEMENT_MODIFIER_TYPES.register("giant_crater_boulders",
             () -> () -> GiantCraterBoulders.CODEC);
+
+    /**
+     * {@code goo:dark_side_count}, a feature's attempts for each chunk at a count for each side of the moon.
+     * decision dark-side-is-an-endless-night-of-eldritch-rich-in-void-and-xeno
+     */
+    public static final DeferredHolder<PlacementModifierType<?>, PlacementModifierType<DarkSideCount>>
+            DARK_SIDE_COUNT = PLACEMENT_MODIFIER_TYPES.register("dark_side_count", () -> () -> DarkSideCount.CODEC);
 
     private GooPlacementModifiers() {
     }
