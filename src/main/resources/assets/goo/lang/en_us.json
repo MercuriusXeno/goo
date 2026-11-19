@@ -153,8 +153,6 @@
   "goo.badge.free": "Free",
   "goo.badge.prism": "Prism",
 
-  "goo.ability.yore.rewind": "Rewind",
-  "goo.ability.yore.rewind.description": "Takes a mob back one step a cast: an adult into its baby, and a baby, or a mob with no baby, into its spawn egg.",
   "goo.ability.yore.expire": "Expire",
   "goo.ability.yore.expire.description": "Kills the struck mob outright, bosses excepted.",
   "goo.ability.yore.ancient": "Ancient",
@@ -377,6 +375,8 @@
   "block.goo.dimension_door": "Dimension Doorway",
   "goo.ability.weird.mitosis": "Mitosis",
   "goo.ability.weird.mitosis.description": "The blob becomes a small slime where it lands.",
+  "goo.ability.xeno.revert": "Revert",
+  "goo.ability.xeno.revert.description": "Takes a mob back one step a cast: an adult into its baby, and a baby, or a mob with no baby, into its spawn egg.",
   "goo.ability.xeno.unveil": "Unveil",
   "goo.ability.xeno.unveil.description": "Makes you eldritch: you see things out of phase, and they see you.",
   "goo.ability.zoo.allure": "Allure",

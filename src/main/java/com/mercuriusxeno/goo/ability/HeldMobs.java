@@ -20,7 +20,7 @@ public final class HeldMobs {
 
     /**
      * Whether a goo hold holds the mob: frozen full, stunned, grabbed,
-     * rewinding, or its AI set off. Each hold's release puts back the AI it
+     * reverting, or its AI set off. Each hold's release puts back the AI it
      * found, so where two holds overlap the AI can read on while one still
      * stands, and each hold is read by its own mark.
      *
@@ -33,7 +33,7 @@ public final class HeldMobs {
 
     /**
      * Whether a hold's own mark holds the mob: frozen full, stunned, grabbed
-     * or rewinding. A mob whose AI is set off and nothing more, by set_ai or
+     * or reverting. A mob whose AI is set off and nothing more, by set_ai or
      * a vanilla NoAI tag, is left out, so it floats as vanilla has it.
      *
      * @param mob the mob
@@ -42,7 +42,7 @@ public final class HeldMobs {
     public static boolean isHeldByAHold(Mob mob) {
         Frozen frozen = mob.hasData(GooAttachments.FROZEN) ? mob.getData(GooAttachments.FROZEN) : null;
         return heldByAHold(frozen, mob.hasData(GooAttachments.STUNNED), mob.hasData(GooAttachments.GRABBED),
-                mob.hasData(GooAttachments.REWINDING))
+                mob.hasData(GooAttachments.REVERTING))
                 // rallied-mob-falls-downed-instead-of-dying: a downed mob's AI is off, and it still falls
                 || mob.hasData(GooAttachments.DOWNED);
     }
@@ -54,11 +54,11 @@ public final class HeldMobs {
      * @param frozen    its frozen gauge, or null where frost never reached it
      * @param stunned   it carries a stun
      * @param grabbed   a Grab holds it
-     * @param rewinding a Rewind holds it
+     * @param reverting a Revert holds it
      * @return true where any hold stands
      */
-    static boolean held(boolean aiOff, @Nullable Frozen frozen, boolean stunned, boolean grabbed, boolean rewinding) {
-        return aiOff || heldByAHold(frozen, stunned, grabbed, rewinding);
+    static boolean held(boolean aiOff, @Nullable Frozen frozen, boolean stunned, boolean grabbed, boolean reverting) {
+        return aiOff || heldByAHold(frozen, stunned, grabbed, reverting);
     }
 
     /**
@@ -67,12 +67,12 @@ public final class HeldMobs {
      * @param frozen    the mob's frozen gauge, or null where frost never reached it
      * @param stunned   it carries a stun
      * @param grabbed   a Grab holds it
-     * @param rewinding a Rewind holds it
+     * @param reverting a Revert holds it
      * @return true where a hold's mark stands
      */
-    static boolean heldByAHold(@Nullable Frozen frozen, boolean stunned, boolean grabbed, boolean rewinding) {
+    static boolean heldByAHold(@Nullable Frozen frozen, boolean stunned, boolean grabbed, boolean reverting) {
         boolean frozenFull = frozen != null && frozen.full();
-        return frozenFull || stunned || grabbed || rewinding;
+        return frozenFull || stunned || grabbed || reverting;
     }
 
     /**

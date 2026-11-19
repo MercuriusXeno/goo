@@ -2,7 +2,7 @@ package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.ability.hex.RandomEnchantment;
 import com.mercuriusxeno.goo.ability.pulse.StunEvents;
-import com.mercuriusxeno.goo.ability.rewind.RewindEvents;
+import com.mercuriusxeno.goo.ability.revert.RevertEvents;
 import com.mojang.datafixers.util.Unit;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
@@ -73,13 +73,13 @@ public final class LeafSteps {
             });
 
     /**
-     * Freezes the host's target while Rewind's stream holds it, the freeze
+     * Freezes the host's target while Revert's stream holds it, the freeze
      * ending a few ticks after the stream lets go; a target that is not a
      * mob is left alone.
      * rewind-fills-while-held
      */
-    public static final LeafStepType<Unit> REWIND_HOLD = StepType.onTarget("rewind_hold", NO_PARAMS, Mob.class, ANY,
-            (mob, none, context) -> RewindEvents.hold(mob, mob.level().getGameTime()));
+    public static final LeafStepType<Unit> REVERT_HOLD = StepType.onTarget("revert_hold", NO_PARAMS, Mob.class, ANY,
+            (mob, none, context) -> RevertEvents.hold(mob, mob.level().getGameTime()));
 
     /**
      * Sets the host's target on fire for a number of seconds; blaze ignite
