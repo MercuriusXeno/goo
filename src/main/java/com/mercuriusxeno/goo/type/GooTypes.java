@@ -72,7 +72,7 @@ public final class GooTypes {
     public static final ResourceKey<GooTypeDefinition> LEAF = bundled("leaf");
     public static final ResourceKey<GooTypeDefinition> METAL = bundled("metal");
     public static final ResourceKey<GooTypeDefinition> NETHER = bundled("nether");
-    public static final ResourceKey<GooTypeDefinition> OPULENT = bundled("opulent");
+    public static final ResourceKey<GooTypeDefinition> ORNATE = bundled("ornate");
     public static final ResourceKey<GooTypeDefinition> PULSE = bundled("pulse");
     public static final ResourceKey<GooTypeDefinition> QUANTUM = bundled("quantum");
     public static final ResourceKey<GooTypeDefinition> ROCK = bundled("rock");
@@ -125,7 +125,7 @@ public final class GooTypes {
      */
     public static final List<ResourceKey<GooTypeDefinition>> BUNDLED = List.of(
             ASTRAL, BLAZE, CRYSTAL, ENDER, FROST, GLOW, HEX, INFINITY, JELLY, KINETIC, LEAF,
-            METAL, NETHER, OPULENT, PULSE, QUANTUM, ROCK, SCULK, TYPHOON, UNSTABLE, VOID, WEIRD, XENO, YARN,
+            METAL, NETHER, ORNATE, PULSE, QUANTUM, ROCK, SCULK, TYPHOON, UNSTABLE, VOID, WEIRD, XENO, YARN,
             ZOMBIE, ZOO);
 
 
