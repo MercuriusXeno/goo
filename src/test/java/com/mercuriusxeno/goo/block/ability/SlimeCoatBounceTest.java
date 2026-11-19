@@ -4,7 +4,10 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.mercuriusxeno.goo.lunar.Lunar;
+import com.mercuriusxeno.goo.lunar.LunarGravity;
 import com.mercuriusxeno.goo.registry.GooSoundIds;
+import net.minecraft.world.level.Level;
 import org.junit.jupiter.api.Nested;
 import java.io.IOException;
 import java.io.InputStream;
@@ -220,6 +223,7 @@ class SlimeCoatBounceTest {
         private final boolean sneaking;
         private final Object identity;
         private final boolean clientSide;
+        private final double gravityScale;
         private long gameTime;
         private double launched;
         private int boings;
@@ -230,12 +234,23 @@ class SlimeCoatBounceTest {
 
         FakeLander(double falling, boolean jumpHeld, boolean sneaking, long gameTime, Object identity,
                    boolean clientSide) {
+            this(falling, jumpHeld, sneaking, gameTime, identity, clientSide, 1);
+        }
+
+        FakeLander(double falling, boolean jumpHeld, boolean sneaking, long gameTime, Object identity,
+                   boolean clientSide, double gravityScale) {
             this.falling = falling;
             this.jumpHeld = jumpHeld;
             this.sneaking = sneaking;
             this.gameTime = gameTime;
             this.identity = identity == null ? this : identity;
             this.clientSide = clientSide;
+            this.gravityScale = gravityScale;
+        }
+
+        @Override
+        public double gravityScale() {
+            return gravityScale;
         }
 
         @Override
@@ -281,6 +296,53 @@ class SlimeCoatBounceTest {
         @Override
         public void boing(double launch) {
             boings++;
+        }
+    }
+
+    /** decision goop-bounce-height-is-proportionate-to-gravity */
+    @Nested
+    class UnderADimensionsGravity {
+
+        private static final double OVERWORLD = LunarGravity.scaleIn(Level.OVERWORLD);
+        private static final double LUNAR = LunarGravity.scaleIn(Lunar.LEVEL);
+        /** The ceiling a ramp reaches over the coat in the overworld, some fourteen blocks. */
+        private static final double OVERWORLD_CEILING = 14;
+        private static final double WITHIN_A_BLOCK = 1;
+
+        @Test
+        void theLunarCeilingIsTheOverworldsOverLunarsShare() {
+            assertEquals(SlimeCoatBounce.ceilingIn(OVERWORLD) / LUNAR, SlimeCoatBounce.ceilingIn(LUNAR), 1e-6);
+        }
+
+        @Test
+        void theOverworldCeilingReadsAsItDid() {
+            assertEquals(SlimeCoatBounce.HIGHEST_LAUNCH, SlimeCoatBounce.launch(SlimeCoatBounce.HIGHEST_LAUNCH,
+                    SlimeCoatBounce.HIGHEST_LAUNCH, true, false, OVERWORLD), 1e-9);
+            assertEquals(OVERWORLD_CEILING, SlimeCoatBounce.ceilingIn(OVERWORLD), WITHIN_A_BLOCK);
+        }
+
+        @Test
+        void aLunarRampTopsOutAtTheLunarCeiling() {
+            double launch = NO_PREVIOUS;
+            for (int bounce = 1; bounce <= 4; bounce++) {
+                launch = SlimeCoatBounce.launch(STANDING_JUMP, launch, true, false, LUNAR);
+            }
+
+            assertEquals(SlimeCoatBounce.ceilingIn(LUNAR), LaunchUnderGravity.peakOf(launch, LUNAR), 1e-6);
+        }
+
+        @Test
+        void aLunarRampRemembersItsLaunchAcrossALunarFlight() {
+            FakeLander lander = new FakeLander(ARRIVING, true, false, 0, null, false, LUNAR);
+            SlimeCoatBounce.bounce(lander);
+            double first = lander.launched;
+            long lunarFlight = SlimeCoatBounce.FORGET_TICKS * 6;
+
+            lander.fall(ARRIVING, lunarFlight);
+            SlimeCoatBounce.bounce(lander);
+
+            assertTrue(lander.launched > first, "a held lunar bounce launched " + lander.launched + " after "
+                    + first + " a lunar flight later");
         }
     }
 
