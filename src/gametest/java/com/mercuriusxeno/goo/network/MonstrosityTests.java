@@ -33,7 +33,6 @@ public final class MonstrosityTests {
     private static final String HUNTS_THE_ELDRITCH = "monstrosity_hunts_the_eldritch";
     private static final String DROPS_XENO = "monstrosity_drops_xeno";
 
-    private static final Identifier PHASE_SELF = Identifier.parse("goo:quantum_phase_self");
     private static final Identifier XENO_UNVEIL = Identifier.parse("goo:xeno_unveil");
     private static final int HELD_XENO = 3;
     private static final BlockPos MONSTROSITY_POS = new BlockPos(3, 1, 3);
@@ -87,12 +86,13 @@ public final class MonstrosityTests {
     }
 
     /**
-     * A player holding Phase Self kills a monstrosity, which drops xeno goo where it falls.
+     * A player out of phase kills a monstrosity, which drops xeno goo where it falls.
      *
      * @param helper the gametest helper
      */
     public static void monstrosityDropsXeno(GameTestHelper helper) {
-        ServerPlayer phased = HeartOverlayTests.selfInvoked(helper, GooTypes.QUANTUM, PHASE_SELF);
+        ServerPlayer phased = SurvivalPlayers.placeIn(helper);
+        phased.setData(GooAttachments.OUT_OF_PHASE, OutOfPhase.held());
         EldritchMonstrosity monstrosity = helper.spawnWithNoFreeWill(GooEntities.ELDRITCH_MONSTROSITY.get(),
                 MONSTROSITY_POS);
         helper.runAfterDelay(SETTLE_TICKS, () -> {

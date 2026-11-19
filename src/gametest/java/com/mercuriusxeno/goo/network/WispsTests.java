@@ -2,14 +2,17 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.block.ability.SideCoat;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.entity.DriftingWisp;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import com.mercuriusxeno.goo.registry.GooBlocks;
+import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
@@ -35,9 +38,12 @@ import java.util.function.Consumer;
  * sealed dark stone room: a drip striking the floor lays a one-layer Wisps
  * cell shining at light 1, a full cell shines at 15, and a zombie standing
  * on a full cell burns; in a dark corridor a full cell sheds wisps that
- * settle in its air.
+ * settle in its air. A drip striking a wall or an underside holds there as
+ * a film, which glows by its layer and sheds wisps from where it holds.
  * glow-world-goo-is-named-wisps-and-takes-the-holds-place
  * wisps-goo-glows-at-a-light-level-equal-to-its-layers
+ * glow-goo-is-adhesion-four
+ * wisps-goo-sheds-a-wisp-toward-nearby-dark
  */
 @RegistersGameTests
 public final class WispsTests {
@@ -81,6 +87,31 @@ public final class WispsTests {
     private static final String VANISHED = "A drifting wisp left %s with no wisp block settled there";
     private static final String SETTLED_ALONE = "The wisp block at %s appeared with no drifting wisp on its spot";
     private static final String NO_WISP_SETTLED = "A wisp shed by the Wisps cell should settle in the corridor's air";
+    private static final String WISPS_DRIP_ON_A_WALL_HOLDS_A_FILM = "wisps_drip_on_a_wall_holds_a_film";
+    private static final String WISPS_DRIP_UNDER_A_CEILING_HOLDS_A_FILM = "wisps_drip_under_a_ceiling_holds_a_film";
+    /** A stone block hung in the test bay's open air, its west face and underside the drips strike. */
+    private static final BlockPos HUNG_BLOCK = new BlockPos(3, 4, 2);
+    private static final String NOT_ON_THE_WALL = "A Wisps drip on a wall should leave a film on the cell's east side,"
+            + " stands %s";
+    private static final String NOT_ON_THE_CEILING = "A Wisps drip under a ceiling should leave a film on the cell's"
+            + " ceiling, stands %s";
+    private static final String WISPS_CELL_GLOWS_BY_ITS_FILMS_AND_FILL = "wisps_cell_glows_by_its_films_and_fill";
+    /** A ceiling film hung in a stone pocket over a bottom slab, a block with no top to stand on and no air. */
+    private static final BlockPos POCKET_CEILING_FILM = new BlockPos(1, 2, 1);
+    /** A cell of fill and a north wall film on the floor of a stone pocket with no air. */
+    private static final BlockPos POCKET_FILL_AND_FILM = new BlockPos(3, 1, 3);
+    /** Three layers of fill and one wall film, four layers in all. */
+    private static final int FILL_AND_FILM_LAYERS = 4;
+    private static final String FILM_LIGHT_WRONG = "A Wisps cell %s holding %d layers should shine at block light"
+            + " %d, reads %d";
+    private static final String WISPS_CEILING_FILM_SHEDS_A_WISP_AND_EMPTIES =
+            "wisps_ceiling_film_sheds_a_wisp_and_empties";
+    private static final String WISPS_WALL_FILM_SHEDS_A_WISP_AND_EMPTIES = "wisps_wall_film_sheds_a_wisp_and_empties";
+    /** The film cell, under the corridor's roof at its near end, over the corridor's air. */
+    private static final BlockPos CORRIDOR_FILM = new BlockPos(1, CORRIDOR_HEIGHT, CORRIDOR_Z);
+    /** How far a one-layer cell's shed wisp may head, one block past its layers. */
+    private static final int ONE_LAYER_REACH = 2;
+    private static final String FILM_WISP_OUT_OF_REACH = "A wisp shed by the film at %s settled at %s, past its reach";
 
     private WispsTests() {
     }
@@ -102,6 +133,147 @@ public final class WispsTests {
                 WispsTests::wispsEveryDriftingWispSettles);
         GooTestFunctions.registerTest(registrar, WISPS_DRIFTING_WISP_STANDS_ON_ITS_SPOT,
                 WispsTests::wispsDriftingWispStandsOnItsSpotAsItSettles);
+        GooTestFunctions.registerTest(registrar, WISPS_DRIP_ON_A_WALL_HOLDS_A_FILM,
+                WispsTests::wispsDripOnAWallHoldsAFilm);
+        GooTestFunctions.registerTest(registrar, WISPS_DRIP_UNDER_A_CEILING_HOLDS_A_FILM,
+                WispsTests::wispsDripUnderACeilingHoldsAFilm);
+        GooTestFunctions.registerTest(registrar, WISPS_CELL_GLOWS_BY_ITS_FILMS_AND_FILL,
+                WispsTests::wispsCellGlowsByItsFilmsAndFill);
+        GooTestFunctions.registerTest(registrar, WISPS_CEILING_FILM_SHEDS_A_WISP_AND_EMPTIES,
+                helper -> wispsFilmShedsAWispAndEmpties(helper, GooBlocks.GLOW_WISPS.get().defaultBlockState()
+                        .setValue(VolumeCellBlock.CEILING, true)));
+        GooTestFunctions.registerTest(registrar, WISPS_WALL_FILM_SHEDS_A_WISP_AND_EMPTIES,
+                helper -> wispsFilmShedsAWispAndEmpties(helper, GooBlocks.GLOW_WISPS.get().defaultBlockState()
+                        .setValue(VolumeCellBlock.NORTH, SideCoat.ATTACHED)));
+    }
+
+    /**
+     * One Wisps drip striking the west face of a stone block hung in open
+     * air leaves a Wisps cell beside that face holding a film on its east
+     * side, the side facing the wall: glow's adhesion holds where it strikes.
+     * glow-goo-is-adhesion-four
+     *
+     * @param helper the gametest helper
+     */
+    public static void wispsDripOnAWallHoldsAFilm(GameTestHelper helper) {
+        hangABlock(helper);
+        landOneDripOnTheHungBlock(helper, Direction.WEST);
+        BlockState cell = helper.getBlockState(HUNG_BLOCK.west());
+        boolean filmed = cell.is(GooBlocks.GLOW_WISPS.get())
+                && VolumeCellBlock.coatOn(cell, Direction.EAST) == SideCoat.ATTACHED;
+        helper.assertTrue(filmed, String.format(NOT_ON_THE_WALL, cell));
+        helper.succeed();
+    }
+
+    /**
+     * One Wisps drip striking the underside of a stone block hung in open
+     * air, no wall beside the cell under it, leaves a Wisps cell there
+     * holding a film on its ceiling: glow's adhesion holds an underside.
+     * glow-goo-is-adhesion-four
+     *
+     * @param helper the gametest helper
+     */
+    public static void wispsDripUnderACeilingHoldsAFilm(GameTestHelper helper) {
+        hangABlock(helper);
+        landOneDripOnTheHungBlock(helper, Direction.DOWN);
+        BlockState cell = helper.getBlockState(HUNG_BLOCK.below());
+        boolean filmed = cell.is(GooBlocks.GLOW_WISPS.get()) && cell.getValue(VolumeCellBlock.CEILING);
+        helper.assertTrue(filmed, String.format(NOT_ON_THE_CEILING, cell));
+        helper.succeed();
+    }
+
+    // Hangs a stone block in the bay's open air, every cell around the cells beside its west face and under it open.
+    private static void hangABlock(GameTestHelper helper) {
+        for (int x = HUNG_BLOCK.getX() - 2; x <= HUNG_BLOCK.getX() + 1; x++) {
+            for (int y = 1; y <= HUNG_BLOCK.getY(); y++) {
+                for (int z = HUNG_BLOCK.getZ() - 1; z <= HUNG_BLOCK.getZ() + 1; z++) {
+                    helper.setBlock(new BlockPos(x, y, z), Blocks.AIR);
+                }
+            }
+        }
+        helper.setBlock(HUNG_BLOCK, Blocks.STONE);
+    }
+
+    // Lands one Wisps drip on a face of the hung block from a glow-holding caster, who pays for its layer.
+    private static void landOneDripOnTheHungBlock(GameTestHelper helper, Direction face) {
+        AbilityDefinition wisps = AbilityRegistry.of(helper.getLevel()).getAbility(WISPS);
+        helper.assertTrue(wisps != null, ABILITY_REQUIRED);
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.GLOW);
+        KnownRecipes.teachRequires(caster, wisps);
+        LandedDrips.landOnSide(helper, caster, wisps, HUNG_BLOCK, face, 1);
+        helper.getLevel().getServer().getPlayerList().remove(caster);
+    }
+
+    /**
+     * A Wisps cell shines at every layer it keeps, fill and films alike: in
+     * a sealed stone pocket a cell holding one ceiling film and no fill
+     * shines at block light 1, and a cell of three layers of fill and one
+     * wall film shines at 4. Neither pocket holds air, so neither cell sheds
+     * a wisp and spends a layer while the light is read.
+     * wisps-goo-glows-at-a-light-level-equal-to-its-layers
+     *
+     * @param helper the gametest helper
+     */
+    public static void wispsCellGlowsByItsFilmsAndFill(GameTestHelper helper) {
+        for (int x = 0; x <= ROOM_EDGE; x++) {
+            for (int y = 0; y <= ROOM_EDGE; y++) {
+                for (int z = 0; z <= ROOM_EDGE; z++) {
+                    helper.setBlock(new BlockPos(x, y, z), Blocks.STONE);
+                }
+            }
+        }
+        helper.setBlock(POCKET_CEILING_FILM.below(), Blocks.STONE_SLAB.defaultBlockState());
+        helper.setBlock(POCKET_CEILING_FILM, GooBlocks.GLOW_WISPS.get().defaultBlockState()
+                .setValue(VolumeCellBlock.CEILING, true));
+        helper.setBlock(POCKET_FILL_AND_FILM, GooBlocks.GLOW_WISPS.get().defaultBlockState()
+                .setValue(VolumeCellBlock.LAYERS, FILL_AND_FILM_LAYERS)
+                .setValue(VolumeCellBlock.NORTH, SideCoat.ATTACHED));
+        helper.succeedWhen(() -> {
+            assertFilmShinesAt(helper, POCKET_CEILING_FILM, 1);
+            assertFilmShinesAt(helper, POCKET_FILL_AND_FILM, FILL_AND_FILM_LAYERS);
+        });
+    }
+
+    private static void assertFilmShinesAt(GameTestHelper helper, BlockPos cell, int layers) {
+        BlockState state = helper.getBlockState(cell);
+        int held = state.is(GooBlocks.GLOW_WISPS.get()) ? VolumeCellBlock.layersHeld(state) : 0;
+        int light = helper.getLevel().getBrightness(LightLayer.BLOCK, helper.absolutePos(cell));
+        helper.assertTrue(held == layers && light == layers, String.format(FILM_LIGHT_WRONG, state, held, layers,
+                light));
+    }
+
+    /**
+     * A Wisps cell holding one film and no fill, hung under the roof of a
+     * sealed dark corridor over its air, sheds wisps that settle as wisp
+     * blocks within its reach, and the shed that spends its one layer leaves
+     * the cell standing as air. A settled wisp lights every cell a one-layer
+     * cell reaches, and a shed spends its layer by the step's chance, so the
+     * test takes each settled wisp away and releases its claim, the dark
+     * standing again, until the film spends its layer.
+     * wisps-goo-sheds-a-wisp-toward-nearby-dark
+     *
+     * @param helper the gametest helper
+     * @param film   the film cell's state, one layer on the ceiling or a wall
+     */
+    public static void wispsFilmShedsAWispAndEmpties(GameTestHelper helper, BlockState film) {
+        sealCorridor(helper);
+        helper.setBlock(CORRIDOR_FILM, film);
+        boolean[] settled = {false};
+        helper.onEachTick(() -> {
+            for (BlockPos wisp : wispsInTheCorridor(helper)) {
+                helper.assertTrue(wisp.distManhattan(CORRIDOR_FILM) <= ONE_LAYER_REACH,
+                        String.format(FILM_WISP_OUT_OF_REACH, CORRIDOR_FILM, wisp));
+                settled[0] = true;
+                helper.setBlock(wisp, Blocks.AIR);
+                GooServerState.of(helper.getLevel().getServer()).wispClaims()
+                        .release(helper.getLevel(), helper.absolutePos(wisp));
+            }
+        });
+        helper.succeedWhen(() -> {
+            helper.assertTrue(settled[0], NO_WISP_SETTLED);
+            helper.assertTrue(helper.getBlockState(CORRIDOR_FILM).isAir(),
+                    String.format(CELL_WRONG, 0, helper.getBlockState(CORRIDOR_FILM)));
+        });
     }
 
     /**
@@ -179,6 +351,12 @@ public final class WispsTests {
     }
 
     private static void sealCorridorWithAFullCell(GameTestHelper helper) {
+        sealCorridor(helper);
+        helper.setBlock(CORRIDOR_CELL, GooBlocks.GLOW_WISPS.get().defaultBlockState()
+                .setValue(VolumeCellBlock.LAYERS, VolumeCellBlock.MAX_LAYERS));
+    }
+
+    private static void sealCorridor(GameTestHelper helper) {
         for (int x = 0; x <= CORRIDOR_LENGTH + 1; x++) {
             for (int y = 0; y <= CORRIDOR_HEIGHT + 1; y++) {
                 for (int z = CORRIDOR_Z - 1; z <= CORRIDOR_Z + 1; z++) {
@@ -187,8 +365,6 @@ public final class WispsTests {
                 }
             }
         }
-        helper.setBlock(CORRIDOR_CELL, GooBlocks.GLOW_WISPS.get().defaultBlockState()
-                .setValue(VolumeCellBlock.LAYERS, VolumeCellBlock.MAX_LAYERS));
     }
 
     private static List<BlockPos> wispsInTheCorridor(GameTestHelper helper) {

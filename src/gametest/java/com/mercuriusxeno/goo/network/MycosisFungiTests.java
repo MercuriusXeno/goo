@@ -95,7 +95,8 @@ public final class MycosisFungiTests {
      * @param helper the gametest helper
      */
     public static void mycosisGrowsFungalBuds(GameTestHelper helper) {
-        helper.setBlock(FUNGUS_POS.below(), Blocks.STONE);
+        // operator ruling 2026-11-18: a bud grows only where its mushroom can, so it stands on mycelium
+        helper.setBlock(FUNGUS_POS.below(), Blocks.MYCELIUM);
         helper.setBlock(FUNGUS_POS, GooBlocks.FUNGAL_BUD.get().defaultBlockState().setValue(FungalBudBlock.AGE, 0));
         hold(helper, GooTypes.SHROOM, SHROOM_MYCOSIS, HOLD_TICKS);
         helper.succeedWhen(() -> {

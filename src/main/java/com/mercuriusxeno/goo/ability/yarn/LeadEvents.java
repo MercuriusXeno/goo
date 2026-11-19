@@ -1,0 +1,584 @@
+package com.mercuriusxeno.goo.ability.yarn;
+
+import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.GooHitCredit;
+import com.mercuriusxeno.goo.ability.Minions;
+import com.mercuriusxeno.goo.registry.GooAttachments;
+import net.minecraft.resources.Identifier;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.NeutralMob;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.ai.goal.Goal;
+import net.minecraft.world.entity.monster.Enemy;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.phys.Vec3;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.entity.living.LivingChangeTargetEvent;
+import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
+import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
+import net.neoforged.neoforge.event.tick.EntityTickEvent;
+import org.jspecify.annotations.Nullable;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+import java.util.WeakHashMap;
+
+/**
+ * Runs a led mob for its caster until the caster strikes it or casts Lead
+ * on it again: it walks to the caster's nearest enemy within reach of the
+ * caster, a player who attacked the caster first, and strikes it with the
+ * lead's damage on reaching it and every strike interval after; with no enemy
+ * in reach it takes its slot in the caster's formation on the side its moving
+ * caster heads toward, or follows a standing caster. It wears its share of the caster's armor, read again every
+ * refresh interval. The caster's own hit or the caster's second Lead cast,
+ * both dealing no damage, ends the lead and takes its buffs off; a hit or a
+ * cast from anyone else leaves it. It takes no charmed or led mob as its
+ * foe or its target.
+ * diagnose-and-correct-minions-killing-each-other
+ * unengaged-minions-move-where-you-move
+ * zoo-rally-arms-the-peaceful
+ * zoo-rally-holds-for-the-brew
+ * rally-is-a-mob-effect-on-one-target
+ * rallied-mobs-follow-the-player-who-rallied-them
+ * rallied-mobs-turn-on-a-player-who-attacks-their-rallier
+ * rally-minions-get-half-your-armor-and-a-floor
+ * rally-cast-on-your-rallied-mob-releases-it
+ * each-rallied-mob-locks-into-a-fixed-slot
+ * slots-follow-rally-order-size-and-count
+ * rallied-mobs-share-their-ralliers-speed
+ * rallied-mobs-walk-around-their-rallier
+ */
+@EventBusSubscriber(modid = Goo.MODID)
+public final class LeadEvents {
+
+    /** The modifier a lead lifts max health with. */
+    public static final Identifier HEALTH_MODIFIER = Identifier.fromNamespaceAndPath(Goo.MODID, "lead_health");
+    /** The modifier a lead lifts movement speed with. */
+    public static final Identifier SPEED_MODIFIER = Identifier.fromNamespaceAndPath(Goo.MODID, "lead_speed");
+    /** The modifier a lead lends the leader's armor with. */
+    public static final Identifier ARMOR_MODIFIER = Identifier.fromNamespaceAndPath(Goo.MODID, "lead_armor");
+    /** The modifier a lead lends the leader's armor toughness with. */
+    public static final Identifier TOUGHNESS_MODIFIER =
+            Identifier.fromNamespaceAndPath(Goo.MODID, "lead_armor_toughness");
+    /** Ticks between one read of the leader's armor and the next, a second, so a gear change reaches the mob. */
+    static final int ARMOR_REFRESH_TICKS = 20;
+    /** How far around its leader a led mob looks for the leader's enemies, keeping it near the leader. */
+    private static final double FOE_REACH = 8.0;
+    /** Ticks between one strike and the next, three quarters of a second. */
+    static final int STRIKE_INTERVAL_TICKS = 15;
+    private static final double CHASE_SPEED = 1.2;
+    /** The pace a led mob walks to its leader at, its buffed speed carrying it. */
+    private static final double FOLLOW_SPEED = 1.0;
+    /** Ticks between one path to a moving leader and the next. */
+    private static final int REPATH_TICKS = 10;
+    /**
+     * How near its spot a minion walks straight at it rather than along a
+     * path, in blocks: past the slot's travel between two re-paths at a run.
+     */
+    private static final double LAST_STRETCH = 3.0;
+    /** Each unengaged minion's spot from last tick, held weakly so a mob gone from the world drops out. */
+    private static final Map<Mob, Vec3> HELD_SPOTS = new WeakHashMap<>();
+    /** Each minion locked into its slot last tick, held weakly so a mob gone from the world drops out. */
+    private static final Set<Mob> LOCKED_IN = Collections.newSetFromMap(new WeakHashMap<>());
+
+    private LeadEvents() {
+    }
+
+    /**
+     * Strikes or chases the caster's enemy while the lead stands.
+     *
+     * @param event the entity tick event
+     */
+    @SubscribeEvent
+    public static void onEntityTick(EntityTickEvent.Post event) {
+        if (!(event.getEntity() instanceof Mob mob) || !(mob.level() instanceof ServerLevel level)
+                || !mob.hasData(GooAttachments.LED)
+                // rallied-mob-falls-downed-instead-of-dying: a downed mob lies still, fighting and following no one
+                || mob.hasData(GooAttachments.DOWNED)) {
+            return;
+        }
+        // unengaged-minions-move-where-you-move: no vanilla goal walks a led mob, so it goes only where the
+        // lead walks it; set after the mob's tick, which re-enables the flag every fifth tick
+        mob.goalSelector.disableControlFlag(Goal.Flag.MOVE);
+        Led lead = mob.getData(GooAttachments.LED);
+        // rally-minions-get-half-your-armor-and-a-floor: an offline or absent leader leaves the last armor read
+        if (level.getEntity(lead.caster()) instanceof LivingEntity caster) {
+            if (mob.tickCount % ARMOR_REFRESH_TICKS == 0) {
+                wearLeadersArmor(mob, caster, lead.armor());
+            }
+            act(level, mob, caster, lead);
+        }
+    }
+
+    /**
+     * Turns a led mob away from a charmed or led mob it would
+     * target, onto none; the lead's next tick points it at its foe.
+     * diagnose-and-correct-minions-killing-each-other
+     *
+     * @param event the change target event
+     */
+    @SubscribeEvent
+    public static void onChangeTarget(LivingChangeTargetEvent event) {
+        if (event.getEntity() instanceof Mob mob && !mob.level().isClientSide()
+                && mob.hasData(GooAttachments.LED) && Minions.isMinion(event.getNewAboutToBeSetTarget())) {
+            event.setNewAboutToBeSetTarget(null);
+        }
+    }
+
+    /**
+     * Lends a led mob its share of its leader's armor and toughness as it stands now.
+     * rally-minions-get-half-your-armor-and-a-floor
+     *
+     * @param mob     the led mob
+     * @param leader the entity that led it
+     * @param armor   the lead's armor share and floor
+     */
+    public static void wearLeadersArmor(Mob mob, LivingEntity leader, LeadArmor armor) {
+        lendModifier(mob.getAttribute(Attributes.ARMOR), ARMOR_MODIFIER,
+                armor.armorFrom(leader.getAttributeValue(Attributes.ARMOR)));
+        lendModifier(mob.getAttribute(Attributes.ARMOR_TOUGHNESS), TOUGHNESS_MODIFIER,
+                armor.toughnessFrom(leader.getAttributeValue(Attributes.ARMOR_TOUGHNESS)));
+    }
+
+    /**
+     * Ends a mob's lead on a hit from its leader, and cancels that hit so
+     * it deals no damage; a hit from anyone else lands and leaves the lead
+     * standing. Ending a lead isn't an attack: a cancelled hit leaves the
+     * leader recording no struck mob, so its other led mobs never take
+     * the freed mob as their foe, while a second hit lands and makes it one.
+     * rally-is-a-mob-effect-on-one-target
+     *
+     * @param event the incoming damage event, before the damage lands
+     */
+    @SubscribeEvent
+    public static void onLedHurt(LivingIncomingDamageEvent event) {
+        if (!(event.getEntity() instanceof Mob mob) || mob.level().isClientSide()
+                || !mob.hasData(GooAttachments.LED)) {
+            return;
+        }
+        Entity attacker = GooHitCredit.causeOf(event.getSource());
+        if (mob.getData(GooAttachments.LED).brokenBy(attacker == null ? null : attacker.getUUID())) {
+            event.setCanceled(true);
+            endLead(mob);
+        }
+    }
+
+    /**
+     * Fights the caster's foe in reach; with none, catches up to its slot on
+     * the side the caster heads toward and marches there at the caster's
+     * speed, or with no spot follows the caster.
+     * rallied-mobs-follow-the-player-who-rallied-them
+     * unengaged-minions-move-where-you-move
+     * each-rallied-mob-locks-into-a-fixed-slot
+     * rallied-mobs-share-their-ralliers-speed
+     *
+     * @param level  the mob's level
+     * @param mob    the led mob
+     * @param caster the entity that led it
+     * @param lead  the mob's lead
+     */
+    private static void act(ServerLevel level, Mob mob, LivingEntity caster, Led lead) {
+        dropMinionTarget(mob);
+        List<LeadFoes.Candidate<LivingEntity>> nearby = candidatesNear(mob, caster);
+        Optional<LivingEntity> foe = LeadFoes.pick(caster.getUUID(), standingAttacker(mob, lead, nearby),
+                uuidOf(caster.getLastHurtByMob()), uuidOf(caster.getLastHurtMob()), nearby);
+        Vec3 leaderVelocity = LeaderMotion.velocityOf(caster, level.getGameTime());
+        Optional<Vec3> spot = foe.isPresent() ? Optional.empty()
+                : spotInFormation(level, mob, caster, leaderVelocity);
+        spot.ifPresentOrElse(taken -> HELD_SPOTS.put(mob, taken), () -> HELD_SPOTS.remove(mob));
+        boolean wasLockedIn = LOCKED_IN.remove(mob);
+        LeadFollow.Move move = LeadFollow.choose(foe.isPresent(), mob.position(), caster.position(), spot,
+                wasLockedIn);
+        if (move == LeadFollow.Move.MARCH) {
+            LOCKED_IN.add(mob);
+        }
+        if (move == LeadFollow.Move.FIGHT) {
+            fight(level, mob, new Escort(caster, leaderVelocity), foe.orElseThrow(), lead.damage());
+        } else {
+            walk(mob, new Escort(caster, leaderVelocity), move, spot);
+        }
+    }
+
+    /**
+     * Walks an unengaged minion by its move: a catch-up faster than its
+     * leader to its slot, a march at the leader's speed in it, or a walk
+     * to or a stand by a standing leader it holds no slot near.
+     * rallied-mobs-share-their-ralliers-speed
+     *
+     * @param mob    the led mob
+     * @param escort the leader and its smoothed velocity
+     * @param move   the mob's move this tick, never a fight
+     * @param spot   the spot of its slot, empty for none
+     */
+    private static void walk(Mob mob, Escort escort, LeadFollow.Move move, Optional<Vec3> spot) {
+        double ownSpeed = mob.getAttributeValue(Attributes.MOVEMENT_SPEED);
+        double leaderSpeed = escort.velocity().horizontalDistance();
+        double catchUp = LeadFollow.pace(leaderSpeed, ownSpeed, false);
+        switch (move) {
+            case CATCH_UP -> walkTo(mob, escort, spot.orElseThrow(), catchUp);
+            case MARCH -> march(mob, escort, spot.orElseThrow(), LeadFollow.pace(leaderSpeed, ownSpeed, true));
+            case FOLLOW -> follow(mob, escort.leader(), catchUp);
+            default -> mob.getNavigation().stop();
+        }
+    }
+
+    /**
+     * Moves a locked-in minion as its leader moves, at the pace matching the
+     * leader's speed, holding its slot, so a standing leader's minion
+     * stands; a slot across the leader it walks round to.
+     * each-rallied-mob-locks-into-a-fixed-slot
+     * rallied-mobs-share-their-ralliers-speed
+     * rallied-mobs-walk-around-their-rallier
+     *
+     * @param mob    the led mob
+     * @param escort the leader and its smoothed velocity
+     * @param spot   the spot of its slot
+     * @param pace   the speed modifier matching its leader's speed
+     */
+    private static void march(Mob mob, Escort escort, Vec3 spot, double pace) {
+        mob.getNavigation().stop();
+        if (pace > 0.0) {
+            steer(mob, escort, walkPoint(mob, escort, spot), pace);
+        }
+    }
+
+    /**
+     * Steers a minion by its move control toward a point measured from its
+     * moving leader, so its walk relative to the leader runs straight there.
+     * rallied-mobs-walk-around-their-rallier
+     *
+     * @param mob    the led mob
+     * @param escort the leader and its smoothed velocity
+     * @param point  the point it walks to, from {@link LeadFollow#walkPoint}
+     * @param pace   the speed modifier its walk takes
+     */
+    private static void steer(Mob mob, Escort escort, Vec3 point, double pace) {
+        double groundSpeed = LeadFollow.groundSpeed(mob.getAttributeValue(Attributes.MOVEMENT_SPEED) * pace);
+        Vec3 aim = LeadFollow.aim(mob.position(), point, escort.velocity(), groundSpeed);
+        mob.getNavigation().stop();
+        mob.getMoveControl().setWantedPosition(aim.x, mob.getY(), aim.z, pace);
+    }
+
+    private static Vec3 walkPoint(Mob mob, Escort escort, Vec3 target) {
+        LivingEntity leader = escort.leader();
+        return LeadFollow.walkPoint(mob.position(), target, leader.position(),
+                LeadFollow.keepClearRadius(leader.getBbWidth(), mob.getBbWidth()));
+    }
+
+    /**
+     * The leader a minion walks beside and the leader's smoothed velocity this tick.
+     *
+     * @param leader  the entity that led the minion
+     * @param velocity its smoothed velocity, in blocks a tick
+     */
+    private record Escort(LivingEntity leader, Vec3 velocity) {
+    }
+
+    /**
+     * The spot an unengaged minion walks to: its slot in its leader's
+     * formation, on the side the leader heads toward, or the spot it held
+     * once the leader stops.
+     * each-rallied-mob-locks-into-a-fixed-slot
+     * slots-follow-rally-order-size-and-count
+     *
+     * @param level           the mob's level
+     * @param mob             the led mob
+     * @param caster          the entity that led it
+     * @param leaderVelocity the caster's smoothed velocity, in blocks a tick
+     * @return the spot, or empty for none
+     */
+    private static Optional<Vec3> spotInFormation(ServerLevel level, Mob mob, LivingEntity caster,
+                                                  Vec3 leaderVelocity) {
+        return LeaderFormation.slotOf(caster, mob, () -> ledBy(caster), level.getGameTime())
+                .flatMap(slot -> LeadFollow.spot(Optional.ofNullable(HELD_SPOTS.get(mob)), caster.position(),
+                        leaderVelocity, slot));
+    }
+
+    /**
+     * Clears a led mob's target where it is a charmed or led mob, a
+     * target held from before a charm or a lead landed on it.
+     * diagnose-and-correct-minions-killing-each-other
+     *
+     * @param mob the led mob
+     */
+    private static void dropMinionTarget(Mob mob) {
+        if (Minions.isMinion(mob.getTarget())) {
+            mob.setTarget(null);
+        }
+    }
+
+    /**
+     * The attacker the lead records while it stands as a foe, clearing the
+     * record once the attacker has died or left the mob's reach.
+     * rallied-mobs-turn-on-a-player-who-attacks-their-rallier
+     *
+     * @param mob    the led mob
+     * @param lead  the mob's lead
+     * @param nearby the mobs in the led mob's reach
+     * @return the attacker's UUID, or null for none
+     */
+    private static @Nullable UUID standingAttacker(Mob mob, Led lead,
+                                                   List<LeadFoes.Candidate<LivingEntity>> nearby) {
+        UUID attacker = lead.attacker().orElse(null);
+        if (attacker != null && !LeadFoes.attackerStands(attacker, nearby)) {
+            mob.setData(GooAttachments.LED, lead.withoutAttacker());
+            return null;
+        }
+        return attacker;
+    }
+
+    /**
+     * Records another player who damages a leader, in melee or by a
+     * projectile, as the attacker on every mob that leader led, so each
+     * turns on the attacker ahead of other foes.
+     * rallied-mobs-turn-on-a-player-who-attacks-their-rallier
+     *
+     * @param event the damage event, after the damage landed
+     */
+    @SubscribeEvent
+    public static void onLeaderHurt(LivingDamageEvent.Post event) {
+        if (event.getEntity() instanceof ServerPlayer leader
+                && GooHitCredit.causeOf(event.getSource()) instanceof Player attacker && attacker != leader) {
+            UUID attackerId = attacker.getUUID();
+            for (Mob mob : ledBy(leader)) {
+                mob.setData(GooAttachments.LED, mob.getData(GooAttachments.LED).withAttacker(attackerId));
+            }
+        }
+    }
+
+    /**
+     * Walks a mob toward the one it follows, re-pathing as that one moves:
+     * a led mob its leader, a herded mob the player holding Herd.
+     * rallied-mobs-follow-the-player-who-rallied-them
+     * leader-leads-passive-mobs-at-a-short-distance
+     *
+     * @param mob      the following mob
+     * @param followed the entity it follows
+     */
+    static void follow(Mob mob, LivingEntity followed) {
+        follow(mob, followed, FOLLOW_SPEED);
+    }
+
+    /**
+     * Walks a mob toward the one it follows at a pace, re-pathing as that one moves.
+     * rallied-mobs-share-their-ralliers-speed
+     *
+     * @param mob      the following mob
+     * @param followed the entity it follows
+     * @param pace     the speed modifier its walk takes
+     */
+    private static void follow(Mob mob, LivingEntity followed, double pace) {
+        if (mob.getNavigation().isDone() || mob.tickCount % REPATH_TICKS == 0) {
+            mob.getNavigation().moveTo(followed, pace);
+        }
+        mob.getNavigation().setSpeedModifier(pace);
+    }
+
+    /**
+     * Walks a led mob to its slot on the side its moving leader heads
+     * toward at a catch-up pace, re-pathing as the slot moves with the leader,
+     * and round the leader where it stands in the way.
+     * unengaged-minions-move-where-you-move
+     * rallied-mobs-share-their-ralliers-speed
+     * rallied-mobs-walk-around-their-rallier
+     *
+     * @param mob    the led mob
+     * @param escort the leader and its smoothed velocity
+     * @param spot   the spot it walks to
+     * @param pace   the speed modifier its walk takes
+     */
+    private static void walkTo(Mob mob, Escort escort, Vec3 spot, double pace) {
+        Vec3 point = walkPoint(mob, escort, spot);
+        // each-rallied-mob-locks-into-a-fixed-slot: a path ends within a block of where its target stood at the
+        // last re-path, so near its moving slot a minion walks the last stretch straight at it;
+        // rallied-mobs-walk-around-their-rallier: a path's block corners cut close, so round or near its leader
+        // it steers too
+        if (!point.equals(spot) || mob.position().subtract(spot).horizontalDistance() <= LAST_STRETCH
+                || mob.position().subtract(escort.leader().position()).horizontalDistance() <= LAST_STRETCH) {
+            steer(mob, escort, point, pace);
+            return;
+        }
+        if (mob.getNavigation().isDone() || mob.tickCount % REPATH_TICKS == 0) {
+            mob.getNavigation().moveTo(spot.x, spot.y, spot.z, pace);
+        }
+        // the pace moves with the leader between re-paths
+        mob.getNavigation().setSpeedModifier(pace);
+    }
+
+    /**
+     * Answers whether a led mob in melee range strikes this tick: once a
+     * full cooldown has passed since its last strike, so a mob that has not
+     * struck lately strikes the tick it reaches its foe.
+     * rallied-mobs-follow-the-player-who-rallied-them
+     *
+     * @param tickCount      the mob's tick count
+     * @param lastStrikeTick the mob's tick count at its last strike, 0 for none
+     * @return true on a strike tick
+     */
+    static boolean strikeReady(int tickCount, int lastStrikeTick) {
+        return tickCount - lastStrikeTick >= STRIKE_INTERVAL_TICKS;
+    }
+
+    /**
+     * Every loaded mob a leader led.
+     *
+     * @param leader the leader
+     * @return the mobs whose lead names the leader as caster
+     */
+    private static List<Mob> ledBy(LivingEntity leader) {
+        UUID holder = leader.getUUID();
+        List<Mob> led = new ArrayList<>();
+        if (!(leader.level() instanceof ServerLevel level)) {
+            return led;
+        }
+        for (Entity entity : level.getAllEntities()) {
+            if (entity instanceof Mob mob && mob.hasData(GooAttachments.LED)
+                    && mob.getData(GooAttachments.LED).caster().equals(holder)) {
+                led.add(mob);
+            }
+        }
+        return led;
+    }
+
+    /**
+     * Takes a lead and its buffs off a mob.
+     *
+     * @param mob the mob
+     */
+    public static void endLead(Mob mob) {
+        mob.removeData(GooAttachments.LED);
+        HELD_SPOTS.remove(mob);
+        LOCKED_IN.remove(mob);
+        mob.goalSelector.enableControlFlag(Goal.Flag.MOVE);
+        removeModifier(mob.getAttribute(Attributes.MAX_HEALTH), HEALTH_MODIFIER);
+        removeModifier(mob.getAttribute(Attributes.MOVEMENT_SPEED), SPEED_MODIFIER);
+        removeModifier(mob.getAttribute(Attributes.ARMOR), ARMOR_MODIFIER);
+        removeModifier(mob.getAttribute(Attributes.ARMOR_TOUGHNESS), TOUGHNESS_MODIFIER);
+        mob.setHealth(Math.min(mob.getHealth(), mob.getMaxHealth()));
+    }
+
+    /**
+     * Lifts a mob's max health and speed by the lead's shares, each a
+     * multiple of the whole, leaving its health where it stands: a lead
+     * heals none of it.
+     * zoo-rally-arms-the-peaceful
+     *
+     * @param mob         the led mob
+     * @param healthShare the share max health grows by
+     * @param speedShare  the share movement speed grows by
+     */
+    public static void buff(Mob mob, double healthShare, double speedShare) {
+        replaceModifier(mob.getAttribute(Attributes.MAX_HEALTH), HEALTH_MODIFIER, healthShare);
+        replaceModifier(mob.getAttribute(Attributes.MOVEMENT_SPEED), SPEED_MODIFIER, speedShare);
+    }
+
+    private static void replaceModifier(@Nullable AttributeInstance attribute, Identifier id, double share) {
+        if (attribute != null) {
+            attribute.removeModifier(id);
+            // zoo-rally-arms-the-peaceful: permanent, so the buff saves with the lead it belongs to
+            attribute.addPermanentModifier(new AttributeModifier(id, share,
+                    AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL));
+        }
+    }
+
+    private static void lendModifier(@Nullable AttributeInstance attribute, Identifier id, double amount) {
+        if (attribute == null) {
+            return;
+        }
+        AttributeModifier standing = attribute.getModifier(id);
+        // an unchanged leader leaves the modifier, so the refresh syncs no attribute to clients
+        if (standing == null || Double.compare(standing.amount(), amount) != 0) {
+            attribute.removeModifier(id);
+            // permanent, so the lent armor saves with the lead it belongs to
+            attribute.addPermanentModifier(new AttributeModifier(id, amount, AttributeModifier.Operation.ADD_VALUE));
+        }
+    }
+
+    private static void removeModifier(@Nullable AttributeInstance attribute, Identifier id) {
+        if (attribute != null) {
+            attribute.removeModifier(id);
+        }
+    }
+
+    /**
+     * Chases a foe, round the leader where the leader stands in the way.
+     * rallied-mobs-walk-around-their-rallier
+     *
+     * @param mob    the led mob
+     * @param escort the leader and its smoothed velocity
+     * @param foe    the foe it chases
+     */
+    private static void chase(Mob mob, Escort escort, LivingEntity foe) {
+        Vec3 point = walkPoint(mob, escort, foe.position());
+        if (point.equals(foe.position())) {
+            mob.getNavigation().moveTo(foe, CHASE_SPEED);
+        } else {
+            steer(mob, escort, point, CHASE_SPEED);
+        }
+    }
+
+    private static void fight(ServerLevel level, Mob mob, Escort escort, LivingEntity foe, float damage) {
+        mob.setTarget(foe);
+        // a foe in reach behind a wall or fence takes no strike, as vanilla melee asks line of sight too
+        if (!mob.isWithinMeleeAttackRange(foe) || !mob.getSensing().hasLineOfSight(foe)) {
+            chase(mob, escort, foe);
+            return;
+        }
+        mob.getLookControl().setLookAt(foe);
+        if (strikeReady(mob.tickCount, mob.getLastHurtMobTimestamp())) {
+            mob.swing(mob.getUsedItemHand());
+            foe.hurtServer(level, mob.damageSources().mobAttack(mob), damage);
+            // the strike stamps the mob's last-hurt tick, which strikeReady counts the cooldown from
+            mob.setLastHurtMob(foe);
+        }
+    }
+
+    /**
+     * The foes a led mob weighs: the living entities within reach of its
+     * leader, so it fights near the leader, each weighed by its distance
+     * from the led mob.
+     * rallied-mobs-follow-the-player-who-rallied-them
+     *
+     * @param mob    the led mob
+     * @param caster the entity that led it
+     * @return the candidates, the mob and the caster left out
+     */
+    private static List<LeadFoes.Candidate<LivingEntity>> candidatesNear(Mob mob, LivingEntity caster) {
+        return mob.level().getEntitiesOfClass(LivingEntity.class, caster.getBoundingBox().inflate(FOE_REACH),
+                        near -> near != mob && near != caster)
+                .stream().map(near -> candidate(mob, near)).toList();
+    }
+
+    private static LeadFoes.Candidate<LivingEntity> candidate(Mob led, LivingEntity near) {
+        LivingEntity target = near instanceof Mob nearMob ? nearMob.getTarget() : null;
+        return new LeadFoes.Candidate<>(near, near.getUUID(), near.isAlive(), isUnprovokedHostile(near),
+                target == null ? null : target.getUUID(), led.distanceToSqr(near),
+                near.hasData(GooAttachments.DOWNED), Minions.isMinion(near));
+    }
+
+    /**
+     * Whether an entity is a monster hostile to players before it aggresses:
+     * an Enemy that is not neutral until provoked, as Charm weighs it.
+     *
+     * @param near the entity
+     * @return true for a hostile monster
+     */
+    private static boolean isUnprovokedHostile(LivingEntity near) {
+        return near instanceof Enemy && !(near instanceof NeutralMob);
+    }
+
+    private static @Nullable UUID uuidOf(@Nullable LivingEntity entity) {
+        return entity == null ? null : entity.getUUID();
+    }
+}

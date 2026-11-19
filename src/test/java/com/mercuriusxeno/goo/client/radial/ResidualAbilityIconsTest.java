@@ -26,8 +26,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Covers the residual ability icons, each world goo's icon read through the
- * classpath as the 16x16 texels it ships: one gray block shared texel for
- * texel under every icon, and each icon's own goo and mark drawn over it.
+ * classpath as the 16x16 texels it ships: a gray block under every icon,
+ * which any goo may drip over so long as it reads as a block, and each
+ * icon's own goo and mark drawn on it.
  */
 class ResidualAbilityIconsTest {
 
@@ -37,11 +38,12 @@ class ResidualAbilityIconsTest {
     // operator ruling 2026-11-17: Nectar takes the residual block icon, mark A, a heart, over its own goo
     // every-residual-goo-ability-wears-the-residual-badge-and-takes-the-residual-icon
     // each-residual-icon-draws-its-goo-in-its-own-shape
+    // residual-icon-marks-are-picked-from-drafts-in-an-artifact: Spores takes draft A, Spill, operator pick 2026-11-18
     // operator pick 2026-11-18: Nitro takes draft B1, the blast over a lumpy mound of unstable goo
     /** The icons drawing the residual style; a later residual joins by its icon's name. */
     static final List<String> RESIDUAL_ICONS = List.of("weird_goop", "kinetic_slick", "blaze_molten", "deep_host",
             "crystal_shatter", "hex_leech", "typhoon_updraft", "jelly_nectar", "pulse_signal",
-            "metal_spikes", "nether_infest", "leaf_vines", "unstable_nitro");
+            "metal_spikes", "nether_infest", "leaf_vines", "unstable_nitro", "quantum_phase", "shroom_spores");
 
     private static final String SHATTER = "crystal_shatter";
     private static final String NITRO = "unstable_nitro";
@@ -61,9 +63,8 @@ class ResidualAbilityIconsTest {
     private static final int BLOCK_SIDES_TOP = 10;
 
     /**
-     * The shared block's mask: the body rows no goo reaches, and the block's
-     * side edges from just under the goo down. Every residual icon holds the
-     * same texels here; the goo and the mark draw only outside it.
+     * The block's mask: its body rows and its side edges from just under the
+     * goo down, left out when two icons' goo shapes are compared.
      */
     static boolean inSharedBlock(int x, int y) {
         boolean inColumns = x >= BLOCK_LEFT && x <= BLOCK_RIGHT;
@@ -78,26 +79,6 @@ class ResidualAbilityIconsTest {
         BufferedImage icon = read(ability);
         assertEquals(SIDE, icon.getWidth(), ability + " width");
         assertEquals(SIDE, icon.getHeight(), ability + " height");
-    }
-
-    @Test
-    void everyResidualIconHoldsTheSameBlock() throws IOException {
-        String reference = RESIDUAL_ICONS.getFirst();
-        BufferedImage block = read(reference);
-        List<String> differences = new ArrayList<>();
-        for (String ability : RESIDUAL_ICONS) {
-            BufferedImage icon = read(ability);
-            for (int y = 0; y < SIDE; y++) {
-                for (int x = 0; x < SIDE; x++) {
-                    if (inSharedBlock(x, y) && !isOpaque(icon.getRGB(x, y))) {
-                        differences.add(ability + " leaves the block clear at " + x + "," + y);
-                    } else if (inSharedBlock(x, y) && icon.getRGB(x, y) != block.getRGB(x, y)) {
-                        differences.add(String.format("%s differs from %s at %d,%d", ability, reference, x, y));
-                    }
-                }
-            }
-        }
-        assertEquals(List.of(), differences, "texels inside the shared block mask");
     }
 
     // every-icon-its-own-drawing

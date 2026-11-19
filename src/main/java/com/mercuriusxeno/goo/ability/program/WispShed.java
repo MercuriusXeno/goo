@@ -178,7 +178,8 @@ public final class WispShed {
      */
     private static List<BlockPos> reachedFrom(ServerLevel level, BlockPos from, int reach) {
         List<BlockPos> reached = new ArrayList<>();
-        new WispFlood(from, reach, 0, 0, 1.0).walk(WALK_BUDGET, new ReachedAir(level, reached), level.getRandom());
+        // wisps-goo-sheds-a-wisp-toward-nearby-dark: a cell keeps no clear steps, so a one-layer film sheds too
+        new WispFlood(from, reach, 0, 0, 1.0, 0).walk(WALK_BUDGET, new ReachedAir(level, reached), level.getRandom());
         return reached;
     }
 

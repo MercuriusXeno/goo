@@ -35,9 +35,9 @@ import com.mercuriusxeno.goo.ability.typhoon.Breath;
 import com.mercuriusxeno.goo.ability.typhoon.Floating;
 import com.mercuriusxeno.goo.ability.weird.Wobbled;
 import com.mercuriusxeno.goo.ability.xeno.Eldritch;
-import com.mercuriusxeno.goo.ability.zoo.Downed;
-import com.mercuriusxeno.goo.ability.zoo.Kin;
-import com.mercuriusxeno.goo.ability.zoo.Rallied;
+import com.mercuriusxeno.goo.ability.yarn.Downed;
+import com.mercuriusxeno.goo.ability.yarn.Herd;
+import com.mercuriusxeno.goo.ability.yarn.Led;
 import com.mercuriusxeno.goo.data.GooRemainders;
 import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.data.PalmBuffers;
@@ -427,24 +427,24 @@ public final class GooAttachments {
                             .build());
 
     /**
-     * The rally a peaceful mob holds until its rallier strikes it: the caster
+     * The lead a peaceful mob holds until its leader strikes it: the caster
      * it fights for and its strike damage, saved with the mob and synced to
-     * every client drawing it, which floats the rally fist over its head and
+     * every client drawing it, which floats the lead fist over its head and
      * outlines it.
      * zoo-rally-arms-the-peaceful
      * rallied-mobs-wear-a-red-clenched-fist
      */
-    public static final Supplier<AttachmentType<Rallied>> RALLIED =
-            ATTACHMENT_TYPES.register("rallied",
-                    () -> AttachmentType.builder(() -> Rallied.NONE)
-                            .serialize(Rallied.CODEC)
-                            .sync(GooAttachments::syncsToWatcher, Rallied.STREAM_CODEC)
+    public static final Supplier<AttachmentType<Led>> LED =
+            ATTACHMENT_TYPES.register("led",
+                    () -> AttachmentType.builder(() -> Led.NONE)
+                            .serialize(Led.CODEC)
+                            .sync(GooAttachments::syncsToWatcher, Led.STREAM_CODEC)
                             .build());
 
     /**
-     * The fall a rallied mob takes instead of dying, the game time it went
+     * The fall a led mob takes instead of dying, the game time it went
      * down, saved with the mob so its timers survive a reload and synced to
-     * every client drawing it, which lays it on its side. A rally ending
+     * every client drawing it, which lays it on its side. A lead ending
      * leaves it standing.
      * rallied-mob-falls-downed-instead-of-dying
      */
@@ -544,15 +544,15 @@ public final class GooAttachments {
                             .build());
 
     /**
-     * The Kin a player holds, saved while it stands and synced to the
+     * The Herd a player holds, saved while it stands and synced to the
      * owning client, which outlines the mobs it senses.
      * leader-is-zoos-brew-ability
      */
-    public static final Supplier<AttachmentType<Kin>> KIN =
-            ATTACHMENT_TYPES.register("kin",
-                    () -> AttachmentType.builder(() -> Kin.NONE)
-                            .serialize(Kin.CODEC, Kin::stands)
-                            .sync(GooAttachments::syncsToOwner, Kin.STREAM_CODEC)
+    public static final Supplier<AttachmentType<Herd>> HERD =
+            ATTACHMENT_TYPES.register("herd",
+                    () -> AttachmentType.builder(() -> Herd.NONE)
+                            .serialize(Herd.CODEC, Herd::stands)
+                            .sync(GooAttachments::syncsToOwner, Herd.STREAM_CODEC)
                             .build());
 
     /**

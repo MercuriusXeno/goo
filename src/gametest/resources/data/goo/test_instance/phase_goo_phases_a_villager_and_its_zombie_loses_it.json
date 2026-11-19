@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:phase_goo_phases_a_villager_and_its_zombie_loses_it",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 80,
+  "setup_ticks": 0,
+  "required": true
+}

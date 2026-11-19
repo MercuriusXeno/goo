@@ -55,13 +55,13 @@ public final class BlastChargeTests {
         GooTestFunctions.registerTest(registrar, ROOTED_BLAST_EXPLODES_WHERE_THE_CHARGE_BEGAN,
                 BlastChargeTests::rootedBlastExplodesWhereTheChargeBegan);
         GooTestFunctions.registerTest(registrar, CHARGED_BLAST_NAMES_ITS_CASTER, BlastChargeTests::blastNamesItsCaster);
-        GooTestFunctions.registerTest(registrar, CHARGED_BLAST_KEEPS_RALLY_AND_CHARM,
-                BlastChargeTests::blastKeepsRallyAndCharm);
+        GooTestFunctions.registerTest(registrar, CHARGED_BLAST_KEEPS_LEAD_AND_CHARM,
+                BlastChargeTests::blastKeepsLeadAndCharm);
     }
 
     private static final String CHARGED_BLAST_NAMES_ITS_CASTER = "goo_caster_hit_charged_blast_names_the_player";
-    private static final String CHARGED_BLAST_KEEPS_RALLY_AND_CHARM =
-            "goo_caster_hit_charged_blast_keeps_rally_and_charm";
+    private static final String CHARGED_BLAST_KEEPS_LEAD_AND_CHARM =
+            "goo_caster_hit_charged_blast_keeps_lead_and_charm";
     private static final String SHOULD_NAME_THE_CASTER =
             "Blast should hurt the golem as an explosion naming its caster, last hit by %s";
 
@@ -169,18 +169,18 @@ public final class BlastChargeTests {
     }
 
     /**
-     * A release with no hold, aimed at stone between an iron golem its caster rallied and one it charmed, hurts
-     * both with an explosion and leaves the rally and the charm standing.
+     * A release with no hold, aimed at stone between an iron golem its caster led and one it charmed, hurts
+     * both with an explosion and leaves the lead and the charm standing.
      * decision direct-goo-hit-credits-its-caster
      * decision goo-hit-keeps-its-kind-and-names-the-player-behind-it
      *
      * @param helper the gametest helper
      */
-    public static void blastKeepsRallyAndCharm(GameTestHelper helper) {
-        Mob rallied = helper.spawnWithNoFreeWill(EntityType.IRON_GOLEM, AIMED.above().east());
+    public static void blastKeepsLeadAndCharm(GameTestHelper helper) {
+        Mob led = helper.spawnWithNoFreeWill(EntityType.IRON_GOLEM, AIMED.above().east());
         Mob charmed = helper.spawnWithNoFreeWill(EntityType.IRON_GOLEM, AIMED.above().west());
-        castBlast(helper, 0, player -> GooCasterHitTests.makeOwn(player, rallied, charmed));
-        GooCasterHitTests.assertKeepsRallyAndCharm(helper, "Blast", DamageTypes.EXPLOSION, rallied, charmed);
+        castBlast(helper, 0, player -> GooCasterHitTests.makeOwn(player, led, charmed));
+        GooCasterHitTests.assertKeepsLeadAndCharm(helper, "Blast", DamageTypes.EXPLOSION, led, charmed);
         helper.succeed();
     }
 
