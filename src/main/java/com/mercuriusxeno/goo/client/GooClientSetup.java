@@ -321,7 +321,8 @@ public final class GooClientSetup {
                 GooBlocks.FROST_RIME.get(), GooBlocks.GLOW_WISPS.get(), GooBlocks.HEX_LEECH.get(),
                 GooBlocks.TYPHOON_UPDRAFT.get(), GooBlocks.JELLY_NECTAR.get(), GooBlocks.PULSE_SIGNAL.get(),
                 GooBlocks.METAL_SPIKES.get(), GooBlocks.NETHER_INFEST.get(), GooBlocks.LEAF_VINES.get(),
-                GooBlocks.UNSTABLE_NITRO.get(), GooBlocks.QUANTUM_PHASE.get())) {
+                GooBlocks.UNSTABLE_NITRO.get(), GooBlocks.QUANTUM_PHASE.get(),
+                GooBlocks.SHROOM_SPORES.get())) {
             event.register(VolumeCellTint.sources(cell.binding().gooType(), ClientGooTypes::color), cell);
         }
     }
@@ -406,6 +407,7 @@ public final class GooClientSetup {
      * nectar-is-sprayed-goo-with-a-guided-throw-near-a-mob
      * infest-is-nethers-goo-the-decay-effect-localized-around-the-goo
      * vines-is-sprayed-slime-that-entangles-what-tries-to-cross
+     * spores-is-shrooms-residual-a-passive-mycosis
      * nitro-is-unstables-goo-that-explodes-in-a-chain-by-its-quantity
      * phase-goo-puts-what-stands-in-it-out-of-phase
      *
@@ -426,6 +428,7 @@ public final class GooClientSetup {
         registerSprayDrip(event, GooParticles.VINES_SPRAY_DRIP.get(), BlendPalette.VINES_LEAF_GREENS);
         registerSprayDrip(event, GooParticles.NITRO_SPRAY_DRIP.get(), BlendPalette.NITRO_UNSTABLE_GREENS);
         registerSprayDrip(event, GooParticles.PHASE_SPRAY_DRIP.get(), BlendPalette.PHASE_QUANTUM_BLUES);
+        registerSprayDrip(event, GooParticles.SPORES_SPRAY_DRIP.get(), BlendPalette.SPORES_SHROOM_PURPLES);
         event.registerSpriteSet(GooParticles.MOLTEN_SPRAY_DRIP.get(),
                 sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.MOLTEN_BLAZE_ORANGES,
                         CellBinding.MOLTEN.fluidFooting()));
