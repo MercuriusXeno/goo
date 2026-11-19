@@ -31,7 +31,7 @@ public final class MinionKillCredit {
     /**
      * Marks the struck entity as the minion's player's once the hit lands,
      * which NeoForge reports before the hit's death, so a killing blow
-     * carries the mark. A rally or charm naming no player in the level
+     * carries the mark. A lead or charm naming no player in the level
      * leaves no mark.
      *
      * @param event the damage event, after the damage landed

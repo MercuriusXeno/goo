@@ -7,6 +7,8 @@ import com.mercuriusxeno.goo.ability.program.SoundCue;
 import com.mercuriusxeno.goo.client.FlatQuadContext;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.GooSubmitter;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.throwing.GooFlightRenderer;
 import com.mercuriusxeno.goo.network.DripFlights;
 import com.mercuriusxeno.goo.network.GlassKnifePayload;
@@ -31,7 +33,6 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
@@ -222,31 +223,40 @@ public final class GlassKnives {
     }
 
     /**
-     * Draws every knife after the level, clouds included, so no cloud shows
-     * through it: in flight between its tick points, or stuck at its end.
+     * Hands the shared path every knife and javelin, in flight between its
+     * tick points or stuck at its end, and every sliver, sorted by the
+     * nearest knife. The path draws it far to near after the level, clouds
+     * included, so no cloud shows through it.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
      *
-     * @param event the level render stage event
+     * @param frame the frame being drawn
+     * @param draws where the knives' draw goes
      */
-    @SubscribeEvent
-    public static void onAfterLevel(RenderLevelStageEvent.AfterLevel event) {
-        LevelOverlayView.inView(event, () -> drawEvery(event));
-    }
-
-    private static void drawEvery(RenderLevelStageEvent.AfterLevel event) {
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.level == null || LIVE.isEmpty() && SLIVERS.isEmpty()) {
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
+        // It drew only at AfterLevel, which a portal view's pass never posts; the path runs AfterLevel routes there.
+        if (PortalView.drawing()) {
             return;
         }
-        double now = mc.level.getGameTime() + mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
+        Minecraft mc = Minecraft.getInstance();
+        ClientLevel level = mc.level;
+        if (level == null || LIVE.isEmpty() && SLIVERS.isEmpty()) {
+            return;
+        }
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        draws.accept(SortedDraw.nearestOf(LIVE.stream().map(knife -> knife.path.getLast()), camera,
+                () -> drawKnives(mc, level, frame, camera)));
+    }
+
+    private static void drawKnives(Minecraft mc, ClientLevel level, LevelFrame frame, Vec3 camera) {
+        double now = level.getGameTime() + mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
-        FlatQuadContext quads = new FlatQuadContext(event.getPoseStack().last(),
+        FlatQuadContext quads = new FlatQuadContext(frame.poseStack().last(),
                 buffers.getBuffer(GooRenderTypes.CRYSTAL_SHARD_TYPE));
         for (Knife knife : LIVE) {
             if (knife.javelin == null) {
                 drawKnife(quads, knife, now - knife.startTick - 1, camera);
             } else {
-                drawJavelin(event.getPoseStack(), buffers, knife, now - knife.startTick - 1, camera);
+                drawJavelin(frame.poseStack(), buffers, knife, now - knife.startTick - 1, camera);
             }
         }
         SLIVERS.draw(quads, now, camera);

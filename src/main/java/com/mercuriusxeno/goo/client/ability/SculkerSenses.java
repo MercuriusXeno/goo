@@ -2,6 +2,8 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.deep.SculkerSwim;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.network.EntitySnapshots;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -20,7 +22,6 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.client.event.sound.PlaySoundEvent;
 import net.neoforged.neoforge.event.level.ChunkEvent;
 import org.jspecify.annotations.Nullable;
@@ -28,6 +29,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 /**
  * What a Sculker senses, while its brew stands. Every sound heard sends its
@@ -85,17 +87,28 @@ public final class SculkerSenses {
     }
 
     /**
-     * Draws the soft glow around every mob heard making a sound, while its
-     * outline lasts, over the finished level.
+     * Hands the shared path the soft glow around every mob heard making a
+     * sound, while its outline lasts, painted over the finished level
+     * through walls, so it sorts by nothing.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
+     * decision sculker-sight-persists-where-echoes-have-touched
      *
-     * @param event the level render stage event
+     * @param frame the frame being drawn
+     * @param draws where the glow's draw goes
      */
-    @SubscribeEvent
-    public static void onAfterLevel(RenderLevelStageEvent.AfterLevel event) {
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
+        // It drew only at AfterLevel, which a portal view's pass never posts; the path runs AfterLevel routes there.
+        if (PortalView.drawing()) {
+            return;
+        }
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || HEARD.isEmpty()) {
             return;
         }
+        draws.accept(new SortedDraw(0, () -> drawOutlines(mc, frame)));
+    }
+
+    private static void drawOutlines(Minecraft mc, LevelFrame frame) {
         ProfilerFiller profiler = Profiler.get();
         profiler.push(OUTLINES_SECTION);
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
@@ -106,7 +119,7 @@ public final class SculkerSenses {
                 outlines.add(outline);
             }
         }
-        AfterimageRenderer.drawSoftOutlines(event, outlines, SCULK_RGB);
+        AfterimageRenderer.drawSoftOutlines(frame, outlines, SCULK_RGB);
         profiler.pop();
     }
 

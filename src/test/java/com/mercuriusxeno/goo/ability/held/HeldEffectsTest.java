@@ -4,7 +4,7 @@ import com.mercuriusxeno.goo.ability.hearts.HeartKind;
 import com.mercuriusxeno.goo.ability.program.Expr;
 import com.mercuriusxeno.goo.ability.program.GluttonyStep;
 import com.mercuriusxeno.goo.ability.program.HeartOverlayStep;
-import com.mercuriusxeno.goo.ability.program.KinStep;
+import com.mercuriusxeno.goo.ability.program.HerdStep;
 import com.mercuriusxeno.goo.ability.program.SoundCue;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooRemainders;
@@ -229,6 +229,6 @@ class HeldEffectsTest {
     /** decision leader-is-zoos-brew-ability */
     @Test
     void leaderStepLaysLeader() {
-        assertEquals(Set.of(LaidState.KIN), LaidState.laidBy(List.of(new KinStep(12, 4))));
+        assertEquals(Set.of(LaidState.HERD), LaidState.laidBy(List.of(new HerdStep(12, 4))));
     }
 }

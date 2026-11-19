@@ -1,8 +1,9 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import com.mercuriusxeno.goo.ability.program.LevelStep;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.throwing.GloveAim;
@@ -12,11 +13,8 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.jspecify.annotations.Nullable;
+import java.util.function.Consumer;
 
 /**
  * Level's cursor: while right click holds a Level channel, rock's dust
@@ -25,20 +23,20 @@ import org.jspecify.annotations.Nullable;
  * crosshair later rests on.
  * decision flatten-disc-cursor-breaks-above-the-plane
  */
-@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class LevelCursor {
 
     private LevelCursor() {
     }
 
     /**
-     * Draws the disc after the translucent blocks while a Level hold runs
-     * on a face.
+     * Hands the shared path the disc while a Level hold runs on a face,
+     * sorted by the cell it lies on.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
      *
-     * @param event the level render stage event
+     * @param frame the frame being drawn
+     * @param draws where the disc's draw goes
      */
-    @SubscribeEvent
-    public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
         ChannelAim.FacePlane plane = GloveUseTracker.pressPlane();
@@ -49,9 +47,11 @@ public final class LevelCursor {
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         BlockPos cell = cellUnder(CameraEye.of(mc, player, partialTick).eye(),
                 GloveThrowSender.drawnCursorPoint(player, partialTick), plane);
-        BurnoutFrame frame = new BurnoutFrame(event.getPoseStack(), mc.renderBuffers().bufferSource(),
-                mc.gameRenderer.getMainCamera().position(), mc.level.getGameTime() + partialTick);
-        RockExplosionVisual.INSTANCE.renderCursor(frame, cell, plane.face());
+        Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        BurnoutFrame burnout = new BurnoutFrame(frame.poseStack(), mc.renderBuffers().bufferSource(), camera,
+                mc.level.getGameTime() + partialTick);
+        draws.accept(new SortedDraw(Vec3.atCenterOf(cell).distanceToSqr(camera),
+                () -> RockExplosionVisual.INSTANCE.renderCursor(burnout, cell, plane.face())));
     }
 
     /**

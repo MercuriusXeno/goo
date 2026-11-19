@@ -69,7 +69,7 @@ public enum EntityFilter {
     HAS_SPAWN_EGG,
     /**
      * Keeps a mob normally peaceful: a mob of a friendly spawn category
-     * that is no monster; Rally arms only these
+     * that is no monster; Lead arms only these
      * (decision zoo-rally-arms-the-peaceful).
      */
     PEACEFUL,
@@ -80,7 +80,7 @@ public enum EntityFilter {
      */
     VULNERABLE,
     /**
-     * Keeps a living entity the run's caster neither rallied nor charmed;
+     * Keeps a living entity the run's caster neither led nor charmed;
      * Drain spares the caster's own minions
      * (decision drain-skips-your-rallied-and-charmed-mobs).
      */

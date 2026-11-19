@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.FormSounds;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.TravelForm;
@@ -8,6 +7,8 @@ import com.mercuriusxeno.goo.ability.crystal.StackHover;
 import com.mercuriusxeno.goo.ability.crystal.ThrownKnife;
 import com.mercuriusxeno.goo.ability.program.SoundCue;
 import com.mercuriusxeno.goo.client.GooSubmitter;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.throwing.GooFlightRenderer;
 import com.mercuriusxeno.goo.item.GooCasters;
 import com.mercuriusxeno.goo.network.StackFormedPayload;
@@ -16,15 +17,12 @@ import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
@@ -45,7 +43,6 @@ import java.util.function.Consumer;
  * decision dart-shinks-as-it-forms-and-pitched-down-as-it-reverts
  * decision dart-flutes-draw-as-fins
  */
-@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class HeldJavelins {
 
     /** Ticks a javelin takes to rise from the cube's top to its slot. */
@@ -208,40 +205,63 @@ public final class HeldJavelins {
     }
 
     /**
-     * Draws every caster's stack after the level, clouds included, so no cloud
-     * shows through a javelin, each as the dart form in its caster's goo,
-     * pointing along the caster's look.
+     * Hands the shared path every caster's stack, sorted by the nearest
+     * javelin, each as the dart form in its caster's goo, pointing along the
+     * caster's look. The path draws it far to near after the level, clouds
+     * included, so no cloud shows through a javelin.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
      *
-     * @param event the level render stage event
+     * @param frame the frame being drawn
+     * @param draws where the stacks' draw goes
      */
-    @SubscribeEvent
-    public static void onAfterLevel(RenderLevelStageEvent.AfterLevel event) {
-        LevelOverlayView.inView(event, () -> drawEvery(event));
-    }
-
-    private static void drawEvery(RenderLevelStageEvent.AfterLevel event) {
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
+        // It drew only at AfterLevel, which a portal view's pass never posts; the path runs AfterLevel routes there.
+        if (PortalView.drawing()) {
+            return;
+        }
         Minecraft mc = Minecraft.getInstance();
-        if (mc.level == null || STACKS.isEmpty() && RETURNS.isEmpty()) {
+        ClientLevel level = mc.level;
+        if (level == null || STACKS.isEmpty() && RETURNS.isEmpty()) {
             return;
         }
         float partial = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        double now = mc.level.getGameTime() + partial;
+        double now = level.getGameTime() + partial;
         RETURNS.values().removeIf(release -> release.doneAt(now));
+        Map<Player, List<HoveringKnives.Piece>> drawn = drawnIn(level, now, partial);
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
-        List<Integer> casters = new ArrayList<>(STACKS.keySet());
-        RETURNS.keySet().stream().filter(id -> !STACKS.containsKey(id)).forEach(casters::add);
-        for (Integer casterId : casters) {
-            if (mc.level.getEntity(casterId) instanceof Player caster && HoveringKnives.drawsInTheLevel(caster)) {
-                ResourceKey<GooTypeDefinition> type = gooTypeOf(caster);
-                List<HoveringKnives.Piece> pieces = piecesOf(caster, now, partial);
-                layStack(event.getPoseStack(), caster, pieces, partial, camera,
-                        (at, heading, scale) -> GooFlightRenderer.emitTravelForm(at.last(),
-                                buffers.getBuffer(GooSubmitter.renderType()), type, TravelForm.DART, heading, scale));
-                drawCuboids(event.getPoseStack().last(), buffers.getBuffer(GooSubmitter.renderType()), caster,
-                        pieces, camera);
+        draws.accept(SortedDraw.nearestOf(drawn.values().stream().flatMap(List::stream)
+                .map(HoveringKnives.Piece::at), camera, () -> drawStacks(mc, frame, drawn, partial, camera)));
+    }
+
+    // Each caster drawn in the level this frame, with its pieces.
+    private static Map<Player, List<HoveringKnives.Piece>> drawnIn(ClientLevel level, double now, float partial) {
+        Map<Player, List<HoveringKnives.Piece>> drawn = new HashMap<>();
+        for (Integer casterId : casters()) {
+            if (level.getEntity(casterId) instanceof Player caster && HoveringKnives.drawsInTheLevel(caster)) {
+                drawn.put(caster, piecesOf(caster, now, partial));
             }
         }
+        return drawn;
+    }
+
+    // Every caster with a stack standing or javelins returning.
+    private static List<Integer> casters() {
+        List<Integer> casters = new ArrayList<>(STACKS.keySet());
+        RETURNS.keySet().stream().filter(id -> !STACKS.containsKey(id)).forEach(casters::add);
+        return casters;
+    }
+
+    private static void drawStacks(Minecraft mc, LevelFrame frame, Map<Player, List<HoveringKnives.Piece>> drawn,
+                                   float partial, Vec3 camera) {
+        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        drawn.forEach((caster, pieces) -> {
+            ResourceKey<GooTypeDefinition> type = gooTypeOf(caster);
+            layStack(frame.poseStack(), caster, pieces, partial, camera,
+                    (at, heading, scale) -> GooFlightRenderer.emitTravelForm(at.last(),
+                            buffers.getBuffer(GooSubmitter.renderType()), type, TravelForm.DART, heading, scale));
+            drawCuboids(frame.poseStack().last(), buffers.getBuffer(GooSubmitter.renderType()), caster, pieces,
+                    camera);
+        });
         buffers.endBatch(GooSubmitter.renderType());
     }
 

@@ -16,6 +16,7 @@ import com.mercuriusxeno.goo.block.ability.PrismBlock;
 import com.mercuriusxeno.goo.block.ability.RimeCellBlock;
 import com.mercuriusxeno.goo.block.ability.SignalCellBlock;
 import com.mercuriusxeno.goo.block.ability.SpikesCellBlock;
+import com.mercuriusxeno.goo.block.ability.SporesCellBlock;
 import com.mercuriusxeno.goo.block.ability.UpdraftCellBlock;
 import com.mercuriusxeno.goo.block.ability.VinesCellBlock;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
@@ -367,6 +368,26 @@ public class GooBlocks {
                     .noLootTable()
                     .pushReaction(PushReaction.DESTROY));
     /**
+     * Phase: the volume cell bound to Quantum's goo, the blue goo Phase
+     * sprays onto a block's top, one to fifteen layers, ordinary ground
+     * underfoot and sounding as goo does, putting what stands in it out of
+     * phase, dropping the quantum goo its layers cost through
+     * VolumeCellBlock.getDrops, no loot table
+     * (decisions phase-goo-puts-what-stands-in-it-out-of-phase,
+     * each-goo-type-ships-a-world-goo-on-the-volume-cell).
+     */
+    public static final DeferredBlock<VolumeCellBlock> QUANTUM_PHASE = BLOCKS.registerBlock(
+            "quantum_phase", properties -> new VolumeCellBlock(properties, CellBinding.PHASE),
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_PURPLE)
+                    .friction(CellBinding.PHASE.surface().friction())
+                    .sound(SoundType.SLIME_BLOCK)
+                    .instabreak()
+                    .noOcclusion()
+                    .replaceable()
+                    .noLootTable()
+                    .pushReaction(PushReaction.DESTROY));
+    /**
      * Signal: the volume cell bound to Pulse's goo, the red goo Signal sprays
      * onto a block's top, one to fifteen layers, ordinary ground underfoot
      * and sounding as goo does, sending a redstone signal equal to its layers
@@ -443,6 +464,26 @@ public class GooBlocks {
             () -> BlockBehaviour.Properties.of()
                     .mapColor(MapColor.NETHER)
                     .friction(CellBinding.INFEST.surface().friction())
+                    .sound(SoundType.SLIME_BLOCK)
+                    .instabreak()
+                    .noOcclusion()
+                    .replaceable()
+                    .noLootTable()
+                    .pushReaction(PushReaction.DESTROY));
+    /**
+     * Spores: the volume cell bound to Shroom's goo, the purple goo Spores
+     * sprays onto a block's top, one to fifteen layers, ordinary ground
+     * underfoot and sounding as goo does, budding the ground at its edges,
+     * dropping the shroom goo its layers cost through
+     * VolumeCellBlock.getDrops, no loot table
+     * (decisions spores-is-shrooms-residual-a-passive-mycosis,
+     * each-goo-type-ships-a-world-goo-on-the-volume-cell).
+     */
+    public static final DeferredBlock<SporesCellBlock> SHROOM_SPORES = BLOCKS.registerBlock(
+            "shroom_spores", properties -> new SporesCellBlock(properties, CellBinding.SPORES),
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_PURPLE)
+                    .friction(CellBinding.SPORES.surface().friction())
                     .sound(SoundType.SLIME_BLOCK)
                     .instabreak()
                     .noOcclusion()

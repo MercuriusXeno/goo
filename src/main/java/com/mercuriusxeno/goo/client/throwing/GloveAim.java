@@ -92,7 +92,7 @@ public final class GloveAim {
     }
 
     /**
-     * Whether the selected ability spares the player's own rallied and
+     * Whether the selected ability spares the player's own led and
      * charmed mobs, so the aim never locks on one.
      * mob-targeted-attacks-refuse-your-minions
      *

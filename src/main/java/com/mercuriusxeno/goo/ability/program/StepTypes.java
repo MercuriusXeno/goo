@@ -83,6 +83,7 @@ public final class StepTypes {
         register(RimeStep.TYPE);
         register(LeechGooStep.TYPE);
         register(VinesStep.TYPE);
+        register(PhaseGooStep.TYPE);
         register(EntitiesStep.TYPE);
         register(ParticlesStep.TYPE);
         register(SoundStep.TYPE);
@@ -101,7 +102,6 @@ public final class StepTypes {
         register(GhostTrailStep.TYPE);
         register(HeartOverlayStep.TYPE);
         register(SporeHostStep.TYPE);
-        register(SporeStep.TYPE);
         register(FloorsStep.TYPE);
         register(TransmitStep.TYPE);
         register(SightStep.TYPE);
@@ -140,7 +140,7 @@ public final class StepTypes {
         register(EludeStep.TYPE);
         register(ShriekStep.TYPE);
         register(SculkerStep.TYPE);
-        register(KinStep.TYPE);
+        register(HerdStep.TYPE);
         register(VibrateStep.TYPE);
         register(ScanVisualStep.TYPE);
         register(EndStep.TYPE);
@@ -159,12 +159,11 @@ public final class StepTypes {
         register(HastenRegrowStep.TYPE);
         register(SlashStep.TYPE);
         register(CharmStep.TYPE);
-        register(PhaseStep.TYPE);
         register(PortalStep.TYPE);
         register(LeafSteps.ENCHANT_BOOK.type());
         register(FuseBooksStep.TYPE);
         register(SlimeTransmuteStep.TYPE);
-        register(RallyStep.TYPE);
+        register(LeadStep.TYPE);
         register(LeechStep.TYPE);
         register(TomeStep.TYPE);
         register(FloatStep.TYPE);
@@ -173,6 +172,7 @@ public final class StepTypes {
         register(UpdraftStep.TYPE);
         register(SignalStep.TYPE);
         register(InfestStep.TYPE);
+        register(SporesStep.TYPE);
         register(NitroStep.TYPE);
         register(GrabStep.TYPE);
         register(GougeStep.TYPE);

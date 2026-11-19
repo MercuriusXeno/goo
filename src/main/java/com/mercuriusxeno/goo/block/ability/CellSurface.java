@@ -10,12 +10,14 @@ package com.mercuriusxeno.goo.block.ability;
  * slippery as ice and pushes nothing; wisps stands as ordinary ground and
  * smites the undead touching it; leech slows a thing caught in it; spikes
  * stands as ordinary ground and impales what walks on it; vines stands as
- * ordinary ground and entangles what crosses it; Dowsing is ordinary ground.
- * A goo type binding a world goo to the cell names one.
+ * ordinary ground and entangles what crosses it; phase stands as ordinary
+ * ground and puts what stands in it out of phase; Dowsing is ordinary
+ * ground. A goo type binding a world goo to the cell names one.
  * slime-and-slick-are-one-volume-cell-tech
  * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
  * shatter-is-splattered-goo-and-shards-form-over-the-splatters
  * leech-goo-slows-what-it-catches-and-the-spirits-damage-it
+ * phase-goo-puts-what-stands-in-it-out-of-phase
  * bounce-ramps-jump-height-while-jump-is-held
  * slick-coats-the-ground-with-kinetic-speed
  * rime-goo-is-slippery-to-walk-on
@@ -45,6 +47,8 @@ public enum CellSurface {
     IMPALE(Frictions.ORDINARY_GROUND),
     /** Vines': ordinary ground underfoot, it entangles a thing crossing it in vines by its layers. */
     ENTANGLE(Frictions.ORDINARY_GROUND),
+    /** Phase's: ordinary ground underfoot, it puts what stands in it out of phase. */
+    PHASE(Frictions.ORDINARY_GROUND),
     /**
      * Dowsing's: ordinary ground underfoot that neither bounces nor ramps;
      * the cell works on the eye looking through it, not on what stands on it.
@@ -123,6 +127,13 @@ public enum CellSurface {
      */
     public boolean entangles() {
         return this == ENTANGLE;
+    }
+
+    /**
+     * @return true where the cell puts what stands in it out of phase
+     */
+    public boolean phases() {
+        return this == PHASE;
     }
 
     /** The frictions the surfaces stand at, held apart so the constants above can read them. */

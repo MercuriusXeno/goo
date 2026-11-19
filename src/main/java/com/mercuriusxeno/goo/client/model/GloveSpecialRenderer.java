@@ -1,7 +1,11 @@
 package com.mercuriusxeno.goo.client.model;
 
+import com.mercuriusxeno.goo.client.GlowQueue;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.GooSubmitter;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
+import com.mercuriusxeno.goo.client.TranslucentVisualPath;
 import com.mercuriusxeno.goo.client.ability.ChargeMotes;
 import com.mercuriusxeno.goo.client.ability.GloveGlow;
 import com.mercuriusxeno.goo.client.ability.LiftedPalmBlob;
@@ -150,6 +154,8 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
      * Smoothed goo center for arc origin - filters out swing jitter.
      */
     private static volatile Vec3 smoothedGooCenter;
+    /** The held glow channels' light drawn in the level, queued for the shared path. */
+    private static final GlowQueue QUEUED = new GlowQueue();
 
     /**
      * Returns the last captured camera-relative goo center. No age
@@ -205,7 +211,7 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
         nodeCollector.submitCustomGeometry(poseStack, ghost ? GooSubmitter.renderType() : bodyType(),
                 (pose, c) -> {
                     QuadInstance qi = new QuadInstance();
-                    qi.setColor(ghost ? PhaseLook.bodyTint(COLOR_WHITE) : COLOR_WHITE);
+                    qi.setColor(ghost ? PhaseLook.ownTint(COLOR_WHITE) : COLOR_WHITE);
                     qi.setLightCoords(packedLight);
                     qi.setOverlayCoords(OverlayTexture.NO_OVERLAY);
                     for (BakedQuad quad : model.getAll()) {
@@ -239,7 +245,7 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
         boolean ghost = PhasedHands.ghosting();
         Identifier texture = skin.body().texturePath();
         RenderType type = bareArmType(texture, ghost);
-        int tint = ghost ? PhaseLook.bodyTint(COLOR_WHITE) : COLOR_WHITE;
+        int tint = ghost ? PhaseLook.ownTint(COLOR_WHITE) : COLOR_WHITE;
         poseStack.pushPose();
         arm.standInGloveBody(poseStack);
         nodeCollector.submitModelPart(arm.arm(), poseStack, type, packedLight, OverlayTexture.NO_OVERLAY, null, tint,
@@ -581,7 +587,9 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
 
     /**
      * Submits the light breathing around the held goo while a glow channel
-     * holds, in the hand's own pass so the glove never hides it.
+     * holds, in the hand's own pass so the glove never hides it. A glove drawn
+     * in the level queues it for the shared path instead, which draws it after
+     * the clouds (operator ruling 2026-11-18).
      * operator ruling 2026-10-10: a light glow around the hand marks a held glow channel
      *
      * @param poseStack     the pose stack for rendering
@@ -596,9 +604,34 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
         Vector3f center = palmCenter(palmShape(REST_SCALE));
         poseStack.pushPose();
         poseStack.translate(center.x(), center.y(), center.z());
-        nodeCollector.submitCustomGeometry(poseStack, GooRenderTypes.GLOW_SHELL_TYPE,
-                (pose, c) -> GloveGlow.emitShells(pose, c, SHELL_HW_PX / BLOCK_PIXELS, strength, time));
+        SubmitNodeCollector.CustomGeometryRenderer shells =
+                (pose, c) -> GloveGlow.emitShells(pose, c, SHELL_HW_PX / BLOCK_PIXELS, strength, time);
+        Vec3 camera = TranslucentVisualPath.submittingLevelCamera();
+        if (camera == null) {
+            // The hand's pass and the GUI draw after the clouds already, over the frame.
+            nodeCollector.submitCustomGeometry(poseStack, GooRenderTypes.GLOW_SHELL_TYPE, shells);
+        } else {
+            Vector3f fromCamera = poseStack.last().pose().transformPosition(new Vector3f());
+            QUEUED.queue(poseStack.last().copy(), camera.add(fromCamera.x(), fromCamera.y(), fromCamera.z()),
+                    GooRenderTypes.GLOW_SHELL_TYPE, shells);
+        }
         poseStack.popPose();
+    }
+
+    /**
+     * Hands the shared path one draw for each held glow channel's light a
+     * glove drawn in the level queued this frame, on a body in third person,
+     * in a portal's view or on a Zone room's copy, each sorted by the
+     * camera's distance to the light's center, then empties the queue. The
+     * first-person hand and the GUI draw theirs as before.
+     * decision diagnose-and-correct-translucent-goo-visuals-that-depth-sort-wrong
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
+     *
+     * @param frame the frame being drawn
+     * @param draws where each light's draw goes
+     */
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
+        QUEUED.drain(frame, draws);
     }
 
     /**

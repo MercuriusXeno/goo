@@ -69,6 +69,8 @@ class ConventionTest {
             "net.minecraft.client..", "com.mercuriusxeno.goo.client..", "com.mojang.blaze3d.."
     };
     private static final String GOO_PATH = "/com/mercuriusxeno/goo/";
+    private static final String TRANSLUCENT_VISUAL_PATH = "com.mercuriusxeno.goo.client.TranslucentVisualPath";
+    private static final String LEVEL_RENDER_STAGE = "net.neoforged.neoforge.client.event.RenderLevelStageEvent";
     /**
      * The main and tools classes split into slices imported side by side, since one
      * import of them all took seconds (decision slow-tests-take-a-seam). The first
@@ -223,6 +225,36 @@ class ConventionTest {
                         .and(target(owner(loadedAssignableTo(LevelLightEngine.class)))))
                 .because("the server light engine drains its own queue on its tick;"
                         + " a manual drain throws (decision light-kick-never-drains)"));
+    }
+
+    /**
+     * No class under client but TranslucentVisualPath subscribes to a level
+     * render stage, a lambda handed to addListener included, so every goo
+     * visual drawn on a stage draws through the path that depth sorts it.
+     * A method merely taking a stage event as a parameter counts.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
+     */
+    @Test
+    void levelStageDrawsGoThroughTheSortingPath() {
+        checkMain(classes()
+                .that().resideInAPackage(CLIENT_PACKAGE)
+                .and().doNotHaveFullyQualifiedName(TRANSLUCENT_VISUAL_PATH)
+                .should(subscribeToNoLevelRenderStage())
+                .because("translucent goo visuals depth sort through the one shared path"
+                        + " (decision translucent-goo-visuals-draw-through-one-checked-sorting-path)"));
+    }
+
+    private static ArchCondition<JavaClass> subscribeToNoLevelRenderStage() {
+        return new ArchCondition<>("subscribe to no level render stage") {
+            @Override
+            public void check(JavaClass cls, ConditionEvents events) {
+                cls.getMethods().stream()
+                        .filter(method -> method.getRawParameterTypes().stream()
+                                .anyMatch(type -> type.getName().startsWith(LEVEL_RENDER_STAGE)))
+                        .forEach(method -> events.add(SimpleConditionEvent.violated(method,
+                                method.getFullName() + " takes a level render stage outside TranslucentVisualPath")));
+            }
+        };
     }
 
     /**

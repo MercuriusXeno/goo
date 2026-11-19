@@ -66,7 +66,10 @@ class GooTypeDefinitionTest {
     private static final Cohesion JELLY_COHESION = Cohesion.STIFF;
     /** Metal's cohesion, the soft rung, so a Spikes coat keeps some thickness where it lands (operator ruling 2026-11-17). */
     private static final Cohesion METAL_COHESION = Cohesion.SOFT;
-    /** Leaf's cohesion, the stiff rung Jelly holds (operator ruling 2026-11-17). */
+    /**
+     * Leaf's cohesion, the stiff rung Jelly holds (operator ruling 2026-11-17). Yarn starts from leaf's, its
+     * residual to be the animal equivalent of leaf.
+     */
     private static final Cohesion LEAF_COHESION = Cohesion.STIFF;
     private static final Adhesion WEIRD_ADHESION = Adhesion.CLINGS;
     private static final Adhesion LEAF_ADHESION = Adhesion.CLINGS;
@@ -299,7 +302,8 @@ class GooTypeDefinitionTest {
 
     /**
      * Every bundled type names a cohesion rung: weird and blaze thick, jelly and leaf stiff, pulse firm,
-     * metal and nether soft, astral loose, and every other type, kinetic among them, runny.
+     * metal, nether and zombie soft, astral loose, and every other type, kinetic among them, runny;
+     * zombie starts from nether's physical values.
      * cohesion-is-the-step-the-goo-holds
      * blaze-goo-is-adhesion-four-and-cohesion-five
      * signal-goo-sends-a-redstone-signal-equal-to-its-layers
@@ -312,7 +316,7 @@ class GooTypeDefinitionTest {
         Map<ResourceKey<GooTypeDefinition>, Cohesion> stated = Map.of(GooTypes.WEIRD, WEIRD_COHESION,
                 GooTypes.BLAZE, BLAZE_COHESION, GooTypes.JELLY, JELLY_COHESION, GooTypes.PULSE, PULSE_COHESION,
                 GooTypes.METAL, METAL_COHESION, GooTypes.NETHER, NETHER_COHESION, GooTypes.LEAF, LEAF_COHESION,
-                GooTypes.ASTRAL, ASTRAL_COHESION);
+                GooTypes.YARN, LEAF_COHESION, GooTypes.ZOMBIE, NETHER_COHESION, GooTypes.ASTRAL, ASTRAL_COHESION);
         assertEquals(stated.getOrDefault(key, Cohesion.RUNNY), decodeBundled(key).cohesion(), key::toString);
     }
 
@@ -343,7 +347,7 @@ class GooTypeDefinitionTest {
     }
 
     /**
-     * Every bundled type names an adhesion rung: kinetic slips, weird, jelly, nether and leaf cling,
+     * Every bundled type names an adhesion rung: kinetic slips, weird, jelly, nether, zombie and leaf cling,
      * glow, blaze, pulse and astral hang, and every other type holds tops.
      * adhesion-is-a-ladder-of-holds
      * signal-goo-sends-a-redstone-signal-equal-to-its-layers
@@ -356,10 +360,12 @@ class GooTypeDefinitionTest {
     @ParameterizedTest
     @MethodSource("bundledKeys")
     void bundledAdhesionMatchesDecision(ResourceKey<GooTypeDefinition> key) throws Exception {
-        Map<ResourceKey<GooTypeDefinition>, Adhesion> stated = Map.of(GooTypes.KINETIC, Adhesion.SLIPS,
-                GooTypes.WEIRD, WEIRD_ADHESION, GooTypes.GLOW, GLOW_ADHESION, GooTypes.BLAZE, BLAZE_ADHESION,
-                GooTypes.JELLY, JELLY_ADHESION, GooTypes.PULSE, PULSE_ADHESION, GooTypes.NETHER, NETHER_ADHESION,
-                GooTypes.LEAF, LEAF_ADHESION, GooTypes.ASTRAL, ASTRAL_ADHESION);
+        Map<ResourceKey<GooTypeDefinition>, Adhesion> stated = Map.ofEntries(Map.entry(GooTypes.KINETIC, Adhesion.SLIPS),
+                Map.entry(GooTypes.WEIRD, WEIRD_ADHESION), Map.entry(GooTypes.GLOW, GLOW_ADHESION),
+                Map.entry(GooTypes.BLAZE, BLAZE_ADHESION), Map.entry(GooTypes.JELLY, JELLY_ADHESION),
+                Map.entry(GooTypes.PULSE, PULSE_ADHESION), Map.entry(GooTypes.NETHER, NETHER_ADHESION),
+                Map.entry(GooTypes.LEAF, LEAF_ADHESION), Map.entry(GooTypes.YARN, LEAF_ADHESION),
+                Map.entry(GooTypes.ZOMBIE, NETHER_ADHESION), Map.entry(GooTypes.ASTRAL, ASTRAL_ADHESION));
         Adhesion expected = stated.getOrDefault(key, COMMON_ADHESION);
         assertEquals(expected, decodeBundled(key).adhesion(), key::toString);
     }

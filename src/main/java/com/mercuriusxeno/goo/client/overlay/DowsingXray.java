@@ -5,6 +5,8 @@ import com.mercuriusxeno.goo.block.ability.CellSurface;
 import com.mercuriusxeno.goo.block.ability.GooShares;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mojang.blaze3d.opengl.GlStateManager;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -30,7 +32,6 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.joml.Matrix4f;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -38,6 +39,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.function.Consumer;
 
 /**
  * Shows the ore the Dowsing cells near the eye lens, through each cell as a
@@ -116,14 +118,16 @@ public final class DowsingXray {
     }
 
     /**
-     * Draws each window's ore, cut to the goo, once the world has drawn; a
-     * main target holding no stencil draws none, since the ore would spill
-     * past the goo.
+     * Hands the shared path each window's ore, cut to the goo, as one draw
+     * through blocks, sorted by the nearest ore shown, since every window
+     * reuses the one stencil bit; a main target holding no stencil draws
+     * none, since the ore would spill past the goo.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
      *
-     * @param event the level render stage event
+     * @param frame the frame being drawn
+     * @param draws where the windows' draw goes
      */
-    @SubscribeEvent
-    public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
         Minecraft mc = Minecraft.getInstance();
         List<Window> open = windows;
         RenderTarget main = mc.getMainRenderTarget();
@@ -131,9 +135,14 @@ public final class DowsingXray {
         if (mc.level == null || open.isEmpty() || !main.useStencil || depth == null) {
             return;
         }
-        Identifier atlas = mc.getAtlasManager().getAtlasOrThrow(AtlasIds.BLOCKS).location();
-        PoseStack poseStack = event.getPoseStack();
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        draws.accept(SortedDraw.nearestOf(open.stream().flatMap(window -> window.ore().stream()).map(Vec3::atCenterOf),
+                camera, () -> drawWindows(mc, frame.poseStack(), camera, depth, open)));
+    }
+
+    private static void drawWindows(Minecraft mc, PoseStack poseStack, Vec3 camera, GpuTexture depth,
+                                    List<Window> open) {
+        Identifier atlas = mc.getAtlasManager().getAtlasOrThrow(AtlasIds.BLOCKS).location();
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         for (Window window : open) {
             clearTheMark(depth);
