@@ -103,7 +103,6 @@ public final class StepTypes {
         register(SporeHostStep.TYPE);
         register(FloorsStep.TYPE);
         register(TransmitStep.TYPE);
-        register(SightStep.TYPE);
         register(LuxStep.TYPE);
         register(UnveilStep.TYPE);
         register(WispsStep.TYPE);

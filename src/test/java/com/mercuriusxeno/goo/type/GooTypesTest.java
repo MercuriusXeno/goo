@@ -36,7 +36,7 @@ class GooTypesTest {
     private static final ResourceKey<GooTypeDefinition> SEVENTEENTH = ResourceKey.create(
             GooTypes.REGISTRY, Identifier.fromNamespaceAndPath("gootest", "seventeenth"));
     private static final List<String> BUNDLED_IDS = List.of(
-            "astral", "blaze", "crystal", "deep", "ender", "frost", "glow", "hex", "infinity", "jelly", "kinetic", "leaf",
+            "astral", "blaze", "crystal", "ender", "frost", "glow", "hex", "infinity", "jelly", "kinetic", "leaf",
             "metal", "nether", "opulent", "pulse", "quantum", "rock", "sculk", "typhoon", "unstable", "void", "weird", "xeno", "yarn", "yore",
             "zombie", "zoo");
     private static final String ZOMBIE = "zombie";
@@ -45,6 +45,15 @@ class GooTypesTest {
     private static final String TEXTURE_PNG = "/assets/%s/textures/%s.png";
     private static final String TYPE_ICON = "/assets/goo/textures/goo/type/%s.png";
     private static final String EN_US = "/assets/goo/lang/en_us.json";
+
+    /**
+     * No bundled type's id starts with d: Deep is dropped and the letter is free for a type yet to be designed.
+     * decision sculker-moves-to-sculk
+     */
+    @Test
+    void noBundledTypeStartsWithD() {
+        assertEquals(List.of(), GooTypes.BUNDLED.stream().map(GooTypes::id).filter(id -> id.startsWith("d")).toList());
+    }
 
     /**
      * The registry key is goo:goo_type.

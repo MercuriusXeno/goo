@@ -1,4 +1,4 @@
-package com.mercuriusxeno.goo.ability.deep;
+package com.mercuriusxeno.goo.ability.sculk;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;

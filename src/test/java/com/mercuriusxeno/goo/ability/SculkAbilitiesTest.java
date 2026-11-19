@@ -20,7 +20,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
  * Sculk's shipped roster and its residual goo, read from the shipped ability files and en_us.json through the
- * classpath: Mycosis is the held stream, and Host and Spores ship as one residual, Creep.
+ * classpath: Sculker absorbs Sight, Mycosis is the held stream, and Host and Spores ship as one residual, Creep.
+ * sculker-absorbs-sight-as-shroom-vision
  * host-and-spores-combine-into-one-residual
  * mycosis-is-put-back-as-the-held-spore-stream
  */
@@ -44,11 +45,11 @@ class SculkAbilitiesTest {
     }
 
     @Test
-    void sculkShipsMycosisCreepTransmitAndSight() {
+    void sculkShipsSculkerMycosisCreepAndTransmit() {
         Set<String> sculk = shipped().stream().filter(ability -> ability.gooType() == GooTypes.SCULK)
                 .map(ability -> ability.id().getPath()).collect(Collectors.toSet());
 
-        assertEquals(Set.of("sculk_mycosis", CREEP, "sculk_transmit", "sculk_sight"), sculk);
+        assertEquals(Set.of("sculk_sculker", "sculk_mycosis", CREEP, "sculk_transmit"), sculk);
     }
 
     @Test

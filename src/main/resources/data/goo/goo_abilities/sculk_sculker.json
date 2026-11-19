@@ -1,6 +1,6 @@
 {
-  "gooType": "deep",
-  "displayName": "goo.ability.deep.sculker",
+  "gooType": "sculk",
+  "displayName": "goo.ability.sculk.sculker",
   "cost_mechanics": "goo.ability.cost_mechanics.upkeep",
   "badge": "durative",
   "order": 10,

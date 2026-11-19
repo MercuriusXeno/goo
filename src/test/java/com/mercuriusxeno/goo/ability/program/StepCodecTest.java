@@ -121,7 +121,6 @@ class StepCodecTest {
                     Expr.literal(600))),
             Map.entry("floors", new FloorsStep(Expr.literal(2), List.of())),
             Map.entry("transmit", new TransmitStep(Expr.literal(16))),
-            Map.entry("sight", new SightStep(Expr.literal(3))),
             Map.entry("lux", new LuxStep()),
             Map.entry("unveil", new UnveilStep()),
             Map.entry("wisps", new WispsStep(0.5, 20, 40, 0.25, 1200)),

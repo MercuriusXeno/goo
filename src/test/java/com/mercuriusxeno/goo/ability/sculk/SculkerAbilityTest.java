@@ -1,9 +1,11 @@
-package com.mercuriusxeno.goo.ability.deep;
+package com.mercuriusxeno.goo.ability.sculk;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.mercuriusxeno.goo.ability.AbilityJson;
+import com.mercuriusxeno.goo.type.GooTypes;
 import org.junit.jupiter.api.Test;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -17,16 +19,16 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Deep's brew ships as deep_sculker.json, named goo.ability.deep.sculker,
- * badged brew and running a sculker step, and deep's brew effect draws
+ * Sculk's brew ships as sculk_sculker.json, named goo.ability.sculk.sculker,
+ * loaded as a sculk ability, badged brew and running a sculker step, and sculk's brew effect draws
  * Sculker's own icon in place of the missing-texture tile, all read off the
  * classpath (decision dive-is-renamed-sculker).
  */
 class SculkerAbilityTest {
 
-    private static final String SCULKER_JSON = "data/goo/goo_abilities/deep_sculker.json";
-    private static final String SCULKER_ICON = "/assets/goo/textures/goo/ability/deep_sculker.png";
-    private static final String DEEP_BREW_ICON = "/assets/goo/textures/mob_effect/deep_held.png";
+    private static final String SCULKER_JSON = "data/goo/goo_abilities/sculk_sculker.json";
+    private static final String SCULKER_ICON = "/assets/goo/textures/goo/ability/sculk_sculker.png";
+    private static final String SCULK_BREW_ICON = "/assets/goo/textures/mob_effect/sculk_held.png";
 
     private static JsonObject sculker() throws IOException {
         try (InputStream in = SculkerAbilityTest.class.getClassLoader().getResourceAsStream(SCULKER_JSON)) {
@@ -38,7 +40,7 @@ class SculkerAbilityTest {
     @Test
     void shipsAsTheSculkerBrew() throws IOException {
         JsonObject sculker = sculker();
-        assertEquals("goo.ability.deep.sculker", sculker.get("displayName").getAsString());
+        assertEquals("goo.ability.sculk.sculker", sculker.get("displayName").getAsString());
         assertEquals("durative", sculker.get("badge").getAsString());
     }
 
@@ -51,8 +53,14 @@ class SculkerAbilityTest {
     }
 
     @Test
-    void deepBrewEffectDrawsSculkersIcon() throws IOException {
-        assertArrayEquals(pixels(image(SCULKER_ICON)), pixels(image(DEEP_BREW_ICON)));
+    void sculkBrewEffectDrawsSculkersIcon() throws IOException {
+        assertArrayEquals(pixels(image(SCULKER_ICON)), pixels(image(SCULK_BREW_ICON)));
+    }
+
+    /** Decision sculker-moves-to-sculk. */
+    @Test
+    void loadsAsASculkAbility() {
+        assertEquals(GooTypes.SCULK, AbilityJson.decode("sculk_sculker").gooType());
     }
 
     private static BufferedImage image(String path) throws IOException {
@@ -72,6 +80,6 @@ class SculkerAbilityTest {
         for (JsonElement step : sculker().getAsJsonArray("behaviors")) {
             runsSculker |= "sculker".equals(step.getAsJsonObject().get("type").getAsString());
         }
-        assertTrue(runsSculker, "deep_sculker.json should run a sculker step");
+        assertTrue(runsSculker, "sculk_sculker.json should run a sculker step");
     }
 }

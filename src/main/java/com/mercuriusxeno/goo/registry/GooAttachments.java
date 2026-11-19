@@ -6,7 +6,6 @@ import com.mercuriusxeno.goo.ability.aging.AgingBlocks;
 import com.mercuriusxeno.goo.ability.astral.LunarArrival;
 import com.mercuriusxeno.goo.ability.astral.LunarFixation;
 import com.mercuriusxeno.goo.ability.astral.WayHome;
-import com.mercuriusxeno.goo.ability.deep.Sculker;
 import com.mercuriusxeno.goo.ability.end.EndWayBack;
 import com.mercuriusxeno.goo.ability.frost.Frozen;
 import com.mercuriusxeno.goo.ability.gluttony.Gluttony;
@@ -21,12 +20,12 @@ import com.mercuriusxeno.goo.ability.petrify.Petrification;
 import com.mercuriusxeno.goo.ability.program.EntityCounters;
 import com.mercuriusxeno.goo.ability.program.GougeWindUp;
 import com.mercuriusxeno.goo.ability.program.Lux;
-import com.mercuriusxeno.goo.ability.program.Sight;
 import com.mercuriusxeno.goo.ability.pulse.Stunned;
 import com.mercuriusxeno.goo.ability.quantum.OutOfPhase;
 import com.mercuriusxeno.goo.ability.reserve.Reserve;
 import com.mercuriusxeno.goo.ability.rewind.Rewinding;
 import com.mercuriusxeno.goo.ability.root.Rooted;
+import com.mercuriusxeno.goo.ability.sculk.Sculker;
 import com.mercuriusxeno.goo.ability.seal.Elude;
 import com.mercuriusxeno.goo.ability.seal.SealCurse;
 import com.mercuriusxeno.goo.ability.spray.Spored;
@@ -334,17 +333,6 @@ public final class GooAttachments {
             ATTACHMENT_TYPES.register("stunned",
                     () -> AttachmentType.builder(() -> Stunned.NONE).serialize(Stunned.CODEC).build());
 
-    /**
-     * The fungal sight a player holds, lengthening Transmit and synced to
-     * the owning client, which outlines fungus through walls while it stands
-     * (decision sight-lengthens-shift-and-outlines-fungus).
-     */
-    public static final Supplier<AttachmentType<Sight>> SIGHT =
-            ATTACHMENT_TYPES.register("sight",
-                    () -> AttachmentType.builder(() -> Sight.NONE)
-                            .serialize(Sight.CODEC)
-                            .sync(GooAttachments::syncsToOwner, Sight.STREAM_CODEC)
-                            .build());
 
     /**
      * A mob's petrify gauge and whether it stands a statue, saved with the mob

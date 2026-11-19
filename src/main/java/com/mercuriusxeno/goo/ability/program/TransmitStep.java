@@ -77,7 +77,7 @@ public record TransmitStep(Expr range, Expr near) implements Step {
     public boolean admits(StepContext context) {
         LivingEntity target = context.hostAs(TargetHost.class).target();
         return FungusAim.standsNearFungus(target.level(), target, near.evaluate(context))
-                && aimedFungus(target.level(), target, reachOf(target, range.evaluate(context))).isPresent();
+                && aimedFungus(target.level(), target, range.evaluate(context)).isPresent();
     }
 
     @Override
@@ -86,24 +86,12 @@ public record TransmitStep(Expr range, Expr near) implements Step {
         if (!FungusAim.standsNearFungus(target.level(), target, near.evaluate(context))) {
             return true;
         }
-        aimedFungus(target.level(), target, reachOf(target, range.evaluate(context))).ifPresent(stand -> {
+        aimedFungus(target.level(), target, range.evaluate(context)).ifPresent(stand -> {
             // ghost-trail-spans-the-blink: a step after the jump reads where the target left from
             target.setData(GooAttachments.JUMP_SOURCE, target.position());
             target.teleportTo(stand.x, stand.y, stand.z);
         });
         return true;
-    }
-
-    /**
-     * How far an entity's transmit reaches: the range, times the factor of the
-     * fungal sight it holds (decision sight-lengthens-shift-and-outlines-fungus).
-     *
-     * @param entity the transmitting entity
-     * @param range  the step's range
-     * @return the reach in blocks
-     */
-    public static double reachOf(Entity entity, double range) {
-        return range * entity.getData(GooAttachments.SIGHT).factorAt(entity.level().getGameTime());
     }
 
     /**

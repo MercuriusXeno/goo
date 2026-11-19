@@ -1,4 +1,4 @@
-package com.mercuriusxeno.goo.ability.deep;
+package com.mercuriusxeno.goo.ability.sculk;
 
 import net.minecraft.world.entity.player.Input;
 import net.minecraft.world.phys.Vec3;

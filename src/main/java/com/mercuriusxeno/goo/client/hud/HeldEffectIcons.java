@@ -27,9 +27,7 @@ import java.util.Map;
  * Each held effect's icon on the HUD and in the inventory effect list: the icon of the
  * ability its type grants, drawn at 16px in the middle of the slot vanilla draws an effect
  * icon in. A type granting none draws nothing of its own, so vanilla draws the effect's tile.
- * Sculk's effect is Sight's eye, which draws Sight's icon in the inventory.
  * decision every-brew-effect-draws-its-abilitys-icon
- * decision shroom-hud-eye-stays-and-its-inventory-icon-is-sights
  * decision ability-icons-read-16x16
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
@@ -63,8 +61,7 @@ public final class HeldEffectIcons {
     }
 
     /**
-     * The icon extension of each type's held effect: Sight's eye for sculk, and the granted
-     * ability's icon for every other.
+     * The icon extension of each type's held effect: the granted ability's icon.
      *
      * @param types the goo types whose held effects draw
      * @return each type's extension, in the types' order
@@ -73,7 +70,7 @@ public final class HeldEffectIcons {
             Collection<ResourceKey<GooTypeDefinition>> types) {
         Map<ResourceKey<GooTypeDefinition>, IClientMobEffectExtensions> extensions = new LinkedHashMap<>();
         for (ResourceKey<GooTypeDefinition> type : types) {
-            extensions.put(type, GooTypes.SCULK.equals(type) ? new SightEyeIcon() : new AbilityIconExtension(type));
+            extensions.put(type, new AbilityIconExtension(type));
         }
         return extensions;
     }
