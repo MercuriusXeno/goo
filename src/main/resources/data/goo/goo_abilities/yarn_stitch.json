@@ -2,7 +2,7 @@
   "gooType": "yarn",
   "displayName": "goo.ability.yarn.stitch",
   "cost_mechanics": "goo.ability.yarn.stitch.cost_mechanics",
-  "badge": "channeled",
+  "badge": "residual",
   "order": 50,
   "cost": 1000,
   "cost_formula": "%s/m³",

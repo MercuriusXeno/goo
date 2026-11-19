@@ -146,7 +146,8 @@ class AbilityDefinitionTest {
         }
         assertTrue(residualsChecked.containsAll(Set.of("blaze_molten", "deep_host", "frost_rime", "hex_leech",
                 "leaf_vines", "typhoon_updraft", "unstable_nitro", "weird_goop", "kinetic_slick", "jelly_nectar",
-                "pulse_signal", "metal_spikes", "nether_infest", "quantum_phase")), residualsChecked.toString());
+                "pulse_signal", "metal_spikes", "nether_infest", "quantum_phase", "yarn_stitch")),
+                residualsChecked.toString());
     }
 
     /**
