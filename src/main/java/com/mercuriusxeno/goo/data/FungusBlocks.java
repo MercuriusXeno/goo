@@ -19,7 +19,7 @@ import java.util.function.Function;
 /**
  * The fungus blocks: every block whose block item's goo value holds sculk, which is every shroom, the nether's trees
  * and growth, and the sculk family. Each side's value table is read once into a set of blocks, kept until the side
- * stands a new table, so a check costs one set lookup; Transmit, its aim and Sculker's shroom vision all read it.
+ * stands a new table, so a check costs one set lookup; Sculker's shroom vision reads it.
  * operator ruling 2026-11-18: a fungus block is a block whose block item contains sculk goo
  * decision shroom-is-a-universal-sculk-input
  * decision sculker-absorbs-sight-as-shroom-vision
