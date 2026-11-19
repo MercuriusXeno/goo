@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.crystal;
 
+import com.mercuriusxeno.goo.ability.program.HeldSweepWorld;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.phys.Vec3;
@@ -19,6 +20,9 @@ class OreVeinsTest {
     private static final Identifier DIAMOND = Identifier.withDefaultNamespace("diamond_ore");
     private static final Identifier LAPIS = Identifier.withDefaultNamespace("lapis_ore");
     private static final double TOLERANCE = 1e-9;
+    private static final double ORE_RADIUS = 64;
+    /** The front's last tick out to 64: 62.4 to 64 at 2.4 blocks a tick. */
+    private static final double ONE_TICK = 1.6;
 
     @Test
     void blocksTouchingAtAFaceOrACornerFormOneVeinAtTheirCentroid() {
@@ -39,6 +43,24 @@ class OreVeinsTest {
                 new BlockPos(0, 0, 0), DIAMOND, new BlockPos(1, 0, 0), LAPIS, new BlockPos(5, 0, 0), DIAMOND));
 
         assertEquals(3, veins.size());
+    }
+
+    /**
+     * One ore-sense pulse tick's work on the server over the fixed synthetic
+     * world: the block reads its walk makes over the band the front crossed
+     * on its last tick out to Glimmer's and Magnet's radius, the veins it
+     * floods included.
+     * decision diagnose-and-correct-the-lag-on-four-sense-abilities
+     */
+    @Test
+    void oneOreSenseTickAtItsRadiusReadsTheBandItCrossed() {
+        int[] reads = new int[1];
+
+        List<OreVeins.Vein> veins = OreVeins.firstReachedIn(BlockPos.containing(HeldSweepWorld.CASTER),
+                ORE_RADIUS - ONE_TICK, ORE_RADIUS, ORE_RADIUS, HeldSweepWorld.countedOres(reads));
+
+        assertEquals(34_170, reads[0], "block reads one ore-sense tick makes, out to 64; 81,266 at commit 96d5c55");
+        assertEquals(4, veins.size(), "veins that tick first reaches");
     }
 
     @Test

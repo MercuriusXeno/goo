@@ -101,6 +101,15 @@ public final class ScryPaintedMobs {
         painted.values().removeIf(mob -> now - mob.hitAt() >= HeldSweepPace.LINGER_TICKS);
     }
 
+    /**
+     * The mobs painted now.
+     *
+     * @return how many
+     */
+    int count() {
+        return painted.size();
+    }
+
     /** Lets every mob go, as a disconnect does. */
     void clear() {
         painted.clear();

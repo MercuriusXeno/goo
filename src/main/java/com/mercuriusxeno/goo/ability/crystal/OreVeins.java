@@ -84,15 +84,33 @@ public final class OreVeins {
      */
     public static List<Vein> firstReachedIn(BlockPos center, double inner, double outer, double most,
                                             Function<BlockPos, @Nullable Identifier> oreAt) {
+        return firstReachedIn(center, inner, outer, most, OreSource.everywhere(oreAt));
+    }
+
+    /**
+     * The veins a growing front first reaches as it crosses one band, as
+     * {@link #firstReachedIn(BlockPos, double, double, double, Function)}
+     * finds them, reading no block of a section that cannot hold ore.
+     *
+     * @param center the front's center block
+     * @param inner  the front's radius before the band, exclusive
+     * @param outer  the front's radius after the band, inclusive
+     * @param most   the radius the front may reach at most
+     * @param ores   the ore the front can find
+     * @return the veins first reached in the band, sorted as {@link #group} sorts
+     */
+    public static List<Vein> firstReachedIn(BlockPos center, double inner, double outer, double most,
+                                            OreSource ores) {
         Set<BlockPos> visited = new HashSet<>();
         List<Vein> veins = new ArrayList<>();
         double innerSquared = inner > 0 ? inner * inner : AbilityMath.HOLDS_THE_CENTER;
-        AbilityMath.forEachInShell(center, inner, outer, pos -> {
-            Identifier ore = visited.contains(pos) ? null : oreAt.apply(pos);
+        OreSections sections = new OreSections(ores, center, most);
+        sections.forEachMayHoldInBand(center, inner, outer, pos -> {
+            Identifier ore = visited.contains(pos) ? null : ores.oreAt(pos);
             if (ore == null) {
                 return;
             }
-            Vein vein = floodReachable(pos.immutable(), ore, center, most, oreAt, visited);
+            Vein vein = floodReachable(pos.immutable(), ore, center, most, sections, visited);
             double nearest = vein.blocks().stream().mapToDouble(block -> block.distSqr(center)).min().orElse(0);
             if (nearest > innerSquared) {
                 veins.add(vein);
@@ -103,7 +121,7 @@ public final class OreVeins {
     }
 
     private static Vein floodReachable(BlockPos start, Identifier ore, BlockPos center, double most,
-                                       Function<BlockPos, @Nullable Identifier> oreAt, Set<BlockPos> visited) {
+                                       OreSections oreAt, Set<BlockPos> visited) {
         double mostSquared = most * most;
         List<BlockPos> blocks = new ArrayList<>();
         Vec3 sum = Vec3.ZERO;
@@ -127,9 +145,8 @@ public final class OreVeins {
     }
 
     private static boolean joins(BlockPos touching, Identifier ore, BlockPos center, double mostSquared,
-                                 Function<BlockPos, @Nullable Identifier> oreAt, Set<BlockPos> visited) {
-        return !visited.contains(touching) && touching.distSqr(center) <= mostSquared
-                && ore.equals(oreAt.apply(touching));
+                                 OreSections oreAt, Set<BlockPos> visited) {
+        return touching.distSqr(center) <= mostSquared && ore.equals(oreAt.oreAt(touching, visited));
     }
 
     private static Vein floodVein(BlockPos start, Identifier ore, Map<BlockPos, Identifier> left) {

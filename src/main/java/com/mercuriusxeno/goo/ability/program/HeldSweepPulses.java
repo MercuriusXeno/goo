@@ -20,6 +20,8 @@ public final class HeldSweepPulses {
     public static final HeldSweepPulses SERVER = new HeldSweepPulses();
 
     private final Map<UUID, List<Pulse>> live = new HashMap<>();
+    /** The tick of its pulse each caster's fronts land on, as its sweep's pace last set it. */
+    private final Map<UUID, Integer> landsAfter = new HashMap<>();
     private int lastId;
 
     /**
@@ -36,6 +38,7 @@ public final class HeldSweepPulses {
      */
     public List<Pulse> advance(UUID caster, Vec3 position, int held, long gameTime, HeldSweepPace pace) {
         List<Pulse> pulses = live.computeIfAbsent(caster, key -> new ArrayList<>());
+        landsAfter.put(caster, pace.ticksToRange());
         pulses.removeIf(pulse -> pulse.ageAt(gameTime) > pace.ticksToRange());
         if (pace.startsPulse(held)) {
             lastId++;
@@ -43,8 +46,40 @@ public final class HeldSweepPulses {
         }
         if (pulses.isEmpty()) {
             live.remove(caster);
+            landsAfter.remove(caster);
         }
         return List.copyOf(pulses);
+    }
+
+    /**
+     * Drops every caster's pulses whose fronts have landed, each server
+     * tick: no step hears a hold end, so a hold let go with a front still
+     * out would leave its pulses standing until the caster held again.
+     * decision diagnose-and-correct-scry-lag-building-over-a-long-cast
+     *
+     * @param gameTime the game time
+     */
+    public void dropLanded(long gameTime) {
+        live.entrySet().removeIf(caster -> {
+            int landed = landsAfter.getOrDefault(caster.getKey(), 0);
+            caster.getValue().removeIf(pulse -> pulse.ageAt(gameTime) > landed);
+            boolean gone = caster.getValue().isEmpty();
+            if (gone) {
+                landsAfter.remove(caster.getKey());
+            }
+            return gone;
+        });
+    }
+
+    /**
+     * The pulses a caster holds out now, as the last tick of its hold left them.
+     * decision diagnose-and-correct-scry-lag-building-over-a-long-cast
+     *
+     * @param caster the caster
+     * @return how many
+     */
+    public int liveFor(UUID caster) {
+        return live.getOrDefault(caster, List.of()).size();
     }
 
     /**
