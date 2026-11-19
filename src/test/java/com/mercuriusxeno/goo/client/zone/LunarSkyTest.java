@@ -3,6 +3,8 @@ package com.mercuriusxeno.goo.client.zone;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.ability.astral.LunarSight;
+import com.mercuriusxeno.goo.lunar.Lunar;
+import com.mercuriusxeno.goo.lunar.LunarSun;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.MoonPhase;
 import net.minecraft.world.phys.Vec3;
@@ -12,13 +14,20 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -31,6 +40,20 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class LunarSkyTest {
 
     private static final double TOLERANCE = 1e-9;
+    private static final long FULL_MOON_MIDNIGHT = 18_000;
+    private static final long WHOLE_CYCLE = 192_000;
+
+    /**
+     * The overworld clock time the sun stands at an angle over an x, in the first phase cycle.
+     *
+     * @param x            the x, in blocks
+     * @param angleDegrees the sun angle, in degrees
+     * @return the overworld clock time
+     */
+    private static long clockWhenTheSunStandsAt(double x, double angleDegrees) {
+        double turn = Math.floorMod(Math.round((angleDegrees - Lunar.planetAngleDegrees(x)) * 1e6), 360_000_000L) / 1e6;
+        return FULL_MOON_MIDNIGHT + Math.round(turn / 360 * WHOLE_CYCLE);
+    }
 
     @Nested
     class TheSkyLunarDraws {
@@ -96,6 +119,8 @@ class LunarSkyTest {
         private static final float SUNSET = 90F;
         private static final float MIDNIGHT = 180F;
         private static final float SUNRISE = 270F;
+        /** Partway from sunrise to noon, the sun well up in the east. */
+        private static final float MORNING = 315F;
         private static final Vec3 OVERHEAD = new Vec3(0, 1, 0);
         private static final Vec3 EAST = new Vec3(1, 0, 0);
         private static final Vec3 WEST = new Vec3(-1, 0, 0);
@@ -139,6 +164,22 @@ class LunarSkyTest {
             }
         }
 
+        /**
+         * decision sun-follows-the-phase-and-lights-the-far-side-too
+         */
+        @Test
+        void theSunDrawsOverTheDarkSideWhileItStandsAboveItsHorizon() {
+            double darkSideX = 5_000_000;
+            Optional<Vec3> risen = LunarSky.sunOver(darkSideX, clockWhenTheSunStandsAt(darkSideX, NOON));
+            assertTrue(risen.isPresent(), "the sun over the dark side at its noon");
+            assertDirection(OVERHEAD, risen.get());
+            Optional<Vec3> morning = LunarSky.sunOver(darkSideX, clockWhenTheSunStandsAt(darkSideX, MORNING));
+            assertTrue(morning.isPresent() && morning.get().y() > 0 && morning.get().x() > 0,
+                    "the morning sun over the dark side, up in the east: " + morning);
+            assertTrue(LunarSky.sunOver(darkSideX, clockWhenTheSunStandsAt(darkSideX, MIDNIGHT)).isEmpty(),
+                    "the sun below the dark side's horizon at its midnight");
+        }
+
         private static void assertDirection(Vec3 expected, Vec3 actual) {
             assertEquals(expected.x(), actual.x(), TOLERANCE, String.valueOf(actual));
             assertEquals(expected.y(), actual.y(), TOLERANCE, String.valueOf(actual));
@@ -163,6 +204,11 @@ class LunarSkyTest {
         /** A camera x on the dark side, past 3.75 million. */
         private static final double DARK_SIDE_X = 4_000_000;
         private static final double QUAD_TOLERANCE = 1e-4;
+        private static final int OVERWORLD_DAY = 24_000;
+        private static final int MIDNIGHT_TICK = 18_000;
+        private static final float HALF_THE_SPRITE = 0.5F;
+        /** How squarely the lit edge has to face the sun's side, as a share of a head-on facing. */
+        private static final double LIT_EDGE_SHARE = 0.5;
         /** The texels across vanilla's moon sprite, and across the planet's, as basic as the moon's eight-texel face. */
         private static final float MOON_SPRITE_TEXELS = 32F;
         private static final float PLANET_SPRITE_TEXELS = 8F;
@@ -234,6 +280,73 @@ class LunarSkyTest {
         void aPlanetTexelIsFourMoonTexelsWide() {
             assertEquals(MOONS_WIDE * VANILLA_MOON_SIZE * 2 / MOON_SPRITE_TEXELS,
                     LunarSky.PLANET_HALF_SIZE * 2 / PLANET_SPRITE_TEXELS, QUAD_TOLERANCE);
+        }
+
+        /**
+         * The planet's lit edge faces the sun at x 0, at the overworld midnight of each partial phase: the corners
+         * carrying the sprite's brighter half lie on the sun's side of the planet.
+         * decision sun-follows-the-phase-and-lights-the-far-side-too
+         * decision planet-face-is-eight-hand-drawn-phase-sprites
+         */
+        @ParameterizedTest
+        @MethodSource("eachPartialPlanetPhase")
+        void thePlanetsLitEdgeFacesTheSun(MoonPhase planetPhase) throws IOException {
+            int day = overworldDayShowing(planetPhase);
+            long midnight = (long) day * OVERWORLD_DAY + MIDNIGHT_TICK;
+            Vec3 sun = LunarSky.sunDirection((float) LunarSun.sunAngleDegrees(0, midnight));
+            List<Vector3f> corners = LunarSky.planetCorners(0);
+            boolean litOnTheRight = brighterOnTheRight(planetPhase);
+            Vector3f litward = new Vector3f();
+            for (int corner = 0; corner < corners.size(); corner++) {
+                boolean onTheRight = BluePlanetRenderer.CORNER_UVS[corner][0] > HALF_THE_SPRITE;
+                Vector3f toward = new Vector3f(corners.get(corner));
+                litward.add(onTheRight == litOnTheRight ? toward : toward.negate());
+            }
+            double facing = sun.x() * litward.x() + sun.y() * litward.y() + sun.z() * litward.z();
+            assertTrue(facing > litward.length() * Math.abs(sun.x()) * LIT_EDGE_SHARE, planetPhase + " on day " + day
+                    + ": sun " + sun + ", lit edge toward " + litward);
+        }
+
+        private static int overworldDayShowing(MoonPhase planetPhase) {
+            for (MoonPhase moon : MoonPhase.values()) {
+                if (LunarSight.planetPhase(moon) == planetPhase) {
+                    return moon.index();
+                }
+            }
+            throw new IllegalArgumentException(String.valueOf(planetPhase));
+        }
+
+        private static boolean brighterOnTheRight(MoonPhase planetPhase) throws IOException {
+            Identifier sprite = LunarSky.planetSprite(planetPhase);
+            String resource = "/assets/" + sprite.getNamespace() + "/" + sprite.getPath();
+            try (InputStream stream = LunarSkyTest.class.getResourceAsStream(resource)) {
+                assertNotNull(stream, resource + " is not on the classpath");
+                BufferedImage image = ImageIO.read(stream);
+                long left = 0;
+                long right = 0;
+                for (int y = 0; y < image.getHeight(); y++) {
+                    for (int x = 0; x < image.getWidth(); x++) {
+                        int lit = brightness(image.getRGB(x, y));
+                        if (x < image.getWidth() / 2) {
+                            left += lit;
+                        } else {
+                            right += lit;
+                        }
+                    }
+                }
+                assertNotEquals(left, right, resource + " lights both halves alike");
+                return right > left;
+            }
+        }
+
+        private static int brightness(int argb) {
+            int alpha = argb >>> 24;
+            return alpha * (((argb >> 16) & 0xFF) + ((argb >> 8) & 0xFF) + (argb & 0xFF));
+        }
+
+        static Stream<MoonPhase> eachPartialPlanetPhase() {
+            return Stream.of(MoonPhase.WAXING_CRESCENT, MoonPhase.FIRST_QUARTER, MoonPhase.WAXING_GIBBOUS,
+                    MoonPhase.WANING_GIBBOUS, MoonPhase.THIRD_QUARTER, MoonPhase.WANING_CRESCENT);
         }
 
         static Stream<Arguments> eachPlanetPhaseAndItsSprite() {

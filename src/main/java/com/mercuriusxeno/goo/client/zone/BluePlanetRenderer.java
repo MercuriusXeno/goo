@@ -38,8 +38,12 @@ public final class BluePlanetRenderer {
     /** The uniform block the celestial shader reads its model view and color from. */
     private static final String DYNAMIC_TRANSFORMS = "DynamicTransforms";
     private static final String SAMPLER = "Sampler0";
-    /** The texture corners the flat quad's corners take, turned as vanilla lays its moon sprite. */
-    private static final float[][] CORNER_UVS = {{1F, 1F}, {0F, 1F}, {0F, 0F}, {1F, 0F}};
+    /**
+     * The texture corners the flat quad's corners take: vanilla's moon sprite's laying turned a quarter about the
+     * planet's face, so the sprite's left and right lie along the sun's east-west path and the lit edge faces the sun.
+     * decision sun-follows-the-phase-and-lights-the-far-side-too
+     */
+    static final float[][] CORNER_UVS = {{0F, 1F}, {0F, 0F}, {1F, 0F}, {1F, 1F}};
 
     private static @Nullable GpuBuffer quad;
 

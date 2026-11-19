@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.client.zone;
 
 import com.mercuriusxeno.goo.ability.astral.LunarSight;
-import com.mercuriusxeno.goo.lunar.Lunar;
 import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.buffers.GpuBufferSlice;
 import com.mojang.blaze3d.systems.RenderPass;
@@ -13,6 +12,7 @@ import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.state.level.LevelRenderState;
 import net.minecraft.client.renderer.state.level.SkyRenderState;
@@ -20,6 +20,7 @@ import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.data.AtlasIds;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.client.CustomSkyboxRenderer;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
@@ -31,12 +32,13 @@ import java.util.OptionalDouble;
 import java.util.OptionalInt;
 
 /**
- * Draws goo:lunar's sky in place of vanilla's: the pocket's sea of dim stars, then vanilla's sun turned by lunar's sun
- * angle, then the blue planet hanging fixed where the camera's x stands it, lit by the phase opposite the overworld
- * moon's. No moon or cloud draws. The Lunar trip home draws its sky without the planet, which it swells itself. Over
- * the dark side only the stars draw, at every hour.
+ * Draws goo:lunar's sky in place of vanilla's: the pocket's sea of dim stars, then vanilla's sun where it stands over
+ * the camera's x while it is up, on both halves of the moon, then the blue planet hanging fixed where the camera's x
+ * stands it, lit by the phase opposite the overworld moon's, and below the horizon over the dark side. No moon or cloud
+ * draws. The Lunar trip home draws its sky without the planet, which it swells itself.
  * decision astral-sky-is-the-void-with-one-bright-blue-overworld-star
  * decision lunar-has-a-day-and-night-and-a-sun-on-the-overworlds-clock
+ * decision sun-follows-the-phase-and-lights-the-far-side-too
  * decision blue-star-takes-the-moons-place-with-the-opposite-phase
  */
 public final class LunarSkyRenderer implements CustomSkyboxRenderer {
@@ -71,11 +73,11 @@ public final class LunarSkyRenderer implements CustomSkyboxRenderer {
             Matrix4fc modelViewMatrix, Runnable setupFog) {
         sea.renderSky(levelRenderState, skyRenderState, modelViewMatrix, setupFog);
         double cameraX = levelRenderState.cameraRenderState.pos.x();
-        // decision dark-side-is-the-half-of-the-moon-past-the-light-side
-        if (Lunar.isDarkSide(cameraX)) {
-            return true;
+        ClientLevel level = Minecraft.getInstance().level;
+        // decision sun-follows-the-phase-and-lights-the-far-side-too
+        if (level != null) {
+            LunarSky.sunOver(cameraX, level.getOverworldClockTime()).ifPresent(sun -> drawSun(modelViewMatrix, sun));
         }
-        drawSun(modelViewMatrix, (float) Math.toDegrees(skyRenderState.sunAngle));
         // decision blue-planet-hangs-fixed-with-its-height-set-by-x
         if (drawsPlanet && LunarSky.drawsPlanetOver(cameraX)) {
             BluePlanetRenderer.draw(RenderPipelines.CELESTIAL,
@@ -93,8 +95,17 @@ public final class LunarSkyRenderer implements CustomSkyboxRenderer {
      * @return the turn, from the flat quad to the sky
      */
     static Matrix4f sunPose(float sunAngleDegrees) {
-        return LunarSky.celestialPose(LunarSky.sunDirection(sunAngleDegrees), PocketStarSkyRenderer.SKY_DISTANCE,
-                SUN_HALF_SIZE);
+        return sunPose(LunarSky.sunDirection(sunAngleDegrees));
+    }
+
+    /**
+     * The turn that carries the flat sun quad to where the sky draws it along the sun's direction.
+     *
+     * @param sun the sun's unit direction
+     * @return the turn, from the flat quad to the sky
+     */
+    private static Matrix4f sunPose(Vec3 sun) {
+        return LunarSky.celestialPose(sun, PocketStarSkyRenderer.SKY_DISTANCE, SUN_HALF_SIZE);
     }
 
     /**
@@ -108,10 +119,10 @@ public final class LunarSkyRenderer implements CustomSkyboxRenderer {
         return LunarSky.FLAT_QUAD.stream().map(corner -> pose.transformPosition(corner, new Vector3f())).toList();
     }
 
-    private void drawSun(Matrix4fc modelViewMatrix, float sunAngleDegrees) {
+    private void drawSun(Matrix4fc modelViewMatrix, Vec3 sun) {
         TextureAtlas celestials = Minecraft.getInstance().getAtlasManager().getAtlasOrThrow(AtlasIds.CELESTIALS);
         GpuBuffer quad = sunOn(celestials);
-        Matrix4f pose = new Matrix4f(modelViewMatrix).mul(sunPose(sunAngleDegrees));
+        Matrix4f pose = new Matrix4f(modelViewMatrix).mul(sunPose(sun));
         RenderSystem.AutoStorageIndexBuffer sequential = RenderSystem.getSequentialBuffer(VertexFormat.Mode.QUADS);
         GpuBuffer indices = sequential.getBuffer(QUAD_INDICES);
         GpuBufferSlice transforms = RenderSystem.getDynamicUniforms().writeTransform(pose,

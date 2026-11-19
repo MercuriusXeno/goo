@@ -4,10 +4,9 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
 /**
- * The eldritch on lunar's two sides. The monstrosity spawns under the open sky while the sky reads as night there,
- * so at every hour on the dark side and by night alone on the light side's open ground, and anywhere under cover, as
- * the warrens and caves hold it; and the dark side spawns it in larger groups, by the factor the dark_side_eldritch
- * data map names for the biome.
+ * The eldritch on lunar's two sides. The monstrosity spawns under the open sky while the sky reads as night there, by
+ * the night the sun sets over each half alike, and anywhere under cover, as the warrens and caves hold it; and the
+ * dark side spawns it in larger groups, by the factor the dark_side_eldritch data map names for the biome.
  * decision dark-side-is-an-endless-night-of-eldritch-rich-in-void-and-xeno
  * decision eldritch-spawn-in-higher-volumes-on-lunar
  */
@@ -36,15 +35,16 @@ public final class LunarEldritch {
 
     /**
      * Whether the hour lets a monstrosity spawn at a lunar spot: under cover at any hour, and under the open sky while
-     * the sky reads as night there.
+     * the sky reads as night there, as the sun over its x sets it.
+     * decision sun-follows-the-phase-and-lights-the-far-side-too
      *
-     * @param x               the spot's x, in blocks
-     * @param lightSideDarken the darkening the overworld's clock gives the light side now
-     * @param seesSky         whether the spot stands under the open sky
+     * @param x                  the spot's x, in blocks
+     * @param overworldClockTime the overworld clock's total ticks
+     * @param seesSky            whether the spot stands under the open sky
      * @return true where the hour lets it spawn
      */
-    public static boolean spawnHourAllows(double x, int lightSideDarken, boolean seesSky) {
-        return !seesSky || LunarNight.isNightAt(x, lightSideDarken);
+    public static boolean spawnHourAllows(double x, long overworldClockTime, boolean seesSky) {
+        return !seesSky || LunarNight.isNightAt(x, overworldClockTime);
     }
 
     /**

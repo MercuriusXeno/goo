@@ -24,13 +24,19 @@ public final class Lunar {
      * decision traversal-to-the-moon-always-lands-on-the-light-side
      */
     public static final int LIGHT_SIDE_HALF_WIDTH = 3_750_000;
+    /**
+     * The moon's way around along x, in blocks: the light side and the dark side, each half of it, the seam at plus
+     * and minus half.
+     */
+    private static final double WAY_AROUND = 4.0 * LIGHT_SIDE_HALF_WIDTH;
+    private static final double FULL_TURN_DEGREES = 360.0;
 
     private Lunar() {
     }
 
     /**
-     * Whether a lunar x stands on the dark side, every x past the light side either way, where it never shines and
-     * the blue planet never shows.
+     * Whether a lunar x stands on the dark side, every x past the light side either way, where the blue planet never
+     * shows.
      * decision dark-side-is-the-half-of-the-moon-past-the-light-side
      *
      * @param x the x, in blocks
@@ -38,6 +44,19 @@ public final class Lunar {
      */
     public static boolean isDarkSide(double x) {
         return Math.abs(x) > LIGHT_SIDE_HALF_WIDTH;
+    }
+
+    /**
+     * The blue planet's angle over a lunar x, as a moon angle reads, the same at every hour: the moon keeps one face to
+     * the planet, so the planet stands straight up at x 0 and leans back toward x 0 as x runs out, one full circle over
+     * the moon's whole way around, on the horizon at the light side's edges and underfoot at the seam.
+     * decision blue-planet-hangs-fixed-with-its-height-set-by-x
+     *
+     * @param x the x, in blocks
+     * @return the angle, in degrees, 0 overhead
+     */
+    public static double planetAngleDegrees(double x) {
+        return x / WAY_AROUND * FULL_TURN_DEGREES;
     }
 
     /**
