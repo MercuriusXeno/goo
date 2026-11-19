@@ -51,12 +51,13 @@ class VoidAndNetherAbilitiesTest {
     }
 
     /**
-     * Infest moves to zombie on its own thread; Tartarus stays on nether.
+     * Infest moves to zombie on its own thread; Tartarus stays on nether, and Invert joins it.
      * decision zombie-goo-is-the-undead-and-takes-the-decay-abilities
+     * decision nether-keeps-its-name-and-takes-inversion-as-its-theme
      */
     @Test
-    void netherShipsInfestAndTartarus() {
-        assertEquals(Set.of("nether_infest", "nether_tartarus"), shippedPathsOf(GooTypes.NETHER));
+    void netherShipsInfestTartarusAndInvert() {
+        assertEquals(Set.of("nether_infest", "nether_tartarus", "nether_invert"), shippedPathsOf(GooTypes.NETHER));
     }
 
     /**
