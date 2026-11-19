@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.block.ability.FungalBudBlock;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.block.NetherWartBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import java.util.Set;
@@ -64,14 +65,15 @@ public record TendFungiStep() implements TakesNoEntity {
      */
     private static void tendFungus(ServerLevel level, BlockPos pos) {
         BlockState state = level.getBlockState(pos);
+        RandomSource random = TendingRandom.of(level);
         if (state.getBlock() instanceof NetherWartBlock) {
             if (ripeWart(state.getValue(NetherWartBlock.AGE))) {
                 Reaping.replant(level, pos, state, state.setValue(NetherWartBlock.AGE, 0));
             } else {
-                state.randomTick(level, pos, level.getRandom());
+                state.randomTick(level, pos, random);
             }
-        } else if (state.getBlock() instanceof FungalBudBlock && budAges(level.getRandom().nextInt(BUD_ODDS))) {
-            state.randomTick(level, pos, level.getRandom());
+        } else if (state.getBlock() instanceof FungalBudBlock && budAges(random.nextInt(BUD_ODDS))) {
+            state.randomTick(level, pos, random);
         }
     }
 
