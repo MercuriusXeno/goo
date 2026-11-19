@@ -7,15 +7,18 @@ import java.util.List;
 import java.util.function.Predicate;
 
 /**
- * One footprint column of a Build: it reaches behind its ground cell's face
- * as many blocks as it rises, down for a footprint on the ground and into the
- * wall for one on a wall, stopping short at the first block the rising hunk
- * cannot carry, pushes the blocks it reached out along the face's normal by
- * the rise and grows stone in the cells they leave, the stone standing
- * between the pushed blocks and what lies behind them. A column stopped short
- * pushes fewer blocks, still by the whole rise on as many blocks of stone as
- * it rises.
+ * One footprint column of a Build: it walks back from its ground cell, behind
+ * the face, down for a footprint on the ground and into the wall for one on a
+ * wall, no farther than it rises. The first block with a replaceable cell
+ * behind it, or the first block the rising hunk cannot carry, is the anchor:
+ * it stays where it is, the blocks in front of it are pushed out along the
+ * face's normal by the rise, and stone grows from the anchor's near face. A
+ * walk reaching the full rise with no anchor pushes its deepest block from
+ * behind, the stone growing in the cells the pushed blocks leave.
  * decision build-reaches-down-as-far-as-it-rises-and-lifts-the-ground-on-stone
+ * decision build-extends-the-first-block-with-air-behind-it
+ * decision air-behind-a-block-is-anything-stone-can-replace
+ * decision build-pushes-from-behind-at-full-depth-with-no-air
  * decision build-goes-sideways
  *
  * @param ground the footprint cell, the column's surface block
@@ -27,17 +30,21 @@ public record BuildColumn(BlockPos ground, int reach, int rise, Direction face) 
 
     /**
      * The column a ground cell reaches at a rise: back from the ground cell,
-     * behind its face, while each block can be carried, no farther than the rise.
+     * behind its face, past each block the hunk can carry whose cell behind
+     * cannot be replaced, no farther than the rise.
      *
-     * @param ground    the footprint cell
-     * @param rise      the rise
-     * @param face      the face the footprint lies on
-     * @param carriable whether the rising hunk can carry the block in a cell
+     * @param ground      the footprint cell
+     * @param rise        the rise
+     * @param face        the face the footprint lies on
+     * @param carriable   whether the rising hunk can carry the block in a cell
+     * @param replaceable whether stone can replace what fills a cell, the air behind an anchor
      * @return the column
      */
-    public static BuildColumn reaching(BlockPos ground, int rise, Direction face, Predicate<BlockPos> carriable) {
+    public static BuildColumn reaching(BlockPos ground, int rise, Direction face, Predicate<BlockPos> carriable,
+                                       Predicate<BlockPos> replaceable) {
         int reach = 0;
-        while (reach < rise && carriable.test(behind(ground, face, reach))) {
+        while (reach < rise && carriable.test(behind(ground, face, reach))
+                && !replaceable.test(behind(ground, face, reach + 1))) {
             reach++;
         }
         return new BuildColumn(ground.immutable(), reach, rise, face);
@@ -67,8 +74,9 @@ public record BuildColumn(BlockPos ground, int reach, int rise, Direction face) 
     }
 
     /**
-     * The cells the column grows stone in: from the deepest lifted cell out,
-     * as many as the rise, or from in front of the ground cell where it lifts nothing.
+     * The cells the column grows stone in: from the anchor's near face out,
+     * as many as the rise, which is the deepest lifted cell, or the cell in
+     * front of the ground cell where the ground block is the anchor.
      *
      * @return the cells, deepest first
      */

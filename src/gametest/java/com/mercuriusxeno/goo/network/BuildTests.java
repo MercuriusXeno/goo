@@ -50,6 +50,11 @@ public final class BuildTests {
     private static final String BUILD_CARRIES_A_RIDER = "build_carries_a_rider_up_with_the_stone";
     private static final String BUILD_LETS_A_PLAYER_RIDE = "build_accepts_a_riding_players_moves";
     private static final String BUILD_LIFTS_AN_OVERTAKEN_RIDER = "build_lifts_a_rider_the_stone_overtook";
+    private static final String BUILD_LEAVES_A_PILLAR_STANDING = "build_leaves_a_pillar_standing_and_grows_from_its_face";
+    /** The one-wide pillar's south face cells, the footprint, two tall over a dirt foot; air lies north of it. */
+    private static final BlockPos PILLAR_LOW = new BlockPos(2, 1, 2);
+    private static final BlockPos PILLAR_HIGH = new BlockPos(2, 2, 2);
+    private static final int PILLAR_RISE = 2;
     /** A few ticks into the rise, the top already half a block over the ground, as a client first sees it. */
     private static final int OVERTAKEN_TICKS = 5;
 
@@ -113,6 +118,34 @@ public final class BuildTests {
         GooTestFunctions.registerTest(registrar, BUILD_CARRIES_A_RIDER, BuildTests::buildCarriesARiderUp);
         GooTestFunctions.registerTest(registrar, BUILD_LETS_A_PLAYER_RIDE, BuildTests::buildAcceptsARidingPlayersMoves);
         GooTestFunctions.registerTest(registrar, BUILD_LIFTS_AN_OVERTAKEN_RIDER, BuildTests::buildLiftsARiderTheStoneOvertook);
+        GooTestFunctions.registerTest(registrar, BUILD_LEAVES_A_PILLAR_STANDING,
+                BuildTests::buildLeavesAPillarStandingAndGrowsFromItsFace);
+    }
+
+    /**
+     * Build cast on the south face of a one-wide pillar with air behind it
+     * leaves every pillar block where it stood and stands its stone south of
+     * the pillar; the air north of the pillar stays air.
+     * decision build-extends-the-first-block-with-air-behind-it
+     *
+     * @param helper the gametest helper
+     */
+    public static void buildLeavesAPillarStandingAndGrowsFromItsFace(GameTestHelper helper) {
+        helper.setBlock(PILLAR_LOW.below(), Blocks.DIRT);
+        helper.setBlock(PILLAR_LOW, MARKERS.getLast());
+        helper.setBlock(PILLAR_HIGH, MARKERS.getFirst());
+        submit(helper, PILLAR_LOW, PILLAR_HIGH, PILLAR_RISE, Direction.SOUTH);
+        helper.runAfterDelay(BuildStep.RISE_TICKS + SETTLE_SLACK_TICKS, () -> {
+            assertHolds(helper, PILLAR_LOW, MARKERS.getLast().defaultBlockState(), STONE_MISSING);
+            assertHolds(helper, PILLAR_HIGH, MARKERS.getFirst().defaultBlockState(), STONE_MISSING);
+            for (BlockPos face : List.of(PILLAR_LOW, PILLAR_HIGH)) {
+                for (int out = 1; out <= PILLAR_RISE; out++) {
+                    assertHolds(helper, face.south(out), Blocks.STONE.defaultBlockState(), STONE_MISSING);
+                }
+                assertHolds(helper, face.north(), Blocks.AIR.defaultBlockState(), STONE_MISSING);
+            }
+            helper.succeed();
+        });
     }
 
     /**

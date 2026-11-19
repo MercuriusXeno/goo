@@ -12,6 +12,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import java.util.List;
 import java.util.Optional;
@@ -77,8 +78,10 @@ class BuildGrowthTest {
     }
 
     /**
-     * Each column reaches down as far as it rises, stopping at bedrock, and lifts what it reached by the rise on stone.
+     * Each column on ground solid through its rise reaches down as far as it rises, stopping at bedrock, and lifts what
+     * it reached by the rise on stone, its deepest block pushed from behind.
      * decision build-reaches-down-as-far-as-it-rises-and-lifts-the-ground-on-stone
+     * decision build-pushes-from-behind-at-full-depth-with-no-air
      */
     @Nested
     class Lift {
@@ -173,6 +176,64 @@ class BuildGrowthTest {
                         column.liftedCells().stream().map(column::liftedTo).toList());
                 assertEquals(List.of(behind, face), column.stoneCells());
             }
+        }
+    }
+
+    /**
+     * A column stops at the first block with a replaceable cell behind it: that block stays, the blocks in front of it
+     * lift, and the stone grows from its near face.
+     * decision build-extends-the-first-block-with-air-behind-it
+     * decision air-behind-a-block-is-anything-stone-can-replace
+     */
+    @Nested
+    class AirBacked {
+
+        private static final int RISE = 3;
+        /** The wall's north face layer, its blocks filling the layers south of it the test names. */
+        private static final int WALL_Z = 10;
+        private static final BlockPos FACE = new BlockPos(0, 64, WALL_Z);
+
+        /** What fills the cell behind the wall, each answering canBeReplaced true. */
+        enum Backing { AIR, WATER }
+
+        private BuildColumn planTheColumn(int thickness, Backing backing) {
+            BlockState air = mock(BlockState.class);
+            when(air.canBeReplaced()).thenReturn(true);
+            when(air.isAir()).thenReturn(true);
+            BlockState water = mock(BlockState.class);
+            when(water.canBeReplaced()).thenReturn(true);
+            when(water.isAir()).thenReturn(false);
+            BlockState brick = mock(BlockState.class);
+            BlockGetter wall = mock(BlockGetter.class);
+            when(wall.getMinY()).thenReturn(-64);
+            when(wall.getBlockState(any(BlockPos.class))).thenAnswer(call -> {
+                int z = call.<BlockPos>getArgument(0).getZ();
+                if (z >= WALL_Z && z < WALL_Z + thickness) {
+                    return brick;
+                }
+                return z >= WALL_Z + thickness && backing == Backing.WATER ? water : air;
+            });
+            return BuildGrowth.plan(wall, new BuildFootprint(FACE, FACE, RISE, Direction.NORTH), PER_BLOCK)
+                    .columns().getFirst();
+        }
+
+        @ParameterizedTest
+        @EnumSource(Backing.class)
+        void aOneThickWallLiftsNothingAndGrowsItsStoneInFrontOfTheFace(Backing backing) {
+            BuildColumn column = planTheColumn(1, backing);
+
+            assertEquals(List.of(), column.liftedCells());
+            assertEquals(List.of(FACE.north(), FACE.north(2), FACE.north(3)), column.stoneCells());
+        }
+
+        @ParameterizedTest
+        @EnumSource(Backing.class)
+        void aTwoThickWallLiftsTheFaceAloneAndGrowsItsStoneFromTheSecondBlocksNearFace(Backing backing) {
+            BuildColumn column = planTheColumn(2, backing);
+
+            assertEquals(List.of(FACE), column.liftedCells());
+            assertEquals(FACE.north(RISE), column.liftedTo(FACE));
+            assertEquals(List.of(FACE, FACE.north(), FACE.north(2)), column.stoneCells());
         }
     }
 
