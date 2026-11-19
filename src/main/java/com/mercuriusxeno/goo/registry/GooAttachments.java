@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.LingeringAppliers;
-import com.mercuriusxeno.goo.ability.aging.AgingBlocks;
 import com.mercuriusxeno.goo.ability.astral.LunarArrival;
 import com.mercuriusxeno.goo.ability.astral.LunarFixation;
 import com.mercuriusxeno.goo.ability.astral.WayHome;
@@ -25,7 +24,7 @@ import com.mercuriusxeno.goo.ability.program.Sight;
 import com.mercuriusxeno.goo.ability.pulse.Stunned;
 import com.mercuriusxeno.goo.ability.quantum.OutOfPhase;
 import com.mercuriusxeno.goo.ability.reserve.Reserve;
-import com.mercuriusxeno.goo.ability.rewind.Rewinding;
+import com.mercuriusxeno.goo.ability.revert.Reverting;
 import com.mercuriusxeno.goo.ability.root.Rooted;
 import com.mercuriusxeno.goo.ability.seal.Elude;
 import com.mercuriusxeno.goo.ability.seal.SealCurse;
@@ -38,6 +37,7 @@ import com.mercuriusxeno.goo.ability.xeno.Eldritch;
 import com.mercuriusxeno.goo.ability.yarn.Downed;
 import com.mercuriusxeno.goo.ability.yarn.Herd;
 import com.mercuriusxeno.goo.ability.yarn.Led;
+import com.mercuriusxeno.goo.ability.yarn.Tangled;
 import com.mercuriusxeno.goo.data.GooRemainders;
 import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.data.PalmBuffers;
@@ -60,14 +60,6 @@ public final class GooAttachments {
 
     public static final DeferredRegister<AttachmentType<?>> ATTACHMENT_TYPES =
             DeferredRegister.create(NeoForgeRegistries.Keys.ATTACHMENT_TYPES, Goo.MODID);
-
-    /**
-     * The blocks aging in a chunk, saved with the chunk so an aging resumes
-     * when it loads again (decision old-blob-ages-valuables-slowly).
-     */
-    public static final Supplier<AttachmentType<AgingBlocks>> AGING_BLOCKS =
-            ATTACHMENT_TYPES.register("aging_blocks",
-                    () -> AttachmentType.builder(() -> AgingBlocks.NONE).serialize(AgingBlocks.CODEC).build());
 
     /**
      * The soul-bound stacks a dead player holds until respawn, serialized so a
@@ -359,14 +351,14 @@ public final class GooAttachments {
                             .build());
 
     /**
-     * A mob Rewind's stream holds: frozen until shortly after the stream lets
+     * A mob Revert's stream holds: frozen until shortly after the stream lets
      * go, or shrinking into its egg, saved with the mob so a reload mid-hold
      * still frees it.
      * rewind-fills-while-held
      */
-    public static final Supplier<AttachmentType<Rewinding>> REWINDING =
-            ATTACHMENT_TYPES.register("rewinding",
-                    () -> AttachmentType.builder(() -> Rewinding.NONE).serialize(Rewinding.CODEC).build());
+    public static final Supplier<AttachmentType<Reverting>> REVERTING =
+            ATTACHMENT_TYPES.register("reverting",
+                    () -> AttachmentType.builder(() -> Reverting.NONE).serialize(Reverting.CODEC).build());
 
     /**
      * An entity Grab holds: suspended until shortly after the channel lets
@@ -424,6 +416,18 @@ public final class GooAttachments {
                     () -> AttachmentType.builder(() -> Rooted.NONE)
                             .serialize(Rooted.CODEC, Rooted::stands)
                             .sync(GooAttachments::syncsToWatcher, Rooted.STREAM_CODEC)
+                            .build());
+
+    /**
+     * The strands Stitch tangles a hostile in, synced to every client drawing
+     * it, which draws them over its model; they last a few ticks past the
+     * goo's last touch, so they are not saved.
+     * passives-move-through-stitch-and-hostiles-tangle-in-it
+     */
+    public static final Supplier<AttachmentType<Tangled>> TANGLED =
+            ATTACHMENT_TYPES.register("tangled",
+                    () -> AttachmentType.builder(() -> Tangled.NONE)
+                            .sync(GooAttachments::syncsToWatcher, Tangled.STREAM_CODEC)
                             .build());
 
     /**

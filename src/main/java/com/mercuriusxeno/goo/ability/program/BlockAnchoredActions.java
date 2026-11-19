@@ -71,7 +71,7 @@ final class BlockAnchoredActions {
      */
     static void forEachEntityWithin(ServerLevel level, Vec3 center, SelectionShape shape, double radius,
                                     Set<EntityFilter> filters, @Nullable Entity placer, Consumer<TargetHost> body) {
-        EntityScan.forEachLivingWithin(level, center, shape, radius, filters, null,
+        EntityScan.forEachLivingWithin(level, center, shape, radius, filters, null, placer,
                 living -> body.accept(EntityHost.struckByField(level, living, placer)));
     }
 

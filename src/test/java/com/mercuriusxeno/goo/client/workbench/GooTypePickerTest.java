@@ -58,7 +58,7 @@ class GooTypePickerTest {
 
     /**
      * While the types, the close cell and the no-goo-type cell overflow 7 by 4, the grid grows a row for them, and
-     * holds 4 rows once they fit (operator ruling 2026-11-18, yarn standing beside yore and zoo).
+     * holds 4 rows once they fit (operator ruling 2026-11-18).
      * decision goo-type-picker-is-a-seven-by-four-icon-grid
      */
     @Test

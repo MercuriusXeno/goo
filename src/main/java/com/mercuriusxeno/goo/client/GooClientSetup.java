@@ -44,11 +44,11 @@ import com.mercuriusxeno.goo.client.ability.PhasedSight;
 import com.mercuriusxeno.goo.client.ability.PrismFormingSounds;
 import com.mercuriusxeno.goo.client.ability.RelayLasers;
 import com.mercuriusxeno.goo.client.ability.SignalRings;
+import com.mercuriusxeno.goo.client.ability.TangleLayer;
 import com.mercuriusxeno.goo.client.ability.TransformationRenderer;
 import com.mercuriusxeno.goo.client.ability.Transformations;
 import com.mercuriusxeno.goo.client.ability.UpdraftWind;
 import com.mercuriusxeno.goo.client.ability.ViewportRipples;
-import com.mercuriusxeno.goo.client.ability.VineTangleLayer;
 import com.mercuriusxeno.goo.client.ability.WindLines;
 import com.mercuriusxeno.goo.client.ability.ZapBolts;
 import com.mercuriusxeno.goo.client.ber.*;
@@ -66,6 +66,7 @@ import com.mercuriusxeno.goo.client.entity.CompressionSphereRenderer;
 import com.mercuriusxeno.goo.client.entity.DriftingWispRenderer;
 import com.mercuriusxeno.goo.client.entity.EldritchMonstrosityRenderer;
 import com.mercuriusxeno.goo.client.entity.MeteorRenderer;
+import com.mercuriusxeno.goo.client.entity.WispEchoes;
 import com.mercuriusxeno.goo.client.model.*;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
@@ -320,9 +321,10 @@ public final class GooClientSetup {
                 GooBlocks.BLAZE_MOLTEN.get(), GooBlocks.CRYSTAL_SHATTER.get(), GooBlocks.DEEP_HOST.get(),
                 GooBlocks.FROST_RIME.get(), GooBlocks.GLOW_WISPS.get(), GooBlocks.HEX_LEECH.get(),
                 GooBlocks.TYPHOON_UPDRAFT.get(), GooBlocks.JELLY_NECTAR.get(), GooBlocks.PULSE_SIGNAL.get(),
-                GooBlocks.METAL_SPIKES.get(), GooBlocks.NETHER_INFEST.get(), GooBlocks.LEAF_VINES.get(),
+                GooBlocks.METAL_SPIKES.get(), GooBlocks.ZOMBIE_INFEST.get(), GooBlocks.LEAF_VINES.get(),
                 GooBlocks.UNSTABLE_NITRO.get(), GooBlocks.QUANTUM_PHASE.get(),
-                GooBlocks.SHROOM_SPORES.get(), GooBlocks.NETHER_GLOOM.get())) {
+                GooBlocks.SHROOM_SPORES.get(), GooBlocks.NETHER_GLOOM.get(),
+                GooBlocks.ROCK_MORTAR.get(), GooBlocks.YARN_STITCH.get())) {
             event.register(VolumeCellTint.sources(cell.binding().gooType(), ClientGooTypes::color), cell);
         }
     }
@@ -411,6 +413,8 @@ public final class GooClientSetup {
      * nitro-is-unstables-goo-that-explodes-in-a-chain-by-its-quantity
      * phase-goo-puts-what-stands-in-it-out-of-phase
      * gloom-spawns-regardless-of-light-and-mobs-on-it-ignore-daylight
+     * mortar-is-rocks-residual-a-petrification-and-hardening-goo
+     * stitch-is-yarns-residual-that-turns-slimes-into-passive-mobs
      *
      * @param event the event instance
      */
@@ -425,12 +429,14 @@ public final class GooClientSetup {
         registerSprayDrip(event, GooParticles.NECTAR_SPRAY_DRIP.get(), BlendPalette.NECTAR_JELLY_ORANGES);
         registerSprayDrip(event, GooParticles.SIGNAL_SPRAY_DRIP.get(), BlendPalette.SIGNAL_PULSE_REDS);
         registerSprayDrip(event, GooParticles.SPIKES_SPRAY_DRIP.get(), BlendPalette.SPIKES_METAL_SILVERS);
-        registerSprayDrip(event, GooParticles.INFEST_SPRAY_DRIP.get(), BlendPalette.INFEST_NETHER_REDS);
+        registerSprayDrip(event, GooParticles.INFEST_SPRAY_DRIP.get(), BlendPalette.ZOMBIE_ROT);
         registerSprayDrip(event, GooParticles.VINES_SPRAY_DRIP.get(), BlendPalette.VINES_LEAF_GREENS);
         registerSprayDrip(event, GooParticles.NITRO_SPRAY_DRIP.get(), BlendPalette.NITRO_UNSTABLE_GREENS);
         registerSprayDrip(event, GooParticles.PHASE_SPRAY_DRIP.get(), BlendPalette.PHASE_QUANTUM_BLUES);
         registerSprayDrip(event, GooParticles.SPORES_SPRAY_DRIP.get(), BlendPalette.SPORES_SHROOM_PURPLES);
         registerSprayDrip(event, GooParticles.GLOOM_SPRAY_DRIP.get(), BlendPalette.GLOOM_NETHER_MAROONS);
+        registerSprayDrip(event, GooParticles.MORTAR_SPRAY_DRIP.get(), BlendPalette.MORTAR_ROCK_GRAYS);
+        registerSprayDrip(event, GooParticles.STITCH_SPRAY_DRIP.get(), BlendPalette.STITCH_YARN_TANS);
         event.registerSpriteSet(GooParticles.MOLTEN_SPRAY_DRIP.get(),
                 sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.MOLTEN_BLAZE_ORANGES,
                         CellBinding.MOLTEN.fluidFooting()));
@@ -456,7 +462,7 @@ public final class GooClientSetup {
      * onto its render state: the lead outline, the ailments with their
      * outline, which overrides the lead's, the glove's target outline, which
      * overrides both, the goo coat, the phase, the stone and frost
-     * encasements, the frozen pose, the grab flail, the vine tangle, the
+     * encasements, the frozen pose, the grab flail, the vine and web tangles, the
      * transformation, the eldritch phase and the exit tilt, in that order.
      *
      * @param event the event instance
@@ -477,7 +483,7 @@ public final class GooClientSetup {
                 FrozenPoses::stampFrozenPose,
                 DownedPose::stampDownedPose,
                 GrabFlail::stampFlail,
-                VineTangleLayer::stampTangle,
+                TangleLayer::stampTangle,
                 TransformationRenderer::stampTransformation,
                 PhasedSight::stampPhase,
                 ExitTiltLook::stampTilt);
@@ -506,7 +512,7 @@ public final class GooClientSetup {
                 AilmentOverlayLayer.addTo(renderer, MobShells.of(type, event.getEntityModels()));
                 EncasementLayer.addTo(renderer, MobShells.of(type, event.getEntityModels()),
                         EncasedBodies.of(type, event.getEntityModels()));
-                VineTangleLayer.addTo(renderer, MobShells.of(type, event.getEntityModels()));
+                TangleLayer.addTo(renderer, MobShells.of(type, event.getEntityModels()));
             }
         }
         for (PlayerModelType skin : event.getSkins()) {
@@ -515,7 +521,7 @@ public final class GooClientSetup {
             AilmentOverlayLayer.addTo(event.getPlayerRenderer(skin), MobShells.NONE);
             AilmentOverlayLayer.addTo(event.getMannequinRenderer(skin), MobShells.NONE);
             EncasementLayer.addTo(event.getPlayerRenderer(skin), MobShells.NONE, null);
-            VineTangleLayer.addTo(event.getPlayerRenderer(skin), MobShells.NONE);
+            TangleLayer.addTo(event.getPlayerRenderer(skin), MobShells.NONE);
         }
         GloveArmLayer.addToSkins(event);
     }
@@ -658,6 +664,7 @@ public final class GooClientSetup {
         Transformations.CLIENT.clear();
         GhostTrails.CLIENT.clear();
         ViewportRipples.CLIENT.clear();
+        WispEchoes.CLIENT.clear();
     }
 
     /** Clears Crystal's glass knives in flight and hovering, ore sightings, held sweeps, Meteo's scorches, arm poses and forming prisms. */

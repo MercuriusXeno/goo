@@ -10,6 +10,7 @@ import com.mercuriusxeno.goo.block.ability.InfestCellBlock;
 import com.mercuriusxeno.goo.block.ability.LightRailBlock;
 import com.mercuriusxeno.goo.block.ability.MagickedIceBlock;
 import com.mercuriusxeno.goo.block.ability.MoltenCellBlock;
+import com.mercuriusxeno.goo.block.ability.MortarCellBlock;
 import com.mercuriusxeno.goo.block.ability.NectarCellBlock;
 import com.mercuriusxeno.goo.block.ability.NitroCellBlock;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
@@ -430,6 +431,27 @@ public class GooBlocks {
                     .noLootTable()
                     .pushReaction(PushReaction.DESTROY));
     /**
+     * Stitch: the volume cell bound to Yarn's goo, the woolly goo Stitch
+     * sprays onto a block's top, one to fifteen layers, ordinary ground
+     * underfoot and sounding as goo does, letting a passive pass and
+     * tangling a hostile in it, dropping the yarn goo its layers cost through
+     * VolumeCellBlock.getDrops, no loot table
+     * (decisions stitch-is-yarns-residual-that-turns-slimes-into-passive-mobs,
+     * passives-move-through-stitch-and-hostiles-tangle-in-it,
+     * each-goo-type-ships-a-world-goo-on-the-volume-cell).
+     */
+    public static final DeferredBlock<VolumeCellBlock> YARN_STITCH = BLOCKS.registerBlock(
+            "yarn_stitch", properties -> new VolumeCellBlock(properties, CellBinding.STITCH),
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.WOOL)
+                    .friction(CellBinding.STITCH.surface().friction())
+                    .sound(SoundType.SLIME_BLOCK)
+                    .instabreak()
+                    .noOcclusion()
+                    .replaceable()
+                    .noLootTable()
+                    .pushReaction(PushReaction.DESTROY));
+    /**
      * Spikes: the volume cell bound to Metal's goo, the silver goo Spikes
      * sprays onto a block's top, one to fifteen layers, ordinary ground
      * underfoot that impales what walks on it and sounds as goo does,
@@ -450,19 +472,20 @@ public class GooBlocks {
                     .noLootTable()
                     .pushReaction(PushReaction.DESTROY));
     /**
-     * Infest: the volume cell bound to Nether's goo, the dark red goo Infest
+     * Infest: the volume cell bound to Zombie's goo, the rotten green goo Infest
      * sprays onto a block's top, one to fifteen layers, ordinary ground
      * underfoot and sounding as goo does, gnawing what it lies on and biting
-     * what stands in it, dropping the nether goo its layers cost through
+     * what stands in it, dropping the zombie goo its layers cost through
      * VolumeCellBlock.getDrops, no loot table
      * (decisions infest-is-nethers-goo-the-decay-effect-localized-around-the-goo,
      * infest-gnaws-the-blocks-it-lies-on-and-bites-what-stands-in-it,
-     * each-goo-type-ships-a-world-goo-on-the-volume-cell).
+     * each-goo-type-ships-a-world-goo-on-the-volume-cell,
+     * zombie-goo-is-the-undead-and-takes-the-decay-abilities).
      */
-    public static final DeferredBlock<InfestCellBlock> NETHER_INFEST = BLOCKS.registerBlock(
-            "nether_infest", properties -> new InfestCellBlock(properties, CellBinding.INFEST),
+    public static final DeferredBlock<InfestCellBlock> ZOMBIE_INFEST = BLOCKS.registerBlock(
+            "zombie_infest", properties -> new InfestCellBlock(properties, CellBinding.INFEST),
             () -> BlockBehaviour.Properties.of()
-                    .mapColor(MapColor.NETHER)
+                    .mapColor(MapColor.TERRACOTTA_GREEN)
                     .friction(CellBinding.INFEST.surface().friction())
                     .sound(SoundType.SLIME_BLOCK)
                     .instabreak()
@@ -525,6 +548,27 @@ public class GooBlocks {
             () -> BlockBehaviour.Properties.of()
                     .mapColor(MapColor.COLOR_LIGHT_GREEN)
                     .friction(CellBinding.NITRO.surface().friction())
+                    .sound(SoundType.SLIME_BLOCK)
+                    .instabreak()
+                    .noOcclusion()
+                    .replaceable()
+                    .noLootTable()
+                    .pushReaction(PushReaction.DESTROY));
+    /**
+     * Mortar: the volume cell bound to Rock's goo, the stony goo Mortar
+     * sprays onto a block's top or clings with to its sides, one to fifteen
+     * layers, ordinary ground underfoot and sounding as goo does, petrifying
+     * what stands in it and hardening what it lies on, dropping the rock goo
+     * its layers cost through VolumeCellBlock.getDrops, no loot table
+     * (decisions mortar-is-rocks-residual-a-petrification-and-hardening-goo,
+     * mortar-has-a-chance-to-deplete-as-it-petrifies-and-hardens,
+     * each-goo-type-ships-a-world-goo-on-the-volume-cell).
+     */
+    public static final DeferredBlock<MortarCellBlock> ROCK_MORTAR = BLOCKS.registerBlock(
+            "rock_mortar", properties -> new MortarCellBlock(properties, CellBinding.MORTAR),
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.STONE)
+                    .friction(CellBinding.MORTAR.surface().friction())
                     .sound(SoundType.SLIME_BLOCK)
                     .instabreak()
                     .noOcclusion()

@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.registry;
 
+import com.mercuriusxeno.goo.ability.yarn.StitchMob;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.neoforged.bus.api.IEventBus;
@@ -9,7 +10,11 @@ import net.neoforged.neoforge.registries.DataPackRegistryEvent;
  * Stands the {@code goo:goo_type} datapack registry. NeoForge loads every
  * {@code data/<namespace>/goo/goo_type/<id>.json} it finds into it when a
  * world's datapacks load, and sends the loaded entries to each client that
- * joins, so a type a datapack adds needs no code on either side.
+ * joins, so a type a datapack adds needs no code on either side. Beside it
+ * stands {@code goo:stitch_mob}, the server's table of the passive mobs a
+ * slime on Stitch becomes, read from
+ * {@code data/<namespace>/goo/stitch_mob/<id>.json}.
+ * stitch-is-yarns-residual-that-turns-slimes-into-passive-mobs
  */
 public final class GooTypeRegistry {
 
@@ -33,5 +38,6 @@ public final class GooTypeRegistry {
      */
     private static void onNewRegistry(DataPackRegistryEvent.NewRegistry event) {
         event.dataPackRegistry(GooTypes.REGISTRY, GooTypeDefinition.CODEC, GooTypeDefinition.CODEC);
+        event.dataPackRegistry(StitchMob.REGISTRY, StitchMob.CODEC);
     }
 }

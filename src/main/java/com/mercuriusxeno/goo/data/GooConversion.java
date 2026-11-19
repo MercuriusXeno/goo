@@ -19,7 +19,7 @@ public final class GooConversion {
     }
 
     /**
-     * Parses a formula string like "metal / 4 -> yore / 2".
+     * Parses a formula string like "metal / 4 -> opulent / 2".
      *
      * @param expr the raw formula expression
      * @return parsed Formula record

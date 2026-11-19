@@ -195,10 +195,6 @@ public record HeartOverlay(HeartKind kind, List<Integer> shields, long expiresAt
     }
 
     private static List<Integer> laidShields(HeartKind laidKind, float health, float maxHealth) {
-        if (!laidKind.laysShields()) {
-            // hud-draws-the-leftmost-heart-as-ancient: Ancient marks the bar and shields nothing
-            return List.of();
-        }
         return laidKind.fillsMissing() ? firstMissingFilled(health, maxHealth) : firstPresentFilled(health);
     }
 
@@ -501,9 +497,6 @@ public record HeartOverlay(HeartKind kind, List<Integer> shields, long expiresAt
      * heart-effects-crawl-while-held
      */
     private int crawlSlot(float health) {
-        if (!kind.laysShields()) {
-            return NO_SLOT;
-        }
         return kind.fillsMissing() ? leftmostMissingShortSlot(health) : leftmostShortSlot(filledSlots(health));
     }
 

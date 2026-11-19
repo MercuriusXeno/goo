@@ -48,21 +48,21 @@ public final class CharmLikeCastTests {
 
     private static final String LEAD_DARTS = "lead_darts_to_the_taken_mob_and_leads_it";
     private static final String SHULK_SPEWS = "shulk_spews_a_shulker_bullet_at_the_taken_mob";
-    private static final String REWIND_STEPS = "rewind_steps_a_cow_back_once_per_cast";
-    private static final String REWIND_FIZZLES = "rewind_at_a_mob_shrinking_into_its_egg_fizzles";
+    private static final String REVERT_STEPS = "revert_steps_a_cow_back_once_per_cast";
+    private static final String REVERT_FIZZLES = "revert_at_a_mob_shrinking_into_its_egg_fizzles";
     /** Ticks past the first cast by which its dart has landed and the calf is shrinking into its egg. */
     private static final int SHRINKING_TICKS = 5;
     private static final Identifier FIZZLE_SOUND = Identifier.withDefaultNamespace("block.fire.extinguish");
     private static final String SHOULD_FIZZLE =
-            "A Rewind landing on a calf already shrinking into its egg should hiss once; hissed %d times";
-    private static final Identifier REWIND = Identifier.parse("goo:yore_rewind");
-    /** Goo enough for both casts whatever Rewind's price, held beside the invoker's own. */
-    private static final int REWIND_GOO = 20;
+            "A Revert landing on a calf already shrinking into its egg should hiss once; hissed %d times";
+    private static final Identifier REVERT = Identifier.parse("goo:xeno_revert");
+    /** Goo enough for both casts whatever Revert's price, held beside the invoker's own. */
+    private static final int REVERT_GOO = 20;
     /** Ticks a cast takes from the release until its step back has played out: the dart, then the shrink. */
     private static final int STEP_TAKEN_TICKS = 35;
     private static final double EGG_SEARCH_BLOCKS = 3;
-    private static final String COW_SHOULD_BE_A_BABY = "The first Rewind should leave the cow a baby";
-    private static final String COW_SHOULD_BE_AN_EGG = "The second Rewind should leave one cow spawn egg; found %d";
+    private static final String COW_SHOULD_BE_A_BABY = "The first Revert should leave the cow a baby";
+    private static final String COW_SHOULD_BE_AN_EGG = "The second Revert should leave one cow spawn egg; found %d";
     private static final Identifier SHULK = Identifier.parse("goo:typhoon_shulk");
     /** How far around the zombie the test looks for the bullet, past the two blocks it starts from. */
     private static final double BULLET_SEARCH_BLOCKS = 8;
@@ -97,8 +97,8 @@ public final class CharmLikeCastTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, LEAD_DARTS, CharmLikeCastTests::leadDartsAndLeads);
         GooTestFunctions.registerTest(registrar, SHULK_SPEWS, CharmLikeCastTests::shulkSpewsAShulkerBulletAtTheTakenMob);
-        GooTestFunctions.registerTest(registrar, REWIND_STEPS, CharmLikeCastTests::rewindStepsACowBackOncePerCast);
-        GooTestFunctions.registerTest(registrar, REWIND_FIZZLES, CharmLikeCastTests::rewindAtAMobShrinkingIntoItsEggFizzles);
+        GooTestFunctions.registerTest(registrar, REVERT_STEPS, CharmLikeCastTests::revertStepsACowBackOncePerCast);
+        GooTestFunctions.registerTest(registrar, REVERT_FIZZLES, CharmLikeCastTests::revertAtAMobShrinkingIntoItsEggFizzles);
     }
 
     /**
@@ -141,24 +141,24 @@ public final class CharmLikeCastTests {
     }
 
     /**
-     * Rewind cast at a cow takes it back one step a cast: the first leaves a
+     * Revert cast at a cow takes it back one step a cast: the first leaves a
      * baby cow, the second its spawn egg (operator: "A second cast takes them
      * to egg if possible").
      *
      * @param helper the gametest helper
      */
-    public static void rewindStepsACowBackOncePerCast(GameTestHelper helper) {
+    public static void revertStepsACowBackOncePerCast(GameTestHelper helper) {
         Mob cow = helper.spawnWithNoFreeWill(EntityType.COW, MOB_POS);
-        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.YORE, REWIND);
-        caster.getInventory().add(GooStacks.createForOutput(GooTypes.YORE, REWIND_GOO * GooStacks.THOUSAND));
-        AbilityDefinition rewind = AbilityRegistry.of(helper.getLevel()).getAbility(REWIND);
-        helper.assertTrue(rewind != null, ABILITY_REQUIRED);
-        KnownRecipes.teachRequires(caster, rewind);
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.XENO, REVERT);
+        caster.getInventory().add(GooStacks.createForOutput(GooTypes.XENO, REVERT_GOO * GooStacks.THOUSAND));
+        AbilityDefinition revert = AbilityRegistry.of(helper.getLevel()).getAbility(REVERT);
+        helper.assertTrue(revert != null, ABILITY_REQUIRED);
+        KnownRecipes.teachRequires(caster, revert);
         Vec3 stood = cow.position();
-        helper.runAfterDelay(SETTLE_TICKS, () -> castAt(caster, GooTypes.YORE, REWIND, cow));
+        helper.runAfterDelay(SETTLE_TICKS, () -> castAt(caster, GooTypes.XENO, REVERT, cow));
         helper.runAfterDelay(SETTLE_TICKS + STEP_TAKEN_TICKS, () -> {
             helper.assertTrue(cow.isAlive() && cow.isBaby(), COW_SHOULD_BE_A_BABY);
-            castAt(caster, GooTypes.YORE, REWIND, cow);
+            castAt(caster, GooTypes.XENO, REVERT, cow);
         });
         helper.runAfterDelay(SETTLE_TICKS + 2 * STEP_TAKEN_TICKS, () -> {
             List<ItemEntity> eggs = helper.getLevel().getEntitiesOfClass(ItemEntity.class,
@@ -170,24 +170,24 @@ public final class CharmLikeCastTests {
     }
 
     /**
-     * Rewind cast at a calf already shrinking into its egg fails visibly: the
+     * Revert cast at a calf already shrinking into its egg fails visibly: the
      * second cast lands while the first still shrinks it, and fizzles at the
      * calf, smoke and the extinguishing hiss, as Charm's missed roll does
      * (operator: "the attempt needs a fanfare, and a failure").
      *
      * @param helper the gametest helper
      */
-    public static void rewindAtAMobShrinkingIntoItsEggFizzles(GameTestHelper helper) {
+    public static void revertAtAMobShrinkingIntoItsEggFizzles(GameTestHelper helper) {
         Cow calf = helper.spawnWithNoFreeWill(EntityType.COW, MOB_POS);
         calf.setAge(AgeableMob.BABY_START_AGE);
-        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.YORE, REWIND);
-        caster.getInventory().add(GooStacks.createForOutput(GooTypes.YORE, REWIND_GOO * GooStacks.THOUSAND));
-        AbilityDefinition rewind = AbilityRegistry.of(helper.getLevel()).getAbility(REWIND);
-        helper.assertTrue(rewind != null, ABILITY_REQUIRED);
-        KnownRecipes.teachRequires(caster, rewind);
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.XENO, REVERT);
+        caster.getInventory().add(GooStacks.createForOutput(GooTypes.XENO, REVERT_GOO * GooStacks.THOUSAND));
+        AbilityDefinition revert = AbilityRegistry.of(helper.getLevel()).getAbility(REVERT);
+        helper.assertTrue(revert != null, ABILITY_REQUIRED);
+        KnownRecipes.teachRequires(caster, revert);
         PacketRecorder heard = PacketRecorder.attachTo(caster);
-        helper.runAfterDelay(SETTLE_TICKS, () -> castAt(caster, GooTypes.YORE, REWIND, calf));
-        helper.runAfterDelay(SETTLE_TICKS + SHRINKING_TICKS, () -> castAt(caster, GooTypes.YORE, REWIND, calf));
+        helper.runAfterDelay(SETTLE_TICKS, () -> castAt(caster, GooTypes.XENO, REVERT, calf));
+        helper.runAfterDelay(SETTLE_TICKS + SHRINKING_TICKS, () -> castAt(caster, GooTypes.XENO, REVERT, calf));
         helper.runAfterDelay(SETTLE_TICKS + SHRINKING_TICKS + DART_LANDED_TICKS, () -> {
             int hisses = HeardSounds.of(heard, FIZZLE_SOUND).size();
             helper.getLevel().getServer().getPlayerList().remove(caster);
