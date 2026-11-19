@@ -49,7 +49,7 @@ public final class WorldGooSoundTests {
                 GooBlocks.PULSE_SIGNAL.get(), GooBlocks.METAL_SPIKES.get(), GooBlocks.ZOMBIE_INFEST.get(),
                 GooBlocks.LEAF_VINES.get(),
                 GooBlocks.SHROOM_SPORES.get(),
-                GooBlocks.ROCK_MORTAR.get())) {
+                GooBlocks.ROCK_MORTAR.get(), GooBlocks.YARN_STITCH.get())) {
             SoundType sound = cell.defaultBlockState().getSoundType(helper.getLevel(), anywhere, null);
             helper.assertTrue(sound == SoundType.SLIME_BLOCK, String.format(SHOULD_SOUND_AS_GOO, cell));
         }

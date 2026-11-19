@@ -127,6 +127,14 @@ public record BlendPalette(float lightRed, float lightGreen, float lightBlue,
             0xB6 / 255f, 0x6C / 255f, 0xD5 / 255f, 0x8E / 255f, 0x44 / 255f, 0xAD / 255f);
 
     /**
+     * Stitch's spray drips, from yarn's highlight tan, CBAE88, to its wheel
+     * tan, B88A5E, the two tans the yarn goo type's definition names.
+     * stitch-is-yarns-residual-that-turns-slimes-into-passive-mobs
+     */
+    public static final BlendPalette STITCH_YARN_TANS = new BlendPalette(
+            0xCB / 255f, 0xAE / 255f, 0x88 / 255f, 0xB8 / 255f, 0x8A / 255f, 0x5E / 255f);
+
+    /**
      * Nitro's spray drips, from unstable's bright green, 88FF44, to its wheel
      * green, 39FF14, the two the unstable goo type's definition names.
      * nitro-is-unstables-goo-that-explodes-in-a-chain-by-its-quantity
