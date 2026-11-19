@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.client.model.GloveSpecialRenderer;
+import net.minecraft.client.resources.model.cuboid.ItemTransform;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
@@ -97,6 +98,65 @@ class DrawnPalmTest {
         @Test
         void anUprightModelsUpIsTheWorldsUp() {
             assertNear(new Vec3(0, 1, 0), palmOf(false, HANGING).modelUp());
+        }
+    }
+
+    /**
+     * In the hand-out hold the glove's palm, as goo_glove.json's third-person
+     * display draws it, faces up under the blob, the blob's rest on that line.
+     * decision third-person-arm-holds-the-hand-out-while-a-blob-is-up
+     */
+    @Nested
+    class FacesUpInTheHandOutHold {
+
+        /** How far off the model's up the palm may face: the arm has no elbow, so it tilts a little below level. */
+        private static final double PALM_UP_WITHIN_DEGREES = 15;
+        /** HumanoidModel's left arm pivot, in pixels. */
+        private static final Vector3fc LEFT_SHOULDER = new Vector3f(5f, 2f, 0f);
+
+        private static ItemTransform thirdPerson(String hand) throws java.io.IOException {
+            com.google.gson.Gson gson = new com.google.gson.GsonBuilder()
+                    .registerTypeAdapter(ItemTransform.class, new ItemTransform.Deserializer()).create();
+            try (java.io.InputStream in = DrawnPalmTest.class.getClassLoader()
+                    .getResourceAsStream("assets/goo/models/item/goo_glove.json")) {
+                com.google.gson.JsonObject model = gson.fromJson(new java.io.InputStreamReader(in,
+                        java.nio.charset.StandardCharsets.UTF_8), com.google.gson.JsonObject.class);
+                return gson.fromJson(model.getAsJsonObject("display").get("thirdperson_" + hand), ItemTransform.class);
+            }
+        }
+
+        /** The palm of a glove arm in the hand-out hold, its arm turned as ModelPart.translateAndRotate turns it. */
+        private static DrawnPalm.Palm heldOut(boolean gloveRight) throws java.io.IOException {
+            AbilityPoses.ArmTurn turn = AbilityPoses.turnedArm(new AbilityPoses.ArmTurn(0f, 0f, 0f), null, 0,
+                    new AbilityPoses.ArmTurn(0f, 0f, 0f), 1f, gloveRight);
+            Matrix4f body = body(false);
+            Matrix4f arm = new Matrix4f(body).translate(new Vector3f(gloveRight ? RIGHT_SHOULDER : LEFT_SHOULDER)
+                    .div(16f)).rotate(new org.joml.Quaternionf().rotationZYX(turn.zRot(), turn.yRot(), turn.xRot()));
+            Matrix4f gloveOnArm = com.mercuriusxeno.goo.client.model.GloveArmLayer.gloveModelOnArm(
+                    thirdPerson(gloveRight ? "righthand" : "lefthand"), !gloveRight);
+            return DrawnPalm.of(arm, body, gloveOnArm, PALM);
+        }
+
+        @org.junit.jupiter.params.ParameterizedTest
+        @org.junit.jupiter.params.provider.ValueSource(booleans = {true, false})
+        void thePalmFacesUpUnderTheBlobAndTheRestStandsOnItsUpLine(boolean gloveRight) throws java.io.IOException {
+            DrawnPalm.Palm palm = heldOut(gloveRight);
+
+            double offUp = Math.toDegrees(Math.acos(palm.palmUp().dot(palm.modelUp())));
+            assertTrue(offUp <= PALM_UP_WITHIN_DEGREES, "the palm should face up, faces " + palm.palmUp()
+                    + ", " + offUp + " degrees off the model's up");
+            Vec3 off = BlobRest.aboveTheDrawnPalm(palm, BlobRest.Rest.ABOVE_THE_HAND).subtract(palm.place());
+            double across = off.subtract(palm.palmUp().scale(off.dot(palm.palmUp()))).length();
+            assertTrue(off.dot(palm.palmUp()) > 0, "the rest should stand above the palm, off it by " + off);
+            assertTrue(across <= off.length() * Math.sin(Math.toRadians(PALM_UP_WITHIN_DEGREES)), "the rest should "
+                    + "stand on the palm's up line, " + across + " across it");
+        }
+
+        @Test
+        void theHandStandsOutBeforeTheBody() throws java.io.IOException {
+            Vec3 palm = heldOut(true).place();
+
+            assertTrue(palm.z > 0.4, "the held out palm " + palm + " should stand ahead, south, of the body");
         }
     }
 
