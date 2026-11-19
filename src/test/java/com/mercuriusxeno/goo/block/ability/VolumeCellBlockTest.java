@@ -147,17 +147,20 @@ class VolumeCellBlockTest {
 
         /** molten-burns-mobs-as-hard-as-lava-and-a-hit-spends-a-layer: Molten's cell is the volume cell, burning */
         @Test
-        void gooBlocksRegistersSlimeSlickMoltenAndShatterAsTheOneVolumeCell() throws ReflectiveOperationException {
+        void gooBlocksRegistersSlimeSlickMoltenShatterAndDowsingAsTheOneVolumeCell()
+                throws ReflectiveOperationException {
             assertEquals(List.of(VolumeCellBlock.class, VolumeCellBlock.class, MoltenCellBlock.class,
-                            VolumeCellBlock.class),
+                            VolumeCellBlock.class, VolumeCellBlock.class),
                     List.of(registeredBlockClass("SLIME_COAT"), registeredBlockClass("KINETIC_SLICK"),
-                            registeredBlockClass("BLAZE_MOLTEN"), registeredBlockClass("CRYSTAL_SHATTER")));
+                            registeredBlockClass("BLAZE_MOLTEN"), registeredBlockClass("CRYSTAL_SHATTER"),
+                            registeredBlockClass("ASTRAL_DOWSING")));
         }
 
         @Test
-        void slimeIsBoundToWeirdSlickToKineticAndMoltenToBlaze() {
-            assertEquals(List.of(GooTypes.WEIRD, GooTypes.KINETIC, GooTypes.BLAZE),
-                    List.of(CellBinding.SLIME.gooType(), CellBinding.SLICK.gooType(), CellBinding.MOLTEN.gooType()));
+        void slimeIsBoundToWeirdSlickToKineticMoltenToBlazeAndDowsingToAstral() {
+            assertEquals(List.of(GooTypes.WEIRD, GooTypes.KINETIC, GooTypes.BLAZE, GooTypes.ASTRAL),
+                    List.of(CellBinding.SLIME.gooType(), CellBinding.SLICK.gooType(), CellBinding.MOLTEN.gooType(),
+                            CellBinding.DOWSING.gooType()));
         }
 
         @Test
@@ -169,9 +172,18 @@ class VolumeCellBlockTest {
         /** molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava: Molten alone pools on lava */
         @Test
         void moltenAlonePoolsOnLava() {
-            assertEquals(List.of(FluidFooting.NONE, FluidFooting.NONE, FluidFooting.LAVA),
+            assertEquals(List.of(FluidFooting.NONE, FluidFooting.NONE, FluidFooting.LAVA, FluidFooting.NONE),
                     List.of(CellBinding.SLIME.fluidFooting(), CellBinding.SLICK.fluidFooting(),
-                            CellBinding.MOLTEN.fluidFooting()));
+                            CellBinding.MOLTEN.fluidFooting(), CellBinding.DOWSING.fluidFooting()));
+        }
+
+        /** astral-world-goo-is-dowsing-an-x-ray-of-ore: Dowsing's cell is ordinary ground to stand on */
+        @Test
+        void dowsingStandsAtOrdinaryGroundFrictionAndNeitherBouncesNorRamps() {
+            CellSurface dowsing = CellBinding.DOWSING.surface();
+
+            assertEquals(List.of(CellSurface.BOUNCE.friction(), false, false),
+                    List.of(dowsing.friction(), dowsing.bounces(), dowsing.ramps()));
         }
 
         /**
@@ -477,6 +489,21 @@ class VolumeCellBlockTest {
         @Test
         void slicksCostPricesACubicMeter() {
             assertEquals(Optional.of("%s/m³"), AbilityJson.decode("kinetic_slick").costFormula());
+        }
+
+        /**
+         * A broken Dowsing cell drops astral goo, a fifteenth of Dowsing's
+         * shipped cost for each layer it held.
+         * astral-world-goo-is-dowsing-an-x-ray-of-ore
+         */
+        @Test
+        void aBrokenDowsingCellDropsAstralGooAFifteenthOfDowsingsCostPerLayer() {
+            GooFraction dowsingCost = AbilityJson.decode("astral_dowsing").cost().exactIn(GooValueTable.EMPTY);
+            int dowsingLayers = 7;
+
+            assertEquals(Optional.of(new VolumeCellBlock.Reclaim(GooTypes.ASTRAL,
+                            dowsingCost.times(dowsingLayers).dividedBy(FIFTEEN).floor())),
+                    VolumeCellBlock.reclaimedBy(CellBinding.DOWSING, dowsingLayers, dowsingCost));
         }
     }
 

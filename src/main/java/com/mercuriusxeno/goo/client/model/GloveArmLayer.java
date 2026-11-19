@@ -1,7 +1,12 @@
 package com.mercuriusxeno.goo.client.model;
 
 import com.mercuriusxeno.goo.client.GooSubmitter;
+import com.mercuriusxeno.goo.client.TranslucentVisualPath;
+import com.mercuriusxeno.goo.client.ability.DrawnPalm;
+import com.mercuriusxeno.goo.client.ability.PortalView;
+import com.mercuriusxeno.goo.client.zone.RoomBodyCopyRenderer;
 import com.mercuriusxeno.goo.item.GooGloveItem;
+import com.mercuriusxeno.goo.item.GooItem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import net.minecraft.client.model.geom.ModelPart;
@@ -19,7 +24,9 @@ import net.minecraft.core.Direction;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.player.PlayerModelType;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
+import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.jspecify.annotations.Nullable;
 import java.util.Collections;
@@ -129,6 +136,20 @@ public final class GloveArmLayer extends RenderLayer<AvatarRenderState, PlayerMo
      * @return the cut's height along the arm part, in pixels
      */
     static float cutHeight(ItemTransform thirdPerson, boolean leftHand, float cuffModelY) {
+        Vector3f cuff = new Vector3f(MODEL_CENTER, cuffModelY / PIXELS_PER_BLOCK, MODEL_CENTER)
+                .mulPosition(gloveModelOnArm(thirdPerson, leftHand));
+        return cuff.y() * PIXELS_PER_BLOCK;
+    }
+
+    /**
+     * The glove's model onto the arm part holding it, as vanilla's ItemInHandLayer draws it: the hand's turn and
+     * offset, then the glove's third-person display transform.
+     *
+     * @param thirdPerson the glove's third-person display transform
+     * @param leftHand    whether the glove is in the left hand
+     * @return the glove's model onto the arm part's pixels, in blocks
+     */
+    public static Matrix4f gloveModelOnArm(ItemTransform thirdPerson, boolean leftHand) {
         PoseStack.Pose pose = new PoseStack.Pose();
         pose.rotate(Axis.XP.rotationDegrees(HAND_X_TURN_DEGREES));
         pose.rotate(Axis.YP.rotationDegrees(HAND_Y_TURN_DEGREES));
@@ -136,8 +157,7 @@ public final class GloveArmLayer extends RenderLayer<AvatarRenderState, PlayerMo
         pose.translate(side * HAND_OFFSET_X_PX / PIXELS_PER_BLOCK, HAND_OFFSET_Y_PX / PIXELS_PER_BLOCK,
                 HAND_OFFSET_Z_PX / PIXELS_PER_BLOCK);
         thirdPerson.apply(leftHand, pose);
-        Vector3f cuff = new Vector3f(MODEL_CENTER, cuffModelY / PIXELS_PER_BLOCK, MODEL_CENTER).mulPosition(pose.pose());
-        return cuff.y() * PIXELS_PER_BLOCK;
+        return new Matrix4f(pose.pose());
     }
 
     /**
@@ -175,6 +195,7 @@ public final class GloveArmLayer extends RenderLayer<AvatarRenderState, PlayerMo
         if (state.isSpectator) {
             return;
         }
+        recordCasterPalms(poseStack, state);
         RenderType renderType = GooSubmitter.livingBodyOn(state.skin.body().texturePath(), state.isInvisible,
                 state.isInvisibleToPlayer, state.appearsGlowing());
         if (renderType == null) {
@@ -188,6 +209,81 @@ public final class GloveArmLayer extends RenderLayer<AvatarRenderState, PlayerMo
                 submitCutArm(poseStack, collector, side, cut, sleeveShown(state, side), draw);
             }
         }
+    }
+
+    /**
+     * Records where each caster held in a hand, a glove or raw goo, draws its palm this frame, from the arm part's
+     * drawn pose, so the lifted blob stands over the hand the model shows. A body drawn in a portal's view or as a
+     * Zone room's copy stands away from the caster, so it records none.
+     * decision third-person-blob-stands-above-the-drawn-palm
+     *
+     * @param poseStack the body's pose stack, onto the camera-relative world
+     * @param state     the avatar's render state
+     */
+    private void recordCasterPalms(PoseStack poseStack, AvatarRenderState state) {
+        Vec3 camera = TranslucentVisualPath.submittingLevelCamera();
+        if (camera == null || drawnAwayFromTheCaster()) {
+            return;
+        }
+        Matrix4f body = new Matrix4f(poseStack.last().pose());
+        for (HumanoidArm side : casterArms(state)) {
+            ItemStackRenderState held = side == HumanoidArm.RIGHT ? state.rightHandItemState : state.leftHandItemState;
+            if (!held.isEmpty()) {
+                DrawnPalm.Palm palm = DrawnPalm.of(armPose(poseStack, side), body,
+                        gloveModelOnArm(held.firstLayer().itemTransform, side == HumanoidArm.LEFT),
+                        GloveSpecialRenderer.restingPalmCenter());
+                DrawnPalm.record(state.id, side, new Vec3(state.x, state.y, state.z), palm.movedBy(camera));
+            }
+        }
+    }
+
+    private static boolean drawnAwayFromTheCaster() {
+        return PortalView.drawing() || RoomBodyCopyRenderer.drawingCopies();
+    }
+
+    /**
+     * The arm part's drawn transform, as ItemInHandLayer reaches the hand.
+     *
+     * @param poseStack the body's pose stack
+     * @param side      the arm
+     * @return the arm part onto the pose stack's output
+     */
+    private Matrix4f armPose(PoseStack poseStack, HumanoidArm side) {
+        poseStack.pushPose();
+        getParentModel().root().translateAndRotate(poseStack);
+        getParentModel().getArm(side).translateAndRotate(poseStack);
+        Matrix4f arm = new Matrix4f(poseStack.last().pose());
+        poseStack.popPose();
+        return arm;
+    }
+
+    /**
+     * The arms holding a caster: a goo glove, or raw goo held bare handed.
+     * decision raw-goo-items-work-bare-handed-for-the-held-type
+     *
+     * @param mainArm  the entity's main arm
+     * @param mainHand what the main hand holds
+     * @param offHand  what the off hand holds
+     * @return the arms holding a caster, empty for none
+     */
+    static Set<HumanoidArm> casterArms(HumanoidArm mainArm, ItemStack mainHand, ItemStack offHand) {
+        Set<HumanoidArm> arms = EnumSet.noneOf(HumanoidArm.class);
+        if (isCaster(mainHand)) {
+            arms.add(mainArm);
+        }
+        if (isCaster(offHand)) {
+            arms.add(mainArm.getOpposite());
+        }
+        return arms;
+    }
+
+    private static boolean isCaster(ItemStack held) {
+        return held.getItem() instanceof GooGloveItem || held.getItem() instanceof GooItem;
+    }
+
+    private static Set<HumanoidArm> casterArms(AvatarRenderState state) {
+        ItemStack offHand = state.mainArm == HumanoidArm.RIGHT ? state.leftHandItemStack : state.rightHandItemStack;
+        return casterArms(state.mainArm, state.getMainHandItemStack(), offHand);
     }
 
     /**

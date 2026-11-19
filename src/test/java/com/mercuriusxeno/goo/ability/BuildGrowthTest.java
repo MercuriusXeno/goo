@@ -6,12 +6,18 @@ import com.mercuriusxeno.goo.data.RemainderLedger;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.Identifier;
+import net.minecraft.tags.TagKey;
 import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.material.PushReaction;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import java.util.List;
 import java.util.Optional;
@@ -77,8 +83,10 @@ class BuildGrowthTest {
     }
 
     /**
-     * Each column reaches down as far as it rises, stopping at bedrock, and lifts what it reached by the rise on stone.
+     * Each column on ground solid through its rise reaches down as far as it rises, stopping at bedrock, and lifts what
+     * it reached by the rise on stone, its deepest block pushed from behind.
      * decision build-reaches-down-as-far-as-it-rises-and-lifts-the-ground-on-stone
+     * decision build-pushes-from-behind-at-full-depth-with-no-air
      */
     @Nested
     class Lift {
@@ -173,6 +181,165 @@ class BuildGrowthTest {
                         column.liftedCells().stream().map(column::liftedTo).toList());
                 assertEquals(List.of(behind, face), column.stoneCells());
             }
+        }
+    }
+
+    /**
+     * A column stops at the first block with a replaceable cell behind it: that block stays, the blocks in front of it
+     * lift, and the stone grows from its near face.
+     * decision build-extends-the-first-block-with-air-behind-it
+     * decision air-behind-a-block-is-anything-stone-can-replace
+     */
+    @Nested
+    class AirBacked {
+
+        private static final int RISE = 3;
+        /** The wall's north face layer, its blocks filling the layers south of it the test names. */
+        private static final int WALL_Z = 10;
+        private static final BlockPos FACE = new BlockPos(0, 64, WALL_Z);
+
+        /** What fills the cell behind the wall, each answering canBeReplaced true. */
+        enum Backing { AIR, WATER }
+
+        private BuildColumn planTheColumn(int thickness, Backing backing) {
+            BlockState air = mock(BlockState.class);
+            when(air.canBeReplaced()).thenReturn(true);
+            when(air.isAir()).thenReturn(true);
+            BlockState water = mock(BlockState.class);
+            when(water.canBeReplaced()).thenReturn(true);
+            when(water.isAir()).thenReturn(false);
+            BlockState brick = mock(BlockState.class);
+            BlockGetter wall = mock(BlockGetter.class);
+            when(wall.getMinY()).thenReturn(-64);
+            when(wall.getBlockState(any(BlockPos.class))).thenAnswer(call -> {
+                int z = call.<BlockPos>getArgument(0).getZ();
+                if (z >= WALL_Z && z < WALL_Z + thickness) {
+                    return brick;
+                }
+                return z >= WALL_Z + thickness && backing == Backing.WATER ? water : air;
+            });
+            return BuildGrowth.plan(wall, new BuildFootprint(FACE, FACE, RISE, Direction.NORTH), PER_BLOCK)
+                    .columns().getFirst();
+        }
+
+        @ParameterizedTest
+        @EnumSource(Backing.class)
+        void aOneThickWallLiftsNothingAndGrowsItsStoneInFrontOfTheFace(Backing backing) {
+            BuildColumn column = planTheColumn(1, backing);
+
+            assertEquals(List.of(), column.liftedCells());
+            assertEquals(List.of(FACE.north(), FACE.north(2), FACE.north(3)), column.stoneCells());
+        }
+
+        @ParameterizedTest
+        @EnumSource(Backing.class)
+        void aTwoThickWallLiftsTheFaceAloneAndGrowsItsStoneFromTheSecondBlocksNearFace(Backing backing) {
+            BuildColumn column = planTheColumn(2, backing);
+
+            assertEquals(List.of(FACE), column.liftedCells());
+            assertEquals(FACE.north(RISE), column.liftedTo(FACE));
+            assertEquals(List.of(FACE, FACE.north(), FACE.north(2)), column.stoneCells());
+        }
+    }
+
+    /**
+     * A block a piston does not push anchors the column: it stays, the blocks in front of it lift and the stone grows
+     * from its near face.
+     * decision build-leaves-what-a-piston-cannot-push-and-grows-from-it
+     */
+    @Nested
+    class Unpushable {
+
+        private static final int RISE = 3;
+        private static final TagKey<Block> ANCHORS =
+                TagKey.create(Registries.BLOCK, Identifier.fromNamespaceAndPath("goo", "build_anchors"));
+
+        /** The kinds of block a piston leaves, each standing one under the ground cell. */
+        enum Kind { NAMED_LIKE_OBSIDIAN, PUSH_REACTION_BLOCK, PUSH_REACTION_DESTROY, UNBREAKABLE }
+
+        private BlockState unpushable(Kind kind) {
+            BlockState state = mock(BlockState.class);
+            switch (kind) {
+                case NAMED_LIKE_OBSIDIAN -> when(state.is(ANCHORS)).thenReturn(true);
+                case PUSH_REACTION_BLOCK -> when(state.getPistonPushReaction()).thenReturn(PushReaction.BLOCK);
+                case PUSH_REACTION_DESTROY -> when(state.getPistonPushReaction()).thenReturn(PushReaction.DESTROY);
+                case UNBREAKABLE -> when(state.getDestroySpeed(any(), any())).thenReturn(-1f);
+            }
+            return state;
+        }
+
+        @ParameterizedTest
+        @EnumSource(Kind.class)
+        void aBlockAPistonLeavesStaysAndTheStoneGrowsFromItsNearFace(Kind kind) {
+            BlockState open = mock(BlockState.class);
+            when(open.canBeReplaced()).thenReturn(true);
+            BlockState dirt = mock(BlockState.class);
+            BlockState anchor = unpushable(kind);
+            BlockGetter ground = mock(BlockGetter.class);
+            when(ground.getMinY()).thenReturn(-64);
+            when(ground.getBlockState(any(BlockPos.class))).thenAnswer(call -> {
+                BlockPos pos = call.getArgument(0);
+                if (pos.equals(CORNER.below())) {
+                    return anchor;
+                }
+                return pos.getY() <= CORNER.getY() ? dirt : open;
+            });
+
+            BuildColumn column = BuildGrowth.plan(ground, new BuildFootprint(CORNER, CORNER, RISE), PER_BLOCK)
+                    .columns().getFirst();
+
+            assertEquals(List.of(CORNER), column.liftedCells());
+            assertEquals(List.of(CORNER, CORNER.above(), CORNER.above(2)), column.stoneCells());
+        }
+    }
+
+    /**
+     * A column whose walk meets a block entity fizzles before any cost; one lying past the walk leaves it growing.
+     * decision column-meeting-a-block-entity-fizzles-at-no-cost
+     */
+    @Nested
+    class BlockEntities {
+
+        private static final int RISE = 3;
+        private static final BlockPos FAR_GROUND = new BlockPos(2, 64, 0);
+        /** The middle column, a chest the depth the test names under its ground cell. */
+        private static final BlockPos CHEST_GROUND = new BlockPos(1, 64, 0);
+
+        private BlockGetter groundWithAChestUnder(int depth) {
+            BlockState open = mock(BlockState.class);
+            when(open.canBeReplaced()).thenReturn(true);
+            BlockState dirt = mock(BlockState.class);
+            BlockState chest = mock(BlockState.class);
+            when(chest.hasBlockEntity()).thenReturn(true);
+            BlockGetter ground = mock(BlockGetter.class);
+            when(ground.getMinY()).thenReturn(-64);
+            when(ground.getBlockState(any(BlockPos.class))).thenAnswer(call -> {
+                BlockPos pos = call.getArgument(0);
+                if (pos.equals(CHEST_GROUND.below(depth))) {
+                    return chest;
+                }
+                return pos.getY() <= CORNER.getY() ? dirt : open;
+            });
+            return ground;
+        }
+
+        @Test
+        void aChestOneUnderAGroundCellFizzlesItsColumnAndItsCost() {
+            BuildGrowth growth = BuildGrowth.plan(groundWithAChestUnder(1),
+                    new BuildFootprint(CORNER, FAR_GROUND, RISE), PER_BLOCK);
+
+            assertEquals(List.of(CORNER, FAR_GROUND), growth.columns().stream().map(BuildColumn::ground).toList());
+            assertEquals(PER_BLOCK.times(2L * RISE), growth.exactCost());
+        }
+
+        @Test
+        void aChestBehindTheDeepestPushedBlockLeavesTheColumnGrowing() {
+            BuildGrowth growth = BuildGrowth.plan(groundWithAChestUnder(RISE),
+                    new BuildFootprint(CHEST_GROUND, CHEST_GROUND, RISE), PER_BLOCK);
+
+            BuildColumn column = growth.columns().getFirst();
+            assertEquals(List.of(CHEST_GROUND.below(2), CHEST_GROUND.below(), CHEST_GROUND), column.liftedCells());
+            assertEquals(PER_BLOCK.times(RISE), growth.exactCost());
         }
     }
 

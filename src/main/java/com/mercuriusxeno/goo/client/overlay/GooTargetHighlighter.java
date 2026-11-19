@@ -22,12 +22,14 @@ import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
+import java.util.List;
 import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.function.Consumer;
@@ -206,11 +208,26 @@ public final class GooTargetHighlighter {
         return new HeldShow(highlight, target.point(), footprint, ghost, realTimeSeconds());
     }
 
+    /**
+     * The ghost stone Build's preview draws while the rise is being set: the
+     * cells the planned growth fills, so a column the plan fizzles shows none.
+     * decision column-meeting-a-block-entity-fizzles-at-no-cost
+     *
+     * @return the ghost cells, empty outside the rise or where nothing grows
+     */
+    private static List<BlockPos> ghostStone() {
+        LocalPlayer player = Minecraft.getInstance().player;
+        if (player == null || !BuildCast.rising()) {
+            return List.of();
+        }
+        return BuildCast.plannedGrowth(player).map(BuildPreview::ghostCells).orElse(List.of());
+    }
+
     private static void drawOverBlocks(HeldShow show) {
         HighlightFrame frame = show.highlight();
         int ringRgb = ClientGooTypes.highlight(frame.selectedType());
         show.footprint().ifPresent(footprint -> BuildPreviewRenderer.render(frame.ps(), frame.buf(),
-                frame.camera().position(), footprint, BuildCast.rising(), ringRgb, show.nowSeconds()));
+                frame.camera().position(), footprint, ghostStone(), ringRgb, show.nowSeconds()));
         HeldDomeRenderer.GhostAt ghost = show.ghost();
         if (ghost != null) {
             HeldDomeRenderer.drawOverBlocks(frame.ps(), frame.buf(), frame.camera().position(), ghost, ringRgb,
