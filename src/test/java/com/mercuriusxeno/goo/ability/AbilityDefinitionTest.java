@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.ability;
 
 import com.mercuriusxeno.goo.ability.program.EntitiesStep;
-import com.mercuriusxeno.goo.ability.program.EntityFilter;
 import com.mercuriusxeno.goo.ability.program.ExplodeStep;
 import com.mercuriusxeno.goo.ability.program.ExplosionMarch;
 import com.mercuriusxeno.goo.ability.program.ExplosionMode;
@@ -9,7 +8,6 @@ import com.mercuriusxeno.goo.ability.program.Expr;
 import com.mercuriusxeno.goo.ability.program.LingerStep;
 import com.mercuriusxeno.goo.ability.program.SelectionShape;
 import com.mercuriusxeno.goo.ability.program.Step;
-import com.mercuriusxeno.goo.ability.program.TargetStep;
 import com.mercuriusxeno.goo.data.GooBaseValuesPreview;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooValue;
@@ -95,16 +93,6 @@ class AbilityDefinitionTest {
                 AbilityJson.decode("crystal_shatter").requires());
     }
 
-    /**
-     * Expire strikes a mob that is no boss.
-     */
-    // decision expire-kills-the-struck-mob
-    @Test
-    void expireStrikesAMobThatIsNoBoss() {
-        TargetStep target = (TargetStep) AbilityJson.decode("yore_expire").behaviors().getFirst();
-        assertEquals(List.of(EntityFilter.MOB, EntityFilter.NOT_BOSS), target.where());
-    }
-
     private static AbilityDefinition requiring(String requires) {
         return AbilityJson.decodeText("made_up", "{\"gooType\": \"rock\", \"displayName\": \"made_up\","
                 + " \"cost\": 10, \"badge\": \"world\", \"behaviors\": [], \"delivery\": {\"kind\": \"arc\"},"
@@ -146,7 +134,7 @@ class AbilityDefinitionTest {
         }
         assertTrue(residualsChecked.containsAll(Set.of("blaze_molten", "deep_host", "frost_rime", "hex_leech",
                 "leaf_vines", "typhoon_updraft", "unstable_nitro", "weird_goop", "kinetic_slick", "jelly_nectar",
-                "pulse_signal", "metal_spikes", "nether_infest", "quantum_phase")), residualsChecked.toString());
+                "pulse_signal", "metal_spikes", "zombie_infest", "quantum_phase")), residualsChecked.toString());
     }
 
     /**
