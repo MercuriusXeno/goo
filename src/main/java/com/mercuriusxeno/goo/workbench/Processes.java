@@ -11,7 +11,7 @@ import java.util.regex.Pattern;
 
 /**
  * The Processes pane's forms for _conversions, each spelled as the game's conversion
- * parser reads it: a formula ("metal / 4 -> yore / 9", "pulse / 4 -> yore * 2 / 3", "type / N -> 0"), an additive
+ * parser reads it: a formula ("metal / 4 -> opulent / 9", "pulse / 4 -> opulent * 2 / 3", "type / N -> 0"), an additive
  * ("+$waxed"), a stack ("2 @oxidation_metal"), and an assignment of a source group to a target group with a chain
  * of stacks and additives ("#exposed": "#copper @exposed_metal") and no scale (decisions
  * workbench-authors-base-values-whole, iterator-drops-its-ratio-from-row-and-grammar). The values manager's mutator controls edit

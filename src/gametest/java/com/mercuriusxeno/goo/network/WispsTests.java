@@ -80,6 +80,12 @@ public final class WispsTests {
     private static final String WISPS_DRIFTING_WISP_STANDS_ON_ITS_SPOT =
             "wisps_drifting_wisp_stands_on_its_spot_as_it_settles";
     private static final String WISPS_EVERY_DRIFTING_WISP_SETTLES = "wisps_every_drifting_wisp_settles";
+    private static final String WISPS_SHED_WISP_SETTLES_WITHIN_A_SECOND =
+            "wisps_shed_wisp_settles_within_a_second_of_leaving";
+    /** Ticks a shed wisp has, from leaving the goo, to stand as a wisp block on its spot: a second. */
+    private static final int SETTLES_WITHIN_TICKS = 20;
+    private static final String SETTLED_LATE = "A wisp left the goo on tick %d and no wisp block stood in the"
+            + " corridor by tick %d";
     /** Ticks the corridor sheds for, several sheds of a full cell, before the test succeeds. */
     private static final int SHEDDING_TICKS = 400;
     /** The cave spans 0 to 15 across and 0 to 4 up inside the light bay, stone shell around its air. */
@@ -150,6 +156,8 @@ public final class WispsTests {
                 WispsTests::wispsShedsAWispIntoTheDark);
         GooTestFunctions.registerTest(registrar, WISPS_EVERY_DRIFTING_WISP_SETTLES,
                 WispsTests::wispsEveryDriftingWispSettles);
+        GooTestFunctions.registerTest(registrar, WISPS_SHED_WISP_SETTLES_WITHIN_A_SECOND,
+                WispsTests::wispsShedWispSettlesWithinASecondOfLeaving);
         GooTestFunctions.registerTest(registrar, WISPS_DRIFTING_WISP_STANDS_ON_ITS_SPOT,
                 WispsTests::wispsDriftingWispStandsOnItsSpotAsItSettles);
         GooTestFunctions.registerTest(registrar, WISPS_DRIP_ON_A_WALL_HOLDS_A_FILM,
@@ -417,6 +425,32 @@ public final class WispsTests {
      */
     public static void wispsShedsAWispIntoTheDark(GameTestHelper helper) {
         sealCorridorWithAFullCell(helper);
+        helper.succeedWhen(() -> helper.assertTrue(!wispsInTheCorridor(helper).isEmpty(), NO_WISP_SETTLED));
+    }
+
+    /**
+     * A full Wisps cell at one end of a sealed dark corridor sheds a wisp,
+     * and a wisp block stands in the corridor's air within a second of the
+     * drifting wisp leaving the goo: the wisp beams to its spot in about
+     * half a second, wherever the spot lies.
+     * shed-wisps-arrive-in-about-half-a-second
+     *
+     * @param helper the gametest helper
+     */
+    public static void wispsShedWispSettlesWithinASecondOfLeaving(GameTestHelper helper) {
+        sealCorridorWithAFullCell(helper);
+        AABB corridor = new AABB(helper.absolutePos(new BlockPos(0, 0, CORRIDOR_Z - 1)))
+                .expandTowards(CORRIDOR_LENGTH + 1, CORRIDOR_HEIGHT + 1, 2);
+        long[] leftAt = {-1};
+        helper.onEachTick(() -> {
+            if (leftAt[0] < 0 && !helper.getLevel().getEntitiesOfClass(DriftingWisp.class, corridor).isEmpty()) {
+                leftAt[0] = helper.getTick();
+            }
+            if (leftAt[0] >= 0 && wispsInTheCorridor(helper).isEmpty()) {
+                helper.assertTrue(helper.getTick() - leftAt[0] < SETTLES_WITHIN_TICKS,
+                        String.format(SETTLED_LATE, leftAt[0], leftAt[0] + SETTLES_WITHIN_TICKS));
+            }
+        });
         helper.succeedWhen(() -> helper.assertTrue(!wispsInTheCorridor(helper).isEmpty(), NO_WISP_SETTLED));
     }
 

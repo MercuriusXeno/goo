@@ -120,12 +120,16 @@ class AbilityRegistryTest {
         }
     }
 
-    /** xeno-blob-mutates-the-struck: Mutate is removed, so xeno's fan holds Unveil alone. */
+    /**
+     * xeno's fan holds Revert before Unveil, and no Mutate.
+     * xeno-blob-mutates-the-struck
+     * yore-leaves-and-rewind-moves-to-xeno-as-revert
+     */
     @Test
-    void shippedXenoFanHoldsUnveilWithoutMutate() {
+    void shippedXenoFanHoldsRevertAndUnveil() {
         AbilityRegistry registry = registryOf(AbilityJson.files().stream().map(AbilityJson::decode));
 
-        assertEquals(List.of(AbilityJson.idOf("xeno_unveil.json")),
+        assertEquals(List.of(AbilityJson.idOf("xeno_revert.json"), AbilityJson.idOf("xeno_unveil.json")),
                 registry.getAbilitiesForType(GooTypes.XENO).stream().map(AbilityDefinition::id).toList());
     }
 
