@@ -90,7 +90,7 @@ public record VerdantStep(Identifier map, int radius, int interval, int tries, i
         }
         BlockPos prism = host.position();
         BlockVisuals.sendToWatchers(level, prism, new ReapSwellPayload(host.center(), swellRadius, swellTicks));
-        RandomSource random = level.getRandom();
+        RandomSource random = VerdantDraws.of(level, prism);
         Optional<BlockMap> greening = BlockMaps.get(map);
         for (int tried = 0; tried < tries; tried++) {
             if (greenCell(level, randomCellWithin(prism, random), greening)) {
