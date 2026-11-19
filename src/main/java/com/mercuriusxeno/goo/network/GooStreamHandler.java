@@ -1024,7 +1024,7 @@ public final class GooStreamHandler {
     static CustomPacketPayload sprayPayloadOf(int casterId, Vec3 apex, ConvergingCone cone, Identifier particle,
                                               DrawnDrips drawn, boolean mists,
                                               ResourceKey<GooTypeDefinition> gooType) {
-        return mists ? new SprayMistPayload(casterId, cone.eye(), cone.axis(), drawn.shape(), particle, gooType,
+        return mists ? new SprayMistPayload(casterId, apex, cone.axis(), drawn.shape(), particle, gooType,
                 MIST_REACH) : dripMotesOf(casterId, apex, cone, particle, drawn);
     }
 
