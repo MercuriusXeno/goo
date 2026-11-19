@@ -80,6 +80,15 @@ final class LitWalls {
         return walls.values().stream().mapToInt(Wall::weighed).sum();
     }
 
+    /**
+     * The walls the live fronts hold lit.
+     *
+     * @return how many
+     */
+    int size() {
+        return walls.size();
+    }
+
     /** Lets go every wall, as a disconnect or a change of dimension does. */
     void clear() {
         walls.clear();

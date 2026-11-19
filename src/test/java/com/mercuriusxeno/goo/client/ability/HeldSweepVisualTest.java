@@ -189,6 +189,9 @@ class HeldSweepVisualTest {
         private static final int TINT = 0x8866FF;
         private static final long HEARD_AT = 100;
         private static final int ROOM = HeldSweepVisual.MOST_BLOCKS;
+        private static final int SKY_FROM = 16;
+        private static final int SECTION = 16;
+        private static final double SKY_WALK = 30;
 
         private final HeldSweepWorld world = new HeldSweepWorld();
         private int blockReads;
@@ -241,6 +244,40 @@ class HeldSweepVisualTest {
 
             assertEquals(0, work[0], "shell positions one client front tick builds, out to 64");
             assertEquals(0, work[1], "block reads one client front tick makes, out to 64");
+        }
+
+        /**
+         * A field's walk reads no block of a section that holds only air and
+         * finds the same walls as a walk reading every block, since air
+         * carries no wall: over the fixed world open to the sky above y 16.
+         */
+        @Test
+        void aWalkPassesOverSectionsOfAirAloneAndFindsTheSameWalls() {
+            Predicate<BlockPos> openSky = pos -> pos.getY() >= SKY_FROM || HeldSweepWorld.isAir(pos);
+            EchoField everyBlock = new EchoField(BODY);
+            everyBlock.reachTo(SKY_WALK, pos -> countedRead(openSky, pos), this::countedShapeOf);
+            int readEveryBlock = blockReads;
+            blockReads = 0;
+            EchoField bySection = new EchoField(BODY);
+            bySection.reachTo(SKY_WALK, pos -> countedRead(openSky, pos), this::countedShapeOf,
+                    (sectionX, sectionY, sectionZ) -> sectionY >= SKY_FROM / SECTION);
+
+            System.out.println("AIR SECTIONS reads every block " + readEveryBlock + ", by section " + blockReads);
+            assertEquals(walls(everyBlock), walls(bySection), "the same walls, in the same order");
+            assertTrue(blockReads < readEveryBlock, "block reads " + blockReads + " against " + readEveryBlock);
+        }
+
+        private boolean countedRead(Predicate<BlockPos> isAir, BlockPos pos) {
+            blockReads++;
+            return isAir.test(pos);
+        }
+
+        private List<BlockPos> walls(EchoField field) {
+            List<BlockPos> walls = new java.util.ArrayList<>();
+            for (int index = 0; index < field.size(); index++) {
+                walls.add(field.face(index).pos());
+            }
+            return walls;
         }
 
         /** The faces the field around the caster holds once the first front has walked out to Scry's reach. */
