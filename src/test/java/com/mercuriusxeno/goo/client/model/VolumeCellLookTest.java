@@ -93,6 +93,7 @@ class VolumeCellLookTest {
                 new Cell("pulse_signal", CellBinding.SIGNAL, "goo:fluid/pulse_fluid", 0xDB0F0F),
                 new Cell("metal_spikes", CellBinding.SPIKES, "goo:fluid/metal_fluid", 0xCFCFCF),
                 new Cell("zombie_infest", CellBinding.INFEST, "goo:fluid/zombie_fluid", 0x56843E),
+                new Cell("nether_gloom", CellBinding.GLOOM, "goo:fluid/nether_fluid", 0x6A4650),
                 new Cell("leaf_vines", CellBinding.VINES, "goo:fluid/leaf_fluid", 0x8DD75F),
                 new Cell("unstable_nitro", CellBinding.NITRO, "goo:fluid/unstable_fluid", 0x55FF22),
                 new Cell("quantum_phase", CellBinding.PHASE, "goo:fluid/quantum_fluid", 0x6AD0F0),
