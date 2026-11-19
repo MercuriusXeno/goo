@@ -24,10 +24,7 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jspecify.annotations.Nullable;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -56,11 +53,9 @@ public final class HeldSweepVisual {
     private static final int FACE_ALPHA = 110;
     /** How far a face quad stands off its block, so it never sinks into the face it marks. */
     private static final float FACE_LIFT = 0.002f;
-    /** A pulse leaves from the caster's body, this far above where the caster stood. */
-    private static final double BODY_CENTER = 0.9;
 
-    private static final Map<Integer, HeldSweepPulse> PULSES = new LinkedHashMap<>();
-    private static final Map<Vec3, EchoField> FIELDS = new HashMap<>();
+    private static final LiveSweeps SWEEPS = new LiveSweeps();
+    private static final Map<Integer, HeldSweepPulse> PULSES = SWEEPS.pulses();
     private static ClientLevel heardIn;
 
     private HeldSweepVisual() {
@@ -87,33 +82,12 @@ public final class HeldSweepVisual {
             clear();
             heardIn = level;
         }
-        hear(PULSES, FIELDS, payload, level.getGameTime(), ClientGooTypes::color);
+        SWEEPS.hear(payload, level.getGameTime(), ClientGooTypes::color);
     }
 
-    /**
-     * Takes one live pulse's tick: a pulse not seen before starts from its
-     * origin, beside the walls any pulse from that spot already found, and
-     * the front takes its new radius.
-     *
-     * @param pulses    the live pulses by id
-     * @param fields    the walls around each spot pulses leave from
-     * @param payload   the pulse's tick
-     * @param gameTime  the game time it arrived
-     * @param typeColor answers a goo type's color
-     */
-    static void hear(Map<Integer, HeldSweepPulse> pulses, Map<Vec3, EchoField> fields, HeldSweepPayload payload,
-                     long gameTime, ToIntFunction<ResourceKey<GooTypeDefinition>> typeColor) {
-        Vec3 center = payload.origin().add(0, BODY_CENTER, 0);
-        HeldSweepPulse pulse = pulses.computeIfAbsent(payload.pulse(), id -> new HeldSweepPulse(
-                fields.computeIfAbsent(center, EchoField::new), payload.range(),
-                tint(payload.gooType(), typeColor), payload.paintsMobs()));
-        pulse.heard(payload.radius(), gameTime);
-    }
-
-    /** Drops every pulse and every painted mob, as a disconnect or a change of dimension does. */
+    /** Drops every pulse, every lit wall and every painted mob, as a disconnect or a change of dimension does. */
     public static void clear() {
-        PULSES.clear();
-        FIELDS.clear();
+        SWEEPS.clear();
         ScryPaintedMobs.CLIENT.clear();
         heardIn = null;
     }
@@ -182,13 +156,13 @@ public final class HeldSweepVisual {
             return;
         }
         double now = level.getGameTime() + mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        upkeepFronts(new Upkeep(PULSES, FIELDS, at -> level.getBlockState(at).isAir(),
+        upkeepFronts(new Upkeep(SWEEPS, at -> level.getBlockState(at).isAir(),
                 at -> level.getBlockState(at).getShape(level, at).toAabbs()), now, level.entitiesForRendering(),
                 mc.player);
-        List<WallGlow> walls = wallsToDraw(PULSES.values(), now);
+        List<WallGlow> walls = wallsToDraw(SWEEPS.walls(), now);
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
-        draws.accept(sortedByNearest(walls.stream().map(wall -> Vec3.atCenterOf(wall.face().pos())), camera,
+        draws.accept(sortedByNearest(walls.stream().map(wall -> wall.face().middle()), camera,
                 () -> drawWalls(frame.poseStack().last(), BufferedPass.of(buffers, GooRenderTypes.SCRY_FACES_TYPE),
                         camera, walls)));
     }
@@ -217,16 +191,13 @@ public final class HeldSweepVisual {
     }
 
     /**
-     * What a frame's upkeep moves on: the live pulses, the walls around
-     * each spot they leave from and the world the fronts walk.
+     * What a frame's upkeep moves on: the live sweeps and the world the fronts walk.
      *
-     * @param pulses  the live pulses by id
-     * @param fields  the walls around each spot pulses leave from
+     * @param sweeps  the live pulses, the walls around each spot they leave from and the walls lit
      * @param isAir   whether a position holds air
      * @param shapeOf a block's voxel shape boxes, block-local
      */
-    record Upkeep(Map<Integer, HeldSweepPulse> pulses, Map<Vec3, EchoField> fields, Predicate<BlockPos> isAir,
-                  Function<BlockPos, List<AABB>> shapeOf) {
+    record Upkeep(LiveSweeps sweeps, Predicate<BlockPos> isAir, Function<BlockPos, List<AABB>> shapeOf) {
     }
 
     /**
@@ -241,10 +212,11 @@ public final class HeldSweepVisual {
      */
     static void upkeepFronts(Upkeep upkeep, double now, Iterable<Entity> entities, @Nullable Entity caster) {
         HeldSweepSections.profiled(HeldSweepSections.FRONT_UPKEEP, () -> {
-            advanceAll(upkeep.pulses(), now, upkeep.isAir(), upkeep.shapeOf());
-            upkeep.fields().values().removeIf(field -> upkeep.pulses().values().stream()
+            Map<Integer, HeldSweepPulse> pulses = upkeep.sweeps().pulses();
+            advanceAll(pulses, now, upkeep.isAir(), upkeep.shapeOf());
+            upkeep.sweeps().fields().values().removeIf(field -> pulses.values().stream()
                     .noneMatch(pulse -> pulse.field() == field));
-            paintCrossedMobs(upkeep.pulses().values(), entities, caster, now);
+            paintCrossedMobs(pulses.values(), entities, caster, now);
         });
     }
 
@@ -330,21 +302,12 @@ public final class HeldSweepVisual {
      * again lights afresh rather than stacking brighter with every pulse,
      * since the walls draw added onto the world.
      *
-     * @param pulses the live pulses
-     * @param now    the game time with its partial tick
+     * @param walls the walls the live fronts hold lit
+     * @param now   the game time with its partial tick
      * @return each wall to draw with its glow and color
      */
-    static List<WallGlow> wallsToDraw(Collection<HeldSweepPulse> pulses, double now) {
-        return HeldSweepSections.profiled(HeldSweepSections.WALL_LIST, () -> {
-            Map<BlockPos, WallGlow> walls = new LinkedHashMap<>();
-            for (HeldSweepPulse pulse : pulses) {
-                for (HeldSweepPulse.LitFace lit : pulse.lit()) {
-                    walls.merge(lit.face().pos(), new WallGlow(lit.face(), glowAt(now - lit.hitAt()),
-                            pulse.tintRgb()), (held, next) -> next.glow() > held.glow() ? next : held);
-                }
-            }
-            return new ArrayList<>(walls.values());
-        });
+    static List<WallGlow> wallsToDraw(LitWalls walls, double now) {
+        return HeldSweepSections.profiled(HeldSweepSections.WALL_LIST, () -> walls.glowingAt(now));
     }
 
     /**

@@ -150,14 +150,15 @@ class HeldSweepVisualTest {
         @Test
         void aWallTwoFrontsLitDrawsOnceAtItsBrighterGlow() {
             EchoField field = new EchoField(CENTER);
-            HeldSweepPulse first = new HeldSweepPulse(field, SCRY_RANGE, TINT);
-            HeldSweepPulse second = new HeldSweepPulse(field, SCRY_RANGE, TINT);
+            LitWalls lit = new LitWalls();
+            HeldSweepPulse first = new HeldSweepPulse(field, SCRY_RANGE, TINT, false, lit);
+            HeldSweepPulse second = new HeldSweepPulse(field, SCRY_RANGE, TINT, false, lit);
             first.heard(4 * BLOCKS_A_TICK, HEARD_AT);
             first.advance(HEARD_AT + 1, OVER_A_FLOOR, CUBES, ROOM);
             second.heard(4 * BLOCKS_A_TICK, HEARD_AT + 10);
             second.advance(HEARD_AT + 11, OVER_A_FLOOR, CUBES, ROOM);
 
-            List<HeldSweepVisual.WallGlow> walls = HeldSweepVisual.wallsToDraw(List.of(first, second), HEARD_AT + 11);
+            List<HeldSweepVisual.WallGlow> walls = HeldSweepVisual.wallsToDraw(lit, HEARD_AT + 11);
 
             assertEquals(walls.stream().map(wall -> wall.face().pos()).distinct().count(), walls.size(),
                     "each wall draws once");
@@ -202,36 +203,44 @@ class HeldSweepVisualTest {
             return HeldSweepWorld.shapeOf(pos);
         }
 
-        /** The block reads one front's last tick out to a range makes, on a pulse whose field walked up to it. */
-        private int readsOfTheLastTickTo(double range) {
-            HeldSweepPulse pulse = new HeldSweepPulse(new EchoField(BODY), range, TINT);
+        /**
+         * One front's last tick out to a range, on a pulse whose field walked
+         * up to it: the shell positions the walk builds and the block reads
+         * it makes over them.
+         */
+        private long[] workOfTheLastTickTo(double range) {
+            EchoField field = new EchoField(BODY);
+            HeldSweepPulse pulse = new HeldSweepPulse(field, range, TINT);
             pulse.heard(range - ONE_TICK, HEARD_AT);
             pulse.advance(HEARD_AT + 1, this::countedIsAir, this::countedShapeOf, ROOM);
             blockReads = 0;
+            long walkedBefore = field.shellPositions();
             pulse.heard(range, HEARD_AT + 1);
             pulse.advance(HEARD_AT + 2, this::countedIsAir, this::countedShapeOf, ROOM);
-            return blockReads;
+            return new long[] {field.shellPositions() - walkedBefore, blockReads};
         }
 
         /**
-         * The walk builds the whole shell the front crossed and then reads
-         * no block of it: the field already holds the most faces it keeps
-         * well inside that radius in this world.
+         * The field already holds the most faces it keeps well inside Scry's
+         * reach in this world, so the walk builds no shell of the band the
+         * front crossed and reads no block of it; commit 96d5c55 built all
+         * 270,961 positions of that shell and read none of them.
          */
         @Test
-        void oneClientPulseTickAtScrysReachBuildsTheShellItCrossedAndReadsNoneOfIt() {
-            assertEquals(270_961, ScryReveal.shell(BODY, HeldSweepHold.SCRY_REACH - ONE_TICK, HeldSweepHold.SCRY_REACH)
-                    .size(), "positions in the shell one client front tick walks, out to 96");
-            assertEquals(0, readsOfTheLastTickTo(HeldSweepHold.SCRY_REACH),
-                    "block reads one client front tick makes, out to 96");
+        void oneClientPulseTickAtScrysReachOnAFullFieldWalksNothing() {
+            long[] work = workOfTheLastTickTo(HeldSweepHold.SCRY_REACH);
+
+            assertEquals(0, work[0], "shell positions one client front tick builds, out to 96");
+            assertEquals(0, work[1], "block reads one client front tick makes, out to 96");
         }
 
+        /** As at Scry's reach, out to the ore sense's radius; commit 96d5c55 built 118,949 positions there. */
         @Test
-        void oneClientPulseTickAtTheOreSensesRadiusBuildsTheShellItCrossedAndReadsNoneOfIt() {
-            assertEquals(118_949, ScryReveal.shell(BODY, HeldSweepHold.ORE_RADIUS - ONE_TICK, HeldSweepHold.ORE_RADIUS)
-                    .size(), "positions in the shell one client front tick walks, out to 64");
-            assertEquals(0, readsOfTheLastTickTo(HeldSweepHold.ORE_RADIUS),
-                    "block reads one client front tick makes, out to 64");
+        void oneClientPulseTickAtTheOreSensesRadiusOnAFullFieldWalksNothing() {
+            long[] work = workOfTheLastTickTo(HeldSweepHold.ORE_RADIUS);
+
+            assertEquals(0, work[0], "shell positions one client front tick builds, out to 64");
+            assertEquals(0, work[1], "block reads one client front tick makes, out to 64");
         }
 
         /** The faces the field around the caster holds once the first front has walked out to Scry's reach. */
@@ -257,6 +266,21 @@ class HeldSweepVisualTest {
             assertEquals(7, hold.clientPulses(), "pulses a ten second Scry hold leaves live");
             assertEquals(HeldSweepVisual.MOST_BLOCKS, hold.walls(), "walls one frame draws");
             assertEquals(16_060, hold.quads() - before, "quads one frame submits");
+        }
+
+        /**
+         * The wall list weighs one hit for each wall it draws, rather than
+         * every live pulse's hit on every wall it lit.
+         */
+        @Test
+        void oneFrameOfATenSecondScryHoldWeighsOneHitForEachWallItDraws() {
+            HeldSweepHold hold = HeldSweepHold.scry(world);
+            hold.settle(HeldSweepHold.TEN_SECONDS);
+            hold.tick();
+
+            hold.frame(0);
+
+            assertEquals(hold.walls(), hold.wallListReads(), "lit hits the wall list weighs in one frame");
         }
 
         @Test

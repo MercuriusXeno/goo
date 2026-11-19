@@ -88,29 +88,25 @@ public final class OreXray {
     }
 
     /**
-     * The two passes the revealed ore draws in, the ore itself and then its glow.
+     * One of the two passes the revealed ore draws in.
      * decision glitter-sphere-icons-gem-ore-groups
+     *
+     * @param rgb   the pass's color
+     * @param alpha the pass's alpha at full show
+     * @param swell the scale about each block's center
      */
-    public enum OrePass {
-        /** The ore block as itself, a little translucent. */
-        ORE(ORE_RGB, ORE_ALPHA, 1f),
-        /** The soft crystal glow swollen past the block. */
-        GLOW(GLOW_RGB, GLOW_ALPHA, GLOW_SWELL);
-
-        private final int rgb;
-        private final float alpha;
-        private final float swell;
-
-        OrePass(int rgb, float alpha, float swell) {
-            this.rgb = rgb;
-            this.alpha = alpha;
-            this.swell = swell;
-        }
+    public record OrePass(int rgb, float alpha, float swell) {
     }
+
+    /** The ore block as itself, a little translucent. */
+    public static final OrePass ORE_PASS = new OrePass(ORE_RGB, ORE_ALPHA, 1f);
+    /** The soft crystal glow swollen past the block. */
+    public static final OrePass GLOW_PASS = new OrePass(GLOW_RGB, GLOW_ALPHA, GLOW_SWELL);
+    private static final List<OrePass> PASSES = List.of(ORE_PASS, GLOW_PASS);
 
     private static RenderType renderTypeOf(Minecraft mc, OrePass pass) {
         Identifier atlas = mc.getAtlasManager().getAtlasOrThrow(AtlasIds.BLOCKS).location();
-        return pass == OrePass.ORE ? GooRenderTypes.fungusXray(atlas) : GooRenderTypes.fungusGlow(atlas);
+        return pass == ORE_PASS ? GooRenderTypes.fungusXray(atlas) : GooRenderTypes.fungusGlow(atlas);
     }
 
     /**
@@ -127,12 +123,12 @@ public final class OreXray {
                                Vec3 camera, List<OreSightings.Sighting> showing,
                                Function<OrePass, BufferedPass> open) {
         HeldSweepSections.profiled(HeldSweepSections.ORE_DRAW, () -> {
-            for (OrePass pass : OrePass.values()) {
+            for (OrePass pass : PASSES) {
                 BufferedPass batch = open.apply(pass);
                 for (OreSightings.Sighting sighting : showing) {
                     FungusXray.drawParts(partsAt.apply(sighting.pos()), poseStack, batch.consumer(),
-                            new FungusXray.Placed(camera, sighting.pos(), pass.swell),
-                            FungusXray.instance(color(pass.rgb, pass.alpha * sighting.shown())));
+                            new FungusXray.Placed(camera, sighting.pos(), pass.swell()),
+                            FungusXray.instance(color(pass.rgb(), pass.alpha() * sighting.shown())));
                 }
                 batch.end().run();
             }
