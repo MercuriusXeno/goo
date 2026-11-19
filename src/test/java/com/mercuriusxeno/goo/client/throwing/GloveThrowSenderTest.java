@@ -155,14 +155,14 @@ class GloveThrowSenderTest {
 
     @Test
     void holdingsOneShortOfTheCostRefuseTheThrow() {
-        ClientAbility mine = clientAbility("deep_shriek");
+        ClientAbility mine = clientAbility("xeno_shriek");
 
         assertFalse(affordsWithHoldings(mine, mine.cost() - 1));
     }
 
     @Test
     void holdingsCoveringTheCostAllowTheThrow() {
-        ClientAbility mine = clientAbility("deep_shriek");
+        ClientAbility mine = clientAbility("xeno_shriek");
 
         assertTrue(affordsWithHoldings(mine, mine.cost()));
     }
@@ -218,7 +218,7 @@ class GloveThrowSenderTest {
         private final ClientAbility lead = clientAbility("yarn_lead");
 
         private boolean sendsHolding(Led targetLead, int holdings) {
-            return GloveThrowSender.affordsAimedThrow(lead, false, CASTER, targetLead,
+            return GloveThrowSender.affordsAimedThrow(lead, CASTER, targetLead,
                     amount -> holdings >= amount, item -> true);
         }
 

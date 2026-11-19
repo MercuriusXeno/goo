@@ -55,7 +55,6 @@ class FungusAimTest {
     void aFungusWithinTheNearReachOfTheFeetCountsAndOnePastItDoesNot() {
         BlockPos twoEast = new BlockPos(2, 0, 0);
         BlockState mushroom = mock(BlockState.class);
-        when(mushroom.is(TransmitStep.FUNGUS)).thenReturn(true);
         BlockState air = mock(BlockState.class);
         Level level = mock(Level.class);
         when(level.getBlockState(any(BlockPos.class))).thenAnswer(call ->
@@ -64,7 +63,7 @@ class FungusAimTest {
         when(caster.position()).thenReturn(new Vec3(0.5, 0, 0.5));
         when(caster.blockPosition()).thenReturn(BlockPos.ZERO);
 
-        assertEquals(List.of(true, false), List.of(FungusAim.standsNearFungus(level, caster, 3),
-                FungusAim.standsNearFungus(level, caster, 1)));
+        assertEquals(List.of(true, false), List.of(FungusAim.standsNearFungus(level, caster, 3, mushroom::equals),
+                FungusAim.standsNearFungus(level, caster, 1, mushroom::equals)));
     }
 }

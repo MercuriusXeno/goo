@@ -6,9 +6,15 @@
     }
   ],
   "placement": {
-    "type": "minecraft:random_spread",
-    "spacing": 20,
-    "separation": 8,
+    "type": "goo:dark_side_spread",
+    "light_side": {
+      "spacing": 20,
+      "separation": 8
+    },
+    "dark_side": {
+      "spacing": 10,
+      "separation": 4
+    },
     "salt": 41908233
   }
 }

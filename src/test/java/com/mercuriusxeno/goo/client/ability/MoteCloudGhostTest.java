@@ -4,7 +4,7 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * The held mote cloud Shroom and Pulse draw keeps every mote within its fuzzy shell, leaves no
+ * The held mote cloud Sculk and Pulse draw keeps every mote within its fuzzy shell, leaves no
  * stretch of the sphere bare, moves its motes on their own, and twinkles them
  * between dim and full (decision held-visual-ghosts-the-landing-in-two-passes).
  */

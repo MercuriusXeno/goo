@@ -24,8 +24,8 @@ public record GooRemainders(Map<ResourceKey<GooTypeDefinition>, GooFraction> par
 
     public static final GooRemainders EMPTY = new GooRemainders(Map.of());
 
-    /** Persistent codec: goo type ids to fractions, a type that left the mod adding to its successor's. */
-    public static final Codec<GooRemainders> CODEC = GooTypes.savedMapCodec(GooFraction.CODEC, GooFraction::plus)
+    /** Persistent codec: goo type ids to fractions. */
+    public static final Codec<GooRemainders> CODEC = Codec.unboundedMap(GooTypes.ID_CODEC, GooFraction.CODEC)
             .xmap(GooRemainders::new, GooRemainders::parts);
 
     /** Network codec: each entry as its type key then its fraction. */
