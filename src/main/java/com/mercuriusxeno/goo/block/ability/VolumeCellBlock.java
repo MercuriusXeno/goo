@@ -1938,7 +1938,8 @@ public class VolumeCellBlock extends Block {
      * step names; on a cutting cell, the shards over it cut a thing moving
      * through them, on the server, by the laying ability's shatter step; a
      * smiting cell burns an undead standing on it; a slowing cell catches
-     * what stands on it; an entangling cell gives vines to what crosses it.
+     * what stands on it; an entangling cell gives vines to what crosses it;
+     * a tangling cell turns a slime standing on it and tangles a hostile.
      * slick-coats-the-ground-with-kinetic-speed
      * slick-is-a-layered-cell-that-flows-thinner-and-faster-than-slime
      * each-shatter-cut-has-a-chance-to-deplete-a-layer
@@ -1959,6 +1960,7 @@ public class VolumeCellBlock extends Block {
         smite(level, pos, state, entity);
         catchIn(level, entity);
         entangle(level, pos, state, entity);
+        tangle(level, pos, state, entity);
         super.stepOn(level, pos, state, entity);
     }
 
@@ -1979,22 +1981,25 @@ public class VolumeCellBlock extends Block {
         smite(level, pos, state, entity);
         catchIn(level, entity);
         entangle(level, pos, state, entity);
-        tangle(level, state, entity);
+        tangle(level, pos, state, entity);
         super.entityInside(state, level, pos, entity, effects, pastEdges);
     }
 
     /**
-     * Tangles a hostile inside a tangling cell's space in its laying
-     * ability's stitch step's strands; a passive passes.
+     * Runs a tangling cell on a thing in it or standing on it, by its laying
+     * ability's stitch step: a slime becomes a passive mob, a hostile is
+     * tangled in strands, and a passive passes.
      * passives-move-through-stitch-and-hostiles-tangle-in-it
+     * stitch-is-yarns-residual-that-turns-slimes-into-passive-mobs
      *
      * @param level  the level the cell stands in
+     * @param pos    the cell
      * @param state  the cell's state
-     * @param entity the entity inside the cell
+     * @param entity the entity in or on the cell
      */
-    private void tangle(Level level, BlockState state, Entity entity) {
+    private void tangle(Level level, BlockPos pos, BlockState state, Entity entity) {
         if (surface().tangles() && level instanceof ServerLevel server) {
-            StitchStep.in(layingProgram(server)).ifPresent(stitch -> StitchEvents.tangle(entity, state, stitch));
+            StitchStep.in(layingProgram(server)).ifPresent(stitch -> StitchEvents.touch(entity, pos, state, stitch));
         }
     }
 
