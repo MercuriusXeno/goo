@@ -9,7 +9,7 @@ import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.util.ARGB;
 
 /**
- * Nether's hive combo: the prism's quartz column, tinted the maroon of the
+ * Zombie's hive combo: the prism's quartz column, tinted the meat brown of the
  * decaying swarm that set into it; the swarm around it is
  * {@link HiveSwarm}'s (decision hive-prism-pillar-eats-the-living).
  */
@@ -17,8 +17,11 @@ public final class HivePrismStyle implements PrismComboStyle {
 
     /** The combo the style draws, Decay's hive. */
     public static final String COMBO = HiveSwarm.COMBO;
-    /** The swarm's maroon, the column's tint. */
-    static final int MAROON = 0x7A1A2A;
+    /**
+     * The column's tint, zombie goo's meat brown edge.
+     * zombie-goo-is-colored-after-zombie-flesh-and-decay-stops-being-maroon
+     */
+    static final int MEAT_BROWN = 0x5E4428;
 
     @Override
     public void submit(PrismRenderState state, PoseStack poseStack, SubmitNodeCollector nodeCollector) {
@@ -32,12 +35,12 @@ public final class HivePrismStyle implements PrismComboStyle {
     }
 
     /**
-     * The hive column's color: the quartz's alpha, in the swarm's maroon.
+     * The hive column's color: the quartz's alpha, in the swarm's meat brown.
      *
      * @param quartzColor the plain prism's ARGB
      * @return the column's ARGB
      */
-    static int columnColor(int quartzColor) {
-        return ARGB.color(ARGB.alpha(quartzColor), MAROON);
+    public static int columnColor(int quartzColor) {
+        return ARGB.color(ARGB.alpha(quartzColor), MEAT_BROWN);
     }
 }

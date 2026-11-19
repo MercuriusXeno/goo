@@ -1,6 +1,6 @@
 {
-  "gooType": "nether",
-  "displayName": "goo.ability.nether.decay",
+  "gooType": "zombie",
+  "displayName": "goo.ability.zombie.decay",
   "badge": "channeled",
   "order": 10,
   "cost": 20,

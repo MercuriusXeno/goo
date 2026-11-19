@@ -96,6 +96,12 @@ public final class GooTypes {
      */
     public static final ResourceKey<GooTypeDefinition> YARN = bundled("yarn");
     public static final ResourceKey<GooTypeDefinition> YORE = bundled("yore");
+    /**
+     * The undead's goo, colored after zombie flesh.
+     * decision zoo-leaves-and-zombie-goo-replaces-it-as-z
+     * decision zombie-goo-is-colored-after-zombie-flesh-and-decay-stops-being-maroon
+     */
+    public static final ResourceKey<GooTypeDefinition> ZOMBIE = bundled("zombie");
     public static final ResourceKey<GooTypeDefinition> ZOO = bundled("zoo");
 
     /**
@@ -115,7 +121,8 @@ public final class GooTypes {
      */
     public static final List<ResourceKey<GooTypeDefinition>> BUNDLED = List.of(
             ASTRAL, BLAZE, CRYSTAL, DEEP, ENDER, FROST, GLOW, HEX, INFINITY, JELLY, KINETIC, LEAF,
-            METAL, NETHER, OPULENT, PULSE, QUANTUM, ROCK, SHROOM, TYPHOON, UNSTABLE, VOID, WEIRD, XENO, YARN, YORE, ZOO);
+            METAL, NETHER, OPULENT, PULSE, QUANTUM, ROCK, SHROOM, TYPHOON, UNSTABLE, VOID, WEIRD, XENO, YARN, YORE,
+            ZOMBIE, ZOO);
 
     /**
      * A type key as its short id: the bare path for a bundled type, the
