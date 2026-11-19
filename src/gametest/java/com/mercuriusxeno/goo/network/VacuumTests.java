@@ -219,6 +219,16 @@ public final class VacuumTests {
     private static final String WORLD_GOOS_LEFT = "Every goo on the volume cell should break and return its layers'"
             + " goo: %s";
 
+    private static final String CLEAR_OF_DROPS = "vacuum_lays_each_world_goo_clear_of_the_last_turns_drops";
+    /**
+     * The tick the stray test's Nitro turn starts on, a tick after the stray lands, since a gametest runs the
+     * callbacks due on one tick in no set order.
+     */
+    private static final int STRAY_TURN_FROM = 2;
+    /** Where the red run's zombie goo drop stood from the cell's lower corner, its box over the cell's west edge. */
+    private static final Vec3 STRAY_OFFSET = new Vec3(-0.037, 0.936, 0.785);
+    private static final int STRAY_VOLUME = 5;
+
     private static final String TAKES_NITRO_UP = "vacuum_takes_nitro_up_without_a_blast";
     private static final String NITRO_NOT_RETURNED = "Vacuum should return %d mb of unstable goo for the Nitro cell,"
             + " %d mb came back";
@@ -265,6 +275,8 @@ public final class VacuumTests {
         GooTestFunctions.registerTest(registrar, RETURNS_THE_LAYERS_PRICE, VacuumTests::vacuumReturnsASlimeCellsLayersPrice);
         GooTestFunctions.registerTest(registrar, RETURNS_THE_SLICKS_PRICE, VacuumTests::vacuumReturnsASlickCellsLayersPrice);
         GooTestFunctions.registerTest(registrar, BREAKS_EVERY_WORLD_GOO, VacuumTests::vacuumBreaksEveryGooOnTheVolumeCell);
+        GooTestFunctions.registerTest(registrar, CLEAR_OF_DROPS,
+                VacuumTests::vacuumLaysEachWorldGooClearOfTheLastTurnsDrops);
         GooTestFunctions.registerTest(registrar, TAKES_NITRO_UP, VacuumTests::vacuumTakesNitroUpWithoutABlast);
         GooTestFunctions.registerTest(registrar, THREE_PARTICLES_PER_LAYER,
                 VacuumTests::vacuumThrowsThreeBreakParticlesPerLayer);
@@ -333,17 +345,10 @@ public final class VacuumTests {
         List<VolumeCellBlock> worldGoos = BuiltInRegistries.BLOCK.stream().filter(VolumeCellBlock.class::isInstance)
                 .map(VolumeCellBlock.class::cast).toList();
         helper.assertTrue(!worldGoos.isEmpty(), NO_WORLD_GOO);
-        layTheFloor(helper);
-        helper.setBlock(laneCell(DECAYED - 1).below(), Blocks.STONE_SLAB);
-        helper.setBlock(laneCell(DECAYED + 1).below(), Blocks.STONE_SLAB);
-        // Molten clings to the cell's walls and cooks stone (molten-heats-every-block-its-cell-touches), and Vines
-        // spends a layer on each wall a vine can hang on (vines-goo-on-walls-places-goologged-vines-and-depletes), so
-        // iron bars, which neither melt nor cook and whose sides hold no vine, wall it and every layer stands for Vacuum
-        helper.setBlock(laneCell(DECAYED).north(), Blocks.IRON_BARS);
-        helper.setBlock(laneCell(DECAYED).south(), Blocks.IRON_BARS);
+        layTheWorldGooLane(helper);
         ServerPlayer vacuumer = vacuumer(helper);
         List<String> left = new ArrayList<>();
-        int turn = drainHold(helper, DECAYED, VACUUMED_LAYERS) + 1 + BETWEEN_HOLDS;
+        int turn = worldGooTurn(helper);
         for (int i = 0; i < worldGoos.size(); i++) {
             vacuumOneWorldGoo(helper, vacuumer, worldGoos.get(i), i * turn, left::add);
         }
@@ -352,6 +357,61 @@ public final class VacuumTests {
             helper.assertTrue(left.isEmpty(), String.format(WORLD_GOOS_LEFT, left));
             helper.succeed();
         });
+    }
+
+    /**
+     * A Nitro cell laid on the every-goo lane while a zombie goo drop from the
+     * turn before still hangs over its west edge, where the drop stood on the
+     * tick it set the cell off in a red run, breaks under Vacuum and returns
+     * its unstable goo all the same.
+     * vacuum-is-voids-held-cone-that-breaks-residuals-in-a-wave
+     *
+     * @param helper the gametest helper
+     */
+    public static void vacuumLaysEachWorldGooClearOfTheLastTurnsDrops(GameTestHelper helper) {
+        layTheWorldGooLane(helper);
+        ServerPlayer vacuumer = vacuumer(helper);
+        List<String> left = new ArrayList<>();
+        helper.runAfterDelay(STRAY_TURN_FROM - 1, () -> strayOverTheCell(helper));
+        vacuumOneWorldGoo(helper, vacuumer, GooBlocks.UNSTABLE_NITRO.get(), STRAY_TURN_FROM, left::add);
+        helper.runAfterDelay(STRAY_TURN_FROM + worldGooTurn(helper), () -> {
+            helper.getLevel().getServer().getPlayerList().remove(vacuumer);
+            helper.assertTrue(left.isEmpty(), String.format(WORLD_GOOS_LEFT, left));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A zombie goo drop hanging still over the lane cell's west edge, where the
+     * red run's stood the tick Nitro was laid, gravity off as the pull leaves it.
+     */
+    private static void strayOverTheCell(GameTestHelper helper) {
+        Vec3 at = Vec3.atLowerCornerOf(helper.absolutePos(laneCell(DECAYED))).add(STRAY_OFFSET);
+        ItemEntity stray = new ItemEntity(helper.getLevel(), at.x, at.y, at.z,
+                GooStacks.createForOutput(GooTypes.ZOMBIE, STRAY_VOLUME));
+        stray.setNoGravity(true);
+        stray.setDeltaMovement(Vec3.ZERO);
+        helper.getLevel().addFreshEntity(stray);
+    }
+
+    /**
+     * Lays the every-goo lane: the floor, open cells east and west of the
+     * vacuumed cell over bottom slabs, and iron bars north and south of it.
+     */
+    private static void layTheWorldGooLane(GameTestHelper helper) {
+        layTheFloor(helper);
+        helper.setBlock(laneCell(DECAYED - 1).below(), Blocks.STONE_SLAB);
+        helper.setBlock(laneCell(DECAYED + 1).below(), Blocks.STONE_SLAB);
+        // Molten clings to the cell's walls and cooks stone (molten-heats-every-block-its-cell-touches), and Vines
+        // spends a layer on each wall a vine can hang on (vines-goo-on-walls-places-goologged-vines-and-depletes), so
+        // iron bars, which neither melt nor cook and whose sides hold no vine, wall it and every layer stands for Vacuum
+        helper.setBlock(laneCell(DECAYED).north(), Blocks.IRON_BARS);
+        helper.setBlock(laneCell(DECAYED).south(), Blocks.IRON_BARS);
+    }
+
+    /** The ticks one world goo's turn takes: its hold, the tick it is checked on, and the gap past the hold. */
+    private static int worldGooTurn(GameTestHelper helper) {
+        return drainHold(helper, DECAYED, VACUUMED_LAYERS) + 1 + BETWEEN_HOLDS;
     }
 
     /**
@@ -387,8 +447,9 @@ public final class VacuumTests {
     }
 
     /**
-     * Lays one world goo's cell at a tick, holds Vacuum over it, and reports
-     * the cell where it stands afterward or returned other than its layers' goo.
+     * Clears the test of loose items, lays one world goo's cell at a tick,
+     * holds Vacuum over it, and reports the cell where it stands afterward or
+     * returned other than its layers' goo.
      */
     private static void vacuumOneWorldGoo(GameTestHelper helper, ServerPlayer vacuumer, VolumeCellBlock worldGoo,
                                           int from, Consumer<String> report) {
@@ -396,6 +457,10 @@ public final class VacuumTests {
         ResourceKey<GooTypeDefinition> type = worldGoo.binding().gooType();
         int[] before = new int[1];
         helper.runAfterDelay(from, () -> {
+            // the turns before were checked with their drops still loose, and a drop of another goo touching the
+            // cell sets Nitro off (nitro-explodes-when-touched-heated-shocked-pulsed-or-struck), so each turn lays
+            // its cell on a lane clear of them
+            helper.getEntities(EntityType.ITEM).forEach(ItemEntity::discard);
             helper.setBlock(cell, worldGoo.defaultBlockState().setValue(VolumeCellBlock.LAYERS, VACUUMED_LAYERS));
             before[0] = gooReturned(helper, vacuumer, type);
         });

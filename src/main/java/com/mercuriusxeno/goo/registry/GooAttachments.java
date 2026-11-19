@@ -16,6 +16,7 @@ import com.mercuriusxeno.goo.ability.kinetic.GrabItemLock;
 import com.mercuriusxeno.goo.ability.kinetic.Grabbed;
 import com.mercuriusxeno.goo.ability.nether.Undead;
 import com.mercuriusxeno.goo.ability.petrify.Petrification;
+import com.mercuriusxeno.goo.ability.program.ChunkMycelium;
 import com.mercuriusxeno.goo.ability.program.EntityCounters;
 import com.mercuriusxeno.goo.ability.program.GougeWindUp;
 import com.mercuriusxeno.goo.ability.program.Lux;
@@ -68,6 +69,17 @@ public final class GooAttachments {
     public static final DeferredHolder<AttachmentType<?>, AttachmentType<SoulBoundStacks>> SOUL_BOUND_STACKS =
             ATTACHMENT_TYPES.register("soul_bound_stacks",
                     () -> AttachmentType.builder(() -> SoulBoundStacks.NONE).serialize(SoulBoundStacks.CODEC).build());
+
+    /**
+     * A chunk's stored mycelium network, saved with the chunk so a load reads
+     * it back rather than scanning the chunk's blocks.
+     * mycelium-networks-are-cached-dags-joined-by-chunk-connectors
+     */
+    public static final Supplier<AttachmentType<ChunkMycelium>> MYCELIUM_NETWORK =
+            ATTACHMENT_TYPES.register("mycelium_network",
+                    () -> AttachmentType.builder(() -> ChunkMycelium.NONE)
+                            .serialize(ChunkMycelium.CODEC)
+                            .build());
 
     /**
      * The counters a struck entity keeps between goo hits, saved with the
