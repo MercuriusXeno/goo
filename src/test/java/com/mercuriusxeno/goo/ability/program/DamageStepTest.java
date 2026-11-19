@@ -1,8 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.ability.SpikeTrapFixture;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
@@ -11,18 +9,8 @@ import net.minecraft.world.damagesource.DamageSources;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
-import java.util.List;
 import java.util.Optional;
-import java.util.stream.StreamSupport;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyFloat;
@@ -32,12 +20,11 @@ import static org.mockito.Mockito.when;
 
 /**
  * The damage a damage step hurts with, read from the shipped ability JSON: its type through the kind's mapping,
- * its amount, knockback and the immunity it leaves, and the vanilla tags that name goo's types.
+ * its amount, knockback and the immunity it leaves.
  */
 class DamageStepTest {
 
     private static final Identifier GOO_STALAGMITE = Identifier.parse("goo:stalagmite");
-    private static final Identifier GOO_EXPIRE = Identifier.parse("goo:expire");
     /** The immunity a vanilla melee hit leaves its target. */
     private static final int IMMUNE_AFTER_A_MELEE_HIT = 10;
     /** The immunity vanilla's hurt leaves its target, LivingEntity's twenty ticks. */
@@ -50,28 +37,6 @@ class DamageStepTest {
     @Test
     void spikeTrapsStabDealsGooStalagmiteDamage() {
         assertEquals(Optional.of(GOO_STALAGMITE), DamageStep.gooTypeOf(spikeTrapsStab().source()).map(ResourceKey::identifier));
-    }
-
-    /**
-     * Expire's blow is goo:expire damage.
-     */
-    // decision expire-kills-the-struck-mob
-    @Test
-    void expiresBlowIsGooExpireDamage() {
-        DamageStep blow = expiresBlow();
-        assertEquals(Optional.of(GOO_EXPIRE), DamageStep.gooTypeOf(blow.source()).map(ResourceKey::identifier));
-    }
-
-    /**
-     * The bypass tags name goo:expire, so the blow lands through a mob's armor and its Resistance.
-     *
-     * @param tag the vanilla damage type tag
-     */
-    // decision expire-kills-the-struck-mob
-    @ParameterizedTest
-    @ValueSource(strings = {"bypasses_armor", "bypasses_resistance"})
-    void theBypassTagNamesGooExpire(String tag) {
-        assertEquals(List.of(GOO_EXPIRE.toString()), damageTypeTag(tag));
     }
 
     /**
@@ -173,27 +138,8 @@ class DamageStepTest {
         return (DamageStep) field.strike().getFirst();
     }
 
-    private static DamageStep expiresBlow() {
-        TargetStep target = (TargetStep) AbilityJson.decode("yore_expire").behaviors().getFirst();
-        return target.steps().stream().filter(DamageStep.class::isInstance).map(DamageStep.class::cast)
-                .findFirst().orElseThrow();
-    }
-
     private static DamageStep boresStrike() {
         BoreStep bore = (BoreStep) AbilityJson.decode("rock_bore").behaviors().getFirst();
         return (DamageStep) bore.strike().getFirst();
-    }
-
-    private static List<String> damageTypeTag(String tag) {
-        String path = "/data/minecraft/tags/damage_type/" + tag + ".json";
-        try (InputStream in = DamageStepTest.class.getResourceAsStream(path)) {
-            assertNotNull(in, path + " should be on the classpath");
-            JsonElement values = JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8))
-                    .getAsJsonObject().get("values");
-            return StreamSupport.stream(values.getAsJsonArray().spliterator(), false)
-                    .map(JsonElement::getAsString).toList();
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
     }
 }

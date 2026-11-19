@@ -1,0 +1,21 @@
+{
+  "gooType": "sculk",
+  "displayName": "goo.ability.sculk.transmit",
+  "badge": "instant",
+  "order": 20,
+  "cost": 1000,
+  "requires": ["minecraft:sculk"],
+  "delivery": { "kind": "self" },
+  "indicator": "held",
+  "behaviors": [
+    { "type": "afterimage", "goo": "sculk" },
+    { "type": "particles", "id": "goo:spore", "at": "target", "count": 96, "spread": 1, "lift": 1, "speed": 0.03 },
+    { "type": "transmit", "range": 64 },
+    { "type": "ghost_trail", "goo": "sculk" },
+    { "type": "afterimage", "goo": "sculk" },
+    { "type": "particles", "id": "goo:spore", "at": "target", "count": 96, "spread": 1, "lift": 1, "speed": 0.03 },
+    { "type": "sound", "id": "minecraft:block.fungus.break", "at": "target", "source": "players", "volume": 1, "pitch": 0.8 }
+  ],
+  "tags": ["self"],
+  "pose": "held_out"
+}

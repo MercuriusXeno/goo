@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:transmit_through_sculk_mycelium_and_creep",
+  "environment": "minecraft:default",
+  "structure": "goo:light_bay",
+  "max_ticks": 20,
+  "setup_ticks": 0,
+  "required": true
+}

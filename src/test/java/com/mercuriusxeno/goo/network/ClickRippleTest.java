@@ -47,7 +47,7 @@ class ClickRippleTest {
     private static final int AFTER = 5;
     private static final double SAME_POINT = 1e-9;
 
-    private final AbilityDefinition click = AbilityJson.decode("deep_click");
+    private final AbilityDefinition click = AbilityJson.decode("pulse_click");
     private final ServerLevel level = mock(ServerLevel.class);
     private final Vec3 wallLanding = GooScanHandler.landingAt(EYE, WALL.getLocation(), click.delivery().range());
     private final int rippleTicks = (int) Math.ceil(click.delivery().range() / click.delivery().blocksPerTick());

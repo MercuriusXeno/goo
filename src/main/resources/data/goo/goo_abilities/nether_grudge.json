@@ -1,0 +1,13 @@
+{
+  "gooType": "nether",
+  "displayName": "goo.ability.nether.grudge",
+  "badge": "channeled",
+  "order": 20,
+  "cost": 1000,
+  "delivery": { "kind": "self", "charge": { "max_ticks": 30 } },
+  "behaviors": [
+    { "type": "grudge", "radius": "2 + 6 * charge" },
+    { "type": "sound", "id": "minecraft:entity.wither.shoot", "at": "target", "source": "players", "volume": 0.8, "pitch": 0.6 }
+  ],
+  "tags": ["self"]
+}

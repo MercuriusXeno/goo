@@ -1,9 +1,0 @@
-{
-  "type": "minecraft:function",
-  "function": "goo:spores_zombie_dying_off_the_goo_bursts_and_grows_mycelium",
-  "environment": "minecraft:default",
-  "structure": "goo:test_bay",
-  "max_ticks": 400,
-  "setup_ticks": 0,
-  "required": true
-}

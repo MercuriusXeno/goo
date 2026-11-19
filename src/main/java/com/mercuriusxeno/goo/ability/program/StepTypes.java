@@ -53,9 +53,11 @@ public final class StepTypes {
         register(TargetStep.TYPE);
         register(FreezeStep.TYPE);
         register(NovaStep.TYPE);
+        register(GrudgeStep.TYPE);
         register(FreezeBlocksStep.TYPE);
         register(CoatStep.TYPE);
         register(SlickStep.TYPE);
+        register(DowseStep.TYPE);
         register(VacuumStep.TYPE);
         register(VacuumPullStep.TYPE);
         register(WobbleStep.TYPE);
@@ -68,17 +70,16 @@ public final class StepTypes {
         register(GlacialStep.TYPE);
         register(LeafSteps.SET_AI.type());
         register(LeafSteps.SET_INVULNERABLE.type());
-        register(LeafSteps.REWIND_HOLD.type());
+        register(LeafSteps.REVERT_HOLD.type());
         register(RegressStep.TYPE);
         register(SpawnSlimeStep.TYPE);
-        register(AncientStep.TYPE);
         register(DropItemStep.TYPE);
         register(LeafSteps.IGNITE.type());
         register(LeafSteps.LIGHT_FIRE.type());
         register(LeafSteps.DETONATE_EXPLOSIVE.type());
         register(MoltenStep.TYPE);
         register(ShatterStep.TYPE);
-        register(HostStep.TYPE);
+        register(CreepStep.TYPE);
         register(RimeStep.TYPE);
         register(LeechGooStep.TYPE);
         register(VinesStep.TYPE);
@@ -103,7 +104,6 @@ public final class StepTypes {
         register(SporeHostStep.TYPE);
         register(FloorsStep.TYPE);
         register(TransmitStep.TYPE);
-        register(SightStep.TYPE);
         register(LuxStep.TYPE);
         register(UnveilStep.TYPE);
         register(WispsStep.TYPE);
@@ -112,6 +112,7 @@ public final class StepTypes {
         register(ScryStep.TYPE);
         register(RayStep.TYPE);
         register(UndeadStep.TYPE);
+        register(InvertStep.TYPE);
         register(LevelStep.TYPE);
         register(BoreStep.TYPE);
         register(BuildStep.TYPE);
@@ -125,7 +126,6 @@ public final class StepTypes {
         register(LeafSteps.HEAL.type());
         register(LeafSteps.COURT.type());
         register(LeafSteps.POWER_PULSE.type());
-        register(LeafSteps.AGE.type());
         register(MetronomeStep.TYPE);
         register(RelayStep.TYPE);
         register(LeafSteps.STUN.type());
@@ -171,8 +171,10 @@ public final class StepTypes {
         register(UpdraftStep.TYPE);
         register(SignalStep.TYPE);
         register(InfestStep.TYPE);
-        register(SporesStep.TYPE);
+        register(StitchStep.TYPE);
         register(NitroStep.TYPE);
+        register(GloomStep.TYPE);
+        register(MortarStep.TYPE);
         register(GrabStep.TYPE);
         register(GougeStep.TYPE);
         register(RemoteStep.TYPE);

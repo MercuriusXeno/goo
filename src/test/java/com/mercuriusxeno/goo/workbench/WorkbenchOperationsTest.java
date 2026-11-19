@@ -186,19 +186,19 @@ class WorkbenchOperationsTest {
         @Test
         void modelReplyCarriesNoChecks() throws IOException {
             JsonObject read = answeredJson(WorkbenchOperations.MODEL, "");
-            JsonObject saved = answeredJson(WorkbenchOperations.SAVE_MODEL, posted(SampleDrafts.diamondLackingYore()));
+            JsonObject saved = answeredJson(WorkbenchOperations.SAVE_MODEL, posted(SampleDrafts.diamondLackingOrnate()));
             assertTrue(saved.has("members"));
             assertFalse(read.has("checks"), read.keySet().toString());
             assertFalse(saved.has("checks"), saved.keySet().toString());
         }
 
         /**
-         * A promote over a draft holding diamond with no yore term, which the retired old rule failed, answers on
+         * A promote over a draft holding diamond with a term dropped, which the retired old rule failed, answers on
          * its first post and leaves the draft's text in the live file (decision values-checks-go-with-the-checks-tab).
          */
         @Test
         void promoteOverAnyDraftAnswersOnce() throws IOException {
-            answered(WorkbenchOperations.SAVE_MODEL, posted(SampleDrafts.diamondLackingYore()));
+            answered(WorkbenchOperations.SAVE_MODEL, posted(SampleDrafts.diamondLackingOrnate()));
             String drafted = Files.readString(paths.draft());
             answered(WorkbenchOperations.PROMOTE, "{}");
             assertEquals(drafted, Files.readString(paths.baseValues()));
@@ -320,14 +320,14 @@ class WorkbenchOperationsTest {
      */
     @Nested
     class AbilitySaveAndPromote {
-        private static final Identifier SHRIEK = Identifier.fromNamespaceAndPath("goo", "deep_shriek");
+        private static final Identifier SHRIEK = Identifier.fromNamespaceAndPath("goo", "xeno_shriek");
         private static final int EDITED_COST = 777;
         private final List<Map<Identifier, JsonObject>> applied = new java.util.ArrayList<>();
         private WorkbenchOperations abilities;
 
         @BeforeEach
         void bindTheAbilityFiles() {
-            JsonObject shipped = JsonParser.parseString(AbilityJson.read("deep_shriek")).getAsJsonObject();
+            JsonObject shipped = JsonParser.parseString(AbilityJson.read("xeno_shriek")).getAsJsonObject();
             abilities = new WorkbenchOperations(paths, () -> new byte[0], () -> { }, (draft, progress) -> 0,
                     text -> { }, new AbilityFiles() {
                         @Override
@@ -955,10 +955,10 @@ class WorkbenchOperationsTest {
             WorkbenchReply reply = named(WorkbenchOperations.CONSTANT_HOVER, "gold_nugget", sample());
             assertEquals(200, reply.status(), reply.text());
             JsonObject hover = JsonParser.parseString(reply.text()).getAsJsonObject();
-            assertEquals("{\"metal\": \"4 $iron_nugget.metal\", \"glow\": 1440, \"opulent\": \"$wealth.opulent\"}",
+            assertEquals("{\"metal\": \"4 $iron_nugget.metal\", \"glow\": 1440, \"ornate\": \"$wealth.ornate\"}",
                     hover.get("expression").getAsString());
             JsonObject tree = hover.getAsJsonObject("tree");
-            assertEquals(Map.of("metal", "4608", "glow", "1440", "opulent", "192"), tree.keySet().stream()
+            assertEquals(Map.of("metal", "4608", "glow", "1440", "ornate", "192"), tree.keySet().stream()
                     .collect(Collectors.toMap(type -> type, type -> tree.get(type).getAsString())));
             assertEquals(BaseValuesModel.parse(sample()).terminusOf("gold_nugget", Map.of()),
                     hover.getAsJsonArray("usedBy").asList().stream().map(JsonElement::getAsString).toList());

@@ -6,7 +6,11 @@ import com.mercuriusxeno.goo.ability.program.CalcifyStep;
 import com.mercuriusxeno.goo.ability.program.Expr;
 import com.mercuriusxeno.goo.ability.program.PetrifyStep;
 import com.mercuriusxeno.goo.ability.program.Step;
+import com.mercuriusxeno.goo.item.SprayerFlow;
 import com.mercuriusxeno.goo.throwing.CoatRay;
+import com.mercuriusxeno.goo.throwing.ConeShape;
+import com.mercuriusxeno.goo.type.GooTypes;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import com.mercuriusxeno.goo.throwing.ConvergingCone;
 import com.mercuriusxeno.goo.throwing.DripArc;
 import net.minecraft.core.BlockPos;
@@ -97,7 +101,7 @@ class GooStreamHandlerTest {
 
         private void assertCrosshairLaunch(double crosshairDistance, double restsAt) {
             Vec3 axis = new Vec3(0.6, 0, 0.8);
-            StreamMotesPayload spores = new StreamMotesPayload(1, GLOVE, axis, SPORE, 0,
+            StreamMotesPayload spores = new StreamMotesPayload(1, GLOVE, axis, SPORE, ConeShape.round(0),
                     GooStreamHandler.crosshairSpeed(RANGE, crosshairDistance), Delivery.NO_THROW_SPEED, false, 0, 0,
                     GLOVE, 0);
 
@@ -331,6 +335,57 @@ class GooStreamHandlerTest {
         @Test
         void theSwarmReachesAMobSevenBlocksOutPastWhereItPaints() {
             assertTrue(GooStreamHandler.inCone(EYE, LOOK, decay, mobAt(new Vec3(7, 0, 0))));
+        }
+    }
+
+    /**
+     * A mister's tick sends the watchers a mist over the cone in the goo's particle, where a cone nozzle's tick
+     * sends the drips it threw (decision mister-draws-mist-and-lays-one-layer-on-bare-spots).
+     */
+    @Nested
+    class MisterSendsMist {
+
+        private static final Identifier GOOP_DRIP = Identifier.fromNamespaceAndPath("goo", "goop_spray_drip");
+        private final ConvergingCone cone = new ConvergingCone(new Vec3(0, 1.62, 0), new Vec3(1, 0, 0), 4);
+        private final ConeShape shape = ConeShape.round(15);
+        private final GooStreamHandler.DrawnDrips drawn = new GooStreamHandler.DrawnDrips(0.8, false, 3, 2, shape);
+
+        @Test
+        void misterTickSendsMist() {
+            CustomPacketPayload mist = GooStreamHandler.sprayPayloadOf(7, Vec3.ZERO, cone, GOOP_DRIP, drawn, true,
+                    GooTypes.WEIRD);
+            CustomPacketPayload drips = GooStreamHandler.sprayPayloadOf(7, Vec3.ZERO, cone, GOOP_DRIP, drawn, false,
+                    GooTypes.WEIRD);
+
+            assertTrue(mist instanceof SprayMistPayload sent && sent.axis().equals(cone.axis())
+                    && sent.coneShape().equals(shape) && sent.particle().equals(GOOP_DRIP),
+                    "a mister's tick should send the mist, sent " + mist);
+            assertTrue(drips instanceof StreamMotesPayload, "a cone nozzle's tick should send its drips, sent "
+                    + drips);
+        }
+    }
+
+    /**
+     * The sprayer's flow scales how many drips a tick it throws, over a hold
+     * (decision spray-item-sprays-more-or-less-per-tick).
+     */
+    @Nested
+    class FlowScalesTheDrips {
+
+        private static final int HOLD_TICKS = 20;
+        private final Delivery goop = AbilityJson.decode("weird_goop").delivery();
+
+        @Test
+        void higherFlowThrowsMoreDripsATick() {
+            int lowest = 0;
+            int highest = 0;
+            for (int held = 1; held <= HOLD_TICKS; held++) {
+                lowest += GooStreamHandler.dripsThisTick(null, goop, Optional.empty(), held,
+                        SprayerFlow.lowest().rate());
+                highest += GooStreamHandler.dripsThisTick(null, goop, Optional.empty(), held,
+                        SprayerFlow.highest().rate());
+            }
+            assertTrue(highest > lowest, "highest flow " + highest + " drips, lowest " + lowest);
         }
     }
 }

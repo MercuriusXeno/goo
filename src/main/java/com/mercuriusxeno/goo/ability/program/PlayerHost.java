@@ -270,7 +270,7 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, Optional<Channe
         AABB bounds = boxes.stream().reduce(AABB::minmax).orElseThrow();
         for (LivingEntity living : level.getEntitiesOfClass(LivingEntity.class, bounds, living -> living != player
                 && living.isAlive() && boxes.stream().anyMatch(living.getBoundingBox()::intersects)
-                && EntityScan.passes(living, filters, player))) {
+                && EntityScan.passes(living, filters, player, player))) {
             body.accept(new EntityHost(level, living, player));
         }
     }

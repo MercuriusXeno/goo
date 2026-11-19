@@ -38,6 +38,16 @@ public final class MonstrosityTests {
     private static final BlockPos MONSTROSITY_POS = new BlockPos(3, 1, 3);
     private static final float KILLING_HIT = 1000.0F;
     private static final int SETTLE_TICKS = 1;
+    /**
+     * The seed the hunting mob's random is set to as it spawns, so its target
+     * goal's roll lands on its first tick, which runs the target goals
+     * whatever its id, rather than once a roll lands.
+     * gametests-waiting-on-a-random-draw-are-found-and-made-deterministic
+     * operator ruling 2026-11-19: seed the drawing random
+     */
+    private static final long HUNT_SEED = 3L;
+    /** The tick by which the hunting mob has run its first tick, which runs its target goals whatever its id. */
+    private static final int HUNTED_BY = 1;
 
     private MonstrosityTests() {
     }
@@ -68,7 +78,8 @@ public final class MonstrosityTests {
 
     /**
      * A free-willed monstrosity beside a player holding Unveil on the glove takes
-     * that player as its target through its own goals.
+     * that player as its target through its own goals, its random seeded as
+     * it spawns.
      *
      * @param helper the gametest helper
      */
@@ -78,10 +89,12 @@ public final class MonstrosityTests {
         eldritch.getInventory().add(GooStacks.createForOutput(GooTypes.XENO, HELD_XENO * GooStacks.THOUSAND));
         HeartOverlayTests.invoke(eldritch, GooTypes.XENO, XENO_UNVEIL);
         EldritchMonstrosity monstrosity = helper.spawn(GooEntities.ELDRITCH_MONSTROSITY.get(), MONSTROSITY_POS);
-        helper.succeedWhen(() -> {
+        monstrosity.getRandom().setSeed(HUNT_SEED);
+        helper.runAtTickTime(HUNTED_BY, () -> {
             helper.assertTrue(monstrosity.getTarget() == eldritch,
                     "A monstrosity should target the eldritch player, targeted " + monstrosity.getTarget());
             helper.getLevel().getServer().getPlayerList().remove(eldritch);
+            helper.succeed();
         });
     }
 

@@ -181,7 +181,7 @@ class TransformationsTest {
         }
     }
 
-    /** Rewind's shrinks ease a model between two sizes (decision rewind-shrinks-adult-to-baby-to-egg). */
+    /** Revert's shrinks ease a model between two sizes (decision rewind-shrinks-adult-to-baby-to-egg). */
     @Nested
     class Shrinks {
 

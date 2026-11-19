@@ -1,7 +1,9 @@
 package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
+import com.mercuriusxeno.goo.GooConfig;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.AbilityRegistrySource;
 import com.mercuriusxeno.goo.block.ability.SideCoat;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.entity.DriftingWisp;
@@ -9,17 +11,19 @@ import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import com.mercuriusxeno.goo.registry.GooBlocks;
-import com.mercuriusxeno.goo.registry.GooServerState;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.monster.skeleton.WitherSkeleton;
 import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.level.LightLayer;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
@@ -77,6 +81,12 @@ public final class WispsTests {
     private static final String WISPS_DRIFTING_WISP_STANDS_ON_ITS_SPOT =
             "wisps_drifting_wisp_stands_on_its_spot_as_it_settles";
     private static final String WISPS_EVERY_DRIFTING_WISP_SETTLES = "wisps_every_drifting_wisp_settles";
+    private static final String WISPS_SHED_WISP_SETTLES_WITHIN_A_SECOND =
+            "wisps_shed_wisp_settles_within_a_second_of_leaving";
+    /** Ticks a shed wisp has, from leaving the goo, to stand as a wisp block on its spot: a second. */
+    private static final int SETTLES_WITHIN_TICKS = 20;
+    private static final String SETTLED_LATE = "A wisp left the goo on tick %d and no wisp block stood in the"
+            + " corridor by tick %d";
     /** Ticks the corridor sheds for, several sheds of a full cell, before the test succeeds. */
     private static final int SHEDDING_TICKS = 400;
     /** The cave spans 0 to 15 across and 0 to 4 up inside the light bay, stone shell around its air. */
@@ -112,6 +122,28 @@ public final class WispsTests {
     /** How far a one-layer cell's shed wisp may head, one block past its layers. */
     private static final int ONE_LAYER_REACH = 2;
     private static final String FILM_WISP_OUT_OF_REACH = "A wisp shed by the film at %s settled at %s, past its reach";
+    private static final String CORRIDOR_LIT = "The corridor's air at %s should read dark before the film is laid,"
+            + " reads light %d";
+    private static final String WISPS_STEP = "wisps";
+    private static final String SHED_SPEND_CHANCE = "shed_spend_chance";
+    /** A spend chance every draw lands under, so the shed spends the film's layer. */
+    private static final double SURE_SPEND = 1.0;
+    private static final String WISP_GIVES_WAY_TO_A_DRIP_ON_THE_FLOOR = "wisp_gives_way_to_a_drip_on_the_floor";
+    private static final String WISP_GIVES_WAY_TO_A_FILM_ON_A_WALL_AND_A_CEILING =
+            "wisp_gives_way_to_a_film_on_a_wall_and_a_ceiling";
+    private static final String WISP_GIVES_WAY_TO_GOO_POURING_BESIDE_IT = "wisp_gives_way_to_goo_pouring_beside_it";
+    private static final String WISP_GIVES_WAY_TO_GOO_FALLING_ONTO_IT = "wisp_gives_way_to_goo_falling_onto_it";
+    private static final Identifier GOOP = Identifier.parse("goo:weird_goop");
+    private static final String GOOP_REQUIRED = "The ability registry must hold weird_goop";
+    private static final String DRIP_EATEN = "A %s drip landing where a wisp stands should lay one layer, stands %s";
+    private static final String POUR_STOPPED = "Goop pouring beside a wisp should take its cell, stands %s";
+    private static final String FALL_STOPPED = "Goop falling onto a wisp should take its cell, stands %s";
+    /** The full Goop cell pouring sideways, and the floor cell beside it where a wisp stands. */
+    private static final BlockPos POURING_CELL = new BlockPos(1, 1, 2);
+    private static final BlockPos POURED_INTO = POURING_CELL.east();
+    /** The wisp standing on a stone floor, and the Goop cell over it that has nothing to hold it up. */
+    private static final BlockPos WISP_UNDER_THE_FALL = new BlockPos(2, 1, 2);
+    private static final BlockPos FALLING_CELL = WISP_UNDER_THE_FALL.above();
 
     private WispsTests() {
     }
@@ -131,6 +163,8 @@ public final class WispsTests {
                 WispsTests::wispsShedsAWispIntoTheDark);
         GooTestFunctions.registerTest(registrar, WISPS_EVERY_DRIFTING_WISP_SETTLES,
                 WispsTests::wispsEveryDriftingWispSettles);
+        GooTestFunctions.registerTest(registrar, WISPS_SHED_WISP_SETTLES_WITHIN_A_SECOND,
+                WispsTests::wispsShedWispSettlesWithinASecondOfLeaving);
         GooTestFunctions.registerTest(registrar, WISPS_DRIFTING_WISP_STANDS_ON_ITS_SPOT,
                 WispsTests::wispsDriftingWispStandsOnItsSpotAsItSettles);
         GooTestFunctions.registerTest(registrar, WISPS_DRIP_ON_A_WALL_HOLDS_A_FILM,
@@ -145,6 +179,118 @@ public final class WispsTests {
         GooTestFunctions.registerTest(registrar, WISPS_WALL_FILM_SHEDS_A_WISP_AND_EMPTIES,
                 helper -> wispsFilmShedsAWispAndEmpties(helper, GooBlocks.GLOW_WISPS.get().defaultBlockState()
                         .setValue(VolumeCellBlock.NORTH, SideCoat.ATTACHED)));
+        GooTestFunctions.registerTest(registrar, WISP_GIVES_WAY_TO_A_DRIP_ON_THE_FLOOR,
+                WispsTests::wispGivesWayToADripOnTheFloor);
+        GooTestFunctions.registerTest(registrar, WISP_GIVES_WAY_TO_A_FILM_ON_A_WALL_AND_A_CEILING,
+                WispsTests::wispGivesWayToAFilmOnAWallAndACeiling);
+        GooTestFunctions.registerTest(registrar, WISP_GIVES_WAY_TO_GOO_POURING_BESIDE_IT,
+                WispsTests::wispGivesWayToGooPouringBesideIt);
+        GooTestFunctions.registerTest(registrar, WISP_GIVES_WAY_TO_GOO_FALLING_ONTO_IT,
+                WispsTests::wispGivesWayToGooFallingOntoIt);
+    }
+
+    /**
+     * A drip landing on a floor cell where a wisp stands lays its one layer
+     * there, a Wisps drip and a Goop drip alike: the wisp gives way to the goo.
+     * every-block-displaces-wisps
+     *
+     * @param helper the gametest helper
+     */
+    public static void wispGivesWayToADripOnTheFloor(GameTestHelper helper) {
+        sealRoom(helper);
+        helper.setBlock(OVER_THE_FLOOR, GooBlocks.WISP.get());
+        landOneDripOnTheFloor(helper, GooTypes.GLOW, WISPS);
+        assertOneLayerOver(helper, GooBlocks.GLOW_WISPS.get(), "Wisps");
+        helper.setBlock(OVER_THE_FLOOR, GooBlocks.WISP.get());
+        landOneDripOnTheFloor(helper, GooTypes.WEIRD, GOOP);
+        assertOneLayerOver(helper, GooBlocks.SLIME_COAT.get(), "Goop");
+        helper.succeed();
+    }
+
+    private static void landOneDripOnTheFloor(GameTestHelper helper, ResourceKey<GooTypeDefinition> gooType,
+                                              Identifier abilityId) {
+        AbilityDefinition ability = AbilityRegistry.of(helper.getLevel()).getAbility(abilityId);
+        helper.assertTrue(ability != null, abilityId.equals(GOOP) ? GOOP_REQUIRED : ABILITY_REQUIRED);
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, gooType);
+        KnownRecipes.teachRequires(caster, ability);
+        LandedDrips.landOn(helper, caster, ability, FLOOR, 1);
+        helper.getLevel().getServer().getPlayerList().remove(caster);
+    }
+
+    private static void assertOneLayerOver(GameTestHelper helper, Block cell, String goo) {
+        BlockState state = helper.getBlockState(OVER_THE_FLOOR);
+        boolean laid = state.is(cell) && state.getValue(VolumeCellBlock.LAYERS) == 1;
+        helper.assertTrue(laid, String.format(DRIP_EATEN, goo, state));
+    }
+
+    /**
+     * A Wisps drip striking a wall face, and one striking a ceiling face,
+     * each hold their film in the cell beside that face where a wisp stands.
+     * every-block-displaces-wisps
+     *
+     * @param helper the gametest helper
+     */
+    public static void wispGivesWayToAFilmOnAWallAndACeiling(GameTestHelper helper) {
+        hangABlock(helper);
+        helper.setBlock(HUNG_BLOCK.west(), GooBlocks.WISP.get());
+        helper.setBlock(HUNG_BLOCK.below(), GooBlocks.WISP.get());
+        landOneDripOnTheHungBlock(helper, Direction.WEST);
+        landOneDripOnTheHungBlock(helper, Direction.DOWN);
+        BlockState wall = helper.getBlockState(HUNG_BLOCK.west());
+        helper.assertTrue(wall.is(GooBlocks.GLOW_WISPS.get())
+                && VolumeCellBlock.coatOn(wall, Direction.EAST) == SideCoat.ATTACHED, String.format(NOT_ON_THE_WALL,
+                wall));
+        BlockState ceiling = helper.getBlockState(HUNG_BLOCK.below());
+        helper.assertTrue(ceiling.is(GooBlocks.GLOW_WISPS.get()) && ceiling.getValue(VolumeCellBlock.CEILING),
+                String.format(NOT_ON_THE_CEILING, ceiling));
+        helper.succeed();
+    }
+
+    /**
+     * A full Goop cell walled in with one floor cell beside it, where a wisp
+     * stands, pours its layers into that cell.
+     * every-block-displaces-wisps
+     *
+     * @param helper the gametest helper
+     */
+    public static void wispGivesWayToGooPouringBesideIt(GameTestHelper helper) {
+        for (int x = 0; x <= ROOM_EDGE; x++) {
+            for (int y = 0; y <= 2; y++) {
+                for (int z = 1; z <= 3; z++) {
+                    helper.setBlock(new BlockPos(x, y, z), Blocks.STONE);
+                }
+            }
+        }
+        helper.setBlock(POURED_INTO, GooBlocks.WISP.get());
+        helper.setBlock(POURING_CELL, GooBlocks.SLIME_COAT.get().defaultBlockState()
+                .setValue(VolumeCellBlock.LAYERS, VolumeCellBlock.MAX_LAYERS));
+        helper.succeedWhen(() -> {
+            BlockState poured = helper.getBlockState(POURED_INTO);
+            helper.assertTrue(poured.is(GooBlocks.SLIME_COAT.get()), String.format(POUR_STOPPED, poured));
+        });
+    }
+
+    /**
+     * A Goop cell set over a wisp standing on a stone floor, with nothing
+     * beside it to hold it, falls, and its layer takes the wisp's cell.
+     * every-block-displaces-wisps
+     *
+     * @param helper the gametest helper
+     */
+    public static void wispGivesWayToGooFallingOntoIt(GameTestHelper helper) {
+        for (int x = 1; x <= 3; x++) {
+            for (int z = 1; z <= 3; z++) {
+                helper.setBlock(new BlockPos(x, 0, z), Blocks.STONE);
+                helper.setBlock(new BlockPos(x, 1, z), Blocks.AIR);
+                helper.setBlock(new BlockPos(x, 2, z), Blocks.AIR);
+            }
+        }
+        helper.setBlock(WISP_UNDER_THE_FALL, GooBlocks.WISP.get());
+        helper.setBlock(FALLING_CELL, GooBlocks.SLIME_COAT.get().defaultBlockState());
+        helper.succeedWhen(() -> {
+            BlockState landed = helper.getBlockState(WISP_UNDER_THE_FALL);
+            helper.assertTrue(landed.is(GooBlocks.SLIME_COAT.get()), String.format(FALL_STOPPED, landed));
+        });
     }
 
     /**
@@ -244,36 +390,62 @@ public final class WispsTests {
 
     /**
      * A Wisps cell holding one film and no fill, hung under the roof of a
-     * sealed dark corridor over its air, sheds wisps that settle as wisp
-     * blocks within its reach, and the shed that spends its one layer leaves
-     * the cell standing as air. A settled wisp lights every cell a one-layer
-     * cell reaches, and a shed spends its layer by the step's chance, so the
-     * test takes each settled wisp away and releases its claim, the dark
-     * standing again, until the film spends its layer.
+     * sealed dark corridor over its air, sheds a wisp that settles as a wisp
+     * block within its reach, and the shed spending its one layer leaves the
+     * cell standing as air. The film is laid once the corridor reads dark,
+     * and its own tick runs at once with the shed's spend held sure, so the
+     * one shed the test reads spends the layer on that tick.
      * wisps-goo-sheds-a-wisp-toward-nearby-dark
+     * gametests-waiting-on-a-random-draw-are-found-and-made-deterministic
      *
      * @param helper the gametest helper
      * @param film   the film cell's state, one layer on the ceiling or a wall
      */
     public static void wispsFilmShedsAWispAndEmpties(GameTestHelper helper, BlockState film) {
         sealCorridor(helper);
-        helper.setBlock(CORRIDOR_FILM, film);
-        boolean[] settled = {false};
-        helper.onEachTick(() -> {
-            for (BlockPos wisp : wispsInTheCorridor(helper)) {
-                helper.assertTrue(wisp.distManhattan(CORRIDOR_FILM) <= ONE_LAYER_REACH,
-                        String.format(FILM_WISP_OUT_OF_REACH, CORRIDOR_FILM, wisp));
-                settled[0] = true;
-                helper.setBlock(wisp, Blocks.AIR);
-                GooServerState.of(helper.getLevel().getServer()).wispClaims()
-                        .release(helper.getLevel(), helper.absolutePos(wisp));
+        helper.startSequence()
+                .thenWaitUntil(() -> assertDarkInReachOfTheFilm(helper))
+                .thenExecute(() -> {
+                    shedTheFilmAtASureSpend(helper, film);
+                    helper.assertTrue(helper.getBlockState(CORRIDOR_FILM).isAir(),
+                            String.format(CELL_WRONG, 0, helper.getBlockState(CORRIDOR_FILM)));
+                })
+                .thenWaitUntil(() -> {
+                    List<BlockPos> wisps = wispsInTheCorridor(helper);
+                    helper.assertTrue(!wisps.isEmpty(), NO_WISP_SETTLED);
+                    for (BlockPos wisp : wisps) {
+                        helper.assertTrue(wisp.distManhattan(CORRIDOR_FILM) <= ONE_LAYER_REACH,
+                                String.format(FILM_WISP_OUT_OF_REACH, CORRIDOR_FILM, wisp));
+                    }
+                })
+                .thenSucceed();
+    }
+
+    private static void assertDarkInReachOfTheFilm(GameTestHelper helper) {
+        for (int x = 1; x <= CORRIDOR_FILM.getX() + ONE_LAYER_REACH; x++) {
+            for (int y = 1; y <= CORRIDOR_HEIGHT; y++) {
+                BlockPos air = new BlockPos(x, y, CORRIDOR_Z);
+                int light = helper.getLevel().getMaxLocalRawBrightness(helper.absolutePos(air));
+                helper.assertTrue(light < GooConfig.wispsLightThreshold(), String.format(CORRIDOR_LIT, air, light));
             }
-        });
-        helper.succeedWhen(() -> {
-            helper.assertTrue(settled[0], NO_WISP_SETTLED);
-            helper.assertTrue(helper.getBlockState(CORRIDOR_FILM).isAir(),
-                    String.format(CELL_WRONG, 0, helper.getBlockState(CORRIDOR_FILM)));
-        });
+        }
+    }
+
+    // Lays the film and runs the cell's own tick at once, the shed's spend chance held sure for that tick alone.
+    private static void shedTheFilmAtASureSpend(GameTestHelper helper, BlockState film) {
+        helper.setBlock(CORRIDOR_FILM, film);
+        BlockPos cellPos = helper.absolutePos(CORRIDOR_FILM);
+        BlockState cell = helper.getLevel().getBlockState(cellPos);
+        AbilityRegistrySource held = (AbilityRegistrySource) helper.getLevel().getServer().getServerResources()
+                .managers();
+        AbilityRegistry shipped = held.abilityRegistry();
+        held.holdAbilityRegistry(HeldAbilitySteps.withStepFields(shipped, WISPS, WISPS_STEP,
+                Map.of(SHED_SPEND_CHANCE, SURE_SPEND)));
+        try {
+            cell.tick(helper.getLevel(), cellPos, helper.getLevel().getRandom());
+        } finally {
+            held.holdAbilityRegistry(shipped);
+        }
     }
 
     /**
@@ -286,6 +458,32 @@ public final class WispsTests {
      */
     public static void wispsShedsAWispIntoTheDark(GameTestHelper helper) {
         sealCorridorWithAFullCell(helper);
+        helper.succeedWhen(() -> helper.assertTrue(!wispsInTheCorridor(helper).isEmpty(), NO_WISP_SETTLED));
+    }
+
+    /**
+     * A full Wisps cell at one end of a sealed dark corridor sheds a wisp,
+     * and a wisp block stands in the corridor's air within a second of the
+     * drifting wisp leaving the goo: the wisp beams to its spot in about
+     * half a second, wherever the spot lies.
+     * shed-wisps-arrive-in-about-half-a-second
+     *
+     * @param helper the gametest helper
+     */
+    public static void wispsShedWispSettlesWithinASecondOfLeaving(GameTestHelper helper) {
+        sealCorridorWithAFullCell(helper);
+        AABB corridor = new AABB(helper.absolutePos(new BlockPos(0, 0, CORRIDOR_Z - 1)))
+                .expandTowards(CORRIDOR_LENGTH + 1, CORRIDOR_HEIGHT + 1, 2);
+        long[] leftAt = {-1};
+        helper.onEachTick(() -> {
+            if (leftAt[0] < 0 && !helper.getLevel().getEntitiesOfClass(DriftingWisp.class, corridor).isEmpty()) {
+                leftAt[0] = helper.getTick();
+            }
+            if (leftAt[0] >= 0 && wispsInTheCorridor(helper).isEmpty()) {
+                helper.assertTrue(helper.getTick() - leftAt[0] < SETTLES_WITHIN_TICKS,
+                        String.format(SETTLED_LATE, leftAt[0], leftAt[0] + SETTLES_WITHIN_TICKS));
+            }
+        });
         helper.succeedWhen(() -> helper.assertTrue(!wispsInTheCorridor(helper).isEmpty(), NO_WISP_SETTLED));
     }
 

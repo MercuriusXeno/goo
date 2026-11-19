@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.ability.program.AilmentKind;
+import com.mercuriusxeno.goo.ability.program.HeldSweepWorld;
 import com.mercuriusxeno.goo.client.RecordingVertexConsumer;
 import com.mercuriusxeno.goo.type.GooColors;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -149,14 +150,15 @@ class HeldSweepVisualTest {
         @Test
         void aWallTwoFrontsLitDrawsOnceAtItsBrighterGlow() {
             EchoField field = new EchoField(CENTER);
-            HeldSweepPulse first = new HeldSweepPulse(field, SCRY_RANGE, TINT);
-            HeldSweepPulse second = new HeldSweepPulse(field, SCRY_RANGE, TINT);
+            LitWalls lit = new LitWalls();
+            HeldSweepPulse first = new HeldSweepPulse(field, SCRY_RANGE, TINT, false, lit);
+            HeldSweepPulse second = new HeldSweepPulse(field, SCRY_RANGE, TINT, false, lit);
             first.heard(4 * BLOCKS_A_TICK, HEARD_AT);
             first.advance(HEARD_AT + 1, OVER_A_FLOOR, CUBES, ROOM);
             second.heard(4 * BLOCKS_A_TICK, HEARD_AT + 10);
             second.advance(HEARD_AT + 11, OVER_A_FLOOR, CUBES, ROOM);
 
-            List<HeldSweepVisual.WallGlow> walls = HeldSweepVisual.wallsToDraw(List.of(first, second), HEARD_AT + 11);
+            List<HeldSweepVisual.WallGlow> walls = HeldSweepVisual.wallsToDraw(lit, HEARD_AT + 11);
 
             assertEquals(walls.stream().map(wall -> wall.face().pos()).distinct().count(), walls.size(),
                     "each wall draws once");
@@ -170,6 +172,166 @@ class HeldSweepVisualTest {
             double farthest = pulse.lit().stream().mapToDouble(lit -> lit.face().distance()).max().orElse(-1);
             assertTrue(farthest <= front && farthest > front - BLOCKS_A_TICK,
                     "the farthest lit wall " + farthest + " stands at the front " + front);
+        }
+    }
+
+    /**
+     * One pulse tick's and one frame's work over the fixed synthetic world,
+     * counted at the seams the fronts walk and the walls draw through: the
+     * baseline a cut to the held sweeps' client cost is proven against.
+     * decision diagnose-and-correct-the-lag-on-four-sense-abilities
+     */
+    @Nested
+    class WorkCounts {
+
+        private static final double ONE_TICK = 2.4;
+        private static final Vec3 BODY = HeldSweepWorld.CASTER.add(0, 0.9, 0);
+        private static final int TINT = 0x8866FF;
+        private static final long HEARD_AT = 100;
+        private static final int ROOM = HeldSweepVisual.MOST_BLOCKS;
+        private static final int SKY_FROM = 16;
+        private static final int SECTION = 16;
+        private static final double SKY_WALK = 30;
+
+        private final HeldSweepWorld world = new HeldSweepWorld();
+        private int blockReads;
+
+        private boolean countedIsAir(BlockPos pos) {
+            blockReads++;
+            return HeldSweepWorld.isAir(pos);
+        }
+
+        private List<AABB> countedShapeOf(BlockPos pos) {
+            blockReads++;
+            return HeldSweepWorld.shapeOf(pos);
+        }
+
+        /**
+         * One front's last tick out to a range, on a pulse whose field walked
+         * up to it: the shell positions the walk builds and the block reads
+         * it makes over them.
+         */
+        private long[] workOfTheLastTickTo(double range) {
+            EchoField field = new EchoField(BODY);
+            HeldSweepPulse pulse = new HeldSweepPulse(field, range, TINT);
+            pulse.heard(range - ONE_TICK, HEARD_AT);
+            pulse.advance(HEARD_AT + 1, this::countedIsAir, this::countedShapeOf, ROOM);
+            blockReads = 0;
+            long walkedBefore = field.shellPositions();
+            pulse.heard(range, HEARD_AT + 1);
+            pulse.advance(HEARD_AT + 2, this::countedIsAir, this::countedShapeOf, ROOM);
+            return new long[] {field.shellPositions() - walkedBefore, blockReads};
+        }
+
+        /**
+         * The field already holds the most faces it keeps well inside Scry's
+         * reach in this world, so the walk builds no shell of the band the
+         * front crossed and reads no block of it; commit 96d5c55 built all
+         * 270,961 positions of that shell and read none of them.
+         */
+        @Test
+        void oneClientPulseTickAtScrysReachOnAFullFieldWalksNothing() {
+            long[] work = workOfTheLastTickTo(HeldSweepHold.SCRY_REACH);
+
+            assertEquals(0, work[0], "shell positions one client front tick builds, out to 96");
+            assertEquals(0, work[1], "block reads one client front tick makes, out to 96");
+        }
+
+        /** As at Scry's reach, out to the ore sense's radius; commit 96d5c55 built 118,949 positions there. */
+        @Test
+        void oneClientPulseTickAtTheOreSensesRadiusOnAFullFieldWalksNothing() {
+            long[] work = workOfTheLastTickTo(HeldSweepHold.ORE_RADIUS);
+
+            assertEquals(0, work[0], "shell positions one client front tick builds, out to 64");
+            assertEquals(0, work[1], "block reads one client front tick makes, out to 64");
+        }
+
+        /**
+         * A field's walk reads no block of a section that holds only air and
+         * finds the same walls as a walk reading every block, since air
+         * carries no wall: over the fixed world open to the sky above y 16.
+         */
+        @Test
+        void aWalkPassesOverSectionsOfAirAloneAndFindsTheSameWalls() {
+            Predicate<BlockPos> openSky = pos -> pos.getY() >= SKY_FROM || HeldSweepWorld.isAir(pos);
+            EchoField everyBlock = new EchoField(BODY);
+            everyBlock.reachTo(SKY_WALK, pos -> countedRead(openSky, pos), this::countedShapeOf);
+            int readEveryBlock = blockReads;
+            blockReads = 0;
+            EchoField bySection = new EchoField(BODY);
+            bySection.reachTo(SKY_WALK, pos -> countedRead(openSky, pos), this::countedShapeOf,
+                    (sectionX, sectionY, sectionZ) -> sectionY >= SKY_FROM / SECTION);
+
+            System.out.println("AIR SECTIONS reads every block " + readEveryBlock + ", by section " + blockReads);
+            assertEquals(walls(everyBlock), walls(bySection), "the same walls, in the same order");
+            assertTrue(blockReads < readEveryBlock, "block reads " + blockReads + " against " + readEveryBlock);
+        }
+
+        private boolean countedRead(Predicate<BlockPos> isAir, BlockPos pos) {
+            blockReads++;
+            return isAir.test(pos);
+        }
+
+        private List<BlockPos> walls(EchoField field) {
+            List<BlockPos> walls = new java.util.ArrayList<>();
+            for (int index = 0; index < field.size(); index++) {
+                walls.add(field.face(index).pos());
+            }
+            return walls;
+        }
+
+        /** The faces the field around the caster holds once the first front has walked out to Scry's reach. */
+        @Test
+        void aFieldWalkedOutToScrysReachHoldsTheMostFacesItKeeps() {
+            EchoField field = new EchoField(BODY);
+            field.reachTo(HeldSweepHold.SCRY_REACH, HeldSweepWorld::isAir, HeldSweepWorld::shapeOf);
+
+            assertEquals(EchoField.MOST_FACES, field.size(), "faces the field keeps");
+            assertEquals(HeldSweepHold.SCRY_REACH, field.face(field.size() - 1).distance(), 0.5,
+                    "distance of the farthest face kept");
+        }
+
+        @Test
+        void oneFrameOfATenSecondScryHoldSubmitsItsLitWallsAndFronts() {
+            HeldSweepHold hold = HeldSweepHold.scry(world);
+            hold.settle(HeldSweepHold.TEN_SECONDS);
+            hold.tick();
+            long before = hold.quads();
+
+            hold.frame(0);
+
+            assertEquals(7, hold.clientPulses(), "pulses a ten second Scry hold leaves live");
+            assertEquals(HeldSweepVisual.MOST_BLOCKS, hold.walls(), "walls one frame draws");
+            assertEquals(16_060, hold.quads() - before, "quads one frame submits");
+        }
+
+        /**
+         * The wall list weighs one hit for each wall it draws, rather than
+         * every live pulse's hit on every wall it lit.
+         */
+        @Test
+        void oneFrameOfATenSecondScryHoldWeighsOneHitForEachWallItDraws() {
+            HeldSweepHold hold = HeldSweepHold.scry(world);
+            hold.settle(HeldSweepHold.TEN_SECONDS);
+            hold.tick();
+
+            hold.frame(0);
+
+            assertEquals(hold.walls(), hold.wallListReads(), "lit hits the wall list weighs in one frame");
+        }
+
+        @Test
+        void oneFrameOfATenSecondOreSenseHoldSubmitsItsLitWallsFrontsAndOre() {
+            HeldSweepHold hold = HeldSweepHold.oreSense(world);
+            hold.settle(HeldSweepHold.TEN_SECONDS);
+            hold.tick();
+            long before = hold.quads();
+
+            hold.frame(0);
+
+            assertEquals(7, hold.clientPulses(), "pulses a ten second ore-sense hold leaves live");
+            assertEquals(HeldSweepVisual.MOST_BLOCKS, hold.walls(), "walls one frame draws");
+            assertEquals(24_760, hold.quads() - before, "quads one frame submits");
         }
     }
 

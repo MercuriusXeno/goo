@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.gametest;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.astral.LunarFixation;
+import com.mercuriusxeno.goo.ability.astral.LunarLanding;
 import com.mercuriusxeno.goo.ability.astral.LunarSight;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
@@ -23,6 +24,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.attribute.EnvironmentAttributes;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.MoonPhase;
 import net.minecraft.world.level.portal.TeleportTransition;
 import net.minecraft.world.phys.Vec2;
 import net.minecraft.world.phys.Vec3;
@@ -34,13 +36,14 @@ import java.util.function.Function;
 
 /**
  * Gametests for Lunar, a hold: holding the cast on the moon in the overworld holds the caster's gaze through
- * the fixation and then carries them to lunar over the spot they stood on, paying the astral at the carry; letting go
- * early leaves them where they stood, free, and paying nothing; held on the blue overworld star in lunar it carries
- * them back to the exact place they left from, and let go early it leaves them on lunar with their way home kept;
- * held looking at neither, it refuses.
+ * the fixation and then carries them to lunar at the landing time and phase set, paying the astral at the carry;
+ * letting go early leaves them where they stood, free, and paying nothing; held on the blue overworld star in lunar it
+ * carries them back to the exact place they left from, and let go early it leaves them on lunar with their way home
+ * kept; held looking at neither, it refuses.
  * decision gate-fixates-your-view-on-the-moon-until-it-takes-you
  * decision gate-on-the-blue-star-returns-you-exactly-where-you-left
  * decision holding-right-click-pulls-the-moon-and-early-release-cancels
+ * decision time-and-phase-set-x-and-your-overworld-spot-sets-z
  */
 @RegistersGameTests
 public final class AstralLunarTests {
@@ -51,6 +54,7 @@ public final class AstralLunarTests {
             "lunar_press_after_a_release_takes_at_every_gap";
     private static final String LUNAR_ON_THE_BLUE_STAR_RETURNS_YOU_EXACTLY ="lunar_on_the_blue_star_returns_you_exactly";
     private static final String LUNAR_ON_NEITHER_REFUSES = "lunar_on_neither_refuses";
+    private static final String LUNAR_UNDER_THE_NEW_MOON_REFUSES = "lunar_under_the_new_moon_refuses";
     private static final String LUNAR_ON_THE_HIDDEN_PLANET_REFUSES = "lunar_on_the_hidden_planet_refuses";
     private static final String LUNAR_ON_THE_SUN_SAYS_THE_BIG_YELLOW_ONE = "lunar_on_the_sun_says_the_big_yellow_one";
     private static final String TERRAN_ON_THE_SUN_SAYS_THE_BIG_YELLOW_ONE = "terran_on_the_sun_says_the_big_yellow_one";
@@ -94,7 +98,8 @@ public final class AstralLunarTests {
     private static final String ABILITY_REQUIRED = "goo:astral_lunar must be loaded";
     private static final String LUNAR_REQUIRED = "The server should hold goo:lunar";
     private static final String HELD = "Inside the fixation the caster should stand held where they cast, %s, stands %s";
-    private static final String IN_LUNAR = "Lunar should carry the caster to lunar over %s, carried to %s at %s";
+    private static final String IN_LUNAR = "Lunar should carry the caster to lunar, carried to %s at %s";
+    private static final String LANDED = "Lunar should land the caster on lunar at the landing %s, carried to %s at %s";
     private static final String HOME = "Lunar should return the caster to %s at %s facing %s/%s, returned to %s at %s"
             + " facing %s/%s";
     private static final String ARRIVAL_MARKED = "A caster Lunar carried should hold the arrival mark at the far end";
@@ -126,6 +131,10 @@ public final class AstralLunarTests {
     /** The lang key Terran's refusal reads on the moon, the one LunarSight.TERRAN_REFUSED names. */
     private static final String TERRAN_REFUSAL_KEY = "goo.ability.astral.terran.refused";
     private static final String STAYED ="A refused Lunar should leave the caster where they stood, %s, stands %s";
+    private static final String NEW_MOON_NIGHT = "The environment's night should be the new moon, is %s";
+    private static final String NEW_MOON_HELD = "Lunar held on the new moon should hold no fixation";
+    private static final String NEW_MOON_REFUSED_ONCE = "A press held %d ticks on the new moon should show the refusal"
+            + " once, showed it %d times";
 
     private AstralLunarTests() {
     }
@@ -145,6 +154,8 @@ public final class AstralLunarTests {
         GooTestFunctions.registerTest(registrar, LUNAR_ON_THE_BLUE_STAR_RETURNS_YOU_EXACTLY,
                 AstralLunarTests::lunarOnTheBlueStarReturnsYouExactly);
         GooTestFunctions.registerTest(registrar, LUNAR_ON_NEITHER_REFUSES, AstralLunarTests::lunarOnNeitherRefuses);
+        GooTestFunctions.registerTest(registrar, LUNAR_UNDER_THE_NEW_MOON_REFUSES,
+                AstralLunarTests::lunarUnderTheNewMoonRefuses);
         GooTestFunctions.registerTest(registrar, LUNAR_ON_THE_HIDDEN_PLANET_REFUSES,
                 AstralLunarTests::lunarOnTheHiddenPlanetRefuses);
         GooTestFunctions.registerTest(registrar, TERRAN_OFF_THE_PLANET_SAYS_THATS_NOT_YOUR_WORLD,
@@ -191,7 +202,7 @@ public final class AstralLunarTests {
 
     /**
      * By the overworld's night a caster holding the cast on the moon stands held through the fixation, spending
-     * nothing, then stands in lunar over the column they cast from, the astral spent once at the carry.
+     * nothing, then stands in lunar, the astral spent once at the carry.
      *
      * @param helper the gametest helper
      */
@@ -209,11 +220,8 @@ public final class AstralLunarTests {
         helper.runAfterDelay(FIXATION - 1, () -> helper.assertTrue(astral(caster) == astralBefore,
                 String.format(UNPAID_BEFORE_THE_CARRY, astral(caster), astralBefore)));
         helper.runAfterDelay(PAST_THE_FIXATION, () -> {
-            boolean overTheColumn = caster.level().dimension() == Lunar.LEVEL
-                    && Math.floor(caster.getX()) == Math.floor(castFrom.x)
-                    && Math.floor(caster.getZ()) == Math.floor(castFrom.z);
-            helper.assertTrue(overTheColumn, String.format(IN_LUNAR, castFrom, caster.level().dimension(),
-                    caster.position()));
+            helper.assertTrue(caster.level().dimension() == Lunar.LEVEL, String.format(IN_LUNAR,
+                    caster.level().dimension(), caster.position()));
             helper.assertTrue(caster.getData(GooAttachments.LUNAR_ARRIVAL).stands(), ARRIVAL_MARKED);
             int spent = astralBefore - astral(caster);
             helper.assertTrue(spent == COST, String.format(PAID_ONCE, COST, spent));
@@ -248,9 +256,12 @@ public final class AstralLunarTests {
     }
 
     /**
-     * A caster who left the overworld for lunar and lets go of a pull on the blue star stays on lunar with their way
-     * home kept; holding the star through after that, they stand at the exact place and facing they left from,
-     * marked as arrived anew.
+     * By a night the overworld's clock stands still, a caster the moon carries stands on lunar at the landing the
+     * night's phase and tick and their account UUID answer; letting go of a pull on the blue star they stay on lunar
+     * with their way home kept, and holding the star through after that, they stand at the exact place and facing they
+     * left from, marked as arrived anew.
+     * decision time-and-phase-set-x-and-your-overworld-spot-sets-z
+     * decision z-is-a-function-of-the-account-uuid
      *
      * @param helper the gametest helper
      */
@@ -270,8 +281,13 @@ public final class AstralLunarTests {
         long[] arrivedInLunarAt = new long[1];
         int starFrom = PAST_THE_FIXATION;
         helper.runAfterDelay(starFrom, () -> {
-            helper.assertTrue(caster.level().dimension() == Lunar.LEVEL, String.format(IN_LUNAR, leftFrom,
-                    caster.level().dimension(), caster.position()));
+            LunarLanding.Spot landing = LunarLanding.at(overworld.environmentAttributes()
+                    .getValue(EnvironmentAttributes.MOON_PHASE, leftFrom).index(),
+                    LunarLanding.nightTickAt(overworld.getOverworldClockTime()), caster.getUUID());
+            boolean landed = caster.level().dimension() == Lunar.LEVEL
+                    && Math.abs(caster.getX() - landing.x()) < SAME_SPOT
+                    && Math.abs(caster.getZ() - landing.z()) < SAME_SPOT;
+            helper.assertTrue(landed, String.format(LANDED, landing, caster.level().dimension(), caster.position()));
             arrivedInLunarAt[0] = caster.getData(GooAttachments.LUNAR_ARRIVAL).arrivedAt();
             dropRemainders(caster);
             face(caster, moonFrom(caster));
@@ -400,6 +416,35 @@ public final class AstralLunarTests {
                     String.format(REFUSED_UNPAID, astralBefore, astral(caster)));
             int refusals = refusalsSentTo(caster, TERRAN_REFUSAL_KEY);
             helper.assertTrue(refusals == 1, String.format(TERRAN_REFUSED_ONCE, LET_GO_AFTER, refusals));
+            helper.getLevel().getServer().getPlayerList().remove(caster);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * In the overworld by a night of the new moon, the planet full, a caster holding the cast at the moon's place in
+     * the sky holds no fixation, stays in the overworld where they stood and is shown "That's no moon!".
+     * decision moon-trip-refuses-under-the-new-moon
+     *
+     * @param helper the gametest helper
+     */
+    public static void lunarUnderTheNewMoonRefuses(GameTestHelper helper) {
+        ServerPlayer caster = caster(helper);
+        MoonPhase phase = helper.getLevel().environmentAttributes()
+                .getValue(EnvironmentAttributes.MOON_PHASE, caster.position());
+        helper.assertTrue(phase == MoonPhase.NEW_MOON, String.format(NEW_MOON_NIGHT, phase));
+        face(caster, moonFrom(caster));
+        Vec3 stood = caster.position();
+        refusalsSentTo(caster);
+        holdFor(helper, caster, 1, FIXATION + HOLD_PAST);
+        helper.runAfterDelay(INSIDE_THE_FIXATION, () -> {
+            helper.assertFalse(caster.getData(GooAttachments.LUNAR_FIXATION).stands(), NEW_MOON_HELD);
+            int refusals = refusalsSentTo(caster);
+            helper.assertTrue(refusals == 1, String.format(NEW_MOON_REFUSED_ONCE, INSIDE_THE_FIXATION, refusals));
+        });
+        helper.runAfterDelay(PAST_THE_FIXATION, () -> {
+            helper.assertTrue(caster.level() == helper.getLevel() && caster.position().distanceTo(stood) < SAME_SPOT,
+                    String.format(STAYED, stood, caster.position()));
             helper.getLevel().getServer().getPlayerList().remove(caster);
             helper.succeed();
         });
