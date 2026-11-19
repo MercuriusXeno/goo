@@ -1134,7 +1134,8 @@ public class VolumeCellBlock extends Block {
         step.moves().stream().distinct().forEach(move -> carryPlacer(level, move.from(), move.to()));
         step.layers().forEach((cell, layers) -> {
             BlockState standing = level.getBlockState(cell);
-            BlockState into = standing.isAir() ? defaultBlockState() : standing;
+            // every-block-displaces-wisps: a cell the network reads as open, air or a wisp, takes this goo
+            BlockState into = opens(standing) ? defaultBlockState() : standing;
             level.setBlock(cell, layers > 0 ? into.setValue(LAYERS, layers) : lessALayer(into.setValue(LAYERS, 1)),
                     UPDATE_ALL);
         });
