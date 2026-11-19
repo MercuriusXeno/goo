@@ -17,9 +17,11 @@ public record BlendPalette(float lightRed, float lightGreen, float lightBlue,
                            float darkRed, float darkGreen, float darkBlue) {
 
     /**
-     * Decay's gnats, from zombie goo's bright green, 7AA85A, to its meat brown edge, 5E4428.
+     * Decay's gnats and Infest's spray drips, from zombie goo's bright green,
+     * 7AA85A, to its meat brown edge, 5E4428.
      * decay-gnats-degrade-each-block-once
      * zombie-goo-is-colored-after-zombie-flesh-and-decay-stops-being-maroon
+     * zombie-goo-is-the-undead-and-takes-the-decay-abilities
      */
     public static final BlendPalette ZOMBIE_ROT = new BlendPalette(
             0x7A / 255f, 0xA8 / 255f, 0x5A / 255f, 0x5E / 255f, 0x44 / 255f, 0x28 / 255f);
@@ -53,11 +55,11 @@ public record BlendPalette(float lightRed, float lightGreen, float lightBlue,
     public static final BlendPalette SHATTER_CRYSTAL_BLUES = new BlendPalette(
             0x77 / 255f, 0xE9 / 255f, 0xFF / 255f, 0x4F / 255f, 0xC1 / 255f, 0xE9 / 255f);
     /**
-     * Host's spray drips, from deep's bright sculk cyan, 29DFEB, to its wheel
-     * teal, 0F2430, the two the deep goo type's definition names.
-     * host-is-a-sculky-slime-that-sculk-spreads-eagerly-through
+     * Creep's spray drips, from sculk's bright cyan, 29DFEB, to its wheel
+     * teal, 0F2430, the two the sculk goo type's definition names.
+     * host-and-spores-combine-into-one-residual
      */
-    public static final BlendPalette HOST_DEEP_TEALS = new BlendPalette(
+    public static final BlendPalette CREEP_TEALS = new BlendPalette(
             0x29 / 255f, 0xDF / 255f, 0xEB / 255f, 0x0F / 255f, 0x24 / 255f, 0x30 / 255f);
     /**
      * Rime's spray drips, from frost's bright ice white, D5FFFF, to its wheel
@@ -117,20 +119,21 @@ public record BlendPalette(float lightRed, float lightGreen, float lightBlue,
             0xA6 / 255f, 0xF0 / 255f, 0x78 / 255f, 0x7E / 255f, 0xC8 / 255f, 0x50 / 255f);
 
     /**
-     * Infest's spray drips, from nether's bright red, 9A4E4E, to its wheel
-     * red, 652828, the two the nether goo type's definition names.
-     * infest-is-nethers-goo-the-decay-effect-localized-around-the-goo
+     * Gloom's spray drips, from nether's bright maroon, 8C3A48, to its edge
+     * obsidian, 2E1C44, the two the nether goo type's definition names.
+     * gloom-spawns-regardless-of-light-and-mobs-on-it-ignore-daylight
+     * nether-is-a-deeper-maroon-mixed-with-obsidians-colors
      */
-    public static final BlendPalette INFEST_NETHER_REDS = new BlendPalette(
-            0x9A / 255f, 0x4E / 255f, 0x4E / 255f, 0x65 / 255f, 0x28 / 255f, 0x28 / 255f);
+    public static final BlendPalette GLOOM_NETHER_MAROONS = new BlendPalette(
+            0x8C / 255f, 0x3A / 255f, 0x48 / 255f, 0x2E / 255f, 0x1C / 255f, 0x44 / 255f);
 
     /**
-     * Spores' spray drips, from shroom's bright purple, B66CD5, to its
-     * wheel purple, 8E44AD, the two the shroom goo type's definition names.
-     * spores-is-shrooms-residual-a-passive-mycosis
+     * Stitch's spray drips, from yarn's highlight tan, CBAE88, to its wheel
+     * tan, B88A5E, the two tans the yarn goo type's definition names.
+     * stitch-is-yarns-residual-that-turns-slimes-into-passive-mobs
      */
-    public static final BlendPalette SPORES_SHROOM_PURPLES = new BlendPalette(
-            0xB6 / 255f, 0x6C / 255f, 0xD5 / 255f, 0x8E / 255f, 0x44 / 255f, 0xAD / 255f);
+    public static final BlendPalette STITCH_YARN_TANS = new BlendPalette(
+            0xCB / 255f, 0xAE / 255f, 0x88 / 255f, 0xB8 / 255f, 0x8A / 255f, 0x5E / 255f);
 
     /**
      * Nitro's spray drips, from unstable's bright green, 88FF44, to its wheel

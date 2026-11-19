@@ -26,7 +26,7 @@ class LackedTypeReadsTest {
     class ItemEntry {
         private static final String FILE = """
                 {
-                    "_constants": {"dye": {"opulent": 6}},
+                    "_constants": {"dye": {"ornate": 6}},
                     "a": {"zoo": "3 $dye.leaf / 2 + 4"}
                 }
                 """;
@@ -85,16 +85,16 @@ class LackedTypeReadsTest {
         }
 
         /**
-         * stripped_stem's shroom reading $stem.leaf + 3, stem holding shroom alone, resolves to shroom 3.
+         * stripped_stem's sculk reading $stem.leaf + 3, stem holding sculk alone, resolves to sculk 3.
          */
         @Test
         void typedPrefabReadingALackedTypeResolvesWithTheTypeReadAsZero() {
             GooValueLoader.ParseState state = parsed("""
-                    {"stem": {"shroom": 2}, "stripped_stem": {"shroom": "$stem.leaf + 3"}}
+                    {"stem": {"sculk": 2}, "stripped_stem": {"sculk": "$stem.leaf + 3"}}
                     """);
             GooValue stripped = state.treeConstants.get("stripped_stem");
             assertNotNull(stripped, String.valueOf(state.treeConstants));
-            assertEquals(GooFraction.of(3), stripped.exact(GooTypes.SHROOM), String.valueOf(stripped));
+            assertEquals(GooFraction.of(3), stripped.exact(GooTypes.SCULK), String.valueOf(stripped));
         }
 
         /**
@@ -103,7 +103,7 @@ class LackedTypeReadsTest {
         @Test
         void stringPrefabReadingALackedTypeStands() {
             GooValueLoader.ParseState state = parsed("""
-                    {"stem": {"shroom": 2}, "half_stem": "$stem.leaf / 2"}
+                    {"stem": {"sculk": 2}, "half_stem": "$stem.leaf / 2"}
                     """);
             assertTrue(state.treeConstants.containsKey("half_stem") || state.constants.containsKey("half_stem"),
                     state.treeConstants + " " + state.constants);

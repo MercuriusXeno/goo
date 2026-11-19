@@ -12,15 +12,15 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
- * Nether's world goo ships as nether_infest.json under the display key
- * goo.ability.nether.infest, which en_us.json reads as Infest with a description.
+ * Zombie's world goo ships as zombie_infest.json under the display key
+ * goo.ability.zombie.infest, which en_us.json reads as Infest with a description.
  * infest-is-nethers-goo-the-decay-effect-localized-around-the-goo
  */
 class InfestAbilityTest {
 
     private static final String EN_US = "/assets/goo/lang/en_us.json";
-    private static final String INFEST_JSON = "/data/goo/goo_abilities/nether_infest.json";
-    private static final String INFEST_KEY = "goo.ability.nether.infest";
+    private static final String INFEST_JSON = "/data/goo/goo_abilities/zombie_infest.json";
+    private static final String INFEST_KEY = "goo.ability.zombie.infest";
 
     @Test
     void infestReadsInfestWithADescription() throws IOException {

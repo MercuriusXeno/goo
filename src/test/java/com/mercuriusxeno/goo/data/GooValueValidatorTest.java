@@ -21,15 +21,15 @@ class GooValueValidatorTest {
     }
 
     /**
-     * stripped_stem's shroom reading $stem.leaf, stem holding shroom and nether, draws one line naming stem and leaf.
+     * stripped_stem's sculk reading $stem.leaf, stem holding sculk and nether, draws one line naming stem and leaf.
      */
     @Test
     void typedPrefabFieldReadingALackedTypeWarnsNamingTheReferentAndTheType() {
         List<String> warnings = warningsOver("""
-                {"_constants": {"stem": {"shroom": 2, "nether": 2},
-                                "stripped_stem": {"shroom": "$stem.leaf / 2"}}}
+                {"_constants": {"stem": {"sculk": 2, "nether": 2},
+                                "stripped_stem": {"sculk": "$stem.leaf / 2"}}}
                 """);
-        assertEquals(List.of("_constants.stripped_stem.shroom: stem holds no leaf"), warnings);
+        assertEquals(List.of("_constants.stripped_stem.sculk: stem holds no leaf"), warnings);
     }
 
     /**
@@ -38,10 +38,10 @@ class GooValueValidatorTest {
     @Test
     void stringPrefabAndItemReadingALackedTypeWarn() {
         List<String> warnings = warningsOver("""
-                {"_constants": {"stem": {"shroom": 2, "nether": 2}, "half_stem": "$stem.leaf / 2"},
-                 "stick": {"shroom": "$stem.leaf"}}
+                {"_constants": {"stem": {"sculk": 2, "nether": 2}, "half_stem": "$stem.leaf / 2"},
+                 "stick": {"sculk": "$stem.leaf"}}
                 """);
-        assertEquals(List.of("_constants.half_stem: stem holds no leaf", "stick.shroom: stem holds no leaf"),
+        assertEquals(List.of("_constants.half_stem: stem holds no leaf", "stick.sculk: stem holds no leaf"),
                 warnings);
     }
 
@@ -51,9 +51,9 @@ class GooValueValidatorTest {
     @Test
     void readingAHeldTypeDrawsNoWarning() {
         List<String> warnings = warningsOver("""
-                {"_constants": {"stem": {"shroom": 2, "nether": 2},
-                                "stripped_stem": {"shroom": "$stem.shroom / 2"}, "half_stem": "$stem.nether / 2"},
-                 "stick": {"shroom": "$stem.shroom"}}
+                {"_constants": {"stem": {"sculk": 2, "nether": 2},
+                                "stripped_stem": {"sculk": "$stem.sculk / 2"}, "half_stem": "$stem.nether / 2"},
+                 "stick": {"sculk": "$stem.sculk"}}
                 """);
         assertTrue(warnings.isEmpty(), String.valueOf(warnings));
     }

@@ -33,7 +33,7 @@ import java.util.stream.Collectors;
 @RegistersGameTests
 public final class AbilityManagerTests {
     private static final String SAVE_WRITES_A_DRAFT = "ability_manager_save_writes_a_draft_and_applies_live";
-    private static final Identifier EDITED = Identifier.fromNamespaceAndPath("goo", "deep_shriek");
+    private static final Identifier EDITED = Identifier.fromNamespaceAndPath("goo", "xeno_shriek");
     private static final int EDITED_COST = 777;
     private static final String PROMOTE_LANDS_THE_DRAFT = "ability_manager_promote_lands_the_draft_live";
     private static final String DISCARD_DROPS_THE_DRAFTS = "ability_manager_discard_drops_the_drafts";

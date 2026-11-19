@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
-import com.mercuriusxeno.goo.ability.aging.Aging;
-import com.mercuriusxeno.goo.ability.rewind.RewindEvents;
+import com.mercuriusxeno.goo.ability.revert.RevertEvents;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
@@ -13,7 +12,7 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 /**
- * Rewinds the host's target one stage, its model shrinking over the JSON's
+ * Reverts the host's target one stage, its model shrinking over the JSON's
  * ticks: an adult that has a baby form becomes a baby, and a baby, or a mob
  * with no baby form, shrinks into its spawn egg. A mob already shrinking
  * into its egg fizzles, smoke and a hiss, so the failed attempt shows; a
@@ -50,18 +49,18 @@ public record RegressStep(int ticks) implements Step {
         if (!takesEntity(target)) {
             return true;
         }
-        if (RewindEvents.vanishing((Mob) target)) {
+        if (RevertEvents.vanishing((Mob) target)) {
             // charm-like-abilities-lock-the-highlighted-mob-on-right-click: a failed attempt fizzles, never silent
             if (target.level() instanceof ServerLevel level) {
-                Aging.fizzle(level, target.blockPosition());
+                RevertEvents.fizzle(level, target.blockPosition());
             }
             return true;
         }
         Mob mob = (Mob) target;
         if (EntityScan.hasBabyForm(mob) && !mob.isBaby()) {
-            RewindEvents.shrinkIntoBaby(mob, ticks);
+            RevertEvents.shrinkIntoBaby(mob, ticks);
         } else {
-            RewindEvents.shrinkIntoEgg(mob, mob.level().getGameTime(), ticks);
+            RevertEvents.shrinkIntoEgg(mob, mob.level().getGameTime(), ticks);
         }
         return true;
     }

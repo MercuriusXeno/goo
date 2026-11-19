@@ -57,8 +57,8 @@ class ProcessesTest {
     void everyFormParsesAsTheGameReadsIt() {
         BaseValuesModel model = BaseValuesModel.parse(SMALL);
         model = Processes.with(model, POST, "oxidation_metal",
-                Processes.formula(new Processes.Formula("metal", 4, "yore", 1, 9)));
-        model = Processes.with(model, POST, "rusting", Processes.formula(new Processes.Formula("metal", 4, "yore", 2,
+                Processes.formula(new Processes.Formula("metal", 4, "ornate", 1, 9)));
+        model = Processes.with(model, POST, "rusting", Processes.formula(new Processes.Formula("metal", 4, "ornate", 2,
                 3)));
         model = Processes.with(model, POST, "waxed", Processes.additive("waxed"));
         model = Processes.with(model, POST, "exposed_metal", Processes.stack(1, "oxidation_metal"));
@@ -66,10 +66,10 @@ class ProcessesTest {
         model = Processes.with(model, POST, "#exposed", Processes.assignment("copper", List.of("exposed_metal")));
 
         GooConversion.ParsedConversions parsed = GooBaseValuesPreview.conversions(model.serialize());
-        assertEquals(new GooConversion.Formula(GooTypes.METAL, 4, GooTypes.YORE, 9, 1),
+        assertEquals(new GooConversion.Formula(GooTypes.METAL, 4, GooTypes.ORNATE, 9, 1),
                 parsed.formulas().get("oxidation_metal"));
         // Decision mutator-sentences-read-in-symbols: the target's ratio carries both numbers to the game.
-        assertEquals(new GooConversion.Formula(GooTypes.METAL, 4, GooTypes.YORE, 3, 2),
+        assertEquals(new GooConversion.Formula(GooTypes.METAL, 4, GooTypes.ORNATE, 3, 2),
                 parsed.formulas().get("rusting"));
         assertTrue(parsed.additives().containsKey("waxed"));
         assertEquals(new GooConversion.Stack("oxidation_metal", 1), parsed.stacks().get("exposed_metal"));
@@ -92,7 +92,7 @@ class ProcessesTest {
         assertEquals(20, processes.size());
         assertTrue(processes.asList().stream().allMatch(process -> process.getAsJsonObject().get("parsed")
                 .getAsBoolean()));
-        BaseValuesModel broken = Processes.with(model, POST, "melt_badly", "\"metal / -> yore\"");
+        BaseValuesModel broken = Processes.with(model, POST, "melt_badly", "\"metal / -> ornate\"");
         com.google.gson.JsonArray withBroken = com.google.gson.JsonParser.parseString(ProcessesJson.described(broken))
                 .getAsJsonObject().getAsJsonArray("sections").get(0).getAsJsonObject().getAsJsonArray("processes");
         assertTrue(withBroken.asList().stream().anyMatch(process -> "melt_badly".equals(

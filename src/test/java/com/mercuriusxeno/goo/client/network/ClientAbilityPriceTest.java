@@ -49,9 +49,9 @@ class ClientAbilityPriceTest {
 
     @Test
     void anItemPricedCostReadsThePricedMbOnTheWheel() {
-        String json = AbilityJson.read("deep_shriek")
+        String json = AbilityJson.read("xeno_shriek")
                 .replaceFirst("\"cost\"\\s*:\\s*\\d+", "\"cost\": \"3 * minecraft:cobblestone\"");
-        AbilityDefinition shriek = AbilityJson.decodeText("deep_shriek", json);
+        AbilityDefinition shriek = AbilityJson.decodeText("xeno_shriek", json);
         IGooValueLookup values = mock(IGooValueLookup.class);
         when(values.lookup(COBBLESTONE)).thenReturn(new GooValue(Map.of(shriek.gooType(), COBBLESTONE_MB)));
         standing = ClientGooValues.readFrom(() -> values);

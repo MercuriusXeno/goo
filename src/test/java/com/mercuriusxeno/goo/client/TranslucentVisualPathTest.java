@@ -50,6 +50,7 @@ import com.mercuriusxeno.goo.client.ability.TransformationRenderer;
 import com.mercuriusxeno.goo.client.ability.WindLines;
 import com.mercuriusxeno.goo.client.ability.WispGlow;
 import com.mercuriusxeno.goo.client.ability.ZapBolts;
+import com.mercuriusxeno.goo.client.entity.WispEchoes;
 import com.mercuriusxeno.goo.client.hole.HoleMouths;
 import com.mercuriusxeno.goo.client.hole.HolePits;
 import com.mercuriusxeno.goo.client.hud.CanisterHudRenderer;
@@ -59,7 +60,6 @@ import com.mercuriusxeno.goo.client.hud.VatHudRenderer;
 import com.mercuriusxeno.goo.client.model.GooJoins;
 import com.mercuriusxeno.goo.client.overlay.AimedMobRipple;
 import com.mercuriusxeno.goo.client.overlay.BlinkCursor;
-import com.mercuriusxeno.goo.client.overlay.FungusXray;
 import com.mercuriusxeno.goo.client.overlay.GasketOverlayRenderer;
 import com.mercuriusxeno.goo.client.overlay.GooTargetHighlighter;
 import com.mercuriusxeno.goo.client.overlay.OculusXray;
@@ -216,7 +216,6 @@ class TranslucentVisualPathTest {
             Map<Class<?>, Set<SortRoute>> routes = new LinkedHashMap<>();
             routes.put(AimedMobRipple.class, Set.of(SortRoute.FAR_TO_NEAR));
             routes.put(BlinkCursor.class, Set.of(SortRoute.FAR_TO_NEAR));
-            routes.put(FungusXray.class, Set.of(SortRoute.THROUGH_BLOCKS));
             routes.put(OculusXray.class, Set.of(SortRoute.THROUGH_BLOCKS));
             routes.put(OreXray.class, Set.of(SortRoute.THROUGH_BLOCKS));
             routes.put(TransmitTargetMarker.class, Set.of(SortRoute.THROUGH_BLOCKS));
@@ -468,6 +467,7 @@ class TranslucentVisualPathTest {
             routes.put(GrowthBreeze.class, sorted(GooRenderTypes.GROWTH_BREEZE));
             routes.put(HeatWaveEffect.class, new Route(SortRoute.SCREEN_SPACE, List.of()));
             routes.put(WispGlow.class, sorted(GooRenderTypes.GLOW_SHELL));
+            routes.put(WispEchoes.class, sorted(GooRenderTypes.GLOW_SHELL));
             return routes;
         }
 

@@ -3,9 +3,9 @@ package com.mercuriusxeno.goo.registry;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.block.ability.AbilityBlock;
 import com.mercuriusxeno.goo.block.ability.CellBinding;
+import com.mercuriusxeno.goo.block.ability.CreepCellBlock;
 import com.mercuriusxeno.goo.block.ability.FungalBudBlock;
 import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
-import com.mercuriusxeno.goo.block.ability.HostCellBlock;
 import com.mercuriusxeno.goo.block.ability.InfestCellBlock;
 import com.mercuriusxeno.goo.block.ability.LightRailBlock;
 import com.mercuriusxeno.goo.block.ability.MagickedIceBlock;
@@ -17,7 +17,6 @@ import com.mercuriusxeno.goo.block.ability.PrismBlock;
 import com.mercuriusxeno.goo.block.ability.RimeCellBlock;
 import com.mercuriusxeno.goo.block.ability.SignalCellBlock;
 import com.mercuriusxeno.goo.block.ability.SpikesCellBlock;
-import com.mercuriusxeno.goo.block.ability.SporesCellBlock;
 import com.mercuriusxeno.goo.block.ability.UpdraftCellBlock;
 import com.mercuriusxeno.goo.block.ability.VinesCellBlock;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
@@ -250,18 +249,18 @@ public class GooBlocks {
                     .noLootTable()
                     .pushReaction(PushReaction.DESTROY));
     /**
-     * Host: the volume cell bound to Deep's sculky slime, the dark teal goo
-     * Host sprays onto a block's top, one to fifteen layers, ordinary ground
-     * underfoot that sounds as goo does, dropping the deep goo its layers
-     * cost through VolumeCellBlock.getDrops, no loot table
-     * (decisions host-is-a-sculky-slime-that-sculk-spreads-eagerly-through,
+     * Creep: the volume cell bound to Sculk's sculky slime, the dark teal goo
+     * Creep sprays onto a block's top, one to fifteen layers, ordinary ground
+     * underfoot that sounds as goo does, budding the ground at its edges,
+     * dropping the sculk goo its layers cost through VolumeCellBlock.getDrops,
+     * no loot table (decisions host-and-spores-combine-into-one-residual,
      * each-goo-type-ships-a-world-goo-on-the-volume-cell).
      */
-    public static final DeferredBlock<HostCellBlock> DEEP_HOST = BLOCKS.registerBlock(
-            "deep_host", properties -> new HostCellBlock(properties, CellBinding.HOST),
+    public static final DeferredBlock<CreepCellBlock> SCULK_CREEP = BLOCKS.registerBlock(
+            "sculk_creep", properties -> new CreepCellBlock(properties, CellBinding.CREEP),
             () -> BlockBehaviour.Properties.of()
                     .mapColor(MapColor.COLOR_CYAN)
-                    .friction(CellBinding.HOST.surface().friction())
+                    .friction(CellBinding.CREEP.surface().friction())
                     .sound(SoundType.SLIME_BLOCK)
                     .instabreak()
                     .noOcclusion()
@@ -431,6 +430,27 @@ public class GooBlocks {
                     .noLootTable()
                     .pushReaction(PushReaction.DESTROY));
     /**
+     * Stitch: the volume cell bound to Yarn's goo, the woolly goo Stitch
+     * sprays onto a block's top, one to fifteen layers, ordinary ground
+     * underfoot and sounding as goo does, letting a passive pass and
+     * tangling a hostile in it, dropping the yarn goo its layers cost through
+     * VolumeCellBlock.getDrops, no loot table
+     * (decisions stitch-is-yarns-residual-that-turns-slimes-into-passive-mobs,
+     * passives-move-through-stitch-and-hostiles-tangle-in-it,
+     * each-goo-type-ships-a-world-goo-on-the-volume-cell).
+     */
+    public static final DeferredBlock<VolumeCellBlock> YARN_STITCH = BLOCKS.registerBlock(
+            "yarn_stitch", properties -> new VolumeCellBlock(properties, CellBinding.STITCH),
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.WOOL)
+                    .friction(CellBinding.STITCH.surface().friction())
+                    .sound(SoundType.SLIME_BLOCK)
+                    .instabreak()
+                    .noOcclusion()
+                    .replaceable()
+                    .noLootTable()
+                    .pushReaction(PushReaction.DESTROY));
+    /**
      * Spikes: the volume cell bound to Metal's goo, the silver goo Spikes
      * sprays onto a block's top, one to fifteen layers, ordinary ground
      * underfoot that impales what walks on it and sounds as goo does,
@@ -451,19 +471,20 @@ public class GooBlocks {
                     .noLootTable()
                     .pushReaction(PushReaction.DESTROY));
     /**
-     * Infest: the volume cell bound to Nether's goo, the dark red goo Infest
+     * Infest: the volume cell bound to Zombie's goo, the rotten green goo Infest
      * sprays onto a block's top, one to fifteen layers, ordinary ground
      * underfoot and sounding as goo does, gnawing what it lies on and biting
-     * what stands in it, dropping the nether goo its layers cost through
+     * what stands in it, dropping the zombie goo its layers cost through
      * VolumeCellBlock.getDrops, no loot table
      * (decisions infest-is-nethers-goo-the-decay-effect-localized-around-the-goo,
      * infest-gnaws-the-blocks-it-lies-on-and-bites-what-stands-in-it,
-     * each-goo-type-ships-a-world-goo-on-the-volume-cell).
+     * each-goo-type-ships-a-world-goo-on-the-volume-cell,
+     * zombie-goo-is-the-undead-and-takes-the-decay-abilities).
      */
-    public static final DeferredBlock<InfestCellBlock> NETHER_INFEST = BLOCKS.registerBlock(
-            "nether_infest", properties -> new InfestCellBlock(properties, CellBinding.INFEST),
+    public static final DeferredBlock<InfestCellBlock> ZOMBIE_INFEST = BLOCKS.registerBlock(
+            "zombie_infest", properties -> new InfestCellBlock(properties, CellBinding.INFEST),
             () -> BlockBehaviour.Properties.of()
-                    .mapColor(MapColor.NETHER)
+                    .mapColor(MapColor.TERRACOTTA_GREEN)
                     .friction(CellBinding.INFEST.surface().friction())
                     .sound(SoundType.SLIME_BLOCK)
                     .instabreak()
@@ -472,19 +493,19 @@ public class GooBlocks {
                     .noLootTable()
                     .pushReaction(PushReaction.DESTROY));
     /**
-     * Spores: the volume cell bound to Shroom's goo, the purple goo Spores
+     * Gloom: the volume cell bound to Nether's goo, the maroon goo Gloom
      * sprays onto a block's top, one to fifteen layers, ordinary ground
-     * underfoot and sounding as goo does, budding the ground at its edges,
-     * dropping the shroom goo its layers cost through
+     * underfoot and sounding as goo does, reading dark to the hostile mobs
+     * spawning on it, dropping the nether goo its layers cost through
      * VolumeCellBlock.getDrops, no loot table
-     * (decisions spores-is-shrooms-residual-a-passive-mycosis,
+     * (decisions gloom-spawns-regardless-of-light-and-mobs-on-it-ignore-daylight,
      * each-goo-type-ships-a-world-goo-on-the-volume-cell).
      */
-    public static final DeferredBlock<SporesCellBlock> SHROOM_SPORES = BLOCKS.registerBlock(
-            "shroom_spores", properties -> new SporesCellBlock(properties, CellBinding.SPORES),
+    public static final DeferredBlock<VolumeCellBlock> NETHER_GLOOM = BLOCKS.registerBlock(
+            "nether_gloom", properties -> new VolumeCellBlock(properties, CellBinding.GLOOM),
             () -> BlockBehaviour.Properties.of()
-                    .mapColor(MapColor.COLOR_PURPLE)
-                    .friction(CellBinding.SPORES.surface().friction())
+                    .mapColor(MapColor.NETHER)
+                    .friction(CellBinding.GLOOM.surface().friction())
                     .sound(SoundType.SLIME_BLOCK)
                     .instabreak()
                     .noOcclusion()

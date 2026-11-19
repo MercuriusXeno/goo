@@ -5,6 +5,8 @@ import com.mercuriusxeno.goo.ability.program.SimpleParticles;
 import com.mercuriusxeno.goo.client.particle.GloveMote;
 import com.mercuriusxeno.goo.client.particle.GloveSwing;
 import com.mercuriusxeno.goo.client.particle.SprayDripParticle;
+import com.mercuriusxeno.goo.client.throwing.SprayerUseTracker;
+import com.mercuriusxeno.goo.item.SprayerItem;
 import com.mercuriusxeno.goo.network.DripFlights;
 import com.mercuriusxeno.goo.network.GooStreamHandler;
 import com.mercuriusxeno.goo.network.StreamMotesPayload;
@@ -14,8 +16,10 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.particle.Particle;
 import net.minecraft.core.particles.SimpleParticleType;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
+import org.jspecify.annotations.Nullable;
 import java.util.List;
 
 /**
@@ -72,7 +76,19 @@ public final class StreamMotes {
             threwDrips |= throwOnItsArc(mc, payload, particle, shares.get(i), (double) i / shares.size());
         }
         if (threwDrips) {
-            // palm-blob-lifts-as-the-spray-source: a tick throwing drips keeps the caster's spray running
+            liftThePalmBlob(mc, payload);
+        }
+    }
+
+    /**
+     * Keeps a glove caster's spray running from their lifted palm blob; a sprayer lifts none.
+     * palm-blob-lifts-as-the-spray-source: a tick throwing drips keeps the caster's spray running
+     *
+     * @param mc      the client
+     * @param payload the stream's tick
+     */
+    private static void liftThePalmBlob(Minecraft mc, StreamMotesPayload payload) {
+        if (sprayerOf(mc, payload.casterId()) == null) {
             LiftedPalmBlob.held(payload.casterId(), payload.apex(), mc.level.getGameTime());
         }
     }
@@ -94,19 +110,36 @@ public final class StreamMotes {
     private static boolean throwOnItsArc(Minecraft mc, StreamMotesPayload payload, SimpleParticleType particle,
                                          CoatRay.ConeShare share, double lead) {
         Vec3 apex = payload.apex();
-        Vec3 launch = payload.cone().launchFrom(apex, payload.coneDegrees(), share, payload.throwSpeed(),
+        Vec3 launch = payload.cone().launchFrom(apex, payload.coneShape(), share, payload.throwSpeed(),
                 DripArc.gravityIn(mc.level.dimension()));
         Particle mote = mc.particleEngine.createParticle(particle, apex.x, apex.y, apex.z, launch.x, launch.y,
                 launch.z);
-        if (mote instanceof SprayDripParticle drip) {
-            // palm-blob-lifts-as-the-spray-source: the drip leaves the lifted blob, easing or at the source
-            // goop-wobbles-a-mob-its-drip-strikes: a drawn drip splats on a mob it meets, as the server's strikes it
-            drip.flyArcFrom(partialTick -> LiftedPalmBlob.dripLeavesFrom(payload.casterId(), apex, partialTick),
-                    launch, payload.strikesLiving() ? DripFlights.livingNear(mc.level, payload.casterId())
-                            : DripArc.NO_LIVING, lead);
-            return true;
+        if (!(mote instanceof SprayDripParticle drip)) {
+            return false;
         }
-        return false;
+        // palm-blob-lifts-as-the-spray-source: the drip leaves the lifted blob, easing or at the source
+        // operator report 2026-11-18: a sprayer's spray came from an invisible thing below the sprayer; a sprayer's
+        // drip leaves its nozzle, as the view carries it
+        Player sprayer = sprayerOf(mc, payload.casterId());
+        // goop-wobbles-a-mob-its-drip-strikes: a drawn drip splats on a mob it meets, as the server's strikes it
+        drip.flyArcFrom(partialTick -> sprayer != null ? SprayerUseTracker.nozzleEnd(sprayer, partialTick)
+                        : LiftedPalmBlob.dripLeavesFrom(payload.casterId(), apex, partialTick),
+                launch, payload.strikesLiving() ? DripFlights.livingNear(mc.level, payload.casterId())
+                        : DripArc.NO_LIVING, lead);
+        return true;
+    }
+
+    /**
+     * The caster spraying from a sprayer, its use held, whose drips leave the sprayer's nozzle in place of a palm
+     * blob, which a sprayer never lifts.
+     *
+     * @param mc       the client
+     * @param casterId the caster's entity id
+     * @return the caster, or null where the caster sprays from a glove
+     */
+    private static @Nullable Player sprayerOf(Minecraft mc, int casterId) {
+        return mc.level != null && mc.level.getEntity(casterId) instanceof Player caster && caster.isUsingItem()
+                && caster.getUseItem().getItem() instanceof SprayerItem ? caster : null;
     }
 
     /**
@@ -119,7 +152,7 @@ public final class StreamMotes {
      */
     private static void launchMote(Minecraft mc, StreamMotesPayload payload, SimpleParticleType particle,
                                    CoatRay.ConeShare share) {
-        // every-ability-casts-from-the-lifted-palm-blob: Rewind's and Mycosis' motes leave the lifted blob
+        // every-ability-casts-from-the-lifted-palm-blob: Revert's and Mycosis' motes leave the lifted blob
         Vec3 apex = CastOrigin.of(payload.casterId(), payload.apex(), 0f);
         Vec3 launch = GooStreamHandler.moteLaunch(payload, share);
         Particle mote = mc.particleEngine.createParticle(particle, apex.x, apex.y, apex.z, launch.x, launch.y,

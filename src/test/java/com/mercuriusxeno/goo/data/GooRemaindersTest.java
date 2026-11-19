@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.data;
 
+import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.serialization.JsonOps;
 import io.netty.buffer.ByteBuf;
@@ -26,6 +27,7 @@ class GooRemaindersTest {
     void aWholeRemainderLeavesNothing() {
         assertEquals(GooRemainders.EMPTY, GooRemainders.EMPTY.with(GooTypes.LEAF, GooFraction.of(2)));
     }
+
 
     @Test
     void remaindersSurviveThePersistentCodec() {

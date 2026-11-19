@@ -64,7 +64,7 @@ class ConversionHoversTest {
     @Test
     void convertReadsItsSourceDivisorArrowThenItsMultipliedTarget() {
         assertEquals(List.of(new TooltipLine.Runs(List.of(type("metal"), symbol("/"), number("3"), symbol("=>"),
-                number("2"), type("yore")))), hover("smelt", new Processes.Formula("metal", 3, "yore", 2, 1)));
+                number("2"), type("ornate")))), hover("smelt", new Processes.Formula("metal", 3, "ornate", 2, 1)));
     }
 
     @Test
@@ -93,8 +93,8 @@ class ConversionHoversTest {
 
     @Test
     void stackOverAConvertMultipliesBothSides() {
-        when(processes.formOf(SECTION, "smelt")).thenReturn(new Processes.Formula("metal", 3, "yore", 2, 1));
+        when(processes.formOf(SECTION, "smelt")).thenReturn(new Processes.Formula("metal", 3, "ornate", 2, 1));
         assertEquals(List.of(new TooltipLine.Runs(List.of(number("4"), type("metal"), symbol("/"), number("3"),
-                symbol("=>"), number("8"), type("yore")))), hover("smelt4", new Processes.Stack(4, "smelt")));
+                symbol("=>"), number("8"), type("ornate")))), hover("smelt4", new Processes.Stack(4, "smelt")));
     }
 }
