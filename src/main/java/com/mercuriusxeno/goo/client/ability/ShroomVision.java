@@ -1,12 +1,8 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.Goo;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
-import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.Identifier;
-import net.minecraft.tags.TagKey;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
@@ -19,20 +15,18 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Predicate;
 
 /**
- * Sculker's shroom vision: while Sculker stands, every sculk and shroom block within reach, the set the
- * shroom_network block tag names, is in what the sense view draws at any noise level, with no echo needed to reveal
- * it, beside the blocks the echoes lit. The blocks are scanned again once a second, chunk section by chunk section,
+ * Sculker's shroom vision: while Sculker stands, every fungus block within reach, a block whose block item's goo value
+ * holds sculk (FungusBlocks), is in what the sense view draws at any noise level, with no echo needed to reveal it,
+ * beside the blocks the echoes lit. The blocks are scanned again once a second, chunk section by chunk section,
  * skipping any section whose palette holds none, and the nearest are kept up to a cap.
  * decision sculker-absorbs-sight-as-shroom-vision
  */
 public final class ShroomVision {
 
-    /** The sculk and shroom blocks the vision shows. */
-    public static final TagKey<Block> SHROOM_NETWORK =
-            TagKey.create(Registries.BLOCK, Identifier.fromNamespaceAndPath(Goo.MODID, "shroom_network"));
     /** How far the vision reaches, in blocks, as Transmit's reach did under Sight. */
     static final double VISION_REACH = 64;
     static final int RESCAN_TICKS = 20;
@@ -72,13 +66,14 @@ public final class ShroomVision {
      * The shroom network blocks within the vision's reach of the local player and what stands there now, the
      * scan run again once a second.
      *
-     * @param mc  the client, its player and level loaded
-     * @param now the game time
+     * @param mc     the client, its player and level loaded
+     * @param now    the game time
+     * @param fungus the fungus blocks
      * @return each block nearby and its state
      */
-    static Map<BlockPos, BlockState> nearby(Minecraft mc, long now) {
+    static Map<BlockPos, BlockState> nearby(Minecraft mc, long now, Set<Block> fungus) {
         if (isDue(scannedAt, now)) {
-            rescan(mc.level, mc.player.getEyePosition());
+            rescan(mc.level, mc.player.getEyePosition(), fungus);
             scannedAt = now;
         }
         Map<BlockPos, BlockState> nearby = new HashMap<>();
@@ -105,7 +100,7 @@ public final class ShroomVision {
         return lastScan == UNSCANNED || now < lastScan || now - lastScan >= RESCAN_TICKS;
     }
 
-    private static void rescan(Level level, Vec3 eye) {
+    private static void rescan(Level level, Vec3 eye, Set<Block> fungus) {
         SEEN.clear();
         SectionPos low = SectionPos.of(BlockPos.containing(eye.subtract(VISION_REACH, VISION_REACH, VISION_REACH)));
         SectionPos high = SectionPos.of(BlockPos.containing(eye.add(VISION_REACH, VISION_REACH, VISION_REACH)));
@@ -113,7 +108,7 @@ public final class ShroomVision {
             for (int sz = low.z(); sz <= high.z(); sz++) {
                 ChunkAccess chunk = level.getChunk(sx, sz, ChunkStatus.FULL, false);
                 if (chunk != null) {
-                    scanChunk(chunk, low.y(), high.y(), eye);
+                    scanChunk(chunk, low.y(), high.y(), eye, fungus);
                 }
             }
         }
@@ -123,23 +118,23 @@ public final class ShroomVision {
         }
     }
 
-    private static void scanChunk(ChunkAccess chunk, int lowY, int highY, Vec3 eye) {
+    private static void scanChunk(ChunkAccess chunk, int lowY, int highY, Vec3 eye, Set<Block> fungus) {
         for (int sy = Math.max(lowY, chunk.getMinSectionY()); sy <= Math.min(highY, chunk.getMaxSectionY()); sy++) {
             LevelChunkSection section = chunk.getSection(chunk.getSectionIndexFromSectionY(sy));
-            if (section.hasOnlyAir() || !section.getStates().maybeHas(state -> state.is(SHROOM_NETWORK))) {
+            if (section.hasOnlyAir() || !section.getStates().maybeHas(state -> fungus.contains(state.getBlock()))) {
                 continue;
             }
             BlockPos base = new BlockPos(chunk.getPos().getMinBlockX(), SectionPos.sectionToBlockCoord(sy),
                     chunk.getPos().getMinBlockZ());
-            scanSection(section, base, eye);
+            scanSection(section, base, eye, fungus);
         }
     }
 
-    private static void scanSection(LevelChunkSection section, BlockPos base, Vec3 eye) {
+    private static void scanSection(LevelChunkSection section, BlockPos base, Vec3 eye, Set<Block> fungus) {
         for (int x = 0; x < SECTION_SIZE; x++) {
             for (int y = 0; y < SECTION_SIZE; y++) {
                 for (int z = 0; z < SECTION_SIZE; z++) {
-                    if (section.getBlockState(x, y, z).is(SHROOM_NETWORK)) {
+                    if (fungus.contains(section.getBlockState(x, y, z).getBlock())) {
                         BlockPos pos = base.offset(x, y, z);
                         if (Vec3.atCenterOf(pos).distanceTo(eye) <= VISION_REACH) {
                             SEEN.add(pos);
