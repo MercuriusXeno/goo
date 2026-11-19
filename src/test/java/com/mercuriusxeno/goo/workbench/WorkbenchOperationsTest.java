@@ -320,14 +320,14 @@ class WorkbenchOperationsTest {
      */
     @Nested
     class AbilitySaveAndPromote {
-        private static final Identifier SHRIEK = Identifier.fromNamespaceAndPath("goo", "deep_shriek");
+        private static final Identifier SHRIEK = Identifier.fromNamespaceAndPath("goo", "xeno_shriek");
         private static final int EDITED_COST = 777;
         private final List<Map<Identifier, JsonObject>> applied = new java.util.ArrayList<>();
         private WorkbenchOperations abilities;
 
         @BeforeEach
         void bindTheAbilityFiles() {
-            JsonObject shipped = JsonParser.parseString(AbilityJson.read("deep_shriek")).getAsJsonObject();
+            JsonObject shipped = JsonParser.parseString(AbilityJson.read("xeno_shriek")).getAsJsonObject();
             abilities = new WorkbenchOperations(paths, () -> new byte[0], () -> { }, (draft, progress) -> 0,
                     text -> { }, new AbilityFiles() {
                         @Override
