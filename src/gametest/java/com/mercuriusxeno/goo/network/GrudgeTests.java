@@ -2,11 +2,13 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.hex.Charmed;
 import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import com.mercuriusxeno.goo.item.GooStacks;
+import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -46,6 +48,10 @@ public final class GrudgeTests {
     private static final String SHOULD_LOSE_MISSING =
             "The %s zombie should lose the caster's missing health %s, stands %s of %s";
     private static final String SHOULD_KEEP_ITS_OWN = "The far zombie should keep its health past a short ring, stands %s";
+    private static final String GRUDGE_SPARES_OWN_MINIONS = "grudge_spares_the_casters_own_minions";
+    /** About one and a half blocks from the caster on the near zombie's other side, inside a short charge's ring. */
+    private static final BlockPos MINION_POS = new BlockPos(0, 1, 2);
+    private static final String SHOULD_SPARE_THE_MINION = "The caster's charmed zombie should keep its health, stands %s";
 
     private GrudgeTests() {
     }
@@ -58,6 +64,33 @@ public final class GrudgeTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, GRUDGE_RINGS_OUT_MISSING_HEALTH,
                 GrudgeTests::grudgeRingsOutTheCastersMissingHealth);
+        GooTestFunctions.registerTest(registrar, GRUDGE_SPARES_OWN_MINIONS, GrudgeTests::grudgeSparesTheCastersOwnMinions);
+    }
+
+    /**
+     * A caster wounded to six of twenty releases a short Grudge over two
+     * zombies beside them, one charmed by the caster: the charmed zombie keeps
+     * its health and the other loses the fourteen the caster is missing.
+     * heal-and-decay-never-harm-their-caster
+     * drain-skips-your-rallied-and-charmed-mobs
+     *
+     * @param helper the gametest helper
+     */
+    public static void grudgeSparesTheCastersOwnMinions(GameTestHelper helper) {
+        Mob stranger = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, NEAR_POS);
+        Mob minion = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, MINION_POS);
+        ServerPlayer caster = caster(helper);
+        caster.setHealth(WOUNDED_HEALTH);
+        minion.setData(GooAttachments.CHARMED, new Charmed(caster.getUUID()));
+        helper.runAfterDelay(SETTLE_TICKS, () -> {
+            float missing = caster.getMaxHealth() - caster.getHealth();
+            release(caster, SHORT_HOLD_TICKS);
+            helper.getLevel().getServer().getPlayerList().remove(caster);
+            helper.assertTrue(minion.getHealth() == minion.getMaxHealth(),
+                    String.format(SHOULD_SPARE_THE_MINION, minion.getHealth()));
+            assertLostMissing(helper, "unallied", stranger, stranger.getHealth(), missing);
+            helper.succeed();
+        });
     }
 
     /**
