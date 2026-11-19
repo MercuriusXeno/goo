@@ -211,14 +211,14 @@
     "frametime": 5,
     "shadowHue": -1,
     "palette": [
-      { "position": 0.0, "color": "#E898B8" },
-      { "position": 0.15, "color": "#F0E0B0" },
-      { "position": 0.3, "color": "#88D0F0" },
-      { "position": 0.45, "color": "#F8E0D0" },
-      { "position": 0.6, "color": "#A0F0C0" },
-      { "position": 0.75, "color": "#D8B8F8" },
-      { "position": 0.9, "color": "#F8D898" },
-      { "position": 1.0, "color": "#F8F0E8" }
+      { "position": 0.0, "color": "#E070A8" },
+      { "position": 0.15, "color": "#F0C870" },
+      { "position": 0.3, "color": "#50B8F0" },
+      { "position": 0.45, "color": "#F0B898" },
+      { "position": 0.6, "color": "#60E8A0" },
+      { "position": 0.75, "color": "#B888F8" },
+      { "position": 0.9, "color": "#F8C060" },
+      { "position": 1.0, "color": "#FFF6EC" }
     ]
   },
   {

@@ -3,12 +3,14 @@ package com.mercuriusxeno.goo.type;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import org.junit.jupiter.api.Test;
+import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import javax.imageio.ImageIO;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -16,8 +18,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Tests that the recolored goo types' UI channels, read from their type JSON
  * through the classpath, read apart from the types they sat on, that xeno
- * wears quantum's former purples, that yore's and infinity's fluids are aeon's oil slick, that
- * infinity's channels wear yore's pearl sheen, and that quantum wears
+ * wears quantum's former purples, that yore's fluid is aeon's oil slick, that infinity's fluid and
+ * channels wear palette B's oil slick and its icon is pearl, and that quantum wears
  * its icon's blue and a brighter, oranger orange than its former red orange.
  */
 class GooTypeColorsTest {
@@ -28,18 +30,22 @@ class GooTypeColorsTest {
     private static final long AEON_SEED = 40_975L;
     private static final int AEON_FRAMETIME = 5;
     private static final float AEON_VISCOSITY = 2.5f;
-    private static final String AEON_OIL_SLICK_FLUID = """
+    private static final String PALETTE_B_OIL_SLICK_FLUID = """
             {"seed": 40975,
              "genParams": {"viscosity": 2.5, "decayRate": 0.015, "ignitionChance": 0.003, "ignitionStrength": 0.7,
                            "potHeatRate": 0.005, "potInfluence": 0.9, "neighborhoodReach": 1},
              "frametime": 5, "shadowHue": -1,
-             "palette": [{"position": 0.0, "color": "#E898B8"}, {"position": 0.15, "color": "#F0E0B0"},
-                         {"position": 0.3, "color": "#88D0F0"}, {"position": 0.45, "color": "#F8E0D0"},
-                         {"position": 0.6, "color": "#A0F0C0"}, {"position": 0.75, "color": "#D8B8F8"},
-                         {"position": 0.9, "color": "#F8D898"}, {"position": 1.0, "color": "#F8F0E8"}]}
+             "palette": [{"position": 0.0, "color": "#E070A8"}, {"position": 0.15, "color": "#F0C870"},
+                         {"position": 0.3, "color": "#50B8F0"}, {"position": 0.45, "color": "#F0B898"},
+                         {"position": 0.6, "color": "#60E8A0"}, {"position": 0.75, "color": "#B888F8"},
+                         {"position": 0.9, "color": "#F8C060"}, {"position": 1.0, "color": "#FFF6EC"}]}
             """;
     private static final int PEARL_CYCLE_TICKS = 160;
     private static final float PEARL_SWING_DEGREES = 240f;
+    private static final String INFINITY_ICON = "/assets/goo/textures/goo/type/infinity.png";
+    private static final List<String> ICON_OUTLINE = List.of("393861", "1E1D39");
+    private static final float PEARL_SATURATION_CEILING = 0.35f;
+    private static final float PEARL_BRIGHTNESS_FLOOR = 0.6f;
     private static final String ICON_BLUE = "3AA0E0";
     private static final String ICON_HIGHLIGHT = "6AD0F0";
     private static final String ICON_ORANGE = "FF8A40";
@@ -86,25 +92,50 @@ class GooTypeColorsTest {
     }
 
     @Test
-    void infinityWearsAeonsOilSlickFluid() throws IOException {
-        // infinity-swaps-to-aeons-good-opalescent-oil-slick: aeon's fluid config as it stood before 8b83cec5
+    void infinityWearsPaletteBOilSlickFluid() throws IOException {
+        // infinity-swaps-to-aeons-good-opalescent-oil-slick: aeon's seed and motion, aeon's hue order with chroma raised
         JsonObject infinity = fluidEntry("infinity").deepCopy();
         infinity.remove("id");
-        assertEquals(JsonParser.parseString(AEON_OIL_SLICK_FLUID), infinity, "infinity's fluid config");
+        assertEquals(JsonParser.parseString(PALETTE_B_OIL_SLICK_FLUID), infinity, "infinity's fluid config");
     }
 
     @Test
-    void infinityTypeJsonWearsYoresPearlSheen() throws IOException {
+    void infinityTypeJsonWearsPaletteBSheen() throws IOException {
         // infinity-swaps-to-aeons-good-opalescent-oil-slick
-        List<String> pearlSheen = List.of("DCD0F0", "F8F4FF", "F4DCE8", "D8F0EA");
+        List<String> paletteBSheen = List.of("C8A0F0", "F8E8FF", "F0B0D8", "A0E8D8");
         for (int index = 0; index < CHANNELS.size(); index++) {
-            assertEquals(pearlSheen.get(index), channel("infinity", CHANNELS.get(index)),
+            assertEquals(paletteBSheen.get(index), channel("infinity", CHANNELS.get(index)),
                     "infinity's " + CHANNELS.get(index));
         }
         JsonObject infinity = typeJson("infinity");
         assertEquals(PEARL_CYCLE_TICKS, infinity.get(HueCycle.HUE_CYCLE_TICKS).getAsInt(), "infinity's hue cycle");
         assertEquals(PEARL_SWING_DEGREES, infinity.get(HueCycle.HUE_SWING_DEGREES).getAsFloat(), "infinity's swing");
         assertEquals(1, infinity.get("vessel_source_per_mb").getAsInt(), "infinity's vessel source rate");
+    }
+
+    @Test
+    void infinityIconInsideIsPearlWithNoBands() throws IOException {
+        // infinity-swaps-to-aeons-good-opalescent-oil-slick: the lemniscate is pearl sheen, no rainbow bands
+        BufferedImage icon;
+        try (InputStream in = GooTypeColorsTest.class.getResourceAsStream(INFINITY_ICON)) {
+            assertNotNull(in, "missing on the classpath: " + INFINITY_ICON);
+            icon = ImageIO.read(in);
+        }
+        int pearlPixels = 0;
+        for (int y = 0; y < icon.getHeight(); y++) {
+            for (int x = 0; x < icon.getWidth(); x++) {
+                int argb = icon.getRGB(x, y);
+                String hex = "%06X".formatted(argb & 0xFFFFFF);
+                if ((argb >>> 24) == 0 || ICON_OUTLINE.contains(hex)) {
+                    continue;
+                }
+                float[] shade = hsb(hex);
+                assertTrue(shade[1] <= PEARL_SATURATION_CEILING, "icon pixel " + x + "," + y + " " + hex + " is too saturated");
+                assertTrue(shade[2] >= PEARL_BRIGHTNESS_FLOOR, "icon pixel " + x + "," + y + " " + hex + " is too dark");
+                pearlPixels++;
+            }
+        }
+        assertTrue(pearlPixels > 0, "the icon holds no pixel inside its outline");
     }
 
     @Test
