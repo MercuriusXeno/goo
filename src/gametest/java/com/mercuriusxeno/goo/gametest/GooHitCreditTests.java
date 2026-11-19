@@ -6,7 +6,7 @@ import com.mercuriusxeno.goo.ability.program.DamageStep;
 import com.mercuriusxeno.goo.ability.program.EntityHost;
 import com.mercuriusxeno.goo.ability.program.Expr;
 import com.mercuriusxeno.goo.ability.program.StepContext;
-import com.mercuriusxeno.goo.ability.zoo.Rallied;
+import com.mercuriusxeno.goo.ability.yarn.Led;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -30,7 +30,7 @@ import java.util.function.Consumer;
 /**
  * Gametests for the source a goo damage step hurts with: a player thrower is named as the hit's cause and the
  * kind keeps its damage type, no thrower or a thrower striking itself names none, the named cause pushes the
- * struck mob no farther, and a hit on the caster's own rallied or charmed mob names no one, so the rally and the
+ * struck mob no farther, and a hit on the caster's own led or charmed mob names no one, so the lead and the
  * charm stand as they did before goo hits named their caster (decisions direct-goo-hit-credits-its-caster,
  * goo-hit-keeps-its-kind-and-names-the-player-behind-it).
  */
@@ -39,7 +39,7 @@ public final class GooHitCreditTests {
     private static final String EVERY_KIND_NAMES_THE_PLAYER = "goo_hit_credit_every_kind_names_the_player_thrower";
     private static final String NO_THROWER_NAMES_NONE = "goo_hit_credit_no_or_self_thrower_names_no_entity";
     private static final String PUSHES_NO_FARTHER = "goo_hit_credit_naming_the_thrower_pushes_no_farther";
-    private static final String OWN_RALLIED_KEEPS_ITS_RALLY = "goo_hit_credit_own_rallied_mob_keeps_its_rally";
+    private static final String OWN_LED_KEEPS_ITS_LEAD = "goo_hit_credit_own_led_mob_keeps_its_lead";
     private static final String OWN_CHARMED_KEEPS_ITS_CHARM = "goo_hit_credit_own_charmed_mob_keeps_its_charm";
     private static final String PVP_GOVERNS_A_PLAYERS_HIT = "goo_hit_credit_pvp_setting_governs_a_hit_on_a_player";
     private static final String TEAM_SPARES_A_TEAMMATE = "goo_hit_credit_team_without_friendly_fire_spares_a_teammate";
@@ -51,7 +51,7 @@ public final class GooHitCreditTests {
     private static final BlockPos MOB_POS = new BlockPos(3, 1, 3);
     private static final BlockPos BESIDE_THE_MOB = MOB_POS.west();
     private static final double ONE_HEART = 1;
-    private static final float RALLY_DAMAGE = 6f;
+    private static final float LEAD_DAMAGE = 6f;
     private static final String SHOULD_NAME_THE_PLAYER = "A %s hit should name the player as %s, last hit by %s from %s";
     private static final String SHOULD_NAME_NONE = "A magic hit with %s should name no entity as magic, last hit by %s from %s";
     private static final String SHOULD_PUSH_NO_FARTHER =
@@ -73,7 +73,7 @@ public final class GooHitCreditTests {
                 GooHitCreditTests::everyKindNamesThePlayerThrower);
         GooTestFunctions.registerTest(registrar, NO_THROWER_NAMES_NONE, GooHitCreditTests::noOrSelfThrowerNamesNone);
         GooTestFunctions.registerTest(registrar, PUSHES_NO_FARTHER, GooHitCreditTests::namingTheThrowerPushesNoFarther);
-        GooTestFunctions.registerTest(registrar, OWN_RALLIED_KEEPS_ITS_RALLY, GooHitCreditTests::ownRalliedKeepsItsRally);
+        GooTestFunctions.registerTest(registrar, OWN_LED_KEEPS_ITS_LEAD, GooHitCreditTests::ownLedKeepsItsLead);
         GooTestFunctions.registerTest(registrar, OWN_CHARMED_KEEPS_ITS_CHARM, GooHitCreditTests::ownCharmedKeepsItsCharm);
         GooTestFunctions.registerTest(registrar, PVP_GOVERNS_A_PLAYERS_HIT, GooHitCreditTests::pvpGovernsAPlayersHit);
         GooTestFunctions.registerTest(registrar, TEAM_SPARES_A_TEAMMATE, GooHitCreditTests::teamSparesATeammate);
@@ -135,17 +135,17 @@ public final class GooHitCreditTests {
     }
 
     /**
-     * A magic damage step its caster runs on a cow the caster rallied hurts the cow and leaves the rally standing,
+     * A magic damage step its caster runs on a cow the caster led hurts the cow and leaves the lead standing,
      * naming no entity, as before goo hits named their caster.
      *
      * @param helper the gametest helper
      */
-    public static void ownRalliedKeepsItsRally(GameTestHelper helper) {
+    public static void ownLedKeepsItsLead(GameTestHelper helper) {
         ServerPlayer player = playerBeside(helper);
         Mob cow = helper.spawnWithNoFreeWill(EntityType.COW, MOB_POS);
-        cow.setData(GooAttachments.RALLIED, new Rallied(player.getUUID(), RALLY_DAMAGE));
+        cow.setData(GooAttachments.LED, new Led(player.getUUID(), LEAD_DAMAGE));
         strike(helper, cow, player, DamageKind.MAGIC);
-        assertKept(helper, cow, "rallied cow", "rally", cow.hasData(GooAttachments.RALLIED));
+        assertKept(helper, cow, "led cow", "lead", cow.hasData(GooAttachments.LED));
         helper.getLevel().getServer().getPlayerList().remove(player);
         helper.succeed();
     }

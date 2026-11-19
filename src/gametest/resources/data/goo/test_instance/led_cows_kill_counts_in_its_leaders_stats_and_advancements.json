@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:led_cows_kill_counts_in_its_leaders_stats_and_advancements",
+  "environment": "goo:minion_kills",
+  "structure": "goo:test_bay",
+  "max_ticks": 100,
+  "setup_ticks": 0,
+  "required": true
+}

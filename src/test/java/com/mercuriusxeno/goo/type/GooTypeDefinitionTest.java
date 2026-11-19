@@ -66,7 +66,10 @@ class GooTypeDefinitionTest {
     private static final Cohesion JELLY_COHESION = Cohesion.STIFF;
     /** Metal's cohesion, the soft rung, so a Spikes coat keeps some thickness where it lands (operator ruling 2026-11-17). */
     private static final Cohesion METAL_COHESION = Cohesion.SOFT;
-    /** Leaf's cohesion, the stiff rung Jelly holds (operator ruling 2026-11-17). */
+    /**
+     * Leaf's cohesion, the stiff rung Jelly holds (operator ruling 2026-11-17). Yarn starts from leaf's, its
+     * residual to be the animal equivalent of leaf.
+     */
     private static final Cohesion LEAF_COHESION = Cohesion.STIFF;
     private static final Adhesion WEIRD_ADHESION = Adhesion.CLINGS;
     private static final Adhesion LEAF_ADHESION = Adhesion.CLINGS;
@@ -308,7 +311,7 @@ class GooTypeDefinitionTest {
         Map<ResourceKey<GooTypeDefinition>, Cohesion> stated = Map.of(GooTypes.WEIRD, WEIRD_COHESION,
                 GooTypes.BLAZE, BLAZE_COHESION, GooTypes.JELLY, JELLY_COHESION, GooTypes.PULSE, PULSE_COHESION,
                 GooTypes.METAL, METAL_COHESION, GooTypes.NETHER, NETHER_COHESION, GooTypes.LEAF, LEAF_COHESION,
-                GooTypes.ZOMBIE, NETHER_COHESION);
+                GooTypes.YARN, LEAF_COHESION, GooTypes.ZOMBIE, NETHER_COHESION);
         assertEquals(stated.getOrDefault(key, Cohesion.RUNNY), decodeBundled(key).cohesion(), key::toString);
     }
 
@@ -354,7 +357,7 @@ class GooTypeDefinitionTest {
         Map<ResourceKey<GooTypeDefinition>, Adhesion> stated = Map.of(GooTypes.KINETIC, Adhesion.SLIPS,
                 GooTypes.WEIRD, WEIRD_ADHESION, GooTypes.GLOW, GLOW_ADHESION, GooTypes.BLAZE, BLAZE_ADHESION,
                 GooTypes.JELLY, JELLY_ADHESION, GooTypes.PULSE, PULSE_ADHESION, GooTypes.NETHER, NETHER_ADHESION,
-                GooTypes.LEAF, LEAF_ADHESION, GooTypes.ZOMBIE, NETHER_ADHESION);
+                GooTypes.LEAF, LEAF_ADHESION, GooTypes.YARN, LEAF_ADHESION, GooTypes.ZOMBIE, NETHER_ADHESION);
         Adhesion expected = stated.getOrDefault(key, COMMON_ADHESION);
         assertEquals(expected, decodeBundled(key).adhesion(), key::toString);
     }

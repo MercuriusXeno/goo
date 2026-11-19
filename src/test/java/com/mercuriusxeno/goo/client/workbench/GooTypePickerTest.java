@@ -57,6 +57,19 @@ class GooTypePickerTest {
     }
 
     /**
+     * While the types, the close cell and the no-goo-type cell overflow 7 by 4, the grid grows a row for them, and
+     * holds 4 rows once they fit (operator ruling 2026-11-18, yarn standing beside yore and zoo).
+     * decision goo-type-picker-is-a-seven-by-four-icon-grid
+     */
+    @Test
+    void gridGrowsARowWhileItsCellsOverflowSevenByFour() {
+        GooTypePicker overflowing = new GooTypePicker(TYPES.subList(0, 27));
+        assertEquals(5, overflowing.rows());
+        GooTypePicker fitting = new GooTypePicker(TYPES.subList(0, 26));
+        assertEquals(GooTypePicker.ROWS, fitting.rows());
+    }
+
+    /**
      * One click on the opener opens the grid, a hovered cell names its type, and a click on a cell answers its type
      * and closes the grid.
      */
@@ -111,7 +124,7 @@ class GooTypePickerTest {
     }
 
     /**
-     * Where the caller allows no goo type, the cell after close picks nothing.
+     * Where the caller allows no goo type, the cell after close picks nothing, on the row the grid grew for it.
      */
     @Test
     void nothingCellPicksNoType() {
@@ -123,17 +136,6 @@ class GooTypePickerTest {
         assertTrue(targets.click(centerX(nothing), centerY(nothing)));
         assertTrue(chose.get());
         assertFalse(picker.isOpen());
-    }
-
-    /**
-     * Where every type, the close cell and the no-goo-type cell pass 7 by 4, the grid grows a fifth row to hold them,
-     * and without the no-goo-type cell it keeps its 4 (operator ruling 2026-11-18: "grow a 5th row").
-     */
-    @Test
-    void gridGrowsAFifthRowWhereItsCellsPassSevenByFour() {
-        GooTypePicker picker = new GooTypePicker(GooTypes.BUNDLED.stream().map(GooTypes::id).limit(27).toList());
-        assertEquals(5, picker.rows(true));
-        assertEquals(4, picker.rows(false));
     }
 
     // The cell standing the given places past the last type, row by row on a grid 7 wide.
@@ -165,15 +167,15 @@ class GooTypePickerTest {
         GooTypePicker picker = new GooTypePicker(TYPES);
         picker.open();
         picker.fitRows(2);
-        for (int turn = 0; turn < GooTypePicker.MAX_ROWS; turn++) {
-            picker.scroll(-1);
-        }
-        int lastFirst = picker.rows(true) - 2;
-        assertEquals(lastFirst, picker.firstRow());
+        picker.scroll(-1);
+        picker.scroll(-1);
+        picker.scroll(-1);
+        assertEquals(picker.rows() - 2, picker.firstRow());
         picker.layTargets(targets, LEFT, TOP, picked::set, null);
         GooTypePicker.Cell close = picker.closeCell();
+        int shownRow = close.row() - picker.firstRow();
         assertTrue(targets.click(LEFT + close.column() * GooTypePicker.CELL + 1,
-                TOP + (close.row() - lastFirst) * GooTypePicker.CELL + 1));
+                TOP + shownRow * GooTypePicker.CELL + 1));
         assertFalse(picker.isOpen());
     }
 
@@ -190,7 +192,7 @@ class GooTypePickerTest {
         picker.open(Set.of(), Set.of(disabled));
         DrawnFrame frame = new DrawnFrame();
         AtomicReference<String> picked = new AtomicReference<>();
-        picker.draw(frame.graphics, DrawnFrame.font(), frame.targets, LEFT, TOP, picker.rows(false), picked::set,
+        picker.draw(frame.graphics, DrawnFrame.font(), frame.targets, LEFT, TOP, GooTypePicker.ROWS, picked::set,
                 null);
         verify(frame.graphics).blit(any(), eq(GooTypeIcons.texture(disabled)), anyInt(), anyInt(), anyFloat(),
                 anyFloat(), anyInt(), anyInt(), anyInt(), anyInt(), eq(Palette.DISABLED));

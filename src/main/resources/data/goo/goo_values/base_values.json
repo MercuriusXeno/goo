@@ -2,7 +2,7 @@
     "_constants": {
         "base": 6,
         "stick": {"leaf": "2 $base"},
-        "string": {"zoo": "2 $base"},
+        "string": {"yarn": "2 $base"},
         "mundane_block": {"rock": "2 $base"},
         "bush": {"leaf": "2 $base"},
         "plank": "2 $stick",
@@ -764,7 +764,7 @@
     "bone": {"zoo": "3 $dye.leaf / 2", "zombie": "$base / 4"},
     "lapis_lazuli": {"crystal": "$dye.opulent", "hex": "$dye.opulent", "opulent": "$dye.opulent"},
 
-    "leather": {"zoo": "6 $base"},
+    "leather": {"yarn": "6 $base"},
     "rabbit_hide": "leather / 4",
     "feather": {"typhoon": "6 $base"},
     "ink_sac": {"deep": "$base"},
@@ -815,9 +815,9 @@
     "amethyst_cluster": "9 amethyst_shard",
 
     "dragon_breath": "$bottle + $magic + $ender + $astral",
-    "rabbit_foot": {"zoo": "leather.zoo", "kinetic": "$base"},
+    "rabbit_foot": {"zoo": "6 $base", "kinetic": "$base"},
     "elytra": {"typhoon": "36 $base", "hex": "12 $base", "ender": "36 $base", "kinetic": "12 $base"},
-    "cobweb": {"zoo":"$base"},
+    "cobweb": {"yarn":"$base"},
     "goat_horn": {"zoo":"$base", "kinetic":"$base"},
     "bee_nest": {"zoo":"3 $base", "opulent":"$base", "jelly":"$base"},
     "phantom_membrane": {"typhoon": "12 $base", "hex": "6 $base", "xeno": "6 $base"},
