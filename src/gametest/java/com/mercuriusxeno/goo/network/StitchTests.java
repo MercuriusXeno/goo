@@ -100,17 +100,20 @@ public final class StitchTests {
     }
 
     /**
-     * A small slime set on a full Stitch cell in the middle of a stone floor
-     * is gone a second later: one mob the shipped table names stands there,
+     * A small slime set on a full Stitch cell set into a dirt path floor is
+     * gone a second later: one mob the shipped table names stands there,
      * and the cell is lower by that entry's layers.
      *
      * @param helper the gametest helper
      */
     public static void slimeOnStitchBecomesAPassiveFromTheTable(GameTestHelper helper) {
+        // dirt path closes the cell in, so it pours none of its layers away, and its side, short of a full
+        // block, holds no goo
         for (int x = 0; x <= 4; x++) {
             for (int z = 0; z <= 4; z++) {
-                helper.setBlock(new BlockPos(x, 0, z), Blocks.STONE);
-                helper.setBlock(new BlockPos(x, 1, z), Blocks.AIR);
+                helper.setBlock(new BlockPos(x, 0, z), Blocks.BEDROCK);
+                helper.setBlock(new BlockPos(x, 1, z), Blocks.DIRT_PATH);
+                helper.setBlock(new BlockPos(x, 2, z), Blocks.AIR);
             }
         }
         helper.setBlock(SLIME_CELL, GooBlocks.YARN_STITCH.get().defaultBlockState()
