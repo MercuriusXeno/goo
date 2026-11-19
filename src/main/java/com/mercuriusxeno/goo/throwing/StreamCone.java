@@ -64,12 +64,61 @@ public final class StreamCone {
      * @return the unit direction
      */
     public static Vec3 launchDirection(Vec3 axis, double coneDegrees, double tiltShare, double turnShare) {
+        return launchDirection(axis, ConeShape.round(coneDegrees), tiltShare, turnShare);
+    }
+
+    /**
+     * A direction leaving the apex inside a cone of a shape: tilted off the axis by a share of the cone's half
+     * angle at its turn, so a flattened cone reaches far across and little up and down.
+     * decision spray-item-takes-different-nozzles-doing-different-things
+     * decision fan-nozzle-flattens-and-widens-the-cone
+     *
+     * @param axis      the cone's axis, any length
+     * @param shape     the cone's widths across and up and down
+     * @param tiltShare how far off the axis, zero on it and one at the rim
+     * @param turnShare how far about the axis, zero to one for a full turn
+     * @return the unit direction
+     */
+    public static Vec3 launchDirection(Vec3 axis, ConeShape shape, double tiltShare, double turnShare) {
         Vec3 forward = axis.normalize();
         Vec3 side = side(forward);
         Vec3 lift = side.cross(forward);
-        double tilt = Math.toRadians(coneDegrees * HALF) * tiltShare;
+        if (shape.band()) {
+            return bandDirection(forward, side, lift, shape, tiltShare, turnShare);
+        }
         double turn = FULL_TURN * turnShare;
+        double tilt = Math.toRadians(shape.degreesAt(turn) * HALF) * tiltShare;
         Vec3 off = side.scale(Math.cos(turn)).add(lift.scale(Math.sin(turn)));
         return forward.scale(Math.cos(tilt)).add(off.scale(Math.sin(tilt))).normalize();
+    }
+
+    /**
+     * A direction inside a flat band: the turn share spreads it evenly across from one end to the other, and the
+     * tilt share, an even draw squared back, spreads it evenly through the band's thin height.
+     * operator report 2026-11-18: Line should spray a flat spread evenly in a horizontal line
+     *
+     * @param forward   the band's unit axis
+     * @param side      the unit direction across
+     * @param lift      the unit direction up and down
+     * @param shape     the band's widths across and up and down
+     * @param tiltShare the drip's tilt share, the square root of an even draw
+     * @param turnShare the drip's turn share, an even draw
+     * @return the unit direction
+     */
+    private static Vec3 bandDirection(Vec3 forward, Vec3 side, Vec3 lift, ConeShape shape, double tiltShare,
+                                      double turnShare) {
+        double across = Math.toRadians(shape.sideDegrees() * HALF) * fromEndToEnd(turnShare);
+        double upDown = Math.toRadians(shape.liftDegrees() * HALF) * fromEndToEnd(tiltShare * tiltShare);
+        return forward.add(side.scale(Math.tan(across))).add(lift.scale(Math.tan(upDown))).normalize();
+    }
+
+    /**
+     * An even draw from zero to one, spread from one end of a band to the other.
+     *
+     * @param draw the draw in [0, 1]
+     * @return the place across the band, -1 at one end to 1 at the other
+     */
+    private static double fromEndToEnd(double draw) {
+        return (draw - HALF) / HALF;
     }
 }
