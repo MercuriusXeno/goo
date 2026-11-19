@@ -1,6 +1,6 @@
 {
-  "gooType": "yore",
-  "displayName": "goo.ability.yore.rewind",
+  "gooType": "xeno",
+  "displayName": "goo.ability.xeno.revert",
   "badge": "mob",
   "order": 20,
   "cost": 4000,

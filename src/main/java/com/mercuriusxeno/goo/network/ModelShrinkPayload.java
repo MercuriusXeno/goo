@@ -9,7 +9,7 @@ import org.jspecify.annotations.NonNull;
 
 /**
  * Server-to-client payload: an entity's model shrinks smoothly from one
- * size to another, as Rewind turns an adult into a baby or a mob into its
+ * size to another, as Revert turns an adult into a baby or a mob into its
  * egg.
  * Decision model-transformation-is-one-animation.
  * rewind-shrinks-adult-to-baby-to-egg
