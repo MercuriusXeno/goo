@@ -8,7 +8,8 @@ import net.minecraft.resources.Identifier;
 /**
  * The spores a mob carries until it dies or they fade: the ability whose
  * spray bursts from its corpse, how far the burst reaches, and the game time
- * the spores fade at (decision mycosis-spore-stream-buds-and-poisons).
+ * the spores fade at.
+ * mycosis-spore-stream-buds-and-poisons
  *
  * @param burst     the ability the corpse bursts
  * @param radius    the burst's reach in blocks

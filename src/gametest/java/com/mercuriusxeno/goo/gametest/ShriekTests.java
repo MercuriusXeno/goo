@@ -45,7 +45,7 @@ public final class ShriekTests {
         GooTestFunctions.registerTest(registrar, SHRIEK_CALLS, ShriekTests::shriekCallsTheZombieInEarshot);
     }
 
-    private static final Identifier DEEP_SHRIEK = Identifier.parse("goo:deep_shriek");
+    private static final Identifier XENO_SHRIEK = Identifier.parse("goo:xeno_shriek");
     /** How far off its own bay the scene lies on each horizontal axis, past every other test. */
     private static final int FAR_OFF = 4096;
     /** The floor's reach from the blob along x, past the far zombie, and its half width along z. */
@@ -171,14 +171,14 @@ public final class ShriekTests {
     }
 
     /**
-     * Lands a deep goo shriek blob on the top of a floor block.
+     * Lands a xeno goo shriek blob on the top of a floor block.
          *
      * @param helper the gametest helper
      * @param floor  the floor block's absolute position
      */
     private static void landShriek(GameTestHelper helper, BlockPos floor) {
-        AbilityDefinition shriek = AbilityRegistry.of(helper.getLevel()).getAbility(DEEP_SHRIEK);
-        helper.assertTrue(shriek != null, String.format(ABILITY_REQUIRED, DEEP_SHRIEK));
-        AbilityImpact.land(helper.getLevel(), floor, GooTypes.DEEP, Direction.UP, shriek);
+        AbilityDefinition shriek = AbilityRegistry.of(helper.getLevel()).getAbility(XENO_SHRIEK);
+        helper.assertTrue(shriek != null, String.format(ABILITY_REQUIRED, XENO_SHRIEK));
+        AbilityImpact.land(helper.getLevel(), floor, GooTypes.XENO, Direction.UP, shriek);
     }
 }

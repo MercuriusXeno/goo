@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.mixin;
 
-import com.mercuriusxeno.goo.ability.deep.SculkerHearing;
+import com.mercuriusxeno.goo.ability.sculk.SculkerHearing;
 import net.minecraft.core.Holder;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvent;

@@ -70,7 +70,7 @@ class GloveThrowSenderTest {
 
         @Test
         void aHeldTickThrowingNoDripsSendsTheGlove() {
-            assertEquals(glove, GloveThrowSender.heldTickOrigin(AbilityJson.decode("nether_decay").delivery(), blob,
+            assertEquals(glove, GloveThrowSender.heldTickOrigin(AbilityJson.decode("zombie_decay").delivery(), blob,
                     glove), "a held Decay tick should send the glove its cone opens from");
         }
     }
@@ -155,14 +155,14 @@ class GloveThrowSenderTest {
 
     @Test
     void holdingsOneShortOfTheCostRefuseTheThrow() {
-        ClientAbility mine = clientAbility("deep_shriek");
+        ClientAbility mine = clientAbility("xeno_shriek");
 
         assertFalse(affordsWithHoldings(mine, mine.cost() - 1));
     }
 
     @Test
     void holdingsCoveringTheCostAllowTheThrow() {
-        ClientAbility mine = clientAbility("deep_shriek");
+        ClientAbility mine = clientAbility("xeno_shriek");
 
         assertTrue(affordsWithHoldings(mine, mine.cost()));
     }
@@ -218,7 +218,7 @@ class GloveThrowSenderTest {
         private final ClientAbility lead = clientAbility("yarn_lead");
 
         private boolean sendsHolding(Led targetLead, int holdings) {
-            return GloveThrowSender.affordsAimedThrow(lead, false, CASTER, targetLead,
+            return GloveThrowSender.affordsAimedThrow(lead, CASTER, targetLead,
                     amount -> holdings >= amount, item -> true);
         }
 

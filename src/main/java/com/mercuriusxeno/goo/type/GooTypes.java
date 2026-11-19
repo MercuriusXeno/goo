@@ -58,7 +58,6 @@ public final class GooTypes {
     public static final ResourceKey<GooTypeDefinition> ASTRAL = bundled("astral");
     public static final ResourceKey<GooTypeDefinition> BLAZE = bundled("blaze");
     public static final ResourceKey<GooTypeDefinition> CRYSTAL = bundled("crystal");
-    public static final ResourceKey<GooTypeDefinition> DEEP = bundled("deep");
     public static final ResourceKey<GooTypeDefinition> ENDER = bundled("ender");
     public static final ResourceKey<GooTypeDefinition> FROST = bundled("frost");
     public static final ResourceKey<GooTypeDefinition> GLOW = bundled("glow");
@@ -77,12 +76,18 @@ public final class GooTypes {
     public static final ResourceKey<GooTypeDefinition> PULSE = bundled("pulse");
     public static final ResourceKey<GooTypeDefinition> QUANTUM = bundled("quantum");
     public static final ResourceKey<GooTypeDefinition> ROCK = bundled("rock");
-    public static final ResourceKey<GooTypeDefinition> SHROOM = bundled("shroom");
+    /**
+     * Shrooms and sculk are one goo type, in the sculk colors Deep wore.
+     * decision sculk-takes-deeps-coloration-and-shrooms-goes
+     * decision shroom-is-a-universal-sculk-input
+     */
+    public static final ResourceKey<GooTypeDefinition> SCULK = bundled("sculk");
     public static final ResourceKey<GooTypeDefinition> TYPHOON = bundled("typhoon");
     public static final ResourceKey<GooTypeDefinition> UNSTABLE = bundled("unstable");
     /**
-     * Void comes from no item: astral and deep react into it.
+     * Void comes from its items: chorus fruit, chorus plants, shulker shells and void-touched spawn eggs.
      * decision void-ships-from-astral-and-deep
+     * decision void-reaction-leaves-with-deep
      */
     public static final ResourceKey<GooTypeDefinition> VOID = bundled("void");
     public static final ResourceKey<GooTypeDefinition> WEIRD = bundled("weird");
@@ -95,7 +100,12 @@ public final class GooTypes {
      * decision yarn-is-the-y-goo-of-wool-string-and-leather
      */
     public static final ResourceKey<GooTypeDefinition> YARN = bundled("yarn");
-    public static final ResourceKey<GooTypeDefinition> YORE = bundled("yore");
+    /**
+     * The undead's goo, colored after zombie flesh.
+     * decision zoo-leaves-and-zombie-goo-replaces-it-as-z
+     * decision zombie-goo-is-colored-after-zombie-flesh-and-decay-stops-being-maroon
+     */
+    public static final ResourceKey<GooTypeDefinition> ZOMBIE = bundled("zombie");
     public static final ResourceKey<GooTypeDefinition> ZOO = bundled("zoo");
 
     /**
@@ -114,8 +124,10 @@ public final class GooTypes {
      * Every type the mod ships as JSON, in constant order.
      */
     public static final List<ResourceKey<GooTypeDefinition>> BUNDLED = List.of(
-            ASTRAL, BLAZE, CRYSTAL, DEEP, ENDER, FROST, GLOW, HEX, INFINITY, JELLY, KINETIC, LEAF,
-            METAL, NETHER, OPULENT, PULSE, QUANTUM, ROCK, SHROOM, TYPHOON, UNSTABLE, VOID, WEIRD, XENO, YARN, YORE, ZOO);
+            ASTRAL, BLAZE, CRYSTAL, ENDER, FROST, GLOW, HEX, INFINITY, JELLY, KINETIC, LEAF,
+            METAL, NETHER, OPULENT, PULSE, QUANTUM, ROCK, SCULK, TYPHOON, UNSTABLE, VOID, WEIRD, XENO, YARN,
+            ZOMBIE, ZOO);
+
 
     /**
      * A type key as its short id: the bare path for a bundled type, the

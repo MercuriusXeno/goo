@@ -25,7 +25,7 @@ class BlockTransformsTest {
     private static final BlockPos GRAVEL = new BlockPos(3, 64, 2);
     private static final long START = 100L;
     private static final float DELTA = 1e-6f;
-    private static final int MAROON = DegradeStep.NETHER_MAROON;
+    private static final int ROT = DegradeStep.ZOMBIE_ROT;
 
     /**
      * The payload the server sends as a Molten cell begins melting the block
@@ -65,13 +65,13 @@ class BlockTransformsTest {
         assertEquals(0, transforms.live(START + 5 + BlockTransforms.DURATION_TICKS).size());
     }
 
-    // decay-gnats-degrade-each-block-once: Decay's maroon face carries into the step rather than vanishing
+    // decay-gnats-degrade-each-block-once: Decay's tinted face carries into the step rather than vanishing
     @Test
     void aStepOnATintedExposureDissolvesFromTheTintedFace() {
         BlockTransforms transforms = new BlockTransforms();
-        transforms.expose(GRAVEL, null, 0.9f, START, MAROON);
+        transforms.expose(GRAVEL, null, 0.9f, START, ROT);
         transforms.start(GRAVEL, null, START + 1);
-        assertEquals(MAROON, transforms.live(START + 1).getFirst().tint());
+        assertEquals(ROT, transforms.live(START + 1).getFirst().tint());
     }
 
     // broil-heat-wave-ring-cooks-ahead: the build was the one dissolve, so the step only holds the built block whole
@@ -203,9 +203,9 @@ class BlockTransformsTest {
     void anExposureTowardABlockMinglesThatBlockInItsOwnTint() {
         BlockState sand = mock(BlockState.class);
         BlockState glass = mock(BlockState.class);
-        BlockTransforms.Exposure firstTick = new BlockTransforms.Exposure(GRAVEL, glass, 0.025f, START, MAROON);
+        BlockTransforms.Exposure firstTick = new BlockTransforms.Exposure(GRAVEL, glass, 0.025f, START, ROT);
 
-        assertEquals(new BlockTransforms.Mingling(glass, MAROON, 1f - 0.025f),
+        assertEquals(new BlockTransforms.Mingling(glass, ROT, 1f - 0.025f),
                 BlockTransforms.minglingOf(firstTick, sand));
     }
 

@@ -47,13 +47,6 @@ public record DamageStep(Expr amount, DamageKind source, boolean knockback,
                          Optional<Expr> invulnerableTicks, boolean iFrames, boolean healsUndead) implements Step {
 
     /**
-     * Expire's damage type, which the vanilla bypass tags name.
-     * expire-kills-the-struck-mob
-     */
-    public static final ResourceKey<DamageType> EXPIRE =
-            ResourceKey.create(Registries.DAMAGE_TYPE, Identifier.fromNamespaceAndPath(Goo.MODID, "expire"));
-
-    /**
      * The metal spike trap's impale, goo's own copy of vanilla's stalagmite carrying its
      * death message. Vanilla's is_fall tag holds minecraft:stalagmite, so
      * every mob in the fall_damage_immune tag, a chicken, a cat, a bee, a
@@ -210,7 +203,6 @@ public record DamageStep(Expr amount, DamageKind source, boolean knockback,
      */
     static Optional<ResourceKey<DamageType>> gooTypeOf(DamageKind kind) {
         return switch (kind) {
-            case EXPIRE -> Optional.of(EXPIRE);
             case STALAGMITE -> Optional.of(STALAGMITE);
             case MAGIC, FREEZE, CACTUS, FORCE, ATTACK -> Optional.empty();
         };
@@ -227,7 +219,7 @@ public record DamageStep(Expr amount, DamageKind source, boolean knockback,
             case MAGIC -> sources.magic();
             case FREEZE -> sources.freeze();
             case CACTUS -> sources.cactus();
-            case FORCE, ATTACK, EXPIRE, STALAGMITE -> sources.generic();
+            case FORCE, ATTACK, STALAGMITE -> sources.generic();
         };
     }
 

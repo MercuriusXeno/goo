@@ -41,8 +41,8 @@ class HeartAbilityIconsTest {
             "...#............");
 
     @ParameterizedTest
-    @ValueSource(strings = {"blaze_kindle", "crystal_scales", "leaf_barkskin", "nether_undead",
-            "rock_stoneskin", "yore_ancient"})
+    @ValueSource(strings = {"blaze_kindle", "crystal_scales", "leaf_barkskin", "zombie_undead",
+            "rock_stoneskin"})
     void heartIconFansThreeSevenTexelHearts(String ability) throws IOException {
         assertEquals(FANNED_HEARTS, silhouette(read(ABILITY_ICONS + ability + ".png")), ability);
     }

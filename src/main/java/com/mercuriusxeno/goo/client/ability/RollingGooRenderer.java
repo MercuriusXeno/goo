@@ -1,7 +1,8 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.program.TravelingStep;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.throwing.GooFlightRenderer;
 import com.mercuriusxeno.goo.entity.RollingGoo;
@@ -13,10 +14,7 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+import java.util.function.Consumer;
 
 /**
  * Draws each rolling goo where it is this frame: its type's blob, and about
@@ -24,7 +22,6 @@ import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
  * its storm (decision orb-carries-a-swirling-nova). The entity's own
  * renderer draws nothing, so the ball and its swirl draw together here.
  */
-@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class RollingGooRenderer {
 
     private RollingGooRenderer() {
@@ -42,12 +39,14 @@ public final class RollingGooRenderer {
     }
 
     /**
-     * Draws every rolling goo after translucent blocks.
+     * Hands the shared path one draw per rolling goo, its ball and its swirl,
+     * each sorted by where the goo is this frame.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
      *
-     * @param event the level render stage event
+     * @param frame the frame being drawn
+     * @param draws where each rolling goo's draw goes
      */
-    @SubscribeEvent
-    public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
         Minecraft mc = Minecraft.getInstance();
         ClientLevel level = mc.level;
         if (level == null) {
@@ -56,14 +55,16 @@ public final class RollingGooRenderer {
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         float gameTime = level.getGameTime() + partialTick;
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
-        PoseStack poseStack = event.getPoseStack();
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         for (Entity entity : level.entitiesForRendering()) {
             if (entity instanceof RollingGoo goo && goo.gooType() != null) {
-                drawGoo(level, poseStack, buffers, camera, goo, goo.getPosition(partialTick), gameTime);
+                Vec3 at = goo.getPosition(partialTick);
+                draws.accept(new SortedDraw(at.distanceToSqr(camera), () -> {
+                    drawGoo(level, frame.poseStack(), buffers, camera, goo, at, gameTime);
+                    buffers.endBatch();
+                }));
             }
         }
-        buffers.endBatch();
     }
 
     private static void drawGoo(ClientLevel level, PoseStack poseStack, MultiBufferSource.BufferSource buffers,

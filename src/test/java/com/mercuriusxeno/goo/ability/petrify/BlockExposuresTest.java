@@ -37,14 +37,14 @@ class BlockExposuresTest {
         assertEquals(0.6f + rate, grown.share(), DELTA);
     }
 
-    // decay-gnats-degrade-each-block-once: Decay's maroon stays on its overlay as the share grows or recedes
+    // decay-gnats-degrade-each-block-once: Decay's tint stays on its overlay as the share grows or recedes
     @Test
     void aTintedShareKeepsItsTintGrowingOrDecaying() {
-        int maroon = DegradeStep.NETHER_MAROON;
-        BlockExposures.Exposure finishing = new BlockExposures.Exposure(null, 0.6f, NOW, 0.1f, maroon);
-        assertEquals(maroon, BlockExposures.decayed(finishing, NOW + 1).tint());
-        BlockExposures.Exposure left = new BlockExposures.Exposure(null, 0.5f, NOW, 0f, maroon);
-        assertEquals(maroon, BlockExposures.decayed(left, NOW + BlockExposures.DECAY_DELAY_TICKS + 1).tint());
+        int tint = DegradeStep.ZOMBIE_ROT;
+        BlockExposures.Exposure finishing = new BlockExposures.Exposure(null, 0.6f, NOW, 0.1f, tint);
+        assertEquals(tint, BlockExposures.decayed(finishing, NOW + 1).tint());
+        BlockExposures.Exposure left = new BlockExposures.Exposure(null, 0.5f, NOW, 0f, tint);
+        assertEquals(tint, BlockExposures.decayed(left, NOW + BlockExposures.DECAY_DELAY_TICKS + 1).tint());
     }
 
     @Test

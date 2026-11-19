@@ -58,10 +58,10 @@ public final class MycosisFungiTests {
     private static final float LOOKING_AT_FUNGUS = 20.5f;
     /** The longest hold; wart and buds under the stream ripen in a fraction of it. */
     private static final int HOLD_TICKS = 300;
-    /** Shroom goo the player holds, thousands: enough to pay for the whole hold and then some. */
+    /** Sculk goo the player holds, thousands: enough to pay for the whole hold and then some. */
     private static final int HELD_GOO = 20;
     private static final double ITEM_SEARCH_RADIUS = 3;
-    private static final Identifier SHROOM_MYCOSIS = Identifier.parse("goo:shroom_mycosis");
+    private static final Identifier SCULK_MYCOSIS = Identifier.parse("goo:sculk_mycosis");
     private static final String ABILITY_REQUIRED = "Ability registry must hold %s";
     private static final String SHOULD_REPLANT = "Reaped wart should stand replanted at age 0 beside dropped wart, stands %s";
     private static final String SHOULD_MUSHROOM = "A bud under the stream should grow into a mushroom, stands %s";
@@ -79,7 +79,7 @@ public final class MycosisFungiTests {
     public static void mycosisGrowsAndReapsNetherWart(GameTestHelper helper) {
         helper.setBlock(FUNGUS_POS.below(), Blocks.SOUL_SAND);
         helper.setBlock(FUNGUS_POS, Blocks.NETHER_WART);
-        hold(helper, GooTypes.SHROOM, SHROOM_MYCOSIS, HOLD_TICKS);
+        hold(helper, GooTypes.SCULK, SCULK_MYCOSIS, HOLD_TICKS);
         helper.succeedWhen(() -> {
             BlockState wart = helper.getBlockState(FUNGUS_POS);
             helper.assertTrue(wart.is(Blocks.NETHER_WART) && wart.getValue(NetherWartBlock.AGE) == 0,
@@ -95,9 +95,10 @@ public final class MycosisFungiTests {
      * @param helper the gametest helper
      */
     public static void mycosisGrowsFungalBuds(GameTestHelper helper) {
-        helper.setBlock(FUNGUS_POS.below(), Blocks.STONE);
+        // operator ruling 2026-11-18: a bud grows only where its mushroom can, so it stands on mycelium
+        helper.setBlock(FUNGUS_POS.below(), Blocks.MYCELIUM);
         helper.setBlock(FUNGUS_POS, GooBlocks.FUNGAL_BUD.get().defaultBlockState().setValue(FungalBudBlock.AGE, 0));
-        hold(helper, GooTypes.SHROOM, SHROOM_MYCOSIS, HOLD_TICKS);
+        hold(helper, GooTypes.SCULK, SCULK_MYCOSIS, HOLD_TICKS);
         helper.succeedWhen(() -> {
             BlockState grown = helper.getBlockState(FUNGUS_POS);
             helper.assertTrue(grown.is(Blocks.BROWN_MUSHROOM) || grown.is(Blocks.RED_MUSHROOM),

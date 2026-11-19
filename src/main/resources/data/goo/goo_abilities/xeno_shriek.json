@@ -1,0 +1,18 @@
+{
+  "gooType": "xeno",
+  "displayName": "goo.ability.xeno.shriek",
+  "badge": "world",
+  "order": 40,
+  "cost": 1000,
+  "requires": ["minecraft:sculk_shrieker"],
+  "delivery": { "kind": "arc", "range": 16 },
+  "behaviors": [
+    {
+      "type": "linger",
+      "steps": [
+        { "type": "shriek", "reach": 16, "lasts": 600 }
+      ]
+    }
+  ],
+  "tags": ["trap"]
+}

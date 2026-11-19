@@ -10,7 +10,9 @@ import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -74,17 +76,58 @@ class SlimeTopQuadsTest {
     }
 
     /**
-     * A block a block of its goo stands on is the column's inside: it draws
-     * no top, and its rims rise to the column's slope, 10.5 layers at an
-     * edge to air under a block of 6, the average of the column's 21 and nothing.
-     * stacked-goo-cells-share-one-slime-core
+     * A full block a block of its goo stands on is a whole cube: it draws
+     * no top, and its edge to air stands full, 15 layers.
+     * full-goo-block-under-goo-is-a-whole-cube
      */
     @Test
     void aBlockUnderABlockOfItsGooDrawsNoTop() {
         SlimeTop under = SlimeTop.of(new SameGooCells().at(0, 0, 0, 15).at(0, 1, 0, 6));
 
         assertTrue(SlimeTopQuads.topOf(under, SHELL).isEmpty());
-        assertEquals(10.5, under.heightAt(3, 1), EPSILON);
+        assertEquals(15, under.heightAt(3, 1), EPSILON);
+    }
+
+    /**
+     * The two whole cubes of a pillar of 15, 15 and 6 standing in a film
+     * of 1 show their sides, the foot's as steps over the film and the
+     * middle's as rims to air: every side quad lies in a face of its block
+     * and reaches the block's top, 16 px, and each block shows all four.
+     * full-goo-block-under-goo-is-a-whole-cube
+     */
+    @Test
+    void aCoveredCubesSidesStandInItsFaces() {
+        SameGooCells pillar = SameGooCells.pillar(true);
+        for (int y : new int[] {0, 1}) {
+            SlimeTop cube = SlimeTop.of(pillar.shiftedBy(0, y, 0));
+            List<BakedQuad> sides = new ArrayList<>(SlimeTopQuads.stepsOf(cube, SHELL));
+            SlimeTopQuads.rimsOf(cube, SHELL).values().forEach(sides::addAll);
+
+            assertEquals(Set.of(Direction.NORTH, Direction.SOUTH, Direction.EAST, Direction.WEST),
+                    sides.stream().map(BakedQuad::direction).collect(Collectors.toSet()), "block " + y + "'s sides");
+            for (BakedQuad side : sides) {
+                assertTrue(inItsFace(side), "block " + y + "'s " + side.direction() + " side stands off its face");
+                float tallest = 0;
+                for (int vertex = 0; vertex < BakedQuad.VERTEX_COUNT; vertex++) {
+                    tallest = Math.max(tallest, side.position(vertex).y());
+                }
+                assertEquals(1f, tallest, EPSILON, "block " + y + "'s " + side.direction() + " side's top");
+            }
+        }
+    }
+
+    /** Whether every vertex of a side quad lies in the face of its block it faces. */
+    private static boolean inItsFace(BakedQuad side) {
+        Direction face = side.direction();
+        float plane = face.getAxisDirection() == Direction.AxisDirection.POSITIVE ? 1f : 0f;
+        for (int vertex = 0; vertex < BakedQuad.VERTEX_COUNT; vertex++) {
+            Vector3fc at = side.position(vertex);
+            float along = face.getAxis() == Direction.Axis.X ? at.x() : at.z();
+            if (face.getAxis().isVertical() || Math.abs(along - plane) > EPSILON) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**

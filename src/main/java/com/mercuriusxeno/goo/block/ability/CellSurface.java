@@ -11,7 +11,8 @@ package com.mercuriusxeno.goo.block.ability;
  * smites the undead touching it; leech slows a thing caught in it; spikes
  * stands as ordinary ground and impales what walks on it; vines stands as
  * ordinary ground and entangles what crosses it; phase stands as ordinary
- * ground and puts what stands in it out of phase. A goo type
+ * ground and puts what stands in it out of phase; stitch stands as ordinary
+ * ground, lets a passive pass and tangles a hostile in it. A goo type
  * binding a world goo to the cell names one.
  * slime-and-slick-are-one-volume-cell-tech
  * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
@@ -33,7 +34,7 @@ public enum CellSurface {
     BOUNCE(Frictions.ORDINARY_GROUND),
     /** Slick's: as slippery as ice, it ramps a thing trying to move on it. */
     RAMP(Frictions.ICE),
-    /** Molten's and Host's: ordinary ground, letting a fall harm and moving nothing on it. */
+    /** Molten's and Creep's: ordinary ground, letting a fall harm and moving nothing on it. */
     POOL(Frictions.ORDINARY_GROUND),
     /** Shatter's: ordinary ground under the glass shards hanging over it, which cut what moves through them. */
     SHARDS(Frictions.ORDINARY_GROUND),
@@ -48,7 +49,12 @@ public enum CellSurface {
     /** Vines': ordinary ground underfoot, it entangles a thing crossing it in vines by its layers. */
     ENTANGLE(Frictions.ORDINARY_GROUND),
     /** Phase's: ordinary ground underfoot, it puts what stands in it out of phase. */
-    PHASE(Frictions.ORDINARY_GROUND);
+    PHASE(Frictions.ORDINARY_GROUND),
+    /**
+     * Stitch's: ordinary ground underfoot, a passive passes it and a hostile in it is tangled in strands.
+     * passives-move-through-stitch-and-hostiles-tangle-in-it
+     */
+    TANGLE(Frictions.ORDINARY_GROUND);
 
     /** The friction a cell bound to this surface stands at, the slipperiness what moves on it meets. */
     private final float friction;
@@ -128,6 +134,13 @@ public enum CellSurface {
      */
     public boolean phases() {
         return this == PHASE;
+    }
+
+    /**
+     * @return true where the cell tangles a hostile in it and lets a passive pass
+     */
+    public boolean tangles() {
+        return this == TANGLE;
     }
 
     /** The frictions the surfaces stand at, held apart so the constants above can read them. */

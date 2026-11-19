@@ -1,18 +1,16 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 /**
  * Floats a life mark over the head of every led, charmed or downed mob in sight,
@@ -27,25 +25,34 @@ import java.util.Optional;
  * leader-shows-life-bars-while-it-stands
  * downed-mob-shows-a-skull-and-its-negative-health
  */
-@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class HeadMarks {
 
     private HeadMarks() {
     }
 
     /**
-     * Draws the life marks after the translucent world.
+     * Hands the shared path the life marks of every marked mob in sight,
+     * sorted by the nearest marked mob. The marks draw through vanilla's
+     * see-through text, through walls, so a mark never clips into the wall
+     * it stands near (operator ruling 2026-11-18).
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
      *
-     * @param event the level render stage event
+     * @param frame the frame being drawn
+     * @param draws where the marks' draw goes
      */
-    @SubscribeEvent
-    public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) {
             return;
         }
+        List<LivingEntity> marked = lifeMarkedInSight(mc.level);
+        if (marked.isEmpty()) {
+            return;
+        }
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        LifeMarkBillboard.drawAll(event.getPoseStack(), lifeMarkedInSight(mc.level), partialTick);
+        draws.accept(SortedDraw.nearestOf(marked.stream().map(Entity::position),
+                mc.gameRenderer.getMainCamera().position(),
+                () -> LifeMarkBillboard.drawAll(frame.poseStack(), marked, partialTick)));
     }
 
     private static List<LivingEntity> lifeMarkedInSight(ClientLevel level) {

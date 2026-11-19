@@ -319,7 +319,7 @@ class GooStreamHandlerTest {
         private static final Vec3 EYE = Vec3.ZERO;
         private static final Vec3 LOOK = new Vec3(1, 0, 0);
         private static final double HALF_A_MOB = 0.3;
-        private final Delivery decay = AbilityJson.decode("nether_decay").delivery();
+        private final Delivery decay = AbilityJson.decode("zombie_decay").delivery();
 
         private Mob mobAt(Vec3 middle) {
             Mob mob = mock(Mob.class);

@@ -1,7 +1,9 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.ability.deep.SculkerSwim;
+import com.mercuriusxeno.goo.ability.sculk.SculkerSwim;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mojang.blaze3d.buffers.Std140Builder;
 import com.mojang.blaze3d.resource.CrossFrameResourcePool;
 import net.minecraft.client.Camera;
@@ -11,12 +13,9 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.profiling.Profiler;
 import net.minecraft.util.profiling.ProfilerFiller;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.joml.Vector4f;
 import org.lwjgl.system.MemoryStack;
+import java.util.function.Consumer;
 
 /**
  * Sculker's warden senses: while the brew stands the world dims through
@@ -32,7 +31,6 @@ import org.lwjgl.system.MemoryStack;
  * the glass is dimmed by its own distance, and an echo shows at its own
  * strength.
  */
-@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class SculkerVision {
 
     /** The chain at {@code assets/goo/post_effect/sculker_sense.json}. */
@@ -54,8 +52,8 @@ public final class SculkerVision {
      * decision diagnose-sculkers-lag-and-prove-it-improved-significantly
      */
     private static final String VISION_DIM_SECTION = "goo_sculker_vision_dim";
-    private static final String GLASS_DRAW_SECTION = "goo_sculker_glass_draw";
-    private static final String ECHO_DRAW_SECTION = "goo_sculker_echo_draw";
+    static final String GLASS_DRAW_SECTION = "goo_sculker_glass_draw";
+    static final String ECHO_DRAW_SECTION = "goo_sculker_echo_draw";
 
     private static final OwnedPostEffect SLOT = new OwnedPostEffect(POST_EFFECT_ID, SCULKER_CONFIG_BLOCK);
     private static final Vector4f SCULKER_PARAMS = new Vector4f();
@@ -118,28 +116,20 @@ public final class SculkerVision {
     }
 
     /**
-     * Once the world's blocks are drawn, runs the senses on them, then draws
-     * the glass field and the echoes over the dimmed world.
-     *
-     * @param event the level render stage event
-     */
-    @SubscribeEvent
-    public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
-        ProfilerFiller profiler = Profiler.get();
-        profiler.push(VISION_DIM_SECTION);
-        sense();
-        profiler.popPush(GLASS_DRAW_SECTION);
-        SculkerGlassRenderer.draw(event);
-        profiler.popPush(ECHO_DRAW_SECTION);
-        SculkerEchoRenderer.draw(event);
-        profiler.pop();
-    }
-
-    /**
      * Eases the senses in while the local player's Sculker stands and out
-     * once it ends, and runs the chain on the world while they stand.
+     * once it ends, the clouds fading with them, and while they stand hands
+     * the shared path the chain that dims the world by its depth: a post
+     * effect over the finished frame, sorted by nothing, registered ahead
+     * of {@link SculkerGlassRenderer#collect} and
+     * {@link SculkerEchoRenderer#collect}, so the glass field and the echoes
+     * draw over the dimmed world. The path draws it once the level is drawn,
+     * before the game renderer clears the level's depth for the hand.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
+     *
+     * @param frame the frame being drawn
+     * @param draws where the dim's draw goes
      */
-    private static void sense() {
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
         Minecraft mc = Minecraft.getInstance();
         boolean stands = brewStands(mc);
         presence = easedPresence(presence, stands, mc.getDeltaTracker().getRealtimeDeltaTicks());
@@ -148,6 +138,24 @@ public final class SculkerVision {
             presence = stands ? presence : 0f;
             return;
         }
+        draws.accept(new SortedDraw(0, () -> profiled(VISION_DIM_SECTION, () -> dim(mc))));
+    }
+
+    /**
+     * Runs a draw of the sense view under its profiler section.
+     * decision diagnose-sculkers-lag-and-prove-it-improved-significantly
+     *
+     * @param section the section the draw reports its frame time under
+     * @param draw    the draw
+     */
+    static void profiled(String section, Runnable draw) {
+        ProfilerFiller profiler = Profiler.get();
+        profiler.push(section);
+        draw.run();
+        profiler.pop();
+    }
+
+    private static void dim(Minecraft mc) {
         float far = Math.max(mc.options.getEffectiveRenderDistance() * BLOCKS_PER_CHUNK * FAR_PER_RENDER_BLOCK,
                 mc.options.cloudRange().get() * BLOCKS_PER_CHUNK);
         SCULKER_PARAMS.set(0f, 0f, far, Camera.PROJECTION_Z_NEAR);

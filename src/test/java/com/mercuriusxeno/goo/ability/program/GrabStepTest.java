@@ -402,13 +402,13 @@ class GrabStepTest {
 
         @Test
         void aGrabAbilityAimsAsFarAsGrabReaches() {
-            assertEquals(16, GrabStep.reachOf(List.of(new AncientStep(), GRAB), laid(SHORT_REMOTE_REACH))
+            assertEquals(16, GrabStep.reachOf(List.of(new UnveilStep(), GRAB), laid(SHORT_REMOTE_REACH))
                     .orElseThrow(), EPSILON);
         }
 
         @Test
         void anAbilityWithoutGrabNamesNoReach() {
-            assertTrue(GrabStep.reachOf(List.of(new AncientStep()), null).isEmpty());
+            assertTrue(GrabStep.reachOf(List.of(new UnveilStep()), null).isEmpty());
         }
 
         @Test
@@ -507,7 +507,7 @@ class GrabStepTest {
         @Test
         void unarmedPressOrAnotherAbilityPunches() {
             assertFalse(GrabStep.throwsOnAttack(false, List.of(GRAB)));
-            assertFalse(GrabStep.throwsOnAttack(true, List.of(new AncientStep())));
+            assertFalse(GrabStep.throwsOnAttack(true, List.of(new UnveilStep())));
         }
     }
 

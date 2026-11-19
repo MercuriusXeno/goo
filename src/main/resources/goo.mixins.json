@@ -17,7 +17,7 @@
     "InventoryPickupMergeMixin",
     "ItemEntityFleckMotionMixin",
     "LivingEntityHeldFallsMixin",
-    "LivingEntityHostDeathMixin",
+    "LivingEntityCreepDeathMixin",
     "LivingEntityLunarAirlessMixin",
     "LivingEntityPneumaBreathMixin",
     "LivingEntitySculkerSilenceMixin",

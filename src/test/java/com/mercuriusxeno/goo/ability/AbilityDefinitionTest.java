@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.ability;
 
 import com.mercuriusxeno.goo.ability.program.EntitiesStep;
-import com.mercuriusxeno.goo.ability.program.EntityFilter;
 import com.mercuriusxeno.goo.ability.program.ExplodeStep;
 import com.mercuriusxeno.goo.ability.program.ExplosionMarch;
 import com.mercuriusxeno.goo.ability.program.ExplosionMode;
@@ -9,7 +8,6 @@ import com.mercuriusxeno.goo.ability.program.Expr;
 import com.mercuriusxeno.goo.ability.program.LingerStep;
 import com.mercuriusxeno.goo.ability.program.SelectionShape;
 import com.mercuriusxeno.goo.ability.program.Step;
-import com.mercuriusxeno.goo.ability.program.TargetStep;
 import com.mercuriusxeno.goo.data.GooBaseValuesPreview;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooValue;
@@ -25,9 +23,11 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EnumSource;
 import java.nio.file.Path;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Pattern;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -93,16 +93,6 @@ class AbilityDefinitionTest {
                 AbilityJson.decode("crystal_shatter").requires());
     }
 
-    /**
-     * Expire strikes a mob that is no boss.
-     */
-    // decision expire-kills-the-struck-mob
-    @Test
-    void expireStrikesAMobThatIsNoBoss() {
-        TargetStep target = (TargetStep) AbilityJson.decode("yore_expire").behaviors().getFirst();
-        assertEquals(List.of(EntityFilter.MOB, EntityFilter.NOT_BOSS), target.where());
-    }
-
     private static AbilityDefinition requiring(String requires) {
         return AbilityJson.decodeText("made_up", "{\"gooType\": \"rock\", \"displayName\": \"made_up\","
                 + " \"cost\": 10, \"badge\": \"world\", \"behaviors\": [], \"delivery\": {\"kind\": \"arc\"},"
@@ -126,6 +116,26 @@ class AbilityDefinitionTest {
     void anAbilityIsKnownToAPlayerWhoKnowsEveryItemItRequires() {
         assertEquals(true, requiring("[\"minecraft:gunpowder\"]")
                 .isKnownTo(KnownItems.NONE.with(Identifier.withDefaultNamespace("gunpowder"))));
+    }
+
+    // decision no-residual-is-locked-behind-recipes
+    // decision updraft-blob-stands-a-column-of-wind
+    // decision vines-unpack-root-and-thorn
+    @Test
+    void everyShippedResidualIsUnlockedWithNothingLearned() {
+        Set<String> residualsChecked = new HashSet<>();
+        for (Path file : AbilityJson.files()) {
+            AbilityDefinition definition = AbilityJson.decode(file);
+            if (definition.badge() == AbilityBadge.RESIDUAL) {
+                assertTrue(definition.isKnownTo(KnownItems.NONE), definition.id() + " is locked behind "
+                        + definition.requires());
+                residualsChecked.add(definition.id().getPath());
+            }
+        }
+        assertTrue(residualsChecked.containsAll(Set.of("blaze_molten", "sculk_creep", "frost_rime", "hex_leech",
+                "leaf_vines", "typhoon_updraft", "unstable_nitro", "weird_goop", "kinetic_slick", "jelly_nectar",
+                "pulse_signal", "metal_spikes", "zombie_infest", "quantum_phase", "yarn_stitch")),
+                residualsChecked.toString());
     }
 
     /**

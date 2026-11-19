@@ -186,19 +186,19 @@ class WorkbenchOperationsTest {
         @Test
         void modelReplyCarriesNoChecks() throws IOException {
             JsonObject read = answeredJson(WorkbenchOperations.MODEL, "");
-            JsonObject saved = answeredJson(WorkbenchOperations.SAVE_MODEL, posted(SampleDrafts.diamondLackingYore()));
+            JsonObject saved = answeredJson(WorkbenchOperations.SAVE_MODEL, posted(SampleDrafts.diamondLackingOpulent()));
             assertTrue(saved.has("members"));
             assertFalse(read.has("checks"), read.keySet().toString());
             assertFalse(saved.has("checks"), saved.keySet().toString());
         }
 
         /**
-         * A promote over a draft holding diamond with no yore term, which the retired old rule failed, answers on
+         * A promote over a draft holding diamond with a term dropped, which the retired old rule failed, answers on
          * its first post and leaves the draft's text in the live file (decision values-checks-go-with-the-checks-tab).
          */
         @Test
         void promoteOverAnyDraftAnswersOnce() throws IOException {
-            answered(WorkbenchOperations.SAVE_MODEL, posted(SampleDrafts.diamondLackingYore()));
+            answered(WorkbenchOperations.SAVE_MODEL, posted(SampleDrafts.diamondLackingOpulent()));
             String drafted = Files.readString(paths.draft());
             answered(WorkbenchOperations.PROMOTE, "{}");
             assertEquals(drafted, Files.readString(paths.baseValues()));
@@ -320,14 +320,14 @@ class WorkbenchOperationsTest {
      */
     @Nested
     class AbilitySaveAndPromote {
-        private static final Identifier SHRIEK = Identifier.fromNamespaceAndPath("goo", "deep_shriek");
+        private static final Identifier SHRIEK = Identifier.fromNamespaceAndPath("goo", "xeno_shriek");
         private static final int EDITED_COST = 777;
         private final List<Map<Identifier, JsonObject>> applied = new java.util.ArrayList<>();
         private WorkbenchOperations abilities;
 
         @BeforeEach
         void bindTheAbilityFiles() {
-            JsonObject shipped = JsonParser.parseString(AbilityJson.read("deep_shriek")).getAsJsonObject();
+            JsonObject shipped = JsonParser.parseString(AbilityJson.read("xeno_shriek")).getAsJsonObject();
             abilities = new WorkbenchOperations(paths, () -> new byte[0], () -> { }, (draft, progress) -> 0,
                     text -> { }, new AbilityFiles() {
                         @Override
