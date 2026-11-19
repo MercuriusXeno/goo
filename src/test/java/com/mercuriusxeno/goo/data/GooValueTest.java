@@ -145,13 +145,13 @@ class GooValueTest {
     void addWithNegativeSubtractsType() {
         GooValue copper = goo(GooTypes.METAL, 100, GooTypes.ROCK, 20);
         Map<ResourceKey<GooTypeDefinition>, Integer> exposedMap = new HashMap<>();
-        exposedMap.put(GooTypes.OPULENT, 32);
+        exposedMap.put(GooTypes.ORNATE, 32);
         exposedMap.put(GooTypes.METAL, -64);
         GooValue exposed = new GooValue(exposedMap);
 
         GooValue result = copper.add(exposed, 1);
         assertEquals(GooFraction.of(36), result.exact(GooTypes.METAL));  // 100 - 64
-        assertEquals(GooFraction.of(32), result.exact(GooTypes.OPULENT));    // 0 + 32
+        assertEquals(GooFraction.of(32), result.exact(GooTypes.ORNATE));    // 0 + 32
         assertEquals(GooFraction.of(20), result.exact(GooTypes.ROCK));    // unchanged
     }
 
@@ -176,14 +176,14 @@ class GooValueTest {
     void floorZeroClampsNegatives() {
         Map<ResourceKey<GooTypeDefinition>, Integer> map = new HashMap<>();
         map.put(GooTypes.METAL, -40);
-        map.put(GooTypes.OPULENT, 32);
+        map.put(GooTypes.ORNATE, 32);
         map.put(GooTypes.ROCK, 0);
         GooValue val = new GooValue(map);
 
         GooValue floored = val.floorZero();
         assertEquals(GooFraction.of(0), floored.exact(GooTypes.METAL));
-        assertEquals(GooFraction.of(32), floored.exact(GooTypes.OPULENT));
-        assertTrue(floored.exactAll().containsKey(GooTypes.OPULENT));
+        assertEquals(GooFraction.of(32), floored.exact(GooTypes.ORNATE));
+        assertTrue(floored.exactAll().containsKey(GooTypes.ORNATE));
         assertFalse(floored.exactAll().containsKey(GooTypes.METAL));
     }
 
@@ -397,7 +397,7 @@ class GooValueTest {
     @Test
     void negativeTypeDetected() {
         Map<ResourceKey<GooTypeDefinition>, Integer> map = new HashMap<>();
-        map.put(GooTypes.OPULENT, 32);
+        map.put(GooTypes.ORNATE, 32);
         map.put(GooTypes.METAL, -64);
         GooValue val = new GooValue(map);
         assertTrue(val.hasNegative());

@@ -37,7 +37,7 @@ class HeldEffectIconsTest {
 
     private static final List<ResourceKey<GooTypeDefinition>> GRANTING_NONE = List.of(
             GooTypes.ASTRAL, GooTypes.FROST, GooTypes.HEX, GooTypes.INFINITY, GooTypes.METAL,
-            GooTypes.OPULENT, GooTypes.PULSE, GooTypes.QUANTUM, GooTypes.UNSTABLE, GooTypes.VOID, GooTypes.WEIRD,
+            GooTypes.ORNATE, GooTypes.PULSE, GooTypes.QUANTUM, GooTypes.UNSTABLE, GooTypes.VOID, GooTypes.WEIRD,
             GooTypes.ZOO);
 
     private static AbilityRegistry shipped;

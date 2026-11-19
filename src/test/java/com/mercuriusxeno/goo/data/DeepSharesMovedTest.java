@@ -25,7 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Deep's shares leave every item for standing types: deepslate is rock, the sculk family is sculk, ocean animals are
- * jelly and ocean dyes opulent, and void's source is its items; reads the shipped base values through the classpath,
+ * jelly and ocean dyes ornate, and void's source is its items; reads the shipped base values through the classpath,
  * derived over no recipe so the conversions apply.
  * decision deepslate-is-valued-as-rock
  * decision ocean-items-follow-animals-to-jelly-and-dyes-to-opulent
@@ -37,7 +37,7 @@ class DeepSharesMovedTest {
     private static final ResourceKey<GooTypeDefinition> DEEP = GooTypes.bundled("deep");
     private static final ResourceKey<GooTypeDefinition> SCULK = GooTypes.bundled("sculk");
     /** The dolphin egg's types before this change, deep among them. */
-    private static final Set<String> DOLPHIN_EGG_BEFORE = Set.of("zoo", "opulent", "deep");
+    private static final Set<String> DOLPHIN_EGG_BEFORE = Set.of("zoo", "ornate", "deep");
     private static Map<Identifier, GooValue> shipped;
 
     @BeforeAll
@@ -83,7 +83,7 @@ class DeepSharesMovedTest {
 
     @ParameterizedTest
     @MethodSource("oceanItems")
-    void oceanItemsFollowAnimalsToJellyAndDyesToOpulent(String item, Set<String> types) {
+    void oceanItemsFollowAnimalsToJellyAndDyesToOrnate(String item, Set<String> types) {
         assertTrue(typesOf(item).containsAll(types), item + " holds " + typesOf(item) + ", wants " + types);
     }
 
@@ -93,10 +93,10 @@ class DeepSharesMovedTest {
                 Arguments.of("dead_tube_coral", Set.of("jelly")),
                 Arguments.of("dead_tube_coral_block", Set.of("jelly")),
                 Arguments.of("nautilus_shell", Set.of("jelly")),
-                Arguments.of("sea_pickle", Set.of("opulent", "glow")),
-                Arguments.of("heart_of_the_sea", Set.of("opulent", "astral")),
+                Arguments.of("sea_pickle", Set.of("ornate", "glow")),
+                Arguments.of("heart_of_the_sea", Set.of("ornate", "astral")),
                 Arguments.of("wet_sponge", Set.of("yarn")),
-                Arguments.of("ink_sac", Set.of("opulent")));
+                Arguments.of("ink_sac", Set.of("ornate")));
     }
 
     @Test
