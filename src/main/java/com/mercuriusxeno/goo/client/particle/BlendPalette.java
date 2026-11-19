@@ -119,6 +119,13 @@ public record BlendPalette(float lightRed, float lightGreen, float lightBlue,
             0xA6 / 255f, 0xF0 / 255f, 0x78 / 255f, 0x7E / 255f, 0xC8 / 255f, 0x50 / 255f);
 
     /**
+     * Gloom's spray drips, from nether's bright maroon, 8C3A48, to its edge
+     * obsidian, 2E1C44, the two the nether goo type's definition names.
+     * gloom-spawns-regardless-of-light-and-mobs-on-it-ignore-daylight
+     * nether-is-a-deeper-maroon-mixed-with-obsidians-colors
+     */
+    public static final BlendPalette GLOOM_NETHER_MAROONS = new BlendPalette(
+            0x8C / 255f, 0x3A / 255f, 0x48 / 255f, 0x2E / 255f, 0x1C / 255f, 0x44 / 255f);
 
     /**
      * Stitch's spray drips, from yarn's highlight tan, CBAE88, to its wheel
@@ -152,6 +159,14 @@ public record BlendPalette(float lightRed, float lightGreen, float lightBlue,
      */
     public static final BlendPalette MORTAR_ROCK_GRAYS = new BlendPalette(
             0xB4 / 255f, 0xB6 / 255f, 0xB8 / 255f, 0x7A / 255f, 0x5C / 255f, 0x44 / 255f);
+
+    /**
+     * Dowsing's spray drips, from Astral's starlight, its bright FFF4B0, to
+     * its night blue, its highlight 2A3C9A.
+     * astral-world-goo-is-dowsing-an-x-ray-of-ore
+     */
+    public static final BlendPalette DOWSING_STARLIGHT_BLUES = new BlendPalette(
+            0xFF / 255f, 0xF4 / 255f, 0xB0 / 255f, 0x2A / 255f, 0x3C / 255f, 0x9A / 255f);
 
     /**
      * The color a share of the way from the light end to the dark.

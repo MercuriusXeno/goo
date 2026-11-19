@@ -353,6 +353,17 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
      * @param shape the palm blob's shape
      * @return the center in block coords
      */
+    /**
+     * Where the resting palm blob's center sits in the glove's model, the
+     * point a third-person caster's drawn palm is read at.
+     * decision third-person-blob-stands-above-the-drawn-palm
+     *
+     * @return the center in block coords
+     */
+    public static Vector3f restingPalmCenter() {
+        return palmCenter(palmShape(REST_SCALE));
+    }
+
     private static Vector3f palmCenter(BlobShape shape) {
         return new Vector3f(GOO_CX_PX / BLOCK_PIXELS, (PALM_FLOOR_PX + SHELL_HW_PX * shape.depth()) / BLOCK_PIXELS,
                 (PALM_FACE_Z_PX - PALM_CLEARANCE_PX - SHELL_HW_PX * shape.height()) / BLOCK_PIXELS);

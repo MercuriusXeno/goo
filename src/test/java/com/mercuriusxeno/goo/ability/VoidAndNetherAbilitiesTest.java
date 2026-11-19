@@ -51,14 +51,17 @@ class VoidAndNetherAbilitiesTest {
     }
 
     /**
-     * Tartarus stays on nether, and Grudge and Invert join it.
+     * Tartarus stays on nether, Grudge and Invert join it, and Gloom is
+     * nether's residual.
      * decision zombie-goo-is-the-undead-and-takes-the-decay-abilities
      * decision grudge-is-a-charged-crimson-nova-dealing-your-missing-health
      * decision nether-keeps-its-name-and-takes-inversion-as-its-theme
+     * decision gloom-spawns-regardless-of-light-and-mobs-on-it-ignore-daylight
      */
     @Test
-    void netherShipsGrudgeTartarusAndInvert() {
-        assertEquals(Set.of("nether_grudge", "nether_tartarus", "nether_invert"), shippedPathsOf(GooTypes.NETHER));
+    void netherShipsGloomGrudgeTartarusAndInvert() {
+        assertEquals(Set.of("nether_gloom", "nether_grudge", "nether_tartarus", "nether_invert"),
+                shippedPathsOf(GooTypes.NETHER));
     }
 
     /**

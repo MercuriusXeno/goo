@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.ArmPoseKind;
+import com.mercuriusxeno.goo.item.GooCasters;
 import com.mercuriusxeno.goo.network.ArmPosePayload;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
@@ -12,13 +13,16 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.HumanoidArm;
+import net.minecraft.world.entity.player.Player;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderHandEvent;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
+import org.jspecify.annotations.Nullable;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * The poses abilities hold the glove arm in on this client, in place of the
@@ -28,8 +32,11 @@ import java.util.Map;
  * one holds the hand up at face height; a held pose let go eases back down.
  * A blob thrown takes vanilla's swing, which is no pose of this class. Every
  * pose moves the first-person hand too: held out forward toward the
- * crosshair, and held up lifted a little.
+ * crosshair, and held up lifted a little. In third person, while a blob
+ * stands lifted, every pose gives way to one hold, the hand out before the
+ * body, palm up under the blob.
  * decision ability-json-names-its-arm-pose
+ * decision third-person-arm-holds-the-hand-out-while-a-blob-is-up
  * decision use-key-throw-swings-no-more
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
@@ -53,6 +60,15 @@ public final class AbilityPoses {
     static final HandOffset RAISED_HAND = new HandOffset(0f, 0.1f, 0.08f, 0f, 0f);
     /** Vanilla's place for the hand. */
     static final HandOffset VANILLA_HAND = new HandOffset(0f, 0f, 0f, 0f, 0f);
+    /**
+     * The glove hand held out before the body under a lifted blob: the arm a
+     * little below level, which turns the glove's palm up, and in across the
+     * chest toward the body's middle. The arm is one part with no elbow, so
+     * the palm faces straight up only with the arm level; this tilt leaves it
+     * a little short of that.
+     * decision third-person-arm-holds-the-hand-out-while-a-blob-is-up
+     */
+    static final Angles HAND_OUT = new Angles(-1.37f, -0.35f);
 
     /** The left hand's turn runs opposite the right's. */
     private static final float MIRRORED = -1f;
@@ -61,6 +77,8 @@ public final class AbilityPoses {
     private static final float SMOOTH_CUBE = 2f;
 
     private static final Map<Integer, Posed> POSES = new HashMap<>();
+    /** The game time each caster's glove arm last swung under a lifted blob. */
+    private static final Map<Integer, Double> SWUNG = new HashMap<>();
 
     private AbilityPoses() {
     }
@@ -296,30 +314,166 @@ public final class AbilityPoses {
     /** Drops every pose, as a disconnect does. */
     public static void clear() {
         POSES.clear();
+        SWUNG.clear();
     }
 
     /**
      * Lays a player's pose over the glove arm vanilla posed on the model,
-     * once vanilla's setup is done.
+     * once vanilla's setup is done, and while the player's blob stands lifted
+     * the hand-out hold over that, unless a thrown blob's swing takes the arm.
+     * decision third-person-arm-holds-the-hand-out-while-a-blob-is-up
      *
      * @param model    the player's model
      * @param entityId the player's entity id
+     * @param swinging the arm vanilla swings this frame, or null for none
      */
-    public static void layOver(HumanoidModel<?> model, int entityId) {
-        Posed posed = POSES.get(entityId);
+    public static void layOver(HumanoidModel<?> model, int entityId, @Nullable HumanoidArm swinging) {
         Minecraft mc = Minecraft.getInstance();
-        if (posed == null || mc.level == null) {
+        if (mc.level == null) {
             return;
         }
-        double age = mc.level.getGameTime() + mc.getDeltaTracker().getGameTimeDeltaPartialTick(false) - posed.since();
-        Held held = heldAt(posed, age);
-        ModelPart arm = posed.gloveRight() ? model.rightArm : model.leftArm;
-        float mirror = posed.gloveRight() ? 1f : MIRRORED;
-        float xRot = held.angles().xRot() + model.head.xRot * held.headShare();
-        float yRot = held.angles().yRot() * mirror + model.head.yRot * held.headShare();
-        arm.xRot = Mth.lerp(held.weight(), arm.xRot, xRot);
-        arm.yRot = Mth.lerp(held.weight(), arm.yRot, yRot);
-        arm.zRot = Mth.lerp(held.weight(), arm.zRot, 0f);
+        double now = mc.level.getGameTime() + mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
+        Posed posed = POSES.get(entityId);
+        gloveArmOf(mc, entityId, posed).ifPresent(side -> layOverArm(model, side, posed, now,
+                handOutOf(entityId, now, swinging == side)));
+    }
+
+    private static void layOverArm(HumanoidModel<?> model, HumanoidArm side, @Nullable Posed posed, double now,
+                                   float handOut) {
+        if (posed == null && handOut <= 0f) {
+            return;
+        }
+        ModelPart arm = model.getArm(side);
+        double age = posed == null ? 0 : now - posed.since();
+        ArmTurn turned = turnedArm(new ArmTurn(arm.xRot, arm.yRot, arm.zRot), posed, age,
+                new ArmTurn(model.head.xRot, model.head.yRot, 0f), handOut, side == HumanoidArm.RIGHT);
+        arm.xRot = turned.xRot();
+        arm.yRot = turned.yRot();
+        arm.zRot = turned.zRot();
+    }
+
+    /**
+     * The arm holding a player's glove: the one its pose names, or the one
+     * its caster is held in.
+     *
+     * @param mc       the client
+     * @param entityId the player's entity id
+     * @param posed    the player's pose, or null for none
+     * @return the glove arm, empty where the entity is no player
+     */
+    private static Optional<HumanoidArm> gloveArmOf(Minecraft mc, int entityId, @Nullable Posed posed) {
+        if (posed != null) {
+            return Optional.of(gloveArm(posed));
+        }
+        return mc.level.getEntity(entityId) instanceof Player player
+                ? Optional.of(GooCasters.casterOnTheRight(player) ? HumanoidArm.RIGHT : HumanoidArm.LEFT)
+                : Optional.empty();
+    }
+
+    /**
+     * An arm part's turn about its shoulder, as the model stores it.
+     *
+     * @param xRot the pitch, negative forward
+     * @param yRot the yaw, negative across the chest for a right arm
+     * @param zRot the roll, outward from the side
+     */
+    record ArmTurn(float xRot, float yRot, float zRot) {
+    }
+
+    /**
+     * The glove arm's turn: vanilla's, the named pose laid over it, and while
+     * a blob stands lifted the hand-out hold laid over that, whatever pose the
+     * ability names.
+     * decision ability-json-names-its-arm-pose
+     * decision third-person-arm-holds-the-hand-out-while-a-blob-is-up
+     *
+     * @param vanilla    the turn vanilla posed
+     * @param posed      the named pose, or null for none
+     * @param age        ticks since the named pose began
+     * @param head       the head's turn, which a held-out arm follows
+     * @param handOut    the share of the hand-out hold, 0 to 1
+     * @param gloveRight whether the glove is in the right hand
+     * @return the arm's turn
+     */
+    static ArmTurn turnedArm(ArmTurn vanilla, @Nullable Posed posed, double age, ArmTurn head, float handOut,
+                             boolean gloveRight) {
+        float mirror = gloveRight ? 1f : MIRRORED;
+        ArmTurn named = vanilla;
+        if (posed != null) {
+            Held held = heldAt(posed, age);
+            named = new ArmTurn(Mth.lerp(held.weight(), vanilla.xRot(), held.angles().xRot()
+                    + head.xRot() * held.headShare()),
+                    Mth.lerp(held.weight(), vanilla.yRot(), held.angles().yRot() * mirror
+                            + head.yRot() * held.headShare()),
+                    Mth.lerp(held.weight(), vanilla.zRot(), 0f));
+        }
+        return new ArmTurn(Mth.lerp(handOut, named.xRot(), HAND_OUT.xRot()),
+                Mth.lerp(handOut, named.yRot(), HAND_OUT.yRot() * mirror), Mth.lerp(handOut, named.zRot(), 0f));
+    }
+
+    /**
+     * The share of the hand-out hold a caster's arm takes now: the lifted
+     * blob's, given way to a thrown blob's swing. Remembers when the glove
+     * arm last swung under a lift, and forgets it once no lift stands.
+     *
+     * @param entityId    the caster's entity id
+     * @param now         the game time, with the frame's partial tick
+     * @param gloveSwings whether vanilla swings the glove arm this frame
+     * @return the share, 0 to 1
+     */
+    private static float handOutOf(int entityId, double now, boolean gloveSwings) {
+        float lifted = LiftedPalmBlob.handOutAt(entityId, now);
+        if (lifted <= 0f) {
+            SWUNG.remove(entityId);
+            return 0f;
+        }
+        Double swungAt = SWUNG.get(entityId);
+        if (gloveSwings) {
+            SWUNG.put(entityId, now);
+        }
+        return yieldedToTheSwing(lifted, gloveSwings, swungAt, LiftedPalmBlob.running(entityId, (long) now), now);
+    }
+
+    /**
+     * The share of the hand-out hold a lift lays over the arm: easing in as
+     * the blob hops off the palm, whole while the cast runs, and easing down
+     * once it ends, as the held frames ease. A blob turned round off the palm
+     * finds the hand already out.
+     * decision third-person-arm-holds-the-hand-out-while-a-blob-is-up
+     *
+     * @param sinceLift  ticks since the lift began
+     * @param sinceEnded ticks since the cast ended, negative while it runs
+     * @param hopped     whether the lift began on the palm, with a hop
+     * @return the share, 0 to 1
+     */
+    static float handOutShare(double sinceLift, double sinceEnded, boolean hopped) {
+        float in = hopped ? smooth((float) sinceLift / HOLD_EASE_TICKS) : 1f;
+        float out = sinceEnded < 0 ? 1f : 1f - smooth((float) sinceEnded / LOWER_TICKS);
+        return in * out;
+    }
+
+    /**
+     * The hand-out hold given way to a thrown blob's swing: none while the
+     * glove arm swings, none after it once the cast is over, and easing back
+     * in after it while the cast still runs, as Dart's next javelin forms.
+     * decision third-person-arm-holds-the-hand-out-while-a-blob-is-up: a thrown blob keeps its swing on release
+     *
+     * @param handOut     the lift's share of the hold
+     * @param swinging    whether vanilla swings the glove arm now
+     * @param swungAt     the game time the glove arm last swung under this lift, or null for no swing
+     * @param castRunning whether the cast still runs
+     * @param now         the game time
+     * @return the share, 0 to 1
+     */
+    static float yieldedToTheSwing(float handOut, boolean swinging, @Nullable Double swungAt, boolean castRunning,
+                                   double now) {
+        if (swinging) {
+            return 0f;
+        }
+        if (swungAt == null) {
+            return handOut;
+        }
+        return castRunning ? handOut * smooth((float) (now - swungAt) / HOLD_EASE_TICKS) : 0f;
     }
 
     /**

@@ -18,8 +18,15 @@ class KnivesChargeTest {
     private static final long NOW = 400L;
     private static final double NEAR = 1e-6;
 
+    /** How far the hand pass's float math and Mth.sin's lookup table carry a first-person place astray. */
+    private static final double THROUGH_THE_HAND_PASS = 1e-4;
+
     private static void assertNear(Vec3 expected, Vec3 actual, String what) {
-        assertTrue(expected.distanceTo(actual) < NEAR, what + " should stand at " + expected + ", stands at "
+        assertNear(expected, actual, what, NEAR);
+    }
+
+    private static void assertNear(Vec3 expected, Vec3 actual, String what, double within) {
+        assertTrue(expected.distanceTo(actual) < within, what + " should stand at " + expected + ", stands at "
                 + actual);
     }
 
@@ -48,17 +55,21 @@ class KnivesChargeTest {
         @Test
         void throughAKnivesHoldTheCubeStandsAtThatRest() {
             ArmPoseKind held = AbilityJson.decode("crystal_knives").pose().holdFrame();
-            try (SprayingClient client = SprayingClient.another(GooTypes.CRYSTAL);
+            // decision third-person-blob-stands-above-the-drawn-palm: a third-person caster's cube stands over the
+            // drawn palm, so the place the server shares is the caster's own first-person view
+            try (SprayingClient client = SprayingClient.local(GooTypes.CRYSTAL);
                  KnivesCharging knives = KnivesCharging.heldTo(0f)) {
+                // the server's place is the view's at the default field of view
+                client.viewedAt(70f);
                 long last = NOW + PalmBlobHop.LIFT_TICKS;
                 knives.holdIn(client, held, NOW, last);
 
                 Vec3 place = LiftedPalmBlob.blobOf(SprayingClient.CASTER, 0f).orElseThrow().place();
                 Vec3 rest = BlobRest.inView(SprayingClient.EYE, SprayingClient.PITCH, SprayingClient.YAW, true,
                         BlobRest.Rest.OVER_THE_PALM);
-                assertNear(rest, place, "the cube");
+                assertNear(rest, place, "the cube", THROUGH_THE_HAND_PASS);
                 assertNear(StackHover.cubeCenterInView(SprayingClient.EYE, SprayingClient.PITCH, SprayingClient.YAW,
-                        true), place, "the cube");
+                        true), place, "the cube", THROUGH_THE_HAND_PASS);
             }
         }
     }
