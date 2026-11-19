@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.client.zone.BluePlanetRenderer;
 import com.mercuriusxeno.goo.client.zone.LunarSky;
 import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.buffers.GpuBufferSlice;
+import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.systems.RenderPass;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.textures.GpuTextureView;
@@ -48,6 +49,11 @@ final class LunarTripBodies {
     /** Where vanilla's moon phase sprites sit on the celestials atlas. */
     private static final String MOON_SPRITE_PREFIX = "moon/";
     private static final float QUARTER_TURN = (float) (Math.PI / 2);
+    /**
+     * The pipeline the trip swells the planet through, solid as lunar's sky draws it.
+     * decision sun-follows-the-phase-and-lights-the-far-side-too
+     */
+    static final RenderPipeline PLANET_PIPELINE = GooRenderTypes.LUNAR_TRIP_PLANET;
 
     private static @Nullable GpuBuffer moonPhases;
     private static @Nullable GpuTextureView moonPhasesAtlas;
@@ -135,7 +141,7 @@ final class LunarTripBodies {
      * @param halfTangent the disc's half width as a tangent
      */
     static void drawPlanet(Matrix4fc view, Vec3 direction, MoonPhase planetPhase, double halfTangent) {
-        BluePlanetRenderer.draw(GooRenderTypes.LUNAR_MOON, new Matrix4f(view).mul(planetPose(direction,
+        BluePlanetRenderer.draw(PLANET_PIPELINE, new Matrix4f(view).mul(planetPose(direction,
                 halfTangent)), planetPhase);
     }
 

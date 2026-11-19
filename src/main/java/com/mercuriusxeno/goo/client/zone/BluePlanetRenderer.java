@@ -24,8 +24,9 @@ import java.util.OptionalInt;
 
 /**
  * Draws the blue planet's disc: the hand-drawn sprite of its phase on a quad laid as vanilla's sky lays its moon
- * sprite, drawn as vanilla draws its moon, its black space adding nothing to the sky. Lunar's sky and the Lunar trip
- * home draw the one planet through it, so the disc that swells is the disc the sky showed.
+ * sprite, through the pipeline its caller names. Lunar's sky and the Lunar trip home draw the one planet through it,
+ * each through a pipeline laying the sprite's opaque texels over what lies behind, so the disc that swells is the
+ * disc the sky showed and its unlit face hides the sun behind it.
  * decision blue-star-is-a-planet-four-moons-wide-drawn-in-phases
  * decision blue-star-takes-the-moons-place-with-the-opposite-phase
  * decision planet-face-is-eight-hand-drawn-phase-sprites
@@ -38,8 +39,12 @@ public final class BluePlanetRenderer {
     /** The uniform block the celestial shader reads its model view and color from. */
     private static final String DYNAMIC_TRANSFORMS = "DynamicTransforms";
     private static final String SAMPLER = "Sampler0";
-    /** The texture corners the flat quad's corners take, turned as vanilla lays its moon sprite. */
-    private static final float[][] CORNER_UVS = {{1F, 1F}, {0F, 1F}, {0F, 0F}, {1F, 0F}};
+    /**
+     * The texture corners the flat quad's corners take: vanilla's moon sprite's laying turned a quarter about the
+     * planet's face, so the sprite's left and right lie along the sun's east-west path and the lit edge faces the sun.
+     * decision sun-follows-the-phase-and-lights-the-far-side-too
+     */
+    static final float[][] CORNER_UVS = {{0F, 1F}, {0F, 0F}, {1F, 0F}, {1F, 1F}};
 
     private static @Nullable GpuBuffer quad;
 

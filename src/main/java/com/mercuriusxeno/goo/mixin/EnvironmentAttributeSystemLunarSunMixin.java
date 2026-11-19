@@ -10,25 +10,25 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Lays the dark side's night over lunar's day timeline, on the server's level and the client's alike, since each
- * builds its attributes through vanilla's default layers.
- * decision dark-side-is-the-half-of-the-moon-past-the-light-side
+ * Lays lunar's sun over its day timeline, on the server's level and the client's alike, since each builds its
+ * attributes through vanilla's default layers: the sun angle and its light at a position answer the sun over that
+ * position's x, on both halves of the moon.
+ * decision sun-follows-the-phase-and-lights-the-far-side-too
  */
 @Mixin(EnvironmentAttributeSystem.class)
-public abstract class EnvironmentAttributeSystemDarkSideMixin {
+public abstract class EnvironmentAttributeSystemLunarSunMixin {
 
     /**
-     * Adds the dark side's layers once lunar's default layers stand.
+     * Adds the sun's layers once lunar's default layers stand.
      *
      * @param builder the attribute system being built
      * @param level   the level it is built for
      * @param ci      the callback
      */
     @Inject(method = "addDefaultLayers", at = @At("TAIL"))
-    private static void goo$addDarkSideNight(EnvironmentAttributeSystem.Builder builder, Level level,
-            CallbackInfo ci) {
+    private static void goo$addLunarSun(EnvironmentAttributeSystem.Builder builder, Level level, CallbackInfo ci) {
         if (level.dimension() == Lunar.LEVEL) {
-            LunarNight.addDarkSideLayers(builder);
+            LunarNight.addSunLayers(builder, level::getOverworldClockTime);
         }
     }
 }

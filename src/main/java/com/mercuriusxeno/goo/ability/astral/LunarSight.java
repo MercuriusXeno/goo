@@ -10,8 +10,9 @@ import java.util.Set;
 
 /**
  * What Lunar finds along a caster's look: the moon, from the overworld while it stands above the horizon on a lit
- * phase, or the blue planet, from lunar's light side, standing in the moon's place, while it stands above the horizon
- * on a lit phase; anything else Lunar refuses.
+ * phase, or the blue planet, from lunar's light side, hanging fixed where the caster's x stands it, while you can see
+ * it; anything else Lunar refuses.
+ * decision blue-planet-hangs-fixed-with-its-height-set-by-x
  * decision gate-fixates-your-view-on-the-moon-until-it-takes-you
  * decision gate-on-the-blue-star-returns-you-exactly-where-you-left
  * decision blue-star-takes-the-moons-place-with-the-opposite-phase
@@ -32,6 +33,8 @@ public final class LunarSight {
      * decision blue-star-is-a-planet-four-moons-wide-drawn-in-phases
      */
     public static final double PLANET_DISC_HALF_TANGENT = MOON_DISC_HALF_TANGENT * PLANET_MOONS_WIDE;
+    /** The cosine of the angle from the planet's center to its disc's edge. */
+    private static final double PLANET_DISC_COSINE = Math.cos(Math.atan(PLANET_DISC_HALF_TANGENT));
     /** A look anywhere on the planet's disc holds it, its disc wider than the moon's look reach. */
     private static final double PLANET_REACH_COSINE = Math.min(LOOK_REACH_COSINE,
             Math.cos(Math.atan(PLANET_DISC_HALF_TANGENT)));
@@ -73,25 +76,28 @@ public final class LunarSight {
 
     /**
      * The refusal a cast holding neither moon nor planet shows, the sun first: a look holding the sun while it stands
-     * above the horizon, in the overworld or on the moon's light side, says "The big yellow one is the sun!", and any
-     * other look shows its dimension's refusal. The dark side draws no sun to hold.
+     * above the horizon, in the overworld or anywhere on the moon, says "The big yellow one is the sun!", and any other
+     * look shows its dimension's refusal. On the moon a look on the planet's disc holds the planet, whose disc, four
+     * moons wide, hides the sun behind it through the planet's dark phase.
      * decision pointing-at-the-sun-says-the-big-yellow-one-is-the-sun
-     * decision dark-side-is-the-half-of-the-moon-past-the-light-side
+     * decision sun-follows-the-phase-and-lights-the-far-side-too
      *
      * @param dimension       the caster's dimension
-     * @param x               the caster's x, in blocks, which the dark side reads in lunar
+     * @param x               the caster's x, in blocks, which sets the planet's direction in lunar
      * @param look            the caster's look, any length
-     * @param sunAngleDegrees the dimension's sun angle, in degrees
+     * @param sunAngleDegrees the sun angle where the caster stands, in degrees
      * @return the refusal's lang key
      */
     public static String refusalKey(ResourceKey<Level> dimension, double x, Vec3 look, float sunAngleDegrees) {
         Vec3 sun = moonDirection(sunAngleDegrees);
-        boolean holdsTheSun = sunShows(dimension, x) && sun.y() > 0.0 && holds(look, sun, LOOK_REACH_COSINE);
+        boolean holdsTheSun = SUNLIT.contains(dimension) && sun.y() > 0.0 && holds(look, sun, LOOK_REACH_COSINE)
+                && !holdsThePlanetsDisc(dimension, x, look);
         return holdsTheSun ? SUN_REFUSED : refusalKey(dimension);
     }
 
-    private static boolean sunShows(ResourceKey<Level> dimension, double x) {
-        return SUNLIT.contains(dimension) && !(Lunar.LEVEL.equals(dimension) && Lunar.isDarkSide(x));
+    private static boolean holdsThePlanetsDisc(ResourceKey<Level> dimension, double x, Vec3 look) {
+        return Lunar.LEVEL.equals(dimension) && planetAboveTheHorizon(x)
+                && holds(look, planetDirection(x), PLANET_REACH_COSINE);
     }
 
     /**
@@ -109,14 +115,60 @@ public final class LunarSight {
 
     /**
      * The moon's direction from the camera at a moon angle, as vanilla's sky draws it: straight up turned about
-     * the x axis by the angle, then a quarter turn about the y axis. In lunar the blue planet stands there.
+     * the x axis by the angle, then a quarter turn about the y axis.
      *
      * @param moonAngleDegrees the dimension's moon angle attribute, in degrees
      * @return the unit direction
      */
     public static Vec3 moonDirection(float moonAngleDegrees) {
-        double angle = Math.toRadians(moonAngleDegrees);
-        return new Vec3(-Math.sin(angle), Math.cos(angle), 0.0);
+        return directionAt(Math.toRadians(moonAngleDegrees));
+    }
+
+    /**
+     * The blue planet's direction over a lunar x, the same at every hour, at the angle Lunar.planetAngleDegrees reads.
+     * decision blue-planet-hangs-fixed-with-its-height-set-by-x
+     *
+     * @param x the x, in blocks
+     * @return the unit direction
+     */
+    public static Vec3 planetDirection(double x) {
+        return directionAt(Math.toRadians(Lunar.planetAngleDegrees(x)));
+    }
+
+    /**
+     * Where a dimension's sky stands what Lunar holds: the overworld's moon by its moon angle, lunar's planet by the
+     * caster's x alone.
+     * decision blue-planet-hangs-fixed-with-its-height-set-by-x
+     *
+     * @param dimension        the caster's dimension
+     * @param x                the caster's x, in blocks
+     * @param moonAngleDegrees the dimension's moon angle, in degrees, which lunar leaves unread
+     * @return the unit direction
+     */
+    public static Vec3 skyDirection(ResourceKey<Level> dimension, double x, float moonAngleDegrees) {
+        return Lunar.LEVEL.equals(dimension) ? planetDirection(x) : moonDirection(moonAngleDegrees);
+    }
+
+    /**
+     * Whether the blue planet stands above the horizon over a lunar x: across the light side, never on the dark side.
+     * decision blue-planet-hangs-fixed-with-its-height-set-by-x
+     * decision dark-side-is-the-half-of-the-moon-past-the-light-side
+     *
+     * @param x the x, in blocks
+     * @return true while the planet stands at or above the horizon there
+     */
+    public static boolean planetAboveTheHorizon(double x) {
+        return planetDirection(x).y() > 0.0;
+    }
+
+    /**
+     * Straight up turned about the x axis by an angle, toward negative x, as vanilla's sky turns its moon.
+     *
+     * @param radians the angle, in radians
+     * @return the unit direction
+     */
+    private static Vec3 directionAt(double radians) {
+        return new Vec3(-Math.sin(radians), Math.cos(radians), 0.0);
     }
 
     /**
@@ -133,45 +185,61 @@ public final class LunarSight {
 
     /**
      * What a look finds in a dimension's sky: the moon while it stands above the horizon on a lit phase, the new moon
-     * showing nothing to hold, and the blue planet while it shows, so each trip waits on its body showing.
+     * showing nothing to hold, and the blue planet along its fixed direction for the caster's x while it shows, so each
+     * trip waits on its body showing, the way home at any hour you can see the planet.
      * decision lunar-refuses-the-return-while-the-blue-star-is-hidden
      * decision moon-trip-refuses-under-the-new-moon
+     * decision blue-planet-hangs-fixed-with-its-height-set-by-x
      *
      * @param dimension        the caster's dimension
-     * @param x                the caster's x, in blocks, which the dark side reads in lunar
+     * @param x                the caster's x, in blocks, which sets the planet's direction in lunar
      * @param look             the caster's look, any length
-     * @param moonAngleDegrees the dimension's moon angle, in degrees
+     * @param moonAngleDegrees the dimension's moon angle, in degrees, which lunar leaves unread
+     * @param sunAngleDegrees  the sun angle where the caster stands, in degrees, which the overworld's moon leaves
+     *                         unread
      * @param skyPhase         the phase of the body in the moon's place: the overworld moon's in the overworld, the
      *                         blue planet's in lunar
      * @return the moon or the blue planet the look holds, empty where it holds neither
      */
     public static Optional<Sky> skyAt(ResourceKey<Level> dimension, double x, Vec3 look, float moonAngleDegrees,
-            MoonPhase skyPhase) {
+            float sunAngleDegrees, MoonPhase skyPhase) {
         Vec3 moon = moonDirection(moonAngleDegrees);
         if (Level.OVERWORLD.equals(dimension)) {
             return heldOrNone(Sky.MOON, moon.y() > 0.0 && skyPhase != MoonPhase.NEW_MOON
                     && holds(look, moon, LOOK_REACH_COSINE));
         }
         if (Lunar.LEVEL.equals(dimension)) {
-            return heldOrNone(Sky.BLUE_PLANET, planetShows(x, moonAngleDegrees, skyPhase)
-                    && holds(look, moon, PLANET_REACH_COSINE));
+            return heldOrNone(Sky.BLUE_PLANET, planetShows(x, skyPhase, sunAngleDegrees)
+                    && holds(look, planetDirection(x), PLANET_REACH_COSINE));
         }
         return Optional.empty();
     }
 
     /**
-     * Whether the blue planet shows over a lunar x now: above the horizon on a lit phase, and never on the dark side,
-     * so a caster there travels back to the light side to see it.
+     * Whether the blue planet shows over a lunar x, strictly whether you can see it: above the horizon there on a lit
+     * phase, at every hour, and through its dark phase only while its disc stands in front of the sun, eclipsing it;
+     * never on the dark side, so a caster there travels back to the light side to see it.
      * decision lunar-refuses-the-return-while-the-blue-star-is-hidden
      * decision dark-side-is-the-half-of-the-moon-past-the-light-side
      *
-     * @param x                the x, in blocks
-     * @param moonAngleDegrees lunar's moon angle, in degrees, where the planet stands
-     * @param planetPhase      the planet's phase
+     * @param x               the x, in blocks
+     * @param planetPhase     the planet's phase
+     * @param sunAngleDegrees the sun angle over the x, in degrees
      * @return true while the planet shows there
      */
-    public static boolean planetShows(double x, float moonAngleDegrees, MoonPhase planetPhase) {
-        return !Lunar.isDarkSide(x) && moonDirection(moonAngleDegrees).y() > 0.0 && planetPhase != MoonPhase.NEW_MOON;
+    public static boolean planetShows(double x, MoonPhase planetPhase, float sunAngleDegrees) {
+        return planetAboveTheHorizon(x) && (planetPhase != MoonPhase.NEW_MOON || eclipsesTheSun(x, sunAngleDegrees));
+    }
+
+    /**
+     * Whether the planet's disc stands in front of the sun's center over a lunar x.
+     *
+     * @param x               the x, in blocks
+     * @param sunAngleDegrees the sun angle over the x, in degrees
+     * @return true while the planet eclipses the sun
+     */
+    private static boolean eclipsesTheSun(double x, float sunAngleDegrees) {
+        return moonDirection(sunAngleDegrees).dot(planetDirection(x)) >= PLANET_DISC_COSINE;
     }
 
     private static Optional<Sky> heldOrNone(Sky sky, boolean held) {

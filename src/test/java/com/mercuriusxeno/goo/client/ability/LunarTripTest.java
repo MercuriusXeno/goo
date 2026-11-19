@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.ability.astral.LunarSight;
+import com.mercuriusxeno.goo.client.BlendComposite;
 import com.mercuriusxeno.goo.client.zone.LunarSky;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
@@ -9,6 +10,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.function.DoubleUnaryOperator;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -147,6 +149,19 @@ class LunarTripTest {
         private static final Vec3 FIXATION_DIRECTION = LunarSight.moonDirection(40F);
         private static final double QUAD_TOLERANCE = 1e-5;
 
+        /**
+         * The planet the trip swells stands as solid as the one the sky drew: its unlit face, opaque black, hides what
+         * lies behind it.
+         * decision sun-follows-the-phase-and-lights-the-far-side-too
+         */
+        @Test
+        void bluePlanetsDarkFaceHidesWhatLiesBehindIt() {
+            float[] shown = BlendComposite.over(LunarTripBodies.PLANET_PIPELINE, new float[] {0F, 0F, 0F, 1F},
+                    new float[] {1F, 0.9F, 0.5F});
+            assertArrayEquals(new float[] {0F, 0F, 0F}, shown, 1e-6F, "behind the swelling dark planet shows "
+                    + shown[0] + ", " + shown[1] + ", " + shown[2]);
+        }
+
         @Test
         void bluePlanetStandsAtItsSizeInLunarsSkyAtTheStart() {
             assertEquals(LunarSky.PLANET_HALF_SIZE / LunarTrip.SKY_DISTANCE, LunarTrip.planetHalfTangent(0F), EXACT);
@@ -169,12 +184,12 @@ class LunarTripTest {
          */
         @Test
         void theTripHomesPlanetAtRestStandsOnLunarsSkyPlanetQuad() {
-            for (float angle : new float[] {0F, 40F, 300F}) {
-                List<Vector3f> trip = LunarTripBodies.planetCorners(LunarSight.moonDirection(angle),
+            for (double cameraX : new double[] {0, 1_500_000, -3_000_000}) {
+                List<Vector3f> trip = LunarTripBodies.planetCorners(LunarSight.planetDirection(cameraX),
                         LunarTrip.planetHalfTangent(0F));
-                List<Vector3f> sky = LunarSky.planetCorners(angle);
+                List<Vector3f> sky = LunarSky.planetCorners(cameraX);
                 for (int corner = 0; corner < trip.size(); corner++) {
-                    String at = "corner " + corner + " at " + angle + ": trip " + trip.get(corner) + " against sky "
+                    String at = "corner " + corner + " at " + cameraX + ": trip " + trip.get(corner) + " against sky "
                             + sky.get(corner);
                     assertEquals(sky.get(corner).x(), trip.get(corner).x(), 1e-3, at);
                     assertEquals(sky.get(corner).y(), trip.get(corner).y(), 1e-3, at);

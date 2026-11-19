@@ -11,6 +11,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import java.util.Optional;
 import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -19,9 +20,9 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Lunar looks for the moon in the overworld and for the blue planet in the moon's place in lunar, and finds neither
- * where the look strays, where the moon has set, or in any other dimension; the planet shows the moon's opposite
- * phase.
+ * Lunar looks for the moon in the overworld and for the blue planet in lunar, hanging fixed where the caster's x stands
+ * it, and finds neither where the look strays, where the moon has set, on the dark side, or in any other dimension;
+ * the planet shows the moon's opposite phase.
  * decision gate-fixates-your-view-on-the-moon-until-it-takes-you
  * decision gate-on-the-blue-star-returns-you-exactly-where-you-left
  * decision blue-star-takes-the-moons-place-with-the-opposite-phase
@@ -49,6 +50,14 @@ class LunarSightTest {
     private static final double DARK_SIDE_X = 5_000_000;
     /** The degrees a full turn of the moon angle spans, one whole day and night. */
     private static final int FULL_CYCLE_DEGREES = 360;
+    private static final int DAY_TICKS = 24_000;
+    private static final int NOON_TICK = 6000;
+    /** Half a day on from noon, when the overworld's moon stands overhead where at noon it stood underfoot. */
+    private static final int MIDNIGHT_TICK = 18000;
+    /** A light-side x off x 0, where the planet stands well off the zenith. */
+    private static final double PLANET_X = 1_000_000;
+    /** A sun angle well clear of the planet at x 0 and at PLANET_X, so no eclipse shows it. */
+    private static final float SUN_CLEAR = 90F;
 
     @Nested
     class TheMoon {
@@ -71,22 +80,22 @@ class LunarSightTest {
         @Test
         void aLookAtTheMoonInTheOverworldFindsIt() {
             assertEquals(Optional.of(LunarSight.Sky.MOON),
-                    LunarSight.skyAt(Level.OVERWORLD, LIGHT_SIDE_X, NEARLY_UP, MIDNIGHT, LIT));
+                    LunarSight.skyAt(Level.OVERWORLD, LIGHT_SIDE_X, NEARLY_UP, MIDNIGHT, SUN_CLEAR, LIT));
         }
 
         @Test
         void aLookWellOffTheMoonFindsNothing() {
-            assertEquals(Optional.empty(), LunarSight.skyAt(Level.OVERWORLD, LIGHT_SIDE_X, WELL_OFF_UP, MIDNIGHT, LIT));
+            assertEquals(Optional.empty(), LunarSight.skyAt(Level.OVERWORLD, LIGHT_SIDE_X, WELL_OFF_UP, MIDNIGHT, SUN_CLEAR, LIT));
         }
 
         @Test
         void aMoonBelowTheHorizonIsNeverFound() {
-            assertEquals(Optional.empty(), LunarSight.skyAt(Level.OVERWORLD, LIGHT_SIDE_X, DOWN, NOON, LIT));
+            assertEquals(Optional.empty(), LunarSight.skyAt(Level.OVERWORLD, LIGHT_SIDE_X, DOWN, NOON, SUN_CLEAR, LIT));
         }
 
         @Test
         void theMoonIsFoundInTheOverworldAlone() {
-            assertEquals(Optional.empty(), LunarSight.skyAt(Level.NETHER, LIGHT_SIDE_X, UP, MIDNIGHT, LIT));
+            assertEquals(Optional.empty(), LunarSight.skyAt(Level.NETHER, LIGHT_SIDE_X, UP, MIDNIGHT, SUN_CLEAR, LIT));
         }
 
         /**
@@ -96,7 +105,7 @@ class LunarSightTest {
         @EnumSource(value = MoonPhase.class, names = "NEW_MOON", mode = EnumSource.Mode.EXCLUDE)
         void aLookAtALitMoonInTheOverworldFindsIt(MoonPhase moonPhase) {
             assertEquals(Optional.of(LunarSight.Sky.MOON),
-                    LunarSight.skyAt(Level.OVERWORLD, LIGHT_SIDE_X, NEARLY_UP, MIDNIGHT, moonPhase));
+                    LunarSight.skyAt(Level.OVERWORLD, LIGHT_SIDE_X, NEARLY_UP, MIDNIGHT, SUN_CLEAR, moonPhase));
         }
 
         /**
@@ -105,7 +114,7 @@ class LunarSightTest {
         @Test
         void aLookAtTheNewMoonInTheOverworldFindsNothing() {
             assertEquals(Optional.empty(),
-                    LunarSight.skyAt(Level.OVERWORLD, LIGHT_SIDE_X, NEARLY_UP, MIDNIGHT, MoonPhase.NEW_MOON));
+                    LunarSight.skyAt(Level.OVERWORLD, LIGHT_SIDE_X, NEARLY_UP, MIDNIGHT, SUN_CLEAR, MoonPhase.NEW_MOON));
         }
     }
 
@@ -127,31 +136,15 @@ class LunarSightTest {
         }
 
         @Test
-        void aLookAlongTheMoonsPlaceInLunarFindsThePlanet() {
-            assertEquals(Optional.of(LunarSight.Sky.BLUE_PLANET),
-                    LunarSight.skyAt(Lunar.LEVEL, LIGHT_SIDE_X, LunarSight.moonDirection(MOONSET / 2), MOONSET / 2,
-                            LIT));
-        }
-
-        @Test
         void aLookAtTheDiscsEdgeFindsThePlanet() {
             assertEquals(Optional.of(LunarSight.Sky.BLUE_PLANET),
-                    LunarSight.skyAt(Lunar.LEVEL, LIGHT_SIDE_X, offTheZenith(ON_THE_DISC_EDGE_DEGREES), MIDNIGHT, LIT));
+                    LunarSight.skyAt(Lunar.LEVEL, LIGHT_SIDE_X, offTheZenith(ON_THE_DISC_EDGE_DEGREES), MIDNIGHT, SUN_CLEAR, LIT));
         }
 
         @Test
         void aLookPastTheDiscsEdgeFindsNothing() {
             assertEquals(Optional.empty(),
-                    LunarSight.skyAt(Lunar.LEVEL, LIGHT_SIDE_X, offTheZenith(PAST_THE_DISC_DEGREES), MIDNIGHT, LIT));
-        }
-
-        /**
-         * decision lunar-refuses-the-return-while-the-blue-star-is-hidden
-         */
-        @Test
-        void aLookAtThePlanetBelowTheHorizonFindsNothing() {
-            assertEquals(Optional.empty(),
-                    LunarSight.skyAt(Lunar.LEVEL, LIGHT_SIDE_X, LunarSight.moonDirection(NOON), NOON, LIT));
+                    LunarSight.skyAt(Lunar.LEVEL, LIGHT_SIDE_X, offTheZenith(PAST_THE_DISC_DEGREES), MIDNIGHT, SUN_CLEAR, LIT));
         }
 
         /**
@@ -160,31 +153,31 @@ class LunarSightTest {
         @Test
         void aLookAtTheDarkPlanetFindsNothing() {
             assertEquals(Optional.empty(),
-                    LunarSight.skyAt(Lunar.LEVEL, LIGHT_SIDE_X, UP, MIDNIGHT, MoonPhase.NEW_MOON));
+                    LunarSight.skyAt(Lunar.LEVEL, LIGHT_SIDE_X, UP, MIDNIGHT, SUN_CLEAR, MoonPhase.NEW_MOON));
         }
 
         @Test
         void aLookAtTheCrescentPlanetFindsIt() {
             assertEquals(Optional.of(LunarSight.Sky.BLUE_PLANET),
-                    LunarSight.skyAt(Lunar.LEVEL, LIGHT_SIDE_X, UP, MIDNIGHT, MoonPhase.WAXING_CRESCENT));
+                    LunarSight.skyAt(Lunar.LEVEL, LIGHT_SIDE_X, UP, MIDNIGHT, SUN_CLEAR, MoonPhase.WAXING_CRESCENT));
         }
 
         /**
          * decision dark-side-is-the-half-of-the-moon-past-the-light-side
          */
-        @Test
-        void theDarkSideNeverShowsThePlanetAtAnyHourOfAFullCycle() {
-            for (int degrees = 0; degrees < FULL_CYCLE_DEGREES; degrees++) {
-                assertFalse(LunarSight.planetShows(DARK_SIDE_X, degrees, LIT), "moon angle " + degrees);
-            }
+        @ParameterizedTest
+        @ValueSource(doubles = {3_750_001, -3_750_001, 5_000_000, -6_000_000, 7_500_000})
+        void theDarkSideNeverShowsThePlanet(double x) {
+            assertFalse(LunarSight.planetShows(x, LIT, SUN_CLEAR));
         }
 
         /**
          * decision dark-side-is-the-half-of-the-moon-past-the-light-side
          */
-        @Test
-        void theLightSideShowsThePlanetWhileItIsUp() {
-            assertTrue(LunarSight.planetShows(LIGHT_SIDE_X, MIDNIGHT, LIT));
+        @ParameterizedTest
+        @ValueSource(doubles = {0, 1_000_000, -2_000_000, 3_749_999, -3_749_999})
+        void theLightSideShowsThePlanetOnALitPhase(double x) {
+            assertTrue(LunarSight.planetShows(x, LIT, SUN_CLEAR));
         }
 
         /**
@@ -192,13 +185,127 @@ class LunarSightTest {
          */
         @Test
         void aLookAtThePlanetsPlaceOnTheDarkSideFindsNothing() {
-            assertEquals(Optional.empty(), LunarSight.skyAt(Lunar.LEVEL, DARK_SIDE_X, UP, MIDNIGHT, LIT));
+            assertEquals(Optional.empty(), LunarSight.skyAt(Lunar.LEVEL, DARK_SIDE_X, UP, MIDNIGHT, SUN_CLEAR, LIT));
         }
 
         @Test
         void aLookAwayFromThePlanetInLunarFindsNothing() {
-            assertEquals(Optional.empty(), LunarSight.skyAt(Lunar.LEVEL, LIGHT_SIDE_X, DOWN, MIDNIGHT, LIT));
+            assertEquals(Optional.empty(), LunarSight.skyAt(Lunar.LEVEL, LIGHT_SIDE_X, DOWN, MIDNIGHT, SUN_CLEAR, LIT));
         }
+    }
+
+    /**
+     * decision blue-planet-hangs-fixed-with-its-height-set-by-x
+     */
+    @Nested
+    class ThePlanetsFixedDirection {
+
+        /** Half the light side out from x 0, where the planet stands halfway down to the horizon. */
+        private static final double HALFWAY_OUT = 1_875_000;
+        private static final double HALFWAY_HEIGHT = Math.sqrt(0.5);
+        /** Two thirds of the way from x 0 to the seam, a third of a turn round from the planet. */
+        private static final double FAR_ON_THE_DARK_SIDE = 5_000_000;
+        private static final double FAR_HEIGHT = -0.5;
+
+        private static Stream<Arguments> eachXAndThePlanetsHeight() {
+            return Stream.of(Arguments.of(0.0, 1.0),
+                    Arguments.of(HALFWAY_OUT, HALFWAY_HEIGHT), Arguments.of(-HALFWAY_OUT, HALFWAY_HEIGHT),
+                    Arguments.of((double) Lunar.LIGHT_SIDE_HALF_WIDTH, 0.0),
+                    Arguments.of((double) -Lunar.LIGHT_SIDE_HALF_WIDTH, 0.0),
+                    Arguments.of(FAR_ON_THE_DARK_SIDE, FAR_HEIGHT), Arguments.of(-FAR_ON_THE_DARK_SIDE, FAR_HEIGHT));
+        }
+
+        @ParameterizedTest
+        @MethodSource("eachXAndThePlanetsHeight")
+        void thePlanetsHeightIsSetByX(double x, double height) {
+            Vec3 planet = LunarSight.planetDirection(x);
+            assertEquals(height, planet.y(), TOLERANCE, "at x " + x);
+            assertEquals(1.0, planet.length(), TOLERANCE, "at x " + x);
+        }
+
+        @Test
+        void thePlanetLeansBackTowardXZero() {
+            assertTrue(LunarSight.planetDirection(HALFWAY_OUT).x() < 0.0);
+            assertTrue(LunarSight.planetDirection(-HALFWAY_OUT).x() > 0.0);
+        }
+
+        @Test
+        void thePlanetStandsInTheSameDirectionAtTwoClockTimesHalfADayApart() {
+            assertEquals(LunarSight.skyDirection(Lunar.LEVEL, PLANET_X, overworldMoonAngleAt(NOON_TICK)),
+                    LunarSight.skyDirection(Lunar.LEVEL, PLANET_X, overworldMoonAngleAt(MIDNIGHT_TICK)));
+        }
+
+        @Test
+        void theOverworldsMoonStillTurnsWithTheClock() {
+            assertNotEquals(LunarSight.skyDirection(Level.OVERWORLD, PLANET_X, overworldMoonAngleAt(NOON_TICK)),
+                    LunarSight.skyDirection(Level.OVERWORLD, PLANET_X, overworldMoonAngleAt(MIDNIGHT_TICK)));
+        }
+    }
+
+    /**
+     * decision blue-planet-hangs-fixed-with-its-height-set-by-x
+     * decision lunar-refuses-the-return-while-the-blue-star-is-hidden
+     */
+    @Nested
+    class TheReturnAtEveryHour {
+
+        private static final double FAR_ON_THE_DARK_SIDE = 4_000_000;
+
+        @ParameterizedTest
+        @ValueSource(ints = {0, 6000, 12000, 18000})
+        void aLookAtThePlanetsFixedDirectionHoldsItAtEveryHourOfALitPhase(int dayTick) {
+            assertEquals(Optional.of(LunarSight.Sky.BLUE_PLANET), LunarSight.skyAt(Lunar.LEVEL, PLANET_X,
+                    LunarSight.planetDirection(PLANET_X), overworldMoonAngleAt(dayTick), SUN_CLEAR, LIT));
+        }
+
+        /**
+         * decision lunar-refuses-the-return-while-the-blue-star-is-hidden
+         */
+        @ParameterizedTest
+        @ValueSource(floats = {0F, 8F, -8F})
+        void aLookAtTheNewPlanetHoldsItWhileItEclipsesTheSun(float sunOffTheCenter) {
+            float sun = (float) Lunar.planetAngleDegrees(PLANET_X) + sunOffTheCenter;
+            assertEquals(Optional.of(LunarSight.Sky.BLUE_PLANET), LunarSight.skyAt(Lunar.LEVEL, PLANET_X,
+                    LunarSight.planetDirection(PLANET_X), MIDNIGHT, sun, MoonPhase.NEW_MOON));
+        }
+
+        /**
+         * decision lunar-refuses-the-return-while-the-blue-star-is-hidden
+         */
+        @ParameterizedTest
+        @ValueSource(floats = {15F, -15F, 22.5F, 90F})
+        void aLookAtTheNewPlanetHoldsNothingWithTheSunWellClearOfIt(float sunOffTheCenter) {
+            float sun = (float) Lunar.planetAngleDegrees(PLANET_X) + sunOffTheCenter;
+            assertEquals(Optional.empty(), LunarSight.skyAt(Lunar.LEVEL, PLANET_X,
+                    LunarSight.planetDirection(PLANET_X), MIDNIGHT, sun, MoonPhase.NEW_MOON));
+        }
+
+        @Test
+        void aLookStraightUpAwayFromThePlanetsFixedDirectionHoldsNothing() {
+            assertEquals(Optional.empty(), LunarSight.skyAt(Lunar.LEVEL, PLANET_X, UP, MIDNIGHT, SUN_CLEAR, LIT));
+        }
+
+        @ParameterizedTest
+        @ValueSource(ints = {0, 6000, 12000, 18000})
+        void anyLookOnTheDarkSideHoldsNothing(int dayTick) {
+            float moonAngle = overworldMoonAngleAt(dayTick);
+            for (Vec3 look : new Vec3[] {LunarSight.planetDirection(FAR_ON_THE_DARK_SIDE), UP, DOWN,
+                LunarSight.moonDirection(moonAngle)}) {
+                assertEquals(Optional.empty(), LunarSight.skyAt(Lunar.LEVEL, FAR_ON_THE_DARK_SIDE, look, moonAngle,
+                        (float) Lunar.planetAngleDegrees(FAR_ON_THE_DARK_SIDE), LIT), "look " + look + " at day tick " + dayTick);
+            }
+        }
+    }
+
+    /**
+     * The overworld's moon angle near a day tick, on vanilla's turn without its easing: half a turn at noon's tick
+     * 6000, a full turn a day.
+     *
+     * @param dayTick the day tick
+     * @return the moon angle, in degrees
+     */
+    private static float overworldMoonAngleAt(int dayTick) {
+        return NOON + (dayTick - NOON_TICK) * FULL_CYCLE_DEGREES / (float) DAY_TICKS;
     }
 
     /**
@@ -256,17 +363,24 @@ class LunarSightTest {
         @ParameterizedTest
         @MethodSource("eachDimensionAndItsOtherRefusal")
         void aLookWhereTheSunStandsBelowTheHorizonShowsTheOtherRefusal(ResourceKey<Level> dimension, String other) {
-            assertEquals(other, LunarSight.refusalKey(dimension, LIGHT_SIDE_X,
-                    LunarSight.moonDirection(SUN_AT_MIDNIGHT), SUN_AT_MIDNIGHT));
+            assertEquals(other, LunarSight.refusalKey(dimension, LIGHT_SIDE_X, LunarSight.moonDirection(SUN_AT_MIDNIGHT),
+                    SUN_AT_MIDNIGHT));
         }
 
         /**
-         * decision dark-side-is-the-half-of-the-moon-past-the-light-side
+         * Through the planet's dark phase the sun stands behind it, and the planet's disc, four moons wide, hides it.
+         * decision sun-follows-the-phase-and-lights-the-far-side-too
+         * decision lunar-refuses-the-return-while-the-blue-star-is-hidden
          */
         @Test
-        void aLookWhereTheSunWouldStandOnTheDarkSideShowsTerransRefusal() {
-            assertEquals(LunarSight.TERRAN_REFUSED, LunarSight.refusalKey(Lunar.LEVEL, DARK_SIDE_X,
-                    LunarSight.moonDirection(MORNING), MORNING));
+        void aLookAtTheSunBehindThePlanetShowsTerransRefusal() {
+            Vec3 planet = LunarSight.planetDirection(LIGHT_SIDE_X);
+            assertEquals(LunarSight.TERRAN_REFUSED, LunarSight.refusalKey(Lunar.LEVEL, LIGHT_SIDE_X, planet, 0F));
+        }
+
+        @Test
+        void aLookAtTheSunClearOfThePlanetOnTheDarkSideSaysTheBigYellowOneIsTheSun() {
+            assertEquals(LunarSight.SUN_REFUSED, LunarSight.refusalKey(Lunar.LEVEL, DARK_SIDE_X, UP, 0F));
         }
 
         @Test

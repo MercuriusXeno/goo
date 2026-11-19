@@ -2,17 +2,21 @@ package com.mercuriusxeno.goo.client.zone;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.astral.LunarSight;
+import com.mercuriusxeno.goo.lunar.LunarSun;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.MoonPhase;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import java.util.List;
+import java.util.Optional;
 
 /**
- * Lunar's sky: the void, PocketStarSky's sea of dim stars, a sun crossing it on the overworld's clock, and the blue
- * planet, the overworld, four moons wide, standing where the overworld's sky would stand its moon and lit by the
- * phase opposite the moon's, its face hand-drawn. Astral's gate home looks at the planet.
+ * Lunar's sky: the void, PocketStarSky's sea of dim stars, a sun crossing it once a phase cycle over both halves of
+ * the moon, and the blue planet, the overworld, four moons wide, hanging fixed where the camera's x stands it and lit
+ * by the phase opposite the moon's, its face hand-drawn. Astral's gate home looks at the planet.
+ * decision sun-follows-the-phase-and-lights-the-far-side-too
+ * decision blue-planet-hangs-fixed-with-its-height-set-by-x
  * decision astral-sky-is-the-void-with-one-bright-blue-overworld-star
  * decision lunar-has-a-day-and-night-and-a-sun-on-the-overworlds-clock
  * decision blue-star-is-a-planet-four-moons-wide-drawn-in-phases
@@ -99,16 +103,54 @@ public final class LunarSky {
     }
 
     /**
-     * The planet quad's corners where lunar's sky draws them at a moon angle: centered along the moon's direction at
-     * the sky's distance, at the planet's half width.
-     * decision blue-star-takes-the-moons-place-with-the-opposite-phase
+     * The sun's direction over a camera's x while it stands above the horizon there, on either half of the moon: the
+     * sun follows the phase cycle, so it rises and sets over every x.
+     * decision sun-follows-the-phase-and-lights-the-far-side-too
      *
-     * @param moonAngleDegrees lunar's moon angle, in degrees
+     * @param cameraX            the camera's x, in blocks
+     * @param overworldClockTime the overworld clock's total ticks
+     * @return the unit direction, empty while the sun stands below the horizon
+     */
+    public static Optional<Vec3> sunOver(double cameraX, long overworldClockTime) {
+        Vec3 sun = sunDirection((float) LunarSun.sunAngleDegrees(cameraX, overworldClockTime));
+        return sun.y() > 0.0 ? Optional.of(sun) : Optional.empty();
+    }
+
+    /**
+     * The turn that carries the flat quad to the planet over a camera's x: along the planet's fixed direction there,
+     * at the sky's distance and the planet's half width.
+     * decision blue-planet-hangs-fixed-with-its-height-set-by-x
+     *
+     * @param cameraX the camera's x, in blocks
+     * @return the turn, from the flat quad to the planet
+     */
+    public static Matrix4f planetPose(double cameraX) {
+        return celestialPose(LunarSight.planetDirection(cameraX), PocketStarSkyRenderer.SKY_DISTANCE,
+                PLANET_HALF_SIZE);
+    }
+
+    /**
+     * The planet quad's corners where lunar's sky draws them over a camera's x.
+     * decision blue-planet-hangs-fixed-with-its-height-set-by-x
+     *
+     * @param cameraX the camera's x, in blocks
      * @return the four corners, in the flat quad's order
      */
-    public static List<Vector3f> planetCorners(float moonAngleDegrees) {
-        Matrix4f pose = celestialPose(LunarSight.moonDirection(moonAngleDegrees), PocketStarSkyRenderer.SKY_DISTANCE,
-                PLANET_HALF_SIZE);
+    public static List<Vector3f> planetCorners(double cameraX) {
+        Matrix4f pose = planetPose(cameraX);
         return FLAT_QUAD.stream().map(corner -> pose.transformPosition(corner, new Vector3f())).toList();
+    }
+
+    /**
+     * Whether lunar's sky draws the planet over a camera's x: while it stands above the horizon there, across the
+     * light side, its dark phase drawn too; the dark side draws none.
+     * decision blue-planet-hangs-fixed-with-its-height-set-by-x
+     * decision dark-side-is-the-half-of-the-moon-past-the-light-side
+     *
+     * @param cameraX the camera's x, in blocks
+     * @return true where the planet draws
+     */
+    public static boolean drawsPlanetOver(double cameraX) {
+        return LunarSight.planetAboveTheHorizon(cameraX);
     }
 }

@@ -85,12 +85,14 @@ public final class AstralLunar {
         }
         float moonAngle = moonAngleAt(caster);
         Optional<LunarSight.Sky> sky = LunarSight.skyAt(caster.level().dimension(), caster.getX(),
-                caster.getLookAngle(), moonAngle, skyPhaseAt(caster));
+                caster.getLookAngle(), moonAngle, sunAngleAt(caster), skyPhaseAt(caster));
         if (sky.isEmpty()) {
             return false;
         }
-        caster.setData(GooAttachments.LUNAR_FIXATION, LunarFixation.held(sky.get(),
-                LunarSight.moonDirection(moonAngle), caster.position(), caster.level().getGameTime(), duration));
+        // decision blue-planet-hangs-fixed-with-its-height-set-by-x
+        Vec3 held = LunarSight.skyDirection(caster.level().dimension(), caster.getX(), moonAngle);
+        caster.setData(GooAttachments.LUNAR_FIXATION, LunarFixation.held(sky.get(), held, caster.position(),
+                caster.level().getGameTime(), duration));
         HOLDS.put(caster.getUUID(), new Hold(caster.level().getServer().getTickCount(), cost));
         sendTone(caster);
         return true;
@@ -126,7 +128,7 @@ public final class AstralLunar {
      */
     public static boolean findsTheSky(ServerPlayer caster) {
         return LunarSight.skyAt(caster.level().dimension(), caster.getX(), caster.getLookAngle(),
-                moonAngleAt(caster), skyPhaseAt(caster)).isPresent();
+                moonAngleAt(caster), sunAngleAt(caster), skyPhaseAt(caster)).isPresent();
     }
 
     /**
