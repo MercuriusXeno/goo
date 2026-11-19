@@ -117,12 +117,13 @@ public record BlendPalette(float lightRed, float lightGreen, float lightBlue,
             0xA6 / 255f, 0xF0 / 255f, 0x78 / 255f, 0x7E / 255f, 0xC8 / 255f, 0x50 / 255f);
 
     /**
-     * Infest's spray drips, from nether's bright red, 9A4E4E, to its wheel
-     * red, 652828, the two the nether goo type's definition names.
+     * Infest's spray drips, from nether's bright maroon, 8C3A48, to its wheel
+     * maroon, 5C1C2A, the two the nether goo type's definition names.
      * infest-is-nethers-goo-the-decay-effect-localized-around-the-goo
+     * nether-is-a-deeper-maroon-mixed-with-obsidians-colors
      */
     public static final BlendPalette INFEST_NETHER_REDS = new BlendPalette(
-            0x9A / 255f, 0x4E / 255f, 0x4E / 255f, 0x65 / 255f, 0x28 / 255f, 0x28 / 255f);
+            0x8C / 255f, 0x3A / 255f, 0x48 / 255f, 0x5C / 255f, 0x1C / 255f, 0x2A / 255f);
 
     /**
      * Spores' spray drips, from shroom's bright purple, B66CD5, to its
