@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Tests that the recolored goo types' UI channels, read from their type JSON
  * through the classpath, read apart from the types they sat on, that xeno
- * wears quantum's former purples, that yore's fluid is aeon's oil slick, and that quantum wears
+ * wears quantum's former purples, and that quantum wears
  * its icon's blue and a brighter, oranger orange than its former red orange.
  */
 class GooTypeColorsTest {
