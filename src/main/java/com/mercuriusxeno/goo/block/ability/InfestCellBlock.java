@@ -71,11 +71,11 @@ public class InfestCellBlock extends VolumeCellBlock {
             return;
         }
         InfestStep.in(layingProgram(level)).ifPresent(infest -> {
-            if (InfestGnaw.gnawsAt(level.getGameTime(), infest.gnawTicks())) {
+            if (CellReach.actsAt(level.getGameTime(), infest.gnawTicks())) {
                 gnawAndBite(level, pos, infest);
             }
             if (level.getBlockState(pos).is(this) && !level.getBlockTicks().hasScheduledTick(pos, this)) {
-                level.scheduleTick(pos, this, InfestGnaw.ticksToNextGnaw(level.getGameTime(), infest.gnawTicks()));
+                level.scheduleTick(pos, this, CellReach.ticksToNextAct(level.getGameTime(), infest.gnawTicks()));
             }
         });
     }
@@ -96,7 +96,7 @@ public class InfestCellBlock extends VolumeCellBlock {
             return;
         }
         int layers = after.getValue(LAYERS);
-        int left = InfestDeplete.layersAfterRolls(layers, rolls, level.getRandom()::nextDouble,
+        int left = LayerDeplete.layersAfterRolls(layers, rolls, level.getRandom()::nextDouble,
                 infest.depleteChance());
         if (left == 0) {
             level.setBlock(pos, Blocks.AIR.defaultBlockState(), UPDATE_ALL);
@@ -120,7 +120,7 @@ public class InfestCellBlock extends VolumeCellBlock {
             return 0;
         }
         int gnawed = 0;
-        for (BlockPos block : InfestGnaw.gnawedBlocks(pos, side -> coatOn(state, side) != SideCoat.BARE)) {
+        for (BlockPos block : CellReach.reachedBlocks(pos, side -> coatOn(state, side) != SideCoat.BARE)) {
             Optional<Block> next = map.get().next(level.getBlockState(block).getBlock());
             if (next.isPresent()) {
                 level.setBlockAndUpdate(block, next.get().defaultBlockState());
@@ -142,7 +142,7 @@ public class InfestCellBlock extends VolumeCellBlock {
         Entity placer = creditedPlayerAt(level, pos);
         int landed = 0;
         for (LivingEntity living : level.getEntitiesOfClass(LivingEntity.class, new AABB(pos).expandTowards(0, 1, 0),
-                living -> living.isAlive() && InfestGnaw.standsIn(pos, living.blockPosition(), living.getOnPos()))) {
+                living -> living.isAlive() && CellReach.standsIn(pos, living.blockPosition(), living.getOnPos()))) {
             if (biteOnce(level, living, infest.damage(), placer)) {
                 landed++;
             }
