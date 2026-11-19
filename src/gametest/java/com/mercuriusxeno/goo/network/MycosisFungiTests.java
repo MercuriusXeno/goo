@@ -28,9 +28,10 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for Mycosis tending fungi: a held stream random-ticks the nether
- * wart and fungal buds in its cone, so wart planted three blocks ahead of the
- * player ripens and is reaped within the hold, dropping wart and standing
- * replanted at age 0, and a bud there grows into its mushroom.
+ * wart and fungal buds in its cone, so with each draw held sure wart planted
+ * three blocks ahead of the player ripens and is reaped on a known tick,
+ * dropping wart and standing replanted at age 0, and a bud there grows into
+ * its mushroom.
  * mycosis-grows-and-reaps-nether-wart
  */
 @RegistersGameTests
@@ -56,8 +57,6 @@ public final class MycosisFungiTests {
     private static final float FACING_EAST = -90f;
     /** Pitch down from the eye toward the fungus's middle three blocks off. */
     private static final float LOOKING_AT_FUNGUS = 20.5f;
-    /** The longest hold; wart and buds under the stream ripen in a fraction of it. */
-    private static final int HOLD_TICKS = 300;
     /** Sculk goo the player holds, thousands: enough to pay for the whole hold and then some. */
     private static final int HELD_GOO = 20;
     private static final double ITEM_SEARCH_RADIUS = 3;
@@ -71,26 +70,34 @@ public final class MycosisFungiTests {
 
     /**
      * A mock player holds Mycosis on freshly planted nether wart on soul
-     * sand: the wart ripens, is reaped, and its wart drops while a fresh wart
-     * stands replanted at age 0.
+     * sand, each random tick the stream deals drawing sure: the wart ripens
+     * a stage a tick, the tick after it ripens reaps it, and on the tick after
+     * the hold its wart lies dropped while a fresh wart stands replanted at
+     * age 0.
+     * gametests-waiting-on-a-random-draw-are-found-and-made-deterministic
      *
      * @param helper the gametest helper
      */
     public static void mycosisGrowsAndReapsNetherWart(GameTestHelper helper) {
         helper.setBlock(FUNGUS_POS.below(), Blocks.SOUL_SAND);
         helper.setBlock(FUNGUS_POS, Blocks.NETHER_WART);
-        hold(helper, GooTypes.SCULK, SCULK_MYCOSIS, HOLD_TICKS);
-        helper.succeedWhen(() -> {
+        int ripenedAndReaped = NetherWartBlock.MAX_AGE + 1;
+        hold(helper, GooTypes.SCULK, SCULK_MYCOSIS, ripenedAndReaped);
+        helper.runAtTickTime(ripenedAndReaped + 1, () -> {
             BlockState wart = helper.getBlockState(FUNGUS_POS);
             helper.assertTrue(wart.is(Blocks.NETHER_WART) && wart.getValue(NetherWartBlock.AGE) == 0,
                     String.format(SHOULD_REPLANT, wart));
             helper.assertItemEntityPresent(Items.NETHER_WART, FUNGUS_POS, ITEM_SEARCH_RADIUS);
+            helper.succeed();
         });
     }
 
     /**
-     * A mock player holds Mycosis on a fresh fungal bud on stone, and the
-     * cell holds a brown or red mushroom, no bud, within the hold.
+     * A mock player holds Mycosis on a fresh fungal bud on mycelium, each
+     * draw the stream makes for it landing sure: the bud ages a stage a tick,
+     * the tick after its last age grows its mushroom, and on the tick after
+     * the hold the cell holds a brown or red mushroom, no bud.
+     * gametests-waiting-on-a-random-draw-are-found-and-made-deterministic
      *
      * @param helper the gametest helper
      */
@@ -98,17 +105,19 @@ public final class MycosisFungiTests {
         // operator ruling 2026-11-18: a bud grows only where its mushroom can, so it stands on mycelium
         helper.setBlock(FUNGUS_POS.below(), Blocks.MYCELIUM);
         helper.setBlock(FUNGUS_POS, GooBlocks.FUNGAL_BUD.get().defaultBlockState().setValue(FungalBudBlock.AGE, 0));
-        hold(helper, GooTypes.SCULK, SCULK_MYCOSIS, HOLD_TICKS);
-        helper.succeedWhen(() -> {
+        int agedAndGrown = FungalBudBlock.MAX_AGE + 1;
+        hold(helper, GooTypes.SCULK, SCULK_MYCOSIS, agedAndGrown);
+        helper.runAtTickTime(agedAndGrown + 1, () -> {
             BlockState grown = helper.getBlockState(FUNGUS_POS);
             helper.assertTrue(grown.is(Blocks.BROWN_MUSHROOM) || grown.is(Blocks.RED_MUSHROOM),
                     String.format(SHOULD_MUSHROOM, grown));
+            helper.succeed();
         });
     }
 
     /**
      * Stands a mock player facing the fungus and holds a stream ability on it
-     * for a number of ticks.
+     * for a number of ticks, each stream tick's fungi drawing sure.
      *
      * @param helper    the gametest helper
      * @param gooType   the goo the ability spends
@@ -131,7 +140,7 @@ public final class MycosisFungiTests {
         GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(gooType), abilityId.toString(),
                 player.getEyePosition(), player.getEyePosition());
         for (int held = 1; held <= ticks; held++) {
-            helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(player, tick));
+            helper.runAfterDelay(held, () -> SureDraws.streamTick(player, tick));
         }
     }
 }

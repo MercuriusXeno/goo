@@ -3,7 +3,7 @@
   "function": "goo:mycosis_fizzles_on_stone_in_daylight",
   "environment": "minecraft:default",
   "structure": "goo:test_bay",
-  "max_ticks": 400,
+  "max_ticks": 20,
   "setup_ticks": 0,
   "required": true
 }

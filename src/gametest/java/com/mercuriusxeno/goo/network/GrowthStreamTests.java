@@ -25,8 +25,9 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for leaf growth: a held stream random-ticks the plants in its
- * cone, so wheat planted three blocks ahead of the player ripens within the
- * hold, and a vine there spreads (decision growth-breeze-ticks-plants).
+ * cone, so wheat planted three blocks ahead of the player ripens a stage a
+ * tick while each draw is held sure, and a vine there spreads (decision
+ * growth-breeze-ticks-plants).
  */
 @RegistersGameTests
 public final class GrowthStreamTests {
@@ -51,8 +52,6 @@ public final class GrowthStreamTests {
     private static final float FACING_EAST = -90f;
     /** Pitch down from the eye toward the wheat's middle three blocks off. */
     private static final float LOOKING_AT_WHEAT = 20.5f;
-    /** The longest hold; wheat under the breeze ripens in a fraction of it. */
-    private static final int HOLD_TICKS = 160;
     /** Leaf goo the player holds, thousands: enough to pay for the whole hold and then some. */
     private static final int HELD_GOO = 10;
     private static final Identifier LEAF_GROWTH = Identifier.parse("goo:leaf_growth");
@@ -71,8 +70,11 @@ public final class GrowthStreamTests {
     }
 
     /**
-     * A mock player holds Growth on freshly planted wheat on moist farmland,
-     * and the wheat reaches its full age before the hold ends.
+     * A mock player holds Growth on freshly planted wheat on moist farmland
+     * for a tick per age the wheat has to grow, each random tick the stream
+     * deals drawing sure, and the wheat stands at its full age on the tick
+     * after the hold ends.
+     * gametests-waiting-on-a-random-draw-are-found-and-made-deterministic
      *
      * @param helper the gametest helper
      */
@@ -81,23 +83,31 @@ public final class GrowthStreamTests {
                 FarmlandBlock.MAX_MOISTURE));
         helper.setBlock(WHEAT_POS, Blocks.WHEAT);
         ServerPlayer player = grower(helper);
-        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.LEAF), LEAF_GROWTH.toString(),
-                player.getEyePosition(), player.getEyePosition());
-        for (int held = 1; held <= HOLD_TICKS; held++) {
-            helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(player, tick));
-        }
-        helper.succeedWhen(() -> {
+        holdGrowth(helper, player, CropBlock.MAX_AGE);
+        helper.runAtTickTime(CropBlock.MAX_AGE + 1, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(player);
             BlockState wheat = helper.getBlockState(WHEAT_POS);
             helper.assertTrue(wheat.is(Blocks.WHEAT) && wheat.getValue(CropBlock.AGE) == CropBlock.MAX_AGE,
                     String.format(SHOULD_RIPEN, wheat.getValue(CropBlock.AGE)));
-            helper.getLevel().getServer().getPlayerList().remove(player);
+            helper.succeed();
         });
     }
 
+    // Holds Growth for a number of ticks from the first, each stream tick's plants drawing sure.
+    private static void holdGrowth(GameTestHelper helper, ServerPlayer player, int ticks) {
+        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.LEAF), LEAF_GROWTH.toString(),
+                player.getEyePosition(), player.getEyePosition());
+        for (int held = 1; held <= ticks; held++) {
+            helper.runAfterDelay(held, () -> SureDraws.streamTick(player, tick));
+        }
+    }
+
     /**
-     * A mock player holds Growth on a patch of six vines on a stone wall, a
-     * patch crowded past the five vanilla's random tick lets spread, and the
-     * patch grows: hanging longer below or creeping along the wall.
+     * A mock player holds Growth for one tick on a patch of six vines on a
+     * stone wall, a patch crowded past the five vanilla's random tick lets
+     * spread, its random tick drawing sure, and the patch has grown on the
+     * tick after: hanging longer below or creeping along the wall.
+     * gametests-waiting-on-a-random-draw-are-found-and-made-deterministic
      *
      * @param helper the gametest helper
      */
@@ -113,15 +123,12 @@ public final class GrowthStreamTests {
         }
         int planted = vinesIn(helper);
         ServerPlayer player = grower(helper);
-        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.LEAF), LEAF_GROWTH.toString(),
-                player.getEyePosition(), player.getEyePosition());
-        for (int held = 1; held <= HOLD_TICKS; held++) {
-            helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(player, tick));
-        }
-        helper.succeedWhen(() -> {
+        holdGrowth(helper, player, 1);
+        helper.runAtTickTime(2, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(player);
             int grown = vinesIn(helper);
             helper.assertTrue(grown > planted, String.format(SHOULD_SPREAD, planted, grown));
-            helper.getLevel().getServer().getPlayerList().remove(player);
+            helper.succeed();
         });
     }
 

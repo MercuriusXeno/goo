@@ -18,6 +18,7 @@ import com.mercuriusxeno.goo.network.GooThrowHandler;
 import com.mercuriusxeno.goo.network.GooThrowPayload;
 import com.mercuriusxeno.goo.network.GooEffectScheduler;
 import com.mercuriusxeno.goo.network.GooEffectScheduler.PendingEffect;
+import com.mercuriusxeno.goo.network.HeldAbilitySteps;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooItems;
 import com.mercuriusxeno.goo.registry.GooServerState;
@@ -48,6 +49,7 @@ import net.minecraft.world.level.storage.TagValueOutput;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.function.Consumer;
@@ -72,6 +74,10 @@ public final class EffectExecutorTests {
     private static final String FX_FALLEN_MARKER_KEEPS_ABILITY = "fx_fallen_marker_keeps_ability";
     private static final String FX_OTHER_ABILITY_MARKS_CRYSTAL = "fx_other_ability_marks_crystal";
     private static final String FX_SPIKE_TRAP_BLOCK_GOES = "fx_spike_trap_block_goes";
+    private static final String FIELD_EFFECT_STEP = "field_effect";
+    private static final String SPEND_CHANCE = "spend_chance";
+    /** A spend chance every draw lands under, so each strike spends a charge. */
+    private static final double SURE_SPEND = 1.0;
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -634,12 +640,21 @@ public final class EffectExecutorTests {
      * A spike trap field stands its block while a moving pig draws its
      * strikes, and the block is gone once the field has spent its charges
      * and contracted (decision lingering-abilities-place-their-own-thing).
+     * The trap lands with its strikes' spend chance held sure, so each
+     * strike spends a charge and the field runs out on its cooldown's
+     * cadence rather than on its rolls.
+     * gametests-waiting-on-a-random-draw-are-found-and-made-deterministic
      *
      * @param helper the gametest helper
      */
     public static void spikeTrapBlockGoesWithItsProgram(GameTestHelper helper) {
         discardLeftoverEntities(helper);
-        placeMarkerWithAbility(helper, GooTypes.METAL, ABILITY_SPIKE_TRAP);
+        helper.setBlock(MARKER_POS.north(), Blocks.STONE);
+        Identifier trap = Identifier.parse(ABILITY_SPIKE_TRAP);
+        AbilityDefinition sureSpend = HeldAbilitySteps.withStepFields(AbilityRegistry.of(helper.getLevel()), trap,
+                FIELD_EFFECT_STEP, Map.of(SPEND_CHANCE, SURE_SPEND)).getAbility(trap);
+        AbilityImpact.land(helper.getLevel(), helper.absolutePos(MARKER_POS.north()), GooTypes.METAL, Direction.SOUTH,
+                sureSpend, null, 0);
         helper.assertBlockPresent(GooBlocks.ABILITY_BLOCK.get(), MARKER_POS);
         Pig pig = spawnShufflingPig(helper, MINE_TARGET_POS);
         // a pig's ten health dies to two impalings, leaving the field charges it never spends

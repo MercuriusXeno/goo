@@ -1,7 +1,9 @@
 package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
+import com.mercuriusxeno.goo.GooConfig;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.AbilityRegistrySource;
 import com.mercuriusxeno.goo.block.ability.SideCoat;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.entity.DriftingWisp;
@@ -9,7 +11,6 @@ import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import com.mercuriusxeno.goo.registry.GooBlocks;
-import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
@@ -121,6 +122,12 @@ public final class WispsTests {
     /** How far a one-layer cell's shed wisp may head, one block past its layers. */
     private static final int ONE_LAYER_REACH = 2;
     private static final String FILM_WISP_OUT_OF_REACH = "A wisp shed by the film at %s settled at %s, past its reach";
+    private static final String CORRIDOR_LIT = "The corridor's air at %s should read dark before the film is laid,"
+            + " reads light %d";
+    private static final String WISPS_STEP = "wisps";
+    private static final String SHED_SPEND_CHANCE = "shed_spend_chance";
+    /** A spend chance every draw lands under, so the shed spends the film's layer. */
+    private static final double SURE_SPEND = 1.0;
     private static final String WISP_GIVES_WAY_TO_A_DRIP_ON_THE_FLOOR = "wisp_gives_way_to_a_drip_on_the_floor";
     private static final String WISP_GIVES_WAY_TO_A_FILM_ON_A_WALL_AND_A_CEILING =
             "wisp_gives_way_to_a_film_on_a_wall_and_a_ceiling";
@@ -383,36 +390,62 @@ public final class WispsTests {
 
     /**
      * A Wisps cell holding one film and no fill, hung under the roof of a
-     * sealed dark corridor over its air, sheds wisps that settle as wisp
-     * blocks within its reach, and the shed that spends its one layer leaves
-     * the cell standing as air. A settled wisp lights every cell a one-layer
-     * cell reaches, and a shed spends its layer by the step's chance, so the
-     * test takes each settled wisp away and releases its claim, the dark
-     * standing again, until the film spends its layer.
+     * sealed dark corridor over its air, sheds a wisp that settles as a wisp
+     * block within its reach, and the shed spending its one layer leaves the
+     * cell standing as air. The film is laid once the corridor reads dark,
+     * and its own tick runs at once with the shed's spend held sure, so the
+     * one shed the test reads spends the layer on that tick.
      * wisps-goo-sheds-a-wisp-toward-nearby-dark
+     * gametests-waiting-on-a-random-draw-are-found-and-made-deterministic
      *
      * @param helper the gametest helper
      * @param film   the film cell's state, one layer on the ceiling or a wall
      */
     public static void wispsFilmShedsAWispAndEmpties(GameTestHelper helper, BlockState film) {
         sealCorridor(helper);
-        helper.setBlock(CORRIDOR_FILM, film);
-        boolean[] settled = {false};
-        helper.onEachTick(() -> {
-            for (BlockPos wisp : wispsInTheCorridor(helper)) {
-                helper.assertTrue(wisp.distManhattan(CORRIDOR_FILM) <= ONE_LAYER_REACH,
-                        String.format(FILM_WISP_OUT_OF_REACH, CORRIDOR_FILM, wisp));
-                settled[0] = true;
-                helper.setBlock(wisp, Blocks.AIR);
-                GooServerState.of(helper.getLevel().getServer()).wispClaims()
-                        .release(helper.getLevel(), helper.absolutePos(wisp));
+        helper.startSequence()
+                .thenWaitUntil(() -> assertDarkInReachOfTheFilm(helper))
+                .thenExecute(() -> {
+                    shedTheFilmAtASureSpend(helper, film);
+                    helper.assertTrue(helper.getBlockState(CORRIDOR_FILM).isAir(),
+                            String.format(CELL_WRONG, 0, helper.getBlockState(CORRIDOR_FILM)));
+                })
+                .thenWaitUntil(() -> {
+                    List<BlockPos> wisps = wispsInTheCorridor(helper);
+                    helper.assertTrue(!wisps.isEmpty(), NO_WISP_SETTLED);
+                    for (BlockPos wisp : wisps) {
+                        helper.assertTrue(wisp.distManhattan(CORRIDOR_FILM) <= ONE_LAYER_REACH,
+                                String.format(FILM_WISP_OUT_OF_REACH, CORRIDOR_FILM, wisp));
+                    }
+                })
+                .thenSucceed();
+    }
+
+    private static void assertDarkInReachOfTheFilm(GameTestHelper helper) {
+        for (int x = 1; x <= CORRIDOR_FILM.getX() + ONE_LAYER_REACH; x++) {
+            for (int y = 1; y <= CORRIDOR_HEIGHT; y++) {
+                BlockPos air = new BlockPos(x, y, CORRIDOR_Z);
+                int light = helper.getLevel().getMaxLocalRawBrightness(helper.absolutePos(air));
+                helper.assertTrue(light < GooConfig.wispsLightThreshold(), String.format(CORRIDOR_LIT, air, light));
             }
-        });
-        helper.succeedWhen(() -> {
-            helper.assertTrue(settled[0], NO_WISP_SETTLED);
-            helper.assertTrue(helper.getBlockState(CORRIDOR_FILM).isAir(),
-                    String.format(CELL_WRONG, 0, helper.getBlockState(CORRIDOR_FILM)));
-        });
+        }
+    }
+
+    // Lays the film and runs the cell's own tick at once, the shed's spend chance held sure for that tick alone.
+    private static void shedTheFilmAtASureSpend(GameTestHelper helper, BlockState film) {
+        helper.setBlock(CORRIDOR_FILM, film);
+        BlockPos cellPos = helper.absolutePos(CORRIDOR_FILM);
+        BlockState cell = helper.getLevel().getBlockState(cellPos);
+        AbilityRegistrySource held = (AbilityRegistrySource) helper.getLevel().getServer().getServerResources()
+                .managers();
+        AbilityRegistry shipped = held.abilityRegistry();
+        held.holdAbilityRegistry(HeldAbilitySteps.withStepFields(shipped, WISPS, WISPS_STEP,
+                Map.of(SHED_SPEND_CHANCE, SURE_SPEND)));
+        try {
+            cell.tick(helper.getLevel(), cellPos, helper.getLevel().getRandom());
+        } finally {
+            held.holdAbilityRegistry(shipped);
+        }
     }
 
     /**
