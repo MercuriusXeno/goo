@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.ability.astral.LunarSight;
+import com.mercuriusxeno.goo.client.BlendComposite;
 import com.mercuriusxeno.goo.client.zone.LunarSky;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
@@ -9,6 +10,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.function.DoubleUnaryOperator;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -146,6 +148,19 @@ class LunarTripTest {
         /** A fixation's direction the planet stood along as the trip home began: well up in the west. */
         private static final Vec3 FIXATION_DIRECTION = LunarSight.moonDirection(40F);
         private static final double QUAD_TOLERANCE = 1e-5;
+
+        /**
+         * The planet the trip swells stands as solid as the one the sky drew: its unlit face, opaque black, hides what
+         * lies behind it.
+         * decision sun-follows-the-phase-and-lights-the-far-side-too
+         */
+        @Test
+        void bluePlanetsDarkFaceHidesWhatLiesBehindIt() {
+            float[] shown = BlendComposite.over(LunarTripBodies.PLANET_PIPELINE, new float[] {0F, 0F, 0F, 1F},
+                    new float[] {1F, 0.9F, 0.5F});
+            assertArrayEquals(new float[] {0F, 0F, 0F}, shown, 1e-6F, "behind the swelling dark planet shows "
+                    + shown[0] + ", " + shown[1] + ", " + shown[2]);
+        }
 
         @Test
         void bluePlanetStandsAtItsSizeInLunarsSkyAtTheStart() {

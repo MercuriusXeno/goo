@@ -1,8 +1,10 @@
 package com.mercuriusxeno.goo.client.zone;
 
 import com.mercuriusxeno.goo.ability.astral.LunarSight;
+import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.buffers.GpuBufferSlice;
+import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.systems.RenderPass;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.textures.GpuTextureView;
@@ -53,6 +55,11 @@ public final class LunarSkyRenderer implements CustomSkyboxRenderer {
     /** The uniform block the sky shader reads its model view from. */
     private static final String DYNAMIC_TRANSFORMS = "DynamicTransforms";
     private static final String SAMPLER = "Sampler0";
+    /**
+     * The pipeline the sky draws the planet through, after the sun, its opaque face laid over what lies behind it.
+     * decision sun-follows-the-phase-and-lights-the-far-side-too
+     */
+    static final RenderPipeline PLANET_PIPELINE = GooRenderTypes.LUNAR_PLANET;
 
     private final PocketStarSkyRenderer sea = new PocketStarSkyRenderer();
     private final boolean drawsPlanet;
@@ -80,7 +87,7 @@ public final class LunarSkyRenderer implements CustomSkyboxRenderer {
         }
         // decision blue-planet-hangs-fixed-with-its-height-set-by-x
         if (drawsPlanet && LunarSky.drawsPlanetOver(cameraX)) {
-            BluePlanetRenderer.draw(RenderPipelines.CELESTIAL,
+            BluePlanetRenderer.draw(PLANET_PIPELINE,
                     new Matrix4f(modelViewMatrix).mul(LunarSky.planetPose(cameraX)),
                     LunarSight.planetPhase(skyRenderState.moonPhase));
         }
