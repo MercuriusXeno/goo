@@ -26,7 +26,7 @@ class LackedTypeReadsTest {
     class ItemEntry {
         private static final String FILE = """
                 {
-                    "_constants": {"dye": {"opulent": 6}},
+                    "_constants": {"dye": {"ornate": 6}},
                     "a": {"zoo": "3 $dye.leaf / 2 + 4"}
                 }
                 """;
