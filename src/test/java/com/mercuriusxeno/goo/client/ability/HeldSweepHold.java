@@ -16,17 +16,20 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart;
 import net.minecraft.client.resources.model.geometry.BakedQuad;
 import net.minecraft.client.resources.model.sprite.Material;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.IntFunction;
 import static org.mockito.Mockito.mock;
 
 /**
@@ -60,11 +63,16 @@ final class HeldSweepHold {
     private final CountingVertexConsumer consumer = new CountingVertexConsumer();
     private final List<BlockStateModelPart> cube = List.of(new CubePart(List.of(mock(BakedQuad.class))));
     /**
-     * The mobs the client paints: none, since a mocked mob answers each call
-     * through Mockito, which would time Mockito rather than the paint loop.
+     * The mobs the client paints: none unless a test hands it some, since a
+     * mocked mob answers each call through Mockito, which would time Mockito
+     * rather than the paint loop.
      */
-    private final List<Entity> entities = List.of();
-    private final Vec3 casterAt = HeldSweepWorld.CASTER;
+    private List<Entity> entities = List.of();
+    private Vec3 casterAt = HeldSweepWorld.CASTER;
+    private IntFunction<Vec3> path = held -> HeldSweepWorld.CASTER;
+    private int scannedThisTick;
+    private long blockReads;
+    private int payloadsThisTick;
     private List<HeldSweepPulses.Pulse> live = List.of();
     private long gameTime = START;
     private int held;
@@ -98,10 +106,35 @@ final class HeldSweepHold {
         return new HeldSweepHold(new DetectOreStep(ores, GooTypes.CRYSTAL, ORE_RADIUS, ORE_LIFE), world);
     }
 
+    /**
+     * Has the caster walk a path, so each pulse leaves from a new spot.
+     *
+     * @param where where the caster stands on each held tick
+     * @return this hold
+     */
+    HeldSweepHold walking(IntFunction<Vec3> where) {
+        path = where;
+        return this;
+    }
+
+    /**
+     * Hands the client mobs to paint as the fronts cross them.
+     *
+     * @param mobs the mobs the client draws
+     * @return this hold
+     */
+    HeldSweepHold painting(List<Entity> mobs) {
+        entities = List.copyOf(mobs);
+        return this;
+    }
+
     /** Runs one held tick on the server and hands the caster's client the pulses it sent. */
     void tick() {
         held++;
         gameTime++;
+        casterAt = path.apply(held);
+        scannedThisTick = 0;
+        payloadsThisTick = 0;
         live = server.advance(CASTER, casterAt, held, gameTime, step.pace());
         if (step instanceof ScryStep) {
             strike();
@@ -110,6 +143,7 @@ final class HeldSweepHold {
         }
         step.sendSweeps(live, gameTime, payload -> {
             payloads++;
+            payloadsThisTick++;
             sweeps.hear(payload, gameTime, type -> TINT);
         });
     }
@@ -123,6 +157,7 @@ final class HeldSweepHold {
                     pace.radiusAt(age - 1), pace.radiusAt(age), selected -> struck++);
         }
         scanned += scan.visited();
+        scannedThisTick = scan.visited();
     }
 
     private void walkOre(DetectOreStep ore) {
@@ -145,8 +180,8 @@ final class HeldSweepHold {
         double now = gameTime + (double) frame / FRAMES_A_TICK;
         Vec3 camera = casterAt.add(0, EYE, 0);
         PoseStack poseStack = new PoseStack();
-        HeldSweepVisual.upkeepFronts(new HeldSweepVisual.Upkeep(sweeps, HeldSweepWorld::isAir,
-                HeldSweepWorld::shapeOf), now, entities, null);
+        HeldSweepVisual.upkeepFronts(new HeldSweepVisual.Upkeep(sweeps, this::countedIsAir,
+                this::countedShapeOf), now, entities, null);
         List<HeldSweepVisual.WallGlow> lit = HeldSweepVisual.wallsToDraw(sweeps.walls(), now);
         walls = lit.size();
         SortedDraw wallDraw = HeldSweepVisual.sortedByNearest(lit.stream()
@@ -193,14 +228,50 @@ final class HeldSweepHold {
     void settle(int ticks) {
         for (int tick = 0; tick < ticks; tick++) {
             tick();
-            HeldSweepVisual.upkeepFronts(new HeldSweepVisual.Upkeep(sweeps, HeldSweepWorld::isAir,
-                    HeldSweepWorld::shapeOf), gameTime, entities, null);
+            HeldSweepVisual.upkeepFronts(new HeldSweepVisual.Upkeep(sweeps, this::countedIsAir,
+                    this::countedShapeOf), gameTime, entities, null);
         }
     }
 
     /** @return the lit hits the wall list weighs to find a frame's walls */
     int wallListReads() {
         return sweeps.walls().weighed();
+    }
+
+    /**
+     * Everything a long hold could pile up, as the last tick left it.
+     *
+     * @param serverPulses     the pulses the server holds out for the caster
+     * @param clientPulses     the pulses the client holds
+     * @param litWalls         the walls the client holds lit
+     * @param fields           the fields of walls the client holds, one for each spot pulses left from
+     * @param paintedMobs      the mobs the client holds painted
+     * @param scannedThisTick  the entities the server's strikes scanned on the tick
+     * @param payloadsThisTick the pulse payloads the server sent on the tick
+     */
+    record Quantities(int serverPulses, int clientPulses, int litWalls, int fields, int paintedMobs,
+                      int scannedThisTick, int payloadsThisTick) {
+    }
+
+    /** @return the quantities a long hold could pile up, as the last tick left them */
+    Quantities quantities() {
+        return new Quantities(server.liveFor(CASTER), sweeps.pulses().size(), sweeps.walls().size(),
+                sweeps.fields().size(), ScryPaintedMobs.CLIENT.count(), scannedThisTick, payloadsThisTick);
+    }
+
+    private boolean countedIsAir(BlockPos pos) {
+        blockReads++;
+        return HeldSweepWorld.isAir(pos);
+    }
+
+    private List<AABB> countedShapeOf(BlockPos pos) {
+        blockReads++;
+        return HeldSweepWorld.shapeOf(pos);
+    }
+
+    /** @return the block reads every walk of the client's fields so far made, air and shape alike */
+    long blockReads() {
+        return blockReads;
     }
 
     /** @return the quads every frame so far submitted */

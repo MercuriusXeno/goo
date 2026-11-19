@@ -36,10 +36,38 @@ final class LiveSweeps {
      */
     void hear(HeldSweepPayload payload, long gameTime, ToIntFunction<ResourceKey<GooTypeDefinition>> typeColor) {
         Vec3 center = payload.origin().add(0, BODY_CENTER, 0);
-        HeldSweepPulse pulse = pulses.computeIfAbsent(payload.pulse(), id -> new HeldSweepPulse(
-                fields.computeIfAbsent(center, EchoField::new), payload.range(),
-                HeldSweepVisual.tint(payload.gooType(), typeColor), payload.paintsMobs(), walls));
+        HeldSweepPulse pulse = pulses.computeIfAbsent(payload.pulse(), id -> new HeldSweepPulse(fieldAt(center),
+                payload.range(), HeldSweepVisual.tint(payload.gooType(), typeColor), payload.paintsMobs(), walls));
         pulse.heard(payload.radius(), gameTime);
+    }
+
+    /**
+     * The walls about a spot: the field already there, or a new one that
+     * takes what the fields standing now found rather than walk the cave
+     * again, since a moving caster sends each pulse from a new spot.
+     * decision diagnose-and-correct-scry-lag-building-over-a-long-cast
+     *
+     * @param center the spot, at the caster's body
+     * @return the field
+     */
+    private EchoField fieldAt(Vec3 center) {
+        EchoField field = fields.get(center);
+        if (field == null) {
+            field = new EchoField(center, fields.values());
+            fields.put(center, field);
+        }
+        return field;
+    }
+
+    /** Drops each field no live pulse leaves from any more, letting go of the fields it took walls from. */
+    void dropUnusedFields() {
+        fields.values().removeIf(field -> {
+            boolean unused = pulses.values().stream().noneMatch(pulse -> pulse.field() == field);
+            if (unused) {
+                field.retire();
+            }
+            return unused;
+        });
     }
 
     /** Drops every pulse, every field and every lit wall. */

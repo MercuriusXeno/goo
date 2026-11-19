@@ -99,9 +99,22 @@ final class HeldSweepPulse {
      * @param room    how many more walls may light across every live pulse
      */
     void advance(double now, Predicate<BlockPos> isAir, Function<BlockPos, List<AABB>> shapeOf, int room) {
+        advance(now, new WallWorld(isAir, shapeOf), room);
+    }
+
+    /**
+     * Moves the front on to a moment through a world that names its air
+     * sections, lighting each wall it passes while there is room, and lets
+     * the walls whose glow has run out go.
+     *
+     * @param now   the game time with its partial tick
+     * @param world the world the front walks
+     * @param room  how many more walls may light across every live pulse
+     */
+    void advance(double now, WallWorld world, int room) {
         frontBefore = front;
         double radius = drawnRadius(now);
-        field.reachTo(radius, isAir, shapeOf);
+        field.reachTo(radius, world.isAir(), world.shapeOf(), world.air());
         int left = room;
         while (nextFace < field.size() && field.face(nextFace).distance() <= radius) {
             if (left > 0) {

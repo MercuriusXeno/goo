@@ -20,6 +20,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
@@ -156,9 +157,10 @@ public final class HeldSweepVisual {
             return;
         }
         double now = level.getGameTime() + mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        upkeepFronts(new Upkeep(SWEEPS, at -> level.getBlockState(at).isAir(),
-                at -> level.getBlockState(at).getShape(level, at).toAabbs()), now, level.entitiesForRendering(),
-                mc.player);
+        upkeepFronts(new Upkeep(SWEEPS, new WallWorld(at -> level.getBlockState(at).isAir(),
+                at -> level.getBlockState(at).getShape(level, at).toAabbs(),
+                (sectionX, sectionY, sectionZ) -> holdsOnlyAir(level, sectionX, sectionY, sectionZ))), now,
+                level.entitiesForRendering(), mc.player);
         List<WallGlow> walls = wallsToDraw(SWEEPS.walls(), now);
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
@@ -191,13 +193,43 @@ public final class HeldSweepVisual {
     }
 
     /**
+     * Whether a section of the client's level holds only air, as its blocks
+     * read: a chunk the client holds not answers air, as does a section past
+     * the build height.
+     * decision diagnose-and-correct-scry-lag-building-over-a-long-cast
+     *
+     * @param level    the client level
+     * @param sectionX the section's x, in sections
+     * @param sectionY the section's y, in sections
+     * @param sectionZ the section's z, in sections
+     * @return true where every block of the section reads as air
+     */
+    private static boolean holdsOnlyAir(ClientLevel level, int sectionX, int sectionY, int sectionZ) {
+        LevelChunk chunk = level.getChunkSource().getChunkNow(sectionX, sectionZ);
+        if (chunk == null || sectionY < chunk.getMinSectionY() || sectionY > chunk.getMaxSectionY()) {
+            return true;
+        }
+        return chunk.getSection(chunk.getSectionIndexFromSectionY(sectionY)).hasOnlyAir();
+    }
+
+    /**
      * What a frame's upkeep moves on: the live sweeps and the world the fronts walk.
      *
-     * @param sweeps  the live pulses, the walls around each spot they leave from and the walls lit
-     * @param isAir   whether a position holds air
-     * @param shapeOf a block's voxel shape boxes, block-local
+     * @param sweeps the live pulses, the walls around each spot they leave from and the walls lit
+     * @param world  the world the fronts walk
      */
-    record Upkeep(LiveSweeps sweeps, Predicate<BlockPos> isAir, Function<BlockPos, List<AABB>> shapeOf) {
+    record Upkeep(LiveSweeps sweeps, WallWorld world) {
+
+        /**
+         * An upkeep over a world read block by block.
+         *
+         * @param sweeps  the live sweeps
+         * @param isAir   whether a position holds air
+         * @param shapeOf a block's voxel shape boxes, block-local
+         */
+        Upkeep(LiveSweeps sweeps, Predicate<BlockPos> isAir, Function<BlockPos, List<AABB>> shapeOf) {
+            this(sweeps, new WallWorld(isAir, shapeOf));
+        }
     }
 
     /**
@@ -213,9 +245,8 @@ public final class HeldSweepVisual {
     static void upkeepFronts(Upkeep upkeep, double now, Iterable<Entity> entities, @Nullable Entity caster) {
         HeldSweepSections.profiled(HeldSweepSections.FRONT_UPKEEP, () -> {
             Map<Integer, HeldSweepPulse> pulses = upkeep.sweeps().pulses();
-            advanceAll(pulses, now, upkeep.isAir(), upkeep.shapeOf());
-            upkeep.sweeps().fields().values().removeIf(field -> pulses.values().stream()
-                    .noneMatch(pulse -> pulse.field() == field));
+            advanceAll(pulses, now, upkeep.world());
+            upkeep.sweeps().dropUnusedFields();
             paintCrossedMobs(pulses.values(), entities, caster, now);
         });
     }
@@ -243,9 +274,21 @@ public final class HeldSweepVisual {
      */
     static void advanceAll(Map<Integer, HeldSweepPulse> pulses, double now, Predicate<BlockPos> isAir,
                            Function<BlockPos, List<AABB>> shapeOf) {
+        advanceAll(pulses, now, new WallWorld(isAir, shapeOf));
+    }
+
+    /**
+     * Moves every live pulse's front on to a moment through a world and
+     * drops the pulses that have finished.
+     *
+     * @param pulses the live pulses by id
+     * @param now    the game time with its partial tick
+     * @param world  the world the fronts walk
+     */
+    static void advanceAll(Map<Integer, HeldSweepPulse> pulses, double now, WallWorld world) {
         for (HeldSweepPulse pulse : pulses.values()) {
             // each front gets its own room, so an old front lit far out never starves a new one near the caster
-            pulse.advance(now, isAir, shapeOf, MOST_BLOCKS - pulse.lit().size());
+            pulse.advance(now, world, MOST_BLOCKS - pulse.lit().size());
         }
         pulses.values().removeIf(pulse -> pulse.finished(now));
     }
