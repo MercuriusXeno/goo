@@ -40,6 +40,22 @@ public final class NativeIronLodeFeature extends Feature<NoneFeatureConfiguratio
         if (!inShallowZone(origin.getY()) || !level.getBlockState(origin).isAir()) {
             return false;
         }
+        List<BlockPos> face = caveFace(level, origin);
+        if (face.isEmpty()) {
+            return false;
+        }
+        growLode(level, face.get(random.nextInt(face.size())), random);
+        return true;
+    }
+
+    /**
+     * The breccia blocks near an open spot that face the cave's air.
+     *
+     * @param level the level being generated
+     * @param origin the open spot
+     * @return the cave's face around it
+     */
+    private static List<BlockPos> caveFace(WorldGenLevel level, BlockPos origin) {
         List<BlockPos> face = new ArrayList<>();
         for (BlockPos spot : BlockPos.betweenClosed(origin.offset(-REACH, -REACH, -REACH),
                 origin.offset(REACH, REACH, REACH))) {
@@ -47,21 +63,24 @@ public final class NativeIronLodeFeature extends Feature<NoneFeatureConfiguratio
                 face.add(spot.immutable());
             }
         }
-        if (face.isEmpty()) {
-            return false;
-        }
+        return face;
+    }
+
+    /**
+     * Sets native iron at the lode's first block and grows it through the breccia beside it to the lode's size.
+     *
+     * @param level the level being generated
+     * @param first the lode's first block, on the cave's face
+     * @param random the feature's random
+     */
+    private static void growLode(WorldGenLevel level, BlockPos first, RandomSource random) {
         List<BlockPos> lode = new ArrayList<>();
-        lode.add(face.get(random.nextInt(face.size())));
-        level.setBlock(lode.getFirst(), GooBlocks.NATIVE_IRON.get().defaultBlockState(), PLACE_FLAGS);
-        while (lode.size() < LODE_SIZE) {
-            BlockPos next = nextLodeBlock(level, lode, random);
-            if (next == null) {
-                break;
-            }
+        BlockPos next = first;
+        while (next != null && lode.size() < LODE_SIZE) {
             level.setBlock(next, GooBlocks.NATIVE_IRON.get().defaultBlockState(), PLACE_FLAGS);
             lode.add(next);
+            next = nextLodeBlock(level, lode, random);
         }
-        return true;
     }
 
     /**
