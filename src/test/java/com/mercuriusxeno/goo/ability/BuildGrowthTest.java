@@ -238,6 +238,56 @@ class BuildGrowthTest {
     }
 
     /**
+     * A column whose walk meets a block entity fizzles before any cost; one lying past the walk leaves it growing.
+     * decision column-meeting-a-block-entity-fizzles-at-no-cost
+     */
+    @Nested
+    class BlockEntities {
+
+        private static final int RISE = 3;
+        private static final BlockPos FAR_GROUND = new BlockPos(2, 64, 0);
+        /** The middle column, a chest the depth the test names under its ground cell. */
+        private static final BlockPos CHEST_GROUND = new BlockPos(1, 64, 0);
+
+        private BlockGetter groundWithAChestUnder(int depth) {
+            BlockState open = mock(BlockState.class);
+            when(open.canBeReplaced()).thenReturn(true);
+            BlockState dirt = mock(BlockState.class);
+            BlockState chest = mock(BlockState.class);
+            when(chest.hasBlockEntity()).thenReturn(true);
+            BlockGetter ground = mock(BlockGetter.class);
+            when(ground.getMinY()).thenReturn(-64);
+            when(ground.getBlockState(any(BlockPos.class))).thenAnswer(call -> {
+                BlockPos pos = call.getArgument(0);
+                if (pos.equals(CHEST_GROUND.below(depth))) {
+                    return chest;
+                }
+                return pos.getY() <= CORNER.getY() ? dirt : open;
+            });
+            return ground;
+        }
+
+        @Test
+        void aChestOneUnderAGroundCellFizzlesItsColumnAndItsCost() {
+            BuildGrowth growth = BuildGrowth.plan(groundWithAChestUnder(1),
+                    new BuildFootprint(CORNER, FAR_GROUND, RISE), PER_BLOCK);
+
+            assertEquals(List.of(CORNER, FAR_GROUND), growth.columns().stream().map(BuildColumn::ground).toList());
+            assertEquals(PER_BLOCK.times(2L * RISE), growth.exactCost());
+        }
+
+        @Test
+        void aChestBehindTheDeepestPushedBlockLeavesTheColumnGrowing() {
+            BuildGrowth growth = BuildGrowth.plan(groundWithAChestUnder(RISE),
+                    new BuildFootprint(CHEST_GROUND, CHEST_GROUND, RISE), PER_BLOCK);
+
+            BuildColumn column = growth.columns().getFirst();
+            assertEquals(List.of(CHEST_GROUND.below(2), CHEST_GROUND.below(), CHEST_GROUND), column.liftedCells());
+            assertEquals(PER_BLOCK.times(RISE), growth.exactCost());
+        }
+    }
+
+    /**
      * A Build charges the exact per-block price through the player's ledger.
      * decision melt-and-fabricate-move-the-exact-value-through-a-remainder-buffer
      */

@@ -20,6 +20,8 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.level.block.entity.ChestBlockEntity;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -55,6 +57,9 @@ public final class BuildTests {
     private static final BlockPos PILLAR_LOW = new BlockPos(2, 1, 2);
     private static final BlockPos PILLAR_HIGH = new BlockPos(2, 2, 2);
     private static final int PILLAR_RISE = 2;
+    private static final String BUILD_FIZZLES_ON_A_CHEST = "build_fizzles_on_a_chest_and_charges_nothing";
+    /** The chest the fizzle test aims at, standing on dirt at the bay's floor. */
+    private static final BlockPos CHEST = new BlockPos(2, 1, 2);
     /** A few ticks into the rise, the top already half a block over the ground, as a client first sees it. */
     private static final int OVERTAKEN_TICKS = 5;
 
@@ -120,6 +125,31 @@ public final class BuildTests {
         GooTestFunctions.registerTest(registrar, BUILD_LIFTS_AN_OVERTAKEN_RIDER, BuildTests::buildLiftsARiderTheStoneOvertook);
         GooTestFunctions.registerTest(registrar, BUILD_LEAVES_A_PILLAR_STANDING,
                 BuildTests::buildLeavesAPillarStandingAndGrowsFromItsFace);
+        GooTestFunctions.registerTest(registrar, BUILD_FIZZLES_ON_A_CHEST, BuildTests::buildFizzlesOnAChestAndChargesNothing);
+    }
+
+    /**
+     * Build cast on the top of a chest holding an item fizzles: no stone grows,
+     * the chest and its item stay in place, and no rock goo is spent.
+     * decision column-meeting-a-block-entity-fizzles-at-no-cost
+     *
+     * @param helper the gametest helper
+     */
+    public static void buildFizzlesOnAChestAndChargesNothing(GameTestHelper helper) {
+        helper.setBlock(CHEST.below(), Blocks.DIRT);
+        helper.setBlock(CHEST, Blocks.CHEST);
+        ChestBlockEntity chest = helper.getBlockEntity(CHEST, ChestBlockEntity.class);
+        chest.setItem(0, new ItemStack(Items.DIAMOND));
+        int spent = submit(helper, CHEST, CHEST, RISE, Direction.UP);
+        helper.runAfterDelay(BuildStep.RISE_TICKS + SETTLE_SLACK_TICKS, () -> {
+            ChestBlockEntity standing = helper.getBlockEntity(CHEST, ChestBlockEntity.class);
+            helper.assertTrue(standing.getItem(0).is(Items.DIAMOND), "The chest should still hold its diamond");
+            for (int height = 1; height <= RISE; height++) {
+                assertHolds(helper, CHEST.above(height), Blocks.AIR.defaultBlockState(), STONE_MISSING);
+            }
+            helper.assertTrue(spent == 0, "A fizzled Build should spend no rock goo, spent " + spent + " mB");
+            helper.succeed();
+        });
     }
 
     /**
