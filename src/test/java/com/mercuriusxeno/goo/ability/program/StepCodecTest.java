@@ -210,6 +210,7 @@ class StepCodecTest {
             Map.entry("spores", new SporesStep(20, 1, Identifier.fromNamespaceAndPath("goo", "spore"), 0.1f,
                     Identifier.fromNamespaceAndPath("goo", "shroom_mycosis"), 3f, 600, 3)),
             Map.entry("nitro", new NitroStep(1.0, 0.2, 4)),
+            Map.entry("gloom", new GloomStep()),
             Map.entry("phase_goo", new PhaseGooStep(2)),
             Map.entry("airborn", new AirbornStep(Expr.literal(0.6), Expr.literal(0.4), Expr.literal(0.2),
                     Expr.literal(0.4), Expr.literal(0.5), Expr.literal(1.2), Expr.literal(0.05))),

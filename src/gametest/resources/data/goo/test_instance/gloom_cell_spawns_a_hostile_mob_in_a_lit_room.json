@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:gloom_cell_spawns_a_hostile_mob_in_a_lit_room",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 200,
+  "setup_ticks": 0,
+  "required": true
+}

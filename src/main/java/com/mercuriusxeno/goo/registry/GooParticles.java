@@ -182,6 +182,15 @@ public class GooParticles {
         PARTICLE_TYPES.register("spores_spray_drip", () -> new SimpleParticleType(false));
 
     /**
+     * Gloom's spray drip: the mod's blocky goo drip in nether's maroons,
+     * flying its arc until it strikes a block's top, where it splats and the
+     * Gloom goo lands.
+     * gloom-spawns-regardless-of-light-and-mobs-on-it-ignore-daylight
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> GLOOM_SPRAY_DRIP =
+        PARTICLE_TYPES.register("gloom_spray_drip", () -> new SimpleParticleType(false));
+
+    /**
      * Phase's spray drip: the mod's blocky goo drip in quantum's blues,
      * flying its arc until it strikes a block's top, where it splats and the
      * Phase goo lands.
