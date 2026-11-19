@@ -5,6 +5,8 @@ import com.mercuriusxeno.goo.block.ability.WispClaims;
 import com.mercuriusxeno.goo.registry.GooEntities;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.damagesource.DamageSource;
@@ -14,7 +16,10 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.Vec3;
+import org.joml.Vector3f;
+import org.joml.Vector3fc;
 import org.jspecify.annotations.Nullable;
+import java.util.Optional;
 
 /**
  * A wisp a Wisps cell let out, beaming in one straight line from the center
@@ -35,7 +40,7 @@ import org.jspecify.annotations.Nullable;
 public class DriftingWisp extends Entity {
 
     /** Ticks a wisp takes to beam to its spot, whatever the distance: half a second. */
-    static final int ARRIVAL_TICKS = 10;
+    public static final int ARRIVAL_TICKS = 10;
     /** How far a wisp heads for another spot, in blocks, when it finds its own taken. */
     private static final int RETARGET_REACH = 8;
     /**
@@ -46,6 +51,12 @@ public class DriftingWisp extends Entity {
     static final int HANDOFF_TICKS = 5;
     /** The settled ticks of a wisp still drifting. */
     private static final int DRIFTING = -1;
+    private static final EntityDataAccessor<Vector3fc> DATA_BEAM_FROM =
+            SynchedEntityData.defineId(DriftingWisp.class, EntityDataSerializers.VECTOR3);
+    private static final EntityDataAccessor<Vector3fc> DATA_BEAM_TO =
+            SynchedEntityData.defineId(DriftingWisp.class, EntityDataSerializers.VECTOR3);
+    private static final EntityDataAccessor<Long> DATA_SET_OFF_AT =
+            SynchedEntityData.defineId(DriftingWisp.class, EntityDataSerializers.LONG);
 
     private @Nullable BlockPos destination;
     /** Where the wisp set off on its beam: the shedding cell's center, or where it stood on retargeting. */
@@ -82,6 +93,7 @@ public class DriftingWisp extends Entity {
         wisp.setPos(wisp.beamFrom);
         wisp.destination = destination.immutable();
         wisp.life = life;
+        wisp.syncBeam(destination, level.getGameTime());
         level.addFreshEntity(wisp);
     }
 
@@ -102,9 +114,48 @@ public class DriftingWisp extends Entity {
         return ticks >= ARRIVAL_TICKS ? to : from.lerp(to, (double) ticks / ARRIVAL_TICKS);
     }
 
+    /**
+     * A beam as the server synced it: the two ends of the wisp's line and
+     * the game time it set off along it.
+     *
+     * @param from     where the wisp set off
+     * @param to       the center of the spot it heads for
+     * @param setOffAt the game time it set off
+     */
+    public record Beam(Vec3 from, Vec3 to, long setOffAt) {
+    }
+
     @Override
     protected void defineSynchedData(SynchedEntityData.Builder entityData) {
-        // the client draws the wisp where the server moves it and reads nothing else
+        entityData.define(DATA_BEAM_FROM, new Vector3f());
+        entityData.define(DATA_BEAM_TO, new Vector3f());
+        entityData.define(DATA_SET_OFF_AT, 0L);
+    }
+
+    /**
+     * Hands every watching client the line the wisp beams along and when it
+     * set off, so a client draws the echoes it leaves behind it, which
+     * outlast the wisp itself.
+     * beaming-wisp-leaves-fading-echoes-behind-it
+     *
+     * @param spot     the spot the wisp heads for
+     * @param setOffAt the game time it sets off
+     */
+    private void syncBeam(BlockPos spot, long setOffAt) {
+        entityData.set(DATA_BEAM_FROM, beamFrom.toVector3f());
+        entityData.set(DATA_BEAM_TO, Vec3.atCenterOf(spot).toVector3f());
+        entityData.set(DATA_SET_OFF_AT, setOffAt);
+    }
+
+    /**
+     * The beam the server synced.
+     *
+     * @return the beam, empty before its line arrives
+     */
+    public Optional<Beam> syncedBeam() {
+        Vec3 from = new Vec3(entityData.get(DATA_BEAM_FROM));
+        Vec3 to = new Vec3(entityData.get(DATA_BEAM_TO));
+        return from.equals(to) ? Optional.empty() : Optional.of(new Beam(from, to, entityData.get(DATA_SET_OFF_AT)));
     }
 
     @Override
@@ -171,6 +222,7 @@ public class DriftingWisp extends Entity {
             claims.claim(server, destination);
             beamFrom = position();
             beamTicks = 0;
+            syncBeam(destination, server.getGameTime());
         }
     }
 

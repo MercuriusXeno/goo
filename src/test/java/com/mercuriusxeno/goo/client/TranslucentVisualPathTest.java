@@ -50,6 +50,7 @@ import com.mercuriusxeno.goo.client.ability.TransformationRenderer;
 import com.mercuriusxeno.goo.client.ability.WindLines;
 import com.mercuriusxeno.goo.client.ability.WispGlow;
 import com.mercuriusxeno.goo.client.ability.ZapBolts;
+import com.mercuriusxeno.goo.client.entity.WispEchoes;
 import com.mercuriusxeno.goo.client.hole.HoleMouths;
 import com.mercuriusxeno.goo.client.hole.HolePits;
 import com.mercuriusxeno.goo.client.hud.CanisterHudRenderer;
@@ -468,6 +469,7 @@ class TranslucentVisualPathTest {
             routes.put(GrowthBreeze.class, sorted(GooRenderTypes.GROWTH_BREEZE));
             routes.put(HeatWaveEffect.class, new Route(SortRoute.SCREEN_SPACE, List.of()));
             routes.put(WispGlow.class, sorted(GooRenderTypes.GLOW_SHELL));
+            routes.put(WispEchoes.class, sorted(GooRenderTypes.GLOW_SHELL));
             return routes;
         }
 

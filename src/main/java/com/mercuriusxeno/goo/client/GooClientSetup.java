@@ -66,6 +66,7 @@ import com.mercuriusxeno.goo.client.entity.CompressionSphereRenderer;
 import com.mercuriusxeno.goo.client.entity.DriftingWispRenderer;
 import com.mercuriusxeno.goo.client.entity.EldritchMonstrosityRenderer;
 import com.mercuriusxeno.goo.client.entity.MeteorRenderer;
+import com.mercuriusxeno.goo.client.entity.WispEchoes;
 import com.mercuriusxeno.goo.client.model.*;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
@@ -656,6 +657,7 @@ public final class GooClientSetup {
         Transformations.CLIENT.clear();
         GhostTrails.CLIENT.clear();
         ViewportRipples.CLIENT.clear();
+        WispEchoes.CLIENT.clear();
     }
 
     /** Clears Crystal's glass knives in flight and hovering, ore sightings, held sweeps, Meteo's scorches, arm poses and forming prisms. */
