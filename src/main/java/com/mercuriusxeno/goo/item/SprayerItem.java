@@ -1,13 +1,23 @@
 package com.mercuriusxeno.goo.item;
 
 import com.mercuriusxeno.goo.registry.GooDataComponents;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.SlotAccess;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.ClickAction;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.ItemContainerContents;
+import net.minecraft.world.level.Level;
 import org.jspecify.annotations.NonNull;
+import java.util.List;
+import java.util.Optional;
+import java.util.function.Function;
 
 /**
  * The sprayer: a gold caulk gun carrying one canister, which inventory clicks put in, take out
@@ -16,6 +26,9 @@ import org.jspecify.annotations.NonNull;
  * decision sprayer-takes-gives-and-swaps-its-canister-by-clicks
  */
 public class SprayerItem extends Item {
+
+    /** The longest hold, a bow's: past any hold a player keeps the use down for. */
+    private static final int HOLD_TICKS = 72_000;
 
     /**
      * Creates the sprayer item.
@@ -27,14 +40,57 @@ public class SprayerItem extends Item {
     }
 
     /**
+     * Starts the hold: the sprayer sprays each tick its use stays down, the client sending each tick.
+     * decision spray-item-sprays-residuals-beside-the-glove
+     *
+     * @param level  the level
+     * @param player the player using the sprayer
+     * @param hand   the hand holding it
+     * @return CONSUME, so the use is held
+     */
+    @Override
+    public @NonNull InteractionResult use(@NonNull Level level, Player player, @NonNull InteractionHand hand) {
+        player.startUsingItem(hand);
+        return InteractionResult.CONSUME;
+    }
+
+    /**
+     * A hold lasts as long as the use stays down.
+     *
+     * @param sprayer the sprayer stack
+     * @param user    the entity using it
+     * @return the longest hold, in ticks
+     */
+    @Override
+    public int getUseDuration(@NonNull ItemStack sprayer, @NonNull LivingEntity user) {
+        return HOLD_TICKS;
+    }
+
+    /**
+     * The sprayer a player holds, the main hand first.
+     *
+     * @param player the player
+     * @return the held sprayer, or ItemStack.EMPTY where neither hand holds one
+     */
+    public static ItemStack heldSprayer(Player player) {
+        for (InteractionHand hand : InteractionHand.values()) {
+            ItemStack held = player.getItemInHand(hand);
+            if (held.getItem() instanceof SprayerItem) {
+                return held;
+            }
+        }
+        return ItemStack.EMPTY;
+    }
+
+    /**
      * The canister the sprayer carries, or the empty stack.
      *
      * @param sprayer the sprayer stack
      * @return a copy of the fitted canister, or ItemStack.EMPTY
      */
     public static ItemStack fittedCanister(ItemStack sprayer) {
-        ItemStack fitted = sprayer.get(GooDataComponents.SPRAYER_CANISTER.get());
-        return fitted == null ? ItemStack.EMPTY : fitted.copy();
+        ItemContainerContents fitted = sprayer.get(GooDataComponents.SPRAYER_CANISTER.get());
+        return fitted == null ? ItemStack.EMPTY : fitted.copyOne();
     }
 
     /**
@@ -47,7 +103,7 @@ public class SprayerItem extends Item {
         if (canister.isEmpty()) {
             sprayer.remove(GooDataComponents.SPRAYER_CANISTER.get());
         } else {
-            sprayer.set(GooDataComponents.SPRAYER_CANISTER.get(), canister.copy());
+            sprayer.set(GooDataComponents.SPRAYER_CANISTER.get(), ItemContainerContents.fromItems(List.of(canister)));
         }
     }
 
@@ -98,6 +154,22 @@ public class SprayerItem extends Item {
             return new CanisterClick<>(stacks.empty(), fitted, true);
         }
         return new CanisterClick<>(fitted, cursor, false);
+    }
+
+    /**
+     * The residual the sprayer sprays from its canister's goo: that of the type the canister holds the most of
+     * among the types that have one, or none for a canister holding no such type, an empty canister or none.
+     * decision spray-item-sprays-residuals-beside-the-glove
+     *
+     * @param content    the fitted canister's content, empty where the sprayer holds none
+     * @param residualOf the residual a goo type has, empty for a type with none
+     * @param <A>        the residual's type
+     * @return the residual sprayed, or empty
+     */
+    public static <A> Optional<A> sprayedResidual(CanisterFluidContent content,
+            Function<ResourceKey<GooTypeDefinition>, Optional<A>> residualOf) {
+        return content.gooVolumesDominantFirst().keySet().stream()
+                .map(residualOf).flatMap(Optional::stream).findFirst();
     }
 
     /**

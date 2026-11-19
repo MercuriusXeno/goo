@@ -16,6 +16,7 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.ItemContainerContents;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import java.util.List;
@@ -122,14 +123,15 @@ public class GooDataComponents {
                             .build());
 
     /**
-     * The canister a sprayer carries, whole, its own goo and label riding inside it untouched.
+     * The canister a sprayer carries, whole, its own goo and label riding inside it untouched, held as a
+     * one-slot container, since a component value must be immutable and compare by value and a bare stack does not.
      * decision sprayer-holds-a-canister-sideways-like-a-caulk-gun
      */
-    public static final DeferredHolder<DataComponentType<?>, DataComponentType<ItemStack>> SPRAYER_CANISTER =
-            DATA_COMPONENTS.register("sprayer_canister",
-                    () -> DataComponentType.<ItemStack>builder()
-                            .persistent(ItemStack.CODEC)
-                            .networkSynchronized(ItemStack.STREAM_CODEC)
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<ItemContainerContents>>
+            SPRAYER_CANISTER = DATA_COMPONENTS.register("sprayer_canister",
+                    () -> DataComponentType.<ItemContainerContents>builder()
+                            .persistent(ItemContainerContents.CODEC)
+                            .networkSynchronized(ItemContainerContents.STREAM_CODEC)
                             .build());
 
     /**

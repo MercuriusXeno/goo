@@ -2,10 +2,15 @@ package com.mercuriusxeno.goo.item;
 
 import com.mercuriusxeno.goo.item.SprayerItem.CanisterClick;
 import com.mercuriusxeno.goo.item.SprayerItem.ClickedStacks;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
+import net.minecraft.resources.ResourceKey;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import java.util.Map;
+import java.util.Optional;
+import java.util.function.Function;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -84,6 +89,34 @@ class SprayerItemTest {
         assertFalse(click.handled());
         assertSame(vat, click.cursor());
         assertSame(fitted, click.fitted());
+    }
+
+    /**
+     * The canister's most held type that has a residual is the one sprayed, a larger type with none passed over.
+     * decision spray-item-sprays-residuals-beside-the-glove
+     */
+    @Test
+    void spraysTheDominantTypeThatHasAResidual() {
+        CanisterFluidContent content = CanisterFluidContent.of(goo.resource(GooTypes.ROCK), VOLUME)
+                .withVolume(goo.resource(GooTypes.WEIRD), VOLUME + 1)
+                .withVolume(goo.resource(GooTypes.BLAZE), VOLUME * 2)
+                .withVolume(goo.resource(GooTypes.CRYSTAL), VOLUME - 1);
+        Map<ResourceKey<GooTypeDefinition>, String> residuals = Map.of(
+                GooTypes.ROCK, "rock residual", GooTypes.WEIRD, "weird residual", GooTypes.CRYSTAL, "crystal residual");
+
+        assertEquals(Optional.of("weird residual"),
+                SprayerItem.sprayedResidual(content, type -> Optional.ofNullable(residuals.get(type))));
+    }
+
+    @Test
+    void sprayerWithNoSprayableGooSpraysNothing() {
+        Function<ResourceKey<GooTypeDefinition>, Optional<String>> onlyWeird =
+                type -> GooTypes.WEIRD.equals(type) ? Optional.of("weird residual") : Optional.empty();
+
+        assertEquals(Optional.empty(), SprayerItem.sprayedResidual(CanisterFluidContent.EMPTY, onlyWeird),
+                "no canister, or an empty one, reads as empty content");
+        assertEquals(Optional.empty(), SprayerItem.sprayedResidual(
+                CanisterFluidContent.of(goo.resource(GooTypes.BLAZE), VOLUME), onlyWeird));
     }
 
     private static final ClickedStacks<StandInStack> KINDS = new ClickedStacks<>() {

@@ -128,6 +128,7 @@ public final class GooNetworking {
     private static void registerServerPayloads(PayloadRegistrar r) {
         r.playToServer(CanisterRenamePayload.TYPE, CanisterRenamePayload.STREAM_CODEC, CanisterRenameHandler::handle);
         r.playToServer(GooStreamPayload.TYPE, GooStreamPayload.STREAM_CODEC, GooStreamHandler::handle);
+        r.playToServer(SprayerTickPayload.TYPE, SprayerTickPayload.STREAM_CODEC, SprayerTickPayload::handle);
         r.playToServer(CanisterUnlinkPayload.TYPE, CanisterUnlinkPayload.STREAM_CODEC, CanisterUnlinkHandler::handle);
         r.playToServer(GooThrowPayload.TYPE, GooThrowPayload.STREAM_CODEC, GooThrowHandler::handle);
         r.playToServer(GrabThrowPayload.TYPE, GrabThrowPayload.STREAM_CODEC, GrabThrowPayload::handle);
