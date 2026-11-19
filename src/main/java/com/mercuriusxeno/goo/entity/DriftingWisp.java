@@ -17,24 +17,25 @@ import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A wisp a Wisps cell let out, drifting off the goo upward and over to the
- * dark spot it claimed, lighting nothing on the way, since a light update
- * each tick it moved would cost more than the light is worth. On arrival it
- * becomes the glowy air block wisps are, fading on its own, its drifting
- * mote staying on the spot a moment so the block's mote takes over from it
- * with no gap; where its spot
- * was taken or lit meanwhile it heads once for another dark spot near it,
- * and where none lies it is gone. A drifting wisp is not saved: a chunk
- * unloading under it drops it, and its claim lapses.
+ * A wisp a Wisps cell let out, beaming in one straight line from the center
+ * of the cell to the center of the dark spot it claimed, arriving in about
+ * half a second however far the spot lies, and lighting nothing on the
+ * way, since a light update each tick it moved would cost more than the
+ * light is worth. On arrival it becomes the glowy air block wisps are,
+ * fading on its own, its mote staying on the spot a moment so the block's
+ * mote takes over from it with no gap; where its spot was taken or lit
+ * meanwhile it beams once, by the same rule, from where it stands to
+ * another dark spot near it, and where none lies it is gone. A drifting
+ * wisp is not saved: a chunk unloading under it drops it, and its claim
+ * lapses.
  * wisps-goo-sheds-a-wisp-toward-nearby-dark
+ * shed-wisps-arrive-in-about-half-a-second
  * wisps-travel-as-entities-then-settle-as-glowy-air-blocks
  */
 public class DriftingWisp extends Entity {
 
-    /** Blocks a wisp drifts each tick. */
-    static final double DRIFT_SPEED = 0.15;
-    /** Blocks a wisp rises off the goo before it heads over to its spot. */
-    static final double RISE = 1.0;
+    /** Ticks a wisp takes to beam to its spot, whatever the distance: half a second. */
+    static final int ARRIVAL_TICKS = 10;
     /** How far a wisp heads for another spot, in blocks, when it finds its own taken. */
     private static final int RETARGET_REACH = 8;
     /**
@@ -47,7 +48,10 @@ public class DriftingWisp extends Entity {
     private static final int DRIFTING = -1;
 
     private @Nullable BlockPos destination;
-    private @Nullable Vec3 risePoint;
+    /** Where the wisp set off on its beam: the shedding cell's center, or where it stood on retargeting. */
+    private Vec3 beamFrom = Vec3.ZERO;
+    /** Ticks since the wisp set off on its beam. */
+    private int beamTicks;
     private int life;
     private boolean retargeted;
     private int settledTicks = DRIFTING;
@@ -74,28 +78,28 @@ public class DriftingWisp extends Entity {
      */
     public static void shed(ServerLevel level, BlockPos cell, BlockPos destination, int life) {
         DriftingWisp wisp = new DriftingWisp(GooEntities.DRIFTING_WISP.get(), level);
-        Vec3 start = Vec3.atCenterOf(cell);
-        wisp.setPos(start);
-        BlockPos over = cell.above();
-        wisp.risePoint = level.getBlockState(over).isAir() ? start.add(0, RISE, 0) : null;
+        wisp.beamFrom = Vec3.atCenterOf(cell);
+        wisp.setPos(wisp.beamFrom);
         wisp.destination = destination.immutable();
         wisp.life = life;
         level.addFreshEntity(wisp);
     }
 
     /**
-     * The step a wisp drifts toward a point: straight at it, no further
-     * than the drift speed and no further than the point.
+     * Where a beaming wisp stands a number of ticks after it set off: on the
+     * straight line from where it set off to the point it heads for, as far
+     * along it as those ticks are of the arrival count, and on the point
+     * itself from the arrival count on.
+     * shed-wisps-arrive-in-about-half-a-second
+     * wisps-goo-sheds-a-wisp-toward-nearby-dark
      *
-     * @param from  where the wisp stands
+     * @param from  where the wisp set off
      * @param to    the point it heads for
-     * @param speed the blocks it drifts a tick
-     * @return the step to take
+     * @param ticks the ticks since it set off
+     * @return where it stands
      */
-    static Vec3 driftToward(Vec3 from, Vec3 to, double speed) {
-        Vec3 way = to.subtract(from);
-        double length = way.length();
-        return length <= speed ? way : way.scale(speed / length);
+    static Vec3 beamPosition(Vec3 from, Vec3 to, int ticks) {
+        return ticks >= ARRIVAL_TICKS ? to : from.lerp(to, (double) ticks / ARRIVAL_TICKS);
     }
 
     @Override
@@ -120,7 +124,7 @@ public class DriftingWisp extends Entity {
             giveUp(server);
             return;
         }
-        driftOn(server, destination);
+        beamOn(server, destination);
     }
 
     /**
@@ -136,21 +140,16 @@ public class DriftingWisp extends Entity {
     }
 
     /**
-     * Drifts a step toward the rise point off the goo, then toward the spot,
-     * arriving once it stands there.
+     * Beams the wisp a tick further along its line to the spot, arriving on
+     * the arrival count.
      *
      * @param server the server level
      * @param spot   the spot the wisp heads for
      */
-    private void driftOn(ServerLevel server, BlockPos spot) {
-        Vec3 aim = risePoint != null ? risePoint : Vec3.atCenterOf(spot);
-        setPos(position().add(driftToward(position(), aim, DRIFT_SPEED)));
-        if (position().distanceToSqr(aim) > 0) {
-            return;
-        }
-        if (risePoint != null) {
-            risePoint = null;
-        } else {
+    private void beamOn(ServerLevel server, BlockPos spot) {
+        beamTicks++;
+        setPos(beamPosition(beamFrom, Vec3.atCenterOf(spot), beamTicks));
+        if (beamTicks >= ARRIVAL_TICKS) {
             arrive(server, spot);
         }
     }
@@ -170,6 +169,8 @@ public class DriftingWisp extends Entity {
             discard();
         } else {
             claims.claim(server, destination);
+            beamFrom = position();
+            beamTicks = 0;
         }
     }
 

@@ -13,10 +13,14 @@ import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * Draws a drifting wisp as the mote a settled wisp draws, turning as it
- * goes, queued to {@link WispGlow} so it shows in front of water as a
- * settled wisp does. The drifting wisp lights nothing; only the mote shows,
- * and once its wisp block stands on its spot the block's mote draws instead.
+ * Draws a beaming wisp as the mote a settled wisp draws, turning as it
+ * crosses the straight line from the goo to its spot, queued to
+ * {@link WispGlow} so it shows in front of water as a settled wisp does.
+ * The server moves the wisp every tick and the entity's own interpolation
+ * carries the mote between ticks, so the mote shows crossing the whole gap.
+ * The beaming wisp lights nothing; only the mote shows, and once its wisp
+ * block stands on its spot the block's mote draws instead.
+ * wisps-goo-sheds-a-wisp-toward-nearby-dark
  * wisps-travel-as-entities-then-settle-as-glowy-air-blocks
  */
 public final class DriftingWispRenderer extends EntityRenderer<DriftingWisp, DriftingWispRenderer.DriftRenderState> {
