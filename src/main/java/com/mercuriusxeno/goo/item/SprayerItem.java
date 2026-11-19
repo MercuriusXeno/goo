@@ -67,6 +67,36 @@ public class SprayerItem extends Item {
     }
 
     /**
+     * Keeps the hold while the canister drains: each drip that lands rewrites the canister the sprayer carries, and
+     * a hold ended on every rewrite would keep restarting.
+     * operator report 2026-11-18: the sprayer kept resetting in the hand while in use
+     *
+     * @param oldStack the stack the hold began on
+     * @param newStack the stack the hand holds now
+     * @return true while the hand still holds a sprayer
+     */
+    @Override
+    public boolean canContinueUsing(@NonNull ItemStack oldStack, @NonNull ItemStack newStack) {
+        return newStack.getItem() instanceof SprayerItem;
+    }
+
+    /**
+     * Replays the equip animation only for another item or another slot, never for a canister draining under a
+     * spray, as GooItem does for raw goo a cast drains.
+     * operator report 2026-11-18: the sprayer kept resetting in the hand while in use
+     *
+     * @param oldStack    the stack the hand held
+     * @param newStack    the stack the hand holds now
+     * @param slotChanged whether the selected slot changed
+     * @return true where the equip animation replays
+     */
+    @Override
+    public boolean shouldCauseReequipAnimation(@NonNull ItemStack oldStack, @NonNull ItemStack newStack,
+            boolean slotChanged) {
+        return slotChanged || !(newStack.getItem() instanceof SprayerItem);
+    }
+
+    /**
      * The sprayer a player holds, the main hand first.
      *
      * @param player the player

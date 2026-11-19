@@ -1,9 +1,18 @@
 {
   "model": {
-    "type": "minecraft:special",
-    "base": "goo:item/sprayer",
-    "model": {
-      "type": "goo:sprayer_canister"
-    }
+    "type": "minecraft:composite",
+    "models": [
+      {
+        "type": "minecraft:model",
+        "model": "goo:item/sprayer"
+      },
+      {
+        "type": "minecraft:special",
+        "base": "goo:item/sprayer",
+        "model": {
+          "type": "goo:sprayer_canister"
+        }
+      }
+    ]
   }
 }

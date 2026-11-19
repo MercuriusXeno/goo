@@ -22,7 +22,7 @@ public enum SprayerNozzle implements StringRepresentable {
     /** No nozzle: the residual's own cone. */
     OPEN("open", 1.0, 1.0),
     /** A fine mist over the residual's own cone, laying one layer on each bare spot it covers. */
-    MISTER("mister", 1.0, 1.0),
+    ATOMIZER("atomizer", 1.0, 1.0),
     /** Narrows the cone. */
     CHOKE("choke", 0.5, 0.5),
     /** A really tight stream, tighter than the choke. */
@@ -67,10 +67,10 @@ public enum SprayerNozzle implements StringRepresentable {
      * Whether the nozzle mists, laying a layer on each bare spot its cone covers, in place of throwing drips.
      * decision mister-nozzle-applies-one-layer-at-most
      *
-     * @return true for the mister
+     * @return true for the atomizer
      */
     public boolean mists() {
-        return this == MISTER;
+        return this == ATOMIZER;
     }
 
     /**

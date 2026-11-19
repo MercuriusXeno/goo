@@ -65,7 +65,7 @@ final class PetalPainter {
      * @param size     the sprite's side in pixels
      * @param color    the ARGB tint the sprite draws under
      */
-    static void paintSprite(GuiGraphicsExtractor graphics, RadialWheelRenderer.Frame frame, PetalMask.Petal petal,
+    static void paintSprite(GuiGraphicsExtractor graphics, PetalCanvas frame, PetalMask.Petal petal,
                             TextureSetup texture, int[] center, int size, int color) {
         double radius = frame.radius();
         List<PetalMesh.Quad> quads = PetalMesh.clipSquare(petal, (center[0] - frame.centerX()) / radius,
