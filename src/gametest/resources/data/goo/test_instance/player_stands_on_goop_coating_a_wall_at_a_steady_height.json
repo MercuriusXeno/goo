@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:player_stands_on_goop_coating_a_wall_at_a_steady_height",
+  "environment": "minecraft:default",
+  "structure": "goo:march_bay",
+  "max_ticks": 200,
+  "setup_ticks": 0,
+  "required": true
+}

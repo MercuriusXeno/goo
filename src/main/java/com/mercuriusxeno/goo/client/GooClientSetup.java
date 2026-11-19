@@ -324,6 +324,7 @@ public final class GooClientSetup {
                 GooBlocks.TYPHOON_UPDRAFT.get(), GooBlocks.JELLY_NECTAR.get(), GooBlocks.PULSE_SIGNAL.get(),
                 GooBlocks.METAL_SPIKES.get(), GooBlocks.ZOMBIE_INFEST.get(), GooBlocks.LEAF_VINES.get(),
                 GooBlocks.UNSTABLE_NITRO.get(), GooBlocks.QUANTUM_PHASE.get(),
+                GooBlocks.NETHER_GLOOM.get(),
                 GooBlocks.ROCK_MORTAR.get(), GooBlocks.YARN_STITCH.get())) {
             event.register(VolumeCellTint.sources(cell.binding().gooType(), ClientGooTypes::color), cell);
         }
@@ -412,6 +413,7 @@ public final class GooClientSetup {
      * spores-is-shrooms-residual-a-passive-mycosis
      * nitro-is-unstables-goo-that-explodes-in-a-chain-by-its-quantity
      * phase-goo-puts-what-stands-in-it-out-of-phase
+     * gloom-spawns-regardless-of-light-and-mobs-on-it-ignore-daylight
      * mortar-is-rocks-residual-a-petrification-and-hardening-goo
      * stitch-is-yarns-residual-that-turns-slimes-into-passive-mobs
      *
@@ -432,6 +434,7 @@ public final class GooClientSetup {
         registerSprayDrip(event, GooParticles.VINES_SPRAY_DRIP.get(), BlendPalette.VINES_LEAF_GREENS);
         registerSprayDrip(event, GooParticles.NITRO_SPRAY_DRIP.get(), BlendPalette.NITRO_UNSTABLE_GREENS);
         registerSprayDrip(event, GooParticles.PHASE_SPRAY_DRIP.get(), BlendPalette.PHASE_QUANTUM_BLUES);
+        registerSprayDrip(event, GooParticles.GLOOM_SPRAY_DRIP.get(), BlendPalette.GLOOM_NETHER_MAROONS);
         registerSprayDrip(event, GooParticles.MORTAR_SPRAY_DRIP.get(), BlendPalette.MORTAR_ROCK_GRAYS);
         registerSprayDrip(event, GooParticles.STITCH_SPRAY_DRIP.get(), BlendPalette.STITCH_YARN_TANS);
         event.registerSpriteSet(GooParticles.MOLTEN_SPRAY_DRIP.get(),

@@ -157,6 +157,14 @@ class GloveArmLayerTest {
             assertEquals(EnumSet.noneOf(HumanoidArm.class), GloveArmLayer.glovedArms(HumanoidArm.RIGHT, bare(), bare()));
         }
 
+        // decision third-person-blob-stands-above-the-drawn-palm: raw goo held bare handed casts from its palm too
+        @Test
+        void aGloveOrRawGooInEitherHandIsACasterArm() {
+            assertEquals(EnumSet.allOf(HumanoidArm.class), GloveArmLayer.casterArms(HumanoidArm.RIGHT, glove(),
+                    holding(mock(com.mercuriusxeno.goo.item.GooItem.class))));
+            assertEquals(EnumSet.noneOf(HumanoidArm.class), GloveArmLayer.casterArms(HumanoidArm.RIGHT, bare(), bare()));
+        }
+
         @Test
         void anotherItemInTheHandCutsNoArm() {
             Item sword = mock(Item.class);
