@@ -57,7 +57,7 @@ class AbilitySplatTest {
      */
     @Test
     void aLingeringCloudThatNeverExplodesAnnouncesItsBurnoutBeforeItsProgramRuns() {
-        RecordingSplat splat = new RecordingSplat(AbilityImpact.explodesLater(AbilityJson.decode("deep_shriek")));
+        RecordingSplat splat = new RecordingSplat(AbilityImpact.explodesLater(AbilityJson.decode("xeno_shriek")));
         AbilitySplat.resolve(splat);
         assertEquals(List.of(ANNOUNCE, RUN), splat.calls());
     }

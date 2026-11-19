@@ -157,7 +157,7 @@ class SculkerNoisesTest {
          * @return the field's value
          */
         private static String clickStepField(String type, String field) throws Exception {
-            JsonObject click = classpathJson("/data/goo/goo_abilities/deep_click.json");
+            JsonObject click = classpathJson("/data/goo/goo_abilities/pulse_click.json");
             for (var behavior : click.getAsJsonArray("behaviors")) {
                 JsonObject step = behavior.getAsJsonObject();
                 if (type.equals(step.get("type").getAsString())) {
