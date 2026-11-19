@@ -172,6 +172,7 @@ public final class StepTypes {
         register(SignalStep.TYPE);
         register(InfestStep.TYPE);
         register(SporesStep.TYPE);
+        register(StitchStep.TYPE);
         register(NitroStep.TYPE);
         register(GrabStep.TYPE);
         register(GougeStep.TYPE);

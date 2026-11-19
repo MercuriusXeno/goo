@@ -38,6 +38,7 @@ import com.mercuriusxeno.goo.ability.xeno.Eldritch;
 import com.mercuriusxeno.goo.ability.yarn.Downed;
 import com.mercuriusxeno.goo.ability.yarn.Herd;
 import com.mercuriusxeno.goo.ability.yarn.Led;
+import com.mercuriusxeno.goo.ability.yarn.Tangled;
 import com.mercuriusxeno.goo.data.GooRemainders;
 import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.data.PalmBuffers;
@@ -424,6 +425,18 @@ public final class GooAttachments {
                     () -> AttachmentType.builder(() -> Rooted.NONE)
                             .serialize(Rooted.CODEC, Rooted::stands)
                             .sync(GooAttachments::syncsToWatcher, Rooted.STREAM_CODEC)
+                            .build());
+
+    /**
+     * The strands Stitch tangles a hostile in, synced to every client drawing
+     * it, which draws them over its model; they last a few ticks past the
+     * goo's last touch, so they are not saved.
+     * passives-move-through-stitch-and-hostiles-tangle-in-it
+     */
+    public static final Supplier<AttachmentType<Tangled>> TANGLED =
+            ATTACHMENT_TYPES.register("tangled",
+                    () -> AttachmentType.builder(() -> Tangled.NONE)
+                            .sync(GooAttachments::syncsToWatcher, Tangled.STREAM_CODEC)
                             .build());
 
     /**
