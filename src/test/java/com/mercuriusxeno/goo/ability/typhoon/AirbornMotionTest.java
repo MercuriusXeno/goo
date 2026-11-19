@@ -1,5 +1,8 @@
 package com.mercuriusxeno.goo.ability.typhoon;
 
+import com.mercuriusxeno.goo.lunar.Lunar;
+import com.mercuriusxeno.goo.lunar.LunarGravity;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -27,9 +30,11 @@ class AirbornMotionTest {
     private static final Vec3 STRAFE_LEFT = new Vec3(1, 0, 0);
     private static final Vec3 JUMP = new Vec3(0, 1, 0);
     private static final Vec3 SNEAK = new Vec3(0, -1, 0);
+    /** The overworld's gravity, its own whole share. */
+    private static final double OVERWORLD_PULL = 1;
 
     private static Vec3 flown(Vec3 velocity, Vec3 input) {
-        return AirbornMotion.flown(velocity, input, LOOK_SOUTH_AND_UP, FACING_SOUTH, false, FLOAT);
+        return AirbornMotion.flown(velocity, input, LOOK_SOUTH_AND_UP, FACING_SOUTH, false, FLOAT, OVERWORLD_PULL);
     }
 
     @Nested
@@ -78,7 +83,7 @@ class AirbornMotionTest {
             Vec3 standing = new Vec3(0.1, 0, -0.05);
 
             assertEquals(standing, AirbornMotion.flown(standing, FORWARD, LOOK_SOUTH_AND_UP, FACING_SOUTH, true,
-                    FLOAT));
+                    FLOAT, OVERWORLD_PULL));
         }
     }
 
@@ -96,6 +101,38 @@ class AirbornMotionTest {
         void aFallUnderTheCapAndARiseStay() {
             assertEquals(-0.1, AirbornMotion.cappedFall(-0.1, FLOAT.fallCap()), EPSILON);
             assertEquals(0.2, AirbornMotion.cappedFall(0.2, FLOAT.fallCap()), EPSILON);
+        }
+    }
+
+    /** decision float-gravity-is-proportionate-to-the-dimensions-gravity */
+    @Nested
+    class UnderADimensionsGravity {
+
+        private static final double OVERWORLD = LunarGravity.scaleIn(Level.OVERWORLD);
+        private static final double LUNAR = LunarGravity.scaleIn(Lunar.LEVEL);
+        private static final Vec3 PLUMMETING = new Vec3(0, -2, 0);
+
+        private static double sinkIn(Vec3 input, double gravityScale) {
+            return AirbornMotion.flown(PLUMMETING, input, LOOK_SOUTH_AND_UP, FACING_SOUTH, false, FLOAT,
+                    gravityScale).y;
+        }
+
+        @Test
+        void noInputSinksAtLunarsShareOfTheOverworldsSlowedFall() {
+            assertEquals(-FLOAT.fallCap(), sinkIn(Vec3.ZERO, OVERWORLD), EPSILON);
+            assertEquals(LUNAR, sinkIn(Vec3.ZERO, LUNAR) / sinkIn(Vec3.ZERO, OVERWORLD), EPSILON);
+        }
+
+        @Test
+        void sneakSinksAtLunarsShareOfTheOverworldsSink() {
+            Vec3 sinking = new Vec3(0, -FLOAT.climbSpeed(), 0);
+            double overworld = AirbornMotion.flown(sinking, SNEAK, LOOK_SOUTH_AND_UP, FACING_SOUTH, false, FLOAT,
+                    OVERWORLD).y;
+            double lunar = AirbornMotion.flown(sinking.scale(LUNAR), SNEAK, LOOK_SOUTH_AND_UP, FACING_SOUTH, false,
+                    FLOAT, LUNAR).y;
+
+            assertEquals(-FLOAT.climbSpeed(), overworld, EPSILON);
+            assertEquals(LUNAR, lunar / overworld, EPSILON);
         }
     }
 
