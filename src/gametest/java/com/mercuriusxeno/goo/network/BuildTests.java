@@ -60,6 +60,9 @@ public final class BuildTests {
     private static final String BUILD_FIZZLES_ON_A_CHEST = "build_fizzles_on_a_chest_and_charges_nothing";
     /** The chest the fizzle test aims at, standing on dirt at the bay's floor. */
     private static final BlockPos CHEST = new BlockPos(2, 1, 2);
+    private static final String BUILD_GROWS_OVER_OBSIDIAN = "build_leaves_obsidian_and_grows_over_it";
+    /** The one-cell footprint the obsidian test raises, obsidian one block under it and dirt under that. */
+    private static final BlockPos OVER_OBSIDIAN = new BlockPos(2, 2, 2);
     /** A few ticks into the rise, the top already half a block over the ground, as a client first sees it. */
     private static final int OVERTAKEN_TICKS = 5;
 
@@ -126,6 +129,31 @@ public final class BuildTests {
         GooTestFunctions.registerTest(registrar, BUILD_LEAVES_A_PILLAR_STANDING,
                 BuildTests::buildLeavesAPillarStandingAndGrowsFromItsFace);
         GooTestFunctions.registerTest(registrar, BUILD_FIZZLES_ON_A_CHEST, BuildTests::buildFizzlesOnAChestAndChargesNothing);
+        GooTestFunctions.registerTest(registrar, BUILD_GROWS_OVER_OBSIDIAN, BuildTests::buildLeavesObsidianAndGrowsOverIt);
+    }
+
+    /**
+     * Build cast at rise three on a floor with obsidian one block under the
+     * surface leaves the obsidian where it lies and raises the surface block
+     * three higher on the stone grown over the obsidian.
+     * decision build-leaves-what-a-piston-cannot-push-and-grows-from-it
+     *
+     * @param helper the gametest helper
+     */
+    public static void buildLeavesObsidianAndGrowsOverIt(GameTestHelper helper) {
+        BlockPos obsidian = OVER_OBSIDIAN.below();
+        helper.setBlock(obsidian.below(), Blocks.DIRT);
+        helper.setBlock(obsidian, Blocks.OBSIDIAN);
+        helper.setBlock(OVER_OBSIDIAN, MARKERS.getFirst());
+        submit(helper, OVER_OBSIDIAN, OVER_OBSIDIAN, RISE, Direction.UP);
+        helper.runAfterDelay(BuildStep.RISE_TICKS + SETTLE_SLACK_TICKS, () -> {
+            assertHolds(helper, obsidian, Blocks.OBSIDIAN.defaultBlockState(), STONE_MISSING);
+            for (int height = 0; height < RISE; height++) {
+                assertHolds(helper, OVER_OBSIDIAN.above(height), Blocks.STONE.defaultBlockState(), STONE_MISSING);
+            }
+            assertHolds(helper, OVER_OBSIDIAN.above(RISE), MARKERS.getFirst().defaultBlockState(), STONE_MISSING);
+            helper.succeed();
+        });
     }
 
     /**
