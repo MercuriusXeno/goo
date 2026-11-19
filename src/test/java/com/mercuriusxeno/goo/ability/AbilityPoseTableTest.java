@@ -30,7 +30,7 @@ class AbilityPoseTableTest {
             Map.entry("crystal_prism", ArmPose.RESTING),
             Map.entry("crystal_scales", ArmPose.HELD_UP),
             Map.entry("crystal_knives", ArmPose.RESTING),
-            Map.entry("deep_click", ArmPose.RESTING),
+            Map.entry("pulse_click", ArmPose.RESTING),
             Map.entry("sculk_creep", ArmPose.HELD_OUT),
             Map.entry("frost_rime", ArmPose.HELD_OUT),
             Map.entry("deep_shriek", ArmPose.SWUNG),

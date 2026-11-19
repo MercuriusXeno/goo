@@ -254,10 +254,12 @@ class AbilityLoaderTest {
         /**
          * extend-is-dropped-for-signal-an-in-world-pulse-goo
          * goo-type-ships-without-a-durative-ability
+         * click-moves-to-pulse-and-costs-pulse-goo
          */
         @Test
-        void pulseShipsTickZapAndSignalAndNoDurative() {
-            assertEquals(Set.of("pulse_tick", "pulse_zap", "pulse_signal"), shippedPathsOf(GooTypes.PULSE));
+        void pulseShipsTickZapSignalAndClickAndNoDurative() {
+            assertEquals(Set.of("pulse_tick", "pulse_zap", "pulse_signal", "pulse_click"),
+                    shippedPathsOf(GooTypes.PULSE));
             assertNull(new AbilityRegistry(shippedById()).durativeAbilityFor(GooTypes.PULSE));
         }
     }

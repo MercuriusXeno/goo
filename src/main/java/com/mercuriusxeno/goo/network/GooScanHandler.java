@@ -8,7 +8,6 @@ import com.mercuriusxeno.goo.ability.program.SoundStep;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooValues;
-import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.throwing.ThrowArc;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -142,16 +141,15 @@ public final class GooScanHandler {
     }
 
     /**
-     * What a scan costs its thrower: nothing while the self ability it names
-     * stands on them, its cost otherwise.
-     * click-costs-one-mb-and-nothing-under-sculker
+     * What a scan costs its thrower: its cost.
+     * click-moves-to-pulse-and-costs-pulse-goo
      *
      * @param player  the throwing player
      * @param ability the scan ability
      * @return the exact cost in mB
      */
     static GooFraction priceFor(ServerPlayer player, AbilityDefinition ability) {
-        return ability.costFor(player.getData(GooAttachments.HELD_EFFECTS)::holds, GooValues.of(player.level()));
+        return ability.cost().exactIn(GooValues.of(player.level()));
     }
 
     /**

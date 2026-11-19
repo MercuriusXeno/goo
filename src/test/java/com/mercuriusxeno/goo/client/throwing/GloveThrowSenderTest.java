@@ -218,7 +218,7 @@ class GloveThrowSenderTest {
         private final ClientAbility lead = clientAbility("yarn_lead");
 
         private boolean sendsHolding(Led targetLead, int holdings) {
-            return GloveThrowSender.affordsAimedThrow(lead, false, CASTER, targetLead,
+            return GloveThrowSender.affordsAimedThrow(lead, CASTER, targetLead,
                     amount -> holdings >= amount, item -> true);
         }
 
