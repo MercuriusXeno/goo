@@ -49,7 +49,8 @@ import java.util.function.Consumer;
  * the glove press; another caster's reads the held ticks the server passes
  * on. The local first-person player's blob draws in the hand's pass, over
  * the glove and turned with it; every other caster's draws in the level,
- * turned with that caster's look.
+ * turned with that caster's look, lifting from and resting above the palm
+ * the model draws.
  * palm-blob-lifts-as-the-spray-source
  * every-ability-casts-from-the-lifted-palm-blob
  * centered-abilities-float-the-blob-below-the-crosshair
@@ -560,7 +561,7 @@ public final class LiftedPalmBlob {
         }
         PalmBlobHop.Pose pose = lift.poseAt(now);
         Vec3 palm = palmOf(mc, caster, partialTick);
-        return Optional.of(new Standing(caster, placeAt(pose, palm, upOf(caster, partialTick),
+        return Optional.of(new Standing(caster, placeAt(pose, palm, upOf(mc, caster, partialTick),
                 sourceOf(casterId, lift, partialTick, now)),
                 drawnShapeAt(pose, now).scaled(stackShareOf(casterId, now)),
                 pose.share()));
@@ -568,14 +569,22 @@ public final class LiftedPalmBlob {
 
     /**
      * A caster's blob's up in the world, a rest half-edge long: the level
-     * draws it turned with the caster's look at a flying blob's palm size.
+     * draws it at a flying blob's palm size, standing up off the drawn palm
+     * along the drawn model's up for a caster drawn in third person, and
+     * turned with the caster's look otherwise.
+     * decision third-person-blob-stands-above-the-drawn-palm
      *
+     * @param mc          the client
      * @param caster      the caster
      * @param partialTick the frame's partial tick
      * @return the up
      */
-    private static Vec3 upOf(Player caster, float partialTick) {
-        Vector3f up = new Vector3f(0f, GooFlightRenderer.SHELL_HW * FLIGHT_SIZE_OF_PALM_REST, 0f)
+    private static Vec3 upOf(Minecraft mc, Player caster, float partialTick) {
+        float halfEdge = GooFlightRenderer.SHELL_HW * FLIGHT_SIZE_OF_PALM_REST;
+        if (DrawnPalm.drawnInThirdPerson(mc, caster)) {
+            return DrawnPalm.of(caster, GooCasters.casterOnTheRight(caster), partialTick).modelUp().scale(halfEdge);
+        }
+        Vector3f up = new Vector3f(0f, halfEdge, 0f)
                 .rotate(facingTheLook(caster.getViewXRot(partialTick), caster.getViewYRot(partialTick)));
         return new Vec3(up);
     }
@@ -738,7 +747,8 @@ public final class LiftedPalmBlob {
     /**
      * Where a caster's glove palm is: where the first-person glove last drew
      * its palm, carried out of the hand's pass, for the local player in first
-     * person, and the hand worked from the body otherwise.
+     * person, and where the model draws it otherwise.
+     * decision third-person-blob-stands-above-the-drawn-palm
      *
      * @param mc          the client
      * @param caster      the caster
@@ -752,7 +762,7 @@ public final class LiftedPalmBlob {
             return camera.position().add(HandPassView.fromHandPass(drawn, camera.rotation(), camera.getFov(),
                     HandPassView.frameBob(mc)));
         }
-        return KnivesCharge.handAt(caster, GooCasters.casterOnTheRight(caster), partialTick);
+        return DrawnPalm.of(caster, GooCasters.casterOnTheRight(caster), partialTick).place();
     }
 
     /**

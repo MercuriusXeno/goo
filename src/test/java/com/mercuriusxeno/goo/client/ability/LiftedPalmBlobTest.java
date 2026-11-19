@@ -116,17 +116,31 @@ class LiftedPalmBlobTest {
             }
         }
 
+        // decision third-person-blob-stands-above-the-drawn-palm
         @Test
-        void anotherPlayersBlobStandsAtTheSourceInThatPlayersViewInTheGlovesType() {
+        void anotherPlayersBlobStandsAboveTheirDrawnPalmInTheGlovesType() {
             try (SprayingClient client = SprayingClient.another(GooTypes.FROST)) {
+                client.drawsThePalm(BlobRestTest.DRAWN);
                 client.at(EASED);
                 sprayEveryTickThroughTheEase();
 
                 LiftedPalmBlob.Blob blob = LiftedPalmBlob.blobOf(SprayingClient.CASTER, 0f).orElseThrow();
 
-                assertNear(SpraySource.inView(SprayingClient.EYE, SprayingClient.PITCH, SprayingClient.YAW, true),
-                        blob.place());
+                assertNear(BlobRestTest.DRAWN.above(SpraySource.RISE_ABOVE_THE_PALM), blob.place());
                 assertEquals(GooTypes.FROST, blob.type());
+            }
+        }
+
+        // decision third-person-blob-stands-above-the-drawn-palm: the lift starts where the model draws the palm
+        @Test
+        void anotherPlayersBlobLiftsFromTheirDrawnPalm() {
+            try (SprayingClient client = SprayingClient.another(GooTypes.FROST)) {
+                client.drawsThePalm(BlobRestTest.DRAWN);
+                client.at(NOW);
+                LiftedPalmBlob.held(SprayingClient.CASTER, SprayingClient.SENT_GLOVE, NOW);
+
+                assertNear(BlobRestTest.DRAWN.place(), LiftedPalmBlob.placeOf(SprayingClient.CASTER, 0f)
+                        .orElseThrow());
             }
         }
     }
@@ -716,6 +730,7 @@ class LiftedPalmBlobTest {
         @MethodSource("com.mercuriusxeno.goo.client.ability.LiftedPalmBlobTest#goopAndSlick")
         void offThePalmTheBlobRisesToTheSourceAndSettlesIntoTheCube(ResourceKey<GooTypeDefinition> type) {
             try (SprayingClient client = SprayingClient.another(type)) {
+                client.drawsThePalm(BlobRestTest.DRAWN);
                 double farthest = 0;
                 Vec3 palm = null;
                 LiftedPalmBlob.Blob blob = null;
@@ -736,8 +751,8 @@ class LiftedPalmBlobTest {
                         + " should be the cube");
                 assertEquals(blob.shape().depth(), blob.shape().height(), DELTA, "at the lift's end " + blob.shape()
                         + " should be the cube");
-                assertNear(SpraySource.inView(SprayingClient.EYE, SprayingClient.PITCH, SprayingClient.YAW, true),
-                        blob.place());
+                // decision third-person-blob-stands-above-the-drawn-palm: the source stands above the drawn palm
+                assertNear(BlobRestTest.DRAWN.above(SpraySource.RISE_ABOVE_THE_PALM), blob.place());
             }
         }
 
