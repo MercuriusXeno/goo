@@ -175,6 +175,15 @@ public class GooParticles {
 
 
     /**
+     * Gloom's spray drip: the mod's blocky goo drip in nether's maroons,
+     * flying its arc until it strikes a block's top, where it splats and the
+     * Gloom goo lands.
+     * gloom-spawns-regardless-of-light-and-mobs-on-it-ignore-daylight
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> GLOOM_SPRAY_DRIP =
+        PARTICLE_TYPES.register("gloom_spray_drip", () -> new SimpleParticleType(false));
+
+    /**
      * Stitch's spray drip: the mod's blocky goo drip in yarn's tans, flying
      * its arc until it strikes a block's top, where it splats and the Stitch
      * goo lands.
@@ -200,6 +209,15 @@ public class GooParticles {
      */
     public static final DeferredHolder<ParticleType<?>, SimpleParticleType> MORTAR_SPRAY_DRIP =
         PARTICLE_TYPES.register("mortar_spray_drip", () -> new SimpleParticleType(false));
+
+    /**
+     * Dowsing's spray drip: the mod's blocky goo drip in Astral's starlight
+     * and night blue, flying its arc until it strikes, where it splats and the
+     * Dowsing goo lands.
+     * astral-world-goo-is-dowsing-an-x-ray-of-ore
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> DOWSING_SPRAY_DRIP =
+        PARTICLE_TYPES.register("dowsing_spray_drip", () -> new SimpleParticleType(false));
 
     /**
      * A snowflake crystal flitting weightlessly along Cold's wind (decision

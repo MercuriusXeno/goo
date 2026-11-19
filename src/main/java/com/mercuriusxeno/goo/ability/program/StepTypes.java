@@ -57,6 +57,7 @@ public final class StepTypes {
         register(FreezeBlocksStep.TYPE);
         register(CoatStep.TYPE);
         register(SlickStep.TYPE);
+        register(DowseStep.TYPE);
         register(VacuumStep.TYPE);
         register(VacuumPullStep.TYPE);
         register(WobbleStep.TYPE);
@@ -172,6 +173,7 @@ public final class StepTypes {
         register(InfestStep.TYPE);
         register(StitchStep.TYPE);
         register(NitroStep.TYPE);
+        register(GloomStep.TYPE);
         register(MortarStep.TYPE);
         register(GrabStep.TYPE);
         register(GougeStep.TYPE);

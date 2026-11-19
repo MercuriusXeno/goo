@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:build_leaves_a_pillar_standing_and_grows_from_its_face",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 60,
+  "setup_ticks": 0,
+  "required": true
+}

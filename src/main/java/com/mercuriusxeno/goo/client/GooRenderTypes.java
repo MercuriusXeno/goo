@@ -19,7 +19,11 @@ import net.minecraft.client.renderer.rendertype.RenderSetup;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.TextureTransform;
 import net.minecraft.resources.Identifier;
+import net.neoforged.neoforge.client.StencilManager;
 import net.neoforged.neoforge.client.event.RegisterRenderPipelinesEvent;
+import net.neoforged.neoforge.client.stencil.StencilOperation;
+import net.neoforged.neoforge.client.stencil.StencilPerFaceTest;
+import net.neoforged.neoforge.client.stencil.StencilTest;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -138,6 +142,77 @@ public final class GooRenderTypes {
             .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
             .withCull(false)
             .build());
+
+    /** The stencil bit Dowsing's window marks, reserved from NeoForge's eight. */
+    public static final int DOWSING_STENCIL_BIT = stencilBitOf(StencilManager.reserveBit());
+
+    /**
+     * Dowsing's window mask (decision dowsing-goo-is-a-window-onto-the-ore-behind-it):
+     * the Dowsing cells' goo boxes drawn writing no color and no depth,
+     * depth tested and pulled a little toward the eye as a decal is, so they
+     * mark the Dowsing stencil bit only where the goo is the nearest surface.
+     */
+    public static final RenderPipeline DOWSING_MASK = RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "dowsing_mask"))
+            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
+            .withColorTargetState(new ColorTargetState(Optional.empty(), ColorTargetState.WRITE_NONE))
+            .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false,
+                    DECAL_BIAS_SCALE, DECAL_BIAS_CONSTANT))
+            .withStencilTest(new StencilTest(new StencilPerFaceTest(StencilOperation.KEEP, StencilOperation.KEEP,
+                    StencilOperation.REPLACE, CompareOp.ALWAYS_PASS), DOWSING_STENCIL_BIT, DOWSING_STENCIL_BIT,
+                    DOWSING_STENCIL_BIT))
+            .withCull(true)
+            .build();
+
+    /** The test Dowsing's ore and glow pass: only on the pixels the mask marked, writing no stencil. */
+    private static final StencilTest ON_THE_DOWSING_MARK = new StencilTest(new StencilPerFaceTest(
+            StencilOperation.KEEP, StencilOperation.KEEP, StencilOperation.KEEP, CompareOp.EQUAL),
+            DOWSING_STENCIL_BIT, 0, DOWSING_STENCIL_BIT);
+
+    /**
+     * Dowsing's ore (decision dowsing-goo-is-a-window-onto-the-ore-behind-it):
+     * the fungus x-ray's draw through every block, cut to the window mask.
+     */
+    public static final RenderPipeline DOWSING_ORE = sorted(PipelineSort.ON_THE_PATH, FUNGUS_XRAY.toBuilder()
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "dowsing_ore"))
+            .withStencilTest(ON_THE_DOWSING_MARK)
+            .build());
+
+    /**
+     * Dowsing's ore glow (decision dowsing-goo-is-a-window-onto-the-ore-behind-it):
+     * the fungus glow's swollen additive copy, cut to the same window mask.
+     */
+    public static final RenderPipeline DOWSING_GLOW = sorted(PipelineSort.ON_THE_PATH, FUNGUS_GLOW.toBuilder()
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "dowsing_glow"))
+            .withStencilTest(ON_THE_DOWSING_MARK)
+            .build());
+
+    /** The render type marking Dowsing's window. */
+    public static final RenderType DOWSING_MASK_TYPE = RenderType.create("goo_dowsing_mask",
+            RenderSetup.builder(DOWSING_MASK).setOutputTarget(OutputTarget.MAIN_TARGET).createRenderSetup());
+
+    /** Per-atlas memoized render types on Dowsing's ore pipeline. */
+    private static final java.util.function.Function<Identifier, RenderType> DOWSING_ORE_FACTORY =
+            net.minecraft.util.Util.memoize(atlas -> RenderType.create(
+                    "goo_dowsing_ore",
+                    RenderSetup.builder(DOWSING_ORE)
+                            .withTexture("Sampler0", atlas)
+                            .useLightmap()
+                            .useOverlay()
+                            .sortOnUpload()
+                            .createRenderSetup()
+            ));
+
+    /** Per-atlas memoized render types on Dowsing's ore glow pipeline. */
+    private static final java.util.function.Function<Identifier, RenderType> DOWSING_GLOW_FACTORY =
+            net.minecraft.util.Util.memoize(atlas -> RenderType.create(
+                    "goo_dowsing_glow",
+                    RenderSetup.builder(DOWSING_GLOW)
+                            .withTexture("Sampler0", atlas)
+                            .useLightmap()
+                            .useOverlay()
+                            .createRenderSetup()
+            ));
 
     /** Per-atlas memoized render types on the fungus glow pipeline. */
     private static final java.util.function.Function<Identifier, RenderType> FUNGUS_GLOW_FACTORY =
@@ -918,6 +993,37 @@ public final class GooRenderTypes {
     }
 
     /**
+     * Returns Dowsing's ore render type for the atlas the block's sprites sit on.
+     *
+     * @param atlas the texture atlas identifier
+     * @return memoized RenderType
+     */
+    public static RenderType dowsingOre(Identifier atlas) {
+        return DOWSING_ORE_FACTORY.apply(atlas);
+    }
+
+    /**
+     * Returns Dowsing's ore glow render type for the atlas the block's sprites sit on.
+     *
+     * @param atlas the texture atlas identifier
+     * @return memoized RenderType
+     */
+    public static RenderType dowsingGlow(Identifier atlas) {
+        return DOWSING_GLOW_FACTORY.apply(atlas);
+    }
+
+    /**
+     * The stencil mask of a reserved bit, the top bit where none was left to
+     * reserve.
+     *
+     * @param bit the bit's index, -1 where none was free
+     * @return the mask holding that one bit
+     */
+    static int stencilBitOf(int bit) {
+        return 1 << (bit < 0 ? Byte.SIZE - 1 : bit);
+    }
+
+    /**
      * Returns Sculker's glass render type for the atlas the block's sprites sit on.
      *
      * @param atlas the texture atlas identifier
@@ -1599,6 +1705,9 @@ public final class GooRenderTypes {
         event.registerPipeline(CLICK_WAVE_THROUGH_BLOCKS);
         event.registerPipeline(SCULKER_GLASS);
         event.registerPipeline(FUNGUS_GLOW);
+        event.registerPipeline(DOWSING_MASK);
+        event.registerPipeline(DOWSING_ORE);
+        event.registerPipeline(DOWSING_GLOW);
         event.registerPipeline(SPORE_SHELL);
         event.registerPipeline(SPORE_SHELL_THROUGH_BLOCKS);
     }

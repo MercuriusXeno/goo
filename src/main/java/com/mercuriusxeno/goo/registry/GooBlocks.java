@@ -493,6 +493,26 @@ public class GooBlocks {
                     .noLootTable()
                     .pushReaction(PushReaction.DESTROY));
     /**
+     * Gloom: the volume cell bound to Nether's goo, the maroon goo Gloom
+     * sprays onto a block's top, one to fifteen layers, ordinary ground
+     * underfoot and sounding as goo does, reading dark to the hostile mobs
+     * spawning on it, dropping the nether goo its layers cost through
+     * VolumeCellBlock.getDrops, no loot table
+     * (decisions gloom-spawns-regardless-of-light-and-mobs-on-it-ignore-daylight,
+     * each-goo-type-ships-a-world-goo-on-the-volume-cell).
+     */
+    public static final DeferredBlock<VolumeCellBlock> NETHER_GLOOM = BLOCKS.registerBlock(
+            "nether_gloom", properties -> new VolumeCellBlock(properties, CellBinding.GLOOM),
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.NETHER)
+                    .friction(CellBinding.GLOOM.surface().friction())
+                    .sound(SoundType.SLIME_BLOCK)
+                    .instabreak()
+                    .noOcclusion()
+                    .replaceable()
+                    .noLootTable()
+                    .pushReaction(PushReaction.DESTROY));
+    /**
      * Nitro: the volume cell bound to Unstable's goo, the green goo Nitro
      * sprays onto a block's top, one to fifteen layers, sounding as goo
      * does, exploding in a chain by its layers when a living thing touches
@@ -528,6 +548,25 @@ public class GooBlocks {
             () -> BlockBehaviour.Properties.of()
                     .mapColor(MapColor.STONE)
                     .friction(CellBinding.MORTAR.surface().friction())
+                    .sound(SoundType.SLIME_BLOCK)
+                    .instabreak()
+                    .noOcclusion()
+                    .replaceable()
+                    .noLootTable()
+                    .pushReaction(PushReaction.DESTROY));
+    /**
+     * Dowsing: the volume cell bound to Astral's Dowsing goo, the starry blue
+     * goo Dowsing lays on a block's top, one to fifteen layers, ordinary
+     * ground underfoot, dropping the astral goo its layers cost through
+     * VolumeCellBlock.getDrops, no loot table
+     * (decisions astral-world-goo-is-dowsing-an-x-ray-of-ore, slime-and-slick-are-one-volume-cell-tech,
+     * each-goo-type-ships-a-world-goo-on-the-volume-cell).
+     */
+    public static final DeferredBlock<VolumeCellBlock> ASTRAL_DOWSING = BLOCKS.registerBlock(
+            "astral_dowsing", properties -> new VolumeCellBlock(properties, CellBinding.DOWSING),
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_BLUE)
+                    .friction(CellBinding.DOWSING.surface().friction())
                     .sound(SoundType.SLIME_BLOCK)
                     .instabreak()
                     .noOcclusion()

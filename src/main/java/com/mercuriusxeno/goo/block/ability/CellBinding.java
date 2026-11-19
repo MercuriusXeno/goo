@@ -14,9 +14,9 @@ import net.minecraft.resources.ResourceKey;
  * lies on as on a sturdy top. Weird's slime, Kinetic's slick, Blaze's molten,
  * Crystal's shatter, Sculk's creep, Frost's rime, Glow's wisps, Hex's leech,
  * Typhoon's updraft, Jelly's nectar, Pulse's signal, Metal's spikes,
- * Zombie's infest, Leaf's vines, Unstable's nitro, Quantum's phase, Rock's
- * mortar and Yarn's stitch are bound so far, and another goo type ships its
- * world goo as another binding.
+ * Zombie's infest, Nether's gloom, Leaf's vines, Unstable's nitro, Quantum's
+ * phase, Rock's mortar, Yarn's stitch and Astral's Dowsing are bound so far,
+ * and another goo type ships its world goo as another binding.
  * slime-and-slick-are-one-volume-cell-tech
  * each-goo-type-ships-a-world-goo-on-the-volume-cell
  * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
@@ -35,7 +35,9 @@ import net.minecraft.resources.ResourceKey;
  * host-and-spores-combine-into-one-residual
  * nitro-is-unstables-goo-that-explodes-in-a-chain-by-its-quantity
  * phase-goo-puts-what-stands-in-it-out-of-phase
+ * gloom-spawns-regardless-of-light-and-mobs-on-it-ignore-daylight
  * mortar-is-rocks-residual-a-petrification-and-hardening-goo
+ * astral-world-goo-is-dowsing-an-x-ray-of-ore
  *
  * @param gooType      the goo type the cell holds and drops when broken
  * @param layingAbility the ability laying the goo, whose cost prices a whole block of it
@@ -68,6 +70,8 @@ public record CellBinding(ResourceKey<GooTypeDefinition> gooType, Identifier lay
     public static final Identifier NECTAR_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "jelly_nectar");
     /** The ability laying Zombie's goo, Infest, whose cost prices a whole block of it. */
     public static final Identifier INFEST_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "zombie_infest");
+    /** The ability laying Nether's goo, Gloom, whose cost prices a whole block of it. */
+    public static final Identifier GLOOM_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "nether_gloom");
     /** The ability laying Quantum's goo, Phase, whose cost prices a whole block of it and whose step names its linger. */
     public static final Identifier PHASE_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "quantum_phase");
 
@@ -90,6 +94,8 @@ public record CellBinding(ResourceKey<GooTypeDefinition> gooType, Identifier lay
 
     /** The ability laying Glow's goo, Wisps, whose cost prices a whole block of it. */
     public static final Identifier WISPS_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "glow_wisps");
+    /** The ability laying Astral's Dowsing goo, whose cost prices a whole block of it. */
+    public static final Identifier DOWSING_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "astral_dowsing");
 
     /** Weird's slime: Goop lays it, and it bounces what lands on it. */
     public static final CellBinding SLIME = new CellBinding(GooTypes.WEIRD, GOOP_ABILITY, CellSurface.BOUNCE,
@@ -159,6 +165,13 @@ public record CellBinding(ResourceKey<GooTypeDefinition> gooType, Identifier lay
     public static final CellBinding INFEST = new CellBinding(GooTypes.ZOMBIE, INFEST_ABILITY, CellSurface.POOL,
             FluidFooting.NONE);
     /**
+     * Nether's goo: Gloom lays it, it stands as ordinary ground, and it reads
+     * dark to a hostile mob spawning on it.
+     * gloom-spawns-regardless-of-light-and-mobs-on-it-ignore-daylight
+     */
+    public static final CellBinding GLOOM = new CellBinding(GooTypes.NETHER, GLOOM_ABILITY, CellSurface.DARKEN,
+            FluidFooting.NONE);
+    /**
      * Leaf's goo: Vines lays it, it stands as ordinary ground, and it
      * entangles what crosses it.
      * vines-is-sprayed-slime-that-entangles-what-tries-to-cross
@@ -191,5 +204,11 @@ public record CellBinding(ResourceKey<GooTypeDefinition> gooType, Identifier lay
      * passives-move-through-stitch-and-hostiles-tangle-in-it
      */
     public static final CellBinding STITCH = new CellBinding(GooTypes.YARN, STITCH_ABILITY, CellSurface.TANGLE,
+            FluidFooting.NONE);
+    /**
+     * Astral's Dowsing goo: Dowsing lays it, ordinary ground to stand on, and it lies on sturdy tops alone.
+     * astral-world-goo-is-dowsing-an-x-ray-of-ore
+     */
+    public static final CellBinding DOWSING = new CellBinding(GooTypes.ASTRAL, DOWSING_ABILITY, CellSurface.LENS,
             FluidFooting.NONE);
 }

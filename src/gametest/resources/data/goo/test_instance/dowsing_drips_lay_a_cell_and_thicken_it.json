@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:dowsing_drips_lay_a_cell_and_thicken_it",
+  "environment": "minecraft:default",
+  "structure": "goo:light_bay",
+  "max_ticks": 100,
+  "setup_ticks": 0,
+  "required": true
+}
