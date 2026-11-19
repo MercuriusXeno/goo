@@ -85,7 +85,7 @@ class AbilityLoaderTest {
     /** The one brew that starts silent (decision rally-drops-its-sound-and-gets-its-sprite). */
     private static final Identifier SILENT_BREW = Identifier.fromNamespaceAndPath(Goo.MODID, "yarn_lead");
     /** The proving example of a world ability that stays after its blob lands. */
-    private static final String LINGERING = "deep_shriek";
+    private static final String LINGERING = "xeno_shriek";
     /** The ability whose program ends the tick it lands. */
     private static final String BLAST = "unstable_blast";
 
@@ -636,7 +636,7 @@ class AbilityLoaderTest {
         @Test
         void plainCostAbilityLoadsNamingNoCostMechanics() {
             // Blast prices in tnt, which reads nothing with no goo values loaded, so Shriek's plain number stands here
-            AbilityDefinition shriek = AbilityJson.decode("deep_shriek");
+            AbilityDefinition shriek = AbilityJson.decode("xeno_shriek");
 
             assertTrue(shriek.cost().in(GooValueTable.EMPTY) > 0, "Shriek's cost " + shriek.cost().in(GooValueTable.EMPTY));
             assertEquals(Optional.empty(), shriek.costMechanics());

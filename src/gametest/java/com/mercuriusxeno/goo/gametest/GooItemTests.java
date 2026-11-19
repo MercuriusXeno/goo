@@ -405,12 +405,12 @@ public final class GooItemTests {
         });
     }
 
-    private static final BlockPos DEEP_WALL = new BlockPos(1, 1, 1);
+    private static final BlockPos XENO_WALL = new BlockPos(1, 1, 1);
     private static final BlockPos METAL_WALL = new BlockPos(3, 1, 1);
     private static final BlockPos PLAYER_POS = new BlockPos(2, 1, 5);
     private static final Direction THROW_FACE = Direction.SOUTH;
     private static final int NO_TARGET_ENTITY = -1;
-    private static final String DEEP_SHRIEK = "goo:deep_shriek";
+    private static final String XENO_SHRIEK = "goo:xeno_shriek";
     private static final String SPIKE_TRAP = "goo:test_spike_trap";
     private static final String REMOVAL = "removal";
     /**
@@ -435,7 +435,7 @@ public final class GooItemTests {
     }
 
     /**
-     * A player holding a glove, with deep goo and metal goo made through
+     * A player holding a glove, with xeno goo and metal goo made through
      * GooStacks to each ability's live cost, throws each at its own stone
      * wall; each throw spends that goo and lands a ability block of that type
      * beside its wall.
@@ -460,7 +460,7 @@ public final class GooItemTests {
     }
 
     /**
-     * A mock player holding the thrower throws a deep and a metal goo, each
+     * A mock player holding the thrower throws a xeno and a metal goo, each
      * holding its ability's live cost, each at its own stone wall, then leaves the level once the markers are
      * read, so a later thrower's tracking broadcast never reaches its mock
      * connection, which never negotiated the mod's channels.
@@ -470,29 +470,29 @@ public final class GooItemTests {
      */
     @SuppressWarnings(REMOVAL) // vanilla marks the mock server player helper for removal and names no replacement
     private static void throwGooFrom(GameTestHelper helper, Item thrower) {
-        helper.setBlock(DEEP_WALL, Blocks.STONE);
+        helper.setBlock(XENO_WALL, Blocks.STONE);
         helper.setBlock(METAL_WALL, Blocks.STONE);
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         BlockPos stand = helper.absolutePos(PLAYER_POS);
         player.setPos(stand.getX(), stand.getY(), stand.getZ());
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(thrower));
         AbilityRegistry abilities = AbilityRegistry.of(helper.getLevel());
-        AbilityDefinition shriek = abilities.getAbility(Identifier.parse(DEEP_SHRIEK));
+        AbilityDefinition shriek = abilities.getAbility(Identifier.parse(XENO_SHRIEK));
         AbilityDefinition spikes = abilities.getAbility(Identifier.parse(SPIKE_TRAP));
-        ItemStack deep = GooStacks.createForOutput(GooTypes.DEEP, shriek.cost().in(GooValueTable.EMPTY));
+        ItemStack xeno = GooStacks.createForOutput(GooTypes.XENO, shriek.cost().in(GooValueTable.EMPTY));
         ItemStack metal = GooStacks.createForOutput(GooTypes.METAL, spikes.cost().in(GooValueTable.EMPTY));
-        player.getInventory().add(deep);
+        player.getInventory().add(xeno);
         player.getInventory().add(metal);
         KnownRecipes.teachRequires(player, shriek);
         KnownRecipes.teachRequires(player, spikes);
 
-        GooThrowHandler.execute(player, throwAt(helper, GooTypes.DEEP, DEEP_SHRIEK, DEEP_WALL));
+        GooThrowHandler.execute(player, throwAt(helper, GooTypes.XENO, XENO_SHRIEK, XENO_WALL));
         GooThrowHandler.execute(player, throwAt(helper, GooTypes.METAL, SPIKE_TRAP, METAL_WALL));
-        helper.assertTrue(deep.isEmpty(), GOO_NOT_SPENT + GooTypes.id(GooTypes.DEEP));
+        helper.assertTrue(xeno.isEmpty(), GOO_NOT_SPENT + GooTypes.id(GooTypes.XENO));
         helper.assertTrue(metal.isEmpty(), GOO_NOT_SPENT + GooTypes.id(GooTypes.METAL));
 
         helper.runAfterDelay(ARRIVAL_TICKS, () -> {
-            assertMarker(helper, DEEP_WALL.relative(THROW_FACE), GooTypes.DEEP);
+            assertMarker(helper, XENO_WALL.relative(THROW_FACE), GooTypes.XENO);
             assertMarker(helper, METAL_WALL.relative(THROW_FACE), GooTypes.METAL);
             helper.getLevel().getServer().getPlayerList().remove(player);
             helper.succeed();
