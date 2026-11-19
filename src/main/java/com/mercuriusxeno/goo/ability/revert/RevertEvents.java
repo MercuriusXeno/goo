@@ -5,6 +5,11 @@ import com.mercuriusxeno.goo.ability.program.DropItemStep;
 import com.mercuriusxeno.goo.network.EntityVisuals;
 import com.mercuriusxeno.goo.network.ModelShrinkPayload;
 import com.mercuriusxeno.goo.registry.GooAttachments;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -31,8 +36,29 @@ public final class RevertEvents {
     private static final float NOTHING = 0f;
     private static final float WHOLE = 1f;
     private static final int ONE_EGG = 1;
+    private static final int FIZZLE_SMOKE = 12;
+    private static final double FIZZLE_SPREAD = 0.3;
+    private static final double FIZZLE_SPEED = 0.02;
+    private static final double BLOCK_CENTER = 0.5;
+    private static final float FIZZLE_VOLUME = 0.5f;
+    private static final float FIZZLE_PITCH = 1.8f;
 
     private RevertEvents() {
+    }
+
+    /**
+     * Shows a Revert that changed nothing where it landed: a puff of smoke and a quiet hiss.
+     *
+     * @param level the level
+     * @param pos   the block the mob stands in
+     */
+    public static void fizzle(ServerLevel level, BlockPos pos) {
+        double x = pos.getX() + BLOCK_CENTER;
+        double y = pos.getY() + 1;
+        double z = pos.getZ() + BLOCK_CENTER;
+        level.sendParticles(ParticleTypes.SMOKE, x, y, z, FIZZLE_SMOKE, FIZZLE_SPREAD, FIZZLE_SPREAD,
+                FIZZLE_SPREAD, FIZZLE_SPEED);
+        level.playSound(null, pos, SoundEvents.FIRE_EXTINGUISH, SoundSource.PLAYERS, FIZZLE_VOLUME, FIZZLE_PITCH);
     }
 
     /**

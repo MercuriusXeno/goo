@@ -71,7 +71,6 @@ public final class StepTypes {
         register(LeafSteps.REVERT_HOLD.type());
         register(RegressStep.TYPE);
         register(SpawnSlimeStep.TYPE);
-        register(AncientStep.TYPE);
         register(DropItemStep.TYPE);
         register(LeafSteps.IGNITE.type());
         register(LeafSteps.LIGHT_FIRE.type());
@@ -125,7 +124,6 @@ public final class StepTypes {
         register(LeafSteps.HEAL.type());
         register(LeafSteps.COURT.type());
         register(LeafSteps.POWER_PULSE.type());
-        register(LeafSteps.AGE.type());
         register(MetronomeStep.TYPE);
         register(RelayStep.TYPE);
         register(LeafSteps.STUN.type());

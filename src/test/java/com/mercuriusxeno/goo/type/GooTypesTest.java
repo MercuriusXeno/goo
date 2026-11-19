@@ -14,7 +14,11 @@ import org.junit.jupiter.params.provider.MethodSource;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -37,8 +41,10 @@ class GooTypesTest {
             GooTypes.REGISTRY, Identifier.fromNamespaceAndPath("gootest", "seventeenth"));
     private static final List<String> BUNDLED_IDS = List.of(
             "astral", "blaze", "crystal", "deep", "ender", "frost", "glow", "hex", "infinity", "jelly", "kinetic", "leaf",
-            "metal", "nether", "opulent", "pulse", "quantum", "rock", "shroom", "typhoon", "unstable", "void", "weird", "xeno", "yarn", "yore",
+            "metal", "nether", "opulent", "pulse", "quantum", "rock", "shroom", "typhoon", "unstable", "void", "weird", "xeno", "yarn",
             "zombie", "zoo");
+    private static final String TYPE_DIR = "data/goo/goo/goo_type";
+    private static final String JSON_SUFFIX = ".json";
     private static final String ZOMBIE = "zombie";
     private static final String TYPE_JSON = "/data/goo/goo/goo_type/%s.json";
     private static final String TEXTURES = "textures";
@@ -64,6 +70,23 @@ class GooTypesTest {
         for (ResourceKey<GooTypeDefinition> key : GooTypes.BUNDLED) {
             assertSame(GooTypes.REGISTRY, key.registryKey(), key + " is outside the goo type registry");
             assertEquals("goo", key.identifier().getNamespace(), key + " is outside the goo namespace");
+        }
+    }
+
+    /**
+     * The type definitions the jar ships are the bundled set, one JSON each.
+     * decision yore-leaves-and-rewind-moves-to-xeno-as-revert
+     */
+    @Test
+    void shippedTypeDefinitionsAreTheBundledSet() throws IOException, URISyntaxException {
+        URL dir = GooTypesTest.class.getClassLoader().getResource(TYPE_DIR);
+        assertNotNull(dir, TYPE_DIR);
+        try (Stream<Path> files = Files.list(Path.of(dir.toURI()))) {
+            List<String> shipped = files.map(file -> file.getFileName().toString())
+                    .filter(name -> name.endsWith(JSON_SUFFIX))
+                    .map(name -> name.substring(0, name.length() - JSON_SUFFIX.length()))
+                    .sorted().toList();
+            assertEquals(BUNDLED_IDS, shipped);
         }
     }
 
@@ -143,6 +166,16 @@ class GooTypesTest {
             assertEquals(key, GooTypes.KEY_STREAM_CODEC.decode(buf));
             assertEquals(0, buf.readableBytes());
         }
+    }
+
+    /**
+     * A goo stack saved as yore loads as opulent, the type taking yore's place.
+     * decision yore-leaves-and-rewind-moves-to-xeno-as-revert
+     */
+    @Test
+    void savedYoreKeyLoadsAsOpulent() {
+        assertSame(GooTypes.OPULENT, GooTypes.KEY_CODEC.parse(JsonOps.INSTANCE,
+                JsonParser.parseString("\"goo:yore\"")).getOrThrow());
     }
 
     /**

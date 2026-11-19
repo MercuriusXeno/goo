@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.ability.program;
 
-import com.mercuriusxeno.goo.ability.aging.Aging;
 import com.mercuriusxeno.goo.ability.revert.RevertEvents;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
@@ -53,7 +52,7 @@ public record RegressStep(int ticks) implements Step {
         if (RevertEvents.vanishing((Mob) target)) {
             // charm-like-abilities-lock-the-highlighted-mob-on-right-click: a failed attempt fizzles, never silent
             if (target.level() instanceof ServerLevel level) {
-                Aging.fizzle(level, target.blockPosition());
+                RevertEvents.fizzle(level, target.blockPosition());
             }
             return true;
         }

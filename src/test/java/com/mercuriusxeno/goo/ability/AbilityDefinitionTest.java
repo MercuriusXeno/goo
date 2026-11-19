@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.ability;
 
 import com.mercuriusxeno.goo.ability.program.EntitiesStep;
-import com.mercuriusxeno.goo.ability.program.EntityFilter;
 import com.mercuriusxeno.goo.ability.program.ExplodeStep;
 import com.mercuriusxeno.goo.ability.program.ExplosionMarch;
 import com.mercuriusxeno.goo.ability.program.ExplosionMode;
@@ -9,7 +8,6 @@ import com.mercuriusxeno.goo.ability.program.Expr;
 import com.mercuriusxeno.goo.ability.program.LingerStep;
 import com.mercuriusxeno.goo.ability.program.SelectionShape;
 import com.mercuriusxeno.goo.ability.program.Step;
-import com.mercuriusxeno.goo.ability.program.TargetStep;
 import com.mercuriusxeno.goo.data.GooBaseValuesPreview;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooValue;
@@ -93,16 +91,6 @@ class AbilityDefinitionTest {
     void razorRequiresGlassAndSand() {
         assertEquals(List.of(Identifier.withDefaultNamespace("glass"), Identifier.withDefaultNamespace("sand")),
                 AbilityJson.decode("crystal_shatter").requires());
-    }
-
-    /**
-     * Expire strikes a mob that is no boss.
-     */
-    // decision expire-kills-the-struck-mob
-    @Test
-    void expireStrikesAMobThatIsNoBoss() {
-        TargetStep target = (TargetStep) AbilityJson.decode("yore_expire").behaviors().getFirst();
-        assertEquals(List.of(EntityFilter.MOB, EntityFilter.NOT_BOSS), target.where());
     }
 
     private static AbilityDefinition requiring(String requires) {
