@@ -1048,6 +1048,20 @@ public final class GooRenderTypes {
                     .createRenderSetup());
 
     /**
+     * Stitch's web tangle render type: the vine tangle pipeline sampling
+     * vanilla's cobweb texture, so a tangled hostile wears web strands the
+     * way a rooted mob wears vines.
+     * passives-move-through-stitch-and-hostiles-tangle-in-it
+     */
+    public static final RenderType WEB_TANGLE_TYPE = RenderType.create(
+            "goo_web_tangle",
+            RenderSetup.builder(VINE_TANGLE)
+                    .withTexture("Sampler0", Identifier.withDefaultNamespace("textures/block/cobweb.png"))
+                    .useLightmap()
+                    .sortOnUpload()
+                    .createRenderSetup());
+
+    /**
      * Frost's ice over a frozen mob (decision frozen-gauge-per-mob-encases-when-full):
      * Petrify's stone pipeline sampling vanilla's packed ice, so frost spreads
      * over the mob the way stone does, whole at a full gauge.

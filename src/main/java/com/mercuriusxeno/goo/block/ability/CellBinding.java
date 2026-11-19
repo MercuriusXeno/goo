@@ -14,9 +14,9 @@ import net.minecraft.resources.ResourceKey;
  * lies on as on a sturdy top. Weird's slime, Kinetic's slick, Blaze's molten,
  * Crystal's shatter, Sculk's creep, Frost's rime, Glow's wisps, Hex's leech,
  * Typhoon's updraft, Jelly's nectar, Pulse's signal, Metal's spikes,
- * Zombie's infest, Leaf's vines, Unstable's nitro, Quantum's phase and Rock's
- * mortar are bound so far, and another goo type ships its world goo
- * as another binding.
+ * Zombie's infest, Leaf's vines, Unstable's nitro, Quantum's phase, Rock's
+ * mortar and Yarn's stitch are bound so far, and another goo type ships its
+ * world goo as another binding.
  * slime-and-slick-are-one-volume-cell-tech
  * each-goo-type-ships-a-world-goo-on-the-volume-cell
  * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
@@ -83,6 +83,8 @@ public record CellBinding(ResourceKey<GooTypeDefinition> gooType, Identifier lay
     /** The ability laying Unstable's goo, Nitro, whose cost prices a whole block of it. */
     public static final Identifier NITRO_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "unstable_nitro");
 
+    /** The ability laying Yarn's goo, Stitch, whose cost prices a whole block of it and whose step names its fire. */
+    public static final Identifier STITCH_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "yarn_stitch");
     /** The ability laying Rock's goo, Mortar, whose cost prices a whole block of it. */
     public static final Identifier MORTAR_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "rock_mortar");
 
@@ -181,5 +183,13 @@ public record CellBinding(ResourceKey<GooTypeDefinition> gooType, Identifier lay
      * mortar-is-rocks-residual-a-petrification-and-hardening-goo
      */
     public static final CellBinding MORTAR = new CellBinding(GooTypes.ROCK, MORTAR_ABILITY, CellSurface.POOL,
+            FluidFooting.NONE);
+    /**
+     * Yarn's goo: Stitch lays it, it stands as ordinary ground, a passive
+     * passes it and a hostile in it is tangled.
+     * stitch-is-yarns-residual-that-turns-slimes-into-passive-mobs
+     * passives-move-through-stitch-and-hostiles-tangle-in-it
+     */
+    public static final CellBinding STITCH = new CellBinding(GooTypes.YARN, STITCH_ABILITY, CellSurface.TANGLE,
             FluidFooting.NONE);
 }
