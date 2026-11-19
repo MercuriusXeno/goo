@@ -30,7 +30,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * Lunar on the server, a hold. Held looking at the moon in the overworld, or at the blue planet in
  * lunar, it fixes the caster's gaze, sends them its rising tone, and holds them still where they stand while the moon
  * or the planet swells to fill their view; held until the fixation runs out, the moon carries them to lunar at the
- * landing its phase, its night's tick and their overworld spot set, keeping where they left from, and the planet
+ * landing its phase, its night's tick and their account UUID set, keeping where they left from, and the planet
  * carries them back to exactly that place and facing, each taking the astral then and leaving the arrival mark their
  * client's white clears on. Let go early, it
  * releases them where they stand and takes nothing. Held looking at neither, it refuses with a tell. Lunar places
@@ -85,7 +85,7 @@ public final class AstralLunar {
         }
         float moonAngle = moonAngleAt(caster);
         Optional<LunarSight.Sky> sky = LunarSight.skyAt(caster.level().dimension(), caster.getX(),
-                caster.getLookAngle(), moonAngle, planetPhaseAt(caster));
+                caster.getLookAngle(), moonAngle, skyPhaseAt(caster));
         if (sky.isEmpty()) {
             return false;
         }
@@ -126,7 +126,7 @@ public final class AstralLunar {
      */
     public static boolean findsTheSky(ServerPlayer caster) {
         return LunarSight.skyAt(caster.level().dimension(), caster.getX(), caster.getLookAngle(),
-                moonAngleAt(caster), planetPhaseAt(caster)).isPresent();
+                moonAngleAt(caster), skyPhaseAt(caster)).isPresent();
     }
 
     /**
@@ -227,8 +227,9 @@ public final class AstralLunar {
 
     /**
      * Carries the caster to lunar at the landing the moon's phase and its night's tick set, over the column their
-     * overworld spot sets, keeping where they left from.
+     * account UUID sets, keeping where they left from.
      * decision time-and-phase-set-x-and-your-overworld-spot-sets-z
+     * decision z-is-a-function-of-the-account-uuid
      * decision traversal-to-the-moon-always-lands-on-the-light-side
      *
      * @param caster the caster
@@ -241,7 +242,7 @@ public final class AstralLunar {
         caster.setData(GooAttachments.WAY_HOME, new WayHome(Optional.of(new VoidPockets.ReturnPoint(
                 caster.level().dimension(), caster.position(), caster.getYRot(), caster.getXRot()))));
         LunarLanding.Spot landing = LunarLanding.at(moonPhaseAt(caster).index(),
-                LunarLanding.nightTickAt(caster.level().getOverworldClockTime()), caster.getX(), caster.getZ());
+                LunarLanding.nightTickAt(caster.level().getOverworldClockTime()), caster.getUUID());
         caster.teleport(new TeleportTransition(lunar, surfaceOver(lunar, new Vec3(landing.x(), 0, landing.z())),
                 Vec3.ZERO, caster.getYRot(), caster.getXRot(), TeleportTransition.DO_NOTHING));
     }
@@ -271,6 +272,18 @@ public final class AstralLunar {
         int z = (int) Math.floor(spot.z);
         level.getChunk(SectionPos.blockToSectionCoord(x), SectionPos.blockToSectionCoord(z));
         return new Vec3(spot.x, level.getHeight(Heightmap.Types.MOTION_BLOCKING, x, z), spot.z);
+    }
+
+    /**
+     * The phase of the body standing in the moon's place over the caster: the moon's in the overworld, so the trip out
+     * refuses under the new moon, and the blue planet's elsewhere.
+     * decision moon-trip-refuses-under-the-new-moon
+     *
+     * @param caster the caster
+     * @return the phase skyAt reads
+     */
+    private static MoonPhase skyPhaseAt(ServerPlayer caster) {
+        return Level.OVERWORLD.equals(caster.level().dimension()) ? moonPhaseAt(caster) : planetPhaseAt(caster);
     }
 
     /**

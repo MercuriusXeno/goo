@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -86,6 +87,25 @@ class LunarSightTest {
         @Test
         void theMoonIsFoundInTheOverworldAlone() {
             assertEquals(Optional.empty(), LunarSight.skyAt(Level.NETHER, LIGHT_SIDE_X, UP, MIDNIGHT, LIT));
+        }
+
+        /**
+         * decision moon-trip-refuses-under-the-new-moon
+         */
+        @ParameterizedTest
+        @EnumSource(value = MoonPhase.class, names = "NEW_MOON", mode = EnumSource.Mode.EXCLUDE)
+        void aLookAtALitMoonInTheOverworldFindsIt(MoonPhase moonPhase) {
+            assertEquals(Optional.of(LunarSight.Sky.MOON),
+                    LunarSight.skyAt(Level.OVERWORLD, LIGHT_SIDE_X, NEARLY_UP, MIDNIGHT, moonPhase));
+        }
+
+        /**
+         * decision moon-trip-refuses-under-the-new-moon
+         */
+        @Test
+        void aLookAtTheNewMoonInTheOverworldFindsNothing() {
+            assertEquals(Optional.empty(),
+                    LunarSight.skyAt(Level.OVERWORLD, LIGHT_SIDE_X, NEARLY_UP, MIDNIGHT, MoonPhase.NEW_MOON));
         }
     }
 
