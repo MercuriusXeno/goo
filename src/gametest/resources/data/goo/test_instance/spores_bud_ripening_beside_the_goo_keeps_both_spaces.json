@@ -1,9 +1,9 @@
 {
   "type": "minecraft:function",
-  "function": "goo:spore_struck_on_a_mob",
+  "function": "goo:spores_bud_ripening_beside_the_goo_keeps_both_spaces",
   "environment": "minecraft:default",
   "structure": "goo:test_bay",
-  "max_ticks": 20,
+  "max_ticks": 400,
   "setup_ticks": 0,
   "required": true
 }
