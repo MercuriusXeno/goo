@@ -1126,7 +1126,7 @@ final class RadialWheelRenderer {
     }
 
 
-    private static Identifier typeIcon(ResourceKey<GooTypeDefinition> type) {
+    static Identifier typeIcon(ResourceKey<GooTypeDefinition> type) {
         return Identifier.fromNamespaceAndPath(Goo.MODID, TYPE_ICON_PREFIX + GooTypes.id(type) + ICON_SUFFIX);
     }
 

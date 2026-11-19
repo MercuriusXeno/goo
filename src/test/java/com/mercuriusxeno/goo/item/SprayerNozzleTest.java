@@ -86,6 +86,27 @@ class SprayerNozzleTest {
     }
 
     /**
+     * Line sprays a flat band evenly across: cut its width into four equal slices and each takes between a fifth
+     * and three tenths of the drips, where a flattened cone heaps them in the middle.
+     * operator report 2026-11-18: Line is choke with random misses; it should spray a flat spread evenly in a
+     * horizontal line
+     */
+    @Test
+    void lineSpraysEvenlyAcross() {
+        double rim = Math.toRadians(SprayerNozzle.LINE.shape(RESIDUAL_CONE).sideDegrees() / 2);
+        int[] inSlice = new int[RINGS];
+        for (Vec3 launch : launches(SprayerNozzle.LINE, MANY_SHARES)) {
+            double across = Math.atan2(launch.z, launch.x) / rim;
+            inSlice[Math.min(RINGS - 1, (int) ((across + 1) / 2 * RINGS))]++;
+        }
+        for (int slice = 0; slice < RINGS; slice++) {
+            double share = inSlice[slice] / (double) MANY_SHARES;
+            assertTrue(share >= FEWEST_IN_A_RING && share <= MOST_IN_A_RING,
+                    "slice " + slice + " of the line takes " + share + " of the drips");
+        }
+    }
+
+    /**
      * Wide lays twice the goo, Thin reaches farther than the plain spray and Jet farther still.
      * operator ruling 2026-11-18: Wide doubles the goo it puts down; Thin goes farther; Jet goes even farther
      */
