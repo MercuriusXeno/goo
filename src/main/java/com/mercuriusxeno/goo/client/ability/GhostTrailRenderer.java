@@ -1,8 +1,10 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.LivingEntityRenderer;
@@ -12,31 +14,34 @@ import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.SubmitCustomGeometryEvent;
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * Draws every live ghost trail: each ghost submits the entity's frozen
  * render state through its own renderer at the ghost's point, the body
  * alone redrawn translucent in the goo type's color at the ghost's fade.
+ * A ghost writes no depth, so it draws on the shared path after the clouds
+ * rather than in vanilla's main pass before them (operator ruling 2026-11-18).
  * Decision ghost-trail-spans-the-blink.
  */
-@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class GhostTrailRenderer {
 
     private GhostTrailRenderer() {
     }
 
     /**
-     * Submits the live trails' ghosts, dropping each trail that has faded.
+     * Hands the shared path one draw per showing ghost of every live trail,
+     * each sorted by the camera's distance to the ghost's point, dropping
+     * each trail that has faded.
+     * decision diagnose-and-correct-translucent-goo-visuals-that-depth-sort-wrong
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
+     * decision ghost-trail-spans-the-blink
      *
-     * @param event the custom geometry submit event
+     * @param frame the frame being drawn
+     * @param draws where each ghost's draw goes
      */
-    @SubscribeEvent
-    public static void onSubmitCustomGeometry(SubmitCustomGeometryEvent event) {
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) {
             return;
@@ -47,7 +52,7 @@ public final class GhostTrailRenderer {
         }
         float gameTime = mc.level.getGameTime() + mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         for (GhostTrails.GhostTrail<EntityRenderState> trail : trails) {
-            submitTrail(mc.getEntityRenderDispatcher(), event, trail, gameTime);
+            collectTrail(mc.getEntityRenderDispatcher(), frame, trail, gameTime, draws);
         }
     }
 
@@ -65,27 +70,32 @@ public final class GhostTrailRenderer {
     }
 
     /**
-     * Submits one trail's showing ghosts.
+     * Hands the path one trail's showing ghosts.
      *
      * @param dispatcher the entity render dispatcher
-     * @param event      the custom geometry submit event
+     * @param frame      the frame being drawn
      * @param trail      the trail
      * @param gameTime   the game time including the partial tick
+     * @param draws      where each ghost's draw goes
      */
-    private static void submitTrail(EntityRenderDispatcher dispatcher, SubmitCustomGeometryEvent event,
-            GhostTrails.GhostTrail<EntityRenderState> trail, float gameTime) {
+    private static void collectTrail(EntityRenderDispatcher dispatcher, LevelFrame frame,
+            GhostTrails.GhostTrail<EntityRenderState> trail, float gameTime, Consumer<SortedDraw> draws) {
         EntityRenderState snapshot = trail.snapshot();
         EntityRenderer<?, ?> renderer = dispatcher.getRenderer(snapshot);
         if (!(renderer instanceof LivingEntityRenderer<?, ?, ?> living)) {
             return;
         }
         RenderType ghostType = ghostTypeOf(living, snapshot);
-        CameraRenderState camera = event.getLevelRenderState().cameraRenderState;
+        CameraRenderState camera = frame.levelRenderState().cameraRenderState;
         for (GhostTrails.Ghost ghost : trail.ghosts(gameTime)) {
-            Vec3 fromCamera = ghost.position().subtract(camera.pos);
-            dispatcher.submit(snapshot, camera, fromCamera.x, fromCamera.y, fromCamera.z, event.getPoseStack(),
-                    new GhostCollector(event.getSubmitNodeCollector(), living.getModel(), ghostType,
-                            ARGB.color(ghost.alpha(), trail.rgb())));
+            int color = ARGB.color(ghost.alpha(), trail.rgb());
+            draws.accept(new SortedDraw(ghost.position().distanceToSqr(camera.pos), () -> {
+                MultiBufferSource.BufferSource buffers = Minecraft.getInstance().renderBuffers().bufferSource();
+                Vec3 fromCamera = ghost.position().subtract(camera.pos);
+                dispatcher.submit(snapshot, camera, fromCamera.x, fromCamera.y, fromCamera.z, frame.poseStack(),
+                        new GhostCollector(buffers, living.getModel(), ghostType, color));
+                buffers.endBatch(ghostType);
+            }));
         }
     }
 }

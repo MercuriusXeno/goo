@@ -7,6 +7,8 @@ import com.mercuriusxeno.goo.ability.program.HostVariables;
 import com.mercuriusxeno.goo.ability.program.NovaStep;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.Variables;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.throwing.GloveThrowSender;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
@@ -23,11 +25,11 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 /**
@@ -126,12 +128,14 @@ public final class NovaChargeGhost {
     }
 
     /**
-     * Draws the ghost while the local player holds a charging ability with a nova.
+     * Hands the shared path the ghost while the local player holds a charging
+     * ability with a nova, sorted by the player's middle, which it lies about.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
      *
-     * @param event the level render stage event
+     * @param frame the frame being drawn
+     * @param draws where the ghost's draw goes
      */
-    @SubscribeEvent
-    public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
         Optional<Charging> charging = player == null || mc.level == null ? Optional.empty() : charging(player);
@@ -139,12 +143,17 @@ public final class NovaChargeGhost {
             return;
         }
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        float gameTime = mc.level.getGameTime() + partialTick;
+        Vec3 camera = mc.gameRenderer.getMainCamera().position();
         Vec3 middle = middleOf(player.getPosition(partialTick), CameraEye.bodyHeight(mc, player, partialTick));
-        BurnoutFrame frame = new BurnoutFrame(event.getPoseStack(), mc.renderBuffers().bufferSource(),
-                mc.gameRenderer.getMainCamera().position(), gameTime);
+        BurnoutFrame burnout = new BurnoutFrame(frame.poseStack(), mc.renderBuffers().bufferSource(), camera,
+                mc.level.getGameTime() + partialTick);
+        float reach = (float) charging.get().reach();
+        draws.accept(new SortedDraw(middle.distanceToSqr(camera), () -> drawGhost(burnout, middle, reach)));
+    }
+
+    private static void drawGhost(BurnoutFrame frame, Vec3 middle, float reach) {
         FrostExplosionVisual.drawDisc(frame, middle.subtract(HALF_BLOCK, HALF_BLOCK, HALF_BLOCK), Direction.UP, 0f,
-                (float) charging.get().reach(), WHOLE_SPREAD, pulseAlpha(gameTime), GHOST_SEED);
+                reach, WHOLE_SPREAD, pulseAlpha(frame.gameTime()), GHOST_SEED);
     }
 
     /**

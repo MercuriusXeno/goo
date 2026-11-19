@@ -1,7 +1,8 @@
 package com.mercuriusxeno.goo.client.hud;
 
-import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlockEntity;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Camera;
@@ -11,12 +12,9 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * Renders a compact in-world HUD panel when the player's crosshair targets
@@ -24,7 +22,6 @@ import java.util.List;
  * from the player and billboards to face the camera. Each goo type shows as
  * an icon with "reservoir / total" volumes.
  */
-@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class CrucibleHudRenderer {
 
     private static final HudAnimator<BlockPos> ANIMATOR = new HudAnimator<>(BlockPos::equals);
@@ -32,12 +29,14 @@ public final class CrucibleHudRenderer {
     private CrucibleHudRenderer() {}
 
     /**
-     * Renders the crucible HUD after entities are drawn.
+     * Moves the panel's animation on a frame and hands the shared path the
+     * crucible's panel, sorted by its anchor on the basin rim.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
      *
-     * @param event the event instance
+     * @param frame the frame being drawn
+     * @param draws where the panel's draw goes
      */
-    @SubscribeEvent
-    public static void onAfterOpaqueFeatures(RenderLevelStageEvent.AfterOpaqueFeatures event) {
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
         ANIMATOR.tick(getTargetPos());
         BlockPos pos = ANIMATOR.tracked();
         if (pos == null) {
@@ -49,7 +48,13 @@ public final class CrucibleHudRenderer {
             return;
         }
         Camera camera = Minecraft.getInstance().gameRenderer.getMainCamera();
-        renderRimPanel(event.getPoseStack(), be, camera);
+        List<PanelRow> rows = CruciblePanelRows.rows(be);
+        if (rows.isEmpty()) {
+            return;
+        }
+        Vec3 anchor = CrucibleRimMath.rimAnchor(be.getBlockPos(), camera);
+        draws.accept(new SortedDraw(anchor.distanceToSqr(camera.position()),
+                () -> renderRimPanel(frame.poseStack(), camera, anchor, rows)));
     }
 
     /**
@@ -95,15 +100,11 @@ public final class CrucibleHudRenderer {
      * billboarded with the smoothed emerge pitch.
      *
      * @param poseStack the pose stack for rendering
-     * @param be        the crucible block entity
      * @param camera    the render camera
+     * @param anchor    the rim point the panel stands on
+     * @param rows      the panel's rows
      */
-    private static void renderRimPanel(PoseStack poseStack, CrucibleBlockEntity be, Camera camera) {
-        List<PanelRow> rows = CruciblePanelRows.rows(be);
-        if (rows.isEmpty()) {
-            return;
-        }
-        Vec3 anchor = CrucibleRimMath.rimAnchor(be.getBlockPos(), camera);
+    private static void renderRimPanel(PoseStack poseStack, Camera camera, Vec3 anchor, List<PanelRow> rows) {
         PanelPainter.paint(poseStack, camera, PanelPlacement.onRim(anchor, ANIMATOR.pitch(), ANIMATOR.opacity()), rows);
     }
 }

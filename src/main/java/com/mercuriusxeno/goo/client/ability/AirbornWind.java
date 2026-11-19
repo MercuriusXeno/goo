@@ -1,7 +1,8 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.client.LineContext;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
@@ -11,12 +12,9 @@ import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * Airborn's look: floaty motes of air, really soft wind lines, rise straight
@@ -27,7 +25,6 @@ import java.util.List;
  * along with the player.
  * airborn-steerable-levitation-and-soft-falls
  */
-@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class AirbornWind {
 
     /**
@@ -183,13 +180,15 @@ public final class AirbornWind {
     }
 
     /**
-     * Spawns this tick's motes, drops spent ones and draws the rest while
-     * the local player stands under Airborn.
+     * Spawns this tick's motes, drops spent ones and hands the shared path
+     * the rest while the local player stands under Airborn, sorted by the
+     * player's feet they swirl around.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
      *
-     * @param event the level render stage event
+     * @param frame the frame being drawn
+     * @param draws where the motes' draw goes
      */
-    @SubscribeEvent
-    public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
         if (player == null || mc.level == null) {
@@ -202,18 +201,20 @@ public final class AirbornWind {
         }
         LIVE.removeIf(mote -> now - mote.startTick() >= LIFE_TICKS);
         if (!LIVE.isEmpty()) {
-            drawMotes(event, mc, player, now);
+            float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
+            Vec3 camera = mc.gameRenderer.getMainCamera().position();
+            draws.accept(new SortedDraw(player.getPosition(partialTick).distanceToSqr(camera),
+                    () -> drawMotes(frame, mc, player, now)));
         }
     }
 
-    private static void drawMotes(RenderLevelStageEvent.AfterTranslucentBlocks event, Minecraft mc,
-                                  LocalPlayer player, long now) {
+    private static void drawMotes(LevelFrame frame, Minecraft mc, LocalPlayer player, long now) {
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         Vec3 feet = player.getPosition(partialTick);
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         RenderType type = RenderTypes.linesTranslucent();
-        LineContext lines = new LineContext(event.getPoseStack().last(), buffers.getBuffer(type));
+        LineContext lines = new LineContext(frame.poseStack().last(), buffers.getBuffer(type));
         for (Mote mote : LIVE) {
             drawMote(lines, camera, feet, mote, now + partialTick - mote.startTick());
         }

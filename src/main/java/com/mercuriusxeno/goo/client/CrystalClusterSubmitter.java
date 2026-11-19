@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.block.ability.CrystalPrism;
 import com.mercuriusxeno.goo.block.ability.PrismColumn;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.resources.ResourceKey;
@@ -93,12 +94,23 @@ public final class CrystalClusterSubmitter {
         if (prisms.isEmpty()) {
             return;
         }
-        nodeCollector.submitCustomGeometry(poseStack, renderType, (pose, c) -> {
-            RenderContext ctx = new RenderContext(pose, c, light);
-            for (CrystalPrism prism : prisms) {
-                emitPrism(ctx, prism, look.color(), look.uv());
-            }
-        });
+        nodeCollector.submitCustomGeometry(poseStack, renderType, (pose, c) -> emit(pose, c, prisms, look, light));
+    }
+
+    /**
+     * Emits the prisms on the block atlas into a vertex consumer.
+     *
+     * @param pose   the pose, placed so model pixels map onto the block
+     * @param c      the vertex consumer
+     * @param prisms the prisms to draw
+     * @param look   the type's sprite and tint
+     * @param light  the packed light
+     */
+    public static void emit(PoseStack.Pose pose, VertexConsumer c, List<CrystalPrism> prisms, Look look, int light) {
+        RenderContext ctx = new RenderContext(pose, c, light);
+        for (CrystalPrism prism : prisms) {
+            emitPrism(ctx, prism, look.color(), look.uv());
+        }
     }
 
     /**
@@ -129,12 +141,24 @@ public final class CrystalClusterSubmitter {
      */
     public static void submitFaces(PoseStack poseStack, SubmitNodeCollector nodeCollector, RenderType renderType,
                                    List<Vec3[]> faces, Look look, int light) {
-        nodeCollector.submitCustomGeometry(poseStack, renderType, (pose, c) -> {
-            RenderContext ctx = new RenderContext(pose, c, light);
-            for (Vec3[] face : faces) {
-                emitQuad(ctx, look.color(), look.uv(), face);
-            }
-        });
+        nodeCollector.submitCustomGeometry(poseStack, renderType, (pose, c) -> emitFaces(pose, c, faces, look, light));
+    }
+
+    /**
+     * Emits faces in model pixels, each four corners in winding order, on the
+     * block atlas into a vertex consumer, tiled as a prism's faces are.
+     *
+     * @param pose  the pose, placed so model pixels map onto the block
+     * @param c     the vertex consumer
+     * @param faces the faces to draw
+     * @param look  the sprite and tint
+     * @param light the packed light
+     */
+    public static void emitFaces(PoseStack.Pose pose, VertexConsumer c, List<Vec3[]> faces, Look look, int light) {
+        RenderContext ctx = new RenderContext(pose, c, light);
+        for (Vec3[] face : faces) {
+            emitQuad(ctx, look.color(), look.uv(), face);
+        }
     }
 
     /**

@@ -16,8 +16,13 @@ import net.minecraft.util.ARGB;
 public record BlendPalette(float lightRed, float lightGreen, float lightBlue,
                            float darkRed, float darkGreen, float darkBlue) {
 
-    /** Decay's maroon gnats (decision decay-gnats-degrade-each-block-once). */
-    public static final BlendPalette MAROON = new BlendPalette(0.75f, 0.12f, 0.2f, 0.5f, 0.06f, 0.11f);
+    /**
+     * Decay's gnats, from zombie goo's bright green, 7AA85A, to its meat brown edge, 5E4428.
+     * decay-gnats-degrade-each-block-once
+     * zombie-goo-is-colored-after-zombie-flesh-and-decay-stops-being-maroon
+     */
+    public static final BlendPalette ZOMBIE_ROT = new BlendPalette(
+            0x7A / 255f, 0xA8 / 255f, 0x5A / 255f, 0x5E / 255f, 0x44 / 255f, 0x28 / 255f);
     /**
      * Goop's spray drips, in the slime greens Goop's icon wears.
      * goop-and-slick-spray-throws-goo-drips-that-splat
@@ -118,6 +123,14 @@ public record BlendPalette(float lightRed, float lightGreen, float lightBlue,
      */
     public static final BlendPalette INFEST_NETHER_REDS = new BlendPalette(
             0x9A / 255f, 0x4E / 255f, 0x4E / 255f, 0x65 / 255f, 0x28 / 255f, 0x28 / 255f);
+
+    /**
+     * Spores' spray drips, from shroom's bright purple, B66CD5, to its
+     * wheel purple, 8E44AD, the two the shroom goo type's definition names.
+     * spores-is-shrooms-residual-a-passive-mycosis
+     */
+    public static final BlendPalette SPORES_SHROOM_PURPLES = new BlendPalette(
+            0xB6 / 255f, 0x6C / 255f, 0xD5 / 255f, 0x8E / 255f, 0x44 / 255f, 0xAD / 255f);
 
     /**
      * Nitro's spray drips, from unstable's bright green, 88FF44, to its wheel

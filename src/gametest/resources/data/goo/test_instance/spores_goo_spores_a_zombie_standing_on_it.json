@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:spores_goo_spores_a_zombie_standing_on_it",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 400,
+  "setup_ticks": 0,
+  "required": true
+}

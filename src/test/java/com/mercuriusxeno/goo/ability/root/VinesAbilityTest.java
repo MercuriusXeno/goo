@@ -6,15 +6,14 @@ import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.ability.program.DripLanding;
 import com.mercuriusxeno.goo.ability.program.VinesStep;
-import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.Test;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 /**
- * Leaf's world goo ships as leaf_vines.json, a residual stream spray still
- * learned from the vine, whose drips land through the vines step.
+ * Leaf's world goo ships as leaf_vines.json, a residual stream spray whose
+ * drips land through the vines step.
  * vines-is-sprayed-slime-that-entangles-what-tries-to-cross
  * residual-badge-marks-the-four-goo-sprays
  */
@@ -28,11 +27,6 @@ class VinesAbilityTest {
 
         assertEquals(List.of(AbilityBadge.RESIDUAL, DeliveryKind.STREAM),
                 List.of(vines.badge(), vines.delivery().kind()));
-    }
-
-    @Test
-    void vinesIsStillLearnedFromTheVine() {
-        assertEquals(List.of(Identifier.withDefaultNamespace("vine")), AbilityJson.decode(VINES).requires());
     }
 
     @Test

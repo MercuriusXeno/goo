@@ -50,13 +50,13 @@ public final class DecayPrismTests {
     }
 
 
-    private static final Identifier DECAY = Identifier.parse("goo:nether_decay");
+    private static final Identifier DECAY = Identifier.parse("goo:zombie_decay");
     private static final BlockPos PRISM = new BlockPos(4, 1, 2);
     private static final BlockPos STAND = new BlockPos(1, 1, 2);
     /** On the floor between the player and the prism, in the cone. */
     private static final BlockPos IN_THE_CONE = new BlockPos(2, 1, 2);
     private static final int BITE_TICKS = 10;
-    private static final String ABILITY_REQUIRED = "The ability registry must hold nether_decay";
+    private static final String ABILITY_REQUIRED = "The ability registry must hold zombie_decay";
     private static final String SHOULD_CONVERT = "A full Decay hold should make the prism a hive, held '%s'";
     private static final String SHOULD_BITE = "Decay should bite the vindicator in its cone";
     /** The first run's ticks, short of the hold. */
@@ -66,7 +66,7 @@ public final class DecayPrismTests {
     /** The ticks the look leaves the prism between runs. */
     private static final int BREAK = 2;
     private static final String SHOULD_FOLLOW =
-            "The prism's decay look should stand part of the way in maroon, stands %.3f tint %x";
+            "The prism's decay look should stand part of the way in rot green, stands %.3f tint %x";
     private static final String SHOULD_RESTART =
             "The shorter second run's look should stand under the first's, restarting with the charge: %.3f after %.3f";
     /** prism-conversion-creeps-over-the-hold: the converting tick keeps the full look, so the prism never flashes quartz. */
@@ -122,12 +122,12 @@ public final class DecayPrismTests {
 
     /**
      * A bare prism on the floor and a player three blocks west of it, holding
-     * a glove and nether goo, looking at the prism's middle.
+     * a glove and zombie goo, looking at the prism's middle.
      */
     private static ServerPlayer streamer(GameTestHelper helper) {
         helper.setBlock(PRISM.below(), Blocks.STONE);
         helper.setBlock(PRISM, GooBlocks.PRISM.get().defaultBlockState().setValue(PrismBlock.FACING, Direction.UP));
-        ServerPlayer player = SelfDeliveryTests.invoker(helper, GooTypes.NETHER);
+        ServerPlayer player = SelfDeliveryTests.invoker(helper, GooTypes.ZOMBIE);
         KnownRecipes.teachRequires(player, AbilityRegistry.of(helper.getLevel()).getAbility(DECAY));
         Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(STAND));
         player.setPos(stand.x, stand.y, stand.z);
@@ -138,7 +138,7 @@ public final class DecayPrismTests {
     /**
      * A player streams Decay at a bare prism, breaks the hold, streams a
      * shorter run, breaks again, then holds to the conversion: after each run
-     * the prism's decay exposure stands part of the way in nether maroon, the
+     * the prism's decay exposure stands part of the way in zombie rot green, the
      * shorter second run's under the first's as it restarts with the charge,
      * and once the hive stands it holds the full look, which the hive's style
      * draws over.
@@ -170,7 +170,7 @@ public final class DecayPrismTests {
     }
 
     /**
-     * Asserts the prism's decay look stands part of the way, short of full, in nether maroon.
+     * Asserts the prism's decay look stands part of the way, short of full, in zombie rot green.
      *
      * @param helper the gametest helper
      * @return the share the look stands at
@@ -179,7 +179,7 @@ public final class DecayPrismTests {
         BlockPos prismAt = helper.absolutePos(PRISM);
         float share = exposures(helper).shareAt(helper.getLevel(), prismAt);
         int tint = exposures(helper).tintAt(helper.getLevel(), prismAt);
-        helper.assertTrue(share > 0f && share < 1f && tint == DegradeStep.NETHER_MAROON,
+        helper.assertTrue(share > 0f && share < 1f && tint == DegradeStep.ZOMBIE_ROT,
                 String.format(SHOULD_FOLLOW, share, tint));
         return share;
     }
@@ -199,7 +199,7 @@ public final class DecayPrismTests {
      * Sends one Decay stream tick a game tick for a run of ticks, as a held glove does.
      */
     private static void streamFor(GameTestHelper helper, ServerPlayer player, int from, int ticks) {
-        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.NETHER), DECAY.toString(),
+        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.ZOMBIE), DECAY.toString(),
                 player.getEyePosition(), player.getEyePosition());
         for (int at = from; at < from + ticks; at++) {
             helper.runAfterDelay(at, () -> GooStreamHandler.streamTick(player, tick));
