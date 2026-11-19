@@ -79,6 +79,7 @@ class AbilityPoseTableTest {
             Map.entry("quantum_phase", ArmPose.HELD_OUT),
             Map.entry("rock_bore", ArmPose.HELD_OUT),
             Map.entry("rock_level", ArmPose.HELD_OUT),
+            Map.entry("rock_mortar", ArmPose.HELD_OUT),
             Map.entry("rock_petrify", ArmPose.HELD_OUT),
             Map.entry("rock_build", ArmPose.RESTING),
             Map.entry("rock_stoneskin", ArmPose.HELD_UP),
