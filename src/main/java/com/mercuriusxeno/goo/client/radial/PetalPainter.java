@@ -37,7 +37,7 @@ final class PetalPainter {
      * @param petal    the petal's place on the ring
      * @param overlay  the ARGB tint telling hovered, resting and disabled apart
      */
-    static void paint(GuiGraphicsExtractor graphics, RadialWheelRenderer.Frame frame, PetalLook.FluidFace face,
+    static void paint(GuiGraphicsExtractor graphics, PetalCanvas frame, PetalLook.FluidFace face,
                       RadialWheel.PetalArc petal, int overlay) {
         PetalMask.Petal shape = petal.shape();
         Matrix3x2f pose = new Matrix3x2f(graphics.pose());
@@ -143,7 +143,7 @@ final class PetalPainter {
                 vertices, color, scissor, bounds(vertices, pose, scissor)));
     }
 
-    private static List<PetalRenderState.ScreenVertex> toScreen(RadialWheelRenderer.Frame frame,
+    private static List<PetalRenderState.ScreenVertex> toScreen(PetalCanvas frame,
                                                                 List<PetalMesh.Quad> quads,
                                                                 PetalLook.SpriteBox sprite) {
         List<PetalRenderState.ScreenVertex> vertices = new ArrayList<>(quads.size() * CORNERS_PER_QUAD);

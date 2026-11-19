@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.ability.program.CalcifyStep;
 import com.mercuriusxeno.goo.ability.program.Expr;
 import com.mercuriusxeno.goo.ability.program.PetrifyStep;
 import com.mercuriusxeno.goo.ability.program.Step;
+import com.mercuriusxeno.goo.item.SprayerFlow;
 import com.mercuriusxeno.goo.throwing.CoatRay;
 import com.mercuriusxeno.goo.throwing.ConvergingCone;
 import com.mercuriusxeno.goo.throwing.DripArc;
@@ -331,6 +332,30 @@ class GooStreamHandlerTest {
         @Test
         void theSwarmReachesAMobSevenBlocksOutPastWhereItPaints() {
             assertTrue(GooStreamHandler.inCone(EYE, LOOK, decay, mobAt(new Vec3(7, 0, 0))));
+        }
+    }
+
+    /**
+     * The sprayer's flow scales how many drips a tick it throws, over a hold
+     * (decision spray-item-sprays-more-or-less-per-tick).
+     */
+    @Nested
+    class FlowScalesTheDrips {
+
+        private static final int HOLD_TICKS = 20;
+        private final Delivery goop = AbilityJson.decode("weird_goop").delivery();
+
+        @Test
+        void higherFlowThrowsMoreDripsATick() {
+            int lowest = 0;
+            int highest = 0;
+            for (int held = 1; held <= HOLD_TICKS; held++) {
+                lowest += GooStreamHandler.dripsThisTick(null, goop, Optional.empty(), held,
+                        SprayerFlow.lowest().rate());
+                highest += GooStreamHandler.dripsThisTick(null, goop, Optional.empty(), held,
+                        SprayerFlow.highest().rate());
+            }
+            assertTrue(highest > lowest, "highest flow " + highest + " drips, lowest " + lowest);
         }
     }
 }
