@@ -62,7 +62,11 @@ public final class PhaseGooEvents {
             return;
         }
         boolean inGoo = heldByTheGoo(living);
-        PhaseShift shift = PhaseShift.of(inGoo, living.getData(GooAttachments.OUT_OF_PHASE), level.getGameTime());
+        // getData lays the default on a thing holding none, a synced attachment on every living thing, which a
+        // teleport then syncs to the player; a thing out of no goo and never phased holds none and gets none
+        OutOfPhase standing = living.hasData(GooAttachments.OUT_OF_PHASE)
+                ? living.getData(GooAttachments.OUT_OF_PHASE) : OutOfPhase.NONE;
+        PhaseShift shift = PhaseShift.of(inGoo, standing, level.getGameTime());
         if (inGoo) {
             phaseIn(level, living);
         } else if (shift == PhaseShift.INTO_PHASE) {
