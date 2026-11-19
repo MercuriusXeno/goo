@@ -53,7 +53,7 @@ public enum EntityFilter {
      */
     MOVING,
     /**
-     * Keeps mobs that can be a baby; Rewind regresses such an adult to a
+     * Keeps mobs that can be a baby; Revert regresses such an adult to a
      * baby before its egg (decision rewind-shrinks-adult-to-baby-to-egg).
      */
     HAS_BABY_FORM,
@@ -62,7 +62,7 @@ public enum EntityFilter {
      */
     NOT_BABY,
     /**
-     * Keeps mobs whose type has a spawn egg; Rewind leaves any other mob
+     * Keeps mobs whose type has a spawn egg; Revert leaves any other mob
      * alone, since it cannot become an egg.
      * rewind-shrinks-adult-to-baby-to-egg
      */

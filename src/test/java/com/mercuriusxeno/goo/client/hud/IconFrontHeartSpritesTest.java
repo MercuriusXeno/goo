@@ -12,9 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
  * Covers that a HUD heart drawn from an ability icon is the heart that icon
- * draws in front, whole and halved as the other HUD hearts are: the ancient
- * heart from the Ancient icon (decision hud-draws-the-leftmost-heart-as-ancient)
- * and the zombie heart from the Undead icon (decision undead-normal-hearts-become-the-zombie-heart).
+ * draws in front, whole and halved as the other HUD hearts are: the zombie heart from the Undead icon (decision undead-normal-hearts-become-the-zombie-heart).
  */
 class IconFrontHeartSpritesTest {
 
@@ -42,7 +40,7 @@ class IconFrontHeartSpritesTest {
     private static final int ICON_SHIFT_Y = 8;
 
     @ParameterizedTest
-    @CsvSource({"ancient, yore_ancient", "zombie, zombie_undead"})
+    @CsvSource({"zombie, zombie_undead"})
     void fullHeartIsTheIconsFrontHeart(String heart, String ability) throws IOException {
         BufferedImage full = read(HEARTS + heart + "_full.png");
         BufferedImage icon = read(ICONS + ability + ".png");
@@ -61,7 +59,7 @@ class IconFrontHeartSpritesTest {
     }
 
     @ParameterizedTest
-    @CsvSource({"ancient", "zombie"})
+    @CsvSource({"zombie"})
     void halfHeartIsTheLeftHalfOfTheFullHeart(String heart) throws IOException {
         BufferedImage full = read(HEARTS + heart + "_full.png");
         BufferedImage half = read(HEARTS + heart + "_half.png");

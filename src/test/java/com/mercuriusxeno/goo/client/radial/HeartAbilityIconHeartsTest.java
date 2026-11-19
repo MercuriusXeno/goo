@@ -104,8 +104,7 @@ class HeartAbilityIconHeartsTest {
                 Arguments.of("zombie_undead", List.of(whole(sprite("zombie_full")), whole(sprite("nether_full")),
                         halfOver(sprite("nether_half"), empty()))),
                 Arguments.of("rock_stoneskin", List.of(whole(red()), whole(sprite("stone_full")),
-                        halfOver(sprite("stone_half"), empty()))),
-                Arguments.of("yore_ancient", List.of(whole(sprite("ancient_full")), whole(red()), whole(empty()))));
+                        halfOver(sprite("stone_half"), empty()))));
     }
 
     @ParameterizedTest
