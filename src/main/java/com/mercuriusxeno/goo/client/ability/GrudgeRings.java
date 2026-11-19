@@ -13,8 +13,9 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
 /**
  * The Grudges pulsing on this client: each bursts a ring of crimson fog
  * flat out from its caster's middle to the reach its charge resolved, two
- * tones of blood red with the darker one smoldering, and a puff of smoke at
- * the heart of it, a curse rather than a frost.
+ * tones of blood red with the darker one smoldering, and smoke spreading
+ * low and flat beneath it from the caster's feet, clear of the caster's
+ * view, a curse rather than a frost.
  * grudge-is-a-charged-crimson-nova-dealing-your-missing-health
  */
 public final class GrudgeRings {
@@ -33,9 +34,19 @@ public final class GrudgeRings {
     private static final double SPEED_SPREAD = 0.2;
     /** How far above or below the middle a puff may start, a thin band rather than a sheet. */
     private static final double BAND = 0.15;
-    /** Smoke puffs at the ring's heart. */
-    private static final int HEART_SMOKE = 12;
-    private static final double HEART_SMOKE_SPEED = 0.05;
+    /** Smoke puffs per block of the ring's reach, and the fewest a small ring sends. */
+    private static final int SMOKE_PER_BLOCK = 4;
+    private static final int MIN_SMOKE = 8;
+    /**
+     * The blocks a large smoke puff launched at one block a tick travels as
+     * its friction of 0.96 a tick slows it, so the smoke trails the ring's edge.
+     */
+    private static final double SMOKE_TRAVEL_PER_SPEED = 20;
+    /**
+     * How far below the caster's middle the smoke starts, down by the feet,
+     * so it spreads low and flat and never rises through the caster's view.
+     */
+    private static final double SMOKE_DROP = 0.7;
     private static final double TWO_PI = 2 * Math.PI;
 
     private GrudgeRings() {
@@ -78,10 +89,12 @@ public final class GrudgeRings {
                     center.x, center.y + BAND * (random.nextDouble() - random.nextDouble()), center.z,
                     Math.cos(angle) * launch, 0, Math.sin(angle) * launch);
         }
-        for (int i = 0; i < HEART_SMOKE; i++) {
-            double angle = TWO_PI * random.nextDouble();
-            level.addParticle(ParticleTypes.LARGE_SMOKE, center.x, center.y, center.z,
-                    Math.cos(angle) * HEART_SMOKE_SPEED, HEART_SMOKE_SPEED, Math.sin(angle) * HEART_SMOKE_SPEED);
+        int smokes = Math.max(MIN_SMOKE, Math.round(reach * SMOKE_PER_BLOCK));
+        double smokeSpeed = reach / SMOKE_TRAVEL_PER_SPEED;
+        for (int i = 0; i < smokes; i++) {
+            double angle = TWO_PI * (i + random.nextDouble()) / smokes;
+            level.addParticle(ParticleTypes.LARGE_SMOKE, center.x, center.y - SMOKE_DROP, center.z,
+                    Math.cos(angle) * smokeSpeed, 0, Math.sin(angle) * smokeSpeed);
         }
     }
 }
