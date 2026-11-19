@@ -6,7 +6,6 @@
   "order": 30,
   "cost": 96,
   "cost_formula": "%s/m³",
-  "requires": ["minecraft:breeze_rod"],
   "delivery": {
     "kind": "stream",
     "range": 6,

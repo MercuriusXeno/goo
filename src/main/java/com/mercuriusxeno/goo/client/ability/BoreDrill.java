@@ -1,9 +1,10 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.program.BoreDrillShape;
 import com.mercuriusxeno.goo.ability.program.BorePoint;
 import com.mercuriusxeno.goo.ability.program.BoreStep;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.throwing.GloveAim;
@@ -14,13 +15,10 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.EventPriority;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+import org.joml.Matrix4fc;
 import org.jspecify.annotations.Nullable;
 import java.util.Optional;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 /**
@@ -47,7 +45,6 @@ import java.util.function.Predicate;
  * decision bore-breaks-what-is-in-the-vortex
  * decision bore-vortex-with-a-worldspace-shake
  */
-@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class BoreDrill {
 
     /** The volume's section count, unread by the march, which needs none. */
@@ -58,6 +55,8 @@ public final class BoreDrill {
     static final double FADE_IN_TICKS = 6;
     /** Ticks the vortex takes to disperse once the bore ends. */
     static final double FADE_OUT_TICKS = 10;
+    /** Half the vortex's length, where its middle stands for the sort. */
+    private static final double HALF = 0.5;
 
     /** How much of the vortex shows, 0 to 1, and the game time it was last drawn at. */
     private static double presence;
@@ -167,17 +166,24 @@ public final class BoreDrill {
     }
 
     /**
-     * Draws the vortex once the level is drawn while a bore runs: after the
-     * ground shake has drawn its blocks, so the blocks it is breaking never
-     * paint over it, and after the clouds and weather, all farther than the
-     * vortex reaches, so they sort behind its translucent dust, which writes
-     * no depth they could test against.
+     * Hands the shared path the vortex while a bore runs or while it
+     * disperses, sorted by the middle of its cone. The ground shake draws its
+     * blocks with the opaque blocks, before every far-to-near visual, so the
+     * blocks the drill is breaking never paint over it; and the path draws it
+     * after the clouds and weather, all farther than the vortex reaches, so
+     * they sort behind its translucent dust, which writes no depth they could
+     * test against.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
      * decision diagnose-and-correct-bore-behaving-weirdly-close-to-things
      *
-     * @param event the level render stage event
+     * @param frame the frame being drawn
+     * @param draws where the vortex's draw goes
      */
-    @SubscribeEvent(priority = EventPriority.LOWEST)
-    public static void onAfterLevel(RenderLevelStageEvent.AfterLevel event) {
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
+        // It drew only at AfterLevel, which a portal view's pass never posts; the path runs AfterLevel routes there.
+        if (PortalView.drawing()) {
+            return;
+        }
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
         if (player == null || mc.level == null) {
@@ -186,16 +192,28 @@ public final class BoreDrill {
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         boolean held = holdsBore(player);
         updatePresence(held, mc.level.getGameTime() + partialTick);
-        if (presence <= 0 || lastStep == null) {
+        BoreStep step = lastStep;
+        if (presence <= 0 || step == null) {
             return;
         }
+        draws.accept(sortedDrawOf(vortexOf(mc, player, step, partialTick, held), presence, frame.modelView()));
+    }
+
+    private static ConeSections.Volume vortexOf(Minecraft mc, LocalPlayer player, BoreStep step, float partialTick,
+                                                boolean held) {
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
         ConeSections.Volume full = volume(CastOrigin.ofLocal(mc).subtract(camera),
-                pointAhead(mc.level, CameraEye.of(mc, player, partialTick), lastStep,
+                pointAhead(mc.level, CameraEye.of(mc, player, partialTick), step,
                         GooCasters.casterOnTheRight(player), lastReach).subtract(camera),
-                lastStep.shape(), player.getViewYRot(partialTick));
+                step.shape(), player.getViewYRot(partialTick));
         double poured = held ? emergedShare(GloveUseTracker.channelTicks() + partialTick) : 1;
-        BoreDrillPass.draw(emerged(full, poured), presence, event.getModelViewMatrix());
+        return emerged(full, poured);
+    }
+
+    // The vortex is laid out about the camera, so its middle's length is its distance from the camera.
+    private static SortedDraw sortedDrawOf(ConeSections.Volume vortex, double shown, Matrix4fc modelView) {
+        Vec3 middle = vortex.apex().add(vortex.axis().scale(vortex.range() * HALF));
+        return new SortedDraw(middle.lengthSqr(), () -> BoreDrillPass.draw(vortex, shown, modelView));
     }
 
     /**

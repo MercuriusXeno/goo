@@ -91,13 +91,29 @@ public final class SprayPrograms {
      * @param ability the sprayed ability
      */
     public static void burst(ServerLevel level, Vec3 center, double radius, AbilityDefinition ability) {
+        burst(level, center, radius, ability, null);
+    }
+
+    /**
+     * Bursts the ability's spray in a sphere, its effects on the living
+     * crediting a player: a death Spores goo fed credits the cell's placer.
+     * mobs-on-spores-goo-turn-death-into-shrooms-and-mycelium
+     *
+     * @param level    the server level
+     * @param center   the burst's center
+     * @param radius   the burst's reach in blocks
+     * @param ability  the sprayed ability
+     * @param creditor the player the burst credits, or null for none
+     */
+    public static void burst(ServerLevel level, Vec3 center, double radius, AbilityDefinition ability,
+                             @Nullable Entity creditor) {
         ability.delivery().particle().flatMap(SimpleParticles::resolve).ifPresent(particle -> level.sendParticles(particle,
                 center.x, center.y + BURST_LIFT, center.z, BURST_PARTICLES, radius, BURST_RISE, radius,
                 BURST_SPEED));
         AABB reach = new AABB(center, center).inflate(radius);
         for (LivingEntity living : level.getEntitiesOfClass(LivingEntity.class, reach,
                 living -> living.isAlive() && living.position().distanceTo(center) <= radius)) {
-            runOnLiving(level, living, null, ability);
+            runOnLiving(level, living, creditor, ability);
         }
         runOnFloors(level, FloorReach.inSphere(center, radius, cell -> FloorReach.isOpenFloor(level, cell)), center,
                 ability);

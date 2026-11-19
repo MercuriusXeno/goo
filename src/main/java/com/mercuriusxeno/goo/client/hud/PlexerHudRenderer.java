@@ -1,32 +1,27 @@
 package com.mercuriusxeno.goo.client.hud;
 
-import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.block.plexer.PlexerBlock;
 import com.mercuriusxeno.goo.block.plexer.PlexerBlockEntity;
 import com.mercuriusxeno.goo.client.ClientGooValues;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.network.PlayerKnowledge;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
-import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * Renders an in-world HUD panel on the plexer's front reading what one operation on its target
  * costs while the crosshair rests anywhere on the plexer (decision plexer-target-shows-in-a-hud-element).
  */
-@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class PlexerHudRenderer {
 
     private static final HudAnimator<BlockPos> ANIMATOR = new HudAnimator<>(BlockPos::equals);
@@ -35,12 +30,15 @@ public final class PlexerHudRenderer {
     }
 
     /**
-     * Renders the plexer HUD after opaque features are drawn.
+     * Moves the panel's animation on a frame and hands the shared path the
+     * plexer's panel, sorted by its anchor in the plexer's mouth.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
+     * decision plexer-panel-floats-in-the-mouth
      *
-     * @param event the event instance
+     * @param frame the frame being drawn
+     * @param draws where the panel's draw goes
      */
-    @SubscribeEvent
-    public static void onAfterOpaqueFeatures(RenderLevelStageEvent.AfterOpaqueFeatures event) {
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
         ANIMATOR.tick(PlexerPanelTarget.trackedPos(hitPos(), PlexerHudRenderer::holdsTarget));
         BlockPos pos = ANIMATOR.tracked();
         if (pos == null) {
@@ -51,9 +49,15 @@ public final class PlexerHudRenderer {
             ANIMATOR.clear();
             return;
         }
+        List<PanelRow> rows = PlexerPanelRows.rows(
+                ClientGooValues.current().lookup(PlayerKnowledge.idOf(plexer.getTargetItem().getItem())));
+        if (rows.isEmpty()) {
+            return;
+        }
         Camera camera = Minecraft.getInstance().gameRenderer.getMainCamera();
-        paintPanel(event.getPoseStack(), camera, pos, plexer.getBlockState().getValue(PlexerBlock.FACING),
-                plexer.getTargetItem());
+        PanelPlacement placement = placementOf(pos, plexer.getBlockState().getValue(PlexerBlock.FACING), rows);
+        draws.accept(new SortedDraw(placement.anchor().distanceToSqr(camera.position()),
+                () -> PanelPainter.paint(frame.poseStack(), camera, placement, rows, PlexerPanelTarget.MOUTH_HEIGHT)));
     }
 
     /**
@@ -89,27 +93,18 @@ public final class PlexerHudRenderer {
     }
 
     /**
-     * Paints the target's cost flat on the plexer's front, floating in the mouth under the cutaway.
+     * Where the target's cost lies flat on the plexer's front, floating in the mouth under the cutaway.
      * decision plexer-panel-floats-in-the-mouth
      * decision plexer-hud-shows-the-cost-alone
      *
-     * @param poseStack the pose stack for rendering
-     * @param camera    the render camera
-     * @param pos       the plexer's position
-     * @param facing    the plexer's FACING
-     * @param target    the plexer's target item
+     * @param pos    the plexer's position
+     * @param facing the plexer's FACING
+     * @param rows   the panel's rows
+     * @return the panel's placement
      */
-    private static void paintPanel(PoseStack poseStack, Camera camera, BlockPos pos, Direction facing,
-                                   ItemStack target) {
-        List<PanelRow> rows = PlexerPanelRows.rows(
-                ClientGooValues.current().lookup(PlayerKnowledge.idOf(target.getItem())));
-        if (rows.isEmpty()) {
-            return;
-        }
+    private static PanelPlacement placementOf(BlockPos pos, Direction facing, List<PanelRow> rows) {
         double laidHeight = PanelPainter.measure(rows, Minecraft.getInstance().font::width).height()
                 * InWorldHud.PIXEL_SCALE;
-        PanelPainter.paint(poseStack, camera,
-                PlexerPanelTarget.placement(pos, facing, laidHeight, ANIMATOR.pitch(), ANIMATOR.opacity()),
-                rows, PlexerPanelTarget.MOUTH_HEIGHT);
+        return PlexerPanelTarget.placement(pos, facing, laidHeight, ANIMATOR.pitch(), ANIMATOR.opacity());
     }
 }

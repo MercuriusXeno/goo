@@ -1,6 +1,9 @@
 package com.mercuriusxeno.goo.client.entity;
 
+import com.mercuriusxeno.goo.client.GlowQueue;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.ability.ColorSphere;
 import com.mercuriusxeno.goo.entity.Meteor;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -13,11 +16,15 @@ import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.phys.Vec3;
+import java.util.function.Consumer;
 
 /**
  * Draws Meteo's meteor as a burning rock: a tumbling block of dark stone
  * whose faces glow ember toward its leading underside, wrapped in a halo of
  * fire, so it reads as a rock on fire both while it hangs and as it drops.
+ * The rock writes its depth and draws with the entity; the halo writes none,
+ * so the renderer queues it for the shared path, which draws it after the
+ * clouds (operator ruling 2026-11-18).
  * decision meteo-winds-up-then-drops-in-a-second-trailing-fire
  */
 public class MeteorRenderer extends EntityRenderer<Meteor, MeteorRenderer.MeteorRenderState> {
@@ -42,6 +49,7 @@ public class MeteorRenderer extends EntityRenderer<Meteor, MeteorRenderer.Meteor
     private static final int X = 0;
     private static final int Y = 1;
     private static final int Z = 2;
+    private static final GlowQueue QUEUED = new GlowQueue();
 
     /**
      * @param context the renderer context
@@ -82,7 +90,8 @@ public class MeteorRenderer extends EntityRenderer<Meteor, MeteorRenderer.Meteor
                        CameraRenderState camera) {
         poseStack.pushPose();
         poseStack.translate(0, ROCK_SIZE * HALF, 0);
-        collector.submitCustomGeometry(poseStack, GooRenderTypes.GLOW_SHELL_TYPE, (pose, buffer) ->
+        Vec3 rock = new Vec3(state.x, state.y + ROCK_SIZE * HALF, state.z).add(state.pathOffset);
+        QUEUED.queue(poseStack.last().copy(), rock, GooRenderTypes.GLOW_SHELL_TYPE, (pose, buffer) ->
                 ColorSphere.emit(pose, buffer, Vec3.ZERO, HALO_RADIUS, ARGB.color(HALO_ALPHA, HALO_RGB)));
         poseStack.mulPose(Axis.XP.rotationDegrees(state.ageInTicks * TUMBLE_X));
         poseStack.mulPose(Axis.ZP.rotationDegrees(state.ageInTicks * TUMBLE_Z));
@@ -90,6 +99,21 @@ public class MeteorRenderer extends EntityRenderer<Meteor, MeteorRenderer.Meteor
         collector.submitCustomGeometry(poseStack, GooRenderTypes.METEOR_ROCK_TYPE, MeteorRenderer::emitRock);
         poseStack.popPose();
         super.submit(state, poseStack, collector, camera);
+    }
+
+    /**
+     * Hands the shared path one draw for each meteor's halo of fire queued
+     * this frame, each sorted by the camera's distance to its rock's center,
+     * then empties the queue.
+     * decision diagnose-and-correct-translucent-goo-visuals-that-depth-sort-wrong
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
+     * decision meteo-winds-up-then-drops-in-a-second-trailing-fire
+     *
+     * @param frame the frame being drawn
+     * @param draws where each halo's draw goes
+     */
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
+        QUEUED.drain(frame, draws);
     }
 
     /**

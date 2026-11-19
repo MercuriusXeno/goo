@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:held_bounces_peak_proportionately_to_gravity",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 2000,
+  "setup_ticks": 0,
+  "required": true
+}
