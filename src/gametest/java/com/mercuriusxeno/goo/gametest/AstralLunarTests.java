@@ -249,10 +249,11 @@ public final class AstralLunarTests {
 
     /**
      * By a night the overworld's clock stands still, a caster the moon carries stands on lunar at the landing the
-     * night's phase and tick and their overworld spot answer; letting go of a pull on the blue star they stay on lunar
+     * night's phase and tick and their account UUID answer; letting go of a pull on the blue star they stay on lunar
      * with their way home kept, and holding the star through after that, they stand at the exact place and facing they
      * left from, marked as arrived anew.
      * decision time-and-phase-set-x-and-your-overworld-spot-sets-z
+     * decision z-is-a-function-of-the-account-uuid
      *
      * @param helper the gametest helper
      */
@@ -274,7 +275,7 @@ public final class AstralLunarTests {
         helper.runAfterDelay(starFrom, () -> {
             LunarLanding.Spot landing = LunarLanding.at(overworld.environmentAttributes()
                     .getValue(EnvironmentAttributes.MOON_PHASE, leftFrom).index(),
-                    LunarLanding.nightTickAt(overworld.getOverworldClockTime()), leftFrom.x, leftFrom.z);
+                    LunarLanding.nightTickAt(overworld.getOverworldClockTime()), caster.getUUID());
             boolean landed = caster.level().dimension() == Lunar.LEVEL
                     && Math.abs(caster.getX() - landing.x()) < SAME_SPOT
                     && Math.abs(caster.getZ() - landing.z()) < SAME_SPOT;
