@@ -22,6 +22,7 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.event.EventHooks;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
@@ -52,7 +53,7 @@ public record SlimeTransmuteStep(ResourceKey<GooTypeDefinition> goo, boolean hos
     private static final String FIELD_MORPH_TICKS = "morph_ticks";
     private static final String FIELD_STEPS = "steps";
     /** Game ticks a goo morph takes where the JSON names none. */
-    static final int DEFAULT_MORPH_TICKS = 16;
+    public static final int DEFAULT_MORPH_TICKS = 16;
     /** A whole turn, in degrees, over which the born mob's facing is drawn. */
     private static final float FULL_TURN_DEGREES = 360f;
 
@@ -84,15 +85,48 @@ public record SlimeTransmuteStep(ResourceKey<GooTypeDefinition> goo, boolean hos
         LivingEntity target = host.target();
         if (takesEntity(target) && target.level() instanceof ServerLevel level) {
             Slime slime = (Slime) target;
-            BlockPos cell = slime.blockPosition();
-            Vec3 morphFrom = slime.getBoundingBox().getCenter();
-            NaturalSpawns.drawAt(level, cell, level.getRandom(), categoryFilter(hostile), type -> type != EntityType.SLIME)
-                    .ifPresent(type -> {
-                        slime.discard();
-                        bear(level, type, cell, morphFrom, host.thrower());
-                    });
+            NaturalSpawns.drawAt(level, slime.blockPosition(), level.getRandom(), categoryFilter(hostile),
+                    type -> type != EntityType.SLIME)
+                    .flatMap(type -> transmute(level, slime, type, goo, morphTicks))
+                    .ifPresent(born -> runOn(level, born, host.thrower()));
         }
         return true;
+    }
+
+    /**
+     * Transmutes a slime into a mob of a type: the slime is consumed, and a
+     * mob of the type stands in its cell while the players watching see the
+     * goo morph into it from where the slime stood. Shape's blob and a slime
+     * standing on Stitch both turn a slime this way.
+     * spawn-hostile-shape-peaceful-from-a-slime
+     * stitch-is-yarns-residual-that-turns-slimes-into-passive-mobs
+     * model-transformation-is-one-animation
+     *
+     * @param level      the level
+     * @param slime      the slime
+     * @param type       the type it becomes
+     * @param goo        the goo type that morphs into the mob
+     * @param morphTicks the game ticks the morph takes
+     * @return the mob born, empty where the type makes none
+     */
+    public static Optional<Entity> transmute(ServerLevel level, Slime slime, EntityType<?> type,
+                                             ResourceKey<GooTypeDefinition> goo, int morphTicks) {
+        Entity entity = type.create(level, EntitySpawnReason.MOB_SUMMONED);
+        if (entity == null) {
+            return Optional.empty();
+        }
+        BlockPos cell = slime.blockPosition();
+        Vec3 morphFrom = slime.getBoundingBox().getCenter();
+        slime.discard();
+        Vec3 feet = Vec3.atBottomCenterOf(cell);
+        entity.snapTo(feet.x, feet.y, feet.z, level.getRandom().nextFloat() * FULL_TURN_DEGREES, 0f);
+        if (entity instanceof Mob mob) {
+            EventHooks.finalizeMobSpawn(mob, level, level.getCurrentDifficultyAt(cell), EntitySpawnReason.MOB_SUMMONED,
+                    null);
+        }
+        TransformationPayload morph = new TransformationPayload(goo, morphFrom, morphFrom, entity.getId(), morphTicks);
+        spawnAnnounced(entity, () -> BlockVisuals.sendToWatchers(level, cell, morph), level::addFreshEntity);
+        return Optional.of(entity);
     }
 
 
@@ -120,34 +154,17 @@ public record SlimeTransmuteStep(ResourceKey<GooTypeDefinition> goo, boolean hos
     }
 
     /**
-     * Makes a mob of the type standing in the slime's cell, announces the goo
-     * morphing into it, adds it to the level and runs the steps on it,
-     * hosted with the slime's thrower so a hit among them names the player
-     * behind the goo.
+     * Runs the steps on the born mob, hosted with the slime's thrower so a
+     * hit among them names the player behind the goo.
      * direct-goo-hit-credits-its-caster
      * goo-hit-keeps-its-kind-and-names-the-player-behind-it
      *
-     * @param level     the level
-     * @param type      the type drawn
-     * @param cell      the cell the mob stands in
-     * @param morphFrom where the goo morphs from, the slime's center
-     * @param thrower   the entity that threw the goo at the slime, or null when unknown
+     * @param level   the level
+     * @param born    the mob the slime became
+     * @param thrower the entity that threw the goo at the slime, or null when unknown
      */
-    private void bear(ServerLevel level, EntityType<?> type, BlockPos cell, Vec3 morphFrom,
-                      @Nullable Entity thrower) {
-        Entity entity = type.create(level, EntitySpawnReason.MOB_SUMMONED);
-        if (entity == null) {
-            return;
-        }
-        Vec3 feet = Vec3.atBottomCenterOf(cell);
-        entity.snapTo(feet.x, feet.y, feet.z, level.getRandom().nextFloat() * FULL_TURN_DEGREES, 0f);
-        if (entity instanceof Mob mob) {
-            EventHooks.finalizeMobSpawn(mob, level, level.getCurrentDifficultyAt(cell), EntitySpawnReason.MOB_SUMMONED,
-                    null);
-        }
-        TransformationPayload morph = new TransformationPayload(goo, morphFrom, morphFrom, entity.getId(), morphTicks);
-        spawnAnnounced(entity, () -> BlockVisuals.sendToWatchers(level, cell, morph), level::addFreshEntity);
-        if (entity instanceof LivingEntity living && !steps.isEmpty()) {
+    private void runOn(ServerLevel level, Entity born, @Nullable Entity thrower) {
+        if (born instanceof LivingEntity living && !steps.isEmpty()) {
             new ProgramBehavior(steps).tick(new EntityHost(level, living, thrower));
         }
     }

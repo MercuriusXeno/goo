@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * through their codec, a counter step adds to one on the entity host and
  * refuses the marker host, and an expression reads one by its id
  * (decision rewind-fills-while-held). The step's write onto the entity is
- * proven by Rewind's gametests.
+ * proven by Revert's gametests.
  */
 class CounterStepTest {
 

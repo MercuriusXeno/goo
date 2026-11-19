@@ -10,9 +10,6 @@ import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.ability.LeadRelease;
 import com.mercuriusxeno.goo.ability.OwnMinions;
 import com.mercuriusxeno.goo.ability.ThrowRange;
-import com.mercuriusxeno.goo.ability.aging.Aging;
-import com.mercuriusxeno.goo.ability.aging.AgingTable;
-import com.mercuriusxeno.goo.ability.program.LeafSteps;
 import com.mercuriusxeno.goo.ability.program.ScanVisualStep;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.TargetGatedStep;
@@ -57,10 +54,6 @@ public final class GooThrowHandler {
 
     /** Cost of one throw (1 goo = 1,000 mB). */
     public static final int THROW_COST = 1000;
-    /** The cost of a refused throw, more than any inventory holds. */
-    public static final int REFUSED = Integer.MAX_VALUE;
-    // The refused price as an exact cost, which no inventory pays.
-    private static final GooFraction REFUSED_COST = GooFraction.of(REFUSED);
     /** How far off a gate's face a throw's face point may stand and still read as on it. */
     private static final double FACE_SLACK = 0.05;
 
@@ -506,7 +499,7 @@ public final class GooThrowHandler {
             // aim-and-shots-carry-through-linked-gates: a point through a gate is reached or refused, never capped
             double length = throughDistance(eye, hop.get(), payload.targetPoint());
             GooFraction cost = resolveThrowCost(player, payload, gooType);
-            if (length > range || refuses(player, payload, cost) || !validateSupply(player, gooType, cost)) {
+            if (length > range || !validateSupply(player, gooType, cost)) {
                 return;
             }
             depleteAndThrow(player, payload, gooType, length * length, cost);
@@ -515,7 +508,7 @@ public final class GooThrowHandler {
         Vec3 capped = pointThrownAt(eye, payload.targetPoint(), range);
         GooThrowPayload aimed = capped.equals(payload.targetPoint()) ? payload : payload.aimedAt(capped);
         GooFraction cost = resolveThrowCost(player, aimed, gooType);
-        if (refuses(player, aimed, cost) || !validateSupply(player, gooType, cost)) { return; }
+        if (!validateSupply(player, gooType, cost)) { return; }
         depleteAndThrow(player, aimed, gooType, eye.distanceToSqr(capped), cost);
     }
 
@@ -612,7 +605,7 @@ public final class GooThrowHandler {
             ResourceKey<GooTypeDefinition> gooType, double range) {
         if (!validateRange(player, payload, range)) { return; }
         GooFraction cost = resolveThrowCost(player, payload, gooType);
-        if (refuses(player, payload, cost) || !validateSupply(player, gooType, cost)) { return; }
+        if (!validateSupply(player, gooType, cost)) { return; }
         double distSq = targetDistanceSquared(player, payload, range);
         depleteAndThrow(player, payload, gooType, distSq, cost);
     }
@@ -633,7 +626,7 @@ public final class GooThrowHandler {
             ResourceKey<GooTypeDefinition> gooType, AbilityDefinition ability) {
         if (!validateRange(player, payload, ThrowRange.of(ability))) { return; }
         GooFraction cost = resolveThrowCost(player, payload, gooType);
-        if (refuses(player, payload, cost) || !validateSupply(player, gooType, cost)) { return; }
+        if (!validateSupply(player, gooType, cost)) { return; }
         AbilityCharges.charge(player, gooType, cost);
         consumeReagents(player, payload.abilityId(), gooType);
         GooEffectScheduler.castNow(player, payload, gooType);
@@ -716,27 +709,8 @@ public final class GooThrowHandler {
         if (Goo.LOGGER.isDebugEnabled()) { Goo.LOGGER.debug(LOG_NO_GOO, GooTypes.id(gooType)); }
     }
 
-    /**
-     * Whether a throw's price refuses it, fizzling where it was aimed: an
-     * aging throw at a block the aging table names not
-     * (decision old-blob-ages-valuables-slowly).
-     *
-     * @param player  the throwing player
-     * @param payload the throw payload
-     * @param cost    the resolved cost
-     * @return true when the throw is refused
-     */
-    private static boolean refuses(ServerPlayer player, GooThrowPayload payload, GooFraction cost) {
-        if (!cost.equals(REFUSED_COST)) { return false; }
-        Aging.fizzle(player.level(), payload.targetPos());
-        return true;
-    }
-
     /** Resolves the throw cost from the ability definition, falling back to THROW_COST.
-     * An aging throw costs the aging table's price for the block it is aimed
-     * at, and {@link #REFUSED} where the table names none, which no
-     * inventory can pay (decision old-blob-ages-valuables-slowly). A Lead
-     * throw releasing the thrower's own led mob costs nothing
+     * A Lead throw releasing the thrower's own led mob costs nothing
      * (decision rally-release-cast-costs-nothing).
      *
      * @param player  the throwing player
@@ -750,23 +724,8 @@ public final class GooThrowHandler {
         if (def == null) { return GooFraction.of(THROW_COST); }
         Entity aimed = payload.targetEntityId() >= 0 ? player.level().getEntity(payload.targetEntityId()) : null;
         if (LeadRelease.releasesOwnLead(def.behaviors(), player, aimed)) { return GooFraction.ZERO; }
-        if (ages(def)) {
-            return GooFraction.of(AgingTable.priceOf(player.level().getBlockState(payload.targetPos()))
-                    .orElse(REFUSED));
-        }
         // ability-cost-builds-as-a-one-type-by-type-value, click-costs-one-mb-and-nothing-under-sculker
         return def.costFor(player.getData(GooAttachments.HELD_EFFECTS)::holds, GooValues.of(player.level()));
-    }
-
-    /**
-     * Whether an ability's program starts an aging, so its price is the
-     * aging table's.
-     *
-     * @param def the ability
-     * @return true for an aging ability
-     */
-    static boolean ages(AbilityDefinition def) {
-        return def.behaviors().stream().anyMatch(step -> step.type() == LeafSteps.AGE.type());
     }
 
     /**

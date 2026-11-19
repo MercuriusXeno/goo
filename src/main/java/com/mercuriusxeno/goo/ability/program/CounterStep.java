@@ -12,7 +12,7 @@ import java.util.stream.Stream;
 
 /**
  * Adds to or sets a named counter the host's target keeps between hits,
- * and finishes; an expression reads the counter back by its id, so Rewind's
+ * and finishes; an expression reads the counter back by its id, so Revert's
  * ritual writes {@code counter id=goo:ritual add=1.25},
  * tests {@code goo:ritual}, and restarts it with {@code counter set=0}
  * (decision rewind-fills-while-held). A step names exactly one of

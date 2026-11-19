@@ -11,7 +11,7 @@ import java.util.stream.Stream;
 /**
  * Runs one of two step lists the tick it is reached, then finishes: the
  * {@code then} list when {@code when} reads nonzero, the {@code otherwise}
- * list when it reads zero. Rewind's ritual branches on
+ * list when it reads zero. Revert's ritual branches on
  * {@code at_least(goo:ritual, 100)} (decision rewind-fills-while-held).
  *
  * <p>The chosen list runs to completion within the tick, as a target

@@ -11,8 +11,9 @@ package com.mercuriusxeno.goo.block.ability;
  * smites the undead touching it; leech slows a thing caught in it; spikes
  * stands as ordinary ground and impales what walks on it; vines stands as
  * ordinary ground and entangles what crosses it; phase stands as ordinary
- * ground and puts what stands in it out of phase; Dowsing is ordinary
- * ground. A goo type binding a world goo to the cell names one.
+ * ground and puts what stands in it out of phase; stitch stands as ordinary
+ * ground, lets a passive pass and tangles a hostile in it; Dowsing is
+ * ordinary ground. A goo type binding a world goo to the cell names one.
  * slime-and-slick-are-one-volume-cell-tech
  * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
  * shatter-is-splattered-goo-and-shards-form-over-the-splatters
@@ -49,6 +50,11 @@ public enum CellSurface {
     ENTANGLE(Frictions.ORDINARY_GROUND),
     /** Phase's: ordinary ground underfoot, it puts what stands in it out of phase. */
     PHASE(Frictions.ORDINARY_GROUND),
+    /**
+     * Stitch's: ordinary ground underfoot, a passive passes it and a hostile in it is tangled in strands.
+     * passives-move-through-stitch-and-hostiles-tangle-in-it
+     */
+    TANGLE(Frictions.ORDINARY_GROUND),
     /**
      * Dowsing's: ordinary ground underfoot that neither bounces nor ramps;
      * the cell works on the eye looking through it, not on what stands on it.
@@ -134,6 +140,13 @@ public enum CellSurface {
      */
     public boolean phases() {
         return this == PHASE;
+    }
+
+    /**
+     * @return true where the cell tangles a hostile in it and lets a passive pass
+     */
+    public boolean tangles() {
+        return this == TANGLE;
     }
 
     /** The frictions the surfaces stand at, held apart so the constants above can read them. */
