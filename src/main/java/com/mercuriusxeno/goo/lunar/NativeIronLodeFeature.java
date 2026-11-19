@@ -102,19 +102,30 @@ public final class NativeIronLodeFeature extends Feature<NoneFeatureConfiguratio
      * @return the next block, or null where no breccia borders the lode
      */
     private static BlockPos nextLodeBlock(WorldGenLevel level, List<BlockPos> lode, RandomSource random) {
-        List<BlockPos> facing = new ArrayList<>();
-        List<BlockPos> buried = new ArrayList<>();
+        List<BlockPos> beside = brecciaBeside(level, lode);
+        List<BlockPos> facing = beside.stream().filter(spot -> touchesAir(level, spot)).toList();
+        List<BlockPos> pool = facing.isEmpty() ? beside : facing;
+        return pool.isEmpty() ? null : pool.get(random.nextInt(pool.size()));
+    }
+
+    /**
+     * The breccia blocks bordering the lode, outside it.
+     *
+     * @param level the level being generated
+     * @param lode the lode's blocks so far
+     * @return the breccia beside the lode
+     */
+    private static List<BlockPos> brecciaBeside(WorldGenLevel level, List<BlockPos> lode) {
+        List<BlockPos> beside = new ArrayList<>();
         for (BlockPos block : lode) {
             for (Direction side : Direction.values()) {
-                BlockPos beside = block.relative(side);
-                if (!isBreccia(level, beside) || lode.contains(beside)) {
-                    continue;
+                BlockPos spot = block.relative(side);
+                if (isBreccia(level, spot) && !lode.contains(spot) && !beside.contains(spot)) {
+                    beside.add(spot);
                 }
-                (touchesAir(level, beside) ? facing : buried).add(beside);
             }
         }
-        List<BlockPos> pool = facing.isEmpty() ? buried : facing;
-        return pool.isEmpty() ? null : pool.get(random.nextInt(pool.size()));
+        return beside;
     }
 
     private static boolean isBreccia(WorldGenLevel level, BlockPos spot) {
