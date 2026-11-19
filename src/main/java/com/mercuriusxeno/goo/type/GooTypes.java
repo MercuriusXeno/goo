@@ -86,8 +86,9 @@ public final class GooTypes {
     public static final ResourceKey<GooTypeDefinition> TYPHOON = bundled("typhoon");
     public static final ResourceKey<GooTypeDefinition> UNSTABLE = bundled("unstable");
     /**
-     * Void comes from no item: astral and deep react into it.
+     * Void comes from its items: chorus fruit, chorus plants, shulker shells and void-touched spawn eggs.
      * decision void-ships-from-astral-and-deep
+     * decision void-reaction-leaves-with-deep
      */
     public static final ResourceKey<GooTypeDefinition> VOID = bundled("void");
     public static final ResourceKey<GooTypeDefinition> WEIRD = bundled("weird");

@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -65,16 +66,30 @@ class GooReactionTest {
     }
 
     /**
-     * Void's only source is the reaction of astral and deep, one of each giving two void
-     * (decision void-ships-from-astral-and-deep).
+     * No reaction makes void, whose source is its items, and none names deep.
+     * decision void-reaction-leaves-with-deep
      */
     @Test
-    void voidReactionTakesAstralAndDeepAndGivesTwoVoid() throws IOException, URISyntaxException {
-        GooReaction reaction = shippedReactions().get("void_from_astral_deep");
-        assertNotNull(reaction, "void_from_astral_deep is not shipped");
-        assertEquals(Map.of(GooTypes.ASTRAL, 1, GooTypes.DEEP, 1), amounts(reaction.inputs()));
-        assertEquals(Map.of(GooTypes.VOID, 2), amounts(reaction.outputs()));
-        assertEquals(1, reaction.rate());
+    void noReactionMakesVoidOrNamesDeep() throws IOException, URISyntaxException {
+        Object deep = GooTypes.bundled("deep");
+        List<String> offending = shippedReactions().entrySet().stream()
+                .filter(entry -> names(entry.getValue().outputs()).contains(GooTypes.VOID)
+                        || names(entry.getValue().inputs()).contains(deep)
+                        || names(entry.getValue().outputs()).contains(deep))
+                .map(Map.Entry::getKey).sorted().toList();
+        assertEquals(List.of(), offending);
+    }
+
+    /**
+     * The one reaction making metal takes crystal and rock alone.
+     * decision metal-reacts-from-crystal-and-rock-alone
+     */
+    @Test
+    void metalReactsFromCrystalAndRockAlone() throws IOException, URISyntaxException {
+        List<GooReaction> metal = shippedReactions().values().stream()
+                .filter(reaction -> names(reaction.outputs()).contains(GooTypes.METAL)).toList();
+        assertEquals(1, metal.size(), "reactions making metal");
+        assertEquals(Set.of(GooTypes.CRYSTAL, GooTypes.ROCK), Set.copyOf(names(metal.get(0).inputs())));
     }
 
     /**
