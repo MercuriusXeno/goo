@@ -1,9 +1,10 @@
 package com.mercuriusxeno.goo.client.overlay;
 
-import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.block.gasket.IGasketHolder;
 import com.mercuriusxeno.goo.client.CuboidBounds;
 import com.mercuriusxeno.goo.client.LineContext;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.item.gasket.ChoralTunerItem;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -18,10 +19,7 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+import java.util.function.Consumer;
 
 /**
  * Renders translucent overlay quads on gasket face regions when the player
@@ -29,7 +27,6 @@ import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
  * orange = TRANSMITTER. Only the single region under the crosshair is shown.
  * Connected gaskets display diagonal warning stripes in the fog.
  */
-@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class GasketOverlayRenderer {
     /** Translucent blue for receiver (input/cap) regions. */
     private static final int RECEIVER_COLOR = ARGB.color(100, 80, 140, 255);
@@ -56,13 +53,16 @@ public final class GasketOverlayRenderer {
     private GasketOverlayRenderer() {}
 
     /**
-     * Main event handler: renders gasket overlays when the player holds a
-     * choral tuner and looks at a gasket-capable block.
+     * Hands the shared path the gasket overlay when the player holds a
+     * choral tuner and looks at a gasket-capable block. Its fill and stripes
+     * hug the block's faces and its lines write depth, so it draws with the
+     * opaque blocks and sorts by nothing.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
      *
-     * @param event the render event fired after opaque features
+     * @param frame the frame being drawn
+     * @param draws where the overlay's draw goes
      */
-    @SubscribeEvent
-    public static void onAfterOpaqueFeatures(RenderLevelStageEvent.AfterOpaqueFeatures event) {
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
         Minecraft mc = Minecraft.getInstance();
         if (!isGasketOverlayActive(mc)) { return; }
 
@@ -70,20 +70,20 @@ public final class GasketOverlayRenderer {
         BlockPos pos = hit.getBlockPos();
         if (!(mc.level.getBlockEntity(pos) instanceof IGasketHolder holder)) { return; }
 
-        renderGasketOverlay(mc, event, hit, pos, holder);
+        draws.accept(new SortedDraw(0, () -> renderGasketOverlay(mc, frame.poseStack(), hit, pos, holder)));
     }
 
     /**
      * Renders fill, wireframe, and connection overlays for a valid gasket target.
      *
      * @param mc the Minecraft instance
-     * @param event the render event
+     * @param poseStack the level's pose stack
      * @param hit the block hit result
      * @param pos the block position
      * @param holder the gasket holder
      */
     private static void renderGasketOverlay(
-            Minecraft mc, RenderLevelStageEvent.AfterOpaqueFeatures event,
+            Minecraft mc, PoseStack poseStack,
             BlockHitResult hit, BlockPos pos, IGasketHolder holder) {
         AABB bounds = resolveOverlayBounds(holder, hit);
         if (bounds == null) { return; }
@@ -92,9 +92,9 @@ public final class GasketOverlayRenderer {
         int slot = holder.resolveSlot(hit);
         boolean connected = holder.getPartner(role, slot) != null;
 
-        renderFillOverlay(mc, event, pos, bounds, role, connected);
-        renderWireframeOverlay(mc, event, pos, bounds, role);
-        renderConnectionIfLinked(mc, event, pos, bounds, role, slot, holder, connected);
+        renderFillOverlay(mc, poseStack, pos, bounds, role, connected);
+        renderWireframeOverlay(mc, poseStack, pos, bounds, role);
+        renderConnectionIfLinked(mc, poseStack, pos, bounds, role, slot, holder, connected);
     }
 
     /**
@@ -147,21 +147,21 @@ public final class GasketOverlayRenderer {
      * Renders the translucent filled quad and optional diagonal stripes.
      *
      * @param mc the Minecraft instance
-     * @param event the render event for pose/buffer access
+     * @param poseStack the level's pose stack
      * @param pos the block position
      * @param bounds the inflated gasket bounds
      * @param role the gasket role
      * @param connected whether this gasket has a partner
      */
     private static void renderFillOverlay(
-            Minecraft mc, RenderLevelStageEvent.AfterOpaqueFeatures event,
+            Minecraft mc, PoseStack poseStack,
             BlockPos pos, AABB bounds, GasketRole role, boolean connected) {
         Vec3 ofs = cameraOffset(pos, mc.gameRenderer.getMainCamera());
         MultiBufferSource.BufferSource buf = mc.renderBuffers().bufferSource();
         VertexConsumer quad = buf.getBuffer(RenderTypes.debugQuads());
 
-        GasketMeshEmitter.renderFilledBox(event.getPoseStack(), quad, bounds, ofs, roleColor(role));
-        renderStripesIfConnected(event.getPoseStack(), quad, bounds, ofs, role, connected);
+        GasketMeshEmitter.renderFilledBox(poseStack, quad, bounds, ofs, roleColor(role));
+        renderStripesIfConnected(poseStack, quad, bounds, ofs, role, connected);
         buf.endLastBatch();
     }
 
@@ -196,19 +196,19 @@ public final class GasketOverlayRenderer {
      * Renders the wireframe outline around the gasket region.
      *
      * @param mc the Minecraft instance
-     * @param event the render event for pose/buffer access
+     * @param poseStack the level's pose stack
      * @param pos the block position
      * @param bounds the inflated gasket bounds
      * @param role the gasket role
      */
     private static void renderWireframeOverlay(
-            Minecraft mc, RenderLevelStageEvent.AfterOpaqueFeatures event,
+            Minecraft mc, PoseStack poseStack,
             BlockPos pos, AABB bounds, GasketRole role) {
         Vec3 ofs = cameraOffset(pos, mc.gameRenderer.getMainCamera());
         MultiBufferSource.BufferSource buf = mc.renderBuffers().bufferSource();
         VertexConsumer line = buf.getBuffer(RenderTypes.lines());
 
-        emitWireframeCuboid(event.getPoseStack(), line, bounds, ofs, role, mc);
+        emitWireframeCuboid(poseStack, line, bounds, ofs, role, mc);
         buf.endLastBatch();
     }
 
@@ -238,7 +238,7 @@ public final class GasketOverlayRenderer {
      * Renders the glowing connection line to the partner block if linked.
      *
      * @param mc the Minecraft instance
-     * @param event the render event for pose/buffer access
+     * @param poseStack the level's pose stack
      * @param pos the block position
      * @param bounds the inflated gasket bounds
      * @param role the gasket role
@@ -247,11 +247,11 @@ public final class GasketOverlayRenderer {
      * @param connected whether this gasket has a partner
      */
     private static void renderConnectionIfLinked(
-            Minecraft mc, RenderLevelStageEvent.AfterOpaqueFeatures event,
+            Minecraft mc, PoseStack poseStack,
             BlockPos pos, AABB bounds, GasketRole role, int slot,
             IGasketHolder holder, boolean connected) {
         if (!connected) { return; }
-        GasketConnectionRenderer.renderConnectionLine(mc, event.getPoseStack(),
+        GasketConnectionRenderer.renderConnectionLine(mc, poseStack,
                 mc.gameRenderer.getMainCamera(), pos, bounds, role, slot, holder);
     }
 }

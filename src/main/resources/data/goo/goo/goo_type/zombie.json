@@ -1,0 +1,26 @@
+{
+  "light_level": 4,
+  "saturation_fill": 0.5,
+  "wheel": "3C5E2C",
+  "bright": "7AA85A",
+  "highlight": "56843E",
+  "edge": "5E4428",
+  "density": 1500,
+  "viscosity": 1500,
+  "elasticity": 0.3,
+  "cohesion": "soft",
+  "adhesion": "clings",
+  "temperature": 300,
+  "extinguishes": false,
+  "levity": 1.0,
+  "base_flight_time": 3,
+  "map_color": "terracotta_green",
+  "textures": {
+    "goo_tiny": "goo:item/zombie_goo_tiny",
+    "goo_small": "goo:item/zombie_goo_small",
+    "goo_base": "goo:item/zombie_goo_base",
+    "goo_large": "goo:item/zombie_goo_large",
+    "fluid_still": "goo:fluid/zombie_fluid",
+    "fluid_flowing": "goo:fluid/zombie_fluid"
+  }
+}

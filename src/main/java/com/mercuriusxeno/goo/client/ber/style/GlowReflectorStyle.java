@@ -1,7 +1,10 @@
 package com.mercuriusxeno.goo.client.ber.style;
 
+import com.mercuriusxeno.goo.client.GlowQueue;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.PrismCrystal;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.ability.GlowBeamMesh;
 import com.mercuriusxeno.goo.client.ability.GlowCore;
 import com.mercuriusxeno.goo.client.ber.PrismRenderState;
@@ -11,13 +14,16 @@ import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.blockentity.BeaconRenderer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
+import java.util.function.Consumer;
 
 /**
  * Glow's Reflector on a prism: the glow column ({@link GlowColumn}) folded into
  * four sides as Relay's is, and glow's beam of light
  * ({@link GlowBeamMesh}) along the rail to each reflector it links to, the
  * beam wider and brighter the more light the network carries. Each beam is
- * drawn once, by the end whose position sorts first.
+ * drawn once, by the end whose position sorts first. The beams and the core
+ * write no depth, so the renderer queues them for the shared path, which
+ * draws them after the clouds (operator ruling 2026-11-18).
  * decision reflector-rails-carry-the-brightest-light
  * decision relay-and-metronome-read-apart-at-rest
  * decision reflector-rail-blooms-out-inside-the-prism
@@ -35,13 +41,16 @@ public final class GlowReflectorStyle implements PrismComboStyle {
     private static final float BRIGHTEST = 15f;
     private static final float SCROLL_PER_TICK = 0.2f;
     private static final double HALF = 0.5;
+    private static final GlowQueue QUEUED = new GlowQueue();
 
     @Override
     public void submit(PrismRenderState state, PoseStack poseStack, SubmitNodeCollector nodeCollector) {
-        GlowColumn.submit(state, poseStack, nodeCollector, restingSides());
+        GlowColumn.queue(state, poseStack, restingSides());
         float share = lightShare(state.linkLight);
         float scroll = Mth.frac(-state.animationTime * SCROLL_PER_TICK);
         float breath = GlowBeamMesh.breath(state.animationTime);
+        // Sorted at the prism's center, as its column is, so each beam and the core draw after the column.
+        Vec3 prism = Vec3.atCenterOf(state.blockPos);
         Vec3 center = new Vec3(HALF, HALF, HALF);
         for (Vec3 link : state.links) {
             if (drawsTheBeam(link)) {
@@ -49,33 +58,47 @@ public final class GlowReflectorStyle implements PrismComboStyle {
                 poseStack.translate(center.x, center.y, center.z);
                 poseStack.mulPose(GlowBeamMesh.alongBeam(link));
                 float length = (float) link.length();
-                nodeCollector.order(GlowColumn.BEAM_ORDER).submitCustomGeometry(poseStack,
-                        GooRenderTypes.glowBeam(BeaconRenderer.BEAM_LOCATION),
+                QUEUED.queue(poseStack.last().copy(), prism, GooRenderTypes.glowBeam(BeaconRenderer.BEAM_LOCATION),
                         (pose, buffer) -> emitBeam(pose, buffer, length, share, scroll, breath));
                 poseStack.popPose();
             }
         }
         if (!state.links.isEmpty()) {
-            submitCore(poseStack, nodeCollector, share);
+            queueCore(poseStack, prism, share);
         }
     }
 
     /**
-     * Draws the soft core of light every rail leaves from, at the prism's
+     * Queues the soft core of light every rail leaves from, at the prism's
      * middle after its column, scaled and dimmed with the rails.
      * decision diagnose-and-correct-the-sunbeam-prism-depth
      *
-     * @param poseStack     the pose at the prism's cell corner
-     * @param nodeCollector the submit collector
-     * @param share         the network's light as a share of the brightest
+     * @param poseStack the pose at the prism's cell corner, camera-relative
+     * @param prism     the prism's center in the world, which the core sorts by
+     * @param share     the network's light as a share of the brightest
      */
-    private static void submitCore(PoseStack poseStack, SubmitNodeCollector nodeCollector, float share) {
+    private static void queueCore(PoseStack poseStack, Vec3 prism, float share) {
         float width = DIMMEST_WIDTH + (1f - DIMMEST_WIDTH) * share;
         poseStack.pushPose();
         poseStack.translate(HALF, HALF, HALF);
-        nodeCollector.order(GlowColumn.BEAM_ORDER).submitCustomGeometry(poseStack, GooRenderTypes.GLOW_SHELL_TYPE,
+        QUEUED.queue(poseStack.last().copy(), prism, GooRenderTypes.GLOW_SHELL_TYPE,
                 (pose, buffer) -> GlowCore.emit(pose, buffer, width, share));
         poseStack.popPose();
+    }
+
+    /**
+     * Hands the shared path one draw for each rail and each core the
+     * reflectors queued this frame, each sorted by the camera's distance to
+     * its prism's center, then empties the queue.
+     * decision diagnose-and-correct-translucent-goo-visuals-that-depth-sort-wrong
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
+     * decision reflector-rails-carry-the-brightest-light
+     *
+     * @param frame the frame being drawn
+     * @param draws where each rail's and core's draw goes
+     */
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
+        QUEUED.drain(frame, draws);
     }
 
     @Override

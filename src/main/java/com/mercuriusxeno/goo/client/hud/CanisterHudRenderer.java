@@ -1,7 +1,8 @@
 package com.mercuriusxeno.goo.client.hud;
 
-import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.block.canister.ICanisterHolder;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterMetadata;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -12,18 +13,14 @@ import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.jspecify.annotations.Nullable;
+import java.util.function.Consumer;
 
 /**
  * Renders an in-world HUD panel when the player's crosshair targets a canister
  * or hub canister. Shows multi-type goo contents (icon + amount per type)
  * and optional label for the targeted slot.
  */
-@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class CanisterHudRenderer {
 
     private static final HudAnimator<Target> ANIMATOR =
@@ -33,12 +30,14 @@ public final class CanisterHudRenderer {
     }
 
     /**
-     * Renders the canister HUD after entities.
+     * Moves the panel's animation on a frame and hands the shared path the
+     * canister's panel, sorted by its anchor.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
      *
-     * @param event the event instance
+     * @param frame the frame being drawn
+     * @param draws where the panel's draw goes
      */
-    @SubscribeEvent
-    public static void onAfterOpaqueFeatures(RenderLevelStageEvent.AfterOpaqueFeatures event) {
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
         ANIMATOR.tick(CanisterTargetResolver.getTarget());
         Target target = ANIMATOR.tracked();
         if (target == null) {
@@ -55,7 +54,8 @@ public final class CanisterHudRenderer {
                 target.pos.getZ() + target.cz);
         PanelPlacement placement = PanelPlacement.onFace(anchor, target.hitFace,
                 target.hasBlockAbove, ANIMATOR.pitch(), ANIMATOR.opacity());
-        PanelPainter.paint(event.getPoseStack(), camera, placement, CanisterPanelRows.rows(data));
+        draws.accept(new SortedDraw(anchor.distanceToSqr(camera.position()),
+                () -> PanelPainter.paint(frame.poseStack(), camera, placement, CanisterPanelRows.rows(data))));
     }
 
     /**

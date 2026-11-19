@@ -10,6 +10,8 @@ import com.mercuriusxeno.goo.ability.program.PlayerHost;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.client.ClientGooValues;
 import com.mercuriusxeno.goo.client.GooSubmitter;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.throwing.GloveAim;
@@ -47,13 +49,13 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.OptionalInt;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 /**
@@ -446,13 +448,16 @@ public final class GroundShake {
     }
 
     /**
-     * Redraws the shaking blocks after the translucent blocks while a bore or
-     * a Level runs.
+     * Gathers this frame's shaking blocks while a bore, a Level or a Gouge's
+     * wind-up runs, and hands the shared path their redraw: a cutout copy
+     * writing its own depth, drawn with the opaque blocks, where order is
+     * irrelevant.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
      *
-     * @param event the level render stage event
+     * @param frame the frame being drawn
+     * @param draws where the shaking blocks' draw goes
      */
-    @SubscribeEvent
-    public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
         ClientLevel level = mc.level;
@@ -469,8 +474,9 @@ public final class GroundShake {
         crumbsShed = shedsCrumbs(abilityId == null ? null : AbilitySyncHandler.findAbility(abilityId));
         collectShaken(level, zone);
         if (!shaken.isEmpty()) {
-            drawShaken(mc, event.getPoseStack(), new Shake(zone, level.getGameTime() + partialTick,
-                    event.getLevelRenderState().blockBreakingRenderStates));
+            Shake shake = new Shake(zone, level.getGameTime() + partialTick,
+                    frame.levelRenderState().blockBreakingRenderStates);
+            draws.accept(new SortedDraw(0, () -> drawShaken(mc, frame.poseStack(), shake)));
         }
     }
 
