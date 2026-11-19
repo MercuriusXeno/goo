@@ -7,7 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * Covers the roll each gnaw and bite of an Infest cell makes, at the chance
- * nether_infest.json ships: a draw under the chance takes a layer, a draw
+ * zombie_infest.json ships: a draw under the chance takes a layer, a draw
  * over it leaves the cell whole.
  * infest-has-a-chance-to-deplete-as-it-gnaws-and-bites
  */
@@ -16,7 +16,7 @@ class InfestDepleteTest {
     private static final int FIVE_LAYERS = 5;
 
     private static double shippedChance() {
-        return InfestStep.in(AbilityJson.decode("nether_infest").behaviors()).orElseThrow().depleteChance();
+        return InfestStep.in(AbilityJson.decode("zombie_infest").behaviors()).orElseThrow().depleteChance();
     }
 
     @Test

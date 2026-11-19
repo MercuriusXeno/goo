@@ -46,7 +46,7 @@ public final class WorldGooSoundTests {
                 GooBlocks.BLAZE_MOLTEN.get(), GooBlocks.CRYSTAL_SHATTER.get(), GooBlocks.SCULK_CREEP.get(),
                 GooBlocks.FROST_RIME.get(), GooBlocks.GLOW_WISPS.get(), GooBlocks.HEX_LEECH.get(),
                 GooBlocks.TYPHOON_UPDRAFT.get(), GooBlocks.QUANTUM_PHASE.get(), GooBlocks.JELLY_NECTAR.get(),
-                GooBlocks.PULSE_SIGNAL.get(), GooBlocks.METAL_SPIKES.get(), GooBlocks.NETHER_INFEST.get(),
+                GooBlocks.PULSE_SIGNAL.get(), GooBlocks.METAL_SPIKES.get(), GooBlocks.ZOMBIE_INFEST.get(),
                 GooBlocks.LEAF_VINES.get(),
                 GooBlocks.ROCK_MORTAR.get())) {
             SoundType sound = cell.defaultBlockState().getSoundType(helper.getLevel(), anywhere, null);

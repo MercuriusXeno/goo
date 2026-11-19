@@ -66,6 +66,7 @@ import com.mercuriusxeno.goo.client.entity.CompressionSphereRenderer;
 import com.mercuriusxeno.goo.client.entity.DriftingWispRenderer;
 import com.mercuriusxeno.goo.client.entity.EldritchMonstrosityRenderer;
 import com.mercuriusxeno.goo.client.entity.MeteorRenderer;
+import com.mercuriusxeno.goo.client.entity.WispEchoes;
 import com.mercuriusxeno.goo.client.model.*;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
@@ -320,7 +321,7 @@ public final class GooClientSetup {
                 GooBlocks.BLAZE_MOLTEN.get(), GooBlocks.CRYSTAL_SHATTER.get(), GooBlocks.SCULK_CREEP.get(),
                 GooBlocks.FROST_RIME.get(), GooBlocks.GLOW_WISPS.get(), GooBlocks.HEX_LEECH.get(),
                 GooBlocks.TYPHOON_UPDRAFT.get(), GooBlocks.JELLY_NECTAR.get(), GooBlocks.PULSE_SIGNAL.get(),
-                GooBlocks.METAL_SPIKES.get(), GooBlocks.NETHER_INFEST.get(), GooBlocks.LEAF_VINES.get(),
+                GooBlocks.METAL_SPIKES.get(), GooBlocks.ZOMBIE_INFEST.get(), GooBlocks.LEAF_VINES.get(),
                 GooBlocks.UNSTABLE_NITRO.get(), GooBlocks.QUANTUM_PHASE.get(),
                 GooBlocks.ROCK_MORTAR.get())) {
             event.register(VolumeCellTint.sources(cell.binding().gooType(), ClientGooTypes::color), cell);
@@ -425,7 +426,7 @@ public final class GooClientSetup {
         registerSprayDrip(event, GooParticles.NECTAR_SPRAY_DRIP.get(), BlendPalette.NECTAR_JELLY_ORANGES);
         registerSprayDrip(event, GooParticles.SIGNAL_SPRAY_DRIP.get(), BlendPalette.SIGNAL_PULSE_REDS);
         registerSprayDrip(event, GooParticles.SPIKES_SPRAY_DRIP.get(), BlendPalette.SPIKES_METAL_SILVERS);
-        registerSprayDrip(event, GooParticles.INFEST_SPRAY_DRIP.get(), BlendPalette.INFEST_NETHER_REDS);
+        registerSprayDrip(event, GooParticles.INFEST_SPRAY_DRIP.get(), BlendPalette.ZOMBIE_ROT);
         registerSprayDrip(event, GooParticles.VINES_SPRAY_DRIP.get(), BlendPalette.VINES_LEAF_GREENS);
         registerSprayDrip(event, GooParticles.NITRO_SPRAY_DRIP.get(), BlendPalette.NITRO_UNSTABLE_GREENS);
         registerSprayDrip(event, GooParticles.PHASE_SPRAY_DRIP.get(), BlendPalette.PHASE_QUANTUM_BLUES);
@@ -657,6 +658,7 @@ public final class GooClientSetup {
         Transformations.CLIENT.clear();
         GhostTrails.CLIENT.clear();
         ViewportRipples.CLIENT.clear();
+        WispEchoes.CLIENT.clear();
     }
 
     /** Clears Crystal's glass knives in flight and hovering, ore sightings, held sweeps, Meteo's scorches, arm poses and forming prisms. */

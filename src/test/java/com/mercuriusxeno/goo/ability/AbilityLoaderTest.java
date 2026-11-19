@@ -558,7 +558,7 @@ class AbilityLoaderTest {
     class CostFormula {
 
         private static final List<String> DYNAMIC_ABILITIES = List.of("ender_blink",
-                "unstable_blast", "rock_build", "rock_gouge", "yore_age");
+                "unstable_blast", "rock_build", "rock_gouge");
 
         @Test
         void eachDynamicAbilityCarriesItsFormula() {

@@ -121,17 +121,19 @@ class AbilityRegistryTest {
     }
 
     /**
-     * Xeno's fan holds Unveil, then Shriek ordered after it, and no Mutate.
+     * Xeno's fan holds Revert before Unveil, then Shriek ordered after Unveil, and no Mutate.
      * xeno-blob-mutates-the-struck
+     * yore-leaves-and-rewind-moves-to-xeno-as-revert
      * shriek-moves-to-xeno
      */
     @Test
-    void shippedXenoFanHoldsUnveilThenShriekWithoutMutate() {
+    void shippedXenoFanHoldsRevertUnveilAndShriek() {
         AbilityRegistry registry = registryOf(AbilityJson.files().stream().map(AbilityJson::decode));
         List<AbilityDefinition> fan = registry.getAbilitiesForType(GooTypes.XENO);
 
-        assertEquals(Set.of(AbilityJson.idOf("xeno_unveil.json"), AbilityJson.idOf("xeno_shriek.json")),
-                fan.stream().map(AbilityDefinition::id).collect(Collectors.toSet()));
+        assertEquals(Set.of(AbilityJson.idOf("xeno_revert.json"), AbilityJson.idOf("xeno_unveil.json"),
+                AbilityJson.idOf("xeno_shriek.json")), fan.stream().map(AbilityDefinition::id).collect(Collectors.toSet()));
+        assertTrue(AbilityJson.decode("xeno_revert").order() < AbilityJson.decode("xeno_unveil").order());
         assertTrue(AbilityJson.decode("xeno_shriek").order() > AbilityJson.decode("xeno_unveil").order());
     }
 

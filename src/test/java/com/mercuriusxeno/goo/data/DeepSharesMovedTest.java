@@ -37,7 +37,7 @@ class DeepSharesMovedTest {
     private static final ResourceKey<GooTypeDefinition> DEEP = GooTypes.bundled("deep");
     private static final ResourceKey<GooTypeDefinition> SCULK = GooTypes.bundled("sculk");
     /** The dolphin egg's types before this change, deep among them. */
-    private static final Set<String> DOLPHIN_EGG_BEFORE = Set.of("zoo", "yore", "deep");
+    private static final Set<String> DOLPHIN_EGG_BEFORE = Set.of("zoo", "opulent", "deep");
     private static Map<Identifier, GooValue> shipped;
 
     @BeforeAll

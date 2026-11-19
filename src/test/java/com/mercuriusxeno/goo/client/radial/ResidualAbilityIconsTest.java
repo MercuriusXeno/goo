@@ -44,7 +44,7 @@ class ResidualAbilityIconsTest {
     /** The icons drawing the residual style; a later residual joins by its icon's name. */
     static final List<String> RESIDUAL_ICONS = List.of("weird_goop", "kinetic_slick", "blaze_molten", "sculk_creep",
             "crystal_shatter", "hex_leech", "typhoon_updraft", "jelly_nectar", "pulse_signal",
-            "metal_spikes", "nether_infest", "leaf_vines", "unstable_nitro", "quantum_phase", "rock_mortar");
+            "metal_spikes", "zombie_infest", "leaf_vines", "unstable_nitro", "quantum_phase", "rock_mortar");
 
     private static final String SHATTER = "crystal_shatter";
     private static final String NITRO = "unstable_nitro";

@@ -186,19 +186,19 @@ class WorkbenchOperationsTest {
         @Test
         void modelReplyCarriesNoChecks() throws IOException {
             JsonObject read = answeredJson(WorkbenchOperations.MODEL, "");
-            JsonObject saved = answeredJson(WorkbenchOperations.SAVE_MODEL, posted(SampleDrafts.diamondLackingYore()));
+            JsonObject saved = answeredJson(WorkbenchOperations.SAVE_MODEL, posted(SampleDrafts.diamondLackingOpulent()));
             assertTrue(saved.has("members"));
             assertFalse(read.has("checks"), read.keySet().toString());
             assertFalse(saved.has("checks"), saved.keySet().toString());
         }
 
         /**
-         * A promote over a draft holding diamond with no yore term, which the retired old rule failed, answers on
+         * A promote over a draft holding diamond with a term dropped, which the retired old rule failed, answers on
          * its first post and leaves the draft's text in the live file (decision values-checks-go-with-the-checks-tab).
          */
         @Test
         void promoteOverAnyDraftAnswersOnce() throws IOException {
-            answered(WorkbenchOperations.SAVE_MODEL, posted(SampleDrafts.diamondLackingYore()));
+            answered(WorkbenchOperations.SAVE_MODEL, posted(SampleDrafts.diamondLackingOpulent()));
             String drafted = Files.readString(paths.draft());
             answered(WorkbenchOperations.PROMOTE, "{}");
             assertEquals(drafted, Files.readString(paths.baseValues()));

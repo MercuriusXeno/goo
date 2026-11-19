@@ -14,7 +14,7 @@ import net.minecraft.resources.ResourceKey;
  * lies on as on a sturdy top. Weird's slime, Kinetic's slick, Blaze's molten,
  * Crystal's shatter, Sculk's creep, Frost's rime, Glow's wisps, Hex's leech,
  * Typhoon's updraft, Jelly's nectar, Pulse's signal, Metal's spikes,
- * Nether's infest, Leaf's vines, Unstable's nitro, Quantum's phase and Rock's
+ * Zombie's infest, Leaf's vines, Unstable's nitro, Quantum's phase and Rock's
  * mortar are bound so far, and another goo type ships its world goo
  * as another binding.
  * slime-and-slick-are-one-volume-cell-tech
@@ -66,8 +66,8 @@ public record CellBinding(ResourceKey<GooTypeDefinition> gooType, Identifier lay
 
     /** The ability laying Jelly's goo, Nectar, whose cost prices a whole block of it and whose step names its guide. */
     public static final Identifier NECTAR_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "jelly_nectar");
-    /** The ability laying Nether's goo, Infest, whose cost prices a whole block of it. */
-    public static final Identifier INFEST_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "nether_infest");
+    /** The ability laying Zombie's goo, Infest, whose cost prices a whole block of it. */
+    public static final Identifier INFEST_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "zombie_infest");
     /** The ability laying Quantum's goo, Phase, whose cost prices a whole block of it and whose step names its linger. */
     public static final Identifier PHASE_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "quantum_phase");
 
@@ -150,10 +150,11 @@ public record CellBinding(ResourceKey<GooTypeDefinition> gooType, Identifier lay
     public static final CellBinding SPIKES = new CellBinding(GooTypes.METAL, SPIKES_ABILITY, CellSurface.IMPALE,
             FluidFooting.NONE);
     /**
-     * Nether's goo: Infest lays it, and it stands as ordinary ground.
+     * Zombie's goo: Infest lays it, and it stands as ordinary ground.
      * infest-is-nethers-goo-the-decay-effect-localized-around-the-goo
+     * zombie-goo-is-the-undead-and-takes-the-decay-abilities
      */
-    public static final CellBinding INFEST = new CellBinding(GooTypes.NETHER, INFEST_ABILITY, CellSurface.POOL,
+    public static final CellBinding INFEST = new CellBinding(GooTypes.ZOMBIE, INFEST_ABILITY, CellSurface.POOL,
             FluidFooting.NONE);
     /**
      * Leaf's goo: Vines lays it, it stands as ordinary ground, and it
