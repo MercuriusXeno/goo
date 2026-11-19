@@ -125,6 +125,7 @@ public final class GooClientSetup {
      * Special renderer key for canister goo.
      */
     private static final String RENDERER_CANISTER = "canister_goo";
+    private static final String RENDERER_SPRAYER = "sprayer_canister";
     private static final String RENDERER_GOO_LABEL = "goo_label";
     /**
      * Special renderer key for vat goo.
@@ -574,6 +575,8 @@ public final class GooClientSetup {
                 Identifier.fromNamespaceAndPath(Goo.MODID, RENDERER_CANISTER),
                 CanisterSpecialRenderer.Unbaked.MAP_CODEC
         );
+        // sprayer-holds-a-canister-sideways-like-a-caulk-gun
+        event.register(Identifier.fromNamespaceAndPath(Goo.MODID, RENDERER_SPRAYER), SprayerSpecialRenderer.Unbaked.MAP_CODEC);
         event.register(
                 Identifier.fromNamespaceAndPath(Goo.MODID, RENDERER_VAT),
                 VatSpecialRenderer.Unbaked.MAP_CODEC

@@ -1,57 +1,520 @@
 {
-	"parent": "minecraft:item/handheld",
-	"textures": {
-		"0": "minecraft:block/gold_block",
-		"particle": "minecraft:block/gold_block"
-	},
-	"elements": [
-		{
-			"name": "barrel",
-			"from": [6, 8, 1],
-			"to": [10, 12, 15],
-			"faces": {
-				"north": {"uv": [6, 4, 10, 8], "texture": "#0"},
-				"east": {"uv": [1, 4, 15, 8], "texture": "#0"},
-				"south": {"uv": [6, 4, 10, 8], "texture": "#0"},
-				"west": {"uv": [1, 4, 15, 8], "texture": "#0"},
-				"up": {"uv": [6, 1, 10, 15], "texture": "#0"},
-				"down": {"uv": [6, 1, 10, 15], "texture": "#0"}
-			}
-		},
-		{
-			"name": "nozzle",
-			"from": [7, 9, 0],
-			"to": [9, 11, 1],
-			"faces": {
-				"north": {"uv": [7, 5, 9, 7], "texture": "#0"},
-				"east": {"uv": [0, 5, 1, 7], "texture": "#0"},
-				"south": {"uv": [7, 5, 9, 7], "texture": "#0"},
-				"west": {"uv": [0, 5, 1, 7], "texture": "#0"},
-				"up": {"uv": [7, 0, 9, 1], "texture": "#0"},
-				"down": {"uv": [7, 0, 9, 1], "texture": "#0"}
-			}
-		},
-		{
-			"name": "handle",
-			"from": [7, 2, 11],
-			"to": [9, 8, 14],
-			"faces": {
-				"north": {"uv": [7, 8, 9, 14], "texture": "#0"},
-				"east": {"uv": [11, 8, 14, 14], "texture": "#0"},
-				"south": {"uv": [7, 8, 9, 14], "texture": "#0"},
-				"west": {"uv": [11, 8, 14, 14], "texture": "#0"},
-				"up": {"uv": [7, 11, 9, 14], "texture": "#0"},
-				"down": {"uv": [7, 11, 9, 14], "texture": "#0"}
-			}
-		}
-	],
-	"display": {
-		"gui": {
-			"rotation": [30, 225, 0],
-			"scale": [0.8, 0.8, 0.8]
-		},
-		"ground": {
-			"scale": [0.5, 0.5, 0.5]
-		}
-	}
+  "parent": "minecraft:item/handheld",
+  "textures": {
+    "0": "minecraft:block/gold_block",
+    "particle": "minecraft:block/gold_block"
+  },
+  "elements": [
+    {
+      "name": "cradle",
+      "from": [
+        1,
+        6,
+        6
+      ],
+      "to": [
+        15,
+        7,
+        10
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#0"
+        },
+        "east": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#0"
+        },
+        "south": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#0"
+        },
+        "west": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#0"
+        },
+        "up": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#0"
+        },
+        "down": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#0"
+        }
+      }
+    },
+    {
+      "name": "front_plate",
+      "from": [
+        1,
+        6,
+        6
+      ],
+      "to": [
+        2,
+        12,
+        10
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#0"
+        },
+        "east": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#0"
+        },
+        "south": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#0"
+        },
+        "west": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#0"
+        },
+        "up": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#0"
+        },
+        "down": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#0"
+        }
+      }
+    },
+    {
+      "name": "nozzle",
+      "from": [
+        0,
+        8,
+        7
+      ],
+      "to": [
+        1,
+        10,
+        9
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#0"
+        },
+        "east": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#0"
+        },
+        "south": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#0"
+        },
+        "west": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#0"
+        },
+        "up": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#0"
+        },
+        "down": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#0"
+        }
+      }
+    },
+    {
+      "name": "back_plate",
+      "from": [
+        14,
+        6,
+        6
+      ],
+      "to": [
+        15,
+        12,
+        10
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#0"
+        },
+        "east": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#0"
+        },
+        "south": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#0"
+        },
+        "west": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#0"
+        },
+        "up": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#0"
+        },
+        "down": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#0"
+        }
+      }
+    },
+    {
+      "name": "plunger_rod",
+      "from": [
+        15,
+        8.5,
+        7.5
+      ],
+      "to": [
+        16,
+        9.5,
+        8.5
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#0"
+        },
+        "east": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#0"
+        },
+        "south": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#0"
+        },
+        "west": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#0"
+        },
+        "up": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#0"
+        },
+        "down": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#0"
+        }
+      }
+    },
+    {
+      "name": "handle",
+      "from": [
+        12,
+        1,
+        7
+      ],
+      "to": [
+        14,
+        6,
+        9
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#0"
+        },
+        "east": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#0"
+        },
+        "south": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#0"
+        },
+        "west": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#0"
+        },
+        "up": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#0"
+        },
+        "down": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#0"
+        }
+      }
+    },
+    {
+      "name": "trigger",
+      "from": [
+        10,
+        3,
+        7.5
+      ],
+      "to": [
+        11,
+        6,
+        8.5
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#0"
+        },
+        "east": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#0"
+        },
+        "south": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#0"
+        },
+        "west": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#0"
+        },
+        "up": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#0"
+        },
+        "down": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#0"
+        }
+      }
+    }
+  ],
+  "display": {
+    "gui": {
+      "rotation": [
+        30,
+        225,
+        0
+      ],
+      "scale": [
+        0.8,
+        0.8,
+        0.8
+      ]
+    },
+    "ground": {
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ]
+    },
+    "fixed": {
+      "rotation": [
+        0,
+        90,
+        0
+      ]
+    }
+  }
 }
