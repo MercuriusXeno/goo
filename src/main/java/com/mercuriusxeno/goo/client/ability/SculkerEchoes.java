@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.ability.deep.SculkerHearing;
+import com.mercuriusxeno.goo.ability.sculk.SculkerHearing;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.SectionPos;

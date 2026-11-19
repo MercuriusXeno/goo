@@ -99,7 +99,7 @@ public record TickPlantsStep() implements TakesNoEntity {
      * @return true for a growing plant
      */
     static boolean grows(BlockState state) {
-        // growth-breeze-ticks-plants: nether wart is a fungus, shroom goo's to grow
+        // growth-breeze-ticks-plants: nether wart is a fungus, sculk goo's to grow
         return state.isRandomlyTicking() && !(state.getBlock() instanceof NetherWartBlock)
                 && GROWING_PLANTS.stream().anyMatch(kind -> kind.isInstance(state.getBlock()));
     }

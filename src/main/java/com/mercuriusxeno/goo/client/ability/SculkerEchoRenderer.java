@@ -4,6 +4,8 @@ import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.overlay.FungusXray;
+import com.mercuriusxeno.goo.data.FungusBlocks;
+import com.mercuriusxeno.goo.data.GooValues;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.QuadInstance;
 import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -22,6 +24,7 @@ import net.minecraft.util.ARGB;
 import net.minecraft.util.RandomSource;
 import net.minecraft.util.profiling.Profiler;
 import net.minecraft.util.profiling.ProfilerFiller;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.minecraft.world.phys.AABB;
@@ -29,15 +32,19 @@ import net.minecraft.world.phys.Vec3;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Consumer;
 
 /**
- * Draws what Sculker's echoes lit: each block an echo touched draws its own
- * model and texture, tinted sculk teal and glowing, on every side open to
- * air, through the x-ray pipeline Fungal Sight draws through so an echo
- * shows through the stone the diver swims in. A block draws as strongly as
- * its strongest lit side, fading as its echo fades and the farther it stands.
+ * Draws what Sculker's echoes lit and what its shroom vision shows: each block an
+ * echo touched, and each sculk and shroom block within the vision's reach, draws
+ * its own model and texture, tinted sculk teal and glowing, on every side open to
+ * air, through the x-ray pipeline so it shows through the stone the diver swims
+ * in. An echoed block draws as strongly as its strongest lit side, fading as its
+ * echo fades and the farther it stands; a shroom network block draws at the
+ * vision's own presence, whatever the echoes heard.
  * decision sculker-sight-persists-where-echoes-have-touched
+ * decision sculker-absorbs-sight-as-shroom-vision
  */
 public final class SculkerEchoRenderer {
 
@@ -78,7 +85,11 @@ public final class SculkerEchoRenderer {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
         SculkerEchoes echoes = SculkerSenses.echoes();
-        if (player == null || mc.level == null || echoes.remembered().isEmpty()) {
+        if (player == null || mc.level == null) {
+            return;
+        }
+        if (SculkerVision.presence() <= 0f) {
+            ShroomVision.forget();
             return;
         }
         draws.accept(new SortedDraw(0, () -> SculkerVision.profiled(SculkerVision.ECHO_DRAW_SECTION,
@@ -87,9 +98,13 @@ public final class SculkerEchoRenderer {
 
     private static void drawEchoes(Minecraft mc, LocalPlayer player, SculkerEchoes echoes, PoseStack poseStack) {
         Frustum frustum = mc.gameRenderer.getMainCamera().getCullFrustum();
-        Map<BlockPos, Float> lit = litInView(echoes.bySection(), new FrustumView(frustum),
-                new Sight(player.position(), mc.level.getGameTime(), SculkerSenses.sightReach(),
-                        SculkerVision.presence()));
+        FrustumView view = new FrustumView(frustum);
+        long now = mc.level.getGameTime();
+        float presence = SculkerVision.presence();
+        Set<Block> fungus = FungusBlocks.of(GooValues.of(mc.level));
+        Map<BlockPos, Float> lit = ShroomVision.drawn(litInView(echoes.bySection(), view,
+                new Sight(player.position(), now, SculkerSenses.sightReach(), presence)),
+                inView(ShroomVision.nearby(mc, now, fungus), view), state -> fungus.contains(state.getBlock()), presence);
         ProfilerFiller profiler = Profiler.get();
         profiler.incrementCounter(REMEMBERED_COUNTER, echoes.remembered().size());
         profiler.incrementCounter(DRAWN_COUNTER, lit.size());
@@ -102,6 +117,23 @@ public final class SculkerEchoRenderer {
         drawLit(new LevelEchoWorld(mc), SculkerSenses.echoQuads(), poseStack, buffers.getBuffer(echo),
                 camera, lit);
         buffers.endBatch(echo);
+    }
+
+    /**
+     * The blocks of a map the camera's view may land a pixel of.
+     *
+     * @param blocks each block and what stands there
+     * @param view   the camera's view
+     * @return the blocks in view
+     */
+    static Map<BlockPos, BlockState> inView(Map<BlockPos, BlockState> blocks, EchoView view) {
+        Map<BlockPos, BlockState> seen = new HashMap<>();
+        blocks.forEach((pos, state) -> {
+            if (view.holds(pos)) {
+                seen.put(pos, state);
+            }
+        });
+        return seen;
     }
 
     /**

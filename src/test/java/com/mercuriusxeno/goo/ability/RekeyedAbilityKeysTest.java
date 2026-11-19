@@ -57,7 +57,7 @@ class RekeyedAbilityKeysTest {
                 Arguments.of("pulse_tick", "Tick"),
                 Arguments.of("kinetic_remote", "Remote"),
                 Arguments.of("ender_elude", "Elude"),
-                Arguments.of("shroom_transmit", "Transmit"),
+                Arguments.of("sculk_transmit", "Transmit"),
                 Arguments.of("unstable_blast", "Blast"),
                 Arguments.of("xeno_unveil", "Unveil"));
     }

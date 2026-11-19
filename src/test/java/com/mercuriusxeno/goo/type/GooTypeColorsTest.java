@@ -51,6 +51,16 @@ class GooTypeColorsTest {
     }
 
     @Test
+    void sculkWearsTheSculkColorsDeepWore() throws IOException {
+        // sculk-takes-deeps-coloration-and-shrooms-goes
+        List<String> deepsSculkColors = List.of("0F2430", "29DFEB", "16303E", "1FC8D8");
+        for (int index = 0; index < CHANNELS.size(); index++) {
+            assertEquals(deepsSculkColors.get(index), channel("sculk", CHANNELS.get(index)),
+                    "sculk's " + CHANNELS.get(index));
+        }
+    }
+
+    @Test
     void quantumWearsItsIconsBlueAndBrighterOrange() throws IOException {
         // quantum-is-gray-half-white-half-black, restated: quantum uses the colors of its type icon
         assertEquals(ICON_BLUE, channel("quantum", "wheel"), "quantum's wheel");

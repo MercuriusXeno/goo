@@ -59,7 +59,7 @@ class AbilityImpactTest {
      */
     @Test
     void aLingeringFieldNeverExplodesLater() {
-        assertFalse(AbilityImpact.explodesLater(AbilityJson.decode("deep_shriek")));
+        assertFalse(AbilityImpact.explodesLater(AbilityJson.decode("xeno_shriek")));
     }
 
     /**
