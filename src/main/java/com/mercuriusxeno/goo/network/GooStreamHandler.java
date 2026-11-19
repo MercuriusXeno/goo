@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.network;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityPrice;
+import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.AbilityTags;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.HealReport;
@@ -33,9 +34,12 @@ import com.mercuriusxeno.goo.ability.tartarus.TartarusCast;
 import com.mercuriusxeno.goo.ability.tartarus.TartarusHolds;
 import com.mercuriusxeno.goo.block.ability.FluidFooting;
 import com.mercuriusxeno.goo.block.ability.SlickLayPace;
+import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooValues;
+import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.ReagentScanner;
+import com.mercuriusxeno.goo.item.SprayerItem;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.throwing.CoatRay;
 import com.mercuriusxeno.goo.throwing.ConvergingCone;
@@ -52,6 +56,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
@@ -142,6 +147,57 @@ public final class GooStreamHandler {
     }
 
     /**
+     * Runs one tick of a sprayer's hold: the residual of its fitted canister's goo sprays through the path the
+     * glove's residuals run, paying from that canister alone. The sprayer checks for no glove and no recipe
+     * knowledge, since a residual is its goo type's resting behavior.
+     * decision spray-item-sprays-residuals-beside-the-glove
+     * decision sprayer-holds-a-canister-sideways-like-a-caulk-gun
+     *
+     * @param player the spraying player
+     * @param origin the sprayer's nozzle end, where the drips leave
+     */
+    public static void sprayerTick(ServerPlayer player, Vec3 origin) {
+        ItemStack canister = SprayerItem.fittedCanister(SprayerItem.heldSprayer(player));
+        Optional<AbilityDefinition> residual = SprayerItem.sprayedResidual(CanisterItem.getFluidContent(canister),
+                AbilityRegistry.of(player.level())::residualAbilityFor);
+        if (residual.isEmpty()) {
+            return;
+        }
+        AbilityDefinition ability = residual.get();
+        int held = sprayerShare(player, ability);
+        if (Goo.LOGGER.isDebugEnabled()) {
+            Goo.LOGGER.debug(LOG_HELD_TICK, ability.id(), player.getName().getString(), held);
+        }
+        if (held == 0) {
+            return;
+        }
+        strikeCone(player, origin, ability, held, PaysFrom.SPRAYER_CANISTER);
+        ability.delivery().sound().filter(sound -> sound.playsOn(held))
+                .ifPresent(sound -> playStreamSound(player, sound));
+    }
+
+    /**
+     * Advances a sprayer's hold and pays this tick's share from its canister; a residual draining on placement
+     * takes nothing for the tick, paying as what it lays lands.
+     *
+     * @param player  the spraying player
+     * @param ability the sprayed residual
+     * @return the hold's tick count, or 0 for a second tick in one server tick or a share the canister cannot pay
+     */
+    private static int sprayerShare(ServerPlayer player, AbilityDefinition ability) {
+        MinecraftServer server = player.level().getServer();
+        int held = GooServerState.of(server).streamHolds().advance(player.getUUID(), server.getTickCount());
+        if (held == 0 || ability.delivery().drainsOnPlacement()) {
+            return held;
+        }
+        AbilityPrice cost = ability.cost().forCasterIn(player.level().dimension(), ability.behaviors());
+        int share = StreamHolds.shareAt(cost.exactIn(GooValues.of(player.level())),
+                ability.delivery().ticksPerCharge(), held);
+        return AbilityCharges.charge(player, PaysFrom.SPRAYER_CANISTER, ability.gooType(), GooFraction.of(share))
+                ? held : 0;
+    }
+
+    /**
      * Runs a paid tick of a held ability: a channel runs on the player, a
      * stream converting a prism charges it, and any other stream strikes its cone.
      *
@@ -158,7 +214,7 @@ public final class GooStreamHandler {
                     payload.targetEntityId()), ability);
             StreamPrismCharge.chargeByRay(player, payload.aimPoint(), gooType, ability);
         } else if (!StreamPrismCharge.charges(player, payload.origin(), gooType, ability)) {
-            strikeCone(player, payload.origin(), ability, held);
+            strikeCone(player, payload.origin(), ability, held, PaysFrom.INVENTORY);
         }
     }
 
@@ -299,14 +355,16 @@ public final class GooStreamHandler {
      * @param origin  the glove hand the client sent
      * @param ability the stream ability
      * @param held    the hold's tick count, 1 on its first tick
+     * @param paysFrom where what the tick lays pays from
      */
-    private static void strikeCone(ServerPlayer player, Vec3 origin, AbilityDefinition ability, int held) {
+    private static void strikeCone(ServerPlayer player, Vec3 origin, AbilityDefinition ability, int held,
+                                   PaysFrom paysFrom) {
         ServerLevel level = player.level();
         // bore-reaches-as-far-as-your-block-reach
         Delivery delivery = ability.delivery().reachingTo(player.blockInteractionRange());
         Vec3 apex = coneApex(player, origin);
         Vec3 axis = player.getLookAngle();
-        CastOn cast = new CastOn(level, player, ability.id());
+        CastOn cast = new CastOn(level, player, ability.id(), paysFrom);
         List<Step> entitySteps = channelSteps(ability.behaviors(), false);
         TickHeals heals = new TickHeals(new ArrayList<>(), new ArrayList<>());
         if (delivery.range() > 0 || delivery.throwsDrips()) {
@@ -380,7 +438,7 @@ public final class GooStreamHandler {
             ConvergingCone cone = NectarThrows.guidedCone(player, channelSteps(ability.behaviors(), true))
                     .orElseGet(() -> ConvergingCone.along(player.getEyePosition(), axis, exitSpeed, flight));
             runBlockPass(cast, dripsEnd(apex, cone, delivery, exitSpeed, flight), delivery, ability, held, true);
-            boolean strikesLiving = throwDrips(player, apex, cone, ability, held);
+            boolean strikesLiving = throwDrips(cast, apex, cone, ability, held);
             sprayDrips(player, apex, cone, ability, strikesLiving, held);
             return List.of();
         }
@@ -409,22 +467,23 @@ public final class GooStreamHandler {
      * goop-wobbles-a-mob-its-drip-strikes
      * goop-and-slick-drips-add-none-of-the-players-movement
      *
-     * @param player  the spraying player
+     * @param cast    the tick's cast, naming who sprays and where they pay from
      * @param apex    where the drips leave, the lifted blob
      * @param cone    the cone the drips land in
      * @param ability the stream ability
      * @param held    the hold's tick count, which picks the tick's places in the cone
      * @return true where the drips strike the living they meet
      */
-    private static boolean throwDrips(ServerPlayer player, Vec3 apex, ConvergingCone cone, AbilityDefinition ability,
+    private static boolean throwDrips(CastOn cast, Vec3 apex, ConvergingCone cone, AbilityDefinition ability,
                                       int held) {
+        ServerPlayer player = cast.player();
         Optional<DripLanding> landing = DripLanding.in(channelSteps(ability.behaviors(), true));
         boolean strikesLiving = !channelSteps(ability.behaviors(), false).isEmpty();
         if (landing.isEmpty() && !strikesLiving) {
             return false;
         }
         DripFlights.Thrower thrower = new DripFlights.Thrower(player.level().dimension(), player.getUUID(),
-                player.getId(), ability, landing, strikesLiving);
+                player.getId(), ability, landing, strikesLiving, cast.paysFrom());
         Delivery delivery = ability.delivery();
         DripFlights flights = GooServerState.of(player.level().getServer()).dripFlights();
         flightsOf(thrower, new DripThrow(apex, cone, exitSpeedOf(player, delivery),
@@ -572,8 +631,20 @@ public final class GooStreamHandler {
      * @param level     the server level
      * @param player    the holding player
      * @param abilityId the ability's id, for a refusal's log
+     * @param paysFrom  where what the tick lays pays from
      */
-    private record CastOn(ServerLevel level, ServerPlayer player, Identifier abilityId) {
+    private record CastOn(ServerLevel level, ServerPlayer player, Identifier abilityId, PaysFrom paysFrom) {
+
+        /**
+         * A glove's cast, paying from the goo the inventory carries.
+         *
+         * @param level     the server level
+         * @param player    the holding player
+         * @param abilityId the ability's id
+         */
+        CastOn(ServerLevel level, ServerPlayer player, Identifier abilityId) {
+            this(level, player, abilityId, PaysFrom.INVENTORY);
+        }
     }
 
     /**
@@ -647,8 +718,8 @@ public final class GooStreamHandler {
         }
         ServerPlayer player = cast.player();
         ChannelAim aim = new ChannelAim(reachEnd, null, delivery.coneDegrees(), held, reaching);
-        runSteps(PlayerHost.channeling(player.level(), player, aim, placementPrice(player, ability)), HostKind.PLAYER,
-                blockSteps, cast);
+        runSteps(PlayerHost.channeling(player.level(), player, aim, placementPrice(player, ability, cast.paysFrom())),
+                HostKind.PLAYER, blockSteps, cast);
     }
 
     /**
@@ -657,15 +728,16 @@ public final class GooStreamHandler {
      * exactly with the remainder paying first; for any other, nothing.
      * goop-drains-per-cubic-meter-of-slime-placed
      *
-     * @param player  the streaming player
-     * @param ability the stream ability
+     * @param player   the streaming player
+     * @param ability  the stream ability
+     * @param paysFrom where the price is paid from
      * @return the placement price
      */
-    static PlacementPrice placementPrice(ServerPlayer player, AbilityDefinition ability) {
+    static PlacementPrice placementPrice(ServerPlayer player, AbilityDefinition ability, PaysFrom paysFrom) {
         if (!ability.delivery().drainsOnPlacement()) {
             return PlacementPrice.FREE;
         }
-        return placementsPerCost -> AbilityCharges.charge(player, ability.gooType(),
+        return placementsPerCost -> AbilityCharges.charge(player, paysFrom, ability.gooType(),
                 ability.cost().exactIn(GooValues.of(player.level())).dividedBy(placementsPerCost));
     }
 
