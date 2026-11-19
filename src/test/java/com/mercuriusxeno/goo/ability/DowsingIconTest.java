@@ -18,10 +18,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
- * Dowsing's ability icon is a dowsing rod of its own: Astral's icon size,
- * drawn only in the colors Astral's other ability icons wear, and no copy,
- * recolor or left-right mirror of any other shipped ability icon, read by
- * the shape of its opaque pixels.
+ * Dowsing's ability icon is a drawing of its own: the shared residual block
+ * with Astral's goo on top and the operator's picked mark over it, at
+ * Astral's icon size, and no copy, recolor or left-right mirror of any other
+ * shipped ability icon, read by the shape of its opaque pixels. The shared
+ * block and the goo's own shape are ResidualAbilityIconsTest's.
  * dowsing-icon-is-a-dowsing-rod
  */
 class DowsingIconTest {
@@ -41,18 +42,6 @@ class DowsingIconTest {
     }
 
     @Test
-    void dowsingIsDrawnInAstralsPalette() throws IOException {
-        Set<String> palette = new TreeSet<>();
-        for (String astral : ASTRAL_ICONS) {
-            palette.addAll(opaqueColorsOf(icon(astral)));
-        }
-        Set<String> outside = new TreeSet<>(opaqueColorsOf(icon(DOWSING)));
-        outside.removeAll(palette);
-
-        assertEquals(Set.of(), outside, "colors outside Astral's icon palette");
-    }
-
-    @Test
     void dowsingIsNoCopyRecolorOrMirrorOfAnotherIcon() throws IOException, URISyntaxException {
         String dowsing = maskOf(icon(DOWSING), false);
         Set<String> sharing = new TreeSet<>();
@@ -64,19 +53,6 @@ class DowsingIconTest {
         }
 
         assertEquals(Set.of(), sharing, "icons whose shape Dowsing's repeats");
-    }
-
-    private static Set<String> opaqueColorsOf(BufferedImage image) {
-        Set<String> colors = new TreeSet<>();
-        for (int y = 0; y < image.getHeight(); y++) {
-            for (int x = 0; x < image.getWidth(); x++) {
-                int argb = image.getRGB(x, y);
-                if (argb >>> 24 != 0) {
-                    colors.add(String.format("%06X", argb & 0xFFFFFF));
-                }
-            }
-        }
-        return colors;
     }
 
     /** The icon's opaque pixels as rows of marks, read right to left where mirrored. */

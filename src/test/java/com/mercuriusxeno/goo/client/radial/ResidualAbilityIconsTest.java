@@ -38,13 +38,16 @@ class ResidualAbilityIconsTest {
     // every-residual-goo-ability-wears-the-residual-badge-and-takes-the-residual-icon
     // each-residual-icon-draws-its-goo-in-its-own-shape
     // operator pick 2026-11-18: Nitro takes draft B1, the blast over a lumpy mound of unstable goo
+    // operator pick 2026-11-18: Dowsing takes draft E, a skinny amethyst sliver floating over hanging astral goo
+    // dowsing-icon-is-a-dowsing-rod
     /** The icons drawing the residual style; a later residual joins by its icon's name. */
     static final List<String> RESIDUAL_ICONS = List.of("weird_goop", "kinetic_slick", "blaze_molten", "deep_host",
             "crystal_shatter", "hex_leech", "typhoon_updraft", "jelly_nectar", "pulse_signal",
-            "metal_spikes", "nether_infest", "leaf_vines", "unstable_nitro");
+            "metal_spikes", "nether_infest", "leaf_vines", "unstable_nitro", "astral_dowsing");
 
     private static final String SHATTER = "crystal_shatter";
     private static final String NITRO = "unstable_nitro";
+    private static final String DOWSING = "astral_dowsing";
     private static final String GOO_TYPE = "/data/goo/goo/goo_type/%s.json";
     private static final int HEX = 16;
     /** How far a goo texel's hue may lie from its type's wheel hue, as a share of the hue circle: 40 degrees. */
@@ -128,17 +131,33 @@ class ResidualAbilityIconsTest {
      */
     @Test
     void nitrosGooTakesAShapeNoOtherResidualIconsGooTakes() throws IOException {
-        String nitro = gooMask(NITRO, false);
+        assertGooTakesItsOwnShape(NITRO, "unstable");
+    }
+
+    /**
+     * Dowsing's goo, its texels in astral's goo colors outside the shared
+     * block, takes a shape no other residual icon's goo takes, drawn or
+     * mirrored, whatever mark sits over it.
+     * each-residual-icon-draws-its-goo-in-its-own-shape
+     * dowsing-icon-is-a-dowsing-rod
+     */
+    @Test
+    void dowsingsGooTakesAShapeNoOtherResidualIconsGooTakes() throws IOException {
+        assertGooTakesItsOwnShape(DOWSING, "astral");
+    }
+
+    private static void assertGooTakesItsOwnShape(String ability, String type) throws IOException {
+        String goo = gooMask(ability, false);
         List<String> copies = new ArrayList<>();
         for (String other : RESIDUAL_ICONS) {
-            if (!other.equals(NITRO) && nitro.equals(gooMask(other, false))) {
-                copies.add(NITRO + " draws " + other + "'s goo");
+            if (!other.equals(ability) && goo.equals(gooMask(other, false))) {
+                copies.add(ability + " draws " + other + "'s goo");
             }
-            if (!other.equals(NITRO) && nitro.equals(gooMask(other, true))) {
-                copies.add(NITRO + " draws " + other + "'s goo mirrored");
+            if (!other.equals(ability) && goo.equals(gooMask(other, true))) {
+                copies.add(ability + " draws " + other + "'s goo mirrored");
             }
         }
-        assertTrue(nitro.contains("#"), NITRO + " draws no goo in unstable's colors");
+        assertTrue(goo.contains("#"), ability + " draws no goo in " + type + "'s colors");
         assertTrue(copies.isEmpty(), String.join("; ", copies));
     }
 
