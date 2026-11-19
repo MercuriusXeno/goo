@@ -7,7 +7,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.OptionalDouble;
-import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -30,7 +29,6 @@ import static org.mockito.Mockito.when;
 class ProgramBehaviorTest {
 
     private static final String STACKS = "stacks";
-    private static final Set<EntityFilter> LIVING = Set.of(EntityFilter.LIVING);
 
     private static Expr expr(String source) {
         return Expr.parse(source).getOrThrow();
@@ -68,23 +66,6 @@ class ProgramBehaviorTest {
 
         program.tick(host);
         verify(host).explode(eq(1f), anyDouble(), anyBoolean(), eq(ExplosionMode.TNT), any());
-        assertFalse(program.isActive());
-    }
-
-    @Test
-    void awaitEntityHoldsUntilTheHostSeesOne() {
-        MarkerHost host = hostWithStacks(2);
-        when(host.anyEntityWithin(SelectionShape.SPHERE, 3.0, LIVING)).thenReturn(false, false, true);
-        ProgramBehavior program = new ProgramBehavior(List.of(
-                new AwaitEntityStep(SelectionShape.SPHERE, Expr.literal(3), List.of(EntityFilter.LIVING)),
-                explode("2.5 + 1.0 * (stacks - 1)")));
-
-        program.tick(host);
-        program.tick(host);
-        assertTrue(program.isActive());
-
-        program.tick(host);
-        verify(host).explode(eq(3.5f), anyDouble(), anyBoolean(), eq(ExplosionMode.TNT), any());
         assertFalse(program.isActive());
     }
 

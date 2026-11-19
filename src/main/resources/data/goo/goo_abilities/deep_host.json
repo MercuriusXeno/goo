@@ -6,7 +6,6 @@
   "order": 0,
   "cost": 96,
   "cost_formula": "%s/m³",
-  "requires": ["minecraft:sculk_catalyst"],
   "delivery": {
     "kind": "stream",
     "drains_on_placement": true,

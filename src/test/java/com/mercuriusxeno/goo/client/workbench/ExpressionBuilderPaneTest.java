@@ -2075,7 +2075,7 @@ class ExpressionBuilderPaneTest {
         void aReferentHoldingShroomAndNetherLacksEveryOtherType() {
             assertEquals(Set.of("astral", "blaze", "crystal", "deep", "ender", "frost", "glow", "hex", "infinity",
                     "jelly", "kinetic", "leaf", "metal", "opulent", "pulse", "quantum", "rock", "typhoon", "unstable",
-                    "void", "weird", "xeno", "yore", "zoo"),
+                    "void", "weird", "xeno", "yarn", "yore", "zombie", "zoo"),
                     ExpressionBuilderPane.typesLackedBy(Set.of("shroom", "nether")));
         }
 

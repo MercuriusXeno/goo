@@ -20,6 +20,13 @@ import static org.mockito.Mockito.when;
 class AbilityImpactTest {
 
     private static final BlockPos CELL = new BlockPos(3, 64, -1);
+    /** An arc throw whose standing block waits, then explodes. */
+    private static final String LINGERING_FUSE = """
+            {"gooType": "unstable", "displayName": "lingering_fuse", "badge": "world", "cost": 10,
+             "delivery": {"kind": "arc"},
+             "behaviors": [{"type": "linger", "steps": [{"type": "wait", "ticks": 20},
+                                                        {"type": "explode", "power": 2.5}]}]}
+            """;
 
     /** A free ability's program anchors at the aimed point, not the cell's center. */
     // decision aim-point-follows-the-cursor
@@ -37,13 +44,13 @@ class AbilityImpactTest {
     }
 
     /**
-     * The proximity mine's standing block explodes, so its burnout waits for
-     * that explosion; Blast resolves at the splat and plays it there.
+     * A lingering block whose body explodes waits for that explosion to play
+     * its burnout; Blast resolves at the splat and plays it there.
      * decision elemental-explosion-per-type
      */
     @Test
-    void theMineExplodesLaterAndBlastDoesNot() {
-        assertTrue(AbilityImpact.explodesLater(AbilityJson.decode("unstable_lurker")));
+    void aLingeringFuseExplodesLaterAndBlastDoesNot() {
+        assertTrue(AbilityImpact.explodesLater(AbilityJson.decodeText("lingering_fuse", LINGERING_FUSE)));
         assertFalse(AbilityImpact.explodesLater(AbilityJson.decode("unstable_blast")));
     }
 

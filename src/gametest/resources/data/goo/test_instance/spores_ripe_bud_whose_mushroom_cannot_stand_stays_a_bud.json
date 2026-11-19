@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:spores_ripe_bud_whose_mushroom_cannot_stand_stays_a_bud",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 400,
+  "setup_ticks": 0,
+  "required": true
+}

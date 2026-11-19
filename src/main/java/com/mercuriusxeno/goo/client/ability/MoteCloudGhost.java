@@ -1,9 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.ability.AbilityArea;
-import com.mercuriusxeno.goo.ability.program.SporeStep;
 import com.mercuriusxeno.goo.ability.program.Step;
-import com.mercuriusxeno.goo.ability.program.Variables;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -21,7 +19,7 @@ import java.util.SplittableRandom;
  * mote its own: a random place over the whole sphere, its own depth in a
  * fuzzy outer shell, its own slow wander and wobble, its own size and
  * twinkle, with rings born at the aim point travelling outward to the same
- * reach. Shroom's cloud is mauve spores about Spore's reach; Jelly's is amber
+ * reach. Shroom's cloud is mauve spores about the throw's reach; Jelly's is amber
  * crumbs about the reach Nectar's laid nectar draws mobs from.
  * held-visual-ghosts-the-landing-in-two-passes
  * colonize-blob-grows-the-network
@@ -132,9 +130,8 @@ public final class MoteCloudGhost implements HeldGhostVisual {
     }
 
     /**
-     * The dome and the outward rings at the spore step's radius, falling
-     * back to the area's size, the reach the program's own steps give, where
-     * the program holds none.
+     * The dome and the outward rings at the area's size, the reach the
+     * program's own steps give.
      *
      * @param area      the ability's synced area
      * @param behaviors the ability's synced program
@@ -142,10 +139,7 @@ public final class MoteCloudGhost implements HeldGhostVisual {
      */
     @Override
     public HeldGhost ghost(AbilityArea area, List<Step> behaviors) {
-        float reach = SyncedSteps.first(behaviors, SporeStep.class).map(SporeStep::radius)
-                .filter(radius -> radius.variables().isEmpty()).map(radius -> radius.evaluateFloat(Variables.NONE))
-                .filter(radius -> radius > 0).orElse((float) area.size());
-        return HeldGhost.outwardTo(reach);
+        return HeldGhost.outwardTo((float) area.size());
     }
 
     @Override

@@ -5,22 +5,18 @@ import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.hex.Charmed;
 import com.mercuriusxeno.goo.ability.program.DamageStep;
 import com.mercuriusxeno.goo.ability.world.AbilityImpact;
-import com.mercuriusxeno.goo.ability.zoo.Rallied;
+import com.mercuriusxeno.goo.ability.yarn.Led;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.registry.GooAttachments;
-import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.Identifier;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.damagesource.DamageType;
-import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -35,7 +31,7 @@ import java.util.function.Consumer;
 /**
  * Gametests for the hits a standing goo field deals: the metal spike trap fixture's spikes, landed through the ability registry, strike
  * naming the player who threw the trap and keeping goo:stalagmite, strike naming no one where no player threw it,
- * leave that player's rally and charm standing on the mobs struck, and the field's block entity carries the
+ * leave that player's lead and charm standing on the mobs struck, and the field's block entity carries the
  * player through a save.
  * standing-goo-thing-credits-whoever-placed-it
  * goo-hit-keeps-its-kind-and-names-the-player-behind-it
@@ -45,12 +41,8 @@ import java.util.function.Consumer;
 public final class StandingFieldCreditTests {
     private static final String SPIKE_TRAP_NAMES_ITS_THROWER = "standing_credit_spike_trap_names_the_player_who_threw_it";
     private static final String UNTHROWN_SPIKE_TRAP_NAMES_NONE = "standing_credit_spike_trap_no_player_threw_names_no_entity";
-    private static final String SPIKE_TRAP_KEEPS_RALLY_AND_CHARM = "standing_credit_spike_trap_keeps_rally_and_charm";
+    private static final String SPIKE_TRAP_KEEPS_LEAD_AND_CHARM = "standing_credit_spike_trap_keeps_lead_and_charm";
     private static final String SPIKE_TRAP_PLACER_SURVIVES_A_SAVE = "standing_credit_spike_trap_placer_survives_a_save";
-    private static final String LURKER_NAMES_ITS_THROWER = "standing_credit_lurker_names_the_player_who_threw_it";
-    private static final String UNTHROWN_LURKER_NAMES_NONE = "standing_credit_lurker_no_player_threw_names_no_entity";
-    private static final String UNSTABLE_LURKER = "goo:unstable_lurker";
-    private static final String SHOULD_NAME = "%s should hit as %s naming %s, its latest such hit named %s";
 
     private static final String SPIKE_TRAP = "goo:test_spike_trap";
     private static final String ABILITIES_REQUIRED = "Ability registry must hold " + SPIKE_TRAP;
@@ -72,7 +64,7 @@ public final class StandingFieldCreditTests {
     private static final int THROWER_HEIGHT = 12;
     /** Health enough for a mob to outlast every charge a spike trap field holds. */
     private static final float HARDY_HEALTH = 1024f;
-    private static final float RALLY_DAMAGE = 6f;
+    private static final float LEAD_DAMAGE = 6f;
 
     private StandingFieldCreditTests() {
     }
@@ -87,63 +79,10 @@ public final class StandingFieldCreditTests {
                 StandingFieldCreditTests::spikeTrapStrikeNamesThePlayerWhoThrewIt);
         GooTestFunctions.registerTest(registrar, UNTHROWN_SPIKE_TRAP_NAMES_NONE,
                 StandingFieldCreditTests::spikeTrapStrikeNoPlayerThrewNamesNoEntity);
-        GooTestFunctions.registerTest(registrar, SPIKE_TRAP_KEEPS_RALLY_AND_CHARM,
-                StandingFieldCreditTests::spikeTrapStrikeKeepsTheThrowersRallyAndCharm);
+        GooTestFunctions.registerTest(registrar, SPIKE_TRAP_KEEPS_LEAD_AND_CHARM,
+                StandingFieldCreditTests::spikeTrapStrikeKeepsTheThrowersLeadAndCharm);
         GooTestFunctions.registerTest(registrar, SPIKE_TRAP_PLACER_SURVIVES_A_SAVE,
                 StandingFieldCreditTests::spikeTrapPlacerSurvivesASave);
-        GooTestFunctions.registerTest(registrar, LURKER_NAMES_ITS_THROWER,
-                StandingFieldCreditTests::lurkerBlastNamesThePlayerWhoThrewIt);
-        GooTestFunctions.registerTest(registrar, UNTHROWN_LURKER_NAMES_NONE,
-                StandingFieldCreditTests::lurkerBlastNoPlayerThrewNamesNoEntity);
-    }
-
-    /**
-     * A Lurker landed for a mock player explodes on a pig that comes within its reach, the blast naming that
-     * player as minecraft:explosion.
-     *
-     * @param helper the gametest helper
-     */
-    public static void lurkerBlastNamesThePlayerWhoThrewIt(GameTestHelper helper) {
-        ServerPlayer thrower = throwerOverhead(helper);
-        Mob pig = hardy(helper.spawnWithNoFreeWill(EntityType.PIG, SOUTH_OF_THE_FIELD));
-        land(helper, STRUCK, UNSTABLE_LURKER, GooTypes.UNSTABLE, thrower.getUUID());
-        succeedOnceNamed(helper, pig, "Lurker's blast", DamageTypes.EXPLOSION, thrower);
-    }
-
-    /**
-     * A Lurker landed with no player behind it explodes on a pig within its reach, the blast naming no entity as
-     * minecraft:explosion.
-     *
-     * @param helper the gametest helper
-     */
-    public static void lurkerBlastNoPlayerThrewNamesNoEntity(GameTestHelper helper) {
-        Mob pig = hardy(helper.spawnWithNoFreeWill(EntityType.PIG, SOUTH_OF_THE_FIELD));
-        land(helper, STRUCK, UNSTABLE_LURKER, GooTypes.UNSTABLE, null);
-        succeedOnceNamed(helper, pig, "Lurker's blast", DamageTypes.EXPLOSION, null);
-    }
-
-    // a mob's last hit may be a fall or a fire it took since, so the test holds the latest hit of the type it awaits
-    private static void succeedOnceNamed(GameTestHelper helper, Mob mob, String hitBy, ResourceKey<DamageType> type,
-                                         @Nullable ServerPlayer player) {
-        DamageSource[] latest = {null};
-        helper.succeedWhen(() -> {
-            DamageSource now = mob.getLastDamageSource();
-            latest[0] = now != null && now.is(type) ? now : latest[0];
-            helper.assertTrue(latest[0] != null, String.format(NOT_STRUCK, mob.getName().getString()));
-            helper.assertTrue(latest[0].getEntity() == player, String.format(SHOULD_NAME, hitBy, type.identifier(),
-                    player == null ? "no one" : player.getName().getString(), causeOf(latest[0])));
-            if (player != null) {
-                helper.getLevel().getServer().getPlayerList().remove(player);
-            }
-        });
-    }
-
-    private static void land(GameTestHelper helper, BlockPos struck, String abilityId,
-                             ResourceKey<GooTypeDefinition> type, @Nullable UUID thrower) {
-        AbilityDefinition ability = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(abilityId));
-        helper.assertTrue(ability != null, "Ability registry must hold " + abilityId);
-        AbilityImpact.land(helper.getLevel(), helper.absolutePos(struck), type, Direction.UP, ability, null, 0,
-                thrower);
     }
 
     /**
@@ -179,23 +118,23 @@ public final class StandingFieldCreditTests {
     }
 
     /**
-     * The spike trap, landed for a mock player, strikes a cow that player rallied and a husk that player charmed, and
-     * both the rally and the charm still stand once each has been struck.
+     * The spike trap, landed for a mock player, strikes a cow that player led and a husk that player charmed, and
+     * both the lead and the charm still stand once each has been struck.
      *
      * @param helper the gametest helper
      */
-    public static void spikeTrapStrikeKeepsTheThrowersRallyAndCharm(GameTestHelper helper) {
+    public static void spikeTrapStrikeKeepsTheThrowersLeadAndCharm(GameTestHelper helper) {
         ServerPlayer thrower = throwerOverhead(helper);
         Mob cow = hardy(helper.spawnWithNoFreeWill(EntityType.COW, SOUTH_OF_THE_FIELD));
-        cow.setData(GooAttachments.RALLIED, new Rallied(thrower.getUUID(), RALLY_DAMAGE));
+        cow.setData(GooAttachments.LED, new Led(thrower.getUUID(), LEAD_DAMAGE));
         Mob husk = hardy(helper.spawnWithNoFreeWill(EntityType.HUSK, EAST_OF_THE_FIELD));
         husk.setData(GooAttachments.CHARMED, new Charmed(thrower.getUUID()));
         landSpikeTrap(helper, thrower.getUUID());
         helper.succeedWhen(() -> {
-            struck(helper, cow, "rallied cow");
+            struck(helper, cow, "led cow");
             struck(helper, husk, "charmed husk");
-            helper.assertTrue(cow.hasData(GooAttachments.RALLIED),
-                    String.format(SHOULD_KEEP, "cow", "rally", cow.hasData(GooAttachments.RALLIED)));
+            helper.assertTrue(cow.hasData(GooAttachments.LED),
+                    String.format(SHOULD_KEEP, "cow", "lead", cow.hasData(GooAttachments.LED)));
             helper.assertTrue(husk.hasData(GooAttachments.CHARMED),
                     String.format(SHOULD_KEEP, "husk", "charm", husk.hasData(GooAttachments.CHARMED)));
             helper.getLevel().getServer().getPlayerList().remove(thrower);

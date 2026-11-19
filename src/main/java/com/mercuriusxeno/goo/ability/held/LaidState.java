@@ -5,10 +5,9 @@ import com.mercuriusxeno.goo.ability.program.AncientStep;
 import com.mercuriusxeno.goo.ability.program.EludeStep;
 import com.mercuriusxeno.goo.ability.program.GluttonyStep;
 import com.mercuriusxeno.goo.ability.program.HeartOverlayStep;
-import com.mercuriusxeno.goo.ability.program.KinStep;
+import com.mercuriusxeno.goo.ability.program.HerdStep;
 import com.mercuriusxeno.goo.ability.program.LowerCaseEnumCodec;
 import com.mercuriusxeno.goo.ability.program.LuxStep;
-import com.mercuriusxeno.goo.ability.program.PhaseStep;
 import com.mercuriusxeno.goo.ability.program.RemoteStep;
 import com.mercuriusxeno.goo.ability.program.SculkerStep;
 import com.mercuriusxeno.goo.ability.program.SightStep;
@@ -56,17 +55,21 @@ public enum LaidState {
     UNVEIL,
     /** Ancient's floor of half a heart and its aged overlay (decision ancient-makes-the-player-immortal). */
     ANCIENT,
-    /** Standing out of phase (decision phase-shares-a-plane-between-the-phased). */
+    /**
+     * Standing out of phase, laid by no step, Phase goo phasing what stands in
+     * it (decision phase-goo-puts-what-stands-in-it-out-of-phase); it stands so
+     * a saved held effect naming it still loads and steps its player back into phase.
+     */
     PHASE,
     /**
-     * Laid by no step, Rally being a mob ability (decision rally-is-a-mob-effect-on-one-target);
+     * Laid by no step, Lead being a mob ability (decision rally-is-a-mob-effect-on-one-target);
      * it stands so a saved held effect naming it still loads.
      */
-    RALLY,
+    LEAD,
     /** The dive's swim through stone and its vision (decision dive-is-a-brew-of-warden-senses-and-free-swimming-through-solid-blocks). */
     SCULKER,
-    /** Zoo's Kin, last since the client sync numbers states by order (decision leader-is-zoos-brew-ability). */
-    KIN;
+    /** Yarn's Herd, last since the client sync numbers states by order (decision leader-is-zoos-brew-ability). */
+    HERD;
 
     /** Codec for the saved state. */
     public static final Codec<LaidState> CODEC = LowerCaseEnumCodec.of(LaidState.class, "laid state");
@@ -104,9 +107,8 @@ public enum LaidState {
             Map.entry(RemoteStep.class, REMOTE),
             Map.entry(UnveilStep.class, UNVEIL),
             Map.entry(AncientStep.class, ANCIENT),
-            Map.entry(PhaseStep.class, PHASE),
             Map.entry(SculkerStep.class, SCULKER),
-            Map.entry(KinStep.class, KIN));
+            Map.entry(HerdStep.class, HERD));
 
     private static Stream<Step> withDescendants(Step step) {
         return Stream.concat(Stream.of(step), step.children().flatMap(LaidState::withDescendants));
