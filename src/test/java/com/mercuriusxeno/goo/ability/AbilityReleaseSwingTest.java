@@ -25,7 +25,7 @@ class AbilityReleaseSwingTest {
             Map.entry("astral_meteo", ArmPoseKind.NONE),
             Map.entry("crystal_prism", ArmPoseKind.NONE),
             Map.entry("void_hole", ArmPoseKind.NONE),
-            Map.entry("deep_click", ArmPoseKind.NONE),
+            Map.entry("pulse_click", ArmPoseKind.NONE),
             Map.entry("rock_build", ArmPoseKind.NONE),
             Map.entry("hex_charm", ArmPoseKind.NONE),
             Map.entry("typhoon_shulk", ArmPoseKind.NONE),

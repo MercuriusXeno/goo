@@ -2,11 +2,11 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.GloveSelection;
-import com.mercuriusxeno.goo.ability.held.HeldEffectsEvents;
 import com.mercuriusxeno.goo.ability.program.ScanVisualStep;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.item.GooGloveItem;
+import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import com.mercuriusxeno.goo.registry.GooAttachments;
@@ -36,7 +36,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.function.Consumer;
 
 /**
- * Gametest for Deep's Click heard by the sculk: a player clicks at a stone
+ * Gametest for Pulse's Click heard by the sculk: a player clicks at a stone
  * wall ten blocks east, and once the wave arrives a warden twelve blocks from
  * the landing hears it, gains no anger at the player and takes the landing as
  * its disturbance, a sculk sensor four blocks from the landing turns active,
@@ -57,7 +57,7 @@ public final class ClickTests {
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, CLICK_TRICKS_THE_SCULK, ClickTests::clickTricksTheWardenAndTheSensor);
-        GooTestFunctions.registerTest(registrar, CLICK_FREE_UNDER_SCULKER, ClickTests::clickIsFreeUnderSculker);
+        GooTestFunctions.registerTest(registrar, CLICK_COSTS_UNDER_SCULKER, ClickTests::clickCostsOneMbOfPulseUnderSculker);
         GooTestFunctions.registerTest(registrar, CLICK_RIPPLES_FROM_STONE, ClickTests::clickRipplesFromInsideStone);
         GooTestFunctions.registerTest(registrar, CLICK_TRAIL_IS_REGISTERED, ClickTests::clickTrailIsARegisteredSound);
     }
@@ -73,7 +73,7 @@ public final class ClickTests {
      * @param helper the gametest helper
      */
     public static void clickTrailIsARegisteredSound(GameTestHelper helper) {
-        Identifier trail = ScanVisualStep.in(AbilityRegistry.of(helper.getLevel()).getAbility(DEEP_CLICK).behaviors())
+        Identifier trail = ScanVisualStep.in(AbilityRegistry.of(helper.getLevel()).getAbility(PULSE_CLICK).behaviors())
                 .flatMap(ScanVisualStep::trail).orElseThrow();
         helper.assertTrue(BuiltInRegistries.SOUND_EVENT.containsKey(trail), String.format(SHOULD_REGISTER_TRAIL, trail));
         helper.succeed();
@@ -107,6 +107,7 @@ public final class ClickTests {
                 .thenWaitUntil(() -> helper.assertTrue(level.isPositionEntityTicking(stand), SHOULD_TICK))
                 .thenExecute(() -> {
                     player[0] = HeartOverlayTests.selfInvoked(helper, GooTypes.DEEP, DEEP_SCULKER);
+                    holdPulse(player[0]);
                     player[0].setData(GooAttachments.SCULKER,
                             player[0].getData(GooAttachments.SCULKER).withDiving(true));
                     player[0].teleportTo(stand.getX() + 0.5, stand.getY(), stand.getZ() + 0.5);
@@ -152,40 +153,34 @@ public final class ClickTests {
         }
     }
 
-    private static final String CLICK_FREE_UNDER_SCULKER = "click_is_free_under_sculker";
+    private static final String CLICK_COSTS_UNDER_SCULKER = "click_costs_one_mb_of_pulse_under_sculker";
     private static final Identifier DEEP_SCULKER = Identifier.parse("goo:deep_sculker");
-    private static final String SHOULD_BE_FREE = "A click under Sculker should drain no deep, it drained %d mB";
-    private static final String SHOULD_COST = "A click without Sculker should drain some deep, it drained %d mB";
+    /** The pulse goo a clicking player holds, in mB: enough for every click with room to spare. */
+    private static final int PULSE_HELD = 4 * GooStacks.THOUSAND;
+    private static final String SHOULD_COST_ONE = "A click under Sculker should drain 1 mB of pulse, it drained %d mB";
 
     /**
-     * A survival player holding Sculker from the glove clicks and its deep
-     * stands where it stood; with Sculker ended, the same click drains some.
-     * Each click goes through GooThrowHandler.execute in one tick, so no
-     * upkeep falls between the reads (decision click-costs-one-mb-and-nothing-under-sculker).
+     * A survival player holding Sculker from the glove and pulse goo clicks, and the click drains 1 mB of pulse:
+     * Sculker waives nothing. The click goes through GooThrowHandler.execute in one tick, so no upkeep falls between
+     * the reads.
+     * click-moves-to-pulse-and-costs-pulse-goo
      *
      * @param helper the gametest helper
      */
-    public static void clickIsFreeUnderSculker(GameTestHelper helper) {
+    public static void clickCostsOneMbOfPulseUnderSculker(GameTestHelper helper) {
         ServerPlayer player = HeartOverlayTests.selfInvoked(helper, GooTypes.DEEP, DEEP_SCULKER);
-        int underSculker = drainOfAClick(player);
-        HeldEffectsEvents.end(player, DEEP_SCULKER);
-        int withoutSculker = drainOfAClick(player);
+        holdPulse(player);
+        int before = pulseHeld(player);
+        HeartOverlayTests.invoke(player, GooTypes.PULSE, PULSE_CLICK);
+        int drained = before - pulseHeld(player);
         helper.getLevel().getServer().getPlayerList().remove(player);
-        helper.assertTrue(underSculker == 0, String.format(SHOULD_BE_FREE, underSculker));
-        helper.assertTrue(withoutSculker > 0, String.format(SHOULD_COST, withoutSculker));
+        helper.assertTrue(drained == 1, String.format(SHOULD_COST_ONE, drained));
         helper.succeed();
     }
 
-    /**
-     * Clicks once through the real throw path.
-     *
-     * @param player the clicking player
-     * @return the deep the click drained, in mB
-     */
-    private static int drainOfAClick(ServerPlayer player) {
-        int before = deepHeld(player);
-        HeartOverlayTests.invoke(player, GooTypes.DEEP, DEEP_CLICK);
-        return before - deepHeld(player);
+    /** Gives a player the pulse goo its clicks spend. */
+    private static void holdPulse(ServerPlayer player) {
+        player.getInventory().add(GooStacks.createForOutput(GooTypes.PULSE, PULSE_HELD));
     }
 
     /**
@@ -196,18 +191,18 @@ public final class ClickTests {
      * @param aimed  the point the reticule marks
      */
     private static void clickAt(ServerPlayer player, Vec3 aimed) {
-        KnownRecipes.teachRequires(player, AbilityRegistry.of(player.level()).getAbility(DEEP_CLICK));
-        GooGloveItem.setSelection(player.getMainHandItem(), GloveSelection.ofAbility(GooTypes.DEEP, DEEP_CLICK));
-        GooThrowHandler.execute(player, new GooThrowPayload(GooTypes.id(GooTypes.DEEP), NO_ENTITY,
-                BlockPos.containing(aimed), Direction.WEST.ordinal(), false, DEEP_CLICK.toString(),
+        KnownRecipes.teachRequires(player, AbilityRegistry.of(player.level()).getAbility(PULSE_CLICK));
+        GooGloveItem.setSelection(player.getMainHandItem(), GloveSelection.ofAbility(GooTypes.PULSE, PULSE_CLICK));
+        GooThrowHandler.execute(player, new GooThrowPayload(GooTypes.id(GooTypes.PULSE), NO_ENTITY,
+                BlockPos.containing(aimed), Direction.WEST.ordinal(), false, PULSE_CLICK.toString(),
                 player.getEyePosition(), aimed));
     }
 
-    private static int deepHeld(ServerPlayer player) {
-        return GooSourceScanner.aggregateAvailable(player).getOrDefault(GooTypes.DEEP, 0);
+    private static int pulseHeld(ServerPlayer player) {
+        return GooSourceScanner.aggregateAvailable(player).getOrDefault(GooTypes.PULSE, 0);
     }
 
-    private static final Identifier DEEP_CLICK = Identifier.parse("goo:deep_click");
+    private static final Identifier PULSE_CLICK = Identifier.parse("goo:pulse_click");
     private static final int NO_ENTITY = -1;
     /** How far off its own bay the scene lies on each horizontal axis, past every other test and ShriekTests' scene. */
     private static final int FAR_OFF = 4096;
@@ -355,7 +350,7 @@ public final class ClickTests {
     }
 
     /**
-     * A mock player holding the glove and deep goo, standing on the floor and
+     * A mock player holding the glove and pulse goo, standing on the floor and
      * facing the wall level.
      *
      * @param helper the gametest helper
@@ -363,7 +358,7 @@ public final class ClickTests {
      * @return the player
      */
     private static ServerPlayer clicker(GameTestHelper helper, BlockPos stand) {
-        ServerPlayer player = SelfDeliveryTests.invoker(helper, GooTypes.DEEP);
+        ServerPlayer player = SelfDeliveryTests.invoker(helper, GooTypes.PULSE);
         player.teleportTo(stand.getX() + 0.5, stand.getY(), stand.getZ() + 0.5);
         player.setYRot(FACING_EAST);
         player.setXRot(0);

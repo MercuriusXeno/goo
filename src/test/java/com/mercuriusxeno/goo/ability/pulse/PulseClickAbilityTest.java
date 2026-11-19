@@ -1,19 +1,15 @@
-package com.mercuriusxeno.goo.ability.deep;
+package com.mercuriusxeno.goo.ability.pulse;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
-import com.mercuriusxeno.goo.ability.held.HeldEffects;
-import com.mercuriusxeno.goo.ability.held.LaidState;
 import com.mercuriusxeno.goo.ability.program.FxAnchor;
 import com.mercuriusxeno.goo.ability.program.ScanVisualStep;
 import com.mercuriusxeno.goo.ability.program.SoundStep;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.VibrateStep;
-import com.mercuriusxeno.goo.data.GooFraction;
-import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.Test;
@@ -22,31 +18,31 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.Optional;
-import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Deep's Click loads from deep_click.json as a scan in deep goo,
- * unlocked by the sculk sensor and ordered after Shriek, whose landing runs a
- * vibrate step and then a sound at the host, and en_us names it with a
- * description (decisions click-is-a-hit-scan-drawn-as-a-delayed-wave,
+ * Pulse's Click loads from pulse_click.json as a scan in pulse goo, unlocked by the sculk sensor and ordered after
+ * Pulse's three abilities, whose landing runs a vibrate step and then a sound at the host, and en_us names it
+ * with a description; no deep_click ships
+ * (decisions click-moves-to-pulse-and-costs-pulse-goo, click-is-a-hit-scan-drawn-as-a-delayed-wave,
  * click-unlocks-with-the-sculk-sensor-recipe, click-vibration-carries-no-source-entity).
  */
-class DeepClickAbilityTest {
+class PulseClickAbilityTest {
 
     private static final String LANG = "assets/goo/lang/en_us.json";
-    private static final String NAME_KEY = "goo.ability.deep.click";
-    private static final Identifier SCULKER = Identifier.fromNamespaceAndPath("goo", "deep_sculker");
+    private static final String NAME_KEY = "goo.ability.pulse.click";
 
-    private final AbilityDefinition click = AbilityJson.decode("deep_click");
+    private final AbilityDefinition click = AbilityJson.decode("pulse_click");
 
     @Test
-    void isADeepAbility() {
-        assertEquals(GooTypes.DEEP, click.gooType());
+    void isAPulseAbilityAndNoDeepClickShips() {
+        List<Identifier> shipped = AbilityJson.files().stream().map(AbilityJson::decode).map(AbilityDefinition::id)
+                .toList();
+        assertEquals(List.of(GooTypes.PULSE, false),
+                List.of(click.gooType(), shipped.contains(Identifier.fromNamespaceAndPath("goo", "deep_click"))));
     }
 
     @Test
@@ -55,8 +51,10 @@ class DeepClickAbilityTest {
     }
 
     @Test
-    void ordersAfterShriek() {
-        assertTrue(click.order() > AbilityJson.decode("deep_shriek").order());
+    void ordersAfterPulsesThreeAbilities() {
+        for (String other : List.of("pulse_zap", "pulse_tick", "pulse_signal")) {
+            assertTrue(click.order() > AbilityJson.decode(other).order(), other);
+        }
     }
 
     @Test
@@ -81,29 +79,10 @@ class DeepClickAbilityTest {
         assertEquals("sound_wave", ScanVisualStep.in(click.behaviors()).map(ScanVisualStep::visual).orElse(""));
     }
 
-    /**
-     * A standing Sculker waives the price whatever its dive: the held record
-     * knows nothing of diving, so this Sculker is one not diving.
-     * Decision click-costs-one-mb-and-nothing-under-sculker.
-     */
-    @Test
-    void costsNothingWhileSculkerStands() {
-        HeldEffects sculker = HeldEffects.NONE
-                .start(new HeldEffects.Held(SCULKER, GooTypes.DEEP, 1, Set.of(LaidState.HEART_OVERLAY), 0)).after();
-        assertEquals(GooFraction.ZERO, click.costFor(sculker::holds, GooValueTable.EMPTY));
-    }
-
-    /** Decision click-costs-one-mb-and-nothing-under-sculker. */
-    @Test
-    void namesTheFreeUnderSculkerRule() {
-        assertEquals(Optional.of(SCULKER), click.freeWhile());
-        assertTrue(click.costFormula().orElse("").contains("Sculker"), click.costFormula().toString());
-    }
-
     @Test
     void enUsNamesItAndDescribesIt() throws IOException {
         assertEquals(NAME_KEY, click.displayName());
-        try (InputStream in = DeepClickAbilityTest.class.getClassLoader().getResourceAsStream(LANG)) {
+        try (InputStream in = PulseClickAbilityTest.class.getClassLoader().getResourceAsStream(LANG)) {
             assertNotNull(in, LANG + " should ship");
             JsonObject lang = JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8))
                     .getAsJsonObject();

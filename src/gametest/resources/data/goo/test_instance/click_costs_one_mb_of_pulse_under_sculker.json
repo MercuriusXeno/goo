@@ -1,6 +1,6 @@
 {
   "type": "minecraft:function",
-  "function": "goo:click_is_free_under_sculker",
+  "function": "goo:click_costs_one_mb_of_pulse_under_sculker",
   "environment": "minecraft:default",
   "structure": "goo:test_bay",
   "max_ticks": 100,
