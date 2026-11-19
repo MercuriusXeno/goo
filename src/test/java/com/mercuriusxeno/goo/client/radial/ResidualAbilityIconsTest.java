@@ -50,6 +50,7 @@ class ResidualAbilityIconsTest {
 
     private static final String SHATTER = "crystal_shatter";
     private static final String NITRO = "unstable_nitro";
+    private static final String STITCH = "yarn_stitch";
     private static final String GOO_TYPE = "/data/goo/goo/goo_type/%s.json";
     private static final int HEX = 16;
     /** How far a goo texel's hue may lie from its type's wheel hue, as a share of the hue circle: 40 degrees. */
@@ -123,6 +124,28 @@ class ResidualAbilityIconsTest {
             }
         }
         assertTrue(nitro.contains("#"), NITRO + " draws no goo in unstable's colors");
+        assertTrue(copies.isEmpty(), String.join("; ", copies));
+    }
+
+    /**
+     * Stitch's goo, its texels in yarn's goo colors outside the shared block,
+     * takes a shape no other residual icon's goo takes, drawn or mirrored,
+     * whatever mark sits over it.
+     * each-residual-icon-draws-its-goo-in-its-own-shape
+     */
+    @Test
+    void stitchsGooTakesAShapeNoOtherResidualIconsGooTakes() throws IOException {
+        String stitch = gooMask(STITCH, false);
+        List<String> copies = new ArrayList<>();
+        for (String other : RESIDUAL_ICONS) {
+            if (!other.equals(STITCH) && stitch.equals(gooMask(other, false))) {
+                copies.add(STITCH + " draws " + other + "'s goo");
+            }
+            if (!other.equals(STITCH) && stitch.equals(gooMask(other, true))) {
+                copies.add(STITCH + " draws " + other + "'s goo mirrored");
+            }
+        }
+        assertTrue(stitch.contains("#"), STITCH + " draws no goo in yarn's colors");
         assertTrue(copies.isEmpty(), String.join("; ", copies));
     }
 
