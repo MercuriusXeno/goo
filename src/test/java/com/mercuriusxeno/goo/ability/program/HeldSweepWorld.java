@@ -14,6 +14,7 @@ import java.util.Set;
 import java.util.function.Consumer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.withSettings;
 
 /**
  * The fixed synthetic world every held-sweep count and timing reads: stone
@@ -47,8 +48,15 @@ public final class HeldSweepWorld {
     /** Each mob's spot beside its host, so a scan measures distance without a mocked call. */
     private final List<Vec3> spots = new ArrayList<>();
 
-    /** Places the mobs, each a mocked living entity standing at its spot behind a host bound to it. */
-    public HeldSweepWorld() {
+    /**
+     * Places the mobs on the first scan, each a mocked living entity
+     * standing at its spot behind a host bound to it, so a test that never
+     * scans builds none of them.
+     */
+    private void placeMobs() {
+        if (!hosts.isEmpty()) {
+            return;
+        }
         int most = (int) (MOBS_REACH / MOB_EVERY);
         for (int x = -most; x <= most; x++) {
             for (int y = -most; y <= most; y++) {
@@ -56,9 +64,9 @@ public final class HeldSweepWorld {
                     Vec3 at = new Vec3(x * MOB_EVERY + MOB_OFF_THE_LATTICE, y * MOB_EVERY,
                             z * MOB_EVERY + MOB_OFF_THE_LATTICE);
                     if (at.distanceTo(CASTER) <= MOBS_REACH) {
-                        LivingEntity mob = mock(LivingEntity.class);
+                        LivingEntity mob = mock(LivingEntity.class, withSettings().stubOnly());
                         when(mob.position()).thenReturn(at);
-                        TargetHost host = mock(TargetHost.class);
+                        TargetHost host = mock(TargetHost.class, withSettings().stubOnly());
                         when(host.target()).thenReturn(mob);
                         hosts.add(host);
                         spots.add(at);
@@ -158,6 +166,7 @@ public final class HeldSweepWorld {
      * @return the scan
      */
     public CountingScan scanAround(Vec3 casterAt) {
+        placeMobs();
         return new CountingScan(casterAt);
     }
 

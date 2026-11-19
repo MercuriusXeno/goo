@@ -115,6 +115,7 @@ final class HeldSweepPulse {
         frontBefore = front;
         double radius = drawnRadius(now);
         field.reachTo(radius, world.isAir(), world.shapeOf(), world.air());
+        field.reachedRange(range);
         int left = room;
         while (nextFace < field.size() && field.face(nextFace).distance() <= radius) {
             if (left > 0) {
