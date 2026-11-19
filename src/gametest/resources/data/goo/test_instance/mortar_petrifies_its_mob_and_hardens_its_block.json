@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:mortar_petrifies_its_mob_and_hardens_its_block",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 100,
+  "setup_ticks": 0,
+  "required": true
+}
