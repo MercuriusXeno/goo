@@ -245,7 +245,7 @@ public class VolumeCellBlock extends Block {
      * @return the stuck state, empty where the block takes no layer
      */
     public static Optional<BlockState> stuck(BlockState standing, Block cell, Direction side) {
-        if (standing.isAir()) {
+        if (WispBlock.readsAsAir(standing)) {
             return Optional.of(withCoat(cell.defaultBlockState().setValue(LAYERS, volumeOnceStuck(0)), side,
                     SideCoat.ATTACHED));
         }
@@ -540,7 +540,7 @@ public class VolumeCellBlock extends Block {
      * @return the thickened state, empty where the cell can take no layer
      */
     public static Optional<BlockState> thickened(BlockState standing, Block cell) {
-        if (standing.isAir()) {
+        if (WispBlock.readsAsAir(standing)) {
             return Optional.of(cell.defaultBlockState());
         }
         if (!standing.is(cell) || standing.getValue(LAYERS) >= MAX_LAYERS) {
@@ -579,7 +579,7 @@ public class VolumeCellBlock extends Block {
      * @return the coated state, empty where the side can take no layer
      */
     static Optional<BlockState> coated(BlockState standing, Block cell, Direction side, SideCoat coat) {
-        if (standing.isAir()) {
+        if (WispBlock.readsAsAir(standing)) {
             return Optional.of(cell.defaultBlockState().setValue(LAYERS, volumeOnceStuck(0))
                     .setValue(coatProperty(side), coat));
         }
@@ -1739,15 +1739,16 @@ public class VolumeCellBlock extends Block {
     }
 
     /**
-     * Whether a cell stands open to a poured layer's fill: air, or a cell of
-     * this goo holding fill 0, its goo in films on its walls.
+     * Whether a cell stands open to a poured layer's fill: air, or a wisp,
+     * which the goo takes the space of.
      * goo-cell-holds-a-fill-and-a-state-per-side
+     * every-block-displaces-wisps
      *
      * @param state the cell's state
      * @return true where the cell holds no fill
      */
     private boolean opens(BlockState state) {
-        return state.isAir();
+        return WispBlock.readsAsAir(state);
     }
 
     private boolean unfilled(BlockState state) {
@@ -1858,7 +1859,7 @@ public class VolumeCellBlock extends Block {
         BlockState taking = level.getBlockState(landing);
         SlimeFlow.Poured poured = SlimeFlow.poured(state.getValue(LAYERS), layersOf(taking));
         if (takesThePour(level, landing, taking, poured)) {
-            BlockState into = taking.isAir() ? defaultBlockState() : taking;
+            BlockState into = opens(taking) ? defaultBlockState() : taking;
             level.setBlock(landing, into.setValue(LAYERS, poured.taker()), UPDATE_ALL);
             carryPlacer(level, pos, landing);
             level.setBlock(pos, lessALayer(state), UPDATE_ALL);
@@ -1876,7 +1877,7 @@ public class VolumeCellBlock extends Block {
      * @return true where the layer lands
      */
     private boolean takesThePour(ServerLevel level, BlockPos landing, BlockState taking, SlimeFlow.Poured poured) {
-        boolean holdsLayers = taking.isAir() || taking.is(this);
+        boolean holdsLayers = opens(taking) || taking.is(this);
         return holdsLayers && poured.taker() <= MAX_LAYERS
                 && !wouldRiseAroundFeet(level, landing, layersOf(taking), poured.taker());
     }
