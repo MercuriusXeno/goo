@@ -276,23 +276,48 @@ class SlimeCoreQuadsTest {
         }
 
         /**
-         * A full block with nothing on it beside a column of a full block and
-         * a block of 9 meets that column's core along their edge: its shell
-         * slopes up over its own top toward the taller column, and its core
-         * rises with it to the column's core's height at every point of the
-         * edge, so no core top hangs over the other with nothing closing the step.
+         * A full block with nothing on it beside a whole cube, a full block
+         * under a block of 9, meets the cube's core along their edge: the
+         * cube's core steps down along that edge to the height of the
+         * uncovered block's core at every point of it, so no core top hangs
+         * over the other with nothing closing the step.
+         * full-goo-block-under-goo-is-a-whole-cube
+         */
+        @Test
+        void anUncoveredFullBlocksCoreMeetsTheCubesCoreBesideIt() {
+            SameGooCells pit = new SameGooCells().at(0, 0, 0, 15).at(0, 1, 0, 9).at(1, 0, 0, 15);
+            Map<Float, Float> cube = topHeightsAlong(coreOf(pit), 1f);
+            Map<Float, Float> uncovered = topHeightsAlong(coreOf(pit.shiftedBy(1, 0, 0)), 0f);
+
+            assertFalse(cube.isEmpty(), "the cube should draw its core's step along the edge");
+            assertEquals(cube.keySet(), uncovered.keySet(), "both cores should draw the edge at the same points");
+            cube.forEach((z, y) -> assertEquals(y, uncovered.get(z), EPSILON, "the cores' tops at z " + z));
+        }
+
+        /**
+         * The middle block of a pillar of 15, 15 and 6 alone on a solid
+         * floor, a whole cube, keeps its core 2 px in from each side it
+         * shows and runs it on through its floor and its top into the cores
+         * of the goo under and over it, drawing no face on either.
+         * full-goo-block-under-goo-is-a-whole-cube
+         * residual-always-draws-a-core-inside-a-one-eighth-margin
          * stacked-goo-cells-share-one-slime-core
          */
         @Test
-        void anUncoveredFullBlocksCoreMeetsATallerColumnsCore() {
-            SameGooCells pit = new SameGooCells().at(0, 0, 0, 15).at(0, 1, 0, 9).at(1, 0, 0, 15);
-            Map<Float, Float> column = new TreeMap<>(topHeightsAlong(coreOf(pit.shiftedBy(0, 1, 0)), 1f));
-            column.replaceAll((z, y) -> y + 1);
-            Map<Float, Float> uncovered = topHeightsAlong(coreOf(pit.shiftedBy(1, 0, 0)), 0f);
-
-            assertFalse(column.isEmpty(), "the column should draw its core top along the edge");
-            assertEquals(column.keySet(), uncovered.keySet(), "both cores should draw the edge at the same points");
-            column.forEach((z, y) -> assertEquals(y, uncovered.get(z), EPSILON, "the cores' tops at z " + z));
+        void aCoveredCubesCoreKeepsItsSideMarginAndRunsThrough() {
+            List<BakedQuad> core = coreOf(SameGooCells.pillar(false).shiftedBy(0, 1, 0));
+            Set<Direction> sides = EnumSet.noneOf(Direction.class);
+            for (BakedQuad quad : core) {
+                Direction face = quad.direction();
+                assertTrue(face.getAxis().isHorizontal(), "the cube's core draws a " + face + " face");
+                float inward = face.getAxisDirection() == Direction.AxisDirection.POSITIVE ? 1 - SIDE_MARGIN
+                        : SIDE_MARGIN;
+                assertTrue(face.getAxis() == Direction.Axis.X ? inPlaneX(inward).test(quad)
+                        : allCorners(quad, at -> Math.abs(at.z() - inward) < EPSILON), "the " + face + " side at "
+                        + middleOf(quad));
+                sides.add(face);
+            }
+            assertEquals(EnumSet.of(Direction.NORTH, Direction.SOUTH, Direction.EAST, Direction.WEST), sides);
         }
 
         /**
@@ -308,40 +333,6 @@ class SlimeCoreQuadsTest {
                     "the full block draws a core top");
         }
 
-        /**
-         * A column's core is its pile's at the slime's 3/4, measured from the
-         * column's base: under a block of 1 on a full block the column stands
-         * 16 layers, so its core's top stands at 14, in the full block.
-         * stacked-goo-cells-share-one-slime-core
-         */
-        @Test
-        void aColumnsCoreTopStandsAtSevenEighthsOfTheColumn() {
-            SameGooCells column = new SameGooCells().at(0, 0, 0, 1).at(0, -1, 0, 15);
-            assertTrue(coreOf(column.shiftedBy(0, -1, 0)).stream().anyMatch(inPlaneY(16 * FIFTEENTH * CORE_TOP)
-                    .and(quad -> quad.direction() == Direction.UP)), "the column's core top at 14 layers");
-        }
-
-        /**
-         * A column's core runs unbroken from the full block into the block on
-         * it: the block on top draws no core floor, the full block no core top
-         * where the column's core rises past it, and the block on top draws
-         * the column's core top there, on down where it dips into the full block.
-         * stacked-goo-cells-share-one-slime-core
-         */
-        @Test
-        void aColumnsCoreRunsUnbrokenThroughBothBlocks() {
-            SameGooCells column = new SameGooCells().at(0, 0, 0, 8).at(0, -1, 0, 15);
-            List<BakedQuad> upper = coreOf(column);
-            List<BakedQuad> lower = coreOf(column.shiftedBy(0, -1, 0));
-            assertFalse(upper.isEmpty(), "the block on top holds a core");
-            assertTrue(upper.stream().noneMatch(quad -> quad.direction() == Direction.DOWN),
-                    "the block on top draws no core floor");
-            assertTrue(lower.stream().noneMatch(inPlaneY(1f)), "the full block draws no core top at its own top");
-            assertTrue(lower.stream().noneMatch(quad -> quad.direction() == Direction.UP && touchesItsTop(quad)),
-                    "the full block draws no core top where the column's core rises past it, the block on top's to draw");
-            assertTrue(upper.stream().anyMatch(quad -> quad.direction() == Direction.UP && dipsUnderItsFloor(quad)),
-                    "the block on top draws the column's core top on down where it dips into the full block");
-        }
     }
 
     @Nested
@@ -409,7 +400,8 @@ class SlimeCoreQuadsTest {
                 float plane = face.getAxis() == Direction.Axis.X ? middleOf(quad).x() : middleOf(quad).z();
                 float bound = face.getAxisDirection() == Direction.AxisDirection.POSITIVE ? 1 - SIDE_MARGIN
                         : SIDE_MARGIN;
-                if (!(top.rims().contains(face) || notchesAt(top, face)) || Math.abs(plane - bound) > EPSILON) {
+                boolean bounded = top.rims().contains(face) || top.steps().contains(face) || notchesAt(top, face);
+                if (!bounded || Math.abs(plane - bound) > EPSILON) {
                     inside.add(block + " " + face + " at " + plane);
                 }
             }
@@ -474,26 +466,6 @@ class SlimeCoreQuadsTest {
             assertEquals(ARGB.color(SHELL_ALPHA, HIGHLIGHT), tints.getFirst().color(mock(BlockState.class)),
                     "the layers draw at 30% opacity in the goo's highlight");
         }
-    }
-
-    /** Whether any corner of a quad stands under its block's floor. */
-    private static boolean dipsUnderItsFloor(BakedQuad quad) {
-        for (int vertex = 0; vertex < BakedQuad.VERTEX_COUNT; vertex++) {
-            if (quad.position(vertex).y() < -EPSILON) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /** Whether any corner of a quad stands at its block's top. */
-    private static boolean touchesItsTop(BakedQuad quad) {
-        for (int vertex = 0; vertex < BakedQuad.VERTEX_COUNT; vertex++) {
-            if (quad.position(vertex).y() >= 1 - EPSILON) {
-                return true;
-            }
-        }
-        return false;
     }
 
     /** The shell's top over a point, in blocks above the block's floor. */

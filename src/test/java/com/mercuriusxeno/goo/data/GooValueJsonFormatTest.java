@@ -312,11 +312,11 @@ class GooValueJsonFormatTest {
                     new GooValue(Map.of(GooTypes.METAL, 200)));
             JsonObject json = new JsonObject();
             json.addProperty("metal", "-cut_copper.metal / 4");
-            json.addProperty("yore", "cut_copper.metal / 8");
+            json.addProperty("opulent", "cut_copper.metal / 8");
 
             GooValue result = GooValueJsonFormat.parseGooValue(json, Map.of(), baseValues);
             assertEquals(GooFraction.of(-50), result.exact(GooTypes.METAL)); // -(200) / 4
-            assertEquals(GooFraction.of(25), result.exact(GooTypes.YORE));    // 200 / 8
+            assertEquals(GooFraction.of(25), result.exact(GooTypes.OPULENT));    // 200 / 8
         }
 
         /**

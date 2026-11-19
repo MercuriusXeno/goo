@@ -11,6 +11,7 @@ import net.minecraft.core.Direction;
 import net.neoforged.neoforge.client.model.ExtraFaceData;
 import org.joml.Vector3f;
 import org.joml.Vector3fc;
+import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumMap;
@@ -24,7 +25,8 @@ import java.util.function.UnaryOperator;
  * {@link SlimeTop} reads: each slab, the floor's top or the goo on a wall or
  * under a ceiling, in patches whose corners stand out from its surface at
  * the slab's heights, and down each edge no slab of its goo continues past a
- * rim from the surface out to the slab's edge. The patches split at the
+ * rim from the surface out to the slab's edge, and up each side a whole cube
+ * shows over lower goo of its type a step. The patches split at the
  * slope's bends, 4 and 12 texels in, and at the core's margin, 2 and 14, so
  * each piece of the core's top stands under a piece of the shell of its own
  * extent and the translucent sort draws the core first from any view above.
@@ -98,6 +100,58 @@ public final class SlimeTopQuads {
     }
 
     /**
+     * The side a whole cube shows over lower goo of its type beside it,
+     * along each edge where the cube steps: from the line where that goo's
+     * top meets the cube's face up to the cube's top. They draw whatever the
+     * neighbours, since the goo beside, at any height, hides no part of them.
+     * full-goo-block-under-goo-is-a-whole-cube
+     *
+     * @param top      the cube's heights and steps
+     * @param material the shell's material
+     * @return the steps' quads, one for each patch along each edge that rises past the goo beside
+     */
+    public static List<BakedQuad> stepsOf(SlimeTop top, BakedQuad.MaterialInfo material) {
+        List<BakedQuad> quads = new ArrayList<>();
+        for (Direction edge : top.steps()) {
+            for (int along = 0; along + 1 < CUTS.length; along++) {
+                BakedQuad step = stepPatchOf(top, edge, CUTS[along], CUTS[along + 1], material);
+                if (step != null) {
+                    quads.add(step);
+                }
+            }
+        }
+        return quads;
+    }
+
+    /**
+     * One patch of a step along an edge, from the slope's foot on the cube's face up to the cube's top.
+     *
+     * @param top      the cube's heights
+     * @param edge     the edge, in the slab's plane
+     * @param from     where the patch starts along the edge, in model pixels
+     * @param to       where it ends
+     * @param material the shell's material
+     * @return the step's patch, or null where the goo beside stands to the cube's top along it
+     */
+    private static @Nullable BakedQuad stepPatchOf(SlimeTop top, Direction edge, float from, float to,
+                                                   BakedQuad.MaterialInfo material) {
+        SlimeTop.Plane plane = top.plane();
+        OutField foot = (first, second) -> (float) top.slopeAtPixel(first, second) * PIXELS_PER_LAYER;
+        OutField head = (first, second) -> (float) top.heightAtPixel(first, second) * PIXELS_PER_LAYER;
+        boolean acrossFirst = edge.getAxis() == plane.first().getAxis();
+        float at = edge.getAxisDirection() == Direction.AxisDirection.POSITIVE ? WHOLE : 0;
+        Vector3f low = acrossFirst ? pointOn(plane, at, from, 0) : pointOn(plane, from, at, 0);
+        Vector3f high = acrossFirst ? pointOn(plane, at, to, WHOLE) : pointOn(plane, to, at, WHOLE);
+        float rise = Math.max(head.outAt(plane.firstOf(low), plane.secondOf(low))
+                - foot.outAt(plane.firstOf(low), plane.secondOf(low)), head.outAt(plane.firstOf(high),
+                plane.secondOf(high)) - foot.outAt(plane.firstOf(high), plane.secondOf(high)));
+        if (rise <= ON_THE_PLANE) {
+            return null;
+        }
+        return spannedOn(faceOf(lowCorner(low, high), highCorner(low, high), edge, material), plane, foot, head);
+    }
+
+    /**
      * One patch of a rim along an edge, from the slab's surface out to the slab's edge.
      *
      * @param top      the slab's heights
@@ -119,9 +173,7 @@ public final class SlimeTopQuads {
     }
 
     /**
-     * A rim's outer vertex moved out to the slab's height at its place, kept
-     * on the surface where the slope stands under it, as a column's top does
-     * where the block under it draws the rest.
+     * A rim's outer vertex moved out to the slab's height at its place.
      *
      * @param at  the vertex, in model pixels
      * @param top the slab's heights

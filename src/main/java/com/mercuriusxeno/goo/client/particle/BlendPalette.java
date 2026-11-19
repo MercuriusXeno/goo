@@ -17,9 +17,11 @@ public record BlendPalette(float lightRed, float lightGreen, float lightBlue,
                            float darkRed, float darkGreen, float darkBlue) {
 
     /**
-     * Decay's gnats, from zombie goo's bright green, 7AA85A, to its meat brown edge, 5E4428.
+     * Decay's gnats and Infest's spray drips, from zombie goo's bright green,
+     * 7AA85A, to its meat brown edge, 5E4428.
      * decay-gnats-degrade-each-block-once
      * zombie-goo-is-colored-after-zombie-flesh-and-decay-stops-being-maroon
+     * zombie-goo-is-the-undead-and-takes-the-decay-abilities
      */
     public static final BlendPalette ZOMBIE_ROT = new BlendPalette(
             0x7A / 255f, 0xA8 / 255f, 0x5A / 255f, 0x5E / 255f, 0x44 / 255f, 0x28 / 255f);
@@ -117,13 +119,6 @@ public record BlendPalette(float lightRed, float lightGreen, float lightBlue,
             0xA6 / 255f, 0xF0 / 255f, 0x78 / 255f, 0x7E / 255f, 0xC8 / 255f, 0x50 / 255f);
 
     /**
-     * Infest's spray drips, from nether's bright red, 9A4E4E, to its wheel
-     * red, 652828, the two the nether goo type's definition names.
-     * infest-is-nethers-goo-the-decay-effect-localized-around-the-goo
-     */
-    public static final BlendPalette INFEST_NETHER_REDS = new BlendPalette(
-            0x9A / 255f, 0x4E / 255f, 0x4E / 255f, 0x65 / 255f, 0x28 / 255f, 0x28 / 255f);
-
 
     /**
      * Nitro's spray drips, from unstable's bright green, 88FF44, to its wheel

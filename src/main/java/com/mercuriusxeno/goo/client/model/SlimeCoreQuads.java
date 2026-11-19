@@ -21,9 +21,11 @@ import java.util.List;
  * is, the shell's sloped body at the slime's 3/4, centred in it: at every
  * point it runs from 1/8 to 7/8 of the shell's height there, and it stands
  * 1/8 of a block in from each side no goo of its type continues past. Since
- * neighbouring shells meet at one height, so do their cores, and they join
- * smoothly. A block on a full block of its goo keeps no floor to its core
- * and the full block no top, so a column keeps one unbroken core, and a core
+ * neighbouring slopes meet at one height, so do their cores, and they join
+ * smoothly. A whole cube's core stands to its top, save along a step, where
+ * it slopes down to meet the core of the lower goo beside it. A block on a
+ * full block of its goo keeps no floor to its core and the full block no top
+ * where the two cores meet, so a stack keeps one unbroken core, and a core
  * reaching a side its goo continues past draws no face there. Each face is
  * textured where it stands in its block, so the texture runs on across a
  * join as across tiled blocks. It reads no client state, so a test hands it
@@ -31,6 +33,7 @@ import java.util.List;
  * slime-core-slopes-with-the-pile-inside-its-contour
  * residual-always-draws-a-core-inside-a-one-eighth-margin
  * stacked-goo-cells-share-one-slime-core
+ * full-goo-block-under-goo-is-a-whole-cube
  * palm-blob-draws-as-the-charge-blob
  */
 public final class SlimeCoreQuads {
@@ -65,6 +68,10 @@ public final class SlimeCoreQuads {
     private static final float PIXELS_PER_LAYER = WHOLE / VolumeCellBlock.MAX_LAYERS;
     /** The least room a corner holds a core in, in blocks, against rounding. */
     private static final float ROOM_SLACK = 1e-4f;
+    /** Halfway along a span. */
+    private static final float HALF = 0.5f;
+    /** The index naming no patch, for a point outside a core's plan. */
+    private static final int NO_PATCH = -1;
 
     private SlimeCoreQuads() {
     }
@@ -137,8 +144,8 @@ public final class SlimeCoreQuads {
          * @return true where the core has room at a corner of the patch
          */
         private boolean roomAtACorner(int a, int b) {
-            return roomAt(firsts[a], seconds[b]) || roomAt(firsts[a + 1], seconds[b])
-                    || roomAt(firsts[a], seconds[b + 1]) || roomAt(firsts[a + 1], seconds[b + 1]);
+            return roomAt(a, b, firsts[a], seconds[b]) || roomAt(a, b, firsts[a + 1], seconds[b])
+                    || roomAt(a, b, firsts[a], seconds[b + 1]) || roomAt(a, b, firsts[a + 1], seconds[b + 1]);
         }
 
         /**
@@ -180,11 +187,14 @@ public final class SlimeCoreQuads {
          * @return each held patch's faces, and a side wherever the core ends
          */
         List<BakedQuad> quadsOf(BakedQuad.MaterialInfo material) {
+            // stacked-goo-cells-share-one-slime-core: a core runs on through a face shared with goo of its type
+            Stack stack = new Stack(slab.covered() ? new CoreShape(slab.above()) : null,
+                    slab.standsOnItsGoo() ? new CoreShape(slab.under()) : null);
             List<BakedQuad> quads = new ArrayList<>();
             for (int a = 0; a < held.length; a++) {
                 for (int b = 0; b < held[a].length; b++) {
                     if (held[a][b]) {
-                        quads.addAll(patchOf(a, b, material));
+                        quads.addAll(patchOf(a, b, material, stack));
                     }
                 }
             }
@@ -192,30 +202,35 @@ public final class SlimeCoreQuads {
         }
 
         /**
-         * One held patch's faces: its outer face, save where the column runs
-         * on up through it, its face toward the surface, save in a block on a
-         * full block of its goo, whose core runs on down, and its sides where
-         * the core ends.
+         * One held patch's faces: its outer face, save in a whole cube where
+         * the core of the block above runs on up through it, its face toward
+         * the surface, save on a full block of its goo where that block's
+         * core runs on down, and its sides where the core ends.
+         * stacked-goo-cells-share-one-slime-core
          *
          * @param a        the patch's index along the plane's first axis
          * @param b        its index along the second
          * @param material the core's material
+         * @param stack    the cores of the blocks above and under, where goo of its type stands there
          * @return the patch's faces
          */
-        private List<BakedQuad> patchOf(int a, int b, BakedQuad.MaterialInfo material) {
+        private List<BakedQuad> patchOf(int a, int b, BakedQuad.MaterialInfo material, Stack stack) {
             List<BakedQuad> quads = new ArrayList<>();
-            if (!slab.covered() || underTheTop(a, b)) {
-                quads.add(spanned(face(a, b, WHOLE, plane.surface().getOpposite(), material)));
+            float first = (firsts[a] + firsts[a + 1]) * HALF;
+            float second = (seconds[b] + seconds[b + 1]) * HALF;
+            if (!reachesTop(a, b) || stack.above() == null || !stack.above().holdsAt(first, second)) {
+                quads.add(spanned(face(a, b, WHOLE, plane.surface().getOpposite(), material), a, b));
             }
-            if (slab.base() == 0) {
-                quads.add(spanned(face(a, b, 0, plane.surface(), material)));
+            if (stack.under() == null || !stack.under().reachesTopAt(first, second)) {
+                quads.add(spanned(face(a, b, 0, plane.surface(), material), a, b));
             }
             quads.addAll(wallsOf(a, b, material));
             return quads;
         }
 
         /**
-         * A held patch's sides on the core's own bound, at open sides, where the core has height.
+         * A held patch's sides: on the core's own bound at open sides, and in
+         * a whole cube where the core beside it steps down toward lower goo.
          *
          * @param a        the patch's index along the first axis
          * @param b        its index along the second
@@ -226,10 +241,93 @@ public final class SlimeCoreQuads {
             List<BakedQuad> walls = new ArrayList<>();
             for (Direction edge : edges()) {
                 if (endsAcross(a, b, edge) && roomAlong(a, b, edge)) {
-                    walls.add(spanned(sideOf(a, b, edge, material)));
+                    walls.add(spanned(sideOf(a, b, edge, material), a, b));
+                } else if (stepsDownAcross(a, b, edge)) {
+                    // full-goo-block-under-goo-is-a-whole-cube: the cube's core meets the lower core beside it
+                    walls.add(SlimeTopQuads.spannedOn(sideOf(a, b, edge, material), plane, this::stepTopAt,
+                            (first, second) -> WHOLE));
                 }
             }
             return walls;
+        }
+
+        /**
+         * Whether a patch reaching the cube's top stands beside a patch of
+         * the strip along a step, whose core top stands lower.
+         *
+         * @param a    the patch's index along the first axis
+         * @param b    its index along the second
+         * @param edge the edge toward the patch beside
+         * @return true where the patch walls the step down
+         */
+        private boolean stepsDownAcross(int a, int b, Direction edge) {
+            boolean acrossFirst = edge.getAxis() == plane.first().getAxis();
+            int step = edge.getAxisDirection().getStep();
+            int besideA = acrossFirst ? a + step : a;
+            int besideB = acrossFirst ? b : b + step;
+            return reachesTop(a, b) && inPlan(besideA, besideB) && held[besideA][besideB]
+                    && !reachesTop(besideA, besideB);
+        }
+
+        /**
+         * Whether the core of a patch stands to the block's top: in a whole
+         * cube, save in the strip along a step, where it slopes down to meet
+         * the lower core beside it.
+         * full-goo-block-under-goo-is-a-whole-cube
+         *
+         * @param a the patch's index along the first axis
+         * @param b its index along the second
+         * @return true where the patch's core stands to the top
+         */
+        private boolean reachesTop(int a, int b) {
+            return slab.covered() && !inStepStrip(a, b);
+        }
+
+        /**
+         * @param a the patch's index along the first axis
+         * @param b its index along the second
+         * @return true where the patch stands in the margin of an edge the slab steps down across
+         */
+        private boolean inStepStrip(int a, int b) {
+            Direction alongFirst = marginEdge(firsts, a, plane.first());
+            Direction alongSecond = marginEdge(seconds, b, plane.second());
+            return alongFirst != null && slab.steps().contains(alongFirst)
+                    || alongSecond != null && slab.steps().contains(alongSecond);
+        }
+
+        /**
+         * Whether this core holds a point of its plan.
+         *
+         * @param first  model pixels along the first axis
+         * @param second model pixels along the second
+         * @return true where a held patch covers it
+         */
+        boolean holdsAt(float first, float second) {
+            int a = patchAlong(firsts, first);
+            int b = patchAlong(seconds, second);
+            return a >= 0 && b >= 0 && held[a][b];
+        }
+
+        /**
+         * Whether this core stands to its block's top over a point, so the core above runs on from it there.
+         *
+         * @param first  model pixels along the first axis
+         * @param second model pixels along the second
+         * @return true where a held patch reaching the top covers it
+         */
+        boolean reachesTopAt(float first, float second) {
+            int a = patchAlong(firsts, first);
+            int b = patchAlong(seconds, second);
+            return a >= 0 && b >= 0 && held[a][b] && reachesTop(a, b);
+        }
+
+        private static int patchAlong(float[] cuts, float at) {
+            for (int index = 0; index + 1 < cuts.length; index++) {
+                if (at > cuts[index] && at < cuts[index + 1]) {
+                    return index;
+                }
+            }
+            return NO_PATCH;
         }
 
         /**
@@ -284,8 +382,8 @@ public final class SlimeCoreQuads {
             return new float[] {at, at};
         }
 
-        private BakedQuad spanned(BakedQuad flat) {
-            return SlimeTopQuads.spannedOn(flat, plane, this::floorAt, this::topAt);
+        private BakedQuad spanned(BakedQuad flat, int a, int b) {
+            return SlimeTopQuads.spannedOn(flat, plane, this::floorAt, (first, second) -> topAt(a, b, first, second));
         }
 
         private List<Direction> edges() {
@@ -327,7 +425,7 @@ public final class SlimeCoreQuads {
             boolean acrossFirst = edge.getAxis() == plane.first().getAxis();
             float[] alongFirst = spanOf(firsts, a, acrossFirst ? edge : null);
             float[] alongSecond = spanOf(seconds, b, acrossFirst ? null : edge);
-            return roomAt(alongFirst[0], alongSecond[0]) || roomAt(alongFirst[1], alongSecond[1]);
+            return roomAt(a, b, alongFirst[0], alongSecond[0]) || roomAt(a, b, alongFirst[1], alongSecond[1]);
         }
 
         private boolean inPlan(int a, int b) {
@@ -335,72 +433,50 @@ public final class SlimeCoreQuads {
         }
 
         /**
-         * Whether the column's core top stands under this block's top at all
-         * four corners of a patch: only there does a full block under goo
-         * draw it, and where any corner rises past, the block on top draws
-         * the patch, so the two never draw one patch twice.
-         * stacked-goo-cells-share-one-slime-core
+         * The core's outer face at a point of a patch: the block's top in a
+         * whole cube, and elsewhere 7/8 of the slope over it, down on its
+         * floor where that leaves no room.
+         * slime-core-slopes-with-the-pile-inside-its-contour
+         * full-goo-block-under-goo-is-a-whole-cube
          *
-         * @param a the patch's index along the first axis
-         * @param b its index along the second
-         * @return true where this block draws the patch's core top
-         */
-        private boolean underTheTop(int a, int b) {
-            return rawTopAt(firsts[a], seconds[b]) < WHOLE - ROOM_SLACK
-                    && rawTopAt(firsts[a + 1], seconds[b]) < WHOLE - ROOM_SLACK
-                    && rawTopAt(firsts[a], seconds[b + 1]) < WHOLE - ROOM_SLACK
-                    && rawTopAt(firsts[a + 1], seconds[b + 1]) < WHOLE - ROOM_SLACK;
-        }
-
-        /**
-         * The core's outer face at a point: 7/8 of the pile's surface over
-         * it, measured from the column's base, and down on its floor where
-         * that leaves no room. A block goo of its type covers stops at its own
-         * top, where the block above draws the column on up; an uncovered
-         * block's core rises with its shell over its top toward a taller
-         * neighbour, so it meets that neighbour's core along their edge.
-         * stacked-goo-cells-share-one-slime-core
-         *
+         * @param a      the patch's index along the first axis
+         * @param b      its index along the second
          * @param first  model pixels along the first axis
          * @param second model pixels along the second
          * @return the distance out from the slab's surface, in model pixels
          */
-        private float topAt(float first, float second) {
-            float top = rawTopAt(first, second);
-            return Math.max(floorAt(first, second), slab.covered() ? Math.min(WHOLE, top) : top);
+        private float topAt(int a, int b, float first, float second) {
+            return reachesTop(a, b) ? WHOLE : Math.max(floorAt(first, second), stepTopAt(first, second));
         }
 
         /**
          * @param first  model pixels along the first axis
          * @param second model pixels along the second
-         * @return 7/8 of the pile's surface over the point from the column's base, out from the slab's surface
+         * @return 7/8 of the slope over the point, out from the slab's surface, in model pixels
          */
-        private float rawTopAt(float first, float second) {
-            return ((float) slab.surfaceAtPixel(first, second) * CORE_TOP - slab.base()) * PIXELS_PER_LAYER;
+        private float stepTopAt(float first, float second) {
+            return (float) slab.slopeAtPixel(first, second) * CORE_TOP * PIXELS_PER_LAYER;
         }
 
         /**
-         * The core's face toward the surface at a point: 1/8 of the pile's
-         * surface over it; in a block on a full block of its goo the block's
-         * own floor, where the column's core runs on down, or the core's top
-         * where that dips under the floor, so the core closes there inside the
-         * column's.
+         * The core's face toward the surface at a point: 1/8 of the slope
+         * over it, or the block's own floor on a full block of its goo, where
+         * the core runs on down.
+         * stacked-goo-cells-share-one-slime-core
          *
          * @param first  model pixels along the first axis
          * @param second model pixels along the second
          * @return the distance out from the slab's surface, in model pixels
          */
         private float floorAt(float first, float second) {
-            if (slab.base() > 0) {
-                // stacked-goo-cells-share-one-slime-core: a column's core runs on down, closing where its top dips
-                return Math.min(0, rawTopAt(first, second));
+            if (slab.standsOnItsGoo()) {
+                return 0;
             }
-            float surface = (float) slab.surfaceAtPixel(first, second);
-            return Math.max(0, surface * CORE_FLOOR * PIXELS_PER_LAYER);
+            return Math.max(0, (float) slab.slopeAtPixel(first, second) * CORE_FLOOR * PIXELS_PER_LAYER);
         }
 
-        private boolean roomAt(float first, float second) {
-            return topAt(first, second) - floorAt(first, second) > ROOM_SLACK;
+        private boolean roomAt(int a, int b, float first, float second) {
+            return topAt(a, b, first, second) - floorAt(first, second) > ROOM_SLACK;
         }
 
         /**
@@ -418,6 +494,15 @@ public final class SlimeCoreQuads {
         private float inset(Direction edge) {
             return opensAt(edge) ? SIDE_MARGIN : 0;
         }
+    }
+
+    /**
+     * The cores of the blocks a core runs on into, above and under it.
+     *
+     * @param above the core of the block above a whole cube, null for any other block
+     * @param under the core of the full block a block stands on, null where it stands on none
+     */
+    private record Stack(@Nullable CoreShape above, @Nullable CoreShape under) {
     }
 
     /**

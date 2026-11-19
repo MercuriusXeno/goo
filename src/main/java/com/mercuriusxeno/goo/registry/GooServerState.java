@@ -11,6 +11,7 @@ import com.mercuriusxeno.goo.block.ability.LayerFalls;
 import com.mercuriusxeno.goo.block.ability.MoltenHeats;
 import com.mercuriusxeno.goo.block.ability.NectarFights;
 import com.mercuriusxeno.goo.block.ability.NitroFuses;
+import com.mercuriusxeno.goo.block.ability.PourPlans;
 import com.mercuriusxeno.goo.block.ability.WispClaims;
 import com.mercuriusxeno.goo.network.DripFlights;
 import com.mercuriusxeno.goo.network.GooEffectScheduler;
@@ -47,6 +48,7 @@ public final class GooServerState {
     private final NectarFights nectarFights = new NectarFights();
     private final NitroFuses nitroFuses = new NitroFuses();
     private final LayerFalls layerFalls = new LayerFalls();
+    private final PourPlans pourPlans = new PourPlans();
     private final CreepSpreaders creepSpreaders = new CreepSpreaders();
     private final CreepFreeCells creepFreeCells = new CreepFreeCells();
     private final WispClaims wispClaims = new WispClaims();
@@ -159,6 +161,16 @@ public final class GooServerState {
      */
     public LayerFalls layerFalls() {
         return layerFalls;
+    }
+
+    /**
+     * The pours connected goo cells are working through
+     * (decision connected-goo-cells-form-one-network-that-works-out-the-pour).
+     *
+     * @return the pour plans
+     */
+    public PourPlans pourPlans() {
+        return pourPlans;
     }
 
     /**
@@ -284,6 +296,7 @@ public final class GooServerState {
         scanWaves.clear();
         dripFlights.clear();
         layerFalls.clear();
+        pourPlans.clear();
         moltenHeats.clear();
         nectarFights.clear();
         nitroFuses.clear();
