@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.ability.crystal.OreSource;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.LivingEntity;
@@ -39,6 +40,7 @@ public final class HeldSweepWorld {
     private static final int MOB_EVERY = 24;
     private static final double MOB_OFF_THE_LATTICE = 1.5;
     private static final double MOBS_REACH = 120;
+    private static final int SECTION_SIZE = 16;
     private static final List<AABB> CUBE = List.of(new AABB(0, 0, 0, 1, 1, 1));
 
     private final List<TargetHost> hosts = new ArrayList<>();
@@ -99,6 +101,53 @@ public final class HeldSweepWorld {
     private static boolean veinRow(int coordinate) {
         int along = Math.floorMod(coordinate, VEIN_EVERY);
         return along >= VEIN_FROM && along < VEIN_FROM + VEIN_WIDTH;
+    }
+
+    /**
+     * The world's ore as a sense's front finds it: a section may hold ore
+     * where a vein row crosses it along every axis, as a section's palette
+     * answers in a level.
+     */
+    public static final OreSource ORES = new OreSource() {
+        @Override
+        public @Nullable Identifier oreAt(BlockPos pos) {
+            return HeldSweepWorld.oreAt(pos);
+        }
+
+        @Override
+        public boolean mayHoldOre(int sectionX, int sectionY, int sectionZ) {
+            return veinRowWithin(sectionX) && veinRowWithin(sectionY) && veinRowWithin(sectionZ);
+        }
+    };
+
+    private static boolean veinRowWithin(int section) {
+        for (int coordinate = section * SECTION_SIZE; coordinate < (section + 1) * SECTION_SIZE; coordinate++) {
+            if (veinRow(coordinate)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * The world's ore with each block read counted.
+     *
+     * @param reads counts each block read, one slot
+     * @return the source
+     */
+    public static OreSource countedOres(int[] reads) {
+        return new OreSource() {
+            @Override
+            public @Nullable Identifier oreAt(BlockPos pos) {
+                reads[0]++;
+                return ORES.oreAt(pos);
+            }
+
+            @Override
+            public boolean mayHoldOre(int sectionX, int sectionY, int sectionZ) {
+                return ORES.mayHoldOre(sectionX, sectionY, sectionZ);
+            }
+        };
     }
 
     /**

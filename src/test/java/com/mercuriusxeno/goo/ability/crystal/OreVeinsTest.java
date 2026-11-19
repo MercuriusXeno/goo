@@ -4,11 +4,9 @@ import com.mercuriusxeno.goo.ability.program.HeldSweepWorld;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.phys.Vec3;
-import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -57,15 +55,11 @@ class OreVeinsTest {
     @Test
     void oneOreSenseTickAtItsRadiusReadsTheBandItCrossed() {
         int[] reads = new int[1];
-        Function<BlockPos, @Nullable Identifier> counted = pos -> {
-            reads[0]++;
-            return HeldSweepWorld.oreAt(pos);
-        };
 
         List<OreVeins.Vein> veins = OreVeins.firstReachedIn(BlockPos.containing(HeldSweepWorld.CASTER),
-                ORE_RADIUS - ONE_TICK, ORE_RADIUS, ORE_RADIUS, counted);
+                ORE_RADIUS - ONE_TICK, ORE_RADIUS, ORE_RADIUS, HeldSweepWorld.countedOres(reads));
 
-        assertEquals(81_266, reads[0], "block reads one ore-sense tick makes, out to 64");
+        assertEquals(34_170, reads[0], "block reads one ore-sense tick makes, out to 64; 81,266 at commit 96d5c55");
         assertEquals(4, veins.size(), "veins that tick first reaches");
     }
 

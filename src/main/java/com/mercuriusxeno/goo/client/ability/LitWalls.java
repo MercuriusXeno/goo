@@ -29,7 +29,9 @@ final class LitWalls {
      * @return the order, lower for older
      */
     long nextOrder() {
-        return pulsesMade++;
+        long order = pulsesMade;
+        pulsesMade = order + 1;
+        return order;
     }
 
     /**
