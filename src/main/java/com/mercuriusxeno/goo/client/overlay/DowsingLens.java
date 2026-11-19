@@ -11,6 +11,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import org.jspecify.annotations.Nullable;
 import java.util.ArrayDeque;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -142,12 +143,15 @@ public final class DowsingLens {
     public static Set<BlockPos> oreShown(Vec3 eye, AABB goo, int layers, Function<BlockPos, BlockState> blocks) {
         Set<BlockPos> shown = new HashSet<>();
         AABB reach = goo.inflate(layers);
+        View view = View.of(eye, goo);
         for (BlockPos pos : BlockPos.betweenClosed(Mth.floor(reach.minX), Mth.floor(reach.minY),
                 Mth.floor(reach.minZ), Mth.ceil(reach.maxX) - 1, Mth.ceil(reach.maxY) - 1,
                 Mth.ceil(reach.maxZ) - 1)) {
             AABB block = new AABB(pos);
-            if (!block.intersects(goo) && distanceBetween(goo, block) < layers
-                    && behindFromTheEye(eye, goo, block) && isOre(blocks.apply(pos))) {
+            // operator UAT 2026-11-18: the ore test runs before the projection, since ore is rare and projecting every
+            // block in a deep patch's reach each tick stalled the client
+            if (!block.intersects(goo) && distanceBetween(goo, block) < layers && isOre(blocks.apply(pos))
+                    && view.behind(block)) {
                 shown.add(pos.immutable());
             }
         }
@@ -183,15 +187,36 @@ public final class DowsingLens {
      * @return true where the block may show through the goo
      */
     static boolean behindFromTheEye(Vec3 eye, AABB goo, AABB block) {
-        Vec3 look = goo.getCenter().subtract(eye).normalize();
-        Vec3 across = Math.abs(look.y) < STEEP_LOOK ? look.cross(UP).normalize() : look.cross(EAST).normalize();
-        Vec3 up = across.cross(look);
-        Outline gooOutline = Outline.of(eye, goo, look, across, up);
-        Outline blockOutline = Outline.of(eye, block, look, across, up);
-        if (gooOutline == null || blockOutline == null) {
-            return true;
+        return View.of(eye, goo).behind(block);
+    }
+
+    /**
+     * The eye's view of one cell's goo, its look, the view plane's axes and
+     * the goo's outline on that plane, read once per cell and tick, so each
+     * block in the cell's reach projects only its own outline.
+     *
+     * @param eye    where the eye looks from
+     * @param look   the look at the goo, a unit vector
+     * @param across the view plane's sideways axis
+     * @param up     the view plane's upward axis
+     * @param goo    the goo's outline, null where a corner stands at or behind the eye's plane
+     */
+    private record View(Vec3 eye, Vec3 look, Vec3 across, Vec3 up, @Nullable Outline goo) {
+
+        static View of(Vec3 eye, AABB goo) {
+            Vec3 look = goo.getCenter().subtract(eye).normalize();
+            Vec3 across = Math.abs(look.y) < STEEP_LOOK ? look.cross(UP).normalize() : look.cross(EAST).normalize();
+            Vec3 up = across.cross(look);
+            return new View(eye, look, across, up, Outline.of(eye, goo, look, across, up));
         }
-        return gooOutline.overlaps(blockOutline) && blockOutline.farthest() > gooOutline.nearest();
+
+        boolean behind(AABB block) {
+            Outline blockOutline = Outline.of(eye, block, look, across, up);
+            if (goo == null || blockOutline == null) {
+                return true;
+            }
+            return goo.overlaps(blockOutline) && blockOutline.farthest() > goo.nearest();
+        }
     }
 
     /**
