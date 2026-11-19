@@ -17,9 +17,11 @@ public record BlendPalette(float lightRed, float lightGreen, float lightBlue,
                            float darkRed, float darkGreen, float darkBlue) {
 
     /**
-     * Decay's gnats, from zombie goo's bright green, 7AA85A, to its meat brown edge, 5E4428.
+     * Decay's gnats and Infest's spray drips, from zombie goo's bright green,
+     * 7AA85A, to its meat brown edge, 5E4428.
      * decay-gnats-degrade-each-block-once
      * zombie-goo-is-colored-after-zombie-flesh-and-decay-stops-being-maroon
+     * zombie-goo-is-the-undead-and-takes-the-decay-abilities
      */
     public static final BlendPalette ZOMBIE_ROT = new BlendPalette(
             0x7A / 255f, 0xA8 / 255f, 0x5A / 255f, 0x5E / 255f, 0x44 / 255f, 0x28 / 255f);
@@ -117,14 +119,6 @@ public record BlendPalette(float lightRed, float lightGreen, float lightBlue,
             0xA6 / 255f, 0xF0 / 255f, 0x78 / 255f, 0x7E / 255f, 0xC8 / 255f, 0x50 / 255f);
 
     /**
-     * Infest's spray drips, from nether's bright red, 9A4E4E, to its wheel
-     * red, 652828, the two the nether goo type's definition names.
-     * infest-is-nethers-goo-the-decay-effect-localized-around-the-goo
-     */
-    public static final BlendPalette INFEST_NETHER_REDS = new BlendPalette(
-            0x9A / 255f, 0x4E / 255f, 0x4E / 255f, 0x65 / 255f, 0x28 / 255f, 0x28 / 255f);
-
-    /**
      * Spores' spray drips, from shroom's bright purple, B66CD5, to its
      * wheel purple, 8E44AD, the two the shroom goo type's definition names.
      * spores-is-shrooms-residual-a-passive-mycosis
@@ -156,6 +150,14 @@ public record BlendPalette(float lightRed, float lightGreen, float lightBlue,
      */
     public static final BlendPalette PHASE_QUANTUM_BLUES = new BlendPalette(
             0x6A / 255f, 0xD0 / 255f, 0xF0 / 255f, 0x3A / 255f, 0xA0 / 255f, 0xE0 / 255f);
+
+    /**
+     * Mortar's spray drips, from rock's bright gray, B4B6B8, to its wheel
+     * brown, 7A5C44, the two the rock goo type's definition names.
+     * mortar-is-rocks-residual-a-petrification-and-hardening-goo
+     */
+    public static final BlendPalette MORTAR_ROCK_GRAYS = new BlendPalette(
+            0xB4 / 255f, 0xB6 / 255f, 0xB8 / 255f, 0x7A / 255f, 0x5C / 255f, 0x44 / 255f);
 
     /**
      * The color a share of the way from the light end to the dark.
