@@ -1,7 +1,7 @@
 {
-  "gooType": "nether",
-  "displayName": "goo.ability.nether.infest",
-  "cost_mechanics": "goo.ability.nether.infest.cost_mechanics",
+  "gooType": "zombie",
+  "displayName": "goo.ability.zombie.infest",
+  "cost_mechanics": "goo.ability.zombie.infest.cost_mechanics",
   "badge": "residual",
   "order": 30,
   "cost": 96,
