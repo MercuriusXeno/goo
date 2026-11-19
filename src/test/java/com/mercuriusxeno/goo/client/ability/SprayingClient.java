@@ -287,5 +287,15 @@ public final class SprayingClient implements AutoCloseable {
         client.close();
         LiftedPalmBlob.forgetEverySpray();
         SpraySource.forgetRestingPalm();
+        DrawnPalm.forgetEveryPalm();
+    }
+
+    /**
+     * Records the caster's right glove palm as the arm layer draws it this frame.
+     *
+     * @param palm the drawn palm, in the world
+     */
+    public void drawsThePalm(DrawnPalm.Palm palm) {
+        DrawnPalm.record(CASTER, HumanoidArm.RIGHT, EYE.subtract(0, EYE_HEIGHT, 0), palm);
     }
 }
