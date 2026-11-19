@@ -113,7 +113,7 @@ public interface Step {
     /**
      * Answers whether the step can act on its host now; a self ability runs
      * and drains only when every step admits, so Transmit aimed at no
-     * fungus costs nothing (decision fungal-shift-blinks-to-the-aimed-fungus).
+     * connected mycelium costs nothing (decision transmit-reaches-only-connected-mycelial-blocks-you-touch).
      *
      * @param context the host and variable scope the step would run in
      * @return true when the step can act
