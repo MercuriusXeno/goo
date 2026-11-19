@@ -17,6 +17,12 @@ public final class Lunar {
     public static final ResourceKey<Level> LEVEL = ResourceKey.create(Registries.DIMENSION,
             Identifier.fromNamespaceAndPath(Goo.MODID, "lunar"));
 
+    /**
+     * Half the light side's width along x, in blocks: the light side runs from minus this to plus this.
+     * decision traversal-to-the-moon-always-lands-on-the-light-side
+     */
+    public static final int LIGHT_SIDE_HALF_WIDTH = 3_750_000;
+
     private Lunar() {
     }
 
