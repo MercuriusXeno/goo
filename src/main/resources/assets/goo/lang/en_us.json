@@ -45,6 +45,11 @@
   "item.goo.sprayer.flow.low": "Low",
   "item.goo.sprayer.flow.medium": "Medium",
   "item.goo.sprayer.flow.high": "High",
+  "item.goo.sprayer.nozzle.open": "Open",
+  "item.goo.sprayer.nozzle.choke": "Choke",
+  "item.goo.sprayer.nozzle.jet": "Jet",
+  "item.goo.sprayer.nozzle.sprinkler": "Sprinkler",
+  "item.goo.sprayer.nozzle.fan": "Fan",
 
   "block.goo.goo": "Goo",
 

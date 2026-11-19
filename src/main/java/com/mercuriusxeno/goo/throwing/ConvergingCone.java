@@ -64,7 +64,19 @@ public record ConvergingCone(Vec3 eye, Vec3 axis, double lands) {
      * @return the spot
      */
     public Vec3 spotOf(double coneDegrees, CoatRay.ConeShare share) {
-        return eye.add(StreamCone.launchDirection(axis, coneDegrees, share.tilt(), share.turn()).scale(lands));
+        return spotOf(ConeShape.round(coneDegrees), share);
+    }
+
+    /**
+     * The spot a drip's share of a cone of a shape lands on.
+     * decision spray-item-takes-different-nozzles-doing-different-things
+     *
+     * @param shape the cone's widths across and up and down
+     * @param share the drip's place in the cone
+     * @return the spot
+     */
+    public Vec3 spotOf(ConeShape shape, CoatRay.ConeShare share) {
+        return eye.add(StreamCone.launchDirection(axis, shape, share.tilt(), share.turn()).scale(lands));
     }
 
     /**
@@ -80,6 +92,21 @@ public record ConvergingCone(Vec3 eye, Vec3 axis, double lands) {
      */
     public Vec3 launchFrom(Vec3 apex, double coneDegrees, CoatRay.ConeShare share, double exitSpeed,
                            double gravity) {
-        return DripArc.launchOnto(apex, spotOf(coneDegrees, share), exitSpeed, gravity);
+        return launchFrom(apex, ConeShape.round(coneDegrees), share, exitSpeed, gravity);
+    }
+
+    /**
+     * A drip's launch onto its share's spot of a cone of a shape, at the exit speed.
+     * decision spray-item-takes-different-nozzles-doing-different-things
+     *
+     * @param apex      where the drip leaves, the lifted blob
+     * @param shape     the cone's widths across and up and down
+     * @param share     the drip's place in the cone
+     * @param exitSpeed the drip's exit speed, blocks per tick
+     * @param gravity   the pull on the drip each tick
+     * @return the launch velocity, blocks per tick
+     */
+    public Vec3 launchFrom(Vec3 apex, ConeShape shape, CoatRay.ConeShare share, double exitSpeed, double gravity) {
+        return DripArc.launchOnto(apex, spotOf(shape, share), exitSpeed, gravity);
     }
 }

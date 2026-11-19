@@ -43,6 +43,7 @@ import com.mercuriusxeno.goo.item.SprayerItem;
 import com.mercuriusxeno.goo.item.SprayerSetting;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.throwing.CoatRay;
+import com.mercuriusxeno.goo.throwing.ConeShape;
 import com.mercuriusxeno.goo.throwing.ConvergingCone;
 import com.mercuriusxeno.goo.throwing.DripArc;
 import com.mercuriusxeno.goo.throwing.StreamCone;
@@ -175,7 +176,8 @@ public final class GooStreamHandler {
         if (held == 0) {
             return;
         }
-        strikeCone(player, origin, ability, held, new HeldSpray(PaysFrom.SPRAYER_CANISTER, setting.flow().rate()));
+        strikeCone(player, origin, ability, held, new HeldSpray(PaysFrom.SPRAYER_CANISTER, setting.flow().rate(),
+                setting.nozzle()::shape));
         ability.delivery().sound().filter(sound -> sound.playsOn(held))
                 .ifPresent(sound -> playStreamSound(player, sound));
     }
@@ -490,8 +492,9 @@ public final class GooStreamHandler {
                 player.getId(), ability, landing, strikesLiving, cast.spray().paysFrom());
         Delivery delivery = ability.delivery();
         DripFlights flights = GooServerState.of(player.level().getServer()).dripFlights();
+        // spray-item-takes-different-nozzles-doing-different-things: the sprayer's nozzle shapes the cone
         flightsOf(thrower, new DripThrow(apex, cone, exitSpeedOf(player, delivery),
-                DripArc.gravityIn(player.level().dimension())), delivery,
+                DripArc.gravityIn(player.level().dimension())), cast.spray().shapeOf(delivery),
                 CoatRay.scatteredShares(held, dripsThisTick(player, delivery, landing, held, cast.spray().flowRate())))
                 .forEach(flights::launch);
         return strikesLiving;
@@ -520,8 +523,23 @@ public final class GooStreamHandler {
      */
     static List<DripFlights.Flight> flightsOf(DripFlights.Thrower thrower, DripThrow thrown, Delivery delivery,
                                               List<CoatRay.ConeShare> shares) {
+        return flightsOf(thrower, thrown, ConeShape.round(delivery.coneDegrees()), shares);
+    }
+
+    /**
+     * A tick's drip flights in a cone of a shape.
+     * spray-item-takes-different-nozzles-doing-different-things
+     *
+     * @param thrower who threw them
+     * @param thrown  where they leave and what they are thrown onto
+     * @param shape   the cone's widths across and up and down
+     * @param shares  the tick's places in the cone, one a drip
+     * @return the flights, one a share
+     */
+    static List<DripFlights.Flight> flightsOf(DripFlights.Thrower thrower, DripThrow thrown, ConeShape shape,
+                                              List<CoatRay.ConeShare> shares) {
         return shares.stream().map(share -> new DripFlights.Flight(thrower, thrown.apex(),
-                dripLaunch(thrown, delivery, share))).toList();
+                dripLaunch(thrown, shape, share))).toList();
     }
 
     /**
@@ -535,8 +553,20 @@ public final class GooStreamHandler {
      * @return the launch velocity, blocks per tick
      */
     public static Vec3 dripLaunch(DripThrow thrown, Delivery delivery, CoatRay.ConeShare share) {
-        return thrown.cone().launchFrom(thrown.apex(), delivery.coneDegrees(), share, thrown.exitSpeed(),
-                thrown.gravity());
+        return dripLaunch(thrown, ConeShape.round(delivery.coneDegrees()), share);
+    }
+
+    /**
+     * One server drip's launch for its share of a cone of a shape, the launch its drawn drip takes.
+     * spray-item-takes-different-nozzles-doing-different-things
+     *
+     * @param thrown where the drip leaves and what it is thrown onto
+     * @param shape  the cone's widths across and up and down
+     * @param share  the drip's place in the cone
+     * @return the launch velocity, blocks per tick
+     */
+    public static Vec3 dripLaunch(DripThrow thrown, ConeShape shape, CoatRay.ConeShare share) {
+        return thrown.cone().launchFrom(thrown.apex(), shape, share, thrown.exitSpeed(), thrown.gravity());
     }
 
     /**
@@ -908,8 +938,8 @@ public final class GooStreamHandler {
         int drips = dripsThisTick(player, delivery, DripLanding.in(channelSteps(ability.behaviors(), true)), held,
                 cast.spray().flowRate());
         delivery.particle().ifPresent(particle -> EntityVisuals.sendToWatchers(player, dripMotesOf(player.getId(),
-                apex, cone, particle, delivery, new DrawnDrips(exitSpeedOf(player, delivery), strikesLiving, held,
-                        drips))));
+                apex, cone, particle, new DrawnDrips(exitSpeedOf(player, delivery), strikesLiving, held,
+                        drips, cast.spray().shapeOf(delivery)))));
     }
 
     /**
@@ -919,8 +949,9 @@ public final class GooStreamHandler {
      * @param strikesLiving whether a drawn drip ends on the living it meets
      * @param held          the hold's tick count, which seeds the tick's drips' places in the cone
      * @param drips         the drips the server threw this tick
+     * @param shape         the cone the drips are thrown in, the sprayer's nozzle's shape
      */
-    record DrawnDrips(double exitSpeed, boolean strikesLiving, int held, int drips) {
+    record DrawnDrips(double exitSpeed, boolean strikesLiving, int held, int drips, ConeShape shape) {
     }
 
     /**
@@ -933,13 +964,12 @@ public final class GooStreamHandler {
      * @param apex     where the drips leave, the lifted blob
      * @param cone     the cone the drips land in
      * @param particle the drip's particle
-     * @param delivery the stream delivery
-     * @param drawn    how the tick's drawn drips fly
+     * @param drawn    how the tick's drawn drips fly, in the cone's shape
      * @return the payload
      */
     static StreamMotesPayload dripMotesOf(int casterId, Vec3 apex, ConvergingCone cone, Identifier particle,
-                                          Delivery delivery, DrawnDrips drawn) {
-        return new StreamMotesPayload(casterId, apex, cone.axis(), particle, delivery.coneDegrees(), 0,
+                                          DrawnDrips drawn) {
+        return new StreamMotesPayload(casterId, apex, cone.axis(), particle, drawn.shape(), 0,
                 drawn.exitSpeed(), drawn.strikesLiving(), drawn.held(), drawn.drips(), cone.eye(), cone.lands());
     }
 
@@ -957,7 +987,8 @@ public final class GooStreamHandler {
      */
     static StreamMotesPayload motesOf(int casterId, Vec3 apex, Vec3 axis, Identifier particle, Delivery delivery,
                                       double speed, double exitSpeed) {
-        return new StreamMotesPayload(casterId, apex, axis, particle, delivery.coneDegrees(), speed, exitSpeed,
+        return new StreamMotesPayload(casterId, apex, axis, particle, ConeShape.round(delivery.coneDegrees()), speed,
+                exitSpeed,
                 false, 0, NO_DRIPS, apex, 0);
     }
 
@@ -1034,7 +1065,7 @@ public final class GooStreamHandler {
      * @return the launch velocity, blocks per tick
      */
     public static Vec3 moteLaunch(StreamMotesPayload motes, CoatRay.ConeShare share) {
-        return moteLaunch(StreamCone.launchDirection(motes.axis(), motes.coneDegrees(), share.tilt(), share.turn()),
+        return moteLaunch(StreamCone.launchDirection(motes.axis(), motes.coneShape(), share.tilt(), share.turn()),
                 motes.speed());
     }
 

@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.radial;
 
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.SprayerFlow;
+import com.mercuriusxeno.goo.item.SprayerNozzle;
 import com.mercuriusxeno.goo.item.StampedGoo;
 import com.mercuriusxeno.goo.type.GooTypes;
 import org.junit.jupiter.api.AfterEach;
@@ -11,6 +12,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * The sprayer wheel's model: a petal for each goo type of the fitted canister that has a residual, and the flow
@@ -46,5 +48,15 @@ class SprayerWheelTest {
                 .toList();
         assertEquals(lowToHigh, wheel.flows());
         assertEquals(List.of(SprayerFlow.values()).size(), wheel.flows().size());
+    }
+
+    /** decision spray-item-takes-different-nozzles-doing-different-things */
+    @Test
+    void wheelListsTheNozzles() {
+        SprayerWheel wheel = SprayerWheel.of(CanisterFluidContent.of(goo.resource(GooTypes.WEIRD), VOLUME),
+                GooTypes.WEIRD::equals);
+
+        assertTrue(wheel.nozzles().containsAll(List.of(SprayerNozzle.CHOKE, SprayerNozzle.JET,
+                SprayerNozzle.SPRINKLER, SprayerNozzle.FAN)), "the wheel lists " + wheel.nozzles());
     }
 }

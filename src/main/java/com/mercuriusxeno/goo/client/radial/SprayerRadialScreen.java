@@ -3,7 +3,6 @@ package com.mercuriusxeno.goo.client.radial;
 import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.client.network.ClientAbilities;
 import com.mercuriusxeno.goo.item.CanisterItem;
-import com.mercuriusxeno.goo.item.SprayerFlow;
 import com.mercuriusxeno.goo.item.SprayerItem;
 import com.mercuriusxeno.goo.item.SprayerSetting;
 import com.mercuriusxeno.goo.network.SprayerSelectPayload;
@@ -22,9 +21,11 @@ import java.util.Optional;
 
 /**
  * The sprayer's wheel, open while the glove menu key is held with the sprayer in hand: one petal for each goo
- * type of the fitted canister that has a residual, and hovering a type fans the flow steps out from it; releasing
- * the key over a flow step keeps that type and flow on the sprayer and closes, and releasing it over nothing or
- * while the petals still move closes with the sprayer unchanged. The petals ease and paint as the glove's do.
+ * type of the fitted canister that has a residual, then one for each nozzle. Hovering a type fans the flow steps
+ * out from it, and releasing the key over a step keeps that type and flow on the sprayer; hovering a nozzle fans
+ * out the one petal that fits it, and releasing over that keeps the nozzle. Releasing over nothing or while the
+ * petals still move closes with the sprayer unchanged. The petals ease and paint as the glove's do.
+ * decision spray-item-takes-different-nozzles-doing-different-things
  * decision sprayer-wheel-picks-nozzle-flow-and-goo-type
  * decision spray-item-sprays-more-or-less-per-tick
  * decision radial-selects-on-g-release
@@ -34,13 +35,16 @@ public final class SprayerRadialScreen extends EasedWheelScreen {
 
     private static final int LABEL_COLOR = 0xFFFFFFFF;
     private static final int HOVERED_LABEL_COLOR = 0xFFFFFF00;
+    /** The type id a pick naming no type sends, leaving the canister's most held sprayable type to spray. */
+    private static final String NO_TYPE_PICKED = "";
 
     private final SprayerWheel model;
     private final RadialWheel wheel;
 
     private SprayerRadialScreen(SprayerWheel model) {
         this.model = model;
-        this.wheel = new RadialWheel(model.types().size(), type -> model.flows().size());
+        this.wheel = new RadialWheel(model.types().size() + model.nozzles().size(),
+                inner -> inner < model.types().size() ? model.flows().size() : 1);
     }
 
     /**
@@ -80,16 +84,42 @@ public final class SprayerRadialScreen extends EasedWheelScreen {
         for (RadialWheel.PetalArc petal : wheel.displayedLayout(partialTick)) {
             boolean hovered = petal.isAbility() ? petal.ability() == wheel.hoveredAbility()
                     : petal.type() == wheel.selectedType();
-            PetalPainter.paint(graphics, canvas, PetalLook.LIVE.fluidFace(model.types().get(petal.type())), petal,
+            PetalPainter.paint(graphics, canvas, PetalLook.LIVE.fluidFace(faceTypeOf(petal)), petal,
                     RadialWheelRenderer.faded(RadialWheelRenderer.computeOverlayTint(hovered, false),
                             petal.presence()));
-            Component label = petal.isAbility()
-                    ? Component.translatable(model.flows().get(petal.ability()).langKey())
-                    : GooTypeNames.name(model.types().get(petal.type()));
+            Component label = labelOf(petal);
             int[] tip = tipOf(canvas, petal);
             RadialWheelRenderer.outlinedText(graphics, font, label, tip[0], tip[1] - font.lineHeight / HALF,
                     RadialWheelRenderer.faded(hovered ? HOVERED_LABEL_COLOR : LABEL_COLOR, petal.presence()));
         }
+    }
+
+    private boolean isNozzle(int inner) {
+        return inner >= model.types().size();
+    }
+
+    /**
+     * The goo type a petal's fluid shows: its own type, or for a nozzle the canister's most held sprayable type.
+     *
+     * @param petal the petal
+     * @return the type whose fluid fills it
+     */
+    private ResourceKey<GooTypeDefinition> faceTypeOf(RadialWheel.PetalArc petal) {
+        return model.types().get(isNozzle(petal.type()) ? 0 : petal.type());
+    }
+
+    /**
+     * The words a petal shows: a type's name, a flow step's, or a nozzle's.
+     *
+     * @param petal the petal
+     * @return the words
+     */
+    private Component labelOf(RadialWheel.PetalArc petal) {
+        if (isNozzle(petal.type())) {
+            return Component.translatable(model.nozzles().get(petal.type() - model.types().size()).langKey());
+        }
+        return petal.isAbility() ? Component.translatable(model.flows().get(petal.ability()).langKey())
+                : GooTypeNames.name(model.types().get(petal.type()));
     }
 
     private static int[] tipOf(Canvas canvas, RadialWheel.PetalArc petal) {
@@ -111,28 +141,34 @@ public final class SprayerRadialScreen extends EasedWheelScreen {
         }
         RadialWheel.Outcome pick = GloveRadialKeyGate.settledPick(wheel.isAnimating(), wheel.click());
         if (pick.selects()) {
-            keep(model.types().get(pick.type()), model.flows().get(pick.ability()));
+            keep(pick);
         }
         onClose();
         return true;
     }
 
     /**
-     * Keeps a pick on the held sprayer here and on the server.
+     * Keeps a pick on the held sprayer here and on the server: a type and flow step, keeping the nozzle, or a
+     * nozzle, keeping the type and flow.
      *
-     * @param type the picked goo type
-     * @param flow the picked flow
+     * @param pick the wheel's outcome
      */
-    private static void keep(ResourceKey<GooTypeDefinition> type, SprayerFlow flow) {
+    private void keep(RadialWheel.Outcome pick) {
         Minecraft mc = Minecraft.getInstance();
         ItemStack sprayer = mc.player == null ? ItemStack.EMPTY : SprayerItem.heldSprayer(mc.player);
         if (sprayer.isEmpty()) {
             return;
         }
-        SprayerItem.keepSetting(sprayer, new SprayerSetting(Optional.of(type), flow));
+        SprayerSetting kept = SprayerItem.settingOf(sprayer);
+        SprayerSetting picked = isNozzle(pick.type())
+                ? new SprayerSetting(kept.pickedType(), kept.flow(),
+                        model.nozzles().get(pick.type() - model.types().size()))
+                : new SprayerSetting(Optional.of(model.types().get(pick.type())), model.flows().get(pick.ability()),
+                        kept.nozzle());
+        SprayerItem.keepSetting(sprayer, picked);
         if (mc.getConnection() != null) {
-            mc.getConnection().send(new ServerboundCustomPayloadPacket(
-                    new SprayerSelectPayload(GooTypes.id(type), flow)));
+            mc.getConnection().send(new ServerboundCustomPayloadPacket(new SprayerSelectPayload(
+                    picked.pickedType().map(GooTypes::id).orElse(NO_TYPE_PICKED), picked.flow(), picked.nozzle())));
         }
     }
 

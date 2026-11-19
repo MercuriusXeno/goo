@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.ability.program.PetrifyStep;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.item.SprayerFlow;
 import com.mercuriusxeno.goo.throwing.CoatRay;
+import com.mercuriusxeno.goo.throwing.ConeShape;
 import com.mercuriusxeno.goo.throwing.ConvergingCone;
 import com.mercuriusxeno.goo.throwing.DripArc;
 import net.minecraft.core.BlockPos;
@@ -98,7 +99,7 @@ class GooStreamHandlerTest {
 
         private void assertCrosshairLaunch(double crosshairDistance, double restsAt) {
             Vec3 axis = new Vec3(0.6, 0, 0.8);
-            StreamMotesPayload spores = new StreamMotesPayload(1, GLOVE, axis, SPORE, 0,
+            StreamMotesPayload spores = new StreamMotesPayload(1, GLOVE, axis, SPORE, ConeShape.round(0),
                     GooStreamHandler.crosshairSpeed(RANGE, crosshairDistance), Delivery.NO_THROW_SPEED, false, 0, 0,
                     GLOVE, 0);
 
