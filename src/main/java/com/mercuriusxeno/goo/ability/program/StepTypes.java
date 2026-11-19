@@ -111,6 +111,7 @@ public final class StepTypes {
         register(ScryStep.TYPE);
         register(RayStep.TYPE);
         register(UndeadStep.TYPE);
+        register(InvertStep.TYPE);
         register(LevelStep.TYPE);
         register(BoreStep.TYPE);
         register(BuildStep.TYPE);
@@ -171,6 +172,7 @@ public final class StepTypes {
         register(InfestStep.TYPE);
         register(StitchStep.TYPE);
         register(NitroStep.TYPE);
+        register(GloomStep.TYPE);
         register(MortarStep.TYPE);
         register(GrabStep.TYPE);
         register(GougeStep.TYPE);

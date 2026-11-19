@@ -493,6 +493,26 @@ public class GooBlocks {
                     .noLootTable()
                     .pushReaction(PushReaction.DESTROY));
     /**
+     * Gloom: the volume cell bound to Nether's goo, the maroon goo Gloom
+     * sprays onto a block's top, one to fifteen layers, ordinary ground
+     * underfoot and sounding as goo does, reading dark to the hostile mobs
+     * spawning on it, dropping the nether goo its layers cost through
+     * VolumeCellBlock.getDrops, no loot table
+     * (decisions gloom-spawns-regardless-of-light-and-mobs-on-it-ignore-daylight,
+     * each-goo-type-ships-a-world-goo-on-the-volume-cell).
+     */
+    public static final DeferredBlock<VolumeCellBlock> NETHER_GLOOM = BLOCKS.registerBlock(
+            "nether_gloom", properties -> new VolumeCellBlock(properties, CellBinding.GLOOM),
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.NETHER)
+                    .friction(CellBinding.GLOOM.surface().friction())
+                    .sound(SoundType.SLIME_BLOCK)
+                    .instabreak()
+                    .noOcclusion()
+                    .replaceable()
+                    .noLootTable()
+                    .pushReaction(PushReaction.DESTROY));
+    /**
      * Nitro: the volume cell bound to Unstable's goo, the green goo Nitro
      * sprays onto a block's top, one to fifteen layers, sounding as goo
      * does, exploding in a chain by its layers when a living thing touches
