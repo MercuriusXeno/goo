@@ -320,7 +320,7 @@ public final class GooClientSetup {
                 GooBlocks.BLAZE_MOLTEN.get(), GooBlocks.CRYSTAL_SHATTER.get(), GooBlocks.DEEP_HOST.get(),
                 GooBlocks.FROST_RIME.get(), GooBlocks.GLOW_WISPS.get(), GooBlocks.HEX_LEECH.get(),
                 GooBlocks.TYPHOON_UPDRAFT.get(), GooBlocks.JELLY_NECTAR.get(), GooBlocks.PULSE_SIGNAL.get(),
-                GooBlocks.METAL_SPIKES.get(), GooBlocks.NETHER_INFEST.get(), GooBlocks.LEAF_VINES.get(),
+                GooBlocks.METAL_SPIKES.get(), GooBlocks.ZOMBIE_INFEST.get(), GooBlocks.LEAF_VINES.get(),
                 GooBlocks.UNSTABLE_NITRO.get(), GooBlocks.QUANTUM_PHASE.get(),
                 GooBlocks.SHROOM_SPORES.get(),
                 GooBlocks.ROCK_MORTAR.get())) {
@@ -426,7 +426,7 @@ public final class GooClientSetup {
         registerSprayDrip(event, GooParticles.NECTAR_SPRAY_DRIP.get(), BlendPalette.NECTAR_JELLY_ORANGES);
         registerSprayDrip(event, GooParticles.SIGNAL_SPRAY_DRIP.get(), BlendPalette.SIGNAL_PULSE_REDS);
         registerSprayDrip(event, GooParticles.SPIKES_SPRAY_DRIP.get(), BlendPalette.SPIKES_METAL_SILVERS);
-        registerSprayDrip(event, GooParticles.INFEST_SPRAY_DRIP.get(), BlendPalette.INFEST_NETHER_REDS);
+        registerSprayDrip(event, GooParticles.INFEST_SPRAY_DRIP.get(), BlendPalette.ZOMBIE_ROT);
         registerSprayDrip(event, GooParticles.VINES_SPRAY_DRIP.get(), BlendPalette.VINES_LEAF_GREENS);
         registerSprayDrip(event, GooParticles.NITRO_SPRAY_DRIP.get(), BlendPalette.NITRO_UNSTABLE_GREENS);
         registerSprayDrip(event, GooParticles.PHASE_SPRAY_DRIP.get(), BlendPalette.PHASE_QUANTUM_BLUES);
