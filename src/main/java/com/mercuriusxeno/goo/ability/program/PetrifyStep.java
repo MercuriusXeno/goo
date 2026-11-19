@@ -10,6 +10,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
+import org.jspecify.annotations.Nullable;
 import java.util.Set;
 import java.util.stream.Stream;
 
@@ -50,19 +51,32 @@ public record PetrifyStep(Expr fill) implements Step {
         TargetHost host = context.hostAs(TargetHost.class);
         LivingEntity target = host.target();
         if (takesEntity(target) && target.level() instanceof ServerLevel level) {
-            Mob mob = (Mob) target;
-            Petrification after = mob.getData(GooAttachments.PETRIFICATION)
-                    .fill((float) fill.evaluate(context), level.getGameTime());
-            mob.setData(GooAttachments.PETRIFICATION, after);
-            PetrifyEvents.slowBy(mob, after);
-            PetrifyEvents.crackle(level, mob, after);
-            if (after.full()) {
-                Statues.encase(level, mob, host.thrower());
-            }
+            petrifyOneStep(level, (Mob) target, (float) fill.evaluate(context), host.thrower());
         }
         return true;
     }
 
+    /**
+     * Fills a mob's petrify gauge by an amount, slowing it and crackling the
+     * stone over it, and encases it as a statue the step the gauge fills:
+     * what Petrify's fog does to a mob each held tick, and what Mortar does to
+     * a mob standing in it each tick its cadence falls on.
+     * mortar-is-rocks-residual-a-petrification-and-hardening-goo
+     *
+     * @param level     the server level
+     * @param mob       the mob
+     * @param amount    how much the gauge fills
+     * @param petrifier the one credited for the statue, null for none
+     */
+    public static void petrifyOneStep(ServerLevel level, Mob mob, float amount, @Nullable Entity petrifier) {
+        Petrification after = mob.getData(GooAttachments.PETRIFICATION).fill(amount, level.getGameTime());
+        mob.setData(GooAttachments.PETRIFICATION, after);
+        PetrifyEvents.slowBy(mob, after);
+        PetrifyEvents.crackle(level, mob, after);
+        if (after.full()) {
+            Statues.encase(level, mob, petrifier);
+        }
+    }
 
     /**
      * Petrify takes a mob.

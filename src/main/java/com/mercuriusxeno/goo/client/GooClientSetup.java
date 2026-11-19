@@ -322,7 +322,8 @@ public final class GooClientSetup {
                 GooBlocks.TYPHOON_UPDRAFT.get(), GooBlocks.JELLY_NECTAR.get(), GooBlocks.PULSE_SIGNAL.get(),
                 GooBlocks.METAL_SPIKES.get(), GooBlocks.NETHER_INFEST.get(), GooBlocks.LEAF_VINES.get(),
                 GooBlocks.UNSTABLE_NITRO.get(), GooBlocks.QUANTUM_PHASE.get(),
-                GooBlocks.SHROOM_SPORES.get(), GooBlocks.ASTRAL_DOWSING.get())) {
+                GooBlocks.SHROOM_SPORES.get(),
+                GooBlocks.ROCK_MORTAR.get(), GooBlocks.ASTRAL_DOWSING.get())) {
             event.register(VolumeCellTint.sources(cell.binding().gooType(), ClientGooTypes::color), cell);
         }
     }
@@ -422,6 +423,7 @@ public final class GooClientSetup {
      * spores-is-shrooms-residual-a-passive-mycosis
      * nitro-is-unstables-goo-that-explodes-in-a-chain-by-its-quantity
      * phase-goo-puts-what-stands-in-it-out-of-phase
+     * mortar-is-rocks-residual-a-petrification-and-hardening-goo
      * astral-world-goo-is-dowsing-an-x-ray-of-ore
      *
      * @param event the event instance
@@ -442,6 +444,7 @@ public final class GooClientSetup {
         registerSprayDrip(event, GooParticles.NITRO_SPRAY_DRIP.get(), BlendPalette.NITRO_UNSTABLE_GREENS);
         registerSprayDrip(event, GooParticles.PHASE_SPRAY_DRIP.get(), BlendPalette.PHASE_QUANTUM_BLUES);
         registerSprayDrip(event, GooParticles.SPORES_SPRAY_DRIP.get(), BlendPalette.SPORES_SHROOM_PURPLES);
+        registerSprayDrip(event, GooParticles.MORTAR_SPRAY_DRIP.get(), BlendPalette.MORTAR_ROCK_GRAYS);
         registerSprayDrip(event, GooParticles.DOWSING_SPRAY_DRIP.get(), BlendPalette.DOWSING_STARLIGHT_BLUES);
         event.registerSpriteSet(GooParticles.MOLTEN_SPRAY_DRIP.get(),
                 sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.MOLTEN_BLAZE_ORANGES,
