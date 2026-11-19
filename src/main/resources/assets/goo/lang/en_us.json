@@ -42,6 +42,9 @@
   "item.goo.goo_gauntlet": "Goo Gauntlet",
   "item.goo.exo_gauntlet": "Exo Gauntlet",
   "item.goo.sprayer": "Sprayer",
+  "item.goo.sprayer.flow.low": "Low",
+  "item.goo.sprayer.flow.medium": "Medium",
+  "item.goo.sprayer.flow.high": "High",
 
   "block.goo.goo": "Goo",
 

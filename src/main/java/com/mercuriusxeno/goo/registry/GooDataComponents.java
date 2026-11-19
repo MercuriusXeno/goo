@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.data.GooRemainders;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterMetadata;
 import com.mercuriusxeno.goo.item.GooContents;
+import com.mercuriusxeno.goo.item.SprayerSetting;
 import com.mercuriusxeno.goo.item.gasket.GasketPairing;
 import com.mercuriusxeno.goo.item.gasket.TunerState;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -132,6 +133,17 @@ public class GooDataComponents {
                     () -> DataComponentType.<ItemContainerContents>builder()
                             .persistent(ItemContainerContents.CODEC)
                             .networkSynchronized(ItemContainerContents.STREAM_CODEC)
+                            .build());
+
+    /**
+     * The goo type and flow picked on a sprayer's wheel, kept on the sprayer.
+     * decision sprayer-wheel-picks-nozzle-flow-and-goo-type
+     */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<SprayerSetting>> SPRAYER_SETTING =
+            DATA_COMPONENTS.register("sprayer_setting",
+                    () -> DataComponentType.<SprayerSetting>builder()
+                            .persistent(SprayerSetting.CODEC)
+                            .networkSynchronized(SprayerSetting.STREAM_CODEC)
                             .build());
 
     /**

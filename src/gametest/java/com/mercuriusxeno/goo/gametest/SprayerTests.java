@@ -1,9 +1,12 @@
 package com.mercuriusxeno.goo.gametest;
 
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
+import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterItem;
+import com.mercuriusxeno.goo.item.SprayerFlow;
 import com.mercuriusxeno.goo.item.SprayerItem;
 import com.mercuriusxeno.goo.network.GooStreamHandler;
+import com.mercuriusxeno.goo.network.SprayerSelectPayload;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooItems;
 import com.mercuriusxeno.goo.throwing.CoatRay;
@@ -19,6 +22,7 @@ import net.minecraft.world.item.crafting.CraftingInput;
 import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
@@ -42,6 +46,13 @@ public final class SprayerTests {
             + " holds %s";
     private static final String DRAINED_WRONG = "The fitted canister should hold less than its %d mb of weird goo"
             + " and the spare canister all of it: fitted %d, spare %d";
+    private static final String SPRAYER_SPRAYS_THE_PICK = "sprayer_sprays_the_type_picked_on_its_wheel";
+    private static final String NO_SLICK_AIMED_AT = "The cell over the floor block aimed at, %s, should hold Slick,"
+            + " holds %s";
+    private static final String PICK_DRAINED_WRONG = "The canister should hold less than its %d mb of kinetic goo"
+            + " and all %d mb of its weird goo: kinetic %d, weird %d";
+    /** The kinetic goo the two-type canister holds, less than its weird goo, mB. */
+    private static final int CANISTER_KINETIC = 300;
     /** The weird goo each canister starts with, mB. */
     private static final int CANISTER_WEIRD = 500;
     /** A hold long enough that every share of the cone has flown, the center one among them. */
@@ -67,6 +78,8 @@ public final class SprayerTests {
         GooTestFunctions.registerTest(registrar, SPRAYER_CRAFTS, SprayerTests::sprayerCraftsFromSixGoldIngotsAndALever);
         GooTestFunctions.registerTest(registrar, SPRAYER_SPRAYS, SprayerTests::sprayerSpraysTheResidualOfItsCanistersGoo);
         GooTestFunctions.registerTest(registrar, SPRAYER_DRAINS, SprayerTests::sprayerDrainsItsOwnCanisterAlone);
+        GooTestFunctions.registerTest(registrar, SPRAYER_SPRAYS_THE_PICK,
+                SprayerTests::sprayerSpraysTheTypePickedOnItsWheel);
     }
 
     /**
@@ -111,6 +124,38 @@ public final class SprayerTests {
             helper.assertTrue(layers >= 1, String.format(NO_GOOP_AIMED_AT, aimed, layers));
             helper.assertTrue(fitted < CANISTER_WEIRD && other == CANISTER_WEIRD,
                     String.format(DRAINED_WRONG, CANISTER_WEIRD, fitted, other));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A sprayer whose canister holds more weird goo than kinetic goo, kinetic picked on its wheel through the
+     * sprayer's select handler: it lays Slick at the floor block aimed at and drains kinetic goo, its weird goo
+     * untouched.
+     * decision sprayer-wheel-picks-nozzle-flow-and-goo-type
+     *
+     * @param helper the gametest helper
+     */
+    public static void sprayerSpraysTheTypePickedOnItsWheel(GameTestHelper helper) {
+        ServerPlayer sprayer = sprayerOverAFloor(helper);
+        ItemStack canister = weirdCanister();
+        CanisterItem.addGoo(canister, GooTypes.KINETIC, CANISTER_KINETIC);
+        SprayerItem.fitCanister(sprayer.getMainHandItem(), canister);
+        SprayerSelectPayload.keepOnTheHeldSprayer(sprayer,
+                new SprayerSelectPayload(GooTypes.id(GooTypes.KINETIC), SprayerFlow.MEDIUM));
+        BlockPos aimed = cellAimedAt(helper, sprayer);
+        holdTheSprayer(helper, sprayer);
+        helper.runAfterDelay(HOLD_TICKS + FALL_TICKS, () -> {
+            CanisterFluidContent left = CanisterItem.getFluidContent(
+                    SprayerItem.fittedCanister(sprayer.getMainHandItem()));
+            helper.getLevel().getServer().getPlayerList().remove(sprayer);
+            BlockState cell = helper.getLevel().getBlockState(aimed);
+            helper.assertTrue(cell.is(GooBlocks.KINETIC_SLICK.get()) && VolumeCellBlock.layersOf(cell) >= 1,
+                    String.format(NO_SLICK_AIMED_AT, aimed, cell));
+            int kinetic = left.volumeOf(GooTypes.KINETIC);
+            int weird = left.volumeOf(GooTypes.WEIRD);
+            helper.assertTrue(kinetic < CANISTER_KINETIC && weird == CANISTER_WEIRD,
+                    String.format(PICK_DRAINED_WRONG, CANISTER_KINETIC, CANISTER_WEIRD, kinetic, weird));
             helper.succeed();
         });
     }

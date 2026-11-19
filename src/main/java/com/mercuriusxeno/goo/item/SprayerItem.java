@@ -173,6 +173,45 @@ public class SprayerItem extends Item {
     }
 
     /**
+     * The residual the sprayer sprays: that of the type picked on its wheel where the canister holds it and it has
+     * one, else that of the canister's most held type that has one.
+     * decision sprayer-wheel-picks-nozzle-flow-and-goo-type
+     *
+     * @param content    the fitted canister's content, empty where the sprayer holds none
+     * @param picked     the type picked on the wheel, empty before any pick
+     * @param residualOf the residual a goo type has, empty for a type with none
+     * @param <A>        the residual's type
+     * @return the residual sprayed, or empty
+     */
+    public static <A> Optional<A> sprayedResidual(CanisterFluidContent content,
+            Optional<ResourceKey<GooTypeDefinition>> picked,
+            Function<ResourceKey<GooTypeDefinition>, Optional<A>> residualOf) {
+        return picked.filter(type -> content.volumeOf(type) > 0).flatMap(residualOf)
+                .or(() -> sprayedResidual(content, residualOf));
+    }
+
+    /**
+     * What the sprayer's wheel set on it.
+     *
+     * @param sprayer the sprayer stack
+     * @return the setting, the default where nothing was picked
+     */
+    public static SprayerSetting settingOf(ItemStack sprayer) {
+        return sprayer.getOrDefault(GooDataComponents.SPRAYER_SETTING.get(), SprayerSetting.DEFAULT);
+    }
+
+    /**
+     * Keeps what the sprayer's wheel set on it.
+     * decision sprayer-wheel-picks-nozzle-flow-and-goo-type
+     *
+     * @param sprayer the sprayer stack
+     * @param setting the picked type and flow
+     */
+    public static void keepSetting(ItemStack sprayer, SprayerSetting setting) {
+        sprayer.set(GooDataComponents.SPRAYER_SETTING.get(), setting);
+    }
+
+    /**
      * How the click seam reads a stack.
      *
      * @param <S> the stack type
