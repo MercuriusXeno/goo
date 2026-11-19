@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability.nether;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.block.ability.GloomDark;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
@@ -88,7 +89,8 @@ public final class UndeadEvents {
     /**
      * Answers whether the sun reaches the player as it reaches a burning
      * zombie: a time and place monsters burn, the sky open above the eyes,
-     * and no water, rain or powder snow on the player.
+     * no water, rain or powder snow on the player, and no Gloom underfoot.
+     * gloom-spawns-regardless-of-light-and-mobs-on-it-ignore-daylight
      *
      * @param player the player
      * @return true in direct daylight
@@ -96,7 +98,8 @@ public final class UndeadEvents {
     static boolean inDirectDaylight(ServerPlayer player) {
         ServerLevel level = player.level();
         BlockPos eyes = BlockPos.containing(player.getX(), player.getEyeY(), player.getZ());
-        return level.environmentAttributes().getValue(EnvironmentAttributes.MONSTERS_BURN, player.position())
-                && !player.isInWaterOrRain() && !player.isInPowderSnow && level.canSeeSky(eyes);
+        return GloomDark.inDaylight(level, player.blockPosition(),
+                level.environmentAttributes().getValue(EnvironmentAttributes.MONSTERS_BURN, player.position())
+                        && !player.isInWaterOrRain() && !player.isInPowderSnow && level.canSeeSky(eyes));
     }
 }
