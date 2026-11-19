@@ -1,8 +1,15 @@
 package com.mercuriusxeno.goo.ability;
 
+import com.mercuriusxeno.goo.Goo;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.Identifier;
+import net.minecraft.tags.TagKey;
 import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.material.PushReaction;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -11,7 +18,7 @@ import java.util.Optional;
  * One footprint column of a Build: it walks back from its ground cell, behind
  * the face, down for a footprint on the ground and into the wall for one on a
  * wall, no farther than it rises. The first block with a replaceable cell
- * behind it, or the first block the rising hunk cannot carry, is the anchor:
+ * behind it, or the first block a piston would not push, is the anchor:
  * it stays where it is, the blocks in front of it are pushed out along the
  * face's normal by the rise, and stone grows from the anchor's near face. A
  * walk reaching the full rise with no anchor pushes its deepest block from
@@ -19,6 +26,7 @@ import java.util.Optional;
  * meeting a block entity fizzles: no column grows and none is charged.
  * decision build-reaches-down-as-far-as-it-rises-and-lifts-the-ground-on-stone
  * decision column-meeting-a-block-entity-fizzles-at-no-cost
+ * decision build-leaves-what-a-piston-cannot-push-and-grows-from-it
  * decision build-extends-the-first-block-with-air-behind-it
  * decision air-behind-a-block-is-anything-stone-can-replace
  * decision build-pushes-from-behind-at-full-depth-with-no-air
@@ -30,6 +38,10 @@ import java.util.Optional;
  * @param face   the face the footprint lies on, whose normal the column rises along
  */
 public record BuildColumn(BlockPos ground, int reach, int rise, Direction face) {
+
+    /** The blocks vanilla's piston refuses by name, which anchor a column wherever they stand. */
+    private static final TagKey<Block> ANCHORS =
+            TagKey.create(Registries.BLOCK, Identifier.fromNamespaceAndPath(Goo.MODID, "build_anchors"));
 
     /**
      * The column a ground cell reaches at a rise: back from the ground cell,
@@ -58,8 +70,8 @@ public record BuildColumn(BlockPos ground, int reach, int rise, Direction face) 
     }
 
     /**
-     * Whether the block in a cell anchors the column: one the rising hunk
-     * cannot carry, or one with a cell behind it that stone can replace.
+     * Whether the block in a cell anchors the column: one a piston does not
+     * push, or one with a cell behind it that stone can replace.
      *
      * @param blocks the world
      * @param cell   the cell the walk stands on
@@ -67,19 +79,29 @@ public record BuildColumn(BlockPos ground, int reach, int rise, Direction face) 
      * @return true where the block stays and the stone grows from its near face
      */
     private static boolean anchors(BlockGetter blocks, BlockPos cell, Direction face) {
-        return !carriable(blocks, cell) || blocks.getBlockState(behind(cell, face, 1)).canBeReplaced();
+        return !pushable(blocks, cell) || blocks.getBlockState(behind(cell, face, 1)).canBeReplaced();
     }
 
     /**
-     * Whether the rising hunk can carry the block in a cell: one a hand can
-     * break, inside the world; bedrock anchors a column.
+     * Whether a piston would push the block in a cell, mirroring the block
+     * state checks of vanilla's PistonBaseBlock.isPushable for a block holding
+     * no block entity: inside the world, not one the build_anchors tag names
+     * (obsidian, crying obsidian, a respawn anchor, reinforced deepslate), not
+     * unbreakable like bedrock, and not of PushReaction BLOCK or DESTROY.
+     * decision build-leaves-what-a-piston-cannot-push-and-grows-from-it
      *
      * @param blocks the world
      * @param cell   the cell
-     * @return true where the hunk can carry its block
+     * @return true where the hunk may carry its block
      */
-    private static boolean carriable(BlockGetter blocks, BlockPos cell) {
-        return cell.getY() >= blocks.getMinY() && blocks.getBlockState(cell).getDestroySpeed(blocks, cell) >= 0;
+    private static boolean pushable(BlockGetter blocks, BlockPos cell) {
+        BlockState state = blocks.getBlockState(cell);
+        return cell.getY() >= blocks.getMinY() && !state.is(ANCHORS) && state.getDestroySpeed(blocks, cell) >= 0
+                && pistonMoves(state.getPistonPushReaction());
+    }
+
+    private static boolean pistonMoves(PushReaction reaction) {
+        return reaction != PushReaction.BLOCK && reaction != PushReaction.DESTROY;
     }
 
     /**

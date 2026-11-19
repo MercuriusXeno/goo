@@ -6,8 +6,13 @@ import com.mercuriusxeno.goo.data.RemainderLedger;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.Identifier;
+import net.minecraft.tags.TagKey;
 import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.material.PushReaction;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -234,6 +239,57 @@ class BuildGrowthTest {
             assertEquals(List.of(FACE), column.liftedCells());
             assertEquals(FACE.north(RISE), column.liftedTo(FACE));
             assertEquals(List.of(FACE, FACE.north(), FACE.north(2)), column.stoneCells());
+        }
+    }
+
+    /**
+     * A block a piston does not push anchors the column: it stays, the blocks in front of it lift and the stone grows
+     * from its near face.
+     * decision build-leaves-what-a-piston-cannot-push-and-grows-from-it
+     */
+    @Nested
+    class Unpushable {
+
+        private static final int RISE = 3;
+        private static final TagKey<Block> ANCHORS =
+                TagKey.create(Registries.BLOCK, Identifier.fromNamespaceAndPath("goo", "build_anchors"));
+
+        /** The kinds of block a piston leaves, each standing one under the ground cell. */
+        enum Kind { NAMED_LIKE_OBSIDIAN, PUSH_REACTION_BLOCK, PUSH_REACTION_DESTROY, UNBREAKABLE }
+
+        private BlockState unpushable(Kind kind) {
+            BlockState state = mock(BlockState.class);
+            switch (kind) {
+                case NAMED_LIKE_OBSIDIAN -> when(state.is(ANCHORS)).thenReturn(true);
+                case PUSH_REACTION_BLOCK -> when(state.getPistonPushReaction()).thenReturn(PushReaction.BLOCK);
+                case PUSH_REACTION_DESTROY -> when(state.getPistonPushReaction()).thenReturn(PushReaction.DESTROY);
+                case UNBREAKABLE -> when(state.getDestroySpeed(any(), any())).thenReturn(-1f);
+            }
+            return state;
+        }
+
+        @ParameterizedTest
+        @EnumSource(Kind.class)
+        void aBlockAPistonLeavesStaysAndTheStoneGrowsFromItsNearFace(Kind kind) {
+            BlockState open = mock(BlockState.class);
+            when(open.canBeReplaced()).thenReturn(true);
+            BlockState dirt = mock(BlockState.class);
+            BlockState anchor = unpushable(kind);
+            BlockGetter ground = mock(BlockGetter.class);
+            when(ground.getMinY()).thenReturn(-64);
+            when(ground.getBlockState(any(BlockPos.class))).thenAnswer(call -> {
+                BlockPos pos = call.getArgument(0);
+                if (pos.equals(CORNER.below())) {
+                    return anchor;
+                }
+                return pos.getY() <= CORNER.getY() ? dirt : open;
+            });
+
+            BuildColumn column = BuildGrowth.plan(ground, new BuildFootprint(CORNER, CORNER, RISE), PER_BLOCK)
+                    .columns().getFirst();
+
+            assertEquals(List.of(CORNER), column.liftedCells());
+            assertEquals(List.of(CORNER, CORNER.above(), CORNER.above(2)), column.stoneCells());
         }
     }
 

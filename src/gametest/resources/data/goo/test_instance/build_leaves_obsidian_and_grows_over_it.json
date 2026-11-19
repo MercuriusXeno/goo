@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:build_leaves_obsidian_and_grows_over_it",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 60,
+  "setup_ticks": 0,
+  "required": true
+}
