@@ -27,8 +27,8 @@ public final class HiveSwarm {
      * The combo a hive prism holds, Decay's, whose on_prism reaction is the hive.
      * channeled-hosts-convert-prisms-over-the-hold
      */
-    public static final String COMBO = "goo:nether_decay";
-    /** nether_decay.json's on_prism radius, the reach the swarm flies out to. */
+    public static final String COMBO = "goo:zombie_decay";
+    /** zombie_decay.json's on_prism radius, the reach the swarm flies out to. */
     public static final double REACH = 5;
     /** How far from the column's center an idle gnat hovers. */
     static final double CLUSTER_RADIUS = 0.6;
@@ -42,7 +42,7 @@ public final class HiveSwarm {
      */
     static final double GNAT_FRICTION = 0.9;
     private static final double HALF = 0.5;
-    /** Decay's buzz: a bee's loop, soft and pitched high (nether_decay.json's sound). */
+    /** Decay's buzz: a bee's loop, soft and pitched high (zombie_decay.json's sound). */
     private static final Identifier BUZZ = GooSoundIds.GNAT_BUZZ;
     private static final float BUZZ_VOLUME = 0.12f;
     private static final float BUZZ_PITCH = 1.95f;

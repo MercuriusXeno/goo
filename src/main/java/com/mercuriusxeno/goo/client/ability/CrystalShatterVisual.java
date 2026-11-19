@@ -4,6 +4,8 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.client.FlatQuadContext;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -25,12 +27,13 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.joml.Vector3f;
 import org.jspecify.annotations.Nullable;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
+import java.util.stream.Stream;
 
 /**
  * Draws the glass shards hanging over every Shatter cell near the camera as
@@ -42,7 +45,8 @@ import java.util.Map;
  * sinking back once nothing living is near; a cell whose shards stand
  * hidden draws nothing. Each face reflects what its own ray off the camera's
  * view meets in the world, eased across ticks. The cells come from
- * {@link NearCells}, and the shards draw after the translucent blocks.
+ * {@link NearCells}, and the shards draw through the shared path once the
+ * level is drawn.
  * shatter-is-splattered-goo-and-shards-form-over-the-splatters
  * razor-shards-appear-in-layers-ahead-of-the-dome
  * razor-keeps-its-look-gated-on-glass
@@ -181,12 +185,15 @@ public final class CrystalShatterVisual {
     }
 
     /**
-     * Draws the shards over every Shatter cell still standing, after the translucent blocks.
+     * Hands the shared path the shards over every Shatter cell still
+     * standing, dropping the stale eased reflections first, sorted by the
+     * nearest cell whose shards show.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
      *
-     * @param event the level render stage event
+     * @param levelFrame the frame being drawn
+     * @param draws      where the shards' draw goes
      */
-    @SubscribeEvent
-    public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
+    public static void collect(LevelFrame levelFrame, Consumer<SortedDraw> draws) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || mc.player == null || CELLS.cells().isEmpty()) {
             return;
@@ -194,12 +201,19 @@ public final class CrystalShatterVisual {
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         double clock = mc.level.getGameTime() + (double) partialTick;
         EASINGS.values().removeIf(e -> Math.abs(clock - e.lastClock()) > STALE_EASING_TICKS);
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
-        VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.CRYSTAL_SHARD_TYPE);
         Level level = mc.level;
         Frame frame = new Frame(level, partialTick, clock, mc.player.getEyePosition(partialTick),
                 (origin, direction) -> raycastBlockColor(level, origin, direction));
-        CELLS.cells().forEach((pos, cell) -> drawCell(event.getPoseStack(), consumer, pos, cell, frame));
+        Stream<Vec3> showing = CELLS.cells().entrySet().stream()
+                .filter(entry -> entry.getValue().shownAt(partialTick) > 0f).map(entry -> Vec3.atCenterOf(entry.getKey()));
+        draws.accept(SortedDraw.nearestOf(showing, mc.gameRenderer.getMainCamera().position(),
+                () -> drawCells(mc, levelFrame.poseStack(), frame)));
+    }
+
+    private static void drawCells(Minecraft mc, PoseStack poseStack, Frame frame) {
+        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.CRYSTAL_SHARD_TYPE);
+        CELLS.cells().forEach((pos, cell) -> drawCell(poseStack, consumer, pos, cell, frame));
         buffers.endBatch(GooRenderTypes.CRYSTAL_SHARD_TYPE);
     }
 

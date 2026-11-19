@@ -1,9 +1,10 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.LineContext;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.throwing.StreamCone;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -12,13 +13,10 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Consumer;
 
 /**
  * Zap's strike: a pulse beam draws no traveling beam but a small red
@@ -27,7 +25,6 @@ import java.util.concurrent.CopyOnWriteArrayList;
  * quick animation.
  * zap-ticks-the-device-and-stuns
  */
-@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class ZapBolts {
 
     /** Seconds a bolt stands from the strike until it has faded out. */
@@ -96,28 +93,31 @@ public final class ZapBolts {
     }
 
     /**
-     * Draws every standing bolt after the translucent blocks and drops the faded ones.
+     * Hands the shared path every standing bolt, sorted by the nearest
+     * bolt's hand, dropping the faded ones as it draws.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
      *
-     * @param event the level render stage event
+     * @param frame the frame being drawn
+     * @param draws where the bolts' draw goes
      */
-    @SubscribeEvent
-    public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
         Minecraft mc = Minecraft.getInstance();
         if (BOLTS.isEmpty() || mc.level == null) {
             return;
         }
+        Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        draws.accept(SortedDraw.nearestOf(BOLTS.stream().map(Bolt::hand), camera,
+                () -> drawBolts(mc, frame, camera)));
+    }
+
+    private static void drawBolts(Minecraft mc, LevelFrame frame, Vec3 camera) {
         double now = nowSeconds();
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
-        LineContext lines = new LineContext(event.getPoseStack().last(), buffers.getBuffer(GooRenderTypes.LINES_GLOW));
-        Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        LineContext lines = new LineContext(frame.poseStack().last(), buffers.getBuffer(GooRenderTypes.LINES_GLOW));
         float width = mc.getWindow().getAppropriateLineWidth();
+        BOLTS.removeIf(bolt -> now - bolt.bornSeconds() >= LIFETIME_SECONDS);
         for (Bolt bolt : BOLTS) {
-            double age = now - bolt.bornSeconds();
-            if (age >= LIFETIME_SECONDS) {
-                BOLTS.remove(bolt);
-            } else {
-                drawBolt(lines, bolt, age, camera, width);
-            }
+            drawBolt(lines, bolt, now - bolt.bornSeconds(), camera, width);
         }
         buffers.endBatch(GooRenderTypes.LINES_GLOW);
     }

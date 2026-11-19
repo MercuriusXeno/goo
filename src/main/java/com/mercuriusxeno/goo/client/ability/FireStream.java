@@ -1,8 +1,9 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.program.FlamesStep;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.ability.FireField.Jet;
 import com.mercuriusxeno.goo.client.ability.FireField.Wall;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
@@ -17,13 +18,10 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * Flames' fire stream: while right click holds Flames, licks of flame and
@@ -38,7 +36,6 @@ import java.util.List;
  * A jet pinned by {@code /goodebug flames} burns in place, held and released
  * on a loop, so the operator can walk around it and watch it from any side.
  */
-@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class FireStream {
 
     /** Ticks the fire front takes to travel the stream's whole range, and the burn-away takes on release. */
@@ -102,12 +99,14 @@ public final class FireStream {
     }
 
     /**
-     * Draws the held fire, the pinned one and every heater's, after the translucent blocks.
+     * Hands the shared path the held fire, the pinned one and every
+     * heater's, sorted by the local player, whose hand the held fire leaves.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
      *
-     * @param event the level render stage event
+     * @param frame the frame being drawn
+     * @param draws where the fire's draw goes
      */
-    @SubscribeEvent
-    public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
         if (player == null) {
@@ -126,7 +125,10 @@ public final class FireStream {
                 addBurning(fields, HeaterFlames.fieldOf(heater, span, wall, camera));
             }
         }
-        FirePass.draw(fields, camera, event.getModelViewMatrix());
+        if (!fields.isEmpty()) {
+            draws.accept(new SortedDraw(player.getEyePosition(partialTick).distanceToSqr(camera),
+                    () -> FirePass.draw(fields, camera, frame.modelView())));
+        }
     }
 
     private static void addBurning(List<FireField> fields, @Nullable FireField field) {

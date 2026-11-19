@@ -54,9 +54,9 @@ public final class HudAnimator<T> {
     }
 
     /**
-     * Drives the state machine once per frame. Call from the
-     * {@code RenderLevelStageEvent.AfterOpaqueFeatures} hook with the
-     * resolved target (or {@code null} if not aiming at this machine).
+     * Drives the state machine once per frame. Call from the HUD's collect
+     * on the shared translucent visual path with the resolved target (or
+     * {@code null} if not aiming at this machine).
      *
      * @param target the current target, or {@code null}
      */

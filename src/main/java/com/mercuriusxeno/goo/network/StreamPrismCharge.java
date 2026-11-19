@@ -203,7 +203,7 @@ final class StreamPrismCharge {
     static OptionalInt chargeTint(AbilityDefinition ability) {
         if (ability.behaviors().stream().anyMatch(DegradeStep.class::isInstance)) {
             // the operator's ruling: the decay animation plays on the prism while it charges
-            return OptionalInt.of(DegradeStep.NETHER_MAROON);
+            return OptionalInt.of(DegradeStep.ZOMBIE_ROT);
         }
         return ability.onPrism().stream().map(Step::prismTint).filter(OptionalInt::isPresent).findFirst()
                 .orElse(OptionalInt.empty());

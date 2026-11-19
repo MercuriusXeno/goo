@@ -242,7 +242,7 @@ class AbilityBadgeTest {
      */
     @ParameterizedTest
     @CsvSource({"pulse_relay, pulse_zap", "pulse_metronome, pulse_tick",
-            "nether_hive, nether_decay", "glow_reflector, glow_laser",
+            "nether_hive, zombie_decay", "glow_reflector, glow_laser",
             "leaf_verdant, leaf_growth", "frost_glacial, frost_cold", "ender_oculus, ender_blink",
             "blaze_heater, blaze_flames"})
     void aFoldedPrismCardLoadsNoDefinitionAndItsHostReacts(String card, String host) {
