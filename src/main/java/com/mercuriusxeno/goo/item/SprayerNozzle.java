@@ -101,6 +101,7 @@ public enum SprayerNozzle implements StringRepresentable {
      * @return the cone's widths across and up and down
      */
     public ConeShape shape(double coneDegrees) {
-        return new ConeShape(coneDegrees * across, coneDegrees * upDown);
+        // operator report 2026-11-18: Line should spray a flat spread evenly in a horizontal line
+        return new ConeShape(coneDegrees * across, coneDegrees * upDown, this == LINE);
     }
 }

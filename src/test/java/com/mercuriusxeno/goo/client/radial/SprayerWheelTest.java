@@ -52,41 +52,42 @@ class SprayerWheelTest {
     }
 
     /**
-     * The goo types are the petals, each under the cursor where it stands; the nozzles sit across the top of the hub,
-     * left to right in their order, and the flow steps across its bottom, left to right.
-     * operator ruling 2026-11-18: icons inside the hub, nozzles on top, flow on the bottom, each left to right
+     * The goo types are the petals, each under the cursor where it stands; inside the hub the nozzles sit in two
+     * staggered rows, 1, 3 and 5 below and 2, 4 and 6 above, left to right, and the flow steps in a row under them,
+     * each under 2, 4 and 6.
+     * operator ruling 2026-11-18: arrange the icons as 2 4 6 over 1 3 5, a divider, then 1 2 3; drop the wheel
      */
     @Test
-    void gooOnThePetalsNozzlesAcrossTheTopFlowAcrossTheBottom() {
+    void gooOnThePetalsNozzlesStaggeredOverTheFlowInTheHub() {
         SprayerWheel wheel = SprayerWheel.of(CanisterFluidContent.of(goo.resource(GooTypes.BLAZE), VOLUME)
                 .withVolume(goo.resource(GooTypes.ROCK), VOLUME), Set.of(GooTypes.BLAZE, GooTypes.ROCK)::contains);
 
         for (int type = 0; type < wheel.types().size(); type++) {
             assertEquals(type, wheel.gooAt(wheel.gooStartOf(type) + wheel.gooArc() / 2), "the middle of petal " + type);
         }
-        double lastX = -2;
+        double lastX = -Double.MAX_VALUE;
+        double lowestNozzle = -Double.MAX_VALUE;
         for (int nozzle = 0; nozzle < wheel.nozzles().size(); nozzle++) {
-            double angle = wheel.hubAngleOf(new SprayerWheel.RingPetal(SprayerWheel.Group.NOZZLE, nozzle));
-            assertTrue(Math.sin(angle) > lastX, "nozzle " + nozzle + " left of the next, at " + angle);
-            lastX = Math.sin(angle);
+            double[] at = wheel.hubOffsetOf(new SprayerWheel.RingPetal(SprayerWheel.Group.NOZZLE, nozzle));
+            double[] next = wheel.hubOffsetOf(new SprayerWheel.RingPetal(SprayerWheel.Group.NOZZLE,
+                    (nozzle + 1) % wheel.nozzles().size()));
+            assertTrue(at[0] > lastX, "nozzle " + nozzle + " right of the one before");
+            assertTrue(nozzle % 2 == 0 ? at[1] > next[1] || nozzle == wheel.nozzles().size() - 1 : at[1] < next[1],
+                    "nozzles 1, 3, 5 low and 2, 4, 6 high, nozzle " + (nozzle + 1));
+            lastX = at[0];
+            lowestNozzle = Math.max(lowestNozzle, at[1]);
         }
-        lastX = -2;
         for (int flow = 0; flow < wheel.flows().size(); flow++) {
-            double angle = wheel.hubAngleOf(new SprayerWheel.RingPetal(SprayerWheel.Group.FLOW, flow));
-            assertTrue(Math.cos(angle) < 0 && Math.sin(angle) > lastX, "flow " + flow + " at " + angle);
-            lastX = Math.sin(angle);
-        }
-        List<Double> around = wheel.ring().stream().filter(icon -> icon.group() != SprayerWheel.Group.GOO)
-                .map(wheel::hubAngleOf).sorted().toList();
-        double step = Math.PI * 2 / around.size();
-        for (int icon = 1; icon < around.size(); icon++) {
-            assertEquals(step, around.get(icon) - around.get(icon - 1), 1e-9, "icons split the hub evenly");
+            double[] at = wheel.hubOffsetOf(new SprayerWheel.RingPetal(SprayerWheel.Group.FLOW, flow));
+            double[] over = wheel.hubOffsetOf(new SprayerWheel.RingPetal(SprayerWheel.Group.NOZZLE, flow * 2 + 1));
+            assertEquals(over[0], at[0], 1e-9, "flow " + (flow + 1) + " under nozzle " + (flow * 2 + 2));
+            assertTrue(at[1] > lowestNozzle, "flow " + (flow + 1) + " below every nozzle");
         }
     }
 
     /**
      * Letting go over a petal sets that one setting and keeps the other two.
-     * operator ruling 2026-11-18: layout A, one ring of three arcs
+     * operator ruling 2026-11-18: a petal or an icon sets that one setting
      */
     @Test
     void releasingOverAPetalSetsThatSettingAlone() {

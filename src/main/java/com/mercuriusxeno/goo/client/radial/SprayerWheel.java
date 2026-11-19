@@ -15,7 +15,7 @@ import java.util.function.Predicate;
 
 /**
  * The sprayer wheel's model: a contracted petal for each goo type of the fitted canister that has a residual, most
- * held first, and inside the hub the nozzles across its top and the flow steps across its bottom, left to right.
+ * held first, and inside the hub the nozzles in two staggered rows over a divider and the flow steps under it.
  * Picking a petal or an icon sets that one setting and keeps the other two.
  * decision sprayer-wheel-picks-nozzle-flow-and-goo-type
  * decision spray-item-sprays-more-or-less-per-tick
@@ -37,8 +37,15 @@ public record SprayerWheel(List<ResourceKey<GooTypeDefinition>> types, List<Spra
      * The widest a goo petal spans and the gap between petals, radians.
      * operator ruling 2026-11-18: the goo type petals still need to contract
      */
-    private static final double MOST_GOO_ARC = Math.toRadians(44);
+    private static final double MOST_GOO_ARC = Math.toRadians(72);
     private static final double GOO_GAP = Math.toRadians(6);
+    /** The rows inside the hub, centered on it: the upper and lower nozzle rows, the divider, the flow row. */
+    private static final double UPPER_NOZZLE_ROW = -1.4;
+    /** The nozzles alternate between two rows. */
+    private static final int ROWS_OF_NOZZLES = 2;
+    private static final double LOWER_NOZZLE_ROW = -0.5;
+    private static final double DIVIDER_ROW = 0.3;
+    private static final double FLOW_ROW = 1.1;
 
     /** Which setting a petal sets. */
     public enum Group { GOO, FLOW, NOZZLE }
@@ -116,27 +123,30 @@ public record SprayerWheel(List<ResourceKey<GooTypeDefinition>> types, List<Spra
     }
 
     /**
-     * Where an icon sits around the inside of the hub, clockwise from the top: every icon an even share of the turn
-     * from the next, the nozzles centered on the top, left to right, and the flow steps centered on the bottom, left
-     * to right, so the icons spread as far apart as the hub allows.
-     * operator ruling 2026-11-18: icons inside the hub, nozzles on top, flow on the bottom, each left to right,
-     * spread out and measured rather than placed by hand
+     * Where an icon sits inside the hub, as offsets from the hub's center: across in half steps, a step being the
+     * gap between two icons of one row, and down in rows. The nozzles stand in two staggered rows, 1, 3 and 5 on
+     * the lower and 2, 4 and 6 on the upper, each a half step right of the one before; under a divider the flow
+     * steps stand in a row, each under 2, 4 and 6.
+     * operator ruling 2026-11-18: arrange the icons as 2 4 6 over 1 3 5, a divider, then 1 2 3; drop the wheel
      *
      * @param icon a nozzle or flow petal
-     * @return its angle, radians
+     * @return the icon's offset, across in half steps and down in rows
      */
-    public double hubAngleOf(RingPetal icon) {
+    public double[] hubOffsetOf(RingPetal icon) {
+        double middle = (nozzles.size() - 1) / HALF;
         if (icon.group() == Group.NOZZLE) {
-            return wrap((icon.index() - (nozzles.size() - 1) / HALF) * hubStep());
+            boolean lower = icon.index() % ROWS_OF_NOZZLES == 0;
+            return new double[]{icon.index() - middle, lower ? LOWER_NOZZLE_ROW : UPPER_NOZZLE_ROW};
         }
-        return wrap(Math.PI - (icon.index() - (flows.size() - 1) / HALF) * hubStep());
+        // each flow step stands under the upper row's nozzle of its place: 2, 4 and 6
+        return new double[]{icon.index() * ROWS_OF_NOZZLES + 1 - middle, FLOW_ROW};
     }
 
     /**
-     * @return the turn between neighbouring icons around the hub: the whole turn shared among them
+     * @return the row the divider between the nozzles and the flow steps runs along
      */
-    public double hubStep() {
-        return FULL_TURN / (nozzles.size() + flows.size());
+    public double dividerRow() {
+        return DIVIDER_ROW;
     }
 
     private static double wrap(double angle) {

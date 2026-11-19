@@ -13,13 +13,16 @@ import net.minecraft.network.codec.StreamCodec;
  *
  * @param sideDegrees how wide the cone opens across, apex to rim
  * @param liftDegrees how wide the cone opens up and down, apex to rim
+ * @param band        whether the spray is a flat band, its drips spread evenly from end to end across and evenly
+ *                    through its thin height, in place of a cone's drips spread evenly by area
  */
-public record ConeShape(double sideDegrees, double liftDegrees) {
+public record ConeShape(double sideDegrees, double liftDegrees, boolean band) {
 
     /** Network codec. */
     public static final StreamCodec<ByteBuf, ConeShape> STREAM_CODEC = StreamCodec.composite(
             ByteBufCodecs.DOUBLE, ConeShape::sideDegrees,
             ByteBufCodecs.DOUBLE, ConeShape::liftDegrees,
+            ByteBufCodecs.BOOL, ConeShape::band,
             ConeShape::new);
 
     /**
@@ -29,7 +32,7 @@ public record ConeShape(double sideDegrees, double liftDegrees) {
      * @return the round cone
      */
     public static ConeShape round(double coneDegrees) {
-        return new ConeShape(coneDegrees, coneDegrees);
+        return new ConeShape(coneDegrees, coneDegrees, false);
     }
 
     /**

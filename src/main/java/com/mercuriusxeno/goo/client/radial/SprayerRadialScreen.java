@@ -24,9 +24,9 @@ import org.jspecify.annotations.Nullable;
 import java.util.List;
 
 /**
- * The sprayer's wheel, open while the glove menu key is held with the sprayer in hand: a contracted ring of petals,
- * one for each of the canister's sprayable goo types in its own goo, and inside the hub, hugging its edge, the six
- * nozzles across the top and the three flow steps across the bottom, left to right. Clicking a petal or an icon sets
+ * The sprayer's wheel, open while the glove menu key is held with the sprayer in hand: a ring of petals, one for
+ * each of the canister's sprayable goo types in its own goo with its icon, and inside the hub a grid of the six
+ * nozzles in two staggered rows over a divider and the three flow steps under it. Clicking a petal or an icon sets
  * that one setting and leaves the wheel open; letting go of the key over a goo petal sets it and closes, and letting
  * go anywhere else, an icon included, closes with nothing picked: an icon takes a click alone. The current nozzle and flow sit on a lit square, and whatever is under the cursor grows and names
  * itself in the middle.
@@ -42,12 +42,22 @@ public final class SprayerRadialScreen extends Screen {
     private static final int HALF = 2;
     /** Where the goo petals start and end, as fractions of the wheel's radius. */
     private static final double RING_INNER = 0.44;
-    private static final double RING_OUTER = 0.58;
+    private static final double RING_OUTER = 0.9;
+    /**
+     * The hub's grid: the screen gap a half step across stands for, and a row down.
+     * operator ruling 2026-11-18: arrange the icons as 2 4 6 over 1 3 5, a divider, then 1 2 3
+     */
+    private static final int HALF_STEP = 12;
+    private static final int ROW = 22;
+    /** The row the hovered name sits on, under the flow steps. */
+    private static final double NAME_ROW = 2.1;
+    private static final int DIVIDER = 0x80FFFFFF;
+    /** A goo petal's icon, drawn at its middle. */
+    private static final int GOO_ICON_SIZE = 16;
     /** An icon's side on screen, its sixteen pixels drawn one to one, and under the cursor. */
     private static final int ICON_SIZE = 16;
     private static final int HOVERED_ICON_SIZE = 20;
     /** How far inside the hub's edge an icon's center sits, past half its side. */
-    private static final int ICON_INSET = 3;
     /** How near the cursor must come to an icon's center to rest on it. */
     private static final int ICON_REACH = 10;
     private static final int TEXTURE_SIDE = 16;
@@ -140,9 +150,12 @@ public final class SprayerRadialScreen extends Screen {
                 paintIcon(graphics, at);
             }
         }
+        int dividerY = canvas.centerY() + (int) Math.round(model.dividerRow() * ROW);
+        int dividerHalf = (model.nozzles().size() / HALF + 1) * HALF_STEP;
+        graphics.fill(canvas.centerX() - dividerHalf, dividerY, canvas.centerX() + dividerHalf, dividerY + 1, DIVIDER);
         if (hovered != null) {
             RadialWheelRenderer.outlinedText(graphics, font, nameOf(hovered), canvas.centerX(),
-                    canvas.centerY() - font.lineHeight / HALF, WHITE);
+                    canvas.centerY() + (int) Math.round(NAME_ROW * ROW) - font.lineHeight / HALF, WHITE);
         }
     }
 
@@ -152,6 +165,13 @@ public final class SprayerRadialScreen extends Screen {
                 RING_OUTER, null, 0, 1, RING_INNER);
         int tint = at.equals(hovered) ? HOVERED : isCurrent(at) ? WHITE : RESTING;
         PetalPainter.paint(graphics, canvas, PetalLook.LIVE.fluidFace(model.types().get(at.index())), arc, tint);
+        // operator report 2026-11-18: the goo petals stopped drawing their icons
+        double middle = start + model.gooArc() / HALF;
+        double distance = (RING_INNER + RING_OUTER) / HALF * canvas.radius();
+        int x = canvas.centerX() + (int) Math.round(Math.sin(middle) * distance) - GOO_ICON_SIZE / HALF;
+        int y = canvas.centerY() - (int) Math.round(Math.cos(middle) * distance) - GOO_ICON_SIZE / HALF;
+        graphics.blit(RenderPipelines.GUI_TEXTURED, RadialWheelRenderer.typeIcon(model.types().get(at.index())), x, y,
+                0.0f, 0.0f, GOO_ICON_SIZE, GOO_ICON_SIZE, GOO_ICON_SIZE, GOO_ICON_SIZE, WHITE);
     }
 
     private void paintIcon(GuiGraphicsExtractor graphics, SprayerWheel.RingPetal at) {
@@ -166,7 +186,7 @@ public final class SprayerRadialScreen extends Screen {
     }
 
     /**
-     * Where an icon's center sits on screen: just inside the hub's edge at its angle, clear of the goo petals.
+     * Where an icon's center sits on screen: its place on the hub's grid.
      *
      * @param centerX the wheel's center, x
      * @param centerY the wheel's center, y
@@ -174,10 +194,9 @@ public final class SprayerRadialScreen extends Screen {
      * @return the icon's center
      */
     private int[] iconCenter(int centerX, int centerY, SprayerWheel.RingPetal icon) {
-        double angle = model.hubAngleOf(icon);
-        double distance = RING_INNER * radius() - ICON_SIZE / (double) HALF - ICON_INSET;
-        return new int[]{centerX + (int) Math.round(Math.sin(angle) * distance),
-                centerY - (int) Math.round(Math.cos(angle) * distance)};
+        double[] offset = model.hubOffsetOf(icon);
+        return new int[]{centerX + (int) Math.round(offset[0] * HALF_STEP),
+                centerY + (int) Math.round(offset[1] * ROW)};
     }
 
     private boolean isCurrent(SprayerWheel.RingPetal at) {
