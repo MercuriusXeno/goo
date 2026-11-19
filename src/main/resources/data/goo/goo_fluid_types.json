@@ -76,37 +76,6 @@
     ]
   },
   {
-    "id": "deep",
-    "seed": 40993,
-    "genParams": {
-      "viscosity": 1.5,
-      "decayRate": 0.05,
-      "ignitionChance": 0.007,
-      "ignitionStrength": 1.4,
-      "potHeatRate": 0.015,
-      "potInfluence": 0.7,
-      "neighborhoodReach": 1
-    },
-    "frametime": 3,
-    "shadowHue": 0.58,
-    "palette": [
-      { "position": 0.0, "color": "#080C10" },
-      { "position": 0.3, "color": "#0D1217" },
-      { "position": 0.6, "color": "#111B21" },
-      { "position": 0.85, "color": "#16242C" },
-      { "position": 1.0, "color": "#1A2C36" }
-    ],
-    "accent": {
-      "shape": "TWINKLES",
-      "coverage": 0.016,
-      "palette": [
-        { "position": 0.0, "color": "#0A5060" },
-        { "position": 0.5, "color": "#009295" },
-        { "position": 1.0, "color": "#29DFEB" }
-      ]
-    }
-  },
-  {
     "id": "ender",
     "seed": 40974,
     "genParams": {
@@ -198,27 +167,27 @@
   },
   {
     "id": "infinity",
-    "seed": 40999,
+    "seed": 40975,
     "genParams": {
-      "viscosity": 2.0,
-      "decayRate": 0.02,
-      "ignitionChance": 0.006,
-      "ignitionStrength": 1.0,
-      "potHeatRate": 0.01,
-      "potInfluence": 0.85,
-      "neighborhoodReach": 2
+      "viscosity": 2.5,
+      "decayRate": 0.015,
+      "ignitionChance": 0.003,
+      "ignitionStrength": 0.7,
+      "potHeatRate": 0.005,
+      "potInfluence": 0.9,
+      "neighborhoodReach": 1
     },
-    "frametime": 3,
+    "frametime": 5,
     "shadowHue": -1,
     "palette": [
-      { "position": 0.0, "color": "#6830C8" },
-      { "position": 0.15, "color": "#3878F0" },
-      { "position": 0.3, "color": "#30D8E8" },
-      { "position": 0.45, "color": "#70F0A8" },
-      { "position": 0.6, "color": "#F8E878" },
-      { "position": 0.75, "color": "#F890C8" },
-      { "position": 0.9, "color": "#C8A0F8" },
-      { "position": 1.0, "color": "#FFF8FF" }
+      { "position": 0.0, "color": "#E070A8" },
+      { "position": 0.15, "color": "#F0C870" },
+      { "position": 0.3, "color": "#50B8F0" },
+      { "position": 0.45, "color": "#F0B898" },
+      { "position": 0.6, "color": "#60E8A0" },
+      { "position": 0.75, "color": "#B888F8" },
+      { "position": 0.9, "color": "#F8C060" },
+      { "position": 1.0, "color": "#FFF6EC" }
     ]
   },
   {
@@ -338,7 +307,7 @@
     ]
   },
   {
-    "id": "opulent",
+    "id": "ornate",
     "seed": 40991,
     "genParams": {
       "viscosity": 2.2,
@@ -433,35 +402,33 @@
     ]
   },
   {
-    "id": "shroom",
-    "seed": 40965,
+    "id": "sculk",
+    "seed": 40993,
     "genParams": {
-      "viscosity": 1.8,
-      "decayRate": 0.03,
-      "ignitionChance": 0.008,
+      "viscosity": 1.5,
+      "decayRate": 0.05,
+      "ignitionChance": 0.007,
       "ignitionStrength": 1.4,
-      "potHeatRate": 0.012,
-      "potInfluence": 0.8,
+      "potHeatRate": 0.015,
+      "potInfluence": 0.7,
       "neighborhoodReach": 1
     },
-    "frametime": 4,
-    "shadowHue": 0.7,
+    "frametime": 3,
+    "shadowHue": 0.58,
     "palette": [
-      { "position": 0.0, "color": "#500838" },
-      { "position": 0.2, "color": "#880858" },
-      { "position": 0.5, "color": "#C01880" },
-      { "position": 0.75, "color": "#E838A0" },
-      { "position": 0.9, "color": "#FF60C0" },
-      { "position": 1.0, "color": "#FF98D8" }
+      { "position": 0.0, "color": "#080C10" },
+      { "position": 0.3, "color": "#0D1217" },
+      { "position": 0.6, "color": "#111B21" },
+      { "position": 0.85, "color": "#16242C" },
+      { "position": 1.0, "color": "#1A2C36" }
     ],
     "accent": {
-      "coverage": 0.18,
+      "shape": "TWINKLES",
+      "coverage": 0.016,
       "palette": [
-        { "position": 0.0, "color": "#4E1116" },
-        { "position": 0.35, "color": "#A62530" },
-        { "position": 0.65, "color": "#E21212" },
-        { "position": 0.88, "color": "#FE2A2A" },
-        { "position": 1.0, "color": "#EDE8CA" }
+        { "position": 0.0, "color": "#0A5060" },
+        { "position": 0.5, "color": "#009295" },
+        { "position": 1.0, "color": "#29DFEB" }
       ]
     }
   },

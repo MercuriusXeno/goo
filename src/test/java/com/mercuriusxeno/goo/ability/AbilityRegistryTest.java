@@ -121,16 +121,20 @@ class AbilityRegistryTest {
     }
 
     /**
-     * xeno's fan holds Revert before Unveil, and no Mutate.
+     * Xeno's fan holds Revert before Unveil, then Shriek ordered after Unveil, and no Mutate.
      * xeno-blob-mutates-the-struck
      * yore-leaves-and-rewind-moves-to-xeno-as-revert
+     * shriek-moves-to-xeno
      */
     @Test
-    void shippedXenoFanHoldsRevertAndUnveil() {
+    void shippedXenoFanHoldsRevertUnveilAndShriek() {
         AbilityRegistry registry = registryOf(AbilityJson.files().stream().map(AbilityJson::decode));
+        List<AbilityDefinition> fan = registry.getAbilitiesForType(GooTypes.XENO);
 
-        assertEquals(List.of(AbilityJson.idOf("xeno_revert.json"), AbilityJson.idOf("xeno_unveil.json")),
-                registry.getAbilitiesForType(GooTypes.XENO).stream().map(AbilityDefinition::id).toList());
+        assertEquals(Set.of(AbilityJson.idOf("xeno_revert.json"), AbilityJson.idOf("xeno_unveil.json"),
+                AbilityJson.idOf("xeno_shriek.json")), fan.stream().map(AbilityDefinition::id).collect(Collectors.toSet()));
+        assertTrue(AbilityJson.decode("xeno_revert").order() < AbilityJson.decode("xeno_unveil").order());
+        assertTrue(AbilityJson.decode("xeno_shriek").order() > AbilityJson.decode("xeno_unveil").order());
     }
 
     /** flames-absorbs-broil-and-cooks-blocks: Broil folded into Flames, so blaze's fan holds four abilities. */

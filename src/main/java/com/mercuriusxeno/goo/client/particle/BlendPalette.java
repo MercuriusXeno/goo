@@ -55,11 +55,11 @@ public record BlendPalette(float lightRed, float lightGreen, float lightBlue,
     public static final BlendPalette SHATTER_CRYSTAL_BLUES = new BlendPalette(
             0x77 / 255f, 0xE9 / 255f, 0xFF / 255f, 0x4F / 255f, 0xC1 / 255f, 0xE9 / 255f);
     /**
-     * Host's spray drips, from deep's bright sculk cyan, 29DFEB, to its wheel
-     * teal, 0F2430, the two the deep goo type's definition names.
-     * host-is-a-sculky-slime-that-sculk-spreads-eagerly-through
+     * Creep's spray drips, from sculk's bright cyan, 29DFEB, to its wheel
+     * teal, 0F2430, the two the sculk goo type's definition names.
+     * host-and-spores-combine-into-one-residual
      */
-    public static final BlendPalette HOST_DEEP_TEALS = new BlendPalette(
+    public static final BlendPalette CREEP_TEALS = new BlendPalette(
             0x29 / 255f, 0xDF / 255f, 0xEB / 255f, 0x0F / 255f, 0x24 / 255f, 0x30 / 255f);
     /**
      * Rime's spray drips, from frost's bright ice white, D5FFFF, to its wheel
@@ -119,20 +119,6 @@ public record BlendPalette(float lightRed, float lightGreen, float lightBlue,
             0xA6 / 255f, 0xF0 / 255f, 0x78 / 255f, 0x7E / 255f, 0xC8 / 255f, 0x50 / 255f);
 
     /**
-     * Dowsing's spray drips, from Astral's starlight, its bright FFF4B0, to
-     * its night blue, its highlight 2A3C9A.
-     * astral-world-goo-is-dowsing-an-x-ray-of-ore
-     */
-    public static final BlendPalette DOWSING_STARLIGHT_BLUES = new BlendPalette(
-            0xFF / 255f, 0xF4 / 255f, 0xB0 / 255f, 0x2A / 255f, 0x3C / 255f, 0x9A / 255f);
-
-    /**
-     * Spores' spray drips, from shroom's bright purple, B66CD5, to its
-     * wheel purple, 8E44AD, the two the shroom goo type's definition names.
-     * spores-is-shrooms-residual-a-passive-mycosis
-     */
-    public static final BlendPalette SPORES_SHROOM_PURPLES = new BlendPalette(
-            0xB6 / 255f, 0x6C / 255f, 0xD5 / 255f, 0x8E / 255f, 0x44 / 255f, 0xAD / 255f);
 
     /**
      * Stitch's spray drips, from yarn's highlight tan, CBAE88, to its wheel
@@ -166,6 +152,14 @@ public record BlendPalette(float lightRed, float lightGreen, float lightBlue,
      */
     public static final BlendPalette MORTAR_ROCK_GRAYS = new BlendPalette(
             0xB4 / 255f, 0xB6 / 255f, 0xB8 / 255f, 0x7A / 255f, 0x5C / 255f, 0x44 / 255f);
+
+    /**
+     * Dowsing's spray drips, from Astral's starlight, its bright FFF4B0, to
+     * its night blue, its highlight 2A3C9A.
+     * astral-world-goo-is-dowsing-an-x-ray-of-ore
+     */
+    public static final BlendPalette DOWSING_STARLIGHT_BLUES = new BlendPalette(
+            0xFF / 255f, 0xF4 / 255f, 0xB0 / 255f, 0x2A / 255f, 0x3C / 255f, 0x9A / 255f);
 
     /**
      * The color a share of the way from the light end to the dark.

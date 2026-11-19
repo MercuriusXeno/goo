@@ -40,8 +40,8 @@ class GooTypesTest {
     private static final ResourceKey<GooTypeDefinition> SEVENTEENTH = ResourceKey.create(
             GooTypes.REGISTRY, Identifier.fromNamespaceAndPath("gootest", "seventeenth"));
     private static final List<String> BUNDLED_IDS = List.of(
-            "astral", "blaze", "crystal", "deep", "ender", "frost", "glow", "hex", "infinity", "jelly", "kinetic", "leaf",
-            "metal", "nether", "opulent", "pulse", "quantum", "rock", "shroom", "typhoon", "unstable", "void", "weird", "xeno", "yarn",
+            "astral", "blaze", "crystal", "ender", "frost", "glow", "hex", "infinity", "jelly", "kinetic", "leaf",
+            "metal", "nether", "ornate", "pulse", "quantum", "rock", "sculk", "typhoon", "unstable", "void", "weird", "xeno", "yarn",
             "zombie", "zoo");
     private static final String TYPE_DIR = "data/goo/goo/goo_type";
     private static final String JSON_SUFFIX = ".json";
@@ -51,6 +51,15 @@ class GooTypesTest {
     private static final String TEXTURE_PNG = "/assets/%s/textures/%s.png";
     private static final String TYPE_ICON = "/assets/goo/textures/goo/type/%s.png";
     private static final String EN_US = "/assets/goo/lang/en_us.json";
+
+    /**
+     * No bundled type's id starts with d: Deep is dropped and the letter is free for a type yet to be designed.
+     * decision sculker-moves-to-sculk
+     */
+    @Test
+    void noBundledTypeStartsWithD() {
+        assertEquals(List.of(), GooTypes.BUNDLED.stream().map(GooTypes::id).filter(id -> id.startsWith("d")).toList());
+    }
 
     /**
      * The registry key is goo:goo_type.
@@ -169,12 +178,12 @@ class GooTypesTest {
     }
 
     /**
-     * A goo stack saved as yore loads as opulent, the type taking yore's place.
-     * decision yore-leaves-and-rewind-moves-to-xeno-as-revert
+     * A saved key loads as the key it names, a type that left the mod included: no save is migrated.
+     * operator ruling 2026-11-19: no migration for a type that left the mod, the mod being unreleased
      */
     @Test
-    void savedYoreKeyLoadsAsOpulent() {
-        assertSame(GooTypes.OPULENT, GooTypes.KEY_CODEC.parse(JsonOps.INSTANCE,
+    void savedKeyOfATypeThatLeftLoadsAsItself() {
+        assertEquals(GooTypes.bundled("yore"), GooTypes.KEY_CODEC.parse(JsonOps.INSTANCE,
                 JsonParser.parseString("\"goo:yore\"")).getOrThrow());
     }
 

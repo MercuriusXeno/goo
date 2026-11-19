@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "key": {
+    "G": "minecraft:gold_ingot",
+    "L": "minecraft:lever"
+  },
+  "pattern": [
+    "GGG",
+    "  G",
+    " LG"
+  ],
+  "result": {
+    "count": 1,
+    "id": "goo:sprayer"
+  }
+}

@@ -79,7 +79,7 @@ public final class StepTypes {
         register(LeafSteps.DETONATE_EXPLOSIVE.type());
         register(MoltenStep.TYPE);
         register(ShatterStep.TYPE);
-        register(HostStep.TYPE);
+        register(CreepStep.TYPE);
         register(RimeStep.TYPE);
         register(LeechGooStep.TYPE);
         register(VinesStep.TYPE);
@@ -104,7 +104,6 @@ public final class StepTypes {
         register(SporeHostStep.TYPE);
         register(FloorsStep.TYPE);
         register(TransmitStep.TYPE);
-        register(SightStep.TYPE);
         register(LuxStep.TYPE);
         register(UnveilStep.TYPE);
         register(WispsStep.TYPE);
@@ -113,6 +112,7 @@ public final class StepTypes {
         register(ScryStep.TYPE);
         register(RayStep.TYPE);
         register(UndeadStep.TYPE);
+        register(InvertStep.TYPE);
         register(LevelStep.TYPE);
         register(BoreStep.TYPE);
         register(BuildStep.TYPE);
@@ -171,7 +171,6 @@ public final class StepTypes {
         register(UpdraftStep.TYPE);
         register(SignalStep.TYPE);
         register(InfestStep.TYPE);
-        register(SporesStep.TYPE);
         register(StitchStep.TYPE);
         register(NitroStep.TYPE);
         register(MortarStep.TYPE);

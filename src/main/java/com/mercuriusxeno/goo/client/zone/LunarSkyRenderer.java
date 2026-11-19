@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.zone;
 
 import com.mercuriusxeno.goo.ability.astral.LunarSight;
+import com.mercuriusxeno.goo.lunar.Lunar;
 import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.buffers.GpuBufferSlice;
 import com.mojang.blaze3d.systems.RenderPass;
@@ -33,7 +34,8 @@ import java.util.OptionalInt;
 /**
  * Draws goo:lunar's sky in place of vanilla's: the pocket's sea of dim stars, then vanilla's sun turned by lunar's sun
  * angle, then the blue planet where lunar's moon angle stands it, lit by the phase opposite the overworld moon's. No
- * moon or cloud draws. The Lunar trip home draws its sky without the planet, which it swells itself.
+ * moon or cloud draws. The Lunar trip home draws its sky without the planet, which it swells itself. Over the dark
+ * side only the stars draw, at every hour.
  * decision astral-sky-is-the-void-with-one-bright-blue-overworld-star
  * decision lunar-has-a-day-and-night-and-a-sun-on-the-overworlds-clock
  * decision blue-star-takes-the-moons-place-with-the-opposite-phase
@@ -69,6 +71,10 @@ public final class LunarSkyRenderer implements CustomSkyboxRenderer {
     public boolean renderSky(LevelRenderState levelRenderState, SkyRenderState skyRenderState,
             Matrix4fc modelViewMatrix, Runnable setupFog) {
         sea.renderSky(levelRenderState, skyRenderState, modelViewMatrix, setupFog);
+        // decision dark-side-is-the-half-of-the-moon-past-the-light-side
+        if (Lunar.isDarkSide(levelRenderState.cameraRenderState.pos.x())) {
+            return true;
+        }
         drawSun(modelViewMatrix, (float) Math.toDegrees(skyRenderState.sunAngle));
         if (drawsPlanet) {
             Vec3 planet = LunarSight.moonDirection((float) Math.toDegrees(skyRenderState.moonAngle));

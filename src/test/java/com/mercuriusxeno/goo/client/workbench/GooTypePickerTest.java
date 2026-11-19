@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.network.chat.contents.TranslatableContents;
 import org.junit.jupiter.api.Test;
 import java.util.List;
+import java.util.stream.IntStream;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -63,9 +64,10 @@ class GooTypePickerTest {
      */
     @Test
     void gridGrowsARowWhileItsCellsOverflowSevenByFour() {
-        GooTypePicker overflowing = new GooTypePicker(TYPES.subList(0, 27));
+        List<String> many = IntStream.range(0, 27).mapToObj(index -> "type_" + index).toList();
+        GooTypePicker overflowing = new GooTypePicker(many);
         assertEquals(5, overflowing.rows());
-        GooTypePicker fitting = new GooTypePicker(TYPES.subList(0, 26));
+        GooTypePicker fitting = new GooTypePicker(many.subList(0, 26));
         assertEquals(GooTypePicker.ROWS, fitting.rows());
     }
 

@@ -12,12 +12,8 @@ import net.minecraft.server.MinecraftServer;
 import net.neoforged.neoforge.server.ServerLifecycleHooks;
 import org.jspecify.annotations.Nullable;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.BinaryOperator;
-import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
@@ -49,11 +45,9 @@ public final class GooTypes {
 
     /**
      * A type key as its id, the form the GOO_TYPE data component persists
-     * (decision generic-goo-items); a saved key of a type that left the mod
-     * loads as the type taking its place.
+     * (decision generic-goo-items).
      */
-    public static final Codec<ResourceKey<GooTypeDefinition>> KEY_CODEC = ResourceKey.codec(REGISTRY)
-            .xmap(GooTypes::successor, Function.identity());
+    public static final Codec<ResourceKey<GooTypeDefinition>> KEY_CODEC = ResourceKey.codec(REGISTRY);
 
     /**
      * A type key on the wire, the form the GOO_TYPE data component syncs.
@@ -64,7 +58,6 @@ public final class GooTypes {
     public static final ResourceKey<GooTypeDefinition> ASTRAL = bundled("astral");
     public static final ResourceKey<GooTypeDefinition> BLAZE = bundled("blaze");
     public static final ResourceKey<GooTypeDefinition> CRYSTAL = bundled("crystal");
-    public static final ResourceKey<GooTypeDefinition> DEEP = bundled("deep");
     public static final ResourceKey<GooTypeDefinition> ENDER = bundled("ender");
     public static final ResourceKey<GooTypeDefinition> FROST = bundled("frost");
     public static final ResourceKey<GooTypeDefinition> GLOW = bundled("glow");
@@ -79,16 +72,22 @@ public final class GooTypes {
     public static final ResourceKey<GooTypeDefinition> LEAF = bundled("leaf");
     public static final ResourceKey<GooTypeDefinition> METAL = bundled("metal");
     public static final ResourceKey<GooTypeDefinition> NETHER = bundled("nether");
-    public static final ResourceKey<GooTypeDefinition> OPULENT = bundled("opulent");
+    public static final ResourceKey<GooTypeDefinition> ORNATE = bundled("ornate");
     public static final ResourceKey<GooTypeDefinition> PULSE = bundled("pulse");
     public static final ResourceKey<GooTypeDefinition> QUANTUM = bundled("quantum");
     public static final ResourceKey<GooTypeDefinition> ROCK = bundled("rock");
-    public static final ResourceKey<GooTypeDefinition> SHROOM = bundled("shroom");
+    /**
+     * Shrooms and sculk are one goo type, in the sculk colors Deep wore.
+     * decision sculk-takes-deeps-coloration-and-shrooms-goes
+     * decision shroom-is-a-universal-sculk-input
+     */
+    public static final ResourceKey<GooTypeDefinition> SCULK = bundled("sculk");
     public static final ResourceKey<GooTypeDefinition> TYPHOON = bundled("typhoon");
     public static final ResourceKey<GooTypeDefinition> UNSTABLE = bundled("unstable");
     /**
-     * Void comes from no item: astral and deep react into it.
+     * Void comes from its items: chorus fruit, chorus plants, shulker shells and void-touched spawn eggs.
      * decision void-ships-from-astral-and-deep
+     * decision void-reaction-leaves-with-deep
      */
     public static final ResourceKey<GooTypeDefinition> VOID = bundled("void");
     public static final ResourceKey<GooTypeDefinition> WEIRD = bundled("weird");
@@ -125,57 +124,10 @@ public final class GooTypes {
      * Every type the mod ships as JSON, in constant order.
      */
     public static final List<ResourceKey<GooTypeDefinition>> BUNDLED = List.of(
-            ASTRAL, BLAZE, CRYSTAL, DEEP, ENDER, FROST, GLOW, HEX, INFINITY, JELLY, KINETIC, LEAF,
-            METAL, NETHER, OPULENT, PULSE, QUANTUM, ROCK, SHROOM, TYPHOON, UNSTABLE, VOID, WEIRD, XENO, YARN,
+            ASTRAL, BLAZE, CRYSTAL, ENDER, FROST, GLOW, HEX, INFINITY, JELLY, KINETIC, LEAF,
+            METAL, NETHER, ORNATE, PULSE, QUANTUM, ROCK, SCULK, TYPHOON, UNSTABLE, VOID, WEIRD, XENO, YARN,
             ZOMBIE, ZOO);
 
-    /**
-     * Each type that left the mod, keyed to the type a save holding it loads as:
-     * yore's goo is opulent's (decision yore-leaves-and-rewind-moves-to-xeno-as-revert).
-     */
-    private static final Map<ResourceKey<GooTypeDefinition>, ResourceKey<GooTypeDefinition>> SUCCESSORS =
-            Map.of(bundled("yore"), OPULENT);
-
-    /**
-     * The type a saved key loads as: the type taking the place of one that
-     * left the mod, and any other key itself.
-     *
-     * @param saved the key a save holds
-     * @return the key it loads as
-     */
-    public static ResourceKey<GooTypeDefinition> successor(ResourceKey<GooTypeDefinition> saved) {
-        return SUCCESSORS.getOrDefault(saved, saved);
-    }
-
-    /**
-     * A saved map from type ids to values, each saved type loading as its
-     * {@link #successor}, so a store that held a type that left the mod adds
-     * that goo to the type taking its place.
-     *
-     * @param values the codec of one value
-     * @param merge  adds two values landing on one type
-     * @param <V>    the value type
-     * @return the codec
-     */
-    public static <V> Codec<Map<ResourceKey<GooTypeDefinition>, V>> savedMapCodec(Codec<V> values,
-                                                                                  BinaryOperator<V> merge) {
-        return Codec.unboundedMap(ID_CODEC, values).xmap(saved -> successorsOf(saved, merge), Function.identity());
-    }
-
-    /**
-     * A saved map with each type folded onto its {@link #successor}.
-     *
-     * @param saved the map a save holds
-     * @param merge adds two values landing on one type
-     * @param <V>   the value type
-     * @return the map it loads as
-     */
-    static <V> Map<ResourceKey<GooTypeDefinition>, V> successorsOf(Map<ResourceKey<GooTypeDefinition>, V> saved,
-                                                                   BinaryOperator<V> merge) {
-        Map<ResourceKey<GooTypeDefinition>, V> loaded = new HashMap<>();
-        saved.forEach((key, value) -> loaded.merge(successor(key), value, merge));
-        return loaded;
-    }
 
     /**
      * A type key as its short id: the bare path for a bundled type, the

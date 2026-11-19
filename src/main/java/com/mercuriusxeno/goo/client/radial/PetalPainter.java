@@ -37,7 +37,7 @@ final class PetalPainter {
      * @param petal    the petal's place on the ring
      * @param overlay  the ARGB tint telling hovered, resting and disabled apart
      */
-    static void paint(GuiGraphicsExtractor graphics, RadialWheelRenderer.Frame frame, PetalLook.FluidFace face,
+    static void paint(GuiGraphicsExtractor graphics, PetalCanvas frame, PetalLook.FluidFace face,
                       RadialWheel.PetalArc petal, int overlay) {
         PetalMask.Petal shape = petal.shape();
         Matrix3x2f pose = new Matrix3x2f(graphics.pose());
@@ -65,7 +65,7 @@ final class PetalPainter {
      * @param size     the sprite's side in pixels
      * @param color    the ARGB tint the sprite draws under
      */
-    static void paintSprite(GuiGraphicsExtractor graphics, RadialWheelRenderer.Frame frame, PetalMask.Petal petal,
+    static void paintSprite(GuiGraphicsExtractor graphics, PetalCanvas frame, PetalMask.Petal petal,
                             TextureSetup texture, int[] center, int size, int color) {
         double radius = frame.radius();
         List<PetalMesh.Quad> quads = PetalMesh.clipSquare(petal, (center[0] - frame.centerX()) / radius,
@@ -143,7 +143,7 @@ final class PetalPainter {
                 vertices, color, scissor, bounds(vertices, pose, scissor)));
     }
 
-    private static List<PetalRenderState.ScreenVertex> toScreen(RadialWheelRenderer.Frame frame,
+    private static List<PetalRenderState.ScreenVertex> toScreen(PetalCanvas frame,
                                                                 List<PetalMesh.Quad> quads,
                                                                 PetalLook.SpriteBox sprite) {
         List<PetalRenderState.ScreenVertex> vertices = new ArrayList<>(quads.size() * CORNERS_PER_QUAD);
