@@ -174,6 +174,9 @@ tasks.named('test', Test) {
     // One fork per four available cores (decision unit-suite-forks-in-parallel); each fork
     // bootstraps Minecraft, so more forks than this measured slower (decision test-jvm-keeps-what-measures-faster).
     maxParallelForks = Math.max(1, Runtime.runtime.availableProcessors().intdiv(4))
+    // The held-sweep timing run reads the system clock, so it stands outside the unit suite
+    // (decision diagnose-and-correct-the-lag-on-four-sense-abilities).
+    useJUnitPlatform { excludeTags 'timing' }
 }
 
 tasks.register('coverageTest', Test) {
@@ -181,6 +184,22 @@ tasks.register('coverageTest', Test) {
     group = 'verification'
     testClassesDirs = sourceSets.test.output.classesDirs
     classpath = sourceSets.test.runtimeClasspath
+    useJUnitPlatform { excludeTags 'timing' }
+}
+
+// One ten second Scry hold and one ore-sense hold timed headless, each part by its profiler
+// section (decision diagnose-and-correct-the-lag-on-four-sense-abilities).
+tasks.register('heldSweepTiming', Test) {
+    description = 'Times each part of a held sweep over a fixed synthetic world and ranks the parts'
+    group = 'verification'
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    useJUnitPlatform { includeTags 'timing' }
+    // The agent would time its own probes, and a long hold's frames outgrow the default heap.
+    jacoco.enabled = false
+    maxHeapSize = '4g'
+    testLogging.showStandardStreams = true
+    outputs.upToDateWhen { false }
 }
 
 // The name test-conventions.md and the acceptance criteria run; the pure unit suite is the test task.
