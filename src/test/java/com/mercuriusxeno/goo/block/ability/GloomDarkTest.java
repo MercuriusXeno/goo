@@ -11,8 +11,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Tests that a spot on Gloom passes the light part of a hostile spawn check
  * at any light, and that every other spot keeps vanilla's answer, which in
- * the overworld passes only at light 0; and that Gloom's own cell leaves a
- * spawning mob's box free.
+ * the overworld passes only at light 0; that Gloom's own cell leaves a
+ * spawning mob's box free; and that a thing on Gloom is out of the daylight.
  */
 class GloomDarkTest {
 
@@ -79,6 +79,40 @@ class GloomDarkTest {
         @Test
         void aBoxOffGloomKeepsVanillasAnswer() {
             assertFalse(GloomDark.spawnSpaceIsFree(SPOT, NO_GLOOM, false, () -> true));
+        }
+    }
+
+    @Nested
+    class Daylight {
+
+        /** The light value a mob reads under the open noon sky, the brightest. */
+        private static final float NOON_VALUE = 1f;
+        /** The light value the overworld reads at no light. */
+        private static final float DARK_VALUE = 0f;
+
+        @Test
+        void aThingOnGloomIsOutOfTheDaylight() {
+            assertFalse(GloomDark.inDaylight(SPOT, GLOOM_AT_THE_FEET, true));
+        }
+
+        @Test
+        void aThingOverGloomIsOutOfTheDaylight() {
+            assertFalse(GloomDark.inDaylight(SPOT, GLOOM_UNDER_THE_FEET, true));
+        }
+
+        @Test
+        void aThingOffGloomStaysInTheDaylight() {
+            assertTrue(GloomDark.inDaylight(SPOT, NO_GLOOM, true));
+        }
+
+        @Test
+        void aMobOnGloomReadsTheDarkUnderTheNoonSky() {
+            assertEquals(DARK_VALUE, GloomDark.daylightValue(SPOT, GLOOM_AT_THE_FEET, NOON_VALUE, DARK_VALUE));
+        }
+
+        @Test
+        void aMobOffGloomReadsTheNoonSky() {
+            assertEquals(NOON_VALUE, GloomDark.daylightValue(SPOT, NO_GLOOM, NOON_VALUE, DARK_VALUE));
         }
     }
 

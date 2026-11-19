@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.block.ability;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.CollisionGetter;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.shapes.BooleanOp;
@@ -17,8 +18,10 @@ import java.util.function.Predicate;
  * goo's own cell leaves the mob's box free, as a pseudo-liquid does. Every
  * other condition, the space besides the goo, the biome's list, the cap and
  * the distance from players, stays vanilla's, and the goo spends nothing on
- * a spawn. A spot stands on Gloom where its feet are in a Gloom cell or one
- * holds it up.
+ * a spawn. A mob standing on Gloom is out of the daylight: the light its
+ * daylight behaviors read is the dark's, and an undead player there is
+ * spared the sun. A spot stands on Gloom where its feet are in a Gloom cell
+ * or one holds it up.
  * gloom-spawns-regardless-of-light-and-mobs-on-it-ignore-daylight
  * operator ruling 2026-11-18: Gloom's goo is no obstruction to a spawn
  */
@@ -78,6 +81,56 @@ public final class GloomDark {
     static boolean spawnSpaceIsFree(BlockPos spot, Predicate<BlockPos> holdsGloom, boolean vanillaFree,
                                     BooleanSupplier freeBesidesGloom) {
         return vanillaFree || holdsGloom.test(spot) && freeBesidesGloom.getAsBoolean();
+    }
+
+    /**
+     * Whether a thing stands in daylight: on Gloom it never does.
+     *
+     * @param feet              the block its feet are in
+     * @param holdsGloom        whether a block holds a Gloom cell
+     * @param vanillaInDaylight vanilla's answer at the spot
+     * @return true where daylight reaches it
+     */
+    static boolean inDaylight(BlockPos feet, Predicate<BlockPos> holdsGloom, boolean vanillaInDaylight) {
+        return vanillaInDaylight && !liesAt(feet, holdsGloom);
+    }
+
+    /**
+     * The light a mob's daylight behaviors read at its spot: on Gloom, the
+     * dimension's value at no light, so the mob behaves as it does at night.
+     *
+     * @param feet         the block its feet are in
+     * @param holdsGloom   whether a block holds a Gloom cell
+     * @param vanillaValue vanilla's light value at the spot
+     * @param darkValue    the value the dimension reads at no light
+     * @return the light value the mob's behaviors read
+     */
+    static float daylightValue(BlockPos feet, Predicate<BlockPos> holdsGloom, float vanillaValue, float darkValue) {
+        return liesAt(feet, holdsGloom) ? darkValue : vanillaValue;
+    }
+
+    /**
+     * Whether a thing stands in daylight in a level.
+     *
+     * @param level             the level
+     * @param feet              the block its feet are in
+     * @param vanillaInDaylight vanilla's answer at the spot
+     * @return true where daylight reaches it
+     */
+    public static boolean inDaylight(BlockGetter level, BlockPos feet, boolean vanillaInDaylight) {
+        return inDaylight(feet, gloomIn(level), vanillaInDaylight);
+    }
+
+    /**
+     * The light a mob's daylight behaviors read at its spot in a level.
+     *
+     * @param level        the level
+     * @param feet         the block its feet are in
+     * @param vanillaValue vanilla's light value at the spot
+     * @return the light value the mob's behaviors read
+     */
+    public static float daylightValue(Level level, BlockPos feet, float vanillaValue) {
+        return daylightValue(feet, gloomIn(level), vanillaValue, level.dimensionType().ambientLight());
     }
 
     /**
