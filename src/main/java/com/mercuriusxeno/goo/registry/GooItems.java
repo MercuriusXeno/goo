@@ -6,12 +6,14 @@ import com.mercuriusxeno.goo.item.*;
 import com.mercuriusxeno.goo.item.GooGloveItem.GloveTier;
 import com.mercuriusxeno.goo.item.gasket.ChoralGasketItem;
 import com.mercuriusxeno.goo.item.gasket.ChoralTunerItem;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.BucketItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.Rarity;
 import net.minecraft.world.item.SmithingTemplateItem;
+import net.minecraft.world.item.component.UseEffects;
 import net.minecraft.world.item.equipment.ArmorType;
 import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
@@ -123,6 +125,11 @@ public class GooItems {
     public static final DeferredItem<GooGloveItem> EXO_GAUNTLET = ITEMS.registerItem("exo_gauntlet",
             props -> new GooGloveItem(props.stacksTo(1).fireResistant()
                     .attributes(GooGloveItem.attackModifiers(GloveTier.EXO_GAUNTLET)), GloveTier.EXO_GAUNTLET));
+    /** The sprayer, carrying one canister (decision sprayer-holds-a-canister-sideways-like-a-caulk-gun). */
+    public static final DeferredItem<SprayerItem> SPRAYER = ITEMS.registerItem("sprayer",
+            props -> new SprayerItem(props.stacksTo(1)
+                    // spray-item-sprays-residuals-beside-the-glove: spraying slows the sprayer no more than the glove
+                    .component(DataComponents.USE_EFFECTS, new UseEffects(true, false, 1.0f))));
     // --- Partially Melted Item (crucible intermediate, not in creative tab) ---
     public static final DeferredItem<PartiallyMeltedItem> PARTIALLY_MELTED_ITEM = ITEMS.registerItem(
             "partially_melted_item", props -> new PartiallyMeltedItem(props.stacksTo(1)));

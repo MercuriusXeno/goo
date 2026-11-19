@@ -58,7 +58,6 @@ public final class SelfDeliveryTests {
     private static final String SELF_KINDLE_HELD_PAYS_UPKEEP = "self_kindle_held_pays_upkeep_each_tick";
     private static final String SELF_KINDLE_INVOKED_AGAIN_ENDS = "self_kindle_invoked_again_ends";
     private static final String SELF_KINDLE_ENDS_WHEN_DRY = "self_kindle_ends_when_dry";
-    private static final String SELF_SIGHT_HOLDS = "self_sight_holds_the_sight";
     private static final String HERD_LAYS_AND_ENDING_CLEARS = "herd_lays_its_state_and_ending_clears_it";
 
     /**
@@ -72,7 +71,6 @@ public final class SelfDeliveryTests {
         GooTestFunctions.registerTest(registrar, SELF_KINDLE_HELD_PAYS_UPKEEP, SelfDeliveryTests::kindleHeldPaysUpkeepEachTick);
         GooTestFunctions.registerTest(registrar, SELF_KINDLE_INVOKED_AGAIN_ENDS, SelfDeliveryTests::kindleInvokedAgainEnds);
         GooTestFunctions.registerTest(registrar, SELF_KINDLE_ENDS_WHEN_DRY, SelfDeliveryTests::kindleEndsWhenDry);
-        GooTestFunctions.registerTest(registrar, SELF_SIGHT_HOLDS, SelfDeliveryTests::sightHoldsTheSight);
         GooTestFunctions.registerTest(registrar, HERD_LAYS_AND_ENDING_CLEARS,
                 SelfDeliveryTests::herdLaysItsStateAndEndingClearsIt);
     }
@@ -88,8 +86,6 @@ public final class SelfDeliveryTests {
     private static final float FACING_EAST = -90f;
     private static final Identifier ENDER_BLINK = Identifier.parse("goo:ender_blink");
     private static final Identifier BLAZE_KINDLE = Identifier.parse("goo:blaze_kindle");
-    private static final Identifier SHROOM_SIGHT = Identifier.parse("goo:shroom_sight");
-    private static final String SHOULD_SEE = "Once Sight lands the player should hold fungal sight";
     private static final Identifier YARN_HERD = Identifier.parse("goo:yarn_herd");
     private static final String SHOULD_HOLD_HERD = "Once Herd lands the player should hold Herd";
     private static final String SHOULD_LAY_HERD = "Herd should lay its state, laid %s";
@@ -362,23 +358,6 @@ public final class SelfDeliveryTests {
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GooItems.GOO_GLOVE.get()));
         player.getInventory().add(GooStacks.createForOutput(gooType, HELD_GOO * GooStacks.THOUSAND));
         return player;
-    }
-
-    /**
-     * A survival player casts Sight from the glove: the sight is held, standing
-     * until ended, and no goo drains as it lands
-     * (decisions self-effects-trickle-until-ended and sight-lengthens-shift-and-outlines-fungus).
-     *
-     * @param helper the gametest helper
-     */
-    public static void sightHoldsTheSight(GameTestHelper helper) {
-        ServerPlayer player = HeartOverlayTests.selfInvoked(helper, GooTypes.SHROOM, SHROOM_SIGHT);
-        boolean held = player.getData(GooAttachments.HELD_EFFECTS).holds(SHROOM_SIGHT);
-        boolean sees = player.getData(GooAttachments.SIGHT).standsAt(player.level().getGameTime());
-        helper.getLevel().getServer().getPlayerList().remove(player);
-        helper.assertTrue(held, SHOULD_BE_HELD);
-        helper.assertTrue(sees, SHOULD_SEE);
-        helper.succeed();
     }
 
     /**

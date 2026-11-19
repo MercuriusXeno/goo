@@ -157,7 +157,11 @@ public class VolumeCellBlock extends Block {
      * @param binding    the goo type it holds, the ability laying it and what it does to things on it
      */
     public VolumeCellBlock(Properties properties, CellBinding binding) {
-        super(properties);
+        // the box reads the level, whether a floor stands under the cell and its goo's cohesion, so vanilla's
+        // per-state cache, built over an empty getter where no cell stands on a floor, would answer a
+        // wall-attached cell's collision with no floor at all
+        // diagnose-and-correct-mobs-and-players-hopping-in-goo-beside-a-wall
+        super(properties.dynamicShape());
         this.binding = binding;
         registerDefaultState(stateDefinition.any().setValue(NORTH, SideCoat.BARE).setValue(EAST, SideCoat.BARE)
                 .setValue(SOUTH, SideCoat.BARE).setValue(WEST, SideCoat.BARE).setValue(CEILING, false)
@@ -956,7 +960,7 @@ public class VolumeCellBlock extends Block {
      * @return the box
      */
     public static VoxelShape boxOf(GooShares shares) {
-        VoxelShape box = shares.floor() > 0 ? Shapes.box(0, 0, 0, 1, shares.floor() / MAX_LAYERS, 1) : Shapes.empty();
+        VoxelShape box = floorBoxOf(shares);
         for (Map.Entry<Direction, Double> side : shares.sides().entrySet()) {
             box = Shapes.or(box, slabOn(side.getKey(), side.getValue() / MAX_LAYERS));
         }
@@ -986,11 +990,29 @@ public class VolumeCellBlock extends Block {
         return boxOf(sharesOf(state, onAFloor(level, pos), cohesionIn(level)));
     }
 
+    /**
+     * The goo a thing collides with: the flat box of the floor's share alone.
+     * A wall or ceiling coat is drawn and outlined but takes no collision, so
+     * no coat stands a whole block tall in the cell, where vanilla's
+     * MoveControl jumps a mob whose own block's collision top stands over its feet.
+     * goo-block-top-slopes-to-the-average-with-the-adjoining-block
+     * diagnose-and-correct-mobs-and-players-hopping-in-goo-beside-a-wall
+     * operator ruling 2026-11-19: collision is the floor fill only
+     */
     @Override
     protected @NonNull VoxelShape getCollisionShape(@NonNull BlockState state, @NonNull BlockGetter level,
                                                     @NonNull BlockPos pos, @NonNull CollisionContext ctx) {
-        return boxOf(sharesOf(state, onAFloor(level, pos), cohesionIn(level)));
+        return floorBoxOf(sharesOf(state, onAFloor(level, pos), cohesionIn(level)));
     }
+
+    /**
+     * @param shares how the block's volume divides between its surfaces
+     * @return the flat box of the floor's share, empty where the floor holds none
+     */
+    static VoxelShape floorBoxOf(GooShares shares) {
+        return shares.floor() > 0 ? Shapes.box(0, 0, 0, 1, shares.floor() / MAX_LAYERS, 1) : Shapes.empty();
+    }
+
     /**
      * A cell holding fill stands on a top; a cell of fill 0 stands on its
      * films, each clinging to a wall with a face to hold it.
@@ -1135,7 +1157,8 @@ public class VolumeCellBlock extends Block {
         step.moves().stream().distinct().forEach(move -> carryPlacer(level, move.from(), move.to()));
         step.layers().forEach((cell, layers) -> {
             BlockState standing = level.getBlockState(cell);
-            BlockState into = standing.isAir() ? defaultBlockState() : standing;
+            // every-block-displaces-wisps: a cell the network reads as open, air or a wisp, takes this goo
+            BlockState into = opens(standing) ? defaultBlockState() : standing;
             level.setBlock(cell, layers > 0 ? into.setValue(LAYERS, layers) : lessALayer(into.setValue(LAYERS, 1)),
                     UPDATE_ALL);
         });

@@ -67,15 +67,15 @@ class GooConstantResolverTest {
     class ReferentLackingTheType {
 
         /**
-         * stripped_stem reading $stem.leaf / 2 + 1, stem holding shroom and nether, answers shroom 1, leaf read as
+         * stripped_stem reading $stem.leaf / 2 + 1, stem holding sculk and nether, answers sculk 1, leaf read as
          * zero, and an error naming stem and leaf.
          */
         @Test
         void typedPrefabReadingATypeItsPrefabLacksResolvesAndErrorsNamingBoth() {
             GooConstantResolver.ResolvedConstant stripped = GooConstantResolver.resolve(JsonParser.parseString("""
-                    {"stem": {"shroom": 2, "nether": 2}, "stripped_stem": {"shroom": "$stem.leaf / 2 + 1"}}
+                    {"stem": {"sculk": 2, "nether": 2}, "stripped_stem": {"sculk": "$stem.leaf / 2 + 1"}}
                     """).getAsJsonObject()).get(1);
-            assertEquals("1", stripped.perType().get("shroom"), String.valueOf(stripped.perType()));
+            assertEquals("1", stripped.perType().get("sculk"), String.valueOf(stripped.perType()));
             assertTrue(stripped.error() != null && stripped.error().contains("stem holds no leaf"), stripped.error());
         }
 
@@ -86,10 +86,10 @@ class GooConstantResolverTest {
         @Test
         void typedPrefabReadingATypeItsStringFormReferentLacksResolvesAndErrors() {
             GooConstantResolver.ResolvedConstant stripped = GooConstantResolver.resolve(JsonParser.parseString("""
-                    {"stem": {"shroom": 3, "nether": 3}, "hyphae": "4 $stem / 3",
-                     "stripped_hyphae": {"shroom": "$hyphae.leaf + 2"}}
+                    {"stem": {"sculk": 3, "nether": 3}, "hyphae": "4 $stem / 3",
+                     "stripped_hyphae": {"sculk": "$hyphae.leaf + 2"}}
                     """).getAsJsonObject()).get(2);
-            assertEquals("2", stripped.perType().get("shroom"), String.valueOf(stripped.perType()));
+            assertEquals("2", stripped.perType().get("sculk"), String.valueOf(stripped.perType()));
             assertTrue(stripped.error() != null && stripped.error().contains("hyphae holds no leaf"), stripped.error());
         }
 
@@ -99,9 +99,9 @@ class GooConstantResolverTest {
         @Test
         void typedPrefabReadingAHeldTypeResolves() {
             GooConstantResolver.ResolvedConstant stripped = GooConstantResolver.resolve(JsonParser.parseString("""
-                    {"stem": {"shroom": 2, "nether": 2}, "stripped_stem": {"shroom": "$stem.shroom / 2"}}
+                    {"stem": {"sculk": 2, "nether": 2}, "stripped_stem": {"sculk": "$stem.sculk / 2"}}
                     """).getAsJsonObject()).get(1);
-            assertEquals("1", stripped.perType().get("shroom"));
+            assertEquals("1", stripped.perType().get("sculk"));
             assertNull(stripped.error(), stripped.error());
         }
     }

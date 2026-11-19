@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.lunar.DarkSideSpread;
 import com.mercuriusxeno.goo.lunar.LandmarkStructure;
 import com.mercuriusxeno.goo.lunar.MeteoritePiece;
 import com.mercuriusxeno.goo.lunar.MonolithPiece;
@@ -9,6 +10,7 @@ import com.mojang.serialization.MapCodec;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.level.levelgen.structure.StructureType;
 import net.minecraft.world.level.levelgen.structure.pieces.StructurePieceType;
+import net.minecraft.world.level.levelgen.structure.placement.StructurePlacementType;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import java.util.function.Supplier;
@@ -58,6 +60,19 @@ public final class GooStructures {
     /** The monolith's one piece. */
     public static final DeferredHolder<StructurePieceType, StructurePieceType> MONOLITH_PIECE =
             PIECE_TYPES.register("monolith", () -> (StructurePieceType.ContextlessType) MonolithPiece::new);
+
+    /**
+     * Deferred register for structure placement types.
+     */
+    public static final DeferredRegister<StructurePlacementType<?>> PLACEMENT_TYPES =
+            DeferredRegister.create(Registries.STRUCTURE_PLACEMENT, Goo.MODID);
+
+    /**
+     * {@code goo:dark_side_spread}, a random spread at a spacing for each side of the moon.
+     * decision dark-side-is-an-endless-night-of-eldritch-rich-in-void-and-xeno
+     */
+    public static final DeferredHolder<StructurePlacementType<?>, StructurePlacementType<DarkSideSpread>>
+            DARK_SIDE_SPREAD = PLACEMENT_TYPES.register("dark_side_spread", () -> () -> DarkSideSpread.CODEC);
 
     private GooStructures() {
     }

@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.throwing.ConeShape;
 import com.mercuriusxeno.goo.throwing.ConvergingCone;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
@@ -24,7 +25,8 @@ import org.jspecify.annotations.NonNull;
  * @param apex        the cone's apex, the glove the motes leave
  * @param axis        the cone's axis
  * @param particle    the stream's particle id
- * @param coneDegrees the cone the motes fan across, apex to rim, in degrees
+ * @param coneShape   the cone the motes fan across, its widths across and up and down, apex to rim, in degrees,
+ *                    a sprayer's nozzle's shape for its drips
  * @param speed       each mote's launch speed along its heading, blocks per tick, for motes off the arc
  * @param throwSpeed  the speed the stream throws its drips at along the cone's fan, each flying the arc the
  *                    server's drip flies; {@link com.mercuriusxeno.goo.ability.Delivery#NO_THROW_SPEED} for motes
@@ -35,7 +37,7 @@ import org.jspecify.annotations.NonNull;
  * @param eye         the caster's eye the drips' cone centers from, the apex for motes off the arc
  * @param lands       how far from the eye the drips' cone lands, in blocks; 0 for motes off the arc
  */
-public record StreamMotesPayload(int casterId, Vec3 apex, Vec3 axis, Identifier particle, double coneDegrees,
+public record StreamMotesPayload(int casterId, Vec3 apex, Vec3 axis, Identifier particle, ConeShape coneShape,
                                  double speed, double throwSpeed, boolean strikesLiving, int held, int drips,
                                  Vec3 eye, double lands)
         implements CustomPacketPayload {
@@ -50,7 +52,7 @@ public record StreamMotesPayload(int casterId, Vec3 apex, Vec3 axis, Identifier 
             Vec3.STREAM_CODEC, StreamMotesPayload::apex,
             Vec3.STREAM_CODEC, StreamMotesPayload::axis,
             Identifier.STREAM_CODEC, StreamMotesPayload::particle,
-            ByteBufCodecs.DOUBLE, StreamMotesPayload::coneDegrees,
+            ConeShape.STREAM_CODEC, StreamMotesPayload::coneShape,
             ByteBufCodecs.DOUBLE, StreamMotesPayload::speed,
             ByteBufCodecs.DOUBLE, StreamMotesPayload::throwSpeed,
             ByteBufCodecs.BOOL, StreamMotesPayload::strikesLiving,

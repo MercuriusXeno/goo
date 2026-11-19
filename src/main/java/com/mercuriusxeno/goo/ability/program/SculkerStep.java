@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
-import com.mercuriusxeno.goo.ability.deep.Sculker;
+import com.mercuriusxeno.goo.ability.sculk.Sculker;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.world.entity.LivingEntity;

@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.entity;
 import com.mercuriusxeno.goo.ability.quantum.OutOfPhase;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.lunar.Lunar;
+import com.mercuriusxeno.goo.lunar.LunarEldritch;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
@@ -78,8 +79,10 @@ public class EldritchMonstrosity extends Monster {
 
     /**
      * Whether a monstrosity may spawn at a spot: in lunar, any spot a monster may stand, lit or not, since the
-     * eldritch gather there; elsewhere a dark one, deep below.
+     * eldritch gather there, under the open sky while the sky reads as night there, so at every hour on the dark
+     * side; elsewhere a dark one, deep below.
      * decision eldritch-spawn-in-higher-volumes-on-lunar
+     * decision dark-side-is-an-endless-night-of-eldritch-rich-in-void-and-xeno
      *
      * @param type   its type
      * @param level  the level
@@ -91,7 +94,8 @@ public class EldritchMonstrosity extends Monster {
     public static boolean checkSpawnRules(EntityType<EldritchMonstrosity> type, ServerLevelAccessor level,
             EntitySpawnReason reason, BlockPos pos, RandomSource random) {
         if (Lunar.LEVEL.equals(level.getLevel().dimension())) {
-            return checkAnyLightMonsterSpawnRules(type, level, reason, pos, random);
+            return LunarEldritch.spawnHourAllows(pos.getX(), level.getLevel().getSkyDarken(), level.canSeeSky(pos))
+                    && checkAnyLightMonsterSpawnRules(type, level, reason, pos, random);
         }
         return pos.getY() < SPAWNS_BELOW_Y && checkMonsterSpawnRules(type, level, reason, pos, random);
     }

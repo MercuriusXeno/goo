@@ -1,0 +1,14 @@
+{
+  "gooType": "nether",
+  "displayName": "goo.ability.nether.invert",
+  "cost_mechanics": "goo.ability.cost_mechanics.upkeep",
+  "badge": "durative",
+  "order": 50,
+  "upkeep": 1,
+  "delivery": { "kind": "self" },
+  "behaviors": [
+    { "type": "invert" },
+    { "type": "sound", "id": "minecraft:block.respawn_anchor.charge", "at": "target", "source": "players", "volume": 0.8, "pitch": 0.6 }
+  ],
+  "tags": ["self"]
+}
