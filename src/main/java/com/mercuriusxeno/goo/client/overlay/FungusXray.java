@@ -211,10 +211,48 @@ public final class FungusXray {
      */
     public static void drawBlock(Minecraft mc, PoseStack poseStack, VertexConsumer consumer, Vec3 camera,
                           BlockPos pos, QuadInstance instance, float swell) {
+        drawParts(partsAt(mc, pos), poseStack, consumer, new Placed(camera, pos, swell), instance);
+    }
+
+    /**
+     * The parts of the model the world draws a block with, as it stands there.
+     *
+     * @param mc  the client, its level loaded
+     * @param pos the block
+     * @return the model's parts
+     */
+    public static List<BlockStateModelPart> partsAt(Minecraft mc, BlockPos pos) {
         BlockState state = mc.level.getBlockState(pos);
         BlockStateModel model = mc.getModelManager().getBlockStateModelSet().get(state);
         List<BlockStateModelPart> parts = new ArrayList<>();
         model.collectParts(mc.level, pos, state, RandomSource.create(pos.asLong()), parts);
+        return parts;
+    }
+
+    /**
+     * Where a block's quads draw: the camera, the block and the scale about its center.
+     *
+     * @param camera the camera's position
+     * @param pos    the block
+     * @param swell  the scale about the block's center, one for its own size
+     */
+    public record Placed(Vec3 camera, BlockPos pos, float swell) {
+    }
+
+    /**
+     * Draws a block model's parts at a block, swollen about its center.
+     *
+     * @param parts     the model's parts
+     * @param poseStack the pose stack
+     * @param consumer  the vertex consumer
+     * @param placed    where the quads draw
+     * @param instance  the color, light and overlay the quads take
+     */
+    public static void drawParts(List<BlockStateModelPart> parts, PoseStack poseStack, VertexConsumer consumer,
+                                 Placed placed, QuadInstance instance) {
+        Vec3 camera = placed.camera();
+        BlockPos pos = placed.pos();
+        float swell = placed.swell();
         poseStack.pushPose();
         poseStack.translate(pos.getX() - camera.x + HALF, pos.getY() - camera.y + HALF, pos.getZ() - camera.z + HALF);
         poseStack.scale(swell, swell, swell);

@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.ability.program.AilmentKind;
+import com.mercuriusxeno.goo.ability.program.HeldSweepWorld;
 import com.mercuriusxeno.goo.client.RecordingVertexConsumer;
 import com.mercuriusxeno.goo.type.GooColors;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -170,6 +171,106 @@ class HeldSweepVisualTest {
             double farthest = pulse.lit().stream().mapToDouble(lit -> lit.face().distance()).max().orElse(-1);
             assertTrue(farthest <= front && farthest > front - BLOCKS_A_TICK,
                     "the farthest lit wall " + farthest + " stands at the front " + front);
+        }
+    }
+
+    /**
+     * One pulse tick's and one frame's work over the fixed synthetic world,
+     * counted at the seams the fronts walk and the walls draw through: the
+     * baseline a cut to the held sweeps' client cost is proven against.
+     * decision diagnose-and-correct-the-lag-on-four-sense-abilities
+     */
+    @Nested
+    class WorkCounts {
+
+        private static final double ONE_TICK = 2.4;
+        private static final Vec3 BODY = HeldSweepWorld.CASTER.add(0, 0.9, 0);
+        private static final int TINT = 0x8866FF;
+        private static final long HEARD_AT = 100;
+        private static final int ROOM = HeldSweepVisual.MOST_BLOCKS;
+
+        private final HeldSweepWorld world = new HeldSweepWorld();
+        private int blockReads;
+
+        private boolean countedIsAir(BlockPos pos) {
+            blockReads++;
+            return HeldSweepWorld.isAir(pos);
+        }
+
+        private List<AABB> countedShapeOf(BlockPos pos) {
+            blockReads++;
+            return HeldSweepWorld.shapeOf(pos);
+        }
+
+        /** The block reads one front's last tick out to a range makes, on a pulse whose field walked up to it. */
+        private int readsOfTheLastTickTo(double range) {
+            HeldSweepPulse pulse = new HeldSweepPulse(new EchoField(BODY), range, TINT);
+            pulse.heard(range - ONE_TICK, HEARD_AT);
+            pulse.advance(HEARD_AT + 1, this::countedIsAir, this::countedShapeOf, ROOM);
+            blockReads = 0;
+            pulse.heard(range, HEARD_AT + 1);
+            pulse.advance(HEARD_AT + 2, this::countedIsAir, this::countedShapeOf, ROOM);
+            return blockReads;
+        }
+
+        /**
+         * The walk builds the whole shell the front crossed and then reads
+         * no block of it: the field already holds the most faces it keeps
+         * well inside that radius in this world.
+         */
+        @Test
+        void oneClientPulseTickAtScrysReachBuildsTheShellItCrossedAndReadsNoneOfIt() {
+            assertEquals(270_961, ScryReveal.shell(BODY, HeldSweepHold.SCRY_REACH - ONE_TICK, HeldSweepHold.SCRY_REACH)
+                    .size(), "positions in the shell one client front tick walks, out to 96");
+            assertEquals(0, readsOfTheLastTickTo(HeldSweepHold.SCRY_REACH),
+                    "block reads one client front tick makes, out to 96");
+        }
+
+        @Test
+        void oneClientPulseTickAtTheOreSensesRadiusBuildsTheShellItCrossedAndReadsNoneOfIt() {
+            assertEquals(118_949, ScryReveal.shell(BODY, HeldSweepHold.ORE_RADIUS - ONE_TICK, HeldSweepHold.ORE_RADIUS)
+                    .size(), "positions in the shell one client front tick walks, out to 64");
+            assertEquals(0, readsOfTheLastTickTo(HeldSweepHold.ORE_RADIUS),
+                    "block reads one client front tick makes, out to 64");
+        }
+
+        /** The faces the field around the caster holds once the first front has walked out to Scry's reach. */
+        @Test
+        void aFieldWalkedOutToScrysReachHoldsTheMostFacesItKeeps() {
+            EchoField field = new EchoField(BODY);
+            field.reachTo(HeldSweepHold.SCRY_REACH, HeldSweepWorld::isAir, HeldSweepWorld::shapeOf);
+
+            assertEquals(EchoField.MOST_FACES, field.size(), "faces the field keeps");
+            assertEquals(HeldSweepHold.SCRY_REACH, field.face(field.size() - 1).distance(), 0.5,
+                    "distance of the farthest face kept");
+        }
+
+        @Test
+        void oneFrameOfATenSecondScryHoldSubmitsItsLitWallsAndFronts() {
+            HeldSweepHold hold = HeldSweepHold.scry(world);
+            hold.settle(HeldSweepHold.TEN_SECONDS);
+            hold.tick();
+            long before = hold.quads();
+
+            hold.frame(0);
+
+            assertEquals(7, hold.clientPulses(), "pulses a ten second Scry hold leaves live");
+            assertEquals(HeldSweepVisual.MOST_BLOCKS, hold.walls(), "walls one frame draws");
+            assertEquals(16_060, hold.quads() - before, "quads one frame submits");
+        }
+
+        @Test
+        void oneFrameOfATenSecondOreSenseHoldSubmitsItsLitWallsFrontsAndOre() {
+            HeldSweepHold hold = HeldSweepHold.oreSense(world);
+            hold.settle(HeldSweepHold.TEN_SECONDS);
+            hold.tick();
+            long before = hold.quads();
+
+            hold.frame(0);
+
+            assertEquals(7, hold.clientPulses(), "pulses a ten second ore-sense hold leaves live");
+            assertEquals(HeldSweepVisual.MOST_BLOCKS, hold.walls(), "walls one frame draws");
+            assertEquals(24_760, hold.quads() - before, "quads one frame submits");
         }
     }
 

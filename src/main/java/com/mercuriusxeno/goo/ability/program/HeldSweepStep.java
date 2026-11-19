@@ -3,6 +3,8 @@ package com.mercuriusxeno.goo.ability.program;
 import com.mercuriusxeno.goo.network.HeldSweepPayload;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.resources.ResourceKey;
+import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * A held step that sweeps: Scry, Glimmer and Magnet each send overlapping
@@ -47,5 +49,17 @@ public interface HeldSweepStep extends Step {
         HeldSweepPace pace = pace();
         return new HeldSweepPayload(pulse.id(), pulse.origin(), (float) pace.radiusAt(pulse.ageAt(gameTime)),
                 (float) pace.range(), goo(), paintsMobs());
+    }
+
+    /**
+     * Sends the caster's client one payload for each live pulse on a tick.
+     *
+     * @param pulses   the live pulses
+     * @param gameTime the game time
+     * @param send     sends a payload to the caster's client
+     */
+    default void sendSweeps(List<HeldSweepPulses.Pulse> pulses, long gameTime, Consumer<HeldSweepPayload> send) {
+        HeldSweepSections.profiled(HeldSweepSections.PAYLOAD_SENDS,
+                () -> pulses.forEach(pulse -> send.accept(sweepOf(pulse, gameTime))));
     }
 }

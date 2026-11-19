@@ -11,6 +11,7 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.entity.LivingEntity;
@@ -18,9 +19,11 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
+import org.jspecify.annotations.Nullable;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
 /**
@@ -77,9 +80,9 @@ public record DetectOreStep(TagKey<Block> tag, ResourceKey<GooTypeDefinition> go
         long now = caster.level().getGameTime();
         List<HeldSweepPulses.Pulse> pulses = HeldSweepPulses.SERVER.advance(caster.getUUID(), caster.position(),
                 held, now, pace());
+        sendSweeps(pulses, now, payload -> EntityVisuals.sendToSelf(caster, payload));
         Set<Vec3> walked = new HashSet<>();
         for (HeldSweepPulses.Pulse pulse : pulses) {
-            EntityVisuals.sendToSelf(caster, sweepOf(pulse, now));
             // a later front from the spot an earlier one left walks blocks that front already walked
             if (walked.add(pulse.origin())) {
                 OreRevealPayload reveal = revealAt(caster.level(), pulse.origin(), pulse.ageAt(now));
@@ -100,12 +103,26 @@ public record DetectOreStep(TagKey<Block> tag, ResourceKey<GooTypeDefinition> go
      * @return the reveal to send the caster
      */
     public OreRevealPayload revealAt(Level level, Vec3 origin, int pulseTick) {
+        return revealAt(pos -> {
+            BlockState state = level.getBlockState(pos);
+            return state.is(tag) ? BuiltInRegistries.BLOCK.getKey(state.getBlock()) : null;
+        }, origin, pulseTick);
+    }
+
+    /**
+     * One tick of a pulse over the ore a world holds: the veins its front
+     * first reached on the tick.
+     *
+     * @param oreAt     each block's ore id, or null where none of the tag's ore stands
+     * @param origin    where the pulse began
+     * @param pulseTick the pulse's tick, 1 on its first
+     * @return the reveal to send the caster
+     */
+    public OreRevealPayload revealAt(Function<BlockPos, @Nullable Identifier> oreAt, Vec3 origin, int pulseTick) {
         HeldSweepPace pace = pace();
-        List<OreVeins.Vein> veins = OreVeins.firstReachedIn(BlockPos.containing(origin),
-                pace.radiusAt(pulseTick - 1), pace.radiusAt(pulseTick), radius, pos -> {
-                    BlockState state = level.getBlockState(pos);
-                    return state.is(tag) ? BuiltInRegistries.BLOCK.getKey(state.getBlock()) : null;
-                });
+        List<OreVeins.Vein> veins = HeldSweepSections.profiled(HeldSweepSections.ORE_WALK,
+                () -> OreVeins.firstReachedIn(BlockPos.containing(origin), pace.radiusAt(pulseTick - 1),
+                        pace.radiusAt(pulseTick), radius, oreAt));
         return new OreRevealPayload(veins, life);
     }
 

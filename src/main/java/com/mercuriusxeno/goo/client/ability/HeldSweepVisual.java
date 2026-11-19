@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.ability.program.HeldSweepPace;
+import com.mercuriusxeno.goo.ability.program.HeldSweepSections;
+import com.mercuriusxeno.goo.client.BufferedPass;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
@@ -32,6 +34,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.ToIntFunction;
+import java.util.stream.Stream;
 
 /**
  * The caster's side of every held sweep, Scry's, Glimmer's and Magnet's, as
@@ -84,11 +87,27 @@ public final class HeldSweepVisual {
             clear();
             heardIn = level;
         }
+        hear(PULSES, FIELDS, payload, level.getGameTime(), ClientGooTypes::color);
+    }
+
+    /**
+     * Takes one live pulse's tick: a pulse not seen before starts from its
+     * origin, beside the walls any pulse from that spot already found, and
+     * the front takes its new radius.
+     *
+     * @param pulses    the live pulses by id
+     * @param fields    the walls around each spot pulses leave from
+     * @param payload   the pulse's tick
+     * @param gameTime  the game time it arrived
+     * @param typeColor answers a goo type's color
+     */
+    static void hear(Map<Integer, HeldSweepPulse> pulses, Map<Vec3, EchoField> fields, HeldSweepPayload payload,
+                     long gameTime, ToIntFunction<ResourceKey<GooTypeDefinition>> typeColor) {
         Vec3 center = payload.origin().add(0, BODY_CENTER, 0);
-        HeldSweepPulse pulse = PULSES.computeIfAbsent(payload.pulse(), id -> new HeldSweepPulse(
-                FIELDS.computeIfAbsent(center, EchoField::new), payload.range(),
-                tint(payload.gooType(), ClientGooTypes::color), payload.paintsMobs()));
-        pulse.heard(payload.radius(), level.getGameTime());
+        HeldSweepPulse pulse = pulses.computeIfAbsent(payload.pulse(), id -> new HeldSweepPulse(
+                fields.computeIfAbsent(center, EchoField::new), payload.range(),
+                tint(payload.gooType(), typeColor), payload.paintsMobs()));
+        pulse.heard(payload.radius(), gameTime);
     }
 
     /** Drops every pulse and every painted mob, as a disconnect or a change of dimension does. */
@@ -163,11 +182,15 @@ public final class HeldSweepVisual {
             return;
         }
         double now = level.getGameTime() + mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        moveFrontsOn(level, mc.player, now);
+        upkeepFronts(new Upkeep(PULSES, FIELDS, at -> level.getBlockState(at).isAir(),
+                at -> level.getBlockState(at).getShape(level, at).toAabbs()), now, level.entitiesForRendering(),
+                mc.player);
         List<WallGlow> walls = wallsToDraw(PULSES.values(), now);
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
-        draws.accept(SortedDraw.nearestOf(walls.stream().map(wall -> Vec3.atCenterOf(wall.face().pos())), camera,
-                () -> drawWalls(frame.poseStack().last(), mc.renderBuffers().bufferSource(), camera, walls)));
+        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        draws.accept(sortedByNearest(walls.stream().map(wall -> Vec3.atCenterOf(wall.face().pos())), camera,
+                () -> drawWalls(frame.poseStack().last(), BufferedPass.of(buffers, GooRenderTypes.SCRY_FACES_TYPE),
+                        camera, walls)));
     }
 
     /**
@@ -188,15 +211,53 @@ public final class HeldSweepVisual {
         List<HeldSweepPulse> travelling = PULSES.values().stream().filter(pulse -> pulse.travelling(now)).toList();
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
-        draws.accept(SortedDraw.nearestOf(travelling.stream().map(pulse -> pulse.field().center()), camera,
-                () -> drawFronts(frame.poseStack().last(), buffers, camera, travelling, now)));
+        draws.accept(sortedByNearest(travelling.stream().map(pulse -> pulse.field().center()), camera,
+                () -> drawFronts(frame.poseStack().last(), BufferedPass.of(buffers, GooRenderTypes.GLOW_SHELL_TYPE),
+                        camera, travelling, now)));
     }
 
-    private static void moveFrontsOn(ClientLevel level, @Nullable Entity caster, double now) {
-        advanceAll(PULSES, now, at -> level.getBlockState(at).isAir(),
-                at -> level.getBlockState(at).getShape(level, at).toAabbs());
-        FIELDS.values().removeIf(field -> PULSES.values().stream().noneMatch(pulse -> pulse.field() == field));
-        paintCrossedMobs(level, caster, now);
+    /**
+     * What a frame's upkeep moves on: the live pulses, the walls around
+     * each spot they leave from and the world the fronts walk.
+     *
+     * @param pulses  the live pulses by id
+     * @param fields  the walls around each spot pulses leave from
+     * @param isAir   whether a position holds air
+     * @param shapeOf a block's voxel shape boxes, block-local
+     */
+    record Upkeep(Map<Integer, HeldSweepPulse> pulses, Map<Vec3, EchoField> fields, Predicate<BlockPos> isAir,
+                  Function<BlockPos, List<AABB>> shapeOf) {
+    }
+
+    /**
+     * A frame's upkeep: moves every front on, drops the walls around a spot
+     * no live pulse leaves from any more, and paints the mobs the fronts
+     * crossed.
+     *
+     * @param upkeep   the pulses, fields and world the upkeep moves on
+     * @param now      the game time with its partial tick
+     * @param entities the entities the client draws
+     * @param caster   the caster, never painted
+     */
+    static void upkeepFronts(Upkeep upkeep, double now, Iterable<Entity> entities, @Nullable Entity caster) {
+        HeldSweepSections.profiled(HeldSweepSections.FRONT_UPKEEP, () -> {
+            advanceAll(upkeep.pulses(), now, upkeep.isAir(), upkeep.shapeOf());
+            upkeep.fields().values().removeIf(field -> upkeep.pulses().values().stream()
+                    .noneMatch(pulse -> pulse.field() == field));
+            paintCrossedMobs(upkeep.pulses().values(), entities, caster, now);
+        });
+    }
+
+    /**
+     * A batch sorted by the nearest of its shapes.
+     *
+     * @param shapes each shape's place in the world
+     * @param camera the camera's place in the world
+     * @param draw   draws the batch, ending its buffers
+     * @return the draw
+     */
+    static SortedDraw sortedByNearest(Stream<Vec3> shapes, Vec3 camera, Runnable draw) {
+        return HeldSweepSections.profiled(HeldSweepSections.SORT_KEY, () -> SortedDraw.nearestOf(shapes, camera, draw));
     }
 
     /**
@@ -217,29 +278,50 @@ public final class HeldSweepVisual {
         pulses.values().removeIf(pulse -> pulse.finished(now));
     }
 
-    private static void drawFronts(PoseStack.Pose pose, MultiBufferSource.BufferSource buffers, Vec3 camera,
-                                   List<HeldSweepPulse> travelling, double now) {
-        VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.GLOW_SHELL_TYPE);
-        for (HeldSweepPulse pulse : travelling) {
-            ColorSphere.emit(pose, consumer, pulse.field().center().subtract(camera),
-                    (float) pulse.drawnRadius(now), ARGB.color(SPHERE_ALPHA, pulse.tintRgb()));
-        }
-        buffers.endBatch(GooRenderTypes.GLOW_SHELL_TYPE);
+    /**
+     * Emits every travelling front's sphere and submits the batch.
+     *
+     * @param pose       the pose
+     * @param pass       the batch the spheres fill
+     * @param camera     the camera's position
+     * @param travelling the fronts still travelling
+     * @param now        the game time with its partial tick
+     */
+    static void drawFronts(PoseStack.Pose pose, BufferedPass pass, Vec3 camera, List<HeldSweepPulse> travelling,
+                           double now) {
+        HeldSweepSections.profiled(HeldSweepSections.FRONT_DRAW, () -> {
+            VertexConsumer consumer = pass.consumer();
+            for (HeldSweepPulse pulse : travelling) {
+                ColorSphere.emit(pose, consumer, pulse.field().center().subtract(camera),
+                        (float) pulse.drawnRadius(now), ARGB.color(SPHERE_ALPHA, pulse.tintRgb()));
+            }
+            pass.end().run();
+        });
     }
 
-    private static void drawWalls(PoseStack.Pose pose, MultiBufferSource.BufferSource buffers, Vec3 camera,
-                                  List<WallGlow> walls) {
-        VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.SCRY_FACES_TYPE);
-        for (WallGlow wall : walls) {
-            int color = ARGB.color(Math.round(FACE_ALPHA * wall.glow()), wall.tintRgb());
-            Vec3 corner = Vec3.atLowerCornerOf(wall.face().pos()).subtract(camera);
-            for (AABB box : wall.face().boxes()) {
-                for (Direction side : wall.face().sides()) {
-                    emitBoxFace(pose, consumer, box.move(corner), side, color);
+    /**
+     * Emits every lit wall's quads, each side open to air on each box of its
+     * shape, and submits the batch.
+     *
+     * @param pose   the pose
+     * @param pass   the batch the walls fill
+     * @param camera the camera's position
+     * @param walls  the walls to draw
+     */
+    static void drawWalls(PoseStack.Pose pose, BufferedPass pass, Vec3 camera, List<WallGlow> walls) {
+        HeldSweepSections.profiled(HeldSweepSections.WALL_DRAW, () -> {
+            VertexConsumer consumer = pass.consumer();
+            for (WallGlow wall : walls) {
+                int color = ARGB.color(Math.round(FACE_ALPHA * wall.glow()), wall.tintRgb());
+                Vec3 corner = Vec3.atLowerCornerOf(wall.face().pos()).subtract(camera);
+                for (AABB box : wall.face().boxes()) {
+                    for (Direction side : wall.face().sides()) {
+                        emitBoxFace(pose, consumer, box.move(corner), side, color);
+                    }
                 }
             }
-        }
-        buffers.endBatch(GooRenderTypes.SCRY_FACES_TYPE);
+            pass.end().run();
+        });
     }
 
     /**
@@ -253,14 +335,16 @@ public final class HeldSweepVisual {
      * @return each wall to draw with its glow and color
      */
     static List<WallGlow> wallsToDraw(Collection<HeldSweepPulse> pulses, double now) {
-        Map<BlockPos, WallGlow> walls = new LinkedHashMap<>();
-        for (HeldSweepPulse pulse : pulses) {
-            for (HeldSweepPulse.LitFace lit : pulse.lit()) {
-                walls.merge(lit.face().pos(), new WallGlow(lit.face(), glowAt(now - lit.hitAt()), pulse.tintRgb()),
-                        (held, next) -> next.glow() > held.glow() ? next : held);
+        return HeldSweepSections.profiled(HeldSweepSections.WALL_LIST, () -> {
+            Map<BlockPos, WallGlow> walls = new LinkedHashMap<>();
+            for (HeldSweepPulse pulse : pulses) {
+                for (HeldSweepPulse.LitFace lit : pulse.lit()) {
+                    walls.merge(lit.face().pos(), new WallGlow(lit.face(), glowAt(now - lit.hitAt()),
+                            pulse.tintRgb()), (held, next) -> next.glow() > held.glow() ? next : held);
+                }
             }
-        }
-        return new ArrayList<>(walls.values());
+            return new ArrayList<>(walls.values());
+        });
     }
 
     /**
@@ -277,14 +361,16 @@ public final class HeldSweepVisual {
      * Paints every living mob, the caster aside, that a mob-painting front
      * crossed this frame, and lets go the mobs whose linger has run out.
      *
-     * @param level  the client level
-     * @param caster the caster, never painted
-     * @param now    the game time with its partial tick
+     * @param pulses   the live pulses
+     * @param entities the entities the client draws
+     * @param caster   the caster, never painted
+     * @param now      the game time with its partial tick
      */
-    private static void paintCrossedMobs(ClientLevel level, @Nullable Entity caster, double now) {
-        for (HeldSweepPulse pulse : PULSES.values()) {
+    private static void paintCrossedMobs(Collection<HeldSweepPulse> pulses, Iterable<Entity> entities,
+                                         @Nullable Entity caster, double now) {
+        for (HeldSweepPulse pulse : pulses) {
             if (pulse.paintsMobs() && pulse.front() > pulse.frontBefore()) {
-                paintCrossedBy(pulse, level.entitiesForRendering(), caster, now);
+                paintCrossedBy(pulse, entities, caster, now);
             }
         }
         ScryPaintedMobs.CLIENT.forgetFaded(now);
