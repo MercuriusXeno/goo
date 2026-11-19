@@ -379,7 +379,8 @@ class DeliveryTest {
                     Identifier.fromNamespaceAndPath("goo", "nether_infest"),
                     Identifier.fromNamespaceAndPath("goo", "leaf_vines"),
                     Identifier.fromNamespaceAndPath("goo", "unstable_nitro"),
-                    Identifier.fromNamespaceAndPath("goo", "quantum_phase")), throwing);
+                    Identifier.fromNamespaceAndPath("goo", "quantum_phase"),
+                    Identifier.fromNamespaceAndPath("goo", "rock_mortar")), throwing);
         }
     }
 
@@ -424,7 +425,7 @@ class DeliveryTest {
             for (String spray : Set.of("weird_goop", "kinetic_slick", "blaze_molten", "crystal_shatter",
                     "sculk_creep", "frost_rime", "glow_wisps", "hex_leech", "typhoon_updraft", "jelly_nectar",
                     "pulse_signal", "metal_spikes", "nether_infest", "leaf_vines", "unstable_nitro",
-                    "quantum_phase")) {
+                    "quantum_phase", "rock_mortar")) {
                 Delivery delivery = AbilityJson.decode(spray).delivery();
 
                 assertEquals(delivery.throwSpeed() + RAMPED, delivery.exitSpeedAt(RAMPED), 1e-9, spray);

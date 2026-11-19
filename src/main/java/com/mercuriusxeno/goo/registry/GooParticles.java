@@ -183,6 +183,15 @@ public class GooParticles {
         PARTICLE_TYPES.register("phase_spray_drip", () -> new SimpleParticleType(false));
 
     /**
+     * Mortar's spray drip: the mod's blocky goo drip in rock's gray and
+     * brown, flying its arc until it strikes a block, where it splats and the
+     * Mortar goo lands.
+     * mortar-is-rocks-residual-a-petrification-and-hardening-goo
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> MORTAR_SPRAY_DRIP =
+        PARTICLE_TYPES.register("mortar_spray_drip", () -> new SimpleParticleType(false));
+
+    /**
      * A snowflake crystal flitting weightlessly along Cold's wind (decision
      * cold-streams-wind-lines-and-snowflakes).
      */
