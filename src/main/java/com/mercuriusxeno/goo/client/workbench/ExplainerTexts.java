@@ -29,7 +29,7 @@ final class ExplainerTexts {
     static final String CONVERSIONS = "Conversions describe processes that are consistent, such as waxing copper"
             + " blocks, or copper blocks oxidizing, or stripping logs. The defaults define those processes as having"
             + " some change to their goo values that is relative to their original goo values (in some cases by"
-            + " scaling: oxidizing copper turns some metal and pulse into opulent at a loss). It can also be a way to"
+            + " scaling: oxidizing copper turns some metal and pulse into ornate at a loss). It can also be a way to"
             + " `iterate` over one #group of items and copy their values onto another #group. e.g. #copper copies"
             + " onto #waxed_copper, mutated by adding $waxed to each entry. `Note: the groups must be"
             + " parallel/congruent. Note that order matters!`";
