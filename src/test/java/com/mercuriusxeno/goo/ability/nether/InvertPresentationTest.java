@@ -44,6 +44,31 @@ class InvertPresentationTest {
         }
     }
 
+    /**
+     * The player renderer drops a crouching model by an eighth of a block in world space; an upside-down model's
+     * crouch rises toward its ceiling by that eighth instead.
+     */
+    @Nested
+    class Crouching {
+
+        private static final float SCALE = 1F;
+
+        @Test
+        void anUpsideDownCrouchRisesByAQuarterToMirrorVanillasDrop() {
+            assertEquals(0.25F, InvertPresentation.crouchCorrection(true, true, SCALE));
+        }
+
+        @Test
+        void anUprightCrouchKeepsVanillasDrop() {
+            assertEquals(0F, InvertPresentation.crouchCorrection(false, true, SCALE));
+        }
+
+        @Test
+        void anUpsideDownStanceTakesNoCorrection() {
+            assertEquals(0F, InvertPresentation.crouchCorrection(true, false, SCALE));
+        }
+    }
+
     @Nested
     class WithoutInvert {
 
