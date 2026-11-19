@@ -30,7 +30,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * Lunar on the server, a hold. Held looking at the moon in the overworld, or at the blue planet in
  * lunar, it fixes the caster's gaze, sends them its rising tone, and holds them still where they stand while the moon
  * or the planet swells to fill their view; held until the fixation runs out, the moon carries them to lunar at the
- * landing its phase, its night's tick and their overworld spot set, keeping where they left from, and the planet
+ * landing its phase, its night's tick and their account UUID set, keeping where they left from, and the planet
  * carries them back to exactly that place and facing, each taking the astral then and leaving the arrival mark their
  * client's white clears on. Let go early, it
  * releases them where they stand and takes nothing. Held looking at neither, it refuses with a tell. Lunar places
@@ -227,8 +227,9 @@ public final class AstralLunar {
 
     /**
      * Carries the caster to lunar at the landing the moon's phase and its night's tick set, over the column their
-     * overworld spot sets, keeping where they left from.
+     * account UUID sets, keeping where they left from.
      * decision time-and-phase-set-x-and-your-overworld-spot-sets-z
+     * decision z-is-a-function-of-the-account-uuid
      * decision traversal-to-the-moon-always-lands-on-the-light-side
      *
      * @param caster the caster
@@ -241,7 +242,7 @@ public final class AstralLunar {
         caster.setData(GooAttachments.WAY_HOME, new WayHome(Optional.of(new VoidPockets.ReturnPoint(
                 caster.level().dimension(), caster.position(), caster.getYRot(), caster.getXRot()))));
         LunarLanding.Spot landing = LunarLanding.at(moonPhaseAt(caster).index(),
-                LunarLanding.nightTickAt(caster.level().getOverworldClockTime()), caster.getX(), caster.getZ());
+                LunarLanding.nightTickAt(caster.level().getOverworldClockTime()), caster.getUUID());
         caster.teleport(new TeleportTransition(lunar, surfaceOver(lunar, new Vec3(landing.x(), 0, landing.z())),
                 Vec3.ZERO, caster.getYRot(), caster.getXRot(), TeleportTransition.DO_NOTHING));
     }
