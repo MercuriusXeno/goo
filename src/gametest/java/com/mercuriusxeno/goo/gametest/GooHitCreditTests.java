@@ -273,7 +273,6 @@ public final class GooHitCreditTests {
             case FORCE -> DamageTypes.GENERIC;
             case ATTACK -> DamageTypes.PLAYER_ATTACK;
             case STALAGMITE -> DamageStep.STALAGMITE;
-            case EXPIRE -> DamageStep.EXPIRE;
         };
     }
 

@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.ability.held;
 
 import com.mercuriusxeno.goo.ability.program.AirbornStep;
-import com.mercuriusxeno.goo.ability.program.AncientStep;
 import com.mercuriusxeno.goo.ability.program.EludeStep;
 import com.mercuriusxeno.goo.ability.program.GluttonyStep;
 import com.mercuriusxeno.goo.ability.program.HeartOverlayStep;
@@ -54,7 +53,10 @@ public enum LaidState {
     REMOTE,
     /** The eldritch state (decision eldritch-sight-reveals-the-out-of-phase). */
     UNVEIL,
-    /** Ancient's floor of half a heart and its aged overlay (decision ancient-makes-the-player-immortal). */
+    /**
+     * Laid by no step, Ancient having left the mod (decision yore-leaves-and-rewind-moves-to-xeno-as-revert);
+     * it stands so a saved held effect naming it still loads.
+     */
     ANCIENT,
     /**
      * Standing out of phase, laid by no step, Phase goo phasing what stands in
@@ -112,7 +114,6 @@ public enum LaidState {
             Map.entry(AirbornStep.class, AIRBORN),
             Map.entry(RemoteStep.class, REMOTE),
             Map.entry(UnveilStep.class, UNVEIL),
-            Map.entry(AncientStep.class, ANCIENT),
             Map.entry(SculkerStep.class, SCULKER),
             Map.entry(HerdStep.class, HERD),
             Map.entry(InvertStep.class, INVERT));

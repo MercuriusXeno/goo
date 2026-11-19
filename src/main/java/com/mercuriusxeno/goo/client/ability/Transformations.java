@@ -53,7 +53,7 @@ public final class Transformations {
     private final List<Shrink> shrinks = new ArrayList<>();
 
     /**
-     * One model shrink playing: Rewind's adult shrinking into its baby, or a
+     * One model shrink playing: Revert's adult shrinking into its baby, or a
      * mob shrinking into its egg.
      * rewind-shrinks-adult-to-baby-to-egg
      *

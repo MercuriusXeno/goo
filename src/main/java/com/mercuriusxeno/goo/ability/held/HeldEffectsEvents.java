@@ -269,21 +269,6 @@ public final class HeldEffectsEvents {
             // undead-nether-hearts-burn-in-sunlight: the player counts as undead no longer
             player.setData(GooAttachments.UNDEAD, Undead.NONE);
         }
-        clearOverlays(player, lays);
-    }
-
-    /**
-     * Clears the overlays an ended effect laid on the player's model: its
-     * ancient overlay.
-     *
-     * @param player the player
-     * @param lays   the states the ended effect laid
-     */
-    private static void clearOverlays(ServerPlayer player, Set<LaidState> lays) {
-        if (lays.contains(LaidState.ANCIENT)) {
-            // ancient-makes-the-player-immortal: the aged overlay ends with the held effect
-            Ancient.clear(player);
-        }
     }
 
     /**

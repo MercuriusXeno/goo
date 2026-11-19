@@ -130,11 +130,6 @@ public enum HostCapability {
      */
     POWER_PULSE(PowerPulseHost.class),
     /**
-     * A landing that can start aging the block it landed on (decision
-     * old-blob-ages-valuables-slowly).
-     */
-    AGING(AgingHost.class),
-    /**
      * A host whose own block can give redstone power to its neighbors
      * (decision metronome-prism-pulses-at-the-learned-rate).
      */
