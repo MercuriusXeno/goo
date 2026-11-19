@@ -15,8 +15,8 @@ import net.minecraft.resources.ResourceKey;
  * Crystal's shatter, Sculk's creep, Frost's rime, Glow's wisps, Hex's leech,
  * Typhoon's updraft, Jelly's nectar, Pulse's signal, Metal's spikes,
  * Zombie's infest, Nether's gloom, Leaf's vines, Unstable's nitro, Quantum's
- * phase, Rock's mortar and Yarn's stitch are bound so far, and another goo
- * type ships its world goo as another binding.
+ * phase, Rock's mortar, Yarn's stitch and Astral's Dowsing are bound so far,
+ * and another goo type ships its world goo as another binding.
  * slime-and-slick-are-one-volume-cell-tech
  * each-goo-type-ships-a-world-goo-on-the-volume-cell
  * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
@@ -37,6 +37,7 @@ import net.minecraft.resources.ResourceKey;
  * phase-goo-puts-what-stands-in-it-out-of-phase
  * gloom-spawns-regardless-of-light-and-mobs-on-it-ignore-daylight
  * mortar-is-rocks-residual-a-petrification-and-hardening-goo
+ * astral-world-goo-is-dowsing-an-x-ray-of-ore
  *
  * @param gooType      the goo type the cell holds and drops when broken
  * @param layingAbility the ability laying the goo, whose cost prices a whole block of it
@@ -93,6 +94,8 @@ public record CellBinding(ResourceKey<GooTypeDefinition> gooType, Identifier lay
 
     /** The ability laying Glow's goo, Wisps, whose cost prices a whole block of it. */
     public static final Identifier WISPS_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "glow_wisps");
+    /** The ability laying Astral's Dowsing goo, whose cost prices a whole block of it. */
+    public static final Identifier DOWSING_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "astral_dowsing");
 
     /** Weird's slime: Goop lays it, and it bounces what lands on it. */
     public static final CellBinding SLIME = new CellBinding(GooTypes.WEIRD, GOOP_ABILITY, CellSurface.BOUNCE,
@@ -201,5 +204,11 @@ public record CellBinding(ResourceKey<GooTypeDefinition> gooType, Identifier lay
      * passives-move-through-stitch-and-hostiles-tangle-in-it
      */
     public static final CellBinding STITCH = new CellBinding(GooTypes.YARN, STITCH_ABILITY, CellSurface.TANGLE,
+            FluidFooting.NONE);
+    /**
+     * Astral's Dowsing goo: Dowsing lays it, ordinary ground to stand on, and it lies on sturdy tops alone.
+     * astral-world-goo-is-dowsing-an-x-ray-of-ore
+     */
+    public static final CellBinding DOWSING = new CellBinding(GooTypes.ASTRAL, DOWSING_ABILITY, CellSurface.LENS,
             FluidFooting.NONE);
 }
