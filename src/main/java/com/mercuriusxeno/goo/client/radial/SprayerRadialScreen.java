@@ -13,41 +13,49 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import org.jspecify.annotations.Nullable;
 import java.util.List;
 
 /**
- * The sprayer's wheel, open while the glove menu key is held with the sprayer in hand: one ring of three arcs
- * shown together, the canister's sprayable goo types drawn in their own goo, the flow steps as one, two and three
- * drops, and the nozzles in gold, each with its icon. Letting go of the key over a petal sets that one setting and
- * keeps the other two; letting go over the hub or a gap closes with the sprayer unchanged. The petal under the
- * cursor names itself in the hub.
+ * The sprayer's wheel, open while the glove menu key is held with the sprayer in hand: a contracted ring of petals,
+ * one for each of the canister's sprayable goo types in its own goo, and inside the hub, hugging its edge, the six
+ * nozzles across the top and the three flow steps across the bottom, left to right. Clicking a petal or an icon sets
+ * that one setting and leaves the wheel open; letting go of the key over one sets it and closes; letting go anywhere
+ * else closes. The current nozzle and flow sit on a lit square, and whatever is under the cursor grows and names
+ * itself in the middle.
  * decision sprayer-wheel-picks-nozzle-flow-and-goo-type
  * decision spray-item-sprays-more-or-less-per-tick
  * decision spray-item-takes-different-nozzles-doing-different-things
  * decision radial-selects-on-g-release
- * operator ruling 2026-11-18: layout A, one ring of three arcs; nozzles and flow carry icons, flow as drops
+ * operator ruling 2026-11-18: icons inside the hub, nozzles on top and flow on the bottom, each left to right; the
+ * goo petals contract; options can be clicked
  */
 public final class SprayerRadialScreen extends Screen {
 
     private static final int HALF = 2;
-    /** Where the ring starts and ends, as fractions of the wheel's radius. */
+    /** Where the goo petals start and end, as fractions of the wheel's radius. */
     private static final double RING_INNER = 0.3;
-    private static final double RING_OUTER = 0.85;
-    private static final int ICON_SIZE = 24;
+    private static final double RING_OUTER = 0.46;
+    /** An icon's side on screen, its sixteen pixels drawn one to one, and under the cursor. */
+    private static final int ICON_SIZE = 16;
+    private static final int HOVERED_ICON_SIZE = 20;
+    /** How far inside the hub's edge an icon's center sits, past half its side. */
+    private static final int ICON_INSET = 3;
+    /** How near the cursor must come to an icon's center to rest on it. */
+    private static final int ICON_REACH = 10;
+    private static final int TEXTURE_SIDE = 16;
     private static final int WHITE = 0xFFFFFFFF;
-    /** The tint the petal under the cursor draws under. */
     private static final int HOVERED = 0xFFFFF29A;
-    /** The tint every petal not under the cursor and not the current setting draws under. */
     private static final int RESTING = 0xB0C8C8C8;
-    private static final Identifier GOLD = Identifier.withDefaultNamespace("textures/block/gold_block.png");
-    private static final Identifier PLAIN = Identifier.withDefaultNamespace("textures/block/white_concrete.png");
-    private static final int GOLD_EDGE = 0xFF8A6512;
-    private static final int PLAIN_EDGE = 0xFF8C8C8C;
+    /** The square lit behind the current nozzle and flow. */
+    private static final int CURRENT_SQUARE = 0x55FFFFFF;
     private static final String ICON_FOLDER = "textures/gui/sprayer/";
     private static final String FLOW_ICON = "flow_";
     private static final String NOZZLE_ICON = "nozzle_";
@@ -58,7 +66,7 @@ public final class SprayerRadialScreen extends Screen {
     private final SprayerWheel model;
     private final List<SprayerWheel.RingPetal> ring;
     private SprayerSetting kept;
-    private int hovered = SprayerWheel.NONE;
+    private SprayerWheel.@Nullable RingPetal hovered;
 
     private SprayerRadialScreen(SprayerWheel model, SprayerSetting kept) {
         super(Component.empty());
@@ -99,40 +107,77 @@ public final class SprayerRadialScreen extends Screen {
         double dx = x - width / (double) HALF;
         double dy = y - height / (double) HALF;
         double distance = Math.hypot(dx, dy) / radius();
-        hovered = distance < RING_INNER ? SprayerWheel.NONE : model.petalAt(RadialWheel.angleOf(dx, dy));
+        hovered = distance >= RING_INNER && distance <= RING_OUTER ? petalAt(RadialWheel.angleOf(dx, dy))
+                : iconAt(x, y);
+    }
+
+    private SprayerWheel.@Nullable RingPetal petalAt(double angle) {
+        int type = model.gooAt(angle);
+        return type == SprayerWheel.NONE ? null : new SprayerWheel.RingPetal(SprayerWheel.Group.GOO, type);
+    }
+
+    private SprayerWheel.@Nullable RingPetal iconAt(double x, double y) {
+        for (SprayerWheel.RingPetal icon : ring) {
+            int[] at = iconCenter(width / HALF, height / HALF, icon);
+            if (icon.group() != SprayerWheel.Group.GOO && Math.hypot(x - at[0], y - at[1]) <= ICON_REACH) {
+                return icon;
+            }
+        }
+        return null;
     }
 
     /**
-     * Paints every petal, its icon or its goo's name on it, and the hovered petal's name in the hub.
+     * Paints the goo petals, the icons around the inside of the hub, and the name of whatever is under the cursor.
      */
     @Override
     public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float frameDelta) {
         super.extractBackground(graphics, mouseX, mouseY, frameDelta);
         Canvas canvas = new Canvas(width / HALF, height / HALF, radius());
-        for (int petal = 0; petal < ring.size(); petal++) {
-            paintPetal(graphics, canvas, petal);
+        for (SprayerWheel.RingPetal at : ring) {
+            if (at.group() == SprayerWheel.Group.GOO) {
+                paintPetal(graphics, canvas, at);
+            } else {
+                paintIcon(graphics, at);
+            }
         }
-        if (hovered != SprayerWheel.NONE) {
-            RadialWheelRenderer.outlinedText(graphics, font, nameOf(ring.get(hovered)), canvas.centerX(),
+        if (hovered != null) {
+            RadialWheelRenderer.outlinedText(graphics, font, nameOf(hovered), canvas.centerX(),
                     canvas.centerY() - font.lineHeight / HALF, WHITE);
         }
     }
 
-    private void paintPetal(GuiGraphicsExtractor graphics, Canvas canvas, int petal) {
-        SprayerWheel.RingPetal at = ring.get(petal);
-        double start = model.startOf(petal);
-        RadialWheel.PetalArc arc = new RadialWheel.PetalArc(petal, RadialWheel.NONE, start, model.petalArc(),
+    private void paintPetal(GuiGraphicsExtractor graphics, Canvas canvas, SprayerWheel.RingPetal at) {
+        double start = model.gooStartOf(at.index());
+        RadialWheel.PetalArc arc = new RadialWheel.PetalArc(at.index(), RadialWheel.NONE, start, model.gooArc(),
                 RING_OUTER, null, 0, 1, RING_INNER);
-        int tint = petal == hovered ? HOVERED : isCurrent(at) ? WHITE : RESTING;
-        PetalPainter.paint(graphics, canvas, faceOf(at), arc, tint);
-        int[] middle = middleOf(canvas, start + model.petalArc() / HALF);
-        if (at.group() == SprayerWheel.Group.GOO) {
-            RadialWheelRenderer.outlinedText(graphics, font, nameOf(at), middle[0], middle[1] - font.lineHeight / HALF,
-                    WHITE);
-        } else {
-            PetalPainter.paintSprite(graphics, canvas, arc.shape(), PetalLook.LIVE.sprite(iconOf(at)), middle,
-                    ICON_SIZE, WHITE);
+        int tint = at.equals(hovered) ? HOVERED : isCurrent(at) ? WHITE : RESTING;
+        PetalPainter.paint(graphics, canvas, PetalLook.LIVE.fluidFace(model.types().get(at.index())), arc, tint);
+    }
+
+    private void paintIcon(GuiGraphicsExtractor graphics, SprayerWheel.RingPetal at) {
+        int[] center = iconCenter(width / HALF, height / HALF, at);
+        if (isCurrent(at)) {
+            int half = ICON_SIZE / HALF + 1;
+            graphics.fill(center[0] - half, center[1] - half, center[0] + half, center[1] + half, CURRENT_SQUARE);
         }
+        int size = at.equals(hovered) ? HOVERED_ICON_SIZE : ICON_SIZE;
+        graphics.blit(RenderPipelines.GUI_TEXTURED, iconOf(at), center[0] - size / HALF, center[1] - size / HALF,
+                0.0f, 0.0f, size, size, TEXTURE_SIDE, TEXTURE_SIDE, TEXTURE_SIDE, TEXTURE_SIDE, WHITE);
+    }
+
+    /**
+     * Where an icon's center sits on screen: just inside the hub's edge at its angle, clear of the goo petals.
+     *
+     * @param centerX the wheel's center, x
+     * @param centerY the wheel's center, y
+     * @param icon    a nozzle or flow icon
+     * @return the icon's center
+     */
+    private int[] iconCenter(int centerX, int centerY, SprayerWheel.RingPetal icon) {
+        double angle = model.hubAngleOf(icon);
+        double distance = RING_INNER * radius() - ICON_SIZE / (double) HALF - ICON_INSET;
+        return new int[]{centerX + (int) Math.round(Math.sin(angle) * distance),
+                centerY - (int) Math.round(Math.cos(angle) * distance)};
     }
 
     private boolean isCurrent(SprayerWheel.RingPetal at) {
@@ -141,19 +186,6 @@ public final class SprayerRadialScreen extends Screen {
             case FLOW -> kept.flow() == model.flows().get(at.index());
             case NOZZLE -> kept.nozzle() == model.nozzles().get(at.index());
         };
-    }
-
-    private PetalLook.FluidFace faceOf(SprayerWheel.RingPetal at) {
-        return switch (at.group()) {
-            case GOO -> PetalLook.LIVE.fluidFace(model.types().get(at.index()));
-            case FLOW -> wholeTexture(PLAIN, PLAIN_EDGE);
-            case NOZZLE -> wholeTexture(GOLD, GOLD_EDGE);
-        };
-    }
-
-    private static PetalLook.FluidFace wholeTexture(Identifier texture, int edge) {
-        return new PetalLook.FluidFace(PetalLook.LIVE.sprite(texture), new PetalLook.SpriteBox(0f, 1f, 0f, 1f), WHITE,
-                edge);
     }
 
     private Identifier iconOf(SprayerWheel.RingPetal at) {
@@ -171,10 +203,20 @@ public final class SprayerRadialScreen extends Screen {
         };
     }
 
-    private static int[] middleOf(Canvas canvas, double angle) {
-        double distance = (RING_INNER + RING_OUTER) / HALF * canvas.radius();
-        return new int[]{canvas.centerX() + (int) Math.round(Math.sin(angle) * distance),
-                canvas.centerY() - (int) Math.round(Math.cos(angle) * distance)};
+    /**
+     * Sets the clicked petal's or icon's setting and leaves the wheel open for the next.
+     *
+     * @param event       the click
+     * @param doubleClick whether it is a double click
+     * @return true where a petal or icon was clicked
+     */
+    @Override
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        if (hovered == null) {
+            return super.mouseClicked(event, doubleClick);
+        }
+        keep(model.picked(kept, hovered));
+        return true;
     }
 
     /**
@@ -188,8 +230,8 @@ public final class SprayerRadialScreen extends Screen {
         if (!GloveRadialKey.MAPPING.matches(event)) {
             return super.keyReleased(event);
         }
-        if (hovered != SprayerWheel.NONE) {
-            keep(model.picked(kept, ring.get(hovered)));
+        if (hovered != null) {
+            keep(model.picked(kept, hovered));
         }
         onClose();
         return true;

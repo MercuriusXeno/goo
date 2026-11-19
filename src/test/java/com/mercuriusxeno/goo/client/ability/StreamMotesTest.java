@@ -248,7 +248,7 @@ class StreamMotesTest {
     @Test
     void drawnDripsTakeTheNozzlesShape() {
         Caster caster = moving(Vec3.ZERO);
-        ConeShape fan = SprayerNozzle.FAN.shape(CONE_DEGREES);
+        ConeShape fan = SprayerNozzle.LINE.shape(CONE_DEGREES);
         StreamMotesPayload tick = shapedSprayTick(caster, fan);
         Minecraft minecraft = clientDrawing(new ArrayList<>(), caster, true, new double[] {0});
         whileDrawing(minecraft, new ArrayList<>(), () -> StreamMotes.handle(tick, runningAtOnce()));

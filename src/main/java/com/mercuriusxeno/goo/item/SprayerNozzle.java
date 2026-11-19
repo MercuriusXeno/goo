@@ -9,8 +9,11 @@ import net.minecraft.util.StringRepresentable;
 import org.jspecify.annotations.NonNull;
 
 /**
- * The nozzle on the sprayer, picked on its wheel: each shapes the cone the residual's drips are thrown in, by how
- * wide it opens across and up and down against the residual's own cone. The scales are tuning values.
+ * The nozzle on the sprayer, picked on its wheel, in the wheel's order from fine and wide to tight and far: each
+ * shapes the cone the residual's drips are thrown in, by how wide it opens across and up and down against the
+ * residual's own cone, how many drips it throws and how far it carries them. The scales are tuning values.
+ * operator ruling 2026-11-18: order Mist, Wide, Line, Spray (default), Thin, Jet; short names; Wide doubles the goo;
+ * Thin goes farther and Jet farther still; Mist a wider cone at short range
  * decision spray-item-takes-different-nozzles-doing-different-things
  * decision choke-nozzle-narrows-the-cone
  * decision jet-nozzle-sprays-a-really-tight-stream
@@ -19,18 +22,18 @@ import org.jspecify.annotations.NonNull;
  * decision mister-draws-mist-and-lays-one-layer-on-bare-spots
  */
 public enum SprayerNozzle implements StringRepresentable {
-    /** No nozzle: the residual's own cone. */
-    OPEN("open", 1.0, 1.0),
-    /** A fine mist over the residual's own cone, laying one layer on each bare spot it covers. */
-    ATOMIZER("atomizer", 1.0, 1.0),
-    /** Narrows the cone. */
-    CHOKE("choke", 0.5, 0.5),
-    /** A really tight stream, tighter than the choke. */
-    JET("jet", 0.12, 0.12),
-    /** A really wide cone, the drips even over it, as every cone's drips are spread by area. */
-    SPRINKLER("sprinkler", 3.0, 3.0),
-    /** Flattened and widened: wide across the caster's left and right, thin up and down. */
-    FAN("fan", 2.5, 0.3);
+    /** A fine mist over a wide round cone, short in reach, laying one layer on each bare spot it covers. */
+    MIST("mist", 4.0, 4.0, 1.0, 1.0),
+    /** A really wide round cone, the drips even over it, laying twice the goo. */
+    WIDE("wide", 4.0, 4.0, 2.0, 1.0),
+    /** Flattened and widened: very wide across the caster's left and right, thin up and down. */
+    LINE("line", 6.0, 0.2, 1.0, 1.0),
+    /** No nozzle: the residual's own cone, the default. */
+    SPRAY("spray", 1.0, 1.0, 1.0, 1.0),
+    /** Narrows the cone and carries farther. */
+    THIN("thin", 0.5, 0.5, 1.0, 1.5),
+    /** A really tight stream, tighter than Thin, carrying farther still. */
+    JET("jet", 0.12, 0.12, 1.0, 2.2);
 
     /** Persistent codec, by name. */
     public static final Codec<SprayerNozzle> CODEC = StringRepresentable.fromEnum(SprayerNozzle::values);
@@ -44,11 +47,15 @@ public enum SprayerNozzle implements StringRepresentable {
     private final String name;
     private final double across;
     private final double upDown;
+    private final double dripScale;
+    private final double reachScale;
 
-    SprayerNozzle(String name, double across, double upDown) {
+    SprayerNozzle(String name, double across, double upDown, double dripScale, double reachScale) {
         this.name = name;
         this.across = across;
         this.upDown = upDown;
+        this.dripScale = dripScale;
+        this.reachScale = reachScale;
     }
 
     @Override
@@ -67,10 +74,24 @@ public enum SprayerNozzle implements StringRepresentable {
      * Whether the nozzle mists, laying a layer on each bare spot its cone covers, in place of throwing drips.
      * decision mister-nozzle-applies-one-layer-at-most
      *
-     * @return true for the atomizer
+     * @return true for Mist
      */
     public boolean mists() {
-        return this == ATOMIZER;
+        return this == MIST;
+    }
+
+    /**
+     * @return the multiple of the flow's drips a tick this nozzle throws
+     */
+    public double dripScale() {
+        return dripScale;
+    }
+
+    /**
+     * @return the multiple of the residual's exit speed this nozzle throws at, which carries the drips farther
+     */
+    public double reachScale() {
+        return reachScale;
     }
 
     /**

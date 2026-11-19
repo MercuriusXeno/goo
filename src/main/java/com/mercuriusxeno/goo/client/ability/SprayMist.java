@@ -19,9 +19,9 @@ public final class SprayMist {
 
     /**
      * Puffs a tick of mist draws, enough that the puffs living at once fill the cone.
-     * operator report 2026-11-18: the mister showed no visual
+     * operator report 2026-11-18: the mister showed no visual; then, the mist was barely there
      */
-    private static final int PUFFS_A_TICK = 24;
+    private static final int PUFFS_A_TICK = 64;
     /** How fast a puff drifts out along its ray, blocks a tick, slow so the mist lingers where it hangs. */
     private static final double DRIFT_A_TICK = 0.04;
     /** The nearest a puff starts along its ray, as a share of the reach, clear of the caster's view. */

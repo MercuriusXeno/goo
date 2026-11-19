@@ -157,7 +157,7 @@ public final class SprayerTests {
         CanisterItem.addGoo(canister, GooTypes.KINETIC, CANISTER_KINETIC);
         SprayerItem.fitCanister(sprayer.getMainHandItem(), canister);
         SprayerSelectPayload.keepOnTheHeldSprayer(sprayer,
-                new SprayerSelectPayload(GooTypes.id(GooTypes.KINETIC), SprayerFlow.MEDIUM, SprayerNozzle.OPEN));
+                new SprayerSelectPayload(GooTypes.id(GooTypes.KINETIC), SprayerFlow.MEDIUM, SprayerNozzle.SPRAY));
         BlockPos aimed = cellAimedAt(helper, sprayer);
         holdTheSprayer(helper, sprayer);
         helper.runAfterDelay(HOLD_TICKS + FALL_TICKS, () -> {
@@ -222,7 +222,7 @@ public final class SprayerTests {
     private static ServerPlayer misterOverAFloor(GameTestHelper helper) {
         ServerPlayer sprayer = sprayerOverAFloor(helper);
         SprayerSelectPayload.keepOnTheHeldSprayer(sprayer, new SprayerSelectPayload("", SprayerFlow.MEDIUM,
-                SprayerNozzle.ATOMIZER));
+                SprayerNozzle.MIST));
         return sprayer;
     }
 

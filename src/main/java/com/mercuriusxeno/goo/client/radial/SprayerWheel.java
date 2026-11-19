@@ -14,14 +14,13 @@ import java.util.Optional;
 import java.util.function.Predicate;
 
 /**
- * The sprayer wheel's model: one ring of three arcs shown together, a petal for each goo type of the fitted
- * canister that has a residual, most held first, then the flow steps from low to high, then the nozzles. The goo
- * arc is centered at the top and each arc is set off from the next by a gap. Letting go over a petal sets that one
- * setting and keeps the other two.
+ * The sprayer wheel's model: a contracted petal for each goo type of the fitted canister that has a residual, most
+ * held first, and inside the hub the nozzles across its top and the flow steps across its bottom, left to right.
+ * Picking a petal or an icon sets that one setting and keeps the other two.
  * decision sprayer-wheel-picks-nozzle-flow-and-goo-type
  * decision spray-item-sprays-more-or-less-per-tick
  * decision spray-item-takes-different-nozzles-doing-different-things
- * operator ruling 2026-11-18: layout A, one ring of three arcs
+ * operator ruling 2026-11-18: icons inside the hub; the goo petals contract
  *
  * @param types   the sprayable goo types, most held first
  * @param flows   the flow steps, low to high
@@ -32,13 +31,16 @@ public record SprayerWheel(List<ResourceKey<GooTypeDefinition>> types, List<Spra
 
     /** No petal: the cursor rests in the hub or past the ring. */
     public static final int NONE = -1;
-    /** The gap setting each arc off from the next, radians. */
-    private static final double GROUP_GAP = Math.toRadians(8);
     private static final double FULL_TURN = Math.PI * 2;
-    private static final int GROUPS = 3;
-    /** The gaps before the nozzle arc: after the goo arc and after the flow arc. */
-    private static final int NOZZLE_GAPS_BEFORE = 2;
     private static final double HALF = 2;
+    /**
+     * The widest a goo petal spans and the gap between petals, radians.
+     * operator ruling 2026-11-18: the goo type petals still need to contract
+     */
+    private static final double MOST_GOO_ARC = Math.toRadians(44);
+    private static final double GOO_GAP = Math.toRadians(6);
+    /** The step between icons around the hub, radians. */
+    private static final double HUB_STEP = Math.toRadians(28);
 
     /** Which setting a petal sets. */
     public enum Group { GOO, FLOW, NOZZLE }
@@ -83,37 +85,51 @@ public record SprayerWheel(List<ResourceKey<GooTypeDefinition>> types, List<Spra
     }
 
     /**
-     * @return each petal's span, radians
+     * @return each goo petal's span, radians: an even share of the turn, never wider than a contracted petal
      */
-    public double petalArc() {
-        return (FULL_TURN - GROUPS * GROUP_GAP) / (types.size() + flows.size() + nozzles.size());
+    public double gooArc() {
+        return types.isEmpty() ? 0 : Math.min(MOST_GOO_ARC, FULL_TURN / types.size() - GOO_GAP);
     }
 
     /**
-     * Where a petal starts, clockwise from the top.
+     * Where a goo petal starts, clockwise from the top: the petals spread evenly around the turn, the first centered
+     * at the top.
      *
-     * @param petal the petal's place in the ring
+     * @param type the type's place in the list
      * @return its start angle, radians in [0, 2 pi)
      */
-    public double startOf(int petal) {
-        int gapsBefore = petal < types.size() ? 0 : petal < types.size() + flows.size() ? 1 : NOZZLE_GAPS_BEFORE;
-        double gooCentered = -types.size() * petalArc() / HALF;
-        return wrap(gooCentered + petal * petalArc() + gapsBefore * GROUP_GAP);
+    public double gooStartOf(int type) {
+        return wrap(type * FULL_TURN / types.size() - gooArc() / HALF);
     }
 
     /**
-     * The petal an angle falls on.
+     * The goo petal an angle falls on.
      *
      * @param angle the angle clockwise from the top, radians
-     * @return the petal's place in the ring, or {@link #NONE} in a gap between arcs
+     * @return the type's place in the list, or {@link #NONE} between petals
      */
-    public int petalAt(double angle) {
-        for (int petal = 0; petal < types.size() + flows.size() + nozzles.size(); petal++) {
-            if (wrap(angle - startOf(petal)) < petalArc()) {
-                return petal;
+    public int gooAt(double angle) {
+        for (int type = 0; type < types.size(); type++) {
+            if (wrap(angle - gooStartOf(type)) < gooArc()) {
+                return type;
             }
         }
         return NONE;
+    }
+
+    /**
+     * Where an icon sits around the inside of the hub, clockwise from the top: the nozzles across the top, left to
+     * right, and the flow steps across the bottom, left to right, each a step apart and centered.
+     * operator ruling 2026-11-18: icons inside the hub, nozzles on top, flow on the bottom, each left to right
+     *
+     * @param icon a nozzle or flow petal
+     * @return its angle, radians
+     */
+    public double hubAngleOf(RingPetal icon) {
+        if (icon.group() == Group.NOZZLE) {
+            return wrap((icon.index() - (nozzles.size() - 1) / HALF) * HUB_STEP);
+        }
+        return wrap(Math.PI - (icon.index() - (flows.size() - 1) / HALF) * HUB_STEP);
     }
 
     private static double wrap(double angle) {
