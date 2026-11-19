@@ -69,6 +69,7 @@ class AbilityPoseTableTest {
             Map.entry("metal_magnet", ArmPose.HELD_UP),
             Map.entry("metal_spikes", ArmPose.HELD_OUT),
             Map.entry("zombie_decay", ArmPose.HELD_OUT),
+            Map.entry("nether_grudge", ArmPose.HELD_UP),
             Map.entry("zombie_infest", ArmPose.HELD_OUT),
             Map.entry("nether_tartarus", ArmPose.HELD_OUT),
             Map.entry("zombie_undead", ArmPose.HELD_UP),
@@ -103,13 +104,11 @@ class AbilityPoseTableTest {
             Map.entry("weird_goop", ArmPose.HELD_OUT),
             Map.entry("weird_mitosis", ArmPose.SWUNG),
             Map.entry("xeno_unveil", ArmPose.HELD_UP),
-            Map.entry("yore_age", ArmPose.SWUNG),
-            Map.entry("yore_ancient", ArmPose.HELD_UP),
-            Map.entry("yore_expire", ArmPose.SWUNG),
-            Map.entry("yore_rewind", ArmPose.RESTING),
+            Map.entry("xeno_revert", ArmPose.RESTING),
             Map.entry("zoo_allure", ArmPose.SWUNG),
             Map.entry("yarn_herd", ArmPose.HELD_UP),
             Map.entry("yarn_lead", ArmPose.RESTING),
+            Map.entry("yarn_stitch", ArmPose.HELD_OUT),
             Map.entry("zoo_shape", ArmPose.RESTING),
             Map.entry("zoo_spawn", ArmPose.RESTING));
 

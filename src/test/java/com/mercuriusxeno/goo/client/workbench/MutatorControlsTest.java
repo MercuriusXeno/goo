@@ -100,7 +100,7 @@ class MutatorControlsTest {
         void formulaReadsAsTwoRatios() {
             // Decision mutator-body-indents-under-its-name-line: the arrow => in place of the word becomes.
             assertEquals(List.of(ControlFlow.dropdownLabel("convert"), "1", ":", "4", "=>", "2", ":", "3"),
-                    sentence(new Processes.Formula("metal", 4, "yore", 2, 3)));
+                    sentence(new Processes.Formula("metal", 4, "opulent", 2, 3)));
         }
 
         /**
@@ -110,7 +110,7 @@ class MutatorControlsTest {
          */
         @Test
         void ratioColonsStandOneClearPixelFromEachSide() {
-            DrawnFrame frame = frame(new Processes.Formula("metal", 4, "yore", 3, 2));
+            DrawnFrame frame = frame(new Processes.Formula("metal", 4, "opulent", 3, 2));
             List<DrawnFrame.Text> colons = frame.drawn().stream().filter(text -> text.text().equals(":")).toList();
             assertEquals(2, colons.size(), frame.drawn().toString());
             int colonWidth = LETTERS.width(":");
@@ -158,9 +158,9 @@ class MutatorControlsTest {
             assertEquals(2, icons.size(), frame.drawn().toString());
             DrawnFrame.Text rock = frame.drawn().stream().filter(text -> text.text().equals("192")).findFirst()
                     .orElseThrow(() -> new AssertionError(frame.drawn().toString()));
-            DrawnFrame.Text yore = frame.drawn().stream().filter(text -> text.text().equals("336")).findFirst()
+            DrawnFrame.Text opulent = frame.drawn().stream().filter(text -> text.text().equals("336")).findFirst()
                     .orElseThrow(() -> new AssertionError(frame.drawn().toString()));
-            assertTrue(icons.get(0) < rock.x() && rock.x() < icons.get(1) && icons.get(1) < yore.x(),
+            assertTrue(icons.get(0) < rock.x() && rock.x() < icons.get(1) && icons.get(1) < opulent.x(),
                     icons + " " + frame.drawn());
         }
 
@@ -213,7 +213,7 @@ class MutatorControlsTest {
         private static Map<String, String> orderedAmounts() {
             Map<String, String> amounts = new LinkedHashMap<>();
             amounts.put("rock", "192");
-            amounts.put("yore", "336");
+            amounts.put("opulent", "336");
             return amounts;
         }
 
@@ -242,7 +242,7 @@ class MutatorControlsTest {
          */
         @Test
         void everyRowsKindControlHoversItsFormula() {
-            for (Processes.Form form : List.of(new Processes.Formula("metal", 4, "yore", 2, 3),
+            for (Processes.Form form : List.of(new Processes.Formula("metal", 4, "opulent", 2, 3),
                     new Processes.Additive("oak"), new Processes.Stack(2, "smelt"))) {
                 DrawnFrame frame = frame(form);
                 DrawnFrame.Text kind = frame.drawn().getFirst();
@@ -269,7 +269,7 @@ class MutatorControlsTest {
          */
         @Test
         void kindStandsAtTheRowsLeftBeforeTheType() {
-            when(processes.formOf(SECTION, "rust")).thenReturn(new Processes.Formula("metal", 4, "yore", 2, 3));
+            when(processes.formOf(SECTION, "rust")).thenReturn(new Processes.Formula("metal", 4, "opulent", 2, 3));
             DrawnFrame frame = new DrawnFrame();
             controls.draw(frame.graphics, DrawnFrame.font(), SECTION, "rust", new GroupsPane.Bounds(40, 0, 590, 390),
                     0, frame.targets);
@@ -329,7 +329,7 @@ class MutatorControlsTest {
          */
         @Test
         void numbersDrawAsBuilderSegmentsFourteenTall() {
-            DrawnFrame frame = frame(new Processes.Formula("metal", 4, "yore", 3, 2));
+            DrawnFrame frame = frame(new Processes.Formula("metal", 4, "opulent", 3, 2));
             for (String number : List.of("4", "3", "2")) {
                 int[] box = frame.buttonAround(frame.find(number));
                 assertEquals(ButtonPainter.HEIGHT, box[3] - box[1], number);
@@ -645,9 +645,9 @@ class MutatorControlsTest {
          */
         @Test
         void goosTypesAreTheBuildersTypeIcons() {
-            List<String> hovers = frame("rust", new Processes.Formula("metal", 4, "yore", 2, 3)).targets.hoverKeys();
+            List<String> hovers = frame("rust", new Processes.Formula("metal", 4, "opulent", 2, 3)).targets.hoverKeys();
             assertTrue(hovers.containsAll(List.of(GooTypeIcons.pickHoverKey("metal"),
-                    GooTypeIcons.pickHoverKey("yore"))), hovers.toString());
+                    GooTypeIcons.pickHoverKey("opulent"))), hovers.toString());
         }
 
         @Test

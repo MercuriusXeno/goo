@@ -60,11 +60,12 @@ public final class EntityScan {
      * @param radius  the volume radius in blocks
      * @param filters the filters an entity must pass
      * @param self    the entity the scan centers on, null on a block
+     * @param caster  the entity the run is cast by, whom {@code not_own_minion} reads, null for none
      * @return true when at least one entity is in the volume
      */
-    static boolean anyEntityWithin(ServerLevel level, Vec3 center, SelectionShape shape,
-                                   double radius, Set<EntityFilter> filters, @Nullable Entity self) {
-        return !select(level, center, shape, radius, filters, self).isEmpty();
+    static boolean anyEntityWithin(ServerLevel level, Vec3 center, SelectionShape shape, double radius,
+                                   Set<EntityFilter> filters, @Nullable Entity self, @Nullable Entity caster) {
+        return !select(level, center, shape, radius, filters, self, caster).isEmpty();
     }
 
     /**
@@ -77,11 +78,13 @@ public final class EntityScan {
      * @param radius  the volume radius in blocks
      * @param filters the filters an entity must pass
      * @param self    the entity the scan centers on, null on a block
+     * @param caster  the entity the run is cast by, whom {@code not_own_minion} reads, null for none
      * @param body    what to run on each living entity
      */
     static void forEachLivingWithin(ServerLevel level, Vec3 center, SelectionShape shape, double radius,
-                                    Set<EntityFilter> filters, @Nullable Entity self, Consumer<LivingEntity> body) {
-        for (Entity entity : select(level, center, shape, radius, filters, self)) {
+                                    Set<EntityFilter> filters, @Nullable Entity self, @Nullable Entity caster,
+                                    Consumer<LivingEntity> body) {
+        for (Entity entity : select(level, center, shape, radius, filters, self, caster)) {
             if (entity instanceof LivingEntity living) {
                 body.accept(living);
             }
@@ -97,15 +100,16 @@ public final class EntityScan {
      * @param radius  the volume radius in blocks
      * @param filters the filters an entity must pass
      * @param self    the entity the scan centers on, null on a block
+     * @param caster  the entity the run is cast by, whom {@code not_own_minion} reads, null for none
      * @return the entities kept, in scan order
      */
-    private static List<Entity> select(ServerLevel level, Vec3 center, SelectionShape shape,
-                                       double radius, Set<EntityFilter> filters, @Nullable Entity self) {
+    private static List<Entity> select(ServerLevel level, Vec3 center, SelectionShape shape, double radius,
+                                       Set<EntityFilter> filters, @Nullable Entity self, @Nullable Entity caster) {
         double diameter = radius * DIAMETER_PER_RADIUS;
         List<Entity> candidates = level.getEntities(null, AABB.ofSize(center, diameter, diameter, diameter));
         List<Entity> kept = new ArrayList<>();
         for (Entity entity : candidates) {
-            if (inShape(entity, shape, center, radius) && passes(entity, filters, self)) {
+            if (inShape(entity, shape, center, radius) && passes(entity, filters, self, caster)) {
                 kept.add(entity);
             }
         }

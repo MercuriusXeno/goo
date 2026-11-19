@@ -39,7 +39,7 @@ class HeldMobsTest {
         }
 
         @Test
-        void rewindingMobIsHeld() {
+        void revertingMobIsHeld() {
             assertTrue(HeldMobs.held(false, null, false, false, true));
         }
 
