@@ -132,7 +132,7 @@ class AbilityDefinitionTest {
                 residualsChecked.add(definition.id().getPath());
             }
         }
-        assertTrue(residualsChecked.containsAll(Set.of("blaze_molten", "deep_host", "frost_rime", "hex_leech",
+        assertTrue(residualsChecked.containsAll(Set.of("blaze_molten", "sculk_creep", "frost_rime", "hex_leech",
                 "leaf_vines", "typhoon_updraft", "unstable_nitro", "weird_goop", "kinetic_slick", "jelly_nectar",
                 "pulse_signal", "metal_spikes", "zombie_infest", "quantum_phase", "yarn_stitch", "nether_gloom")),
                 residualsChecked.toString());

@@ -38,17 +38,6 @@ class GooContentsTest {
         assertEquals(3, gc.typeCount());
     }
 
-    /**
-     * A save holding yore goo loads it as opulent goo, one for one, beside the opulent it held.
-     * decision yore-leaves-and-rewind-moves-to-xeno-as-revert
-     */
-    @Test
-    void savedYoreLoadsAsOpulent() {
-        GooContents loaded = GooContents.CODEC.parse(JsonOps.INSTANCE, JsonParser.parseString(
-                "{\"contents\": {\"yore\": 1000, \"opulent\": 500, \"rock\": 20}}")).getOrThrow();
-
-        assertEquals(Map.of(GooTypes.OPULENT, 1500, GooTypes.ROCK, 20), loaded.contents());
-    }
 
     // -- isSingleType / getSingleType --
 

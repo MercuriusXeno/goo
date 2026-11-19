@@ -5,8 +5,8 @@ import com.mercuriusxeno.goo.ability.petrify.BlockExposures;
 import com.mercuriusxeno.goo.ability.program.MorphBirths;
 import com.mercuriusxeno.goo.ability.program.VacuumCounts;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockFallScheduler;
-import com.mercuriusxeno.goo.block.ability.HostFreeCells;
-import com.mercuriusxeno.goo.block.ability.HostSpreaders;
+import com.mercuriusxeno.goo.block.ability.CreepFreeCells;
+import com.mercuriusxeno.goo.block.ability.CreepSpreaders;
 import com.mercuriusxeno.goo.block.ability.LayerFalls;
 import com.mercuriusxeno.goo.block.ability.MoltenHeats;
 import com.mercuriusxeno.goo.block.ability.NectarFights;
@@ -49,8 +49,8 @@ public final class GooServerState {
     private final NitroFuses nitroFuses = new NitroFuses();
     private final LayerFalls layerFalls = new LayerFalls();
     private final PourPlans pourPlans = new PourPlans();
-    private final HostSpreaders hostSpreaders = new HostSpreaders();
-    private final HostFreeCells hostFreeCells = new HostFreeCells();
+    private final CreepSpreaders creepSpreaders = new CreepSpreaders();
+    private final CreepFreeCells creepFreeCells = new CreepFreeCells();
     private final WispClaims wispClaims = new WispClaims();
     private final VacuumCounts vacuumCounts = new VacuumCounts();
 
@@ -204,13 +204,13 @@ public final class GooServerState {
     }
 
     /**
-     * The sculk charges Host goo started from deaths near it
+     * The sculk charges Creep goo started from deaths near it
      * (decision mob-dying-on-or-near-host-goo-spreads-sculk-from-the-goo).
      *
      * @return the Host spreaders
      */
-    public HostSpreaders hostSpreaders() {
-        return hostSpreaders;
+    public CreepSpreaders creepSpreaders() {
+        return creepSpreaders;
     }
 
     /**
@@ -219,8 +219,8 @@ public final class GooServerState {
      *
      * @return the free Host cells
      */
-    public HostFreeCells hostFreeCells() {
-        return hostFreeCells;
+    public CreepFreeCells creepFreeCells() {
+        return creepFreeCells;
     }
 
     /**
@@ -300,8 +300,8 @@ public final class GooServerState {
         moltenHeats.clear();
         nectarFights.clear();
         nitroFuses.clear();
-        hostSpreaders.clear();
-        hostFreeCells.clear();
+        creepSpreaders.clear();
+        creepFreeCells.clear();
         wispClaims.clear();
         vacuumCounts.clear();
     }

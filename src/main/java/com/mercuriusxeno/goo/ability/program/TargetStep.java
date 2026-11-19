@@ -14,7 +14,7 @@ import java.util.stream.Stream;
  * child steps on it within the same tick, then finishes; a target a
  * filter rejects skips the children. The struck entity is the implicit
  * target of every effect step, so this container earns its place only
- * where a {@code where} filter is wanted: shroom debuff wraps its potion
+ * where a {@code where} filter is wanted: sculk debuff wraps its potion
  * steps in {@code target where=[not_boss]}.
  *
  * <p>The children run to completion in the tick the selection runs, so

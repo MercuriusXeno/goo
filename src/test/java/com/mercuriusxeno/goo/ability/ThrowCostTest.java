@@ -31,7 +31,7 @@ import static org.mockito.Mockito.when;
 class ThrowCostTest {
 
     private static final String ABILITIES = "data/goo/goo_abilities/";
-    private static final String SHRIEK = ABILITIES + "deep_shriek.json";
+    private static final String SHRIEK = ABILITIES + "xeno_shriek.json";
 
     private static JsonElement read(String resource) throws IOException {
         try (InputStream in = ThrowCostTest.class.getClassLoader().getResourceAsStream(resource)) {
