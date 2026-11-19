@@ -119,7 +119,7 @@ public final class VineTendrils {
         double halfWidth = HALF_WIDTH * (1 - THIN_AT_LEASH * strain);
         int light = Minecraft.getInstance().getEntityRenderDispatcher()
                 .getPackedLightCoords(living, strands.partialTick());
-        int color = ARGB.opaque(VineTangleLayer.VINE_GREEN);
+        int color = ARGB.opaque(TangleLayer.VINE_GREEN);
         Vec3 camera = strands.camera();
         event.getSubmitNodeCollector().submitCustomGeometry(event.getPoseStack(), GooSubmitter.renderType(),
                 (pose, consumer) -> {

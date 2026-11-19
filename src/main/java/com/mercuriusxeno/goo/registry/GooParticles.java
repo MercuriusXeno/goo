@@ -182,6 +182,15 @@ public class GooParticles {
         PARTICLE_TYPES.register("spores_spray_drip", () -> new SimpleParticleType(false));
 
     /**
+     * Stitch's spray drip: the mod's blocky goo drip in yarn's tans, flying
+     * its arc until it strikes a block's top, where it splats and the Stitch
+     * goo lands.
+     * stitch-is-yarns-residual-that-turns-slimes-into-passive-mobs
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> STITCH_SPRAY_DRIP =
+        PARTICLE_TYPES.register("stitch_spray_drip", () -> new SimpleParticleType(false));
+
+    /**
      * Phase's spray drip: the mod's blocky goo drip in quantum's blues,
      * flying its arc until it strikes a block's top, where it splats and the
      * Phase goo lands.
