@@ -6,7 +6,6 @@
   "order": 10,
   "cost": 96,
   "cost_formula": "%s/m³",
-  "requires": ["minecraft:brown_mushroom", "minecraft:red_mushroom"],
   "delivery": {
     "kind": "stream",
     "drains_on_placement": true,
