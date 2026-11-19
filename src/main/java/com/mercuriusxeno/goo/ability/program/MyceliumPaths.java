@@ -6,9 +6,9 @@ import java.util.Collection;
 
 /**
  * The connectivity seam Transmit asks: is this block joined to that one
- * through the level's mycelium. A direct search answers it here; the stored
- * mycelium network answers it behind the same seam.
+ * through the level's mycelium. The level's stored mycelium network answers it.
  * transmit-reaches-only-connected-mycelial-blocks-you-touch
+ * mycelium-networks-are-cached-dags-joined-by-chunk-connectors
  */
 public final class MyceliumPaths {
 
@@ -21,10 +21,10 @@ public final class MyceliumPaths {
      * @param level       the level
      * @param origins     the blocks the caster touches
      * @param destination the aimed block
-     * @param range       how far from the destination, in blocks, the path may run
+     * @param range       how far from the destination, in blocks, a chunk the path crosses may stand
      * @return true where a path joins them
      */
     public static boolean connects(Level level, Collection<BlockPos> origins, BlockPos destination, double range) {
-        return MyceliumSearch.connects(MycelialBlocks.in(level), origins, destination, range);
+        return MyceliumNetworks.of(level).connects(origins, destination, range);
     }
 }

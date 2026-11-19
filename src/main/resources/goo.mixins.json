@@ -13,6 +13,7 @@
     "EntityPhasePassMixin",
     "EntitySculkerSilenceMixin",
     "EntitySlickMomentumMixin",
+    "LevelChunkMyceliumMixin",
     "EntitySlickUnderfootMixin",
     "EntitySlimeCoatUnderfootMixin",
     "FoodPropertiesGluttonyMixin",
