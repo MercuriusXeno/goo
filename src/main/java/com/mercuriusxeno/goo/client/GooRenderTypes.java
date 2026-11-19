@@ -19,7 +19,11 @@ import net.minecraft.client.renderer.rendertype.RenderSetup;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.TextureTransform;
 import net.minecraft.resources.Identifier;
+import net.neoforged.neoforge.client.StencilManager;
 import net.neoforged.neoforge.client.event.RegisterRenderPipelinesEvent;
+import net.neoforged.neoforge.client.stencil.StencilOperation;
+import net.neoforged.neoforge.client.stencil.StencilPerFaceTest;
+import net.neoforged.neoforge.client.stencil.StencilTest;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -139,6 +143,77 @@ public final class GooRenderTypes {
             .withCull(false)
             .build());
 
+    /** The stencil bit Dowsing's window marks, reserved from NeoForge's eight. */
+    public static final int DOWSING_STENCIL_BIT = stencilBitOf(StencilManager.reserveBit());
+
+    /**
+     * Dowsing's window mask (decision dowsing-goo-is-a-window-onto-the-ore-behind-it):
+     * the Dowsing cells' goo boxes drawn writing no color and no depth,
+     * depth tested and pulled a little toward the eye as a decal is, so they
+     * mark the Dowsing stencil bit only where the goo is the nearest surface.
+     */
+    public static final RenderPipeline DOWSING_MASK = RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "dowsing_mask"))
+            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
+            .withColorTargetState(new ColorTargetState(Optional.empty(), ColorTargetState.WRITE_NONE))
+            .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false,
+                    DECAL_BIAS_SCALE, DECAL_BIAS_CONSTANT))
+            .withStencilTest(new StencilTest(new StencilPerFaceTest(StencilOperation.KEEP, StencilOperation.KEEP,
+                    StencilOperation.REPLACE, CompareOp.ALWAYS_PASS), DOWSING_STENCIL_BIT, DOWSING_STENCIL_BIT,
+                    DOWSING_STENCIL_BIT))
+            .withCull(true)
+            .build();
+
+    /** The test Dowsing's ore and glow pass: only on the pixels the mask marked, writing no stencil. */
+    private static final StencilTest ON_THE_DOWSING_MARK = new StencilTest(new StencilPerFaceTest(
+            StencilOperation.KEEP, StencilOperation.KEEP, StencilOperation.KEEP, CompareOp.EQUAL),
+            DOWSING_STENCIL_BIT, 0, DOWSING_STENCIL_BIT);
+
+    /**
+     * Dowsing's ore (decision dowsing-goo-is-a-window-onto-the-ore-behind-it):
+     * the fungus x-ray's draw through every block, cut to the window mask.
+     */
+    public static final RenderPipeline DOWSING_ORE = sorted(PipelineSort.ON_THE_PATH, FUNGUS_XRAY.toBuilder()
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "dowsing_ore"))
+            .withStencilTest(ON_THE_DOWSING_MARK)
+            .build());
+
+    /**
+     * Dowsing's ore glow (decision dowsing-goo-is-a-window-onto-the-ore-behind-it):
+     * the fungus glow's swollen additive copy, cut to the same window mask.
+     */
+    public static final RenderPipeline DOWSING_GLOW = sorted(PipelineSort.ON_THE_PATH, FUNGUS_GLOW.toBuilder()
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "dowsing_glow"))
+            .withStencilTest(ON_THE_DOWSING_MARK)
+            .build());
+
+    /** The render type marking Dowsing's window. */
+    public static final RenderType DOWSING_MASK_TYPE = RenderType.create("goo_dowsing_mask",
+            RenderSetup.builder(DOWSING_MASK).setOutputTarget(OutputTarget.MAIN_TARGET).createRenderSetup());
+
+    /** Per-atlas memoized render types on Dowsing's ore pipeline. */
+    private static final java.util.function.Function<Identifier, RenderType> DOWSING_ORE_FACTORY =
+            net.minecraft.util.Util.memoize(atlas -> RenderType.create(
+                    "goo_dowsing_ore",
+                    RenderSetup.builder(DOWSING_ORE)
+                            .withTexture("Sampler0", atlas)
+                            .useLightmap()
+                            .useOverlay()
+                            .sortOnUpload()
+                            .createRenderSetup()
+            ));
+
+    /** Per-atlas memoized render types on Dowsing's ore glow pipeline. */
+    private static final java.util.function.Function<Identifier, RenderType> DOWSING_GLOW_FACTORY =
+            net.minecraft.util.Util.memoize(atlas -> RenderType.create(
+                    "goo_dowsing_glow",
+                    RenderSetup.builder(DOWSING_GLOW)
+                            .withTexture("Sampler0", atlas)
+                            .useLightmap()
+                            .useOverlay()
+                            .createRenderSetup()
+            ));
+
     /** Per-atlas memoized render types on the fungus glow pipeline. */
     private static final java.util.function.Function<Identifier, RenderType> FUNGUS_GLOW_FACTORY =
             net.minecraft.util.Util.memoize(atlas -> RenderType.create(
@@ -195,7 +270,7 @@ public final class GooRenderTypes {
             ));
 
     /**
-     * Shroom's held spore shell (decision held-visual-ghosts-the-landing-in-two-passes):
+     * Sculk's held spore shell (decision held-visual-ghosts-the-landing-in-two-passes):
      * plain colored quads through vanilla's position-color shader, translucent,
      * depth tested with depth write off, both faces drawn; its twin passes every
      * depth test so the shell shows through blocks.
@@ -207,10 +282,10 @@ public final class GooRenderTypes {
     public static final RenderPipeline SPORE_SHELL_THROUGH_BLOCKS = sorted(PipelineSort.ON_THE_PATH, colorShellPipeline(
             "spore_shell" + THROUGH_BLOCKS_SUFFIX, CompareOp.ALWAYS_PASS, BlendFunction.TRANSLUCENT));
 
-    /** RenderType for shroom's held spore shell over blocks. */
+    /** RenderType for sculk's held spore shell over blocks. */
     public static final RenderType SPORE_SHELL_TYPE = burnoutType(SPORE_SHELL);
 
-    /** RenderType for shroom's held spore shell through blocks. */
+    /** RenderType for sculk's held spore shell through blocks. */
     public static final RenderType SPORE_SHELL_THROUGH_BLOCKS_TYPE = burnoutType(SPORE_SHELL_THROUGH_BLOCKS);
 
     /**
@@ -918,6 +993,37 @@ public final class GooRenderTypes {
     }
 
     /**
+     * Returns Dowsing's ore render type for the atlas the block's sprites sit on.
+     *
+     * @param atlas the texture atlas identifier
+     * @return memoized RenderType
+     */
+    public static RenderType dowsingOre(Identifier atlas) {
+        return DOWSING_ORE_FACTORY.apply(atlas);
+    }
+
+    /**
+     * Returns Dowsing's ore glow render type for the atlas the block's sprites sit on.
+     *
+     * @param atlas the texture atlas identifier
+     * @return memoized RenderType
+     */
+    public static RenderType dowsingGlow(Identifier atlas) {
+        return DOWSING_GLOW_FACTORY.apply(atlas);
+    }
+
+    /**
+     * The stencil mask of a reserved bit, the top bit where none was left to
+     * reserve.
+     *
+     * @param bit the bit's index, -1 where none was free
+     * @return the mask holding that one bit
+     */
+    static int stencilBitOf(int bit) {
+        return 1 << (bit < 0 ? Byte.SIZE - 1 : bit);
+    }
+
+    /**
      * Returns Sculker's glass render type for the atlas the block's sprites sit on.
      *
      * @param atlas the texture atlas identifier
@@ -1043,6 +1149,20 @@ public final class GooRenderTypes {
             "goo_vine_tangle",
             RenderSetup.builder(VINE_TANGLE)
                     .withTexture("Sampler0", Identifier.withDefaultNamespace("textures/block/vine.png"))
+                    .useLightmap()
+                    .sortOnUpload()
+                    .createRenderSetup());
+
+    /**
+     * Stitch's web tangle render type: the vine tangle pipeline sampling
+     * vanilla's cobweb texture, so a tangled hostile wears web strands the
+     * way a rooted mob wears vines.
+     * passives-move-through-stitch-and-hostiles-tangle-in-it
+     */
+    public static final RenderType WEB_TANGLE_TYPE = RenderType.create(
+            "goo_web_tangle",
+            RenderSetup.builder(VINE_TANGLE)
+                    .withTexture("Sampler0", Identifier.withDefaultNamespace("textures/block/cobweb.png"))
                     .useLightmap()
                     .sortOnUpload()
                     .createRenderSetup());
@@ -1575,7 +1695,7 @@ public final class GooRenderTypes {
 
     /**
      * Registers the plain pipelines: the additive glow lines, Sight's fungus
-     * x-ray, and shroom's spore shell in both passes.
+     * x-ray, and sculk's spore shell in both passes.
      *
      * @param event the pipeline registration event
      */
@@ -1585,6 +1705,9 @@ public final class GooRenderTypes {
         event.registerPipeline(CLICK_WAVE_THROUGH_BLOCKS);
         event.registerPipeline(SCULKER_GLASS);
         event.registerPipeline(FUNGUS_GLOW);
+        event.registerPipeline(DOWSING_MASK);
+        event.registerPipeline(DOWSING_ORE);
+        event.registerPipeline(DOWSING_GLOW);
         event.registerPipeline(SPORE_SHELL);
         event.registerPipeline(SPORE_SHELL_THROUGH_BLOCKS);
     }

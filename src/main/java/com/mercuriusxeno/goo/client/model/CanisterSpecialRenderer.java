@@ -83,12 +83,27 @@ public class CanisterSpecialRenderer implements SpecialModelRenderer<CanisterSpe
         if (data == null || data.fill() <= 0f) {
             return;
         }
+        submitFluidIn(poseStack, nodeCollector, data, fluidBounds(data.fill()));
+    }
+
+    /**
+     * Submits a canister's goo in a box: mingled where it holds several goo types, else its one goo type or
+     * vanilla fluid. The sprayer submits its sideways canister's goo through here.
+     * decision sideways-canister-goo-settles-as-if-turned-sideways
+     *
+     * @param poseStack     the pose stack for rendering
+     * @param nodeCollector the render node collector
+     * @param data          the goo data, holding some fill
+     * @param b             the box the goo fills
+     */
+    static void submitFluidIn(PoseStack poseStack, SubmitNodeCollector nodeCollector, GooData data,
+                              CuboidBounds b) {
         if (data.bands().size() > 1) {
-            submitMingledFluid(GooSubmitter.bandedSurfaces(poseStack, nodeCollector), data);
+            submitMingledFluid(GooSubmitter.bandedSurfaces(poseStack, nodeCollector), data, b);
         } else if (data.gooType() != null) {
-            submitFluid(poseStack, nodeCollector, data.gooType(), data.fill());
+            submitFluid(poseStack, nodeCollector, data.gooType(), b);
         } else if (data.vanillaFluid() != null) {
-            submitVanillaFluid(poseStack, nodeCollector, data.vanillaFluid(), data.fill());
+            submitVanillaFluid(poseStack, nodeCollector, data.vanillaFluid(), b);
         }
     }
 
@@ -101,7 +116,7 @@ public class CanisterSpecialRenderer implements SpecialModelRenderer<CanisterSpe
      * @param packedLight   the packed light value
      * @param data          the goo data, or null
      */
-    private static void submitGaskets(PoseStack poseStack,
+    static void submitGaskets(PoseStack poseStack,
                                       SubmitNodeCollector nodeCollector, int packedLight,
                                       @Nullable GooData data) {
         boolean hasTopChoral = data != null && data.hasTopGasket();
@@ -195,11 +210,10 @@ public class CanisterSpecialRenderer implements SpecialModelRenderer<CanisterSpe
      * @param poseStack     the pose stack for rendering
      * @param nodeCollector the render node collector
      * @param type          the goo type
-     * @param fill          the fill fraction in [0, 1]
+     * @param b             the box the goo fills
      */
     private static void submitFluid(PoseStack poseStack, SubmitNodeCollector nodeCollector,
-                                    ResourceKey<GooTypeDefinition> type, float fill) {
-        CuboidBounds b = fluidBounds(fill);
+                                    ResourceKey<GooTypeDefinition> type, CuboidBounds b) {
         TextureAtlasSprite sprite = GooSubmitter.fluidSprite(type);
         GooSubmitter.submitFluid(poseStack, nodeCollector, GooSubmitter.fluidTint(type),
                 ctx -> FluidFaceEmitter.emitFluidFaces(ctx, b, sprite, ctx.color()));
@@ -214,7 +228,17 @@ public class CanisterSpecialRenderer implements SpecialModelRenderer<CanisterSpe
      * @param data      the goo data, holding more than one band
      */
     static void submitMingledFluid(BandedSurfaceSubmitter submitter, GooData data) {
-        CuboidBounds b = fluidBounds(data.fill());
+        submitMingledFluid(submitter, data, fluidBounds(data.fill()));
+    }
+
+    /**
+     * Submits the mingled fill in a box.
+     *
+     * @param submitter submits the surface carrying every band
+     * @param data      the goo data, holding more than one band
+     * @param b         the box the goo fills
+     */
+    static void submitMingledFluid(BandedSurfaceSubmitter submitter, GooData data, CuboidBounds b) {
         submitter.submit(data.bands(), ctx -> FluidFaceEmitter.emitSpriteRelativeFaces(ctx, b));
     }
 
@@ -226,11 +250,10 @@ public class CanisterSpecialRenderer implements SpecialModelRenderer<CanisterSpe
      * @param poseStack     the pose stack for rendering
      * @param nodeCollector the render node collector
      * @param fluid         the vanilla fluid
-     * @param fill          the fill fraction in [0, 1]
+     * @param b             the box the fluid fills
      */
     private static void submitVanillaFluid(PoseStack poseStack, SubmitNodeCollector nodeCollector,
-                                           Fluid fluid, float fill) {
-        CuboidBounds b = fluidBounds(fill);
+                                           Fluid fluid, CuboidBounds b) {
         TextureAtlasSprite sprite = GooSubmitter.fluidSprite(fluid);
         int tint = GooSubmitter.fluidTint(fluid);
         GooSubmitter.submitFluid(poseStack, nodeCollector,
@@ -245,11 +268,23 @@ public class CanisterSpecialRenderer implements SpecialModelRenderer<CanisterSpe
      * @return the fluid cuboid whose Y span encodes the fill
      */
     static CuboidBounds fluidBounds(float fill) {
-        float min = CENTER - CanisterGeometry.HALF_WIDTH + CanisterGeometry.FLUID_INSET;
-        float max = CENTER + CanisterGeometry.HALF_WIDTH - CanisterGeometry.FLUID_INSET;
-        return new CuboidBounds(min, max, min, max,
-                CanisterGeometry.STANDING.bodyBottom(),
-                CanisterGeometry.STANDING.fluidSurface(fill));
+        return boundsOf(CanisterGeometry.STANDING.fluidBox(CanisterGeometry.Settling.UPRIGHT, CENTER, fill));
+    }
+
+    /**
+     * The fluid cuboid inside the item-form canister body as its goo settles a way.
+     * decision sideways-canister-goo-settles-as-if-turned-sideways
+     *
+     * @param settling the way the goo settles
+     * @param fill     the fill fraction in [0, 1]
+     * @return the fluid cuboid, in the canister's own frame
+     */
+    static CuboidBounds fluidBounds(CanisterGeometry.Settling settling, float fill) {
+        return boundsOf(CanisterGeometry.STANDING.fluidBox(settling, CENTER, fill));
+    }
+
+    private static CuboidBounds boundsOf(CanisterGeometry.FluidBox box) {
+        return new CuboidBounds(box.minX(), box.maxX(), box.minZ(), box.maxZ(), box.minY(), box.maxY());
     }
 
     /**

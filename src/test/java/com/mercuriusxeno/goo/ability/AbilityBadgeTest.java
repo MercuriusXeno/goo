@@ -97,12 +97,12 @@ class AbilityBadgeTest {
      * @param badge   the badge it wears
      */
     @ParameterizedTest
-    @CsvSource({"kinetic_grab, HELD", "rock_gouge, HELD", "blaze_flames, CHANNELED", "shroom_mycosis, CHANNELED", "typhoon_gust, CHANNELED",
+    @CsvSource({"kinetic_grab, HELD", "rock_gouge, HELD", "blaze_flames, CHANNELED", "sculk_mycosis, CHANNELED", "typhoon_gust, CHANNELED",
             "frost_cold, CHANNELED", "weird_goop, RESIDUAL", "kinetic_slick, RESIDUAL", "blaze_molten, RESIDUAL",
-            "deep_host, RESIDUAL", "frost_rime, RESIDUAL", "hex_leech, RESIDUAL", "typhoon_updraft, RESIDUAL",
+            "sculk_creep, RESIDUAL", "frost_rime, RESIDUAL", "hex_leech, RESIDUAL", "typhoon_updraft, RESIDUAL",
             "jelly_nectar, RESIDUAL", "pulse_signal, RESIDUAL", "metal_spikes, RESIDUAL",
-            "nether_infest, RESIDUAL", "leaf_vines, RESIDUAL", "unstable_nitro, RESIDUAL",
-            "quantum_phase, RESIDUAL", "shroom_spores, RESIDUAL"})
+            "zombie_infest, RESIDUAL", "leaf_vines, RESIDUAL", "unstable_nitro, RESIDUAL",
+            "quantum_phase, RESIDUAL", "rock_mortar, RESIDUAL", "yarn_stitch, RESIDUAL", "nether_gloom, RESIDUAL"})
     void shippedAbilityWearsItsControlBadge(String ability, AbilityBadge badge) {
         assertEquals(badge, AbilityJson.decode(ability).badge(), ability);
     }
@@ -119,9 +119,10 @@ class AbilityBadgeTest {
         Set<String> wearers = AbilityJson.files().stream().map(AbilityJson::decode)
                 .filter(definition -> definition.badge() == AbilityBadge.RESIDUAL)
                 .map(definition -> definition.id().getPath()).collect(Collectors.toSet());
-        assertEquals(Set.of("weird_goop", "kinetic_slick", "blaze_molten", "deep_host", "frost_rime", "hex_leech",
-                "typhoon_updraft", "jelly_nectar", "pulse_signal", "metal_spikes", "nether_infest",
-                "leaf_vines", "unstable_nitro", "quantum_phase", "shroom_spores"), wearers);
+        assertEquals(Set.of("weird_goop", "kinetic_slick", "blaze_molten", "sculk_creep", "frost_rime", "hex_leech",
+                "typhoon_updraft", "jelly_nectar", "pulse_signal", "metal_spikes", "zombie_infest",
+                "leaf_vines", "unstable_nitro", "quantum_phase", "rock_mortar", "yarn_stitch", "nether_gloom"),
+                wearers);
     }
 
     /** decision self-badge-becomes-instant-with-a-noita-trigger-star */

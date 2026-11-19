@@ -9,18 +9,19 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.block.state.BlockState;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalInt;
 
 /**
- * What a Build grows and what it costs: each footprint column reaches down
- * as far as it rises and lifts the blocks it reached by the rise on stone
- * grown in the cells they leave (BuildColumn). A column grows only where
+ * What a Build grows and what it costs: each footprint column walks back no
+ * farther than it rises, stops at the first block with a replaceable cell
+ * behind it, and lifts the blocks in front of that block by the rise on stone
+ * grown from its near face (BuildColumn). A column grows only where
  * every cell above the ground the rise fills can be replaced; the rest of
- * the footprint grows nothing and costs nothing. A footprint on a wall
+ * the footprint grows nothing and costs nothing, as does a column whose walk
+ * meets a block entity, which fizzles before any cost. A footprint on a wall
  * reaches into the wall and pushes out along its normal the same way.
  * decision build-goes-sideways
  * The goo spent is the ability's exact per-block price for every stone block
@@ -28,6 +29,10 @@ import java.util.OptionalInt;
  * through the same plan the server grows by.
  * decision spire-grows-stone-out-of-the-top
  * decision build-reaches-down-as-far-as-it-rises-and-lifts-the-ground-on-stone
+ * decision build-extends-the-first-block-with-air-behind-it
+ * decision air-behind-a-block-is-anything-stone-can-replace
+ * decision build-pushes-from-behind-at-full-depth-with-no-air
+ * decision column-meeting-a-block-entity-fizzles-at-no-cost
  * decision spire-cost-field-prices-each-cubic-meter-of-stone-at-mundane-block
  * decision melt-and-fabricate-move-the-exact-value-through-a-remainder-buffer
  *
@@ -49,8 +54,7 @@ public record BuildGrowth(BuildFootprint footprint, List<BuildColumn> columns, G
         List<BuildColumn> columns = new ArrayList<>();
         for (BlockPos ground : footprint.groundCells()) {
             if (columnOpen(blocks, ground, footprint.rise(), footprint.face())) {
-                columns.add(BuildColumn.reaching(ground, footprint.rise(), footprint.face(),
-                        cell -> carriable(blocks, cell)));
+                BuildColumn.reaching(blocks, ground, footprint.rise(), footprint.face()).ifPresent(columns::add);
             }
         }
         GooFraction cost = pricePerBlock.times((long) columns.size() * footprint.rise());
@@ -106,21 +110,6 @@ public record BuildGrowth(BuildFootprint footprint, List<BuildColumn> columns, G
      */
     public OptionalInt chargeThrough(IRemainderLedger ledger, ResourceKey<GooTypeDefinition> gooType, int holdings) {
         return ledger.debitExact(gooType, exactCost, holdings);
-    }
-
-    /**
-     * Whether the rising hunk can carry the block in a cell: one a hand can
-     * break and holding no block entity, inside the world; bedrock stops a
-     * column's reach, and so does a chest, whose contents the hunk cannot hold.
-     * decision build-reaches-down-as-far-as-it-rises-and-lifts-the-ground-on-stone
-     *
-     * @param blocks the world
-     * @param cell   the cell
-     * @return true where the hunk can carry its block
-     */
-    static boolean carriable(BlockGetter blocks, BlockPos cell) {
-        BlockState state = blocks.getBlockState(cell);
-        return cell.getY() >= blocks.getMinY() && !state.hasBlockEntity() && state.getDestroySpeed(blocks, cell) >= 0;
     }
 
     private static boolean columnOpen(BlockGetter blocks, BlockPos ground, int rise, Direction face) {

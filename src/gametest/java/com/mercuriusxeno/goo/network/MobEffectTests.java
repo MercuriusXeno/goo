@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.AbilityRegistrySource;
 import com.mercuriusxeno.goo.ability.hex.CharmEvents;
 import com.mercuriusxeno.goo.ability.seal.SealEvents;
 import com.mercuriusxeno.goo.gametest.SurvivalPlayers;
@@ -33,6 +34,7 @@ import net.minecraft.world.level.storage.TagValueOutput;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.Map;
 import java.util.function.Consumer;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
@@ -143,6 +145,19 @@ public final class MobEffectTests {
     private static final String ABILITY_ENDER_SEAL = "goo:ender_seal";
     /** Well above Seal's radius, so the player sets nothing off until the test walks it in. */
     private static final double PLAYER_OUT_OF_REACH_ABOVE = 20.0;
+    private static final String SEAL_STEP = "seal";
+    private static final String SEAL_RADIUS = "radius";
+    private static final String SEAL_RANGE = "range";
+    /** A curse radius only a player standing on the zombie falls inside. */
+    private static final double IN_BAY_RADIUS = 1.0;
+    /** A warp range rolling spots two blocks either way, inside the six-block bay around the zombie. */
+    private static final double IN_BAY_RANGE = 4.0;
+    /**
+     * The seed the cursed zombie's warp rolls draw from, so its warp lands on
+     * the same spot every run rather than once a roll lands on open floor.
+     * operator ruling 2026-11-19: seed the drawing random
+     */
+    private static final long SEAL_WARP_SEED = 0L;
     private static final String SHOULD_BE_CURSED = "The zombie should carry the curse after the first Seal";
     private static final String SHOULD_WARP = "The cursed zombie should warp away from the player standing on it";
     private static final String SHOULD_BE_EXILED = "A second Seal should exile the cursed zombie";
@@ -464,20 +479,44 @@ public final class MobEffectTests {
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         player.setPos(zombie.getX(), zombie.getY() + PLAYER_OUT_OF_REACH_ABOVE, zombie.getZ());
         helper.runAfterDelay(SETTLE_TICKS, () -> {
-            strike(helper, zombie, ABILITY_ENDER_SEAL);
+            strikeWithAWarpInTheBay(helper, zombie);
             helper.assertTrue(SealEvents.curseOf(zombie) != null, SHOULD_BE_CURSED);
             Vec3 home = zombie.position();
+            zombie.getRandom().setSeed(SEAL_WARP_SEED);
             player.setPos(home);
-            // The assertion runs each tick until the warp lands, then brings the zombie home, where the
-            // test's chunks keep it ticking, and lands the second Seal on it.
-            helper.succeedWhen(() -> {
-                helper.assertFalse(zombie.position().equals(home), SHOULD_WARP);
+            // the warp lands on the zombie's next tick, then the zombie is brought home, where the test's chunks
+            // keep it ticking, and the second Seal lands on it
+            helper.runAfterDelay(1, () -> {
+                helper.assertTrue(zombie.position().distanceTo(home) > IN_BAY_RADIUS, SHOULD_WARP);
                 player.setPos(home.add(0, PLAYER_OUT_OF_REACH_ABOVE, 0));
                 zombie.teleportTo(home.x, home.y, home.z);
                 strike(helper, zombie, ABILITY_ENDER_SEAL);
                 helper.assertTrue(zombie.isRemoved(), SHOULD_BE_EXILED);
+                helper.succeed();
             });
         });
+    }
+
+    /**
+     * Lands Seal's first hit with its curse's radius and range held small for
+     * the call, so the warps it rolls land inside the test's own bay rather
+     * than on whatever the bays around it hold.
+     * gametests-waiting-on-a-random-draw-are-found-and-made-deterministic
+     *
+     * @param helper the gametest helper
+     * @param zombie the zombie struck
+     */
+    private static void strikeWithAWarpInTheBay(GameTestHelper helper, Mob zombie) {
+        AbilityRegistrySource held = (AbilityRegistrySource) helper.getLevel().getServer().getServerResources()
+                .managers();
+        AbilityRegistry shipped = held.abilityRegistry();
+        held.holdAbilityRegistry(HeldAbilitySteps.withStepFields(shipped, Identifier.parse(ABILITY_ENDER_SEAL),
+                SEAL_STEP, Map.of(SEAL_RADIUS, IN_BAY_RADIUS, SEAL_RANGE, IN_BAY_RANGE)));
+        try {
+            strike(helper, zombie, ABILITY_ENDER_SEAL);
+        } finally {
+            held.holdAbilityRegistry(shipped);
+        }
     }
 
     /**

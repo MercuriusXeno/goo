@@ -32,7 +32,7 @@ class LeadReleaseTest {
 
     @Test
     void anAbilityThatDoesNotLeadReleasesNothing() {
-        assertFalse(LeadRelease.releasesOwnLead(AbilityJson.decode("deep_shriek").behaviors(), CASTER,
+        assertFalse(LeadRelease.releasesOwnLead(AbilityJson.decode("xeno_shriek").behaviors(), CASTER,
                 new Led(CASTER, LEAD_DAMAGE)));
     }
 }

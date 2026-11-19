@@ -17,7 +17,27 @@ public final class Lunar {
     public static final ResourceKey<Level> LEVEL = ResourceKey.create(Registries.DIMENSION,
             Identifier.fromNamespaceAndPath(Goo.MODID, "lunar"));
 
+    /**
+     * Half the light side's width along x, in blocks: the light side runs from minus this to plus this, half the
+     * moon, and the dark side is every x past it.
+     * decision dark-side-is-the-half-of-the-moon-past-the-light-side
+     * decision traversal-to-the-moon-always-lands-on-the-light-side
+     */
+    public static final int LIGHT_SIDE_HALF_WIDTH = 3_750_000;
+
     private Lunar() {
+    }
+
+    /**
+     * Whether a lunar x stands on the dark side, every x past the light side either way, where it never shines and
+     * the blue planet never shows.
+     * decision dark-side-is-the-half-of-the-moon-past-the-light-side
+     *
+     * @param x the x, in blocks
+     * @return true past the light side
+     */
+    public static boolean isDarkSide(double x) {
+        return Math.abs(x) > LIGHT_SIDE_HALF_WIDTH;
     }
 
     /**

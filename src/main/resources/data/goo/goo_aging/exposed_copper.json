@@ -1,6 +1,0 @@
-{
-  "source": "minecraft:exposed_copper",
-  "result": "minecraft:weathered_copper",
-  "ticks": 24000,
-  "price": 25
-}

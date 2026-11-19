@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.client.overlay;
 
-import com.mercuriusxeno.goo.ability.program.FungusAim;
 import com.mercuriusxeno.goo.ability.program.TransmitStep;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
@@ -28,11 +27,13 @@ import java.util.SplittableRandom;
 import java.util.function.Consumer;
 
 /**
- * Transmit's target marker: while the press is held near a fungus, the
- * fungus the release would land on flares, its own shape swollen and quick-pulsing in
+ * Transmit's target marker: while the press is held, the mycelial block the
+ * release would land on flares, its own shape swollen and quick-pulsing in
  * magenta, and a slim column of spore motes rises from where the player
- * would stand, both drawn through walls so the mark reads behind them.
- * fungal-shift-blinks-to-the-aimed-fungus
+ * would stand, both drawn through walls so the mark reads behind them. A
+ * block no path of mycelium joins to the mycelium the player touches takes
+ * no marker.
+ * transmit-reaches-only-connected-mycelial-blocks-you-touch
  */
 public final class TransmitTargetMarker {
 
@@ -75,7 +76,7 @@ public final class TransmitTargetMarker {
     private static final int Y = 1;
     private static final int Z = 2;
 
-    /** The last fungal target resolved, kept for the tick and look it was resolved at. */
+    /** The last destination resolved, kept for the tick and look it was resolved at. */
     private static Optional<BlockPos> target = Optional.empty();
     private static long targetAt = Long.MIN_VALUE;
     private static float targetYaw;
@@ -85,8 +86,8 @@ public final class TransmitTargetMarker {
     }
 
     /**
-     * Hands the shared path the marker while a held Transmit aims at fungus,
-     * drawn through walls, sorted by the aimed fungus.
+     * Hands the shared path the marker while a held Transmit aims at a block
+     * it can reach, drawn through walls, sorted by the aimed block.
      * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
      * decision fungal-shift-blinks-to-the-aimed-fungus
      *
@@ -103,7 +104,7 @@ public final class TransmitTargetMarker {
         if (!showsMarker(ability, GloveUseTracker.showsArea())) {
             return;
         }
-        aimedFungus(player, ability).ifPresent(pos -> draws.accept(new SortedDraw(
+        destination(player, ability).ifPresent(pos -> draws.accept(new SortedDraw(
                 Vec3.atCenterOf(pos).distanceToSqr(mc.gameRenderer.getMainCamera().position()),
                 () -> draw(mc, frame.poseStack(), pos))));
     }
@@ -117,7 +118,7 @@ public final class TransmitTargetMarker {
      * @return true while the marker shows
      */
     static boolean showsMarker(@Nullable ClientAbility ability, boolean useHeld) {
-        return ability != null && TransmitStep.fungusRange(ability.behaviors()).isPresent()
+        return ability != null && TransmitStep.transmitRange(ability.behaviors()).isPresent()
                 && ability.indicator().shows(useHeld);
     }
 
@@ -127,21 +128,18 @@ public final class TransmitTargetMarker {
     }
 
     /**
-     * The fungus the release would land on, resolved through the aim the
-     * server's transmit takes, once per tick and look.
+     * The mycelial block the release would land on, resolved through the
+     * destination the server's transmit takes, once per tick and look.
      *
      * @param player  the local player
      * @param ability the selected Transmit
-     * @return the fungus, or empty when the look names none
+     * @return the block, or empty when the look names none joined to the mycelium the player touches
      */
-    private static Optional<BlockPos> aimedFungus(LocalPlayer player, ClientAbility ability) {
+    private static Optional<BlockPos> destination(LocalPlayer player, ClientAbility ability) {
         long tick = player.level().getGameTime();
         if (tick != targetAt || player.getYRot() != targetYaw || player.getXRot() != targetPitch) {
-            boolean near = FungusAim.standsNearFungus(player.level(), player,
-                    TransmitStep.fungusNear(ability.behaviors()).orElse(0));
-            target = near ? FungusAim.aimedFungus(player.level(), player,
-                    TransmitStep.reachOf(player, TransmitStep.fungusRange(ability.behaviors()).orElseThrow()))
-                    : Optional.empty();
+            target = TransmitStep.destination(player.level(), player,
+                    TransmitStep.transmitRange(ability.behaviors()).orElseThrow());
             targetAt = tick;
             targetYaw = player.getYRot();
             targetPitch = player.getXRot();

@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:transmit_needs_a_touch",
+  "environment": "minecraft:default",
+  "structure": "goo:light_bay",
+  "max_ticks": 20,
+  "setup_ticks": 0,
+  "required": true
+}

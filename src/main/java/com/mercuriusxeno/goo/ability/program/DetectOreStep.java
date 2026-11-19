@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.ability.crystal.OreSource;
 import com.mercuriusxeno.goo.ability.crystal.OreVeins;
 import com.mercuriusxeno.goo.network.EntityVisuals;
 import com.mercuriusxeno.goo.network.OreRevealPayload;
@@ -11,16 +12,21 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.phys.Vec3;
+import org.jspecify.annotations.Nullable;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
 /**
@@ -77,9 +83,9 @@ public record DetectOreStep(TagKey<Block> tag, ResourceKey<GooTypeDefinition> go
         long now = caster.level().getGameTime();
         List<HeldSweepPulses.Pulse> pulses = HeldSweepPulses.SERVER.advance(caster.getUUID(), caster.position(),
                 held, now, pace());
+        sendSweeps(pulses, now, payload -> EntityVisuals.sendToSelf(caster, payload));
         Set<Vec3> walked = new HashSet<>();
         for (HeldSweepPulses.Pulse pulse : pulses) {
-            EntityVisuals.sendToSelf(caster, sweepOf(pulse, now));
             // a later front from the spot an earlier one left walks blocks that front already walked
             if (walked.add(pulse.origin())) {
                 OreRevealPayload reveal = revealAt(caster.level(), pulse.origin(), pulse.ageAt(now));
@@ -100,13 +106,69 @@ public record DetectOreStep(TagKey<Block> tag, ResourceKey<GooTypeDefinition> go
      * @return the reveal to send the caster
      */
     public OreRevealPayload revealAt(Level level, Vec3 origin, int pulseTick) {
+        return revealAt(new LevelOres(level, tag), origin, pulseTick);
+    }
+
+    /**
+     * One tick of a pulse over the ore a world holds, read block by block:
+     * the veins its front first reached on the tick.
+     *
+     * @param oreAt     each block's ore id, or null where none of the tag's ore stands
+     * @param origin    where the pulse began
+     * @param pulseTick the pulse's tick, 1 on its first
+     * @return the reveal to send the caster
+     */
+    public OreRevealPayload revealAt(Function<BlockPos, @Nullable Identifier> oreAt, Vec3 origin, int pulseTick) {
+        return revealAt(OreSource.everywhere(oreAt), origin, pulseTick);
+    }
+
+    /**
+     * One tick of a pulse over the ore a world holds: the veins its front
+     * first reached on the tick, read only in the sections that may hold ore.
+     *
+     * @param ores      the ore the front can find
+     * @param origin    where the pulse began
+     * @param pulseTick the pulse's tick, 1 on its first
+     * @return the reveal to send the caster
+     */
+    public OreRevealPayload revealAt(OreSource ores, Vec3 origin, int pulseTick) {
         HeldSweepPace pace = pace();
-        List<OreVeins.Vein> veins = OreVeins.firstReachedIn(BlockPos.containing(origin),
-                pace.radiusAt(pulseTick - 1), pace.radiusAt(pulseTick), radius, pos -> {
-                    BlockState state = level.getBlockState(pos);
-                    return state.is(tag) ? BuiltInRegistries.BLOCK.getKey(state.getBlock()) : null;
-                });
+        List<OreVeins.Vein> veins = HeldSweepSections.profiled(HeldSweepSections.ORE_WALK,
+                () -> OreVeins.firstReachedIn(BlockPos.containing(origin), pace.radiusAt(pulseTick - 1),
+                        pace.radiusAt(pulseTick), radius, ores));
         return new OreRevealPayload(veins, life);
+    }
+
+    /**
+     * The tag's ore as a level holds it: a section's palette answers
+     * whether it may hold any, so the walk reads no block of a section of
+     * stone or air alone; a chunk not loaded is read block by block, as the
+     * level reads it.
+     * decision diagnose-and-correct-the-lag-on-four-sense-abilities
+     *
+     * @param level the level the sense walks
+     * @param tag   the block tag the sense finds
+     */
+    record LevelOres(Level level, TagKey<Block> tag) implements OreSource {
+
+        @Override
+        public @Nullable Identifier oreAt(BlockPos pos) {
+            BlockState state = level.getBlockState(pos);
+            return state.is(tag) ? BuiltInRegistries.BLOCK.getKey(state.getBlock()) : null;
+        }
+
+        @Override
+        public boolean mayHoldOre(int sectionX, int sectionY, int sectionZ) {
+            LevelChunk chunk = level.getChunkSource().getChunkNow(sectionX, sectionZ);
+            if (chunk == null) {
+                return true;
+            }
+            if (sectionY < chunk.getMinSectionY() || sectionY > chunk.getMaxSectionY()) {
+                return false;
+            }
+            LevelChunkSection section = chunk.getSection(chunk.getSectionIndexFromSectionY(sectionY));
+            return !section.hasOnlyAir() && section.getStates().maybeHas(state -> state.is(tag));
+        }
     }
 
     @Override

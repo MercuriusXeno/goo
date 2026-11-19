@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.client.overlay;
 
+import com.mercuriusxeno.goo.ability.BuildColumn;
 import com.mercuriusxeno.goo.ability.BuildFootprint;
+import com.mercuriusxeno.goo.ability.BuildGrowth;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.phys.Vec3;
@@ -13,7 +15,7 @@ import java.util.Set;
  * What Build's preview draws: the ripple echo's rings across the footprint's
  * ground cells, the tops the stone grows from, each ring the footprint's own
  * outline scaled from its center, over a steady outline of its edge; and once the footprint is fixed the ghost
- * stone filling every cell the rise would fill above them, only its outer
+ * stone filling every cell the rise would fill above each column the plan grows, only its outer
  * faces, so no seam shows between its blocks.
  * decision spire-previews-as-a-surface-ripple-and-ghost-stone
  */
@@ -129,17 +131,20 @@ final class BuildPreview {
     }
 
     /**
-     * The cells the ghost stone fills: out from each ground cell along its
-     * face's normal, from the cell in front of it out through the rise.
+     * The cells the ghost stone fills: out from each planned column's ground
+     * cell along its face's normal, from the cell in front of it out through
+     * the rise, so a column the plan fizzles or closes shows none.
+     * decision column-meeting-a-block-entity-fizzles-at-no-cost
      *
-     * @param footprint the footprint, at its rise
+     * @param growth the planned growth
      * @return the cells, column by column
      */
-    static List<BlockPos> ghostCells(BuildFootprint footprint) {
+    static List<BlockPos> ghostCells(BuildGrowth growth) {
+        Direction face = growth.footprint().face();
         List<BlockPos> cells = new ArrayList<>();
-        for (BlockPos ground : footprint.groundCells()) {
-            for (int height = 1; height <= footprint.rise(); height++) {
-                cells.add(ground.relative(footprint.face(), height));
+        for (BuildColumn column : growth.columns()) {
+            for (int height = 1; height <= column.rise(); height++) {
+                cells.add(column.ground().relative(face, height));
             }
         }
         return cells;

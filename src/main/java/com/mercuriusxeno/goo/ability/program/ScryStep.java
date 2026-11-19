@@ -14,6 +14,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.Vec3;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 /**
@@ -90,41 +91,58 @@ public record ScryStep(ResourceKey<GooTypeDefinition> goo, double reach, List<En
         HeldSweepPace pace = pace();
         LivingEntity caster = context.hostAs(TargetHost.class).target();
         long now = caster.level().getGameTime();
-        for (HeldSweepPulses.Pulse pulse : HeldSweepPulses.SERVER.advance(caster.getUUID(), caster.position(), held,
-                now, pace)) {
+        List<HeldSweepPulses.Pulse> pulses = HeldSweepPulses.SERVER.advance(caster.getUUID(), caster.position(),
+                held, now, pace);
+        EntityScanHost scan = context.hostAs(EntityScanHost.class);
+        Set<EntityFilter> filters = Set.copyOf(where);
+        for (HeldSweepPulses.Pulse pulse : pulses) {
             int age = pulse.ageAt(now);
             if (pingsOn(pulse, now)) {
                 caster.level().playSound(null, caster.getX(), caster.getY(), caster.getZ(),
                         SoundEvents.AMETHYST_BLOCK_RESONATE, SoundSource.PLAYERS, PING_VOLUME, PING_PITCH);
             }
-            strikeCrossed(context, caster, pulse.origin(), pace.radiusAt(age - 1), pace.radiusAt(age));
-            EntityVisuals.sendToSelf(caster, sweepOf(pulse, now));
+            strikeCrossed(new Strike(scan, filters, caster.position(), pulse.origin()), pace.radiusAt(age - 1),
+                    pace.radiusAt(age), selected -> new ProgramBehavior(steps).tick(selected));
         }
+        sendSweeps(pulses, now, payload -> EntityVisuals.sendToSelf(caster, payload));
         return true;
     }
 
     /**
-     * Runs the child steps on every entity one front crossed this tick, so
-     * an entity between two fronts is crossed by each once.
+     * Where one front strikes from: the scan around the caster, the filters
+     * an entity must pass, where the caster stands and where the front's
+     * pulse began.
      *
-     * @param context  the step context
-     * @param caster   the caster
+     * @param scan     the entity scan around the caster
+     * @param filters  the filters an entity must pass
+     * @param casterAt where the caster stands
      * @param origin   where the front's pulse began
+     */
+    public record Strike(EntityScanHost scan, Set<EntityFilter> filters, Vec3 casterAt, Vec3 origin) {
+    }
+
+    /**
+     * Hands every entity one front crossed this tick to the strike, so an
+     * entity between two fronts is crossed by each once. The scan reaches
+     * the front's radius past the caster's distance from the pulse's
+     * origin, since it scans around the caster.
+     *
+     * @param strike   where the front strikes from
      * @param previous the front's radius last tick
      * @param reached  its radius this tick
+     * @param struck   runs the child steps on an entity crossed
      */
-    private void strikeCrossed(StepContext context, LivingEntity caster, Vec3 origin, double previous,
-                               double reached) {
+    public static void strikeCrossed(Strike strike, double previous, double reached, Consumer<TargetHost> struck) {
         if (reached <= previous) {
             return;
         }
-        double scanned = reached + caster.position().distanceTo(origin);
-        context.hostAs(EntityScanHost.class).forEachEntityWithin(SelectionShape.SPHERE, scanned, Set.copyOf(where),
-                selected -> {
-                    if (crossed(selected.target().position().distanceTo(origin), previous, reached)) {
-                        new ProgramBehavior(steps).tick(selected);
+        double scanned = reached + strike.casterAt().distanceTo(strike.origin());
+        HeldSweepSections.profiled(HeldSweepSections.SCRY_STRIKE, () -> strike.scan().forEachEntityWithin(
+                SelectionShape.SPHERE, scanned, strike.filters(), selected -> {
+                    if (crossed(selected.target().position().distanceTo(strike.origin()), previous, reached)) {
+                        struck.accept(selected);
                     }
-                });
+                }));
     }
 
     /**

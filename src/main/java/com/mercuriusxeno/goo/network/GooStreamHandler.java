@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.network;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityPrice;
+import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.AbilityTags;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.HealReport;
@@ -33,17 +34,24 @@ import com.mercuriusxeno.goo.ability.tartarus.TartarusCast;
 import com.mercuriusxeno.goo.ability.tartarus.TartarusHolds;
 import com.mercuriusxeno.goo.block.ability.FluidFooting;
 import com.mercuriusxeno.goo.block.ability.SlickLayPace;
+import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
+import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooValues;
+import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.ReagentScanner;
+import com.mercuriusxeno.goo.item.SprayerItem;
+import com.mercuriusxeno.goo.item.SprayerSetting;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.throwing.CoatRay;
+import com.mercuriusxeno.goo.throwing.ConeShape;
 import com.mercuriusxeno.goo.throwing.ConvergingCone;
 import com.mercuriusxeno.goo.throwing.DripArc;
 import com.mercuriusxeno.goo.throwing.StreamCone;
 import com.mercuriusxeno.goo.throwing.ThrowArc;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
@@ -52,6 +60,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
@@ -91,6 +100,13 @@ public final class GooStreamHandler {
     private static final double MIN_AIM_LENGTH_SQUARED = 1e-6;
     /** The drips a tick of motes off the arc carries: none. */
     private static final int NO_DRIPS = 0;
+    /**
+     * How far Mist's mist reaches from the eye, in blocks: short, a tuning value.
+     * operator ruling 2026-11-18: Mist is short range
+     */
+    static final double MIST_REACH = 5;
+    /** Spots a mister's mist reaches a tick for each drip the residual throws a tick at that flow. */
+    private static final int MIST_SPOTS_PER_DRIP = 4;
     /** Rays the spray casts each tick to find the floors it lands on. */
     private static final int FLOOR_RAYS_PER_TICK = 12;
     /** Reads which living things a tick's program healed. */
@@ -142,6 +158,61 @@ public final class GooStreamHandler {
     }
 
     /**
+     * Runs one tick of a sprayer's hold: the residual of its fitted canister's goo sprays through the path the
+     * glove's residuals run, paying from that canister alone. The sprayer checks for no glove and no recipe
+     * knowledge, since a residual is its goo type's resting behavior.
+     * decision spray-item-sprays-residuals-beside-the-glove
+     * decision sprayer-holds-a-canister-sideways-like-a-caulk-gun
+     *
+     * @param player the spraying player
+     * @param origin the sprayer's nozzle end, where the drips leave
+     */
+    public static void sprayerTick(ServerPlayer player, Vec3 origin) {
+        ItemStack sprayer = SprayerItem.heldSprayer(player);
+        SprayerSetting setting = SprayerItem.settingOf(sprayer);
+        // sprayer-wheel-picks-nozzle-flow-and-goo-type: the type picked on the wheel sprays where the canister holds it
+        Optional<AbilityDefinition> residual = SprayerItem.sprayedResidual(
+                CanisterItem.getFluidContent(SprayerItem.fittedCanister(sprayer)), setting.pickedType(),
+                AbilityRegistry.of(player.level())::residualAbilityFor);
+        if (residual.isEmpty()) {
+            return;
+        }
+        AbilityDefinition ability = residual.get();
+        int held = sprayerShare(player, ability);
+        if (Goo.LOGGER.isDebugEnabled()) {
+            Goo.LOGGER.debug(LOG_HELD_TICK, ability.id(), player.getName().getString(), held);
+        }
+        if (held == 0) {
+            return;
+        }
+        strikeCone(player, origin, ability, held, new HeldSpray(PaysFrom.SPRAYER_CANISTER, setting.flow().rate(),
+                setting.nozzle()));
+        ability.delivery().sound().filter(sound -> sound.playsOn(held))
+                .ifPresent(sound -> playStreamSound(player, sound));
+    }
+
+    /**
+     * Advances a sprayer's hold and pays this tick's share from its canister; a residual draining on placement
+     * takes nothing for the tick, paying as what it lays lands.
+     *
+     * @param player  the spraying player
+     * @param ability the sprayed residual
+     * @return the hold's tick count, or 0 for a second tick in one server tick or a share the canister cannot pay
+     */
+    private static int sprayerShare(ServerPlayer player, AbilityDefinition ability) {
+        MinecraftServer server = player.level().getServer();
+        int held = GooServerState.of(server).streamHolds().advance(player.getUUID(), server.getTickCount());
+        if (held == 0 || ability.delivery().drainsOnPlacement()) {
+            return held;
+        }
+        AbilityPrice cost = ability.cost().forCasterIn(player.level().dimension(), ability.behaviors());
+        int share = StreamHolds.shareAt(cost.exactIn(GooValues.of(player.level())),
+                ability.delivery().ticksPerCharge(), held);
+        return AbilityCharges.charge(player, PaysFrom.SPRAYER_CANISTER, ability.gooType(), GooFraction.of(share))
+                ? held : 0;
+    }
+
+    /**
      * Runs a paid tick of a held ability: a channel runs on the player, a
      * stream converting a prism charges it, and any other stream strikes its cone.
      *
@@ -158,7 +229,7 @@ public final class GooStreamHandler {
                     payload.targetEntityId()), ability);
             StreamPrismCharge.chargeByRay(player, payload.aimPoint(), gooType, ability);
         } else if (!StreamPrismCharge.charges(player, payload.origin(), gooType, ability)) {
-            strikeCone(player, payload.origin(), ability, held);
+            strikeCone(player, payload.origin(), ability, held, HeldSpray.GLOVE);
         }
     }
 
@@ -299,14 +370,16 @@ public final class GooStreamHandler {
      * @param origin  the glove hand the client sent
      * @param ability the stream ability
      * @param held    the hold's tick count, 1 on its first tick
+     * @param spray   where what the tick lays pays from and how much it throws
      */
-    private static void strikeCone(ServerPlayer player, Vec3 origin, AbilityDefinition ability, int held) {
+    private static void strikeCone(ServerPlayer player, Vec3 origin, AbilityDefinition ability, int held,
+                                   HeldSpray spray) {
         ServerLevel level = player.level();
         // bore-reaches-as-far-as-your-block-reach
         Delivery delivery = ability.delivery().reachingTo(player.blockInteractionRange());
         Vec3 apex = coneApex(player, origin);
         Vec3 axis = player.getLookAngle();
-        CastOn cast = new CastOn(level, player, ability.id());
+        CastOn cast = new CastOn(level, player, ability.id(), spray);
         List<Step> entitySteps = channelSteps(ability.behaviors(), false);
         TickHeals heals = new TickHeals(new ArrayList<>(), new ArrayList<>());
         if (delivery.range() > 0 || delivery.throwsDrips()) {
@@ -372,16 +445,7 @@ public final class GooStreamHandler {
         if (delivery.throwsDrips()) {
             // goop-wobbles-a-mob-its-drip-strikes: a stream throwing drips strikes the living its drips strike, not
             // the living in its cone
-            // residual-spray-cone-centers-on-the-look-from-the-blob: the drips, the block pass and the drawn drips
-            // all leave the blob onto one cone centered on the look, whatever block the crosshair meets
-            // nectar-is-sprayed-goo-with-a-guided-throw-near-a-mob: an aim near a mob centers the cone on it
-            double exitSpeed = exitSpeedOf(player, delivery);
-            DripArc.Flight flight = dripFlightIn(player.level(), ability);
-            ConvergingCone cone = NectarThrows.guidedCone(player, channelSteps(ability.behaviors(), true))
-                    .orElseGet(() -> ConvergingCone.along(player.getEyePosition(), axis, exitSpeed, flight));
-            runBlockPass(cast, dripsEnd(apex, cone, delivery, exitSpeed, flight), delivery, ability, held, true);
-            boolean strikesLiving = throwDrips(player, apex, cone, ability, held);
-            sprayDrips(player, apex, cone, ability, strikesLiving, held);
+            sprayResidual(cast, apex, axis, ability, delivery, held);
             return List.of();
         }
         // decay-gnats-degrade-each-block-once: what the stream strikes follows the look; only its motes
@@ -409,29 +473,96 @@ public final class GooStreamHandler {
      * goop-wobbles-a-mob-its-drip-strikes
      * goop-and-slick-drips-add-none-of-the-players-movement
      *
-     * @param player  the spraying player
+     * @param cast    the tick's cast, naming who sprays and where they pay from
      * @param apex    where the drips leave, the lifted blob
      * @param cone    the cone the drips land in
      * @param ability the stream ability
      * @param held    the hold's tick count, which picks the tick's places in the cone
      * @return true where the drips strike the living they meet
      */
-    private static boolean throwDrips(ServerPlayer player, Vec3 apex, ConvergingCone cone, AbilityDefinition ability,
+    private static boolean throwDrips(CastOn cast, Vec3 apex, ConvergingCone cone, AbilityDefinition ability,
                                       int held) {
+        ServerPlayer player = cast.player();
         Optional<DripLanding> landing = DripLanding.in(channelSteps(ability.behaviors(), true));
         boolean strikesLiving = !channelSteps(ability.behaviors(), false).isEmpty();
         if (landing.isEmpty() && !strikesLiving) {
             return false;
         }
         DripFlights.Thrower thrower = new DripFlights.Thrower(player.level().dimension(), player.getUUID(),
-                player.getId(), ability, landing, strikesLiving);
+                player.getId(), ability, landing, strikesLiving, cast.spray().paysFrom());
         Delivery delivery = ability.delivery();
         DripFlights flights = GooServerState.of(player.level().getServer()).dripFlights();
-        flightsOf(thrower, new DripThrow(apex, cone, exitSpeedOf(player, delivery),
-                DripArc.gravityIn(player.level().dimension())), delivery,
-                CoatRay.scatteredShares(held, dripsThisTick(player, delivery, landing, held)))
+        // spray-item-takes-different-nozzles-doing-different-things: the sprayer's nozzle shapes the cone
+        flightsOf(thrower, new DripThrow(apex, cone, exitSpeedOf(cast, delivery),
+                DripArc.gravityIn(player.level().dimension())), cast.spray().shapeOf(delivery),
+                CoatRay.scatteredShares(held, dripsThisTick(player, delivery, landing, held, cast.spray().dripRate())))
                 .forEach(flights::launch);
         return strikesLiving;
+    }
+
+    /**
+     * Sprays a stream throwing drips: a mister's mist lays and shows over the cone, and any other spray runs its
+     * block pass, throws its drips and shows them.
+     *
+     * @param cast    the tick's cast
+     * @param apex    where the drips leave, the lifted blob
+     * @param axis    the look
+     * @param ability  the stream ability
+     * @param delivery the stream's delivery as it reaches for the caster this tick
+     * @param held     the hold's tick count
+     */
+    private static void sprayResidual(CastOn cast, Vec3 apex, Vec3 axis, AbilityDefinition ability, Delivery delivery,
+                                      int held) {
+        ServerPlayer player = cast.player();
+        // residual-spray-cone-centers-on-the-look-from-the-blob: the drips, the block pass and the drawn drips
+        // all leave the blob onto one cone centered on the look, whatever block the crosshair meets
+        // nectar-is-sprayed-goo-with-a-guided-throw-near-a-mob: an aim near a mob centers the cone on it
+        double exitSpeed = exitSpeedOf(cast, delivery);
+        DripArc.Flight flight = dripFlightIn(player.level(), ability);
+        ConvergingCone cone = NectarThrows.guidedCone(player, channelSteps(ability.behaviors(), true))
+                .orElseGet(() -> ConvergingCone.along(player.getEyePosition(), axis, exitSpeed, flight));
+        if (cast.spray().mists()) {
+            // mister-draws-mist-and-lays-one-layer-on-bare-spots: the mist lays and shows, no drip flies
+            layMist(cast, cone, ability, held);
+            sprayDrips(cast, apex, cone, ability, false, held);
+            return;
+        }
+        runBlockPass(cast, dripsEnd(apex, cone, delivery, exitSpeed, flight), delivery, ability, held, true);
+        sprayDrips(cast, apex, cone, ability, throwDrips(cast, apex, cone, ability, held), held);
+    }
+
+    /**
+     * Lays a mister's tick: the cone's rays reach out from the eye as far as the mist reaches, and each cell a ray
+     * meets that holds no layer takes one through the residual's own landing, paid for as it lands, so a covered
+     * spot takes nothing and costs nothing, and adhesion, cohesion and the residual's own cell stay its own. The
+     * flow scales how many spots a tick the mist reaches.
+     * mister-draws-mist-and-lays-one-layer-on-bare-spots
+     * mister-nozzle-applies-one-layer-at-most
+     *
+     * @param cast    the tick's cast
+     * @param cone    the cone the mist covers, from the eye along the look
+     * @param ability the sprayed residual
+     * @param held    the hold's tick count, which picks the tick's spots in the cone
+     */
+    private static void layMist(CastOn cast, ConvergingCone cone, AbilityDefinition ability, int held) {
+        Optional<DripLanding> landing = DripLanding.in(channelSteps(ability.behaviors(), true));
+        if (landing.isEmpty()) {
+            return;
+        }
+        ServerPlayer player = cast.player();
+        ServerLevel level = cast.level();
+        Delivery delivery = ability.delivery();
+        ConeShape shape = cast.spray().shapeOf(delivery);
+        ChannelHost host = PlayerHost.landing(level, player, placementPrice(player, ability, cast.spray().paysFrom()));
+        CoatRay.BlockClip clip = CoatRay.clippingFor(level, landing.get().fluidFooting());
+        int spots = MIST_SPOTS_PER_DRIP * dripsThisTick(player, delivery, landing, held, cast.spray().dripRate());
+        for (CoatRay.ConeShare share : CoatRay.scatteredShares(held, spots)) {
+            Vec3 ray = StreamCone.launchDirection(cone.axis(), shape, share.tilt(), share.turn());
+            clip.firstHit(cone.eye(), cone.eye().add(ray.scale(MIST_REACH)))
+                    .flatMap(strike -> landing.get().cellFed(host, strike))
+                    .filter(fed -> VolumeCellBlock.layersOf(level.getBlockState(fed.cell())) == 0)
+                    .ifPresent(fed -> landing.get().feed(host, fed));
+        }
     }
 
     /**
@@ -457,8 +588,23 @@ public final class GooStreamHandler {
      */
     static List<DripFlights.Flight> flightsOf(DripFlights.Thrower thrower, DripThrow thrown, Delivery delivery,
                                               List<CoatRay.ConeShare> shares) {
+        return flightsOf(thrower, thrown, ConeShape.round(delivery.coneDegrees()), shares);
+    }
+
+    /**
+     * A tick's drip flights in a cone of a shape.
+     * spray-item-takes-different-nozzles-doing-different-things
+     *
+     * @param thrower who threw them
+     * @param thrown  where they leave and what they are thrown onto
+     * @param shape   the cone's widths across and up and down
+     * @param shares  the tick's places in the cone, one a drip
+     * @return the flights, one a share
+     */
+    static List<DripFlights.Flight> flightsOf(DripFlights.Thrower thrower, DripThrow thrown, ConeShape shape,
+                                              List<CoatRay.ConeShare> shares) {
         return shares.stream().map(share -> new DripFlights.Flight(thrower, thrown.apex(),
-                dripLaunch(thrown, delivery, share))).toList();
+                dripLaunch(thrown, shape, share))).toList();
     }
 
     /**
@@ -472,8 +618,20 @@ public final class GooStreamHandler {
      * @return the launch velocity, blocks per tick
      */
     public static Vec3 dripLaunch(DripThrow thrown, Delivery delivery, CoatRay.ConeShare share) {
-        return thrown.cone().launchFrom(thrown.apex(), delivery.coneDegrees(), share, thrown.exitSpeed(),
-                thrown.gravity());
+        return dripLaunch(thrown, ConeShape.round(delivery.coneDegrees()), share);
+    }
+
+    /**
+     * One server drip's launch for its share of a cone of a shape, the launch its drawn drip takes.
+     * spray-item-takes-different-nozzles-doing-different-things
+     *
+     * @param thrown where the drip leaves and what it is thrown onto
+     * @param shape  the cone's widths across and up and down
+     * @param share  the drip's place in the cone
+     * @return the launch velocity, blocks per tick
+     */
+    public static Vec3 dripLaunch(DripThrow thrown, ConeShape shape, CoatRay.ConeShare share) {
+        return thrown.cone().launchFrom(thrown.apex(), shape, share, thrown.exitSpeed(), thrown.gravity());
     }
 
     /**
@@ -572,8 +730,20 @@ public final class GooStreamHandler {
      * @param level     the server level
      * @param player    the holding player
      * @param abilityId the ability's id, for a refusal's log
+     * @param spray     where what the tick lays pays from and how much it throws
      */
-    private record CastOn(ServerLevel level, ServerPlayer player, Identifier abilityId) {
+    private record CastOn(ServerLevel level, ServerPlayer player, Identifier abilityId, HeldSpray spray) {
+
+        /**
+         * A glove's cast, paying from the goo the inventory carries.
+         *
+         * @param level     the server level
+         * @param player    the holding player
+         * @param abilityId the ability's id
+         */
+        CastOn(ServerLevel level, ServerPlayer player, Identifier abilityId) {
+            this(level, player, abilityId, HeldSpray.GLOVE);
+        }
     }
 
     /**
@@ -647,8 +817,8 @@ public final class GooStreamHandler {
         }
         ServerPlayer player = cast.player();
         ChannelAim aim = new ChannelAim(reachEnd, null, delivery.coneDegrees(), held, reaching);
-        runSteps(PlayerHost.channeling(player.level(), player, aim, placementPrice(player, ability)), HostKind.PLAYER,
-                blockSteps, cast);
+        runSteps(PlayerHost.channeling(player.level(), player, aim, placementPrice(player, ability, cast.spray().paysFrom())),
+                HostKind.PLAYER, blockSteps, cast);
     }
 
     /**
@@ -657,15 +827,16 @@ public final class GooStreamHandler {
      * exactly with the remainder paying first; for any other, nothing.
      * goop-drains-per-cubic-meter-of-slime-placed
      *
-     * @param player  the streaming player
-     * @param ability the stream ability
+     * @param player   the streaming player
+     * @param ability  the stream ability
+     * @param paysFrom where the price is paid from
      * @return the placement price
      */
-    static PlacementPrice placementPrice(ServerPlayer player, AbilityDefinition ability) {
+    static PlacementPrice placementPrice(ServerPlayer player, AbilityDefinition ability, PaysFrom paysFrom) {
         if (!ability.delivery().drainsOnPlacement()) {
             return PlacementPrice.FREE;
         }
-        return placementsPerCost -> AbilityCharges.charge(player, ability.gooType(),
+        return placementsPerCost -> AbilityCharges.charge(player, paysFrom, ability.gooType(),
                 ability.cost().exactIn(GooValues.of(player.level())).dividedBy(placementsPerCost));
     }
 
@@ -818,20 +989,43 @@ public final class GooStreamHandler {
      * residual-spray-cone-centers-on-the-look-from-the-blob
      * operator UAT 2026-11-17: every drawn drip lands; a drip you see splat lays its layer where it splats
      *
-     * @param player        the spraying player
+     * @param cast          the tick's cast, naming who sprays and how much a tick
      * @param apex          where the drips leave, the lifted blob
      * @param cone          the cone the drips land in
      * @param ability       the stream ability
      * @param strikesLiving whether the stream's drips end on the living they meet
      * @param held          the hold's tick count, which seeds the tick's drips' places in the cone
      */
-    private static void sprayDrips(ServerPlayer player, Vec3 apex, ConvergingCone cone, AbilityDefinition ability,
+    private static void sprayDrips(CastOn cast, Vec3 apex, ConvergingCone cone, AbilityDefinition ability,
                                    boolean strikesLiving, int held) {
+        ServerPlayer player = cast.player();
         Delivery delivery = ability.delivery();
-        int drips = dripsThisTick(player, delivery, DripLanding.in(channelSteps(ability.behaviors(), true)), held);
-        delivery.particle().ifPresent(particle -> EntityVisuals.sendToWatchers(player, dripMotesOf(player.getId(),
-                apex, cone, particle, delivery, new DrawnDrips(exitSpeedOf(player, delivery), strikesLiving, held,
-                        drips))));
+        int drips = dripsThisTick(player, delivery, DripLanding.in(channelSteps(ability.behaviors(), true)), held,
+                cast.spray().dripRate());
+        delivery.particle().ifPresent(particle -> EntityVisuals.sendToWatchers(player, sprayPayloadOf(player.getId(),
+                apex, cone, particle, new DrawnDrips(exitSpeedOf(cast, delivery), strikesLiving, held,
+                        drips, cast.spray().shapeOf(delivery)), cast.spray().mists(), ability.gooType())));
+    }
+
+    /**
+     * What a tick's spray shows the watchers: a mister's mist over the cone in the goo's colours, or the drips any
+     * other spray threw, each on its own arc.
+     * mister-draws-mist-and-lays-one-layer-on-bare-spots
+     *
+     * @param casterId the caster's entity id
+     * @param apex     where the drips leave, the lifted blob
+     * @param cone     the cone the spray lands in
+     * @param particle the goo's spray particle
+     * @param drawn    how the tick's drawn drips fly, in the cone's shape
+     * @param mists    whether the spray mists
+     * @param gooType  the sprayed goo type
+     * @return the payload
+     */
+    static CustomPacketPayload sprayPayloadOf(int casterId, Vec3 apex, ConvergingCone cone, Identifier particle,
+                                              DrawnDrips drawn, boolean mists,
+                                              ResourceKey<GooTypeDefinition> gooType) {
+        return mists ? new SprayMistPayload(casterId, apex, cone.axis(), drawn.shape(), particle, gooType,
+                MIST_REACH) : dripMotesOf(casterId, apex, cone, particle, drawn);
     }
 
     /**
@@ -841,8 +1035,9 @@ public final class GooStreamHandler {
      * @param strikesLiving whether a drawn drip ends on the living it meets
      * @param held          the hold's tick count, which seeds the tick's drips' places in the cone
      * @param drips         the drips the server threw this tick
+     * @param shape         the cone the drips are thrown in, the sprayer's nozzle's shape
      */
-    record DrawnDrips(double exitSpeed, boolean strikesLiving, int held, int drips) {
+    record DrawnDrips(double exitSpeed, boolean strikesLiving, int held, int drips, ConeShape shape) {
     }
 
     /**
@@ -855,13 +1050,12 @@ public final class GooStreamHandler {
      * @param apex     where the drips leave, the lifted blob
      * @param cone     the cone the drips land in
      * @param particle the drip's particle
-     * @param delivery the stream delivery
-     * @param drawn    how the tick's drawn drips fly
+     * @param drawn    how the tick's drawn drips fly, in the cone's shape
      * @return the payload
      */
     static StreamMotesPayload dripMotesOf(int casterId, Vec3 apex, ConvergingCone cone, Identifier particle,
-                                          Delivery delivery, DrawnDrips drawn) {
-        return new StreamMotesPayload(casterId, apex, cone.axis(), particle, delivery.coneDegrees(), 0,
+                                          DrawnDrips drawn) {
+        return new StreamMotesPayload(casterId, apex, cone.axis(), particle, drawn.shape(), 0,
                 drawn.exitSpeed(), drawn.strikesLiving(), drawn.held(), drawn.drips(), cone.eye(), cone.lands());
     }
 
@@ -879,7 +1073,8 @@ public final class GooStreamHandler {
      */
     static StreamMotesPayload motesOf(int casterId, Vec3 apex, Vec3 axis, Identifier particle, Delivery delivery,
                                       double speed, double exitSpeed) {
-        return new StreamMotesPayload(casterId, apex, axis, particle, delivery.coneDegrees(), speed, exitSpeed,
+        return new StreamMotesPayload(casterId, apex, axis, particle, ConeShape.round(delivery.coneDegrees()), speed,
+                exitSpeed,
                 false, 0, NO_DRIPS, apex, 0);
     }
 
@@ -894,15 +1089,30 @@ public final class GooStreamHandler {
      * @param delivery the stream delivery
      * @param landing  what the stream's drips lay, empty where they lay nothing
      * @param held     the hold's tick count
+     * @param flowRate the multiple of the delivery's drips the spray throws, one for the glove
      * @return the tick's drips
      */
-    static int dripsThisTick(ServerPlayer player, Delivery delivery, Optional<DripLanding> landing, int held) {
+    static int dripsThisTick(ServerPlayer player, Delivery delivery, Optional<DripLanding> landing, int held,
+                             double flowRate) {
+        // spray-item-sprays-more-or-less-per-tick: the sprayer's flow scales the tick's drips, the glove's is one
         if (landing.filter(DripLanding::throwsFasterBySpeed).isEmpty()) {
-            return delivery.dripsPerTick();
+            return SlickLayPace.dripsThisTick(delivery.dripsPerTick(), flowRate, held);
         }
         double walk = SlickLayPace.unadjustedSpeed(player.getAttributeBaseValue(Attributes.MOVEMENT_SPEED));
         double factor = SlickLayPace.factor(player.getKnownMovement().horizontalDistance(), walk);
-        return SlickLayPace.dripsThisTick(delivery.dripsPerTick(), factor, held);
+        return SlickLayPace.dripsThisTick(delivery.dripsPerTick(), factor * flowRate, held);
+    }
+
+    /**
+     * The speed a tick's drips leave at, the nozzle carrying them farther.
+     * operator ruling 2026-11-18: Thin goes farther and Jet farther still
+     *
+     * @param cast     the tick's cast, naming the caster and the nozzle
+     * @param delivery the stream delivery
+     * @return the exit speed, blocks per tick
+     */
+    private static double exitSpeedOf(CastOn cast, Delivery delivery) {
+        return exitSpeedOf(cast.player(), delivery) * cast.spray().reachScale();
     }
 
     /**
@@ -953,7 +1163,7 @@ public final class GooStreamHandler {
      * @return the launch velocity, blocks per tick
      */
     public static Vec3 moteLaunch(StreamMotesPayload motes, CoatRay.ConeShare share) {
-        return moteLaunch(StreamCone.launchDirection(motes.axis(), motes.coneDegrees(), share.tilt(), share.turn()),
+        return moteLaunch(StreamCone.launchDirection(motes.axis(), motes.coneShape(), share.tilt(), share.turn()),
                 motes.speed());
     }
 

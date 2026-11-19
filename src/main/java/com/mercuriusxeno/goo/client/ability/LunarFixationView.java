@@ -70,7 +70,9 @@ public final class LunarFixationView {
      * @param pitchTurn the mouse's upward turn
      */
     public static void turnByTheMouse(LocalPlayer player, double yawTurn, double pitchTurn) {
-        turnUnlessHeld(player, player.getData(GooAttachments.LUNAR_FIXATION), yawTurn, pitchTurn);
+        // invert-flips-your-gravity-and-lets-you-walk-on-ceilings: a rolled camera turns toward the sides it shows
+        float steer = InvertView.steerSign(player);
+        turnUnlessHeld(player, player.getData(GooAttachments.LUNAR_FIXATION), yawTurn * steer, pitchTurn * steer);
     }
 
     /**

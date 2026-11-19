@@ -11,7 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Where a held stack, Knives' or Dart's, centers: one cube edge over the
  * palm the hand's pass draws for the local player in first person, and one
- * cube edge over the body's hand for a caster drawn in third person, so the
+ * cube edge over the drawn palm for a caster drawn in third person, so the
  * pile stands over the hand however it is seen.
  * decision knives-hover-above-the-blob-cube-over-the-hand
  * decision dart-javelins-hover-over-the-shrinking-blob-cube
@@ -19,8 +19,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class StackAnchorTest {
 
     private static final double DELTA = 1e-6;
-    /** The full blob cube's edge, which a stack's cube stands over the palm by: one cube clear of it. */
-    private static final double CUBE_EDGE = 2 * 0.15 * 0.5 * 0.9;
 
     private static Player caster() {
         return (Player) Minecraft.getInstance().level.getEntity(SprayingClient.CASTER);
@@ -30,13 +28,15 @@ class StackAnchorTest {
         assertTrue(expected.distanceTo(actual) <= DELTA, "expected " + expected + ", was " + actual);
     }
 
+    // decision third-person-blob-stands-above-the-drawn-palm
     @Test
-    void anotherCastersStackCentersOneCubeEdgeOverTheirBodysHand() {
+    void anotherCastersStackCentersOneCubeEdgeOverTheirDrawnPalm() {
         try (SprayingClient client = SprayingClient.another(GooTypes.CRYSTAL)) {
-            Player caster = caster();
-            Vec3 overTheHand = KnivesCharge.handAt(caster, true, 0f).add(0, CUBE_EDGE, 0);
+            client.drawsThePalm(BlobRestTest.DRAWN);
+            Vec3 overThePalm = BlobRestTest.DRAWN.place().add(BlobRestTest.DRAWN.modelUp()
+                    .scale(StackHover.KNIFE_RISE_ABOVE_THE_PALM));
 
-            assertNear(overTheHand, StackAnchor.cubeOf(caster, 0f));
+            assertNear(overThePalm, StackAnchor.cubeOf(caster(), 0f));
         }
     }
 

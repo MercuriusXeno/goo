@@ -1,8 +1,10 @@
 package com.mercuriusxeno.goo.gametest;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.program.VerdantDraws;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
 import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
+import com.mercuriusxeno.goo.network.HeldAbilitySteps;
 import com.mercuriusxeno.goo.network.PrismChanneler;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -12,17 +14,21 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.SugarCaneBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.Map;
 import java.util.function.Consumer;
 
 /**
  * Gametests for Leaf Verdant: Growth held on a prism for its hold makes it
  * verdant (decision channeled-hosts-convert-prisms-over-the-hold), and as it pulses, cobblestone around it turns mossy, open water gains a
- * lily pad, and sugar cane in its reach is nudged along.
+ * lily pad, and sugar cane in its reach is nudged along. Each test's prism
+ * draws its picks from a seeded source, so its pulses green the same cells
+ * every run.
  * verdant-prism-greens-blocks-slowly
  */
 @RegistersGameTests
@@ -58,6 +64,26 @@ public final class VerdantTests {
     /** The ticks after the hold converts the prism that it is saved and loaded back. */
     private static final int RELOAD_AFTER_CONVERSION = 3;
     private static final String RELOAD_REQUIRED = "the prism should load back from its save";
+    /**
+     * The seeds the prisms' pulses draw their picks from, so each run greens
+     * the same cells on the same pulses rather than waiting on the level's
+     * picks to land on cobble, water and cane.
+     * gametests-waiting-on-a-random-draw-are-found-and-made-deterministic
+     * operator ruling 2026-11-19: seed the drawing random
+     */
+    private static final long GREENS_SEED = 0L;
+    private static final String VERDANT_STEP = "verdant";
+    private static final String RADIUS = "radius";
+    private static final String CROP_ODDS = "crop_odds";
+    /**
+     * A pulse radius reaching the cobble, the water and the cane from the
+     * prism while staying short of the grid's gap past the six-block bay, so
+     * every pick lands on cells this test lays or on the empty gap.
+     */
+    private static final int IN_BAY_RADIUS = 4;
+    /** Crop odds of one in one, so every pulse nudges the bay's one crop. */
+    private static final int SURE_CROP_ODDS = 1;
+    private static final long RELOAD_SEED = 0L;
     private static final String SHOULD_RUN_AFTER_RELOAD = "Verdant should keep greening after a reload;"
             + " program %s, mossy %b";
 
@@ -68,7 +94,10 @@ public final class VerdantTests {
      * Lays a floor half cobblestone, half open water, with sugar cane at the
      * seam, stands a prism on it and lands leaf goo on the prism; before the
      * bound runs out a cobblestone stands mossy, a lily pad floats on the
-     * water, and the cane has aged or grown.
+     * water, and the cane has aged or grown. The hold converts the prism to
+     * Verdant at a radius kept inside the bay and crop odds of one, and its
+     * pulses draw from a seeded source.
+     * gametests-waiting-on-a-random-draw-are-found-and-made-deterministic
      *
      * @param helper the gametest helper
      */
@@ -81,8 +110,11 @@ public final class VerdantTests {
         helper.setBlock(SAND, Blocks.SAND);
         helper.setBlock(CANE, Blocks.SUGAR_CANE);
         helper.setBlock(PRISM, GooBlocks.PRISM.get().defaultBlockState().setValue(PrismBlock.FACING, Direction.UP));
+        Runnable release = VerdantDraws.hold(helper.absolutePos(PRISM), RandomSource.create(GREENS_SEED));
         int converted = PrismChanneler.hold(helper, GROWTH) + 1;
-        ServerPlayer holder = PrismChanneler.holdOn(helper, GooTypes.LEAF, GROWTH, PRISM, STAND, converted - 1);
+        ServerPlayer holder = PrismChanneler.holdOn(helper, GooTypes.LEAF, GROWTH, PRISM, STAND, converted - 1,
+                shipped -> HeldAbilitySteps.withStepFields(shipped, GROWTH, VERDANT_STEP,
+                        Map.of(RADIUS, IN_BAY_RADIUS, CROP_ODDS, SURE_CROP_ODDS)));
         helper.runAfterDelay(converted, () -> {
             helper.getLevel().getServer().getPlayerList().remove(holder);
             String combo = helper.getBlockEntity(PRISM, PrismBlockEntity.class).getCombo();
@@ -95,6 +127,7 @@ public final class VerdantTests {
             boolean nudged = cane.is(Blocks.SUGAR_CANE)
                     && (cane.getValue(SugarCaneBlock.AGE) > 0 || helper.getBlockState(CANE.above()).is(Blocks.SUGAR_CANE));
             helper.assertTrue(mossy && lily && nudged, String.format(SHOULD_GREEN, mossy, lily, cane));
+            release.run();
         });
     }
 
@@ -114,6 +147,7 @@ public final class VerdantTests {
         }
         helper.setBlock(PRISM, GooBlocks.PRISM.get().defaultBlockState().setValue(PrismBlock.FACING, Direction.UP));
         BlockPos prismAt = helper.absolutePos(PRISM);
+        Runnable release = VerdantDraws.hold(prismAt, RandomSource.create(RELOAD_SEED));
         int reloadAt = PrismChanneler.hold(helper, GROWTH) + RELOAD_AFTER_CONVERSION;
         ServerPlayer holder = PrismChanneler.holdOn(helper, GooTypes.LEAF, GROWTH, PRISM, STAND,
                 PrismChanneler.hold(helper, GROWTH));
@@ -131,6 +165,7 @@ public final class VerdantTests {
             boolean mossy = anyAt(helper, 0, Blocks.MOSSY_COBBLESTONE.defaultBlockState());
             helper.assertTrue(helper.getTick() > reloadAt && after.getBehavior() != null && mossy,
                     String.format(SHOULD_RUN_AFTER_RELOAD, after.getBehavior(), mossy));
+            release.run();
         });
     }
 

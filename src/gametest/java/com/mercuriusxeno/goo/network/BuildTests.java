@@ -20,6 +20,8 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.level.block.entity.ChestBlockEntity;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -50,6 +52,17 @@ public final class BuildTests {
     private static final String BUILD_CARRIES_A_RIDER = "build_carries_a_rider_up_with_the_stone";
     private static final String BUILD_LETS_A_PLAYER_RIDE = "build_accepts_a_riding_players_moves";
     private static final String BUILD_LIFTS_AN_OVERTAKEN_RIDER = "build_lifts_a_rider_the_stone_overtook";
+    private static final String BUILD_LEAVES_A_PILLAR_STANDING = "build_leaves_a_pillar_standing_and_grows_from_its_face";
+    /** The one-wide pillar's south face cells, the footprint, two tall over a dirt foot; air lies north of it. */
+    private static final BlockPos PILLAR_LOW = new BlockPos(2, 1, 2);
+    private static final BlockPos PILLAR_HIGH = new BlockPos(2, 2, 2);
+    private static final int PILLAR_RISE = 2;
+    private static final String BUILD_FIZZLES_ON_A_CHEST = "build_fizzles_on_a_chest_and_charges_nothing";
+    /** The chest the fizzle test aims at, standing on dirt at the bay's floor. */
+    private static final BlockPos CHEST = new BlockPos(2, 1, 2);
+    private static final String BUILD_GROWS_OVER_OBSIDIAN = "build_leaves_obsidian_and_grows_over_it";
+    /** The one-cell footprint the obsidian test raises, obsidian one block under it and dirt under that. */
+    private static final BlockPos OVER_OBSIDIAN = new BlockPos(2, 2, 2);
     /** A few ticks into the rise, the top already half a block over the ground, as a client first sees it. */
     private static final int OVERTAKEN_TICKS = 5;
 
@@ -113,6 +126,84 @@ public final class BuildTests {
         GooTestFunctions.registerTest(registrar, BUILD_CARRIES_A_RIDER, BuildTests::buildCarriesARiderUp);
         GooTestFunctions.registerTest(registrar, BUILD_LETS_A_PLAYER_RIDE, BuildTests::buildAcceptsARidingPlayersMoves);
         GooTestFunctions.registerTest(registrar, BUILD_LIFTS_AN_OVERTAKEN_RIDER, BuildTests::buildLiftsARiderTheStoneOvertook);
+        GooTestFunctions.registerTest(registrar, BUILD_LEAVES_A_PILLAR_STANDING,
+                BuildTests::buildLeavesAPillarStandingAndGrowsFromItsFace);
+        GooTestFunctions.registerTest(registrar, BUILD_FIZZLES_ON_A_CHEST, BuildTests::buildFizzlesOnAChestAndChargesNothing);
+        GooTestFunctions.registerTest(registrar, BUILD_GROWS_OVER_OBSIDIAN, BuildTests::buildLeavesObsidianAndGrowsOverIt);
+    }
+
+    /**
+     * Build cast at rise three on a floor with obsidian one block under the
+     * surface leaves the obsidian where it lies and raises the surface block
+     * three higher on the stone grown over the obsidian.
+     * decision build-leaves-what-a-piston-cannot-push-and-grows-from-it
+     *
+     * @param helper the gametest helper
+     */
+    public static void buildLeavesObsidianAndGrowsOverIt(GameTestHelper helper) {
+        BlockPos obsidian = OVER_OBSIDIAN.below();
+        helper.setBlock(obsidian.below(), Blocks.DIRT);
+        helper.setBlock(obsidian, Blocks.OBSIDIAN);
+        helper.setBlock(OVER_OBSIDIAN, MARKERS.getFirst());
+        submit(helper, OVER_OBSIDIAN, OVER_OBSIDIAN, RISE, Direction.UP);
+        helper.runAfterDelay(BuildStep.RISE_TICKS + SETTLE_SLACK_TICKS, () -> {
+            assertHolds(helper, obsidian, Blocks.OBSIDIAN.defaultBlockState(), STONE_MISSING);
+            for (int height = 0; height < RISE; height++) {
+                assertHolds(helper, OVER_OBSIDIAN.above(height), Blocks.STONE.defaultBlockState(), STONE_MISSING);
+            }
+            assertHolds(helper, OVER_OBSIDIAN.above(RISE), MARKERS.getFirst().defaultBlockState(), STONE_MISSING);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Build cast on the top of a chest holding an item fizzles: no stone grows,
+     * the chest and its item stay in place, and no rock goo is spent.
+     * decision column-meeting-a-block-entity-fizzles-at-no-cost
+     *
+     * @param helper the gametest helper
+     */
+    public static void buildFizzlesOnAChestAndChargesNothing(GameTestHelper helper) {
+        helper.setBlock(CHEST.below(), Blocks.DIRT);
+        helper.setBlock(CHEST, Blocks.CHEST);
+        ChestBlockEntity chest = helper.getBlockEntity(CHEST, ChestBlockEntity.class);
+        chest.setItem(0, new ItemStack(Items.DIAMOND));
+        int spent = submit(helper, CHEST, CHEST, RISE, Direction.UP);
+        helper.runAfterDelay(BuildStep.RISE_TICKS + SETTLE_SLACK_TICKS, () -> {
+            ChestBlockEntity standing = helper.getBlockEntity(CHEST, ChestBlockEntity.class);
+            helper.assertTrue(standing.getItem(0).is(Items.DIAMOND), "The chest should still hold its diamond");
+            for (int height = 1; height <= RISE; height++) {
+                assertHolds(helper, CHEST.above(height), Blocks.AIR.defaultBlockState(), STONE_MISSING);
+            }
+            helper.assertTrue(spent == 0, "A fizzled Build should spend no rock goo, spent " + spent + " mB");
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Build cast on the south face of a one-wide pillar with air behind it
+     * leaves every pillar block where it stood and stands its stone south of
+     * the pillar; the air north of the pillar stays air.
+     * decision build-extends-the-first-block-with-air-behind-it
+     *
+     * @param helper the gametest helper
+     */
+    public static void buildLeavesAPillarStandingAndGrowsFromItsFace(GameTestHelper helper) {
+        helper.setBlock(PILLAR_LOW.below(), Blocks.DIRT);
+        helper.setBlock(PILLAR_LOW, MARKERS.getLast());
+        helper.setBlock(PILLAR_HIGH, MARKERS.getFirst());
+        submit(helper, PILLAR_LOW, PILLAR_HIGH, PILLAR_RISE, Direction.SOUTH);
+        helper.runAfterDelay(BuildStep.RISE_TICKS + SETTLE_SLACK_TICKS, () -> {
+            assertHolds(helper, PILLAR_LOW, MARKERS.getLast().defaultBlockState(), STONE_MISSING);
+            assertHolds(helper, PILLAR_HIGH, MARKERS.getFirst().defaultBlockState(), STONE_MISSING);
+            for (BlockPos face : List.of(PILLAR_LOW, PILLAR_HIGH)) {
+                for (int out = 1; out <= PILLAR_RISE; out++) {
+                    assertHolds(helper, face.south(out), Blocks.STONE.defaultBlockState(), STONE_MISSING);
+                }
+                assertHolds(helper, face.north(), Blocks.AIR.defaultBlockState(), STONE_MISSING);
+            }
+            helper.succeed();
+        });
     }
 
     /**

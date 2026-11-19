@@ -42,20 +42,20 @@ public final class StaleHeldEffectTests {
     }
 
     /**
-     * A player carrying a held effect for goo:deep_dive, with deep's held
+     * A player carrying a held effect for goo:deep_dive, with sculk's held
      * effect shown, ticks once and holds neither.
      *
      * @param helper the gametest helper
      */
     public static void staleHeldEffectEndsOnTheNextTick(GameTestHelper helper) {
-        ServerPlayer player = SelfDeliveryTests.invoker(helper, GooTypes.DEEP);
+        ServerPlayer player = SelfDeliveryTests.invoker(helper, GooTypes.SCULK);
         HeldEffects stale = player.getData(GooAttachments.HELD_EFFECTS)
-                .start(new HeldEffects.Held(DEEP_DIVE, GooTypes.DEEP, 1, Set.of(), 0L)).after();
+                .start(new HeldEffects.Held(DEEP_DIVE, GooTypes.SCULK, 1, Set.of(), 0L)).after();
         player.setData(GooAttachments.HELD_EFFECTS, stale);
-        player.addEffect(new MobEffectInstance(GooMobEffects.HELD_EFFECTS.get(GooTypes.DEEP), MobEffectInstance.INFINITE_DURATION));
+        player.addEffect(new MobEffectInstance(GooMobEffects.HELD_EFFECTS.get(GooTypes.SCULK), MobEffectInstance.INFINITE_DURATION));
         player.doTick();
         boolean held = HeldEffectsEvents.holds(player, DEEP_DIVE);
-        boolean shown = player.hasEffect(GooMobEffects.HELD_EFFECTS.get(GooTypes.DEEP));
+        boolean shown = player.hasEffect(GooMobEffects.HELD_EFFECTS.get(GooTypes.SCULK));
         helper.getLevel().getServer().getPlayerList().remove(player);
         helper.assertTrue(!held && !shown, String.format(SHOULD_END, DEEP_DIVE, held, shown));
         helper.succeed();

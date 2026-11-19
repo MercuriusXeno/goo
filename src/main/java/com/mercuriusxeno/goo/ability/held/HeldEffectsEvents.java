@@ -3,14 +3,14 @@ package com.mercuriusxeno.goo.ability.held;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
-import com.mercuriusxeno.goo.ability.deep.Sculker;
 import com.mercuriusxeno.goo.ability.gluttony.GluttonyEvents;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
+import com.mercuriusxeno.goo.ability.nether.Invert;
 import com.mercuriusxeno.goo.ability.nether.Undead;
 import com.mercuriusxeno.goo.ability.program.PlayerHost;
-import com.mercuriusxeno.goo.ability.program.Sight;
 import com.mercuriusxeno.goo.ability.program.SoundCue;
 import com.mercuriusxeno.goo.ability.quantum.OutOfPhase;
+import com.mercuriusxeno.goo.ability.sculk.Sculker;
 import com.mercuriusxeno.goo.ability.seal.Elude;
 import com.mercuriusxeno.goo.ability.seal.EludeEvents;
 import com.mercuriusxeno.goo.ability.typhoon.Airborn;
@@ -99,6 +99,32 @@ public final class HeldEffectsEvents {
      */
     public static void end(ServerPlayer player, Identifier ability) {
         apply(player, player.getData(GooAttachments.HELD_EFFECTS).end(ability));
+    }
+
+    /**
+     * Ends every held effect laying a state, clearing what each laid.
+     *
+     * @param player the player
+     * @param state  the laid state whose effects end
+     */
+    public static void endLaying(ServerPlayer player, LaidState state) {
+        player.getData(GooAttachments.HELD_EFFECTS).held().stream()
+                .filter(effect -> effect.lays().contains(state))
+                .map(HeldEffects.Held::ability)
+                .toList()
+                .forEach(ability -> end(player, ability));
+    }
+
+    /**
+     * Answers whether a player holds an effect laying a state.
+     *
+     * @param player the player
+     * @param state  the laid state
+     * @return true while a held effect laying it stands
+     */
+    public static boolean laysState(ServerPlayer player, LaidState state) {
+        return player.hasData(GooAttachments.HELD_EFFECTS) && player.getData(GooAttachments.HELD_EFFECTS).held()
+                .stream().anyMatch(effect -> effect.lays().contains(state));
     }
 
     /**
@@ -242,31 +268,20 @@ public final class HeldEffectsEvents {
             // undead-nether-hearts-burn-in-sunlight: the player counts as undead no longer
             player.setData(GooAttachments.UNDEAD, Undead.NONE);
         }
-        clearOverlays(player, lays);
-    }
-
-    /**
-     * Clears the overlays an ended effect laid on the player's model: its
-     * ancient overlay.
-     *
-     * @param player the player
-     * @param lays   the states the ended effect laid
-     */
-    private static void clearOverlays(ServerPlayer player, Set<LaidState> lays) {
-        if (lays.contains(LaidState.ANCIENT)) {
-            // ancient-makes-the-player-immortal: the aged overlay ends with the held effect
-            Ancient.clear(player);
-        }
     }
 
     /**
      * Clears the state an ended effect laid on how the player moves and on
-     * the mobs around it: its flight and its Herd.
+     * the mobs around it: its turned gravity, its flight and its Herd.
      *
      * @param player the player
      * @param lays   the states the ended effect laid
      */
     private static void clearMotionStates(ServerPlayer player, Set<LaidState> lays) {
+        if (lays.contains(LaidState.INVERT)) {
+            // invert-flips-your-gravity-and-lets-you-walk-on-ceilings: the player falls back down under its own gravity
+            Invert.clear(player);
+        }
         if (lays.contains(LaidState.AIRBORN)) {
             // tailwind-and-airborn-merge-into-float: Float's flight ends with its held effect
             player.setData(GooAttachments.AIRBORN, Airborn.NONE);
@@ -279,16 +294,12 @@ public final class HeldEffectsEvents {
 
     /**
      * Clears the states an ended effect laid on the player's senses and
-     * draws: its sight, its Elude and its Lux.
+     * draws: its Elude and its Lux.
      *
      * @param player the player
      * @param lays   the states the ended effect laid
      */
     static void clearMindStates(ServerPlayer player, Set<LaidState> lays) {
-        if (lays.contains(LaidState.SIGHT)) {
-            // sight-lengthens-shift-and-outlines-fungus: the sight ends with its held effect
-            player.setData(GooAttachments.SIGHT, Sight.NONE);
-        }
         clearAbilityState(player, lays);
     }
 

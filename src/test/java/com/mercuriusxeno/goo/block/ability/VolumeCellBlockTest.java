@@ -6,6 +6,7 @@ import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.block.CompiledStateDefinition;
 import com.mercuriusxeno.goo.data.GooFraction;
+import com.mercuriusxeno.goo.data.GooBaseValuesPreview;
 import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mercuriusxeno.goo.throwing.DripFall;
@@ -146,17 +147,20 @@ class VolumeCellBlockTest {
 
         /** molten-burns-mobs-as-hard-as-lava-and-a-hit-spends-a-layer: Molten's cell is the volume cell, burning */
         @Test
-        void gooBlocksRegistersSlimeSlickMoltenAndShatterAsTheOneVolumeCell() throws ReflectiveOperationException {
+        void gooBlocksRegistersSlimeSlickMoltenShatterAndDowsingAsTheOneVolumeCell()
+                throws ReflectiveOperationException {
             assertEquals(List.of(VolumeCellBlock.class, VolumeCellBlock.class, MoltenCellBlock.class,
-                            VolumeCellBlock.class),
+                            VolumeCellBlock.class, VolumeCellBlock.class),
                     List.of(registeredBlockClass("SLIME_COAT"), registeredBlockClass("KINETIC_SLICK"),
-                            registeredBlockClass("BLAZE_MOLTEN"), registeredBlockClass("CRYSTAL_SHATTER")));
+                            registeredBlockClass("BLAZE_MOLTEN"), registeredBlockClass("CRYSTAL_SHATTER"),
+                            registeredBlockClass("ASTRAL_DOWSING")));
         }
 
         @Test
-        void slimeIsBoundToWeirdSlickToKineticAndMoltenToBlaze() {
-            assertEquals(List.of(GooTypes.WEIRD, GooTypes.KINETIC, GooTypes.BLAZE),
-                    List.of(CellBinding.SLIME.gooType(), CellBinding.SLICK.gooType(), CellBinding.MOLTEN.gooType()));
+        void slimeIsBoundToWeirdSlickToKineticMoltenToBlazeAndDowsingToAstral() {
+            assertEquals(List.of(GooTypes.WEIRD, GooTypes.KINETIC, GooTypes.BLAZE, GooTypes.ASTRAL),
+                    List.of(CellBinding.SLIME.gooType(), CellBinding.SLICK.gooType(), CellBinding.MOLTEN.gooType(),
+                            CellBinding.DOWSING.gooType()));
         }
 
         @Test
@@ -168,9 +172,18 @@ class VolumeCellBlockTest {
         /** molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava: Molten alone pools on lava */
         @Test
         void moltenAlonePoolsOnLava() {
-            assertEquals(List.of(FluidFooting.NONE, FluidFooting.NONE, FluidFooting.LAVA),
+            assertEquals(List.of(FluidFooting.NONE, FluidFooting.NONE, FluidFooting.LAVA, FluidFooting.NONE),
                     List.of(CellBinding.SLIME.fluidFooting(), CellBinding.SLICK.fluidFooting(),
-                            CellBinding.MOLTEN.fluidFooting()));
+                            CellBinding.MOLTEN.fluidFooting(), CellBinding.DOWSING.fluidFooting()));
+        }
+
+        /** astral-world-goo-is-dowsing-an-x-ray-of-ore: Dowsing's cell is ordinary ground to stand on */
+        @Test
+        void dowsingStandsAtOrdinaryGroundFrictionAndNeitherBouncesNorRamps() {
+            CellSurface dowsing = CellBinding.DOWSING.surface();
+
+            assertEquals(List.of(CellSurface.BOUNCE.friction(), false, false),
+                    List.of(dowsing.friction(), dowsing.bounces(), dowsing.ramps()));
         }
 
         /**
@@ -477,6 +490,21 @@ class VolumeCellBlockTest {
         void slicksCostPricesACubicMeter() {
             assertEquals(Optional.of("%s/m³"), AbilityJson.decode("kinetic_slick").costFormula());
         }
+
+        /**
+         * A broken Dowsing cell drops astral goo, a fifteenth of Dowsing's
+         * shipped cost for each layer it held.
+         * astral-world-goo-is-dowsing-an-x-ray-of-ore
+         */
+        @Test
+        void aBrokenDowsingCellDropsAstralGooAFifteenthOfDowsingsCostPerLayer() {
+            GooFraction dowsingCost = AbilityJson.decode("astral_dowsing").cost().exactIn(GooValueTable.EMPTY);
+            int dowsingLayers = 7;
+
+            assertEquals(Optional.of(new VolumeCellBlock.Reclaim(GooTypes.ASTRAL,
+                            dowsingCost.times(dowsingLayers).dividedBy(FIFTEEN).floor())),
+                    VolumeCellBlock.reclaimedBy(CellBinding.DOWSING, dowsingLayers, dowsingCost));
+        }
     }
 
     /**
@@ -530,28 +558,28 @@ class VolumeCellBlockTest {
     }
 
     /**
-     * A broken Host cell gives back deep goo, each layer a fifteenth of
-     * Host's cost as deep_host.json ships it
-     * (decision host-is-a-sculky-slime-that-sculk-spreads-eagerly-through).
+     * A broken Creep cell gives back sculk goo, each layer a fifteenth of
+     * Creep's cost as sculk_creep.json ships it
+     * (decision host-and-spores-combine-into-one-residual).
      */
     @Nested
-    class HostReclaim {
+    class CreepReclaim {
 
         private static final int LAYERS = 7;
 
         @Test
-        void hostIsDeepGooLaidByDeepsHost() {
-            assertEquals(List.of(GooTypes.DEEP, AbilityJson.idOf("deep_host.json")),
-                    List.of(CellBinding.HOST.gooType(), CellBinding.HOST.layingAbility()));
+        void creepIsSculkGooLaidBySculksCreep() {
+            assertEquals(List.of(GooTypes.SCULK, AbilityJson.idOf("sculk_creep.json")),
+                    List.of(CellBinding.CREEP.gooType(), CellBinding.CREEP.layingAbility()));
         }
 
         @Test
-        void aBrokenHostCellDropsDeepGooAtFifteenthsOfHostsCost() {
-            GooFraction cost = AbilityJson.decode("deep_host").cost().exactIn(GooValueTable.EMPTY);
+        void aBrokenCreepCellDropsSculkGooAtFifteenthsOfCreepsCost() {
+            GooFraction cost = AbilityJson.decode("sculk_creep").cost().exactIn(GooValueTable.EMPTY);
 
-            assertEquals(Optional.of(new VolumeCellBlock.Reclaim(GooTypes.DEEP,
+            assertEquals(Optional.of(new VolumeCellBlock.Reclaim(GooTypes.SCULK,
                             cost.times(LAYERS).dividedBy(FIFTEEN).floor())),
-                    VolumeCellBlock.reclaimedBy(CellBinding.HOST, LAYERS, cost));
+                    VolumeCellBlock.reclaimedBy(CellBinding.CREEP, LAYERS, cost));
         }
     }
 
@@ -608,9 +636,10 @@ class VolumeCellBlockTest {
     }
 
     /**
-     * A broken Infest cell gives back nether goo, each layer a fifteenth of
-     * Infest's cost as nether_infest.json ships it.
+     * A broken Infest cell gives back zombie goo, each layer a fifteenth of
+     * Infest's cost as zombie_infest.json ships it.
      * infest-is-nethers-goo-the-decay-effect-localized-around-the-goo
+     * zombie-goo-is-the-undead-and-takes-the-decay-abilities
      */
     @Nested
     class InfestReclaim {
@@ -618,16 +647,16 @@ class VolumeCellBlockTest {
         private static final int LAYERS = 8;
 
         @Test
-        void infestIsNetherGooLaidByNethersInfest() {
-            assertEquals(List.of(GooTypes.NETHER, AbilityJson.idOf("nether_infest.json")),
+        void infestIsZombieGooLaidByZombiesInfest() {
+            assertEquals(List.of(GooTypes.ZOMBIE, AbilityJson.idOf("zombie_infest.json")),
                     List.of(CellBinding.INFEST.gooType(), CellBinding.INFEST.layingAbility()));
         }
 
         @Test
-        void aBrokenInfestCellDropsNetherGooAtFifteenthsOfInfestsCost() {
-            GooFraction cost = AbilityJson.decode("nether_infest").cost().exactIn(GooValueTable.EMPTY);
+        void aBrokenInfestCellDropsZombieGooAtFifteenthsOfInfestsCost() {
+            GooFraction cost = AbilityJson.decode("zombie_infest").cost().exactIn(GooValueTable.EMPTY);
 
-            assertEquals(Optional.of(new VolumeCellBlock.Reclaim(GooTypes.NETHER,
+            assertEquals(Optional.of(new VolumeCellBlock.Reclaim(GooTypes.ZOMBIE,
                             cost.times(LAYERS).dividedBy(FIFTEEN).floor())),
                     VolumeCellBlock.reclaimedBy(CellBinding.INFEST, LAYERS, cost));
         }
@@ -656,6 +685,36 @@ class VolumeCellBlockTest {
             assertEquals(Optional.of(new VolumeCellBlock.Reclaim(GooTypes.LEAF,
                             cost.times(LAYERS).dividedBy(FIFTEEN).floor())),
                     VolumeCellBlock.reclaimedBy(CellBinding.VINES, LAYERS, cost));
+        }
+    }
+
+    /**
+     * A broken Mortar cell gives back rock goo, each layer a fifteenth of
+     * Mortar's cost as rock_mortar.json ships it, read here from a fixture's
+     * $mundane_block of 7 rock (decision no-test-asserts-a-shipped-base-value).
+     * mortar-is-rocks-residual-a-petrification-and-hardening-goo
+     * layer-of-rock-goo-is-a-stone-block
+     */
+    @Nested
+    class MortarReclaim {
+
+        private static final int LAYERS = 6;
+
+        @Test
+        void mortarIsRockGooLaidByRocksMortar() {
+            assertEquals(List.of(GooTypes.ROCK, AbilityJson.idOf("rock_mortar.json")),
+                    List.of(CellBinding.MORTAR.gooType(), CellBinding.MORTAR.layingAbility()));
+        }
+
+        @Test
+        void aBrokenMortarCellDropsRockGooAtFifteenthsOfMortarsCost() {
+            GooFraction cost = AbilityJson.decode("rock_mortar").cost().exactIn(GooBaseValuesPreview.registry("""
+                    {"_constants": {"mundane_block": {"rock": 7}}}
+                    """).table());
+
+            assertEquals(Optional.of(new VolumeCellBlock.Reclaim(GooTypes.ROCK,
+                            cost.times(LAYERS).dividedBy(FIFTEEN).floor())),
+                    VolumeCellBlock.reclaimedBy(CellBinding.MORTAR, LAYERS, cost));
         }
     }
 
