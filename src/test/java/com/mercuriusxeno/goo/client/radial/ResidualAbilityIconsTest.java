@@ -44,15 +44,18 @@ class ResidualAbilityIconsTest {
     // operator ruling 2026-11-18: Mortar takes draft F, its goo stacked in three held steps with cracks through it
     // operator pick 2026-11-18: Stitch takes draft C, a sheep's face over a scalloped wool cloud of yarn goo
     // operator pick 2026-11-19: Gloom takes draft C2, a small eclipse over a pool with rising strands
+    // operator pick 2026-11-18: Dowsing takes draft E, a skinny amethyst sliver floating over hanging astral goo
+    // dowsing-icon-is-a-dowsing-rod
     /** The icons drawing the residual style; a later residual joins by its icon's name. */
     static final List<String> RESIDUAL_ICONS = List.of("weird_goop", "kinetic_slick", "blaze_molten", "sculk_creep",
             "crystal_shatter", "hex_leech", "typhoon_updraft", "jelly_nectar", "pulse_signal",
             "metal_spikes", "zombie_infest", "leaf_vines", "unstable_nitro", "quantum_phase", "rock_mortar",
-            "yarn_stitch", "nether_gloom");
+            "yarn_stitch", "nether_gloom", "astral_dowsing");
 
     private static final String SHATTER = "crystal_shatter";
     private static final String NITRO = "unstable_nitro";
     private static final String STITCH = "yarn_stitch";
+    private static final String DOWSING = "astral_dowsing";
     private static final String GLOOM = "nether_gloom";
     private static final String GOO_TYPE = "/data/goo/goo/goo_type/%s.json";
     private static final int HEX = 16;
@@ -109,13 +112,14 @@ class ResidualAbilityIconsTest {
     }
 
     /**
-     * Nitro's goo and Gloom's, each icon's texels in its type's goo colors
-     * outside the shared block, take a shape no other residual icon's goo
-     * takes, drawn or mirrored, whatever mark sits over it.
+     * Nitro's goo, Gloom's and Dowsing's, each icon's texels in its type's
+     * goo colors outside the shared block, take a shape no other residual
+     * icon's goo takes, drawn or mirrored, whatever mark sits over it.
      * each-residual-icon-draws-its-goo-in-its-own-shape
+     * dowsing-icon-is-a-dowsing-rod
      */
     @ParameterizedTest
-    @ValueSource(strings = {NITRO, GLOOM})
+    @ValueSource(strings = {NITRO, GLOOM, DOWSING})
     void itsGooTakesAShapeNoOtherResidualIconsGooTakes(String ability) throws IOException {
         String own = gooMask(ability, false);
         List<String> copies = new ArrayList<>();
