@@ -580,6 +580,47 @@
     ]
   },
   {
+    "id": "yarn",
+    "seed": 40993,
+    "genParams": {
+      "viscosity": 1.8,
+      "decayRate": 0.03,
+      "ignitionChance": 0.007,
+      "ignitionStrength": 1.0,
+      "potHeatRate": 0.012,
+      "potInfluence": 0.8,
+      "neighborhoodReach": 1
+    },
+    "frametime": 4,
+    "shadowHue": 0.07,
+    "palette": [
+      {
+        "position": 0.0,
+        "color": "#3E2414"
+      },
+      {
+        "position": 0.2,
+        "color": "#6B4024"
+      },
+      {
+        "position": 0.4,
+        "color": "#9C6A42"
+      },
+      {
+        "position": 0.6,
+        "color": "#CBAE88"
+      },
+      {
+        "position": 0.8,
+        "color": "#EDE2CA"
+      },
+      {
+        "position": 1.0,
+        "color": "#FFFBF0"
+      }
+    ]
+  },
+  {
     "id": "yore",
     "seed": 40975,
     "genParams": {

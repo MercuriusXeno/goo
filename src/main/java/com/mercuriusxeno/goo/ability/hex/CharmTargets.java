@@ -11,7 +11,7 @@ import java.util.function.Predicate;
  * Whom a charmed mob fights: the nearest living mob targeting its charmer,
  * else the nearest living monster hostile to players before it aggresses,
  * neutral mobs spared until one targets the charmer, and every charmed or
- * rallied mob spared whoever charmed or rallied it.
+ * led mob spared whoever charmed or led it.
  * charm-glisten-and-icon-over-the-head
  * diagnose-and-correct-minions-killing-each-other
  */
@@ -29,14 +29,14 @@ public final class CharmTargets {
      * @param target      the UUID of the entity it targets, or null for none
      * @param distanceSqr its squared distance from the charmed mob
      * @param downed      whether it lies downed, which no pick takes
-     * @param minion      whether it holds a charm or a rally, which no pick takes
+     * @param minion      whether it holds a charm or a lead, which no pick takes
      * @param <T>         the mob's type
      */
     public record Candidate<T>(T mob, boolean alive, boolean hostile, @Nullable UUID target, double distanceSqr,
                                boolean downed, boolean minion) {
 
         /**
-         * A candidate no one charmed or rallied.
+         * A candidate no one charmed or led.
          *
          * @param mob         the mob
          * @param alive       whether it still lives
@@ -51,7 +51,7 @@ public final class CharmTargets {
         }
 
         /**
-         * A candidate standing, not downed, that no one charmed or rallied.
+         * A candidate standing, not downed, that no one charmed or led.
          *
          * @param mob         the mob
          * @param alive       whether it still lives

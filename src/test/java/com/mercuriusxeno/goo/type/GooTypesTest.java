@@ -37,7 +37,8 @@ class GooTypesTest {
             GooTypes.REGISTRY, Identifier.fromNamespaceAndPath("gootest", "seventeenth"));
     private static final List<String> BUNDLED_IDS = List.of(
             "astral", "blaze", "crystal", "deep", "ender", "frost", "glow", "hex", "infinity", "jelly", "kinetic", "leaf",
-            "metal", "nether", "opulent", "pulse", "quantum", "rock", "shroom", "typhoon", "unstable", "void", "weird", "xeno", "yore", "zombie", "zoo");
+            "metal", "nether", "opulent", "pulse", "quantum", "rock", "shroom", "typhoon", "unstable", "void", "weird", "xeno", "yarn", "yore",
+            "zombie", "zoo");
     private static final String ZOMBIE = "zombie";
     private static final String TYPE_JSON = "/data/goo/goo/goo_type/%s.json";
     private static final String TEXTURES = "textures";
@@ -189,6 +190,23 @@ class GooTypesTest {
         }
         assertShipped(TYPE_ICON.formatted(ZOMBIE));
         assertEquals("Zombie", readJson(EN_US).getAsJsonObject().get("goo.type." + ZOMBIE).getAsString());
+    }
+
+    /**
+     * Yarn loads through the type codec, which refuses a definition missing
+     * any of its wheel, bright, highlight and edge colors, every texture its
+     * JSON names ships, and its type name reads Yarn.
+     * decision yarn-is-the-y-goo-of-wool-string-and-leather
+     */
+    @Test
+    void yarnLoadsWithItsColorsTexturesAndName() throws IOException {
+        JsonObject json = readJson(TYPE_JSON.formatted("yarn")).getAsJsonObject();
+        assertTrue(GooTypeDefinition.CODEC.parse(JsonOps.INSTANCE, json).isSuccess(), "yarn.json fails the type codec");
+        for (Map.Entry<String, JsonElement> texture : json.getAsJsonObject(TEXTURES).entrySet()) {
+            Identifier sprite = Identifier.parse(texture.getValue().getAsString());
+            assertShipped(TEXTURE_PNG.formatted(sprite.getNamespace(), sprite.getPath()));
+        }
+        assertEquals("Yarn", readJson(EN_US).getAsJsonObject().get("goo.type.yarn").getAsString());
     }
 
     static Stream<ResourceKey<GooTypeDefinition>> bundledKeys() {

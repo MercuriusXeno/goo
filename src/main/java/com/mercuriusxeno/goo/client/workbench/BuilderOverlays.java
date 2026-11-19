@@ -125,7 +125,7 @@ final class BuilderOverlays {
 
     /**
      * @param at           where the opening control was clicked
-     * @param rows         the rows the grid fills
+     * @param rows         how many rows the grid lays its cells on
      * @param screenWidth  the screen's width
      * @param screenHeight the screen's height
      * @return where the goo type picker's grid stands
@@ -583,7 +583,7 @@ final class BuilderOverlays {
 
     private void drawPicker(GuiGraphicsExtractor graphics, Font font, ClickTargets targets) {
         Runnable nothing = pickerNothing;
-        Placement grid = placePicker(opener, picker.rows(nothing != null), lastScreenWidth, lastScreenHeight);
+        Placement grid = placePicker(opener, picker.rows(), lastScreenWidth, lastScreenHeight);
         int gridRows = Math.max(1, (grid.height() - 1) / GooTypePicker.CELL);
         int gridTop = drawnTop(grid, opener, gridRows * GooTypePicker.CELL + 1);
         picker.draw(graphics, font, targets, grid.left(), gridTop, gridRows, type -> {

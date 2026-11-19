@@ -140,7 +140,7 @@ public final class StepTypes {
         register(EludeStep.TYPE);
         register(ShriekStep.TYPE);
         register(SculkerStep.TYPE);
-        register(KinStep.TYPE);
+        register(HerdStep.TYPE);
         register(VibrateStep.TYPE);
         register(ScanVisualStep.TYPE);
         register(EndStep.TYPE);
@@ -163,7 +163,7 @@ public final class StepTypes {
         register(LeafSteps.ENCHANT_BOOK.type());
         register(FuseBooksStep.TYPE);
         register(SlimeTransmuteStep.TYPE);
-        register(RallyStep.TYPE);
+        register(LeadStep.TYPE);
         register(LeechStep.TYPE);
         register(TomeStep.TYPE);
         register(FloatStep.TYPE);

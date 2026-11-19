@@ -1,0 +1,18 @@
+{
+  "gooType": "yarn",
+  "displayName": "goo.ability.yarn.lead",
+  "badge": "mob",
+  "order": 30,
+  "cost": 1000,
+  "delivery": { "kind": "envelop", "range": 16 },
+  "behaviors": [
+    {
+      "type": "target",
+      "where": ["living", "peaceful"],
+      "steps": [
+        { "type": "lead", "damage": 6, "health": 1.5, "speed": 0.5, "armor_share": 0.5, "armor_floor": 4 }
+      ]
+    }
+  ],
+  "tags": ["entity"]
+}
