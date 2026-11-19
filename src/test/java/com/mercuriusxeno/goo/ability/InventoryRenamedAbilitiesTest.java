@@ -92,7 +92,7 @@ class InventoryRenamedAbilitiesTest {
                 Arguments.of("blaze", Set.of("blaze_flames", "blaze_ignite", "blaze_kindle", "blaze_molten")),
                 Arguments.of("crystal", Set.of("crystal_glimmer", "crystal_knives", "crystal_prism", "crystal_scales",
                         "crystal_shatter")),
-                Arguments.of("rock", Set.of("rock_bore", "rock_build", "rock_gouge", "rock_level", "rock_petrify",
+                Arguments.of("rock", Set.of("rock_bore", "rock_build", "rock_gouge", "rock_level", "rock_mortar", "rock_petrify",
                         "rock_stoneskin")),
                 Arguments.of("jelly", Set.of("jelly_gluttony", "jelly_heal", "jelly_nectar", "jelly_reserve")),
                 Arguments.of("void", Set.of("void_cancel", "void_hole", "void_vacuum", "void_zone")),
