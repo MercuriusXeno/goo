@@ -19,6 +19,7 @@ import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
@@ -28,13 +29,17 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 /**
  * Gametests for Mycosis: its stream poisons what it reaches with Goo's spore
  * poison, a spored zombie bursts spores from its corpse that poison a second
- * zombie, and the spray buds the floor it reaches
+ * zombie and lay no Spores goo, and the spray buds the floor it reaches
  * (decision mycosis-spore-stream-buds-and-poisons).
  */
 @RegistersGameTests
 public final class MycosisTests {
     private static final String MYCOSIS_SPREADS_ON_DEATH = "mycosis_spreads_on_death";
     private static final String MYCOSIS_BUDS_AT_THE_FEET = "mycosis_buds_at_the_feet";
+    private static final String MYCOSIS_FIZZLES_ON_STONE = "mycosis_fizzles_on_stone_in_daylight";
+    private static final String BUD_ON_STONE = "Mycosis sprayed on stone in daylight should plant no bud";
+    /** Ticks the fizzle test sprays for, past many buds' worth of the stream's chance. */
+    private static final int FIZZLE_SPRAY_TICKS = 200;
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -44,6 +49,7 @@ public final class MycosisTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, MYCOSIS_SPREADS_ON_DEATH, MycosisTests::mycosisSpreadsOnDeath);
         GooTestFunctions.registerTest(registrar, MYCOSIS_BUDS_AT_THE_FEET, MycosisTests::mycosisBudsAtTheFeet);
+        GooTestFunctions.registerTest(registrar, MYCOSIS_FIZZLES_ON_STONE, MycosisTests::mycosisFizzlesOnStone);
     }
 
 
@@ -71,6 +77,7 @@ public final class MycosisTests {
     private static final String SPRAYED_SPORED = "The sprayed zombie should carry spores";
     private static final String BYSTANDER_CLEAN = "The bystander outside the cone should start unpoisoned";
     private static final String BYSTANDER_POISONED = "The burst from the corpse should poison the bystander";
+    private static final String NO_GOO_WHERE_IT_FELL = "The burst from the corpse should lay no Spores goo where it fell";
 
     private MycosisTests() {
     }
@@ -95,20 +102,30 @@ public final class MycosisTests {
             helper.assertTrue(sprayed.hasEffect(GooMobEffects.MYCOSIS), SPRAYED_POISONED);
             helper.assertTrue(sprayed.hasData(GooAttachments.SPORED), SPRAYED_SPORED);
             helper.assertFalse(bystander.hasEffect(GooMobEffects.MYCOSIS), BYSTANDER_CLEAN);
+            BlockPos fell = sprayed.blockPosition();
             sprayed.kill(helper.getLevel());
             helper.assertTrue(bystander.hasEffect(GooMobEffects.MYCOSIS), BYSTANDER_POISONED);
+            // mycosis-is-put-back-as-the-held-spore-stream: the stream's burst lays no Spores goo
+            helper.assertFalse(BlockPos.betweenClosedStream(fell.offset(-1, -1, -1), fell.offset(1, 1, 1))
+                    .anyMatch(cell -> helper.getLevel().getBlockState(cell).is(GooBlocks.SHROOM_SPORES.get())),
+                    NO_GOO_WHERE_IT_FELL);
             helper.succeed();
         });
     }
 
     /**
-     * A mock player sprays Mycosis straight down at its own feet: a fungal
-     * bud stands within a block of where it stands, the spray landing where
-     * it is aimed rather than at a distance.
+     * A mock player standing on mycelium sprays Mycosis straight down at its
+     * own feet: a fungal bud stands within a block of where it stands, the
+     * spray landing where it is aimed rather than at a distance. The floor is
+     * mycelium since a bud is planted only where its mushroom could grow.
+     * operator ruling 2026-11-18: Mycosis should fizzle instead of plant buds where mushrooms aren't allowed to grow
      *
      * @param helper the gametest helper
      */
     public static void mycosisBudsAtTheFeet(GameTestHelper helper) {
+        BlockPos.betweenClosedStream(STAND_POS.offset(-AT_FEET_REACH, -1, -AT_FEET_REACH),
+                STAND_POS.offset(AT_FEET_REACH, -1, AT_FEET_REACH)).forEach(floor -> helper.setBlock(floor,
+                Blocks.MYCELIUM));
         AbilityDefinition mycosis = mycosis(helper);
         ServerPlayer player = sprayer(helper, LOOKING_AT_FEET);
         KnownRecipes.teachRequires(player, mycosis);
@@ -119,6 +136,32 @@ public final class MycosisTests {
                     .anyMatch(cell -> helper.getBlockState(cell).is(GooBlocks.FUNGAL_BUD.get()));
             helper.assertTrue(budded, NO_BUD_AT_FEET);
             helper.getLevel().getServer().getPlayerList().remove(player);
+        });
+    }
+
+    /**
+     * A mock player standing on stone in daylight sprays Mycosis straight
+     * down at its own feet: where no mushroom could grow, the spray fizzles,
+     * and no fungal bud stands within a block of it.
+     * operator ruling 2026-11-18: Mycosis should fizzle instead of plant buds where mushrooms aren't allowed to grow
+     *
+     * @param helper the gametest helper
+     */
+    public static void mycosisFizzlesOnStone(GameTestHelper helper) {
+        BlockPos.betweenClosedStream(STAND_POS.offset(-AT_FEET_REACH, -1, -AT_FEET_REACH),
+                STAND_POS.offset(AT_FEET_REACH, -1, AT_FEET_REACH)).forEach(floor -> helper.setBlock(floor,
+                Blocks.STONE));
+        AbilityDefinition mycosis = mycosis(helper);
+        ServerPlayer player = sprayer(helper, LOOKING_AT_FEET);
+        KnownRecipes.teachRequires(player, mycosis);
+        spray(helper, player, FIZZLE_SPRAY_TICKS);
+        helper.runAfterDelay(FIZZLE_SPRAY_TICKS + 1, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            boolean budded = BlockPos.betweenClosedStream(STAND_POS.offset(-AT_FEET_REACH, 0, -AT_FEET_REACH),
+                    STAND_POS.offset(AT_FEET_REACH, 0, AT_FEET_REACH))
+                    .anyMatch(cell -> helper.getBlockState(cell).is(GooBlocks.FUNGAL_BUD.get()));
+            helper.assertFalse(budded, BUD_ON_STONE);
+            helper.succeed();
         });
     }
 

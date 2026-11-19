@@ -6,7 +6,7 @@ import com.mercuriusxeno.goo.ability.GooHitCredit;
 import com.mercuriusxeno.goo.ability.hex.Charmed;
 import com.mercuriusxeno.goo.ability.kinetic.GrabEvents;
 import com.mercuriusxeno.goo.ability.program.GougeStep;
-import com.mercuriusxeno.goo.ability.zoo.Rallied;
+import com.mercuriusxeno.goo.ability.yarn.Led;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.network.GooChargePayload;
 import com.mercuriusxeno.goo.network.GooEffectScheduler;
@@ -46,8 +46,8 @@ import java.util.function.Consumer;
  * Gametests for the goo hits a player causes directly: Flames' burn, Nova's ring, Kindle's retaliation, a goo explosion and a hucked Gouge hunk, each driven through its shipped path by a mock
  * player at a mob, each hurt with its own damage type naming that player as its cause
  * (decisions direct-goo-hit-credits-its-caster, goo-hit-keeps-its-kind-and-names-the-player-behind-it). Each
- * hit driven the same way at a mob the player rallied and a mob the player charmed lands on both and leaves the
- * rally and the charm standing, as before the credit.
+ * hit driven the same way at a mob the player led and a mob the player charmed lands on both and leaves the
+ * lead and the charm standing, as before the credit.
  */
 @RegistersGameTests
 public final class GooCasterHitTests {
@@ -57,11 +57,11 @@ public final class GooCasterHitTests {
             "goo_caster_hit_kindle_retaliation_names_the_player";
     private static final String GOO_EXPLOSION_NAMES_THE_PLAYER = "goo_caster_hit_goo_explosion_names_the_player";
     private static final String BLOCK_HUNK_NAMES_THE_PLAYER = "goo_caster_hit_block_hunk_names_the_player";
-    private static final String FLAMES_KEEPS_RALLY_AND_CHARM = "goo_caster_hit_flames_keeps_rally_and_charm";
-    private static final String NOVA_KEEPS_RALLY_AND_CHARM = "goo_caster_hit_nova_keeps_rally_and_charm";
-    private static final String KINDLE_RETALIATION_KEEPS_RALLY_AND_CHARM =
-            "goo_caster_hit_kindle_retaliation_keeps_rally_and_charm";
-    private static final String BLOCK_HUNK_KEEPS_RALLY_AND_CHARM = "goo_caster_hit_block_hunk_keeps_rally_and_charm";
+    private static final String FLAMES_KEEPS_LEAD_AND_CHARM = "goo_caster_hit_flames_keeps_lead_and_charm";
+    private static final String NOVA_KEEPS_LEAD_AND_CHARM = "goo_caster_hit_nova_keeps_lead_and_charm";
+    private static final String KINDLE_RETALIATION_KEEPS_LEAD_AND_CHARM =
+            "goo_caster_hit_kindle_retaliation_keeps_lead_and_charm";
+    private static final String BLOCK_HUNK_KEEPS_LEAD_AND_CHARM = "goo_caster_hit_block_hunk_keeps_lead_and_charm";
 
     private static final Identifier BLAZE_FLAMES = Identifier.parse("goo:blaze_flames");
     private static final Identifier FROST_NOVA = Identifier.parse("goo:frost_nova");
@@ -106,8 +106,8 @@ public final class GooCasterHitTests {
     private static final int CASTER_GOO = 100 * GooStacks.THOUSAND;
     /** Through Gouge's wind-up, then long enough for the hunk to rise out of its hole and reach the hold. */
     private static final int GOUGE_HOLD_TICKS = GougeStep.WINDUP_TICKS + 14;
-    private static final float RALLY_DAMAGE = 6f;
-    private static final String RALLY = "rally";
+    private static final float LEAD_DAMAGE = 6f;
+    private static final String LEAD = "lead";
     private static final String CHARM = "charm";
 
     private static final String ABILITY_REQUIRED = "Ability registry must hold %s";
@@ -115,7 +115,7 @@ public final class GooCasterHitTests {
             + "last hit by %s as %s";
     private static final String SHOULD_KEEP = "%s should hurt the player's own %s as %s and leave its %s standing, "
             + "last hit as %s with the %s %s";
-    private static final String SHOULD_READ_AS_NO_ONES = "%s should hurt the player's own rallied %s as %s read as "
+    private static final String SHOULD_READ_AS_NO_ONES = "%s should hurt the player's own led %s as %s read as "
             + "no one's hit, last hit as %s read as %s's";
 
     private GooCasterHitTests() {
@@ -134,13 +134,13 @@ public final class GooCasterHitTests {
         GooTestFunctions.registerTest(registrar, GOO_EXPLOSION_NAMES_THE_PLAYER,
                 GooCasterHitTests::gooExplosionNamesThePlayer);
         GooTestFunctions.registerTest(registrar, BLOCK_HUNK_NAMES_THE_PLAYER, GooCasterHitTests::blockHunkNamesThePlayer);
-        GooTestFunctions.registerTest(registrar, FLAMES_KEEPS_RALLY_AND_CHARM,
-                GooCasterHitTests::flamesKeepsRallyAndCharm);
-        GooTestFunctions.registerTest(registrar, NOVA_KEEPS_RALLY_AND_CHARM, GooCasterHitTests::novaKeepsRallyAndCharm);
-        GooTestFunctions.registerTest(registrar, KINDLE_RETALIATION_KEEPS_RALLY_AND_CHARM,
-                GooCasterHitTests::kindleRetaliationKeepsRallyAndCharm);
-        GooTestFunctions.registerTest(registrar, BLOCK_HUNK_KEEPS_RALLY_AND_CHARM,
-                GooCasterHitTests::blockHunkKeepsRallyAndCharm);
+        GooTestFunctions.registerTest(registrar, FLAMES_KEEPS_LEAD_AND_CHARM,
+                GooCasterHitTests::flamesKeepsLeadAndCharm);
+        GooTestFunctions.registerTest(registrar, NOVA_KEEPS_LEAD_AND_CHARM, GooCasterHitTests::novaKeepsLeadAndCharm);
+        GooTestFunctions.registerTest(registrar, KINDLE_RETALIATION_KEEPS_LEAD_AND_CHARM,
+                GooCasterHitTests::kindleRetaliationKeepsLeadAndCharm);
+        GooTestFunctions.registerTest(registrar, BLOCK_HUNK_KEEPS_LEAD_AND_CHARM,
+                GooCasterHitTests::blockHunkKeepsLeadAndCharm);
     }
 
     /**
@@ -221,109 +221,109 @@ public final class GooCasterHitTests {
     }
 
     /**
-     * A mock player holding Flames on a husk it rallied and a husk behind it that it charmed burns both with
-     * in_fire and leaves the rally and the charm standing.
+     * A mock player holding Flames on a husk it led and a husk behind it that it charmed burns both with
+     * in_fire and leaves the lead and the charm standing.
      *
      * @param helper the gametest helper
      */
-    public static void flamesKeepsRallyAndCharm(GameTestHelper helper) {
-        Mob rallied = helper.spawnWithNoFreeWill(EntityType.HUSK, MOB_POS);
+    public static void flamesKeepsLeadAndCharm(GameTestHelper helper) {
+        Mob led = helper.spawnWithNoFreeWill(EntityType.HUSK, MOB_POS);
         Mob charmed = helper.spawnWithNoFreeWill(EntityType.HUSK, MOB_BEHIND_POS);
         ServerPlayer player = casterFacingEast(helper, GooTypes.BLAZE, BLAZE_FLAMES);
-        makeOwn(player, rallied, charmed);
+        makeOwn(player, led, charmed);
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             GooStreamHandler.streamTick(player, heldTick(player, GooTypes.BLAZE, BLAZE_FLAMES));
-            assertKeptAndLeave(helper, player, "Flames", DamageTypes.IN_FIRE, rallied, charmed);
+            assertKeptAndLeave(helper, player, "Flames", DamageTypes.IN_FIRE, led, charmed);
         });
     }
 
     /**
-     * A mock player releasing a full Nova near a husk it rallied and a husk it charmed freezes both with freeze
-     * and leaves the rally and the charm standing.
+     * A mock player releasing a full Nova near a husk it led and a husk it charmed freezes both with freeze
+     * and leaves the lead and the charm standing.
      *
      * @param helper the gametest helper
      */
-    public static void novaKeepsRallyAndCharm(GameTestHelper helper) {
-        Mob rallied = helper.spawnWithNoFreeWill(EntityType.HUSK, MOB_POS);
+    public static void novaKeepsLeadAndCharm(GameTestHelper helper) {
+        Mob led = helper.spawnWithNoFreeWill(EntityType.HUSK, MOB_POS);
         Mob charmed = helper.spawnWithNoFreeWill(EntityType.HUSK, MOB_BEHIND_POS);
         ServerPlayer player = casterFacingEast(helper, GooTypes.FROST, FROST_NOVA);
-        makeOwn(player, rallied, charmed);
+        makeOwn(player, led, charmed);
         int fullHold = ability(helper, FROST_NOVA).delivery().charge().maxTicks();
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             GooThrowHandler.releaseCharge(player,
                     new GooChargePayload(GooTypes.id(GooTypes.FROST), FROST_NOVA.toString(), fullHold));
-            assertKeptAndLeave(helper, player, "Nova", DamageTypes.FREEZE, rallied, charmed);
+            assertKeptAndLeave(helper, player, "Nova", DamageTypes.FREEZE, led, charmed);
         });
     }
 
     /**
-     * A husk a kindled mock player rallied and a husk it charmed each strike the player, and Kindle's
-     * retaliatory fire hurts both with in_fire and leaves the rally and the charm standing.
+     * A husk a kindled mock player led and a husk it charmed each strike the player, and Kindle's
+     * retaliatory fire hurts both with in_fire and leaves the lead and the charm standing.
      *
      * @param helper the gametest helper
      */
-    public static void kindleRetaliationKeepsRallyAndCharm(GameTestHelper helper) {
+    public static void kindleRetaliationKeepsLeadAndCharm(GameTestHelper helper) {
         ServerPlayer player = HeartOverlayTests.crawledWhole(
                 HeartOverlayTests.selfInvoked(helper, GooTypes.BLAZE, BLAZE_KINDLE));
-        Mob rallied = helper.spawnWithNoFreeWill(EntityType.HUSK, ATTACKER_POS);
+        Mob led = helper.spawnWithNoFreeWill(EntityType.HUSK, ATTACKER_POS);
         Mob charmed = helper.spawnWithNoFreeWill(EntityType.HUSK, SECOND_ATTACKER_POS);
-        makeOwn(player, rallied, charmed);
-        rallied.doHurtTarget(helper.getLevel(), player);
+        makeOwn(player, led, charmed);
+        led.doHurtTarget(helper.getLevel(), player);
         charmed.doHurtTarget(helper.getLevel(), player);
-        assertKeptAndLeave(helper, player, "Kindle's retaliation", DamageTypes.IN_FIRE, rallied, charmed);
+        assertKeptAndLeave(helper, player, "Kindle's retaliation", DamageTypes.IN_FIRE, led, charmed);
     }
 
     /**
-     * A mock player holding Gouge on a slab of stone hucks the hunk into a husk it rallied and a husk beside it
-     * that it charmed, which the hunk crushes as falling_block, leaving the rally and the charm standing.
+     * A mock player holding Gouge on a slab of stone hucks the hunk into a husk it led and a husk beside it
+     * that it charmed, which the hunk crushes as falling_block, leaving the lead and the charm standing.
      *
      * @param helper the gametest helper
      */
-    public static void blockHunkKeepsRallyAndCharm(GameTestHelper helper) {
+    public static void blockHunkKeepsLeadAndCharm(GameTestHelper helper) {
         layGougeSlab(helper);
-        Mob rallied = helper.spawnWithNoFreeWill(EntityType.HUSK, HUNK_MOB_POS);
+        Mob led = helper.spawnWithNoFreeWill(EntityType.HUSK, HUNK_MOB_POS);
         Mob charmed = helper.spawnWithNoFreeWill(EntityType.HUSK, HUNK_SECOND_MOB_POS);
         ServerPlayer player = casterFacingEast(helper, GooTypes.ROCK, ROCK_GOUGE);
-        makeOwn(player, rallied, charmed);
-        // a rallied mob walks to its rallier and a charmed one to its charmer, out of the hunk's flight, over the hold
-        rallied.setNoAi(true);
+        makeOwn(player, led, charmed);
+        // a led mob walks to its leader and a charmed one to its charmer, out of the hunk's flight, over the hold
+        led.setNoAi(true);
         charmed.setNoAi(true);
         gougeAndHuck(helper, player);
-        succeedOnceKept(helper, player, "A hucked hunk", DamageTypes.FALLING_BLOCK, rallied, charmed);
+        succeedOnceKept(helper, player, "A hucked hunk", DamageTypes.FALLING_BLOCK, led, charmed);
     }
 
     /**
-     * Makes one mob the player's rallied mob and another the player's charmed mob, as Rally and Charm leave them.
+     * Makes one mob the player's led mob and another the player's charmed mob, as Lead and Charm leave them.
      *
      * @param player  the player whose minions they become
-     * @param rallied the mob the player rallies
+     * @param led the mob the player leads
      * @param charmed the mob the player charms
      */
-    static void makeOwn(ServerPlayer player, Mob rallied, Mob charmed) {
-        rallied.setData(GooAttachments.RALLIED, new Rallied(player.getUUID(), RALLY_DAMAGE));
+    static void makeOwn(ServerPlayer player, Mob led, Mob charmed) {
+        led.setData(GooAttachments.LED, new Led(player.getUUID(), LEAD_DAMAGE));
         charmed.setData(GooAttachments.CHARMED, new Charmed(player.getUUID()));
     }
 
     /**
-     * Asserts the hit landed on the player's rallied mob and charmed mob with its damage type and left the rally
+     * Asserts the hit landed on the player's led mob and charmed mob with its damage type and left the lead
      * and the charm standing, each read off the mob's last hit.
      *
      * @param helper  the gametest helper
      * @param hit     the hit, for the failure message
      * @param type    the damage type the hit keeps
-     * @param rallied the player's rallied mob
+     * @param led the player's led mob
      * @param charmed the player's charmed mob
      */
-    static void assertKeepsRallyAndCharm(GameTestHelper helper, String hit, ResourceKey<DamageType> type,
-                                         Mob rallied, Mob charmed) {
-        assertKeepsRallyAndCharm(helper, hit, type, rallied, rallied.getLastDamageSource(), charmed,
+    static void assertKeepsLeadAndCharm(GameTestHelper helper, String hit, ResourceKey<DamageType> type,
+                                         Mob led, Mob charmed) {
+        assertKeepsLeadAndCharm(helper, hit, type, led, led.getLastDamageSource(), charmed,
                 charmed.getLastDamageSource());
     }
 
-    private static void assertKeepsRallyAndCharm(GameTestHelper helper, String hit, ResourceKey<DamageType> type,
-                                                 Mob rallied, @Nullable DamageSource ralliedLast, Mob charmed,
+    private static void assertKeepsLeadAndCharm(GameTestHelper helper, String hit, ResourceKey<DamageType> type,
+                                                 Mob led, @Nullable DamageSource ledLast, Mob charmed,
                                                  @Nullable DamageSource charmedLast) {
-        assertKept(helper, hit, type, rallied, RALLY, rallied.hasData(GooAttachments.RALLIED), ralliedLast);
+        assertKept(helper, hit, type, led, LEAD, led.hasData(GooAttachments.LED), ledLast);
         assertKept(helper, hit, type, charmed, CHARM, charmed.hasData(GooAttachments.CHARMED), charmedLast);
     }
 
@@ -337,12 +337,12 @@ public final class GooCasterHitTests {
 
     /**
      * Asserts a hit landed on the mob with its damage type and that goo's listeners read it as naming no one,
-     * so RallyEvents.onRalliedHurt let it land and ended no rally.
+     * so LeadEvents.onLedHurt let it land and ended no lead.
      *
      * @param helper the gametest helper
      * @param hit    the hit, for the failure message
      * @param type   the damage type the hit keeps
-     * @param mob    the player's rallied mob
+     * @param mob    the player's led mob
      * @param last   the hit the mob took, or null for none
      */
     private static void assertReadAsNoOnes(GameTestHelper helper, String hit, ResourceKey<DamageType> type, Mob mob,
@@ -355,31 +355,31 @@ public final class GooCasterHitTests {
     }
 
     private static void assertKeptAndLeave(GameTestHelper helper, ServerPlayer player, String hit,
-                                           ResourceKey<DamageType> type, Mob rallied, Mob charmed) {
-        assertKeepsRallyAndCharm(helper, hit, type, rallied, charmed);
+                                           ResourceKey<DamageType> type, Mob led, Mob charmed) {
+        assertKeepsLeadAndCharm(helper, hit, type, led, charmed);
         helper.getLevel().getServer().getPlayerList().remove(player);
         helper.succeed();
     }
 
     /**
-     * Passes the test once both mobs' latest hits hold the damage type with the rally and the charm standing,
+     * Passes the test once both mobs' latest hits hold the damage type with the lead and the charm standing,
      * checked each tick against the latest hit each mob took, which outlasts the mob's own record of it.
      *
      * @param helper  the gametest helper
      * @param player  the player behind the hit
      * @param hit     the hit, for the failure message
      * @param type    the damage type the hit keeps
-     * @param rallied the player's rallied mob
+     * @param led the player's led mob
      * @param charmed the player's charmed mob
      */
     private static void succeedOnceKept(GameTestHelper helper, ServerPlayer player, String hit,
-                                        ResourceKey<DamageType> type, Mob rallied, Mob charmed) {
-        DamageSource[] ralliedLatest = {null};
+                                        ResourceKey<DamageType> type, Mob led, Mob charmed) {
+        DamageSource[] ledLatest = {null};
         DamageSource[] charmedLatest = {null};
         helper.succeedWhen(() -> {
-            ralliedLatest[0] = latestHit(rallied, ralliedLatest[0]);
+            ledLatest[0] = latestHit(led, ledLatest[0]);
             charmedLatest[0] = latestHit(charmed, charmedLatest[0]);
-            assertKeepsRallyAndCharm(helper, hit, type, rallied, ralliedLatest[0], charmed, charmedLatest[0]);
+            assertKeepsLeadAndCharm(helper, hit, type, led, ledLatest[0], charmed, charmedLatest[0]);
             helper.getLevel().getServer().getPlayerList().remove(player);
         });
     }

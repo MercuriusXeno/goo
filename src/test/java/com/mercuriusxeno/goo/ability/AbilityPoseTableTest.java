@@ -83,9 +83,9 @@ class AbilityPoseTableTest {
             Map.entry("rock_build", ArmPose.RESTING),
             Map.entry("rock_stoneskin", ArmPose.HELD_UP),
             Map.entry("rock_gouge", ArmPose.HELD_OUT),
-            Map.entry("shroom_spore", ArmPose.SWUNG),
             Map.entry("shroom_transmit", ArmPose.HELD_OUT),
             Map.entry("shroom_mycosis", ArmPose.HELD_OUT),
+            Map.entry("shroom_spores", ArmPose.HELD_OUT),
             Map.entry("shroom_sight", ArmPose.HELD_UP),
             Map.entry("typhoon_float", ArmPose.HELD_UP),
             Map.entry("typhoon_gust", ArmPose.HELD_OUT),
@@ -106,8 +106,8 @@ class AbilityPoseTableTest {
             Map.entry("yore_expire", ArmPose.SWUNG),
             Map.entry("yore_rewind", ArmPose.RESTING),
             Map.entry("zoo_allure", ArmPose.SWUNG),
-            Map.entry("zoo_kin", ArmPose.HELD_UP),
-            Map.entry("zoo_rally", ArmPose.RESTING),
+            Map.entry("yarn_herd", ArmPose.HELD_UP),
+            Map.entry("yarn_lead", ArmPose.RESTING),
             Map.entry("zoo_shape", ArmPose.RESTING),
             Map.entry("zoo_spawn", ArmPose.RESTING));
 

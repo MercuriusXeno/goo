@@ -3,16 +3,16 @@ package com.mercuriusxeno.goo.client.throwing;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.program.BlinkLanding;
-import com.mercuriusxeno.goo.ability.zoo.Rallied;
-import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
-import com.mercuriusxeno.goo.data.GooValueTable;
-import com.mercuriusxeno.goo.item.GooFormat;
-import com.mercuriusxeno.goo.network.GooThrowHandler;
+import com.mercuriusxeno.goo.ability.yarn.Led;
 import com.mercuriusxeno.goo.client.ability.CameraEye;
 import com.mercuriusxeno.goo.client.ability.CastOrigin;
 import com.mercuriusxeno.goo.client.ability.LiftedPalmBlob;
 import com.mercuriusxeno.goo.client.ability.PalmBlobHop;
 import com.mercuriusxeno.goo.client.ability.SprayingClient;
+import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
+import com.mercuriusxeno.goo.data.GooValueTable;
+import com.mercuriusxeno.goo.item.GooFormat;
+import com.mercuriusxeno.goo.network.GooThrowHandler;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
@@ -49,6 +49,30 @@ class GloveThrowSenderTest {
 
     private static boolean affordsWithHoldings(ClientAbility ability, int holdings) {
         return GloveThrowSender.affordsThrow(ability, amount -> holdings >= amount, item -> true);
+    }
+
+    /**
+     * A held spray's tick tells the server its drips leave the lifted blob,
+     * where the drawn drips leave; any other held cast's tick keeps the glove.
+     * residual-spray-cone-centers-on-the-look-from-the-blob
+     */
+    @Nested
+    class SprayTicksLeaveTheBlob {
+
+        private final Vec3 blob = new Vec3(0.2, 65.1, 0.7);
+        private final Vec3 glove = new Vec3(0.4, 64.9, 0.6);
+
+        @Test
+        void aSprayTickSendsTheBlobAsItsOrigin() {
+            assertEquals(blob, GloveThrowSender.heldTickOrigin(AbilityJson.decode("weird_goop").delivery(), blob,
+                    glove), "a held Goop tick should send the blob its drips leave");
+        }
+
+        @Test
+        void aHeldTickThrowingNoDripsSendsTheGlove() {
+            assertEquals(glove, GloveThrowSender.heldTickOrigin(AbilityJson.decode("nether_decay").delivery(), blob,
+                    glove), "a held Decay tick should send the glove its cone opens from");
+        }
     }
 
     /**
@@ -180,32 +204,32 @@ class GloveThrowSenderTest {
     }
 
     /**
-     * A Rally throw at the caster's own rallied mob needs no zoo goo held,
-     * while one at an unrallied mob is priced as any throw
+     * A Lead throw at the caster's own led mob needs no yarn goo held,
+     * while one at an unled mob is priced as any throw
      * (decision rally-release-cast-costs-nothing).
      */
     @Nested
-    class RallyReleaseCast {
+    class LeadReleaseCast {
 
         private static final UUID CASTER = new UUID(0L, 1L);
-        private static final float RALLY_DAMAGE = 6f;
-        private static final int NO_ZOO_HELD = 0;
+        private static final float LEAD_DAMAGE = 6f;
+        private static final int NO_YARN_HELD = 0;
 
-        private final ClientAbility rally = clientAbility("zoo_rally");
+        private final ClientAbility lead = clientAbility("yarn_lead");
 
-        private boolean sendsHolding(Rallied targetRally, int holdings) {
-            return GloveThrowSender.affordsAimedThrow(rally, false, CASTER, targetRally,
+        private boolean sendsHolding(Led targetLead, int holdings) {
+            return GloveThrowSender.affordsAimedThrow(lead, false, CASTER, targetLead,
                     amount -> holdings >= amount, item -> true);
         }
 
         @Test
-        void aRallyThrowAtTheCastersOwnRalliedMobSendsWithNoZooGooHeld() {
-            assertTrue(sendsHolding(new Rallied(CASTER, RALLY_DAMAGE), NO_ZOO_HELD));
+        void aLeadThrowAtTheCastersOwnLedMobSendsWithNoYarnGooHeld() {
+            assertTrue(sendsHolding(new Led(CASTER, LEAD_DAMAGE), NO_YARN_HELD));
         }
 
         @Test
-        void aRallyThrowAtAnUnralliedMobTheCasterCannotAffordIsWithheld() {
-            assertFalse(sendsHolding(Rallied.NONE, NO_ZOO_HELD));
+        void aLeadThrowAtAnUnledMobTheCasterCannotAffordIsWithheld() {
+            assertFalse(sendsHolding(Led.NONE, NO_YARN_HELD));
         }
     }
 

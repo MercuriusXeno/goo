@@ -67,7 +67,7 @@ class CharmTargetsTest {
         assertEquals(Optional.empty(), CharmTargets.nearestFoe(CHARMER, nearby));
     }
 
-    /** A mob holding a charm or a rally is no foe, under either pick. diagnose-and-correct-minions-killing-each-other */
+    /** A mob holding a charm or a lead is no foe, under either pick. diagnose-and-correct-minions-killing-each-other */
     @Nested
     class Minions {
 

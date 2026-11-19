@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:lead_takes_one_of_two_cows",
+  "environment": "goo:lead_reload",
+  "structure": "goo:test_bay",
+  "max_ticks": 20,
+  "setup_ticks": 0,
+  "required": true
+}

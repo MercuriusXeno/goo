@@ -2,23 +2,23 @@ package com.mercuriusxeno.goo.client.overlay;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.mojang.serialization.JsonOps;
-import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.AbilityBadge;
+import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.ability.OwnMinions;
+import com.mercuriusxeno.goo.ability.hex.Charmed;
 import com.mercuriusxeno.goo.ability.program.Expr;
 import com.mercuriusxeno.goo.ability.program.GrabStep;
 import com.mercuriusxeno.goo.ability.program.HealPulse;
 import com.mercuriusxeno.goo.ability.program.LeafSteps;
 import com.mercuriusxeno.goo.ability.program.Step;
-import com.mercuriusxeno.goo.ability.hex.Charmed;
-import com.mercuriusxeno.goo.ability.zoo.Rallied;
+import com.mercuriusxeno.goo.ability.yarn.Led;
 import com.mercuriusxeno.goo.registry.GooAttachments;
-import net.minecraft.world.entity.animal.cow.Cow;
+import com.mojang.serialization.JsonOps;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.animal.cow.Cow;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.AABB;
@@ -47,7 +47,7 @@ import static org.mockito.Mockito.when;
  * splat-runs-the-program-no-fuse); its cone taking no mob beyond the ray's
  * reach (decision grab-reaches-telekinesis-range); and its candidates being
  * what the selected ability's steps take (decision steps-declare-the-entities-they-take), less
- * a mob the selected Rally or Charm refuses (decision refused-rally-or-charm-spends-no-goo).
+ * a mob the selected Lead or Charm refuses (decision refused-rally-or-charm-spends-no-goo).
  */
 class AimAssistResolverTest {
 
@@ -179,7 +179,7 @@ class AimAssistResolverTest {
         /** decision mob-targeted-attacks-refuse-your-minions */
         @Test
         void aHarmfulMobAbilityOutlinesNoOwnMinion() {
-            Mob minion = rallied(pickableCow(), PLAYER);
+            Mob minion = led(pickableCow(), PLAYER);
             assertFalse(AimAssistResolver.isCandidate(minion, heal, player(),
                     OwnMinions.sparesOwnMinions(AbilityBadge.MOB, DeliveryKind.ARC, true)));
         }
@@ -187,7 +187,7 @@ class AimAssistResolverTest {
         /** decision mob-targeted-attacks-refuse-your-minions */
         @Test
         void anUntaggedMobAbilityOutlinesAnOwnMinion() {
-            Mob minion = rallied(pickableCow(), PLAYER);
+            Mob minion = led(pickableCow(), PLAYER);
             assertTrue(AimAssistResolver.isCandidate(minion, heal, player(),
                     OwnMinions.sparesOwnMinions(AbilityBadge.MOB, DeliveryKind.ARC, false)));
         }
@@ -201,40 +201,40 @@ class AimAssistResolverTest {
     }
 
     /**
-     * The aim drops a mob the selected Rally or Charm refuses for the player,
+     * The aim drops a mob the selected Lead or Charm refuses for the player,
      * so it is neither outlined nor locked, and keeps the casts that still
      * land (decisions refused-rally-or-charm-spends-no-goo,
      * rally-cast-on-your-rallied-mob-releases-it).
      */
     @Nested
-    class RefusedRallyAndCharm {
+    class RefusedLeadAndCharm {
 
         private final List<Step> charm = AbilityJson.decode("hex_charm").behaviors();
-        private final List<Step> rally = AbilityJson.decode("zoo_rally").behaviors();
+        private final List<Step> lead = AbilityJson.decode("yarn_lead").behaviors();
 
         @Test
         void charmOverARalliedMobIsNoCandidate() {
-            assertFalse(candidate(rallied(pickableCow(), PLAYER), charm));
+            assertFalse(candidate(led(pickableCow(), PLAYER), charm));
         }
 
         @Test
-        void rallyOverACharmedMobIsNoCandidate() {
-            assertFalse(candidate(charmed(pickableCow(), PLAYER), rally));
+        void leadOverACharmedMobIsNoCandidate() {
+            assertFalse(candidate(charmed(pickableCow(), PLAYER), lead));
         }
 
         @Test
-        void rallyOverAnotherPlayersRalliedMobIsNoCandidate() {
-            assertFalse(candidate(rallied(pickableCow(), OTHER_PLAYER), rally));
+        void leadOverAnotherPlayersLedMobIsNoCandidate() {
+            assertFalse(candidate(led(pickableCow(), OTHER_PLAYER), lead));
         }
 
         @Test
-        void rallyOverAnotherPlayersCharmedMobIsNoCandidate() {
-            assertFalse(candidate(charmed(pickableCow(), OTHER_PLAYER), rally));
+        void leadOverAnotherPlayersCharmedMobIsNoCandidate() {
+            assertFalse(candidate(charmed(pickableCow(), OTHER_PLAYER), lead));
         }
 
         @Test
-        void charmOverAnotherPlayersRalliedMobIsNoCandidate() {
-            assertFalse(candidate(rallied(pickableCow(), OTHER_PLAYER), charm));
+        void charmOverAnotherPlayersLedMobIsNoCandidate() {
+            assertFalse(candidate(led(pickableCow(), OTHER_PLAYER), charm));
         }
 
         @Test
@@ -243,8 +243,8 @@ class AimAssistResolverTest {
         }
 
         @Test
-        void rallyOverAMobHoldingNeitherEffectIsACandidate() {
-            assertTrue(candidate(pickableCow(), rally));
+        void leadOverAMobHoldingNeitherEffectIsACandidate() {
+            assertTrue(candidate(pickableCow(), lead));
         }
 
         @Test
@@ -253,8 +253,8 @@ class AimAssistResolverTest {
         }
 
         @Test
-        void rallyOverThePlayersOwnRalliedMobIsACandidate() {
-            assertTrue(candidate(rallied(pickableCow(), PLAYER), rally));
+        void leadOverThePlayersOwnLedMobIsACandidate() {
+            assertTrue(candidate(led(pickableCow(), PLAYER), lead));
         }
 
         private static boolean candidate(Mob mob, List<Step> behaviors) {
@@ -280,9 +280,9 @@ class AimAssistResolverTest {
         return cow;
     }
 
-    private static Cow rallied(Cow cow, UUID rallier) {
-        when(cow.hasData(GooAttachments.RALLIED)).thenReturn(true);
-        when(cow.getData(GooAttachments.RALLIED)).thenReturn(new Rallied(rallier, STRIKE));
+    private static Cow led(Cow cow, UUID leader) {
+        when(cow.hasData(GooAttachments.LED)).thenReturn(true);
+        when(cow.getData(GooAttachments.LED)).thenReturn(new Led(leader, STRIKE));
         return cow;
     }
 
