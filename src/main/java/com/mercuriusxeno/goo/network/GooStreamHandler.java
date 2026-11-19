@@ -34,6 +34,7 @@ import com.mercuriusxeno.goo.ability.tartarus.TartarusCast;
 import com.mercuriusxeno.goo.ability.tartarus.TartarusHolds;
 import com.mercuriusxeno.goo.block.ability.FluidFooting;
 import com.mercuriusxeno.goo.block.ability.SlickLayPace;
+import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.item.CanisterItem;
@@ -50,6 +51,7 @@ import com.mercuriusxeno.goo.throwing.StreamCone;
 import com.mercuriusxeno.goo.throwing.ThrowArc;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
@@ -98,6 +100,13 @@ public final class GooStreamHandler {
     private static final double MIN_AIM_LENGTH_SQUARED = 1e-6;
     /** The drips a tick of motes off the arc carries: none. */
     private static final int NO_DRIPS = 0;
+    /**
+     * How far a mister's mist reaches from the eye, in blocks: a residual's level shot, about eight blocks
+     * (goop-and-slick-drips-leave-at-one-exit-speed), a tuning value no operator ruled.
+     */
+    static final double MIST_REACH = 8;
+    /** Spots a mister's mist reaches a tick for each drip the residual throws a tick at that flow. */
+    private static final int MIST_SPOTS_PER_DRIP = 4;
     /** Rays the spray casts each tick to find the floors it lands on. */
     private static final int FLOOR_RAYS_PER_TICK = 12;
     /** Reads which living things a tick's program healed. */
@@ -177,7 +186,7 @@ public final class GooStreamHandler {
             return;
         }
         strikeCone(player, origin, ability, held, new HeldSpray(PaysFrom.SPRAYER_CANISTER, setting.flow().rate(),
-                setting.nozzle()::shape));
+                setting.nozzle()::shape, setting.nozzle().mists()));
         ability.delivery().sound().filter(sound -> sound.playsOn(held))
                 .ifPresent(sound -> playStreamSound(player, sound));
     }
@@ -436,16 +445,7 @@ public final class GooStreamHandler {
         if (delivery.throwsDrips()) {
             // goop-wobbles-a-mob-its-drip-strikes: a stream throwing drips strikes the living its drips strike, not
             // the living in its cone
-            // residual-spray-cone-centers-on-the-look-from-the-blob: the drips, the block pass and the drawn drips
-            // all leave the blob onto one cone centered on the look, whatever block the crosshair meets
-            // nectar-is-sprayed-goo-with-a-guided-throw-near-a-mob: an aim near a mob centers the cone on it
-            double exitSpeed = exitSpeedOf(player, delivery);
-            DripArc.Flight flight = dripFlightIn(player.level(), ability);
-            ConvergingCone cone = NectarThrows.guidedCone(player, channelSteps(ability.behaviors(), true))
-                    .orElseGet(() -> ConvergingCone.along(player.getEyePosition(), axis, exitSpeed, flight));
-            runBlockPass(cast, dripsEnd(apex, cone, delivery, exitSpeed, flight), delivery, ability, held, true);
-            boolean strikesLiving = throwDrips(cast, apex, cone, ability, held);
-            sprayDrips(cast, apex, cone, ability, strikesLiving, held);
+            sprayResidual(cast, apex, axis, ability, delivery, held);
             return List.of();
         }
         // decay-gnats-degrade-each-block-once: what the stream strikes follows the look; only its motes
@@ -498,6 +498,71 @@ public final class GooStreamHandler {
                 CoatRay.scatteredShares(held, dripsThisTick(player, delivery, landing, held, cast.spray().flowRate())))
                 .forEach(flights::launch);
         return strikesLiving;
+    }
+
+    /**
+     * Sprays a stream throwing drips: a mister's mist lays and shows over the cone, and any other spray runs its
+     * block pass, throws its drips and shows them.
+     *
+     * @param cast    the tick's cast
+     * @param apex    where the drips leave, the lifted blob
+     * @param axis    the look
+     * @param ability  the stream ability
+     * @param delivery the stream's delivery as it reaches for the caster this tick
+     * @param held     the hold's tick count
+     */
+    private static void sprayResidual(CastOn cast, Vec3 apex, Vec3 axis, AbilityDefinition ability, Delivery delivery,
+                                      int held) {
+        ServerPlayer player = cast.player();
+        // residual-spray-cone-centers-on-the-look-from-the-blob: the drips, the block pass and the drawn drips
+        // all leave the blob onto one cone centered on the look, whatever block the crosshair meets
+        // nectar-is-sprayed-goo-with-a-guided-throw-near-a-mob: an aim near a mob centers the cone on it
+        double exitSpeed = exitSpeedOf(player, delivery);
+        DripArc.Flight flight = dripFlightIn(player.level(), ability);
+        ConvergingCone cone = NectarThrows.guidedCone(player, channelSteps(ability.behaviors(), true))
+                .orElseGet(() -> ConvergingCone.along(player.getEyePosition(), axis, exitSpeed, flight));
+        if (cast.spray().mists()) {
+            // mister-draws-mist-and-lays-one-layer-on-bare-spots: the mist lays and shows, no drip flies
+            layMist(cast, cone, ability, held);
+            sprayDrips(cast, apex, cone, ability, false, held);
+            return;
+        }
+        runBlockPass(cast, dripsEnd(apex, cone, delivery, exitSpeed, flight), delivery, ability, held, true);
+        sprayDrips(cast, apex, cone, ability, throwDrips(cast, apex, cone, ability, held), held);
+    }
+
+    /**
+     * Lays a mister's tick: the cone's rays reach out from the eye as far as the mist reaches, and each cell a ray
+     * meets that holds no layer takes one through the residual's own landing, paid for as it lands, so a covered
+     * spot takes nothing and costs nothing, and adhesion, cohesion and the residual's own cell stay its own. The
+     * flow scales how many spots a tick the mist reaches.
+     * mister-draws-mist-and-lays-one-layer-on-bare-spots
+     * mister-nozzle-applies-one-layer-at-most
+     *
+     * @param cast    the tick's cast
+     * @param cone    the cone the mist covers, from the eye along the look
+     * @param ability the sprayed residual
+     * @param held    the hold's tick count, which picks the tick's spots in the cone
+     */
+    private static void layMist(CastOn cast, ConvergingCone cone, AbilityDefinition ability, int held) {
+        Optional<DripLanding> landing = DripLanding.in(channelSteps(ability.behaviors(), true));
+        if (landing.isEmpty()) {
+            return;
+        }
+        ServerPlayer player = cast.player();
+        ServerLevel level = cast.level();
+        Delivery delivery = ability.delivery();
+        ConeShape shape = cast.spray().shapeOf(delivery);
+        ChannelHost host = PlayerHost.landing(level, player, placementPrice(player, ability, cast.spray().paysFrom()));
+        CoatRay.BlockClip clip = CoatRay.clippingFor(level, landing.get().fluidFooting());
+        int spots = MIST_SPOTS_PER_DRIP * dripsThisTick(player, delivery, landing, held, cast.spray().flowRate());
+        for (CoatRay.ConeShare share : CoatRay.scatteredShares(held, spots)) {
+            Vec3 ray = StreamCone.launchDirection(cone.axis(), shape, share.tilt(), share.turn());
+            clip.firstHit(cone.eye(), cone.eye().add(ray.scale(MIST_REACH)))
+                    .flatMap(strike -> landing.get().cellFed(host, strike))
+                    .filter(fed -> VolumeCellBlock.layersOf(level.getBlockState(fed.cell())) == 0)
+                    .ifPresent(fed -> landing.get().feed(host, fed));
+        }
     }
 
     /**
@@ -937,9 +1002,30 @@ public final class GooStreamHandler {
         Delivery delivery = ability.delivery();
         int drips = dripsThisTick(player, delivery, DripLanding.in(channelSteps(ability.behaviors(), true)), held,
                 cast.spray().flowRate());
-        delivery.particle().ifPresent(particle -> EntityVisuals.sendToWatchers(player, dripMotesOf(player.getId(),
+        delivery.particle().ifPresent(particle -> EntityVisuals.sendToWatchers(player, sprayPayloadOf(player.getId(),
                 apex, cone, particle, new DrawnDrips(exitSpeedOf(player, delivery), strikesLiving, held,
-                        drips, cast.spray().shapeOf(delivery)))));
+                        drips, cast.spray().shapeOf(delivery)), cast.spray().mists(), ability.gooType())));
+    }
+
+    /**
+     * What a tick's spray shows the watchers: a mister's mist over the cone in the goo's colours, or the drips any
+     * other spray threw, each on its own arc.
+     * mister-draws-mist-and-lays-one-layer-on-bare-spots
+     *
+     * @param casterId the caster's entity id
+     * @param apex     where the drips leave, the lifted blob
+     * @param cone     the cone the spray lands in
+     * @param particle the goo's spray particle
+     * @param drawn    how the tick's drawn drips fly, in the cone's shape
+     * @param mists    whether the spray mists
+     * @param gooType  the sprayed goo type
+     * @return the payload
+     */
+    static CustomPacketPayload sprayPayloadOf(int casterId, Vec3 apex, ConvergingCone cone, Identifier particle,
+                                              DrawnDrips drawn, boolean mists,
+                                              ResourceKey<GooTypeDefinition> gooType) {
+        return mists ? new SprayMistPayload(casterId, cone.eye(), cone.axis(), drawn.shape(), particle, gooType,
+                MIST_REACH) : dripMotesOf(casterId, apex, cone, particle, drawn);
     }
 
     /**

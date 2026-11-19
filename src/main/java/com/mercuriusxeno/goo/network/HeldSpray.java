@@ -11,15 +11,17 @@ import java.util.function.DoubleFunction;
  * decision sprayer-holds-a-canister-sideways-like-a-caulk-gun
  * decision spray-item-sprays-more-or-less-per-tick
  * decision spray-item-takes-different-nozzles-doing-different-things
+ * decision mister-draws-mist-and-lays-one-layer-on-bare-spots
  *
  * @param paysFrom where what the spray lays pays from
  * @param flowRate the multiple of the residual's drips a tick the spray throws
  * @param nozzle   the cone's shape for the residual's own cone, in degrees
+ * @param mists    whether the spray mists, laying a layer on each bare spot its cone covers, in place of drips
  */
-public record HeldSpray(PaysFrom paysFrom, double flowRate, DoubleFunction<ConeShape> nozzle) {
+public record HeldSpray(PaysFrom paysFrom, double flowRate, DoubleFunction<ConeShape> nozzle, boolean mists) {
 
     /** The glove's spray: the inventory pays and the residual throws its own drips a tick in its own cone. */
-    public static final HeldSpray GLOVE = new HeldSpray(PaysFrom.INVENTORY, 1.0, ConeShape::round);
+    public static final HeldSpray GLOVE = new HeldSpray(PaysFrom.INVENTORY, 1.0, ConeShape::round, false);
 
     /**
      * @param delivery the residual's delivery

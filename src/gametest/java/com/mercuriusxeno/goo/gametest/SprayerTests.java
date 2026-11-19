@@ -52,6 +52,18 @@ public final class SprayerTests {
             + " holds %s";
     private static final String PICK_DRAINED_WRONG = "The canister should hold less than its %d mb of kinetic goo"
             + " and all %d mb of its weird goo: kinetic %d, weird %d";
+    private static final String MISTER_LAYS_ONE_LAYER = "mister_lays_one_layer_and_no_more";
+    private static final String MISTER_SPENDS_NOTHING = "mister_spends_nothing_on_covered_spots";
+    private static final String MIST_LAID_NOTHING = "The mister should lay Goop on the bare floor, laid none";
+    private static final String MIST_STACKED = "Every Goop cell the mister laid should hold one layer: %s";
+    private static final String MIST_SPENT = "The first pass should spend weird goo and the second none: started %d,"
+            + " after the first %d, after the second %d";
+    /** The held ticks of a mister's pass over the floor. */
+    private static final int MIST_TICKS = 40;
+    /** The second pass's held ticks, its hold's first ticks drawing the same spots as the first pass's. */
+    private static final int SECOND_MIST_TICKS = 20;
+    /** Ticks between the two passes, past the gap a hold continues over, so the second starts a new hold. */
+    private static final int BETWEEN_PASSES = 10;
     /** The kinetic goo the two-type canister holds, less than its weird goo, mB. */
     private static final int CANISTER_KINETIC = 300;
     /** The weird goo each canister starts with, mB. */
@@ -81,6 +93,8 @@ public final class SprayerTests {
         GooTestFunctions.registerTest(registrar, SPRAYER_DRAINS, SprayerTests::sprayerDrainsItsOwnCanisterAlone);
         GooTestFunctions.registerTest(registrar, SPRAYER_SPRAYS_THE_PICK,
                 SprayerTests::sprayerSpraysTheTypePickedOnItsWheel);
+        GooTestFunctions.registerTest(registrar, MISTER_LAYS_ONE_LAYER, SprayerTests::misterLaysOneLayerAndNoMore);
+        GooTestFunctions.registerTest(registrar, MISTER_SPENDS_NOTHING, SprayerTests::misterSpendsNothingOnCoveredSpots);
     }
 
     /**
@@ -159,6 +173,95 @@ public final class SprayerTests {
                     String.format(PICK_DRAINED_WRONG, CANISTER_KINETIC, CANISTER_WEIRD, kinetic, weird));
             helper.succeed();
         });
+    }
+
+    /**
+     * With the mister picked, a sprayer held over a bare stone floor for forty ticks lays Goop on the floor, every
+     * cell of it one layer, however often the mist passes over it.
+     * decision mister-nozzle-applies-one-layer-at-most
+     * decision mister-draws-mist-and-lays-one-layer-on-bare-spots
+     *
+     * @param helper the gametest helper
+     */
+    public static void misterLaysOneLayerAndNoMore(GameTestHelper helper) {
+        ServerPlayer sprayer = misterOverAFloor(helper);
+        holdTheSprayerFor(helper, sprayer, 1, MIST_TICKS);
+        helper.runAfterDelay(MIST_TICKS + FALL_TICKS, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(sprayer);
+            List<Integer> layers = goopLayersOnTheFloor(helper);
+            helper.assertTrue(!layers.isEmpty(), MIST_LAID_NOTHING);
+            helper.assertTrue(layers.stream().allMatch(layer -> layer == 1), String.format(MIST_STACKED, layers));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * The mister spends only for the layers it lays: a first pass over a bare floor spends weird goo, and a second
+     * pass whose hold draws the same spots, every one already holding its layer, spends none.
+     * decision mister-draws-mist-and-lays-one-layer-on-bare-spots
+     *
+     * @param helper the gametest helper
+     */
+    public static void misterSpendsNothingOnCoveredSpots(GameTestHelper helper) {
+        ServerPlayer sprayer = misterOverAFloor(helper);
+        int[] held = new int[3];
+        held[0] = fittedWeird(sprayer);
+        holdTheSprayerFor(helper, sprayer, 1, SECOND_MIST_TICKS);
+        int secondStart = SECOND_MIST_TICKS + BETWEEN_PASSES;
+        helper.runAfterDelay(secondStart, () -> held[1] = fittedWeird(sprayer));
+        holdTheSprayerFor(helper, sprayer, secondStart + 1, SECOND_MIST_TICKS);
+        helper.runAfterDelay(secondStart + SECOND_MIST_TICKS + 1, () -> {
+            held[2] = fittedWeird(sprayer);
+            helper.getLevel().getServer().getPlayerList().remove(sprayer);
+            helper.assertTrue(held[1] < held[0] && held[2] == held[1],
+                    String.format(MIST_SPENT, held[0], held[1], held[2]));
+            helper.succeed();
+        });
+    }
+
+    private static ServerPlayer misterOverAFloor(GameTestHelper helper) {
+        ServerPlayer sprayer = sprayerOverAFloor(helper);
+        SprayerSelectPayload.keepOnTheHeldSprayer(sprayer, new SprayerSelectPayload("", SprayerFlow.MEDIUM,
+                SprayerNozzle.MISTER));
+        return sprayer;
+    }
+
+    private static int fittedWeird(ServerPlayer player) {
+        return CanisterItem.getFluidContent(SprayerItem.fittedCanister(player.getMainHandItem()))
+                .volumeOf(GooTypes.WEIRD);
+    }
+
+    /**
+     * The layers of every Goop cell standing over the stone floor.
+     *
+     * @param helper the gametest helper
+     * @return each cell's layers
+     */
+    private static List<Integer> goopLayersOnTheFloor(GameTestHelper helper) {
+        List<Integer> layers = new java.util.ArrayList<>();
+        for (int east = 0; east < FLOOR_SIDE; east++) {
+            for (int south = 0; south < FLOOR_SIDE; south++) {
+                BlockState cell = helper.getBlockState(new BlockPos(east, 1, south));
+                if (cell.is(GooBlocks.SLIME_COAT.get())) {
+                    layers.add(VolumeCellBlock.layersOf(cell));
+                }
+            }
+        }
+        return layers;
+    }
+
+    /**
+     * Runs the sprayer's held tick every tick from a delay for a count of ticks.
+     *
+     * @param helper the gametest helper
+     * @param player the spraying player
+     * @param first  the delay of the first tick
+     * @param ticks  how many ticks
+     */
+    private static void holdTheSprayerFor(GameTestHelper helper, ServerPlayer player, int first, int ticks) {
+        for (int tick = first; tick < first + ticks; tick++) {
+            helper.runAfterDelay(tick, () -> GooStreamHandler.sprayerTick(player, player.getEyePosition()));
+        }
     }
 
     /**
