@@ -59,15 +59,15 @@ final class BuildPreviewRenderer {
      * @param buf        the buffer source
      * @param camPos     the camera position
      * @param footprint  the live footprint
-     * @param rising     whether the footprint is fixed and the rise is being set
+     * @param ghost      the cells the ghost stone fills, empty until the footprint is fixed and the rise is being set
      * @param rgb        the goo type's highlight color
      * @param nowSeconds the real-time clock the rings run on
      */
     static void render(PoseStack ps, MultiBufferSource.BufferSource buf, Vec3 camPos, BuildFootprint footprint,
-                       boolean rising, int rgb, double nowSeconds) {
+                       List<BlockPos> ghost, int rgb, double nowSeconds) {
         drawRings(ps, buf, camPos, footprint, rgb, nowSeconds);
-        if (rising) {
-            drawGhostStone(Minecraft.getInstance(), ps, buf, camPos, BuildPreview.ghostCells(footprint), rgb);
+        if (!ghost.isEmpty()) {
+            drawGhostStone(Minecraft.getInstance(), ps, buf, camPos, ghost, rgb);
         }
     }
 

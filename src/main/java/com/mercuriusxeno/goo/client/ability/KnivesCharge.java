@@ -5,8 +5,9 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * Where another player's glove hand stands in the world, which their lifted
- * blob rises from: before the chest, on the glove side. A forming knife
+ * Where a player's glove hand stands before this client has drawn their
+ * model, the place DrawnPalm falls back to: before the chest, on the glove
+ * side. A forming knife
  * sounds from the server's count (HoveringKnives), not from this client's hold.
  * decision knives-and-javelins-sound-as-each-forms-and-is-thrown
  */

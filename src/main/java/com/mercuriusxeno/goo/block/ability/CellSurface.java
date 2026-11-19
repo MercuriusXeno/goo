@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.block.ability;
 
 /**
- * What a volume cell does to the things on it, the one way two goo types'
+ * What a volume cell does to the things on it, the one way goo types'
  * cells differ besides their look and their viscosity: slime breaks a fall
  * and bounces what lands on it, ramping while jump is held; slick lets a fall
  * harm as any ground does and ramps a thing trying to move on it, slippery as
@@ -13,8 +13,8 @@ package com.mercuriusxeno.goo.block.ability;
  * ordinary ground and entangles what crosses it; phase stands as ordinary
  * ground and puts what stands in it out of phase; stitch stands as ordinary
  * ground, lets a passive pass and tangles a hostile in it; gloom stands as
- * ordinary ground and reads dark to the mobs spawning on it. A goo type
- * binding a world goo to the cell names one.
+ * ordinary ground and reads dark to the mobs spawning on it; Dowsing is
+ * ordinary ground. A goo type binding a world goo to the cell names one.
  * slime-and-slick-are-one-volume-cell-tech
  * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
  * shatter-is-splattered-goo-and-shards-form-over-the-splatters
@@ -58,7 +58,13 @@ public enum CellSurface {
      */
     TANGLE(Frictions.ORDINARY_GROUND),
     /** Gloom's: ordinary ground underfoot, it reads dark to a hostile mob spawning on it, whatever the light. */
-    DARKEN(Frictions.ORDINARY_GROUND);
+    DARKEN(Frictions.ORDINARY_GROUND),
+    /**
+     * Dowsing's: ordinary ground underfoot that neither bounces nor ramps;
+     * the cell works on the eye looking through it, not on what stands on it.
+     * astral-world-goo-is-dowsing-an-x-ray-of-ore
+     */
+    LENS(Frictions.ORDINARY_GROUND);
 
     /** The friction a cell bound to this surface stands at, the slipperiness what moves on it meets. */
     private final float friction;

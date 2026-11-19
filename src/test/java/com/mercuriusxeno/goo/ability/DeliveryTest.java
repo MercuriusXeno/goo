@@ -346,9 +346,9 @@ class DeliveryTest {
     }
 
     /**
-     * Goop and Slick are the shipped streams throwing drips, so their spray
-     * lands where their coat lands; every other stream's motes keep the
-     * crosshair-distance launch.
+     * Goop, Slick and Dowsing, the streams laying world goo, are the shipped
+     * streams throwing drips, so their spray lands where their goo lands;
+     * every other stream's motes keep the crosshair-distance launch.
      * goop-and-slick-spray-follows-the-coat
      */
     @Nested
@@ -382,7 +382,8 @@ class DeliveryTest {
                     Identifier.fromNamespaceAndPath("goo", "quantum_phase"),
                     Identifier.fromNamespaceAndPath("goo", "nether_gloom"),
                     Identifier.fromNamespaceAndPath("goo", "rock_mortar"),
-                    Identifier.fromNamespaceAndPath("goo", "yarn_stitch")), throwing);
+                    Identifier.fromNamespaceAndPath("goo", "yarn_stitch"),
+                    Identifier.fromNamespaceAndPath("goo", "astral_dowsing")), throwing);
         }
     }
 

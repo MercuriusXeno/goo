@@ -68,6 +68,7 @@ import com.mercuriusxeno.goo.client.model.GloveSpecialRenderer;
 import com.mercuriusxeno.goo.client.model.GooJoins;
 import com.mercuriusxeno.goo.client.overlay.AimedMobRipple;
 import com.mercuriusxeno.goo.client.overlay.BlinkCursor;
+import com.mercuriusxeno.goo.client.overlay.DowsingXray;
 import com.mercuriusxeno.goo.client.overlay.GasketOverlayRenderer;
 import com.mercuriusxeno.goo.client.overlay.GooTargetHighlighter;
 import com.mercuriusxeno.goo.client.overlay.OculusXray;
@@ -179,6 +180,7 @@ public final class TranslucentVisualPath {
             new Registration(VoidstoneFaces.class, SortRoute.OPAQUE_SHAPE, VoidstoneFaces::collect),
             new Registration(AimedMobRipple.class, SortRoute.FAR_TO_NEAR, AimedMobRipple::collect),
             new Registration(BlinkCursor.class, SortRoute.FAR_TO_NEAR, BlinkCursor::collect),
+            new Registration(DowsingXray.class, SortRoute.THROUGH_BLOCKS, DowsingXray::collect),
             new Registration(OculusXray.class, SortRoute.THROUGH_BLOCKS, OculusXray::collect),
             new Registration(OreXray.class, SortRoute.THROUGH_BLOCKS, OreXray::collect),
             new Registration(TransmitTargetMarker.class, SortRoute.THROUGH_BLOCKS, TransmitTargetMarker::collect),
