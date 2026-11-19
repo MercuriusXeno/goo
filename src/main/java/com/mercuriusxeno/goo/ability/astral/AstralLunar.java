@@ -84,8 +84,8 @@ public final class AstralLunar {
             return false;
         }
         float moonAngle = moonAngleAt(caster);
-        Optional<LunarSight.Sky> sky = LunarSight.skyAt(caster.level().dimension(), caster.getLookAngle(), moonAngle,
-                planetPhaseAt(caster));
+        Optional<LunarSight.Sky> sky = LunarSight.skyAt(caster.level().dimension(), caster.getX(),
+                caster.getLookAngle(), moonAngle, planetPhaseAt(caster));
         if (sky.isEmpty()) {
             return false;
         }
@@ -125,8 +125,8 @@ public final class AstralLunar {
      * @return true when the look holds either
      */
     public static boolean findsTheSky(ServerPlayer caster) {
-        return LunarSight.skyAt(caster.level().dimension(), caster.getLookAngle(), moonAngleAt(caster),
-                planetPhaseAt(caster)).isPresent();
+        return LunarSight.skyAt(caster.level().dimension(), caster.getX(), caster.getLookAngle(),
+                moonAngleAt(caster), planetPhaseAt(caster)).isPresent();
     }
 
     /**
@@ -139,7 +139,7 @@ public final class AstralLunar {
      */
     public static void refuse(ServerPlayer caster) {
         caster.sendSystemMessage(Component.translatable(LunarSight.refusalKey(caster.level().dimension(),
-                caster.getLookAngle(), sunAngleAt(caster))), true);
+                caster.getX(), caster.getLookAngle(), sunAngleAt(caster))), true);
     }
 
     /**
