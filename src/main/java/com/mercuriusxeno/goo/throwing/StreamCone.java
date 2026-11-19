@@ -64,11 +64,27 @@ public final class StreamCone {
      * @return the unit direction
      */
     public static Vec3 launchDirection(Vec3 axis, double coneDegrees, double tiltShare, double turnShare) {
+        return launchDirection(axis, ConeShape.round(coneDegrees), tiltShare, turnShare);
+    }
+
+    /**
+     * A direction leaving the apex inside a cone of a shape: tilted off the axis by a share of the cone's half
+     * angle at its turn, so a flattened cone reaches far across and little up and down.
+     * decision spray-item-takes-different-nozzles-doing-different-things
+     * decision fan-nozzle-flattens-and-widens-the-cone
+     *
+     * @param axis      the cone's axis, any length
+     * @param shape     the cone's widths across and up and down
+     * @param tiltShare how far off the axis, zero on it and one at the rim
+     * @param turnShare how far about the axis, zero to one for a full turn
+     * @return the unit direction
+     */
+    public static Vec3 launchDirection(Vec3 axis, ConeShape shape, double tiltShare, double turnShare) {
         Vec3 forward = axis.normalize();
         Vec3 side = side(forward);
         Vec3 lift = side.cross(forward);
-        double tilt = Math.toRadians(coneDegrees * HALF) * tiltShare;
         double turn = FULL_TURN * turnShare;
+        double tilt = Math.toRadians(shape.degreesAt(turn) * HALF) * tiltShare;
         Vec3 off = side.scale(Math.cos(turn)).add(lift.scale(Math.sin(turn)));
         return forward.scale(Math.cos(tilt)).add(off.scale(Math.sin(tilt))).normalize();
     }

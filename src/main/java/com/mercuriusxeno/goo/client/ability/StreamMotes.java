@@ -94,7 +94,7 @@ public final class StreamMotes {
     private static boolean throwOnItsArc(Minecraft mc, StreamMotesPayload payload, SimpleParticleType particle,
                                          CoatRay.ConeShare share, double lead) {
         Vec3 apex = payload.apex();
-        Vec3 launch = payload.cone().launchFrom(apex, payload.coneDegrees(), share, payload.throwSpeed(),
+        Vec3 launch = payload.cone().launchFrom(apex, payload.coneShape(), share, payload.throwSpeed(),
                 DripArc.gravityIn(mc.level.dimension()));
         Particle mote = mc.particleEngine.createParticle(particle, apex.x, apex.y, apex.z, launch.x, launch.y,
                 launch.z);

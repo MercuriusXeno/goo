@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.network;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.item.SprayerFlow;
 import com.mercuriusxeno.goo.item.SprayerItem;
+import com.mercuriusxeno.goo.item.SprayerNozzle;
 import com.mercuriusxeno.goo.item.SprayerSetting;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -19,14 +20,16 @@ import org.jspecify.annotations.NonNull;
 import java.util.Optional;
 
 /**
- * Client-to-server payload: the goo type and flow picked on the sprayer's wheel, which the held sprayer keeps, as
+ * Client-to-server payload: the goo type, flow and nozzle the sprayer's wheel set, which the held sprayer keeps, as
  * GloveSelectPayload carries the glove's pick.
  * decision sprayer-wheel-picks-nozzle-flow-and-goo-type
  *
- * @param gooTypeId the picked goo type's id
+ * @param gooTypeId the picked goo type's id, empty where none was picked
  * @param flow      the picked flow
+ * @param nozzle    the picked nozzle
  */
-public record SprayerSelectPayload(String gooTypeId, SprayerFlow flow) implements CustomPacketPayload {
+public record SprayerSelectPayload(String gooTypeId, SprayerFlow flow, SprayerNozzle nozzle)
+        implements CustomPacketPayload {
 
     /** Payload type ID for registration. */
     public static final Type<SprayerSelectPayload> TYPE =
@@ -36,6 +39,7 @@ public record SprayerSelectPayload(String gooTypeId, SprayerFlow flow) implement
     public static final StreamCodec<FriendlyByteBuf, SprayerSelectPayload> STREAM_CODEC = StreamCodec.composite(
             ByteBufCodecs.STRING_UTF8, SprayerSelectPayload::gooTypeId,
             SprayerFlow.STREAM_CODEC.cast(), SprayerSelectPayload::flow,
+            SprayerNozzle.STREAM_CODEC.cast(), SprayerSelectPayload::nozzle,
             SprayerSelectPayload::new);
 
     @Override
@@ -58,19 +62,19 @@ public record SprayerSelectPayload(String gooTypeId, SprayerFlow flow) implement
     }
 
     /**
-     * Keeps a pick on the sprayer the player holds; a pick naming no known goo type, or a player holding no
-     * sprayer, changes nothing. The sprayer reads no recipe knowledge: a residual is its goo type's resting
-     * behavior.
+     * Keeps a pick on the sprayer the player holds; a pick naming a goo type no one knows, or a player holding no
+     * sprayer, changes nothing, and a pick naming none leaves the canister's most held sprayable type to spray.
+     * The sprayer reads no recipe knowledge: a residual is its goo type's resting behavior.
      *
      * @param player  the picking player
      * @param payload the pick
      */
     public static void keepOnTheHeldSprayer(ServerPlayer player, SprayerSelectPayload payload) {
         ItemStack sprayer = SprayerItem.heldSprayer(player);
-        ResourceKey<GooTypeDefinition> type = GooTypes.known(payload.gooTypeId());
-        if (sprayer.isEmpty() || type == null) {
+        Optional<ResourceKey<GooTypeDefinition>> type = Optional.ofNullable(GooTypes.known(payload.gooTypeId()));
+        if (sprayer.isEmpty() || type.isEmpty() && !payload.gooTypeId().isEmpty()) {
             return;
         }
-        SprayerItem.keepSetting(sprayer, new SprayerSetting(Optional.of(type), payload.flow()));
+        SprayerItem.keepSetting(sprayer, new SprayerSetting(type, payload.flow(), payload.nozzle()));
     }
 }

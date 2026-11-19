@@ -12,7 +12,9 @@ import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mercuriusxeno.goo.item.GooCasters;
 import com.mercuriusxeno.goo.network.StreamMotesPayload;
+import com.mercuriusxeno.goo.item.SprayerNozzle;
 import com.mercuriusxeno.goo.throwing.CoatRay;
+import com.mercuriusxeno.goo.throwing.ConeShape;
 import com.mercuriusxeno.goo.throwing.DripArc;
 import net.minecraft.client.Camera;
 import net.minecraft.client.CameraType;
@@ -240,6 +242,37 @@ class StreamMotesTest {
     }
 
     /**
+     * A tick carrying a nozzle's shape draws each drip on the launch the server throws it at under that nozzle.
+     * spray-item-takes-different-nozzles-doing-different-things
+     */
+    @Test
+    void drawnDripsTakeTheNozzlesShape() {
+        Caster caster = moving(Vec3.ZERO);
+        ConeShape fan = SprayerNozzle.FAN.shape(CONE_DEGREES);
+        StreamMotesPayload tick = shapedSprayTick(caster, fan);
+        Minecraft minecraft = clientDrawing(new ArrayList<>(), caster, true, new double[] {0});
+        whileDrawing(minecraft, new ArrayList<>(), () -> StreamMotes.handle(tick, runningAtOnce()));
+
+        ArgumentCaptor<Double> x = ArgumentCaptor.forClass(Double.class);
+        ArgumentCaptor<Double> y = ArgumentCaptor.forClass(Double.class);
+        ArgumentCaptor<Double> z = ArgumentCaptor.forClass(Double.class);
+        verify(minecraft.particleEngine, atLeastOnce()).createParticle(any(), anyDouble(), anyDouble(), anyDouble(),
+                x.capture(), y.capture(), z.capture());
+        List<Vec3> unmatched = new ArrayList<>(CoatRay.scatteredShares(SPRAY_HELD, SPRAY_DRIPS).stream()
+                .map(share -> GooStreamHandler.dripLaunch(new GooStreamHandler.DripThrow(tick.apex(), tick.cone(),
+                        tick.throwSpeed(), DripArc.GRAVITY), fan, share)).toList());
+        List<Vec3> strays = new ArrayList<>();
+        for (int i = 0; i < x.getAllValues().size(); i++) {
+            Vec3 drawn = new Vec3(x.getAllValues().get(i), y.getAllValues().get(i), z.getAllValues().get(i));
+            if (!unmatched.removeIf(launch -> launch.distanceTo(drawn) <= SAME_LAUNCH)) {
+                strays.add(drawn);
+            }
+        }
+        assertTrue(unmatched.isEmpty() && strays.isEmpty(), "the drawn drips should fly the fan's arcs the server"
+                + " throws; unmatched server arcs " + unmatched + ", drawn drips off them " + strays);
+    }
+
+    /**
      * residual-spray-cone-centers-on-the-look-from-the-blob: every drip leaves the blob, and the client draws the
      * drips the server throws
      */
@@ -385,7 +418,7 @@ class StreamMotesTest {
     /** Mycosis's tick as the server sends it, its glove a tick behind, its spores sprayed to rest three blocks off. */
     private static StreamMotesPayload sporeTick(Caster caster) {
         return new StreamMotesPayload(CASTER, sourceOf(caster, -1), SPRAY_AXIS,
-                Identifier.fromNamespaceAndPath("goo", "spore"), 50, GooStreamHandler.restingSpeed(3),
+                Identifier.fromNamespaceAndPath("goo", "spore"), ConeShape.round(50), GooStreamHandler.restingSpeed(3),
                 Delivery.NO_THROW_SPEED, false, 0, 0, sourceOf(caster, -1), 0);
     }
 
@@ -397,7 +430,14 @@ class StreamMotesTest {
     /** The stream's tick as the server sends it, its drips leaving a place onto a cone from an eye. */
     private static StreamMotesPayload sprayTickFrom(Vec3 blob, Vec3 eye) {
         return new StreamMotesPayload(CASTER, blob, SPRAY_AXIS, Identifier.fromNamespaceAndPath("goo",
-                "goop_spray_drip"), CONE_DEGREES, 0, THROW_SPEED, false, SPRAY_HELD, SPRAY_DRIPS, eye, SPRAY_LANDS);
+                "goop_spray_drip"), ConeShape.round(CONE_DEGREES), 0, THROW_SPEED, false, SPRAY_HELD, SPRAY_DRIPS, eye, SPRAY_LANDS);
+    }
+
+    /** The stream's tick as the server sends it for a caster, its drips thrown in a cone of a shape. */
+    private static StreamMotesPayload shapedSprayTick(Caster caster, ConeShape shape) {
+        return new StreamMotesPayload(CASTER, sourceOf(caster, -1), SPRAY_AXIS, Identifier.fromNamespaceAndPath("goo",
+                "goop_spray_drip"), shape, 0, THROW_SPEED, false, SPRAY_HELD, SPRAY_DRIPS, caster.eye().apply(-1),
+                SPRAY_LANDS);
     }
 
     /** The launch the server's drip takes for a share of a tick: from the tick's blob onto the tick's cone. */

@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.SprayerFlow;
 import com.mercuriusxeno.goo.item.SprayerItem;
+import com.mercuriusxeno.goo.item.SprayerNozzle;
 import com.mercuriusxeno.goo.network.GooStreamHandler;
 import com.mercuriusxeno.goo.network.SprayerSelectPayload;
 import com.mercuriusxeno.goo.registry.GooBlocks;
@@ -142,7 +143,7 @@ public final class SprayerTests {
         CanisterItem.addGoo(canister, GooTypes.KINETIC, CANISTER_KINETIC);
         SprayerItem.fitCanister(sprayer.getMainHandItem(), canister);
         SprayerSelectPayload.keepOnTheHeldSprayer(sprayer,
-                new SprayerSelectPayload(GooTypes.id(GooTypes.KINETIC), SprayerFlow.MEDIUM));
+                new SprayerSelectPayload(GooTypes.id(GooTypes.KINETIC), SprayerFlow.MEDIUM, SprayerNozzle.OPEN));
         BlockPos aimed = cellAimedAt(helper, sprayer);
         holdTheSprayer(helper, sprayer);
         helper.runAfterDelay(HOLD_TICKS + FALL_TICKS, () -> {
