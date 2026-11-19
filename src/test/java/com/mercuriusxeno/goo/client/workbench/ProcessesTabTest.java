@@ -19,7 +19,7 @@ class ProcessesTabTest {
     private static final String MODEL = """
             {"path": "base_values.json", "members": [
               {"key": "_conversions", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
-                 {"key": "rust", "keySeparator": null, "kind": "VALUE", "text": "\\"metal / 4 -> yore / 9\\"",
+                 {"key": "rust", "keySeparator": null, "kind": "VALUE", "text": "\\"metal / 4 -> ornate / 9\\"",
                   "entries": [], "leading": null, "trailing": null, "closingGap": null},
                  {"key": "broken", "keySeparator": null, "kind": "VALUE", "text": "\\"metal ->\\"",
                   "entries": [], "leading": null, "trailing": null, "closingGap": null}],
@@ -33,7 +33,7 @@ class ProcessesTabTest {
     private static final String DESCRIBED = """
             {"sections": [
               {"section": "_conversions", "processes": [
-                 {"key": "rust", "kind": "FORMULA", "text": "\\"metal / 4 -> yore / 9\\"", "parsed": true},
+                 {"key": "rust", "kind": "FORMULA", "text": "\\"metal / 4 -> ornate / 9\\"", "parsed": true},
                  {"key": "broken", "kind": "FORMULA", "text": "\\"metal ->\\"", "parsed": false,
                   "error": "Formula lacks a right side"}]},
               {"section": "_post_conversions", "processes": [
@@ -61,7 +61,7 @@ class ProcessesTabTest {
         assertEquals(List.of("_conversions", "_post_conversions"),
                 sections.stream().map(ProcessesTab.ProcessSection::section).toList());
         ProcessesTab.ProcessSection conversions = sections.getFirst();
-        assertEquals(new ProcessesTab.ProcessRow("rust", "formula", "metal / 4 -> yore / 9", true, "Valid", ""),
+        assertEquals(new ProcessesTab.ProcessRow("rust", "formula", "metal / 4 -> ornate / 9", true, "Valid", ""),
                 conversions.rows().get(0));
         assertEquals(new ProcessesTab.ProcessRow("broken", "formula", "metal ->", false, "Invalid",
                 "Formula lacks a right side"), conversions.rows().get(1));
@@ -187,10 +187,10 @@ class ProcessesTabTest {
         void formulaPicksItsTypesAndNumbers() {
             forms.setFormulaSource(POST, "oxidation_metal", "metal");
             forms.setFormulaDivisor(POST, "oxidation_metal", 4);
-            forms.setFormulaTarget(POST, "oxidation_metal", "yore");
+            forms.setFormulaTarget(POST, "oxidation_metal", "ornate");
             forms.setFormulaRatio(POST, "oxidation_metal", 2, 9);
-            assertEquals("\"metal / 4 -> yore * 2 / 9\"", textOf("oxidation_metal"));
-            assertEquals(new Processes.Formula("metal", 4, "yore", 2, 9),
+            assertEquals("\"metal / 4 -> ornate * 2 / 9\"", textOf("oxidation_metal"));
+            assertEquals(new Processes.Formula("metal", 4, "ornate", 2, 9),
                     Processes.parse("oxidation_metal", textOf("oxidation_metal")));
         }
 
@@ -337,9 +337,9 @@ class ProcessesTabTest {
          */
         @Test
         void formulaTargetRatioRoundTripsEverySpelling() {
-            assertRoundTrips("metal / 4 -> yore * 2 / 3", new Processes.Formula("metal", 4, "yore", 2, 3));
-            assertRoundTrips("metal / 4 -> yore * 2", new Processes.Formula("metal", 4, "yore", 2, 1));
-            assertRoundTrips("metal / 4 -> yore / 3", new Processes.Formula("metal", 4, "yore", 1, 3));
+            assertRoundTrips("metal / 4 -> ornate * 2 / 3", new Processes.Formula("metal", 4, "ornate", 2, 3));
+            assertRoundTrips("metal / 4 -> ornate * 2", new Processes.Formula("metal", 4, "ornate", 2, 1));
+            assertRoundTrips("metal / 4 -> ornate / 3", new Processes.Formula("metal", 4, "ornate", 1, 3));
             assertRoundTrips("metal / 4 -> 0", new Processes.Formula("metal", 4, "0", 1, 1));
         }
 
@@ -351,8 +351,8 @@ class ProcessesTabTest {
 
         @Test
         void formulaReadsWithoutSpaces() {
-            assertEquals(new Processes.Formula("metal", 4, "yore", 1, 9),
-                    Processes.parse("oxidation_metal", "\"metal/4->yore/9\""));
+            assertEquals(new Processes.Formula("metal", 4, "ornate", 1, 9),
+                    Processes.parse("oxidation_metal", "\"metal/4->ornate/9\""));
             assertEquals(new Processes.Formula("pulse", 2, "0", 1, 1),
                     Processes.parse("drain", "\"pulse / 2 -> 0\""));
         }

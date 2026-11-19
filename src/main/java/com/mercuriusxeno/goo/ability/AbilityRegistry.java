@@ -121,6 +121,19 @@ public final class AbilityRegistry {
     }
 
     /**
+     * The type's residual: its ability wearing the residual badge, lowest by order, which the sprayer sprays.
+     * decision spray-item-sprays-residuals-beside-the-glove
+     *
+     * @param type the goo type
+     * @return the residual, or empty when the type has none
+     */
+    public Optional<AbilityDefinition> residualAbilityFor(ResourceKey<GooTypeDefinition> type) {
+        return getAbilitiesForType(type).stream()
+                .filter(def -> def.badge() == AbilityBadge.RESIDUAL)
+                .min(Comparator.comparingInt(AbilityDefinition::order));
+    }
+
+    /**
      * Returns true if the goo type has any registered abilities.
      *
      * @param type the goo type

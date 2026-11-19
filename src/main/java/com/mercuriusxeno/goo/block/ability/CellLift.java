@@ -1,9 +1,13 @@
 package com.mercuriusxeno.goo.block.ability;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.Shapes;
+import net.minecraft.world.phys.shapes.VoxelShape;
 
 /**
  * A thing whose feet stand inside a volume cell is lifted onto the cell's
@@ -42,8 +46,10 @@ public final class CellLift {
 
     /**
      * How far a box's feet stand inside the volume cells under it: the
-     * highest such cell's top over the feet, where it stands within the
-     * thing's step.
+     * highest such cell's collision top over the feet, where it stands
+     * within the thing's step. The top is the floor's share, so a cell
+     * holding goo on a wall lifts no thing over the goo it stands on.
+     * diagnose-and-correct-mobs-and-players-hopping-in-goo-beside-a-wall
      *
      * @param entity the thing
      * @param box    its box
@@ -54,9 +60,10 @@ public final class CellLift {
         for (BlockPos pos : BlockPos.betweenClosed(BlockPos.containing(box.minX + TOUCHING, box.minY, box.minZ + TOUCHING),
                 BlockPos.containing(box.maxX - TOUCHING, box.minY, box.maxZ - TOUCHING))) {
             BlockState state = entity.level().getBlockState(pos);
-            if (state.getBlock() instanceof VolumeCellBlock) {
-                double above = pos.getY() + (double) VolumeCellBlock.layersOf(state) / VolumeCellBlock.MAX_LAYERS
-                        - box.minY;
+            VoxelShape collision = state.getBlock() instanceof VolumeCellBlock
+                    ? state.getCollisionShape(entity.level(), pos, CollisionContext.of(entity)) : Shapes.empty();
+            if (!collision.isEmpty()) {
+                double above = pos.getY() + collision.max(Direction.Axis.Y) - box.minY;
                 if (above > TOUCHING && above <= entity.maxUpStep()) {
                     lift = Math.max(lift, above);
                 }

@@ -1,0 +1,10 @@
+{
+  "values": {
+    "goo:lunar": {
+      "group_factor": 3
+    },
+    "goo:lunar_warrens": {
+      "group_factor": 3
+    }
+  }
+}

@@ -104,11 +104,11 @@ class GooRootsAndBleedTest {
                 {
                     "_constants": {},
                     %s
-                    "sea_pickle": {"deep": 4},
+                    "sea_pickle": {"glow": 4},
                     %s
                     "glass": {"rock": 1}
                 }
-                """.formatted(roots, extraPlant.isEmpty() ? "" : "\"" + extraPlant + "\": {\"deep\": 2},");
+                """.formatted(roots, extraPlant.isEmpty() ? "" : "\"" + extraPlant + "\": {\"glow\": 2},");
         List<String> stainedInputs = new ArrayList<>(repeat("glass", 8));
         stainedInputs.add("gray_dye");
         if (!extraPlant.isEmpty()) {
@@ -122,41 +122,41 @@ class GooRootsAndBleedTest {
     }
 
     /**
-     * Deep on the pane traces back to the pickle through the dye and the stained glass, and the pickle, its
-     * family's lone deep source, is flagged.
+     * Glow on the pane traces back to the pickle through the dye and the stained glass, and the pickle, its
+     * family's lone glow source, is flagged.
      */
     @Test
     void loneSourceIsTracedAndFlagged() {
         GooAuditSection provenance = new TypeProvenanceAuditRule().run(glass(""));
-        assertTrue(provenance.lines().contains("  deep on gray_stained_glass_pane: enters at sea_pickle via "
+        assertTrue(provenance.lines().contains("  glow on gray_stained_glass_pane: enters at sea_pickle via "
                 + "sea_pickle -> gray_dye -> gray_stained_glass -> gray_stained_glass_pane"), provenance.lines()
                 .toString());
-        assertTrue(provenance.flags().contains("deep enters its family through sea_pickle alone: sea_pickle -> "
+        assertTrue(provenance.flags().contains("glow enters its family through sea_pickle alone: sea_pickle -> "
                 + "gray_dye -> gray_stained_glass -> gray_stained_glass_pane"), provenance.flags().toString());
     }
 
     /**
-     * A root named for the glass family leaves deep's lone-source flag standing: only naming the lone entry
+     * A root named for the glass family leaves glow's lone-source flag standing: only naming the lone entry
      * itself as a root marks the bleed as intended.
      */
     @Test
     void rootOfAnotherFamilyLeavesTheBleedFlagged() {
         GooAuditSection glassRooted = new TypeProvenanceAuditRule()
                 .run(glass("", "\"_roots\": [\"gray_stained_glass\"],"));
-        assertTrue(glassRooted.flags().contains("deep enters its family through sea_pickle alone: sea_pickle -> "
+        assertTrue(glassRooted.flags().contains("glow enters its family through sea_pickle alone: sea_pickle -> "
                 + "gray_dye -> gray_stained_glass -> gray_stained_glass_pane"), glassRooted.flags().toString());
         GooAuditSection pickleRooted = new TypeProvenanceAuditRule().run(glass("", "\"_roots\": [\"sea_pickle\"],"));
-        assertFalse(pickleRooted.flags().stream().anyMatch(flag -> flag.startsWith("deep")),
+        assertFalse(pickleRooted.flags().stream().anyMatch(flag -> flag.startsWith("glow")),
                 pickleRooted.flags().toString());
     }
 
     /**
-     * Two hand-keyed entries feeding deep into one family raise no flag.
+     * Two hand-keyed entries feeding glow into one family raise no flag.
      */
     @Test
     void twoSourcesRaiseNoFlag() {
         GooAuditSection provenance = new TypeProvenanceAuditRule().run(glass("kelp"));
-        assertFalse(provenance.flags().stream().anyMatch(flag -> flag.startsWith("deep")), provenance.flags()
+        assertFalse(provenance.flags().stream().anyMatch(flag -> flag.startsWith("glow")), provenance.flags()
                 .toString());
     }
 }

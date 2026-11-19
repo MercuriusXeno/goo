@@ -195,7 +195,7 @@ public final class GooRenderTypes {
             ));
 
     /**
-     * Shroom's held spore shell (decision held-visual-ghosts-the-landing-in-two-passes):
+     * Sculk's held spore shell (decision held-visual-ghosts-the-landing-in-two-passes):
      * plain colored quads through vanilla's position-color shader, translucent,
      * depth tested with depth write off, both faces drawn; its twin passes every
      * depth test so the shell shows through blocks.
@@ -207,10 +207,10 @@ public final class GooRenderTypes {
     public static final RenderPipeline SPORE_SHELL_THROUGH_BLOCKS = sorted(PipelineSort.ON_THE_PATH, colorShellPipeline(
             "spore_shell" + THROUGH_BLOCKS_SUFFIX, CompareOp.ALWAYS_PASS, BlendFunction.TRANSLUCENT));
 
-    /** RenderType for shroom's held spore shell over blocks. */
+    /** RenderType for sculk's held spore shell over blocks. */
     public static final RenderType SPORE_SHELL_TYPE = burnoutType(SPORE_SHELL);
 
-    /** RenderType for shroom's held spore shell through blocks. */
+    /** RenderType for sculk's held spore shell through blocks. */
     public static final RenderType SPORE_SHELL_THROUGH_BLOCKS_TYPE = burnoutType(SPORE_SHELL_THROUGH_BLOCKS);
 
     /**
@@ -1048,6 +1048,20 @@ public final class GooRenderTypes {
                     .createRenderSetup());
 
     /**
+     * Stitch's web tangle render type: the vine tangle pipeline sampling
+     * vanilla's cobweb texture, so a tangled hostile wears web strands the
+     * way a rooted mob wears vines.
+     * passives-move-through-stitch-and-hostiles-tangle-in-it
+     */
+    public static final RenderType WEB_TANGLE_TYPE = RenderType.create(
+            "goo_web_tangle",
+            RenderSetup.builder(VINE_TANGLE)
+                    .withTexture("Sampler0", Identifier.withDefaultNamespace("textures/block/cobweb.png"))
+                    .useLightmap()
+                    .sortOnUpload()
+                    .createRenderSetup());
+
+    /**
      * Frost's ice over a frozen mob (decision frozen-gauge-per-mob-encases-when-full):
      * Petrify's stone pipeline sampling vanilla's packed ice, so frost spreads
      * over the mob the way stone does, whole at a full gauge.
@@ -1575,7 +1589,7 @@ public final class GooRenderTypes {
 
     /**
      * Registers the plain pipelines: the additive glow lines, Sight's fungus
-     * x-ray, and shroom's spore shell in both passes.
+     * x-ray, and sculk's spore shell in both passes.
      *
      * @param event the pipeline registration event
      */

@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.item;
 
+import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.type.GooTypes;
+import com.mojang.serialization.JsonOps;
 import org.junit.jupiter.api.Test;
 import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
@@ -35,6 +37,7 @@ class GooContentsTest {
         assertEquals(350, gc.totalVolume());
         assertEquals(3, gc.typeCount());
     }
+
 
     // -- isSingleType / getSingleType --
 

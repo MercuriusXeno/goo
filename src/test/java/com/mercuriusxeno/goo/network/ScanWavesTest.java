@@ -43,7 +43,7 @@ class ScanWavesTest {
     /** How near the wall's face a landing on it stands. */
     private static final double AT_THE_FACE = 0.1;
 
-    private final AbilityDefinition click = AbilityJson.decode("deep_click");
+    private final AbilityDefinition click = AbilityJson.decode("pulse_click");
     private final ServerLevel level = mock(ServerLevel.class);
     private final Vec3 landing = GooScanHandler.landingAt(EYE, WALL.getLocation(), click.delivery().range());
     private final int delay = click.delivery().waveTicks(EYE.distanceTo(landing));

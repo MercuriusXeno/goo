@@ -1,0 +1,23 @@
+{
+  "gooType": "xeno",
+  "displayName": "goo.ability.xeno.revert",
+  "badge": "mob",
+  "order": 20,
+  "cost": 4000,
+  "requires": ["minecraft:clock"],
+  "delivery": { "kind": "envelop", "range": 16 },
+  "behaviors": [
+    {
+      "type": "target",
+      "where": ["mob", "not_boss", "has_spawn_egg"],
+      "steps": [
+        { "type": "regress", "ticks": 20 },
+        { "type": "particles", "id": "minecraft:end_rod", "at": "target", "count": 30, "spread": 0.5, "speed": 0.08, "lift": 0.5 },
+        { "type": "particles", "id": "minecraft:wax_on", "at": "target", "count": 40, "spread": 0.7, "speed": 0.5, "lift": 0.5 },
+        { "type": "sound", "id": "minecraft:block.bell.resonate", "at": "target", "source": "players", "volume": 1.0, "pitch": 1.6 },
+        { "type": "sound", "id": "minecraft:entity.illusioner.mirror_move", "at": "target", "source": "players", "volume": 1.0, "pitch": 0.8 }
+      ]
+    }
+  ],
+  "tags": ["entity"]
+}

@@ -21,7 +21,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.Optional;
 
 /**
- * Nether's Infest cell: the volume cell bound to Infest's goo, the decay
+ * Zombie's Infest cell: the volume cell bound to Infest's goo, the decay
  * effect left standing. On each tick its cadence falls on it gnaws the block
  * under it and the block behind each side it coats a stage along the block
  * map Infest's step names, Decay's, and bites each living thing standing in

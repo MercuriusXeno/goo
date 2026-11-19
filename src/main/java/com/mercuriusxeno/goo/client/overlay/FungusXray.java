@@ -1,165 +1,36 @@
 package com.mercuriusxeno.goo.client.overlay;
 
-import com.mercuriusxeno.goo.ability.program.Sight;
-import com.mercuriusxeno.goo.ability.program.TransmitStep;
-import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.GooSubmitter;
-import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
-import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
-import com.mercuriusxeno.goo.client.fade.Afterglow;
-import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
-import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
-import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.QuadInstance;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.block.dispatch.BlockStateModel;
 import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart;
-import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.SectionPos;
-import net.minecraft.data.AtlasIds;
-import net.minecraft.resources.Identifier;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
-import net.minecraft.util.Util;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.chunk.ChunkAccess;
-import net.minecraft.world.level.chunk.LevelChunkSection;
-import net.minecraft.world.level.chunk.status.ChunkStatus;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
-import java.util.function.Consumer;
 
 /**
- * Shows every fungus block within Transmit's reach through walls while
- * the local player holds fungal sight: each block's own model and texture,
- * ghosted and tinted toward shroom's mauve, full bright, with an additive
- * magenta halo of its own shape swollen past it and breathing slowly, both
- * drawn after the translucent world through pipelines that ignore depth. The blocks are
- * scanned again once a second, chunk section by chunk section, skipping any
- * section whose palette holds no fungus, and the nearest are drawn up to a cap.
- * sight-lengthens-shift-and-outlines-fungus
+ * The brush the through-wall overlays share: a block's own model and texture drawn full bright in a color, swollen
+ * about its center, and the magenta halo's slow breath. Oculus, the ore sightings, Transmit's target marker and
+ * Sculker's sense view draw through it.
  */
 public final class FungusXray {
 
-    private static final String TRANSMIT = "goo:shroom_transmit";
-    /** Transmit's range when the player holds no synced copy of it. */
-    private static final double FALLBACK_RANGE = 64;
-    static final int RESCAN_TICKS = 20;
-    private static final int MOST_SEEN = 512;
-    /** The ghost's tint: a little translucent, leaning toward shroom's mauve. */
-    static final int GHOST_TINT = 0xB8E0B0F0;
     /** The halo's magenta. */
     private static final int GLOW_RGB = 0xFF40C0;
-    /** The halo's alpha at full pulse. */
-    private static final float HALO_ALPHA = 0.55f;
-    /** How far the halo swells past the block. */
-    private static final float HALO_SWELL = 1.12f;
-    /** The halo's slow breath, radians per second. */
-    private static final float HALO_PULSE_PER_SECOND = 2.2f;
-    private static final float MILLIS_PER_SECOND = 1000f;
     private static final float HALF = 0.5f;
     private static final int OPAQUE = 255;
-    private static final int SECTION_SIZE = LevelChunkSection.SECTION_WIDTH;
-
-    private static final List<BlockPos> seen = new ArrayList<>();
-    /** Marks that no scan has run. */
-    static final long UNSCANNED = Long.MIN_VALUE;
-    private static long scannedAt = UNSCANNED;
-    /** The outlines' trace, read between frames so they fade after the sight ends. */
-    private static final Afterglow<Sight> OUTLINE_GLOW = new Afterglow<>();
 
     private FungusXray() {
-    }
-
-    /**
-     * Rescans the fungus while the local player's sight stands and hands the
-     * shared path the fungus seen, drawn through walls, sorted by the nearest
-     * fungus seen.
-     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
-     * decision sight-lengthens-shift-and-outlines-fungus
-     *
-     * @param frame the frame being drawn
-     * @param draws where the fungus's draw goes
-     */
-    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
-        Minecraft mc = Minecraft.getInstance();
-        LocalPlayer player = mc.player;
-        if (player == null || mc.level == null) {
-            return;
-        }
-        long now = mc.level.getGameTime();
-        Sight sight = player.getData(GooAttachments.SIGHT);
-        float strength = outlineStrength(OUTLINE_GLOW, sight, now,
-                now + mc.getDeltaTracker().getGameTimeDeltaPartialTick(false));
-        if (strength <= 0f) {
-            seen.clear();
-            return;
-        }
-        if (sight.standsAt(now)) {
-            rescanEverySecond(mc.level, player, now);
-        }
-        if (!seen.isEmpty()) {
-            draws.accept(SortedDraw.nearestOf(seen.stream().map(Vec3::atCenterOf),
-                    mc.gameRenderer.getMainCamera().position(), () -> drawAll(mc, frame.poseStack(), strength)));
-        }
-    }
-
-    /**
-     * The strength the outlines draw at: whole while the sight stands, and
-     * falling over the second after it ends, the last scan's blocks fading
-     * where they stood.
-     * brew-effect-visuals-linger-and-fade-over-a-second-after-the-effect-ends
-     *
-     * @param glow  the outlines' trace, kept between frames
-     * @param sight the local player's sight
-     * @param now   the game tick
-     * @param time  the game time with the frame's partial tick
-     * @return zero to one, zero once no sight stands and the fade is spent
-     */
-    static float outlineStrength(Afterglow<Sight> glow, Sight sight, long now, float time) {
-        return glow.read(sight.standsAt(now) ? sight : null, time).map(Afterglow.Glow::strength).orElse(0f);
-    }
-
-    /**
-     * The ghost's tint at the outlines' strength.
-     *
-     * @param strength the outlines' strength, zero to one
-     * @return the ARGB tint
-     */
-    static int ghostTint(float strength) {
-        return Afterglow.fadeArgb(GHOST_TINT, strength);
-    }
-
-    private static void drawAll(Minecraft mc, PoseStack poseStack, float strength) {
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
-        Identifier atlas = mc.getAtlasManager().getAtlasOrThrow(AtlasIds.BLOCKS).location();
-        Vec3 camera = mc.gameRenderer.getMainCamera().position();
-        RenderType xray = GooRenderTypes.fungusXray(atlas);
-        VertexConsumer ghost = buffers.getBuffer(xray);
-        QuadInstance ghostLook = instance(ghostTint(strength));
-        for (BlockPos pos : seen) {
-            drawBlock(mc, poseStack, ghost, camera, pos, ghostLook, 1f);
-        }
-        buffers.endBatch(xray);
-        RenderType glow = GooRenderTypes.fungusGlow(atlas);
-        VertexConsumer halo = buffers.getBuffer(glow);
-        float seconds = Util.getMillis() / MILLIS_PER_SECOND;
-        QuadInstance haloLook = instance(glowColor(pulse(seconds, HALO_PULSE_PER_SECOND), HALO_ALPHA * strength));
-        for (BlockPos pos : seen) {
-            drawBlock(mc, poseStack, halo, camera, pos, haloLook, HALO_SWELL);
-        }
-        buffers.endBatch(glow);
     }
 
     /**
@@ -264,83 +135,5 @@ public final class FungusXray {
             part.getQuads(null).forEach(quad -> consumer.putBakedQuad(poseStack.last(), quad, instance));
         }
         poseStack.popPose();
-    }
-
-    private static void rescanEverySecond(Level level, LocalPlayer player, long now) {
-        if (isDue(scannedAt, now)) {
-            rescan(level, player.getEyePosition(), TransmitStep.reachOf(player, transmitRange()));
-            scannedAt = now;
-        }
-    }
-
-    /**
-     * Whether a scan is due: none has run yet, a second has passed since the
-     * last, or the clock ran back past it.
-     *
-     * @param lastScan the game time of the last scan, or {@link #UNSCANNED}
-     * @param now      the game time
-     * @return true when the fungus should be scanned again
-     */
-    static boolean isDue(long lastScan, long now) {
-        return lastScan == UNSCANNED || now < lastScan || now - lastScan >= RESCAN_TICKS;
-    }
-
-    private static double transmitRange() {
-        ClientAbility transmit = AbilitySyncHandler.findAbility(TRANSMIT);
-        return transmit == null ? FALLBACK_RANGE : TransmitStep.fungusRange(transmit.behaviors()).orElse(FALLBACK_RANGE);
-    }
-
-    /**
-     * Collects the nearest fungus blocks within the reach of the eye, reading
-     * only the chunk sections whose palette may hold fungus.
-     *
-     * @param level the client level
-     * @param eye   the player's eye
-     * @param reach the reach in blocks
-     */
-    private static void rescan(Level level, Vec3 eye, double reach) {
-        seen.clear();
-        SectionPos low = SectionPos.of(BlockPos.containing(eye.subtract(reach, reach, reach)));
-        SectionPos high = SectionPos.of(BlockPos.containing(eye.add(reach, reach, reach)));
-        for (int sx = low.x(); sx <= high.x(); sx++) {
-            for (int sz = low.z(); sz <= high.z(); sz++) {
-                ChunkAccess chunk = level.getChunk(sx, sz, ChunkStatus.FULL, false);
-                if (chunk != null) {
-                    scanChunk(chunk, low.y(), high.y(), eye, reach);
-                }
-            }
-        }
-        seen.sort(Comparator.comparingDouble(pos -> Vec3.atCenterOf(pos).distanceToSqr(eye)));
-        if (seen.size() > MOST_SEEN) {
-            seen.subList(MOST_SEEN, seen.size()).clear();
-        }
-    }
-
-    private static void scanChunk(ChunkAccess chunk, int lowY, int highY, Vec3 eye, double reach) {
-        for (int sy = Math.max(lowY, chunk.getMinSectionY()); sy <= Math.min(highY, chunk.getMaxSectionY()); sy++) {
-            LevelChunkSection section = chunk.getSection(chunk.getSectionIndexFromSectionY(sy));
-            if (section.hasOnlyAir() || !section.getStates().maybeHas(state -> state.is(TransmitStep.FUNGUS))) {
-                continue;
-            }
-            int baseX = chunk.getPos().getMinBlockX();
-            int baseY = SectionPos.sectionToBlockCoord(sy);
-            int baseZ = chunk.getPos().getMinBlockZ();
-            scanSection(section, new BlockPos(baseX, baseY, baseZ), eye, reach);
-        }
-    }
-
-    private static void scanSection(LevelChunkSection section, BlockPos base, Vec3 eye, double reach) {
-        for (int x = 0; x < SECTION_SIZE; x++) {
-            for (int y = 0; y < SECTION_SIZE; y++) {
-                for (int z = 0; z < SECTION_SIZE; z++) {
-                    if (section.getBlockState(x, y, z).is(TransmitStep.FUNGUS)) {
-                        BlockPos pos = base.offset(x, y, z);
-                        if (Vec3.atCenterOf(pos).distanceTo(eye) <= reach) {
-                            seen.add(pos);
-                        }
-                    }
-                }
-            }
-        }
     }
 }

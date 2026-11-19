@@ -60,17 +60,28 @@ class GloveRadialKeyGateTest {
 
         @Test
         void pressWithGloveHeldAndNoScreenOpensRadial() {
-            assertTrue(GloveRadialKeyGate.pressOpensRadial(true, false));
+            assertEquals(GloveRadialKeyGate.Wheel.GLOVE, GloveRadialKeyGate.wheelOpened(false, true, false));
         }
 
         @Test
         void pressWithNoGloveHeldOpensNothing() {
-            assertFalse(GloveRadialKeyGate.pressOpensRadial(false, false));
+            assertEquals(GloveRadialKeyGate.Wheel.NONE, GloveRadialKeyGate.wheelOpened(false, false, false));
         }
 
         @Test
         void pressWithScreenOpenOpensNothing() {
-            assertFalse(GloveRadialKeyGate.pressOpensRadial(true, true));
+            assertEquals(GloveRadialKeyGate.Wheel.NONE, GloveRadialKeyGate.wheelOpened(true, true, true));
+        }
+
+        /** decision sprayer-wheel-picks-nozzle-flow-and-goo-type */
+        @Test
+        void pressWithTheSprayerHeldOpensTheSprayersWheel() {
+            assertEquals(GloveRadialKeyGate.Wheel.SPRAYER, GloveRadialKeyGate.wheelOpened(true, false, false));
+        }
+
+        @Test
+        void pressWithTheGloveHeldOpensTheGlovesWheel() {
+            assertEquals(GloveRadialKeyGate.Wheel.GLOVE, GloveRadialKeyGate.wheelOpened(false, true, false));
         }
     }
 
