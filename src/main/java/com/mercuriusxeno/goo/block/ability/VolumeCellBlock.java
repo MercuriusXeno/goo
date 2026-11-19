@@ -12,11 +12,13 @@ import com.mercuriusxeno.goo.ability.program.MoltenStep;
 import com.mercuriusxeno.goo.ability.program.ShatterStep;
 import com.mercuriusxeno.goo.ability.program.SlickStep;
 import com.mercuriusxeno.goo.ability.program.Step;
+import com.mercuriusxeno.goo.ability.program.StitchStep;
 import com.mercuriusxeno.goo.ability.program.VinesStep;
 import com.mercuriusxeno.goo.ability.program.WispShed;
 import com.mercuriusxeno.goo.ability.program.WispsStep;
 import com.mercuriusxeno.goo.ability.root.RootEvents;
 import com.mercuriusxeno.goo.ability.root.Rooted;
+import com.mercuriusxeno.goo.ability.yarn.StitchEvents;
 import com.mercuriusxeno.goo.block.ability.SlimeFlow.Side;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.item.GooStacks;
@@ -989,7 +991,6 @@ public class VolumeCellBlock extends Block {
                                                     @NonNull BlockPos pos, @NonNull CollisionContext ctx) {
         return boxOf(sharesOf(state, onAFloor(level, pos), cohesionIn(level)));
     }
-
     /**
      * A cell holding fill stands on a top; a cell of fill 0 stands on its
      * films, each clinging to a wall with a face to hold it.
@@ -1134,7 +1135,8 @@ public class VolumeCellBlock extends Block {
         step.moves().stream().distinct().forEach(move -> carryPlacer(level, move.from(), move.to()));
         step.layers().forEach((cell, layers) -> {
             BlockState standing = level.getBlockState(cell);
-            BlockState into = standing.isAir() ? defaultBlockState() : standing;
+            // every-block-displaces-wisps: a cell the network reads as open, air or a wisp, takes this goo
+            BlockState into = opens(standing) ? defaultBlockState() : standing;
             level.setBlock(cell, layers > 0 ? into.setValue(LAYERS, layers) : lessALayer(into.setValue(LAYERS, 1)),
                     UPDATE_ALL);
         });
@@ -2030,7 +2032,8 @@ public class VolumeCellBlock extends Block {
      * step names; on a cutting cell, the shards over it cut a thing moving
      * through them, on the server, by the laying ability's shatter step; a
      * smiting cell burns an undead standing on it; a slowing cell catches
-     * what stands on it; an entangling cell gives vines to what crosses it.
+     * what stands on it; an entangling cell gives vines to what crosses it;
+     * a tangling cell turns a slime standing on it and tangles a hostile.
      * slick-coats-the-ground-with-kinetic-speed
      * slick-is-a-layered-cell-that-flows-thinner-and-faster-than-slime
      * each-shatter-cut-has-a-chance-to-deplete-a-layer
@@ -2051,6 +2054,7 @@ public class VolumeCellBlock extends Block {
         smite(level, pos, state, entity);
         catchIn(level, entity);
         entangle(level, pos, state, entity);
+        tangle(level, pos, state, entity);
         super.stepOn(level, pos, state, entity);
     }
 
@@ -2059,7 +2063,7 @@ public class VolumeCellBlock extends Block {
      * to stand on as the block under its feet still touches it, and catches a
      * thing inside a slowing cell's block space, wading in it or standing on
      * a cell short of a whole block, and entangles a thing crossing an
-     * entangling cell's space.
+     * entangling cell's space, and tangles a hostile inside a tangling cell's.
      * undead-touching-wisps-goo-erupt-in-flames-and-take-holy-damage-by-fill
      * leech-goo-slows-what-it-catches-and-the-spirits-damage-it
      * vines-is-sprayed-slime-that-entangles-what-tries-to-cross
@@ -2071,7 +2075,26 @@ public class VolumeCellBlock extends Block {
         smite(level, pos, state, entity);
         catchIn(level, entity);
         entangle(level, pos, state, entity);
+        tangle(level, pos, state, entity);
         super.entityInside(state, level, pos, entity, effects, pastEdges);
+    }
+
+    /**
+     * Runs a tangling cell on a thing in it or standing on it, by its laying
+     * ability's stitch step: a slime becomes a passive mob, a hostile is
+     * tangled in strands, and a passive passes.
+     * passives-move-through-stitch-and-hostiles-tangle-in-it
+     * stitch-is-yarns-residual-that-turns-slimes-into-passive-mobs
+     *
+     * @param level  the level the cell stands in
+     * @param pos    the cell
+     * @param state  the cell's state
+     * @param entity the entity in or on the cell
+     */
+    private void tangle(Level level, BlockPos pos, BlockState state, Entity entity) {
+        if (surface().tangles() && level instanceof ServerLevel server) {
+            StitchStep.in(layingProgram(server)).ifPresent(stitch -> StitchEvents.touch(entity, pos, state, stitch));
+        }
     }
 
     /**

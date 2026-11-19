@@ -19,7 +19,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 /**
  * The shipped base values hold what the values before yore left hold once each yore term moves onto opulent, or
  * drops where opulent already stood beside it, item by item and type by type. The values before are
- * base_values.json as it stood at 25fb0499b, kept as a fixture.
+ * base_values.json as it stood at 25fb0499b, with shroom and deep moved to standing types as thread
+ * sculk-goo-replaces-shroom-and-deep moved them, kept as a fixture.
  * decision yore-leaves-and-rewind-moves-to-xeno-as-revert
  */
 class OpulentHoldsWhatYoreHeldTest {

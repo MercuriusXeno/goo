@@ -19,7 +19,7 @@ import java.util.SplittableRandom;
  * mote its own: a random place over the whole sphere, its own depth in a
  * fuzzy outer shell, its own slow wander and wobble, its own size and
  * twinkle, with rings born at the aim point travelling outward to the same
- * reach. Shroom's cloud is mauve spores about the throw's reach; Jelly's is amber
+ * reach. Sculk's cloud is mauve spores about the throw's reach; Jelly's is amber
  * crumbs about the reach Nectar's laid nectar draws mobs from.
  * held-visual-ghosts-the-landing-in-two-passes
  * colonize-blob-grows-the-network
@@ -27,8 +27,8 @@ import java.util.SplittableRandom;
  */
 public final class MoteCloudGhost implements HeldGhostVisual {
 
-    /** Shroom's mauve spore cloud. */
-    public static final MoteCloudGhost SHROOM = new MoteCloudGhost(GooTypes.SHROOM, 0xB57FC0);
+    /** Sculk's mauve spore cloud. */
+    public static final MoteCloudGhost SCULK = new MoteCloudGhost(GooTypes.SCULK, 0xB57FC0);
     /** Jelly's amber crumb cloud. */
     public static final MoteCloudGhost JELLY = new MoteCloudGhost(GooTypes.JELLY, 0xF0A040);
 

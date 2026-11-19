@@ -74,13 +74,13 @@ public class GooParticles {
         PARTICLE_TYPES.register("shatter_spray_drip", () -> new SimpleParticleType(false));
 
     /**
-     * Host's spray drip: the mod's blocky goo drip in deep's teals, flying
-     * its arc until it strikes a block's top, where it splats and the Host
+     * Creep's spray drip: the mod's blocky goo drip in sculk's teals, flying
+     * its arc until it strikes a block's top, where it splats and the Creep
      * goo lands.
-     * host-is-a-sculky-slime-that-sculk-spreads-eagerly-through
+     * host-and-spores-combine-into-one-residual
      */
-    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> HOST_SPRAY_DRIP =
-        PARTICLE_TYPES.register("host_spray_drip", () -> new SimpleParticleType(false));
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> CREEP_SPRAY_DRIP =
+        PARTICLE_TYPES.register("creep_spray_drip", () -> new SimpleParticleType(false));
 
     /**
      * Rime's spray drip: the mod's blocky goo drip in frost's pale blues,
@@ -173,14 +173,15 @@ public class GooParticles {
     public static final DeferredHolder<ParticleType<?>, SimpleParticleType> VINES_SPRAY_DRIP =
         PARTICLE_TYPES.register("vines_spray_drip", () -> new SimpleParticleType(false));
 
+
     /**
-     * Spores' spray drip: the mod's blocky goo drip in shroom's purples,
-     * flying its arc until it strikes a block's top, where it splats and the
-     * Spores goo lands.
-     * spores-is-shrooms-residual-a-passive-mycosis
+     * Stitch's spray drip: the mod's blocky goo drip in yarn's tans, flying
+     * its arc until it strikes a block's top, where it splats and the Stitch
+     * goo lands.
+     * stitch-is-yarns-residual-that-turns-slimes-into-passive-mobs
      */
-    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> SPORES_SPRAY_DRIP =
-        PARTICLE_TYPES.register("spores_spray_drip", () -> new SimpleParticleType(false));
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> STITCH_SPRAY_DRIP =
+        PARTICLE_TYPES.register("stitch_spray_drip", () -> new SimpleParticleType(false));
 
     /**
      * Phase's spray drip: the mod's blocky goo drip in quantum's blues,
