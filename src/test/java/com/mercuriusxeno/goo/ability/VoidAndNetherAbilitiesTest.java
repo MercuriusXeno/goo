@@ -51,12 +51,14 @@ class VoidAndNetherAbilitiesTest {
     }
 
     /**
-     * Infest moves to zombie on its own thread; Tartarus stays on nether.
+     * Infest moves to zombie on its own thread; Tartarus stays on nether, and
+     * Gloom is nether's residual.
      * decision zombie-goo-is-the-undead-and-takes-the-decay-abilities
+     * decision gloom-spawns-regardless-of-light-and-mobs-on-it-ignore-daylight
      */
     @Test
-    void netherShipsInfestAndTartarus() {
-        assertEquals(Set.of("nether_infest", "nether_tartarus"), shippedPathsOf(GooTypes.NETHER));
+    void netherShipsInfestGloomAndTartarus() {
+        assertEquals(Set.of("nether_infest", "nether_gloom", "nether_tartarus"), shippedPathsOf(GooTypes.NETHER));
     }
 
     /**

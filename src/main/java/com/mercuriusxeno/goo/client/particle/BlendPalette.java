@@ -126,6 +126,15 @@ public record BlendPalette(float lightRed, float lightGreen, float lightBlue,
             0x8C / 255f, 0x3A / 255f, 0x48 / 255f, 0x5C / 255f, 0x1C / 255f, 0x2A / 255f);
 
     /**
+     * Gloom's spray drips, from nether's bright maroon, 8C3A48, to its edge
+     * obsidian, 2E1C44, the two the nether goo type's definition names.
+     * gloom-spawns-regardless-of-light-and-mobs-on-it-ignore-daylight
+     * nether-is-a-deeper-maroon-mixed-with-obsidians-colors
+     */
+    public static final BlendPalette GLOOM_NETHER_MAROONS = new BlendPalette(
+            0x8C / 255f, 0x3A / 255f, 0x48 / 255f, 0x2E / 255f, 0x1C / 255f, 0x44 / 255f);
+
+    /**
      * Spores' spray drips, from shroom's bright purple, B66CD5, to its
      * wheel purple, 8E44AD, the two the shroom goo type's definition names.
      * spores-is-shrooms-residual-a-passive-mycosis
