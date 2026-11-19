@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.data.GooRemainders;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterMetadata;
 import com.mercuriusxeno.goo.item.GooContents;
+import com.mercuriusxeno.goo.item.SprayerSetting;
 import com.mercuriusxeno.goo.item.gasket.GasketPairing;
 import com.mercuriusxeno.goo.item.gasket.TunerState;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -16,6 +17,7 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.ItemContainerContents;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import java.util.List;
@@ -119,6 +121,29 @@ public class GooDataComponents {
                     () -> DataComponentType.<List<ItemStack>>builder()
                             .persistent(ItemStack.CODEC.listOf())
                             .networkSynchronized(ItemStack.STREAM_CODEC.apply(ByteBufCodecs.list()))
+                            .build());
+
+    /**
+     * The canister a sprayer carries, whole, its own goo and label riding inside it untouched, held as a
+     * one-slot container, since a component value must be immutable and compare by value and a bare stack does not.
+     * decision sprayer-holds-a-canister-sideways-like-a-caulk-gun
+     */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<ItemContainerContents>>
+            SPRAYER_CANISTER = DATA_COMPONENTS.register("sprayer_canister",
+                    () -> DataComponentType.<ItemContainerContents>builder()
+                            .persistent(ItemContainerContents.CODEC)
+                            .networkSynchronized(ItemContainerContents.STREAM_CODEC)
+                            .build());
+
+    /**
+     * The goo type and flow picked on a sprayer's wheel, kept on the sprayer.
+     * decision sprayer-wheel-picks-nozzle-flow-and-goo-type
+     */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<SprayerSetting>> SPRAYER_SETTING =
+            DATA_COMPONENTS.register("sprayer_setting",
+                    () -> DataComponentType.<SprayerSetting>builder()
+                            .persistent(SprayerSetting.CODEC)
+                            .networkSynchronized(SprayerSetting.STREAM_CODEC)
                             .build());
 
     /**

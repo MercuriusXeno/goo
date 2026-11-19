@@ -36,8 +36,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 class HeldEffectIconsTest {
 
     private static final List<ResourceKey<GooTypeDefinition>> GRANTING_NONE = List.of(
-            GooTypes.ASTRAL, GooTypes.FROST, GooTypes.HEX, GooTypes.INFINITY, GooTypes.METAL, GooTypes.NETHER,
-            GooTypes.OPULENT, GooTypes.PULSE, GooTypes.QUANTUM, GooTypes.UNSTABLE, GooTypes.VOID, GooTypes.WEIRD,
+            GooTypes.ASTRAL, GooTypes.FROST, GooTypes.HEX, GooTypes.INFINITY, GooTypes.METAL,
+            GooTypes.ORNATE, GooTypes.PULSE, GooTypes.QUANTUM, GooTypes.UNSTABLE, GooTypes.VOID, GooTypes.WEIRD,
             GooTypes.ZOO);
 
     private static AbilityRegistry shipped;
