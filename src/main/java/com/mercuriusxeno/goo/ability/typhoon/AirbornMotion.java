@@ -23,17 +23,21 @@ public final class AirbornMotion {
      * forward and backward along the look vector and left and right across it
      * at the air speed, jump up and sneak down at the climb speed. Strafing
      * alone leaves the height to the fall; no input leaves the velocity; a
-     * fall never passes the cap. On the ground vanilla moves the player.
+     * fall never passes the cap, the dimension's share of the overworld's, so Float sinks and settles as slowly as
+     * the dimension pulls. On the ground vanilla moves the player.
+     * float-gravity-is-proportionate-to-the-dimensions-gravity
      *
-     * @param velocity the velocity now
-     * @param input    the flight input: strafe left as x, jump up and sneak down as y, forward as z, each -1 to 1
-     * @param look     the player's look, a unit vector
-     * @param yaw      the player's yaw in degrees
-     * @param onGround whether the player stands on the ground
-     * @param flight   the Float standing
+     * @param velocity     the velocity now
+     * @param input        the flight input: strafe left as x, jump up and sneak down as y, forward as z, each -1 to 1
+     * @param look         the player's look, a unit vector
+     * @param yaw          the player's yaw in degrees
+     * @param onGround     whether the player stands on the ground
+     * @param flight       the Float standing
+     * @param gravityScale the share of the overworld's gravity the player falls under
      * @return the velocity flown
      */
-    public static Vec3 flown(Vec3 velocity, Vec3 input, Vec3 look, float yaw, boolean onGround, Airborn flight) {
+    public static Vec3 flown(Vec3 velocity, Vec3 input, Vec3 look, float yaw, boolean onGround, Airborn flight,
+            double gravityScale) {
         if (onGround) {
             return velocity;
         }
@@ -46,7 +50,7 @@ public final class AirbornMotion {
             boolean drivesHeight = input.y != 0 || input.z != 0;
             next = drivesHeight ? steered : new Vec3(steered.x, velocity.y, steered.z);
         }
-        return new Vec3(next.x, cappedFall(next.y, flight.fallCap()), next.z);
+        return new Vec3(next.x, cappedFall(next.y, flight.fallCap() * gravityScale), next.z);
     }
 
     /**

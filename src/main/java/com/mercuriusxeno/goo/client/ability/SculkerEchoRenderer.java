@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.overlay.FungusXray;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.QuadInstance;
@@ -24,10 +26,10 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 /**
  * Draws what Sculker's echoes lit: each block an echo touched draws its own
@@ -60,18 +62,30 @@ public final class SculkerEchoRenderer {
     }
 
     /**
-     * Draws every lit block within sight, over the world the vision has
-     * already dimmed, so an echo shows at its own strength wherever it stands.
+     * Hands the shared path every lit block within sight: part of the sense
+     * view, drawn over the world the vision has already dimmed and over the
+     * glass field, so an echo shows at its own strength wherever it stands,
+     * through the stone the diver swims in. It registers after
+     * {@link SculkerGlassRenderer#collect} and sorts by nothing, so the path
+     * keeps that order.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
+     * decision sculker-sight-persists-where-echoes-have-touched
      *
-     * @param event the level render stage event
+     * @param frame the frame being drawn
+     * @param draws where the echoes' draw goes
      */
-    static void draw(RenderLevelStageEvent.AfterTranslucentBlocks event) {
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
         SculkerEchoes echoes = SculkerSenses.echoes();
         if (player == null || mc.level == null || echoes.remembered().isEmpty()) {
             return;
         }
+        draws.accept(new SortedDraw(0, () -> SculkerVision.profiled(SculkerVision.ECHO_DRAW_SECTION,
+                () -> drawEchoes(mc, player, echoes, frame.poseStack()))));
+    }
+
+    private static void drawEchoes(Minecraft mc, LocalPlayer player, SculkerEchoes echoes, PoseStack poseStack) {
         Frustum frustum = mc.gameRenderer.getMainCamera().getCullFrustum();
         Map<BlockPos, Float> lit = litInView(echoes.bySection(), new FrustumView(frustum),
                 new Sight(player.position(), mc.level.getGameTime(), SculkerSenses.sightReach(),
@@ -85,7 +99,7 @@ public final class SculkerEchoRenderer {
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         RenderType echo = GooRenderTypes.fungusXray(mc.getAtlasManager().getAtlasOrThrow(AtlasIds.BLOCKS).location());
-        drawLit(new LevelEchoWorld(mc), SculkerSenses.echoQuads(), event.getPoseStack(), buffers.getBuffer(echo),
+        drawLit(new LevelEchoWorld(mc), SculkerSenses.echoQuads(), poseStack, buffers.getBuffer(echo),
                 camera, lit);
         buffers.endBatch(echo);
     }

@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.typhoon.Airborn;
 import com.mercuriusxeno.goo.ability.typhoon.AirbornMotion;
+import com.mercuriusxeno.goo.lunar.LunarGravity;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.player.Input;
@@ -15,9 +16,11 @@ import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 /**
  * The client's half of Float: the client moves its own player, so after each
  * of its ticks under Float it flies the player by its keys in midair,
- * levitating included, caps its fall, and draws an elytra glide faster along
- * the look. Creative flight, water, lava and a mount keep their own motion.
+ * levitating included, caps its fall at its dimension's share of the cap,
+ * and draws an elytra glide faster along the look. Creative flight, water,
+ * lava and a mount keep their own motion.
  * tailwind-and-airborn-merge-into-float
+ * float-gravity-is-proportionate-to-the-dimensions-gravity
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class AirbornClient {
@@ -44,7 +47,8 @@ public final class AirbornClient {
             player.setDeltaMovement(AirbornMotion.glided(player.getDeltaMovement(), player.getLookAngle(), flight));
         } else if (movesOnItsOwn(player)) {
             player.setDeltaMovement(AirbornMotion.flown(player.getDeltaMovement(), flightInput(player.input.keyPresses),
-                    player.getLookAngle(), player.getYRot(), player.onGround(), flight));
+                    player.getLookAngle(), player.getYRot(), player.onGround(), flight,
+                    LunarGravity.scaleOf(player)));
         }
     }
 
