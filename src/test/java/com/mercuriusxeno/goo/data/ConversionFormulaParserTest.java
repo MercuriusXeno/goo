@@ -12,20 +12,20 @@ class ConversionFormulaParserTest {
 
     @Test
     void mixedTargetMultipliesAndDivides() {
-        assertEquals(new GooConversion.Formula(GooTypes.METAL, 4, GooTypes.OPULENT, 3, 2),
-                ConversionFormulaParser.parseFormula("metal / 4 -> opulent * 2 / 3"));
+        assertEquals(new GooConversion.Formula(GooTypes.METAL, 4, GooTypes.ORNATE, 3, 2),
+                ConversionFormulaParser.parseFormula("metal / 4 -> ornate * 2 / 3"));
     }
 
     @Test
     void multipliedTargetDividesByOne() {
-        assertEquals(new GooConversion.Formula(GooTypes.METAL, 4, GooTypes.OPULENT, 1, 2),
-                ConversionFormulaParser.parseFormula("metal / 4 -> opulent * 2"));
+        assertEquals(new GooConversion.Formula(GooTypes.METAL, 4, GooTypes.ORNATE, 1, 2),
+                ConversionFormulaParser.parseFormula("metal / 4 -> ornate * 2"));
     }
 
     @Test
     void dividedTargetMultipliesByOne() {
-        assertEquals(new GooConversion.Formula(GooTypes.METAL, 4, GooTypes.OPULENT, 3, 1),
-                ConversionFormulaParser.parseFormula("metal/4->opulent/3"));
+        assertEquals(new GooConversion.Formula(GooTypes.METAL, 4, GooTypes.ORNATE, 3, 1),
+                ConversionFormulaParser.parseFormula("metal/4->ornate/3"));
     }
 
     @Test
