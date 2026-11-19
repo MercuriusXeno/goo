@@ -27,8 +27,8 @@ import java.util.List;
  * The sprayer's wheel, open while the glove menu key is held with the sprayer in hand: a contracted ring of petals,
  * one for each of the canister's sprayable goo types in its own goo, and inside the hub, hugging its edge, the six
  * nozzles across the top and the three flow steps across the bottom, left to right. Clicking a petal or an icon sets
- * that one setting and leaves the wheel open; letting go of the key over one sets it and closes; letting go anywhere
- * else closes. The current nozzle and flow sit on a lit square, and whatever is under the cursor grows and names
+ * that one setting and leaves the wheel open; letting go of the key over a goo petal sets it and closes, and letting
+ * go anywhere else, an icon included, closes with nothing picked: an icon takes a click alone. The current nozzle and flow sit on a lit square, and whatever is under the cursor grows and names
  * itself in the middle.
  * decision sprayer-wheel-picks-nozzle-flow-and-goo-type
  * decision spray-item-sprays-more-or-less-per-tick
@@ -41,8 +41,8 @@ public final class SprayerRadialScreen extends Screen {
 
     private static final int HALF = 2;
     /** Where the goo petals start and end, as fractions of the wheel's radius. */
-    private static final double RING_INNER = 0.3;
-    private static final double RING_OUTER = 0.46;
+    private static final double RING_INNER = 0.44;
+    private static final double RING_OUTER = 0.58;
     /** An icon's side on screen, its sixteen pixels drawn one to one, and under the cursor. */
     private static final int ICON_SIZE = 16;
     private static final int HOVERED_ICON_SIZE = 20;
@@ -230,7 +230,8 @@ public final class SprayerRadialScreen extends Screen {
         if (!GloveRadialKey.MAPPING.matches(event)) {
             return super.keyReleased(event);
         }
-        if (hovered != null) {
+        // operator ruling 2026-11-18: the icons in the hub take a click alone; letting go over one picks nothing
+        if (hovered != null && hovered.group() == SprayerWheel.Group.GOO) {
             keep(model.picked(kept, hovered));
         }
         onClose();
