@@ -25,7 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class TransmitTargetMarkerTest {
 
     private static ClientAbility ability(List<Step> behaviors) {
-        return new ClientAbility(Identifier.parse("goo:shroom_transmit"), "transmit", "", 0, List.of(), behaviors,
+        return new ClientAbility(Identifier.parse("goo:sculk_transmit"), "transmit", "", 0, List.of(), behaviors,
                 0, Delivery.of(DeliveryKind.SELF), AbilityBadge.SELF, List.of(), AbilityArea.NONE,
                 IndicatorShowing.HELD);
     }

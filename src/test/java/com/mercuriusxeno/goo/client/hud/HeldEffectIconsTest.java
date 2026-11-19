@@ -26,18 +26,15 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * The registrar answers one extension per bundled brew effect, reading the connection's brew ability
- * icons over the shipped goo_abilities JSON: shroom's is Sight's eye, drawing Sight's icon in the
- * inventory, and every other draws its granted ability's icon, or none for a type granting none.
+ * icons over the shipped goo_abilities JSON: each draws its granted ability's icon, or none for a type granting
+ * none.
  * decision every-brew-effect-draws-its-abilitys-icon
- * decision shroom-hud-eye-stays-and-its-inventory-icon-is-sights
  */
 class HeldEffectIconsTest {
 
-    private static final String SIGHT_ICON = "textures/goo/ability/shroom_sight.png";
     private static final List<ResourceKey<GooTypeDefinition>> GRANTING_NONE = List.of(
             GooTypes.ASTRAL, GooTypes.FROST, GooTypes.HEX, GooTypes.INFINITY, GooTypes.METAL,
             GooTypes.OPULENT, GooTypes.PULSE, GooTypes.QUANTUM, GooTypes.UNSTABLE, GooTypes.VOID, GooTypes.WEIRD,
@@ -70,16 +67,9 @@ class HeldEffectIconsTest {
         assertEquals(Set.copyOf(GooTypes.BUNDLED), extensions.keySet());
     }
 
-    @Test
-    void shroomKeepsSightsEyeAndDrawsSightsIconInTheInventory() {
-        SightEyeIcon eye = assertInstanceOf(SightEyeIcon.class, extensions.get(GooTypes.SHROOM));
-        Identifier inventoryIcon = eye.inventoryIconTexture();
-        assertNotNull(inventoryIcon);
-        assertTrue(inventoryIcon.getPath().endsWith(SIGHT_ICON), inventoryIcon::toString);
-    }
 
     @ParameterizedTest
-    @MethodSource("bundledKeysGrantingABrewButShroom")
+    @MethodSource("bundledKeysGrantingABrew")
     void brewEffectDrawsItsGrantedAbilitysIcon(ResourceKey<GooTypeDefinition> type) {
         HeldEffectIcons.AbilityIconExtension extension =
                 assertInstanceOf(HeldEffectIcons.AbilityIconExtension.class, extensions.get(type));
@@ -98,8 +88,7 @@ class HeldEffectIconsTest {
         }
     }
 
-    static Stream<ResourceKey<GooTypeDefinition>> bundledKeysGrantingABrewButShroom() {
-        return GooTypes.BUNDLED.stream()
-                .filter(type -> !type.equals(GooTypes.SHROOM) && !GRANTING_NONE.contains(type));
+    static Stream<ResourceKey<GooTypeDefinition>> bundledKeysGrantingABrew() {
+        return GooTypes.BUNDLED.stream().filter(type -> !GRANTING_NONE.contains(type));
     }
 }

@@ -99,8 +99,8 @@ class InventoryRenamedAbilitiesTest {
                 Arguments.of("jelly", Set.of("jelly_gluttony", "jelly_heal", "jelly_nectar", "jelly_reserve")),
                 Arguments.of("void", Set.of("void_cancel", "void_hole", "void_vacuum", "void_zone")),
                 Arguments.of("zoo", Set.of("zoo_allure", "zoo_shape", "zoo_spawn")),
-                Arguments.of("yarn", Set.of("yarn_herd", "yarn_lead")),
-                Arguments.of("xeno", Set.of("xeno_revert", "xeno_unveil")));
+                Arguments.of("yarn", Set.of("yarn_herd", "yarn_lead", "yarn_stitch")),
+                Arguments.of("xeno", Set.of("xeno_revert", "xeno_unveil", "xeno_shriek")));
     }
 
     @Test

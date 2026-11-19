@@ -140,7 +140,7 @@ public final class TransmitTargetMarker {
             boolean near = FungusAim.standsNearFungus(player.level(), player,
                     TransmitStep.fungusNear(ability.behaviors()).orElse(0));
             target = near ? FungusAim.aimedFungus(player.level(), player,
-                    TransmitStep.reachOf(player, TransmitStep.fungusRange(ability.behaviors()).orElseThrow()))
+                    TransmitStep.fungusRange(ability.behaviors()).orElseThrow())
                     : Optional.empty();
             targetAt = tick;
             targetYaw = player.getYRot();

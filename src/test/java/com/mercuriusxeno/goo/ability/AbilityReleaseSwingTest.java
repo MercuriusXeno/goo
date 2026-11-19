@@ -25,7 +25,7 @@ class AbilityReleaseSwingTest {
             Map.entry("astral_meteo", ArmPoseKind.NONE),
             Map.entry("crystal_prism", ArmPoseKind.NONE),
             Map.entry("void_hole", ArmPoseKind.NONE),
-            Map.entry("deep_click", ArmPoseKind.NONE),
+            Map.entry("pulse_click", ArmPoseKind.NONE),
             Map.entry("rock_build", ArmPoseKind.NONE),
             Map.entry("hex_charm", ArmPoseKind.NONE),
             Map.entry("typhoon_shulk", ArmPoseKind.NONE),
@@ -39,7 +39,7 @@ class AbilityReleaseSwingTest {
 
     /** Each shipped arc ability that throws a blob from the hand, by file name. */
     private static final Set<String> THROWS_A_BLOB = Set.of(
-            "blaze_ignite", "deep_shriek", "ender_seal",
+            "blaze_ignite", "xeno_shriek", "ender_seal",
             "frost_orb", "leaf_bio", "leaf_bloom", "metal_dart",
             "quantum_tunnel",
             "void_cancel", "weird_mitosis", "zoo_allure");

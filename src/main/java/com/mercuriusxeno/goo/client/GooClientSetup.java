@@ -44,11 +44,11 @@ import com.mercuriusxeno.goo.client.ability.PhasedSight;
 import com.mercuriusxeno.goo.client.ability.PrismFormingSounds;
 import com.mercuriusxeno.goo.client.ability.RelayLasers;
 import com.mercuriusxeno.goo.client.ability.SignalRings;
+import com.mercuriusxeno.goo.client.ability.TangleLayer;
 import com.mercuriusxeno.goo.client.ability.TransformationRenderer;
 import com.mercuriusxeno.goo.client.ability.Transformations;
 import com.mercuriusxeno.goo.client.ability.UpdraftWind;
 import com.mercuriusxeno.goo.client.ability.ViewportRipples;
-import com.mercuriusxeno.goo.client.ability.VineTangleLayer;
 import com.mercuriusxeno.goo.client.ability.WindLines;
 import com.mercuriusxeno.goo.client.ability.ZapBolts;
 import com.mercuriusxeno.goo.client.ber.*;
@@ -318,13 +318,12 @@ public final class GooClientSetup {
     @SubscribeEvent
     public static void registerBlockTintSources(RegisterColorHandlersEvent.BlockTintSources event) {
         for (VolumeCellBlock cell : List.of(GooBlocks.SLIME_COAT.get(), GooBlocks.KINETIC_SLICK.get(),
-                GooBlocks.BLAZE_MOLTEN.get(), GooBlocks.CRYSTAL_SHATTER.get(), GooBlocks.DEEP_HOST.get(),
+                GooBlocks.BLAZE_MOLTEN.get(), GooBlocks.CRYSTAL_SHATTER.get(), GooBlocks.SCULK_CREEP.get(),
                 GooBlocks.FROST_RIME.get(), GooBlocks.GLOW_WISPS.get(), GooBlocks.HEX_LEECH.get(),
                 GooBlocks.TYPHOON_UPDRAFT.get(), GooBlocks.JELLY_NECTAR.get(), GooBlocks.PULSE_SIGNAL.get(),
                 GooBlocks.METAL_SPIKES.get(), GooBlocks.ZOMBIE_INFEST.get(), GooBlocks.LEAF_VINES.get(),
                 GooBlocks.UNSTABLE_NITRO.get(), GooBlocks.QUANTUM_PHASE.get(),
-                GooBlocks.SHROOM_SPORES.get(),
-                GooBlocks.ROCK_MORTAR.get())) {
+                GooBlocks.ROCK_MORTAR.get(), GooBlocks.YARN_STITCH.get())) {
             event.register(VolumeCellTint.sources(cell.binding().gooType(), ClientGooTypes::color), cell);
         }
     }
@@ -413,6 +412,7 @@ public final class GooClientSetup {
      * nitro-is-unstables-goo-that-explodes-in-a-chain-by-its-quantity
      * phase-goo-puts-what-stands-in-it-out-of-phase
      * mortar-is-rocks-residual-a-petrification-and-hardening-goo
+     * stitch-is-yarns-residual-that-turns-slimes-into-passive-mobs
      *
      * @param event the event instance
      */
@@ -420,7 +420,7 @@ public final class GooClientSetup {
         registerSprayDrip(event, GooParticles.GOOP_SPRAY_DRIP.get(), BlendPalette.GOOP_SLIME_GREENS);
         registerSprayDrip(event, GooParticles.SLICK_SPRAY_DRIP.get(), BlendPalette.SLICK_SLIME_BLUES);
         registerSprayDrip(event, GooParticles.SHATTER_SPRAY_DRIP.get(), BlendPalette.SHATTER_CRYSTAL_BLUES);
-        registerSprayDrip(event, GooParticles.HOST_SPRAY_DRIP.get(), BlendPalette.HOST_DEEP_TEALS);
+        registerSprayDrip(event, GooParticles.CREEP_SPRAY_DRIP.get(), BlendPalette.CREEP_TEALS);
         registerSprayDrip(event, GooParticles.WISPS_SPRAY_DRIP.get(), BlendPalette.WISPS_GLOW_GOLDS);
         registerSprayDrip(event, GooParticles.LEECH_SPRAY_DRIP.get(), BlendPalette.LEECH_HEX_VIOLETS);
         registerSprayDrip(event, GooParticles.UPDRAFT_SPRAY_DRIP.get(), BlendPalette.UPDRAFT_TYPHOON_GREENS);
@@ -431,8 +431,8 @@ public final class GooClientSetup {
         registerSprayDrip(event, GooParticles.VINES_SPRAY_DRIP.get(), BlendPalette.VINES_LEAF_GREENS);
         registerSprayDrip(event, GooParticles.NITRO_SPRAY_DRIP.get(), BlendPalette.NITRO_UNSTABLE_GREENS);
         registerSprayDrip(event, GooParticles.PHASE_SPRAY_DRIP.get(), BlendPalette.PHASE_QUANTUM_BLUES);
-        registerSprayDrip(event, GooParticles.SPORES_SPRAY_DRIP.get(), BlendPalette.SPORES_SHROOM_PURPLES);
         registerSprayDrip(event, GooParticles.MORTAR_SPRAY_DRIP.get(), BlendPalette.MORTAR_ROCK_GRAYS);
+        registerSprayDrip(event, GooParticles.STITCH_SPRAY_DRIP.get(), BlendPalette.STITCH_YARN_TANS);
         event.registerSpriteSet(GooParticles.MOLTEN_SPRAY_DRIP.get(),
                 sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.MOLTEN_BLAZE_ORANGES,
                         CellBinding.MOLTEN.fluidFooting()));
@@ -458,7 +458,7 @@ public final class GooClientSetup {
      * onto its render state: the lead outline, the ailments with their
      * outline, which overrides the lead's, the glove's target outline, which
      * overrides both, the goo coat, the phase, the stone and frost
-     * encasements, the frozen pose, the grab flail, the vine tangle, the
+     * encasements, the frozen pose, the grab flail, the vine and web tangles, the
      * transformation, the eldritch phase and the exit tilt, in that order.
      *
      * @param event the event instance
@@ -479,7 +479,7 @@ public final class GooClientSetup {
                 FrozenPoses::stampFrozenPose,
                 DownedPose::stampDownedPose,
                 GrabFlail::stampFlail,
-                VineTangleLayer::stampTangle,
+                TangleLayer::stampTangle,
                 TransformationRenderer::stampTransformation,
                 PhasedSight::stampPhase,
                 ExitTiltLook::stampTilt);
@@ -508,7 +508,7 @@ public final class GooClientSetup {
                 AilmentOverlayLayer.addTo(renderer, MobShells.of(type, event.getEntityModels()));
                 EncasementLayer.addTo(renderer, MobShells.of(type, event.getEntityModels()),
                         EncasedBodies.of(type, event.getEntityModels()));
-                VineTangleLayer.addTo(renderer, MobShells.of(type, event.getEntityModels()));
+                TangleLayer.addTo(renderer, MobShells.of(type, event.getEntityModels()));
             }
         }
         for (PlayerModelType skin : event.getSkins()) {
@@ -517,7 +517,7 @@ public final class GooClientSetup {
             AilmentOverlayLayer.addTo(event.getPlayerRenderer(skin), MobShells.NONE);
             AilmentOverlayLayer.addTo(event.getMannequinRenderer(skin), MobShells.NONE);
             EncasementLayer.addTo(event.getPlayerRenderer(skin), MobShells.NONE, null);
-            VineTangleLayer.addTo(event.getPlayerRenderer(skin), MobShells.NONE);
+            TangleLayer.addTo(event.getPlayerRenderer(skin), MobShells.NONE);
         }
         GloveArmLayer.addToSkins(event);
     }
