@@ -1,9 +1,0 @@
-{
-  "type": "minecraft:function",
-  "function": "goo:spores_goo_on_mycelium_spreads_none_to_the_dirt_beside",
-  "environment": "minecraft:default",
-  "structure": "goo:test_bay",
-  "max_ticks": 400,
-  "setup_ticks": 0,
-  "required": true
-}

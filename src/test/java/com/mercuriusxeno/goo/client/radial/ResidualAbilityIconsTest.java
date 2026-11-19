@@ -43,10 +43,10 @@ class ResidualAbilityIconsTest {
     // operator ruling 2026-11-18: Mortar takes draft F, its goo stacked in three held steps with cracks through it
     // operator pick 2026-11-18: Stitch takes draft C, a sheep's face over a scalloped wool cloud of yarn goo
     /** The icons drawing the residual style; a later residual joins by its icon's name. */
-    static final List<String> RESIDUAL_ICONS = List.of("weird_goop", "kinetic_slick", "blaze_molten", "deep_host",
+    static final List<String> RESIDUAL_ICONS = List.of("weird_goop", "kinetic_slick", "blaze_molten", "sculk_creep",
             "crystal_shatter", "hex_leech", "typhoon_updraft", "jelly_nectar", "pulse_signal",
-            "metal_spikes", "zombie_infest", "leaf_vines", "unstable_nitro", "quantum_phase", "shroom_spores",
-            "rock_mortar", "yarn_stitch");
+            "metal_spikes", "zombie_infest", "leaf_vines", "unstable_nitro", "quantum_phase", "rock_mortar",
+            "yarn_stitch");
 
     private static final String SHATTER = "crystal_shatter";
     private static final String NITRO = "unstable_nitro";

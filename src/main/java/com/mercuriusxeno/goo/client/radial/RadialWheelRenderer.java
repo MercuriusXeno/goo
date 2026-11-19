@@ -159,7 +159,7 @@ final class RadialWheelRenderer {
                  List<List<OfferedAbility>> abilities, Map<ResourceKey<GooTypeDefinition>, Integer> available,
                  int centerX, int centerY, int radius, PetalLook look, float partialTick, Map<Identifier, Float> active,
                  float gameTime, ToIntFunction<List<Identifier>> reagentSets, HeldEffects standing,
-                 OptionalDouble roomExtent) {
+                 OptionalDouble roomExtent) implements PetalCanvas {
 
         /**
          * How strongly an ability's petal pulses this frame.

@@ -13,7 +13,9 @@ import org.junit.jupiter.params.provider.MethodSource;
 import java.util.Optional;
 import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Lunar looks for the moon in the overworld and for the blue planet in the moon's place in lunar, and finds neither
@@ -40,6 +42,12 @@ class LunarSightTest {
     private static final Vec3 NEARLY_UP = new Vec3(0.05, 1, 0).normalize();
     /** A look well off straight up, outside it. */
     private static final Vec3 WELL_OFF_UP = new Vec3(0.5, 1, 0).normalize();
+    /** An x on lunar's light side, where the sun and the planet keep the overworld's clock. */
+    private static final double LIGHT_SIDE_X = 0;
+    /** An x on lunar's dark side, past 3.75 million. */
+    private static final double DARK_SIDE_X = 5_000_000;
+    /** The degrees a full turn of the moon angle spans, one whole day and night. */
+    private static final int FULL_CYCLE_DEGREES = 360;
 
     @Nested
     class TheMoon {
@@ -61,22 +69,23 @@ class LunarSightTest {
 
         @Test
         void aLookAtTheMoonInTheOverworldFindsIt() {
-            assertEquals(Optional.of(LunarSight.Sky.MOON), LunarSight.skyAt(Level.OVERWORLD, NEARLY_UP, MIDNIGHT, LIT));
+            assertEquals(Optional.of(LunarSight.Sky.MOON),
+                    LunarSight.skyAt(Level.OVERWORLD, LIGHT_SIDE_X, NEARLY_UP, MIDNIGHT, LIT));
         }
 
         @Test
         void aLookWellOffTheMoonFindsNothing() {
-            assertEquals(Optional.empty(), LunarSight.skyAt(Level.OVERWORLD, WELL_OFF_UP, MIDNIGHT, LIT));
+            assertEquals(Optional.empty(), LunarSight.skyAt(Level.OVERWORLD, LIGHT_SIDE_X, WELL_OFF_UP, MIDNIGHT, LIT));
         }
 
         @Test
         void aMoonBelowTheHorizonIsNeverFound() {
-            assertEquals(Optional.empty(), LunarSight.skyAt(Level.OVERWORLD, DOWN, NOON, LIT));
+            assertEquals(Optional.empty(), LunarSight.skyAt(Level.OVERWORLD, LIGHT_SIDE_X, DOWN, NOON, LIT));
         }
 
         @Test
         void theMoonIsFoundInTheOverworldAlone() {
-            assertEquals(Optional.empty(), LunarSight.skyAt(Level.NETHER, UP, MIDNIGHT, LIT));
+            assertEquals(Optional.empty(), LunarSight.skyAt(Level.NETHER, LIGHT_SIDE_X, UP, MIDNIGHT, LIT));
         }
     }
 
@@ -100,19 +109,20 @@ class LunarSightTest {
         @Test
         void aLookAlongTheMoonsPlaceInLunarFindsThePlanet() {
             assertEquals(Optional.of(LunarSight.Sky.BLUE_PLANET),
-                    LunarSight.skyAt(Lunar.LEVEL, LunarSight.moonDirection(MOONSET / 2), MOONSET / 2, LIT));
+                    LunarSight.skyAt(Lunar.LEVEL, LIGHT_SIDE_X, LunarSight.moonDirection(MOONSET / 2), MOONSET / 2,
+                            LIT));
         }
 
         @Test
         void aLookAtTheDiscsEdgeFindsThePlanet() {
             assertEquals(Optional.of(LunarSight.Sky.BLUE_PLANET),
-                    LunarSight.skyAt(Lunar.LEVEL, offTheZenith(ON_THE_DISC_EDGE_DEGREES), MIDNIGHT, LIT));
+                    LunarSight.skyAt(Lunar.LEVEL, LIGHT_SIDE_X, offTheZenith(ON_THE_DISC_EDGE_DEGREES), MIDNIGHT, LIT));
         }
 
         @Test
         void aLookPastTheDiscsEdgeFindsNothing() {
             assertEquals(Optional.empty(),
-                    LunarSight.skyAt(Lunar.LEVEL, offTheZenith(PAST_THE_DISC_DEGREES), MIDNIGHT, LIT));
+                    LunarSight.skyAt(Lunar.LEVEL, LIGHT_SIDE_X, offTheZenith(PAST_THE_DISC_DEGREES), MIDNIGHT, LIT));
         }
 
         /**
@@ -120,7 +130,8 @@ class LunarSightTest {
          */
         @Test
         void aLookAtThePlanetBelowTheHorizonFindsNothing() {
-            assertEquals(Optional.empty(), LunarSight.skyAt(Lunar.LEVEL, LunarSight.moonDirection(NOON), NOON, LIT));
+            assertEquals(Optional.empty(),
+                    LunarSight.skyAt(Lunar.LEVEL, LIGHT_SIDE_X, LunarSight.moonDirection(NOON), NOON, LIT));
         }
 
         /**
@@ -128,18 +139,45 @@ class LunarSightTest {
          */
         @Test
         void aLookAtTheDarkPlanetFindsNothing() {
-            assertEquals(Optional.empty(), LunarSight.skyAt(Lunar.LEVEL, UP, MIDNIGHT, MoonPhase.NEW_MOON));
+            assertEquals(Optional.empty(),
+                    LunarSight.skyAt(Lunar.LEVEL, LIGHT_SIDE_X, UP, MIDNIGHT, MoonPhase.NEW_MOON));
         }
 
         @Test
         void aLookAtTheCrescentPlanetFindsIt() {
             assertEquals(Optional.of(LunarSight.Sky.BLUE_PLANET),
-                    LunarSight.skyAt(Lunar.LEVEL, UP, MIDNIGHT, MoonPhase.WAXING_CRESCENT));
+                    LunarSight.skyAt(Lunar.LEVEL, LIGHT_SIDE_X, UP, MIDNIGHT, MoonPhase.WAXING_CRESCENT));
+        }
+
+        /**
+         * decision dark-side-is-the-half-of-the-moon-past-the-light-side
+         */
+        @Test
+        void theDarkSideNeverShowsThePlanetAtAnyHourOfAFullCycle() {
+            for (int degrees = 0; degrees < FULL_CYCLE_DEGREES; degrees++) {
+                assertFalse(LunarSight.planetShows(DARK_SIDE_X, degrees, LIT), "moon angle " + degrees);
+            }
+        }
+
+        /**
+         * decision dark-side-is-the-half-of-the-moon-past-the-light-side
+         */
+        @Test
+        void theLightSideShowsThePlanetWhileItIsUp() {
+            assertTrue(LunarSight.planetShows(LIGHT_SIDE_X, MIDNIGHT, LIT));
+        }
+
+        /**
+         * decision dark-side-is-the-half-of-the-moon-past-the-light-side
+         */
+        @Test
+        void aLookAtThePlanetsPlaceOnTheDarkSideFindsNothing() {
+            assertEquals(Optional.empty(), LunarSight.skyAt(Lunar.LEVEL, DARK_SIDE_X, UP, MIDNIGHT, LIT));
         }
 
         @Test
         void aLookAwayFromThePlanetInLunarFindsNothing() {
-            assertEquals(Optional.empty(), LunarSight.skyAt(Lunar.LEVEL, DOWN, MIDNIGHT, LIT));
+            assertEquals(Optional.empty(), LunarSight.skyAt(Lunar.LEVEL, LIGHT_SIDE_X, DOWN, MIDNIGHT, LIT));
         }
     }
 
@@ -186,25 +224,34 @@ class LunarSightTest {
         @MethodSource("eachDimensionAndItsOtherRefusal")
         void aLookAtTheSunByDaySaysTheBigYellowOneIsTheSun(ResourceKey<Level> dimension, String other) {
             assertEquals(LunarSight.SUN_REFUSED,
-                    LunarSight.refusalKey(dimension, LunarSight.moonDirection(MORNING), MORNING));
+                    LunarSight.refusalKey(dimension, LIGHT_SIDE_X, LunarSight.moonDirection(MORNING), MORNING));
         }
 
         @ParameterizedTest
         @MethodSource("eachDimensionAndItsOtherRefusal")
         void aLookWellOffTheSunShowsTheOtherRefusal(ResourceKey<Level> dimension, String other) {
-            assertEquals(other, LunarSight.refusalKey(dimension, DOWN, MORNING));
+            assertEquals(other, LunarSight.refusalKey(dimension, LIGHT_SIDE_X, DOWN, MORNING));
         }
 
         @ParameterizedTest
         @MethodSource("eachDimensionAndItsOtherRefusal")
         void aLookWhereTheSunStandsBelowTheHorizonShowsTheOtherRefusal(ResourceKey<Level> dimension, String other) {
-            assertEquals(other, LunarSight.refusalKey(dimension, LunarSight.moonDirection(SUN_AT_MIDNIGHT),
-                    SUN_AT_MIDNIGHT));
+            assertEquals(other, LunarSight.refusalKey(dimension, LIGHT_SIDE_X,
+                    LunarSight.moonDirection(SUN_AT_MIDNIGHT), SUN_AT_MIDNIGHT));
+        }
+
+        /**
+         * decision dark-side-is-the-half-of-the-moon-past-the-light-side
+         */
+        @Test
+        void aLookWhereTheSunWouldStandOnTheDarkSideShowsTerransRefusal() {
+            assertEquals(LunarSight.TERRAN_REFUSED, LunarSight.refusalKey(Lunar.LEVEL, DARK_SIDE_X,
+                    LunarSight.moonDirection(MORNING), MORNING));
         }
 
         @Test
         void aLookUpInADimensionWithNoSunShowsTheRefusal() {
-            assertEquals(LunarSight.LUNAR_REFUSED, LunarSight.refusalKey(Level.NETHER, UP, 0F));
+            assertEquals(LunarSight.LUNAR_REFUSED, LunarSight.refusalKey(Level.NETHER, LIGHT_SIDE_X, UP, 0F));
         }
     }
 
