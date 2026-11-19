@@ -5,6 +5,8 @@ import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.astral.LunarFixation;
 import com.mercuriusxeno.goo.ability.astral.LunarLanding;
 import com.mercuriusxeno.goo.ability.astral.LunarSight;
+import com.mercuriusxeno.goo.ability.astral.WayHome;
+import com.mercuriusxeno.goo.ability.zone.VoidPockets;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.lunar.Lunar;
@@ -30,6 +32,7 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -58,6 +61,13 @@ public final class AstralLunarTests {
     private static final String TERRAN_ON_THE_SUN_SAYS_THE_BIG_YELLOW_ONE = "terran_on_the_sun_says_the_big_yellow_one";
     private static final String TERRAN_OFF_THE_PLANET_SAYS_THATS_NOT_YOUR_WORLD =
             "terran_off_the_planet_says_thats_not_your_world";
+    private static final String LUNAR_ON_THE_FIXED_PLANET_RETURNS_YOU_AT_NOON =
+            "lunar_on_the_fixed_planet_returns_you_at_noon";
+    /**
+     * Where the noon return stands its caster on lunar's light side, far enough off x 0 that the planet leans well off
+     * the zenith, past the reach of a look straight up.
+     */
+    private static final Vec3 OFF_THE_ZENITH_ON_LUNAR = new Vec3(1_000_000.5, 160, 0.5);
     /** Where the hidden planet test stands its caster on lunar, high over the ground. */
     private static final Vec3 ON_LUNAR = new Vec3(0.5, 160, 0.5);
 
@@ -156,6 +166,8 @@ public final class AstralLunarTests {
                 AstralLunarTests::lunarOnTheSunSaysTheBigYellowOne);
         GooTestFunctions.registerTest(registrar, TERRAN_ON_THE_SUN_SAYS_THE_BIG_YELLOW_ONE,
                 AstralLunarTests::terranOnTheSunSaysTheBigYellowOne);
+        GooTestFunctions.registerTest(registrar, LUNAR_ON_THE_FIXED_PLANET_RETURNS_YOU_AT_NOON,
+                AstralLunarTests::lunarOnTheFixedPlanetReturnsYouAtNoon);
     }
 
     /**
@@ -173,7 +185,7 @@ public final class AstralLunarTests {
         List<String> dead = new ArrayList<>();
         for (int gap = 0; gap <= widestGap; gap++) {
             ServerPlayer caster = caster(helper);
-            face(caster, moonFrom(caster));
+            face(caster, skyFrom(caster));
             holdOverTheNetworkFor(helper, caster, 1, LET_GO_AFTER);
             int pressAt = 1 + LET_GO_AFTER + gap;
             holdOverTheNetworkFor(helper, caster, pressAt, checkAt - pressAt + 1);
@@ -202,7 +214,7 @@ public final class AstralLunarTests {
         ServerPlayer caster = caster(helper);
         ServerLevel overworld = helper.getLevel();
         helper.assertTrue(overworld.getServer().getLevel(Lunar.LEVEL) != null, LUNAR_REQUIRED);
-        face(caster, moonFrom(caster));
+        face(caster, skyFrom(caster));
         Vec3 castFrom = caster.position();
         int astralBefore = astral(caster);
         holdFor(helper, caster, 1, FIXATION + HOLD_PAST);
@@ -231,7 +243,7 @@ public final class AstralLunarTests {
     public static void lunarLetGoEarlyLeavesYouWhereYouStood(GameTestHelper helper) {
         ServerPlayer caster = caster(helper);
         ServerLevel overworld = helper.getLevel();
-        face(caster, moonFrom(caster));
+        face(caster, skyFrom(caster));
         Vec3 castFrom = caster.position();
         int astralBefore = astral(caster);
         holdFor(helper, caster, 1, LET_GO_AFTER);
@@ -263,7 +275,7 @@ public final class AstralLunarTests {
         helper.assertTrue(lunar != null, LUNAR_REQUIRED);
         Vec3 leftFrom = helper.absoluteVec(LEFT_FROM);
         caster.snapTo(leftFrom.x, leftFrom.y, leftFrom.z, LEFT_FACING_YAW, LEFT_FACING_PITCH);
-        face(caster, moonFrom(caster));
+        face(caster, skyFrom(caster));
         float castYaw = caster.getYRot();
         float castPitch = caster.getXRot();
         // The return carries the caster to where they stood and the way they faced as the moon took them.
@@ -281,7 +293,7 @@ public final class AstralLunarTests {
             helper.assertTrue(landed, String.format(LANDED, landing, caster.level().dimension(), caster.position()));
             arrivedInLunarAt[0] = caster.getData(GooAttachments.LUNAR_ARRIVAL).arrivedAt();
             dropRemainders(caster);
-            face(caster, moonFrom(caster));
+            face(caster, skyFrom(caster));
         });
         holdFor(helper, caster, starFrom + 1, LET_GO_AFTER);
         int fullFrom = starFrom + LET_GO_AFTER + INSIDE_THE_FIXATION;
@@ -305,6 +317,37 @@ public final class AstralLunarTests {
     }
 
     /**
+     * On lunar's light side at the overworld's noon, the hour the planet once stood underfoot, a caster holding the
+     * cast at the planet's fixed direction for their x stands, once the fixation runs out, in the overworld at the
+     * return point they kept.
+     * decision blue-planet-hangs-fixed-with-its-height-set-by-x
+     * decision lunar-refuses-the-return-while-the-blue-star-is-hidden
+     *
+     * @param helper the gametest helper
+     */
+    public static void lunarOnTheFixedPlanetReturnsYouAtNoon(GameTestHelper helper) {
+        ServerPlayer caster = caster(helper);
+        ServerLevel overworld = helper.getLevel();
+        ServerLevel lunar = overworld.getServer().getLevel(Lunar.LEVEL);
+        helper.assertTrue(lunar != null, LUNAR_REQUIRED);
+        Vec3 leftFrom = helper.absoluteVec(LEFT_FROM);
+        caster.setData(GooAttachments.WAY_HOME, new WayHome(Optional.of(new VoidPockets.ReturnPoint(Level.OVERWORLD,
+                leftFrom, LEFT_FACING_YAW, LEFT_FACING_PITCH))));
+        caster.teleport(new TeleportTransition(lunar, OFF_THE_ZENITH_ON_LUNAR, Vec3.ZERO, 0F, 0F,
+                TeleportTransition.DO_NOTHING));
+        face(caster, skyFrom(caster));
+        holdFor(helper, caster, 1, FIXATION + HOLD_PAST);
+        helper.runAfterDelay(PAST_THE_FIXATION, () -> {
+            boolean home = caster.level() == overworld && caster.position().distanceTo(leftFrom) < SAME_SPOT;
+            helper.assertTrue(home, String.format(HOME, Level.OVERWORLD.identifier(), leftFrom, LEFT_FACING_YAW,
+                    LEFT_FACING_PITCH, caster.level().dimension().identifier(), caster.position(), caster.getYRot(),
+                    caster.getXRot()));
+            overworld.getServer().getPlayerList().remove(caster);
+            helper.succeed();
+        });
+    }
+
+    /**
      * On lunar by a night the planet stands dark, the overworld's moon full, a caster holding the cast where the
      * planet stands stays on lunar, holds no fixation, keeps every drop of their astral and is shown Terran's
      * refusal, "That's not your world".
@@ -314,7 +357,7 @@ public final class AstralLunarTests {
      * @param helper the gametest helper
      */
     public static void lunarOnTheHiddenPlanetRefuses(GameTestHelper helper) {
-        assertTerranRefuses(helper, AstralLunarTests::moonFrom);
+        assertTerranRefuses(helper, AstralLunarTests::skyFrom);
     }
 
     /**
@@ -531,9 +574,16 @@ public final class AstralLunarTests {
         return GooSourceScanner.aggregateAvailable(caster).getOrDefault(GooTypes.ASTRAL, 0);
     }
 
-    private static Vec3 moonFrom(ServerPlayer caster) {
-        return LunarSight.moonDirection(caster.level().environmentAttributes()
-                .getValue(EnvironmentAttributes.MOON_ANGLE, caster.position()));
+    /**
+     * Where the caster's sky stands what Lunar holds: the overworld's moon by its angle, or lunar's planet by the
+     * caster's x.
+     *
+     * @param caster the caster
+     * @return the unit direction
+     */
+    private static Vec3 skyFrom(ServerPlayer caster) {
+        return LunarSight.skyDirection(caster.level().dimension(), caster.getX(), caster.level()
+                .environmentAttributes().getValue(EnvironmentAttributes.MOON_ANGLE, caster.position()));
     }
 
     private static void face(ServerPlayer caster, Vec3 direction) {

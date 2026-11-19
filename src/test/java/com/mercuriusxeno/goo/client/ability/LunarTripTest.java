@@ -169,12 +169,12 @@ class LunarTripTest {
          */
         @Test
         void theTripHomesPlanetAtRestStandsOnLunarsSkyPlanetQuad() {
-            for (float angle : new float[] {0F, 40F, 300F}) {
-                List<Vector3f> trip = LunarTripBodies.planetCorners(LunarSight.moonDirection(angle),
+            for (double cameraX : new double[] {0, 1_500_000, -3_000_000}) {
+                List<Vector3f> trip = LunarTripBodies.planetCorners(LunarSight.planetDirection(cameraX),
                         LunarTrip.planetHalfTangent(0F));
-                List<Vector3f> sky = LunarSky.planetCorners(angle);
+                List<Vector3f> sky = LunarSky.planetCorners(cameraX);
                 for (int corner = 0; corner < trip.size(); corner++) {
-                    String at = "corner " + corner + " at " + angle + ": trip " + trip.get(corner) + " against sky "
+                    String at = "corner " + corner + " at " + cameraX + ": trip " + trip.get(corner) + " against sky "
                             + sky.get(corner);
                     assertEquals(sky.get(corner).x(), trip.get(corner).x(), 1e-3, at);
                     assertEquals(sky.get(corner).y(), trip.get(corner).y(), 1e-3, at);

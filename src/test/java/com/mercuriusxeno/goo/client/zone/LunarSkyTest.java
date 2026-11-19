@@ -51,7 +51,7 @@ class LunarSkyTest {
         private static final String OVERWORLD_CLOCK = "minecraft:overworld";
         private static final List<String> LUNAR_TIMELINES = List.of("goo:lunar_day", "goo:lunar_moon");
         private static final List<String> DAY_AND_NIGHT_TRACKS = List.of("minecraft:visual/sun_angle",
-                "minecraft:visual/moon_angle", "minecraft:visual/moon_phase", "minecraft:gameplay/sky_light_level",
+                "minecraft:visual/moon_phase", "minecraft:gameplay/sky_light_level",
                 "minecraft:visual/sky_light_factor");
 
         @Test
@@ -158,7 +158,10 @@ class LunarSkyTest {
         /** The share of vanilla's moon sprite its disc spans: eight of its thirty-two texels. */
         private static final float MOON_DISC_SHARE = 8F / 32F;
         private static final float MOONS_WIDE = 4F;
-        private static final float[] MOON_ANGLES = {0F, 45F, 300F};
+        /** Camera x's on the light side: the planet overhead, halfway down, and low in the east. */
+        private static final double[] CAMERA_XS = {0, 1_875_000, -3_000_000};
+        /** A camera x on the dark side, past 3.75 million. */
+        private static final double DARK_SIDE_X = 4_000_000;
         private static final double QUAD_TOLERANCE = 1e-4;
         /** The texels across vanilla's moon sprite, and across the planet's, as basic as the moon's eight-texel face. */
         private static final float MOON_SPRITE_TEXELS = 32F;
@@ -169,27 +172,62 @@ class LunarSkyTest {
             assertEquals(MOONS_WIDE * VANILLA_MOON_SIZE * MOON_DISC_SHARE, LunarSky.PLANET_HALF_SIZE, QUAD_TOLERANCE);
         }
 
+        /**
+         * decision blue-planet-hangs-fixed-with-its-height-set-by-x
+         */
         @Test
-        void theDiscStandsWhereTheMoonAngleSetsIt() {
-            for (float angle : MOON_ANGLES) {
-                List<Vector3f> corners = LunarSky.planetCorners(angle);
+        void theDiscStandsWhereTheCamerasXSetsIt() {
+            for (double cameraX : CAMERA_XS) {
+                List<Vector3f> corners = LunarSky.planetCorners(cameraX);
                 Vector3f center = new Vector3f();
                 corners.forEach(center::add);
                 center.div(corners.size());
-                Vec3 along = LunarSight.moonDirection(angle).scale(PocketStarSkyRenderer.SKY_DISTANCE);
-                assertEquals(along.x(), center.x(), QUAD_TOLERANCE, "at " + angle);
-                assertEquals(along.y(), center.y(), QUAD_TOLERANCE, "at " + angle);
-                assertEquals(along.z(), center.z(), QUAD_TOLERANCE, "at " + angle);
+                Vec3 along = LunarSight.planetDirection(cameraX).scale(PocketStarSkyRenderer.SKY_DISTANCE);
+                assertEquals(along.x(), center.x(), QUAD_TOLERANCE, "at " + cameraX);
+                assertEquals(along.y(), center.y(), QUAD_TOLERANCE, "at " + cameraX);
+                assertEquals(along.z(), center.z(), QUAD_TOLERANCE, "at " + cameraX);
                 assertEquals(LunarSky.PLANET_HALF_SIZE * Math.sqrt(2), corners.get(0).distance(center),
-                        QUAD_TOLERANCE, "at " + angle);
+                        QUAD_TOLERANCE, "at " + cameraX);
+                assertTrue(LunarSky.drawsPlanetOver(cameraX), "at " + cameraX);
             }
+        }
+
+        /**
+         * decision blue-planet-hangs-fixed-with-its-height-set-by-x
+         * decision dark-side-is-the-half-of-the-moon-past-the-light-side
+         */
+        @Test
+        void theDarkSideDrawsNoPlanet() {
+            assertFalse(LunarSky.drawsPlanetOver(DARK_SIDE_X));
+            assertFalse(LunarSky.drawsPlanetOver(-DARK_SIDE_X));
         }
 
         @ParameterizedTest
         @MethodSource("eachPlanetPhaseAndItsSprite")
         void thePlanetDrawsTheSpriteOfItsPhase(MoonPhase planetPhase, String sprite) {
-            assertEquals(Identifier.fromNamespaceAndPath("goo", "textures/environment/blue_planet/" + sprite + ".png"),
-                    LunarSky.planetSprite(planetPhase));
+            assertEquals(spriteNamed(sprite), LunarSky.planetSprite(planetPhase));
+        }
+
+        @ParameterizedTest
+        @MethodSource("eachMoonPhaseAndThePlanetsSprite")
+        void thePlanetDrawsTheSpriteOfThePhaseOppositeTheMoons(MoonPhase moonPhase, String sprite) {
+            assertEquals(spriteNamed(sprite), LunarSky.planetSprite(LunarSight.planetPhase(moonPhase)));
+        }
+
+        private static Identifier spriteNamed(String sprite) {
+            return Identifier.fromNamespaceAndPath("goo", "textures/environment/blue_planet/" + sprite + ".png");
+        }
+
+        static Stream<Arguments> eachMoonPhaseAndThePlanetsSprite() {
+            return Stream.of(
+                    Arguments.of(MoonPhase.NEW_MOON, "full"),
+                    Arguments.of(MoonPhase.WAXING_CRESCENT, "waning_gibbous"),
+                    Arguments.of(MoonPhase.FIRST_QUARTER, "third_quarter"),
+                    Arguments.of(MoonPhase.WAXING_GIBBOUS, "waning_crescent"),
+                    Arguments.of(MoonPhase.FULL_MOON, "new"),
+                    Arguments.of(MoonPhase.WANING_GIBBOUS, "waxing_crescent"),
+                    Arguments.of(MoonPhase.THIRD_QUARTER, "first_quarter"),
+                    Arguments.of(MoonPhase.WANING_CRESCENT, "waxing_gibbous"));
         }
 
         @Test

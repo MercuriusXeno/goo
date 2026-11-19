@@ -20,7 +20,6 @@ import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.data.AtlasIds;
 import net.minecraft.resources.Identifier;
-import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.client.CustomSkyboxRenderer;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
@@ -33,9 +32,9 @@ import java.util.OptionalInt;
 
 /**
  * Draws goo:lunar's sky in place of vanilla's: the pocket's sea of dim stars, then vanilla's sun turned by lunar's sun
- * angle, then the blue planet where lunar's moon angle stands it, lit by the phase opposite the overworld moon's. No
- * moon or cloud draws. The Lunar trip home draws its sky without the planet, which it swells itself. Over the dark
- * side only the stars draw, at every hour.
+ * angle, then the blue planet hanging fixed where the camera's x stands it, lit by the phase opposite the overworld
+ * moon's. No moon or cloud draws. The Lunar trip home draws its sky without the planet, which it swells itself. Over
+ * the dark side only the stars draw, at every hour.
  * decision astral-sky-is-the-void-with-one-bright-blue-overworld-star
  * decision lunar-has-a-day-and-night-and-a-sun-on-the-overworlds-clock
  * decision blue-star-takes-the-moons-place-with-the-opposite-phase
@@ -71,15 +70,16 @@ public final class LunarSkyRenderer implements CustomSkyboxRenderer {
     public boolean renderSky(LevelRenderState levelRenderState, SkyRenderState skyRenderState,
             Matrix4fc modelViewMatrix, Runnable setupFog) {
         sea.renderSky(levelRenderState, skyRenderState, modelViewMatrix, setupFog);
+        double cameraX = levelRenderState.cameraRenderState.pos.x();
         // decision dark-side-is-the-half-of-the-moon-past-the-light-side
-        if (Lunar.isDarkSide(levelRenderState.cameraRenderState.pos.x())) {
+        if (Lunar.isDarkSide(cameraX)) {
             return true;
         }
         drawSun(modelViewMatrix, (float) Math.toDegrees(skyRenderState.sunAngle));
-        if (drawsPlanet) {
-            Vec3 planet = LunarSight.moonDirection((float) Math.toDegrees(skyRenderState.moonAngle));
-            BluePlanetRenderer.draw(RenderPipelines.CELESTIAL, new Matrix4f(modelViewMatrix).mul(LunarSky
-                    .celestialPose(planet, PocketStarSkyRenderer.SKY_DISTANCE, LunarSky.PLANET_HALF_SIZE)),
+        // decision blue-planet-hangs-fixed-with-its-height-set-by-x
+        if (drawsPlanet && LunarSky.drawsPlanetOver(cameraX)) {
+            BluePlanetRenderer.draw(RenderPipelines.CELESTIAL,
+                    new Matrix4f(modelViewMatrix).mul(LunarSky.planetPose(cameraX)),
                     LunarSight.planetPhase(skyRenderState.moonPhase));
         }
         return true;
