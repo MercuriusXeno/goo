@@ -13,9 +13,11 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.entity.monster.Enemy;
+import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.NaturalSpawner;
 import net.minecraft.world.level.block.Blocks;
@@ -28,8 +30,9 @@ import java.util.function.Consumer;
 
 /**
  * Nether's Gloom as a world goo through the real paths: its stream's drip
- * lays a Gloom cell, and the level's own natural spawn puts a hostile mob on
- * that cell in a lit room, spending none of its goo.
+ * lays a Gloom cell, the level's own natural spawn puts a hostile mob on
+ * that cell in a lit room, spending none of its goo, and the noon sun spares
+ * a zombie standing on it.
  * gloom-spawns-regardless-of-light-and-mobs-on-it-ignore-daylight
  */
 @RegistersGameTests
@@ -55,6 +58,15 @@ public final class GloomTests {
     private static final String ROOM_DARK = "The cell should stand at block light %d or more, reads %d";
     private static final String NO_MOB = "No hostile mob spawned on the Gloom cell";
     private static final String MOB_OFF_THE_CELL = "The %s spawned should stand on the cell at %s, stands at %s";
+    private static final String SPARES_FROM_THE_SUN = "a_zombie_on_gloom_does_not_burn_at_noon";
+    /** The tick of the day the sun stands highest. */
+    private static final long NOON = 6000L;
+    /** The zombie standing in a Gloom cell, and the one two blocks off on bare stone. */
+    private static final BlockPos SHADED_ZOMBIE = new BlockPos(1, 2, 2);
+    private static final BlockPos BURNT_ZOMBIE = new BlockPos(3, 2, 2);
+    private static final String ZOMBIE_ON_GLOOM_BURNS = "The zombie on Gloom caught fire under the noon sun";
+    private static final String ZOMBIE_ON_STONE_UNLIT = "The zombie on bare stone should catch fire under the noon sun";
+    private static final String GLOOM_GONE = "The Gloom cell under the shaded zombie is gone";
 
     private GloomTests() {
     }
@@ -66,6 +78,34 @@ public final class GloomTests {
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, SPAWNS_IN_THE_LIGHT, GloomTests::gloomCellSpawnsAHostileMobInALitRoom);
+        GooTestFunctions.registerTest(registrar, SPARES_FROM_THE_SUN, GloomTests::aZombieOnGloomDoesNotBurnAtNoon);
+    }
+
+    /**
+     * Under the open noon sky, a zombie standing on a Gloom cell stays
+     * unlit while one standing beside it on bare stone catches fire: the
+     * sun's chance to ignite the bare one runs each tick, and the Gloom one
+     * must stay unlit every tick until it does.
+     *
+     * @param helper the gametest helper
+     */
+    public static void aZombieOnGloomDoesNotBurnAtNoon(GameTestHelper helper) {
+        BlockPos.betweenClosed(new BlockPos(0, 1, 0), new BlockPos(ROOM_EDGE, ROOF, ROOM_EDGE)).forEach(pos ->
+                helper.setBlock(pos, pos.getY() == DRIP_FLOOR.getY() ? Blocks.STONE : Blocks.AIR));
+        helper.setBlock(SHADED_ZOMBIE, GooBlocks.NETHER_GLOOM.get().defaultBlockState());
+        helper.setTime(NOON);
+        Zombie onGloom = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, SHADED_ZOMBIE);
+        Zombie onStone = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, BURNT_ZOMBIE);
+        helper.onEachTick(() -> {
+            if (onGloom.isOnFire()) {
+                helper.fail(ZOMBIE_ON_GLOOM_BURNS);
+            }
+        });
+        helper.succeedWhen(() -> {
+            helper.assertTrue(helper.getBlockState(SHADED_ZOMBIE).is(GooBlocks.NETHER_GLOOM.get()), GLOOM_GONE);
+            helper.assertTrue(onStone.isOnFire(), ZOMBIE_ON_STONE_UNLIT);
+            helper.assertFalse(onGloom.isOnFire(), ZOMBIE_ON_GLOOM_BURNS);
+        });
     }
 
     /**
