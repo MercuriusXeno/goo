@@ -126,6 +126,7 @@ public final class GooClientSetup {
      * Special renderer key for canister goo.
      */
     private static final String RENDERER_CANISTER = "canister_goo";
+    private static final String RENDERER_SPRAYER = "sprayer_canister";
     private static final String RENDERER_GOO_LABEL = "goo_label";
     /**
      * Special renderer key for vat goo.
@@ -318,12 +319,11 @@ public final class GooClientSetup {
     @SubscribeEvent
     public static void registerBlockTintSources(RegisterColorHandlersEvent.BlockTintSources event) {
         for (VolumeCellBlock cell : List.of(GooBlocks.SLIME_COAT.get(), GooBlocks.KINETIC_SLICK.get(),
-                GooBlocks.BLAZE_MOLTEN.get(), GooBlocks.CRYSTAL_SHATTER.get(), GooBlocks.DEEP_HOST.get(),
+                GooBlocks.BLAZE_MOLTEN.get(), GooBlocks.CRYSTAL_SHATTER.get(), GooBlocks.SCULK_CREEP.get(),
                 GooBlocks.FROST_RIME.get(), GooBlocks.GLOW_WISPS.get(), GooBlocks.HEX_LEECH.get(),
                 GooBlocks.TYPHOON_UPDRAFT.get(), GooBlocks.JELLY_NECTAR.get(), GooBlocks.PULSE_SIGNAL.get(),
                 GooBlocks.METAL_SPIKES.get(), GooBlocks.ZOMBIE_INFEST.get(), GooBlocks.LEAF_VINES.get(),
                 GooBlocks.UNSTABLE_NITRO.get(), GooBlocks.QUANTUM_PHASE.get(),
-                GooBlocks.SHROOM_SPORES.get(),
                 GooBlocks.ROCK_MORTAR.get(), GooBlocks.YARN_STITCH.get())) {
             event.register(VolumeCellTint.sources(cell.binding().gooType(), ClientGooTypes::color), cell);
         }
@@ -421,7 +421,7 @@ public final class GooClientSetup {
         registerSprayDrip(event, GooParticles.GOOP_SPRAY_DRIP.get(), BlendPalette.GOOP_SLIME_GREENS);
         registerSprayDrip(event, GooParticles.SLICK_SPRAY_DRIP.get(), BlendPalette.SLICK_SLIME_BLUES);
         registerSprayDrip(event, GooParticles.SHATTER_SPRAY_DRIP.get(), BlendPalette.SHATTER_CRYSTAL_BLUES);
-        registerSprayDrip(event, GooParticles.HOST_SPRAY_DRIP.get(), BlendPalette.HOST_DEEP_TEALS);
+        registerSprayDrip(event, GooParticles.CREEP_SPRAY_DRIP.get(), BlendPalette.CREEP_TEALS);
         registerSprayDrip(event, GooParticles.WISPS_SPRAY_DRIP.get(), BlendPalette.WISPS_GLOW_GOLDS);
         registerSprayDrip(event, GooParticles.LEECH_SPRAY_DRIP.get(), BlendPalette.LEECH_HEX_VIOLETS);
         registerSprayDrip(event, GooParticles.UPDRAFT_SPRAY_DRIP.get(), BlendPalette.UPDRAFT_TYPHOON_GREENS);
@@ -432,7 +432,6 @@ public final class GooClientSetup {
         registerSprayDrip(event, GooParticles.VINES_SPRAY_DRIP.get(), BlendPalette.VINES_LEAF_GREENS);
         registerSprayDrip(event, GooParticles.NITRO_SPRAY_DRIP.get(), BlendPalette.NITRO_UNSTABLE_GREENS);
         registerSprayDrip(event, GooParticles.PHASE_SPRAY_DRIP.get(), BlendPalette.PHASE_QUANTUM_BLUES);
-        registerSprayDrip(event, GooParticles.SPORES_SPRAY_DRIP.get(), BlendPalette.SPORES_SHROOM_PURPLES);
         registerSprayDrip(event, GooParticles.MORTAR_SPRAY_DRIP.get(), BlendPalette.MORTAR_ROCK_GRAYS);
         registerSprayDrip(event, GooParticles.STITCH_SPRAY_DRIP.get(), BlendPalette.STITCH_YARN_TANS);
         event.registerSpriteSet(GooParticles.MOLTEN_SPRAY_DRIP.get(),
@@ -583,6 +582,8 @@ public final class GooClientSetup {
                 Identifier.fromNamespaceAndPath(Goo.MODID, RENDERER_CANISTER),
                 CanisterSpecialRenderer.Unbaked.MAP_CODEC
         );
+        // sprayer-holds-a-canister-sideways-like-a-caulk-gun
+        event.register(Identifier.fromNamespaceAndPath(Goo.MODID, RENDERER_SPRAYER), SprayerSpecialRenderer.Unbaked.MAP_CODEC);
         event.register(
                 Identifier.fromNamespaceAndPath(Goo.MODID, RENDERER_VAT),
                 VatSpecialRenderer.Unbaked.MAP_CODEC

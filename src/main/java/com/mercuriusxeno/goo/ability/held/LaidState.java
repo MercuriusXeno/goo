@@ -5,11 +5,11 @@ import com.mercuriusxeno.goo.ability.program.EludeStep;
 import com.mercuriusxeno.goo.ability.program.GluttonyStep;
 import com.mercuriusxeno.goo.ability.program.HeartOverlayStep;
 import com.mercuriusxeno.goo.ability.program.HerdStep;
+import com.mercuriusxeno.goo.ability.program.InvertStep;
 import com.mercuriusxeno.goo.ability.program.LowerCaseEnumCodec;
 import com.mercuriusxeno.goo.ability.program.LuxStep;
 import com.mercuriusxeno.goo.ability.program.RemoteStep;
 import com.mercuriusxeno.goo.ability.program.SculkerStep;
-import com.mercuriusxeno.goo.ability.program.SightStep;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.UndeadStep;
 import com.mercuriusxeno.goo.ability.program.UnveilStep;
@@ -32,7 +32,10 @@ public enum LaidState {
     HEART_OVERLAY,
     /** Gluttony and its banks, laid by a gluttony step (decision gluttony-overheals-and-overhungers). */
     GLUTTONY,
-    /** Fungal sight (decision sight-lengthens-shift-and-outlines-fungus). */
+    /**
+     * Laid by no step, Sight having left the mod for Sculker's shroom vision (decision
+     * sculker-absorbs-sight-as-shroom-vision); it stands so a saved held effect naming it still loads.
+     */
     SIGHT,
     /** Lux's night vision and gaze glisten (decision lux-night-vision-without-particles). */
     LUX,
@@ -70,8 +73,13 @@ public enum LaidState {
     LEAD,
     /** The dive's swim through stone and its vision (decision dive-is-a-brew-of-warden-senses-and-free-swimming-through-solid-blocks). */
     SCULKER,
-    /** Yarn's Herd, last since the client sync numbers states by order (decision leader-is-zoos-brew-ability). */
-    HERD;
+    /** Yarn's Herd (decision leader-is-zoos-brew-ability). */
+    HERD,
+    /**
+     * Nether's turned gravity, last since the client sync numbers states by order
+     * (decision invert-flips-your-gravity-and-lets-you-walk-on-ceilings).
+     */
+    INVERT;
 
     /** Codec for the saved state. */
     public static final Codec<LaidState> CODEC = LowerCaseEnumCodec.of(LaidState.class, "laid state");
@@ -101,7 +109,6 @@ public enum LaidState {
     private static final Map<Class<? extends Step>, LaidState> LAID_BY = Map.ofEntries(
             Map.entry(HeartOverlayStep.class, HEART_OVERLAY),
             Map.entry(GluttonyStep.class, GLUTTONY),
-            Map.entry(SightStep.class, SIGHT),
             Map.entry(LuxStep.class, LUX),
             Map.entry(UndeadStep.class, UNDEAD),
             Map.entry(EludeStep.class, ELUDE),
@@ -109,7 +116,8 @@ public enum LaidState {
             Map.entry(RemoteStep.class, REMOTE),
             Map.entry(UnveilStep.class, UNVEIL),
             Map.entry(SculkerStep.class, SCULKER),
-            Map.entry(HerdStep.class, HERD));
+            Map.entry(HerdStep.class, HERD),
+            Map.entry(InvertStep.class, INVERT));
 
     private static Stream<Step> withDescendants(Step step) {
         return Stream.concat(Stream.of(step), step.children().flatMap(LaidState::withDescendants));

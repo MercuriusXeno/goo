@@ -14,7 +14,7 @@ class ScanVisualsTest {
 
     @Test
     void registersARendererForTheVisualClickNames() {
-        String named = ScanVisualStep.in(AbilityJson.decode("deep_click").behaviors()).orElseThrow().visual();
+        String named = ScanVisualStep.in(AbilityJson.decode("pulse_click").behaviors()).orElseThrow().visual();
         assertTrue(ScanVisuals.rendererFor(named).isPresent(), named);
     }
 }

@@ -3,9 +3,9 @@ package com.mercuriusxeno.goo.registry;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.block.ability.AbilityBlock;
 import com.mercuriusxeno.goo.block.ability.CellBinding;
+import com.mercuriusxeno.goo.block.ability.CreepCellBlock;
 import com.mercuriusxeno.goo.block.ability.FungalBudBlock;
 import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
-import com.mercuriusxeno.goo.block.ability.HostCellBlock;
 import com.mercuriusxeno.goo.block.ability.InfestCellBlock;
 import com.mercuriusxeno.goo.block.ability.LightRailBlock;
 import com.mercuriusxeno.goo.block.ability.MagickedIceBlock;
@@ -17,7 +17,6 @@ import com.mercuriusxeno.goo.block.ability.PrismBlock;
 import com.mercuriusxeno.goo.block.ability.RimeCellBlock;
 import com.mercuriusxeno.goo.block.ability.SignalCellBlock;
 import com.mercuriusxeno.goo.block.ability.SpikesCellBlock;
-import com.mercuriusxeno.goo.block.ability.SporesCellBlock;
 import com.mercuriusxeno.goo.block.ability.UpdraftCellBlock;
 import com.mercuriusxeno.goo.block.ability.VinesCellBlock;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
@@ -250,18 +249,18 @@ public class GooBlocks {
                     .noLootTable()
                     .pushReaction(PushReaction.DESTROY));
     /**
-     * Host: the volume cell bound to Deep's sculky slime, the dark teal goo
-     * Host sprays onto a block's top, one to fifteen layers, ordinary ground
-     * underfoot that sounds as goo does, dropping the deep goo its layers
-     * cost through VolumeCellBlock.getDrops, no loot table
-     * (decisions host-is-a-sculky-slime-that-sculk-spreads-eagerly-through,
+     * Creep: the volume cell bound to Sculk's sculky slime, the dark teal goo
+     * Creep sprays onto a block's top, one to fifteen layers, ordinary ground
+     * underfoot that sounds as goo does, budding the ground at its edges,
+     * dropping the sculk goo its layers cost through VolumeCellBlock.getDrops,
+     * no loot table (decisions host-and-spores-combine-into-one-residual,
      * each-goo-type-ships-a-world-goo-on-the-volume-cell).
      */
-    public static final DeferredBlock<HostCellBlock> DEEP_HOST = BLOCKS.registerBlock(
-            "deep_host", properties -> new HostCellBlock(properties, CellBinding.HOST),
+    public static final DeferredBlock<CreepCellBlock> SCULK_CREEP = BLOCKS.registerBlock(
+            "sculk_creep", properties -> new CreepCellBlock(properties, CellBinding.CREEP),
             () -> BlockBehaviour.Properties.of()
                     .mapColor(MapColor.COLOR_CYAN)
-                    .friction(CellBinding.HOST.surface().friction())
+                    .friction(CellBinding.CREEP.surface().friction())
                     .sound(SoundType.SLIME_BLOCK)
                     .instabreak()
                     .noOcclusion()
@@ -487,26 +486,6 @@ public class GooBlocks {
             () -> BlockBehaviour.Properties.of()
                     .mapColor(MapColor.TERRACOTTA_GREEN)
                     .friction(CellBinding.INFEST.surface().friction())
-                    .sound(SoundType.SLIME_BLOCK)
-                    .instabreak()
-                    .noOcclusion()
-                    .replaceable()
-                    .noLootTable()
-                    .pushReaction(PushReaction.DESTROY));
-    /**
-     * Spores: the volume cell bound to Shroom's goo, the purple goo Spores
-     * sprays onto a block's top, one to fifteen layers, ordinary ground
-     * underfoot and sounding as goo does, budding the ground at its edges,
-     * dropping the shroom goo its layers cost through
-     * VolumeCellBlock.getDrops, no loot table
-     * (decisions spores-is-shrooms-residual-a-passive-mycosis,
-     * each-goo-type-ships-a-world-goo-on-the-volume-cell).
-     */
-    public static final DeferredBlock<SporesCellBlock> SHROOM_SPORES = BLOCKS.registerBlock(
-            "shroom_spores", properties -> new SporesCellBlock(properties, CellBinding.SPORES),
-            () -> BlockBehaviour.Properties.of()
-                    .mapColor(MapColor.COLOR_PURPLE)
-                    .friction(CellBinding.SPORES.surface().friction())
                     .sound(SoundType.SLIME_BLOCK)
                     .instabreak()
                     .noOcclusion()
