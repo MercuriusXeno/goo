@@ -12,6 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.withSettings;
 
 /**
  * A Scry held a minute, its caster walking a circle through the fixed
@@ -103,7 +104,7 @@ class HeldSweepLongHoldTest {
         for (int mob = 0; mob < MOBS; mob++) {
             double angle = 2 * Math.PI * mob / MOBS;
             Vec3 at = HeldSweepWorld.CASTER.add(MOB_RING * Math.cos(angle), 0, MOB_RING * Math.sin(angle));
-            LivingEntity living = mock(LivingEntity.class);
+            LivingEntity living = mock(LivingEntity.class, withSettings().stubOnly());
             when(living.getBoundingBox()).thenReturn(new AABB(at.add(-MOB_HALF_WIDTH, 0, -MOB_HALF_WIDTH),
                     at.add(MOB_HALF_WIDTH, MOB_HEIGHT, MOB_HALF_WIDTH)));
             when(living.getId()).thenReturn(mob);

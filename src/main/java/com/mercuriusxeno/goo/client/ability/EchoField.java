@@ -94,6 +94,7 @@ final class EchoField {
         }
         if (faces.size() >= MOST_FACES) {
             // a full field keeps no more walls, so the shell the front crossed is never built
+            sources.clear();
             scannedTo = radius;
             return;
         }
@@ -102,6 +103,18 @@ final class EchoField {
             walk(radius, isAir, shapeOf, air);
         }
         scannedTo = radius;
+    }
+
+    /**
+     * Lets go of the older fields once this one's walk has reached a front's
+     * range, since it takes no more walls from them.
+     *
+     * @param range the radius a front from this spot reaches
+     */
+    void reachedRange(double range) {
+        if (scannedTo >= range) {
+            sources.clear();
+        }
     }
 
     /**
