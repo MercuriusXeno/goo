@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.spray.Spored;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooAttachments;
@@ -20,6 +21,7 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
@@ -29,7 +31,8 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 /**
  * Gametests for Mycosis: its stream poisons what it reaches with Goo's spore
  * poison, a spored zombie bursts spores from its corpse that poison a second
- * zombie and lay no Spores goo, and the spray buds the floor it reaches
+ * zombie and lay no Creep goo, a stream-spored death turns no dirt to
+ * mycelium, and the spray buds the floor it reaches
  * (decision mycosis-spore-stream-buds-and-poisons).
  */
 @RegistersGameTests
@@ -37,6 +40,16 @@ public final class MycosisTests {
     private static final String MYCOSIS_SPREADS_ON_DEATH = "mycosis_spreads_on_death";
     private static final String MYCOSIS_BUDS_AT_THE_FEET = "mycosis_buds_at_the_feet";
     private static final String MYCOSIS_FIZZLES_ON_STONE = "mycosis_fizzles_on_stone_in_daylight";
+    private static final String STREAM_DEATH_CONVERTS_NOTHING = "mycosis_stream_spored_zombie_dying_converts_no_dirt";
+    /** Where the stream-spored zombie dies, on dirt. */
+    private static final BlockPos FELL_ON_DIRT = new BlockPos(5, 2, 5);
+    /** Ticks the stream's spores last on the zombie the stream spored. */
+    private static final int STREAM_SPORE_TICKS = 600;
+    /** The radius the stream's spores burst at. */
+    private static final float STREAM_SPORE_RADIUS = 3f;
+    /** Ticks the conversion test waits after the death. */
+    private static final int AFTER_THE_DEATH = 100;
+    private static final String CONVERTED = "The dirt under the corpse should stand as dirt, stands %s";
     private static final String BUD_ON_STONE = "Mycosis sprayed on stone in daylight should plant no bud";
     /** Ticks the fizzle test sprays for, past many buds' worth of the stream's chance. */
     private static final int FIZZLE_SPRAY_TICKS = 200;
@@ -50,6 +63,30 @@ public final class MycosisTests {
         GooTestFunctions.registerTest(registrar, MYCOSIS_SPREADS_ON_DEATH, MycosisTests::mycosisSpreadsOnDeath);
         GooTestFunctions.registerTest(registrar, MYCOSIS_BUDS_AT_THE_FEET, MycosisTests::mycosisBudsAtTheFeet);
         GooTestFunctions.registerTest(registrar, MYCOSIS_FIZZLES_ON_STONE, MycosisTests::mycosisFizzlesOnStone);
+        GooTestFunctions.registerTest(registrar, STREAM_DEATH_CONVERTS_NOTHING,
+                MycosisTests::streamSporedDeathConvertsNoDirt);
+    }
+
+    /**
+     * A zombie carrying the stream's spores, dying on dirt, leaves the dirt as dirt: Mycosis' death burst grows
+     * no mycelium.
+     * mycosis-spore-stream-buds-and-poisons
+     *
+     * @param helper the gametest helper
+     */
+    public static void streamSporedDeathConvertsNoDirt(GameTestHelper helper) {
+        helper.setBlock(FELL_ON_DIRT.below(), Blocks.DIRT);
+        helper.setBlock(FELL_ON_DIRT, Blocks.AIR);
+        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, Vec3.atBottomCenterOf(FELL_ON_DIRT));
+        zombie.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.LEATHER_HELMET));
+        zombie.setData(GooAttachments.SPORED, new Spored(MYCOSIS, STREAM_SPORE_RADIUS,
+                helper.getLevel().getGameTime() + STREAM_SPORE_TICKS));
+        zombie.kill(helper.getLevel());
+        helper.runAfterDelay(AFTER_THE_DEATH, () -> {
+            BlockState dirt = helper.getBlockState(FELL_ON_DIRT.below());
+            helper.assertTrue(dirt.is(Blocks.DIRT), String.format(CONVERTED, dirt));
+            helper.succeed();
+        });
     }
 
 
@@ -77,7 +114,7 @@ public final class MycosisTests {
     private static final String SPRAYED_SPORED = "The sprayed zombie should carry spores";
     private static final String BYSTANDER_CLEAN = "The bystander outside the cone should start unpoisoned";
     private static final String BYSTANDER_POISONED = "The burst from the corpse should poison the bystander";
-    private static final String NO_GOO_WHERE_IT_FELL = "The burst from the corpse should lay no Spores goo where it fell";
+    private static final String NO_GOO_WHERE_IT_FELL = "The burst from the corpse should lay no Creep goo where it fell";
 
     private MycosisTests() {
     }
@@ -105,9 +142,9 @@ public final class MycosisTests {
             BlockPos fell = sprayed.blockPosition();
             sprayed.kill(helper.getLevel());
             helper.assertTrue(bystander.hasEffect(GooMobEffects.MYCOSIS), BYSTANDER_POISONED);
-            // mycosis-is-put-back-as-the-held-spore-stream: the stream's burst lays no Spores goo
+            // mycosis-is-put-back-as-the-held-spore-stream: the stream's burst lays no Creep goo
             helper.assertFalse(BlockPos.betweenClosedStream(fell.offset(-1, -1, -1), fell.offset(1, 1, 1))
-                    .anyMatch(cell -> helper.getLevel().getBlockState(cell).is(GooBlocks.SCULK_SPORES.get())),
+                    .anyMatch(cell -> helper.getLevel().getBlockState(cell).is(GooBlocks.SCULK_CREEP.get())),
                     NO_GOO_WHERE_IT_FELL);
             helper.succeed();
         });

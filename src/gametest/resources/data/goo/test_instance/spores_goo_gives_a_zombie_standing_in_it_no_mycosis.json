@@ -1,9 +1,0 @@
-{
-  "type": "minecraft:function",
-  "function": "goo:spores_goo_gives_a_zombie_standing_in_it_no_mycosis",
-  "environment": "minecraft:default",
-  "structure": "goo:test_bay",
-  "max_ticks": 400,
-  "setup_ticks": 0,
-  "required": true
-}
