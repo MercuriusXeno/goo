@@ -29,14 +29,17 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Lunar on the server, a hold. Held looking at the moon in the overworld, or at the blue planet in
  * lunar, it fixes the caster's gaze, sends them its rising tone, and holds them still where they stand while the moon
- * or the planet swells to fill their view; held until the fixation runs out, the moon carries them to lunar over the
- * column they stood on, keeping where they left from, and the planet carries them back to exactly that place and
- * facing, each taking the astral then and leaving the arrival mark their client's white clears on. Let go early, it
+ * or the planet swells to fill their view; held until the fixation runs out, the moon carries them to lunar at the
+ * landing its phase, its night's tick and their overworld spot set, keeping where they left from, and the planet
+ * carries them back to exactly that place and facing, each taking the astral then and leaving the arrival mark their
+ * client's white clears on. Let go early, it
  * releases them where they stand and takes nothing. Held looking at neither, it refuses with a tell. Lunar places
  * nothing.
  * decision gate-fixates-your-view-on-the-moon-until-it-takes-you
  * decision gate-on-the-blue-star-returns-you-exactly-where-you-left
  * decision holding-right-click-pulls-the-moon-and-early-release-cancels
+ * decision time-and-phase-set-x-and-your-overworld-spot-sets-z
+ * decision traversal-to-the-moon-always-lands-on-the-light-side
  */
 public final class AstralLunar {
 
@@ -223,7 +226,10 @@ public final class AstralLunar {
     }
 
     /**
-     * Carries the caster to lunar over the column they stood on, keeping where they left from.
+     * Carries the caster to lunar at the landing the moon's phase and its night's tick set, over the column their
+     * overworld spot sets, keeping where they left from.
+     * decision time-and-phase-set-x-and-your-overworld-spot-sets-z
+     * decision traversal-to-the-moon-always-lands-on-the-light-side
      *
      * @param caster the caster
      */
@@ -234,8 +240,10 @@ public final class AstralLunar {
         }
         caster.setData(GooAttachments.WAY_HOME, new WayHome(Optional.of(new VoidPockets.ReturnPoint(
                 caster.level().dimension(), caster.position(), caster.getYRot(), caster.getXRot()))));
-        caster.teleport(new TeleportTransition(lunar, surfaceOver(lunar, caster.position()), Vec3.ZERO,
-                caster.getYRot(), caster.getXRot(), TeleportTransition.DO_NOTHING));
+        LunarLanding.Spot landing = LunarLanding.at(moonPhaseAt(caster).index(),
+                LunarLanding.nightTickAt(caster.level().getOverworldClockTime()), caster.getX(), caster.getZ());
+        caster.teleport(new TeleportTransition(lunar, surfaceOver(lunar, new Vec3(landing.x(), 0, landing.z())),
+                Vec3.ZERO, caster.getYRot(), caster.getXRot(), TeleportTransition.DO_NOTHING));
     }
 
     /**
@@ -273,8 +281,11 @@ public final class AstralLunar {
      * @return the planet's phase
      */
     private static MoonPhase planetPhaseAt(ServerPlayer caster) {
-        return LunarSight.planetPhase(caster.level().environmentAttributes().getValue(EnvironmentAttributes.MOON_PHASE,
-                caster.position()));
+        return LunarSight.planetPhase(moonPhaseAt(caster));
+    }
+
+    private static MoonPhase moonPhaseAt(ServerPlayer caster) {
+        return caster.level().environmentAttributes().getValue(EnvironmentAttributes.MOON_PHASE, caster.position());
     }
 
     private static float sunAngleAt(ServerPlayer caster) {
