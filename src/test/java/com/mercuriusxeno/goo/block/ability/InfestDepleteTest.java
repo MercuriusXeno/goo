@@ -23,18 +23,18 @@ class InfestDepleteTest {
     void aDrawUnderTheChanceTakesALayer() {
         double chance = shippedChance();
 
-        assertEquals(FIVE_LAYERS - 1, InfestDeplete.layersAfterRoll(FIVE_LAYERS, chance / 2, chance));
+        assertEquals(FIVE_LAYERS - 1, LayerDeplete.layersAfterRoll(FIVE_LAYERS, chance / 2, chance));
     }
 
     @Test
     void aDrawOverTheChanceLeavesTheCellWhole() {
         double chance = shippedChance();
 
-        assertEquals(FIVE_LAYERS, InfestDeplete.layersAfterRoll(FIVE_LAYERS, (1 + chance) / 2, chance));
+        assertEquals(FIVE_LAYERS, LayerDeplete.layersAfterRoll(FIVE_LAYERS, (1 + chance) / 2, chance));
     }
 
     @Test
     void aLastLayerRolledAwayLeavesNone() {
-        assertEquals(0, InfestDeplete.layersAfterRoll(1, 0, shippedChance()));
+        assertEquals(0, LayerDeplete.layersAfterRoll(1, 0, shippedChance()));
     }
 }
