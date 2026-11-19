@@ -34,13 +34,6 @@ public final class LunarSight {
     /** A look anywhere on the planet's disc holds it, its disc wider than the moon's look reach. */
     private static final double PLANET_REACH_COSINE = Math.min(LOOK_REACH_COSINE,
             Math.cos(Math.atan(PLANET_DISC_HALF_TANGENT)));
-    /**
-     * The moon's way around along x, in blocks: the light side and the dark side, each half of it, the seam at plus
-     * and minus half.
-     * decision dark-side-is-the-half-of-the-moon-past-the-light-side
-     */
-    private static final double MOON_AROUND = 4.0 * Lunar.LIGHT_SIDE_HALF_WIDTH;
-    private static final double FULL_TURN = 2.0 * Math.PI;
     /** The moon's phases run a cycle of eight; the planet stands half of it on. */
     private static final int HALF_A_CYCLE = MoonPhase.COUNT / 2;
 
@@ -79,25 +72,28 @@ public final class LunarSight {
 
     /**
      * The refusal a cast holding neither moon nor planet shows, the sun first: a look holding the sun while it stands
-     * above the horizon, in the overworld or on the moon's light side, says "The big yellow one is the sun!", and any
-     * other look shows its dimension's refusal. The dark side draws no sun to hold.
+     * above the horizon, in the overworld or anywhere on the moon, says "The big yellow one is the sun!", and any other
+     * look shows its dimension's refusal. On the moon a look on the planet's disc holds the planet, whose disc, four
+     * moons wide, hides the sun behind it through the planet's dark phase.
      * decision pointing-at-the-sun-says-the-big-yellow-one-is-the-sun
-     * decision dark-side-is-the-half-of-the-moon-past-the-light-side
+     * decision sun-follows-the-phase-and-lights-the-far-side-too
      *
      * @param dimension       the caster's dimension
-     * @param x               the caster's x, in blocks, which the dark side reads in lunar
+     * @param x               the caster's x, in blocks, which sets the planet's direction in lunar
      * @param look            the caster's look, any length
-     * @param sunAngleDegrees the dimension's sun angle, in degrees
+     * @param sunAngleDegrees the sun angle where the caster stands, in degrees
      * @return the refusal's lang key
      */
     public static String refusalKey(ResourceKey<Level> dimension, double x, Vec3 look, float sunAngleDegrees) {
         Vec3 sun = moonDirection(sunAngleDegrees);
-        boolean holdsTheSun = sunShows(dimension, x) && sun.y() > 0.0 && holds(look, sun, LOOK_REACH_COSINE);
+        boolean holdsTheSun = SUNLIT.contains(dimension) && sun.y() > 0.0 && holds(look, sun, LOOK_REACH_COSINE)
+                && !holdsThePlanetsDisc(dimension, x, look);
         return holdsTheSun ? SUN_REFUSED : refusalKey(dimension);
     }
 
-    private static boolean sunShows(ResourceKey<Level> dimension, double x) {
-        return SUNLIT.contains(dimension) && !(Lunar.LEVEL.equals(dimension) && Lunar.isDarkSide(x));
+    private static boolean holdsThePlanetsDisc(ResourceKey<Level> dimension, double x, Vec3 look) {
+        return Lunar.LEVEL.equals(dimension) && planetAboveTheHorizon(x)
+                && holds(look, planetDirection(x), PLANET_REACH_COSINE);
     }
 
     /**
@@ -125,16 +121,14 @@ public final class LunarSight {
     }
 
     /**
-     * The blue planet's direction over a lunar x, the same at every hour: the moon keeps one face to the planet, so
-     * the planet stands straight up at x 0 and leans back toward x 0 as x runs out, one full circle over the moon's
-     * whole way around: on the horizon at the light side's edges, underfoot at the seam.
+     * The blue planet's direction over a lunar x, the same at every hour, at the angle Lunar.planetAngleDegrees reads.
      * decision blue-planet-hangs-fixed-with-its-height-set-by-x
      *
      * @param x the x, in blocks
      * @return the unit direction
      */
     public static Vec3 planetDirection(double x) {
-        return directionAt(x / MOON_AROUND * FULL_TURN);
+        return directionAt(Math.toRadians(Lunar.planetAngleDegrees(x)));
     }
 
     /**

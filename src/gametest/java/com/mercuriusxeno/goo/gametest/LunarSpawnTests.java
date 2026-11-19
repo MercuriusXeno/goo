@@ -38,7 +38,7 @@ public final class LunarSpawnTests {
             + "in %s";
     private static final String SPAWNS_IN_THE_WARRENS = "A monstrosity should spawn on the warren floor %s";
 
-    /** A column on lunar's dark side, where the sky reads as night at every hour. */
+    /** A column on lunar's dark side, just past the line. */
     private static final int DARK_SIDE_X = 3_750_024;
     /** A spot on the test bay's floor, above the overworld's deep. */
     private static final BlockPos BAY_FLOOR = new BlockPos(2, 1, 2);
@@ -63,9 +63,10 @@ public final class LunarSpawnTests {
     }
 
     /**
-     * The monstrosity's spawn rule admits a spot on lunar's dark-side surface, under the open sky at whatever hour the
-     * test runs, and refuses the test bay's floor.
+     * The monstrosity's spawn rule admits a spot on lunar's dark-side surface, under the open sky at that spot's
+     * midnight, and refuses the test bay's floor.
      * decision dark-side-is-an-endless-night-of-eldritch-rich-in-void-and-xeno
+     * decision sun-follows-the-phase-and-lights-the-far-side-too
      *
      * @param helper the gametest helper
      */
@@ -76,8 +77,13 @@ public final class LunarSpawnTests {
         lunar.getChunk(SectionPos.blockToSectionCoord(DARK_SIDE_X), 0);
         BlockPos surface = new BlockPos(DARK_SIDE_X, lunar.getHeight(Heightmap.Types.MOTION_BLOCKING, DARK_SIDE_X, 0),
                 0);
-        helper.assertTrue(EldritchMonstrosity.checkSpawnRules(GooEntities.ELDRITCH_MONSTROSITY.get(), lunar,
-                EntitySpawnReason.NATURAL, surface, lunar.getRandom()), String.format(ON_LUNAR, surface));
+        long pinnedAt = lunar.getOverworldClockTime();
+        LunarSunlightTests.pinOverworldClock(lunar,
+                LunarSunlightTests.clockWhenTheSunStandsAt(surface, LunarSunlightTests.UNDERFOOT));
+        boolean admitted = EldritchMonstrosity.checkSpawnRules(GooEntities.ELDRITCH_MONSTROSITY.get(), lunar,
+                EntitySpawnReason.NATURAL, surface, lunar.getRandom());
+        LunarSunlightTests.pinOverworldClock(lunar, pinnedAt);
+        helper.assertTrue(admitted, String.format(ON_LUNAR, surface));
         BlockPos bay = helper.absolutePos(BAY_FLOOR);
         helper.assertFalse(EldritchMonstrosity.checkSpawnRules(GooEntities.ELDRITCH_MONSTROSITY.get(), overworld,
                 EntitySpawnReason.NATURAL, bay, overworld.getRandom()), String.format(NOT_ABOVE_THE_DEEP, bay));

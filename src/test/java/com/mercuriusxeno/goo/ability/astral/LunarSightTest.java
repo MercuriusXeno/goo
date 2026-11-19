@@ -326,17 +326,24 @@ class LunarSightTest {
         @ParameterizedTest
         @MethodSource("eachDimensionAndItsOtherRefusal")
         void aLookWhereTheSunStandsBelowTheHorizonShowsTheOtherRefusal(ResourceKey<Level> dimension, String other) {
-            assertEquals(other, LunarSight.refusalKey(dimension, LIGHT_SIDE_X,
-                    LunarSight.moonDirection(SUN_AT_MIDNIGHT), SUN_AT_MIDNIGHT));
+            assertEquals(other, LunarSight.refusalKey(dimension, LIGHT_SIDE_X, LunarSight.moonDirection(SUN_AT_MIDNIGHT),
+                    SUN_AT_MIDNIGHT));
         }
 
         /**
-         * decision dark-side-is-the-half-of-the-moon-past-the-light-side
+         * Through the planet's dark phase the sun stands behind it, and the planet's disc, four moons wide, hides it.
+         * decision sun-follows-the-phase-and-lights-the-far-side-too
+         * decision lunar-refuses-the-return-while-the-blue-star-is-hidden
          */
         @Test
-        void aLookWhereTheSunWouldStandOnTheDarkSideShowsTerransRefusal() {
-            assertEquals(LunarSight.TERRAN_REFUSED, LunarSight.refusalKey(Lunar.LEVEL, DARK_SIDE_X,
-                    LunarSight.moonDirection(MORNING), MORNING));
+        void aLookAtTheSunBehindThePlanetShowsTerransRefusal() {
+            Vec3 planet = LunarSight.planetDirection(LIGHT_SIDE_X);
+            assertEquals(LunarSight.TERRAN_REFUSED, LunarSight.refusalKey(Lunar.LEVEL, LIGHT_SIDE_X, planet, 0F));
+        }
+
+        @Test
+        void aLookAtTheSunClearOfThePlanetOnTheDarkSideSaysTheBigYellowOneIsTheSun() {
+            assertEquals(LunarSight.SUN_REFUSED, LunarSight.refusalKey(Lunar.LEVEL, DARK_SIDE_X, UP, 0F));
         }
 
         @Test

@@ -4,6 +4,8 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -12,15 +14,14 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * The dark side is an endless night of eldritch: the monstrosity spawns under its open sky at every hour, where the
- * light side's open ground spawns it by night alone, and the dark side spawns it in larger groups by the factor the
- * dark_side_eldritch data map names for lunar's biome.
+ * The dark side is rich in eldritch: the monstrosity spawns under the open sky by night alone, on either half of the
+ * moon, and the dark side spawns it in larger groups by the factor the dark_side_eldritch data map names for lunar's
+ * biome.
  * decision dark-side-is-an-endless-night-of-eldritch-rich-in-void-and-xeno
+ * decision sun-follows-the-phase-and-lights-the-far-side-too
  */
 class LunarEldritchTest {
 
-    /** The sky darkening lunar_day's timeline gives at noon. */
-    private static final int NOON_DARKEN = 0;
     private static final double DARK_SIDE_X = 5_000_000;
     private static final double LIGHT_SIDE_X = 0;
     private static final boolean UNDER_THE_SKY = true;
@@ -38,14 +39,28 @@ class LunarEldritchTest {
     @Nested
     class TheSpawnHour {
 
-        @Test
-        void theDarkSidesOpenGroundSpawnsTheEldritchAtNoon() {
-            assertTrue(LunarEldritch.spawnHourAllows(DARK_SIDE_X, NOON_DARKEN, UNDER_THE_SKY));
+        private static final double OVERHEAD = 0;
+        private static final double UNDERFOOT = 180;
+
+        @ParameterizedTest
+        @ValueSource(doubles = {LIGHT_SIDE_X, DARK_SIDE_X})
+        void theOpenGroundSpawnsTheEldritchAtItsMidnight(double x) {
+            assertTrue(LunarEldritch.spawnHourAllows(x, LunarNightTest.clockWhenTheSunStandsAt(x, UNDERFOOT),
+                    UNDER_THE_SKY));
         }
 
-        @Test
-        void theLightSidesOpenGroundRefusesTheEldritchAtNoon() {
-            assertFalse(LunarEldritch.spawnHourAllows(LIGHT_SIDE_X, NOON_DARKEN, UNDER_THE_SKY));
+        @ParameterizedTest
+        @ValueSource(doubles = {LIGHT_SIDE_X, DARK_SIDE_X})
+        void theOpenGroundRefusesTheEldritchAtItsNoon(double x) {
+            assertFalse(LunarEldritch.spawnHourAllows(x, LunarNightTest.clockWhenTheSunStandsAt(x, OVERHEAD),
+                    UNDER_THE_SKY));
+        }
+
+        @ParameterizedTest
+        @ValueSource(doubles = {LIGHT_SIDE_X, DARK_SIDE_X})
+        void coverSpawnsTheEldritchAtItsNoon(double x) {
+            assertTrue(LunarEldritch.spawnHourAllows(x, LunarNightTest.clockWhenTheSunStandsAt(x, OVERHEAD),
+                    !UNDER_THE_SKY));
         }
     }
 

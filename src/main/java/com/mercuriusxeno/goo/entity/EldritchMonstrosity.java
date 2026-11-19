@@ -94,7 +94,8 @@ public class EldritchMonstrosity extends Monster {
     public static boolean checkSpawnRules(EntityType<EldritchMonstrosity> type, ServerLevelAccessor level,
             EntitySpawnReason reason, BlockPos pos, RandomSource random) {
         if (Lunar.LEVEL.equals(level.getLevel().dimension())) {
-            return LunarEldritch.spawnHourAllows(pos.getX(), level.getLevel().getSkyDarken(), level.canSeeSky(pos))
+            return LunarEldritch.spawnHourAllows(pos.getX(), level.getLevel().getOverworldClockTime(),
+                    level.canSeeSky(pos))
                     && checkAnyLightMonsterSpawnRules(type, level, reason, pos, random);
         }
         return pos.getY() < SPAWNS_BELOW_Y && checkMonsterSpawnRules(type, level, reason, pos, random);
