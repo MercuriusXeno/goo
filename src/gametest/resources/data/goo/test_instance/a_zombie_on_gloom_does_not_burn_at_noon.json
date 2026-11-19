@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:a_zombie_on_gloom_does_not_burn_at_noon",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 400,
+  "setup_ticks": 0,
+  "required": true
+}

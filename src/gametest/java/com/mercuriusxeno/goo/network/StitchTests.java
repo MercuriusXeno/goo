@@ -51,13 +51,7 @@ public final class StitchTests {
      */
     private static final BlockPos DRIP_FLOOR = new BlockPos(1, 0, 5);
     private static final String LAYERS_WRONG = "The cell over the stone should hold one layer of Stitch, stands %s";
-    /**
-     * The two lanes across the bay, Stitch and bare stone, two blocks apart
-     * so no walker brushes another, and each a block off the bay's walls, so
-     * no Stitch cell coats a wall: a coated wall's slab stands a whole block
-     * tall in the cell, and vanilla's MoveControl jumps a mob standing under
-     * the top of the block it stands in.
-     */
+    /** The two lanes across the bay, Stitch and bare stone, two blocks apart so no walker brushes another. */
     private static final int STITCH_LANE = 2;
     private static final int STONE_LANE = 4;
     /** The cows' stretch of both lanes, in the bay's west half. */
