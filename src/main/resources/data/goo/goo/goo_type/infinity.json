@@ -1,10 +1,10 @@
 {
   "light_level": 10,
   "saturation_fill": 0.5,
-  "wheel": "C8B8F0",
-  "bright": "F4ECFF",
-  "highlight": "DCCCFA",
-  "edge": "ECE0FF",
+  "wheel": "DCD0F0",
+  "bright": "F8F4FF",
+  "highlight": "F4DCE8",
+  "edge": "D8F0EA",
   "density": 1000,
   "viscosity": 2000,
   "elasticity": 0.7,
@@ -24,5 +24,6 @@
     "fluid_flowing": "goo:fluid/infinity_fluid"
   },
   "vessel_source_per_mb": 1,
-  "hue_cycle_ticks": 200
+  "hue_cycle_ticks": 160,
+  "hue_swing_degrees": 240
 }
