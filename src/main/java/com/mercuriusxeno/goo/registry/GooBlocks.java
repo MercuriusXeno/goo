@@ -430,6 +430,27 @@ public class GooBlocks {
                     .noLootTable()
                     .pushReaction(PushReaction.DESTROY));
     /**
+     * Stitch: the volume cell bound to Yarn's goo, the woolly goo Stitch
+     * sprays onto a block's top, one to fifteen layers, ordinary ground
+     * underfoot and sounding as goo does, letting a passive pass and
+     * tangling a hostile in it, dropping the yarn goo its layers cost through
+     * VolumeCellBlock.getDrops, no loot table
+     * (decisions stitch-is-yarns-residual-that-turns-slimes-into-passive-mobs,
+     * passives-move-through-stitch-and-hostiles-tangle-in-it,
+     * each-goo-type-ships-a-world-goo-on-the-volume-cell).
+     */
+    public static final DeferredBlock<VolumeCellBlock> YARN_STITCH = BLOCKS.registerBlock(
+            "yarn_stitch", properties -> new VolumeCellBlock(properties, CellBinding.STITCH),
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.WOOL)
+                    .friction(CellBinding.STITCH.surface().friction())
+                    .sound(SoundType.SLIME_BLOCK)
+                    .instabreak()
+                    .noOcclusion()
+                    .replaceable()
+                    .noLootTable()
+                    .pushReaction(PushReaction.DESTROY));
+    /**
      * Spikes: the volume cell bound to Metal's goo, the silver goo Spikes
      * sprays onto a block's top, one to fifteen layers, ordinary ground
      * underfoot that impales what walks on it and sounds as goo does,

@@ -53,6 +53,7 @@ public final class StepTypes {
         register(TargetStep.TYPE);
         register(FreezeStep.TYPE);
         register(NovaStep.TYPE);
+        register(GrudgeStep.TYPE);
         register(FreezeBlocksStep.TYPE);
         register(CoatStep.TYPE);
         register(SlickStep.TYPE);
@@ -168,6 +169,7 @@ public final class StepTypes {
         register(UpdraftStep.TYPE);
         register(SignalStep.TYPE);
         register(InfestStep.TYPE);
+        register(StitchStep.TYPE);
         register(NitroStep.TYPE);
         register(MortarStep.TYPE);
         register(GrabStep.TYPE);
