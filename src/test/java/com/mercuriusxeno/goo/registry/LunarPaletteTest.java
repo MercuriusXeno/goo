@@ -49,8 +49,8 @@ class LunarPaletteTest {
 
     /**
      * The lunar palette: the silver-grey ramp, which every rock and metal block draws from, beside crater ice's blues and
-     * impact glass's near-blacks, which keep the colors they have. A sprite joining the palette draws from these, or
-     * adds a color beside them.
+     * impact glass's near-blacks, which keep the colors they have, and astral crystal's night blues and twinkling golds.
+     * A sprite joining the palette draws from these, or adds a color beside them.
      * decision lunar-rock-and-metal-blocks-draw-from-the-silver-grey-ramp
      * decision lunar-textures-get-form-and-texture-before-color
      */
@@ -64,7 +64,17 @@ class LunarPaletteTest {
                     new PaletteColor(0xadc1d0, "crater_ice"),
                     new PaletteColor(0x9cb3c4, "crater_ice"),
                     new PaletteColor(0x1d1e21, "impact_glass"),
-                    new PaletteColor(0x121315, "impact_glass"))).toList();
+                    new PaletteColor(0x121315, "impact_glass"),
+                    new PaletteColor(0x141c52, "astral_crystal"),
+                    new PaletteColor(0x1e2c80, "astral_crystal"),
+                    new PaletteColor(0x2a3c9a, "astral_crystal"),
+                    new PaletteColor(0x3a50b4, "astral_crystal"),
+                    new PaletteColor(0x5470cc, "astral_crystal"),
+                    new PaletteColor(0x7a94de, "astral_crystal"),
+                    new PaletteColor(0xa9bcef, "astral_crystal"),
+                    new PaletteColor(0xb8a860, "astral_crystal twinkle"),
+                    new PaletteColor(0xf0e090, "astral_crystal twinkle"),
+                    new PaletteColor(0xfff4b0, "astral_crystal twinkle"))).toList();
 
     /**
      * A ground block's sprites: its own and the variants its blockstate picks among per block, sharing one border band.
@@ -91,9 +101,15 @@ class LunarPaletteTest {
     static final List<String> LANDFORM_SPRITES = Stream.concat(Stream.of("meteoric_iron", "impact_glass", "breccia",
             "crater_ice").flatMap(block -> variantsOf(block).stream()), variantsOf("native_iron", 6).stream()).toList();
 
+    /**
+     * Astral crystal's growths, each an animated strip of its frames, drawn as cutouts over clear space.
+     * decision astral-crystal-is-lunars-scarce-rich-block
+     */
+    static final List<String> CUTOUT_SPRITES = variantsOf("astral_crystal");
+
     /** The sprites under assets/goo/textures/block/ held to the palette: every lunar block's variants. */
     static final List<String> LUNAR_SPRITES = Stream.of(GROUND_SPRITES.stream(), Stream.of("iron_core"),
-            LANDFORM_SPRITES.stream()).flatMap(sprites -> sprites).toList();
+            LANDFORM_SPRITES.stream(), CUTOUT_SPRITES.stream()).flatMap(sprites -> sprites).toList();
 
     /** Impact glass and crater ice draw translucent, so their pixels are held to the palette by color alone. */
     static final List<String> TRANSLUCENT_SPRITES = Stream.of("impact_glass", "crater_ice")
@@ -109,10 +125,14 @@ class LunarPaletteTest {
         BufferedImage image = gooBlock(sprite);
         Set<Integer> palette = LUNAR_PALETTE.stream().map(PaletteColor::rgb).collect(Collectors.toSet());
         boolean translucent = TRANSLUCENT_SPRITES.contains(sprite);
+        boolean cutout = CUTOUT_SPRITES.contains(sprite);
         Set<Integer> offPalette = new TreeSet<>();
         for (int y = 0; y < image.getHeight(); y++) {
             for (int x = 0; x < image.getWidth(); x++) {
                 int argb = storedArgb(image, x, y);
+                if (cutout && argb >>> 24 == 0) {
+                    continue;
+                }
                 boolean opaqueAsDrawn = translucent ? argb >>> 24 != 0 : argb >>> 24 == 0xff;
                 if (!opaqueAsDrawn || !palette.contains(argb & 0xffffff)) {
                     offPalette.add(argb);
