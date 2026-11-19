@@ -1,4 +1,4 @@
-package com.mercuriusxeno.goo.ability.rewind;
+package com.mercuriusxeno.goo.ability.revert;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.program.DropItemStep;
@@ -12,7 +12,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.tick.EntityTickEvent;
 
 /**
- * Runs Rewind on the mobs its stream holds: a held mob stays frozen while
+ * Runs Revert on the mobs its stream holds: a held mob stays frozen while
  * the stream reaches it and goes free a few ticks after it lets go, its
  * progress kept; a rewound adult shrinks into its baby, and a rewound baby,
  * or a mob with no baby form, shrinks to nothing, frozen meanwhile, then
@@ -21,7 +21,7 @@ import net.neoforged.neoforge.event.tick.EntityTickEvent;
  * rewind-shrinks-adult-to-baby-to-egg
  */
 @EventBusSubscriber(modid = Goo.MODID)
-public final class RewindEvents {
+public final class RevertEvents {
 
     /**
      * Ticks a held mob stays frozen past the last stream tick that reached
@@ -32,7 +32,7 @@ public final class RewindEvents {
     private static final float WHOLE = 1f;
     private static final int ONE_EGG = 1;
 
-    private RewindEvents() {
+    private RevertEvents() {
     }
 
     /**
@@ -42,23 +42,23 @@ public final class RewindEvents {
      * @param now the game time
      */
     public static void hold(Mob mob, long now) {
-        mob.setData(GooAttachments.REWINDING, rewindingOf(mob).heldTo(now + HOLD_GRACE_TICKS));
+        mob.setData(GooAttachments.REVERTING, revertingOf(mob).heldTo(now + HOLD_GRACE_TICKS));
         mob.setNoAi(true);
     }
 
     /**
      * Answers whether a mob is shrinking into its egg, which no further
-     * rewind changes.
+     * Revert changes.
      *
      * @param mob the mob
-     * @return true once its rewind into an egg has begun
+     * @return true once its shrink into an egg has begun
      */
     public static boolean vanishing(Mob mob) {
-        return rewindingOf(mob).vanishing();
+        return revertingOf(mob).vanishing();
     }
 
-    private static Rewinding rewindingOf(Mob mob) {
-        return mob.hasData(GooAttachments.REWINDING) ? mob.getData(GooAttachments.REWINDING) : Rewinding.NONE;
+    private static Reverting revertingOf(Mob mob) {
+        return mob.hasData(GooAttachments.REVERTING) ? mob.getData(GooAttachments.REVERTING) : Reverting.NONE;
     }
 
     /**
@@ -100,7 +100,7 @@ public final class RewindEvents {
      */
     public static void shrinkIntoEgg(Mob mob, long now, int ticks) {
         long vanishAt = now + ticks;
-        mob.setData(GooAttachments.REWINDING, new Rewinding(vanishAt, vanishAt));
+        mob.setData(GooAttachments.REVERTING, new Reverting(vanishAt, vanishAt));
         mob.setNoAi(true);
         EntityVisuals.sendToWatchers(mob, new ModelShrinkPayload(mob.getId(), WHOLE, NOTHING, false, ticks));
     }
@@ -115,16 +115,16 @@ public final class RewindEvents {
     public static void onEntityTick(EntityTickEvent.Post event) {
         Entity entity = event.getEntity();
         if (entity.level().isClientSide() || !(entity instanceof Mob mob)
-                || !mob.hasData(GooAttachments.REWINDING)) {
+                || !mob.hasData(GooAttachments.REVERTING)) {
             return;
         }
-        Rewinding rewinding = mob.getData(GooAttachments.REWINDING);
+        Reverting reverting = mob.getData(GooAttachments.REVERTING);
         long now = mob.level().getGameTime();
-        if (rewinding.vanishedAt(now)) {
+        if (reverting.vanishedAt(now)) {
             DropItemStep.dropOwnSpawnEgg(mob, ONE_EGG);
             mob.discard();
-        } else if (rewinding.releasedAt(now)) {
-            mob.removeData(GooAttachments.REWINDING);
+        } else if (reverting.releasedAt(now)) {
+            mob.removeData(GooAttachments.REVERTING);
             mob.setNoAi(false);
         }
     }

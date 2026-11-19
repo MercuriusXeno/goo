@@ -17,7 +17,7 @@ import java.util.function.ToIntFunction;
  * Decision ailment-glisten-becomes-a-pulsing-outline.
  */
 public enum AilmentKind {
-    /** Rewind's stasis: a gold outline. */
+    /** Revert's stasis: a gold outline. */
     STASIS(0xFFD447),
     /** Scales: diamond blue, faceted. */
     SCALES(0x4AEDD9, AilmentPattern.FACETS),

@@ -25,7 +25,7 @@ import com.mercuriusxeno.goo.ability.program.Sight;
 import com.mercuriusxeno.goo.ability.pulse.Stunned;
 import com.mercuriusxeno.goo.ability.quantum.OutOfPhase;
 import com.mercuriusxeno.goo.ability.reserve.Reserve;
-import com.mercuriusxeno.goo.ability.rewind.Rewinding;
+import com.mercuriusxeno.goo.ability.revert.Reverting;
 import com.mercuriusxeno.goo.ability.root.Rooted;
 import com.mercuriusxeno.goo.ability.seal.Elude;
 import com.mercuriusxeno.goo.ability.seal.SealCurse;
@@ -359,14 +359,14 @@ public final class GooAttachments {
                             .build());
 
     /**
-     * A mob Rewind's stream holds: frozen until shortly after the stream lets
+     * A mob Revert's stream holds: frozen until shortly after the stream lets
      * go, or shrinking into its egg, saved with the mob so a reload mid-hold
      * still frees it.
      * rewind-fills-while-held
      */
-    public static final Supplier<AttachmentType<Rewinding>> REWINDING =
-            ATTACHMENT_TYPES.register("rewinding",
-                    () -> AttachmentType.builder(() -> Rewinding.NONE).serialize(Rewinding.CODEC).build());
+    public static final Supplier<AttachmentType<Reverting>> REVERTING =
+            ATTACHMENT_TYPES.register("reverting",
+                    () -> AttachmentType.builder(() -> Reverting.NONE).serialize(Reverting.CODEC).build());
 
     /**
      * An entity Grab holds: suspended until shortly after the channel lets
