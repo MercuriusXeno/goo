@@ -25,6 +25,8 @@ import com.mercuriusxeno.goo.network.FallingDripPayload;
 import com.mercuriusxeno.goo.network.RedHotPayload;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.throwing.DripFall;
+import com.mercuriusxeno.goo.type.Adhesion;
+import com.mercuriusxeno.goo.type.Cohesion;
 import com.mercuriusxeno.goo.type.GooColors;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.BlockPos;
@@ -113,8 +115,6 @@ public class VolumeCellBlock extends Block {
     public static final BooleanProperty CEILING = BooleanProperty.create("ceiling");
     /** The most layers one cell holds: a whole block of goo. */
     public static final int MAX_LAYERS = 15;
-    /** The adhesion of a goo that holds tops, every goo's rule before adhesion was read. */
-    private static final int HOLDS_TOPS = 1;
     /** Half a block, the middle of a cell across. */
     private static final double HALF = 0.5;
     /** How far a wall run's drip stands off its wall, as the runny streak stands: a tenth of a model pixel. */
@@ -1551,8 +1551,8 @@ public class VolumeCellBlock extends Block {
 
     /**
      * Attaches the block's goo to each wall beside it its adhesion holds, as
-     * a drip striking that wall would: at 3 and up every side with a face to
-     * hold it, at 2 only over goo of its type, and at 4 its ceiling too, so
+     * a drip striking that wall would: at clings and hangs every side with a
+     * face to hold it, at gels only over goo of its type, and at hangs its ceiling too, so
      * goo resting against a wall clings to it in place of lying beside it.
      * operator UAT 2026-11-17: the wall has horizontally laying goo instead of vertically adhered goo
      * drip-striking-a-side-sticks-or-runs-by-adhesion
@@ -1564,7 +1564,7 @@ public class VolumeCellBlock extends Block {
      * @return the block's state with each held wall attached
      */
     private BlockState adhereToWalls(ServerLevel level, BlockPos pos, BlockState state) {
-        int adhesion = adhesionAt(level);
+        Adhesion adhesion = adhesionAt(level);
         boolean overItsGoo = level.getBlockState(pos.below()).is(this);
         BlockState adhered = state;
         for (Direction side : ATTACHABLE) {
@@ -1588,12 +1588,11 @@ public class VolumeCellBlock extends Block {
      * @param overItsGoo whether goo of its type stands in the cell below
      * @return true where the goo clings there
      */
-    static boolean holdsTheSide(int adhesion, Direction side, boolean overItsGoo) {
+    static boolean holdsTheSide(Adhesion adhesion, Direction side, boolean overItsGoo) {
         if (side == Direction.UP) {
-            return adhesion >= GooTypeDefinition.HOLDS_AN_UNDERSIDE;
+            return adhesion.keeps(Adhesion.HANGS);
         }
-        boolean holdsOverGoo = adhesion == GooTypeDefinition.HOLDS_WHERE_IT_STRIKES - 1 && overItsGoo;
-        return adhesion >= GooTypeDefinition.HOLDS_WHERE_IT_STRIKES || holdsOverGoo;
+        return adhesion.holdsASide(overItsGoo);
     }
 
     /**
@@ -1688,7 +1687,7 @@ public class VolumeCellBlock extends Block {
         List<Side> sides = new ArrayList<>(SIDES.stream().map(side -> sideOf(level, pos.relative(side), side))
                 .toList());
         int cohesion = cohesionAt(level);
-        int adhesion = adhesionAt(level);
+        Adhesion adhesion = adhesionAt(level);
         for (int tried = 0; tried < SIDES.size(); tried++) {
             Optional<Direction> toward = SlimeFlow.pour(state.getValue(LAYERS), cohesion, adhesion, sides);
             if (toward.isEmpty()) {
@@ -1772,15 +1771,16 @@ public class VolumeCellBlock extends Block {
 
     /**
      * The step in layers this cell holds over a neighbour before pouring,
-     * read from its goo type's cohesion; a cell whose goo type's definition
-     * does not load levels flat.
+     * the threshold of its goo type's cohesion rung; a cell whose goo type's
+     * definition does not load levels flat.
      * cohesion-is-the-step-the-goo-holds
      *
      * @param level the level, whose registries hold the goo type
-     * @return the cohesion
+     * @return the cohesion threshold in layers
      */
     public int cohesionAt(LevelReader level) {
-        return level.registryAccess().get(binding.gooType()).map(type -> type.value().cohesion()).orElse(0);
+        return level.registryAccess().get(binding.gooType()).map(type -> type.value().cohesion().threshold())
+                .orElse(Cohesion.RUNNY.threshold());
     }
 
     /**
@@ -1790,11 +1790,11 @@ public class VolumeCellBlock extends Block {
      * adhesion-is-a-ladder-of-holds
      *
      * @param level the level, whose registries hold the goo type
-     * @return the adhesion
+     * @return the adhesion rung
      */
-    public int adhesionAt(LevelReader level) {
+    public Adhesion adhesionAt(LevelReader level) {
         return level.registryAccess().get(binding.gooType()).map(type -> type.value().adhesion())
-                .orElse(HOLDS_TOPS);
+                .orElse(Adhesion.TOPS);
     }
 
     /**

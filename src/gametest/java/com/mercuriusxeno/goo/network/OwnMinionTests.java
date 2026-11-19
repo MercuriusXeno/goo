@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.hex.Charmed;
-import com.mercuriusxeno.goo.ability.zoo.Rallied;
+import com.mercuriusxeno.goo.ability.yarn.Led;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import com.mercuriusxeno.goo.item.GooStacks;
@@ -24,12 +24,12 @@ import java.util.function.Consumer;
 /**
  * Gametests for a harmful mob ability sparing its caster's own minions
  * through the real throw path: metal Dart thrown at a cow the caster
- * rallied or a husk it charmed leaves the mob whole, and the same throw at an
+ * led or a husk it charmed leaves the mob whole, and the same throw at an
  * unowned cow lands (decision mob-targeted-attacks-refuse-your-minions).
  */
 @RegistersGameTests
 public final class OwnMinionTests {
-    private static final String DART_SPARES_RALLIED = "own_minion_dart_spares_the_casters_rallied_cow";
+    private static final String DART_SPARES_LED = "own_minion_dart_spares_the_casters_led_cow";
     private static final String DART_SPARES_CHARMED = "own_minion_dart_spares_the_casters_charmed_mob";
     private static final String DART_STRIKES_UNOWNED = "own_minion_dart_strikes_an_unowned_mob";
 
@@ -43,7 +43,7 @@ public final class OwnMinionTests {
     /** A javelin's speed as it leaves, in blocks a tick (metal_dart.json). */
     private static final double JAVELIN_SPEED = 2.5;
     private static final int HELD_GOO = 4;
-    private static final float RALLY_DAMAGE = 6f;
+    private static final float LEAD_DAMAGE = 6f;
     private static final String METAL_DART = "goo:metal_dart";
     private static final String SHOULD_SPARE = "The caster's own %s should keep its health %.1f, stands at %.1f";
     private static final String SHOULD_STRIKE = "An unowned cow should lose health from %.1f, stands at %.1f";
@@ -57,20 +57,20 @@ public final class OwnMinionTests {
      * @param registrar the test function registrar
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
-        GooTestFunctions.registerTest(registrar, DART_SPARES_RALLIED, OwnMinionTests::dartSparesRalliedCow);
+        GooTestFunctions.registerTest(registrar, DART_SPARES_LED, OwnMinionTests::dartSparesLedCow);
         GooTestFunctions.registerTest(registrar, DART_SPARES_CHARMED, OwnMinionTests::dartSparesCharmedMob);
         GooTestFunctions.registerTest(registrar, DART_STRIKES_UNOWNED, OwnMinionTests::dartStrikesUnownedMob);
     }
 
     /**
-     * Metal Dart thrown at a cow its caster rallied leaves the cow at full health.
+     * Metal Dart thrown at a cow its caster led leaves the cow at full health.
      *
      * @param helper the gametest helper
      */
-    public static void dartSparesRalliedCow(GameTestHelper helper) {
+    public static void dartSparesLedCow(GameTestHelper helper) {
         Mob cow = helper.spawnWithNoFreeWill(EntityType.COW, MOB_POS);
         ServerPlayer player = thrower(helper, GooTypes.METAL);
-        assertSpared(helper, player, cow, "rallied cow", () -> rally(helper, cow, player));
+        assertSpared(helper, player, cow, "led cow", () -> lead(helper, cow, player));
     }
 
     /**
@@ -86,7 +86,7 @@ public final class OwnMinionTests {
     }
 
     /**
-     * Metal Dart thrown at a cow nobody rallied or charmed takes its health.
+     * Metal Dart thrown at a cow nobody led or charmed takes its health.
      *
      * @param helper the gametest helper
      */
@@ -107,7 +107,7 @@ public final class OwnMinionTests {
 
     /**
      * Throws metal Dart at a mob the caster makes its own in the same
-     * tick, since a rally whose caster holds no Rally stands down on the
+     * tick, since a lead whose caster holds no Lead stands down on the
      * mob's next tick, and asserts the mob kept its health.
      */
     private static void assertSpared(GameTestHelper helper, ServerPlayer player, Mob mob, String kind,
@@ -131,8 +131,8 @@ public final class OwnMinionTests {
         KnivesHoldHandler.hold(player, new KnivesHoldPayload(true, GooTypes.id(GooTypes.METAL), METAL_DART));
     }
 
-    private static void rally(GameTestHelper helper, Mob mob, ServerPlayer caster) {
-        mob.setData(GooAttachments.RALLIED, new Rallied(caster.getUUID(), RALLY_DAMAGE));
+    private static void lead(GameTestHelper helper, Mob mob, ServerPlayer caster) {
+        mob.setData(GooAttachments.LED, new Led(caster.getUUID(), LEAD_DAMAGE));
     }
 
     // Throws the javelin the hold formed at a mob in its path, as left click does.

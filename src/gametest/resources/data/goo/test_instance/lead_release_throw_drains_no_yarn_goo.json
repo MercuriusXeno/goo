@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:lead_release_throw_drains_no_yarn_goo",
+  "environment": "goo:lead_reload",
+  "structure": "goo:test_bay",
+  "max_ticks": 60,
+  "setup_ticks": 0,
+  "required": true
+}

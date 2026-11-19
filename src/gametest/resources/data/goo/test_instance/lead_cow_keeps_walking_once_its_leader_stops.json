@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:lead_cow_keeps_walking_once_its_leader_stops",
+  "environment": "goo:lead_movement_alone",
+  "structure": "goo:march_bay",
+  "max_ticks": 160,
+  "setup_ticks": 0,
+  "required": true
+}

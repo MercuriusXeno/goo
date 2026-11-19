@@ -30,8 +30,9 @@ import com.mercuriusxeno.goo.client.ability.GlassKnives;
 import com.mercuriusxeno.goo.client.ability.GrabFlail;
 import com.mercuriusxeno.goo.client.ability.HeldJavelins;
 import com.mercuriusxeno.goo.client.ability.HeldSweepVisual;
+import com.mercuriusxeno.goo.client.ability.HerdOutline;
 import com.mercuriusxeno.goo.client.ability.HoveringKnives;
-import com.mercuriusxeno.goo.client.ability.KinOutline;
+import com.mercuriusxeno.goo.client.ability.LeadOutline;
 import com.mercuriusxeno.goo.client.ability.MeteorScorches;
 import com.mercuriusxeno.goo.client.ability.MobAilments;
 import com.mercuriusxeno.goo.client.ability.MobCoatLayer;
@@ -41,7 +42,6 @@ import com.mercuriusxeno.goo.client.ability.NovaRings;
 import com.mercuriusxeno.goo.client.ability.PhaseLook;
 import com.mercuriusxeno.goo.client.ability.PhasedSight;
 import com.mercuriusxeno.goo.client.ability.PrismFormingSounds;
-import com.mercuriusxeno.goo.client.ability.RallyOutline;
 import com.mercuriusxeno.goo.client.ability.RelayLasers;
 import com.mercuriusxeno.goo.client.ability.SignalRings;
 import com.mercuriusxeno.goo.client.ability.TransformationRenderer;
@@ -93,6 +93,7 @@ import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.NoopRenderer;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.client.resources.model.sprite.Material;
+import net.minecraft.core.particles.SimpleParticleType;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.Entity;
@@ -319,7 +320,9 @@ public final class GooClientSetup {
                 GooBlocks.BLAZE_MOLTEN.get(), GooBlocks.CRYSTAL_SHATTER.get(), GooBlocks.DEEP_HOST.get(),
                 GooBlocks.FROST_RIME.get(), GooBlocks.GLOW_WISPS.get(), GooBlocks.HEX_LEECH.get(),
                 GooBlocks.TYPHOON_UPDRAFT.get(), GooBlocks.JELLY_NECTAR.get(), GooBlocks.PULSE_SIGNAL.get(),
-                GooBlocks.METAL_SPIKES.get(), GooBlocks.NETHER_INFEST.get(), GooBlocks.LEAF_VINES.get())) {
+                GooBlocks.METAL_SPIKES.get(), GooBlocks.NETHER_INFEST.get(), GooBlocks.LEAF_VINES.get(),
+                GooBlocks.UNSTABLE_NITRO.get(), GooBlocks.QUANTUM_PHASE.get(),
+                GooBlocks.SHROOM_SPORES.get())) {
             event.register(VolumeCellTint.sources(cell.binding().gooType(), ClientGooTypes::color), cell);
         }
     }
@@ -404,46 +407,52 @@ public final class GooClientSetup {
      * nectar-is-sprayed-goo-with-a-guided-throw-near-a-mob
      * infest-is-nethers-goo-the-decay-effect-localized-around-the-goo
      * vines-is-sprayed-slime-that-entangles-what-tries-to-cross
+     * spores-is-shrooms-residual-a-passive-mycosis
+     * nitro-is-unstables-goo-that-explodes-in-a-chain-by-its-quantity
+     * phase-goo-puts-what-stands-in-it-out-of-phase
      *
      * @param event the event instance
      */
     private static void registerSprayDrips(RegisterParticleProvidersEvent event) {
-        event.registerSpriteSet(GooParticles.GOOP_SPRAY_DRIP.get(),
-                sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.GOOP_SLIME_GREENS));
-        event.registerSpriteSet(GooParticles.SLICK_SPRAY_DRIP.get(),
-                sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.SLICK_SLIME_BLUES));
+        registerSprayDrip(event, GooParticles.GOOP_SPRAY_DRIP.get(), BlendPalette.GOOP_SLIME_GREENS);
+        registerSprayDrip(event, GooParticles.SLICK_SPRAY_DRIP.get(), BlendPalette.SLICK_SLIME_BLUES);
+        registerSprayDrip(event, GooParticles.SHATTER_SPRAY_DRIP.get(), BlendPalette.SHATTER_CRYSTAL_BLUES);
+        registerSprayDrip(event, GooParticles.HOST_SPRAY_DRIP.get(), BlendPalette.HOST_DEEP_TEALS);
+        registerSprayDrip(event, GooParticles.WISPS_SPRAY_DRIP.get(), BlendPalette.WISPS_GLOW_GOLDS);
+        registerSprayDrip(event, GooParticles.LEECH_SPRAY_DRIP.get(), BlendPalette.LEECH_HEX_VIOLETS);
+        registerSprayDrip(event, GooParticles.UPDRAFT_SPRAY_DRIP.get(), BlendPalette.UPDRAFT_TYPHOON_GREENS);
+        registerSprayDrip(event, GooParticles.NECTAR_SPRAY_DRIP.get(), BlendPalette.NECTAR_JELLY_ORANGES);
+        registerSprayDrip(event, GooParticles.SIGNAL_SPRAY_DRIP.get(), BlendPalette.SIGNAL_PULSE_REDS);
+        registerSprayDrip(event, GooParticles.SPIKES_SPRAY_DRIP.get(), BlendPalette.SPIKES_METAL_SILVERS);
+        registerSprayDrip(event, GooParticles.INFEST_SPRAY_DRIP.get(), BlendPalette.INFEST_NETHER_REDS);
+        registerSprayDrip(event, GooParticles.VINES_SPRAY_DRIP.get(), BlendPalette.VINES_LEAF_GREENS);
+        registerSprayDrip(event, GooParticles.NITRO_SPRAY_DRIP.get(), BlendPalette.NITRO_UNSTABLE_GREENS);
+        registerSprayDrip(event, GooParticles.PHASE_SPRAY_DRIP.get(), BlendPalette.PHASE_QUANTUM_BLUES);
+        registerSprayDrip(event, GooParticles.SPORES_SPRAY_DRIP.get(), BlendPalette.SPORES_SHROOM_PURPLES);
         event.registerSpriteSet(GooParticles.MOLTEN_SPRAY_DRIP.get(),
                 sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.MOLTEN_BLAZE_ORANGES,
                         CellBinding.MOLTEN.fluidFooting()));
-        event.registerSpriteSet(GooParticles.SHATTER_SPRAY_DRIP.get(),
-                sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.SHATTER_CRYSTAL_BLUES));
-        event.registerSpriteSet(GooParticles.HOST_SPRAY_DRIP.get(),
-                sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.HOST_DEEP_TEALS));
         event.registerSpriteSet(GooParticles.RIME_SPRAY_DRIP.get(),
                 sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.RIME_FROST_BLUES,
                         CellBinding.RIME.fluidFooting()));
-        event.registerSpriteSet(GooParticles.WISPS_SPRAY_DRIP.get(),
-                sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.WISPS_GLOW_GOLDS));
-        event.registerSpriteSet(GooParticles.LEECH_SPRAY_DRIP.get(),
-                sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.LEECH_HEX_VIOLETS));
-        event.registerSpriteSet(GooParticles.UPDRAFT_SPRAY_DRIP.get(),
-                sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.UPDRAFT_TYPHOON_GREENS));
-        event.registerSpriteSet(GooParticles.NECTAR_SPRAY_DRIP.get(),
-                sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.NECTAR_JELLY_ORANGES));
-        event.registerSpriteSet(GooParticles.SIGNAL_SPRAY_DRIP.get(),
-                sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.SIGNAL_PULSE_REDS));
-        event.registerSpriteSet(GooParticles.SPIKES_SPRAY_DRIP.get(),
-                sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.SPIKES_METAL_SILVERS));
-        event.registerSpriteSet(GooParticles.INFEST_SPRAY_DRIP.get(),
-                sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.INFEST_NETHER_REDS));
-        event.registerSpriteSet(GooParticles.VINES_SPRAY_DRIP.get(),
-                sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.VINES_LEAF_GREENS));
+    }
+
+    /**
+     * Registers one spray's drip, drawn in its goo's two blended colors.
+     *
+     * @param event   the event instance
+     * @param drip    the spray's drip particle
+     * @param palette the goo's colors
+     */
+    private static void registerSprayDrip(RegisterParticleProvidersEvent event, SimpleParticleType drip,
+                                          BlendPalette palette) {
+        event.registerSpriteSet(drip, sprites -> new SprayDripParticle.Provider(sprites, palette));
     }
 
     /**
      * Registers the render state modifiers that stamp each entity's goo state
-     * onto its render state: the rally outline, the ailments with their
-     * outline, which overrides the rally's, the glove's target outline, which
+     * onto its render state: the lead outline, the ailments with their
+     * outline, which overrides the lead's, the glove's target outline, which
      * overrides both, the goo coat, the phase, the stone and frost
      * encasements, the frozen pose, the grab flail, the vine tangle, the
      * transformation, the eldritch phase and the exit tilt, in that order.
@@ -455,8 +464,8 @@ public final class GooClientSetup {
     public static void registerRenderStateModifiers(
             RegisterRenderStateModifiersEvent event) {
         List<BiConsumer<Entity, EntityRenderState>> stamps = List.of(
-                KinOutline::stampOutline,
-                RallyOutline::stampOutline,
+                HerdOutline::stampOutline,
+                LeadOutline::stampOutline,
                 AilmentOverlayLayer::stampAilments,
                 AimTracker::modifyEntityRenderState,
                 MobCoatLayer::stampCoat,

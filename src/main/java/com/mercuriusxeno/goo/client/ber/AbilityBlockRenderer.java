@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.client.ber;
 
 import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
-import com.mercuriusxeno.goo.client.ability.LurkerPulses;
 import com.mercuriusxeno.goo.client.ability.MarkerOrbVisual;
 import com.mercuriusxeno.goo.client.ability.SpikesVisual;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -96,7 +95,6 @@ public class AbilityBlockRenderer
         extractCoreFields(be, state, partialTick);
         extractTargetAndFace(be, state);
         state.abilityId = be.getAbilityId();
-        state.lurkerGlow = LurkerPulses.CLIENT.glowAt(be.getBlockPos(), state.gameTime);
         SpikesVisual.extract(be, state);
     }
 

@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.gametest;
 
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.GloveSelection;
+import com.mercuriusxeno.goo.ability.astral.LunarFixation;
 import com.mercuriusxeno.goo.ability.astral.LunarSight;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
@@ -17,6 +18,7 @@ import net.minecraft.network.chat.contents.TranslatableContents;
 import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.attribute.EnvironmentAttributes;
@@ -25,6 +27,8 @@ import net.minecraft.world.level.portal.TeleportTransition;
 import net.minecraft.world.phys.Vec2;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -43,7 +47,9 @@ public final class AstralLunarTests {
     private static final String LUNAR_ON_THE_MOON_TAKES_YOU_TO_LUNAR = "lunar_on_the_moon_takes_you_to_lunar";
     private static final String LUNAR_LET_GO_EARLY_LEAVES_YOU_WHERE_YOU_STOOD =
             "lunar_let_go_early_leaves_you_where_you_stood";
-    private static final String LUNAR_ON_THE_BLUE_STAR_RETURNS_YOU_EXACTLY = "lunar_on_the_blue_star_returns_you_exactly";
+    private static final String LUNAR_PRESS_AFTER_A_RELEASE_TAKES_AT_EVERY_GAP =
+            "lunar_press_after_a_release_takes_at_every_gap";
+    private static final String LUNAR_ON_THE_BLUE_STAR_RETURNS_YOU_EXACTLY ="lunar_on_the_blue_star_returns_you_exactly";
     private static final String LUNAR_ON_NEITHER_REFUSES = "lunar_on_neither_refuses";
     private static final String LUNAR_ON_THE_HIDDEN_PLANET_REFUSES = "lunar_on_the_hidden_planet_refuses";
     private static final String LUNAR_ON_THE_SUN_SAYS_THE_BIG_YELLOW_ONE = "lunar_on_the_sun_says_the_big_yellow_one";
@@ -66,6 +72,17 @@ public final class AstralLunarTests {
     private static final int INSIDE_THE_FIXATION = 20;
     /** The held ticks an early release lets go after. */
     private static final int LET_GO_AFTER = 30;
+    /** LunarTrip's run back: the share of the rise's ticks a trip let go of early takes to run back. */
+    private static final float RUN_BACK_SHARE = 0.4F;
+    /** The ticks after the last held tick the server lets a caster go, when no held tick has come since. */
+    private static final int RELEASED_AFTER = 2;
+    /** The ticks past the run back's end the widest gap reaches. */
+    private static final int PAST_THE_RUN_BACK = 5;
+    /** The server ticks a press has to stand its fixation in. */
+    private static final int TAKES_WITHIN = 2;
+    private static final String DEAD_PRESS = "gap %d: %s";
+    private static final String DEAD_PRESSES = "A press after a release, at every gap from 0 to %d ticks, should"
+            + " stand a fixation within two ticks; these stood none: %s";
     /** How far the freed caster steps once they let go, in blocks. */
     private static final double STEP = 1.0;
     /** Where the caster left from in the return test: off the bay, facing somewhere particular. */
@@ -123,6 +140,8 @@ public final class AstralLunarTests {
                 AstralLunarTests::lunarOnTheMoonTakesYouToLunar);
         GooTestFunctions.registerTest(registrar, LUNAR_LET_GO_EARLY_LEAVES_YOU_WHERE_YOU_STOOD,
                 AstralLunarTests::lunarLetGoEarlyLeavesYouWhereYouStood);
+        GooTestFunctions.registerTest(registrar, LUNAR_PRESS_AFTER_A_RELEASE_TAKES_AT_EVERY_GAP,
+                AstralLunarTests::lunarPressAfterAReleaseTakesAtEveryGap);
         GooTestFunctions.registerTest(registrar, LUNAR_ON_THE_BLUE_STAR_RETURNS_YOU_EXACTLY,
                 AstralLunarTests::lunarOnTheBlueStarReturnsYouExactly);
         GooTestFunctions.registerTest(registrar, LUNAR_ON_NEITHER_REFUSES, AstralLunarTests::lunarOnNeitherRefuses);
@@ -134,6 +153,40 @@ public final class AstralLunarTests {
                 AstralLunarTests::lunarOnTheSunSaysTheBigYellowOne);
         GooTestFunctions.registerTest(registrar, TERRAN_ON_THE_SUN_SAYS_THE_BIG_YELLOW_ONE,
                 AstralLunarTests::terranOnTheSunSaysTheBigYellowOne);
+    }
+
+    /**
+     * A press held on the moon stands a fixation within two server ticks whatever came before it: one caster a gap,
+     * each holding the moon, letting go, and pressing again after their gap, from the very next tick to past the end of
+     * the trip's run back, as a player clicking again in short succession does.
+     * decision diagnose-and-correct-the-lunar-hold-that-does-nothing
+     *
+     * @param helper the gametest helper
+     */
+    public static void lunarPressAfterAReleaseTakesAtEveryGap(GameTestHelper helper) {
+        int runBack = (int) Math.ceil(LET_GO_AFTER * RUN_BACK_SHARE);
+        int widestGap = RELEASED_AFTER + runBack + PAST_THE_RUN_BACK;
+        int checkAt = 1 + LET_GO_AFTER + widestGap + TAKES_WITHIN;
+        List<String> dead = new ArrayList<>();
+        for (int gap = 0; gap <= widestGap; gap++) {
+            ServerPlayer caster = caster(helper);
+            face(caster, moonFrom(caster));
+            holdOverTheNetworkFor(helper, caster, 1, LET_GO_AFTER);
+            int pressAt = 1 + LET_GO_AFTER + gap;
+            holdOverTheNetworkFor(helper, caster, pressAt, checkAt - pressAt + 1);
+            int atGap = gap;
+            helper.runAfterDelay(pressAt + TAKES_WITHIN, () -> {
+                LunarFixation fixation = caster.getData(GooAttachments.LUNAR_FIXATION);
+                if (!fixation.stands()) {
+                    dead.add(String.format(DEAD_PRESS, atGap, fixation));
+                }
+            });
+            helper.runAfterDelay(checkAt + 1, () -> helper.getLevel().getServer().getPlayerList().remove(caster));
+        }
+        helper.runAfterDelay(checkAt + 2, () -> {
+            helper.assertTrue(dead.isEmpty(), String.format(DEAD_PRESSES, widestGap, dead));
+            helper.succeed();
+        });
     }
 
     /**
@@ -430,6 +483,23 @@ public final class AstralLunarTests {
     private static void holdFor(GameTestHelper helper, ServerPlayer caster, int from, int ticks) {
         for (int tick = from; tick < from + ticks; tick++) {
             helper.runAfterDelay(tick, () -> GooStreamHandler.streamTick(caster, holdOf(caster)));
+        }
+    }
+
+    /**
+     * Holds the cast for a run of ticks as the held ticks reach a server over the network: GooStreamHandler.handle
+     * queues each as server work, which the server runs between its ticks, after the tick's end and under its count.
+     *
+     * @param helper the gametest helper
+     * @param caster the caster
+     * @param from   the delay of the first held tick
+     * @param ticks  how many ticks the hold lasts
+     */
+    private static void holdOverTheNetworkFor(GameTestHelper helper, ServerPlayer caster, int from, int ticks) {
+        MinecraftServer server = helper.getLevel().getServer();
+        for (int tick = from; tick < from + ticks; tick++) {
+            helper.runAfterDelay(tick, () -> server.schedule(server.wrapRunnable(
+                    () -> GooStreamHandler.streamTick(caster, holdOf(caster)))));
         }
     }
 

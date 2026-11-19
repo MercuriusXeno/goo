@@ -22,7 +22,7 @@ import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
 
 /**
- * Gametests for nether's hive combo, the one a full Decay hold converts a
+ * Gametests for zombie's hive combo, the one a full Decay hold converts a
  * prism into: a hive eats a vindicator standing in its radius (decision
  * hive-prism-pillar-eats-the-living), and leaves a player in its radius
  * whole, its filter taking mobs only.
@@ -46,7 +46,7 @@ public final class HiveTests {
     }
 
     /**
-     * A nether goo lands on a prism beside a wounded zombie: the swarm's
+     * A zombie goo lands on a prism beside a wounded zombie: the swarm's
      * strikes heal the zombie rather than eat it.
      * decay-and-hive-heal-an-undead-target
      *
@@ -61,7 +61,7 @@ public final class HiveTests {
         zombie.setHealth(WOUNDED_HEALTH);
         PrismBlockEntity prism = helper.getBlockEntity(PRISM_POS, PrismBlockEntity.class);
         AbilityDefinition decay = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(HIVE));
-        helper.assertTrue(decay != null && prism.runCombo(GooTypes.NETHER, HIVE, PrismCombos.comboSteps(decay)),
+        helper.assertTrue(decay != null && prism.runCombo(GooTypes.ZOMBIE, HIVE, PrismCombos.comboSteps(decay)),
                 String.format(NOT_A_HIVE, prism.getCombo()));
         helper.succeedWhen(() -> helper.assertTrue(zombie.getHealth() > WOUNDED_HEALTH,
                 String.format(SHOULD_HEAL_ZOMBIE, WOUNDED_HEALTH, zombie.getHealth())));
@@ -73,7 +73,7 @@ public final class HiveTests {
     /** Two blocks from the prism, well inside the hive's radius. */
     private static final BlockPos IN_THE_RADIUS = PRISM_POS.east(2);
     /** Decay, whose on_prism reaction is the hive (decision channeled-hosts-convert-prisms-over-the-hold). */
-    private static final String HIVE = "goo:nether_decay";
+    private static final String HIVE = "goo:zombie_decay";
     private static final String NOT_A_HIVE = "The prism should hold the hive combo, held '%s'";
     private static final String VINDICATOR_LIVES = "The hive should have eaten the vindicator in its radius";
     private static final String PLAYER_HURT = "The hive should leave a player in its radius whole";
@@ -84,7 +84,7 @@ public final class HiveTests {
     }
 
     /**
-     * A nether goo lands on a prism beside a vindicator, with a player in its
+     * A zombie goo lands on a prism beside a vindicator, with a player in its
      * radius: the vindicator is eaten dead while the player stands whole.
      *
      * @param helper the gametest helper
@@ -97,7 +97,7 @@ public final class HiveTests {
 
         PrismBlockEntity prism = helper.getBlockEntity(PRISM_POS, PrismBlockEntity.class);
         AbilityDefinition decay = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(HIVE));
-        helper.assertTrue(decay != null && prism.runCombo(GooTypes.NETHER, HIVE, PrismCombos.comboSteps(decay)),
+        helper.assertTrue(decay != null && prism.runCombo(GooTypes.ZOMBIE, HIVE, PrismCombos.comboSteps(decay)),
                 String.format(NOT_A_HIVE, prism.getCombo()));
         helper.succeedWhen(() -> {
             helper.assertFalse(vindicator.isAlive(), VINDICATOR_LIVES);

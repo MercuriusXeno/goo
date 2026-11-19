@@ -31,7 +31,7 @@ public class GooParticles {
         PARTICLE_TYPES.register("spore", () -> new SimpleParticleType(false));
 
     /**
-     * A maroon gnat darting in Decay's swarm, the particle its stream sprays
+     * A rotting gnat darting in Decay's swarm, the particle its stream sprays
      * along the cone (decision decay-gnats-degrade-each-block-once).
      */
     public static final DeferredHolder<ParticleType<?>, SimpleParticleType> GNAT =
@@ -155,6 +155,15 @@ public class GooParticles {
         PARTICLE_TYPES.register("infest_spray_drip", () -> new SimpleParticleType(false));
 
     /**
+     * Nitro's spray drip: the mod's blocky goo drip in unstable's greens,
+     * flying its arc until it strikes a block's top, where it splats and the
+     * Nitro goo lands.
+     * nitro-is-unstables-goo-that-explodes-in-a-chain-by-its-quantity
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> NITRO_SPRAY_DRIP =
+        PARTICLE_TYPES.register("nitro_spray_drip", () -> new SimpleParticleType(false));
+
+    /**
      * Vines' spray drip: the mod's blocky goo drip in leaf's greens, flying
      * its arc until it strikes a block's top, where it splats and the Vines
      * goo lands.
@@ -162,6 +171,24 @@ public class GooParticles {
      */
     public static final DeferredHolder<ParticleType<?>, SimpleParticleType> VINES_SPRAY_DRIP =
         PARTICLE_TYPES.register("vines_spray_drip", () -> new SimpleParticleType(false));
+
+    /**
+     * Spores' spray drip: the mod's blocky goo drip in shroom's purples,
+     * flying its arc until it strikes a block's top, where it splats and the
+     * Spores goo lands.
+     * spores-is-shrooms-residual-a-passive-mycosis
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> SPORES_SPRAY_DRIP =
+        PARTICLE_TYPES.register("spores_spray_drip", () -> new SimpleParticleType(false));
+
+    /**
+     * Phase's spray drip: the mod's blocky goo drip in quantum's blues,
+     * flying its arc until it strikes a block's top, where it splats and the
+     * Phase goo lands.
+     * phase-goo-puts-what-stands-in-it-out-of-phase
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> PHASE_SPRAY_DRIP =
+        PARTICLE_TYPES.register("phase_spray_drip", () -> new SimpleParticleType(false));
 
     /**
      * A snowflake crystal flitting weightlessly along Cold's wind (decision

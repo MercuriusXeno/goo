@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.ability;
 
-import com.mercuriusxeno.goo.ability.program.AwaitEntityStep;
 import com.mercuriusxeno.goo.ability.program.BloomStep;
 import com.mercuriusxeno.goo.ability.program.EntitiesStep;
 import com.mercuriusxeno.goo.ability.program.ExplodeStep;
@@ -10,7 +9,6 @@ import com.mercuriusxeno.goo.ability.program.FloorsStep;
 import com.mercuriusxeno.goo.ability.program.MeteorStep;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.SoundCue;
-import com.mercuriusxeno.goo.ability.program.SporeStep;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.StepTypes;
 import com.mercuriusxeno.goo.ability.program.Variables;
@@ -518,6 +516,9 @@ public record AbilityDefinition(
     private static final String RESIDUAL_REACTS_TO_PRISMS =
             "%s wears the residual badge and names " + FIELD_ON_PRISM
                     + "; a residual ability carries no prism reaction";
+    private static final String RESIDUAL_REQUIRES_AN_ITEM =
+            "%s wears the residual badge and names " + FIELD_REQUIRES
+                    + "; a residual is a goo type's resting behavior and sits behind no recipe";
     private static final String UNFORMULATED_DYNAMIC_PRICE =
             "An ability costing nothing up front and paying no upkeep must name " + FIELD_COST_FORMULA
                     + ", the formula its petal reads";
@@ -529,10 +530,7 @@ public record AbilityDefinition(
     private static final List<Function<Step, Optional<Expr>>> RADIUS_READERS = List.of(
             radiusOf(FieldEffectStep.class, FieldEffectStep::radius),
             radiusOf(EntitiesStep.class, EntitiesStep::radius),
-            radiusOf(AwaitEntityStep.class, AwaitEntityStep::radius),
             radiusOf(BloomStep.class, BloomStep::radius),
-            // colonize-blob-grows-the-network
-            radiusOf(SporeStep.class, SporeStep::radius),
             radiusOf(FloorsStep.class, FloorsStep::radius));
 
     /**
@@ -652,7 +650,8 @@ public record AbilityDefinition(
     public static Codec<AbilityDefinition> codecFor(Identifier id) {
         return fileCodec(id).validate(AbilityDefinition::formulatedDynamicPrice)
                 .validate(AbilityDefinition::unambiguousPrices)
-                .validate(AbilityDefinition::residualWithoutPrismReaction);
+                .validate(AbilityDefinition::residualWithoutPrismReaction)
+                .validate(AbilityDefinition::residualWithoutRequiredItem);
     }
 
     private static Codec<AbilityDefinition> fileCodec(Identifier id) {
@@ -701,6 +700,20 @@ public record AbilityDefinition(
     private static DataResult<AbilityDefinition> residualWithoutPrismReaction(AbilityDefinition definition) {
         return definition.badge() == AbilityBadge.RESIDUAL && !definition.onPrism().isEmpty()
                 ? DataResult.error(() -> String.format(RESIDUAL_REACTS_TO_PRISMS, definition.id()))
+                : DataResult.success(definition);
+    }
+
+    /**
+     * Refuses an ability wearing the residual badge that names a required
+     * item, so no residual is locked behind a recipe.
+     * decision no-residual-is-locked-behind-recipes
+     *
+     * @param definition the ability as the JSON wrote it
+     * @return the ability, or an error naming the ability, the badge and the field
+     */
+    private static DataResult<AbilityDefinition> residualWithoutRequiredItem(AbilityDefinition definition) {
+        return definition.badge() == AbilityBadge.RESIDUAL && !definition.requires().isEmpty()
+                ? DataResult.error(() -> String.format(RESIDUAL_REQUIRES_AN_ITEM, definition.id()))
                 : DataResult.success(definition);
     }
 
