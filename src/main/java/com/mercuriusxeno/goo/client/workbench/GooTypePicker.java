@@ -82,7 +82,7 @@ final class GooTypePicker {
 
     /**
      * The grid's rows: 4, and one more for each row its type, close and no-goo-type cells overflow, so every cell
-     * stands one click away with no scroll (operator ruling 2026-11-18, yarn standing beside yore and zoo).
+     * stands one click away with no scroll (operator ruling 2026-11-18).
      * decision goo-type-picker-is-a-seven-by-four-icon-grid
      *
      * @return how many rows the grid lays its cells on

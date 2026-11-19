@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.item;
 
+import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.type.GooTypes;
+import com.mojang.serialization.JsonOps;
 import org.junit.jupiter.api.Test;
 import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
@@ -34,6 +36,18 @@ class GooContentsTest {
                 GooTypes.ROCK, 100, GooTypes.METAL, 200, GooTypes.JELLY, 50));
         assertEquals(350, gc.totalVolume());
         assertEquals(3, gc.typeCount());
+    }
+
+    /**
+     * A save holding yore goo loads it as opulent goo, one for one, beside the opulent it held.
+     * decision yore-leaves-and-rewind-moves-to-xeno-as-revert
+     */
+    @Test
+    void savedYoreLoadsAsOpulent() {
+        GooContents loaded = GooContents.CODEC.parse(JsonOps.INSTANCE, JsonParser.parseString(
+                "{\"contents\": {\"yore\": 1000, \"opulent\": 500, \"rock\": 20}}")).getOrThrow();
+
+        assertEquals(Map.of(GooTypes.OPULENT, 1500, GooTypes.ROCK, 20), loaded.contents());
     }
 
     // -- isSingleType / getSingleType --

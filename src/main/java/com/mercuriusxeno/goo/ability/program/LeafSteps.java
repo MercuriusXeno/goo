@@ -149,17 +149,6 @@ public final class LeafSteps {
             });
 
     /**
-     * Starts aging the block the host's blob landed on: Yore's aging blob is
-     * {@code age}.
-     * old-blob-ages-valuables-slowly
-     */
-    public static final LeafStepType<Unit> AGE = StepType.of("age", NO_PARAMS,
-            Set.of(HostCapability.AGING), (none, context) -> {
-                context.hostAs(AgingHost.class).startAging();
-                return true;
-            }).takingNone();
-
-    /**
      * Ticks the redstone device the host's blob landed on, as one pulse of
      * power would: Zap is {@code power_pulse}.
      * zap-ticks-the-device-and-stuns
