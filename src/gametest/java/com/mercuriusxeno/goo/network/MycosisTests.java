@@ -61,7 +61,7 @@ public final class MycosisTests {
     private static final float FACING_EAST = -90f;
     /** Pitch down from the eye toward a zombie's middle four blocks off. */
     private static final float LOOKING_AT_ZOMBIE = 9f;
-    private static final Identifier MYCOSIS = Identifier.parse("goo:shroom_mycosis");
+    private static final Identifier MYCOSIS = Identifier.parse("goo:sculk_mycosis");
     private static final int SPRAY_TICKS = 5;
     /** Straight down at the floor under the player. */
     private static final float LOOKING_AT_FEET = 90f;
@@ -70,9 +70,9 @@ public final class MycosisTests {
     private static final String NO_BUD_AT_FEET = "Mycosis sprayed straight down should bud the floor at the player's feet";
     /** Ticks of hold the bud test sprays for at most, enough that a bud is all but certain. */
     private static final int BUD_SPRAY_TICKS = 400;
-    /** Shroom goo the sprayer holds, thousands: enough to pay for the longest spray with room for its cost's tuning. */
+    /** Sculk goo the sprayer holds, thousands: enough to pay for the longest spray with room for its cost's tuning. */
     private static final int HELD_GOO = 25;
-    private static final String ABILITY_REQUIRED = "Ability registry must hold shroom_mycosis";
+    private static final String ABILITY_REQUIRED = "Ability registry must hold sculk_mycosis";
     private static final String SPRAYED_POISONED = "The sprayed zombie should carry Goo's spore poison";
     private static final String SPRAYED_SPORED = "The sprayed zombie should carry spores";
     private static final String BYSTANDER_CLEAN = "The bystander outside the cone should start unpoisoned";
@@ -107,7 +107,7 @@ public final class MycosisTests {
             helper.assertTrue(bystander.hasEffect(GooMobEffects.MYCOSIS), BYSTANDER_POISONED);
             // mycosis-is-put-back-as-the-held-spore-stream: the stream's burst lays no Spores goo
             helper.assertFalse(BlockPos.betweenClosedStream(fell.offset(-1, -1, -1), fell.offset(1, 1, 1))
-                    .anyMatch(cell -> helper.getLevel().getBlockState(cell).is(GooBlocks.SHROOM_SPORES.get())),
+                    .anyMatch(cell -> helper.getLevel().getBlockState(cell).is(GooBlocks.SCULK_SPORES.get())),
                     NO_GOO_WHERE_IT_FELL);
             helper.succeed();
         });
@@ -178,7 +178,7 @@ public final class MycosisTests {
     }
 
     private static void spray(GameTestHelper helper, ServerPlayer player, int ticks) {
-        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.SHROOM), MYCOSIS.toString(),
+        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.SCULK), MYCOSIS.toString(),
                 player.getEyePosition(), player.getEyePosition());
         for (int held = 1; held <= ticks; held++) {
             helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(player, tick));
@@ -193,7 +193,7 @@ public final class MycosisTests {
         player.setYRot(FACING_EAST);
         player.setXRot(pitch);
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GooItems.GOO_GLOVE.get()));
-        player.getInventory().add(GooStacks.createForOutput(GooTypes.SHROOM, HELD_GOO * GooStacks.THOUSAND));
+        player.getInventory().add(GooStacks.createForOutput(GooTypes.SCULK, HELD_GOO * GooStacks.THOUSAND));
         return player;
     }
 }

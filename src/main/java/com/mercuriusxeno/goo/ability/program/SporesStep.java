@@ -15,7 +15,7 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 /**
- * Shroom's Spores block step: shroom goo lands where each of the stream's
+ * Sculk's Spores block step: sculk goo lands where each of the stream's
  * drips strikes, one layer for each drip, through the volume cell's one
  * landing, as Infest lays its nether goo. The step names what a Spores
  * cell does, a passive Mycosis: on a display tick it puffs its spore particle
@@ -24,7 +24,7 @@ import java.util.stream.Stream;
  * A mob standing on the goo carries spores bursting the named ability, at
  * the named radius, lasting the named ticks, and a mob dying within the
  * death reach of a cell bursts the same way:
- * {@code spores period=20 layers_per_bud=1 particle=goo:spore spore_chance=0.1 burst=goo:shroom_mycosis spore_radius=3
+ * {@code spores period=20 layers_per_bud=1 particle=goo:spore spore_chance=0.1 burst=goo:sculk_mycosis spore_radius=3
  * spore_ticks=600 death_reach=3}.
  * spores-is-shrooms-residual-a-passive-mycosis
  * spores-goo-spends-on-edge-growth-and-grows-to-buds
@@ -161,12 +161,12 @@ public record SporesStep(int period, int layersPerBud, Identifier particle, floa
 
     @Override
     public Optional<CellFed> cellFed(ChannelHost host, CoatRay.BlockStrike strike) {
-        return CellLanding.cellFed(host, strike, GooBlocks.SHROOM_SPORES.get());
+        return CellLanding.cellFed(host, strike, GooBlocks.SCULK_SPORES.get());
     }
 
     @Override
     public void feed(ChannelHost host, CellFed fed) {
-        CellLanding.feed(host, fed, GooBlocks.SHROOM_SPORES.get());
+        CellLanding.feed(host, fed, GooBlocks.SCULK_SPORES.get());
     }
 
     @Override

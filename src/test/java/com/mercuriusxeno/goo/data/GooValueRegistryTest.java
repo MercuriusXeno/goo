@@ -229,10 +229,10 @@ class GooValueRegistryTest {
         @Test
         void baseHoldsAgainstAnEqualRecipeWithFewerTypes() {
             setBaseValues(Map.of(
-                    id("shroom"), goo(GooTypes.SHROOM, 10),
-                    id("stew"), goo(GooTypes.SHROOM, 4, GooTypes.LEAF, 3, GooTypes.JELLY, 3)
+                    id("sculk"), goo(GooTypes.SCULK, 10),
+                    id("stew"), goo(GooTypes.SCULK, 4, GooTypes.LEAF, 3, GooTypes.JELLY, 3)
             ));
-            List<RecipeInput> recipes = List.of(recipe("stew", 1, slot("shroom")));
+            List<RecipeInput> recipes = List.of(recipe("stew", 1, slot("sculk")));
 
             registry.deriveFromRecipeInputs(recipes, false);
             assertEquals(GooFraction.of(3), registry.table().lookup(id("stew")).exact(GooTypes.JELLY));

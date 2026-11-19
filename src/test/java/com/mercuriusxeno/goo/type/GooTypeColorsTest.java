@@ -61,6 +61,16 @@ class GooTypeColorsTest {
     }
 
     @Test
+    void sculkWearsTheSculkColorsDeepWore() throws IOException {
+        // sculk-takes-deeps-coloration-and-shrooms-goes
+        List<String> deepsSculkColors = List.of("0F2430", "29DFEB", "16303E", "1FC8D8");
+        for (int index = 0; index < CHANNELS.size(); index++) {
+            assertEquals(deepsSculkColors.get(index), channel("sculk", CHANNELS.get(index)),
+                    "sculk's " + CHANNELS.get(index));
+        }
+    }
+
+    @Test
     void yoreWearsAeonsOilSlickFluid() throws IOException {
         // yore-gets-opalescent-iridescence-back: aeon's fluid config as it stood before 8b83cec5
         JsonObject yore = fluidEntry("yore");

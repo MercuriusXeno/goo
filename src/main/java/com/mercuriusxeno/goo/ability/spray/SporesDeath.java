@@ -85,7 +85,7 @@ public final class SporesDeath {
         if (step.isEmpty()) {
             return Optional.empty();
         }
-        SporesCellBlock cell = GooBlocks.SHROOM_SPORES.get();
+        SporesCellBlock cell = GooBlocks.SCULK_SPORES.get();
         int reach = step.get().deathReach();
         for (BlockPos pos : BlockPos.withinManhattan(fell, reach, reach, reach)) {
             if (pos.distSqr(fell) <= (double) reach * reach && level.getBlockState(pos).is(cell)) {

@@ -125,11 +125,11 @@ public record BlendPalette(float lightRed, float lightGreen, float lightBlue,
             0x9A / 255f, 0x4E / 255f, 0x4E / 255f, 0x65 / 255f, 0x28 / 255f, 0x28 / 255f);
 
     /**
-     * Spores' spray drips, from shroom's bright purple, B66CD5, to its
-     * wheel purple, 8E44AD, the two the shroom goo type's definition names.
+     * Spores' spray drips, from a bright purple, B66CD5, to a
+     * deep purple, 8E44AD.
      * spores-is-shrooms-residual-a-passive-mycosis
      */
-    public static final BlendPalette SPORES_SHROOM_PURPLES = new BlendPalette(
+    public static final BlendPalette SPORES_PURPLES = new BlendPalette(
             0xB6 / 255f, 0x6C / 255f, 0xD5 / 255f, 0x8E / 255f, 0x44 / 255f, 0xAD / 255f);
 
     /**

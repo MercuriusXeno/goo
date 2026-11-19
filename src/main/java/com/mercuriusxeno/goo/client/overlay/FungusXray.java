@@ -43,7 +43,7 @@ import java.util.function.Consumer;
 /**
  * Shows every fungus block within Transmit's reach through walls while
  * the local player holds fungal sight: each block's own model and texture,
- * ghosted and tinted toward shroom's mauve, full bright, with an additive
+ * ghosted and tinted toward a spore mauve, full bright, with an additive
  * magenta halo of its own shape swollen past it and breathing slowly, both
  * drawn after the translucent world through pipelines that ignore depth. The blocks are
  * scanned again once a second, chunk section by chunk section, skipping any
@@ -52,12 +52,12 @@ import java.util.function.Consumer;
  */
 public final class FungusXray {
 
-    private static final String TRANSMIT = "goo:shroom_transmit";
+    private static final String TRANSMIT = "goo:sculk_transmit";
     /** Transmit's range when the player holds no synced copy of it. */
     private static final double FALLBACK_RANGE = 64;
     static final int RESCAN_TICKS = 20;
     private static final int MOST_SEEN = 512;
-    /** The ghost's tint: a little translucent, leaning toward shroom's mauve. */
+    /** The ghost's tint: a little translucent, leaning toward a spore mauve. */
     static final int GHOST_TINT = 0xB8E0B0F0;
     /** The halo's magenta. */
     private static final int GLOW_RGB = 0xFF40C0;

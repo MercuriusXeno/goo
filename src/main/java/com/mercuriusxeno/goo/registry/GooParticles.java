@@ -173,7 +173,7 @@ public class GooParticles {
         PARTICLE_TYPES.register("vines_spray_drip", () -> new SimpleParticleType(false));
 
     /**
-     * Spores' spray drip: the mod's blocky goo drip in shroom's purples,
+     * Spores' spray drip: the mod's blocky goo drip in spore purples,
      * flying its arc until it strikes a block's top, where it splats and the
      * Spores goo lands.
      * spores-is-shrooms-residual-a-passive-mycosis

@@ -471,16 +471,16 @@ public class GooBlocks {
                     .noLootTable()
                     .pushReaction(PushReaction.DESTROY));
     /**
-     * Spores: the volume cell bound to Shroom's goo, the purple goo Spores
+     * Spores: the volume cell bound to Sculk's goo, the purple goo Spores
      * sprays onto a block's top, one to fifteen layers, ordinary ground
      * underfoot and sounding as goo does, budding the ground at its edges,
-     * dropping the shroom goo its layers cost through
+     * dropping the sculk goo its layers cost through
      * VolumeCellBlock.getDrops, no loot table
      * (decisions spores-is-shrooms-residual-a-passive-mycosis,
      * each-goo-type-ships-a-world-goo-on-the-volume-cell).
      */
-    public static final DeferredBlock<SporesCellBlock> SHROOM_SPORES = BLOCKS.registerBlock(
-            "shroom_spores", properties -> new SporesCellBlock(properties, CellBinding.SPORES),
+    public static final DeferredBlock<SporesCellBlock> SCULK_SPORES = BLOCKS.registerBlock(
+            "sculk_spores", properties -> new SporesCellBlock(properties, CellBinding.SPORES),
             () -> BlockBehaviour.Properties.of()
                     .mapColor(MapColor.COLOR_PURPLE)
                     .friction(CellBinding.SPORES.surface().friction())
