@@ -253,7 +253,7 @@ public final class BlockTransforms {
      */
     private void playStep(BlockPos pos, BlockState from, long start, @Nullable Exposure built) {
         if (built != null && built.tint() >= 0) {
-            // the operator's ruling on Decay: the maroon face transitions into the next block, never vanishing first
+            // the operator's ruling on Decay: the tinted face transitions into the next block, never vanishing first
             playing.add(new Transform(pos.immutable(), built.toward(), start, built.tint()));
         } else if (built == null) {
             playing.add(new Transform(pos.immutable(), from, start));

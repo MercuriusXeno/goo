@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.overlay.FungusXray;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.QuadInstance;
@@ -18,11 +20,11 @@ import net.minecraft.util.ARGB;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * Draws Sculker's glass field: every block within the field's radius of the
@@ -59,23 +61,32 @@ public final class SculkerGlassRenderer {
     }
 
     /**
-     * Draws the glass field while the local player's Sculker stands, over
-     * the world the vision has already dimmed.
+     * Hands the shared path the glass field while the local player's Sculker
+     * stands: part of the sense view, drawn over the world the vision has
+     * already dimmed, registered after {@link SculkerVision#collect} and
+     * sorted by nothing, so the path keeps that order. Within the field the
+     * nearest block draws first, writing depth.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
      *
-     * @param event the level render stage event
+     * @param frame the frame being drawn
+     * @param draws where the glass field's draw goes
      */
-    static void draw(RenderLevelStageEvent.AfterTranslucentBlocks event) {
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
         if (player == null || mc.level == null || SculkerVision.presence() < SculkerVision.GONE) {
             return;
         }
+        draws.accept(new SortedDraw(0, () -> SculkerVision.profiled(SculkerVision.GLASS_DRAW_SECTION,
+                () -> drawField(mc, player, frame.poseStack()))));
+    }
+
+    private static void drawField(Minecraft mc, LocalPlayer player, PoseStack poseStack) {
         Vec3 eyes = player.getEyePosition();
         List<BlockPos> field = fieldAround(mc, eyes);
         if (field.isEmpty()) {
             return;
         }
-        PoseStack poseStack = event.getPoseStack();
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         RenderType glass = GooRenderTypes.sculkerGlass(mc.getAtlasManager().getAtlasOrThrow(AtlasIds.BLOCKS).location());

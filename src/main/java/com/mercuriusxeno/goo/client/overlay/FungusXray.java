@@ -1,10 +1,11 @@
 package com.mercuriusxeno.goo.client.overlay;
 
-import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.program.Sight;
 import com.mercuriusxeno.goo.ability.program.TransmitStep;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.GooSubmitter;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.fade.Afterglow;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
@@ -34,13 +35,10 @@ import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.chunk.status.ChunkStatus;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * Shows every fungus block within Transmit's reach through walls while
@@ -52,7 +50,6 @@ import java.util.List;
  * section whose palette holds no fungus, and the nearest are drawn up to a cap.
  * sight-lengthens-shift-and-outlines-fungus
  */
-@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class FungusXray {
 
     private static final String TRANSMIT = "goo:shroom_transmit";
@@ -86,13 +83,16 @@ public final class FungusXray {
     }
 
     /**
-     * Draws the fungus through walls once the world has drawn, while the local
-     * player's sight stands.
+     * Rescans the fungus while the local player's sight stands and hands the
+     * shared path the fungus seen, drawn through walls, sorted by the nearest
+     * fungus seen.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
+     * decision sight-lengthens-shift-and-outlines-fungus
      *
-     * @param event the level render stage event
+     * @param frame the frame being drawn
+     * @param draws where the fungus's draw goes
      */
-    @SubscribeEvent
-    public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
         if (player == null || mc.level == null) {
@@ -110,7 +110,8 @@ public final class FungusXray {
             rescanEverySecond(mc.level, player, now);
         }
         if (!seen.isEmpty()) {
-            drawAll(mc, event.getPoseStack(), strength);
+            draws.accept(SortedDraw.nearestOf(seen.stream().map(Vec3::atCenterOf),
+                    mc.gameRenderer.getMainCamera().position(), () -> drawAll(mc, frame.poseStack(), strength)));
         }
     }
 

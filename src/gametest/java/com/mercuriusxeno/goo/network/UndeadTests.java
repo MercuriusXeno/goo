@@ -29,9 +29,9 @@ import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
- * Gametests for nether Undead through the real self delivery: at noon under
+ * Gametests for zombie Undead through the real self delivery: at noon under
  * open sky the sun burns an undead player and spares one under a roof;
- * harming heals an undead player; and once nether runs dry the held effect
+ * harming heals an undead player; and once zombie runs dry the held effect
  * ends, its nether hearts and its undeath with it
  * (decision undead-nether-hearts-burn-in-sunlight).
  */
@@ -39,7 +39,7 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 public final class UndeadTests {
     private static final String UNDEAD_BURNS_IN_SUN = "undead_burns_in_sun_not_under_roof";
     private static final String UNDEAD_HARMING_HEALS = "undead_harming_heals";
-    private static final String UNDEAD_ENDS_WHEN_DRY = "undead_ends_when_nether_runs_dry";
+    private static final String UNDEAD_ENDS_WHEN_DRY = "undead_ends_when_zombie_runs_dry";
     private static final String UNDEAD_HEAL_SPARES_CASTER = "undead_heal_spares_its_caster";
     private static final String HEAL_PULSES_ITS_HARM = "heal_pulses_its_harm_on_a_zombie";
     private static final String SHOULD_HURT_PER_PULSE =
@@ -53,7 +53,7 @@ public final class UndeadTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, UNDEAD_BURNS_IN_SUN, UndeadTests::undeadBurnsInSunNotUnderRoof);
         GooTestFunctions.registerTest(registrar, UNDEAD_HARMING_HEALS, UndeadTests::undeadHarmingHeals);
-        GooTestFunctions.registerTest(registrar, UNDEAD_ENDS_WHEN_DRY, UndeadTests::undeadEndsWhenNetherRunsDry);
+        GooTestFunctions.registerTest(registrar, UNDEAD_ENDS_WHEN_DRY, UndeadTests::undeadEndsWhenZombieRunsDry);
         GooTestFunctions.registerTest(registrar, UNDEAD_HEAL_SPARES_CASTER, UndeadTests::undeadHealSparesItsCaster);
         GooTestFunctions.registerTest(registrar, HEAL_PULSES_ITS_HARM, UndeadTests::healPulsesItsHarmOnAZombie);
     }
@@ -88,17 +88,17 @@ public final class UndeadTests {
     }
 
 
-    private static final Identifier NETHER_UNDEAD = Identifier.parse("goo:nether_undead");
+    private static final Identifier ZOMBIE_UNDEAD = Identifier.parse("goo:zombie_undead");
     private static final BlockPos OPEN_POS = new BlockPos(1, 1, 1);
     /** Past one of the sun's once-a-second burns. */
     private static final int SUN_TICKS = 25;
     /** Health to heal from, short of full. */
     private static final float WOUNDED_HEALTH = 10f;
-    /** The upkeep ticks the test's nether pays for before it runs dry. */
+    /** The upkeep ticks the test's zombie pays for before it runs dry. */
     private static final int PAID_TICKS = 3;
     /** Under the eighteen food a player regenerates at, and above starving. */
     private static final int UNFED_FOOD = 10;
-    private static final String ABILITY_REQUIRED = "Ability registry must hold nether_undead";
+    private static final String ABILITY_REQUIRED = "Ability registry must hold zombie_undead";
     private static final String SHOULD_BURN = "The undead player under open noon sky should burn, stands at %.1f";
     private static final String SHOULD_HEAL ="Harming should heal an undead player from %.1f, stands at %.1f";
     private static final Identifier JELLY_HEAL = Identifier.parse("goo:jelly_heal");
@@ -108,8 +108,8 @@ public final class UndeadTests {
     private static final String HEAL_REQUIRED = "Ability registry must hold jelly_heal";
     private static final String SHOULD_SPARE_CASTER =
             "An undead player's own heal should leave it at %.1f, stands at %.2f";
-    private static final String SHOULD_STAND_PAID = "Undead should stand while nether pays its upkeep";
-    private static final String SHOULD_END = "Undead, its nether hearts and its undeath should end once nether runs dry";
+    private static final String SHOULD_STAND_PAID = "Undead should stand while zombie pays its upkeep";
+    private static final String SHOULD_END = "Undead, its nether hearts and its undeath should end once zombie runs dry";
 
     private UndeadTests() {
     }
@@ -177,18 +177,18 @@ public final class UndeadTests {
     }
 
     /**
-     * A player casts Undead holding nether for exactly three ticks of upkeep:
+     * A player casts Undead holding zombie for exactly three ticks of upkeep:
      * Undead stands through the third tick, and on the fourth the held effect
      * ends, the nether hearts clear and the player is undead no longer.
      *
      * @param helper the gametest helper
      */
-    public static void undeadEndsWhenNetherRunsDry(GameTestHelper helper) {
-        AbilityDefinition undead = AbilityRegistry.of(helper.getLevel()).getAbility(NETHER_UNDEAD);
+    public static void undeadEndsWhenZombieRunsDry(GameTestHelper helper) {
+        AbilityDefinition undead = AbilityRegistry.of(helper.getLevel()).getAbility(ZOMBIE_UNDEAD);
         helper.assertTrue(undead != null, ABILITY_REQUIRED);
         ServerPlayer player = undeadAt(helper, OPEN_POS);
-        int held = GooSourceScanner.aggregateAvailable(player).getOrDefault(GooTypes.NETHER, 0);
-        GooSourceScanner.deplete(player, GooTypes.NETHER, held - PAID_TICKS * undead.upkeep().in(GooValueTable.EMPTY));
+        int held = GooSourceScanner.aggregateAvailable(player).getOrDefault(GooTypes.ZOMBIE, 0);
+        GooSourceScanner.deplete(player, GooTypes.ZOMBIE, held - PAID_TICKS * undead.upkeep().in(GooValueTable.EMPTY));
         SelfDeliveryTests.tickFor(helper, player, PAID_TICKS - 1);
         helper.runAfterDelay(PAID_TICKS, () -> {
             player.doTick();
@@ -223,7 +223,7 @@ public final class UndeadTests {
     }
 
     private static boolean stands(ServerPlayer player) {
-        return player.getData(GooAttachments.HELD_EFFECTS).holds(NETHER_UNDEAD)
+        return player.getData(GooAttachments.HELD_EFFECTS).holds(ZOMBIE_UNDEAD)
                 && player.getData(GooAttachments.UNDEAD).stands();
     }
 
@@ -236,7 +236,7 @@ public final class UndeadTests {
      */
     static ServerPlayer undeadAt(GameTestHelper helper, BlockPos pos) {
         helper.setBlock(pos.below(), Blocks.STONE);
-        ServerPlayer player = HeartOverlayTests.selfInvoked(helper, GooTypes.NETHER, NETHER_UNDEAD);
+        ServerPlayer player = HeartOverlayTests.selfInvoked(helper, GooTypes.ZOMBIE, ZOMBIE_UNDEAD);
         Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(pos));
         player.setPos(stand.x, stand.y, stand.z);
         // a fed player regenerates, which would heal the sun's burn back before the test reads it

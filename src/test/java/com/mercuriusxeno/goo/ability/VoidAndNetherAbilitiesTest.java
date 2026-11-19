@@ -2,7 +2,9 @@ package com.mercuriusxeno.goo.ability;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
+import net.minecraft.resources.ResourceKey;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import java.io.IOException;
@@ -16,8 +18,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
- * Hole is the one Void ability named Hole, and Nether ships Decay, Undead and Tartarus; reads the
- * shipped ability files and en_us.json through the classpath.
+ * Hole is the one Void ability named Hole, Nether ships Infest and Tartarus, and Zombie ships Decay and Undead;
+ * reads the shipped ability files and en_us.json through the classpath.
  * decision anti-moves-from-nether-to-void
  * decision tartarus-summons-a-gate-to-the-nether-like-end-and-zone
  */
@@ -48,13 +50,27 @@ class VoidAndNetherAbilitiesTest {
         assertEquals(Map.of(HOLE_KEY, "Hole"), namedHole);
     }
 
+    /**
+     * Infest moves to zombie on its own thread; Tartarus stays on nether.
+     * decision zombie-goo-is-the-undead-and-takes-the-decay-abilities
+     */
     @Test
-    void netherShipsDecayInfestUndeadAndTartarus() {
-        Set<String> nether = AbilityJson.files().stream().map(AbilityJson::decode)
-                .filter(ability -> ability.gooType() == GooTypes.NETHER)
+    void netherShipsInfestAndTartarus() {
+        assertEquals(Set.of("nether_infest", "nether_tartarus"), shippedPathsOf(GooTypes.NETHER));
+    }
+
+    /**
+     * decision zombie-goo-is-the-undead-and-takes-the-decay-abilities
+     */
+    @Test
+    void zombieShipsDecayAndUndead() {
+        assertEquals(Set.of("zombie_decay", "zombie_undead"), shippedPathsOf(GooTypes.ZOMBIE));
+    }
+
+    private static Set<String> shippedPathsOf(ResourceKey<GooTypeDefinition> type) {
+        return AbilityJson.files().stream().map(AbilityJson::decode)
+                .filter(ability -> ability.gooType() == type)
                 .map(ability -> ability.id().getPath())
                 .collect(Collectors.toSet());
-
-        assertEquals(Set.of("nether_decay", "nether_infest", "nether_undead", "nether_tartarus"), nether);
     }
 }

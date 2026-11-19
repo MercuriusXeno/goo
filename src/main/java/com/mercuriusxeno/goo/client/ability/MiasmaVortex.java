@@ -1,8 +1,9 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.program.MiasmaVortexStep;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.throwing.GloveAim;
@@ -14,11 +15,9 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+import org.joml.Matrix4fc;
 import org.jspecify.annotations.Nullable;
+import java.util.function.Consumer;
 
 /**
  * Drain's cast look: while right click holds a stream naming
@@ -27,9 +26,9 @@ import org.jspecify.annotations.Nullable;
  * look, redrawn every frame so it turns with the look, spawning nothing.
  * drain-casts-a-filled-tornadic-miasma-vortex-along-the-look
  */
-@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class MiasmaVortex {
 
+    private static final double HALF = 0.5;
     /** Hex's wheel and bright colors, worn while the client holds no definition of the selected goo. */
     private static final MiasmaVortexPass.Colors HEX = new MiasmaVortexPass.Colors(0x5B4BA0, 0x8373C8);
     private static final VortexPresence PRESENCE = new VortexPresence();
@@ -41,13 +40,14 @@ public final class MiasmaVortex {
     }
 
     /**
-     * Draws the vortex after the translucent blocks while it is held, and on
-     * while it thins away after the hold ends.
+     * Hands the shared path the vortex while it is held, and on while it thins
+     * away after the hold ends, sorted by the middle of its cone.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
      *
-     * @param event the level render stage event
+     * @param frame the frame being drawn
+     * @param draws where the vortex's draw goes
      */
-    @SubscribeEvent
-    public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
         if (player == null) {
@@ -68,7 +68,13 @@ public final class MiasmaVortex {
         Vec3 hand = CastOrigin.ofLocal(mc).subtract(camera.position());
         VortexCone vortex = VortexCone.along(hand, player.getViewVector(partialTick), drawn.delivery().range(),
                 drawn.delivery().coneDegrees());
-        MiasmaVortexPass.draw(vortex, lastColors, shown, event.getModelViewMatrix());
+        draws.accept(sortedDrawOf(vortex, lastColors, shown, frame.modelView()));
+    }
+
+    private static SortedDraw sortedDrawOf(VortexCone vortex, MiasmaVortexPass.Colors colors,
+                                           VortexPresence.Shown shown, Matrix4fc modelView) {
+        Vec3 middle = vortex.apex().add(vortex.axis().scale(vortex.length() * HALF));
+        return new SortedDraw(middle.lengthSqr(), () -> MiasmaVortexPass.draw(vortex, colors, shown, modelView));
     }
 
     /**

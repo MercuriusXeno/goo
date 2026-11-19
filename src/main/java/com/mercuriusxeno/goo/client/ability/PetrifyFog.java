@@ -4,6 +4,8 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.program.PetrifyStep;
 import com.mercuriusxeno.goo.client.FlatQuadContext;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.throwing.GloveAim;
@@ -20,11 +22,12 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.joml.Vector3fc;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
+import java.util.stream.Stream;
 
 /**
  * Petrify's fog: while right click holds Petrify, puffs of dust pour from the
@@ -88,25 +91,33 @@ public final class PetrifyFog {
     }
 
     /**
-     * Draws the poured puffs after the translucent blocks.
+     * Hands the shared path the poured puffs, sorted by the nearest puff.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
      *
-     * @param event the level render stage event
+     * @param frame the frame being drawn
+     * @param draws where the puffs' draw goes
      */
-    @SubscribeEvent
-    public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || PUFFS.isEmpty()) {
             return;
         }
         double now = mc.level.getGameTime() + mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
+        List<PetrifyPuffs.Puff> poured = List.copyOf(PUFFS);
+        Stream<Vec3> centers = poured.stream().map(puff -> PetrifyPuffs.positionAt(puff, now, range, halfAngle));
+        draws.accept(SortedDraw.nearestOf(centers, mc.gameRenderer.getMainCamera().position(),
+                () -> drawPuffs(mc, frame, poured, now)));
+    }
+
+    private static void drawPuffs(Minecraft mc, LevelFrame frame, List<PetrifyPuffs.Puff> poured, double now) {
         Camera camera = mc.gameRenderer.getMainCamera();
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
-        FlatQuadContext quads = new FlatQuadContext(event.getPoseStack().last(),
+        FlatQuadContext quads = new FlatQuadContext(frame.poseStack().last(),
                 buffers.getBuffer(GooRenderTypes.PETRIFY_FOG_TYPE));
         Vec3 left = toVec3(camera.leftVector());
         Vec3 up = toVec3(camera.upVector());
         Vec3 view = toVec3(camera.forwardVector());
-        for (PetrifyPuffs.Puff puff : PUFFS) {
+        for (PetrifyPuffs.Puff puff : poured) {
             Vec3 center = PetrifyPuffs.positionAt(puff, now, range, halfAngle).subtract(camera.position());
             double radius = PetrifyPuffs.radiusAt(PetrifyPuffs.distanceAt(PetrifyPuffs.ageShare(puff, now), range),
                     halfAngle);
