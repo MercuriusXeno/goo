@@ -178,12 +178,12 @@ class GooTypesTest {
     }
 
     /**
-     * A goo stack saved as yore loads as opulent, the type taking yore's place.
-     * decision yore-leaves-and-rewind-moves-to-xeno-as-revert
+     * A saved key loads as the key it names, a type that left the mod included: no save is migrated.
+     * operator ruling 2026-11-19: no migration for a type that left the mod, the mod being unreleased
      */
     @Test
-    void savedYoreKeyLoadsAsOpulent() {
-        assertSame(GooTypes.OPULENT, GooTypes.KEY_CODEC.parse(JsonOps.INSTANCE,
+    void savedKeyOfATypeThatLeftLoadsAsItself() {
+        assertEquals(GooTypes.bundled("yore"), GooTypes.KEY_CODEC.parse(JsonOps.INSTANCE,
                 JsonParser.parseString("\"goo:yore\"")).getOrThrow());
     }
 
