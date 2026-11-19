@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.FormSounds;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.crystal.StackHover;
@@ -9,6 +8,8 @@ import com.mercuriusxeno.goo.ability.program.SoundCue;
 import com.mercuriusxeno.goo.client.FlatQuadContext;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.GooSubmitter;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.throwing.GooFlightRenderer;
 import com.mercuriusxeno.goo.item.GooCasters;
 import com.mercuriusxeno.goo.network.StackFormedPayload;
@@ -17,15 +18,12 @@ import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
@@ -45,7 +43,7 @@ import java.util.function.Consumer;
  * decision knives-hover-above-the-blob-cube-over-the-hand
  * decision knives-sling-then-morph-to-flechettes
  * decision knives-form-on-right-click-and-throw-on-left-click
- */@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
+ */
 public final class HoveringKnives {
 
     /** Ticks a knife takes to ease from the blob, or from its old slot, to its slot. */
@@ -259,40 +257,56 @@ public final class HoveringKnives {
     }
 
     /**
-     * Draws every caster's pyramid after the level, clouds included, so no
-     * cloud shows through a knife, each knife its butt on its slot and its
-     * point running forward at the crosshair's point, the line it flies along.
+     * Hands the shared path every caster's pyramid, sorted by the nearest
+     * knife, each knife its butt on its slot and its point running forward
+     * at the crosshair's point, the line it flies along. The path draws it
+     * far to near after the level, clouds included, so no cloud shows
+     * through a knife.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
      *
-     * @param event the level render stage event
+     * @param frame the frame being drawn
+     * @param draws where the pyramids' draw goes
      */
-    @SubscribeEvent
-    public static void onAfterLevel(RenderLevelStageEvent.AfterLevel event) {
-        LevelOverlayView.inView(event, () -> drawEvery(event));
-    }
-
-    private static void drawEvery(RenderLevelStageEvent.AfterLevel event) {
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
+        // It drew only at AfterLevel, which a portal view's pass never posts; the path runs AfterLevel routes there.
+        if (PortalView.drawing()) {
+            return;
+        }
         Minecraft mc = Minecraft.getInstance();
-        if (mc.level == null || FANS.isEmpty() && RETURNS.isEmpty()) {
+        ClientLevel level = mc.level;
+        if (level == null || FANS.isEmpty() && RETURNS.isEmpty()) {
             return;
         }
         float partial = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        double now = mc.level.getGameTime() + partial;
+        double now = level.getGameTime() + partial;
         RETURNS.values().removeIf(release -> release.doneAt(now));
+        Map<Player, List<Piece>> drawn = drawnIn(level, now, partial);
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        draws.accept(SortedDraw.nearestOf(drawn.values().stream().flatMap(List::stream).map(Piece::at), camera,
+                () -> drawPieces(mc, frame, drawn, partial, camera)));
+    }
+
+    private static void drawPieces(Minecraft mc, LevelFrame frame, Map<Player, List<Piece>> drawn, float partial,
+                                   Vec3 camera) {
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
-        Map<Player, List<Piece>> drawn = new HashMap<>();
-        for (Integer casterId : casters()) {
-            if (mc.level.getEntity(casterId) instanceof Player caster && drawsInTheLevel(caster)) {
-                drawn.put(caster, piecesOf(caster, now, partial));
-            }
-        }
-        FlatQuadContext quads = new FlatQuadContext(event.getPoseStack().last(),
+        FlatQuadContext quads = new FlatQuadContext(frame.poseStack().last(),
                 buffers.getBuffer(GooRenderTypes.CRYSTAL_SHARD_TYPE));
         drawn.forEach((caster, pieces) -> drawKnives(quads, caster, pieces, partial, camera));
         buffers.endBatch(GooRenderTypes.CRYSTAL_SHARD_TYPE);
-        drawn.forEach((caster, pieces) -> drawCuboids(event.getPoseStack().last(),
+        drawn.forEach((caster, pieces) -> drawCuboids(frame.poseStack().last(),
                 buffers.getBuffer(GooSubmitter.renderType()), caster, pieces, camera));
         buffers.endBatch(GooSubmitter.renderType());
+    }
+
+    // Each caster drawn in the level this frame, with its pieces.
+    private static Map<Player, List<Piece>> drawnIn(ClientLevel level, double now, float partial) {
+        Map<Player, List<Piece>> drawn = new HashMap<>();
+        for (Integer casterId : casters()) {
+            if (level.getEntity(casterId) instanceof Player caster && drawsInTheLevel(caster)) {
+                drawn.put(caster, piecesOf(caster, now, partial));
+            }
+        }
+        return drawn;
     }
 
     // Every caster with a pyramid standing or knives returning.

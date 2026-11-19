@@ -1,20 +1,18 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.LineContext;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 
 /**
  * Metronome's beat mark: each time the prism gives power, red shock rings
@@ -22,7 +20,6 @@ import java.util.concurrent.ConcurrentHashMap;
  * over half a second.
  * metronome-prism-pulses-at-the-learned-rate
  */
-@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class BeatRings {
 
     /** Seconds a beat's rings stand, from the pulse until they fade out. */
@@ -90,29 +87,35 @@ public final class BeatRings {
     }
 
     /**
-     * Draws each standing beat after the translucent blocks and drops the faded ones.
+     * Hands the shared path every standing beat's rings, dropping the faded
+     * beats first, sorted by the nearest beating prism.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
      *
-     * @param event the level render stage event
+     * @param frame the frame being drawn
+     * @param draws where the rings' draw goes
      */
-    @SubscribeEvent
-    public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
         Minecraft mc = Minecraft.getInstance();
         if (BEATS.isEmpty() || mc.level == null) {
             return;
         }
         double now = nowSeconds();
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
-        LineContext lines = new LineContext(event.getPoseStack().last(), buffers.getBuffer(GooRenderTypes.LINES_GLOW));
+        BEATS.values().removeIf(beat -> (now - beat.bornSeconds()) / LIFETIME_SECONDS >= 1 + TRAIL_SHARE);
+        Map<BlockPos, Beat> standing = Map.copyOf(BEATS);
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        draws.accept(SortedDraw.nearestOf(standing.keySet().stream().map(Vec3::atCenterOf), camera,
+                () -> drawBeats(mc, frame, standing, camera, now)));
+    }
+
+    private static void drawBeats(Minecraft mc, LevelFrame frame, Map<BlockPos, Beat> standing, Vec3 camera,
+                                  double now) {
+        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        LineContext lines = new LineContext(frame.poseStack().last(), buffers.getBuffer(GooRenderTypes.LINES_GLOW));
         float width = mc.getWindow().getAppropriateLineWidth() * WIDTH_SCALE;
-        BEATS.forEach((pos, beat) -> {
+        standing.forEach((pos, beat) -> {
             double share = (now - beat.bornSeconds()) / LIFETIME_SECONDS;
-            if (share >= 1 + TRAIL_SHARE) {
-                BEATS.remove(pos, beat);
-            } else {
-                drawRing(lines, pos, beat.face(), share, camera, width);
-                drawRing(lines, pos, beat.face(), share - TRAIL_SHARE, camera, width);
-            }
+            drawRing(lines, pos, beat.face(), share, camera, width);
+            drawRing(lines, pos, beat.face(), share - TRAIL_SHARE, camera, width);
         });
         buffers.endBatch(GooRenderTypes.LINES_GLOW);
     }

@@ -1,10 +1,11 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.reap.ReapSlash;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.FlatQuadContext;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.network.ReapSlashPayload;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -14,13 +15,10 @@ import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * Reap's slashes on the client: each a crescent band rippling outward
@@ -35,7 +33,6 @@ import java.util.List;
  * of it behind them and it shows cutting through what it hits.
  * reap-is-crissaegrim-slashes-that-harvest-and-cut
  */
-@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class ReapSlashBlades {
 
     /** The quads along a band, tip to tip. */
@@ -114,14 +111,14 @@ public final class ReapSlashBlades {
     }
 
     /**
-     * Draws every live slash after translucent blocks, dropping each that
-     * has dimmed away: the local player's own skimming the ground while
-     * they view in first person, every other at its own height.
+     * Hands the shared path every live slash, dropping each that has dimmed
+     * away, sorted by the nearest place a slash was thrown from.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
      *
-     * @param event the level render stage event
+     * @param levelFrame the frame being drawn
+     * @param draws      where the slashes' draw goes
      */
-    @SubscribeEvent
-    public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
+    public static void collect(LevelFrame levelFrame, Consumer<SortedDraw> draws) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) {
             LIVE.clear();
@@ -133,10 +130,16 @@ public final class ReapSlashBlades {
             return;
         }
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        Frame frame = new Frame(mc, event.getPoseStack().last(), tick + partialTick, partialTick);
+        Frame frame = new Frame(mc, levelFrame.poseStack().last(), tick + partialTick, partialTick);
+        Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        draws.accept(SortedDraw.nearestOf(LIVE.stream().map(Shown::thrownFrom), camera,
+                () -> drawSlashes(mc, frame, camera)));
+    }
+
+    // The local player's own slash skims the ground while they view in first person, every other at its own height.
+    private static void drawSlashes(Minecraft mc, Frame frame, Vec3 camera) {
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         FlatQuadContext quads = new FlatQuadContext(frame.pose(), buffers.getBuffer(GooRenderTypes.GLOW_SHELL_TYPE));
-        Vec3 camera = mc.gameRenderer.getMainCamera().position();
         int leaf = ClientGooTypes.color(GooTypes.LEAF);
         for (Shown shown : LIVE) {
             double plane = frame.seenFromItsSlashersEyes(shown)
