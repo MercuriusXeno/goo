@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.zone;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.ability.astral.LunarSight;
+import com.mercuriusxeno.goo.client.BlendComposite;
 import com.mercuriusxeno.goo.lunar.Lunar;
 import com.mercuriusxeno.goo.lunar.LunarSun;
 import net.minecraft.resources.Identifier;
@@ -24,6 +25,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -207,6 +209,11 @@ class LunarSkyTest {
         private static final int OVERWORLD_DAY = 24_000;
         private static final int MIDNIGHT_TICK = 18_000;
         private static final float HALF_THE_SPRITE = 0.5F;
+        /** An unlit texel of a planet sprite: black, and opaque, as every texel of the eight sprites is. */
+        private static final float[] UNLIT_PLANET_TEXEL = {0F, 0F, 0F, 1F};
+        /** A texel of the sun's face where the sky drew it. */
+        private static final float[] SUN_TEXEL = {1F, 0.9F, 0.5F};
+        private static final float[] BLACK = {0F, 0F, 0F};
         /** How squarely the lit edge has to face the sun's side, as a share of a head-on facing. */
         private static final double LIT_EDGE_SHARE = 0.5;
         /** The texels across vanilla's moon sprite, and across the planet's, as basic as the moon's eight-texel face. */
@@ -305,6 +312,18 @@ class LunarSkyTest {
             double facing = sun.x() * litward.x() + sun.y() * litward.y() + sun.z() * litward.z();
             assertTrue(facing > litward.length() * Math.abs(sun.x()) * LIT_EDGE_SHARE, planetPhase + " on day " + day
                     + ": sun " + sun + ", lit edge toward " + litward);
+        }
+
+        /**
+         * The sky draws the sun before the planet, and the planet's unlit face, opaque black, hides the sun behind it
+         * through the dark phase's eclipse.
+         * decision sun-follows-the-phase-and-lights-the-far-side-too
+         */
+        @Test
+        void thePlanetsDarkFaceHidesTheSunBehindIt() {
+            float[] shown = BlendComposite.over(LunarSkyRenderer.PLANET_PIPELINE, UNLIT_PLANET_TEXEL, SUN_TEXEL);
+            assertArrayEquals(BLACK, shown, (float) TOLERANCE, "the sun behind the dark planet shows " + shown[0]
+                    + ", " + shown[1] + ", " + shown[2]);
         }
 
         private static int overworldDayShowing(MoonPhase planetPhase) {

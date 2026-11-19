@@ -24,8 +24,9 @@ import java.util.OptionalInt;
 
 /**
  * Draws the blue planet's disc: the hand-drawn sprite of its phase on a quad laid as vanilla's sky lays its moon
- * sprite, drawn as vanilla draws its moon, its black space adding nothing to the sky. Lunar's sky and the Lunar trip
- * home draw the one planet through it, so the disc that swells is the disc the sky showed.
+ * sprite, through the pipeline its caller names. Lunar's sky and the Lunar trip home draw the one planet through it,
+ * each through a pipeline laying the sprite's opaque texels over what lies behind, so the disc that swells is the
+ * disc the sky showed and its unlit face hides the sun behind it.
  * decision blue-star-is-a-planet-four-moons-wide-drawn-in-phases
  * decision blue-star-takes-the-moons-place-with-the-opposite-phase
  * decision planet-face-is-eight-hand-drawn-phase-sprites

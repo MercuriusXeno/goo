@@ -913,6 +913,29 @@ public final class GooRenderTypes {
             .build());
 
     /**
+     * Lunar's blue planet in lunar's sky: vanilla's celestial draw with its texels laid over the sky rather than added
+     * onto it, so the planet's opaque unlit face hides the sun and the stars behind it, and the sun's eclipse through
+     * the planet's dark phase shows.
+     * decision sun-follows-the-phase-and-lights-the-far-side-too
+     */
+    public static final RenderPipeline LUNAR_PLANET = sorted(PipelineSort.WITH_THE_SKY, RenderPipelines.CELESTIAL
+            .toBuilder()
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "lunar_planet"))
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+            .build());
+
+    /**
+     * The Lunar trip's swelling blue planet: the trip's celestial draw with the planet's texels laid over the frame,
+     * solid as lunar's sky draws it.
+     * decision sun-follows-the-phase-and-lights-the-far-side-too
+     * decision gate-fixates-your-view-on-the-moon-until-it-takes-you
+     */
+    public static final RenderPipeline LUNAR_TRIP_PLANET = sorted(PipelineSort.ON_THE_PATH, LUNAR_MOON.toBuilder()
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "lunar_trip_planet"))
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+            .build());
+
+    /**
      * The render type voidstone's faces draw through, its texture transform
      * handing the shader the room the field wraps at.
      * decision voidstone-starfield-tiles-in-either-direction
@@ -1732,6 +1755,8 @@ public final class GooRenderTypes {
         event.registerPipeline(POCKET_SKY);
         event.registerPipeline(LUNAR_SKY_VEIL);
         event.registerPipeline(LUNAR_MOON);
+        event.registerPipeline(LUNAR_PLANET);
+        event.registerPipeline(LUNAR_TRIP_PLANET);
         event.registerPipeline(SKY_FUNNEL);
         event.registerPipeline(PETRIFY_FOG);
         event.registerPipeline(FIRE_FIELD);
