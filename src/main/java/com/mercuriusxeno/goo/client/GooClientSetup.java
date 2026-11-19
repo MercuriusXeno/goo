@@ -30,8 +30,9 @@ import com.mercuriusxeno.goo.client.ability.GlassKnives;
 import com.mercuriusxeno.goo.client.ability.GrabFlail;
 import com.mercuriusxeno.goo.client.ability.HeldJavelins;
 import com.mercuriusxeno.goo.client.ability.HeldSweepVisual;
+import com.mercuriusxeno.goo.client.ability.HerdOutline;
 import com.mercuriusxeno.goo.client.ability.HoveringKnives;
-import com.mercuriusxeno.goo.client.ability.KinOutline;
+import com.mercuriusxeno.goo.client.ability.LeadOutline;
 import com.mercuriusxeno.goo.client.ability.MeteorScorches;
 import com.mercuriusxeno.goo.client.ability.MobAilments;
 import com.mercuriusxeno.goo.client.ability.MobCoatLayer;
@@ -41,7 +42,6 @@ import com.mercuriusxeno.goo.client.ability.NovaRings;
 import com.mercuriusxeno.goo.client.ability.PhaseLook;
 import com.mercuriusxeno.goo.client.ability.PhasedSight;
 import com.mercuriusxeno.goo.client.ability.PrismFormingSounds;
-import com.mercuriusxeno.goo.client.ability.RallyOutline;
 import com.mercuriusxeno.goo.client.ability.RelayLasers;
 import com.mercuriusxeno.goo.client.ability.SignalRings;
 import com.mercuriusxeno.goo.client.ability.TransformationRenderer;
@@ -321,7 +321,8 @@ public final class GooClientSetup {
                 GooBlocks.FROST_RIME.get(), GooBlocks.GLOW_WISPS.get(), GooBlocks.HEX_LEECH.get(),
                 GooBlocks.TYPHOON_UPDRAFT.get(), GooBlocks.JELLY_NECTAR.get(), GooBlocks.PULSE_SIGNAL.get(),
                 GooBlocks.METAL_SPIKES.get(), GooBlocks.NETHER_INFEST.get(), GooBlocks.LEAF_VINES.get(),
-                GooBlocks.UNSTABLE_NITRO.get(), GooBlocks.ASTRAL_DOWSING.get())) {
+                GooBlocks.UNSTABLE_NITRO.get(), GooBlocks.QUANTUM_PHASE.get(),
+                GooBlocks.SHROOM_SPORES.get(), GooBlocks.ASTRAL_DOWSING.get())) {
             event.register(VolumeCellTint.sources(cell.binding().gooType(), ClientGooTypes::color), cell);
         }
     }
@@ -418,7 +419,9 @@ public final class GooClientSetup {
      * nectar-is-sprayed-goo-with-a-guided-throw-near-a-mob
      * infest-is-nethers-goo-the-decay-effect-localized-around-the-goo
      * vines-is-sprayed-slime-that-entangles-what-tries-to-cross
+     * spores-is-shrooms-residual-a-passive-mycosis
      * nitro-is-unstables-goo-that-explodes-in-a-chain-by-its-quantity
+     * phase-goo-puts-what-stands-in-it-out-of-phase
      * astral-world-goo-is-dowsing-an-x-ray-of-ore
      *
      * @param event the event instance
@@ -437,6 +440,8 @@ public final class GooClientSetup {
         registerSprayDrip(event, GooParticles.INFEST_SPRAY_DRIP.get(), BlendPalette.INFEST_NETHER_REDS);
         registerSprayDrip(event, GooParticles.VINES_SPRAY_DRIP.get(), BlendPalette.VINES_LEAF_GREENS);
         registerSprayDrip(event, GooParticles.NITRO_SPRAY_DRIP.get(), BlendPalette.NITRO_UNSTABLE_GREENS);
+        registerSprayDrip(event, GooParticles.PHASE_SPRAY_DRIP.get(), BlendPalette.PHASE_QUANTUM_BLUES);
+        registerSprayDrip(event, GooParticles.SPORES_SPRAY_DRIP.get(), BlendPalette.SPORES_SHROOM_PURPLES);
         registerSprayDrip(event, GooParticles.DOWSING_SPRAY_DRIP.get(), BlendPalette.DOWSING_STARLIGHT_BLUES);
         event.registerSpriteSet(GooParticles.MOLTEN_SPRAY_DRIP.get(),
                 sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.MOLTEN_BLAZE_ORANGES,
@@ -460,8 +465,8 @@ public final class GooClientSetup {
 
     /**
      * Registers the render state modifiers that stamp each entity's goo state
-     * onto its render state: the rally outline, the ailments with their
-     * outline, which overrides the rally's, the glove's target outline, which
+     * onto its render state: the lead outline, the ailments with their
+     * outline, which overrides the lead's, the glove's target outline, which
      * overrides both, the goo coat, the phase, the stone and frost
      * encasements, the frozen pose, the grab flail, the vine tangle, the
      * transformation, the eldritch phase and the exit tilt, in that order.
@@ -473,8 +478,8 @@ public final class GooClientSetup {
     public static void registerRenderStateModifiers(
             RegisterRenderStateModifiersEvent event) {
         List<BiConsumer<Entity, EntityRenderState>> stamps = List.of(
-                KinOutline::stampOutline,
-                RallyOutline::stampOutline,
+                HerdOutline::stampOutline,
+                LeadOutline::stampOutline,
                 AilmentOverlayLayer::stampAilments,
                 AimTracker::modifyEntityRenderState,
                 MobCoatLayer::stampCoat,

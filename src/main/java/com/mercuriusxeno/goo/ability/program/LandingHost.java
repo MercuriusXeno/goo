@@ -8,7 +8,6 @@ import com.mercuriusxeno.goo.ability.quantum.PortalColor;
 import com.mercuriusxeno.goo.ability.quantum.PortalPairs;
 import com.mercuriusxeno.goo.ability.quantum.PortalShots;
 import com.mercuriusxeno.goo.ability.quantum.Wormhole;
-import com.mercuriusxeno.goo.ability.spore.ShroomNetwork;
 import com.mercuriusxeno.goo.block.ability.AbilityBlock;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
@@ -61,7 +60,7 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
                           ResourceKey<GooTypeDefinition> gooType, String abilityId, Vec3 anchor, double size,
                           @Nullable UUID caster)
         implements PlacedFaceHost, ExplodeHost, AnchoredWorldHost, PlaceBlockHost, LingerHost, BlockBreakHost,
-        SporeHost, FloorScanHost, PowerPulseHost, MobSpawnHost, FrostHost, MeteorHost, AgingHost,
+        FloorScanHost, PowerPulseHost, MobSpawnHost, FrostHost, MeteorHost, AgingHost,
         WormholeHost, PortalHost, IgniteHost, HoleHost {
 
     private static final String ERR_UNKNOWN_BLOCK = "No block is registered as ";
@@ -216,20 +215,6 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
         if (level.getBlockEntity(cell) instanceof AbilityBlockEntity be) {
             be.stand(gooType, face, abilityId, steps, size, caster);
         }
-    }
-
-    /**
-     * Grows from the block the blob struck: the struck block's network
-     * spreads, and a block on no network grows nothing
-     * (decision colonize-blob-grows-the-network).
-     */
-    @Override
-    public boolean spore(int radius) {
-        BlockPos struck = cell.relative(face.getOpposite());
-        BlockPos landedOn = level.getBlockState(cell).isAir() ? struck : cell;
-        Optional<ShroomNetwork> network = ShroomNetwork.of(level.getBlockState(landedOn));
-        network.ifPresent(grows -> grows.spread(level, struck, radius));
-        return network.isPresent();
     }
 
     /**

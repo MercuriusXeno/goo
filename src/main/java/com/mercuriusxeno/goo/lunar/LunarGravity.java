@@ -1,14 +1,19 @@
 package com.mercuriusxeno.goo.lunar;
 
+import com.mercuriusxeno.goo.registry.GooItems;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.Level;
 
 /**
  * Lunar's gravity: one sixth of the overworld's, the real moon's, for everything that falls there, the overworld's
- * everywhere else. Every gravity the game or goo applies in a dimension is scaled by {@link #scaleIn}, and a thrown
- * goo blob, which flies a scripted arc to its aim point with no gravity of its own, floats there for
- * {@link #flightTicksIn}, the time one-sixth gravity takes to draw the same peak.
+ * everywhere else, and lunar's for whoever holds Moonrock. Every gravity the game or goo applies to an entity is
+ * scaled by {@link #scaleOf}, every other gravity applied in a dimension by {@link #scaleIn}, and a thrown goo blob,
+ * which flies a scripted arc to its aim point with no gravity of its own, floats there for {@link #flightTicksIn},
+ * the time one-sixth gravity takes to draw the same peak.
  * decision lunar-gravity-is-one-sixth-of-the-overworlds
+ * decision lunar-stone-carries-one-sixth-gravity-while-held
  */
 public final class LunarGravity {
 
@@ -27,6 +32,24 @@ public final class LunarGravity {
      */
     public static double scaleIn(ResourceKey<Level> dimension) {
         return Lunar.LEVEL.equals(dimension) ? LUNAR_SCALE : OVERWORLD_SCALE;
+    }
+
+    /**
+     * The share of the overworld's gravity an entity falls under: lunar's sixth for a living entity holding Moonrock
+     * in either hand, in any dimension, and its dimension's share otherwise, so the stone changes nothing in lunar and
+     * nothing from the tick it leaves the hand. Every gravity scaled for one entity reads this.
+     * decision lunar-stone-carries-one-sixth-gravity-while-held
+     *
+     * @param entity the entity
+     * @return one sixth while it holds Moonrock or stands in lunar, one otherwise
+     */
+    public static double scaleOf(Entity entity) {
+        return holdsMoonrock(entity) ? LUNAR_SCALE : scaleIn(entity.level().dimension());
+    }
+
+    private static boolean holdsMoonrock(Entity entity) {
+        return entity instanceof LivingEntity living && (living.getMainHandItem().is(GooItems.MOONROCK.get())
+                || living.getOffhandItem().is(GooItems.MOONROCK.get()));
     }
 
     /**

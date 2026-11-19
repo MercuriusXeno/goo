@@ -94,6 +94,28 @@ class GooRenderTypesTest {
     }
 
     /**
+     * Every translucent pipeline GooRenderTypes registers records its sort
+     * route beside it, so a new one states how it sorts against the clouds,
+     * the weather, water, glass and other goo visuals as it is written.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
+     */
+    @Test
+    void everyTranslucentPipelineRecordsItsSortRoute() {
+        RegisterRenderPipelinesEvent event = mock(RegisterRenderPipelinesEvent.class);
+        ArgumentCaptor<RenderPipeline> registered = ArgumentCaptor.forClass(RenderPipeline.class);
+
+        GooRenderTypes.registerPipelines(event);
+
+        verify(event, atLeastOnce()).registerPipeline(registered.capture());
+        Set<String> unrecorded = registered.getAllValues().stream()
+                .filter(pipeline -> pipeline.getColorTargetState().blendFunction().isPresent())
+                .filter(pipeline -> GooRenderTypes.sortOf(pipeline).isEmpty())
+                .map(pipeline -> pipeline.getLocation().toString())
+                .collect(Collectors.toCollection(TreeSet::new));
+        assertEquals(Set.of(), unrecorded, "translucent pipelines recording no sort route");
+    }
+
+    /**
      * Laser's scorch draws its char translucent, darkening the face, and its
      * glow in a pass of its own added onto the face, the block showing through.
      * decision sunbeam-leaves-a-glowing-scorch-that-trails-and-fades

@@ -42,8 +42,15 @@ final class LunarTrip {
     /** The share of the fixation over which the land drops into darkness, after the sky begins. */
     private static final float LAND_DARK_START = 0.2F;
     private static final float LAND_DARK_END = 0.6F;
-    /** The share of the fixation from which the moon swells, once the sky is dimming. */
-    private static final float SWELL_START = 0.25F;
+    /** The share of the fixation from which the swell's rush builds, once the sky is dimming. */
+    private static final float RUSH_START = 0.25F;
+    /**
+     * The swell's starting rate: the share of its whole growth, counted as a power of the swollen size over the
+     * resting, that a steady creep carries from the hold's first tick, the rush carrying the rest. A tuning value:
+     * 0.4 grows the moon by about a tenth in the hold's first quarter second.
+     * decision lunar-moon-moves-from-the-first-tick-on-the-slow-ease
+     */
+    private static final double SWELL_START_RATE = 0.4;
     /** The share of the fixation from which white floods the view, as the moon nears covering it. */
     private static final float WHITE_FLOOD_START = 0.85F;
     /** The share of the rise's ticks a trip let go of early takes to run back. */
@@ -158,8 +165,8 @@ final class LunarTrip {
     }
 
     /**
-     * The blue planet's half width as a tangent, as the swell takes it on the way home: its size in lunar's sky until
-     * the swell begins, then growing as the moon does until it covers the view.
+     * The blue planet's half width as a tangent, as the swell takes it on the way home: its size in lunar's sky at the
+     * hold's start, growing from the first tick as the moon does until it covers the view.
      * decision gate-on-the-blue-star-returns-you-exactly-where-you-left
      * decision blue-star-is-a-planet-four-moons-wide-drawn-in-phases
      *
@@ -171,16 +178,20 @@ final class LunarTrip {
     }
 
     /**
-     * A body's half width as a tangent over the swell: its resting size until the swell begins, then growing by an
-     * ever larger factor, so it creeps and then rushes in to cover the view.
+     * A body's half width as a tangent over the swell: growing from its resting size on the hold's first tick by an
+     * ever larger factor, a steady creep at first and a rush building over it, so it creeps and then rushes in to
+     * cover the view.
+     * decision lunar-moon-moves-from-the-first-tick-on-the-slow-ease
      *
      * @param progress the share of the fixation run, zero to one
      * @param resting  the body's resting half width, as a tangent
      * @return the half width's tangent
      */
     private static double swollen(float progress, double resting) {
-        float swell = Mth.clamp((progress - SWELL_START) / (1F - SWELL_START), 0F, 1F);
-        return resting * Math.pow(SWOLLEN_HALF_TANGENT / resting, swell * swell);
+        double creep = Mth.clamp(progress, 0F, 1F);
+        float rush = Mth.clamp((progress - RUSH_START) / (1F - RUSH_START), 0F, 1F);
+        double swell = SWELL_START_RATE * creep + (1.0 - SWELL_START_RATE) * rush * rush;
+        return resting * Math.pow(SWOLLEN_HALF_TANGENT / resting, swell);
     }
 
     /**

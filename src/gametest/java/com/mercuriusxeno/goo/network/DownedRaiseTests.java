@@ -213,7 +213,7 @@ public final class DownedRaiseTests {
      */
     public static void raisedCowIsFairGame(GameTestHelper helper) {
         Zombie zombie = DownedTests.attacker(helper);
-        Cow cow = DownedTests.ralliedCow(helper);
+        Cow cow = DownedTests.ledCow(helper);
         DownedTests.downTo(helper, cow, zombie, HEALTH_BEFORE_THE_BLOW, BLOW_PAST_ITS_HEALTH);
         helper.runAfterDelay(RAISED_AFTER_TICKS, () -> {
             cow.heal(PAST_ZERO_HEAL);
@@ -227,7 +227,7 @@ public final class DownedRaiseTests {
     }
 
     /**
-     * A rallied cow struck down from a set health by a zombie's attack of a set damage.
+     * A led cow struck down from a set health by a zombie's attack of a set damage.
      *
      * @param helper the gametest helper
      * @param health the health the cow stands at when struck
@@ -236,7 +236,7 @@ public final class DownedRaiseTests {
      */
     private static Cow downedCow(GameTestHelper helper, float health, float damage) {
         Zombie zombie = DownedTests.attacker(helper);
-        Cow cow = DownedTests.ralliedCow(helper);
+        Cow cow = DownedTests.ledCow(helper);
         DownedTests.downTo(helper, cow, zombie, health, damage);
         helper.assertTrue(cow.hasData(GooAttachments.DOWNED), NOT_DOWNED);
         return cow;

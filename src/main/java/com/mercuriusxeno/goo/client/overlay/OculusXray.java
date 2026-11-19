@@ -1,11 +1,12 @@
 package com.mercuriusxeno.goo.client.overlay;
 
-import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.oculus.OculusNodes;
 import com.mercuriusxeno.goo.ability.program.BlinkLanding;
 import com.mercuriusxeno.goo.ability.program.TeleportStep;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.ber.style.OculusStyle;
 import com.mercuriusxeno.goo.client.model.OculusModels;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
@@ -30,15 +31,12 @@ import net.minecraft.util.Util;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalDouble;
+import java.util.function.Consumer;
 
 /**
  * Shows every oculus Blink can snap to through walls while Blink is the
@@ -49,7 +47,6 @@ import java.util.OptionalDouble;
  * beside it. The oculi are found again twice a second.
  * Decision oculus-prism-becomes-a-hovering-eye.
  */
-@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class OculusXray {
 
     /** Ticks between one look for oculi and the next. */
@@ -80,13 +77,16 @@ public final class OculusXray {
     }
 
     /**
-     * Draws the oculi in Blink's reach through walls once the world has drawn,
-     * while Blink is selected.
+     * Finds the oculi in Blink's reach again when the last look has gone
+     * stale, while Blink is selected, and hands the shared path the oculi,
+     * drawn through walls, sorted by the nearest oculus.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
+     * decision oculus-prism-becomes-a-hovering-eye
      *
-     * @param event the level render stage event
+     * @param frame the frame being drawn
+     * @param draws where the oculi's draw goes
      */
-    @SubscribeEvent
-    public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
         ClientAbility blink = player == null || mc.level == null ? null : selected(player);
@@ -99,7 +99,8 @@ public final class OculusXray {
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         Optional<BlockPos> target = BlinkAim.trip(player, blink, partialTick).flatMap(BlinkLanding::node);
         if (!SEEN.isEmpty()) {
-            drawAll(mc, event.getPoseStack(), target);
+            draws.accept(SortedDraw.nearestOf(SEEN.stream().map(Vec3::atCenterOf),
+                    mc.gameRenderer.getMainCamera().position(), () -> drawAll(mc, frame.poseStack(), target)));
         }
     }
 

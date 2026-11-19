@@ -13,7 +13,7 @@ import java.util.function.Supplier;
 /**
  * A gnat in Decay's swarm: it flies out with the speed the server sprayed
  * it with, then darts in a new direction every tick as it slows, so the
- * cone fills with a buzzing maroon cloud rather than a jet; a seeking gnat
+ * cone fills with a buzzing rot-green cloud rather than a jet; a seeking gnat
  * keeps its speed instead and steers onto its prey every tick; it hangs
  * weightless and fades out over two seconds or so
  * (decision decay-gnats-degrade-each-block-once).
@@ -105,12 +105,12 @@ public final class GnatParticle extends GloveMote {
         private final BlendPalette palette;
 
         /**
-         * Creates a provider over the gnat sprite, drawing Decay's maroon gnats.
+         * Creates a provider over the gnat sprite, drawing Decay's rotting gnats.
          *
          * @param sprites the sprite set
          */
         public Provider(SpriteSet sprites) {
-            this(sprites, BlendPalette.MAROON);
+            this(sprites, BlendPalette.ZOMBIE_ROT);
         }
 
         /**

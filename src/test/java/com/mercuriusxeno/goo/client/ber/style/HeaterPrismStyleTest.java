@@ -55,6 +55,6 @@ class HeaterPrismStyleTest {
     void onlyTheEmberGlowsWhileCharging() {
         assertTrue(HeaterPrismStyle.glowsWhileCharging(HeaterPrismStyle.EMBER));
         assertFalse(HeaterPrismStyle.glowsWhileCharging(GlacialStep.GLACIER_BLUE));
-        assertFalse(HeaterPrismStyle.glowsWhileCharging(DegradeStep.NETHER_MAROON));
+        assertFalse(HeaterPrismStyle.glowsWhileCharging(DegradeStep.ZOMBIE_ROT));
     }
 }

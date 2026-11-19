@@ -48,7 +48,7 @@ public record CharmStep() implements Step {
     }
 
     /**
-     * Charm refuses a rallied mob and a mob another player charmed.
+     * Charm refuses a led mob and a mob another player charmed.
      * refused-rally-or-charm-spends-no-goo
      *
      * @param caster the caster the Charm would act for

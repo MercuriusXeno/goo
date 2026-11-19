@@ -1,12 +1,13 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.program.SignalWaveStep;
 import com.mercuriusxeno.goo.ability.program.TickToggleStep;
 import com.mercuriusxeno.goo.ability.program.Variables;
 import com.mercuriusxeno.goo.ability.pulse.ZapDevice;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.LineContext;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.throwing.GloveAim;
@@ -20,14 +21,12 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Consumer;
+import java.util.stream.Stream;
 
 /**
  * Tick's ray and Zap's Signal wave. While right click holds Tick,
@@ -39,7 +38,6 @@ import java.util.concurrent.CopyOnWriteArrayList;
  * pulser-toggles-rapidly-while-held
  * zap-disperses-into-signal
  */
-@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class SignalRings {
 
     /** Rings in flight at once, evenly staggered along the ray. */
@@ -106,13 +104,15 @@ public final class SignalRings {
     }
 
     /**
-     * Draws the rings after the translucent blocks while Tick runs or a
-     * Zap's wave flies.
+     * Hands the shared path the rings while Tick runs or a Zap's wave flies,
+     * dropping the ended volleys first, sorted by the nearest hand or strike
+     * the rings leave from.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
      *
-     * @param event the level render stage event
+     * @param frame the frame being drawn
+     * @param draws where the rings' draw goes
      */
-    @SubscribeEvent
-    public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
         ClientAbility signal = player == null ? null : runningSignal(player);
@@ -120,15 +120,12 @@ public final class SignalRings {
             return;
         }
         double now = System.nanoTime() / NANOS_PER_SECOND;
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
-        LineContext lines = new LineContext(event.getPoseStack().last(), buffers.getBuffer(GooRenderTypes.LINES_GLOW));
-        float width = mc.getWindow().getAppropriateLineWidth() * WIDTH_SCALE;
+        BURSTS.removeIf(burst -> volleyEnded(now - burst.bornSeconds()));
+        Ray stream = signal == null ? null : streamRay(mc, player, signal);
+        List<Burst> bursts = List.copyOf(BURSTS);
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
-        if (signal != null) {
-            drawRings(lines, streamRay(mc, player, signal), camera, width, now);
-        }
-        drawVolleys(lines, camera, width, now);
-        buffers.endBatch(GooRenderTypes.LINES_GLOW);
+        Stream<Vec3> hands = Stream.concat(Stream.ofNullable(stream), bursts.stream().map(Burst::ray)).map(Ray::hand);
+        draws.accept(SortedDraw.nearestOf(hands, camera, () -> drawSignal(mc, frame, stream, bursts, camera, now)));
     }
 
     private static Ray streamRay(Minecraft mc, LocalPlayer player, ClientAbility signal) {
@@ -137,15 +134,18 @@ public final class SignalRings {
                 signal.delivery().range(), signal.delivery().coneDegrees(), shapeOf(signal));
     }
 
-    private static void drawVolleys(LineContext lines, Vec3 camera, float width, double now) {
-        BURSTS.forEach(burst -> {
-            double elapsed = now - burst.bornSeconds();
-            if (volleyEnded(elapsed)) {
-                BURSTS.remove(burst);
-            } else {
-                drawVolley(lines, burst.ray(), camera, width, elapsed);
-            }
-        });
+    private static void drawSignal(Minecraft mc, LevelFrame frame, @Nullable Ray stream, List<Burst> bursts,
+                                   Vec3 camera, double now) {
+        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        LineContext lines = new LineContext(frame.poseStack().last(), buffers.getBuffer(GooRenderTypes.LINES_GLOW));
+        float width = mc.getWindow().getAppropriateLineWidth() * WIDTH_SCALE;
+        if (stream != null) {
+            drawRings(lines, stream, camera, width, now);
+        }
+        for (Burst burst : bursts) {
+            drawVolley(lines, burst.ray(), camera, width, now - burst.bornSeconds());
+        }
+        buffers.endBatch(GooRenderTypes.LINES_GLOW);
     }
 
     private static void drawVolley(LineContext lines, Ray ray, Vec3 camera, float width, double elapsed) {

@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.network;
 
-import com.mercuriusxeno.goo.ability.zoo.Downed;
-import com.mercuriusxeno.goo.ability.zoo.Rallied;
+import com.mercuriusxeno.goo.ability.yarn.Downed;
+import com.mercuriusxeno.goo.ability.yarn.Led;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import com.mercuriusxeno.goo.registry.GooAttachments;
@@ -18,29 +18,29 @@ import java.util.UUID;
 import java.util.function.Consumer;
 
 /**
- * Gametests for a rallied mob falling downed instead of dying: a lethal
+ * Gametests for a led mob falling downed instead of dying: a lethal
  * attack downs it where a plain mob dies, the world's harm kills it
  * outright, attacks bounce off it for as long as it is down and lava does not, and it
- * dies 20 seconds after going down, its rally standing or not
+ * dies 20 seconds after going down, its lead standing or not
  * (decision rallied-mob-falls-downed-instead-of-dying).
  */
 @RegistersGameTests
 public final class DownedTests {
 
-    private static final String LETHAL_ATTACK_DOWNS_A_RALLIED_COW = "downed_lethal_attack_downs_a_rallied_cow";
+    private static final String LETHAL_ATTACK_DOWNS_A_LED_COW = "downed_lethal_attack_downs_a_led_cow";
     private static final String ATTACK_PAST_FIVE_SECONDS_LANDS_NOTHING =
             "downed_attack_past_five_seconds_lands_nothing";
     private static final String LAVA_KILLS_A_COW_DOWN_PAST_FIVE_SECONDS =
             "downed_lava_kills_a_cow_down_past_five_seconds";
-    private static final String LAVA_KILLS_A_RALLIED_COW_OUTRIGHT = "downed_lava_kills_a_rallied_cow_outright";
+    private static final String LAVA_KILLS_A_LED_COW_OUTRIGHT = "downed_lava_kills_a_led_cow_outright";
     private static final String COW_DIES_AT_TWENTY_SECONDS = "downed_cow_dies_at_twenty_seconds";
-    private static final String COW_DIES_AT_TWENTY_SECONDS_UNRALLIED =
-            "downed_cow_dies_at_twenty_seconds_unrallied";
+    private static final String COW_DIES_AT_TWENTY_SECONDS_UNLED =
+            "downed_cow_dies_at_twenty_seconds_unled";
 
     private static final BlockPos COW_POS = new BlockPos(2, 1, 3);
     private static final BlockPos PLAIN_COW_POS = new BlockPos(2, 1, 1);
     private static final BlockPos ZOMBIE_POS = new BlockPos(4, 1, 1);
-    /** Far past any cow's health, so the blow is lethal whatever a rally lifted it to. */
+    /** Far past any cow's health, so the blow is lethal whatever a lead lifted it to. */
     static final float LETHAL = 100f;
     /** Past the 5 second window a downed mob once shrugged hits off for, short of the death span. */
     private static final int PAST_FIVE_SECONDS_TICKS = 150;
@@ -52,15 +52,15 @@ public final class DownedTests {
     /** Past the 20 second death span. */
     static final int PAST_THE_DEATH_TICKS = Downed.DEATH_TICKS + 10;
 
-    private static final String RALLIED_COW_DIED = "The rallied cow should live through the lethal attack";
-    private static final String NOT_DOWNED = "The rallied cow should hold DOWNED after the lethal attack";
-    private static final String PLAIN_COW_LIVED = "The unrallied cow should die to the lethal attack";
+    private static final String LED_COW_DIED = "The led cow should live through the lethal attack";
+    private static final String NOT_DOWNED = "The led cow should hold DOWNED after the lethal attack";
+    private static final String PLAIN_COW_LIVED = "The unled cow should die to the lethal attack";
     private static final String ATTACK_KILLED = "An attack past 5 seconds down should leave the cow alive";
     private static final String ATTACK_RAISED = "An attack past 5 seconds down should leave the cow holding DOWNED";
     private static final String ATTACK_MOVED_THE_COUNT =
             "An attack should leave the cow's negative health at %s, reads %s";
     private static final String LAVA_SPARED = "Lava should kill the cow";
-    private static final String DOWNED_BY_LAVA = "Lava should kill the rallied cow without downing it";
+    private static final String DOWNED_BY_LAVA = "Lava should kill the led cow without downing it";
     private static final String DIED_TOO_SOON = "The downed cow should be alive and downed at 399 ticks";
     private static final String OUTLIVED_THE_SPAN = "The downed cow should be dead at 401 ticks";
 
@@ -85,17 +85,17 @@ public final class DownedTests {
      * @param registrar the test function registrar
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
-        GooTestFunctions.registerTest(registrar, LETHAL_ATTACK_DOWNS_A_RALLIED_COW,
+        GooTestFunctions.registerTest(registrar, LETHAL_ATTACK_DOWNS_A_LED_COW,
                 DownedTests::lethalAttackDownsARalliedCow);
         GooTestFunctions.registerTest(registrar, ATTACK_PAST_FIVE_SECONDS_LANDS_NOTHING,
                 DownedTests::attackPastFiveSecondsLandsNothing);
         GooTestFunctions.registerTest(registrar, LAVA_KILLS_A_COW_DOWN_PAST_FIVE_SECONDS,
                 DownedTests::lavaKillsACowDownPastFiveSeconds);
-        GooTestFunctions.registerTest(registrar, LAVA_KILLS_A_RALLIED_COW_OUTRIGHT,
+        GooTestFunctions.registerTest(registrar, LAVA_KILLS_A_LED_COW_OUTRIGHT,
                 DownedTests::lavaKillsARalliedCowOutright);
         GooTestFunctions.registerTest(registrar, COW_DIES_AT_TWENTY_SECONDS,
                 helper -> cowDiesAtTwentySeconds(helper, false));
-        GooTestFunctions.registerTest(registrar, COW_DIES_AT_TWENTY_SECONDS_UNRALLIED,
+        GooTestFunctions.registerTest(registrar, COW_DIES_AT_TWENTY_SECONDS_UNLED,
                 helper -> cowDiesAtTwentySeconds(helper, true));
         GooTestFunctions.registerTest(registrar, ZOMBIE_DROPS_THE_DOWNED_COW, DownedTests::zombieDropsTheDownedCow);
         GooTestFunctions.registerTest(registrar, BLOW_LEAVES_ITS_NEGATIVE_HEALTH,
@@ -103,7 +103,7 @@ public final class DownedTests {
     }
 
     /**
-     * A rallied cow at 4 health struck for 7 goes down carrying a negative
+     * A led cow at 4 health struck for 7 goes down carrying a negative
      * health of 4 less 7, minus 3
      * (decision downed-mob-revives-only-healed-past-zero).
      *
@@ -111,7 +111,7 @@ public final class DownedTests {
      */
     public static void blowLeavesTheCowItsNegativeHealth(GameTestHelper helper) {
         Zombie zombie = attacker(helper);
-        Cow cow = ralliedCow(helper);
+        Cow cow = ledCow(helper);
         float expected = HEALTH_BEFORE_THE_BLOW - BLOW_PAST_ITS_HEALTH;
         downTo(helper, cow, zombie, HEALTH_BEFORE_THE_BLOW, BLOW_PAST_ITS_HEALTH);
         helper.assertTrue(cow.hasData(GooAttachments.DOWNED), NOT_DOWNED);
@@ -135,7 +135,7 @@ public final class DownedTests {
     }
 
     /**
-     * A zombie targeting a rallied cow holds no target the tick after the
+     * A zombie targeting a led cow holds no target the tick after the
      * cow goes down, and an explicit aim at the cow past 5 seconds
      * down takes no hold either
      * (decision nothing-targets-a-downed-mob).
@@ -144,7 +144,7 @@ public final class DownedTests {
      */
     public static void zombieDropsTheDownedCow(GameTestHelper helper) {
         Zombie zombie = attacker(helper);
-        Cow cow = ralliedCow(helper);
+        Cow cow = ledCow(helper);
         zombie.setTarget(cow);
         helper.assertTrue(zombie.getTarget() == cow, NOT_AIMED);
         strike(helper, cow, zombie);
@@ -157,21 +157,21 @@ public final class DownedTests {
     }
 
     /**
-     * A lethal zombie attack downs a rallied cow, alive and holding DOWNED,
+     * A lethal zombie attack downs a led cow, alive and holding DOWNED,
      * and kills a plain cow.
      *
      * @param helper the gametest helper
      */
     public static void lethalAttackDownsARalliedCow(GameTestHelper helper) {
         Zombie zombie = attacker(helper);
-        Cow rallied = ralliedCow(helper);
+        Cow led = ledCow(helper);
         Cow plain = helper.spawnWithNoFreeWill(EntityType.COW, PLAIN_COW_POS);
 
-        strike(helper, rallied, zombie);
+        strike(helper, led, zombie);
         strike(helper, plain, zombie);
 
-        helper.assertTrue(rallied.isAlive(), RALLIED_COW_DIED);
-        helper.assertTrue(rallied.hasData(GooAttachments.DOWNED), NOT_DOWNED);
+        helper.assertTrue(led.isAlive(), LED_COW_DIED);
+        helper.assertTrue(led.hasData(GooAttachments.DOWNED), NOT_DOWNED);
         helper.assertFalse(plain.isAlive(), PLAIN_COW_LIVED);
         helper.succeed();
     }
@@ -185,7 +185,7 @@ public final class DownedTests {
      */
     public static void attackPastFiveSecondsLandsNothing(GameTestHelper helper) {
         Zombie zombie = attacker(helper);
-        Cow cow = ralliedCow(helper);
+        Cow cow = ledCow(helper);
         strike(helper, cow, zombie);
         helper.runAfterDelay(PAST_FIVE_SECONDS_TICKS, () -> {
             float before = cow.getData(GooAttachments.DOWNED).negativeHealth();
@@ -206,7 +206,7 @@ public final class DownedTests {
      */
     public static void lavaKillsACowDownPastFiveSeconds(GameTestHelper helper) {
         Zombie zombie = attacker(helper);
-        Cow cow = ralliedCow(helper);
+        Cow cow = ledCow(helper);
         strike(helper, cow, zombie);
         helper.assertTrue(cow.hasData(GooAttachments.DOWNED), NOT_DOWNED);
         helper.runAfterDelay(PAST_FIVE_SECONDS_TICKS, () -> {
@@ -217,12 +217,12 @@ public final class DownedTests {
     }
 
     /**
-     * Lethal lava damage on a rallied cow, never downed, kills it and lays no DOWNED.
+     * Lethal lava damage on a led cow, never downed, kills it and lays no DOWNED.
      *
      * @param helper the gametest helper
      */
     public static void lavaKillsARalliedCowOutright(GameTestHelper helper) {
-        Cow cow = ralliedCow(helper);
+        Cow cow = ledCow(helper);
         cow.hurtServer(helper.getLevel(), cow.damageSources().lava(), LETHAL);
         helper.assertFalse(cow.isAlive(), LAVA_SPARED);
         helper.assertFalse(cow.hasData(GooAttachments.DOWNED), DOWNED_BY_LAVA);
@@ -231,19 +231,19 @@ public final class DownedTests {
 
     /**
      * A downed cow left unhealed is alive and downed one tick short of 20
-     * seconds down and dead one tick past; with its rally taken off right
+     * seconds down and dead one tick past; with its lead taken off right
      * after it went down, the same
      * (decision downed-mob-dies-at-twenty-seconds-and-a-heal-floors-ten).
      *
      * @param helper        the gametest helper
-     * @param removeTheRally whether the rally is taken off right after the cow goes down
+     * @param removeTheLead whether the lead is taken off right after the cow goes down
      */
-    public static void cowDiesAtTwentySeconds(GameTestHelper helper, boolean removeTheRally) {
+    public static void cowDiesAtTwentySeconds(GameTestHelper helper, boolean removeTheLead) {
         Zombie zombie = attacker(helper);
-        Cow cow = ralliedCow(helper);
+        Cow cow = ledCow(helper);
         strike(helper, cow, zombie);
-        if (removeTheRally) {
-            cow.removeData(GooAttachments.RALLIED);
+        if (removeTheLead) {
+            cow.removeData(GooAttachments.LED);
         }
         helper.runAfterDelay(SHORT_OF_TWENTY_SECONDS_TICKS, () -> {
             helper.assertTrue(cow.isAlive(), DIED_TOO_SOON);
@@ -256,15 +256,15 @@ public final class DownedTests {
     }
 
     /**
-     * A cow holding a rally for a caster absent from the level, so the
-     * rally's own tick leaves it be.
+     * A cow holding a lead for a caster absent from the level, so the
+     * lead's own tick leaves it be.
      *
      * @param helper the gametest helper
-     * @return the rallied cow
+     * @return the led cow
      */
-    static Cow ralliedCow(GameTestHelper helper) {
+    static Cow ledCow(GameTestHelper helper) {
         Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, COW_POS);
-        cow.setData(GooAttachments.RALLIED, new Rallied(UUID.randomUUID(), 1f));
+        cow.setData(GooAttachments.LED, new Led(UUID.randomUUID(), 1f));
         return cow;
     }
 

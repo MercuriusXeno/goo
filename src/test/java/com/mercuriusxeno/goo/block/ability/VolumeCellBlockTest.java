@@ -854,6 +854,32 @@ class VolumeCellBlockTest {
     }
 
     /**
+     * A broken Phase cell gives back quantum goo, each layer a fifteenth of
+     * Phase's cost as quantum_phase.json ships it.
+     * phase-goo-puts-what-stands-in-it-out-of-phase
+     */
+    @Nested
+    class PhaseReclaim {
+
+        private static final int LAYERS = 11;
+
+        @Test
+        void phaseIsQuantumGooLaidByQuantumsPhase() {
+            assertEquals(List.of(GooTypes.QUANTUM, AbilityJson.idOf("quantum_phase.json")),
+                    List.of(CellBinding.PHASE.gooType(), CellBinding.PHASE.layingAbility()));
+        }
+
+        @Test
+        void aBrokenPhaseCellDropsQuantumGooAtFifteenthsOfPhasesCost() {
+            GooFraction cost = AbilityJson.decode("quantum_phase").cost().exactIn(GooValueTable.EMPTY);
+
+            assertEquals(Optional.of(new VolumeCellBlock.Reclaim(GooTypes.QUANTUM,
+                            cost.times(LAYERS).dividedBy(FIFTEEN).floor())),
+                    VolumeCellBlock.reclaimedBy(CellBinding.PHASE, LAYERS, cost));
+        }
+    }
+
+    /**
      * A broken Signal cell gives back pulse goo, each layer a fifteenth of
      * Signal's cost as pulse_signal.json ships it.
      * extend-is-dropped-for-signal-an-in-world-pulse-goo

@@ -43,18 +43,23 @@
     "CloudRendererSculkerMixin",
     "ClientPacketListenerGooMixin",
     "ClientPacketListenerGateCarryMixin",
+    "GameRendererPhasedHandsMixin",
     "GameRendererPortalViewMixin",
     "InterpolationHandlerGateCarryMixin",
+    "InventoryScreenPhasedDollMixin",
     "ItemInHandRendererSwingMixin",
+    "ItemStackLayerPhaseMixin",
     "LevelRendererSculkerCullMixin",
     "LevelRendererVoidstoneMixin",
     "LivingEntityRendererPhaseMixin",
     "MinecraftDevBranchTitleMixin",
     "GooQuickCraftScreenMixin",
     "GuiLowHealthJiggleMixin",
+    "GuiPhasedHeartsMixin",
     "PlayerModelAbilityPoseMixin",
     "ScreenEffectRendererGateMixin",
     "EntityScryOutlineColorMixin",
-    "MinecraftScryOutlineMixin"
+    "MinecraftScryOutlineMixin",
+    "MouseHandlerLunarHoldMixin"
   ]
 }

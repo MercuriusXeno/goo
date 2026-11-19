@@ -1,28 +1,28 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.network.ReapSwellPayload;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.SubmitCustomGeometryEvent;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * The swell on the client: a whole sphere of Growth's breeze swelling from
  * its centre out to its radius on an ease-out, then thinning away, drawn
  * through {@code reap_swell.fsh}. Verdant's prism sends it; Reap's slashes
- * draw through {@link ReapSlashBlades}.
+ * draw through {@link ReapSlashBlades}. A swell writes no depth, so it
+ * draws on the shared path after the clouds rather than in vanilla's main
+ * pass before them (operator ruling 2026-11-18).
  * reap-breeze-harvests-and-replants
  */
-@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class ReapSwells {
 
     /** Ticks a swell takes to thin away once it has reached its radius. */
@@ -86,12 +86,17 @@ public final class ReapSwells {
     }
 
     /**
-     * Draws every live swell, dropping each that has thinned away.
+     * Drops each swell that has thinned away and hands the shared path one
+     * draw per live swell, each sorted by the camera's distance to its
+     * centre.
+     * decision diagnose-and-correct-translucent-goo-visuals-that-depth-sort-wrong
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
+     * decision reap-breeze-harvests-and-replants
      *
-     * @param event the custom geometry submit event
+     * @param frame the frame being drawn
+     * @param draws where each swell's draw goes
      */
-    @SubscribeEvent
-    public static void onSubmitCustomGeometry(SubmitCustomGeometryEvent event) {
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) {
             return;
@@ -99,21 +104,25 @@ public final class ReapSwells {
         long tick = mc.level.getGameTime();
         LIVE.removeIf(swell -> swell.overAt(tick));
         float time = tick + mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        Vec3 camera = event.getLevelRenderState().cameraRenderState.pos;
+        Vec3 camera = frame.levelRenderState().cameraRenderState.pos;
         for (Swell swell : LIVE) {
             float radius = swell.radiusAt(time);
-            if (radius <= 0f) {
-                continue;
+            if (radius > 0f) {
+                int color = ARGB.color(ColorBytes.toByte(swell.strengthAt(time)), OPAQUE, 0, 0);
+                draws.accept(new SortedDraw(swell.center().distanceToSqr(camera),
+                        () -> drawSwell(frame.poseStack(), swell.center().subtract(camera), radius, color)));
             }
-            int color = ARGB.color(ColorBytes.toByte(swell.strengthAt(time)), OPAQUE, 0, 0);
-            PoseStack poseStack = event.getPoseStack();
-            poseStack.pushPose();
-            Vec3 corner = swell.center().subtract(camera).subtract(BurnoutGeometry.BLOCK_CENTER,
-                    BurnoutGeometry.BLOCK_CENTER, BurnoutGeometry.BLOCK_CENTER);
-            poseStack.translate(corner.x, corner.y, corner.z);
-            event.getSubmitNodeCollector().submitCustomGeometry(poseStack, GooRenderTypes.REAP_SWELL_TYPE,
-                    (pose, consumer) -> BurnoutGeometry.emitSphere(pose, consumer, radius, color));
-            poseStack.popPose();
         }
+    }
+
+    private static void drawSwell(PoseStack poseStack, Vec3 fromCamera, float radius, int color) {
+        MultiBufferSource.BufferSource buffers = Minecraft.getInstance().renderBuffers().bufferSource();
+        poseStack.pushPose();
+        Vec3 corner = fromCamera.subtract(BurnoutGeometry.BLOCK_CENTER, BurnoutGeometry.BLOCK_CENTER,
+                BurnoutGeometry.BLOCK_CENTER);
+        poseStack.translate(corner.x, corner.y, corner.z);
+        BurnoutGeometry.emitSphere(poseStack.last(), buffers.getBuffer(GooRenderTypes.REAP_SWELL_TYPE), radius, color);
+        poseStack.popPose();
+        buffers.endBatch(GooRenderTypes.REAP_SWELL_TYPE);
     }
 }

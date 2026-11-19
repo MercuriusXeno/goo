@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.block.ability.CrystalPrism;
 import com.mercuriusxeno.goo.block.ability.PrismColumn;
 import com.mercuriusxeno.goo.client.throwing.GooFlightRenderer;
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.core.Direction;
@@ -113,6 +114,26 @@ public final class PrismCrystal {
         } else {
             CrystalClusterSubmitter.submitFaces(poseStack, nodeCollector, renderType, foldFaces(foldShare), look,
                     light);
+        }
+    }
+
+    /**
+     * Emits the column with its resting sides into a vertex consumer, the
+     * geometry {@link #submitColumn} submits.
+     *
+     * @param pose      the pose, turned to stand on the landing face
+     * @param consumer  the vertex consumer, on the block atlas
+     * @param sides     the column's resting sides
+     * @param foldShare how far a four-sided column has folded from six sides, 0 to 1
+     * @param look      the column's look
+     * @param light     the packed light
+     */
+    public static void emitColumn(PoseStack.Pose pose, VertexConsumer consumer, ColumnSides sides, double foldShare,
+                                  CrystalClusterSubmitter.Look look, int light) {
+        if (sides == ColumnSides.SIX) {
+            CrystalClusterSubmitter.emit(pose, consumer, PRISMS, look, light);
+        } else {
+            CrystalClusterSubmitter.emitFaces(pose, consumer, foldFaces(foldShare), look, light);
         }
     }
 

@@ -5,7 +5,7 @@ import net.minecraft.util.Mth;
 
 /**
  * The pulsing glow outline a marked mob wears: vanilla's glow outline in a
- * mark's color, its brightness swelling and fading. Rally draws it in red and
+ * mark's color, its brightness swelling and fading. Lead draws it in red and
  * the outlined ailments in their own colors.
  * rallied-mobs-wear-a-red-clenched-fist
  * ailment-glisten-becomes-a-pulsing-outline

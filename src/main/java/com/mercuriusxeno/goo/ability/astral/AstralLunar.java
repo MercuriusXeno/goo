@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.ability.astral;
 import com.mercuriusxeno.goo.ability.zone.VoidPockets;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.lunar.Lunar;
+import com.mercuriusxeno.goo.network.StreamHolds;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooSounds;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -43,8 +44,13 @@ public final class AstralLunar {
     private static final double DRIFT = 1e-3;
     private static final float TONE_VOLUME = 1F;
     private static final float TONE_PITCH = 1F;
-    /** Server ticks a pull outlasts the last held tick it heard, so one late tick lets no caster go. */
-    private static final int HOLD_OUTLASTS = 1;
+    /**
+     * Server ticks a pull outlasts the last held tick it heard: as long as the press's stream hold carries over a
+     * gap, so a press the stream reads as the same hold finds its pull standing, and one it reads as a new press finds
+     * the pull let go.
+     * decision diagnose-and-correct-the-lunar-hold-that-does-nothing
+     */
+    private static final int HOLD_OUTLASTS = StreamHolds.LATEST_CONTINUING_GAP;
 
     /** Each holding caster's last held tick and the cost their carry takes. */
     private static final Map<UUID, Hold> HOLDS = new ConcurrentHashMap<>();

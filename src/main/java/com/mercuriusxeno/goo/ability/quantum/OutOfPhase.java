@@ -55,7 +55,7 @@ public record OutOfPhase(long expiresAt) {
     }
 
     /**
-     * A phase held from the glove, standing until its held effect ends.
+     * A phase that never fades, as the Eldritch Monstrosity enters a level with.
      *
      * @return the held phase
      */

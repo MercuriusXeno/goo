@@ -9,7 +9,7 @@ import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
  * Holds every hit a minion deals off every other minion, so harm that needs
  * no target kills none either: a charmed skeleton's stray arrow, a slime's
  * touch, a charmed creeper's blast. A canceled hit lands no damage, so it
- * ends no charm and no rally; a minion's hit on a mob that is no minion lands.
+ * ends no charm and no lead; a minion's hit on a mob that is no minion lands.
  * diagnose-and-correct-minions-killing-each-other
  */
 @EventBusSubscriber(modid = Goo.MODID)
@@ -35,8 +35,8 @@ public final class MinionHits {
     /**
      * Whether a hit is canceled before it lands.
      *
-     * @param sourceIsMinion whether the hit's source entity holds a charm or a rally
-     * @param victimIsMinion whether the entity hit holds a charm or a rally
+     * @param sourceIsMinion whether the hit's source entity holds a charm or a lead
+     * @param victimIsMinion whether the entity hit holds a charm or a lead
      * @return true for a hit to cancel
      */
     public static boolean cancels(boolean sourceIsMinion, boolean victimIsMinion) {

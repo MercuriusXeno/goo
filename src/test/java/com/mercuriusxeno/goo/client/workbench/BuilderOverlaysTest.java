@@ -36,7 +36,7 @@ class BuilderOverlaysTest {
     private static final int FEW_OPTIONS = 5;
 
     private static final Map<String, Function<BuilderOverlays.Anchor, BuilderOverlays.Placement>> POPUPS = Map.of(
-            "picker", at -> BuilderOverlays.placePicker(at, SCREEN_WIDTH, SCREEN_HEIGHT),
+            "picker", at -> BuilderOverlays.placePicker(at, GooTypePicker.ROWS, SCREEN_WIDTH, SCREEN_HEIGHT),
             "dropdown", at -> BuilderOverlays.placeDropdown(at, SearchDropdown.SHOWN, SCREEN_WIDTH, SCREEN_HEIGHT),
             "options", at -> BuilderOverlays.placeOptions(at, OPTIONS_WIDTH, FEW_OPTIONS, SCREEN_WIDTH,
                     SCREEN_HEIGHT),
