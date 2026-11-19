@@ -31,6 +31,8 @@ public final class LunarSight {
      * decision blue-star-is-a-planet-four-moons-wide-drawn-in-phases
      */
     public static final double PLANET_DISC_HALF_TANGENT = MOON_DISC_HALF_TANGENT * PLANET_MOONS_WIDE;
+    /** The cosine of the angle from the planet's center to its disc's edge. */
+    private static final double PLANET_DISC_COSINE = Math.cos(Math.atan(PLANET_DISC_HALF_TANGENT));
     /** A look anywhere on the planet's disc holds it, its disc wider than the moon's look reach. */
     private static final double PLANET_REACH_COSINE = Math.min(LOOK_REACH_COSINE,
             Math.cos(Math.atan(PLANET_DISC_HALF_TANGENT)));
@@ -181,8 +183,7 @@ public final class LunarSight {
 
     /**
      * What a look finds in a dimension's sky: the moon while it stands above the horizon, and the blue planet along
-     * its fixed direction for the caster's x while it shows, so the way home waits on the planet's lit phase and the
-     * light side, at any hour.
+     * its fixed direction for the caster's x while it shows, so the way home waits on seeing the planet, at any hour.
      * decision lunar-refuses-the-return-while-the-blue-star-is-hidden
      * decision blue-planet-hangs-fixed-with-its-height-set-by-x
      *
@@ -190,34 +191,49 @@ public final class LunarSight {
      * @param x                the caster's x, in blocks, which sets the planet's direction in lunar
      * @param look             the caster's look, any length
      * @param moonAngleDegrees the dimension's moon angle, in degrees, which lunar leaves unread
+     * @param sunAngleDegrees  the sun angle where the caster stands, in degrees, which the overworld's moon leaves
+     *                         unread
      * @param planetPhase      the blue planet's phase, which the overworld's moon leaves unread
      * @return the moon or the blue planet the look holds, empty where it holds neither
      */
     public static Optional<Sky> skyAt(ResourceKey<Level> dimension, double x, Vec3 look, float moonAngleDegrees,
-            MoonPhase planetPhase) {
+            float sunAngleDegrees, MoonPhase planetPhase) {
         Vec3 moon = moonDirection(moonAngleDegrees);
         if (Level.OVERWORLD.equals(dimension)) {
             return heldOrNone(Sky.MOON, moon.y() > 0.0 && holds(look, moon, LOOK_REACH_COSINE));
         }
         if (Lunar.LEVEL.equals(dimension)) {
-            return heldOrNone(Sky.BLUE_PLANET, planetShows(x, planetPhase)
+            return heldOrNone(Sky.BLUE_PLANET, planetShows(x, planetPhase, sunAngleDegrees)
                     && holds(look, planetDirection(x), PLANET_REACH_COSINE));
         }
         return Optional.empty();
     }
 
     /**
-     * Whether the blue planet shows over a lunar x: above the horizon there on a lit phase, at every hour, and never on
-     * the dark side, so a caster there travels back to the light side to see it.
+     * Whether the blue planet shows over a lunar x, strictly whether you can see it: above the horizon there on a lit
+     * phase, at every hour, and through its dark phase only while its disc stands in front of the sun, eclipsing it;
+     * never on the dark side, so a caster there travels back to the light side to see it.
      * decision lunar-refuses-the-return-while-the-blue-star-is-hidden
      * decision dark-side-is-the-half-of-the-moon-past-the-light-side
      *
-     * @param x           the x, in blocks
-     * @param planetPhase the planet's phase
+     * @param x               the x, in blocks
+     * @param planetPhase     the planet's phase
+     * @param sunAngleDegrees the sun angle over the x, in degrees
      * @return true while the planet shows there
      */
-    public static boolean planetShows(double x, MoonPhase planetPhase) {
-        return planetAboveTheHorizon(x) && planetPhase != MoonPhase.NEW_MOON;
+    public static boolean planetShows(double x, MoonPhase planetPhase, float sunAngleDegrees) {
+        return planetAboveTheHorizon(x) && (planetPhase != MoonPhase.NEW_MOON || eclipsesTheSun(x, sunAngleDegrees));
+    }
+
+    /**
+     * Whether the planet's disc stands in front of the sun's center over a lunar x.
+     *
+     * @param x               the x, in blocks
+     * @param sunAngleDegrees the sun angle over the x, in degrees
+     * @return true while the planet eclipses the sun
+     */
+    private static boolean eclipsesTheSun(double x, float sunAngleDegrees) {
+        return moonDirection(sunAngleDegrees).dot(planetDirection(x)) >= PLANET_DISC_COSINE;
     }
 
     private static Optional<Sky> heldOrNone(Sky sky, boolean held) {

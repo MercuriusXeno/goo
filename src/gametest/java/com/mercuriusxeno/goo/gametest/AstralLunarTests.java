@@ -348,9 +348,9 @@ public final class AstralLunarTests {
     }
 
     /**
-     * On lunar by a night the planet stands dark, the overworld's moon full, a caster holding the cast where the
-     * planet stands stays on lunar, holds no fixation, keeps every drop of their astral and is shown Terran's
-     * refusal, "That's not your world".
+     * On lunar by a day the planet stands dark, the overworld's moon full, with the sun well clear of the planet so
+     * nothing shows it, a caster holding the cast where the planet stands stays on lunar, holds no fixation, keeps
+     * every drop of their astral and is shown Terran's refusal, "That's not your world".
      * decision lunar-refuses-the-return-while-the-blue-star-is-hidden
      * decision terran-refusal-says-thats-not-your-world
      *
