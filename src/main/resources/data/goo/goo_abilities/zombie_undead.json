@@ -1,6 +1,6 @@
 {
-  "gooType": "nether",
-  "displayName": "goo.ability.nether.undead",
+  "gooType": "zombie",
+  "displayName": "goo.ability.zombie.undead",
   "cost_mechanics": "goo.ability.cost_mechanics.upkeep",
   "badge": "durative",
   "order": 50,

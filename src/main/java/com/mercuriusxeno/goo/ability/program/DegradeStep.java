@@ -35,10 +35,11 @@ public record DegradeStep(Identifier map, int ticks) implements TakesNoEntity {
     private static final String FIELD_MAP = "map";
     private static final String FIELD_TICKS = "ticks";
     /**
-     * The tint Decay's mingled block wears, nether goo's #C03434, so the
-     * block's own grays multiply down to a dark maroon.
+     * The tint Decay's mingled block wears, zombie goo's bright green #7AA85A,
+     * so the block's own grays multiply down to a rotting green.
+     * zombie-goo-is-colored-after-zombie-flesh-and-decay-stops-being-maroon
      */
-    public static final int NETHER_MAROON = 0xC03434;
+    public static final int ZOMBIE_ROT = 0x7AA85A;
 
     /**
      * Codec for the step's params.
@@ -67,8 +68,7 @@ public record DegradeStep(Identifier map, int ticks) implements TakesNoEntity {
             if (aim.reaching()) {
                 paintAimed(host, aim, found::next, marks);
             }
-            // the operator's ruling on Decay: its overlay wears the nether family's dark maroon
-            PaintedHold.buildPainted(host, found::next, marks, 1f / ticks, OptionalInt.of(NETHER_MAROON));
+            PaintedHold.buildPainted(host, found::next, marks, 1f / ticks, OptionalInt.of(ZOMBIE_ROT));
         }));
         return true;
     }

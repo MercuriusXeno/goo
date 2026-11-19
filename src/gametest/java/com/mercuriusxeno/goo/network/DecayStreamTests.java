@@ -26,7 +26,7 @@ import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
- * Gametests for nether decay: a held stream of gnats paints the stone it
+ * Gametests for zombie decay: a held stream of gnats paints the stone it
  * reaches, which keeps stepping toward cobblestone while the hold lasts
  * though the aim has left it, finishes alone once past nine tenths of its step even
  * after release, and within one hold steps no further than cobblestone
@@ -80,7 +80,7 @@ public final class DecayStreamTests {
     }
 
     /**
-     * A wounded player under nether's Undead holds decay at the open sky:
+     * A wounded player under zombie's Undead holds decay at the open sky:
      * the spray takes its caster in, and its bite heals the undead caster.
      * undead-player-counts-as-undead-for-heal-and-decay
      *
@@ -129,14 +129,14 @@ public final class DecayStreamTests {
      * @return the health the caster was wounded to
      */
     private static float holdDecayWounded(GameTestHelper helper, ServerPlayer caster) {
-        AbilityDefinition decay = AbilityRegistry.of(helper.getLevel()).getAbility(NETHER_DECAY);
+        AbilityDefinition decay = AbilityRegistry.of(helper.getLevel()).getAbility(ZOMBIE_DECAY);
         helper.assertTrue(decay != null, ABILITY_REQUIRED);
         Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(STAND_POS));
         caster.setPos(stand.x, stand.y, stand.z);
         caster.setYRot(FACING_EAST);
         caster.setXRot(LOOKING_AT_SKY);
         caster.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GooItems.GOO_GLOVE.get()));
-        caster.getInventory().add(GooStacks.createForOutput(GooTypes.NETHER, HELD_GOO * GooStacks.THOUSAND));
+        caster.getInventory().add(GooStacks.createForOutput(GooTypes.ZOMBIE, HELD_GOO * GooStacks.THOUSAND));
         KnownRecipes.teachRequires(caster, decay);
         // a fed player regenerates, which would heal the caster whatever the spray does
         caster.getFoodData().setFoodLevel(UNFED_FOOD);
@@ -152,7 +152,7 @@ public final class DecayStreamTests {
      * @return the step's ticks
      */
     private static int stepTicks(GameTestHelper helper) {
-        AbilityDefinition decay = AbilityRegistry.of(helper.getLevel()).getAbility(NETHER_DECAY);
+        AbilityDefinition decay = AbilityRegistry.of(helper.getLevel()).getAbility(ZOMBIE_DECAY);
         helper.assertTrue(decay != null, ABILITY_REQUIRED);
         return decay.behaviors().stream().filter(DegradeStep.class::isInstance).map(DegradeStep.class::cast)
                 .findFirst().orElseThrow().ticks();
@@ -195,8 +195,8 @@ public final class DecayStreamTests {
     private static final double PAST_NINE_TENTHS_SHARE = 0.95;
     /** Ticks past the step a block is given to finish it. */
     private static final int FINISH_MARGIN = 10;
-    private static final Identifier NETHER_DECAY = Identifier.parse("goo:nether_decay");
-    private static final String ABILITY_REQUIRED = "Ability registry must hold nether_decay";
+    private static final Identifier ZOMBIE_DECAY = Identifier.parse("goo:zombie_decay");
+    private static final String ABILITY_REQUIRED = "Ability registry must hold zombie_decay";
     private static final String SHOULD_BITE = "Decay's swarm should bite the vindicator in its cone";
     private static final String DECAY_HEALS_ZOMBIE = "decay_heals_a_wounded_zombie";
     private static final String DECAY_HEALS_UNDEAD_CASTER = "decay_heals_its_undead_caster";
@@ -309,7 +309,7 @@ public final class DecayStreamTests {
      * @param ticks  how many ticks it lasts
      */
     private static void hold(GameTestHelper helper, ServerPlayer player, int from, int ticks) {
-        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.NETHER), NETHER_DECAY.toString(),
+        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.ZOMBIE), ZOMBIE_DECAY.toString(),
                 player.getEyePosition(), player.getEyePosition());
         for (int held = 0; held < ticks; held++) {
             helper.runAfterDelay(from + held, () -> GooStreamHandler.streamTick(player, tick));
@@ -318,7 +318,7 @@ public final class DecayStreamTests {
 
     @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
     private static ServerPlayer decayer(GameTestHelper helper) {
-        AbilityDefinition decay = AbilityRegistry.of(helper.getLevel()).getAbility(NETHER_DECAY);
+        AbilityDefinition decay = AbilityRegistry.of(helper.getLevel()).getAbility(ZOMBIE_DECAY);
         helper.assertTrue(decay != null, ABILITY_REQUIRED);
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(STAND_POS));
@@ -326,7 +326,7 @@ public final class DecayStreamTests {
         player.setYRot(FACING_EAST);
         player.setXRot(LOOKING_AT_BLOCK);
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GooItems.GOO_GLOVE.get()));
-        player.getInventory().add(GooStacks.createForOutput(GooTypes.NETHER, HELD_GOO * GooStacks.THOUSAND));
+        player.getInventory().add(GooStacks.createForOutput(GooTypes.ZOMBIE, HELD_GOO * GooStacks.THOUSAND));
         KnownRecipes.teachRequires(player, decay);
         return player;
     }
