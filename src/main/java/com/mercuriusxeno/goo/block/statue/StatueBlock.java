@@ -4,11 +4,14 @@ import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.shapes.Shapes;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
@@ -35,6 +38,22 @@ public class StatueBlock extends BaseEntityBlock {
     @Override
     protected @NonNull MapCodec<? extends BaseEntityBlock> codec() {
         return CODEC;
+    }
+
+    /**
+     * A statue is the mob's shape in stone, so no face of it is solid: goo
+     * clings to its sides no more than to air and lies on no top of it.
+     * operator ruling 2026-11-18: goo shouldn't adhere to non-solid sides
+     *
+     * @param state the block state
+     * @param level the level
+     * @param pos   the statue
+     * @return an empty shape
+     */
+    @Override
+    protected @NonNull VoxelShape getBlockSupportShape(@NonNull BlockState state, @NonNull BlockGetter level,
+                                                       @NonNull BlockPos pos) {
+        return Shapes.empty();
     }
 
     /**
