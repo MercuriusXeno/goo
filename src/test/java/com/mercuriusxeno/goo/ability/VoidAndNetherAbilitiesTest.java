@@ -18,7 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
- * Hole is the one Void ability named Hole, Nether ships Infest and Tartarus, and Zombie ships Decay and Undead;
+ * Hole is the one Void ability named Hole, Nether ships Grudge, Infest and Tartarus, and Zombie ships Decay and Undead;
  * reads the shipped ability files and en_us.json through the classpath.
  * decision anti-moves-from-nether-to-void
  * decision tartarus-summons-a-gate-to-the-nether-like-end-and-zone
@@ -51,12 +51,13 @@ class VoidAndNetherAbilitiesTest {
     }
 
     /**
-     * Infest moves to zombie on its own thread; Tartarus stays on nether.
+     * Infest moves to zombie on its own thread; Tartarus stays on nether, and Grudge joins it.
      * decision zombie-goo-is-the-undead-and-takes-the-decay-abilities
+     * decision grudge-is-a-charged-crimson-nova-dealing-your-missing-health
      */
     @Test
-    void netherShipsInfestAndTartarus() {
-        assertEquals(Set.of("nether_infest", "nether_tartarus"), shippedPathsOf(GooTypes.NETHER));
+    void netherShipsGrudgeInfestAndTartarus() {
+        assertEquals(Set.of("nether_grudge", "nether_infest", "nether_tartarus"), shippedPathsOf(GooTypes.NETHER));
     }
 
     /**

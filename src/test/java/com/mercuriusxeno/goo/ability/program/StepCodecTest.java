@@ -45,6 +45,7 @@ class StepCodecTest {
                     new FrostCurve(300, 0.005f, 0.5f))),
             Map.entry("nova", new NovaStep(Expr.parse("2 + 6 * charge").getOrThrow(),
                     Expr.parse("4 + 12 * charge").getOrThrow(), 0.05f, 0.4f, new FrostCurve(300, 0.005f, 0.5f, 3f))),
+            Map.entry("grudge", new GrudgeStep(Expr.parse("2 + 6 * charge").getOrThrow())),
             Map.entry("freeze_blocks", new FreezeBlocksStep(Expr.literal(2))),
             Map.entry("coat", new CoatStep()),
             Map.entry("slick", new SlickStep(1.03, 1.08, 40, 1, 0.3)),
