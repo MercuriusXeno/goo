@@ -16,11 +16,11 @@
   "base_flight_time": 3,
   "map_color": "gold",
   "textures": {
-    "goo_tiny": "goo:item/opulent_goo_tiny",
-    "goo_small": "goo:item/opulent_goo_small",
-    "goo_base": "goo:item/opulent_goo_base",
-    "goo_large": "goo:item/opulent_goo_large",
-    "fluid_still": "goo:fluid/opulent_fluid",
-    "fluid_flowing": "goo:fluid/opulent_fluid"
+    "goo_tiny": "goo:item/ornate_goo_tiny",
+    "goo_small": "goo:item/ornate_goo_small",
+    "goo_base": "goo:item/ornate_goo_base",
+    "goo_large": "goo:item/ornate_goo_large",
+    "fluid_still": "goo:fluid/ornate_fluid",
+    "fluid_flowing": "goo:fluid/ornate_fluid"
   }
 }

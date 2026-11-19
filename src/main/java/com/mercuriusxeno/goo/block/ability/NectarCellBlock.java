@@ -7,14 +7,9 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.InsideBlockEffectApplier;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.shapes.CollisionContext;
-import net.minecraft.world.phys.shapes.EntityCollisionContext;
-import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.NonNull;
-import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -93,22 +88,6 @@ public class NectarCellBlock extends VolumeCellBlock {
 
     private void stick(Level level, Entity entity) {
         nectarIn(level).ifPresent(nectar -> NectarStick.touch(level, entity, nectar));
-    }
-
-    /**
-     * The goo a thing collides with: a thing stuck on Nectar passes through
-     * its wall coats, which it already hangs in, and meets only goo lying on
-     * a floor, so a thicker coat below is no ledge it stands on.
-     * operator UAT 2026-11-17: sneaking descends
-     */
-    @Override
-    protected @NonNull VoxelShape getCollisionShape(@NonNull BlockState state, @NonNull BlockGetter level,
-                                                    @NonNull BlockPos pos, @NonNull CollisionContext ctx) {
-        if (ctx instanceof EntityCollisionContext held && held.getEntity() instanceof LivingEntity living
-                && NectarStick.isStuck(living)) {
-            return boxOf(new GooShares(sharesOf(state, onAFloor(level, pos), cohesionIn(level)).floor(), Map.of()));
-        }
-        return super.getCollisionShape(state, level, pos, ctx);
     }
 
     /**

@@ -10,10 +10,6 @@ import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.type.GooTypes;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.mojang.serialization.Codec;
-import com.mojang.serialization.JsonOps;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
@@ -26,7 +22,6 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Consumer;
 
@@ -96,8 +91,6 @@ public final class LeechTests {
     /** Ticks long enough for a falling pig to land, with a margin. */
     private static final int FALL_TICKS = 20;
     private static final String FALL_UNHARMED = "A pig falling ten blocks onto %s should land hurt: %.2f of %.2f";
-    private static final String BEHAVIORS = "behaviors";
-    private static final String TYPE = "type";
     private static final String LEECH_GOO = "leech_goo";
     private static final String DEPLETE_CHANCE = "deplete_chance";
     private static final String STRIKE_DRAINS_LIFE = "a_strike_on_a_mob_in_leech_goo_heals_its_attacker";
@@ -251,28 +244,14 @@ public final class LeechTests {
     }
 
     /**
-     * The shipped abilities with Leech's deplete chance set to a value, by
-     * Leech's definition encoded, its leech goo step's chance rewritten and
-     * the definition decoded again.
+     * The shipped abilities with Leech's deplete chance set to a value.
      *
      * @param shipped the shipped abilities
      * @param chance  the deplete chance Leech carries
      * @return the abilities with Leech's chance set
      */
     private static AbilityRegistry withDepleteChance(AbilityRegistry shipped, double chance) {
-        Codec<AbilityDefinition> codec = AbilityDefinition.codecFor(LEECH);
-        JsonObject json = codec.encodeStart(JsonOps.INSTANCE, shipped.getAbility(LEECH)).getOrThrow()
-                .getAsJsonObject();
-        for (JsonElement behavior : json.getAsJsonArray(BEHAVIORS)) {
-            JsonObject step = behavior.getAsJsonObject();
-            if (LEECH_GOO.equals(step.get(TYPE).getAsString())) {
-                step.addProperty(DEPLETE_CHANCE, chance);
-            }
-        }
-        Map<Identifier, AbilityDefinition> abilities = new HashMap<>();
-        shipped.all().forEach(ability -> abilities.put(ability.id(), ability));
-        abilities.put(LEECH, codec.parse(JsonOps.INSTANCE, json).getOrThrow());
-        return new AbilityRegistry(abilities);
+        return HeldAbilitySteps.withStepFields(shipped, LEECH, LEECH_GOO, Map.of(DEPLETE_CHANCE, chance));
     }
 
     private static void layFullCell(GameTestHelper helper) {
