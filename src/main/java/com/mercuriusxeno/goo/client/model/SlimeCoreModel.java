@@ -155,6 +155,7 @@ public record SlimeCoreModel(BlockStateModel shell, BakedQuad.MaterialInfo core,
     private void addSlab(SlimeTop slab, Slabs slabs) {
         slabs.shell().addAll(SlimeTopQuads.topOf(slab, film));
         slabs.shell().addAll(SlimeTopQuads.joinsOf(slab, film));
+        slabs.shell().addAll(SlimeTopQuads.stepsOf(slab, film));
         SlimeTopQuads.rimsOf(slab, film).forEach((side, quads) ->
                 slabs.rims().computeIfAbsent(side, any -> new ArrayList<>()).addAll(quads));
         // operator UAT 2026-11-17: goo on a wall or under a ceiling holds a slime core as goo on a floor does

@@ -84,7 +84,7 @@ class VolumeCellLookTest {
                 new Cell("kinetic_slick", CellBinding.SLICK, "goo:fluid/kinetic_fluid", 0x3C6CFF),
                 new Cell("blaze_molten", CellBinding.MOLTEN, "goo:fluid/blaze_fluid", 0xFF750F),
                 new Cell("crystal_shatter", CellBinding.SHATTER, "goo:fluid/crystal_fluid", 0x5ED0F8),
-                new Cell("deep_host", CellBinding.HOST, "goo:fluid/deep_fluid", 0x16303E),
+                new Cell("sculk_creep", CellBinding.CREEP, "goo:fluid/sculk_fluid", 0x16303E),
                 new Cell("frost_rime", CellBinding.RIME, "goo:fluid/frost_fluid", 0xBCE7F5),
                 new Cell("glow_wisps", CellBinding.WISPS, "goo:fluid/glow_fluid", 0xFFE60F),
                 new Cell("hex_leech", CellBinding.LEECH, "goo:fluid/hex_fluid", 0x6A5AAF),
@@ -92,11 +92,12 @@ class VolumeCellLookTest {
                 new Cell("jelly_nectar", CellBinding.NECTAR, "goo:fluid/jelly_fluid", 0xE8505B),
                 new Cell("pulse_signal", CellBinding.SIGNAL, "goo:fluid/pulse_fluid", 0xDB0F0F),
                 new Cell("metal_spikes", CellBinding.SPIKES, "goo:fluid/metal_fluid", 0xCFCFCF),
-                new Cell("nether_infest", CellBinding.INFEST, "goo:fluid/nether_fluid", 0x723232),
+                new Cell("zombie_infest", CellBinding.INFEST, "goo:fluid/zombie_fluid", 0x56843E),
                 new Cell("leaf_vines", CellBinding.VINES, "goo:fluid/leaf_fluid", 0x8DD75F),
                 new Cell("unstable_nitro", CellBinding.NITRO, "goo:fluid/unstable_fluid", 0x55FF22),
                 new Cell("quantum_phase", CellBinding.PHASE, "goo:fluid/quantum_fluid", 0x6AD0F0),
-                new Cell("rock_mortar", CellBinding.MORTAR, "goo:fluid/rock_fluid", 0x8A6A50));
+                new Cell("rock_mortar", CellBinding.MORTAR, "goo:fluid/rock_fluid", 0x8A6A50),
+                new Cell("yarn_stitch", CellBinding.STITCH, "goo:fluid/yarn_fluid", 0xCBAE88));
     }
 
     @Nested

@@ -20,7 +20,7 @@ class CenteredAbilitiesTest {
                 .filter(ability -> ability.hasTag(AbilityTags.CENTERED))
                 .map(ability -> ability.id().getPath()).collect(Collectors.toSet());
 
-        assertEquals(Set.of("deep_click", "frost_orb", "hex_drain", "leaf_reap", "pulse_zap",
+        assertEquals(Set.of("pulse_click", "frost_orb", "hex_drain", "leaf_reap", "pulse_zap",
                 "crystal_glimmer", "metal_magnet"), centered);
     }
 }

@@ -7,7 +7,7 @@
 // Vines tangled over a rooted mob (decision vines-unpack-root-and-thorn):
 // the vanilla entity vertex transform with no lift, so the vines lie flush on
 // every face of the model, drawn at the model's own depth the way Petrify's
-// stone is. VineTangleLayer hands the foliage tint in Color's rgb, the
+// stone is. TangleLayer hands the foliage tint in Color's rgb, the
 // share of the mob the vines cover in its alpha, and the mob's skin size in
 // the overlay coordinates.
 

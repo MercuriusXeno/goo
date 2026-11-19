@@ -49,9 +49,25 @@ public final class DripFlights {
      * @param ability       the ability that threw it
      * @param landing       what its strike on a block lays, empty where it lays nothing
      * @param strikesLiving whether it ends on a living thing it meets, running the ability's entity steps on it
+     * @param paysFrom      where the caster pays for what it lays from
      */
     record Thrower(ResourceKey<Level> dimension, UUID caster, int casterId, AbilityDefinition ability,
-                   Optional<DripLanding> landing, boolean strikesLiving) {
+                   Optional<DripLanding> landing, boolean strikesLiving, PaysFrom paysFrom) {
+
+        /**
+         * A glove's thrower, paying from the goo the caster's inventory carries.
+         *
+         * @param dimension     the level the drip flies in
+         * @param caster        the player who threw it
+         * @param casterId      the caster's entity id
+         * @param ability       the ability that threw it
+         * @param landing       what its strike on a block lays
+         * @param strikesLiving whether it ends on a living thing it meets
+         */
+        Thrower(ResourceKey<Level> dimension, UUID caster, int casterId, AbilityDefinition ability,
+                Optional<DripLanding> landing, boolean strikesLiving) {
+            this(dimension, caster, casterId, ability, landing, strikesLiving, PaysFrom.INVENTORY);
+        }
     }
 
     /**
@@ -141,8 +157,9 @@ public final class DripFlights {
             return;
         }
         DripLanding landing = thrower.landing().get();
+        // sprayer-holds-a-canister-sideways-like-a-caulk-gun: a sprayer's drip pays from its canister as it lands
         ChannelHost host = PlayerHost.landing(level, caster, GooStreamHandler.placementPrice(caster,
-                thrower.ability()));
+                thrower.ability(), thrower.paysFrom()));
         landing.cellFed(host, strike).ifPresent(fed -> landing.feed(host, fed));
     }
 

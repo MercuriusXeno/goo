@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.ability.program;
 
-import com.mercuriusxeno.goo.ability.aging.Aging;
 import com.mercuriusxeno.goo.ability.hole.HoleOpening;
 import com.mercuriusxeno.goo.ability.pulse.ZapDevice;
 import com.mercuriusxeno.goo.ability.quantum.Portal;
@@ -60,7 +59,7 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
                           ResourceKey<GooTypeDefinition> gooType, String abilityId, Vec3 anchor, double size,
                           @Nullable UUID caster)
         implements PlacedFaceHost, ExplodeHost, AnchoredWorldHost, PlaceBlockHost, LingerHost, BlockBreakHost,
-        FloorScanHost, PowerPulseHost, MobSpawnHost, FrostHost, MeteorHost, AgingHost,
+        FloorScanHost, PowerPulseHost, MobSpawnHost, FrostHost, MeteorHost,
         WormholeHost, PortalHost, IgniteHost, HoleHost {
 
     private static final String ERR_UNKNOWN_BLOCK = "No block is registered as ";
@@ -242,15 +241,5 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
         SignalWaveStep.cellsBehind(cell, face, range, coneDegrees).stream()
                 .map(pos -> ZapDevice.handDevice(level, pos)).flatMap(Optional::stream).distinct()
                 .forEach(device -> ZapDevice.toggleByHand(level, device));
-    }
-
-    /**
-     * Starts aging the block the blob landed on, the struck block where the
-     * blob landed beside it (decision old-blob-ages-valuables-slowly).
-     */
-    @Override
-    public void startAging() {
-        BlockPos landedOn = level.getBlockState(cell).isAir() ? cell.relative(face.getOpposite()) : cell;
-        Aging.start(level, landedOn);
     }
 }

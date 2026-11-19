@@ -82,7 +82,7 @@ class GloveAimTest {
 
     @Test
     void clickAimsAsFarAsItsScanReads() {
-        assertEquals(32, GloveAim.aimRangeOf(shipped("deep_click"), null));
+        assertEquals(32, GloveAim.aimRangeOf(shipped("pulse_click"), null));
     }
 
     @Test

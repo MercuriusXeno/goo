@@ -1,6 +1,0 @@
-{
-  "source": "minecraft:coal_block",
-  "result": "minecraft:diamond_block",
-  "ticks": 168000,
-  "price": 200
-}
