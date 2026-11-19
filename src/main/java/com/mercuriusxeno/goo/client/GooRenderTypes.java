@@ -195,7 +195,7 @@ public final class GooRenderTypes {
             ));
 
     /**
-     * Shroom's held spore shell (decision held-visual-ghosts-the-landing-in-two-passes):
+     * Sculk's held spore shell (decision held-visual-ghosts-the-landing-in-two-passes):
      * plain colored quads through vanilla's position-color shader, translucent,
      * depth tested with depth write off, both faces drawn; its twin passes every
      * depth test so the shell shows through blocks.
@@ -207,10 +207,10 @@ public final class GooRenderTypes {
     public static final RenderPipeline SPORE_SHELL_THROUGH_BLOCKS = sorted(PipelineSort.ON_THE_PATH, colorShellPipeline(
             "spore_shell" + THROUGH_BLOCKS_SUFFIX, CompareOp.ALWAYS_PASS, BlendFunction.TRANSLUCENT));
 
-    /** RenderType for shroom's held spore shell over blocks. */
+    /** RenderType for sculk's held spore shell over blocks. */
     public static final RenderType SPORE_SHELL_TYPE = burnoutType(SPORE_SHELL);
 
-    /** RenderType for shroom's held spore shell through blocks. */
+    /** RenderType for sculk's held spore shell through blocks. */
     public static final RenderType SPORE_SHELL_THROUGH_BLOCKS_TYPE = burnoutType(SPORE_SHELL_THROUGH_BLOCKS);
 
     /**
@@ -1575,7 +1575,7 @@ public final class GooRenderTypes {
 
     /**
      * Registers the plain pipelines: the additive glow lines, Sight's fungus
-     * x-ray, and shroom's spore shell in both passes.
+     * x-ray, and sculk's spore shell in both passes.
      *
      * @param event the pipeline registration event
      */

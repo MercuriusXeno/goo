@@ -4,7 +4,7 @@ package com.mercuriusxeno.goo.ability.reap;
  * The kinds of plant Reap harvests, and when each is ripe: a crop at its
  * full age, a sweet berry bush bearing berries from age two, a cave vine
  * bearing glow berries, and cocoa at its full age. Nether wart is no kind of
- * Reap's: it is a fungus, shroom's to grow and reap.
+ * Reap's: it is a fungus, sculk's to grow and reap.
  * reap-breeze-harvests-and-replants
  */
 public enum RipeKind {

@@ -34,10 +34,10 @@ import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 /**
- * Shroom's Spores goo through the real paths: one of its stream's drips
+ * Sculk's Spores goo through the real paths: one of its stream's drips
  * lays a one-layer Spores cell; a full cell places fungal buds on its edge
  * spaces and none inside itself, spending a fixed count of layers a bud; and
- * the goo spreads no shroom network and gives what stands in it no mycosis
+ * the goo spreads no sculk network and gives what stands in it no mycosis
  * effect, only spores, and a mob dying on or near it bursts Mycosis' spores
  * and turns the grass block, dirt and coarse dirt around it to mycelium. Each test walls its cells in stone so no cell pours its layers
  * away.
@@ -49,7 +49,7 @@ import java.util.stream.Stream;
 @RegistersGameTests
 public final class SporesTests {
 
-    private static final String DRIP_LAYS_A_SHROOM_CELL = "spores_drip_lays_a_shroom_cell_of_one_layer";
+    private static final String DRIP_LAYS_A_SCULK_CELL = "spores_drip_lays_a_shroom_cell_of_one_layer";
     private static final String BUDS_ITS_EDGES = "spores_cell_buds_its_edges_and_spends_their_layers";
     private static final String SPREADS_NO_MYCELIUM = "spores_goo_on_mycelium_spreads_none_to_the_dirt_beside";
     private static final String GIVES_NO_MYCOSIS = "spores_goo_gives_a_zombie_standing_in_it_no_mycosis";
@@ -57,7 +57,7 @@ public final class SporesTests {
     private static final String DEATH_BURSTS_AND_MYCELIUM = "spores_zombie_dying_off_the_goo_bursts_and_grows_mycelium";
     private static final String DEATH_NEAR_THE_GOO = "spores_zombie_dying_near_the_goo_grows_mycelium";
     private static final String STREAM_DEATH_CONVERTS_NOTHING = "spores_stream_spored_zombie_dying_converts_no_dirt";
-    private static final Identifier MYCOSIS = Identifier.parse("goo:shroom_mycosis");
+    private static final Identifier MYCOSIS = Identifier.parse("goo:sculk_mycosis");
     private static final String DRIPS_SPARE_SHROOMS = "spores_drips_on_a_mushroom_and_a_bud_leave_them_standing";
     private static final String POUR_SPARES_SHROOMS = "spores_cell_pours_around_a_mushroom_and_a_bud_beside_it";
     private static final String RIPENING_SPARES_GOO = "spores_bud_ripening_beside_the_goo_keeps_both_spaces";
@@ -79,7 +79,7 @@ public final class SporesTests {
     private static final int STREAM_SPORE_TICKS = 600;
     /** The radius the stream's spores burst at. */
     private static final float STREAM_SPORE_RADIUS = 3f;
-    private static final Identifier SPORES = Identifier.parse("goo:shroom_spores");
+    private static final Identifier SPORES = Identifier.parse("goo:sculk_spores");
     /** The floor block the drip strikes, walled on its four sides one block up. */
     private static final BlockPos DRIP_FLOOR = new BlockPos(2, 1, 2);
     /** The full cell the tests lay, walled in stone, its edge spaces the wall tops beside it. */
@@ -88,7 +88,7 @@ public final class SporesTests {
     private static final BlockPos DIRT_BESIDE = CELL.below().east();
     /** Ticks the negative tests wait, several of the goo's periods as shipped. */
     private static final int SEVERAL_PERIODS = 100;
-    private static final String ABILITY_REQUIRED = "The ability registry must hold shroom_spores";
+    private static final String ABILITY_REQUIRED = "The ability registry must hold sculk_spores";
     private static final String DRIP_LAYERS_WRONG = "The cell over the floor should be Spores of 1 layer, stands %s";
     private static final String NOT_BUDDED = "A bud should stand on an edge space, none inside the cell, and the cell"
             + " stand %d layers lower a bud: %d buds placed, the cell stands %s";
@@ -98,7 +98,7 @@ public final class SporesTests {
     private static final String BYSTANDER_CLEAN = "The burst from the corpse should poison the bystander";
     private static final String NOT_CONVERTED = "%s under the corpse should be mycelium, stands %s";
     private static final String CONVERTED = "%s under the corpse should stand as it stood, stands %s";
-    private static final String SHROOM_DISPLACED = "%s should still stand with no Spores in its space, stands %s";
+    private static final String MUSHROOM_DISPLACED = "%s should still stand with no Spores in its space, stands %s";
     private static final String NOT_RIPENED = "The bud beside the goo should ripen to a mushroom and stay, stands %s";
     private static final String NOT_A_BUD = "A ripe bud whose mushroom cannot stand on stone in daylight should stay"
             + " a bud with no Spores in its space, stands %s";
@@ -116,7 +116,7 @@ public final class SporesTests {
      * @param registrar the test function registrar
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
-        GooTestFunctions.registerTest(registrar, DRIP_LAYS_A_SHROOM_CELL, SporesTests::dripLaysAShroomCell);
+        GooTestFunctions.registerTest(registrar, DRIP_LAYS_A_SCULK_CELL, SporesTests::dripLaysASculkCell);
         GooTestFunctions.registerTest(registrar, BUDS_ITS_EDGES, SporesTests::cellBudsItsEdgesAndSpendsTheirLayers);
         GooTestFunctions.registerTest(registrar, SPREADS_NO_MYCELIUM, SporesTests::gooOnMyceliumSpreadsNone);
         GooTestFunctions.registerTest(registrar, GIVES_NO_MYCOSIS, SporesTests::gooGivesAZombieNoMycosis);
@@ -137,18 +137,18 @@ public final class SporesTests {
      *
      * @param helper the gametest helper
      */
-    public static void dripLaysAShroomCell(GameTestHelper helper) {
+    public static void dripLaysASculkCell(GameTestHelper helper) {
         BlockPos cell = DRIP_FLOOR.above();
         helper.setBlock(DRIP_FLOOR, Blocks.STONE);
         helper.setBlock(cell, Blocks.AIR);
         wallIn(helper, cell);
         AbilityDefinition spores = spores(helper);
-        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.SHROOM);
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.SCULK);
         KnownRecipes.teachRequires(caster, spores);
         LandedDrips.landOn(helper, caster, spores, DRIP_FLOOR, 1);
         helper.getLevel().getServer().getPlayerList().remove(caster);
         BlockState state = helper.getBlockState(cell);
-        helper.assertTrue(state.is(GooBlocks.SHROOM_SPORES.get()) && state.getValue(VolumeCellBlock.LAYERS) == 1,
+        helper.assertTrue(state.is(GooBlocks.SCULK_SPORES.get()) && state.getValue(VolumeCellBlock.LAYERS) == 1,
                 String.format(DRIP_LAYERS_WRONG, state));
         helper.succeed();
     }
@@ -173,7 +173,7 @@ public final class SporesTests {
                     .count();
             BlockState cell = helper.getBlockState(CELL);
             int expected = VolumeCellBlock.MAX_LAYERS - (int) buds * perBud;
-            helper.assertTrue(buds > 0 && cell.is(GooBlocks.SHROOM_SPORES.get())
+            helper.assertTrue(buds > 0 && cell.is(GooBlocks.SCULK_SPORES.get())
                     && cell.getValue(VolumeCellBlock.LAYERS) == expected,
                     String.format(NOT_BUDDED, perBud, buds, cell));
         });
@@ -291,7 +291,7 @@ public final class SporesTests {
                         String.format(converts ? NOT_CONVERTED : CONVERTED, block, now));
             });
             BlockState cell = helper.getBlockState(CELL);
-            helper.assertTrue(cell.is(GooBlocks.SHROOM_SPORES.get())
+            helper.assertTrue(cell.is(GooBlocks.SCULK_SPORES.get())
                     && cell.getValue(VolumeCellBlock.LAYERS) == VolumeCellBlock.MAX_LAYERS,
                     String.format(CELL_SPENT, VolumeCellBlock.MAX_LAYERS, cell));
         });
@@ -353,7 +353,7 @@ public final class SporesTests {
             helper.setBlock(pos, block);
         });
         AbilityDefinition spores = spores(helper);
-        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.SHROOM);
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.SCULK);
         KnownRecipes.teachRequires(caster, spores);
         LandedDrips.landOn(helper, caster, spores, MUSHROOM_FLOOR, 1);
         LandedDrips.landOn(helper, caster, spores, BUD_FLOOR, 1);
@@ -361,7 +361,7 @@ public final class SporesTests {
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             shrooms.forEach((pos, block) -> {
                 BlockState now = helper.getBlockState(pos);
-                helper.assertTrue(now.is(block), String.format(SHROOM_DISPLACED, block, now));
+                helper.assertTrue(now.is(block), String.format(MUSHROOM_DISPLACED, block, now));
             });
             helper.succeed();
         });
@@ -387,7 +387,7 @@ public final class SporesTests {
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             shrooms.forEach((pos, block) -> {
                 BlockState now = helper.getBlockState(pos);
-                helper.assertTrue(now.is(block), String.format(SHROOM_DISPLACED, block, now));
+                helper.assertTrue(now.is(block), String.format(MUSHROOM_DISPLACED, block, now));
             });
             helper.succeed();
         });
@@ -414,7 +414,7 @@ public final class SporesTests {
                     .count();
             int left = VolumeCellBlock.MAX_LAYERS - (int) buds * perBud;
             BlockState cell = helper.getBlockState(CELL);
-            helper.assertTrue(cell.is(GooBlocks.SHROOM_SPORES.get()) && cell.getValue(VolumeCellBlock.LAYERS) == left,
+            helper.assertTrue(cell.is(GooBlocks.SCULK_SPORES.get()) && cell.getValue(VolumeCellBlock.LAYERS) == left,
                     String.format(CELL_DISPLACED, left, cell));
             helper.succeed();
         });
@@ -498,7 +498,7 @@ public final class SporesTests {
     private static void layFullCell(GameTestHelper helper, BlockPos cell) {
         helper.setBlock(cell.below(), Blocks.STONE);
         wallIn(helper, cell);
-        helper.setBlock(cell, GooBlocks.SHROOM_SPORES.get().defaultBlockState()
+        helper.setBlock(cell, GooBlocks.SCULK_SPORES.get().defaultBlockState()
                 .setValue(VolumeCellBlock.LAYERS, VolumeCellBlock.MAX_LAYERS));
     }
 

@@ -18,7 +18,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.List;
 
 /**
- * Sight's eye on the HUD: the shroom effect's icon draws an eye shut while no
+ * Sight's eye on the HUD: the sculk effect's icon draws an eye shut while no
  * fungus stands within Transmit's reach of the player, and open when one
  * does, so an open eye says a shift can start from here. The lid lifts and
  * falls through its frames over a quarter second rather than snapping.
@@ -45,7 +45,7 @@ public final class SightEyeIcon implements IClientMobEffectExtensions {
     private static final List<Identifier> FRAMES = List.of(eye("eye_shut"), eye("eye_third"),
             eye("eye_two_thirds"), eye("eye_open"));
 
-    /** The shroom effect's icon, which HeldEffectIcons registers. */
+    /** The sculk effect's icon, which HeldEffectIcons registers. */
     SightEyeIcon() {
     }
 
@@ -78,14 +78,14 @@ public final class SightEyeIcon implements IClientMobEffectExtensions {
     }
 
     /**
-     * The icon the inventory effect list draws for shroom's effect, Sight's ability icon,
+     * The icon the inventory effect list draws for sculk's effect, Sight's ability icon,
      * since the eye answers a fungus near the player in the world and the inventory hides it.
      * shroom-hud-eye-stays-and-its-inventory-icon-is-sights
      *
-     * @return Sight's icon texture, or null while no durative ability is synced for shroom
+     * @return Sight's icon texture, or null while no durative ability is synced for sculk
      */
     @Nullable Identifier inventoryIconTexture() {
-        return HeldEffectIcon.of(GooTypes.SHROOM);
+        return HeldEffectIcon.of(GooTypes.SCULK);
     }
 
     @Override

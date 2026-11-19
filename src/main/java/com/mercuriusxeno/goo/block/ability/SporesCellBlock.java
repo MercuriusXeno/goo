@@ -22,7 +22,7 @@ import java.util.Optional;
 import java.util.stream.Stream;
 
 /**
- * Shroom's Spores cell: the volume cell bound to Spores' goo, a passive
+ * Sculk's Spores cell: the volume cell bound to Spores' goo, a passive
  * Mycosis. Now and then it puffs its spore particle, as mycelium does, and
  * on each of its periods it places one fungal bud at age 0 on an edge space, a space beside the goo, at its level
  * or just above, that holds nothing and where a fungal bud can stand,

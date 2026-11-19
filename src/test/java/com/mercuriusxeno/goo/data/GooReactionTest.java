@@ -55,7 +55,7 @@ class GooReactionTest {
     @Test
     void zooReactionsLoad() throws IOException, URISyntaxException {
         Map<String, GooReaction> shipped = shippedReactions();
-        for (String name : List.of("zoo_from_unstable_shroom", "shroom_from_shroom_zoo",
+        for (String name : List.of("zoo_from_unstable_sculk", "sculk_from_sculk_zoo",
                 "nether_from_zoo_nether", "leaf_from_unstable_zoo")) {
             GooReaction reaction = shipped.get(name);
             assertNotNull(reaction, name + " is not shipped");

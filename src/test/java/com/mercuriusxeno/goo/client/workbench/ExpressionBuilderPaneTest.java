@@ -2072,11 +2072,11 @@ class ExpressionBuilderPaneTest {
     class MemberPickerGreysTypesTheReferentLacks {
 
         @Test
-        void aReferentHoldingShroomAndNetherLacksEveryOtherType() {
+        void aReferentHoldingSculkAndNetherLacksEveryOtherType() {
             assertEquals(Set.of("astral", "blaze", "crystal", "deep", "ender", "frost", "glow", "hex", "infinity",
                     "jelly", "kinetic", "leaf", "metal", "opulent", "pulse", "quantum", "rock", "typhoon", "unstable",
                     "void", "weird", "xeno", "yarn", "yore", "zombie", "zoo"),
-                    ExpressionBuilderPane.typesLackedBy(Set.of("shroom", "nether")));
+                    ExpressionBuilderPane.typesLackedBy(Set.of("sculk", "nether")));
         }
 
         @Test

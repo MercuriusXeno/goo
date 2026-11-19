@@ -21,7 +21,7 @@ class SporesStepTest {
     private static final float CHANCE = 0.1f;
     private static final BlockPos CELL = new BlockPos(3, 64, -7);
     private static final SporesStep SPORES = new SporesStep(20, 1, SPORE, CHANCE,
-            Identifier.fromNamespaceAndPath("goo", "shroom_mycosis"), 3f, 600, 3);
+            Identifier.fromNamespaceAndPath("goo", "sculk_mycosis"), 3f, 600, 3);
     private static final int STEPS = 100;
 
     @Test

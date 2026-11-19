@@ -77,7 +77,12 @@ public final class GooTypes {
     public static final ResourceKey<GooTypeDefinition> PULSE = bundled("pulse");
     public static final ResourceKey<GooTypeDefinition> QUANTUM = bundled("quantum");
     public static final ResourceKey<GooTypeDefinition> ROCK = bundled("rock");
-    public static final ResourceKey<GooTypeDefinition> SHROOM = bundled("shroom");
+    /**
+     * Shrooms and sculk are one goo type, in the sculk colors Deep wore.
+     * decision sculk-takes-deeps-coloration-and-shrooms-goes
+     * decision shroom-is-a-universal-sculk-input
+     */
+    public static final ResourceKey<GooTypeDefinition> SCULK = bundled("sculk");
     public static final ResourceKey<GooTypeDefinition> TYPHOON = bundled("typhoon");
     public static final ResourceKey<GooTypeDefinition> UNSTABLE = bundled("unstable");
     /**
@@ -121,7 +126,7 @@ public final class GooTypes {
      */
     public static final List<ResourceKey<GooTypeDefinition>> BUNDLED = List.of(
             ASTRAL, BLAZE, CRYSTAL, DEEP, ENDER, FROST, GLOW, HEX, INFINITY, JELLY, KINETIC, LEAF,
-            METAL, NETHER, OPULENT, PULSE, QUANTUM, ROCK, SHROOM, TYPHOON, UNSTABLE, VOID, WEIRD, XENO, YARN, YORE,
+            METAL, NETHER, OPULENT, PULSE, QUANTUM, ROCK, SCULK, TYPHOON, UNSTABLE, VOID, WEIRD, XENO, YARN, YORE,
             ZOMBIE, ZOO);
 
     /**

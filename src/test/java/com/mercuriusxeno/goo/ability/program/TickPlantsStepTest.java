@@ -21,7 +21,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * Growth's tick grows each growing plant, nether wart left to shroom, and
+ * Growth's tick grows each growing plant, nether wart left to sculk, and
  * throws the bone-meal sparkle at every plant it grows, whatever the random
  * source answers (decision every-ticked-plant-throws-the-sparkle).
  */
@@ -46,7 +46,7 @@ class TickPlantsStepTest {
     }
 
     /**
-     * Of a crop and nether wart, both taking random ticks, Growth grows the crop: nether wart is shroom's to grow.
+     * Of a crop and nether wart, both taking random ticks, Growth grows the crop: nether wart is sculk's to grow.
      */
     // decision growth-breeze-ticks-plants
     @Test

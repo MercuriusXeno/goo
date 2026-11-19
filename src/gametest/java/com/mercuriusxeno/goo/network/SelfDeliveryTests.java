@@ -88,7 +88,7 @@ public final class SelfDeliveryTests {
     private static final float FACING_EAST = -90f;
     private static final Identifier ENDER_BLINK = Identifier.parse("goo:ender_blink");
     private static final Identifier BLAZE_KINDLE = Identifier.parse("goo:blaze_kindle");
-    private static final Identifier SHROOM_SIGHT = Identifier.parse("goo:shroom_sight");
+    private static final Identifier SCULK_SIGHT = Identifier.parse("goo:sculk_sight");
     private static final String SHOULD_SEE = "Once Sight lands the player should hold fungal sight";
     private static final Identifier YARN_HERD = Identifier.parse("goo:yarn_herd");
     private static final String SHOULD_HOLD_HERD = "Once Herd lands the player should hold Herd";
@@ -372,8 +372,8 @@ public final class SelfDeliveryTests {
      * @param helper the gametest helper
      */
     public static void sightHoldsTheSight(GameTestHelper helper) {
-        ServerPlayer player = HeartOverlayTests.selfInvoked(helper, GooTypes.SHROOM, SHROOM_SIGHT);
-        boolean held = player.getData(GooAttachments.HELD_EFFECTS).holds(SHROOM_SIGHT);
+        ServerPlayer player = HeartOverlayTests.selfInvoked(helper, GooTypes.SCULK, SCULK_SIGHT);
+        boolean held = player.getData(GooAttachments.HELD_EFFECTS).holds(SCULK_SIGHT);
         boolean sees = player.getData(GooAttachments.SIGHT).standsAt(player.level().getGameTime());
         helper.getLevel().getServer().getPlayerList().remove(player);
         helper.assertTrue(held, SHOULD_BE_HELD);

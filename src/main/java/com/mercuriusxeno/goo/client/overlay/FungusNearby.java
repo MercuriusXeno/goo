@@ -16,7 +16,7 @@ import net.minecraft.core.BlockPos;
  */
 public final class FungusNearby {
 
-    private static final String TRANSMIT = "goo:shroom_transmit";
+    private static final String TRANSMIT = "goo:sculk_transmit";
     /** Transmit's reach to a fungus when the player holds no synced copy of it. */
     private static final double FALLBACK_NEAR = 3;
 

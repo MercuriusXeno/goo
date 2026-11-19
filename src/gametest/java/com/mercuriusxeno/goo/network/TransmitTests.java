@@ -48,8 +48,8 @@ public final class TransmitTests {
     }
 
 
-    private static final Identifier TRANSMIT = Identifier.parse("goo:shroom_transmit");
-    private static final Identifier SHROOM_SIGHT = Identifier.parse("goo:shroom_sight");
+    private static final Identifier TRANSMIT = Identifier.parse("goo:sculk_transmit");
+    private static final Identifier SCULK_SIGHT = Identifier.parse("goo:sculk_sight");
     /** The light bay's west edge, on its floor. */
     private static final BlockPos STAND_POS = new BlockPos(0, 0, 8);
     /** Fifteen blocks east of the player, well within Transmit's base range. */
@@ -67,16 +67,16 @@ public final class TransmitTests {
     private static final Vec3 NEAR_MISS = new Vec3(0.5, 0.2, 1.05);
     /** Low on the aimed block, inside a mushroom's outline, which stands six pixels tall. */
     private static final Vec3 AIM_IN_BLOCK = new Vec3(0.5, 0.2, 0.5);
-    private static final String ABILITY_REQUIRED = "Ability registry must hold shroom_transmit";
+    private static final String ABILITY_REQUIRED = "Ability registry must hold sculk_transmit";
     private static final String SHOULD_STAND_ON = "The player should stand on the mushroom, stands at %s";
-    private static final String SHOULD_DRAIN = "Transmit should drain some shroom, drained %d";
+    private static final String SHOULD_DRAIN = "Transmit should drain some sculk, drained %d";
 
     private TransmitTests() {
     }
 
     /**
      * Released aimed at a red mushroom fifteen blocks off, the player stands
-     * in the mushroom's cell and some shroom drains.
+     * in the mushroom's cell and some sculk drains.
      *
      * @param helper the gametest helper
      */
@@ -85,7 +85,7 @@ public final class TransmitTests {
         ServerPlayer player = casterAimedAt(helper, Blocks.RED_MUSHROOM, transmit);
         int heldBefore = held(player);
 
-        SelfDeliveryTests.invoke(player, GooTypes.SHROOM, TRANSMIT);
+        SelfDeliveryTests.invoke(player, GooTypes.SCULK, TRANSMIT);
 
         BlockPos standing = player.blockPosition();
         int drained = heldBefore - held(player);
@@ -107,7 +107,7 @@ public final class TransmitTests {
         ServerPlayer player = casterAimedAt(helper, Blocks.RED_MUSHROOM, transmit);
         player.lookAt(EntityAnchorArgument.Anchor.EYES, Vec3.atLowerCornerOf(helper.absolutePos(AIMED_POS)).add(NEAR_MISS));
 
-        SelfDeliveryTests.invoke(player, GooTypes.SHROOM, TRANSMIT);
+        SelfDeliveryTests.invoke(player, GooTypes.SCULK, TRANSMIT);
 
         BlockPos standing = player.blockPosition();
         helper.getLevel().getServer().getPlayerList().remove(player);
@@ -129,8 +129,8 @@ public final class TransmitTests {
         ServerPlayer player = casterAimedAt(helper, Blocks.RED_MUSHROOM_BLOCK, transmit, CORNER_POS, highAbove);
         openTheCeilingAbove(helper, CORNER_POS);
 
-        HeartOverlayTests.invoke(player, GooTypes.SHROOM, SHROOM_SIGHT);
-        SelfDeliveryTests.invoke(player, GooTypes.SHROOM, TRANSMIT);
+        HeartOverlayTests.invoke(player, GooTypes.SCULK, SCULK_SIGHT);
+        SelfDeliveryTests.invoke(player, GooTypes.SCULK, TRANSMIT);
 
         BlockPos standing = player.blockPosition();
         helper.getLevel().getServer().getPlayerList().remove(player);
@@ -169,8 +169,8 @@ public final class TransmitTests {
             helper.setBlock(WALL_POS.above(y), Blocks.STONE);
         }
 
-        HeartOverlayTests.invoke(player, GooTypes.SHROOM, SHROOM_SIGHT);
-        SelfDeliveryTests.invoke(player, GooTypes.SHROOM, TRANSMIT);
+        HeartOverlayTests.invoke(player, GooTypes.SCULK, SCULK_SIGHT);
+        SelfDeliveryTests.invoke(player, GooTypes.SCULK, TRANSMIT);
 
         BlockPos standing = player.blockPosition();
         helper.getLevel().getServer().getPlayerList().remove(player);
@@ -213,7 +213,7 @@ public final class TransmitTests {
         helper.setBlock(at, aimed);
         // a Transmit cast starts near a fungus: one stands beside the player, off the look
         helper.setBlock(from.south(), Blocks.BROWN_MUSHROOM);
-        ServerPlayer player = SelfDeliveryTests.invoker(helper, GooTypes.SHROOM, TRANSMIT);
+        ServerPlayer player = SelfDeliveryTests.invoker(helper, GooTypes.SCULK, TRANSMIT);
         KnownRecipes.teachRequires(player, transmit);
         Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(from));
         player.setPos(stand.x, stand.y, stand.z);
@@ -222,6 +222,6 @@ public final class TransmitTests {
     }
 
     private static int held(ServerPlayer player) {
-        return GooSourceScanner.aggregateAvailable(player).getOrDefault(GooTypes.SHROOM, 0);
+        return GooSourceScanner.aggregateAvailable(player).getOrDefault(GooTypes.SCULK, 0);
     }
 }

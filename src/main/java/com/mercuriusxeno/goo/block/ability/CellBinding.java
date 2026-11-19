@@ -15,7 +15,7 @@ import net.minecraft.resources.ResourceKey;
  * Crystal's shatter, Deep's host, Frost's rime, Glow's wisps, Hex's leech,
  * Typhoon's updraft, Jelly's nectar, Pulse's signal, Metal's spikes,
  * Nether's infest, Leaf's vines, Unstable's nitro, Quantum's phase and
- * Shroom's spores are bound so far, and another goo type ships its world goo
+ * Sculk's spores are bound so far, and another goo type ships its world goo
  * as another binding.
  * slime-and-slick-are-one-volume-cell-tech
  * each-goo-type-ships-a-world-goo-on-the-volume-cell
@@ -79,8 +79,8 @@ public record CellBinding(ResourceKey<GooTypeDefinition> gooType, Identifier lay
     /** The ability laying Leaf's goo, Vines, whose cost prices a whole block of it. */
     public static final Identifier VINES_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "leaf_vines");
 
-    /** The ability laying Shroom's goo, Spores, whose cost prices a whole block of it. */
-    public static final Identifier SPORES_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "shroom_spores");
+    /** The ability laying Sculk's goo, Spores, whose cost prices a whole block of it. */
+    public static final Identifier SPORES_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "sculk_spores");
     /** The ability laying Unstable's goo, Nitro, whose cost prices a whole block of it. */
     public static final Identifier NITRO_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "unstable_nitro");
 
@@ -158,10 +158,10 @@ public record CellBinding(ResourceKey<GooTypeDefinition> gooType, Identifier lay
     public static final CellBinding VINES = new CellBinding(GooTypes.LEAF, VINES_ABILITY, CellSurface.ENTANGLE,
             FluidFooting.NONE);
     /**
-     * Shroom's goo: Spores lays it, and it stands as ordinary ground.
+     * Sculk's goo: Spores lays it, and it stands as ordinary ground.
      * spores-is-shrooms-residual-a-passive-mycosis
      */
-    public static final CellBinding SPORES = new CellBinding(GooTypes.SHROOM, SPORES_ABILITY, CellSurface.POOL,
+    public static final CellBinding SPORES = new CellBinding(GooTypes.SCULK, SPORES_ABILITY, CellSurface.POOL,
             FluidFooting.NONE);
     /**
      * Unstable's goo: Nitro lays it, and it stands as ordinary ground.
