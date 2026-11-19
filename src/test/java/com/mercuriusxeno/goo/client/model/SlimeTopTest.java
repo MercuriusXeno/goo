@@ -1,5 +1,8 @@
 package com.mercuriusxeno.goo.client.model;
 
+import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
+import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+import net.minecraft.client.resources.model.geometry.BakedQuad;
 import net.minecraft.core.Direction;
 import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
@@ -8,6 +11,8 @@ import java.util.Random;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.withSettings;
 
 /**
  * The heights a goo block's sloped top stands at, in layers above the
@@ -20,6 +25,10 @@ class SlimeTopTest {
     private static final double EPSILON = 1e-9;
     private static final long PILE_SEED = 23L;
     private static final int PILES = 200;
+    /** The sprite records no call, since the reach sweep bakes every quad of thousands of blocks against it. */
+    private static final BakedQuad.MaterialInfo MATERIAL = new BakedQuad.MaterialInfo(
+            mock(TextureAtlasSprite.class, withSettings().stubOnly()), ChunkSectionLayer.TRANSLUCENT, null,
+            SlimeCoreModel.SHELL_TINT, true, 0, false);
     private static final int WEST = 0;
     private static final int NORTH = 0;
     private static final int EAST = 3;
@@ -152,9 +161,9 @@ class SlimeTopTest {
      * Seeded random piles, each a 3 by 3 field of columns of 0 to 45
      * layers on a solid floor: changing any one cell standing two blocks
      * from a block on some axis, emptying it where goo stands and filling it
-     * where none does, leaves that block's heights, rims, steps and covered
-     * flag as they stood, so the client's re-mesh of the blocks within one
-     * of a change keeps every block's drawing current.
+     * where none does, leaves every quad that block draws as it stood, its
+     * shell's and its core's alike, so the client's re-mesh of the blocks
+     * within one of a change keeps every block's drawing current.
      * full-goo-block-under-goo-is-a-whole-cube
      */
     @Test
@@ -171,25 +180,38 @@ class SlimeTopTest {
             int z = random.nextInt(3);
             int y = random.nextInt(Math.max(1, (columns[x][z] + 14) / 15));
             SameGooCells pile = pileOf(columns);
-            SlimeTop before = SlimeTop.of(pile.shiftedBy(x, y, z));
+            List<String> before = quadsDrawnBy(pile.shiftedBy(x, y, z));
             for (int[] far : cellsTwoBlocksFrom(x, y, z)) {
                 int layers = pile.layersAt(far[0], far[1], far[2]) > 0 ? 0 : 15;
-                SlimeTop after = SlimeTop.of(pileOf(columns).at(far[0], far[1], far[2], layers).shiftedBy(x, y, z));
-                assertShapeKept(before, after, "trial " + trial + " block " + x + "," + y + "," + z + " after "
+                List<String> after = quadsDrawnBy(pileOf(columns).at(far[0], far[1], far[2], layers)
+                        .shiftedBy(x, y, z));
+                assertEquals(before, after, "trial " + trial + " block " + x + "," + y + "," + z + " after "
                         + layers + " layers at " + far[0] + "," + far[1] + "," + far[2]);
             }
         }
     }
 
-    private static void assertShapeKept(SlimeTop before, SlimeTop after, String where) {
-        for (int a = WEST; a <= EAST; a++) {
-            for (int b = NORTH; b <= SOUTH; b++) {
-                assertEquals(before.heightAt(a, b), after.heightAt(a, b), EPSILON, where + " height " + a + "," + b);
+    /**
+     * Every quad a block draws on its floor, its shell's and its core's,
+     * each keyed by its direction and its vertex positions, in a fixed order.
+     */
+    private static List<String> quadsDrawnBy(LayersAround around) {
+        SlimeTop top = SlimeTop.of(around);
+        List<BakedQuad> quads = new ArrayList<>(SlimeTopQuads.topOf(top, MATERIAL));
+        SlimeTopQuads.rimsOf(top, MATERIAL).values().forEach(quads::addAll);
+        quads.addAll(SlimeTopQuads.joinsOf(top, MATERIAL));
+        quads.addAll(SlimeTopQuads.stepsOf(top, MATERIAL));
+        quads.addAll(SlimeCoreQuads.quadsOf(around, MATERIAL));
+        List<String> keys = new ArrayList<>();
+        for (BakedQuad quad : quads) {
+            StringBuilder key = new StringBuilder(quad.direction().toString());
+            for (int vertex = 0; vertex < BakedQuad.VERTEX_COUNT; vertex++) {
+                key.append(' ').append(quad.position(vertex));
             }
+            keys.add(key.toString());
         }
-        assertEquals(before.rims(), after.rims(), where + " rims");
-        assertEquals(before.steps(), after.steps(), where + " steps");
-        assertEquals(before.covered(), after.covered(), where + " covered");
+        keys.sort(null);
+        return keys;
     }
 
     /** Every cell standing exactly two blocks from a block on its farthest axis. */
