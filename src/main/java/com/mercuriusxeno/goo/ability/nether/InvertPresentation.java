@@ -22,6 +22,11 @@ public record InvertPresentation(float cameraRoll, boolean modelUpsideDown, floa
     private static final InvertPresentation ROLLED = new InvertPresentation(HALF_TURN, true, -1F);
     /** An inverted player seen from outside its eyes. */
     private static final InvertPresentation FLIPPED = new InvertPresentation(0F, true, 1F);
+    /**
+     * Twice the eighth of a block the player renderer drops a crouching model
+     * by: once to take the drop back and once to raise the model by it.
+     */
+    private static final float CROUCH_DROP_TAKEN_BACK_AND_RAISED = 4F / 16F;
 
     /**
      * The presentation of a player.
@@ -35,6 +40,21 @@ public record InvertPresentation(float cameraRoll, boolean modelUpsideDown, floa
             return UPRIGHT;
         }
         return firstPerson ? ROLLED : FLIPPED;
+    }
+
+    /**
+     * The world height a crouching model's drawing moves by on top of the
+     * player renderer's crouch offset, which drops every crouching model an
+     * eighth of a block; an upside-down model takes twice that back, so its
+     * crouch rises toward its ceiling by the eighth.
+     *
+     * @param upsideDown whether the model draws upside down
+     * @param crouching  whether the player crouches
+     * @param scale      the model's scale
+     * @return the height added to the render offset
+     */
+    public static float crouchCorrection(boolean upsideDown, boolean crouching, float scale) {
+        return upsideDown && crouching ? CROUCH_DROP_TAKEN_BACK_AND_RAISED * scale : 0F;
     }
 
 }
