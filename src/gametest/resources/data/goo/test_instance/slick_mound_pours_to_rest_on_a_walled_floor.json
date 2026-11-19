@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:slick_mound_pours_to_rest_on_a_walled_floor",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 600,
+  "setup_ticks": 0,
+  "required": true
+}

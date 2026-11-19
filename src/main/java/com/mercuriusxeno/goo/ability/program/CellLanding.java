@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.block.ability.SideCoat;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
+import com.mercuriusxeno.goo.block.ability.WispBlock;
 import com.mercuriusxeno.goo.throwing.CoatRay;
 import com.mercuriusxeno.goo.type.Adhesion;
 import net.minecraft.core.BlockPos;
@@ -151,13 +152,13 @@ final class CellLanding {
         @Override
         public boolean takesACell(BlockPos pos) {
             // operator UAT 2026-11-17: drips are never eaten; a full block of its goo is a top a drip lays on
-            return host.airAt(pos) && cell.onAFloor(host.level(), pos);
+            return WispBlock.readsAsAir(host.stateAt(pos)) && cell.onAFloor(host.level(), pos);
         }
 
         @Override
         public Optional<SideCoat> sideAt(BlockPos pos, Direction side) {
             BlockState standing = host.stateAt(pos);
-            boolean holds = standing.isAir() || standing.is(cell);
+            boolean holds = WispBlock.readsAsAir(standing) || standing.is(cell);
             return holds && VolumeCellBlock.clingsTo(host.level(), pos, side)
                     ? Optional.of(VolumeCellBlock.coatOn(standing, side)) : Optional.empty();
         }

@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Vec3i;
 import org.joml.Vector3fc;
+import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.Set;
 
@@ -16,13 +17,14 @@ import java.util.Set;
  * that share and the share the block across it holds on the same surface,
  * and each corner at the average of the four blocks meeting there, nothing
  * counting as zero. Against a solid block an edge keeps the block's own
- * share, and a solid block stays out of a corner's average. On the floor, a
- * block standing on a full block of its goo is one column with it, so the
- * heights compared are the columns' tops; no height stands under the block's
- * own floor, where the full block under it draws its own rims.
+ * share, and a solid block stays out of a corner's average. On the floor,
+ * each block reads only the blocks beside it at its own level, and a full
+ * block with goo of its type on top is a whole cube: every height stands
+ * full, and each side it shows over lower goo beside it is a step from that
+ * goo's edge up to its top.
  * goo-block-top-slopes-to-the-average-with-the-adjoining-block
+ * full-goo-block-under-goo-is-a-whole-cube
  * attached-goo-draws-per-attachment-and-divides-its-volume
- * stacked-goo-cells-share-one-slime-core
  */
 public final class SlimeTop {
 
@@ -38,19 +40,21 @@ public final class SlimeTop {
     private final LayersAround around;
     private final Plane plane;
     private final double[] heights;
+    private final double[] slope;
     private final Set<Direction> rims;
     private final Set<Direction> joins;
-    private final boolean covered;
-    private final Column column;
+    private final Set<Direction> steps;
+    private final Footing footing;
 
-    private SlimeTop(LayersAround around, Plane plane, double[] heights, Edges edges, Column column) {
+    private SlimeTop(LayersAround around, Plane plane, double[] slope, Edges edges, Footing footing) {
         this.around = around;
         this.plane = plane;
-        this.heights = heights;
+        this.slope = slope;
+        this.heights = footing.covered() ? cubeHeights() : slope;
         this.rims = edges.rims();
         this.joins = edges.joins();
-        this.covered = column.covered();
-        this.column = column;
+        this.steps = edges.steps();
+        this.footing = footing;
     }
 
     /**
@@ -61,9 +65,30 @@ public final class SlimeTop {
      * @return its heights, its rims and whether goo of its type covers it
      */
     public static SlimeTop of(LayersAround around) {
-        // stacked-goo-cells-share-one-slime-core: only a full block under goo of its type is a column's inside
-        boolean covered = around.layersAt(0, 0, 0) == FULL && around.layersAt(0, 1, 0) > 0;
-        return build(around, Plane.of(Direction.DOWN), around.layersAt(0, LOW_SIDE, 0) == FULL, covered);
+        // full-goo-block-under-goo-is-a-whole-cube
+        boolean covered = coveredAt(around, 0, 0);
+        return build(around, Plane.of(Direction.DOWN), new Footing(covered,
+                around.layersAt(0, LOW_SIDE, 0) == FULL));
+    }
+
+    /**
+     * Whether the block at an offset on this block's level is a whole cube:
+     * full, with goo of its type on top.
+     * full-goo-block-under-goo-is-a-whole-cube
+     *
+     * @param around the cells around the block
+     * @param dx     east of the block
+     * @param dz     south of the block
+     * @return true where that block is a whole cube
+     */
+    private static boolean coveredAt(LayersAround around, int dx, int dz) {
+        return around.layersAt(dx, 0, dz) == FULL && around.layersAt(dx, 1, dz) > 0;
+    }
+
+    private static double[] cubeHeights() {
+        double[] full = new double[GRID.length * GRID.length];
+        Arrays.fill(full, FULL);
+        return full;
     }
 
     /**
@@ -76,93 +101,50 @@ public final class SlimeTop {
      * @return its heights, out from that surface, and its rims
      */
     public static SlimeTop onSurface(LayersAround around, Direction surface) {
-        return build(around, Plane.of(surface), false, false);
+        return build(around, Plane.of(surface), new Footing(false, false));
     }
 
     /**
      * @param around  the cells around the block
      * @param plane   the slab's surface and axes
-     * @param column  whether the block's floor slab stands on a full block of its goo
-     * @param covered whether goo of its type stands on its floor slab
+     * @param footing whether goo of its type covers its floor slab and whether that slab stands on a full block of it
      * @return the slab's heights and rims
      */
-    private static SlimeTop build(LayersAround around, Plane plane, boolean column, boolean covered) {
+    private static SlimeTop build(LayersAround around, Plane plane, Footing footing) {
         double own = around.shareOn(0, 0, 0, plane.surface());
-        // stacked-goo-cells-share-one-slime-core: a column's top slopes on down past its floor, the block under it
-        double lowest = column ? -FULL : 0;
-        double[] heights = new double[GRID.length * GRID.length];
+        double[] slope = new double[GRID.length * GRID.length];
         for (int a = 0; a < GRID.length; a++) {
             for (int b = 0; b < GRID.length; b++) {
-                heights[a * GRID.length + b] = Math.max(lowest, heightOf(around, plane, own, column, stepAt(a),
-                        stepAt(b)));
+                slope[a * GRID.length + b] = heightOf(around, plane, own, stepAt(a), stepAt(b));
             }
         }
-        return new SlimeTop(around, plane, heights, edgesOf(around, plane, column),
-                columnOf(around, heights, column, covered));
-    }
-
-    /**
-     * Where a block stands in its column, the pile's surface over it read
-     * from the column's base: its own heights for a block on no goo, the
-     * full block's depth more for a column's top, and the surface the block
-     * above draws for a full block under goo, whose own heights then become
-     * that surface's.
-     * stacked-goo-cells-share-one-slime-core
-     *
-     * @param around  the cells around the block
-     * @param heights the block's heights, replaced for a full block under goo
-     * @param column  whether the block stands on a full block of its goo
-     * @param covered whether goo of its type stands on it
-     * @return where it stands in the column
-     */
-    private static Column columnOf(LayersAround around, double[] heights, boolean column, boolean covered) {
-        int base = column ? FULL : 0;
-        double[] surface = new double[heights.length];
-        SlimeTop above = covered ? of(around.shiftedBy(0, 1, 0)) : null;
-        if (above != null) {
-            fillUnder(above, heights);
-        }
-        for (int at = 0; at < heights.length; at++) {
-            surface[at] = (above != null ? above.column.surface()[at] : heights[at]) + base;
-        }
-        return new Column(covered, base, surface);
-    }
-
-    /**
-     * A full block under goo of its type stands inside a column, whose
-     * surface the top block's slope draws: the block's own heights are that
-     * surface's, from its own floor, up to its top where the surface stands
-     * over it.
-     * stacked-goo-cells-share-one-slime-core
-     *
-     * @param above   the slope of the block above
-     * @param heights this block's heights, replaced
-     */
-    private static void fillUnder(SlimeTop above, double[] heights) {
-        for (int at = 0; at < heights.length; at++) {
-            heights[at] = Math.clamp(above.heights[at] + FULL, 0, FULL);
-        }
+        return new SlimeTop(around, plane, slope, edgesOf(around, plane, footing.covered()), footing);
     }
 
     /**
      * Sorts a slab's edges by what meets them.
      *
-     * @param around the cells around the block
-     * @param plane  the slab's surface and axes
-     * @param column whether the block's floor slab stands on a full block of its goo
-     * @return the edges drawing a rim and the edges joining a slab round an outside edge
+     * @param around  the cells around the block
+     * @param plane   the slab's surface and axes
+     * @param covered whether the block is a whole cube
+     * @return the edges drawing a rim, the edges joining a slab round an outside edge, and a cube's steps
      */
-    private static Edges edgesOf(LayersAround around, Plane plane, boolean column) {
+    private static Edges edgesOf(LayersAround around, Plane plane, boolean covered) {
         Set<Direction> rims = EnumSet.noneOf(Direction.class);
         Set<Direction> joins = EnumSet.noneOf(Direction.class);
+        Set<Direction> steps = EnumSet.noneOf(Direction.class);
         for (Direction edge : plane.edges()) {
+            Vec3i across = edge.getUnitVec3i();
             if (joinsRound(around, plane, edge)) {
                 joins.add(edge);
-            } else if (!continuesAcross(around, plane, column, edge.getUnitVec3i())) {
+            } else if (!continuesAcross(around, plane, across)) {
                 rims.add(edge);
+            } else if (covered && !coveredAt(around, across.getX(), across.getZ())) {
+                // full-goo-block-under-goo-is-a-whole-cube: the cube's side shows above the lower goo beside it
+                steps.add(edge);
             }
         }
-        return new Edges(rims, joins);
+        return new Edges(rims, joins, steps);
     }
 
     /**
@@ -182,43 +164,62 @@ public final class SlimeTop {
      * @return the height there, in layers out from the surface
      */
     public double heightAtPixel(float a, float b) {
-        int i = segmentOf(a);
-        int j = segmentOf(b);
-        double across = (a - GRID[i]) / (GRID[i + 1] - GRID[i]);
-        double down = (b - GRID[j]) / (GRID[j + 1] - GRID[j]);
-        double low = heightAt(i, j) + (heightAt(i + 1, j) - heightAt(i, j)) * across;
-        double high = heightAt(i, j + 1) + (heightAt(i + 1, j + 1) - heightAt(i, j + 1)) * across;
-        return low + (high - low) * down;
+        return between(heights, a, b);
     }
 
     /**
-     * The pile's surface over a point, measured from the base of the column
-     * the block stands in, its own floor for a block on no goo: a column's
-     * blocks read one surface, so its core runs through them unbroken.
-     * stacked-goo-cells-share-one-slime-core
+     * The height the slab slopes to at a point by the average with the
+     * blocks beside it, its drawn height save in a whole cube, which stands
+     * full over it: there it is where the edge of the lower goo beside the
+     * cube meets the cube's side.
+     * goo-block-top-slopes-to-the-average-with-the-adjoining-block
+     * full-goo-block-under-goo-is-a-whole-cube
      *
      * @param a model pixels along the surface's first axis from its low end
      * @param b model pixels along its second axis
-     * @return the surface there, in layers above the column's base
+     * @return the slope there, in layers out from the surface
      */
-    public double surfaceAtPixel(float a, float b) {
+    public double slopeAtPixel(float a, float b) {
+        return between(slope, a, b);
+    }
+
+    private static double between(double[] grid, float a, float b) {
         int i = segmentOf(a);
         int j = segmentOf(b);
-        double[] surface = column.surface();
         double across = (a - GRID[i]) / (GRID[i + 1] - GRID[i]);
         double down = (b - GRID[j]) / (GRID[j + 1] - GRID[j]);
-        double low = surface[i * GRID.length + j]
-                + (surface[(i + 1) * GRID.length + j] - surface[i * GRID.length + j]) * across;
-        double high = surface[i * GRID.length + j + 1]
-                + (surface[(i + 1) * GRID.length + j + 1] - surface[i * GRID.length + j + 1]) * across;
+        double low = grid[i * GRID.length + j] + (grid[(i + 1) * GRID.length + j] - grid[i * GRID.length + j]) * across;
+        double high = grid[i * GRID.length + j + 1]
+                + (grid[(i + 1) * GRID.length + j + 1] - grid[i * GRID.length + j + 1]) * across;
         return low + (high - low) * down;
     }
 
     /**
-     * @return the layers between the column's base and this block's own floor, 0 for a block on no goo
+     * @return true where the floor slab stands on a full block of its goo, so its core runs on down into it
      */
-    public int base() {
-        return column.base();
+    public boolean standsOnItsGoo() {
+        return footing.onItsGoo();
+    }
+
+    /**
+     * @return the floor slab of the block above, read from the same cells
+     */
+    public SlimeTop above() {
+        return of(around.shiftedBy(0, 1, 0));
+    }
+
+    /**
+     * @return the floor slab of the block under, read from the same cells
+     */
+    public SlimeTop under() {
+        return of(around.shiftedBy(0, LOW_SIDE, 0));
+    }
+
+    /**
+     * @return the edges where a whole cube's side shows above lower goo of its type beside it, each drawing a step
+     */
+    public Set<Direction> steps() {
+        return steps;
     }
 
     /**
@@ -258,7 +259,7 @@ public final class SlimeTop {
             return false;
         }
         Vec3i diagonal = alongFirst.getUnitVec3i().offset(alongSecond.getUnitVec3i());
-        return !continuesAcross(around, plane, column.base() > 0, diagonal);
+        return !continuesAcross(around, plane, diagonal);
     }
 
     private boolean opens(Direction edge) {
@@ -282,10 +283,10 @@ public final class SlimeTop {
     }
 
     /**
-     * @return true where goo of the block's type stands on its floor slab, so the column goes on and it draws no top
+     * @return true where the block is a whole cube, full with goo of its type on top, so it draws no top
      */
     public boolean covered() {
-        return covered;
+        return footing.covered();
     }
 
     private static int segmentOf(float pixel) {
@@ -313,17 +314,15 @@ public final class SlimeTop {
      * @param around the cells around the block
      * @param plane  the slab's surface and axes
      * @param own    the block's share on that surface
-     * @param column whether the block's floor slab stands on a full block of its goo
      * @param stepA  the point's step toward an edge along the first axis, or 0
      * @param stepB  its step along the second axis, or 0
      * @return the height there, in layers out from the surface
      */
-    private static double heightOf(LayersAround around, Plane plane, double own, boolean column, int stepA,
-                                   int stepB) {
+    private static double heightOf(LayersAround around, Plane plane, double own, int stepA, int stepB) {
         double sum = own;
         int count = 1;
         for (Vec3i offset : plane.meetingAt(stepA, stepB)) {
-            Neighbour across = neighbourAt(around, plane, column, offset);
+            Neighbour across = neighbourAt(around, plane, offset);
             if (!across.solid()) {
                 sum += across.top();
                 count++;
@@ -338,12 +337,11 @@ public final class SlimeTop {
      *
      * @param around the cells around the block
      * @param plane  the slab's surface and axes
-     * @param column whether the block's floor slab stands on a full block of its goo
      * @param offset the block across
      * @return what stands there
      */
-    private static Neighbour neighbourAt(LayersAround around, Plane plane, boolean column, Vec3i offset) {
-        Neighbour across = plane.surface() == Direction.DOWN ? floorNeighbourAt(around, column, offset)
+    private static Neighbour neighbourAt(LayersAround around, Plane plane, Vec3i offset) {
+        Neighbour across = plane.surface() == Direction.DOWN ? floorNeighbourAt(around, offset)
                 : slabNeighbourAt(around, plane.surface(), offset);
         Direction edge = Direction.getNearest(offset.getX(), offset.getY(), offset.getZ(), null);
         boolean nothing = !across.solid() && across.top() == 0;
@@ -369,44 +367,22 @@ public final class SlimeTop {
     }
 
     /**
-     * What stands across an edge or a corner of the floor slab: a solid
-     * block, or the top of the column there in layers above this block's
-     * floor, 0 for air on the same floor.
+     * What stands across an edge or a corner of the floor slab at the
+     * block's own level: a solid block, a whole cube at its full height, the
+     * floor share of any other block of its goo, or nothing for air.
+     * full-goo-block-under-goo-is-a-whole-cube
      *
      * @param around the cells around the block
-     * @param column whether the block stands on a full block of its goo
      * @param offset the block across
      * @return what stands there
      */
-    private static Neighbour floorNeighbourAt(LayersAround around, boolean column, Vec3i offset) {
+    private static Neighbour floorNeighbourAt(LayersAround around, Vec3i offset) {
         int dx = offset.getX();
         int dz = offset.getZ();
-        int layers = around.layersAt(dx, 0, dz);
-        if (layers > 0) {
-            boolean topped = layers == FULL && around.layersAt(dx, 1, dz) > 0;
-            return new Neighbour(false, topped ? FULL + around.floorShareAt(dx, 1, dz) : around.floorShareAt(dx, 0, dz));
+        if (around.layersAt(dx, 0, dz) > 0) {
+            return new Neighbour(false, coveredAt(around, dx, dz) ? FULL : around.floorShareAt(dx, 0, dz));
         }
-        if (around.solidAt(dx, 0, dz)) {
-            return new Neighbour(true, 0);
-        }
-        return new Neighbour(false, column ? besideTheBlockUnder(around, dx, dz) : 0);
-    }
-
-    /**
-     * The top across from a column's top block where nothing stands beside
-     * it, read beside the full block under it: its goo's share, or solid
-     * ground level with this block's floor, or the column's base for air.
-     *
-     * @param around the cells around the block
-     * @param dx     east of the block
-     * @param dz     south of the block
-     * @return the top there, in layers above this block's floor
-     */
-    private static double besideTheBlockUnder(LayersAround around, int dx, int dz) {
-        if (around.layersAt(dx, LOW_SIDE, dz) > 0) {
-            return around.floorShareAt(dx, LOW_SIDE, dz) - FULL;
-        }
-        return around.solidAt(dx, LOW_SIDE, dz) ? 0 : -FULL;
+        return new Neighbour(around.solidAt(dx, 0, dz), 0);
     }
 
     /**
@@ -451,18 +427,17 @@ public final class SlimeTop {
      *
      * @param around the cells around the block
      * @param plane  the slab's surface and axes
-     * @param column whether the block's floor slab stands on a full block of its goo
      * @param offset the block across the edge
-     * @return true where goo continues there or, for a column's top, beside the block under it
+     * @return true where goo continues there
      */
-    private static boolean continuesAcross(LayersAround around, Plane plane, boolean column, Vec3i offset) {
+    private static boolean continuesAcross(LayersAround around, Plane plane, Vec3i offset) {
         int dx = offset.getX();
         int dy = offset.getY();
         int dz = offset.getZ();
         if (plane.surface() != Direction.DOWN) {
             return around.layersAt(dx, dy, dz) > 0 && around.shareOn(dx, dy, dz, plane.surface()) > 0;
         }
-        return around.layersAt(dx, 0, dz) > 0 || column && around.layersAt(dx, LOW_SIDE, dz) > 0;
+        return around.layersAt(dx, 0, dz) > 0;
     }
 
     /**
@@ -536,13 +511,12 @@ public final class SlimeTop {
     }
 
     /**
-     * Where a block stands in a column of its goo.
+     * What a block's floor slab stands between.
      *
-     * @param covered whether goo of its type stands on it, the column going on up
-     * @param base    the layers between the column's base and the block's floor
-     * @param surface the pile's surface over each grid point, in layers above the column's base
+     * @param covered  whether it is a whole cube, full with goo of its type on top
+     * @param onItsGoo whether it stands on a full block of its goo
      */
-    private record Column(boolean covered, int base, double[] surface) {
+    private record Footing(boolean covered, boolean onItsGoo) {
     }
 
     /**
@@ -550,8 +524,9 @@ public final class SlimeTop {
      *
      * @param rims  the edges nothing continues past, each drawing a rim
      * @param joins the edges a slab round an outside edge joins
+     * @param steps the edges a whole cube shows a side over lower goo of its type past
      */
-    private record Edges(Set<Direction> rims, Set<Direction> joins) {
+    private record Edges(Set<Direction> rims, Set<Direction> joins, Set<Direction> steps) {
     }
 
     /**
