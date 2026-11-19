@@ -35,6 +35,7 @@ import com.mercuriusxeno.goo.fluid.GooFluidBlock;
 import com.mercuriusxeno.goo.fluid.MoltenIronBlock;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.block.AmethystClusterBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.IceBlock;
@@ -705,6 +706,10 @@ public class GooBlocks {
     private static final float SAND_HARDNESS = 0.5F;
     /** An iron block's hardness and blast resistance, which the iron core mines like. */
     private static final float IRON_BLOCK_HARDNESS = 5.0F;
+    /** Astral crystal stands as tall and wide as an amethyst cluster, and glows as one does. */
+    private static final float ASTRAL_CRYSTAL_HEIGHT = 7.0F;
+    private static final float ASTRAL_CRYSTAL_WIDTH = 10.0F;
+    private static final int ASTRAL_CRYSTAL_LIGHT = 5;
     private static final float IRON_BLOCK_RESISTANCE = 6.0F;
     /** Glass's hardness, which impact glass breaks like. */
     private static final float GLASS_HARDNESS = 0.3F;
@@ -734,6 +739,26 @@ public class GooBlocks {
     public static final DeferredBlock<Block> METEORIC_IRON = BLOCKS.registerSimpleBlock("meteoric_iron",
             () -> BlockBehaviour.Properties.of().mapColor(MapColor.RAW_IRON).requiresCorrectToolForDrops()
                     .strength(IRON_BLOCK_HARDNESS, IRON_BLOCK_RESISTANCE).sound(SoundType.METAL));
+
+    /**
+     * Native iron: solid meteoric iron lying in rare lodes in the rubble caves, worth whole iron blocks, mined like an
+     * iron block.
+     * decision native-iron-lodes-are-worth-whole-iron-blocks
+     */
+    public static final DeferredBlock<Block> NATIVE_IRON = BLOCKS.registerSimpleBlock("native_iron",
+            () -> BlockBehaviour.Properties.of().mapColor(MapColor.METAL).requiresCorrectToolForDrops()
+                    .strength(IRON_BLOCK_HARDNESS, IRON_BLOCK_RESISTANCE).sound(SoundType.METAL));
+
+    /**
+     * Astral crystal: lunar's scarce rich crystal, growing in small clusters from the bare rock of the middle caverns,
+     * facing out from the rock as an amethyst cluster does, its stars twinkling.
+     * decision astral-crystal-is-lunars-scarce-rich-block
+     */
+    public static final DeferredBlock<AmethystClusterBlock> ASTRAL_CRYSTAL = BLOCKS.registerBlock("astral_crystal",
+            properties -> new AmethystClusterBlock(ASTRAL_CRYSTAL_HEIGHT, ASTRAL_CRYSTAL_WIDTH, properties),
+            () -> BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_BLUE).forceSolidOn().noOcclusion()
+                    .sound(SoundType.AMETHYST_CLUSTER).strength(1.5F).lightLevel(state -> ASTRAL_CRYSTAL_LIGHT)
+                    .pushReaction(PushReaction.DESTROY));
 
     /**
      * Impact glass: lunar's regolith melted where meteorites struck, dark glass that holds back light as tinted

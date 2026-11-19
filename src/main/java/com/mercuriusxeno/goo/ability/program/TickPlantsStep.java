@@ -62,7 +62,7 @@ public record TickPlantsStep() implements TakesNoEntity {
         host.channelAim().ifPresent(aim -> {
             ServerLevel level = host.level();
             for (BlockPos pos : CalcifyStep.blocksInCone(host.eye(), aim.aimPoint(), aim.coneDegrees())) {
-                tickPlant(level, pos, level.getRandom());
+                tickPlant(level, pos, TendingRandom.of(level));
             }
         });
         return true;

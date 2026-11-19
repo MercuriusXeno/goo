@@ -9,13 +9,15 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * What Lunar finds along a caster's look: the moon, from the overworld while it stands above the horizon, or the blue
- * planet, from lunar's light side, hanging fixed where the caster's x stands it, on a lit phase; anything else Lunar
- * refuses.
+ * What Lunar finds along a caster's look: the moon, from the overworld while it stands above the horizon on a lit
+ * phase, or the blue planet, from lunar's light side, hanging fixed where the caster's x stands it, while you can see
+ * it; anything else Lunar refuses.
+ * decision blue-planet-hangs-fixed-with-its-height-set-by-x
  * decision gate-fixates-your-view-on-the-moon-until-it-takes-you
  * decision gate-on-the-blue-star-returns-you-exactly-where-you-left
  * decision blue-star-takes-the-moons-place-with-the-opposite-phase
  * decision lunar-refuses-the-return-while-the-blue-star-is-hidden
+ * decision moon-trip-refuses-under-the-new-moon
  */
 public final class LunarSight {
 
@@ -182,9 +184,11 @@ public final class LunarSight {
     }
 
     /**
-     * What a look finds in a dimension's sky: the moon while it stands above the horizon, and the blue planet along
-     * its fixed direction for the caster's x while it shows, so the way home waits on seeing the planet, at any hour.
+     * What a look finds in a dimension's sky: the moon while it stands above the horizon on a lit phase, the new moon
+     * showing nothing to hold, and the blue planet along its fixed direction for the caster's x while it shows, so each
+     * trip waits on its body showing, the way home at any hour you can see the planet.
      * decision lunar-refuses-the-return-while-the-blue-star-is-hidden
+     * decision moon-trip-refuses-under-the-new-moon
      * decision blue-planet-hangs-fixed-with-its-height-set-by-x
      *
      * @param dimension        the caster's dimension
@@ -193,17 +197,19 @@ public final class LunarSight {
      * @param moonAngleDegrees the dimension's moon angle, in degrees, which lunar leaves unread
      * @param sunAngleDegrees  the sun angle where the caster stands, in degrees, which the overworld's moon leaves
      *                         unread
-     * @param planetPhase      the blue planet's phase, which the overworld's moon leaves unread
+     * @param skyPhase         the phase of the body in the moon's place: the overworld moon's in the overworld, the
+     *                         blue planet's in lunar
      * @return the moon or the blue planet the look holds, empty where it holds neither
      */
     public static Optional<Sky> skyAt(ResourceKey<Level> dimension, double x, Vec3 look, float moonAngleDegrees,
-            float sunAngleDegrees, MoonPhase planetPhase) {
+            float sunAngleDegrees, MoonPhase skyPhase) {
         Vec3 moon = moonDirection(moonAngleDegrees);
         if (Level.OVERWORLD.equals(dimension)) {
-            return heldOrNone(Sky.MOON, moon.y() > 0.0 && holds(look, moon, LOOK_REACH_COSINE));
+            return heldOrNone(Sky.MOON, moon.y() > 0.0 && skyPhase != MoonPhase.NEW_MOON
+                    && holds(look, moon, LOOK_REACH_COSINE));
         }
         if (Lunar.LEVEL.equals(dimension)) {
-            return heldOrNone(Sky.BLUE_PLANET, planetShows(x, planetPhase, sunAngleDegrees)
+            return heldOrNone(Sky.BLUE_PLANET, planetShows(x, skyPhase, sunAngleDegrees)
                     && holds(look, planetDirection(x), PLANET_REACH_COSINE));
         }
         return Optional.empty();

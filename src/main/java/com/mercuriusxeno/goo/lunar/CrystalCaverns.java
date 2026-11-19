@@ -12,11 +12,11 @@ import net.minecraft.world.level.levelgen.DensityFunction;
 import net.minecraft.world.level.levelgen.synth.NormalNoise;
 
 /**
- * The ice and crystal caverns of lunar's middle zone, as a density that opens their air: large caverns swelling where
- * a three dimensional noise reads high, its height squashed so they spread wider than they stand tall, closing as
- * they near the zone's top and bottom so they stay inside it. Lunar's surface rule floors them in crater ice and its
- * features grow impact glass up from their floors and down from their roofs.
+ * The bare rock caverns of lunar's middle zone, as a density that opens their air: large caverns swelling where a
+ * three dimensional noise reads high, its height squashed so they spread wider than they stand tall, closing as they
+ * near the zone's top and bottom so they stay inside it.
  * decision lunar-underground-changes-by-depth-down-to-a-molten-iron-sea
+ * decision middle-caverns-are-bare-rock-with-no-ice-or-glass
  *
  * @param shape the noise swelling the caverns
  */
