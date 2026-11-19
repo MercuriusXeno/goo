@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:mortar_drip_lays_a_layer_on_a_top",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 80,
+  "setup_ticks": 0,
+  "required": true
+}

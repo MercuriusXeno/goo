@@ -142,6 +142,7 @@
   "block.goo.shroom_spores": "Spores",
   "block.goo.unstable_nitro": "Nitro",
   "block.goo.quantum_phase": "Phase",
+  "block.goo.rock_mortar": "Mortar",
 
   "goo.badge.world": "World",
   "goo.badge.mob": "Mob",
@@ -329,6 +330,9 @@
   "goo.ability.rock.gouge": "Gouge",
   "goo.ability.rock.gouge.description": "Hold to tear a chunk of earth from the ground, then left click to hurl it.",
   "goo.ability.rock.gouge.cost_mechanics": "Costs %s to grab a chunk.",
+  "goo.ability.rock.mortar": "Mortar",
+  "goo.ability.rock.mortar.cost_mechanics": "Costs %s per block of Mortar laid, a fifteenth of it per layer.",
+  "goo.ability.rock.mortar.description": "Held stream sprays Mortar, a stony goo that clings to walls and holds its shape.",
   "goo.ability.rock.stoneskin": "Stoneskin",
   "goo.ability.rock.stoneskin.description": "Stone hearts fill your missing ones and resist blows, but explosions and pickaxes crack them and regeneration stops.",
   "goo.ability.shroom.mycosis": "Mycosis",
