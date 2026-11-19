@@ -50,6 +50,15 @@ class SprayerWheelTest {
         assertEquals(List.of(SprayerFlow.values()).size(), wheel.flows().size());
     }
 
+    /** decision mister-draws-mist-and-lays-one-layer-on-bare-spots */
+    @Test
+    void wheelListsTheMister() {
+        SprayerWheel wheel = SprayerWheel.of(CanisterFluidContent.of(goo.resource(GooTypes.WEIRD), VOLUME),
+                GooTypes.WEIRD::equals);
+
+        assertTrue(wheel.nozzles().contains(SprayerNozzle.MISTER), "the wheel lists " + wheel.nozzles());
+    }
+
     /** decision spray-item-takes-different-nozzles-doing-different-things */
     @Test
     void wheelListsTheNozzles() {

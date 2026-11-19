@@ -92,6 +92,7 @@ public final class GooNetworking {
         r.playToClient(StreamHealedPayload.TYPE, StreamHealedPayload.STREAM_CODEC);
         r.playToClient(GnatSeekPayload.TYPE, GnatSeekPayload.STREAM_CODEC);
         r.playToClient(StreamMotesPayload.TYPE, StreamMotesPayload.STREAM_CODEC);
+        r.playToClient(SprayMistPayload.TYPE, SprayMistPayload.STREAM_CODEC);
         r.playToClient(BlockAfterimagePayload.TYPE, BlockAfterimagePayload.STREAM_CODEC);
     }
 
