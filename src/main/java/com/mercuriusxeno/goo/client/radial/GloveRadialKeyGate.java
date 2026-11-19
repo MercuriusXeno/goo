@@ -47,15 +47,35 @@ public final class GloveRadialKeyGate {
 
     private GloveRadialKeyGate() {}
 
+    /** The wheel a press of the key opens. */
+    public enum Wheel {
+        /** No wheel: nothing held casts, or a screen stands open. */
+        NONE,
+        /** The glove's wheel of goo types and abilities. */
+        GLOVE,
+        /** The sprayer's wheel of its canister's goo types and its flow. */
+        SPRAYER
+    }
+
     /**
-     * Whether a press of the glove menu key opens the radial.
+     * The wheel a press of the glove menu key opens: the sprayer's while the sprayer is the held item, the
+     * glove's while a glove is, and none while a screen stands open.
+     * decision g-opens-radial-while-glove-held
+     * decision sprayer-wheel-picks-nozzle-flow-and-goo-type
      *
-     * @param gloveHeld  whether either hand holds a glove
-     * @param screenOpen whether a screen is open
-     * @return true when the press opens the radial
+     * @param sprayerHeld whether the main hand holds a sprayer
+     * @param gloveHeld   whether either hand holds the player's caster
+     * @param screenOpen  whether a screen is open
+     * @return the wheel the press opens
      */
-    public static boolean pressOpensRadial(boolean gloveHeld, boolean screenOpen) {
-        return gloveHeld && !screenOpen;
+    public static Wheel wheelOpened(boolean sprayerHeld, boolean gloveHeld, boolean screenOpen) {
+        if (screenOpen) {
+            return Wheel.NONE;
+        }
+        if (sprayerHeld) {
+            return Wheel.SPRAYER;
+        }
+        return gloveHeld ? Wheel.GLOVE : Wheel.NONE;
     }
 
     /**

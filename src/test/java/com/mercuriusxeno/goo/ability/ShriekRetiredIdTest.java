@@ -27,7 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ShriekRetiredIdTest {
 
     private static final Identifier RETIRED = Identifier.fromNamespaceAndPath("goo", "deep_convoke");
-    private static final Identifier SCULKER = Identifier.fromNamespaceAndPath("goo", "deep_sculker");
+    private static final Identifier SCULKER = Identifier.fromNamespaceAndPath("goo", "sculk_sculker");
     private static final String STEPS = """
             [
               { "type": "convoke", "every": 40, "reach": 16, "lasts": 600 },
@@ -45,8 +45,8 @@ class ShriekRetiredIdTest {
     @Test
     void aHeldRecordEndsTheConvokeEffectAndKeepsTheKnownOne() {
         HeldEffects held = HeldEffects.NONE
-                .start(new HeldEffects.Held(RETIRED, GooTypes.DEEP, 1, Set.of(), 0)).after()
-                .start(new HeldEffects.Held(SCULKER, GooTypes.DEEP, 1, Set.of(LaidState.HEART_OVERLAY), 0)).after();
+                .start(new HeldEffects.Held(RETIRED, GooTypes.SCULK, 1, Set.of(), 0)).after()
+                .start(new HeldEffects.Held(SCULKER, GooTypes.SCULK, 1, Set.of(LaidState.HEART_OVERLAY), 0)).after();
         HeldEffects after = held.endUnknown(SCULKER::equals).after();
         assertFalse(after.holds(RETIRED));
         assertTrue(after.holds(SCULKER));

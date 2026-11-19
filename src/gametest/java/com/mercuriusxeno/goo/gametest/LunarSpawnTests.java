@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.lunar.LunarDepths;
 import com.mercuriusxeno.goo.lunar.WarrenTunnels;
 import com.mercuriusxeno.goo.registry.GooEntities;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.SectionPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
@@ -37,6 +38,8 @@ public final class LunarSpawnTests {
             + "in %s";
     private static final String SPAWNS_IN_THE_WARRENS = "A monstrosity should spawn on the warren floor %s";
 
+    /** A column on lunar's dark side, where the sky reads as night at every hour. */
+    private static final int DARK_SIDE_X = 3_750_024;
     /** A spot on the test bay's floor, above the overworld's deep. */
     private static final BlockPos BAY_FLOOR = new BlockPos(2, 1, 2);
 
@@ -60,7 +63,9 @@ public final class LunarSpawnTests {
     }
 
     /**
-     * The monstrosity's spawn rule admits a spot on lunar's lit surface and refuses the test bay's floor.
+     * The monstrosity's spawn rule admits a spot on lunar's dark-side surface, under the open sky at whatever hour the
+     * test runs, and refuses the test bay's floor.
+     * decision dark-side-is-an-endless-night-of-eldritch-rich-in-void-and-xeno
      *
      * @param helper the gametest helper
      */
@@ -68,8 +73,9 @@ public final class LunarSpawnTests {
         ServerLevel overworld = helper.getLevel();
         ServerLevel lunar = overworld.getServer().getLevel(Lunar.LEVEL);
         helper.assertTrue(lunar != null, LUNAR_REQUIRED);
-        lunar.getChunk(0, 0);
-        BlockPos surface = new BlockPos(0, lunar.getHeight(Heightmap.Types.MOTION_BLOCKING, 0, 0), 0);
+        lunar.getChunk(SectionPos.blockToSectionCoord(DARK_SIDE_X), 0);
+        BlockPos surface = new BlockPos(DARK_SIDE_X, lunar.getHeight(Heightmap.Types.MOTION_BLOCKING, DARK_SIDE_X, 0),
+                0);
         helper.assertTrue(EldritchMonstrosity.checkSpawnRules(GooEntities.ELDRITCH_MONSTROSITY.get(), lunar,
                 EntitySpawnReason.NATURAL, surface, lunar.getRandom()), String.format(ON_LUNAR, surface));
         BlockPos bay = helper.absolutePos(BAY_FLOOR);

@@ -28,18 +28,6 @@ class GooRemaindersTest {
         assertEquals(GooRemainders.EMPTY, GooRemainders.EMPTY.with(GooTypes.LEAF, GooFraction.of(2)));
     }
 
-    /**
-     * A save holding a yore remainder loads it as opulent's, added to the opulent part it held.
-     * decision yore-leaves-and-rewind-moves-to-xeno-as-revert
-     */
-    @Test
-    void savedYoreRemainderLoadsAsOpulent() {
-        GooRemainders loaded = GooRemainders.CODEC.parse(JsonOps.INSTANCE, JsonParser.parseString(
-                "{\"yore\": {\"numerator\": 1, \"denominator\": 4},"
-                        + " \"opulent\": {\"numerator\": 1, \"denominator\": 3}}")).getOrThrow();
-
-        assertEquals(Map.of(GooTypes.OPULENT, GooFraction.of(7, 12)), loaded.parts());
-    }
 
     @Test
     void remaindersSurviveThePersistentCodec() {

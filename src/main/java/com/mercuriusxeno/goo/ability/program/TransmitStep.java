@@ -1,18 +1,13 @@
 package com.mercuriusxeno.goo.ability.program;
 
-import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.Identifier;
-import net.minecraft.tags.TagKey;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.VoxelShape;
@@ -35,9 +30,6 @@ import java.util.stream.Stream;
  */
 public record TransmitStep(Expr range, Expr near) implements Step {
 
-    /** The blocks Transmit lands on: mushrooms, fungi, nylium, mycelium, shroomlight, mushroom blocks. */
-    public static final TagKey<Block> FUNGUS =
-            TagKey.create(Registries.BLOCK, Identifier.fromNamespaceAndPath(Goo.MODID, "fungus"));
 
     private static final String NAME = "transmit";
     private static final String FIELD_RANGE = "range";
@@ -77,7 +69,7 @@ public record TransmitStep(Expr range, Expr near) implements Step {
     public boolean admits(StepContext context) {
         LivingEntity target = context.hostAs(TargetHost.class).target();
         return FungusAim.standsNearFungus(target.level(), target, near.evaluate(context))
-                && aimedFungus(target.level(), target, reachOf(target, range.evaluate(context))).isPresent();
+                && aimedFungus(target.level(), target, range.evaluate(context)).isPresent();
     }
 
     @Override
@@ -86,24 +78,12 @@ public record TransmitStep(Expr range, Expr near) implements Step {
         if (!FungusAim.standsNearFungus(target.level(), target, near.evaluate(context))) {
             return true;
         }
-        aimedFungus(target.level(), target, reachOf(target, range.evaluate(context))).ifPresent(stand -> {
+        aimedFungus(target.level(), target, range.evaluate(context)).ifPresent(stand -> {
             // ghost-trail-spans-the-blink: a step after the jump reads where the target left from
             target.setData(GooAttachments.JUMP_SOURCE, target.position());
             target.teleportTo(stand.x, stand.y, stand.z);
         });
         return true;
-    }
-
-    /**
-     * How far an entity's transmit reaches: the range, times the factor of the
-     * fungal sight it holds (decision sight-lengthens-shift-and-outlines-fungus).
-     *
-     * @param entity the transmitting entity
-     * @param range  the step's range
-     * @return the reach in blocks
-     */
-    public static double reachOf(Entity entity, double range) {
-        return range * entity.getData(GooAttachments.SIGHT).factorAt(entity.level().getGameTime());
     }
 
     /**

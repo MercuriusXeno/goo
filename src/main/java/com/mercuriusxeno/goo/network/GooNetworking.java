@@ -92,6 +92,7 @@ public final class GooNetworking {
         r.playToClient(StreamHealedPayload.TYPE, StreamHealedPayload.STREAM_CODEC);
         r.playToClient(GnatSeekPayload.TYPE, GnatSeekPayload.STREAM_CODEC);
         r.playToClient(StreamMotesPayload.TYPE, StreamMotesPayload.STREAM_CODEC);
+        r.playToClient(SprayMistPayload.TYPE, SprayMistPayload.STREAM_CODEC);
         r.playToClient(BlockAfterimagePayload.TYPE, BlockAfterimagePayload.STREAM_CODEC);
     }
 
@@ -129,6 +130,8 @@ public final class GooNetworking {
     private static void registerServerPayloads(PayloadRegistrar r) {
         r.playToServer(CanisterRenamePayload.TYPE, CanisterRenamePayload.STREAM_CODEC, CanisterRenameHandler::handle);
         r.playToServer(GooStreamPayload.TYPE, GooStreamPayload.STREAM_CODEC, GooStreamHandler::handle);
+        r.playToServer(SprayerTickPayload.TYPE, SprayerTickPayload.STREAM_CODEC, SprayerTickPayload::handle);
+        r.playToServer(SprayerSelectPayload.TYPE, SprayerSelectPayload.STREAM_CODEC, SprayerSelectPayload::handle);
         r.playToServer(CanisterUnlinkPayload.TYPE, CanisterUnlinkPayload.STREAM_CODEC, CanisterUnlinkHandler::handle);
         r.playToServer(GooThrowPayload.TYPE, GooThrowPayload.STREAM_CODEC, GooThrowHandler::handle);
         r.playToServer(GrabThrowPayload.TYPE, GrabThrowPayload.STREAM_CODEC, GrabThrowPayload::handle);

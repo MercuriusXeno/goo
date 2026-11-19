@@ -100,7 +100,7 @@ class InventoryRenamedAbilitiesTest {
                 Arguments.of("void", Set.of("void_cancel", "void_hole", "void_vacuum", "void_zone")),
                 Arguments.of("zoo", Set.of("zoo_allure", "zoo_shape", "zoo_spawn")),
                 Arguments.of("yarn", Set.of("yarn_herd", "yarn_lead", "yarn_stitch")),
-                Arguments.of("xeno", Set.of("xeno_revert", "xeno_unveil")));
+                Arguments.of("xeno", Set.of("xeno_revert", "xeno_unveil", "xeno_shriek")));
     }
 
     @Test
