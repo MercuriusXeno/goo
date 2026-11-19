@@ -103,7 +103,7 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
 
     @Override
     public boolean anyEntityWithin(SelectionShape shape, double radius, Set<EntityFilter> filters) {
-        return EntityScan.anyEntityWithin(level, Vec3.atCenterOf(pos), shape, radius, filters, null);
+        return EntityScan.anyEntityWithin(level, Vec3.atCenterOf(pos), shape, radius, filters, null, null);
     }
 
     @Override
