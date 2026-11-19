@@ -12,7 +12,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
-import java.util.Optional;
 
 /**
  * Where a caster's lifted palm blob rests, chosen by the selected ability's
@@ -21,8 +20,11 @@ import java.util.Optional;
  * Bore, which eases forward from there; and for every other ability at the
  * spray source Goop and Slick drip from, straight above where the hand rests.
  * Each point moves and turns with the caster's view and never bobs with the hand.
+ * That is first person's; a caster drawn in third person rests every
+ * ability's blob above the palm the model draws.
  * centered-abilities-float-the-blob-below-the-crosshair
  * palm-blob-lifts-as-the-spray-source
+ * decision third-person-blob-stands-above-the-drawn-palm
  */
 public final class BlobRest {
 
@@ -93,10 +95,27 @@ public final class BlobRest {
     }
 
     /**
+     * The rest point of a caster drawn in third person: above the drawn palm
+     * along the drawn model's up, by the rise the rest names. No center line
+     * stands there; a centered ability's blob and Bore's stand above the palm
+     * as every other ability's does.
+     * decision third-person-blob-stands-above-the-drawn-palm
+     * centered-abilities-float-the-blob-below-the-crosshair
+     *
+     * @param palm the drawn palm
+     * @param rest the rest the selected ability lifts its blob to
+     * @return the rest point
+     */
+    static Vec3 aboveTheDrawnPalm(DrawnPalm.Palm palm, Rest rest) {
+        return palm.above(rest == Rest.OVER_THE_PALM ? StackHover.KNIFE_RISE_ABOVE_THE_PALM
+                : SpraySource.RISE_ABOVE_THE_PALM);
+    }
+
+    /**
      * A caster's rest point this frame: in the camera's view for the local
-     * player in first person, in the caster's own view otherwise, the spray
-     * source above the hand where the selected ability lifts its blob there,
-     * and the glove the server sent for a caster this client does not hold.
+     * player in first person, above the drawn palm for a caster drawn in
+     * third person, and the glove the server sent for a caster this client
+     * does not hold.
      *
      * @param casterId    the caster's entity id
      * @param sentGlove   the glove the held tick came with
@@ -104,40 +123,23 @@ public final class BlobRest {
      * @return the rest point
      */
     public static Vec3 of(int casterId, Vec3 sentGlove, float partialTick) {
-        return viewOf(casterId, partialTick).map(view -> {
-            Rest rest = Rest.of(selectedAbility(view.caster()));
-            if (rest == Rest.OVER_THE_PALM) {
-                return SpraySource.of(casterId, sentGlove, partialTick, StackHover.KNIFE_RISE_ABOVE_THE_PALM);
-            }
-            return rest == Rest.ABOVE_THE_HAND ? SpraySource.of(casterId, sentGlove, partialTick)
-                    : inView(view.eye(), view.xRot(), view.yRot(), GooCasters.casterOnTheRight(view.caster()),
-                    rest);
-        }).orElse(sentGlove);
-    }
-
-    /**
-     * A caster's view this frame: the camera's for the local player in first
-     * person, the caster's own otherwise.
-     *
-     * @param caster the caster
-     * @param eye    the view's eye
-     * @param xRot   the view's pitch in degrees
-     * @param yRot   the view's yaw in degrees
-     */
-    private record View(Player caster, Vec3 eye, float xRot, float yRot) {
-    }
-
-    private static Optional<View> viewOf(int casterId, float partialTick) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || !(mc.level.getEntity(casterId) instanceof Player caster)) {
-            return Optional.empty();
+            return sentGlove;
         }
-        if (caster == mc.player && mc.options.getCameraType().isFirstPerson()) {
-            Camera camera = mc.gameRenderer.getMainCamera();
-            return Optional.of(new View(caster, camera.position(), camera.xRot(), camera.yRot()));
+        Rest rest = Rest.of(selectedAbility(caster));
+        boolean gloveRight = GooCasters.casterOnTheRight(caster);
+        if (DrawnPalm.drawnInThirdPerson(mc, caster)) {
+            return aboveTheDrawnPalm(DrawnPalm.of(caster, gloveRight, partialTick), rest);
         }
-        return Optional.of(new View(caster, caster.getEyePosition(partialTick), caster.getViewXRot(partialTick),
-                caster.getViewYRot(partialTick)));
+        if (rest == Rest.OVER_THE_PALM) {
+            return SpraySource.of(casterId, sentGlove, partialTick, StackHover.KNIFE_RISE_ABOVE_THE_PALM);
+        }
+        if (rest == Rest.ABOVE_THE_HAND) {
+            return SpraySource.of(casterId, sentGlove, partialTick);
+        }
+        Camera camera = mc.gameRenderer.getMainCamera();
+        return inView(camera.position(), camera.xRot(), camera.yRot(), gloveRight, rest);
     }
 
     /**
