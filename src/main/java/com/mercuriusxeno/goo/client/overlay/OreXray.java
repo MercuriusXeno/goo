@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.QuadInstance;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart;
 import net.minecraft.client.renderer.rendertype.RenderType;
@@ -36,6 +37,11 @@ public final class OreXray {
     /** How far the glow swells past the block. */
     private static final float GLOW_SWELL = 1.1f;
     private static final int OPAQUE = 255;
+    /** The ore block as itself, a little translucent. */
+    public static final OrePass ORE_PASS = new OrePass(ORE_RGB, ORE_ALPHA, 1f);
+    /** The soft crystal glow swollen past the block. */
+    public static final OrePass GLOW_PASS = new OrePass(GLOW_RGB, GLOW_ALPHA, GLOW_SWELL);
+    private static final List<OrePass> PASSES = List.of(ORE_PASS, GLOW_PASS);
 
     private OreXray() {
     }
@@ -98,12 +104,6 @@ public final class OreXray {
     public record OrePass(int rgb, float alpha, float swell) {
     }
 
-    /** The ore block as itself, a little translucent. */
-    public static final OrePass ORE_PASS = new OrePass(ORE_RGB, ORE_ALPHA, 1f);
-    /** The soft crystal glow swollen past the block. */
-    public static final OrePass GLOW_PASS = new OrePass(GLOW_RGB, GLOW_ALPHA, GLOW_SWELL);
-    private static final List<OrePass> PASSES = List.of(ORE_PASS, GLOW_PASS);
-
     private static RenderType renderTypeOf(Minecraft mc, OrePass pass) {
         Identifier atlas = mc.getAtlasManager().getAtlasOrThrow(AtlasIds.BLOCKS).location();
         return pass == ORE_PASS ? GooRenderTypes.fungusXray(atlas) : GooRenderTypes.fungusGlow(atlas);
@@ -123,12 +123,22 @@ public final class OreXray {
                                Vec3 camera, List<OreSightings.Sighting> showing,
                                Function<OrePass, BufferedPass> open) {
         HeldSweepSections.profiled(HeldSweepSections.ORE_DRAW, () -> {
+            // both passes draw each block's one model, so it is read once a frame
+            List<List<BlockStateModelPart>> parts = showing.stream().map(sighting -> partsAt.apply(sighting.pos()))
+                    .toList();
             for (OrePass pass : PASSES) {
                 BufferedPass batch = open.apply(pass);
-                for (OreSightings.Sighting sighting : showing) {
-                    FungusXray.drawParts(partsAt.apply(sighting.pos()), poseStack, batch.consumer(),
-                            new FungusXray.Placed(camera, sighting.pos(), pass.swell()),
-                            FungusXray.instance(color(pass.rgb(), pass.alpha() * sighting.shown())));
+                // a vein's blocks show alike and stand together, so one look serves each run of them
+                float lookShown = Float.NaN;
+                QuadInstance look = null;
+                for (int index = 0; index < showing.size(); index++) {
+                    OreSightings.Sighting sighting = showing.get(index);
+                    if (look == null || Float.compare(sighting.shown(), lookShown) != 0) {
+                        lookShown = sighting.shown();
+                        look = FungusXray.instance(color(pass.rgb(), pass.alpha() * lookShown));
+                    }
+                    FungusXray.drawParts(parts.get(index), poseStack, batch.consumer(),
+                            new FungusXray.Placed(camera, sighting.pos(), pass.swell()), look);
                 }
                 batch.end().run();
             }

@@ -58,7 +58,7 @@ final class HeldSweepHold {
     private final HeldSweepPulses server = new HeldSweepPulses();
     private final LiveSweeps sweeps = new LiveSweeps();
     private final CountingVertexConsumer consumer = new CountingVertexConsumer();
-    private final List<BlockStateModelPart> cube = List.of(new CubePart(mock(BakedQuad.class)));
+    private final List<BlockStateModelPart> cube = List.of(new CubePart(List.of(mock(BakedQuad.class))));
     /**
      * The mobs the client paints: none, since a mocked mob answers each call
      * through Mockito, which would time Mockito rather than the paint loop.
@@ -129,7 +129,7 @@ final class HeldSweepHold {
         Set<Vec3> walked = new HashSet<>();
         for (HeldSweepPulses.Pulse pulse : live) {
             if (walked.add(pulse.origin())) {
-                OreRevealPayload reveal = ore.revealAt(HeldSweepWorld::oreAt, pulse.origin(), pulse.ageAt(gameTime));
+                OreRevealPayload reveal = ore.revealAt(HeldSweepWorld.ORES, pulse.origin(), pulse.ageAt(gameTime));
                 OreSightings.CLIENT.reveal(gameTime, reveal.veins(), reveal.life());
             }
         }
@@ -233,12 +233,12 @@ final class HeldSweepHold {
         return payloads;
     }
 
-    /** A whole block's model part: one quad on each side, none unculled. */
-    private record CubePart(BakedQuad side) implements BlockStateModelPart {
+    /** A whole block's model part: one quad on each side, none unculled, each side's list held as a model holds it. */
+    private record CubePart(List<BakedQuad> side) implements BlockStateModelPart {
 
         @Override
         public List<BakedQuad> getQuads(@Nullable Direction direction) {
-            return direction == null ? List.of() : List.of(side);
+            return direction == null ? List.of() : side;
         }
 
         @Override
