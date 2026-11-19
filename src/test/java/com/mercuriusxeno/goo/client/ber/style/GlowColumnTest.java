@@ -1,84 +1,37 @@
 package com.mercuriusxeno.goo.client.ber.style;
 
-import com.mercuriusxeno.goo.client.CrystalClusterSubmitter;
-import com.mercuriusxeno.goo.client.GooRenderUtil;
-import com.mercuriusxeno.goo.client.ber.PrismRenderState;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mercuriusxeno.goo.client.GooRenderTypes;
-import net.minecraft.client.renderer.OrderedSubmitNodeCollector;
-import net.minecraft.client.renderer.SubmitNodeCollector;
-import net.minecraft.client.renderer.blockentity.BeaconRenderer;
-import net.minecraft.client.renderer.rendertype.RenderType;
-import net.minecraft.world.phys.Vec3;
+import com.mercuriusxeno.goo.client.SortRoute;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
+import com.mercuriusxeno.goo.client.TranslucentVisualPathRegistrations;
 import org.junit.jupiter.api.Test;
 import java.util.List;
-import java.util.function.Consumer;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.atLeastOnce;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * The glow column a Laser-converted reflector draws: its beams and core
- * submit at the beam order, drawn after the column, so they show in front of
- * it rather than hidden behind it.
+ * The glow column a Laser-converted reflector or a beacon draws: its beams
+ * and core queue onto the shared path at the prism's center, the column's own
+ * sort point, and the column registers ahead of them, so the path's stable far
+ * to near sort draws each beam after its own column, showing in front of it
+ * rather than hidden behind it.
  * decision diagnose-and-correct-the-sunbeam-prism-depth
  */
 class GlowColumnTest {
 
-    private static final double RAIL_LENGTH = 4;
-    private static final int BRIGHTEST = 15;
-    private static final CrystalClusterSubmitter.Look LOOK =
-            new CrystalClusterSubmitter.Look(new GooRenderUtil.UvRect(0f, 0f, 1f, 1f), GlowColumn.TINT);
+    private static final Runnable NO_DRAW = () -> { };
 
-    /**
-     * Translucent geometry in one submit order draws per render type in no
-     * fixed order, so a beam sharing the column's order may draw first and
-     * the column cover it; each beam submits at the beam order.
-     */
     @Test
-    void theReflectorsRailBeamDrawsAfterItsColumn() {
-        PrismRenderState state = new PrismRenderState();
-        state.look = LOOK;
-        state.links = List.of(new Vec3(RAIL_LENGTH, 0, 0));
-        state.linkLight = BRIGHTEST;
-        assertTheBeamSubmitsAtTheBeamOrder(collector -> new GlowReflectorStyle().submit(state, new PoseStack(),
-                collector));
+    void theColumnRegistersAheadOfItsBeams() {
+        List<Class<?>> farToNear = TranslucentVisualPathRegistrations.visualsOn(SortRoute.FAR_TO_NEAR);
+        int column = farToNear.indexOf(GlowColumn.class);
+        assertTrue(column >= 0 && column < farToNear.indexOf(GlowBeaconStyle.class)
+                && column < farToNear.indexOf(GlowReflectorStyle.class), "registered " + farToNear);
     }
 
     @Test
-    void theBeaconsBeamDrawsAfterItsColumn() {
-        PrismRenderState state = new PrismRenderState();
-        state.look = LOOK;
-        assertTheBeamSubmitsAtTheBeamOrder(collector -> new GlowBeaconStyle().submit(state, new PoseStack(),
-                collector));
-    }
-
-    /** A reflector's core shows at every linked prism, the end that draws the rail and the end that does not. */
-    @Test
-    void aLinkedReflectorDrawsItsCoreAfterItsColumn() {
-        for (double along : new double[] {RAIL_LENGTH, -RAIL_LENGTH}) {
-            PrismRenderState state = new PrismRenderState();
-            state.look = LOOK;
-            state.links = List.of(new Vec3(along, 0, 0));
-            state.linkLight = BRIGHTEST;
-            SubmitNodeCollector collector = mock(SubmitNodeCollector.class);
-            OrderedSubmitNodeCollector later = mock(OrderedSubmitNodeCollector.class);
-            when(collector.order(GlowColumn.BEAM_ORDER)).thenReturn(later);
-            new GlowReflectorStyle().submit(state, new PoseStack(), collector);
-            verify(later, atLeastOnce()).submitCustomGeometry(any(PoseStack.class), eq(GooRenderTypes.GLOW_SHELL_TYPE),
-                    any());
-        }
-    }
-
-    private static void assertTheBeamSubmitsAtTheBeamOrder(Consumer<SubmitNodeCollector> submit) {
-        SubmitNodeCollector collector = mock(SubmitNodeCollector.class);
-        OrderedSubmitNodeCollector later = mock(OrderedSubmitNodeCollector.class);
-        when(collector.order(GlowColumn.BEAM_ORDER)).thenReturn(later);
-        RenderType beam = GooRenderTypes.glowBeam(BeaconRenderer.BEAM_LOCATION);
-        submit.accept(collector);
-        verify(later, atLeastOnce()).submitCustomGeometry(any(PoseStack.class), eq(beam), any());
+    void drawsTiedOnDistanceKeepTheirRegisteredOrder() {
+        SortedDraw column = new SortedDraw(9, NO_DRAW);
+        SortedDraw beam = new SortedDraw(9, NO_DRAW);
+        assertEquals(List.of(column, beam), TranslucentVisualPathRegistrations.farToNear(List.of(column, beam)));
     }
 }

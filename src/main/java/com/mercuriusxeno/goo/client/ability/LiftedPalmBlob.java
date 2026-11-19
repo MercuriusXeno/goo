@@ -1,10 +1,11 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.TravelForm;
 import com.mercuriusxeno.goo.ability.crystal.StackHover;
 import com.mercuriusxeno.goo.client.GooSubmitter;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.model.GloveSpecialRenderer;
 import com.mercuriusxeno.goo.client.throwing.BlobShape;
 import com.mercuriusxeno.goo.client.throwing.GloveInputGate;
@@ -22,17 +23,16 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import org.jspecify.annotations.Nullable;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 
 /**
  * The palm blob lifted off the glove while its caster holds any ability: as
@@ -54,7 +54,6 @@ import java.util.concurrent.ConcurrentHashMap;
  * every-ability-casts-from-the-lifted-palm-blob
  * centered-abilities-float-the-blob-below-the-crosshair
  */
-@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class LiftedPalmBlob {
 
     /**
@@ -806,14 +805,16 @@ public final class LiftedPalmBlob {
     }
 
     /**
-     * Draws every caster's blob off the palm that the level's pass draws,
-     * turned with that caster's look, and forgets each lift that has settled.
+     * Forgets each lift that has settled and hands the shared path every
+     * caster's blob off the palm that the level's pass draws, turned with
+     * that caster's look, sorted by the nearest blob.
      * palm-blob-draws-as-the-charge-blob: the lifted blob is the charge-style core in its shell
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
      *
-     * @param event the level render stage event
+     * @param frame the frame being drawn
+     * @param draws where the blobs' draw goes
      */
-    @SubscribeEvent
-    public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || LIFTS.isEmpty()) {
             return;
@@ -822,12 +823,21 @@ public final class LiftedPalmBlob {
         LIFTS.values().removeIf(lift -> !lift.standsAt(now));
         float partial = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         Camera camera = PortalView.drawing() ? PortalView.camera() : mc.gameRenderer.getMainCamera();
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        List<Drawn> blobs = new ArrayList<>();
         for (Integer casterId : LIFTS.keySet()) {
             if (drawsInTheLevel(casterId)) {
-                drawnInTheLevel(mc, casterId, partial).ifPresent(drawn -> drawBlob(event.getPoseStack(), buffers,
-                        drawn, camera.position(), now + partial));
+                drawnInTheLevel(mc, casterId, partial).ifPresent(blobs::add);
             }
+        }
+        draws.accept(SortedDraw.nearestOf(blobs.stream().map(drawn -> drawn.blob().place()), camera.position(),
+                () -> drawBlobs(frame.poseStack(), mc.renderBuffers().bufferSource(), blobs, camera.position(),
+                        now + partial)));
+    }
+
+    private static void drawBlobs(PoseStack pose, MultiBufferSource.BufferSource buffers, List<Drawn> blobs,
+                                  Vec3 camera, float time) {
+        for (Drawn drawn : blobs) {
+            drawBlob(pose, buffers, drawn, camera, time);
         }
         buffers.endBatch();
     }
