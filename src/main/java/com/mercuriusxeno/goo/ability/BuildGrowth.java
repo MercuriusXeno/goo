@@ -16,9 +16,10 @@ import java.util.Optional;
 import java.util.OptionalInt;
 
 /**
- * What a Build grows and what it costs: each footprint column reaches down
- * as far as it rises and lifts the blocks it reached by the rise on stone
- * grown in the cells they leave (BuildColumn). A column grows only where
+ * What a Build grows and what it costs: each footprint column walks back no
+ * farther than it rises, stops at the first block with a replaceable cell
+ * behind it, and lifts the blocks in front of that block by the rise on stone
+ * grown from its near face (BuildColumn). A column grows only where
  * every cell above the ground the rise fills can be replaced; the rest of
  * the footprint grows nothing and costs nothing. A footprint on a wall
  * reaches into the wall and pushes out along its normal the same way.
@@ -28,6 +29,9 @@ import java.util.OptionalInt;
  * through the same plan the server grows by.
  * decision spire-grows-stone-out-of-the-top
  * decision build-reaches-down-as-far-as-it-rises-and-lifts-the-ground-on-stone
+ * decision build-extends-the-first-block-with-air-behind-it
+ * decision air-behind-a-block-is-anything-stone-can-replace
+ * decision build-pushes-from-behind-at-full-depth-with-no-air
  * decision spire-cost-field-prices-each-cubic-meter-of-stone-at-mundane-block
  * decision melt-and-fabricate-move-the-exact-value-through-a-remainder-buffer
  *
@@ -50,7 +54,7 @@ public record BuildGrowth(BuildFootprint footprint, List<BuildColumn> columns, G
         for (BlockPos ground : footprint.groundCells()) {
             if (columnOpen(blocks, ground, footprint.rise(), footprint.face())) {
                 columns.add(BuildColumn.reaching(ground, footprint.rise(), footprint.face(),
-                        cell -> carriable(blocks, cell)));
+                        cell -> carriable(blocks, cell), cell -> blocks.getBlockState(cell).canBeReplaced()));
             }
         }
         GooFraction cost = pricePerBlock.times((long) columns.size() * footprint.rise());
