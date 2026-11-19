@@ -12,7 +12,8 @@ package com.mercuriusxeno.goo.block.ability;
  * stands as ordinary ground and impales what walks on it; vines stands as
  * ordinary ground and entangles what crosses it; phase stands as ordinary
  * ground and puts what stands in it out of phase; stitch stands as ordinary
- * ground, lets a passive pass and tangles a hostile in it. A goo type
+ * ground, lets a passive pass and tangles a hostile in it; gloom stands as
+ * ordinary ground and reads dark to the mobs spawning on it. A goo type
  * binding a world goo to the cell names one.
  * slime-and-slick-are-one-volume-cell-tech
  * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
@@ -25,6 +26,7 @@ package com.mercuriusxeno.goo.block.ability;
  * undead-touching-wisps-goo-erupt-in-flames-and-take-holy-damage-by-fill
  * spikes-is-a-coat-of-metal-goo-that-impales-what-walks-on-it
  * vines-is-sprayed-slime-that-entangles-what-tries-to-cross
+ * gloom-spawns-regardless-of-light-and-mobs-on-it-ignore-daylight
  *
  * @see VolumeCellBlock
  */
@@ -54,7 +56,9 @@ public enum CellSurface {
      * Stitch's: ordinary ground underfoot, a passive passes it and a hostile in it is tangled in strands.
      * passives-move-through-stitch-and-hostiles-tangle-in-it
      */
-    TANGLE(Frictions.ORDINARY_GROUND);
+    TANGLE(Frictions.ORDINARY_GROUND),
+    /** Gloom's: ordinary ground underfoot, it reads dark to a hostile mob spawning on it, whatever the light. */
+    DARKEN(Frictions.ORDINARY_GROUND);
 
     /** The friction a cell bound to this surface stands at, the slipperiness what moves on it meets. */
     private final float friction;
@@ -141,6 +145,13 @@ public enum CellSurface {
      */
     public boolean tangles() {
         return this == TANGLE;
+    }
+
+    /**
+     * @return true where the cell reads dark to a hostile mob spawning on it
+     */
+    public boolean darkens() {
+        return this == DARKEN;
     }
 
     /** The frictions the surfaces stand at, held apart so the constants above can read them. */

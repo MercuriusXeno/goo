@@ -16,7 +16,6 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.minecraft.world.phys.shapes.CollisionContext;
 
 /**
  * Nectar's nerf, the sticky goo's: a thing touching it, on a wall or on a
@@ -206,7 +205,8 @@ public final class NectarStick {
      */
     private static boolean towersBeside(Level level, BlockPos pos, BlockState state, AABB sides, LivingEntity living) {
         double step = isStuck(living) ? 0 : living.maxUpStep();
-        return state.getCollisionShape(level, pos, CollisionContext.empty()).toAabbs().stream()
+        // the outline holds the wall coats, which take no collision
+        return state.getShape(level, pos).toAabbs().stream()
                 .map(part -> part.move(pos))
                 .anyMatch(part -> part.intersects(sides) && towersOverStep(part.maxY, living.getY(), step));
     }
