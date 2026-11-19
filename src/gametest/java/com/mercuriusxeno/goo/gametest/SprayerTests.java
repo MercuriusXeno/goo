@@ -222,7 +222,7 @@ public final class SprayerTests {
     private static ServerPlayer misterOverAFloor(GameTestHelper helper) {
         ServerPlayer sprayer = sprayerOverAFloor(helper);
         SprayerSelectPayload.keepOnTheHeldSprayer(sprayer, new SprayerSelectPayload("", SprayerFlow.MEDIUM,
-                SprayerNozzle.MISTER));
+                SprayerNozzle.ATOMIZER));
         return sprayer;
     }
 
