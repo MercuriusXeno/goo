@@ -23,11 +23,8 @@ import net.minecraft.tags.TagKey;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import static org.mockito.Mockito.mock;
@@ -59,8 +56,7 @@ final class HeldSweepHold {
     private final HeldSweepStep step;
     private final HeldSweepWorld world;
     private final HeldSweepPulses server = new HeldSweepPulses();
-    private final Map<Integer, HeldSweepPulse> pulses = new LinkedHashMap<>();
-    private final Map<Vec3, EchoField> fields = new HashMap<>();
+    private final LiveSweeps sweeps = new LiveSweeps();
     private final CountingVertexConsumer consumer = new CountingVertexConsumer();
     private final List<BlockStateModelPart> cube = List.of(new CubePart(mock(BakedQuad.class)));
     /**
@@ -114,7 +110,7 @@ final class HeldSweepHold {
         }
         step.sendSweeps(live, gameTime, payload -> {
             payloads++;
-            HeldSweepVisual.hear(pulses, fields, payload, gameTime, type -> TINT);
+            sweeps.hear(payload, gameTime, type -> TINT);
         });
     }
 
@@ -149,14 +145,14 @@ final class HeldSweepHold {
         double now = gameTime + (double) frame / FRAMES_A_TICK;
         Vec3 camera = casterAt.add(0, EYE, 0);
         PoseStack poseStack = new PoseStack();
-        HeldSweepVisual.upkeepFronts(new HeldSweepVisual.Upkeep(pulses, fields, HeldSweepWorld::isAir,
+        HeldSweepVisual.upkeepFronts(new HeldSweepVisual.Upkeep(sweeps, HeldSweepWorld::isAir,
                 HeldSweepWorld::shapeOf), now, entities, null);
-        List<HeldSweepVisual.WallGlow> lit = HeldSweepVisual.wallsToDraw(pulses.values(), now);
+        List<HeldSweepVisual.WallGlow> lit = HeldSweepVisual.wallsToDraw(sweeps.walls(), now);
         walls = lit.size();
         SortedDraw wallDraw = HeldSweepVisual.sortedByNearest(lit.stream()
-                .map(wall -> Vec3.atCenterOf(wall.face().pos())), camera,
+                .map(wall -> wall.face().middle()), camera,
                 () -> HeldSweepVisual.drawWalls(poseStack.last(), consumer.pass(), camera, lit));
-        List<HeldSweepPulse> travelling = pulses.values().stream().filter(pulse -> pulse.travelling(now)).toList();
+        List<HeldSweepPulse> travelling = sweeps.pulses().values().stream().filter(pulse -> pulse.travelling(now)).toList();
         SortedDraw frontDraw = HeldSweepVisual.sortedByNearest(travelling.stream()
                 .map(pulse -> pulse.field().center()), camera,
                 () -> HeldSweepVisual.drawFronts(poseStack.last(), consumer.pass(), camera, travelling, now));
@@ -197,9 +193,14 @@ final class HeldSweepHold {
     void settle(int ticks) {
         for (int tick = 0; tick < ticks; tick++) {
             tick();
-            HeldSweepVisual.upkeepFronts(new HeldSweepVisual.Upkeep(pulses, fields, HeldSweepWorld::isAir,
+            HeldSweepVisual.upkeepFronts(new HeldSweepVisual.Upkeep(sweeps, HeldSweepWorld::isAir,
                     HeldSweepWorld::shapeOf), gameTime, entities, null);
         }
+    }
+
+    /** @return the lit hits the wall list weighs to find a frame's walls */
+    int wallListReads() {
+        return sweeps.walls().weighed();
     }
 
     /** @return the quads every frame so far submitted */
@@ -214,7 +215,7 @@ final class HeldSweepHold {
 
     /** @return the live pulses the client holds */
     int clientPulses() {
-        return pulses.size();
+        return sweeps.pulses().size();
     }
 
     /** @return the entities every Scry strike so far visited */

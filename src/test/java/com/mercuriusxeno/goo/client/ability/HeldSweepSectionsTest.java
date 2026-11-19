@@ -17,8 +17,6 @@ import net.minecraft.util.profiling.Profiler;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Stream;
@@ -55,7 +53,7 @@ class HeldSweepSectionsTest {
 
         @Test
         void frontUpkeepReportsUnderItsOwnSection() {
-            HeldSweepVisual.Upkeep upkeep = new HeldSweepVisual.Upkeep(new LinkedHashMap<>(), new HashMap<>(),
+            HeldSweepVisual.Upkeep upkeep = new HeldSweepVisual.Upkeep(new LiveSweeps(),
                     HeldSweepWorld::isAir, HeldSweepWorld::shapeOf);
 
             assertEquals(List.of(HeldSweepSections.FRONT_UPKEEP),
@@ -65,7 +63,7 @@ class HeldSweepSectionsTest {
         @Test
         void wallListReportsUnderItsOwnSection() {
             assertEquals(List.of(HeldSweepSections.WALL_LIST),
-                    sectionsOf(() -> HeldSweepVisual.wallsToDraw(List.of(), 0)));
+                    sectionsOf(() -> HeldSweepVisual.wallsToDraw(new LitWalls(), 0)));
         }
 
         @Test

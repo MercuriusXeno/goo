@@ -25,6 +25,7 @@ final class EchoField {
     private final Vec3 center;
     private final List<EchoFace> faces = new ArrayList<>();
     private double scannedTo;
+    private long shellPositions;
 
     /**
      * @param center the spot the pulses leave from, at the caster's body
@@ -45,14 +46,22 @@ final class EchoField {
         if (radius <= scannedTo) {
             return;
         }
+        if (faces.size() >= MOST_FACES) {
+            // a full field keeps no more walls, so the shell the front crossed is never built
+            scannedTo = radius;
+            return;
+        }
         List<EchoFace> band = new ArrayList<>();
-        for (BlockPos pos : ScryReveal.shell(center, scannedTo, radius)) {
+        List<BlockPos> shell = ScryReveal.shell(center, scannedTo, radius);
+        shellPositions += shell.size();
+        for (BlockPos pos : shell) {
             if (faces.size() + band.size() >= MOST_FACES) {
                 break;
             }
             List<Direction> sides = ScryReveal.exposedFaces(isAir, pos);
             if (!sides.isEmpty()) {
-                band.add(new EchoFace(pos, sides, shapeOf.apply(pos), Vec3.atCenterOf(pos).distanceTo(center)));
+                Vec3 middle = Vec3.atCenterOf(pos);
+                band.add(new EchoFace(pos, sides, shapeOf.apply(pos), middle.distanceTo(center), middle));
             }
         }
         band.sort(Comparator.comparingDouble(EchoFace::distance));
@@ -67,6 +76,17 @@ final class EchoField {
      */
     Vec3 center() {
         return center;
+    }
+
+    /**
+     * The positions of every shell the walk built so far, the walk's work
+     * beside the walls it found.
+     * decision diagnose-and-correct-the-lag-on-four-sense-abilities
+     *
+     * @return how many
+     */
+    long shellPositions() {
+        return shellPositions;
     }
 
     /**
@@ -95,7 +115,8 @@ final class EchoField {
      * @param sides    its sides open to air
      * @param boxes    its voxel shape's boxes, block-local, so slabs and stairs light as they stand
      * @param distance its center's distance from the spot
+     * @param middle   its center, which a frame's walls sort by
      */
-    record EchoFace(BlockPos pos, List<Direction> sides, List<AABB> boxes, double distance) {
+    record EchoFace(BlockPos pos, List<Direction> sides, List<AABB> boxes, double distance, Vec3 middle) {
     }
 }
