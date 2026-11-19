@@ -96,6 +96,7 @@ class VolumeCellLookTest {
                 new Cell("leaf_vines", CellBinding.VINES, "goo:fluid/leaf_fluid", 0x8DD75F),
                 new Cell("unstable_nitro", CellBinding.NITRO, "goo:fluid/unstable_fluid", 0x55FF22),
                 new Cell("quantum_phase", CellBinding.PHASE, "goo:fluid/quantum_fluid", 0x6AD0F0),
+                new Cell("rock_mortar", CellBinding.MORTAR, "goo:fluid/rock_fluid", 0x8A6A50),
                 new Cell("astral_dowsing", CellBinding.DOWSING, "goo:fluid/astral_fluid", 0x2A3C9A));
     }
 
