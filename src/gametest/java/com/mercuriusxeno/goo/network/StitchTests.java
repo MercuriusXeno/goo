@@ -2,10 +2,12 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.yarn.StitchMob;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
+import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -15,14 +17,19 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.monster.Slime;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 /**
  * Yarn's Stitch through the real landing its stream's drips take: a drip
@@ -68,6 +75,14 @@ public final class StitchTests {
     private static final String ZOMBIE_SHOULD_LAG = "The zombie on Stitch should cover less ground than the zombie "
             + "on stone, %.3f against %.3f";
     private static final String COW_SHOULD_WALK = "The cow on stone should walk the lane, it covered %.3f";
+    private static final String SLIME_BECOMES_A_PASSIVE = "slime_on_stitch_becomes_a_passive_from_the_table";
+    /** The full Stitch cell the slime is set on, in the middle of the bay's floor. */
+    private static final BlockPos SLIME_CELL = new BlockPos(2, 1, 2);
+    /** A second, the slime's turn and its morph with room to spare. */
+    private static final int TURN_TICKS = 20;
+    private static final String SLIME_SHOULD_TURN = "The slime should be gone and one mob of the table stand in its "
+            + "place: %d slimes, %d table mobs";
+    private static final String CELL_SHOULD_SPEND = "The cell should be lower by %s's %d layers, holds %d";
 
     private StitchTests() {
     }
@@ -80,6 +95,44 @@ public final class StitchTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, PASSIVES_CROSS_HOSTILES_TANGLE,
                 StitchTests::stitchLaysYarnGooACowCrossesAndAZombieTangles);
+        GooTestFunctions.registerTest(registrar, SLIME_BECOMES_A_PASSIVE,
+                StitchTests::slimeOnStitchBecomesAPassiveFromTheTable);
+    }
+
+    /**
+     * A small slime set on a full Stitch cell in the middle of a stone floor
+     * is gone a second later: one mob the shipped table names stands there,
+     * and the cell is lower by that entry's layers.
+     *
+     * @param helper the gametest helper
+     */
+    public static void slimeOnStitchBecomesAPassiveFromTheTable(GameTestHelper helper) {
+        for (int x = 0; x <= 4; x++) {
+            for (int z = 0; z <= 4; z++) {
+                helper.setBlock(new BlockPos(x, 0, z), Blocks.STONE);
+                helper.setBlock(new BlockPos(x, 1, z), Blocks.AIR);
+            }
+        }
+        helper.setBlock(SLIME_CELL, GooBlocks.YARN_STITCH.get().defaultBlockState()
+                .setValue(VolumeCellBlock.LAYERS, VolumeCellBlock.MAX_LAYERS));
+        Slime slime = helper.spawnWithNoFreeWill(EntityType.SLIME, Vec3.atBottomCenterOf(SLIME_CELL.above()));
+        slime.setSize(1, true);
+        Map<Identifier, Integer> table = helper.getLevel().registryAccess().lookupOrThrow(StitchMob.REGISTRY)
+                .stream().collect(Collectors.toMap(StitchMob::entity, StitchMob::layers));
+        AABB around = new AABB(helper.absolutePos(SLIME_CELL)).inflate(2);
+        helper.runAfterDelay(TURN_TICKS, () -> {
+            List<Slime> slimes = helper.getLevel().getEntitiesOfClass(Slime.class, around);
+            List<Mob> born = helper.getLevel().getEntitiesOfClass(Mob.class, around,
+                    mob -> table.containsKey(EntityType.getKey(mob.getType())));
+            BlockState cell = helper.getBlockState(SLIME_CELL);
+            int left = cell.is(GooBlocks.YARN_STITCH.get()) ? cell.getValue(VolumeCellBlock.LAYERS) : 0;
+            helper.assertTrue(slimes.isEmpty() && born.size() == 1,
+                    String.format(SLIME_SHOULD_TURN, slimes.size(), born.size()));
+            int spent = table.get(EntityType.getKey(born.getFirst().getType()));
+            helper.assertTrue(left == VolumeCellBlock.MAX_LAYERS - spent,
+                    String.format(CELL_SHOULD_SPEND, born.getFirst().getType(), spent, left));
+            helper.succeed();
+        });
     }
 
     /**
