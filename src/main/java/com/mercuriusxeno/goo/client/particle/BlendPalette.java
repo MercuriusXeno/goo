@@ -120,12 +120,29 @@ public record BlendPalette(float lightRed, float lightGreen, float lightBlue,
             0x9A / 255f, 0x4E / 255f, 0x4E / 255f, 0x65 / 255f, 0x28 / 255f, 0x28 / 255f);
 
     /**
+     * Spores' spray drips, from shroom's bright purple, B66CD5, to its
+     * wheel purple, 8E44AD, the two the shroom goo type's definition names.
+     * spores-is-shrooms-residual-a-passive-mycosis
+     */
+    public static final BlendPalette SPORES_SHROOM_PURPLES = new BlendPalette(
+            0xB6 / 255f, 0x6C / 255f, 0xD5 / 255f, 0x8E / 255f, 0x44 / 255f, 0xAD / 255f);
+
+    /**
      * Nitro's spray drips, from unstable's bright green, 88FF44, to its wheel
      * green, 39FF14, the two the unstable goo type's definition names.
      * nitro-is-unstables-goo-that-explodes-in-a-chain-by-its-quantity
      */
     public static final BlendPalette NITRO_UNSTABLE_GREENS = new BlendPalette(
             0x88 / 255f, 0xFF / 255f, 0x44 / 255f, 0x39 / 255f, 0xFF / 255f, 0x14 / 255f);
+
+    /**
+     * Phase's spray drips, from quantum's highlight blue, 6AD0F0, to its
+     * wheel blue, 3AA0E0, the two blues the quantum goo type's definition
+     * names.
+     * phase-goo-puts-what-stands-in-it-out-of-phase
+     */
+    public static final BlendPalette PHASE_QUANTUM_BLUES = new BlendPalette(
+            0x6A / 255f, 0xD0 / 255f, 0xF0 / 255f, 0x3A / 255f, 0xA0 / 255f, 0xE0 / 255f);
 
     /**
      * The color a share of the way from the light end to the dark.

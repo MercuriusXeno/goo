@@ -105,7 +105,7 @@ public final class AilmentOverlayLayer<S extends LivingEntityRenderState, M exte
      * its strength this frame, read by the layer when it draws, and outlines
      * the entity in the pulsing outline of an outlined ailment it wears; a
      * charmed mob wears the hex outline from its synced charm. Stamped after
-     * Rally's outline and before the glove's aim outline, so an ailment's
+     * Lead's outline and before the glove's aim outline, so an ailment's
      * outline stands over the red and the aim's over both.
      *
      * @param entity the entity

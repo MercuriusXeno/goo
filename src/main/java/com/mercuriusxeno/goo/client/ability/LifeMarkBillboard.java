@@ -18,8 +18,8 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Draws the life mark over each rallied, charmed or downed mob, and each mob
- * Heal or Drain touched lately or Kin senses, turned to face the camera in
+ * Draws the life mark over each led, charmed or downed mob, and each mob
+ * Heal or Drain touched lately or Herd senses, turned to face the camera in
  * vanilla's heart sprites: the empty heart whole, the full heart over it
  * cropped where the life's share ends, and the count right of the heart; a
  * downed mob draws the skull whole in the heart's slot, its negative count
@@ -59,7 +59,7 @@ final class LifeMarkBillboard {
 
     /**
      * Where one mark's parts stand, in blocks: x rightward from the head's
-     * center, y downward from the row's top edge, the rally or charm icon on
+     * center, y downward from the row's top edge, the lead or charm icon on
      * a head-marked mob, then the heart, then the count, the whole row
      * centered over the head.
      * health-bar-draws-two-thirds-with-half-font
@@ -91,7 +91,7 @@ final class LifeMarkBillboard {
          * mixed-number-gaps-its-whole-and-tightens-its-fraction
          *
          * @param count    the count as the spacing rule laid it
-         * @param withIcon whether the row leads with the rally or charm icon
+         * @param withIcon whether the row leads with the lead or charm icon
          * @return the parts' places
          */
         static Layout of(MixedNumberSpacing.Laid count, boolean withIcon) {
@@ -102,7 +102,7 @@ final class LifeMarkBillboard {
          * The layout of a mark whose count is as wide as given.
          *
          * @param countFontWidth the count's width in font pixels
-         * @param withIcon       whether the row leads with the rally or charm icon
+         * @param withIcon       whether the row leads with the lead or charm icon
          * @return the parts' places
          */
         static Layout of(float countFontWidth, boolean withIcon) {
@@ -163,16 +163,16 @@ final class LifeMarkBillboard {
      * @param color  the white tint, its alpha the mark's fade
      * @param count    the count's parts as the spacing rule laid them
      * @param layout   where the mark's parts stand over the head
-     * @param headMark the rally or charm icon leading the row, empty on a bare mob
+     * @param headMark the lead or charm icon leading the row, empty on a bare mob
      */
     private record Shown(LivingEntity living, LifeMark mark, int color, MixedNumberSpacing.Laid count, Layout layout,
                          Optional<HeadMark> headMark) {
     }
 
     /**
-     * Whether a mob draws a life mark: it is rallied, charmed or downed, Heal
-     * or Drain touched it lately, or Kin senses it. Downed outlasts the
-     * rally, so a downed mob whose rally ended keeps its mark.
+     * Whether a mob draws a life mark: it is led, charmed or downed, Heal
+     * or Drain touched it lately, or Herd senses it. Downed outlasts the
+     * lead, so a downed mob whose lead ended keeps its mark.
      * leader-shows-life-bars-while-it-stands
      * rallied-and-charmed-mobs-always-show-their-health-bar
      * downed-mob-shows-a-skull-and-its-negative-health
@@ -180,20 +180,20 @@ final class LifeMarkBillboard {
      * @param entityId   the mob's id
      * @param tick       the game tick
      * @param touched    the mobs Heal or Drain touched
-     * @param kin     the mobs Kin senses
-     * @param headMarked whether the mob wears the rally or the charm head mark
+     * @param herd     the mobs Herd senses
+     * @param headMarked whether the mob wears the lead or the charm head mark
      * @param downed     whether the mob lies downed
      * @return true for a head-marked, a downed, a touched or a sensed mob
      */
-    static boolean showsLifeMark(int entityId, long tick, TouchedMobs touched, KinSense kin,
+    static boolean showsLifeMark(int entityId, long tick, TouchedMobs touched, HerdSense herd,
                                  boolean headMarked, boolean downed) {
-        return headMarked || downed || touched.marked(entityId, tick) || kin.appearsGlowing(entityId);
+        return headMarked || downed || touched.marked(entityId, tick) || herd.appearsGlowing(entityId);
     }
 
     /**
-     * How strongly a mob's life mark draws: whole always on a rallied,
-     * charmed or downed mob; otherwise whole while Kin senses it and stands,
-     * fading with Kin's outline after it ends, and at TouchedMobs' own fade
+     * How strongly a mob's life mark draws: whole always on a led,
+     * charmed or downed mob; otherwise whole while Herd senses it and stands,
+     * fading with Herd's outline after it ends, and at TouchedMobs' own fade
      * where only a touch marks it, the stronger of the two answering.
      * leader-shows-life-bars-while-it-stands
      * rallied-and-charmed-mobs-always-show-their-health-bar
@@ -202,22 +202,22 @@ final class LifeMarkBillboard {
      * @param entityId   the mob's id
      * @param time       the game time including the partial tick
      * @param touched    the mobs Heal or Drain touched
-     * @param kin     the mobs Kin senses
-     * @param headMarked whether the mob wears the rally or the charm head mark
+     * @param herd     the mobs Herd senses
+     * @param headMarked whether the mob wears the lead or the charm head mark
      * @param downed     whether the mob lies downed
      * @return the strength, zero to one
      */
-    static float markStrength(int entityId, float time, TouchedMobs touched, KinSense kin,
+    static float markStrength(int entityId, float time, TouchedMobs touched, HerdSense herd,
                               boolean headMarked, boolean downed) {
         if (headMarked || downed) {
             return 1f;
         }
         float touchedStrength = touched.opacity(entityId, time);
-        return kin.appearsGlowing(entityId) ? Math.max(kin.strength(time), touchedStrength) : touchedStrength;
+        return herd.appearsGlowing(entityId) ? Math.max(herd.strength(time), touchedStrength) : touchedStrength;
     }
 
     /**
-     * Draws every marked mob's life mark, the rally and charm icons first,
+     * Draws every marked mob's life mark, the lead and charm icons first,
      * then the empty hearts and the skulls, then the fills, then the counts,
      * one batch each.
      *
@@ -287,7 +287,7 @@ final class LifeMarkBillboard {
         LifeMark mark = downed ? LifeMark.downed(living.getData(GooAttachments.DOWNED).negativeHealth())
                 : LifeMark.of(living.getHealth(), living.getMaxHealth());
         Optional<HeadMark> headMark = HeadMarks.headMarkOf(living);
-        float strength = markStrength(living.getId(), time, TouchedMobs.CLIENT, KinSense.CLIENT,
+        float strength = markStrength(living.getId(), time, TouchedMobs.CLIENT, HerdSense.CLIENT,
                 headMark.isPresent(), downed);
         MixedNumberSpacing.Laid count = MixedNumberSpacing.lay(mark.count(), font);
         return new Shown(living, mark, tint(strength), count, Layout.of(count, headMark.isPresent()), headMark);
@@ -336,7 +336,7 @@ final class LifeMarkBillboard {
      * @param buffers     the frame's buffers
      * @param marks       the marks to draw
      * @param partialTick the frame's partial tick
-     * @param headMark    the charm heart or the rally fist
+     * @param headMark    the charm heart or the lead fist
      */
     private static void drawIcons(PoseStack poseStack, Camera camera, MultiBufferSource.BufferSource buffers,
                                   List<Shown> marks, float partialTick, HeadMark headMark) {

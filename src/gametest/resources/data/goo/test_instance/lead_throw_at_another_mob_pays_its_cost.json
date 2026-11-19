@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:lead_throw_at_another_mob_pays_its_cost",
+  "environment": "goo:lead_reload",
+  "structure": "goo:test_bay",
+  "max_ticks": 60,
+  "setup_ticks": 0,
+  "required": true
+}

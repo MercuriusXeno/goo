@@ -70,7 +70,7 @@ public class FungalBudBlock extends Block {
         return MUSHROOMS.get(random.nextInt(MUSHROOMS.size()));
     }
 
-    private static boolean standsOnAFloor(LevelReader level, BlockPos pos) {
+    static boolean standsOnAFloor(LevelReader level, BlockPos pos) {
         BlockPos floor = pos.below();
         return level.getBlockState(floor).isFaceSturdy(level, floor, Direction.UP);
     }
@@ -93,13 +93,33 @@ public class FungalBudBlock extends Block {
     }
 
     /**
-     * Stands on a sturdy floor, with no bud, mushroom or fungus beside it on
-     * any of its four sides, so the mushrooms buds grow into never stand
-     * touching and knock one another off.
+     * Stands on a sturdy floor, where the mushroom it would grow into could
+     * stand, with no bud, mushroom or fungus beside it on any of its four
+     * sides, so the mushrooms buds grow into never stand touching and knock
+     * one another off. A spray placing a bud elsewhere fizzles.
+     * operator ruling 2026-11-18: Mycosis should fizzle instead of plant buds where mushrooms aren't allowed to grow
      */
     @Override
     protected boolean canSurvive(@NonNull BlockState state, @NonNull LevelReader level, @NonNull BlockPos pos) {
-        return standsOnAFloor(level, pos) && hasRoomBeside(level, pos);
+        return standsOnAFloor(level, pos) && mushroomCanStand(level, pos) && hasRoomBeside(level, pos);
+    }
+
+    /**
+     * Whether the growth a bud in a cell would ripen into could stand there:
+     * a fungus on its nylium, a brown or red mushroom by vanilla's own rule,
+     * on mycelium or podzol or in low light. Both mushrooms stand by the same
+     * rule, so the brown one answers for either.
+     * operator ruling 2026-11-18: Mycosis should fizzle instead of plant buds where mushrooms aren't allowed to grow
+     *
+     * @param level the level
+     * @param pos   the cell
+     * @return true where the bud's growth could stand
+     */
+    static boolean mushroomCanStand(LevelReader level, BlockPos pos) {
+        BlockState floor = level.getBlockState(pos.below());
+        Block growth = floor.is(Blocks.CRIMSON_NYLIUM) || floor.is(Blocks.WARPED_NYLIUM)
+                ? growthOn(floor, RandomSource.create()) : Blocks.BROWN_MUSHROOM;
+        return growth.defaultBlockState().canSurvive(level, pos);
     }
 
     /**
@@ -131,7 +151,9 @@ public class FungalBudBlock extends Block {
     }
 
     /**
-     * Ripens the bud one step, and grows the ripe bud into its mushroom.
+     * Ripens the bud one step, and grows the ripe bud into its mushroom
+     * where that mushroom can stand; a ripe bud whose light changed since it
+     * was placed waits as a bud.
      */
     @Override
     protected void randomTick(@NonNull BlockState state, @NonNull ServerLevel level, @NonNull BlockPos pos,
@@ -141,7 +163,11 @@ public class FungalBudBlock extends Block {
             level.setBlock(pos, state.setValue(AGE, age + 1), Block.UPDATE_CLIENTS);
             return;
         }
-        level.setBlock(pos, growthOn(level.getBlockState(pos.below()), random).defaultBlockState(),
-                Block.UPDATE_ALL);
+        // spores-goo-and-shrooms-never-displace-each-other: a mushroom that cannot stand here would break on its next
+        // update and leave its space to the goo beside it, so the ripe bud waits until its mushroom can stand
+        BlockState growth = growthOn(level.getBlockState(pos.below()), random).defaultBlockState();
+        if (growth.canSurvive(level, pos)) {
+            level.setBlock(pos, growth, Block.UPDATE_ALL);
+        }
     }
 }

@@ -14,6 +14,7 @@ import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.throwing.CoatRay;
+import com.mercuriusxeno.goo.throwing.ConvergingCone;
 import com.mercuriusxeno.goo.throwing.DripArc;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
@@ -1616,8 +1617,15 @@ public final class SlickTests {
             int drips = SlickLayPace.dripsThisTick(delivery.dripsPerTick(), SlickLayPace.factor(
                     MOVING_AND_RISING.horizontalDistance(), SlickLayPace.unadjustedSpeed(
                     streamer.getAttributeBaseValue(Attributes.MOVEMENT_SPEED))), 2);
+            // residual-spray-cone-centers-on-the-look-from-the-blob: the drips leave the sent origin onto the cone
+            // centered on the look, from the eye
+            Vec3 eye = streamer.getEyePosition();
+            DripArc.Flight flight = new DripArc.Flight(CoatRay.clipping(helper.getLevel()), DripArc.NO_LIVING,
+                    DripFlights.airspaceOf(helper.getLevel()), DripArc.gravityIn(helper.getLevel().dimension()));
+            GooStreamHandler.DripThrow thrown = new GooStreamHandler.DripThrow(tick.origin(),
+                    ConvergingCone.along(eye, streamer.getLookAngle(), exitSpeed, flight), exitSpeed, flight.gravity());
             List<Vec3> atRest = CoatRay.scatteredShares(2, drips).stream()
-                    .map(share -> DripArc.launch(streamer.getLookAngle(), delivery.coneDegrees(), share, exitSpeed))
+                    .map(share -> GooStreamHandler.dripLaunch(thrown, delivery, share))
                     .toList();
             helper.assertTrue(!atRest.isEmpty() && atRest.size() == moving.size(),
                     String.format(LAUNCHED_UNEVENLY, atRest.size(), moving.size()));

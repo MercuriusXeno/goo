@@ -1,9 +1,0 @@
-{
-  "type": "minecraft:function",
-  "function": "goo:rallied_cows_kill_drops_experience_and_player_only_loot",
-  "environment": "goo:minion_kills",
-  "structure": "goo:test_bay",
-  "max_ticks": 100,
-  "setup_ticks": 0,
-  "required": true
-}
