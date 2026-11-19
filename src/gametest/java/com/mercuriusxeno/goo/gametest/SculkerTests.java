@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.gametest;
 
-import com.mercuriusxeno.goo.ability.deep.SculkerSwim;
+import com.mercuriusxeno.goo.ability.sculk.SculkerSwim;
 import com.mercuriusxeno.goo.ability.held.HeldEffectsEvents;
 import com.mercuriusxeno.goo.network.HeartOverlayTests;
 import com.mercuriusxeno.goo.registry.GooAttachments;
@@ -65,7 +65,7 @@ public final class SculkerTests {
         GooTestFunctions.registerTest(registrar, SCULKER_FLIGHT_SWITCHES_OFF, SculkerTests::sculkerCreativeFlightSwitchesOff);
     }
 
-    private static final Identifier DEEP_SCULKER = Identifier.parse("goo:deep_sculker");
+    private static final Identifier SCULK_SCULKER = Identifier.parse("goo:sculk_sculker");
     /** How far above the bay's floor the stone's top layer floats. */
     private static final int LIFT = 12;
     /** The stone reaches this far from its middle cell on each horizontal axis. */
@@ -283,7 +283,7 @@ public final class SculkerTests {
                 .thenIdle(SENSOR_RESET_TICKS)
                 .thenExecuteFor(WALK_TICKS, () -> mutedPower[0] = Math.max(mutedPower[0], walkTick(player, level, sensor)))
                 .thenExecute(() -> {
-                    HeldEffectsEvents.end(player, DEEP_SCULKER);
+                    HeldEffectsEvents.end(player, SCULK_SCULKER);
                     standAt(player, start);
                 })
                 .thenIdle(SENSOR_RESET_TICKS)
@@ -351,7 +351,7 @@ public final class SculkerTests {
      * @return the player
      */
     private static ServerPlayer brewed(GameTestHelper helper) {
-        return HeartOverlayTests.selfInvoked(helper, GooTypes.DEEP, DEEP_SCULKER);
+        return HeartOverlayTests.selfInvoked(helper, GooTypes.SCULK, SCULK_SCULKER);
     }
 
     /**

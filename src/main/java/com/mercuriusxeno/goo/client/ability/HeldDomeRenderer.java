@@ -55,7 +55,7 @@ public final class HeldDomeRenderer {
             Map.entry(GooTypes.FROST, FrostExplosionVisual.INSTANCE),
             Map.entry(GooTypes.JELLY, MoteCloudGhost.JELLY),
             Map.entry(GooTypes.METAL, MetalExplosionVisual.INSTANCE),
-            Map.entry(GooTypes.SHROOM, MoteCloudGhost.SHROOM),
+            Map.entry(GooTypes.SCULK, MoteCloudGhost.SCULK),
             Map.entry(GooTypes.ROCK, RockExplosionVisual.INSTANCE),
             Map.entry(GooTypes.UNSTABLE, UnstableExplosionVisual.INSTANCE),
             Map.entry(GooTypes.WEIRD, MoteCloudGhost.WEIRD));

@@ -644,9 +644,7 @@ public final class GloveThrowSender {
             ResourceKey<GooTypeDefinition> gooType, String abilityId) {
         GooThrowPayload payload = targetToPayload(target, gooType, abilityId, throwOrigin());
         ClientAbility ability = AbilitySyncHandler.findAbility(abilityId);
-        // click-costs-one-mb-and-nothing-under-sculker: a throw a standing ability waives needs no goo held
-        boolean waived = ability != null && ability.freeFor(player.getData(GooAttachments.HELD_EFFECTS)::holds);
-        if (payload == null || !affordsAimedThrow(ability, waived, player.getUUID(), targetLead(player, payload),
+        if (payload == null || !affordsAimedThrow(ability, player.getUUID(), targetLead(player, payload),
                         amount -> GooSourceScanner.hasEnough(player, gooType, amount),
                         reagent -> ReagentScanner.holds(player, reagent))) {
             return null;
@@ -668,24 +666,21 @@ public final class GloveThrowSender {
     }
 
     /**
-     * Whether the player can send an aimed throw: one a standing ability
-     * waives, or a Lead cast releasing the player's own led mob, needs no
-     * goo held; any other is priced as {@link #affordsThrow} prices it.
-     * click-costs-one-mb-and-nothing-under-sculker
+     * Whether the player can send an aimed throw: a Lead cast releasing the
+     * player's own led mob needs no goo held; any other is priced as
+     * {@link #affordsThrow} prices it.
      * rally-release-cast-costs-nothing
      *
      * @param ability      the selected ability's synced copy, or null when none synced
-     * @param waived       whether a standing ability waives the throw's cost
      * @param caster       the local player's UUID
      * @param targetLead  the lead the aimed entity holds, {@link Led#NONE} for none
      * @param holdsAtLeast whether the player holds at least an mB amount of the type
      * @param holdsItem    whether the player holds one of an item
      * @return true when the throw may be sent
      */
-    static boolean affordsAimedThrow(@Nullable ClientAbility ability, boolean waived, UUID caster,
+    static boolean affordsAimedThrow(@Nullable ClientAbility ability, UUID caster,
             Led targetLead, IntPredicate holdsAtLeast, Predicate<Identifier> holdsItem) {
-        boolean free = waived || ability != null && LeadRelease.releasesOwnLead(ability.behaviors(), caster,
-                targetLead);
+        boolean free = ability != null && LeadRelease.releasesOwnLead(ability.behaviors(), caster, targetLead);
         return affordsThrow(ability, amount -> free || holdsAtLeast.test(amount), holdsItem);
     }
 

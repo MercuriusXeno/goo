@@ -51,12 +51,11 @@ public record GooContents(Map<ResourceKey<GooTypeDefinition>, Integer> contents,
     /**
      * Persistent codec: goo type ids to volumes, a bundled type by its bare
      * id and a datapack type by its namespaced id (decision datapack-goo-registry),
-     * and the remainders where any stand; a type that left the mod adds its
-     * volume to its successor's.
+     * and the remainders where any stand.
      */
     public static final Codec<GooContents> CODEC = RecordCodecBuilder.create(instance ->
             instance.group(
-                    GooTypes.savedMapCodec(Codec.INT, Integer::sum)
+                    Codec.unboundedMap(GooTypes.ID_CODEC, Codec.INT)
                             .fieldOf(CONTENTS_FIELD).forGetter(GooContents::contents),
                     GooRemainders.CODEC.optionalFieldOf(REMAINDERS_FIELD, GooRemainders.EMPTY)
                             .forGetter(GooContents::remainders)
