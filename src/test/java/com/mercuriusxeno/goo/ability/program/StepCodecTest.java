@@ -133,6 +133,7 @@ class StepCodecTest {
             Map.entry("scry", new ScryStep(GooTypes.ASTRAL, 96, List.of(EntityFilter.LIVING),
                     List.of(new AilmentOverlayStep(AilmentKind.ASTRAL, Expr.literal(200))))),
             Map.entry("undead", new UndeadStep(Expr.literal(1))),
+            Map.entry("invert", new InvertStep()),
             Map.entry("level", new LevelStep(TagKey.create(Registries.BLOCK,
                     Identifier.fromNamespaceAndPath("goo", "level_breakable")), new BreakPace(5, 1.5))),
             Map.entry("bore", new BoreStep(TagKey.create(Registries.BLOCK,
