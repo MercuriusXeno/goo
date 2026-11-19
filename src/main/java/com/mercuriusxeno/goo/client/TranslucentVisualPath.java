@@ -57,6 +57,7 @@ import com.mercuriusxeno.goo.client.ber.style.GlowBeaconStyle;
 import com.mercuriusxeno.goo.client.ber.style.GlowColumn;
 import com.mercuriusxeno.goo.client.ber.style.GlowReflectorStyle;
 import com.mercuriusxeno.goo.client.entity.MeteorRenderer;
+import com.mercuriusxeno.goo.client.entity.WispEchoes;
 import com.mercuriusxeno.goo.client.hole.HoleMouths;
 import com.mercuriusxeno.goo.client.hole.HolePits;
 import com.mercuriusxeno.goo.client.hud.CanisterHudRenderer;
@@ -67,7 +68,6 @@ import com.mercuriusxeno.goo.client.model.GloveSpecialRenderer;
 import com.mercuriusxeno.goo.client.model.GooJoins;
 import com.mercuriusxeno.goo.client.overlay.AimedMobRipple;
 import com.mercuriusxeno.goo.client.overlay.BlinkCursor;
-import com.mercuriusxeno.goo.client.overlay.FungusXray;
 import com.mercuriusxeno.goo.client.overlay.GasketOverlayRenderer;
 import com.mercuriusxeno.goo.client.overlay.GooTargetHighlighter;
 import com.mercuriusxeno.goo.client.overlay.OculusXray;
@@ -124,6 +124,8 @@ public final class TranslucentVisualPath {
             new Registration(AirbornWind.class, SortRoute.FAR_TO_NEAR, AirbornWind::collect),
             new Registration(PneumaWind.class, SortRoute.FAR_TO_NEAR, PneumaWind::collect),
             new Registration(GrowthBreeze.class, SortRoute.FAR_TO_NEAR, GrowthBreeze::collect),
+            // beaming-wisp-leaves-fading-echoes-behind-it: the echoes queue to WispGlow, so they register ahead of it
+            new Registration(WispEchoes.class, SortRoute.FAR_TO_NEAR, WispEchoes::collect),
             new Registration(WispGlow.class, SortRoute.FAR_TO_NEAR, WispGlow::collect),
             // operator ruling 2026-11-18: the glows vanilla's main pass drew before the clouds, queued by their
             // renderers; a prism's column registers before its beams, which sort at its center and draw after it.
@@ -177,7 +179,6 @@ public final class TranslucentVisualPath {
             new Registration(VoidstoneFaces.class, SortRoute.OPAQUE_SHAPE, VoidstoneFaces::collect),
             new Registration(AimedMobRipple.class, SortRoute.FAR_TO_NEAR, AimedMobRipple::collect),
             new Registration(BlinkCursor.class, SortRoute.FAR_TO_NEAR, BlinkCursor::collect),
-            new Registration(FungusXray.class, SortRoute.THROUGH_BLOCKS, FungusXray::collect),
             new Registration(OculusXray.class, SortRoute.THROUGH_BLOCKS, OculusXray::collect),
             new Registration(OreXray.class, SortRoute.THROUGH_BLOCKS, OreXray::collect),
             new Registration(TransmitTargetMarker.class, SortRoute.THROUGH_BLOCKS, TransmitTargetMarker::collect),

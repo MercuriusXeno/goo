@@ -531,28 +531,28 @@ class VolumeCellBlockTest {
     }
 
     /**
-     * A broken Host cell gives back deep goo, each layer a fifteenth of
-     * Host's cost as deep_host.json ships it
-     * (decision host-is-a-sculky-slime-that-sculk-spreads-eagerly-through).
+     * A broken Creep cell gives back sculk goo, each layer a fifteenth of
+     * Creep's cost as sculk_creep.json ships it
+     * (decision host-and-spores-combine-into-one-residual).
      */
     @Nested
-    class HostReclaim {
+    class CreepReclaim {
 
         private static final int LAYERS = 7;
 
         @Test
-        void hostIsDeepGooLaidByDeepsHost() {
-            assertEquals(List.of(GooTypes.DEEP, AbilityJson.idOf("deep_host.json")),
-                    List.of(CellBinding.HOST.gooType(), CellBinding.HOST.layingAbility()));
+        void creepIsSculkGooLaidBySculksCreep() {
+            assertEquals(List.of(GooTypes.SCULK, AbilityJson.idOf("sculk_creep.json")),
+                    List.of(CellBinding.CREEP.gooType(), CellBinding.CREEP.layingAbility()));
         }
 
         @Test
-        void aBrokenHostCellDropsDeepGooAtFifteenthsOfHostsCost() {
-            GooFraction cost = AbilityJson.decode("deep_host").cost().exactIn(GooValueTable.EMPTY);
+        void aBrokenCreepCellDropsSculkGooAtFifteenthsOfCreepsCost() {
+            GooFraction cost = AbilityJson.decode("sculk_creep").cost().exactIn(GooValueTable.EMPTY);
 
-            assertEquals(Optional.of(new VolumeCellBlock.Reclaim(GooTypes.DEEP,
+            assertEquals(Optional.of(new VolumeCellBlock.Reclaim(GooTypes.SCULK,
                             cost.times(LAYERS).dividedBy(FIFTEEN).floor())),
-                    VolumeCellBlock.reclaimedBy(CellBinding.HOST, LAYERS, cost));
+                    VolumeCellBlock.reclaimedBy(CellBinding.CREEP, LAYERS, cost));
         }
     }
 
@@ -609,9 +609,10 @@ class VolumeCellBlockTest {
     }
 
     /**
-     * A broken Infest cell gives back nether goo, each layer a fifteenth of
-     * Infest's cost as nether_infest.json ships it.
+     * A broken Infest cell gives back zombie goo, each layer a fifteenth of
+     * Infest's cost as zombie_infest.json ships it.
      * infest-is-nethers-goo-the-decay-effect-localized-around-the-goo
+     * zombie-goo-is-the-undead-and-takes-the-decay-abilities
      */
     @Nested
     class InfestReclaim {
@@ -619,16 +620,16 @@ class VolumeCellBlockTest {
         private static final int LAYERS = 8;
 
         @Test
-        void infestIsNetherGooLaidByNethersInfest() {
-            assertEquals(List.of(GooTypes.NETHER, AbilityJson.idOf("nether_infest.json")),
+        void infestIsZombieGooLaidByZombiesInfest() {
+            assertEquals(List.of(GooTypes.ZOMBIE, AbilityJson.idOf("zombie_infest.json")),
                     List.of(CellBinding.INFEST.gooType(), CellBinding.INFEST.layingAbility()));
         }
 
         @Test
-        void aBrokenInfestCellDropsNetherGooAtFifteenthsOfInfestsCost() {
-            GooFraction cost = AbilityJson.decode("nether_infest").cost().exactIn(GooValueTable.EMPTY);
+        void aBrokenInfestCellDropsZombieGooAtFifteenthsOfInfestsCost() {
+            GooFraction cost = AbilityJson.decode("zombie_infest").cost().exactIn(GooValueTable.EMPTY);
 
-            assertEquals(Optional.of(new VolumeCellBlock.Reclaim(GooTypes.NETHER,
+            assertEquals(Optional.of(new VolumeCellBlock.Reclaim(GooTypes.ZOMBIE,
                             cost.times(LAYERS).dividedBy(FIFTEEN).floor())),
                     VolumeCellBlock.reclaimedBy(CellBinding.INFEST, LAYERS, cost));
         }

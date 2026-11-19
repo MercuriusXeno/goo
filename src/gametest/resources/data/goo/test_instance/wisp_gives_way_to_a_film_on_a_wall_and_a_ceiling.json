@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:wisp_gives_way_to_a_film_on_a_wall_and_a_ceiling",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 80,
+  "setup_ticks": 0,
+  "required": true
+}

@@ -368,7 +368,7 @@ class DeliveryTest {
                     Identifier.fromNamespaceAndPath("goo", "kinetic_slick"),
                     Identifier.fromNamespaceAndPath("goo", "blaze_molten"),
                     Identifier.fromNamespaceAndPath("goo", "crystal_shatter"),
-                    Identifier.fromNamespaceAndPath("goo", "deep_host"),
+                    Identifier.fromNamespaceAndPath("goo", "sculk_creep"),
                     Identifier.fromNamespaceAndPath("goo", "frost_rime"),
                     Identifier.fromNamespaceAndPath("goo", "glow_wisps"),
                     Identifier.fromNamespaceAndPath("goo", "hex_leech"),
@@ -376,12 +376,12 @@ class DeliveryTest {
                     Identifier.fromNamespaceAndPath("goo", "jelly_nectar"),
                     Identifier.fromNamespaceAndPath("goo", "pulse_signal"),
                     Identifier.fromNamespaceAndPath("goo", "metal_spikes"),
-                    Identifier.fromNamespaceAndPath("goo", "nether_infest"),
+                    Identifier.fromNamespaceAndPath("goo", "zombie_infest"),
                     Identifier.fromNamespaceAndPath("goo", "leaf_vines"),
                     Identifier.fromNamespaceAndPath("goo", "unstable_nitro"),
                     Identifier.fromNamespaceAndPath("goo", "quantum_phase"),
-                    Identifier.fromNamespaceAndPath("goo", "shroom_spores"),
-                    Identifier.fromNamespaceAndPath("goo", "rock_mortar")), throwing);
+                    Identifier.fromNamespaceAndPath("goo", "rock_mortar"),
+                    Identifier.fromNamespaceAndPath("goo", "yarn_stitch")), throwing);
         }
     }
 
@@ -424,9 +424,9 @@ class DeliveryTest {
         @Test
         void eachSprayLeavesFasterByTheCastersSpeed() {
             for (String spray : Set.of("weird_goop", "kinetic_slick", "blaze_molten", "crystal_shatter",
-                    "deep_host", "frost_rime", "glow_wisps", "hex_leech", "typhoon_updraft", "jelly_nectar",
-                    "pulse_signal", "metal_spikes", "nether_infest", "leaf_vines", "unstable_nitro",
-                    "quantum_phase", "shroom_spores", "rock_mortar")) {
+                    "sculk_creep", "frost_rime", "glow_wisps", "hex_leech", "typhoon_updraft", "jelly_nectar",
+                    "pulse_signal", "metal_spikes", "zombie_infest", "leaf_vines", "unstable_nitro",
+                    "quantum_phase", "rock_mortar", "yarn_stitch")) {
                 Delivery delivery = AbilityJson.decode(spray).delivery();
 
                 assertEquals(delivery.throwSpeed() + RAMPED, delivery.exitSpeedAt(RAMPED), 1e-9, spray);

@@ -30,7 +30,21 @@ public record RootStrike(int vinesLeft, float damage, int layersKept) {
         if (vinesHeld <= 0 || amount <= 0f) {
             return new RootStrike(vinesHeld, amount, cellLayers);
         }
-        float dealt = feedsFire ? amount * fireFactor : amount;
-        return new RootStrike(0, dealt, Math.max(0, cellLayers - 1));
+        return new RootStrike(0, fireDealt(amount, feedsFire, fireFactor), Math.max(0, cellLayers - 1));
+    }
+
+    /**
+     * The damage a hit deals a held thing: fire it burns from lands at the
+     * fire factor, any other hit as it is. Stitch's tangle takes fire by this
+     * same rule.
+     * passives-move-through-stitch-and-hostiles-tangle-in-it
+     *
+     * @param amount     the hit's damage
+     * @param feedsFire  whether the hit is fire the thing burns from
+     * @param fireFactor what fire damage to a held thing is multiplied by
+     * @return the damage dealt
+     */
+    public static float fireDealt(float amount, boolean feedsFire, float fireFactor) {
+        return feedsFire ? amount * fireFactor : amount;
     }
 }

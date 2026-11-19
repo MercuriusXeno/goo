@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.mixin;
 
-import com.mercuriusxeno.goo.ability.deep.SculkerSwim;
+import com.mercuriusxeno.goo.ability.sculk.SculkerSwim;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.LevelRenderer;
 import org.spongepowered.asm.mixin.Mixin;

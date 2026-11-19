@@ -12,7 +12,7 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 /**
- * Nether's Infest block step: nether goo lands where each of the stream's
+ * Zombie's Infest block step: zombie goo lands where each of the stream's
  * drips strikes, one layer for each drip, through the volume cell's one
  * landing, as Goop lays its slime and Leech its hex goo. The step names what
  * an Infest cell does in place of Decay's motes: the block map its gnaw
@@ -21,6 +21,7 @@ import java.util.stream.Stream;
  * block stage gnawed and each bite landed takes a layer from the cell:
  * {@code infest map=goo:decay gnaw_ticks=20 damage=2 deplete_chance=0.1}.
  * infest-is-nethers-goo-the-decay-effect-localized-around-the-goo
+ * zombie-goo-is-the-undead-and-takes-the-decay-abilities
  * infest-gnaws-the-blocks-it-lies-on-and-bites-what-stands-in-it
  * infest-has-a-chance-to-deplete-as-it-gnaws-and-bites
  * each-goo-type-ships-a-world-goo-on-the-volume-cell
@@ -88,12 +89,12 @@ public record InfestStep(Identifier map, int gnawTicks, float damage, double dep
 
     @Override
     public Optional<CellFed> cellFed(ChannelHost host, CoatRay.BlockStrike strike) {
-        return CellLanding.cellFed(host, strike, GooBlocks.NETHER_INFEST.get());
+        return CellLanding.cellFed(host, strike, GooBlocks.ZOMBIE_INFEST.get());
     }
 
     @Override
     public void feed(ChannelHost host, CellFed fed) {
-        CellLanding.feed(host, fed, GooBlocks.NETHER_INFEST.get());
+        CellLanding.feed(host, fed, GooBlocks.ZOMBIE_INFEST.get());
     }
 
     @Override

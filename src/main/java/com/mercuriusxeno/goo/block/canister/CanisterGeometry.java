@@ -54,4 +54,52 @@ public record CanisterGeometry(float gasketBottom, float bodyBottom, float bodyT
         float floor = bodyBottom + FLUID_FLOOR;
         return floor + fill * (bodyTop - floor);
     }
+
+    /**
+     * The way a canister's goo settles: up its length when it stands, across its width when it lies on its side.
+     * decision sideways-canister-goo-settles-as-if-turned-sideways
+     */
+    public enum Settling {
+        /** Standing: the goo rises from the body's bottom. */
+        UPRIGHT,
+        /**
+         * Lying on its side, turned so its own low X side is down: the goo fills across the body's width from that
+         * side along its whole length.
+         */
+        SIDEWAYS
+    }
+
+    /**
+     * A box of goo in the canister's own frame, its length along Y.
+     *
+     * @param minX the box's low X
+     * @param maxX the box's high X
+     * @param minY the box's low Y
+     * @param maxY the box's high Y
+     * @param minZ the box's low Z
+     * @param maxZ the box's high Z
+     */
+    public record FluidBox(float minX, float maxX, float minY, float maxY, float minZ, float maxZ) {
+    }
+
+    /**
+     * The goo a fill holds inside the body, inset from its walls, as it settles: standing, rising from the body
+     * bottom to the fill's surface; lying on its side, the same share of the body's width from its low X side up,
+     * along the body's whole length, so the box holds the fill's share of the body either way.
+     * decision sideways-canister-goo-settles-as-if-turned-sideways
+     * decision one-fluid-surface-clears-the-cap
+     *
+     * @param settling the way the goo settles
+     * @param center   the body's center across X and Z, in block units
+     * @param fill     the fill fraction in [0, 1]
+     * @return the goo's box
+     */
+    public FluidBox fluidBox(Settling settling, float center, float fill) {
+        float low = center - HALF_WIDTH + FLUID_INSET;
+        float high = center + HALF_WIDTH - FLUID_INSET;
+        if (settling == Settling.UPRIGHT) {
+            return new FluidBox(low, high, bodyBottom, fluidSurface(fill), low, high);
+        }
+        return new FluidBox(low, low + Math.max(FLUID_FLOOR, fill * (high - low)), bodyBottom, bodyTop, low, high);
+    }
 }

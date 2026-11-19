@@ -3,15 +3,19 @@ package com.mercuriusxeno.goo.network;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.IRemainderLedger;
 import com.mercuriusxeno.goo.data.RemainderLedger;
+import com.mercuriusxeno.goo.data.StoredRemainderLedger;
+import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.GooDeposit;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.GooStacks;
+import com.mercuriusxeno.goo.item.SprayerItem;
 import com.mercuriusxeno.goo.registry.GooCapabilities;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import java.util.OptionalInt;
+import java.util.function.Consumer;
 
 /**
  * An ability's exact price charged to a player: the player's remainder pays first, the whole mB the rest comes to
@@ -122,8 +126,76 @@ final class AbilityCharges {
         }
     }
 
+    /**
+     * Charges the price where the payer the spray names covers it, and nothing where not.
+     *
+     * @param player   the paying player
+     * @param paysFrom where the spray pays from
+     * @param type     the goo type the price is paid in
+     * @param price    the exact price
+     * @return whether the price was charged
+     */
+    static boolean charge(Player player, PaysFrom paysFrom, ResourceKey<GooTypeDefinition> type, GooFraction price) {
+        return charge(paysFrom == PaysFrom.SPRAYER_CANISTER ? new SprayerPurse(player) : purseOf(player), type, price);
+    }
+
     private static Purse purseOf(Player player) {
         return new PlayerPurse(player);
+    }
+
+    /**
+     * A sprayer's purse: the canister fitted in the sprayer the player holds, its own remainder paying first,
+     * so nothing else the player carries pays; a player holding no sprayer holds nothing to pay with.
+     * decision sprayer-holds-a-canister-sideways-like-a-caulk-gun
+     *
+     * @param player the player holding the sprayer
+     */
+    private record SprayerPurse(Player player) implements Purse {
+
+        @Override
+        public IRemainderLedger ledger() {
+            return new StoredRemainderLedger(() -> CanisterItem.getFluidContent(fitted()).remainders(),
+                    remainders -> refit(canister -> CanisterItem.setFluidContent(canister,
+                            CanisterItem.getFluidContent(canister).withRemainders(remainders))));
+        }
+
+        @Override
+        public int holdings(ResourceKey<GooTypeDefinition> type) {
+            return CanisterItem.getFluidContent(fitted()).volumeOf(type);
+        }
+
+        @Override
+        public void withdraw(ResourceKey<GooTypeDefinition> type, int mb) {
+            refit(canister -> CanisterItem.removeGoo(canister, type, mb));
+        }
+
+        @Override
+        public void deposit(ResourceKey<GooTypeDefinition> type, int mb) {
+            int[] homeless = {mb};
+            refit(canister -> homeless[0] -= CanisterItem.addGoo(canister, type, mb));
+            if (homeless[0] > 0) {
+                player.drop(GooStacks.createForOutput(type, homeless[0]), false);
+            }
+        }
+
+        private ItemStack fitted() {
+            return SprayerItem.fittedCanister(SprayerItem.heldSprayer(player));
+        }
+
+        /**
+         * Changes a copy of the fitted canister and fits it back into the held sprayer.
+         *
+         * @param change the change to the canister
+         */
+        private void refit(Consumer<ItemStack> change) {
+            ItemStack sprayer = SprayerItem.heldSprayer(player);
+            ItemStack canister = SprayerItem.fittedCanister(sprayer);
+            if (canister.isEmpty()) {
+                return;
+            }
+            change.accept(canister);
+            SprayerItem.fitCanister(sprayer, canister);
+        }
     }
 
     /**

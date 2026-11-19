@@ -21,9 +21,7 @@ import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
-import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
@@ -52,9 +50,7 @@ import java.util.stream.Collectors;
  * decision wheel-shows-only-held-types-with-abilities
  * decision halves-arc-petals-at-rest
  */
-public final class GloveRadialScreen extends Screen {
-
-    private static final int HALF = 2;
+public final class GloveRadialScreen extends EasedWheelScreen {
 
     private final List<ResourceKey<GooTypeDefinition>> types;
     private final List<List<OfferedAbility>> abilities;
@@ -65,7 +61,6 @@ public final class GloveRadialScreen extends Screen {
 
     private GloveRadialScreen(Map<ResourceKey<GooTypeDefinition>, Integer> available,
                               List<ResourceKey<GooTypeDefinition>> castable) {
-        super(Component.empty());
         ClientAbilities synced = ClientAbilities.current();
         KnownItems known = ClientKnownItems.current();
         // wheel-shows-only-held-types-with-abilities
@@ -111,12 +106,8 @@ public final class GloveRadialScreen extends Screen {
     }
 
     @Override
-    public boolean isPauseScreen() {
-        return false;
-    }
-
-    private int radius() {
-        return (int) RadialWheel.outerRadius(width, height);
+    RadialWheel wheel() {
+        return wheel;
     }
 
     /**
@@ -183,26 +174,6 @@ public final class GloveRadialScreen extends Screen {
         return player == null ? 0f : player.level().getGameTime() + partialTick;
     }
 
-    @Override
-    public void mouseMoved(double x, double y) {
-        wheel.moveCursor(x - width / (double) HALF, y - height / (double) HALF, radius());
-    }
-
-    @Override
-    public boolean mouseScrolled(double x, double y, double scrollX, double scrollY) {
-        wheel.scroll(scrollY);
-        return true;
-    }
-
-    /**
-     * Advances the petals' ease on the client tick.
-     * decision petal-moves-animate
-     */
-    @Override
-    public void tick() {
-        super.tick();
-        wheel.tick();
-    }
 
     /**
      * Draws the wheel at the frame's true partial tick: the float a screen's

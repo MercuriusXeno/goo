@@ -28,6 +28,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * decision rename-rekeys-everything-that-names-the-ability
  * decision spire-is-renamed-build
  * decision kin-becomes-herd-and-rally-becomes-lead-on-yarn
+ * decision yore-leaves-and-rewind-moves-to-xeno-as-revert
  */
 class InventoryRenamedAbilitiesTest {
 
@@ -65,7 +66,8 @@ class InventoryRenamedAbilitiesTest {
                 Arguments.of("yarn_herd", "Herd"),
                 Arguments.of("yarn_lead", "Lead"),
                 Arguments.of("rock_build", "Build"),
-                Arguments.of("unstable_nitro", "Nitro"));
+                Arguments.of("unstable_nitro", "Nitro"),
+                Arguments.of("xeno_revert", "Revert"));
     }
 
     // quantum_phase names the Phase goo (decision phase-goo-puts-what-stands-in-it-out-of-phase).
@@ -97,7 +99,8 @@ class InventoryRenamedAbilitiesTest {
                 Arguments.of("jelly", Set.of("jelly_gluttony", "jelly_heal", "jelly_nectar", "jelly_reserve")),
                 Arguments.of("void", Set.of("void_cancel", "void_hole", "void_vacuum", "void_zone")),
                 Arguments.of("zoo", Set.of("zoo_allure", "zoo_shape", "zoo_spawn")),
-                Arguments.of("yarn", Set.of("yarn_herd", "yarn_lead")));
+                Arguments.of("yarn", Set.of("yarn_herd", "yarn_lead", "yarn_stitch")),
+                Arguments.of("xeno", Set.of("xeno_revert", "xeno_unveil", "xeno_shriek")));
     }
 
     @Test
