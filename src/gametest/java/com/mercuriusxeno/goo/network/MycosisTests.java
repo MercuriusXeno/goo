@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.AbilityRegistrySource;
 import com.mercuriusxeno.goo.ability.spray.Spored;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.item.GooStacks;
@@ -24,6 +25,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.Map;
 import java.util.function.Consumer;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
@@ -51,8 +53,6 @@ public final class MycosisTests {
     private static final int AFTER_THE_DEATH = 100;
     private static final String CONVERTED = "The dirt under the corpse should stand as dirt, stands %s";
     private static final String BUD_ON_STONE = "Mycosis sprayed on stone in daylight should plant no bud";
-    /** Ticks the fizzle test sprays for, past many buds' worth of the stream's chance. */
-    private static final int FIZZLE_SPRAY_TICKS = 200;
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -105,8 +105,10 @@ public final class MycosisTests {
     /** How far from the player's own cell a bud sprayed at its feet may stand. */
     private static final int AT_FEET_REACH = 1;
     private static final String NO_BUD_AT_FEET = "Mycosis sprayed straight down should bud the floor at the player's feet";
-    /** Ticks of hold the bud test sprays for at most, enough that a bud is all but certain. */
-    private static final int BUD_SPRAY_TICKS = 400;
+    private static final String BRANCH_STEP = "branch";
+    private static final String WHEN = "when";
+    /** A floor branch's condition every draw lands under, so each floor a ray lands on takes a bud. */
+    private static final String SURE_BUD = "chance(1)";
     /** Sculk goo the sprayer holds, thousands: enough to pay for the longest spray with room for its cost's tuning. */
     private static final int HELD_GOO = 25;
     private static final String ABILITY_REQUIRED = "Ability registry must hold sculk_mycosis";
@@ -166,21 +168,48 @@ public final class MycosisTests {
         AbilityDefinition mycosis = mycosis(helper);
         ServerPlayer player = sprayer(helper, LOOKING_AT_FEET);
         KnownRecipes.teachRequires(player, mycosis);
-        spray(helper, player, BUD_SPRAY_TICKS);
-        helper.succeedWhen(() -> {
+        helper.runAfterDelay(1, () -> sprayOnceAtASureBud(helper, player));
+        helper.runAtTickTime(2, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(player);
             boolean budded = BlockPos.betweenClosedStream(STAND_POS.offset(-AT_FEET_REACH, -1, -AT_FEET_REACH),
                     STAND_POS.offset(AT_FEET_REACH, 0, AT_FEET_REACH))
                     .anyMatch(cell -> helper.getBlockState(cell).is(GooBlocks.FUNGAL_BUD.get()));
             helper.assertTrue(budded, NO_BUD_AT_FEET);
-            helper.getLevel().getServer().getPlayerList().remove(player);
+            helper.succeed();
         });
     }
 
     /**
+     * Runs one held tick of Mycosis with its floor branch's chance held sure,
+     * so every floor a ray of that tick lands on takes a bud where a bud can
+     * stand; the shipped abilities stand again once the tick has run.
+     * gametests-waiting-on-a-random-draw-are-found-and-made-deterministic
+     *
+     * @param helper the gametest helper
+     * @param player the spraying player
+     */
+    private static void sprayOnceAtASureBud(GameTestHelper helper, ServerPlayer player) {
+        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.SCULK), MYCOSIS.toString(),
+                player.getEyePosition(), player.getEyePosition());
+        AbilityRegistrySource held = (AbilityRegistrySource) helper.getLevel().getServer().getServerResources()
+                .managers();
+        AbilityRegistry shipped = held.abilityRegistry();
+        held.holdAbilityRegistry(HeldAbilitySteps.withStepFields(shipped, MYCOSIS, BRANCH_STEP,
+                Map.of(WHEN, SURE_BUD)));
+        try {
+            GooStreamHandler.streamTick(player, tick);
+        } finally {
+            held.holdAbilityRegistry(shipped);
+        }
+    }
+
+    /**
      * A mock player standing on stone in daylight sprays Mycosis straight
-     * down at its own feet: where no mushroom could grow, the spray fizzles,
-     * and no fungal bud stands within a block of it.
+     * down at its own feet for a tick whose floor chance is held sure: where
+     * no mushroom could grow, the spray fizzles, and no fungal bud stands
+     * within a block of it.
      * operator ruling 2026-11-18: Mycosis should fizzle instead of plant buds where mushrooms aren't allowed to grow
+     * gametests-waiting-on-a-random-draw-are-found-and-made-deterministic
      *
      * @param helper the gametest helper
      */
@@ -191,8 +220,8 @@ public final class MycosisTests {
         AbilityDefinition mycosis = mycosis(helper);
         ServerPlayer player = sprayer(helper, LOOKING_AT_FEET);
         KnownRecipes.teachRequires(player, mycosis);
-        spray(helper, player, FIZZLE_SPRAY_TICKS);
-        helper.runAfterDelay(FIZZLE_SPRAY_TICKS + 1, () -> {
+        helper.runAfterDelay(1, () -> sprayOnceAtASureBud(helper, player));
+        helper.runAtTickTime(2, () -> {
             helper.getLevel().getServer().getPlayerList().remove(player);
             boolean budded = BlockPos.betweenClosedStream(STAND_POS.offset(-AT_FEET_REACH, 0, -AT_FEET_REACH),
                     STAND_POS.offset(AT_FEET_REACH, 0, AT_FEET_REACH))

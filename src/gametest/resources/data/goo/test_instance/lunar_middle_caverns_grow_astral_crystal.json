@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:lunar_middle_caverns_grow_astral_crystal",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 400,
+  "setup_ticks": 0,
+  "required": true
+}

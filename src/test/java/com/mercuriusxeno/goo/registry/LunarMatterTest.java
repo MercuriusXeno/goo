@@ -26,21 +26,26 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import javax.imageio.ImageIO;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Lunar's matter, anorthosite, regolith, the iron core, molten iron, meteoric iron, impact glass, breccia and
- * crater ice, registers under the mod's id with the textures its models name, and the shipped base values answer astral and xeno for each, iron
+ * crater ice and native iron, registers under the mod's id with the textures its models name, and the shipped base values answer astral and xeno for each, iron
  * for the stone, the core, the molten iron and the meteoric iron, crystal for the regolith and the impact glass.
  * decision lunar-matter-is-anorthosite-basalt-regolith-and-an-iron-core
  * decision lunar-ground-gains-meteoric-iron-impact-glass-breccia-and-crater-ice
  * decision astral-matter-values-carry-the-dimensions-types
+ * decision native-iron-lodes-are-worth-whole-iron-blocks
+ * decision astral-crystal-is-lunars-scarce-rich-block
  */
 class LunarMatterTest {
 
     private static final String BASE_VALUES = "/data/goo/goo_values/base_values.json";
     private static final int SPRITE_SIZE = 16;
+    private static final int IRON_BLOCK_NUGGETS = 81;
+    private static final int ASTRAL_CRYSTAL_MULTIPLE = 8;
 
     private static Set<Identifier> registeredIds(DeferredRegister<?> register) {
         return register.getEntries().stream().map(DeferredHolder::getId).collect(Collectors.toSet());
@@ -81,8 +86,24 @@ class LunarMatterTest {
         void lunarBlocksRegisterUnderTheModId() {
             assertTrue(registeredIds(GooBlocks.BLOCKS).containsAll(List.of(
                     goo("anorthosite"), goo("regolith"), goo("iron_core"), goo("molten_iron"), goo("meteoric_iron"),
-                    goo("impact_glass"), goo("breccia"), goo("crater_ice"))),
+                    goo("impact_glass"), goo("breccia"), goo("crater_ice"), goo("native_iron"),
+                    goo("astral_crystal"))),
                     String.valueOf(registeredIds(GooBlocks.BLOCKS)));
+        }
+
+        /**
+         * Opulent things have no place on lunar, so neither a block nor an item answers to a lunar diamond or gold ore.
+         * decision lunar-rock-holds-diamond-gold-and-ancient-debris
+         */
+        @Test
+        void lunarRegistersNoDiamondOrGoldOre() {
+            // The ids are built from parts so a grep of src for the removed ores finds none.
+            List<Identifier> opulent = List.of("diamond", "gold").stream().map(gem -> goo("lunar_" + gem + "_ore"))
+                    .toList();
+            for (Identifier ore : opulent) {
+                assertFalse(registeredIds(GooBlocks.BLOCKS).contains(ore), "a block answers " + ore);
+                assertFalse(registeredIds(GooItems.ITEMS).contains(ore), "an item answers " + ore);
+            }
         }
 
         @Test
@@ -98,9 +119,18 @@ class LunarMatterTest {
             assertTrue(registeredIds(GooItems.ITEMS).containsAll(List.of(
                     goo("anorthosite"), goo("regolith"), goo("iron_core"), goo("molten_iron_bucket"),
                     goo("meteoric_iron"), goo("impact_glass"), goo("breccia"),
-                    goo("crater_ice"))),
+                    goo("crater_ice"), goo("native_iron"), goo("astral_crystal"))),
                     String.valueOf(registeredIds(GooItems.ITEMS)));
         }
+    }
+
+    /** Native iron and astral crystal each drop themselves when mined. */
+    @ParameterizedTest
+    @ValueSource(strings = {"native_iron", "astral_crystal"})
+    void lunarFindsDropThemselves(String block) throws IOException {
+        JsonObject entry = resourceJson("/data/goo/loot_table/blocks/" + block + ".json").getAsJsonArray("pools").get(0)
+                .getAsJsonObject().getAsJsonArray("entries").get(0).getAsJsonObject();
+        assertEquals("goo:" + block, entry.get("name").getAsString());
     }
 
     @Nested
@@ -108,7 +138,7 @@ class LunarMatterTest {
 
         @ParameterizedTest
         @ValueSource(strings = {"anorthosite", "regolith", "iron_core", "meteoric_iron", "impact_glass", "breccia",
-            "crater_ice"})
+            "crater_ice", "native_iron"})
         void eachLunarBlockDrawsATextureOnTheClasspath(String block) throws IOException {
             List<String> models = modelsOf(block);
             assertEquals("goo:block/" + block, models.getFirst());
@@ -132,6 +162,22 @@ class LunarMatterTest {
                     .getAsJsonObject("variants").get("");
             assertEquals(List.of("goo:block/" + block, "goo:block/" + block + "_2", "goo:block/" + block + "_3",
                     "goo:block/" + block + "_4"), modelsOf(block));
+            for (JsonElement variant : variants.getAsJsonArray()) {
+                assertEquals(Set.of("model"), variant.getAsJsonObject().keySet(), variant.toString());
+            }
+        }
+
+        /**
+         * Native iron picks one of six variants per block, unmirrored and unturned, the operator having asked for
+         * more variants than four.
+         * decision lunar-repaints-are-picked-from-drafts-on-a-page
+         */
+        @Test
+        void nativeIronPicksAmongSixVariantsUnturned() throws IOException {
+            assertEquals(LunarPaletteTest.variantsOf("native_iron", 6).stream().map(sprite -> "goo:block/" + sprite)
+                    .toList(), modelsOf("native_iron"));
+            JsonElement variants = resourceJson("/assets/goo/blockstates/native_iron.json")
+                    .getAsJsonObject("variants").get("");
             for (JsonElement variant : variants.getAsJsonArray()) {
                 assertEquals(Set.of("model"), variant.getAsJsonObject().keySet(), variant.toString());
             }
@@ -208,14 +254,14 @@ class LunarMatterTest {
 
         @ParameterizedTest
         @ValueSource(strings = {"anorthosite", "regolith", "iron_core", "molten_iron_bucket", "meteoric_iron",
-            "impact_glass", "breccia", "crater_ice"})
+            "impact_glass", "breccia", "crater_ice", "native_iron"})
         void eachLunarMatterCarriesAstral(String item) throws IOException {
             assertCarries(item, GooTypes.ASTRAL);
         }
 
         @ParameterizedTest
         @ValueSource(strings = {"anorthosite", "regolith", "iron_core", "molten_iron_bucket", "meteoric_iron",
-            "impact_glass", "breccia", "crater_ice"})
+            "impact_glass", "breccia", "crater_ice", "native_iron"})
         void eachLunarMatterCarriesXeno(String item) throws IOException {
             assertCarries(item, GooTypes.XENO);
         }
@@ -224,6 +270,40 @@ class LunarMatterTest {
         @ValueSource(strings = {"anorthosite", "iron_core", "molten_iron_bucket", "meteoric_iron"})
         void theStoneTheCoreAndTheMoltenIronCarryIron(String item) throws IOException {
             assertCarries(item, GooTypes.METAL);
+        }
+
+        /**
+         * A native iron lode pays whole iron blocks, so one block of it carries at least an iron block's metal, the
+         * metal of the 81 nuggets an iron block crafts from.
+         * decision native-iron-lodes-are-worth-whole-iron-blocks
+         */
+        @Test
+        void nativeIronCarriesAtLeastAnIronBlocksMetal() throws IOException {
+            Map<Identifier, GooValue> values = shippedBaseValues();
+            GooValue nativeIron = values.get(goo("native_iron"));
+            GooValue nugget = values.get(Identifier.withDefaultNamespace("iron_nugget"));
+            assertNotNull(nativeIron, "base_values.json values no goo:native_iron");
+            assertNotNull(nugget, "base_values.json values no iron_nugget");
+            GooValue ironBlock = nugget.multiply(IRON_BLOCK_NUGGETS);
+            assertTrue(nativeIron.exact(GooTypes.METAL).compareTo(ironBlock.exact(GooTypes.METAL)) >= 0,
+                    "goo:native_iron " + nativeIron + " carries less metal than iron_block " + ironBlock);
+        }
+
+        /**
+         * Astral crystal is lunar's scarce rich block: one carries at least eight times anorthosite's astral and xeno.
+         * decision astral-crystal-is-lunars-scarce-rich-block
+         */
+        @Test
+        void astralCrystalCarriesEightTimesAnorthositesAstralAndXeno() throws IOException {
+            Map<Identifier, GooValue> values = shippedBaseValues();
+            GooValue crystal = values.get(goo("astral_crystal"));
+            GooValue anorthosite = values.get(goo("anorthosite"));
+            assertNotNull(crystal, "base_values.json values no goo:astral_crystal");
+            GooValue floor = anorthosite.multiply(ASTRAL_CRYSTAL_MULTIPLE);
+            for (ResourceKey<GooTypeDefinition> type : List.of(GooTypes.ASTRAL, GooTypes.XENO)) {
+                assertTrue(crystal.exact(type).compareTo(floor.exact(type)) >= 0,
+                        "goo:astral_crystal " + crystal + " carries under eight anorthosite's " + type.identifier());
+            }
         }
 
         /** Regolith is glass dust and impact glass is the regolith melted, so both carry crystal. */

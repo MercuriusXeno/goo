@@ -42,6 +42,16 @@ public final class PhaseTests {
     private static final BlockPos ZOMBIE_POS = new BlockPos(3, 1, 3);
     private static final float HIT = 4.0F;
     private static final int SETTLE_TICKS = 1;
+    /**
+     * The seed the hunting mob's random is set to as it spawns, so its target
+     * goal's roll lands on its first tick, which runs the target goals
+     * whatever its id, rather than once a roll lands.
+     * gametests-waiting-on-a-random-draw-are-found-and-made-deterministic
+     * operator ruling 2026-11-19: seed the drawing random
+     */
+    private static final long HUNT_SEED = 3L;
+    /** The tick by which the hunting mob has run its first tick, which runs its target goals whatever its id. */
+    private static final int HUNTED_BY = 1;
 
     private PhaseTests() {
     }
@@ -134,7 +144,8 @@ public final class PhaseTests {
 
     /**
      * A free-willed zombie and a player both out of phase share a plane, so
-     * the zombie's own goals take the player as its target.
+     * the zombie's own goals take the player as its target, its random
+     * seeded as it spawns.
      *
      * @param helper the gametest helper
      */
@@ -143,12 +154,14 @@ public final class PhaseTests {
         putOutOfPhase(player);
         Mob zombie = helper.spawn(EntityType.ZOMBIE, ZOMBIE_POS);
         putOutOfPhase(zombie);
-        helper.succeedWhen(() -> {
+        zombie.getRandom().setSeed(HUNT_SEED);
+        helper.runAtTickTime(HUNTED_BY, () -> {
             helper.assertTrue(zombie.getTarget() == player,
                     "A phased zombie should target a phased player, targets " + zombie.getTarget()
                             + ", zombie phased " + PhaseEvents.phased(zombie) + ", player phased "
                             + PhaseEvents.phased(player));
             helper.getLevel().getServer().getPlayerList().remove(player);
+            helper.succeed();
         });
     }
 
