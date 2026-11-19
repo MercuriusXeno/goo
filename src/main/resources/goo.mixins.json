@@ -40,6 +40,7 @@
     "WorldDimensionsGooStableMixin"
   ],
   "client": [
+    "AvatarRendererInvertMixin",
     "ClientChunkCachePocketBiomeMixin",
     "ClientLevelGooValuesMixin",
     "ClientLevelMeltKeepsMixin",
