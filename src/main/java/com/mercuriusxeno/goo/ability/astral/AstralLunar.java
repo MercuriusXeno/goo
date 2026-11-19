@@ -85,7 +85,7 @@ public final class AstralLunar {
         }
         float moonAngle = moonAngleAt(caster);
         Optional<LunarSight.Sky> sky = LunarSight.skyAt(caster.level().dimension(), caster.getX(),
-                caster.getLookAngle(), moonAngle, planetPhaseAt(caster));
+                caster.getLookAngle(), moonAngle, skyPhaseAt(caster));
         if (sky.isEmpty()) {
             return false;
         }
@@ -126,7 +126,7 @@ public final class AstralLunar {
      */
     public static boolean findsTheSky(ServerPlayer caster) {
         return LunarSight.skyAt(caster.level().dimension(), caster.getX(), caster.getLookAngle(),
-                moonAngleAt(caster), planetPhaseAt(caster)).isPresent();
+                moonAngleAt(caster), skyPhaseAt(caster)).isPresent();
     }
 
     /**
@@ -272,6 +272,18 @@ public final class AstralLunar {
         int z = (int) Math.floor(spot.z);
         level.getChunk(SectionPos.blockToSectionCoord(x), SectionPos.blockToSectionCoord(z));
         return new Vec3(spot.x, level.getHeight(Heightmap.Types.MOTION_BLOCKING, x, z), spot.z);
+    }
+
+    /**
+     * The phase of the body standing in the moon's place over the caster: the moon's in the overworld, so the trip out
+     * refuses under the new moon, and the blue planet's elsewhere.
+     * decision moon-trip-refuses-under-the-new-moon
+     *
+     * @param caster the caster
+     * @return the phase skyAt reads
+     */
+    private static MoonPhase skyPhaseAt(ServerPlayer caster) {
+        return Level.OVERWORLD.equals(caster.level().dimension()) ? moonPhaseAt(caster) : planetPhaseAt(caster);
     }
 
     /**
