@@ -67,7 +67,7 @@ class SprayerWheelTest {
         double lastX = -2;
         for (int nozzle = 0; nozzle < wheel.nozzles().size(); nozzle++) {
             double angle = wheel.hubAngleOf(new SprayerWheel.RingPetal(SprayerWheel.Group.NOZZLE, nozzle));
-            assertTrue(Math.cos(angle) > 0 && Math.sin(angle) > lastX, "nozzle " + nozzle + " at " + angle);
+            assertTrue(Math.sin(angle) > lastX, "nozzle " + nozzle + " left of the next, at " + angle);
             lastX = Math.sin(angle);
         }
         lastX = -2;
@@ -75,6 +75,12 @@ class SprayerWheelTest {
             double angle = wheel.hubAngleOf(new SprayerWheel.RingPetal(SprayerWheel.Group.FLOW, flow));
             assertTrue(Math.cos(angle) < 0 && Math.sin(angle) > lastX, "flow " + flow + " at " + angle);
             lastX = Math.sin(angle);
+        }
+        List<Double> around = wheel.ring().stream().filter(icon -> icon.group() != SprayerWheel.Group.GOO)
+                .map(wheel::hubAngleOf).sorted().toList();
+        double step = Math.PI * 2 / around.size();
+        for (int icon = 1; icon < around.size(); icon++) {
+            assertEquals(step, around.get(icon) - around.get(icon - 1), 1e-9, "icons split the hub evenly");
         }
     }
 

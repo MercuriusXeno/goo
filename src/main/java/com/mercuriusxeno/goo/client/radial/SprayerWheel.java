@@ -39,8 +39,6 @@ public record SprayerWheel(List<ResourceKey<GooTypeDefinition>> types, List<Spra
      */
     private static final double MOST_GOO_ARC = Math.toRadians(44);
     private static final double GOO_GAP = Math.toRadians(6);
-    /** The step between icons around the hub, radians. */
-    private static final double HUB_STEP = Math.toRadians(28);
 
     /** Which setting a petal sets. */
     public enum Group { GOO, FLOW, NOZZLE }
@@ -118,18 +116,27 @@ public record SprayerWheel(List<ResourceKey<GooTypeDefinition>> types, List<Spra
     }
 
     /**
-     * Where an icon sits around the inside of the hub, clockwise from the top: the nozzles across the top, left to
-     * right, and the flow steps across the bottom, left to right, each a step apart and centered.
-     * operator ruling 2026-11-18: icons inside the hub, nozzles on top, flow on the bottom, each left to right
+     * Where an icon sits around the inside of the hub, clockwise from the top: every icon an even share of the turn
+     * from the next, the nozzles centered on the top, left to right, and the flow steps centered on the bottom, left
+     * to right, so the icons spread as far apart as the hub allows.
+     * operator ruling 2026-11-18: icons inside the hub, nozzles on top, flow on the bottom, each left to right,
+     * spread out and measured rather than placed by hand
      *
      * @param icon a nozzle or flow petal
      * @return its angle, radians
      */
     public double hubAngleOf(RingPetal icon) {
         if (icon.group() == Group.NOZZLE) {
-            return wrap((icon.index() - (nozzles.size() - 1) / HALF) * HUB_STEP);
+            return wrap((icon.index() - (nozzles.size() - 1) / HALF) * hubStep());
         }
-        return wrap(Math.PI - (icon.index() - (flows.size() - 1) / HALF) * HUB_STEP);
+        return wrap(Math.PI - (icon.index() - (flows.size() - 1) / HALF) * hubStep());
+    }
+
+    /**
+     * @return the turn between neighbouring icons around the hub: the whole turn shared among them
+     */
+    public double hubStep() {
+        return FULL_TURN / (nozzles.size() + flows.size());
     }
 
     private static double wrap(double angle) {
