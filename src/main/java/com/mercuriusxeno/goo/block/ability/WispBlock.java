@@ -53,6 +53,18 @@ public class WispBlock extends BaseEntityBlock {
     }
 
     /**
+     * Whether goo may take a block's space as it takes air: air, or a wisp,
+     * which goo replaces with no sound and no particles.
+     * every-block-displaces-wisps
+     *
+     * @param state the block standing in the space
+     * @return true where goo takes the space as open air
+     */
+    public static boolean readsAsAir(BlockState state) {
+        return state.isAir() || state.getBlock() instanceof WispBlock;
+    }
+
+    /**
      * The light a wisp gives at a fade stage.
      *
      * @param state the block state
