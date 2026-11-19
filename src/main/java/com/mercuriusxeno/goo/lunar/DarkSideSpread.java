@@ -46,9 +46,19 @@ public final class DarkSideSpread extends StructurePlacement {
         return spreads;
     }
 
+    /**
+     * The random spread a chunk column places by: the dark side's past the light side, else the light side's.
+     *
+     * @param chunkX the chunk's x
+     * @return that side's spread
+     */
+    RandomSpreadStructurePlacement gridAt(int chunkX) {
+        return grids.atChunk(chunkX);
+    }
+
     @Override
     protected boolean isPlacementChunk(ChunkGeneratorStructureState state, int sourceX, int sourceZ) {
-        ChunkPos chosen = grids.atChunk(sourceX).getPotentialStructureChunk(state.getLevelSeed(), sourceX, sourceZ);
+        ChunkPos chosen = gridAt(sourceX).getPotentialStructureChunk(state.getLevelSeed(), sourceX, sourceZ);
         return chosen.x() == sourceX && chosen.z() == sourceZ;
     }
 
