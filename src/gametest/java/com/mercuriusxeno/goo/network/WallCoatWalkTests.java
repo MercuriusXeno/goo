@@ -8,8 +8,11 @@ import com.mercuriusxeno.goo.registry.GooBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -20,7 +23,9 @@ import java.util.function.Consumer;
 /**
  * A cow walking a lane of goo laid against a wall covers the ground its like
  * covers on the same goo laid a block off the wall, its feet at the goo's
- * top every tick, so a cell coating a wall jumps no mob crossing it.
+ * top every tick, so a cell coating a wall jumps no mob crossing it; a
+ * player standing on goo coating a wall keeps its feet at the goo's top
+ * from tick to tick.
  * diagnose-and-correct-mobs-and-players-hopping-in-goo-beside-a-wall
  */
 @RegistersGameTests
@@ -28,6 +33,7 @@ public final class WallCoatWalkTests {
 
     private static final String STITCH_BESIDE_A_WALL = "cow_crosses_stitch_coating_a_wall_without_hopping";
     private static final String GOOP_BESIDE_A_WALL = "cow_crosses_goop_coating_a_wall_without_hopping";
+    private static final String PLAYER_ON_GOOP_BESIDE_A_WALL = "player_stands_on_goop_coating_a_wall_at_a_steady_height";
     /** The wall's row, stone two blocks tall along the bay. */
     private static final int WALL_ROW = 1;
     /** The lane coating the wall's south face, each cell attached to its north side. */
@@ -53,6 +59,15 @@ public final class WallCoatWalkTests {
             + "off the wall covers, %.3f against %.3f";
     private static final String FEET_SHOULD_STAY = "The cow on goo coating the wall should keep its feet at the "
             + "goo's top, they stood %.3f off it at tick %d (feet %.3f, top %.3f)";
+    /** Two seconds, how long the player stands on the goo. */
+    private static final int STAND_TICKS = 40;
+    /**
+     * A standing thing's fall each tick, the move a client hands its own
+     * resting player every tick: gravity's 0.08 under the air's 0.98 drag.
+     */
+    private static final double RESTING_FALL = 0.08 * 0.98;
+    private static final String PLAYER_FEET_SHOULD_STAY = "The player standing on goo coating the wall should keep "
+            + "its feet at the goo's top, they stood %.3f off it at tick %d (feet %.3f, top %.3f)";
 
     private WallCoatWalkTests() {
     }
@@ -67,6 +82,40 @@ public final class WallCoatWalkTests {
                 helper -> cowCrossesGooCoatingAWall(helper, GooBlocks.YARN_STITCH.get(), STITCH_LAYERS));
         GooTestFunctions.registerTest(registrar, GOOP_BESIDE_A_WALL,
                 helper -> cowCrossesGooCoatingAWall(helper, GooBlocks.SLIME_COAT.get(), GOOP_LAYERS));
+        GooTestFunctions.registerTest(registrar, PLAYER_ON_GOOP_BESIDE_A_WALL,
+                WallCoatWalkTests::playerStandsOnGoopCoatingAWallAtASteadyHeight);
+    }
+
+    /**
+     * Lays a lane of Goop coating a stone wall, stands a player on it, and
+     * moves the player each tick as its client moves it standing still, by
+     * a resting fall under its own power, reading how far its feet stand
+     * off the goo's top every tick.
+     *
+     * @param helper the gametest helper
+     */
+    @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
+    private static void playerStandsOnGoopCoatingAWallAtASteadyHeight(GameTestHelper helper) {
+        layBay(helper);
+        BlockState coating = GooBlocks.SLIME_COAT.get().defaultBlockState()
+                .setValue(VolumeCellBlock.LAYERS, GOOP_LAYERS)
+                .setValue(VolumeCellBlock.coatProperty(Direction.NORTH), SideCoat.ATTACHED);
+        for (int x = LANE_FROM; x <= LANE_TO; x++) {
+            helper.setBlock(new BlockPos(x, 1, WALL_LANE), coating);
+        }
+        BlockPos cell = helper.absolutePos(new BlockPos(LANE_FROM + 1, 1, WALL_LANE));
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        player.setPos(cell.getX() + 0.5, gooTop(helper.getLevel(), cell), cell.getZ() + COW_Z);
+        FeetOffTop worst = new FeetOffTop();
+        helper.onEachTick(() -> {
+            player.move(MoverType.PLAYER, new Vec3(0, -RESTING_FALL, 0));
+            worst.read(helper.getLevel(), player, cell.getY(), helper.getTick());
+        });
+        helper.runAfterDelay(STAND_TICKS, () -> {
+            helper.assertTrue(worst.off <= AT_THE_TOP,
+                    String.format(PLAYER_FEET_SHOULD_STAY, worst.off, worst.tick, worst.feet, worst.top));
+            helper.succeed();
+        });
     }
 
     /**
@@ -153,20 +202,20 @@ public final class WallCoatWalkTests {
         return pos.getY() + floor / VolumeCellBlock.MAX_LAYERS;
     }
 
-    /** The furthest a cow's feet stood off the goo's top, and the tick it stood there. */
+    /** The furthest a thing's feet stood off the goo's top, and the tick it stood there. */
     private static final class FeetOffTop {
         private double off;
         private long tick;
         private double feet;
         private double top;
 
-        private void read(Level level, Mob cow, int laneY, long now) {
-            double under = gooTop(level, new BlockPos(cow.getBlockX(), laneY, cow.getBlockZ()));
-            double gap = Math.abs(cow.getY() - under);
+        private void read(Level level, Entity thing, int laneY, long now) {
+            double under = gooTop(level, new BlockPos(thing.getBlockX(), laneY, thing.getBlockZ()));
+            double gap = Math.abs(thing.getY() - under);
             if (gap > off) {
                 off = gap;
                 tick = now;
-                feet = cow.getY();
+                feet = thing.getY();
                 top = under;
             }
         }
