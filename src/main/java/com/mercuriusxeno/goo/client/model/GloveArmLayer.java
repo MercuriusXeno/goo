@@ -149,7 +149,7 @@ public final class GloveArmLayer extends RenderLayer<AvatarRenderState, PlayerMo
      * @param leftHand    whether the glove is in the left hand
      * @return the glove's model onto the arm part's pixels, in blocks
      */
-    static Matrix4f gloveModelOnArm(ItemTransform thirdPerson, boolean leftHand) {
+    public static Matrix4f gloveModelOnArm(ItemTransform thirdPerson, boolean leftHand) {
         PoseStack.Pose pose = new PoseStack.Pose();
         pose.rotate(Axis.XP.rotationDegrees(HAND_X_TURN_DEGREES));
         pose.rotate(Axis.YP.rotationDegrees(HAND_Y_TURN_DEGREES));

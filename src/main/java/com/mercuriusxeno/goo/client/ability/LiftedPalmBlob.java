@@ -279,6 +279,22 @@ public final class LiftedPalmBlob {
     }
 
     /**
+     * The share of the hand-out hold a caster's lift lays over the third-person arm now.
+     * decision third-person-arm-holds-the-hand-out-while-a-blob-is-up
+     *
+     * @param casterId the caster's entity id
+     * @param now      the game time, with the frame's partial tick
+     * @return the share, 0 with no blob off the palm
+     */
+    static float handOutAt(int casterId, double now) {
+        Lift lift = LIFTS.get(casterId);
+        if (!standsOffThePalm(lift, now)) {
+            return 0f;
+        }
+        return AbilityPoses.handOutShare(now - lift.began(), now - lift.endedAt(), lift.hops());
+    }
+
+    /**
      * Whether a caster's spray runs now.
      *
      * @param casterId the caster's entity id
