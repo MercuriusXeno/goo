@@ -10,7 +10,7 @@
   "behaviors": [
     { "type": "afterimage", "goo": "sculk" },
     { "type": "particles", "id": "goo:spore", "at": "target", "count": 96, "spread": 1, "lift": 1, "speed": 0.03 },
-    { "type": "transmit", "range": 64, "near": 3 },
+    { "type": "transmit", "range": 64 },
     { "type": "ghost_trail", "goo": "sculk" },
     { "type": "afterimage", "goo": "sculk" },
     { "type": "particles", "id": "goo:spore", "at": "target", "count": 96, "spread": 1, "lift": 1, "speed": 0.03 },
