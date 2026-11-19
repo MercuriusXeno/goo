@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.ability.ArmPose;
 import com.mercuriusxeno.goo.ability.ArmPoseKind;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -78,6 +79,75 @@ class AbilityPosesTest {
         AbilityPoses.Posed again = AbilityPoses.posedNext(done, ArmPoseKind.HOLD_OUT, true, 100);
         assertEquals(100, again.since(), TOLERANCE);
         assertEquals(0f, again.from(), TOLERANCE);
+    }
+
+    /**
+     * While a blob stands lifted the third-person glove arm holds the hand
+     * out before the body, palm up under the blob, whatever pose the ability
+     * names, and a thrown blob's swing takes the arm from that hold.
+     * decision third-person-arm-holds-the-hand-out-while-a-blob-is-up
+     */
+    @Nested
+    class HandOutUnderTheBlob {
+
+        private static final double PAST_THE_EASE = 1000;
+        /** Where vanilla left the arm: swinging a little out and back. */
+        private static final AbilityPoses.ArmTurn VANILLA = new AbilityPoses.ArmTurn(0.3f, -0.2f, 0.1f);
+        /** The head looking up and aside, which a held-out arm follows. */
+        private static final AbilityPoses.ArmTurn HEAD = new AbilityPoses.ArmTurn(-0.4f, 0.5f, 0f);
+        /** The lift running, its end not yet come. */
+        private static final double STILL_RUNNING = -1;
+
+        private AbilityPoses.ArmTurn liftedUnder(ArmPose pose, boolean gloveRight) {
+            AbilityPoses.Posed posed = AbilityPoses.posedNext(null, pose.holdFrame(), gloveRight, 0);
+            float handOut = AbilityPoses.handOutShare(AbilityPoses.HOLD_EASE_TICKS, STILL_RUNNING, true);
+            return AbilityPoses.turnedArm(VANILLA, posed, PAST_THE_EASE, HEAD, handOut, gloveRight);
+        }
+
+        @org.junit.jupiter.params.ParameterizedTest
+        @org.junit.jupiter.params.provider.EnumSource(ArmPose.class)
+        void whileABlobStandsLiftedTheArmHoldsTheHandOutWhicheverPoseTheAbilityNames(ArmPose pose) {
+            AbilityPoses.ArmTurn turned = liftedUnder(pose, true);
+
+            assertEquals(AbilityPoses.HAND_OUT.xRot(), turned.xRot(), TOLERANCE);
+            assertEquals(AbilityPoses.HAND_OUT.yRot(), turned.yRot(), TOLERANCE);
+            assertEquals(0f, turned.zRot(), TOLERANCE);
+        }
+
+        @Test
+        void aLeftHandedGloveMirrorsTheHold() {
+            AbilityPoses.ArmTurn turned = liftedUnder(ArmPose.HELD_UP, false);
+
+            assertEquals(AbilityPoses.HAND_OUT.xRot(), turned.xRot(), TOLERANCE);
+            assertEquals(-AbilityPoses.HAND_OUT.yRot(), turned.yRot(), TOLERANCE);
+        }
+
+        @Test
+        void theHoldEasesInAsTheBlobLiftsAndOutAsItSettles() {
+            assertEquals(0f, AbilityPoses.handOutShare(0, STILL_RUNNING, true), TOLERANCE);
+            float easingIn = AbilityPoses.handOutShare(AbilityPoses.HOLD_EASE_TICKS / 2, STILL_RUNNING, true);
+            assertTrue(easingIn > 0f && easingIn < 1f, "the arm eases out rather than snapping, at " + easingIn);
+            assertEquals(1f, AbilityPoses.handOutShare(PAST_THE_EASE, STILL_RUNNING, true), TOLERANCE);
+            float easingDown = AbilityPoses.handOutShare(PAST_THE_EASE, AbilityPoses.LOWER_TICKS / 2, true);
+            assertTrue(easingDown > 0f && easingDown < 1f, "the arm eases down rather than snapping, at " + easingDown);
+            assertEquals(0f, AbilityPoses.handOutShare(PAST_THE_EASE, AbilityPoses.LOWER_TICKS, true), TOLERANCE);
+        }
+
+        @Test
+        void aBlobTurnedRoundOffThePalmKeepsTheHandOut() {
+            assertEquals(1f, AbilityPoses.handOutShare(0, STILL_RUNNING, false), TOLERANCE);
+        }
+
+        // decision third-person-arm-holds-the-hand-out-while-a-blob-is-up: a thrown blob keeps its swing on release
+        @Test
+        void aThrownBlobsSwingTakesTheArmFromTheHoldUntilTheLiftIsDone() {
+            assertEquals(0f, AbilityPoses.yieldedToTheSwing(1f, true, null, false, 10), TOLERANCE);
+            assertEquals(0f, AbilityPoses.yieldedToTheSwing(1f, false, 10.0, false, 20), TOLERANCE,
+                    "once the cast is over the swung arm stays down");
+            assertEquals(1f, AbilityPoses.yieldedToTheSwing(1f, false, 10.0, true, 10 + PAST_THE_EASE), TOLERANCE,
+                    "a cast still held after the swing, the next javelin forming, takes the hold back");
+            assertEquals(1f, AbilityPoses.yieldedToTheSwing(1f, false, null, false, 20), TOLERANCE);
+        }
     }
 
     /** The first-person glove hand moves on every pose. */

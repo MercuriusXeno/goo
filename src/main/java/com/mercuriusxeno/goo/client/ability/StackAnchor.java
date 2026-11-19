@@ -10,7 +10,7 @@ import net.minecraft.world.phys.Vec3;
  * The point a caster's held stack, Knives' pyramid or Dart's triangle,
  * centers over this frame: over the palm the hand's pass draws for the local
  * player in first person, the lifted blob's place while it stands, and over
- * the body's hand for a caster drawn in third person, so the pile stands over
+ * the drawn palm for a caster drawn in third person, so the pile stands over
  * the hand however it is seen.
  * decision knives-hover-above-the-blob-cube-over-the-hand
  * decision dart-javelins-hover-over-the-shrinking-blob-cube
@@ -34,6 +34,7 @@ final class StackAnchor {
             Vec3 overThePalm = SpraySource.of(caster.getId(), caster.getEyePosition(partial), partial, rise);
             return LiftedPalmBlob.blobOf(caster.getId(), partial).map(LiftedPalmBlob.Blob::place).orElse(overThePalm);
         }
-        return KnivesCharge.handAt(caster, GooCasters.casterOnTheRight(caster), partial).add(0, rise, 0);
+        // decision third-person-blob-stands-above-the-drawn-palm
+        return DrawnPalm.of(caster, GooCasters.casterOnTheRight(caster), partial).above(rise);
     }
 }
