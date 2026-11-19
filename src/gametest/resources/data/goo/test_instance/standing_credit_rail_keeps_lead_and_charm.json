@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:standing_credit_rail_keeps_lead_and_charm",
+  "environment": "goo:standing_field_credit",
+  "structure": "goo:test_bay",
+  "max_ticks": 100,
+  "setup_ticks": 0,
+  "required": true
+}

@@ -30,7 +30,7 @@ class AbilityReleaseSwingTest {
             Map.entry("hex_charm", ArmPoseKind.NONE),
             Map.entry("typhoon_shulk", ArmPoseKind.NONE),
             Map.entry("yore_rewind", ArmPoseKind.NONE),
-            Map.entry("zoo_rally", ArmPoseKind.NONE),
+            Map.entry("yarn_lead", ArmPoseKind.NONE),
             Map.entry("zoo_shape", ArmPoseKind.NONE),
             Map.entry("zoo_spawn", ArmPoseKind.NONE),
             Map.entry("glow_bulb", ArmPoseKind.HOLD_OUT),
@@ -41,7 +41,7 @@ class AbilityReleaseSwingTest {
     private static final Set<String> THROWS_A_BLOB = Set.of(
             "blaze_ignite", "deep_shriek", "ender_seal",
             "frost_orb", "leaf_bio", "leaf_bloom", "metal_dart",
-            "quantum_tunnel", "shroom_spore",
+            "quantum_tunnel",
             "void_cancel", "weird_mitosis", "yore_age", "yore_expire", "zoo_allure");
 
     static Stream<String> abilitiesThrowingNoBlob() {

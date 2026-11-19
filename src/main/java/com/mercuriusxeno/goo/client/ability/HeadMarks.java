@@ -13,9 +13,9 @@ import java.util.Optional;
 import java.util.function.Consumer;
 
 /**
- * Floats a life mark over the head of every rallied, charmed or downed mob in sight,
- * and every mob Heal or Drain touched lately or Kin senses: the charmed
- * heart or the rally fist leading the row on a marked mob, then its health
+ * Floats a life mark over the head of every led, charmed or downed mob in sight,
+ * and every mob Heal or Drain touched lately or Herd senses: the charmed
+ * heart or the lead fist leading the row on a marked mob, then its health
  * bar, for as long as the mark holds.
  * charm-glisten-and-icon-over-the-head
  * charm-holds-until-struck
@@ -60,7 +60,7 @@ public final class HeadMarks {
         List<LivingEntity> marked = new ArrayList<>();
         for (Entity entity : level.entitiesForRendering()) {
             if (entity instanceof LivingEntity living && !living.isInvisible()
-                    && LifeMarkBillboard.showsLifeMark(living.getId(), tick, TouchedMobs.CLIENT, KinSense.CLIENT,
+                    && LifeMarkBillboard.showsLifeMark(living.getId(), tick, TouchedMobs.CLIENT, HerdSense.CLIENT,
                     headMarkOf(living).isPresent(), living.hasData(GooAttachments.DOWNED))) {
                 marked.add(living);
             }
@@ -72,9 +72,9 @@ public final class HeadMarks {
      * The head mark a mob wears, leading its life mark's row.
      *
      * @param living the mob
-     * @return the charm heart or the rally fist, empty for a mob neither charmed nor rallied
+     * @return the charm heart or the lead fist, empty for a mob neither charmed nor led
      */
     static Optional<HeadMark> headMarkOf(LivingEntity living) {
-        return HeadMark.of(living.hasData(GooAttachments.CHARMED), living.hasData(GooAttachments.RALLIED));
+        return HeadMark.of(living.hasData(GooAttachments.CHARMED), living.hasData(GooAttachments.LED));
     }
 }

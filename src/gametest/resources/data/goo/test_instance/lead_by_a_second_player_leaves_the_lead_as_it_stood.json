@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:lead_by_a_second_player_leaves_the_lead_as_it_stood",
+  "environment": "goo:lead_reload",
+  "structure": "goo:test_bay",
+  "max_ticks": 20,
+  "setup_ticks": 0,
+  "required": true
+}
