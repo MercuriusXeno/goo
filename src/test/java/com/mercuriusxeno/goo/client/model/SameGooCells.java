@@ -18,6 +18,26 @@ final class SameGooCells implements LayersAround {
     private final Map<List<Object>, Double> shares = new HashMap<>();
 
     /**
+     * A pillar of 15, 15 and 6 layers standing up from the origin on a solid
+     * floor, alone or in a film of 1 layer filling the 3 by 3 blocks round its foot.
+     *
+     * @param inAFilm whether the film stands round its foot
+     * @return the pillar's neighbourhood, the origin its foot
+     */
+    static SameGooCells pillar(boolean inAFilm) {
+        SameGooCells cells = new SameGooCells();
+        for (int x = -2; x <= 2; x++) {
+            for (int z = -2; z <= 2; z++) {
+                cells.solid(x, -1, z);
+                if (inAFilm && Math.abs(x) <= 1 && Math.abs(z) <= 1) {
+                    cells.at(x, 0, z, 1);
+                }
+            }
+        }
+        return cells.at(0, 0, 0, 15).at(0, 1, 0, 15).at(0, 2, 0, 6);
+    }
+
+    /**
      * Stands a cell of the goo at an offset.
      *
      * @param dx     east of the cell

@@ -2,8 +2,12 @@ package com.mercuriusxeno.goo.client.model;
 
 import net.minecraft.core.Direction;
 import org.junit.jupiter.api.Test;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * The heights a goo block's sloped top stands at, in layers above the
@@ -14,6 +18,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class SlimeTopTest {
 
     private static final double EPSILON = 1e-9;
+    private static final long PILE_SEED = 23L;
+    private static final int PILES = 200;
     private static final int WEST = 0;
     private static final int NORTH = 0;
     private static final int EAST = 3;
@@ -87,20 +93,136 @@ class SlimeTopTest {
     }
 
     /**
-     * A block of 6 on a full block of its goo, beside a block of 9 at the
-     * full block's level: the column's top stands 21 layers over its base,
-     * so the edge the two share stands 15 over that base, the average of 21
-     * and 9, which is the 6's own floor and the 9's own top.
-     * stacked-goo-cells-share-one-slime-core
+     * In a pillar of 15, 15 and 6 layers standing in a film of 1, each of
+     * the two full blocks under goo is a whole cube: every point of its top
+     * stands at 15.
+     * full-goo-block-under-goo-is-a-whole-cube
      */
     @Test
-    void aBlockOnAFullBlockOfItsGooSlopesWithItAsOneColumn() {
-        SameGooCells cells = new SameGooCells().at(0, 0, 0, 6).at(0, -1, 0, 15).at(1, -1, 0, 9);
-        SlimeTop columnTop = SlimeTop.of(cells);
-        SlimeTop nine = SlimeTop.of(cells.shiftedBy(1, -1, 0));
+    void aFullBlockUnderGooIsAWholeCube() {
+        SameGooCells pillar = SameGooCells.pillar(true);
+        for (int y : new int[] {0, 1}) {
+            SlimeTop cube = SlimeTop.of(pillar.shiftedBy(0, y, 0));
+            for (int a = WEST; a <= EAST; a++) {
+                for (int b = NORTH; b <= SOUTH; b++) {
+                    assertEquals(15, cube.heightAt(a, b), EPSILON, "block " + y + " at " + a + ", " + b);
+                }
+            }
+        }
+    }
 
-        assertEdge(columnTop, EAST, 0, "15 layers over the column's base, the 6's floor");
-        assertEdge(nine, WEST, 15, "15 layers over the column's base, the 9's top");
+    /**
+     * The pillar's top block of 6, with air beside it, slopes to half its
+     * fill at its edges and stands nowhere under its own floor.
+     * goo-block-top-slopes-to-the-average-with-the-adjoining-block
+     * full-goo-block-under-goo-is-a-whole-cube
+     */
+    @Test
+    void aPillarsTopBlockTapersToHalfItsFillBesideAir() {
+        SlimeTop top = SlimeTop.of(SameGooCells.pillar(true).shiftedBy(0, 2, 0));
+
+        assertMiddle(top, 6);
+        assertEdge(top, WEST, 3, "the west edge");
+        assertEdge(top, EAST, 3, "the east edge");
+        for (int a : MIDDLE) {
+            assertEquals(3, top.heightAt(a, NORTH), EPSILON, "the north edge at " + a);
+            assertEquals(3, top.heightAt(a, SOUTH), EPSILON, "the south edge at " + a);
+        }
+        for (int a = WEST; a <= EAST; a++) {
+            for (int b = NORTH; b <= SOUTH; b++) {
+                assertTrue(top.heightAt(a, b) >= 0, "the top at " + a + ", " + b + " stands under its floor");
+            }
+        }
+    }
+
+    /**
+     * The film block of 1 east of the pillar's foot, a whole cube, rises to
+     * 8 along the edge they share, the average of its 1 and the cube's 15.
+     * full-goo-block-under-goo-is-a-whole-cube
+     */
+    @Test
+    void aLowBlockRisesToTheAverageWithTheCubeBesideIt() {
+        SlimeTop film = SlimeTop.of(SameGooCells.pillar(true).shiftedBy(1, 0, 0));
+
+        assertMiddle(film, 1);
+        assertEdge(film, WEST, 8, "the edge it shares with the cube");
+    }
+
+    /**
+     * Seeded random piles, each a 3 by 3 field of columns of 0 to 45
+     * layers on a solid floor: changing any one cell standing two blocks
+     * from a block on some axis, emptying it where goo stands and filling it
+     * where none does, leaves that block's heights, rims, steps and covered
+     * flag as they stood, so the client's re-mesh of the blocks within one
+     * of a change keeps every block's drawing current.
+     * full-goo-block-under-goo-is-a-whole-cube
+     */
+    @Test
+    void aBlocksShapeReadsNothingPastOneBlock() {
+        Random random = new Random(PILE_SEED);
+        for (int trial = 0; trial < PILES; trial++) {
+            int[][] columns = new int[3][3];
+            for (int[] row : columns) {
+                for (int z = 0; z < row.length; z++) {
+                    row[z] = random.nextInt(4) == 0 ? 0 : 1 + random.nextInt(45);
+                }
+            }
+            int x = random.nextInt(3);
+            int z = random.nextInt(3);
+            int y = random.nextInt(Math.max(1, (columns[x][z] + 14) / 15));
+            SameGooCells pile = pileOf(columns);
+            SlimeTop before = SlimeTop.of(pile.shiftedBy(x, y, z));
+            for (int[] far : cellsTwoBlocksFrom(x, y, z)) {
+                int layers = pile.layersAt(far[0], far[1], far[2]) > 0 ? 0 : 15;
+                SlimeTop after = SlimeTop.of(pileOf(columns).at(far[0], far[1], far[2], layers).shiftedBy(x, y, z));
+                assertShapeKept(before, after, "trial " + trial + " block " + x + "," + y + "," + z + " after "
+                        + layers + " layers at " + far[0] + "," + far[1] + "," + far[2]);
+            }
+        }
+    }
+
+    private static void assertShapeKept(SlimeTop before, SlimeTop after, String where) {
+        for (int a = WEST; a <= EAST; a++) {
+            for (int b = NORTH; b <= SOUTH; b++) {
+                assertEquals(before.heightAt(a, b), after.heightAt(a, b), EPSILON, where + " height " + a + "," + b);
+            }
+        }
+        assertEquals(before.rims(), after.rims(), where + " rims");
+        assertEquals(before.steps(), after.steps(), where + " steps");
+        assertEquals(before.covered(), after.covered(), where + " covered");
+    }
+
+    /** Every cell standing exactly two blocks from a block on its farthest axis. */
+    private static List<int[]> cellsTwoBlocksFrom(int x, int y, int z) {
+        List<int[]> cells = new ArrayList<>();
+        for (int dx = -2; dx <= 2; dx++) {
+            for (int dy = -2; dy <= 2; dy++) {
+                for (int dz = -2; dz <= 2; dz++) {
+                    if (Math.max(Math.abs(dx), Math.max(Math.abs(dy), Math.abs(dz))) == 2) {
+                        cells.add(new int[] {x + dx, y + dy, z + dz});
+                    }
+                }
+            }
+        }
+        return cells;
+    }
+
+    /** A 3 by 3 field of columns on a solid floor, each stacked as full blocks under a partial top. */
+    private static SameGooCells pileOf(int[][] columns) {
+        SameGooCells pile = new SameGooCells();
+        for (int x = -3; x <= 5; x++) {
+            for (int z = -3; z <= 5; z++) {
+                pile.solid(x, -1, z);
+            }
+        }
+        for (int x = 0; x < columns.length; x++) {
+            for (int z = 0; z < columns[x].length; z++) {
+                for (int y = 0, left = columns[x][z]; left > 0; y++, left -= 15) {
+                    pile.at(x, y, z, Math.min(15, left));
+                }
+            }
+        }
+        return pile;
     }
 
     /**
@@ -161,25 +283,6 @@ class SlimeTopTest {
         assertEquals(1, north.heightAt(WEST, 1), EPSILON, "the north slab where the walls meet");
         assertEquals(1, west.heightAt(1, FOOT), EPSILON, "the west slab's foot");
         assertEquals(1, west.heightAt(NORTH, 1), EPSILON, "the west slab where the walls meet");
-    }
-
-    /**
-     * A column draws as one pile: a block of 5 on a full block of its goo,
-     * air beside both, slopes from its middle down past its own floor to the
-     * column's edge, 10 layers over the column's base, and the full block
-     * under it rises at that edge to the same 10, so no gap stands between.
-     * stacked-goo-cells-share-one-slime-core
-     */
-    @Test
-    void aColumnSlopesAsOnePileAcrossBothItsBlocks() {
-        SameGooCells column = new SameGooCells().at(0, 0, 0, 5).at(0, -1, 0, 15);
-        SlimeTop top = SlimeTop.of(column);
-        SlimeTop under = SlimeTop.of(column.shiftedBy(0, -1, 0));
-
-        assertMiddle(top, 5);
-        assertEdge(top, EAST, -5, "the column top's edge, under its own floor");
-        assertEdge(under, EAST, 10, "the full block's edge, where the column's slope meets it");
-        assertMiddle(under, 15);
     }
 
     private static void assertMiddle(SlimeTop top, double expected) {
