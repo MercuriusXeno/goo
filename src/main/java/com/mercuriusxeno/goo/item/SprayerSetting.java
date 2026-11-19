@@ -26,13 +26,13 @@ public record SprayerSetting(Optional<ResourceKey<GooTypeDefinition>> pickedType
 
     /** A sprayer nothing was picked on: the canister's most held sprayable type at the middle flow, no nozzle. */
     public static final SprayerSetting DEFAULT = new SprayerSetting(Optional.empty(), SprayerFlow.MEDIUM,
-            SprayerNozzle.OPEN);
+            SprayerNozzle.SPRAY);
 
     /** Persistent codec. */
     public static final Codec<SprayerSetting> CODEC = RecordCodecBuilder.create(instance -> instance.group(
             GooTypes.KEY_CODEC.optionalFieldOf("type").forGetter(SprayerSetting::pickedType),
             SprayerFlow.CODEC.optionalFieldOf("flow", SprayerFlow.MEDIUM).forGetter(SprayerSetting::flow),
-            SprayerNozzle.CODEC.optionalFieldOf("nozzle", SprayerNozzle.OPEN).forGetter(SprayerSetting::nozzle)
+            SprayerNozzle.CODEC.optionalFieldOf("nozzle", SprayerNozzle.SPRAY).forGetter(SprayerSetting::nozzle)
     ).apply(instance, SprayerSetting::new));
 
     /** Network codec. */

@@ -101,10 +101,10 @@ public final class GooStreamHandler {
     /** The drips a tick of motes off the arc carries: none. */
     private static final int NO_DRIPS = 0;
     /**
-     * How far a mister's mist reaches from the eye, in blocks: a residual's level shot, about eight blocks
-     * (goop-and-slick-drips-leave-at-one-exit-speed), a tuning value no operator ruled.
+     * How far Mist's mist reaches from the eye, in blocks: short, a tuning value.
+     * operator ruling 2026-11-18: Mist is short range
      */
-    static final double MIST_REACH = 8;
+    static final double MIST_REACH = 5;
     /** Spots a mister's mist reaches a tick for each drip the residual throws a tick at that flow. */
     private static final int MIST_SPOTS_PER_DRIP = 4;
     /** Rays the spray casts each tick to find the floors it lands on. */
@@ -186,7 +186,7 @@ public final class GooStreamHandler {
             return;
         }
         strikeCone(player, origin, ability, held, new HeldSpray(PaysFrom.SPRAYER_CANISTER, setting.flow().rate(),
-                setting.nozzle()::shape, setting.nozzle().mists()));
+                setting.nozzle()));
         ability.delivery().sound().filter(sound -> sound.playsOn(held))
                 .ifPresent(sound -> playStreamSound(player, sound));
     }
@@ -493,9 +493,9 @@ public final class GooStreamHandler {
         Delivery delivery = ability.delivery();
         DripFlights flights = GooServerState.of(player.level().getServer()).dripFlights();
         // spray-item-takes-different-nozzles-doing-different-things: the sprayer's nozzle shapes the cone
-        flightsOf(thrower, new DripThrow(apex, cone, exitSpeedOf(player, delivery),
+        flightsOf(thrower, new DripThrow(apex, cone, exitSpeedOf(cast, delivery),
                 DripArc.gravityIn(player.level().dimension())), cast.spray().shapeOf(delivery),
-                CoatRay.scatteredShares(held, dripsThisTick(player, delivery, landing, held, cast.spray().flowRate())))
+                CoatRay.scatteredShares(held, dripsThisTick(player, delivery, landing, held, cast.spray().dripRate())))
                 .forEach(flights::launch);
         return strikesLiving;
     }
@@ -517,7 +517,7 @@ public final class GooStreamHandler {
         // residual-spray-cone-centers-on-the-look-from-the-blob: the drips, the block pass and the drawn drips
         // all leave the blob onto one cone centered on the look, whatever block the crosshair meets
         // nectar-is-sprayed-goo-with-a-guided-throw-near-a-mob: an aim near a mob centers the cone on it
-        double exitSpeed = exitSpeedOf(player, delivery);
+        double exitSpeed = exitSpeedOf(cast, delivery);
         DripArc.Flight flight = dripFlightIn(player.level(), ability);
         ConvergingCone cone = NectarThrows.guidedCone(player, channelSteps(ability.behaviors(), true))
                 .orElseGet(() -> ConvergingCone.along(player.getEyePosition(), axis, exitSpeed, flight));
@@ -555,7 +555,7 @@ public final class GooStreamHandler {
         ConeShape shape = cast.spray().shapeOf(delivery);
         ChannelHost host = PlayerHost.landing(level, player, placementPrice(player, ability, cast.spray().paysFrom()));
         CoatRay.BlockClip clip = CoatRay.clippingFor(level, landing.get().fluidFooting());
-        int spots = MIST_SPOTS_PER_DRIP * dripsThisTick(player, delivery, landing, held, cast.spray().flowRate());
+        int spots = MIST_SPOTS_PER_DRIP * dripsThisTick(player, delivery, landing, held, cast.spray().dripRate());
         for (CoatRay.ConeShare share : CoatRay.scatteredShares(held, spots)) {
             Vec3 ray = StreamCone.launchDirection(cone.axis(), shape, share.tilt(), share.turn());
             clip.firstHit(cone.eye(), cone.eye().add(ray.scale(MIST_REACH)))
@@ -1001,9 +1001,9 @@ public final class GooStreamHandler {
         ServerPlayer player = cast.player();
         Delivery delivery = ability.delivery();
         int drips = dripsThisTick(player, delivery, DripLanding.in(channelSteps(ability.behaviors(), true)), held,
-                cast.spray().flowRate());
+                cast.spray().dripRate());
         delivery.particle().ifPresent(particle -> EntityVisuals.sendToWatchers(player, sprayPayloadOf(player.getId(),
-                apex, cone, particle, new DrawnDrips(exitSpeedOf(player, delivery), strikesLiving, held,
+                apex, cone, particle, new DrawnDrips(exitSpeedOf(cast, delivery), strikesLiving, held,
                         drips, cast.spray().shapeOf(delivery)), cast.spray().mists(), ability.gooType())));
     }
 
@@ -1101,6 +1101,18 @@ public final class GooStreamHandler {
         double walk = SlickLayPace.unadjustedSpeed(player.getAttributeBaseValue(Attributes.MOVEMENT_SPEED));
         double factor = SlickLayPace.factor(player.getKnownMovement().horizontalDistance(), walk);
         return SlickLayPace.dripsThisTick(delivery.dripsPerTick(), factor * flowRate, held);
+    }
+
+    /**
+     * The speed a tick's drips leave at, the nozzle carrying them farther.
+     * operator ruling 2026-11-18: Thin goes farther and Jet farther still
+     *
+     * @param cast     the tick's cast, naming the caster and the nozzle
+     * @param delivery the stream delivery
+     * @return the exit speed, blocks per tick
+     */
+    private static double exitSpeedOf(CastOn cast, Delivery delivery) {
+        return exitSpeedOf(cast.player(), delivery) * cast.spray().reachScale();
     }
 
     /**

@@ -52,22 +52,29 @@ class SprayerWheelTest {
     }
 
     /**
-     * The wheel is one ring of three arcs, goo types, then flow, then nozzles, each petal under the cursor where it
-     * stands. operator ruling 2026-11-18: layout A, one ring of three arcs
+     * The goo types are the petals, each under the cursor where it stands; the nozzles sit across the top of the hub,
+     * left to right in their order, and the flow steps across its bottom, left to right.
+     * operator ruling 2026-11-18: icons inside the hub, nozzles on top, flow on the bottom, each left to right
      */
     @Test
-    void ringRunsGooThenFlowThenNozzlesEachUnderTheCursor() {
+    void gooOnThePetalsNozzlesAcrossTheTopFlowAcrossTheBottom() {
         SprayerWheel wheel = SprayerWheel.of(CanisterFluidContent.of(goo.resource(GooTypes.BLAZE), VOLUME)
                 .withVolume(goo.resource(GooTypes.ROCK), VOLUME), Set.of(GooTypes.BLAZE, GooTypes.ROCK)::contains);
-        List<SprayerWheel.RingPetal> ring = wheel.ring();
 
-        assertEquals(wheel.types().size() + wheel.flows().size() + wheel.nozzles().size(), ring.size());
-        assertEquals(List.of(SprayerWheel.Group.GOO, SprayerWheel.Group.GOO, SprayerWheel.Group.FLOW),
-                ring.subList(0, 3).stream().map(SprayerWheel.RingPetal::group).toList());
-        assertEquals(SprayerWheel.Group.NOZZLE, ring.getLast().group());
-        for (int petal = 0; petal < ring.size(); petal++) {
-            double middle = wheel.startOf(petal) + wheel.petalArc() / 2;
-            assertEquals(petal, wheel.petalAt(middle), "the middle of petal " + petal);
+        for (int type = 0; type < wheel.types().size(); type++) {
+            assertEquals(type, wheel.gooAt(wheel.gooStartOf(type) + wheel.gooArc() / 2), "the middle of petal " + type);
+        }
+        double lastX = -2;
+        for (int nozzle = 0; nozzle < wheel.nozzles().size(); nozzle++) {
+            double angle = wheel.hubAngleOf(new SprayerWheel.RingPetal(SprayerWheel.Group.NOZZLE, nozzle));
+            assertTrue(Math.cos(angle) > 0 && Math.sin(angle) > lastX, "nozzle " + nozzle + " at " + angle);
+            lastX = Math.sin(angle);
+        }
+        lastX = -2;
+        for (int flow = 0; flow < wheel.flows().size(); flow++) {
+            double angle = wheel.hubAngleOf(new SprayerWheel.RingPetal(SprayerWheel.Group.FLOW, flow));
+            assertTrue(Math.cos(angle) < 0 && Math.sin(angle) > lastX, "flow " + flow + " at " + angle);
+            lastX = Math.sin(angle);
         }
     }
 
@@ -80,19 +87,19 @@ class SprayerWheelTest {
         SprayerWheel wheel = SprayerWheel.of(CanisterFluidContent.of(goo.resource(GooTypes.BLAZE), VOLUME)
                 .withVolume(goo.resource(GooTypes.ROCK), VOLUME), Set.of(GooTypes.BLAZE, GooTypes.ROCK)::contains);
         SprayerSetting kept = new SprayerSetting(java.util.Optional.of(GooTypes.BLAZE), SprayerFlow.MEDIUM,
-                SprayerNozzle.OPEN);
+                SprayerNozzle.SPRAY);
 
         SprayerSetting fan = wheel.picked(kept, new SprayerWheel.RingPetal(SprayerWheel.Group.NOZZLE,
-                wheel.nozzles().indexOf(SprayerNozzle.FAN)));
+                wheel.nozzles().indexOf(SprayerNozzle.LINE)));
         SprayerSetting high = wheel.picked(kept, new SprayerWheel.RingPetal(SprayerWheel.Group.FLOW,
                 wheel.flows().indexOf(SprayerFlow.HIGH)));
         SprayerSetting rock = wheel.picked(kept, new SprayerWheel.RingPetal(SprayerWheel.Group.GOO,
                 wheel.types().indexOf(GooTypes.ROCK)));
 
-        assertEquals(new SprayerSetting(kept.pickedType(), SprayerFlow.MEDIUM, SprayerNozzle.FAN), fan);
-        assertEquals(new SprayerSetting(kept.pickedType(), SprayerFlow.HIGH, SprayerNozzle.OPEN), high);
+        assertEquals(new SprayerSetting(kept.pickedType(), SprayerFlow.MEDIUM, SprayerNozzle.LINE), fan);
+        assertEquals(new SprayerSetting(kept.pickedType(), SprayerFlow.HIGH, SprayerNozzle.SPRAY), high);
         assertEquals(new SprayerSetting(java.util.Optional.of(GooTypes.ROCK), SprayerFlow.MEDIUM,
-                SprayerNozzle.OPEN), rock);
+                SprayerNozzle.SPRAY), rock);
     }
 
     /** decision mister-draws-mist-and-lays-one-layer-on-bare-spots */
@@ -101,7 +108,7 @@ class SprayerWheelTest {
         SprayerWheel wheel = SprayerWheel.of(CanisterFluidContent.of(goo.resource(GooTypes.WEIRD), VOLUME),
                 GooTypes.WEIRD::equals);
 
-        assertTrue(wheel.nozzles().contains(SprayerNozzle.ATOMIZER), "the wheel lists " + wheel.nozzles());
+        assertTrue(wheel.nozzles().contains(SprayerNozzle.MIST), "the wheel lists " + wheel.nozzles());
     }
 
     /** decision spray-item-takes-different-nozzles-doing-different-things */
@@ -110,7 +117,7 @@ class SprayerWheelTest {
         SprayerWheel wheel = SprayerWheel.of(CanisterFluidContent.of(goo.resource(GooTypes.WEIRD), VOLUME),
                 GooTypes.WEIRD::equals);
 
-        assertTrue(wheel.nozzles().containsAll(List.of(SprayerNozzle.CHOKE, SprayerNozzle.JET,
-                SprayerNozzle.SPRINKLER, SprayerNozzle.FAN)), "the wheel lists " + wheel.nozzles());
+        assertTrue(wheel.nozzles().containsAll(List.of(SprayerNozzle.THIN, SprayerNozzle.JET,
+                SprayerNozzle.WIDE, SprayerNozzle.LINE)), "the wheel lists " + wheel.nozzles());
     }
 }
