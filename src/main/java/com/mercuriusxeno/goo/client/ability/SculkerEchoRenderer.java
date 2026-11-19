@@ -4,6 +4,8 @@ import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.overlay.FungusXray;
+import com.mercuriusxeno.goo.data.FungusBlocks;
+import com.mercuriusxeno.goo.data.GooValues;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.QuadInstance;
 import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -22,6 +24,7 @@ import net.minecraft.util.ARGB;
 import net.minecraft.util.RandomSource;
 import net.minecraft.util.profiling.Profiler;
 import net.minecraft.util.profiling.ProfilerFiller;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.minecraft.world.phys.AABB;
@@ -29,6 +32,7 @@ import net.minecraft.world.phys.Vec3;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Consumer;
 
 /**
@@ -97,9 +101,10 @@ public final class SculkerEchoRenderer {
         FrustumView view = new FrustumView(frustum);
         long now = mc.level.getGameTime();
         float presence = SculkerVision.presence();
+        Set<Block> fungus = FungusBlocks.of(GooValues.of(mc.level));
         Map<BlockPos, Float> lit = ShroomVision.drawn(litInView(echoes.bySection(), view,
                 new Sight(player.position(), now, SculkerSenses.sightReach(), presence)),
-                inView(ShroomVision.nearby(mc, now), view), state -> state.is(ShroomVision.SHROOM_NETWORK), presence);
+                inView(ShroomVision.nearby(mc, now, fungus), view), state -> fungus.contains(state.getBlock()), presence);
         ProfilerFiller profiler = Profiler.get();
         profiler.incrementCounter(REMEMBERED_COUNTER, echoes.remembered().size());
         profiler.incrementCounter(DRAWN_COUNTER, lit.size());
