@@ -6,6 +6,7 @@ import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.block.CompiledStateDefinition;
 import com.mercuriusxeno.goo.data.GooFraction;
+import com.mercuriusxeno.goo.data.GooBaseValuesPreview;
 import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mercuriusxeno.goo.throwing.DripFall;
@@ -657,6 +658,36 @@ class VolumeCellBlockTest {
             assertEquals(Optional.of(new VolumeCellBlock.Reclaim(GooTypes.LEAF,
                             cost.times(LAYERS).dividedBy(FIFTEEN).floor())),
                     VolumeCellBlock.reclaimedBy(CellBinding.VINES, LAYERS, cost));
+        }
+    }
+
+    /**
+     * A broken Mortar cell gives back rock goo, each layer a fifteenth of
+     * Mortar's cost as rock_mortar.json ships it, read here from a fixture's
+     * $mundane_block of 7 rock (decision no-test-asserts-a-shipped-base-value).
+     * mortar-is-rocks-residual-a-petrification-and-hardening-goo
+     * layer-of-rock-goo-is-a-stone-block
+     */
+    @Nested
+    class MortarReclaim {
+
+        private static final int LAYERS = 6;
+
+        @Test
+        void mortarIsRockGooLaidByRocksMortar() {
+            assertEquals(List.of(GooTypes.ROCK, AbilityJson.idOf("rock_mortar.json")),
+                    List.of(CellBinding.MORTAR.gooType(), CellBinding.MORTAR.layingAbility()));
+        }
+
+        @Test
+        void aBrokenMortarCellDropsRockGooAtFifteenthsOfMortarsCost() {
+            GooFraction cost = AbilityJson.decode("rock_mortar").cost().exactIn(GooBaseValuesPreview.registry("""
+                    {"_constants": {"mundane_block": {"rock": 7}}}
+                    """).table());
+
+            assertEquals(Optional.of(new VolumeCellBlock.Reclaim(GooTypes.ROCK,
+                            cost.times(LAYERS).dividedBy(FIFTEEN).floor())),
+                    VolumeCellBlock.reclaimedBy(CellBinding.MORTAR, LAYERS, cost));
         }
     }
 
