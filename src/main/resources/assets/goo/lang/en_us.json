@@ -42,6 +42,16 @@
   "item.goo.goo_glove": "Goo Glove",
   "item.goo.goo_gauntlet": "Goo Gauntlet",
   "item.goo.exo_gauntlet": "Exo Gauntlet",
+  "item.goo.sprayer": "Sprayer",
+  "item.goo.sprayer.flow.low": "Low",
+  "item.goo.sprayer.flow.medium": "Medium",
+  "item.goo.sprayer.flow.high": "High",
+  "item.goo.sprayer.nozzle.mist": "Mist",
+  "item.goo.sprayer.nozzle.wide": "Wide",
+  "item.goo.sprayer.nozzle.line": "Line",
+  "item.goo.sprayer.nozzle.spray": "Spray",
+  "item.goo.sprayer.nozzle.thin": "Thin",
+  "item.goo.sprayer.nozzle.jet": "Jet",
 
   "block.goo.goo": "Goo",
 
