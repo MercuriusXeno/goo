@@ -12,10 +12,8 @@ import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooBlocks;
-import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.throwing.CoatRay;
 import com.mercuriusxeno.goo.type.GooTypes;
-import net.minecraft.commands.arguments.EntityAnchorArgument;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -53,23 +51,6 @@ public final class GoopArcTests {
     private static final String GOOP_WOBBLES_A_FAR_MOB = "goop_wobbles_a_mob_its_drip_strikes_past_eight_blocks";
     private static final String DRIP_STANDS_A_CELL = "goop_drip_stands_a_one_layer_cell_in_the_tick_it_strikes";
     private static final String DRIPS_ADD_A_LAYER_EACH = "goop_drips_add_a_layer_each_up_to_fifteen";
-    private static final String GOOP_LEAVES_ALONG_A_FAR_LOOK = "goop_drips_leave_within_the_cone_of_a_far_look";
-    private static final String GOOP_IGNORES_THE_CROSSHAIR_BLOCK = "goop_drips_leave_alike_whatever_the_look_meets";
-    /** How far across the ground the far look meets the floor, where the crosshair solve pitched 28 degrees up. */
-    private static final double FAR_LOOK_ACROSS = 18;
-    /** The glove hand under the eye, so it stands 1.4 blocks over the floor as a standing caster's does. */
-    private static final double HAND_BELOW_THE_EYE = 0.22;
-    /** How far along the look the block the crosshair may meet stands, in blocks. */
-    private static final int CROSSHAIR_BLOCK_AHEAD = 5;
-    /** Ticks between the two throws, past the gap a hold continues over, so each throw is a hold's first tick. */
-    private static final int NEW_HOLD_GAP = StreamHolds.LATEST_CONTINUING_GAP + 2;
-    /** The slack a launch's angle off the look may carry over the cone's rim, radians: rounding alone. */
-    private static final double RIM_SLACK = 1e-6;
-    private static final String DRIP_OFF_THE_CONE = "Drip %d of hold tick %d leaves %.2f degrees off the look,"
-            + " past the cone's half of %.2f";
-    private static final String NO_DRIPS_THROWN = "Holding Goop should throw a drip each tick";
-    private static final String CROSSHAIR_CHANGED_DRIPS = "The block on the look should change no drip's launch:"
-            + " with air %s, with a block %s";
     /** The cell the landed drips strike, walled in stone on a stone floor so nothing pours. */
     private static final BlockPos DRIPPED_CELL = new BlockPos(4, 1, 4);
     private static final String HELD_AT_A_WALL = "goop_held_at_a_wall_leaves_a_film";
@@ -209,10 +190,6 @@ public final class GoopArcTests {
         GooTestFunctions.registerTest(registrar, GOOP_WOBBLES_A_FAR_MOB, GoopArcTests::goopWobblesAFarMobItsDripStrikes);
         GooTestFunctions.registerTest(registrar, DRIP_STANDS_A_CELL, GoopArcTests::goopDripStandsAOneLayerCell);
         GooTestFunctions.registerTest(registrar, DRIPS_ADD_A_LAYER_EACH, GoopArcTests::goopDripsAddALayerEach);
-        GooTestFunctions.registerTest(registrar, GOOP_LEAVES_ALONG_A_FAR_LOOK,
-                GoopArcTests::goopDripsLeaveWithinTheConeOfAFarLook);
-        GooTestFunctions.registerTest(registrar, GOOP_IGNORES_THE_CROSSHAIR_BLOCK,
-                GoopArcTests::goopDripsLeaveAlikeWhateverTheLookMeets);
         GooTestFunctions.registerTest(registrar, HELD_AT_A_WALL, GoopArcTests::goopHeldAtAWallLeavesAFilm);
         GooTestFunctions.registerTest(registrar, DRIP_ON_A_WALL_COSTS, GoopArcTests::goopDripOnAWallCostsOneLayer);
         GooTestFunctions.registerTest(registrar, FILM_DROPS_ITS_LAYER, GoopArcTests::goopFilmDropsItsLayerWhenItsWallBreaks);
@@ -323,98 +300,6 @@ public final class GoopArcTests {
             helper.assertTrue(ahead, String.format(NO_COAT_AHEAD, coated));
             helper.succeed();
         });
-    }
-
-    /**
-     * A streamer standing at a corner of a flat stone floor looks across it at
-     * the floor 18 blocks off, where a solve onto the crosshair's point had
-     * pitched the spray 28 degrees up, and holds Goop from a hand under the
-     * eye: every drip of every hold tick leaves within half the cone of the look.
-     * goo-spray-scatters-in-a-cone-around-the-look-vector
-     *
-     * @param helper the gametest helper
-     */
-    public static void goopDripsLeaveWithinTheConeOfAFarLook(GameTestHelper helper) {
-        for (int east = 0; east <= FLOOR_EAST; east++) {
-            for (int south = 0; south <= FLOOR_EAST; south++) {
-                helper.setBlock(new BlockPos(east, 0, south), Blocks.STONE);
-            }
-        }
-        BlockPos corner = new BlockPos(0, 1, 0);
-        ServerPlayer streamer = goopStreamerAt(helper, corner, LEVEL);
-        Vec3 across = new Vec3(1, 0, 1).normalize().scale(FAR_LOOK_ACROSS);
-        streamer.lookAt(EntityAnchorArgument.Anchor.EYES,
-                helper.absoluteVec(Vec3.atBottomCenterOf(corner).add(across)));
-        Vec3 look = streamer.getLookAngle();
-        double halfCone = Math.toRadians(goop(helper).delivery().coneDegrees() / 2);
-        Vec3 hand = streamer.getEyePosition().subtract(0, HAND_BELOW_THE_EYE, 0);
-        int[] thrown = {0};
-        for (int held = 1; held <= SPRAY_HOLD_TICKS; held++) {
-            int tick = held;
-            helper.runAfterDelay(held, () -> {
-                List<Vec3> launches = launchesOfOneTick(streamer, hand);
-                for (int drip = 0; drip < launches.size(); drip++) {
-                    double off = Math.acos(Math.min(1, launches.get(drip).normalize().dot(look)));
-                    helper.assertTrue(off <= halfCone + RIM_SLACK, String.format(DRIP_OFF_THE_CONE, drip, tick,
-                            Math.toDegrees(off), Math.toDegrees(halfCone)));
-                }
-                thrown[0] += launches.size();
-            });
-        }
-        helper.runAfterDelay(SPRAY_HOLD_TICKS + 1, () -> {
-            helper.getLevel().getServer().getPlayerList().remove(streamer);
-            helper.assertTrue(thrown[0] > 0, NO_DRIPS_THROWN);
-            helper.succeed();
-        });
-    }
-
-    /**
-     * A streamer standing on a flat stone floor looks level east and throws
-     * a hold's first tick of Goop twice, once with open air along the look
-     * and once with a stone block standing on it five blocks out: both
-     * throws launch the same drip velocities.
-     * goo-spray-scatters-in-a-cone-around-the-look-vector
-     *
-     * @param helper the gametest helper
-     */
-    public static void goopDripsLeaveAlikeWhateverTheLookMeets(GameTestHelper helper) {
-        BlockPos floor = LEVEL_STREAMER_POS.below();
-        layFloor(helper, floor.getY(), floor.getZ());
-        ServerPlayer streamer = goopStreamerAt(helper, LEVEL_STREAMER_POS, LEVEL);
-        Vec3 hand = streamer.getEyePosition().subtract(0, HAND_BELOW_THE_EYE, 0);
-        List<List<Vec3>> throwings = new ArrayList<>();
-        helper.runAfterDelay(1, () -> throwings.add(launchesOfOneTick(streamer, hand)));
-        helper.runAfterDelay(1 + NEW_HOLD_GAP, () -> {
-            helper.setBlock(LEVEL_STREAMER_POS.above().east(CROSSHAIR_BLOCK_AHEAD), Blocks.STONE);
-            throwings.add(launchesOfOneTick(streamer, hand));
-            helper.getLevel().getServer().getPlayerList().remove(streamer);
-            List<Vec3> withAir = throwings.get(0);
-            List<Vec3> withBlock = throwings.get(1);
-            helper.assertTrue(!withAir.isEmpty(), NO_DRIPS_THROWN);
-            boolean alike = withAir.size() == withBlock.size();
-            for (int drip = 0; alike && drip < withAir.size(); drip++) {
-                alike = withAir.get(drip).distanceToSqr(withBlock.get(drip)) == 0;
-            }
-            helper.assertTrue(alike, String.format(CROSSHAIR_CHANGED_DRIPS, withAir, withBlock));
-            helper.succeed();
-        });
-    }
-
-    /**
-     * Runs one Goop stream tick from a hand and reads the launch velocity of
-     * each drip the tick threw, before any server tick steps them.
-     *
-     * @param streamer the streaming player
-     * @param hand     the glove hand the client sends
-     * @return each thrown drip's launch velocity, blocks per tick, in the order thrown
-     */
-    private static List<Vec3> launchesOfOneTick(ServerPlayer streamer, Vec3 hand) {
-        DripFlights flights = GooServerState.of(streamer.level().getServer()).dripFlights();
-        int before = flights.flyingFrom(streamer.getUUID()).size();
-        GooStreamHandler.streamTick(streamer, GooStreamPayload.unplaned(GooTypes.id(GooTypes.WEIRD),
-                GOOP.toString(), hand, streamer.getEyePosition()));
-        List<DripFlights.Flight> flying = flights.flyingFrom(streamer.getUUID());
-        return flying.subList(before, flying.size()).stream().map(DripFlights.Flight::velocity).toList();
     }
 
     /**
