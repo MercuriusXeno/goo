@@ -92,11 +92,13 @@ class VolumeCellLookTest {
                 new Cell("jelly_nectar", CellBinding.NECTAR, "goo:fluid/jelly_fluid", 0xE8505B),
                 new Cell("pulse_signal", CellBinding.SIGNAL, "goo:fluid/pulse_fluid", 0xDB0F0F),
                 new Cell("metal_spikes", CellBinding.SPIKES, "goo:fluid/metal_fluid", 0xCFCFCF),
-                new Cell("nether_infest", CellBinding.INFEST, "goo:fluid/nether_fluid", 0x6A4650),
+                new Cell("zombie_infest", CellBinding.INFEST, "goo:fluid/zombie_fluid", 0x56843E),
                 new Cell("nether_gloom", CellBinding.GLOOM, "goo:fluid/nether_fluid", 0x6A4650),
                 new Cell("leaf_vines", CellBinding.VINES, "goo:fluid/leaf_fluid", 0x8DD75F),
                 new Cell("unstable_nitro", CellBinding.NITRO, "goo:fluid/unstable_fluid", 0x55FF22),
-                new Cell("quantum_phase", CellBinding.PHASE, "goo:fluid/quantum_fluid", 0x6AD0F0));
+                new Cell("quantum_phase", CellBinding.PHASE, "goo:fluid/quantum_fluid", 0x6AD0F0),
+                new Cell("rock_mortar", CellBinding.MORTAR, "goo:fluid/rock_fluid", 0x8A6A50),
+                new Cell("yarn_stitch", CellBinding.STITCH, "goo:fluid/yarn_fluid", 0xCBAE88));
     }
 
     @Nested

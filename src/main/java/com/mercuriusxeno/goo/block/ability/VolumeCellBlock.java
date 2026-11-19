@@ -12,11 +12,13 @@ import com.mercuriusxeno.goo.ability.program.MoltenStep;
 import com.mercuriusxeno.goo.ability.program.ShatterStep;
 import com.mercuriusxeno.goo.ability.program.SlickStep;
 import com.mercuriusxeno.goo.ability.program.Step;
+import com.mercuriusxeno.goo.ability.program.StitchStep;
 import com.mercuriusxeno.goo.ability.program.VinesStep;
 import com.mercuriusxeno.goo.ability.program.WispShed;
 import com.mercuriusxeno.goo.ability.program.WispsStep;
 import com.mercuriusxeno.goo.ability.root.RootEvents;
 import com.mercuriusxeno.goo.ability.root.Rooted;
+import com.mercuriusxeno.goo.ability.yarn.StitchEvents;
 import com.mercuriusxeno.goo.block.ability.SlimeFlow.Side;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.item.GooStacks;
@@ -64,6 +66,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.OptionalLong;
 import java.util.Set;
 import java.util.UUID;
@@ -245,7 +248,7 @@ public class VolumeCellBlock extends Block {
      * @return the stuck state, empty where the block takes no layer
      */
     public static Optional<BlockState> stuck(BlockState standing, Block cell, Direction side) {
-        if (standing.isAir()) {
+        if (WispBlock.readsAsAir(standing)) {
             return Optional.of(withCoat(cell.defaultBlockState().setValue(LAYERS, volumeOnceStuck(0)), side,
                     SideCoat.ATTACHED));
         }
@@ -540,7 +543,7 @@ public class VolumeCellBlock extends Block {
      * @return the thickened state, empty where the cell can take no layer
      */
     public static Optional<BlockState> thickened(BlockState standing, Block cell) {
-        if (standing.isAir()) {
+        if (WispBlock.readsAsAir(standing)) {
             return Optional.of(cell.defaultBlockState());
         }
         if (!standing.is(cell) || standing.getValue(LAYERS) >= MAX_LAYERS) {
@@ -579,7 +582,7 @@ public class VolumeCellBlock extends Block {
      * @return the coated state, empty where the side can take no layer
      */
     static Optional<BlockState> coated(BlockState standing, Block cell, Direction side, SideCoat coat) {
-        if (standing.isAir()) {
+        if (WispBlock.readsAsAir(standing)) {
             return Optional.of(cell.defaultBlockState().setValue(LAYERS, volumeOnceStuck(0))
                     .setValue(coatProperty(side), coat));
         }
@@ -988,7 +991,6 @@ public class VolumeCellBlock extends Block {
                                                     @NonNull BlockPos pos, @NonNull CollisionContext ctx) {
         return boxOf(sharesOf(state, onAFloor(level, pos), cohesionIn(level)));
     }
-
     /**
      * A cell holding fill stands on a top; a cell of fill 0 stands on its
      * films, each clinging to a wall with a face to hold it.
@@ -1046,6 +1048,8 @@ public class VolumeCellBlock extends Block {
     @Override
     protected void tick(@NonNull BlockState state, @NonNull ServerLevel level, @NonNull BlockPos pos,
                         @NonNull RandomSource random) {
+        // goo-pour-cost-is-measured-before-and-after-the-network
+        PourTickWatch.ran(pos);
         if (heatTouched(level, pos, state)) {
             return;
         }
@@ -1075,8 +1079,99 @@ public class VolumeCellBlock extends Block {
             fallWhole(level, pos, state);
             return;
         }
-        if (!pourOnce(level, pos, state)) {
+        if (!pourTogether(level, pos, state)) {
             shedWisp(level, pos, state);
+        }
+    }
+
+    /**
+     * Pours a cell as one network with the cells joined to it: a cell whose
+     * pour rule sends a layer off a ledge pours it there as it always has,
+     * and otherwise its network takes this tick's step toward the counts the
+     * whole pour rests at, once a tick whichever of its cells ticks first.
+     * connected-goo-cells-form-one-network-that-works-out-the-pour
+     *
+     * @param level the level
+     * @param pos   the cell
+     * @param state the cell's state
+     * @return true where the network is still pouring
+     */
+    private boolean pourTogether(ServerLevel level, BlockPos pos, BlockState state) {
+        if (pourFootingOf(level, pos, state).filter(footing -> footing == SlimeFlow.Footing.LEDGE).isPresent()) {
+            return pourOnce(level, pos, state);
+        }
+        Optional<PourNetwork.Step> step = GooServerState.of(level.getServer()).pourPlans().stepAt(level.dimension(),
+                level.getGameTime(), pos, new LevelGround(level), cohesionAt(level), adhesionAt(level));
+        step.ifPresent(taken -> takeTheStep(level, taken));
+        return step.isPresent();
+    }
+
+    /**
+     * The footing of the side a cell's own pour rule sends a layer to.
+     *
+     * @param level the level
+     * @param pos   the cell
+     * @param state the cell's state
+     * @return the footing, empty where the cell holds its step over every side
+     */
+    private Optional<SlimeFlow.Footing> pourFootingOf(ServerLevel level, BlockPos pos, BlockState state) {
+        List<Side> sides = SIDES.stream().map(side -> sideOf(level, pos.relative(side), side)).toList();
+        return SlimeFlow.pour(state.getValue(LAYERS), cohesionAt(level), adhesionAt(level), sides)
+                .flatMap(toward -> sides.stream().filter(side -> side.direction() == toward).findFirst())
+                .map(Side::footing);
+    }
+
+    /**
+     * Writes a network's step: each layer carries its giver's placer to its
+     * taker, and each cell the step changes stands at its new count, an open
+     * cell taking a layer standing as a cell of this goo.
+     * connected-goo-cells-form-one-network-that-works-out-the-pour
+     * operator ruling 2026-11-17: a poured cell inherits its source's placer
+     *
+     * @param level the level
+     * @param step  the step
+     */
+    private void takeTheStep(ServerLevel level, PourNetwork.Step step) {
+        step.moves().stream().distinct().forEach(move -> carryPlacer(level, move.from(), move.to()));
+        step.layers().forEach((cell, layers) -> {
+            BlockState standing = level.getBlockState(cell);
+            BlockState into = standing.isAir() ? defaultBlockState() : standing;
+            level.setBlock(cell, layers > 0 ? into.setValue(LAYERS, layers) : lessALayer(into.setValue(LAYERS, 1)),
+                    UPDATE_ALL);
+        });
+    }
+
+    /**
+     * The places around a network as this level holds them, read by the pour rules this cell's pour reads.
+     */
+    private final class LevelGround implements PourNetwork.Ground {
+
+        private final ServerLevel level;
+
+        private LevelGround(ServerLevel level) {
+            this.level = level;
+        }
+
+        @Override
+        public OptionalInt cellAt(BlockPos pos) {
+            BlockState standing = level.getBlockState(pos);
+            return standing.is(VolumeCellBlock.this) ? OptionalInt.of(standing.getValue(LAYERS)) : OptionalInt.empty();
+        }
+
+        @Override
+        public SlimeFlow.Footing openFooting(BlockPos pos) {
+            return opens(level.getBlockState(pos)) ? openSideOf(level, pos, Direction.NORTH).footing()
+                    : SlimeFlow.Footing.BLOCKED;
+        }
+
+        @Override
+        public int heldAt(BlockPos pos) {
+            return onAFloor(level, pos) ? 0 : holdOf(cohesionAt(level), attachedSidesOf(level.getBlockState(pos)));
+        }
+
+        @Override
+        public boolean rises(BlockPos pos, int from, int to) {
+            return to <= MAX_LAYERS && !wouldRiseAroundFeet(level, pos, from, to);
         }
     }
 
@@ -1650,23 +1745,21 @@ public class VolumeCellBlock extends Block {
     }
 
     /**
-     * Spreads a cell a drip just raised, at once: it pours into its side
-     * cells, and off its ledges, until none stands two layers below it, in
-     * the tick the drip lands; the side cells that took a layer spread on at
-     * their goo type's viscosity's pace.
+     * Spreads a cell a drip just raised, at once: where its own pour rule
+     * pours, its network takes a step toward rest, or the cell pours off its
+     * ledge, in the tick the drip lands; the network steps on at its goo
+     * type's viscosity's pace.
      * spread-decreases-the-cell-it-leaves
+     * connected-goo-cells-form-one-network-that-works-out-the-pour
      * operator ruling 2026-11-14: spread the blob when it updates, immediately
      *
      * @param level the level
      * @param pos   the raised cell
      */
     public void spreadAtOnce(ServerLevel level, BlockPos pos) {
-        // each pour moves a layer the cell holds, so a cell runs out of pours within its fifteen layers
-        for (int pour = 0; pour < MAX_LAYERS; pour++) {
-            BlockState state = level.getBlockState(pos);
-            if (!state.is(this) || !pourOnce(level, pos, state)) {
-                return;
-            }
+        BlockState state = level.getBlockState(pos);
+        if (state.is(this) && pourFootingOf(level, pos, state).isPresent()) {
+            pourTogether(level, pos, state);
         }
     }
 
@@ -1739,15 +1832,16 @@ public class VolumeCellBlock extends Block {
     }
 
     /**
-     * Whether a cell stands open to a poured layer's fill: air, or a cell of
-     * this goo holding fill 0, its goo in films on its walls.
+     * Whether a cell stands open to a poured layer's fill: air, or a wisp,
+     * which the goo takes the space of.
      * goo-cell-holds-a-fill-and-a-state-per-side
+     * every-block-displaces-wisps
      *
      * @param state the cell's state
      * @return true where the cell holds no fill
      */
     private boolean opens(BlockState state) {
-        return state.isAir();
+        return WispBlock.readsAsAir(state);
     }
 
     private boolean unfilled(BlockState state) {
@@ -1858,7 +1952,7 @@ public class VolumeCellBlock extends Block {
         BlockState taking = level.getBlockState(landing);
         SlimeFlow.Poured poured = SlimeFlow.poured(state.getValue(LAYERS), layersOf(taking));
         if (takesThePour(level, landing, taking, poured)) {
-            BlockState into = taking.isAir() ? defaultBlockState() : taking;
+            BlockState into = opens(taking) ? defaultBlockState() : taking;
             level.setBlock(landing, into.setValue(LAYERS, poured.taker()), UPDATE_ALL);
             carryPlacer(level, pos, landing);
             level.setBlock(pos, lessALayer(state), UPDATE_ALL);
@@ -1876,7 +1970,7 @@ public class VolumeCellBlock extends Block {
      * @return true where the layer lands
      */
     private boolean takesThePour(ServerLevel level, BlockPos landing, BlockState taking, SlimeFlow.Poured poured) {
-        boolean holdsLayers = taking.isAir() || taking.is(this);
+        boolean holdsLayers = opens(taking) || taking.is(this);
         return holdsLayers && poured.taker() <= MAX_LAYERS
                 && !wouldRiseAroundFeet(level, landing, layersOf(taking), poured.taker());
     }
@@ -1937,7 +2031,8 @@ public class VolumeCellBlock extends Block {
      * step names; on a cutting cell, the shards over it cut a thing moving
      * through them, on the server, by the laying ability's shatter step; a
      * smiting cell burns an undead standing on it; a slowing cell catches
-     * what stands on it; an entangling cell gives vines to what crosses it.
+     * what stands on it; an entangling cell gives vines to what crosses it;
+     * a tangling cell turns a slime standing on it and tangles a hostile.
      * slick-coats-the-ground-with-kinetic-speed
      * slick-is-a-layered-cell-that-flows-thinner-and-faster-than-slime
      * each-shatter-cut-has-a-chance-to-deplete-a-layer
@@ -1958,6 +2053,7 @@ public class VolumeCellBlock extends Block {
         smite(level, pos, state, entity);
         catchIn(level, entity);
         entangle(level, pos, state, entity);
+        tangle(level, pos, state, entity);
         super.stepOn(level, pos, state, entity);
     }
 
@@ -1966,7 +2062,7 @@ public class VolumeCellBlock extends Block {
      * to stand on as the block under its feet still touches it, and catches a
      * thing inside a slowing cell's block space, wading in it or standing on
      * a cell short of a whole block, and entangles a thing crossing an
-     * entangling cell's space.
+     * entangling cell's space, and tangles a hostile inside a tangling cell's.
      * undead-touching-wisps-goo-erupt-in-flames-and-take-holy-damage-by-fill
      * leech-goo-slows-what-it-catches-and-the-spirits-damage-it
      * vines-is-sprayed-slime-that-entangles-what-tries-to-cross
@@ -1978,7 +2074,26 @@ public class VolumeCellBlock extends Block {
         smite(level, pos, state, entity);
         catchIn(level, entity);
         entangle(level, pos, state, entity);
+        tangle(level, pos, state, entity);
         super.entityInside(state, level, pos, entity, effects, pastEdges);
+    }
+
+    /**
+     * Runs a tangling cell on a thing in it or standing on it, by its laying
+     * ability's stitch step: a slime becomes a passive mob, a hostile is
+     * tangled in strands, and a passive passes.
+     * passives-move-through-stitch-and-hostiles-tangle-in-it
+     * stitch-is-yarns-residual-that-turns-slimes-into-passive-mobs
+     *
+     * @param level  the level the cell stands in
+     * @param pos    the cell
+     * @param state  the cell's state
+     * @param entity the entity in or on the cell
+     */
+    private void tangle(Level level, BlockPos pos, BlockState state, Entity entity) {
+        if (surface().tangles() && level instanceof ServerLevel server) {
+            StitchStep.in(layingProgram(server)).ifPresent(stitch -> StitchEvents.touch(entity, pos, state, stitch));
+        }
     }
 
     /**

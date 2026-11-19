@@ -17,9 +17,11 @@ public record BlendPalette(float lightRed, float lightGreen, float lightBlue,
                            float darkRed, float darkGreen, float darkBlue) {
 
     /**
-     * Decay's gnats, from zombie goo's bright green, 7AA85A, to its meat brown edge, 5E4428.
+     * Decay's gnats and Infest's spray drips, from zombie goo's bright green,
+     * 7AA85A, to its meat brown edge, 5E4428.
      * decay-gnats-degrade-each-block-once
      * zombie-goo-is-colored-after-zombie-flesh-and-decay-stops-being-maroon
+     * zombie-goo-is-the-undead-and-takes-the-decay-abilities
      */
     public static final BlendPalette ZOMBIE_ROT = new BlendPalette(
             0x7A / 255f, 0xA8 / 255f, 0x5A / 255f, 0x5E / 255f, 0x44 / 255f, 0x28 / 255f);
@@ -117,15 +119,6 @@ public record BlendPalette(float lightRed, float lightGreen, float lightBlue,
             0xA6 / 255f, 0xF0 / 255f, 0x78 / 255f, 0x7E / 255f, 0xC8 / 255f, 0x50 / 255f);
 
     /**
-     * Infest's spray drips, from nether's bright maroon, 8C3A48, to its wheel
-     * maroon, 5C1C2A, the two the nether goo type's definition names.
-     * infest-is-nethers-goo-the-decay-effect-localized-around-the-goo
-     * nether-is-a-deeper-maroon-mixed-with-obsidians-colors
-     */
-    public static final BlendPalette INFEST_NETHER_REDS = new BlendPalette(
-            0x8C / 255f, 0x3A / 255f, 0x48 / 255f, 0x5C / 255f, 0x1C / 255f, 0x2A / 255f);
-
-    /**
      * Gloom's spray drips, from nether's bright maroon, 8C3A48, to its edge
      * obsidian, 2E1C44, the two the nether goo type's definition names.
      * gloom-spawns-regardless-of-light-and-mobs-on-it-ignore-daylight
@@ -143,6 +136,14 @@ public record BlendPalette(float lightRed, float lightGreen, float lightBlue,
             0xB6 / 255f, 0x6C / 255f, 0xD5 / 255f, 0x8E / 255f, 0x44 / 255f, 0xAD / 255f);
 
     /**
+     * Stitch's spray drips, from yarn's highlight tan, CBAE88, to its wheel
+     * tan, B88A5E, the two tans the yarn goo type's definition names.
+     * stitch-is-yarns-residual-that-turns-slimes-into-passive-mobs
+     */
+    public static final BlendPalette STITCH_YARN_TANS = new BlendPalette(
+            0xCB / 255f, 0xAE / 255f, 0x88 / 255f, 0xB8 / 255f, 0x8A / 255f, 0x5E / 255f);
+
+    /**
      * Nitro's spray drips, from unstable's bright green, 88FF44, to its wheel
      * green, 39FF14, the two the unstable goo type's definition names.
      * nitro-is-unstables-goo-that-explodes-in-a-chain-by-its-quantity
@@ -158,6 +159,14 @@ public record BlendPalette(float lightRed, float lightGreen, float lightBlue,
      */
     public static final BlendPalette PHASE_QUANTUM_BLUES = new BlendPalette(
             0x6A / 255f, 0xD0 / 255f, 0xF0 / 255f, 0x3A / 255f, 0xA0 / 255f, 0xE0 / 255f);
+
+    /**
+     * Mortar's spray drips, from rock's bright gray, B4B6B8, to its wheel
+     * brown, 7A5C44, the two the rock goo type's definition names.
+     * mortar-is-rocks-residual-a-petrification-and-hardening-goo
+     */
+    public static final BlendPalette MORTAR_ROCK_GRAYS = new BlendPalette(
+            0xB4 / 255f, 0xB6 / 255f, 0xB8 / 255f, 0x7A / 255f, 0x5C / 255f, 0x44 / 255f);
 
     /**
      * The color a share of the way from the light end to the dark.

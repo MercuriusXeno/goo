@@ -17,7 +17,7 @@ import java.util.function.ToIntFunction;
  * Decision ailment-glisten-becomes-a-pulsing-outline.
  */
 public enum AilmentKind {
-    /** Rewind's stasis: a gold outline. */
+    /** Revert's stasis: a gold outline. */
     STASIS(0xFFD447),
     /** Scales: diamond blue, faceted. */
     SCALES(0x4AEDD9, AilmentPattern.FACETS),
@@ -44,9 +44,7 @@ public enum AilmentKind {
      * Grab's hold: the flail its pose stamp reads, drawing no overlay
      * (decisions grab-holds-and-throws-a-physics-body, kinetic-is-electric-blue-and-white).
      */
-    GRABBED(0xFFFFFF, AilmentPattern.SHIMMER, 0f),
-    /** Ancient: aged stone veined with gold (decision ancient-makes-the-player-immortal). */
-    ANCIENT(0xC9A85C, AilmentPattern.STONE, 0.75f);
+    GRABBED(0xFFFFFF, AilmentPattern.SHIMMER, 0f);
 
     /** Codec for the kind as an ability JSON writes it, in lower case. */
     public static final Codec<AilmentKind> CODEC = LowerCaseEnumCodec.of(AilmentKind.class, "ailment kind");

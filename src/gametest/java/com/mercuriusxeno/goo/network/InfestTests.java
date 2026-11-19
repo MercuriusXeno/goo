@@ -22,7 +22,7 @@ import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
 
 /**
- * Nether's Infest as a world goo through the real paths: its stream's drips
+ * Zombie's Infest as a world goo through the real paths: its stream's drips
  * lay a layer of an Infest cell each, a cell gnaws the block under it a
  * stage along the goo:decay map, and it bites a living thing standing in it
  * and heals an undead one. Each test walls its cells in stone so no cell
@@ -34,7 +34,7 @@ import java.util.function.Consumer;
 public final class InfestTests {
 
     private static final String DRIP_LAYS_A_LAYER = "infest_drip_lays_a_layer";
-    private static final Identifier INFEST = Identifier.parse("goo:nether_infest");
+    private static final Identifier INFEST = Identifier.parse("goo:zombie_infest");
     /** The floor block the drip strikes, walled on its four sides one block up. */
     private static final BlockPos DRIP_FLOOR = new BlockPos(2, 1, 2);
     private static final String GNAWS_THE_BLOCK_UNDER_IT = "infest_gnaws_the_block_under_it";
@@ -45,7 +45,7 @@ public final class InfestTests {
     private static final BlockPos COW_CELL = new BlockPos(1, 2, 1);
     /** The full cell the wounded zombie stands on. */
     private static final BlockPos ZOMBIE_CELL = new BlockPos(3, 2, 3);
-    private static final String ABILITY_REQUIRED = "The ability registry must hold nether_infest";
+    private static final String ABILITY_REQUIRED = "The ability registry must hold zombie_infest";
     private static final String DRIP_LAYERS_WRONG = "The cell over the floor should be Infest of 1 layer, stands %s";
     private static final String NOT_GNAWED = "The stone under the Infest cell should be cobblestone, stands %s";
     private static final String COW_NOT_BITTEN = "The cow standing in Infest should fall from %.1f health, reads %.1f";
@@ -116,12 +116,12 @@ public final class InfestTests {
         for (Direction side : Direction.Plane.HORIZONTAL) {
             helper.setBlock(cell.relative(side), Blocks.STONE);
         }
-        helper.setBlock(cell, GooBlocks.NETHER_INFEST.get().defaultBlockState()
+        helper.setBlock(cell, GooBlocks.ZOMBIE_INFEST.get().defaultBlockState()
                 .setValue(VolumeCellBlock.LAYERS, VolumeCellBlock.MAX_LAYERS));
     }
 
     /**
-     * One Infest drip striking a walled stone top, from a nether-holding
+     * One Infest drip striking a walled stone top, from a zombie-holding
      * caster who pays for its layer, lays an Infest cell of one layer.
      *
      * @param helper the gametest helper
@@ -135,12 +135,12 @@ public final class InfestTests {
         }
         AbilityDefinition infest = AbilityRegistry.of(helper.getLevel()).getAbility(INFEST);
         helper.assertTrue(infest != null, ABILITY_REQUIRED);
-        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.NETHER);
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.ZOMBIE);
         KnownRecipes.teachRequires(caster, infest);
         LandedDrips.landOn(helper, caster, infest, DRIP_FLOOR, 1);
         helper.getLevel().getServer().getPlayerList().remove(caster);
         BlockState state = helper.getBlockState(cell);
-        helper.assertTrue(state.is(GooBlocks.NETHER_INFEST.get()) && state.getValue(VolumeCellBlock.LAYERS) == 1,
+        helper.assertTrue(state.is(GooBlocks.ZOMBIE_INFEST.get()) && state.getValue(VolumeCellBlock.LAYERS) == 1,
                 String.format(DRIP_LAYERS_WRONG, state));
         helper.succeed();
     }

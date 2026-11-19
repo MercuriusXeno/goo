@@ -11,8 +11,9 @@ package com.mercuriusxeno.goo.block.ability;
  * smites the undead touching it; leech slows a thing caught in it; spikes
  * stands as ordinary ground and impales what walks on it; vines stands as
  * ordinary ground and entangles what crosses it; phase stands as ordinary
- * ground and puts what stands in it out of phase; gloom stands as ordinary
- * ground and reads dark to the mobs spawning on it. A goo type
+ * ground and puts what stands in it out of phase; stitch stands as ordinary
+ * ground, lets a passive pass and tangles a hostile in it; gloom stands as
+ * ordinary ground and reads dark to the mobs spawning on it. A goo type
  * binding a world goo to the cell names one.
  * slime-and-slick-are-one-volume-cell-tech
  * molten-is-a-goopy-spray-that-turns-stone-below-it-to-lava
@@ -51,6 +52,11 @@ public enum CellSurface {
     ENTANGLE(Frictions.ORDINARY_GROUND),
     /** Phase's: ordinary ground underfoot, it puts what stands in it out of phase. */
     PHASE(Frictions.ORDINARY_GROUND),
+    /**
+     * Stitch's: ordinary ground underfoot, a passive passes it and a hostile in it is tangled in strands.
+     * passives-move-through-stitch-and-hostiles-tangle-in-it
+     */
+    TANGLE(Frictions.ORDINARY_GROUND),
     /** Gloom's: ordinary ground underfoot, it reads dark to a hostile mob spawning on it, whatever the light. */
     DARKEN(Frictions.ORDINARY_GROUND);
 
@@ -132,6 +138,13 @@ public enum CellSurface {
      */
     public boolean phases() {
         return this == PHASE;
+    }
+
+    /**
+     * @return true where the cell tangles a hostile in it and lets a passive pass
+     */
+    public boolean tangles() {
+        return this == TANGLE;
     }
 
     /**
