@@ -1,22 +1,21 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.entity.Meteor;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+import java.util.function.Consumer;
 
 /**
  * Meteo's blob marking its target: where the blob landed it lies as a
@@ -29,7 +28,6 @@ import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
  * decision meteo-winds-up-then-drops-in-a-second-trailing-fire
  * decision meteo-crashes-through-whatever-is-above
  */
-@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class MeteorMarkers {
 
     /** How far below the target's cell center the ground it lies on stands. */
@@ -57,24 +55,32 @@ public final class MeteorMarkers {
     }
 
     /**
-     * Draws a splat at every meteor's hit point once the world has drawn.
+     * Hands the shared path a splat at every meteor's hit point, to draw on
+     * its opaque-face route right after the ground it lies flush on, whose
+     * depth already stands, so the splats sort as one batch.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
      *
-     * @param event the level render stage event
+     * @param frame the frame being drawn
+     * @param draws where the splats' draw goes
      */
-    @SubscribeEvent
-    public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.level == null) {
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
+        ClientLevel level = Minecraft.getInstance().level;
+        if (level == null) {
             return;
         }
+        draws.accept(new SortedDraw(0, () -> drawSplats(level, frame.poseStack().last())));
+    }
+
+    private static void drawSplats(ClientLevel level, PoseStack.Pose pose) {
+        Minecraft mc = Minecraft.getInstance();
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.METEOR_SCORCH_TYPE);
         int color = ARGB.color(SPLAT_ALPHA, ClientGooTypes.color(GooTypes.ASTRAL));
-        for (Entity entity : mc.level.entitiesForRendering()) {
+        for (Entity entity : level.entitiesForRendering()) {
             if (entity instanceof Meteor meteor) {
                 Vec3 hitPoint = meteor.syncedMark();
-                emitSplat(event.getPoseStack().last(), consumer, markerAt(hitPoint).subtract(camera), hitPoint, color);
+                emitSplat(pose, consumer, markerAt(hitPoint).subtract(camera), hitPoint, color);
             }
         }
         buffers.endBatch(GooRenderTypes.METEOR_SCORCH_TYPE);

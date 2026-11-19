@@ -6,6 +6,9 @@ import com.mercuriusxeno.goo.ability.quantum.GatePassage;
 import com.mercuriusxeno.goo.ability.quantum.PortalTransform;
 import com.mercuriusxeno.goo.ability.quantum.ViewCone;
 import com.mercuriusxeno.goo.ability.quantum.ViewSize;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
+import com.mercuriusxeno.goo.client.TranslucentVisualPath;
 import com.mojang.blaze3d.ProjectionType;
 import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.buffers.GpuBufferSlice;
@@ -38,10 +41,6 @@ import net.minecraft.world.level.dimension.DimensionType;
 import net.minecraft.world.level.material.FogType;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
@@ -55,6 +54,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 /**
  * Draws the view through each visible linked portal the way the portal gun
@@ -70,7 +70,6 @@ import java.util.Optional;
  * portals-link-by-looking-through-portal-vision
  * decision room-tiles-to-render-distance-held-to-the-picture
  */
-@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class PortalView {
 
     /** How far in front of the partner's face the clip plane stands, so the partner's own block never shows. */
@@ -560,16 +559,12 @@ public final class PortalView {
             mc.levelRenderer.cloudRenderer = cloudsFor(currentPass);
             mc.mainRenderTarget = target;
             placeGlobalCamera(mc, delta, camera.pos);
-            if (skyDraws(state.skyRenderState.skybox, camera.fogType, camera.entityRenderState.doesMobEffectBlockSky)) {
-                clippedAfterSky = camera.projectionMatrix;
-                RenderSystem.setProjectionMatrix(skyProjectionBuffer().getBuffer(unclipped),
-                        ProjectionType.PERSPECTIVE);
-            } else {
-                RenderSystem.setProjectionMatrix(projectionBuffer().getBuffer(camera.projectionMatrix),
-                        ProjectionType.PERSPECTIVE);
-            }
+            projectForTheSky(state, camera, unclipped);
             mc.levelRenderer.renderLevel(game.resourcePool, delta, false, camera, camera.viewRotationMatrix,
                     viewFog(camera.fogData), camera.fogData.color, true, state.chunkSectionsToRender);
+            // renderLevel posts no AfterLevel, so the view draws the path's far-to-near visuals itself, into its target
+            // decision translucent-goo-visuals-draw-through-one-checked-sorting-path
+            TranslucentVisualPath.drawAfterAPortalsLevel(camera.viewRotationMatrix, state);
             // aim-and-shots-carry-through-linked-gates: the view's own glow outlines, the aimed mob's among them,
             // blend into the view as the frame's do after its level, before the frame's level clears them
             mc.levelRenderer.doEntityOutline();
@@ -578,6 +573,17 @@ public final class PortalView {
             mc.mainRenderTarget = frame;
             drawing = false;
             clippedAfterSky = null;
+        }
+    }
+
+    // A view drawing a sky starts on the unclipped projection, and collectSky's swap puts the clipped one back.
+    private static void projectForTheSky(LevelRenderState state, CameraRenderState camera, Matrix4f unclipped) {
+        if (skyDraws(state.skyRenderState.skybox, camera.fogType, camera.entityRenderState.doesMobEffectBlockSky)) {
+            clippedAfterSky = camera.projectionMatrix;
+            RenderSystem.setProjectionMatrix(skyProjectionBuffer().getBuffer(unclipped), ProjectionType.PERSPECTIVE);
+        } else {
+            RenderSystem.setProjectionMatrix(projectionBuffer().getBuffer(camera.projectionMatrix),
+                    ProjectionType.PERSPECTIVE);
         }
     }
 
@@ -599,17 +605,25 @@ public final class PortalView {
     }
 
     /**
-     * Puts the clipped projection in place once a view's sky is drawn, so
-     * everything after the sky stops at the partner's face.
+     * Hands the shared path, while a view draws a sky, the swap that puts
+     * the clipped projection in place once the view's sky is drawn, so
+     * everything after the sky stops at the partner's face. It draws
+     * nothing; registered last on the sky route at distance zero, it runs
+     * after every sky draw, the path's stable sort keeping it last.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
      *
-     * @param event the stage the sky pass ends on
+     * @param frame the frame being drawn
+     * @param draws where the projection's swap goes
      */
-    @SubscribeEvent
-    public static void onAfterSky(RenderLevelStageEvent.AfterSky event) {
+    public static void collectSky(LevelFrame frame, Consumer<SortedDraw> draws) {
         if (drawing && clippedAfterSky != null) {
-            RenderSystem.setProjectionMatrix(projectionBuffer().getBuffer(clippedAfterSky), ProjectionType.PERSPECTIVE);
-            clippedAfterSky = null;
+            draws.accept(new SortedDraw(0, PortalView::clipAfterTheSky));
         }
+    }
+
+    private static void clipAfterTheSky() {
+        RenderSystem.setProjectionMatrix(projectionBuffer().getBuffer(clippedAfterSky), ProjectionType.PERSPECTIVE);
+        clippedAfterSky = null;
     }
 
     /**

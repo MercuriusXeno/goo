@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.hud;
 
-import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.machine.VatStackAggregator;
 import com.mercuriusxeno.goo.client.machine.VatStackAggregator.VatStackData;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
@@ -13,18 +14,14 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.jspecify.annotations.Nullable;
+import java.util.function.Consumer;
 
 /**
  * Renders an in-world HUD panel when the player's crosshair targets a vat.
  * Shows aggregated stack contents, upgrade level, gasket info, and label.
  * Panel is placed on the face the player is looking at.
  */
-@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class VatHudRenderer {
 
     /** Y position for the HUD above the vat block top (full-block height). */
@@ -45,12 +42,14 @@ public final class VatHudRenderer {
     }
 
     /**
-     * Renders the vat HUD after entities.
+     * Moves the panel's animation on a frame and hands the shared path the
+     * vat's panel, sorted by its anchor.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
      *
-     * @param event the event instance
+     * @param frame the frame being drawn
+     * @param draws where the panel's draw goes
      */
-    @SubscribeEvent
-    public static void onAfterOpaqueFeatures(RenderLevelStageEvent.AfterOpaqueFeatures event) {
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
         ANIMATOR.tick(getTarget());
         VatTarget target = ANIMATOR.tracked();
         if (target == null) {
@@ -62,7 +61,8 @@ public final class VatHudRenderer {
             return;
         }
         Camera camera = Minecraft.getInstance().gameRenderer.getMainCamera();
-        renderPanel(event.getPoseStack(), camera, data, target);
+        draws.accept(new SortedDraw(anchorOf(target).distanceToSqr(camera.position()),
+                () -> renderPanel(frame.poseStack(), camera, data, target)));
     }
 
     /**
@@ -143,11 +143,14 @@ public final class VatHudRenderer {
      */
     private static void renderPanel(PoseStack poseStack, Camera camera, VatStackData data,
                                     VatTarget target) {
-        Vec3 anchor = new Vec3(target.pos.getX() + target.cx, target.pos.getY() + target.lift,
-                target.pos.getZ() + target.cz);
-        PanelPlacement placement = PanelPlacement.onFace(anchor, target.face, false,
+        PanelPlacement placement = PanelPlacement.onFace(anchorOf(target), target.face, false,
                 ANIMATOR.pitch(), ANIMATOR.opacity());
         PanelPainter.paint(poseStack, camera, placement, VatPanelRows.rows(data));
+    }
+
+    private static Vec3 anchorOf(VatTarget target) {
+        return new Vec3(target.pos.getX() + target.cx, target.pos.getY() + target.lift,
+                target.pos.getZ() + target.cz);
     }
 
     /**

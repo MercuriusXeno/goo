@@ -1,7 +1,8 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
+import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
@@ -12,10 +13,6 @@ import net.minecraft.core.Direction;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -30,7 +27,6 @@ import java.util.function.Consumer;
  * or a rake bridged a gap.
  * decision sunbeam-leaves-a-glowing-scorch-that-trails-and-fades
  */
-@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class LaserScorch {
 
     /** Half a mark's quad across, in blocks; wider than the spacing, so the marks of a rake overlap into one streak. */
@@ -63,15 +59,18 @@ public final class LaserScorch {
     }
 
     /**
-     * Draws every mark still showing right after the solid blocks it marks,
-     * dropping the faded ones first: ahead of every block entity's beam and
-     * the Laser ray, so a beam passing in front of a mark lies over it
-     * rather than under its char (operator UAT 2026-11-10).
+     * Hands the shared path every mark still showing, dropping the faded ones
+     * first, to draw on its opaque-face route right after the solid blocks it
+     * marks: ahead of every block entity's beam and the Laser ray, so a beam
+     * passing in front of a mark lies over it rather than under its char
+     * (operator UAT 2026-11-10). Marks lie flush on faces whose depth already
+     * stands, so they sort as one batch.
+     * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
      *
-     * @param event the level render stage event
+     * @param frame the frame being drawn
+     * @param draws where the marks' draw goes
      */
-    @SubscribeEvent
-    public static void onAfterOpaqueBlocks(RenderLevelStageEvent.AfterOpaqueBlocks event) {
+    public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) {
             TRAILS.clear();
@@ -84,15 +83,15 @@ public final class LaserScorch {
             return;
         }
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
-        PoseStack.Pose pose = event.getPoseStack().last();
+        PoseStack.Pose pose = frame.poseStack().last();
         ClientLevel level = mc.level;
-        drawInTwoPasses(mc.renderBuffers().bufferSource(), consumer -> {
+        draws.accept(new SortedDraw(0, () -> drawInTwoPasses(mc.renderBuffers().bufferSource(), consumer -> {
             for (ScorchTrail trail : TRAILS.values()) {
                 for (ScorchTrail.Mark mark : trail.marksOnBlocks(pos -> blockStands(level, pos))) {
                     emitMark(pose, consumer, mark, camera, now);
                 }
             }
-        });
+        })));
     }
 
     /**
