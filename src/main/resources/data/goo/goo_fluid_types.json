@@ -76,37 +76,6 @@
     ]
   },
   {
-    "id": "deep",
-    "seed": 40993,
-    "genParams": {
-      "viscosity": 1.5,
-      "decayRate": 0.05,
-      "ignitionChance": 0.007,
-      "ignitionStrength": 1.4,
-      "potHeatRate": 0.015,
-      "potInfluence": 0.7,
-      "neighborhoodReach": 1
-    },
-    "frametime": 3,
-    "shadowHue": 0.58,
-    "palette": [
-      { "position": 0.0, "color": "#080C10" },
-      { "position": 0.3, "color": "#0D1217" },
-      { "position": 0.6, "color": "#111B21" },
-      { "position": 0.85, "color": "#16242C" },
-      { "position": 1.0, "color": "#1A2C36" }
-    ],
-    "accent": {
-      "shape": "TWINKLES",
-      "coverage": 0.016,
-      "palette": [
-        { "position": 0.0, "color": "#0A5060" },
-        { "position": 0.5, "color": "#009295" },
-        { "position": 1.0, "color": "#29DFEB" }
-      ]
-    }
-  },
-  {
     "id": "ender",
     "seed": 40974,
     "genParams": {

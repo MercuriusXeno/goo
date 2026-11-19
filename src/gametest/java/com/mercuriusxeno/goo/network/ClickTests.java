@@ -106,7 +106,7 @@ public final class ClickTests {
                 .thenExecute(() -> buryScene(level, stand, sensor, true))
                 .thenWaitUntil(() -> helper.assertTrue(level.isPositionEntityTicking(stand), SHOULD_TICK))
                 .thenExecute(() -> {
-                    player[0] = HeartOverlayTests.selfInvoked(helper, GooTypes.DEEP, DEEP_SCULKER);
+                    player[0] = HeartOverlayTests.selfInvoked(helper, GooTypes.SCULK, SCULK_SCULKER);
                     holdPulse(player[0]);
                     player[0].setData(GooAttachments.SCULKER,
                             player[0].getData(GooAttachments.SCULKER).withDiving(true));
@@ -154,7 +154,7 @@ public final class ClickTests {
     }
 
     private static final String CLICK_COSTS_UNDER_SCULKER = "click_costs_one_mb_of_pulse_under_sculker";
-    private static final Identifier DEEP_SCULKER = Identifier.parse("goo:deep_sculker");
+    private static final Identifier SCULK_SCULKER = Identifier.parse("goo:sculk_sculker");
     /** The pulse goo a clicking player holds, in mB: enough for every click with room to spare. */
     private static final int PULSE_HELD = 4 * GooStacks.THOUSAND;
     private static final String SHOULD_COST_ONE = "A click under Sculker should drain 1 mB of pulse, it drained %d mB";
@@ -168,7 +168,7 @@ public final class ClickTests {
      * @param helper the gametest helper
      */
     public static void clickCostsOneMbOfPulseUnderSculker(GameTestHelper helper) {
-        ServerPlayer player = HeartOverlayTests.selfInvoked(helper, GooTypes.DEEP, DEEP_SCULKER);
+        ServerPlayer player = HeartOverlayTests.selfInvoked(helper, GooTypes.SCULK, SCULK_SCULKER);
         holdPulse(player);
         int before = pulseHeld(player);
         HeartOverlayTests.invoke(player, GooTypes.PULSE, PULSE_CLICK);

@@ -1,4 +1,4 @@
-package com.mercuriusxeno.goo.ability.deep;
+package com.mercuriusxeno.goo.ability.sculk;
 
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertFalse;

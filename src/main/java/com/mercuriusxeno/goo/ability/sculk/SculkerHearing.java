@@ -1,4 +1,4 @@
-package com.mercuriusxeno.goo.ability.deep;
+package com.mercuriusxeno.goo.ability.sculk;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.network.SculkerHeardPayload;

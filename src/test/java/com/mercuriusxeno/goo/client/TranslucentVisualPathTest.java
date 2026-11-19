@@ -59,7 +59,6 @@ import com.mercuriusxeno.goo.client.hud.VatHudRenderer;
 import com.mercuriusxeno.goo.client.model.GooJoins;
 import com.mercuriusxeno.goo.client.overlay.AimedMobRipple;
 import com.mercuriusxeno.goo.client.overlay.BlinkCursor;
-import com.mercuriusxeno.goo.client.overlay.FungusXray;
 import com.mercuriusxeno.goo.client.overlay.GasketOverlayRenderer;
 import com.mercuriusxeno.goo.client.overlay.GooTargetHighlighter;
 import com.mercuriusxeno.goo.client.overlay.OculusXray;
@@ -216,7 +215,6 @@ class TranslucentVisualPathTest {
             Map<Class<?>, Set<SortRoute>> routes = new LinkedHashMap<>();
             routes.put(AimedMobRipple.class, Set.of(SortRoute.FAR_TO_NEAR));
             routes.put(BlinkCursor.class, Set.of(SortRoute.FAR_TO_NEAR));
-            routes.put(FungusXray.class, Set.of(SortRoute.THROUGH_BLOCKS));
             routes.put(OculusXray.class, Set.of(SortRoute.THROUGH_BLOCKS));
             routes.put(OreXray.class, Set.of(SortRoute.THROUGH_BLOCKS));
             routes.put(TransmitTargetMarker.class, Set.of(SortRoute.THROUGH_BLOCKS));

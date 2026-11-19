@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.ability.program;
 
-import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.throwing.StreamCone;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.Mth;
@@ -50,9 +49,6 @@ public final class FungusAim {
      * @return the block, or empty when the look names no fungus
      */
     public static Optional<BlockPos> aimedFungus(Level level, Entity entity, double reach) {
-        if (entity.getData(GooAttachments.SIGHT).standsAt(level.getGameTime())) {
-            return seenThroughWalls(level, entity, reach);
-        }
         Vec3 eye = entity.getEyePosition();
         Vec3 look = entity.getLookAngle().normalize();
         BlockHitResult hit = clip(level, entity, eye, eye.add(look.scale(reach)));
@@ -86,23 +82,6 @@ public final class FungusAim {
         return false;
     }
 
-    /**
-     * Under fungal sight, the fungus nearest the crosshair within the snap
-     * angle and the reach, whatever stands between it and the eye, where
-     * there is room to stand on it: the fungus the sight outlines through walls
-     * (decision sight-lengthens-shift-and-outlines-fungus).
-     *
-     * @param level  the level
-     * @param entity the aiming entity
-     * @param reach  the reach in blocks
-     * @return the block, or empty when no fungus with room to stand on it is aimed at
-     */
-    private static Optional<BlockPos> seenThroughWalls(Level level, Entity entity, double reach) {
-        return snapCandidates(entity.getEyePosition(), entity.getLookAngle().normalize(), reach,
-                pos -> level.getBlockState(pos).is(TransmitStep.FUNGUS)).stream()
-                .filter(pos -> hasRoomToStand(level, pos))
-                .findFirst();
-    }
 
     /**
      * Whether an entity shifted onto a fungus block would stand in the open:
