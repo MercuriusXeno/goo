@@ -199,13 +199,18 @@ public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entit
 
     @Override
     public boolean anyEntityWithin(SelectionShape shape, double radius, Set<EntityFilter> filters) {
-        return EntityScan.anyEntityWithin(level, target.position(), shape, radius, filters, target);
+        return EntityScan.anyEntityWithin(level, target.position(), shape, radius, filters, target, thrower);
     }
 
+    /**
+     * Hands the body each living thing in the volume every filter keeps, the
+     * thrower standing as the caster {@code not_own_minion} spares the minions of.
+     * drain-skips-your-rallied-and-charmed-mobs
+     */
     @Override
     public void forEachEntityWithin(SelectionShape shape, double radius, Set<EntityFilter> filters,
                                     Consumer<TargetHost> body) {
-        EntityScan.forEachLivingWithin(level, target.position(), shape, radius, filters, target,
+        EntityScan.forEachLivingWithin(level, target.position(), shape, radius, filters, target, thrower,
                 living -> body.accept(new EntityHost(level, living, thrower, WHOLE_HIT, placer)));
     }
 

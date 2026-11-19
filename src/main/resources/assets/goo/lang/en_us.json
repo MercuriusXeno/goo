@@ -289,6 +289,8 @@
   "block.goo.melting_block": "Melting Block",
   "goo.ability.zombie.decay": "Decay",
   "goo.ability.zombie.decay.description": "Hold to spray rotting motes that gnaw away whatever they touch.",
+  "goo.ability.nether.grudge": "Grudge",
+  "goo.ability.nether.grudge.description": "Hold to charge a crimson ring of revenge that strikes everything it reaches for the health you are missing.",
   "goo.ability.zombie.infest": "Infest",
   "goo.ability.zombie.infest.cost_mechanics": "Costs %s per block of Infest laid, a fifteenth of it per layer.",
   "goo.ability.zombie.infest.description": "Held stream sprays Infest, a festering zombie goo that gnaws away the blocks it lies on and bites whatever stands in it, healing the undead; each gnaw and bite may wear away a layer.",
