@@ -36,6 +36,7 @@ public final class LunarZoneTests {
     private static final String LUNAR_WARRENS_TWIST_THROUGH_SCULK = "lunar_warrens_twist_through_sculk";
     private static final String LUNAR_RUBBLE_CAVES_HOLD_NATIVE_IRON_LODES = "lunar_rubble_caves_hold_native_iron_lodes";
     private static final String LUNAR_MIDDLE_CAVERNS_GROW_ASTRAL_CRYSTAL = "lunar_middle_caverns_grow_astral_crystal";
+    private static final String LUNAR_RUBBLE_CAVE_LODES_SHOW_IN_THE_CAVES = "lunar_rubble_cave_lodes_show_in_the_caves";
     private static final String LUNAR_WARRENS_HOLD_ANCIENT_DEBRIS_AND_NO_DIAMOND_OR_GOLD =
             "lunar_warrens_hold_ancient_debris_and_no_diamond_or_gold";
     /** The most astral crystal one chunk holds on average, so a cluster stays a find. */
@@ -80,6 +81,8 @@ public final class LunarZoneTests {
             + "debris, hold %d, the first at %s";
     private static final String NO_DIAMOND_OR_GOLD = "Lunar over %d chunks should generate no diamond or gold ore, "
             + "generates %d, the first %s at %s";
+    private static final String LODES_SHOW = "Native iron over %d chunks should mostly touch rubble cave air, at least "
+            + "%d blocks showing; %d of %d show";
     private static final String CAVE_IS_OPEN = "The rubble cave column %s should read air at y %d, reads %s";
     private static final String CAVE_IN_BRECCIA = "The rubble cave column %s should read breccia %s the cave at y %d, "
             + "reads %s";
@@ -103,6 +106,8 @@ public final class LunarZoneTests {
                 LunarZoneTests::lunarRubbleCavesHoldNativeIronLodes);
         GooTestFunctions.registerTest(registrar, LUNAR_MIDDLE_CAVERNS_GROW_ASTRAL_CRYSTAL,
                 LunarZoneTests::lunarMiddleCavernsGrowAstralCrystal);
+        GooTestFunctions.registerTest(registrar, LUNAR_RUBBLE_CAVE_LODES_SHOW_IN_THE_CAVES,
+                LunarZoneTests::lunarRubbleCaveLodesShowInTheCaves);
         GooTestFunctions.registerTest(registrar, LUNAR_WARRENS_HOLD_ANCIENT_DEBRIS_AND_NO_DIAMOND_OR_GOLD,
                 LunarZoneTests::lunarWarrensHoldAncientDebrisAndNoDiamondOrGold);
     }
@@ -343,6 +348,53 @@ public final class LunarZoneTests {
         String path = BuiltInRegistries.BLOCK.getKey(state.getBlock()).getPath();
         return state.is(BlockTags.DIAMOND_ORES) || state.is(BlockTags.GOLD_ORES) || path.endsWith("diamond_ore")
                 || path.endsWith("gold_ore");
+    }
+
+    /**
+     * Counts goo:native_iron in the shallow zone over a square of chunks in goo:lunar, and how much of it touches the
+     * air of a rubble cave: most of it does, at least one block for every other chunk, so a player in the caves finds
+     * the lodes rather than breccia alone.
+     * decision each-lunar-zone-holds-its-own-deposit-richer-by-depth
+     * decision native-iron-lodes-are-worth-whole-iron-blocks
+     *
+     * @param helper the gametest helper
+     */
+    public static void lunarRubbleCaveLodesShowInTheCaves(GameTestHelper helper) {
+        ServerLevel lunar = helper.getLevel().getServer().getLevel(Lunar.LEVEL);
+        helper.assertTrue(lunar != null, LUNAR_REQUIRED);
+        int total = 0;
+        int showing = 0;
+        BlockPos.MutableBlockPos at = new BlockPos.MutableBlockPos();
+        for (int chunkX = -DEPOSIT_CHUNK_REACH; chunkX < DEPOSIT_CHUNK_REACH; chunkX++) {
+            for (int chunkZ = -DEPOSIT_CHUNK_REACH; chunkZ < DEPOSIT_CHUNK_REACH; chunkZ++) {
+                lunar.getChunk(chunkX, chunkZ);
+                for (int x = chunkX * 16; x < chunkX * 16 + 16; x++) {
+                    for (int z = chunkZ * 16; z < chunkZ * 16 + 16; z++) {
+                        for (int y = LunarDepths.CAVERN_ZONE_TOP_Y; y < LunarDepths.SHALLOW_ZONE_TOP_Y; y++) {
+                            if (!lunar.getBlockState(at.set(x, y, z)).is(GooBlocks.NATIVE_IRON.get())) {
+                                continue;
+                            }
+                            total++;
+                            showing += touchesAir(lunar, at.immutable()) ? 1 : 0;
+                        }
+                    }
+                }
+            }
+        }
+        int chunks = 4 * DEPOSIT_CHUNK_REACH * DEPOSIT_CHUNK_REACH;
+        int floor = chunks / 2;
+        helper.assertTrue(showing * 2 >= total && showing >= floor,
+                String.format(LODES_SHOW, chunks, floor, showing, total));
+        helper.succeed();
+    }
+
+    private static boolean touchesAir(ServerLevel lunar, BlockPos pos) {
+        for (Direction side : Direction.values()) {
+            if (lunar.getBlockState(pos.relative(side)).isAir()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static void assertGrowsFromRock(GameTestHelper helper, ServerLevel lunar, BlockPos crystal,
