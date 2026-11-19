@@ -336,7 +336,7 @@
   "goo.ability.sculk.creep.cost_mechanics": "Costs %s per block of Creep laid, a fifteenth of it per layer.",
   "goo.ability.sculk.creep.description": "Held stream sprays Creep, a sculky slime that sculk spreads eagerly through. It puffs spores and buds the ground at its edges, spending a little goo on each bud, and a mob dying on or near it spreads sculk from the goo.",
   "goo.ability.sculk.transmit": "Transmit",
-  "goo.ability.sculk.transmit.description": "Near a fungus, move to the fungus block you aim at.",
+  "goo.ability.sculk.transmit.description": "Touching sculk, mycelium or Creep, travel through it to the connected block you aim at.",
   "goo.ability.sculk.sculker": "Sculker",
   "goo.ability.sculk.sculker.description": "Sense the world the way the deep does and swim through solid ground: sneak and jump together to dive in, swim with your movement keys, jump to rise and sneak to sink, and jump clear of a top face to stand on solid ground again. Stone never suffocates you while it lasts.",
   "goo.ability.kinetic.grab": "Grab",

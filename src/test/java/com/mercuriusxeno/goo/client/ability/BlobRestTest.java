@@ -87,6 +87,48 @@ class BlobRestTest {
                 "the knives' cube should stand one cube edge over the palm, the spray source's rise less");
     }
 
+    /** A drawn palm held out to the right of a body tilted off the world's up. */
+    static final DrawnPalm.Palm DRAWN = new DrawnPalm.Palm(new Vec3(3.4, 64.9, -1.5), new Vec3(0, 1, 0),
+            new Vec3(0.2, 0.96, -0.1).normalize());
+
+    // decision third-person-blob-stands-above-the-drawn-palm: every rest kind, the centered ones too
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.EnumSource(BlobRest.Rest.class)
+    void aThirdPersonCastersRestStandsOnTheModelsUpLineAboveTheDrawnPalm(BlobRest.Rest rest) {
+        Vec3 off = BlobRest.aboveTheDrawnPalm(DRAWN, rest).subtract(DRAWN.place());
+
+        assertTrue(off.dot(DRAWN.modelUp()) > 0, "the rest should stand above the palm, off it by " + off);
+        assertEquals(0, off.cross(DRAWN.modelUp()).length(), 1e-9, "the rest should stand on the model's up "
+                + "line through the palm, off it by " + off);
+    }
+
+    @Test
+    void aCasterDrawnInThirdPersonRestsAboveTheirDrawnPalm() {
+        try (SprayingClient client = SprayingClient.another(com.mercuriusxeno.goo.type.GooTypes.ZOO)) {
+            client.drawsThePalm(DRAWN);
+
+            Vec3 rest = BlobRest.of(SprayingClient.CASTER, SprayingClient.SENT_GLOVE, 0f);
+
+            Vec3 expected = BlobRest.aboveTheDrawnPalm(DRAWN, BlobRest.Rest.ABOVE_THE_HAND);
+            assertTrue(expected.distanceTo(rest) < 1e-9, "the rest should stand at " + expected + ", was " + rest);
+        }
+    }
+
+    // decision third-person-blob-stands-above-the-drawn-palm: under Invert the model's up points down
+    @Test
+    void aCasterDrawnUpsideDownRestsBelowTheirDrawnPalmTowardTheHead() {
+        DrawnPalm.Palm hanging = new DrawnPalm.Palm(DRAWN.place(), new Vec3(0, -1, 0), new Vec3(0, -1, 0));
+        try (SprayingClient client = SprayingClient.another(com.mercuriusxeno.goo.type.GooTypes.ZOO)) {
+            client.drawsThePalm(hanging);
+
+            Vec3 rest = BlobRest.of(SprayingClient.CASTER, SprayingClient.SENT_GLOVE, 0f);
+
+            assertTrue(new Vec3(DRAWN.place().x, DRAWN.place().y - SpraySource.RISE_ABOVE_THE_PALM,
+                    DRAWN.place().z).distanceTo(rest) < 1e-9, "the rest " + rest + " should stand a spray "
+                    + "source's rise below the palm " + DRAWN.place());
+        }
+    }
+
     // dart-javelins-hover-over-the-shrinking-blob-cube: Dart's cube rests as low as Knives'
     @Test
     void dartsBlobRestsOverThePalmAsKnivesDoes() {
