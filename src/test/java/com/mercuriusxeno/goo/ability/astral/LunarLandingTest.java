@@ -45,6 +45,8 @@ class LunarLandingTest {
     /** One eighth of the light side, 937,500 blocks, over the night's 10,437 ticks. */
     private static final double ONE_TICKS_STEP = 89.8;
     private static final double STEP_TOLERANCE = 0.05;
+    /** Two phases' eighths of the light side, in blocks. */
+    private static final double TWO_EIGHTHS = 1_875_000;
     private static final String DAY_TIMELINE = "data/minecraft/timeline/day.json";
     private static final String MOON_ANGLE_TRACK = "minecraft:visual/moon_angle";
     /** The day tick vanilla's moon angle track keys its turn from. */
@@ -118,6 +120,17 @@ class LunarLandingTest {
             }
             double lastEnd = LunarLanding.at(MoonPhase.COUNT - 1, LunarLanding.NIGHT_TICKS - 1, CASTER).x() + step;
             assertEquals(LIGHT_SIDE_EDGE, lastEnd, TOLERANCE);
+        }
+
+        /**
+         * decision moon-trip-refuses-under-the-new-moon
+         */
+        @Test
+        void theNewMoonKeepsItsEighthBetweenThePhasesEitherSide() {
+            int newMoon = MoonPhase.NEW_MOON.index();
+            double before = LunarLanding.at(newMoon - 1, 0, CASTER).x();
+            double after = LunarLanding.at(newMoon + 1, 0, CASTER).x();
+            assertEquals(TWO_EIGHTHS, after - before, TOLERANCE);
         }
 
         @Test
