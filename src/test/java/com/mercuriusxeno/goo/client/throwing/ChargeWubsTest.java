@@ -19,7 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Blast's charge plays the outsider wub once at each stage it reaches, up the
+ * Blast's charge plays the Zone wub once at each stage it reaches, up the
  * major scale from pitch 1.0 at the 2 block stage to the octave at 9, and
  * a stage the caster's unstable cannot pay for does not sound
  * (decision blast-charge-wubs-higher-at-each-stage).

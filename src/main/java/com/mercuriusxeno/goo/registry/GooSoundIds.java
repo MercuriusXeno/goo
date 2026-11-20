@@ -81,7 +81,7 @@ public final class GooSoundIds {
     public static final Identifier ZONE_WUB = Identifier.fromNamespaceAndPath(Goo.MODID, "effects.zone_wub");
 
     /**
-     * A sized charge reaching a stage: the outsider wub's first take alone,
+     * A sized charge reaching a stage: the Zone wub's first take alone,
      * so every stage pitches one base tone and the stages stand 0.125 apart
      * on one harmonic series (decision blast-charge-wubs-higher-at-each-stage).
      */

@@ -8,7 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * A cloud's shard layout follows its seed: two seeds draw two layouts, one
  * seed draws one (decision cloud-seed-per-client-ephemeral), and every
- * layout draws shards at the doubled razor size (decision razor-shards-are-bigger).
+ * layout draws shards at the doubled shatter size (decision razor-shards-are-bigger).
  */
 class ShardTableTest {
 

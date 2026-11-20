@@ -6,8 +6,8 @@ import net.minecraft.resources.Identifier;
 import java.util.Optional;
 
 /**
- * The sound a charge-sized cast's charge makes as it grows: the outsider
- * wub's one take, so every stage pitches one base tone, once each time the
+ * The sound a charge-sized cast's charge makes as it grows: the Zone wub's
+ * one take, so every stage pitches one base tone, once each time the
  * hold reaches a stage, up the major scale from the stage it opens at, so
  * Blast wubs do at 2 blocks up to the octave at 9; a stage the caster's goo
  * cannot pay for, and a hold resting on a stage, sound nothing more.
