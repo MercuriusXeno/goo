@@ -23,7 +23,7 @@ import java.util.function.Function;
  * Shows the gem ore Glimmer revealed through walls: each ore block drawn as
  * itself, its own texture, a little translucent and fully lit, with a soft
  * crystal glow about it, fading in as the front reaches it and away at its
- * life's end, through the pipelines Sight shows fungus by.
+ * life's end, through the pipelines Sculker's shroom vision shows fungus by.
  * decision glitter-sphere-icons-gem-ore-groups
  */
 public final class OreXray {

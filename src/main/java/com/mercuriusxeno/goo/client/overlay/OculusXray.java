@@ -40,7 +40,7 @@ import java.util.function.Consumer;
 
 /**
  * Shows every oculus Blink can snap to through walls while Blink is the
- * glove's selection, the way Sight shows fungus: each eye ghosted in ender
+ * glove's selection, the way Sculker's shroom vision shows fungus: each eye ghosted in ender
  * green with a purple halo breathing about it, drawn after the translucent
  * world through pipelines that ignore depth. The oculus the blink would
  * snap to this frame glows bright and swells, and the ripple cursor stands

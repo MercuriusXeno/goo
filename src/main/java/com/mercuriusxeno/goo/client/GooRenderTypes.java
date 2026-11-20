@@ -94,7 +94,7 @@ public final class GooRenderTypes {
     );
 
     /**
-     * Sight's fungus x-ray (decision sight-lengthens-shift-and-outlines-fungus):
+     * The fungus x-ray of Sculker's shroom vision (decision sight-lengthens-shift-and-outlines-fungus):
      * a block's own baked quads through vanilla's translucent entity shader,
      * passing every depth test and writing no depth, so fungus shows through walls.
      */
@@ -130,7 +130,7 @@ public final class GooRenderTypes {
                     .build());
 
     /**
-     * Sight's fungus glow (decision sight-lengthens-shift-and-outlines-fungus):
+     * The fungus glow of Sculker's shroom vision (decision sight-lengthens-shift-and-outlines-fungus):
      * the x-ray's quads blended additively, so a swollen copy of each fungus
      * glows like a lamp behind the wall.
      */
@@ -983,7 +983,7 @@ public final class GooRenderTypes {
             ));
 
     /**
-     * Returns Sight's fungus glow render type for the atlas the block's sprites sit on.
+     * Returns the fungus glow render type of Sculker's shroom vision for the atlas the block's sprites sit on.
      *
      * @param atlas the texture atlas identifier
      * @return memoized RenderType
@@ -993,7 +993,7 @@ public final class GooRenderTypes {
     }
 
     /**
-     * Returns Sight's fungus x-ray render type for the atlas the block's sprites sit on.
+     * Returns the fungus x-ray render type of Sculker's shroom vision for the atlas the block's sprites sit on.
      *
      * @param atlas the texture atlas identifier
      * @return memoized RenderType
@@ -1704,8 +1704,8 @@ public final class GooRenderTypes {
     }
 
     /**
-     * Registers the plain pipelines: the additive glow lines, Sight's fungus
-     * x-ray, and sculk's spore shell in both passes.
+     * Registers the plain pipelines: the additive glow lines, the fungus x-ray
+     * of Sculker's shroom vision, and sculk's spore shell in both passes.
      *
      * @param event the pipeline registration event
      */
