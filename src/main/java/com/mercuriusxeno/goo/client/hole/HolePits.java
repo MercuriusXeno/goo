@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.hole;
 
 import com.mercuriusxeno.goo.ability.hole.HoleFrame;
+import com.mercuriusxeno.goo.client.DepthCopyTarget;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
@@ -32,7 +33,6 @@ import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
-import org.jspecify.annotations.Nullable;
 import java.util.List;
 import java.util.OptionalDouble;
 import java.util.OptionalInt;
@@ -65,7 +65,7 @@ public final class HolePits {
     /** The pit's color at its floor, near black. */
     private static final int FLOOR_RGB = 0x030006;
 
-    private static @Nullable TextureTarget depthCopy;
+    private static final DepthCopyTarget DEPTH_COPY_TARGET = new DepthCopyTarget(DEPTH_COPY);
 
     private HolePits() {
     }
@@ -114,7 +114,7 @@ public final class HolePits {
     private static void carve(List<PortableHolesSyncPayload.Mouth> drawn, float time, Vec3 camera,
                               Matrix4fc modelView) {
         RenderTarget main = Minecraft.getInstance().getMainRenderTarget();
-        TextureTarget copy = depthCopySizedTo(main);
+        TextureTarget copy = DEPTH_COPY_TARGET.matching(main);
         copy.copyDepthFrom(main);
         GpuDevice device = RenderSystem.getDevice();
         int quads = drawn.size() * SEGMENTS;
@@ -140,15 +140,6 @@ public final class HolePits {
             mesh.close();
             vertices.close();
         }
-    }
-
-    private static TextureTarget depthCopySizedTo(RenderTarget main) {
-        if (depthCopy == null) {
-            depthCopy = new TextureTarget(DEPTH_COPY, main.width, main.height, true);
-        } else if (depthCopy.width != main.width || depthCopy.height != main.height) {
-            depthCopy.resize(main.width, main.height);
-        }
-        return depthCopy;
     }
 
     /**

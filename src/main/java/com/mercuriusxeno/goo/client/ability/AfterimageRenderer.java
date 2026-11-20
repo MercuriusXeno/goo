@@ -237,7 +237,7 @@ public final class AfterimageRenderer {
         Minecraft mc = Minecraft.getInstance();
         float gameTime = mc.level.getGameTime() + mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         RenderTarget main = mc.getMainRenderTarget();
-        RenderTarget ripple = RippleTarget.sizedTo(main);
+        RenderTarget ripple = RippleTarget.matching(main);
         ripple.copyDepthFrom(main);
         // The masks, laid in camera-relative world space, draw in the level's view. It is set, not multiplied
         // in: inside the shared path the stack's top is the view already, and a caller at AfterLevel outside the

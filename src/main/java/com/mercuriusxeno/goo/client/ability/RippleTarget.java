@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.client.DepthCopyTarget;
 import com.mojang.blaze3d.pipeline.RenderTarget;
-import com.mojang.blaze3d.pipeline.TextureTarget;
 import net.minecraft.client.renderer.rendertype.OutputTarget;
 import org.jspecify.annotations.Nullable;
 
@@ -19,27 +19,24 @@ public final class RippleTarget {
     /** The buffer's label in GPU debuggers. */
     private static final String LABEL = "Goo Ripple";
 
-    private static @Nullable RenderTarget target;
+    private static final DepthCopyTarget TARGET = new DepthCopyTarget(LABEL);
 
     private RippleTarget() {
     }
 
     private static @Nullable RenderTarget current() {
-        return target;
+        return TARGET.current();
     }
 
     /**
-     * The ripple buffer at the main target's size, made or resized to it.
+     * The ripple buffer, made or remade to match the main target so the
+     * main target's depth copies into it.
+     * decision diagnose-and-correct-the-crash-in-every-depth-copying-visual
      *
      * @param main the main render target
      * @return the ripple buffer
      */
-    static RenderTarget sizedTo(RenderTarget main) {
-        if (target == null) {
-            target = new TextureTarget(LABEL, main.width, main.height, true);
-        } else if (target.width != main.width || target.height != main.height) {
-            target.resize(main.width, main.height);
-        }
-        return target;
+    static RenderTarget matching(RenderTarget main) {
+        return TARGET.matching(main);
     }
 }
