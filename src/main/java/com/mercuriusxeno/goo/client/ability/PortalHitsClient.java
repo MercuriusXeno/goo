@@ -8,10 +8,10 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 
 /**
- * The client's half of a portal or a hole's mouth counting as a block for a
- * hit: a hit on one of the player's own portals, or on a hole's mouth, starts
+ * The client's half of a portal or a tunnel's mouth counting as a block for a
+ * hit: a hit on one of the player's own portals, or on a tunnel's mouth, starts
  * no break on the wall behind it, so no cracks draw there while the server
- * breaks the portal or dismisses the hole.
+ * breaks the portal or dismisses the tunnel.
  * portals-link-by-looking-through-portal-vision
  * hole-closes-the-space-to-an-opening-ahead
  */
@@ -42,7 +42,7 @@ public final class PortalHitsClient {
         Minecraft mc = Minecraft.getInstance();
         return mc.level != null && (ClientPortals.portals().stream().anyMatch(portal -> portal.face() == event.getFace()
                 && portal.block().dimension().equals(mc.level.dimension()) && portal.covers(event.getPos()))
-                || ClientHoles.holes().stream().flatMap(hole -> java.util.stream.Stream.of(hole.entry(), hole.exit()))
+                || ClientTunnels.tunnels().stream().flatMap(tunnel -> java.util.stream.Stream.of(tunnel.entry(), tunnel.exit()))
                         .anyMatch(mouth -> mouth.face() == event.getFace()
                                 && mouth.dimension().equals(mc.level.dimension()) && mouth.covers(event.getPos())));
     }

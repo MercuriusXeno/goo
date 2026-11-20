@@ -7,8 +7,8 @@ import net.minecraft.resources.Identifier;
 /**
  * Draws the compression sphere as an orb about a quarter block wide, bobbing
  * and spinning like a dropped item, its core drawn from the texture the
- * sphere's core names: the black hole's jet black, its rim a shade lighter,
- * or a large Blast's neon green.
+ * sphere's core names: a large Blast's neon green, or a jet black core
+ * with its rim a shade lighter.
  * decision black-hole-leaves-a-compression-sphere
  * decision large-blast-gathers-its-mined-drops-into-a-green-cored-sphere
  * decision black-hole-item-ball-draws-jet-black

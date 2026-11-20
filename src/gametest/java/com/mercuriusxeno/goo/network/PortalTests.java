@@ -792,8 +792,8 @@ public final class PortalTests {
     private static final int SLIME_FAR = 24;
 
     /**
-     * A Slime thrown through a linked pair at a floor past the partner is
-     * born on that floor and stays there, never coming in from elsewhere
+     * Mitosis thrown through a linked pair at a floor past the partner
+     * births its slime on that floor, and the slime stays there, never coming in from elsewhere
      * (decision aim-and-shots-carry-through-linked-gates).
      *
      * @param helper the gametest helper

@@ -103,7 +103,7 @@ final class EchoQuads {
         }
     }
 
-    /** Forgets every block's quads, as the brew's end does. */
+    /** Forgets every block's quads, as the held effect's end does. */
     void clear() {
         kept.clear();
     }

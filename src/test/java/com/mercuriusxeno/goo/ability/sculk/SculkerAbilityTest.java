@@ -19,8 +19,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Sculk's brew ships as sculk_sculker.json, named goo.ability.sculk.sculker,
- * loaded as a sculk ability, badged brew and running a sculker step, and sculk's brew effect draws
+ * Sculk's durative ships as sculk_sculker.json, named goo.ability.sculk.sculker,
+ * loaded as a sculk ability, badged durative and running a sculker step, and sculk's held effect draws
  * Sculker's own icon in place of the missing-texture tile, all read off the
  * classpath (decision dive-is-renamed-sculker).
  */
@@ -28,7 +28,7 @@ class SculkerAbilityTest {
 
     private static final String SCULKER_JSON = "data/goo/goo_abilities/sculk_sculker.json";
     private static final String SCULKER_ICON = "/assets/goo/textures/goo/ability/sculk_sculker.png";
-    private static final String SCULK_BREW_ICON = "/assets/goo/textures/mob_effect/sculk_held.png";
+    private static final String SCULK_HELD_ICON = "/assets/goo/textures/mob_effect/sculk_held.png";
 
     private static JsonObject sculker() throws IOException {
         try (InputStream in = SculkerAbilityTest.class.getClassLoader().getResourceAsStream(SCULKER_JSON)) {
@@ -38,7 +38,7 @@ class SculkerAbilityTest {
     }
 
     @Test
-    void shipsAsTheSculkerBrew() throws IOException {
+    void shipsAsTheSculkerDurative() throws IOException {
         JsonObject sculker = sculker();
         assertEquals("goo.ability.sculk.sculker", sculker.get("displayName").getAsString());
         assertEquals("durative", sculker.get("badge").getAsString());
@@ -53,8 +53,8 @@ class SculkerAbilityTest {
     }
 
     @Test
-    void sculkBrewEffectDrawsSculkersIcon() throws IOException {
-        assertArrayEquals(pixels(image(SCULKER_ICON)), pixels(image(SCULK_BREW_ICON)));
+    void sculkHeldEffectDrawsSculkersIcon() throws IOException {
+        assertArrayEquals(pixels(image(SCULKER_ICON)), pixels(image(SCULK_HELD_ICON)));
     }
 
     /** Decision sculker-moves-to-sculk. */

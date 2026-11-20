@@ -24,9 +24,9 @@ import java.util.stream.Stream;
 /**
  * Hurts the host's target and finishes. On the struck entity host the
  * target is the entity the goo hit, so the metal Dart is one
- * {@code damage amount=8 source=magic} step. The metal trap's impale is
+ * {@code damage amount=8 source=magic} step. Spikes' impale is
  * {@code damage amount=6 source=stalagmite knockback=false}, pinning the
- * target where the spike caught it; the Shatter cloud's shred is
+ * mob where the metal goo's spikes caught it; the Shatter cloud's shred is
  * {@code damage amount=1 source=cactus invulnerable_ticks=1}, leaving the
  * target open to the next shred a tick later, beside a crit particles
  * step that shows each shred land. The step clears the
@@ -47,10 +47,10 @@ public record DamageStep(Expr amount, DamageKind source, boolean knockback,
                          Optional<Expr> invulnerableTicks, boolean iFrames, boolean healsUndead) implements Step {
 
     /**
-     * The metal spike trap's impale, goo's own copy of vanilla's stalagmite carrying its
+     * Spikes' impale, goo's own copy of vanilla's stalagmite carrying its
      * death message. Vanilla's is_fall tag holds minecraft:stalagmite, so
      * every mob in the fall_damage_immune tag, a chicken, a cat, a bee, a
-     * blaze, took the trap's stab and no damage; goo:stalagmite stands in no
+     * blaze, would take the impale and no damage; goo:stalagmite stands in no
      * fall tag.
      * urchin-rests-bristled-and-spears
      */
@@ -117,8 +117,8 @@ public record DamageStep(Expr amount, DamageKind source, boolean knockback,
         if (healsUndead && healedOrSpared(target, context)) {
             return true;
         }
-        // A goo hit clears damage immunity on both sides, so a touch and the melee hit of the same
-        // attack-key press both land in full, in either order; a held bite respecting i-frames leaves it be.
+        // A goo hit clears damage immunity on both sides, so it lands in full through a hit the target just
+        // took, a melee hit or another goo hit; a held bite respecting i-frames leaves it be.
         // decision attack-key-touches-plus-punches
         // decision decay-gnats-degrade-each-block-once
         if (!iFrames) {

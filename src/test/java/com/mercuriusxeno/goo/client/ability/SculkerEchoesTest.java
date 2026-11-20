@@ -25,7 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * decays from there; a mob
  * that makes a sound outlines for three seconds at rank 10; what is
  * heard draws fainter the farther it stands, down to a fifth at the edge of
- * render distance, and the brew's end forgets it
+ * render distance, and the held effect's end forgets it
  * (decision sculker-sight-persists-where-echoes-have-touched).
  */
 class SculkerEchoesTest {
@@ -216,7 +216,7 @@ class SculkerEchoesTest {
         }
 
         @Test
-        void theBrewsEndForgetsEveryFaceAndRing() {
+        void theDurativesEndForgetsEveryFaceAndRing() {
             SculkerEchoes echoes = heardAndAdvancedTo(HEARD_AT + 2);
             echoes.clear();
             assertTrue(echoes.remembered().isEmpty() && echoes.ripples().isEmpty());

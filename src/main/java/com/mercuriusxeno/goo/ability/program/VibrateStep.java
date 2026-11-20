@@ -8,7 +8,7 @@ import java.util.stream.Stream;
 
 /**
  * Sets off a vibration at the host's anchor that carries no source entity,
- * and finishes. Deep's Click lands {@code vibrate} beside a {@code sound} at
+ * and finishes. Pulse's Click lands {@code vibrate} beside a {@code sound} at
  * the host, so sensors trip and a warden walks to the spot while no anger
  * reaches the thrower (decision click-vibration-carries-no-source-entity).
  *

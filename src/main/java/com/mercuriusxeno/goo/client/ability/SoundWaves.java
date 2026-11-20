@@ -23,7 +23,7 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Deep Click's sound wave, as the operator ruled it: the sculk shrieker's
+ * Pulse Click's sound wave, as the operator ruled it: the sculk shrieker's
  * shriek rings, held square to the line rather than flat and rising, travelling
  * the straight line from the glove to the landing over
  * the server's delay, arriving on the tick the click sounds there, with the

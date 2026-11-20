@@ -23,8 +23,8 @@ import java.util.TreeMap;
 /**
  * TYPE PROVENANCE: each type on each derived item traced to the hand-keyed entry it entered from and the
  * chain of recipes it took. A type's family is its clique, the items its recipes join; a family that one
- * hand-keyed entry alone feeds is a bleed, unless _roots names that entry, to fix at that entry rather than downstream,
- * as deep reaching a glass pane through a dye plant (decision audit-proposes-root-candidates-and-flags-bleed).
+ * hand-keyed entry alone feeds is a bleed, unless _roots names that entry, to fix at that entry rather than downstream
+ * (decision audit-proposes-root-candidates-and-flags-bleed).
  */
 @AuditRule(order = 110)
 public final class TypeProvenanceAuditRule implements GooAuditRule {

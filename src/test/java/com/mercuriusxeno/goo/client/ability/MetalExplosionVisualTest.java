@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.client.GooRenderTypes;
-import com.mojang.blaze3d.pipeline.DepthStencilState;
 import com.mojang.blaze3d.platform.CompareOp;
 import java.util.List;
 import net.minecraft.core.Direction;
@@ -88,7 +87,6 @@ class MetalExplosionVisualTest {
         MetalExplosionVisual.Urchin urchin = MetalExplosionVisual.heldUrchin(Direction.UP, opacity, 0);
         assertEquals(MetalExplosionVisual.SPIKE_REACH, urchin.length(), 0f);
         assertEquals(ColorBytes.toByte(opacity), urchin.alpha());
-        assertEquals(MetalExplosionVisual.bristled(Direction.UP, 0f, 1f).baseRadius(), urchin.baseRadius(), 0f);
     }
 
     @Test
@@ -105,16 +103,5 @@ class MetalExplosionVisualTest {
         PipelineShaders.assertExist(GooRenderTypes.METAL_EXPLOSION_THROUGH_BLOCKS);
         assertEquals(CompareOp.ALWAYS_PASS,
                 GooRenderTypes.METAL_EXPLOSION_THROUGH_BLOCKS.getDepthStencilState().depthTest());
-    }
-
-    /**
-     * The spike trap's spines and spears write depth over the metal shader, so the
-     * translucent goo blob drawn after them stays behind the parts in front
-     * of it (decision urchin-rests-bristled-and-spears).
-     */
-    @Test
-    void urchinChromeWritesDepthOverTheMetalShader() {
-        PipelineShaders.assertExist(GooRenderTypes.METAL_CHROME);
-        assertEquals(DepthStencilState.DEFAULT, GooRenderTypes.METAL_CHROME.getDepthStencilState());
     }
 }

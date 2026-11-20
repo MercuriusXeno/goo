@@ -59,8 +59,8 @@ class GooRenderTypesTest {
     /**
      * Dowsing's window: the mask pass marks the Dowsing stencil bit only
      * where the goo is the nearest surface, writing no color, and the ore and
-     * glow passes draw only on that bit, while Glimmer's and Sight's x-ray
-     * keep drawing through everything.
+     * glow passes draw only on that bit, while Glimmer's x-ray and Sculker's
+     * shroom vision keep drawing through everything.
      * dowsing-goo-is-a-window-onto-the-ore-behind-it
      */
     @Test
@@ -80,7 +80,7 @@ class GooRenderTypesTest {
     }
 
     /**
-     * Glimmer's and Sight's x-ray draw through every block, untouched by
+     * Glimmer's x-ray and Sculker's shroom vision draw through every block, untouched by
      * Dowsing's window.
      * dowsing-goo-is-a-window-onto-the-ore-behind-it
      */

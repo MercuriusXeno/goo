@@ -39,7 +39,7 @@ import java.util.function.Consumer;
  * Draws what Sculker's echoes lit and what its shroom vision shows: each block an
  * echo touched, and each sculk and shroom block within the vision's reach, draws
  * its own model and texture, tinted sculk teal and glowing, on every side open to
- * air, through the x-ray pipeline so it shows through the stone the diver swims
+ * air, through the x-ray pipeline so it shows through the stone the submerged player swims
  * in. An echoed block draws as strongly as its strongest lit side, fading as its
  * echo fades and the farther it stands; a shroom network block draws at the
  * vision's own presence, whatever the echoes heard.
@@ -72,7 +72,7 @@ public final class SculkerEchoRenderer {
      * Hands the shared path every lit block within sight: part of the sense
      * view, drawn over the world the vision has already dimmed and over the
      * glass field, so an echo shows at its own strength wherever it stands,
-     * through the stone the diver swims in. It registers after
+     * through the stone the submerged player swims in. It registers after
      * {@link SculkerGlassRenderer#collect} and sorts by nothing, so the path
      * keeps that order.
      * decision translucent-goo-visuals-draw-through-one-checked-sorting-path

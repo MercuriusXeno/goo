@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.ability.program.FieldStrike;
 import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.CuboidBounds;
@@ -78,14 +77,13 @@ public final class MarkerOrbVisual {
         }
         float coreHalf = computeCoreHalf(state);
         float shellHalf = computeShellHalf(state, coreHalf);
-        float modifier = computeOrbModifier(state);
         int shellColor = computeShellColor(state);
         GooRenderUtil.UvRect uv = lookupSpriteUv(state.gooType);
         OrbShape shape = OrbShape.of(state);
         Direction face = state.placedFace;
 
         poseStack.pushPose();
-        placeOrb(poseStack, face, shape, modifier);
+        placeOrb(poseStack, face);
         GooSubmitter.submitFluid(poseStack, nodeCollector,
                 ctx -> emitOrbLayer(ctx, GooRenderUtil.OPAQUE_WHITE, coreHalf, face, shape, uv));
         GooSubmitter.submitFluid(poseStack, nodeCollector,
@@ -115,20 +113,13 @@ public final class MarkerOrbVisual {
     }
 
     /**
-     * Moves the pose to the placed face plane and scales it about that
-     * plane, so no scale moves the orb into the block it rests on. Glow
-     * orbs keep the crystal's size and take no scale.
+     * Moves the pose to the placed face plane.
      *
      * @param poseStack the pose stack for rendering
      * @param face      the placed face direction
-     * @param shape     the orb shape
-     * @param modifier  the combined orb scale modifier
      */
-    static void placeOrb(PoseStack poseStack, Direction face, OrbShape shape, float modifier) {
+    static void placeOrb(PoseStack poseStack, Direction face) {
         translateToFace(poseStack, face);
-        if (shape == OrbShape.GOO) {
-            poseStack.scale(modifier, modifier, modifier);
-        }
     }
 
     /**
@@ -221,16 +212,6 @@ public final class MarkerOrbVisual {
     }
 
     /**
-     * The scale the orb takes from its ability's own rhythm, the spikes' windup shake.
-     *
-     * @param state the ability block render state
-     * @return the scale modifier
-     */
-    private static float computeOrbModifier(AbilityBlockRenderState state) {
-        return computeSpikeShake(state);
-    }
-
-    /**
      * Computes the core half-size. For GLOW type, the crystal's lateral
      * extent.
      *
@@ -265,24 +246,6 @@ public final class MarkerOrbVisual {
         int rgb = state.gooType == GooTypes.GLOW
                 ? GooRenderUtil.OPAQUE_WHITE : ClientGooTypes.color(state.gooType);
         return ARGB.color(baseShellAlpha, rgb);
-    }
-
-    /**
-     * The strongest windup shake across the spikes in flight, so the orb
-     * shakes each time it is about to stab.
-     *
-     * @param state the ability block render state
-     * @return the shake scale, 1 while no spike winds up
-     */
-    private static float computeSpikeShake(AbilityBlockRenderState state) {
-        float strongest = 1f;
-        for (FieldStrike spike : state.spikeAnims) {
-            float s = SpikesVisual.gooShake(spike.age(), state.partialTick, state.spikeStrikeTick);
-            if (Math.abs(s - 1f) > Math.abs(strongest - 1f)) {
-                strongest = s;
-            }
-        }
-        return strongest;
     }
 
     /**

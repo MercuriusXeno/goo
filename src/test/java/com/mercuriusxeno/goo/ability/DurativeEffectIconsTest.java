@@ -15,24 +15,24 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
- * Every goo type a shipped brew ability belongs to ships its brew effect's
- * icon, so the effect list never draws the missing-texture tile for a brew
- * held from the glove or drunk (decisions brew-runs-the-crawl-prepaid-on-a-shown-clock
+ * Every goo type a shipped durative ability belongs to ships its held effect's
+ * icon, so the effect list never draws the missing-texture tile for a durative
+ * held from the glove (decisions brew-runs-the-crawl-prepaid-on-a-shown-clock
  * and dive-is-renamed-sculker).
  */
-class BrewEffectIconsTest {
+class DurativeEffectIconsTest {
 
-    private static final String BREW_BADGE = "durative";
+    private static final String DURATIVE_BADGE = "durative";
     private static final String ICON_PATH = "/assets/goo/textures/mob_effect/%s_held.png";
 
     @Test
-    void everyBrewTypeShipsItsEffectIcon() {
+    void everyDurativeTypeShipsItsEffectIcon() {
         List<String> missing = new ArrayList<>();
         for (Path file : AbilityJson.files()) {
             JsonObject ability = parse(file);
-            if (ability.has("badge") && BREW_BADGE.equals(ability.get("badge").getAsString())) {
+            if (ability.has("badge") && DURATIVE_BADGE.equals(ability.get("badge").getAsString())) {
                 String icon = String.format(ICON_PATH, ability.get("gooType").getAsString());
-                if (BrewEffectIconsTest.class.getResource(icon) == null) {
+                if (DurativeEffectIconsTest.class.getResource(icon) == null) {
                     missing.add(file.getFileName() + " -> " + icon);
                 }
             }

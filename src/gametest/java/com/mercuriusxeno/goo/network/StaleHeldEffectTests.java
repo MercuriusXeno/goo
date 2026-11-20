@@ -17,8 +17,8 @@ import java.util.function.Consumer;
 
 /**
  * Gametest for a held effect saved under an ability the registry no longer
- * holds, as a save from before deep's dive took the name Sculker carries:
- * the player's next tick ends it and takes its brew effect, and its missing
+ * holds, as a save naming the ability Sculker was before its rename carries:
+ * the player's next tick ends it and takes its effect, and its missing
  * icon, off the effect list (decision dive-is-renamed-sculker).
  */
 @RegistersGameTests
@@ -34,9 +34,9 @@ public final class StaleHeldEffectTests {
         GooTestFunctions.registerTest(registrar, STALE_HELD_ENDS, StaleHeldEffectTests::staleHeldEffectEndsOnTheNextTick);
     }
 
-    /** Deep's brew as it was named before the rename, an ability no longer shipped. */
+    /** Deep's durative as it was named before the rename, an ability no longer shipped. */
     private static final Identifier DEEP_DIVE = Identifier.parse("goo:deep_dive");
-    private static final String SHOULD_END = "The held effect for the removed %s should end, held %b, brew effect shown %b";
+    private static final String SHOULD_END = "The held effect for the removed %s should end, held %b, effect shown %b";
 
     private StaleHeldEffectTests() {
     }

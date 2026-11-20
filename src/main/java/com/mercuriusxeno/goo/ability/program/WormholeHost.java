@@ -8,12 +8,12 @@ package com.mercuriusxeno.goo.ability.program;
 public interface WormholeHost extends StepHost {
 
     /**
-     * Opens the hole's two mouths, or shows the hole collapse at the face
+     * Opens the tunnel's two mouths, or shows the tunnel collapse at the face
      * where no opening lies within reach.
      *
      * @param reach    how many cells past the struck block the scan runs
      * @param lifetime the ticks the mouths stand
-     * @return true when the hole opened
+     * @return true when the tunnel opened
      */
     boolean openHole(int reach, int lifetime);
 }

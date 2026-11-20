@@ -8,7 +8,7 @@ import net.minecraft.util.RandomSource;
 
 /**
  * A fullbright, translucent quad that drifts with the velocity it was given
- * and floats free of gravity and collision, the body vitality's restore motes
+ * and floats free of gravity and collision, the body Heal's restore motes
  * and fog puffs share; each subclass shapes its own alpha and size over life.
  * vitality-waves-regenerate-and-court
  */

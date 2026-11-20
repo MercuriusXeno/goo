@@ -12,8 +12,8 @@ import java.util.function.Supplier;
 /**
  * Keeps the glove's aim on the mob a Grab press holds: while right click
  * holds a Grab press, every mob the press outlined is remembered, and once
- * one of them is held the aim, its outline and its reticle stay on that mob
- * and outline no other until the press lets go or the mob is thrown. Before
+ * one of them is held the aim and its outline stay on that mob wherever the
+ * crosshair turns, and outline no other until the press lets go or the mob is thrown. Before
  * the hold lands and after the press ends, the frame's own resolve names
  * the target, so the outlined mob is still the one right click acts on.
  * decision outlined-target-is-the-one-pick

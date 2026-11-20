@@ -68,7 +68,7 @@ public final class ClientGooTypes {
 
     /**
      * @param key the goo type's registry key
-     * @return the aim arc, ghost fill and fade wall RGB of its entry at the current tick
+     * @return the ghost fill and fade wall RGB of its entry at the current tick
      */
     public static int highlight(ResourceKey<GooTypeDefinition> key) {
         GooTypeDefinition definition = definition(key);

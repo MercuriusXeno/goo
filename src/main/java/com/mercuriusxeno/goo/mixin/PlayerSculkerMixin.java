@@ -8,11 +8,11 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Lets a diver through solid blocks: right after vanilla sets the player's
- * no-clip from spectator mode each tick, a player in Sculker's dive takes it
+ * Lets a submerged player through solid blocks: right after vanilla sets the player's
+ * no-clip from spectator mode each tick, a player submerged under Sculker takes it
  * too, on the client that moves the player and the server that checks the
- * move alike, and holds the swimming pose for the dive's length, so the
- * diver swims through the stone as through water.
+ * move alike, and holds the swimming pose while it stays submerged, so the
+ * submerged player swims through the stone as through water.
  * dive-is-a-brew-of-warden-senses-and-free-swimming-through-solid-blocks
  * sculker-swims-solid-blocks-and-surfaces-at-will
  */
@@ -20,18 +20,18 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class PlayerSculkerMixin {
 
     /**
-     * Turns no-clip on for a diver passing through solid blocks.
+     * Turns no-clip on for a submerged player passing through solid blocks.
      *
      * @param info the callback
      */
     @Inject(method = "tick", at = @At(value = "FIELD", target = "Lnet/minecraft/world/entity/player/Player;noPhysics:Z",
             opcode = org.objectweb.asm.Opcodes.PUTFIELD, shift = At.Shift.AFTER, ordinal = 0))
-    private void goo$diverPassesThrough(CallbackInfo info) {
+    private void goo$submergedPlayerPassesThrough(CallbackInfo info) {
         Player player = (Player) (Object) this;
-        boolean diving = SculkerSwim.passesThrough(player);
-        if (!player.noPhysics && diving) {
+        boolean submerged = SculkerSwim.passesThrough(player);
+        if (!player.noPhysics && submerged) {
             player.noPhysics = true;
         }
-        SculkerSwim.holdTheSwimPose(player, diving);
+        SculkerSwim.holdTheSwimPose(player, submerged);
     }
 }

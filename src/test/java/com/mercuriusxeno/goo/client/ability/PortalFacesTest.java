@@ -71,7 +71,7 @@ class PortalFacesTest {
     }
 
     /**
-     * A hole's mouth draws through the same oval, each corner carrying the
+     * A tunnel's mouth draws through the same oval, each corner carrying the
      * count of its own box: a 3x3 mouth 48 by 48, a 1x2 mouth 16 by 32 and a
      * 1x1 mouth 16 by 16.
      */

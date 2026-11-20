@@ -9,7 +9,7 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * A soft glow that drifts upward from where it spawns, carried along by the
- * velocity it was given, and swells then fades over its life; vitality's
+ * velocity it was given, and swells then fades over its life; Heal's
  * stream and wave rings spray it in place of vanilla heal particles.
  * vitality-waves-regenerate-and-court
  */

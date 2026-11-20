@@ -32,14 +32,14 @@ final class AimAssistResolver {
 
     /**
      * The shared aim-assist forgiveness half-angle in degrees. Targets within
-     * this cone around the reticle are eligible even if the exact raytrace
+     * this cone around the crosshair are eligible even if the exact raytrace
      * misses their hitbox.
      */
     static final double AIM_ASSIST_DEGREES = 4.0;
 
     /**
      * How far past the pick cone, in degrees, the sticky retention cone
-     * reaches. Once locked, a target stays selected until the reticle drifts
+     * reaches. Once locked, a target stays selected until the crosshair drifts
      * beyond this wider cone, preventing flicker when the cursor is near the edge.
      */
     private static final double STICKY_PAST_THE_CONE = 1.0;
@@ -84,10 +84,10 @@ final class AimAssistResolver {
      * two-pass approach plus sticky retention on the previous hit.
      *
      * <ol>
-     *   <li>Exact raytrace - if the reticle directly clips a candidate AABB,
+     *   <li>Exact raytrace - if the crosshair directly clips a candidate AABB,
      *       pick the nearest by distance.</li>
      *   <li>Cone scan - pick the candidate with highest cosine to the
-     *       reticle.</li>
+     *       crosshair.</li>
      *   <li>Sticky - if the previous hit is still within the wider sticky
      *       cone, keep it.</li>
      * </ol>
@@ -230,7 +230,7 @@ final class AimAssistResolver {
     }
 
     /**
-     * Finds the nearest candidate the reticle's ray clips, in sight.
+     * Finds the nearest candidate the crosshair's ray clips, in sight.
      *
      * @param candidates the candidates in tie-break order
      * @param player     the aiming player
@@ -256,7 +256,7 @@ final class AimAssistResolver {
     }
 
     /**
-     * Finds the candidate closest to the reticle inside the pick cone.
+     * Finds the candidate closest to the crosshair inside the pick cone.
      *
      * @param candidates the candidates in tie-break order
      * @param from       ray start
@@ -439,7 +439,7 @@ final class AimAssistResolver {
         AABB box();
 
         /**
-         * The box the reticle's exact ray must clip.
+         * The box the crosshair's exact ray must clip.
          *
          * @return the pickable bounds, the target's bounds unless it widens them
          */

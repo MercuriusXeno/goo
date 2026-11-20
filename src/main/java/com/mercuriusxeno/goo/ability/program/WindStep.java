@@ -4,7 +4,6 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
 
@@ -14,11 +13,7 @@ import java.util.stream.Stream;
  * from the glove, then spiral up, down or out and fade, with snowflakes
  * flitting along them where the step asks for them. The server does nothing
  * for it, so Cold names it with snowflakes and a typhoon stream can name it
- * without: {@code wind snowflakes=true}. Where the step names a tailwind, the
- * lines ride along with the player instead, leaving from just behind it and
- * rushing forward past the camera along the look to curl ahead, the wind
- * carrying a jet: {@code wind tailwind={range=6 cone=30}}. Where the step
- * names inward, the lines run the other way, from inside the cone into the
+ * without: {@code wind snowflakes=true}. Where the step names inward, the lines run the other way, from inside the cone into the
  * blob, as Vacuum draws its wind in: {@code wind inward=true}. The step
  * names the pitch its held wind sounds at, the plain wind's where it names
  * none, so Vacuum's suction sounds low: {@code wind pitch=0.6}. The step
@@ -33,21 +28,18 @@ import java.util.stream.Stream;
  * vacuum-motes-fly-loose-from-the-cone-to-the-blob
  *
  * @param snowflakes whether snowflakes flit along the lines
- * @param tailwind   the tailwind the lines carry the player on, or empty to blow them from the glove
  * @param inward     whether the lines run from inside the cone into the blob rather than out of it
  * @param pitch      the pitch the held wind sounds at
  * @param colors     the two colors the lines blend between
  * @param voidMotes  whether void motes fly loose from the cone into the blob
  */
-public record WindStep(boolean snowflakes, Optional<Tailwind> tailwind, boolean inward, float pitch,
-                       LineColors colors, boolean voidMotes) implements TakesNoEntity {
+public record WindStep(boolean snowflakes, boolean inward, float pitch, LineColors colors, boolean voidMotes) implements TakesNoEntity {
 
     /** The held wind's pitch where the step names none. */
     public static final float PLAIN_PITCH = 1.0f;
 
     private static final String NAME = "wind";
     private static final String FIELD_SNOWFLAKES = "snowflakes";
-    private static final String FIELD_TAILWIND = "tailwind";
     private static final String FIELD_INWARD = "inward";
     private static final String FIELD_PITCH = "pitch";
     private static final String FIELD_LIGHT_COLOR = "light_color";
@@ -77,36 +69,17 @@ public record WindStep(boolean snowflakes, Optional<Tailwind> tailwind, boolean 
     }
 
     /**
-     * A jet's tailwind: the cone the lines rush forward through, riding along with the player.
-     *
-     * @param range       how far ahead the lines rush, in blocks
-     * @param coneDegrees the cone's apex angle, in degrees
-     */
-    public record Tailwind(double range, double coneDegrees) {
-
-        private static final String FIELD_RANGE = "range";
-        private static final String FIELD_CONE = "cone";
-
-        /** Codec for the tailwind. */
-        public static final Codec<Tailwind> CODEC = RecordCodecBuilder.create(inst -> inst.group(
-                Codec.DOUBLE.fieldOf(FIELD_RANGE).forGetter(Tailwind::range),
-                Codec.DOUBLE.fieldOf(FIELD_CONE).forGetter(Tailwind::coneDegrees)
-        ).apply(inst, Tailwind::new));
-    }
-
-    /**
      * Codec for the step's params.
      */
     public static final MapCodec<WindStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
             Codec.BOOL.optionalFieldOf(FIELD_SNOWFLAKES, false).forGetter(WindStep::snowflakes),
-            Tailwind.CODEC.optionalFieldOf(FIELD_TAILWIND).forGetter(WindStep::tailwind),
             Codec.BOOL.optionalFieldOf(FIELD_INWARD, false).forGetter(WindStep::inward),
             Codec.floatRange(0, Float.MAX_VALUE).optionalFieldOf(FIELD_PITCH, PLAIN_PITCH).forGetter(WindStep::pitch),
             HEX_COLOR.optionalFieldOf(FIELD_LIGHT_COLOR, LineColors.WIND.light()).forGetter(step -> step.colors().light()),
             HEX_COLOR.optionalFieldOf(FIELD_DARK_COLOR, LineColors.WIND.dark()).forGetter(step -> step.colors().dark()),
             Codec.BOOL.optionalFieldOf(FIELD_VOID_MOTES, false).forGetter(WindStep::voidMotes)
-    ).apply(inst, (snowflakes, tailwind, inward, pitch, light, dark, voidMotes) ->
-            new WindStep(snowflakes, tailwind, inward, pitch, new LineColors(light, dark), voidMotes)));
+    ).apply(inst, (snowflakes, inward, pitch, light, dark, voidMotes) ->
+            new WindStep(snowflakes, inward, pitch, new LineColors(light, dark), voidMotes)));
 
     /**
      * The registered type.
@@ -119,17 +92,7 @@ public record WindStep(boolean snowflakes, Optional<Tailwind> tailwind, boolean 
      * @param snowflakes whether snowflakes flit along the lines
      */
     public WindStep(boolean snowflakes) {
-        this(snowflakes, Optional.empty());
-    }
-
-    /**
-     * Wind blown out from the glove, or carried as a tailwind.
-     *
-     * @param snowflakes whether snowflakes flit along the lines
-     * @param tailwind   the tailwind the lines carry the player on, or empty to blow them from the glove
-     */
-    public WindStep(boolean snowflakes, Optional<Tailwind> tailwind) {
-        this(snowflakes, tailwind, false, PLAIN_PITCH, LineColors.WIND, false);
+        this(snowflakes, false, PLAIN_PITCH, LineColors.WIND, false);
     }
 
     private static DataResult<Integer> parseColor(String written) {

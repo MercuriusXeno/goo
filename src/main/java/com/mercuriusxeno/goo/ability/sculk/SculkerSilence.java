@@ -35,7 +35,7 @@ public final class SculkerSilence {
      * @return true for a player whose Sculker stands
      */
     public static boolean movesSilently(Entity entity) {
-        return entity instanceof Player player && SculkerSwim.dives(player);
+        return entity instanceof Player player && SculkerSwim.holdsSculker(player);
     }
 
     /**

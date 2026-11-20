@@ -31,7 +31,7 @@ import java.util.function.Supplier;
 /**
  * Resolves what the player aims at within throw range, filtered by the hint
  * the selected ability's badge names: a mob ability aims through the aim
- * assist, a world one at the block face the reticle meets, a free or
+ * assist, a world one at the block face the crosshair meets, a free or
  * channeled one at the ray's point. It runs
  * once per frame for {@link AimState} (decision
  * render-context-is-the-one-emitter).
@@ -89,8 +89,8 @@ final class AimTargets {
 
     /**
      * Resolves the aim for the given hint along the ray the caller passes,
-     * the camera's as the frame draws it, so the reticule eases with the view
-     * as the vanilla crosshair does.
+     * the camera's as the frame draws it, so the aim moves with the vanilla
+     * crosshair as the view eases.
      * decision aim-target-follows-client-aim
      * decision aim-ray-starts-at-the-camera
      *

@@ -100,7 +100,7 @@ public final class GooRenderTypes {
     );
 
     /**
-     * Sight's fungus x-ray (decision sight-lengthens-shift-and-outlines-fungus):
+     * The fungus x-ray of Sculker's shroom vision (decision sight-lengthens-shift-and-outlines-fungus):
      * a block's own baked quads through vanilla's translucent entity shader,
      * passing every depth test and writing no depth, so fungus shows through walls.
      */
@@ -115,9 +115,9 @@ public final class GooRenderTypes {
             .build());
 
     /**
-     * Deep Click's shriek rings drawn through blocks: vanilla's translucent
+     * Pulse Click's shriek rings drawn through blocks: vanilla's translucent
      * particle pipeline passing every depth test and writing no depth, so a
-     * Click rippling through stone shows to the diver inside it
+     * Click rippling through stone shows to the submerged player inside it
      * (decision submerged-click-ripples-through-the-ground-to-its-range).
      */
     public static final RenderPipeline CLICK_WAVE_THROUGH_BLOCKS =
@@ -137,7 +137,7 @@ public final class GooRenderTypes {
                     .build());
 
     /**
-     * Sight's fungus glow (decision sight-lengthens-shift-and-outlines-fungus):
+     * The fungus glow of Sculker's shroom vision (decision sight-lengthens-shift-and-outlines-fungus):
      * the x-ray's quads blended additively, so a swollen copy of each fungus
      * glows like a lamp behind the wall.
      */
@@ -235,7 +235,7 @@ public final class GooRenderTypes {
 
     /**
      * Sculker's glass field (decision sculker-shows-blocks-translucent-close-up):
-     * the x-ray's translucent block quads, depth tested so the diver's own
+     * the x-ray's translucent block quads, depth tested so the submerged player's own
      * body and every entity in front of the glass stands over it, writing
      * depth so the vision dims each block by its true distance and, drawn
      * nearest first, only the nearest face shows at each point with no layers
@@ -487,19 +487,6 @@ public final class GooRenderTypes {
 
     /** RenderType that draws metal goo's burnout explosion. */
     public static final RenderType METAL_EXPLOSION_TYPE = burnoutType(METAL_EXPLOSION);
-
-    /**
-     * The metal spike trap's chrome on a landed trap, its spines and spears: the metal
-     * explosion shader writing depth, since they draw opaque, so the
-     * translucent goo blob drawn after them stays behind the parts in front
-     * of it rather than blending over them.
-     * urchin-rests-bristled-and-spears
-     */
-    public static final RenderPipeline METAL_CHROME = sorted(PipelineSort.WRITES_DEPTH, shaderPairPipeline("metal_chrome", "metal_explosion",
-            BlendFunction.TRANSLUCENT, DefaultVertexFormat.POSITION_COLOR_NORMAL, DepthStencilState.DEFAULT));
-
-    /** RenderType for the metal spike trap's depth-writing chrome. */
-    public static final RenderType METAL_CHROME_TYPE = burnoutType(METAL_CHROME);
 
     /**
      * Metal's held ghost through blocks: the metal explosion shader with no
@@ -1010,7 +997,7 @@ public final class GooRenderTypes {
             ));
 
     /**
-     * Returns Sight's fungus glow render type for the atlas the block's sprites sit on.
+     * Returns the fungus glow render type of Sculker's shroom vision for the atlas the block's sprites sit on.
      *
      * @param atlas the texture atlas identifier
      * @return memoized RenderType
@@ -1020,7 +1007,7 @@ public final class GooRenderTypes {
     }
 
     /**
-     * Returns Sight's fungus x-ray render type for the atlas the block's sprites sit on.
+     * Returns the fungus x-ray render type of Sculker's shroom vision for the atlas the block's sprites sit on.
      *
      * @param atlas the texture atlas identifier
      * @return memoized RenderType
@@ -1737,8 +1724,8 @@ public final class GooRenderTypes {
     }
 
     /**
-     * Registers the plain pipelines: the additive glow lines, Sight's fungus
-     * x-ray, and sculk's spore shell in both passes.
+     * Registers the plain pipelines: the additive glow lines, the fungus x-ray
+     * of Sculker's shroom vision, and sculk's spore shell in both passes.
      *
      * @param event the pipeline registration event
      */
@@ -1869,7 +1856,6 @@ public final class GooRenderTypes {
         event.registerPipeline(FROST_EXPLOSION_THROUGH_BLOCKS);
         event.registerPipeline(METAL_EXPLOSION);
         event.registerPipeline(METAL_EXPLOSION_THROUGH_BLOCKS);
-        event.registerPipeline(METAL_CHROME);
         event.registerPipeline(CRYSTAL_EXPLOSION);
         event.registerPipeline(CRYSTAL_EXPLOSION_THROUGH_BLOCKS);
         event.registerPipeline(GLOW_EXPLOSION);

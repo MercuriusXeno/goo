@@ -324,7 +324,7 @@ public final class HeldEffectsEvents {
 
     /**
      * Clears the player state an ability's own step laid on the player's
-     * draws, reach and senses: Remote's reach, the eldritch state, the dive.
+     * draws, reach and senses: Remote's reach, the eldritch state, Sculker.
      *
      * @param player the player
      * @param lays   the state the effect laid

@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.ability.quantum.Gate;
-import com.mercuriusxeno.goo.network.HolesSyncPayload;
+import com.mercuriusxeno.goo.network.TunnelsSyncPayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
@@ -9,33 +9,33 @@ import java.util.List;
 import java.util.stream.Stream;
 
 /**
- * The Quantum holes standing open in the local player's level as the server
+ * The Quantum tunnels standing open in the local player's level as the server
  * last told them, each as its two mouths.
  * hole-closes-the-space-to-an-opening-ahead
  */
-public final class ClientHoles {
+public final class ClientTunnels {
 
-    private static List<HolesSyncPayload.Pair> holes = List.of();
+    private static List<TunnelsSyncPayload.Pair> tunnels = List.of();
     /** How far each mouth has grown open since it was first told of. */
     private static final GrowOpen<Gate> OPENING = new GrowOpen<>();
-    /** The level the holes were last told of in, so a mouth standing as a level is joined shows full size. */
+    /** The level the tunnels were last told of in, so a mouth standing as a level is joined shows full size. */
     private static ClientLevel toldIn;
 
-    private ClientHoles() {
+    private ClientTunnels() {
     }
 
     /**
-     * Takes the holes the server sent.
+     * Takes the tunnels the server sent.
      *
      * @param payload the sync payload
      * @param context the network context
      */
-    public static void handle(HolesSyncPayload payload, IPayloadContext context) {
+    public static void handle(TunnelsSyncPayload payload, IPayloadContext context) {
         context.enqueueWork(() -> {
-            holes = List.copyOf(payload.holes());
+            tunnels = List.copyOf(payload.tunnels());
             Minecraft mc = Minecraft.getInstance();
             if (mc.level != null) {
-                OPENING.seen(holes.stream().flatMap(hole -> Stream.of(hole.entry(), hole.exit())).toList(),
+                OPENING.seen(tunnels.stream().flatMap(tunnel -> Stream.of(tunnel.entry(), tunnel.exit())).toList(),
                         mc.level.getGameTime(), mc.level != toldIn);
                 toldIn = mc.level;
             }
@@ -44,10 +44,10 @@ public final class ClientHoles {
     }
 
     /**
-     * How far a hole's mouth has grown open, from nothing as it opens to its
+     * How far a tunnel's mouth has grown open, from nothing as it opens to its
      * full size a moment later, swelling a little past full before it settles.
      *
-     * @param gate        one of the hole's mouths
+     * @param gate        one of the tunnel's mouths
      * @param partialTick the frame's partial tick
      * @return the mouth's share of its full size, one once open
      */
@@ -57,9 +57,9 @@ public final class ClientHoles {
     }
 
     /**
-     * @return each open hole's two mouths
+     * @return each open tunnel's two mouths
      */
-    public static List<HolesSyncPayload.Pair> holes() {
-        return holes;
+    public static List<TunnelsSyncPayload.Pair> tunnels() {
+        return tunnels;
     }
 }

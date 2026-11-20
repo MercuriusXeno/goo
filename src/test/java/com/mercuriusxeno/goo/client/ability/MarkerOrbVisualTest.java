@@ -29,30 +29,22 @@ class MarkerOrbVisualTest {
     private static final GooRenderUtil.UvRect UV = new GooRenderUtil.UvRect(0f, 0f, 1f, 1f);
     private static final int WHITE = 0xFFFFFFFF;
 
-    /** A scale the orb modifier takes at rest and one a spike's windup shake swells it to. */
-    private static final float[] MODIFIERS = {
-        1f, 1.35f,
-    };
-
     /**
      * One orb layer to emit.
      *
      * @param face       the placed face
      * @param shape      the orb shape
-     * @param modifier   the orb modifier
      * @param shell      true for the shell layer, false for the core
      */
-    record OrbCase(Direction face, MarkerOrbVisual.OrbShape shape, float modifier, boolean shell) {
+    record OrbCase(Direction face, MarkerOrbVisual.OrbShape shape, boolean shell) {
     }
 
     static Stream<Arguments> everyOrbLayer() {
         List<Arguments> cases = new ArrayList<>();
         for (Direction face : Direction.values()) {
             for (MarkerOrbVisual.OrbShape shape : MarkerOrbVisual.OrbShape.values()) {
-                for (float modifier : MODIFIERS) {
-                    cases.add(Arguments.of(new OrbCase(face, shape, modifier, false)));
-                    cases.add(Arguments.of(new OrbCase(face, shape, modifier, true)));
-                }
+                cases.add(Arguments.of(new OrbCase(face, shape, false)));
+                cases.add(Arguments.of(new OrbCase(face, shape, true)));
             }
         }
         return cases.stream();
@@ -71,25 +63,17 @@ class MarkerOrbVisualTest {
         return orb.shell() ? core + MarkerOrbVisual.SHELL_MARGIN : core;
     }
 
-    /** The pose scale the renderer lays across the face, per shape. */
-    private static float lateralScale(OrbCase orb) {
-        return switch (orb.shape()) {
-            case GOO -> orb.modifier();
-            case GLOW_BUMP -> 1f;
-        };
-    }
-
-    /** How far the layer reaches off the face plane after the pose scale, per shape. */
+    /** How far the layer reaches off the face plane, per shape. */
     private static float outwardDepth(OrbCase orb) {
         return switch (orb.shape()) {
-            case GOO -> restingHalf(orb) * orb.modifier();
+            case GOO -> restingHalf(orb);
             case GLOW_BUMP -> (float) GlowCrystalBlock.DEPTH;
         };
     }
 
     private static List<RecordingVertexConsumer.Vertex> emit(OrbCase orb) {
         PoseStack poseStack = new PoseStack();
-        MarkerOrbVisual.placeOrb(poseStack, orb.face(), orb.shape(), orb.modifier());
+        MarkerOrbVisual.placeOrb(poseStack, orb.face());
         RecordingVertexConsumer consumer = new RecordingVertexConsumer();
         RenderContext ctx = new RenderContext(poseStack.last(), consumer, 0);
         MarkerOrbVisual.emitOrbLayer(ctx, WHITE, restingHalf(orb), orb.face(), orb.shape(), UV);
@@ -137,7 +121,7 @@ class MarkerOrbVisualTest {
         @MethodSource("com.mercuriusxeno.goo.client.ability.MarkerOrbVisualTest#everyOrbLayer")
         void lateralExtentsMatchTheRestingArithmetic(OrbCase orb) {
             List<RecordingVertexConsumer.Vertex> vertices = emit(orb);
-            float expectedHalf = restingHalf(orb) * lateralScale(orb);
+            float expectedHalf = restingHalf(orb);
             for (Direction.Axis lateral : Direction.Axis.values()) {
                 if (lateral == orb.face().getAxis()) {
                     continue;

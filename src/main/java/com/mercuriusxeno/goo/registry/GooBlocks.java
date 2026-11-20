@@ -622,7 +622,8 @@ public class GooBlocks {
 
     /**
      * Magicked ice: a non-melting mod variant of vanilla ice, placed
-     * permanently by the frost cold snap. Visually, audibly, and
+     * permanently by a {@code freeze_blocks} step whose {@code lasting} is
+     * true. Visually, audibly, and
      * mechanically identical to {@code minecraft:ice}. Silk-touch drops
      * vanilla ice; the block is not obtainable in its true form.
      */

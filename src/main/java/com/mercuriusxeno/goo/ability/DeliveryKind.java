@@ -7,7 +7,7 @@ import com.mojang.serialization.Codec;
  * How an ability leaves the glove, the fixed code vocabulary an ability's
  * delivery block names (decision delivery-block-in-ability-json). Each kind
  * ships with one bundled ability proving it: pulse zap the beam, blaze
- * flames the stream, ender blink and typhoon propulsion the self, deep click
+ * flames the stream, ender blink and typhoon propulsion the self, pulse click
  * the scan, void hole the spontaneous cast, every other ability the arc. A
  * further
  * ability is data, a goo_abilities JSON naming one of these kinds and its

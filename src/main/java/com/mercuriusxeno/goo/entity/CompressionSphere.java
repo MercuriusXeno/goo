@@ -18,7 +18,7 @@ import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * The compression sphere a black hole or a large Blast leaves at its origin:
+ * The compression sphere a large Blast leaves at its origin:
  * a pseudo-item that falls to the ground below and never enters an
  * inventory; a player touching it pops it open, spilling every stack it
  * holds there as ordinary item entities. Its core tells who left it.

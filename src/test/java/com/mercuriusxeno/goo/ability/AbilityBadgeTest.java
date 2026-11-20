@@ -162,11 +162,11 @@ class AbilityBadgeTest {
     }
 
     /**
-     * The durative badge left the vocabulary for durative, so a JSON still spelling brew fails to load.
+     * A word outside the badge vocabulary fails to load.
      * decision clock-badge-marks-durative-abilities
      */
     @ParameterizedTest
-    @CsvSource({"splash", "punch", "self", "brew"})
+    @CsvSource({"splash", "self"})
     void aWordOutsideTheVocabularyFailsToParse(String word) {
         assertTrue(AbilityBadge.CODEC.parse(JsonOps.INSTANCE, new JsonPrimitive(word)).isError());
     }

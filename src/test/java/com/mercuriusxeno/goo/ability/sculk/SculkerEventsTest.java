@@ -20,7 +20,7 @@ class SculkerEventsTest {
     private static final float SUFFOCATION = 1f;
 
     /**
-     * A player whose Sculker stands, out of the dive: a mocked player in a mocked level.
+     * A player whose Sculker stands, not submerged: a mocked player in a mocked level.
      *
      * @return the player
      */

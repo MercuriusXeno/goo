@@ -382,7 +382,7 @@ class HeartOverlayTest {
 
     /**
      * Stoneskin: stone over the missing hearts, a physical hit reduced by the
-     * brew's multiplier, a stone heart worth half a heart against explosions
+     * durative's multiplier, a stone heart worth half a heart against explosions
      * and pickaxes, no regrowth, and healing held while stone stands
      * (decision stoneskin-stone-hearts-block-regeneration).
      */

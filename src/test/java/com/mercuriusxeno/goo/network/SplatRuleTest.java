@@ -13,7 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * A blob splats goo on the mob it strikes unless its ability is tagged
- * no_splat, as Crush is, whose program draws the hit as rubble instead
+ * no_splat, as Frost's Orb is, whose program draws the hit as a frost nova instead
  * (decision crush-blob-breaks-along-its-strike).
  */
 class SplatRuleTest {

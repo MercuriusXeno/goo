@@ -12,9 +12,8 @@ import java.util.SplittableRandom;
 /**
  * The tendril vignette a sight draws over the camera: the screen's rim fills
  * with a breathing mist, and tendrils curl in from the edges, each sight in
- * its own colors; Fungal Sight draws it in magenta, Sculker in sculk teal,
- * and Sculker's rim grows a forking vein network ({@link VeinNetwork}) where
- * Fungal Sight's grows tendrils. The tendrils are a live population, not a fixed set: they sprout at random
+ * its own colors; Sculker draws it in sculk teal, its rim growing a forking
+ * vein network ({@link VeinNetwork}). The tendrils are a live population, not a fixed set: they sprout at random
  * places along the edges at random times, never on top of one another, each
  * a thin, wispy vein with its own length, thickness and wiggling path that
  * often forks, heading mostly inward from its edge rather than along it. A tendril grows the way a root does, each stretch fading in

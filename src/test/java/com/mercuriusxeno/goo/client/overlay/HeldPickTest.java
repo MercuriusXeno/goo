@@ -77,7 +77,7 @@ class HeldPickTest {
         assertEquals(bystander, aimedAt(frame), "A locked item should leave the aim to the next pick");
     }
 
-    /** Whether this Grab press holds a mob now, which hides the reticule (decision grab-hides-the-reticle-once-a-mob-is-held). */
+    /** Whether this Grab press holds a mob now, whose aim stays on it wherever the crosshair turns (decision grab-hides-the-reticle-once-a-mob-is-held). */
     @Nested
     class Holds {
 

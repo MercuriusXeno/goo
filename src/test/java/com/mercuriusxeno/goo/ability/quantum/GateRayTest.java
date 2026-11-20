@@ -30,7 +30,7 @@ class GateRayTest {
     /** Its partner on a wall's south face, the plane z 3. */
     private static final Gate FAR = new Gate(OVERWORLD, new AABB(new BlockPos(-1, 0, 2)).minmax(
             new AABB(new BlockPos(1, 2, 2))), Direction.SOUTH, Direction.UP.getUnitVec3());
-    /** A hole's mouth on a floor, the plane y 65, as Wormhole lays one. */
+    /** A tunnel's mouth on a floor, the plane y 65, as Wormhole lays one. */
     private static final Gate FLOOR_MOUTH = new Gate(OVERWORLD, new AABB(new BlockPos(0, 64, 0)),
             Direction.UP, Direction.NORTH.getUnitVec3());
     /** Its far mouth on the ceiling of a cell below, the plane y 60. */

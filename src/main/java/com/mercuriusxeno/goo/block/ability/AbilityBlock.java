@@ -114,7 +114,7 @@ public class AbilityBlock extends AbstractEffectBlock implements SimpleWaterlogg
         m.put(GooTypes.BLAZE, AbilityBlock::spawnBlazeParticles);
         m.put(GooTypes.ROCK, AbilityBlock::spawnRockParticles);
         m.put(GooTypes.METAL, AbilityBlock::spawnMetalParticles);
-        // Crystal uses shard cloud BER visual instead of ambient particles.
+        // Crystal holds no entry: a crystal marker emits no ambient particles.
         PARTICLE_EMITTERS = Map.copyOf(m);
     }
 

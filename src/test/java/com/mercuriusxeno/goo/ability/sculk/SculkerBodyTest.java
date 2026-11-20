@@ -23,7 +23,7 @@ import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
 /**
- * A Sculker body passes through blocks only in the dive, hangs still with no key held, stops at a bedrock face and
+ * A Sculker body passes through blocks only while submerged, hangs still with no key held, stops at a bedrock face and
  * is never trapped by bedrock it already overlaps (decision sculker-swims-solid-blocks-and-surfaces-at-will). The
  * vanilla registries stand Blocks.BEDROCK, so a stubbed FML loader answers while they bootstrap.
  */
@@ -43,11 +43,11 @@ class SculkerBodyTest {
         }
     }
 
-    private static Player sculker(boolean diving) {
+    private static Player sculker(boolean submerged) {
         Level level = mock(Level.class);
         Player player = mock(Player.class);
         when(player.level()).thenReturn(level);
-        when(player.getData(GooAttachments.SCULKER)).thenReturn(new Sculker(Sculker.NEVER_EXPIRES, diving));
+        when(player.getData(GooAttachments.SCULKER)).thenReturn(new Sculker(Sculker.NEVER_EXPIRES, submerged));
         return player;
     }
 
@@ -63,7 +63,7 @@ class SculkerBodyTest {
     }
 
     @Test
-    void aPlayerWhoseSculkerStandsPassesThroughBlocksOnlyInTheDive() {
+    void aPlayerWhoseSculkerStandsPassesThroughBlocksOnlyWhileSubmerged() {
         assertEquals(List.of(false, true),
                 List.of(SculkerSwim.passesThrough(sculker(false)), SculkerSwim.passesThrough(sculker(true))));
     }

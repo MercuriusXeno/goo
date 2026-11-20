@@ -11,11 +11,11 @@ import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 
 /**
  * The server's half of Sculker. Each player tick, before the tick moves the
- * player, sneak and jump together take it into the dive, and rising out of a
+ * player, sneak and jump together submerge it, and rising out of a
  * top face with jump held or leaving the ground takes it out, so the no-clip the tick sets follows
- * the dive the server holds and syncs. For the brew's whole duration no
- * stone suffocates the player, in the dive or out of it, so one whose dive
- * ends inside stone takes no hurt either.
+ * the submerged state the server holds and syncs. For the held effect's whole duration no
+ * stone suffocates the player, submerged or not, so one that stops
+ * submerging inside stone takes no hurt either.
  * decision sculker-swims-solid-blocks-and-surfaces-at-will
  * decision sculker-grants-suffocation-immunity
  * decision diagnose-and-correct-sculker-flying-through-air
@@ -27,14 +27,14 @@ public final class SculkerEvents {
     }
 
     /**
-     * Moves a server player into or out of the dive before its tick.
+     * Moves a server player into or out of the submerged state before its tick.
      *
      * @param event the player tick
      */
     @SubscribeEvent
     public static void onPlayerTick(PlayerTickEvent.Pre event) {
         if (event.getEntity() instanceof ServerPlayer player) {
-            SculkerSwim.updateDive(player);
+            SculkerSwim.updateSubmerged(player);
         }
     }
 
@@ -46,7 +46,7 @@ public final class SculkerEvents {
     @SubscribeEvent
     public static void onIncomingDamage(LivingIncomingDamageEvent event) {
         if (event.getEntity() instanceof Player player && event.getSource().is(DamageTypes.IN_WALL)
-                && SculkerSwim.dives(player)) {
+                && SculkerSwim.holdsSculker(player)) {
             event.setCanceled(true);
         }
     }

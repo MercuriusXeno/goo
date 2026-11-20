@@ -19,7 +19,7 @@ import java.util.Locale;
  *                       reaches {@code peakLight}
  * @param wheel          RGB of the type's radial menu segment
  * @param bright         RGB of the segment while hovered
- * @param highlight      RGB of the aim arc, ghost fill and fade walls
+ * @param highlight      RGB of the ghost fill and fade walls
  * @param edge           RGB of wireframe contours and outlines
  * @param density        fluid density on the water = 1000 scale
  * @param viscosity      fluid viscosity on the water = 1000 scale, higher is thicker

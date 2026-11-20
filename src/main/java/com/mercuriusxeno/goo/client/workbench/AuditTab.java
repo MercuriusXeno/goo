@@ -15,8 +15,7 @@ import java.util.Set;
 
 /**
  * The Audit tab's state with no Screen: the sections goo_audit.json or the text dumps carry, grouped by file with
- * flagged sections first within each, which of them stand closed, the latest lines of a dump run in flight, and the line its result leaves, as
- * index.html's audit section holds them
+ * flagged sections first within each, which of them stand closed, the latest lines of a dump run in flight, and the line its result leaves
  * (decisions goo-workbench-opens-the-in-game-manager-screen, workbench-shows-each-roots-remainders-and-items-solved,
  * workbench-lists-type-to-type-paths-worst-first, workbench-traces-each-undercut-manual-value-to-its-roots).
  */

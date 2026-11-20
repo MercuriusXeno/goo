@@ -15,7 +15,7 @@ import java.util.stream.Stream;
  * first, each header's name bold before its plain results and flagless ones headed green with a checkmark, each
  * starting open and, where it holds more
  * than one row, opened or closed by a button before its header or by the header, every one at once by the
- * expand/collapse-all button on the Run row, as index.html's audit section does (decisions
+ * expand/collapse-all button on the Run row (decisions
  * goo-workbench-opens-the-in-game-manager-screen,
  * workbench-reruns-the-audit-headless). The progress lines and the sections each scroll under a {@link ScrollBar}
  * (decision every-tab-draws-a-scroll-bar). The state lives in {@link AuditTab}.

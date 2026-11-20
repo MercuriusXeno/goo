@@ -43,7 +43,7 @@ import java.util.function.Consumer;
 @RegistersGameTests
 public final class StreamDeliveryTests {
     private static final String STREAM_BLAZE_FLAMES = "stream_blaze_flames";
-    private static final String VITALITY_HEALS = "vitality_heals_cow_and_caster";
+    private static final String HEAL_RESTORES = "heal_restores_cow_and_caster";
     private static final String FLAMES_DAMAGES_PER_TICK = "flames_damages_per_tick";
     /** Ten held ticks, enough for the flames' burn to land on the zombie. */
     private static final int FLAMES_HOLD_TICKS = 10;
@@ -56,7 +56,7 @@ public final class StreamDeliveryTests {
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, STREAM_BLAZE_FLAMES, StreamDeliveryTests::blazeFlames);
-        GooTestFunctions.registerTest(registrar, VITALITY_HEALS, StreamDeliveryTests::vitalityHealsCowAndCaster);
+        GooTestFunctions.registerTest(registrar, HEAL_RESTORES, StreamDeliveryTests::healRestoresCowAndCaster);
         GooTestFunctions.registerTest(registrar, FLAMES_DAMAGES_PER_TICK, StreamDeliveryTests::flamesDamagesPerTick);
         GooTestFunctions.registerTest(registrar, HEAL_TOUCHES_FULL_COW, StreamDeliveryTests::healTouchesAFullHealthCow);
         GooTestFunctions.registerTest(registrar, HEAL_HARMS_ZOMBIE, StreamDeliveryTests::healHarmsAZombie);
@@ -175,7 +175,7 @@ public final class StreamDeliveryTests {
      */
     static AbilityDefinition jellyHeal(GameTestHelper helper) {
         AbilityDefinition heal = AbilityRegistry.of(helper.getLevel()).getAbility(JELLY_HEAL);
-        helper.assertTrue(heal != null, VITALITY_REQUIRED);
+        helper.assertTrue(heal != null, HEAL_REQUIRED);
         return heal;
     }
 
@@ -211,7 +211,7 @@ public final class StreamDeliveryTests {
      */
     public static void healHarmsAZombie(GameTestHelper helper) {
         AbilityDefinition heal = AbilityRegistry.of(helper.getLevel()).getAbility(JELLY_HEAL);
-        helper.assertTrue(heal != null, VITALITY_REQUIRED);
+        helper.assertTrue(heal != null, HEAL_REQUIRED);
         Mob zombie = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, ZOMBIE_POS);
         // the helmet keeps the noon sun off the zombie, so only the stream harms it
         zombie.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.LEATHER_HELMET));
@@ -241,7 +241,7 @@ public final class StreamDeliveryTests {
      */
     public static void healTouchesAFullHealthCow(GameTestHelper helper) {
         AbilityDefinition heal = AbilityRegistry.of(helper.getLevel()).getAbility(JELLY_HEAL);
-        helper.assertTrue(heal != null, VITALITY_REQUIRED);
+        helper.assertTrue(heal != null, HEAL_REQUIRED);
         Cow cow = helper.spawnWithNoFreeWill(EntityTypes.COW, ZOMBIE_POS);
         ServerPlayer player = streamer(helper, GooTypes.JELLY);
         KnownRecipes.teachRequires(player, heal);
@@ -308,9 +308,9 @@ public final class StreamDeliveryTests {
     private static final float HURT_COW_HEALTH = 4;
     /** A player stands at twenty health, so ten leaves the caster hurt with room to heal. */
     private static final float HURT_PLAYER_HEALTH = 10;
-    /** One short of the eighteen food natural regeneration needs, so only vitality heals the caster. */
+    /** One short of the eighteen food natural regeneration needs, so only Heal heals the caster. */
     private static final int FOOD_BELOW_REGEN = 17;
-    private static final String VITALITY_REQUIRED = "Ability registry must hold jelly_heal";
+    private static final String HEAL_REQUIRED = "Ability registry must hold jelly_heal";
     private static final String SHOULD_HEAL_COW = "The streamed cow should heal past %.1f, stands at %.2f";
     private static final String SHOULD_HEAL_CASTER = "The caster should heal past %.1f, stands at %.2f";
     private static final String HEAL_TOUCHES_FULL_COW = "heal_touches_a_full_health_cow";
@@ -368,13 +368,13 @@ public final class StreamDeliveryTests {
      *
      * @param helper the gametest helper
      */
-    public static void vitalityHealsCowAndCaster(GameTestHelper helper) {
-        AbilityDefinition vitality = AbilityRegistry.of(helper.getLevel()).getAbility(JELLY_HEAL);
-        helper.assertTrue(vitality != null, VITALITY_REQUIRED);
+    public static void healRestoresCowAndCaster(GameTestHelper helper) {
+        AbilityDefinition heal = AbilityRegistry.of(helper.getLevel()).getAbility(JELLY_HEAL);
+        helper.assertTrue(heal != null, HEAL_REQUIRED);
         Cow cow = helper.spawnWithNoFreeWill(EntityTypes.COW, ZOMBIE_POS);
         cow.setHealth(HURT_COW_HEALTH);
         ServerPlayer player = streamer(helper, GooTypes.JELLY);
-        KnownRecipes.teachRequires(player, vitality);
+        KnownRecipes.teachRequires(player, heal);
         player.setHealth(HURT_PLAYER_HEALTH);
         player.getFoodData().setFoodLevel(FOOD_BELOW_REGEN);
         player.getFoodData().setSaturation(0);

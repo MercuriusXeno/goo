@@ -18,25 +18,25 @@ import java.util.function.BiPredicate;
 import java.util.function.Predicate;
 
 /**
- * Quantum's hole, a wormhole: it closes the space between the struck face and
+ * Quantum's Tunnel, a wormhole: it closes the space between the struck face and
  * the first opening ahead. A 3x3 cross-section runs from the struck block into
  * the face until a cross-section holds an opening a player fits in, the whole
  * 3x3 or a 2x3 within it, and a mouth opens flush on the struck face and one
  * flush on the wall's far face; whoever steps into either comes out of the
- * other until the hole closes. With no opening within reach the hole cannot
+ * other until the tunnel closes. With no opening within reach the tunnel cannot
  * be made, and the face shows it collapse.
  * hole-closes-the-space-to-an-opening-ahead
  */
 public final class Wormhole {
 
-    /** The mouth sizes a hole tries, each as its two spans across the face. */
+    /** The mouth sizes a tunnel tries, each as its two spans across the face. */
     private static final int[][] MOUTH_SIZES = {{3, 3}, {3, 2}, {2, 3}, {2, 2}, {3, 1}, {1, 3}, {2, 1}, {1, 2},
         {1, 1}};
     /** How far each way across the face the 3x3 centred on the struck block reaches. */
     private static final int CENTRED_REACH = 1;
-    /** A crawling body's height, the least room a hole needs past the wall. */
+    /** A crawling body's height, the least room a tunnel needs past the wall. */
     private static final double CRAWL_HEIGHT = 0.6;
-    /** How far off the struck face a refused hole's sound plays, so it sounds before the block. */
+    /** How far off the struck face a refused tunnel's sound plays, so it sounds before the block. */
     private static final double FACE_LIFT = 0.55;
     private static final double HALF = 0.5;
     private static final float SOUND_VOLUME = 1.0f;
@@ -53,7 +53,7 @@ public final class Wormhole {
      * @param open  whether a cell holds nothing a body collides with, inside the world
      * @param fits  whether a box holds nothing a body collides with, inside the world
      * @param solid whether a cell holds an opaque solid block a mouth may stand on
-     * @param taken whether a standing portal or an open hole's mouth covers a cell's face, which a mouth may not
+     * @param taken whether a standing portal or an open tunnel's mouth covers a cell's face, which a mouth may not
      *              lie over
      */
     public record Space(Predicate<BlockPos> open, Predicate<AABB> fits, Predicate<BlockPos> solid,
@@ -75,12 +75,12 @@ public final class Wormhole {
                             && level.noCollision(player, box),
                     cell -> level.getBlockState(cell).isSolidRender(),
                     (cell, face) -> standing.portalAt(GlobalPos.of(level.dimension(), cell), face).isPresent()
-                            || OpenHoles.mouthAt(level.dimension(), cell, face));
+                            || OpenTunnels.mouthAt(level.dimension(), cell, face));
         }
     }
 
     /**
-     * A hole that fits: the struck face's cells its mouth covers, and the
+     * A tunnel that fits: the struck face's cells its mouth covers, and the
      * cells of the wall's far face its other mouth covers, the same shape
      * straight through.
      *
@@ -91,7 +91,7 @@ public final class Wormhole {
     }
 
     /**
-     * The largest hole a struck face makes room for, a 3x3 where there is
+     * The largest tunnel a struck face makes room for, a 3x3 where there is
      * room, else the next smaller down to 1x1, each placed over the struck
      * block: its cells on the struck face solid with open cells before them,
      * and straight through the wall the first layer not wholly solid wholly
@@ -102,31 +102,31 @@ public final class Wormhole {
      * @param face   the struck face
      * @param reach  how many cells past the struck block the scan runs
      * @param width  the body's width
-     * @return the hole, empty where none fits
+     * @return the tunnel, empty where none fits
      */
-    public static Optional<Opening> largestHole(Space space, BlockPos struck, Direction face, int reach,
+    public static Optional<Opening> largestTunnel(Space space, BlockPos struck, Direction face, int reach,
             double width) {
         Direction inward = face.getOpposite();
         for (List<BlockPos> mouth : mouthsOver(struck, acrossOf(inward))) {
-            Optional<Opening> hole = holeThrough(space, mouth, face, reach, width);
-            if (hole.isPresent()) {
-                return hole;
+            Optional<Opening> tunnel = tunnelThrough(space, mouth, face, reach, width);
+            if (tunnel.isPresent()) {
+                return tunnel;
             }
         }
         return Optional.empty();
     }
 
     /**
-     * The hole one mouth's shape makes, if it fits.
+     * The tunnel one mouth's shape makes, if it fits.
      *
      * @param space the world as the scan reads it
      * @param mouth the mouth's cells on the struck face
      * @param face  the struck face
      * @param reach how many cells past the struck block the scan runs
      * @param width the body's width
-     * @return the hole, empty where the shape does not fit
+     * @return the tunnel, empty where the shape does not fit
      */
-    private static Optional<Opening> holeThrough(Space space, List<BlockPos> mouth, Direction face, int reach,
+    private static Optional<Opening> tunnelThrough(Space space, List<BlockPos> mouth, Direction face, int reach,
             double width) {
         if (!mouth.stream().allMatch(cell -> standsOn(space, cell, face) && space.open().test(cell.relative(face)))) {
             return Optional.empty();
@@ -150,7 +150,7 @@ public final class Wormhole {
 
     /**
      * Whether a mouth may stand on a cell's face: the cell an opaque solid
-     * block, and no standing portal or open hole's mouth on that face, since
+     * block, and no standing portal or open tunnel's mouth on that face, since
      * either is in the way as a block is and a mouth never lies over one.
      * hole-closes-the-space-to-an-opening-ahead
      *
@@ -173,7 +173,7 @@ public final class Wormhole {
      * wall's face coming out of a ceiling, and standing on it coming out of a floor.
      *
      * @param layer  the opening's cells
-     * @param inward the way the hole runs
+     * @param inward the way the tunnel runs
      * @param width  the body's width
      * @return the box
      */
@@ -188,8 +188,8 @@ public final class Wormhole {
 
     /**
      * Every mouth shape a struck block can open, each placed every way inside
-     * the 3x3 centred on the struck block, in the order a hole tries them:
-     * the largest first, so a hole opens the one largest mouth the space
+     * the 3x3 centred on the struck block, in the order a tunnel tries them:
+     * the largest first, so a tunnel opens the one largest mouth the space
      * holds; of two the same size the lower first; and of two as low the
      * more centred first. A smaller mouth finds its room within that 3x3
      * whether or not it covers the struck block itself.
@@ -215,7 +215,7 @@ public final class Wormhole {
     }
 
     /**
-     * Every mouth shape a struck face can open, in the order a hole tries
+     * Every mouth shape a struck face can open, in the order a tunnel tries
      * them, as {@link #mouthsOver(BlockPos, Direction[])} answers for the
      * face's two directions across.
      * decision hole-mouth-opens-three-by-three-and-fits-its-room
@@ -241,22 +241,22 @@ public final class Wormhole {
     /**
      * Opens a wormhole from a struck face to the opening ahead: a mouth
      * flush on the struck face and one flush on the wall's far face, each
-     * carrying whoever steps into it out of the other until the hole closes.
-     * Where no opening lies within reach the face shows the hole collapse.
+     * carrying whoever steps into it out of the other until the tunnel closes.
+     * Where no opening lies within reach the face shows the tunnel collapse.
      *
      * @param level    the level
-     * @param caster   the player whose hole it is, whose body the opening must fit
+     * @param caster   the player whose tunnel it is, whose body the opening must fit
      * @param struck   the struck block
      * @param face     the struck face
      * @param reach    how many cells past the struck block the scan runs
      * @param lifetime the ticks the mouths stand
-     * @return true when the hole opened
+     * @return true when the tunnel opened
      */
     public static boolean open(ServerLevel level, ServerPlayer caster, BlockPos struck, Direction face, int reach,
             int lifetime) {
         Space space = Space.of(level, caster);
         Direction inward = face.getOpposite();
-        Optional<Opening> found = largestHole(space, struck, face, reach, caster.getBbWidth());
+        Optional<Opening> found = largestTunnel(space, struck, face, reach, caster.getBbWidth());
         if (found.isEmpty()) {
             collapse(level, struck, face);
             return false;
@@ -264,7 +264,7 @@ public final class Wormhole {
         Vec3 up = face.getAxis().isHorizontal() ? Direction.UP.getUnitVec3() : Direction.NORTH.getUnitVec3();
         Gate entry = new Gate(level.dimension(), boxOf(found.get().mouth()), face, up);
         Gate exit = new Gate(level.dimension(), boxOf(found.get().farWall()), inward, up);
-        OpenHoles.open(level.getServer(), new OpenHoles.Hole(level.dimension(), entry, exit,
+        OpenTunnels.open(level.getServer(), new OpenTunnels.Tunnel(level.dimension(), entry, exit,
                 level.getGameTime() + lifetime));
         mouth(level, entry);
         mouth(level, exit);
@@ -293,11 +293,11 @@ public final class Wormhole {
      * @return true where an opening lies within reach
      */
     public static boolean opens(ServerLevel level, ServerPlayer player, BlockPos struck, Direction face, int reach) {
-        return largestHole(Space.of(level, player), struck, face, reach, player.getBbWidth()).isPresent();
+        return largestTunnel(Space.of(level, player), struck, face, reach, player.getBbWidth()).isPresent();
     }
 
     /**
-     * Shows a hole that could not be made: a dull drop of sound on the
+     * Shows a tunnel that could not be made: a dull drop of sound on the
      * struck face, with no particles.
      *
      * @param level  the level

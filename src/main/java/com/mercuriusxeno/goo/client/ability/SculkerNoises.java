@@ -127,7 +127,7 @@ public final class SculkerNoises {
         vibrations.removeIf(vibration -> now - vibration.tick() > WAIT_TICKS);
     }
 
-    /** Forgets every noise waiting, as the brew's end does. */
+    /** Forgets every noise waiting, as the held effect's end does. */
     public void clear() {
         sounds.clear();
         vibrations.clear();

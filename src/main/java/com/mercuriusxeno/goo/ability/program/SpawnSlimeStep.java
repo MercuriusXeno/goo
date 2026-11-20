@@ -22,7 +22,7 @@ import java.util.stream.Stream;
 /**
  * Births a slime where the blob lands and finishes: the players watching
  * see the goo morph into the slime right where it splatted, and the slime
- * comes to life once the morph ends, never before. Weird's Slime is
+ * comes to life once the morph ends, never before. Weird's Mitosis is
  * {@code spawn_slime goo=weird size=1}.
  * slime-creates-slimes-at-will
  * slime-blob-morphs-into-the-slime-it-becomes

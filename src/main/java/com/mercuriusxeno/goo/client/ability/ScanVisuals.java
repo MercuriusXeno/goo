@@ -16,7 +16,7 @@ import java.util.Optional;
  */
 public final class ScanVisuals {
 
-    /** The visual Deep's Click names: a sculk-tinted ring travelling to the landing. */
+    /** The visual Pulse's Click names: a sculk-tinted ring travelling to the landing. */
     public static final String SOUND_WAVE = "sound_wave";
 
     /**

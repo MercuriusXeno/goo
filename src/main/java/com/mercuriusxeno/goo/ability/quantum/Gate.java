@@ -13,7 +13,7 @@ import net.minecraft.world.phys.Vec3;
 
 /**
  * One mouth of a pair the world can be seen through: a portal's frame or one
- * of a hole's mouths. It lies on a face of the blocks it covers, and a view
+ * of a tunnel's mouths. It lies on a face of the blocks it covers, and a view
  * through it is drawn from the camera mirrored onto its partner.
  * portals-link-by-looking-through-portal-vision
  * hole-closes-the-space-to-an-opening-ahead
@@ -33,7 +33,7 @@ public record Gate(ResourceKey<Level> dimension, AABB blocks, Direction face, Ve
 
     /**
      * The shape of a gate's opening across its face: the oval a portal's
-     * frame and a hole's mouth open, or the whole rectangle a room's edge
+     * frame and a tunnel's mouth open, or the whole rectangle a room's edge
      * opens, so a body crossing a room edge at its corner crosses too.
      * outsider-room-wraps-and-repeats-at-the-platform-edge
      */
@@ -45,7 +45,7 @@ public record Gate(ResourceKey<Level> dimension, AABB blocks, Direction face, Ve
     }
 
     /**
-     * A gate opening as an oval, a portal's frame or a hole's mouth.
+     * A gate opening as an oval, a portal's frame or a tunnel's mouth.
      *
      * @param dimension the level it stands in
      * @param blocks    the blocks it lies on, as one box one block deep

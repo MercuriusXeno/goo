@@ -80,35 +80,35 @@ class AbilityRegistryTest {
     }
 
     /**
-     * A drunk brew runs the type's self ability wearing the durative badge, and a
-     * type wearing none runs nothing (decision brew-grants-the-self-ability-for-an-hour).
+     * A type's held effect is its self ability wearing the durative badge, and a
+     * type wearing none holds none (decision brew-grants-the-self-ability-for-an-hour).
      */
     @Nested
-    class BrewAbility {
+    class DurativeAbility {
 
         @Test
-        void brewBadgedSelfAbilityIsTheTypesBrew() {
+        void durativeBadgedSelfAbilityIsTheTypesDurative() {
             AbilityRegistry registry = registryOf(Stream.of(
                     selfAbility("rock_self", 0, AbilityBadge.SELF),
-                    ability("rock_arc_brew", 1, AbilityBadge.DURATIVE),
-                    selfAbility("rock_brew", 2, AbilityBadge.DURATIVE)));
+                    ability("rock_arc_durative", 1, AbilityBadge.DURATIVE),
+                    selfAbility("rock_durative", 2, AbilityBadge.DURATIVE)));
 
-            AbilityDefinition brew = registry.durativeAbilityFor(GooTypes.ROCK);
+            AbilityDefinition durative = registry.durativeAbilityFor(GooTypes.ROCK);
 
-            assertEquals("rock_brew", brew == null ? null : brew.id().getPath());
+            assertEquals("rock_durative", durative == null ? null : durative.id().getPath());
         }
 
         @Test
-        void typeWithoutABrewBadgedSelfAbilityHasNoBrew() {
+        void typeWithoutADurativeBadgedSelfAbilityHasNoDurative() {
             AbilityRegistry registry = registryOf(Stream.of(
                     selfAbility("rock_self", 0, AbilityBadge.SELF),
-                    ability("rock_arc_brew", 1, AbilityBadge.DURATIVE)));
+                    ability("rock_arc_durative", 1, AbilityBadge.DURATIVE)));
 
             assertNull(registry.durativeAbilityFor(GooTypes.ROCK));
         }
 
         @Test
-        void shippedBlazeAndLeafBrewKindleAndBarkskin() {
+        void shippedBlazeAndLeafDurativeKindleAndBarkskin() {
             AbilityRegistry registry = registryOf(AbilityJson.files().stream().map(AbilityJson::decode));
 
             assertEquals(AbilityJson.idOf("blaze_kindle.json"), idOf(registry.durativeAbilityFor(GooTypes.BLAZE)));

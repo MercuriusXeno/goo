@@ -179,16 +179,16 @@ public final class ChargeMotes {
     static final float SHELL_HALO_HALF = 0.13f;
     /** A blob wisp's halo half-size, in blocks: small around the held blob. */
     static final float BLOB_HALO_HALF = 0.02f;
-    /** A wisp's core half-size against its halo's, as a radiant wisp's core stands to its halo. */
+    /** A wisp's core half-size against its halo's. */
     static final float CORE_SHARE = 0.4f;
-    /** The paler green a wisp's core burns, as a radiant wisp's core is paler than its halo. */
+    /** The paler green a wisp's core burns, paler than its halo. */
     static final int PALE_GREEN = 0xC8FFB4;
     private static final int HALO_ALPHA = 70;
     private static final int CORE_ALPHA = 210;
 
     /**
      * Emits a wisp at a share of its alpha: a pale green core cube inside a
-     * larger halo cube in Unstable's green, the look a radiant wisp has.
+     * larger halo cube in Unstable's green, a wisp's look.
      * decision blast-charge-pulls-green-motes-into-the-shell-and-the-blob
      *
      * @param pose     the pose at the wisp's center

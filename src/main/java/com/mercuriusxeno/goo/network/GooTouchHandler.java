@@ -2,15 +2,11 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.Delivery;
-import com.mercuriusxeno.goo.ability.HeldRoute;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.network.GooEffectScheduler.PendingEffect;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.phys.Vec3;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Server side of a touch: a mob ability aimed at an entity within the
@@ -46,8 +42,7 @@ public final class GooTouchHandler {
 
         /**
          * Runs the ability on the touched entity; the toucher's client poses
-         * the arm, and an attack-key touch keeps vanilla's own swing
-         * (decisions use-key-throw-swings-no-more, attack-key-touches-plus-punches).
+         * the arm (decision use-key-throw-swings-no-more).
          */
         void strike();
     }
@@ -81,42 +76,6 @@ public final class GooTouchHandler {
     public static boolean touches(Delivery delivery, AbilityBadge badge, boolean entityTarget,
                                   double distanceSquared, double reach) {
         return entityTarget && touchesAtReach(delivery, badge) && distanceSquared <= reach * reach;
-    }
-
-    /**
-     * What an attack-key press aims with, read the same way on the client
-     * that sends it and in a gametest that drives it.
-     *
-     * @param gloveInHand    whether the hand the attack key presses with holds a glove
-     * @param delivery       the glove's selected ability's delivery, or null when none
-     * @param badge          the glove's selected ability's badge, or null when none
-     * @param target         the aimed entity, or null when the aim holds a block or nothing
-     * @param playerPosition the player's feet
-     * @param reach          the player's entity interaction range
-     */
-    public record AttackPress(boolean gloveInHand, @Nullable Delivery delivery, @Nullable AbilityBadge badge,
-                              @Nullable Entity target, Vec3 playerPosition, double reach) {
-    }
-
-    /**
-     * Whether an attack-key press sends the touch beside the vanilla melee
-     * hit: a glove in the pressing hand, a mob ability selected and an
-     * entity aimed within reach.
-     * decision attack-key-touches-plus-punches
-     *
-     * @param press what the press aims with
-     * @return true when the press touches
-     */
-    public static boolean attackTouches(AttackPress press) {
-        Entity target = press.target();
-        if (!press.gloveInHand() || target == null) {
-            return false;
-        }
-        // dart-forms-on-right-click-and-throws-on-left-click: a held javelin's left click is its throw alone
-        return press.delivery() != null && press.badge() != null
-                && !HeldRoute.throwsOnAttack(press.delivery(), press.badge())
-                && touches(press.delivery(), press.badge(), true,
-                press.playerPosition().distanceToSqr(target.position()), press.reach());
     }
 
     /**

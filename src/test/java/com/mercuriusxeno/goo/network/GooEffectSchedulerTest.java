@@ -32,8 +32,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * A goo landing on a mob, drained from a throw or struck at once by a punch
- * or touch, sends one mob-hit payload and runs the program in the same call.
+ * A goo landing on a mob, drained from a throw or struck at once by a touch,
+ * sends one mob-hit payload and runs the program in the same call.
  */
 class GooEffectSchedulerTest {
 
@@ -97,7 +97,7 @@ class GooEffectSchedulerTest {
          * direction.
          */
         @Test
-        void punchOrTouchLandingAtTickZeroSendsTheStruckMobsIdGooTypeHitPointAndAim() {
+        void touchLandingAtTickZeroSendsTheStruckMobsIdGooTypeHitPointAndAim() {
             GooEffectScheduler.applyEffect(effectOnTheMob(0), landing);
 
             MobHitPayload hit = theOneHitSent();
@@ -153,7 +153,7 @@ class GooEffectSchedulerTest {
         }
 
         @Test
-        void punchLandingSendsTheHitThenRunsTheProgramInOneCall() {
+        void touchLandingSendsTheHitThenRunsTheProgramInOneCall() {
             PendingEffect effect = effectOnTheMob(0);
 
             GooEffectScheduler.applyEffect(effect, landing);

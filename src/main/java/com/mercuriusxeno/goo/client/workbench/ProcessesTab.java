@@ -13,8 +13,8 @@ import java.util.function.UnaryOperator;
 
 /**
  * The Processes tab's state with no Screen: the draft's conversions and post-conversions as the processes operation
- * describes them, each entry's form and the parser's verdict, and the edits and deletes the draft takes, as
- * index.html's processes section holds them (decision goo-workbench-opens-the-in-game-manager-screen).
+ * describes them, each entry's form and the parser's verdict, and the edits and deletes the draft takes
+ * (decision goo-workbench-opens-the-in-game-manager-screen).
  */
 public final class ProcessesTab {
     private static final String SECTIONS = "sections";

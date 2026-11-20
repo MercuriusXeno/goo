@@ -55,7 +55,7 @@ class StepCodecTest {
             Map.entry("wobble", new WobbleStep(Expr.literal(600))),
             Map.entry("detect_ore", new DetectOreStep(TagKey.create(Registries.BLOCK,
                     Identifier.fromNamespaceAndPath("goo", "gem_ores")), GooTypes.CRYSTAL, 64, 100)),
-            Map.entry("wind", new WindStep(true, Optional.of(new WindStep.Tailwind(6, 30)))),
+            Map.entry("wind", new WindStep(true)),
             Map.entry("miasma_vortex", new MiasmaVortexStep()),
             Map.entry("glacial", new GlacialStep(5)),
             Map.entry("traveling", new TravelingStep(3f, List.of(new FreezeBlocksStep(Expr.literal(2.5), false)))),
@@ -287,7 +287,7 @@ class StepCodecTest {
 
     @Test
     void heldEffectStepsDecodeWithNoDuration() {
-        // self-effects-trickle-until-ended: the brew alone names a duration
+        // self-effects-trickle-until-ended: a held effect step names no duration
         assertEquals(new HeartOverlayStep(HeartKind.KINDLE),
                 decode("{\"type\": \"heart_overlay\", \"kind\": \"kindle\"}").getOrThrow());
         // gluttony-overheals-and-overhungers: the step names the caps alone, no clock

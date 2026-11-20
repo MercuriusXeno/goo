@@ -19,7 +19,7 @@ import java.util.stream.IntStream;
  * Draws the Variables tab: each constant's block with its expression, what it resolves to or its error, and the
  * items it cascades into; a plain left click on an expression, a $name link in it included, swaps in the edit box and
  * a blur swaps it back; a shift + left click on a $name link opens its variable, and the link hovers its card; rename
- * edits the name in place and delete confirms the readers it removes, as index.html's variables section does
+ * edits the name in place and delete confirms the readers it removes
  * (decisions goo-workbench-opens-the-in-game-manager-screen, references-link-to-their-variable-and-hover-a-card,
  * shift-left-click-follows-plain-left-modifies). The blocks and the delete confirm's readers each draw a
  * {@link ScrollBar} (decision every-tab-draws-a-scroll-bar). A search box above the blocks keeps those whose name

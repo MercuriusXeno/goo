@@ -78,7 +78,7 @@ class LedTest {
 
         @Test
         void aMobHoldingNoLeadHasNoLeadToRelease() {
-            // NONE's own caster UUID asked, so only the no-rally rule answers false
+            // NONE's own caster UUID asked, so only the no-lead rule answers false
             assertFalse(Led.NONE.releasedBy(Led.NONE.caster()));
         }
     }

@@ -830,7 +830,7 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
 
     /**
      * This delivery as it reaches for a caster: out to the caster's block
-     * reach for a stream reaching that far, which Telekinesis raises, and by
+     * reach for a stream reaching that far, which Remote raises, and by
      * its own range otherwise.
      * bore-reaches-as-far-as-your-block-reach
      *

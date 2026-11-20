@@ -80,14 +80,14 @@ public final class ClickTests {
     }
 
     private static final String CLICK_RIPPLES_FROM_STONE = "click_ripples_from_inside_stone";
-    /** How far east of the diver the buried sensor sits on the eye line. */
+    /** How far east of the submerged player the buried sensor sits on the eye line. */
     private static final int BURIED_SENSOR_EAST = 9;
-    /** How far below the diver's eye the client's camera sits, so its aim from inside stone starts a hair low. */
+    /** How far below the submerged player's eye the client's camera sits, so its aim from inside stone starts a hair low. */
     private static final double CAMERA_BELOW_EYE = 0.05;
     private static final String SHOULD_TRIP_BURIED = "A click from inside stone should ripple east and trip the sensor buried %d blocks along the look";
 
     /**
-     * A diver under Sculker, eyes inside stone and facing east, clicks with
+     * A submerged player under Sculker, eyes inside stone and facing east, clicks with
      * the point the glove aims from inside a block: the camera's own spot, a
      * hair below the eye, where the aim ray meets the block it starts in. The
      * ripple runs east along the look through the stone and trips a sculk
@@ -109,7 +109,7 @@ public final class ClickTests {
                     player[0] = HeartOverlayTests.selfInvoked(helper, GooTypes.SCULK, SCULK_SCULKER);
                     holdPulse(player[0]);
                     player[0].setData(GooAttachments.SCULKER,
-                            player[0].getData(GooAttachments.SCULKER).withDiving(true));
+                            player[0].getData(GooAttachments.SCULKER).withSubmerged(true));
                     player[0].teleportTo(stand.getX() + 0.5, stand.getY(), stand.getZ() + 0.5);
                     player[0].setYRot(FACING_EAST);
                     player[0].setXRot(0);
@@ -129,11 +129,11 @@ public final class ClickTests {
     }
 
     /**
-     * Lays the stone the diver clicks from, with the sensor buried in it, or
+     * Lays the stone the submerged player clicks from, with the sensor buried in it, or
      * clears it, holding its chunks loaded while it stands.
      *
      * @param level  the level
-     * @param stand  the cell the diver's feet stand in
+     * @param stand  the cell the submerged player's feet stand in
      * @param sensor the buried sensor's cell
      * @param laying true to lay the scene, false to clear it
      */
@@ -185,10 +185,10 @@ public final class ClickTests {
 
     /**
      * Clicks at a point as the glove does for a free-aim ability: the throw
-     * names the point its reticule marks, through the real throw path.
+     * names the point its crosshair marks, through the real throw path.
      *
      * @param player the clicking player, holding the glove
-     * @param aimed  the point the reticule marks
+     * @param aimed  the point the crosshair marks
      */
     private static void clickAt(ServerPlayer player, Vec3 aimed) {
         KnownRecipes.teachRequires(player, AbilityRegistry.of(player.level()).getAbility(PULSE_CLICK));

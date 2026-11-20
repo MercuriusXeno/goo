@@ -9,8 +9,8 @@ import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.NonNull;
 
 /**
- * Server-to-client payload: a mob-badged ability landed on a mob, thrown,
- * touched or punched, sent to the players tracking the struck mob so each
+ * Server-to-client payload: a mob-badged ability, thrown or touched, landed
+ * on a mob, sent to the players tracking the struck mob so each
  * client plays the hit beside the program.
  * Decision hit-bursts-goo-particles.
  * Decision visuals-play-beside-the-program.

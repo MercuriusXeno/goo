@@ -17,27 +17,27 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
- * Covers what Herd ships beside its JSON: its 16x16 icon, the Zoo held
+ * Covers what Herd ships beside its JSON: its 16x16 icon, the Yarn held
  * effect drawing that icon, and its name and description in the lang.
  * leader-is-zoos-brew-ability
  */
 class HerdShippedAssetsTest {
 
     private static final String HERD_ICON = "/assets/goo/textures/goo/ability/yarn_herd.png";
-    private static final String YARN_BREW_ICON = "/assets/goo/textures/mob_effect/yarn_held.png";
+    private static final String YARN_HELD_ICON = "/assets/goo/textures/mob_effect/yarn_held.png";
     private static final String EN_US = "/assets/goo/lang/en_us.json";
     private static final String HERD_NAME = "goo.ability.yarn.herd";
     private static final String HERD_DESCRIPTION = HERD_NAME + ".description";
     private static final int SIDE = 16;
 
     @Test
-    void yarnBrewEffectDrawsHerdIcon() throws IOException {
-        BufferedImage brew = read(YARN_BREW_ICON);
+    void yarnHeldEffectDrawsHerdIcon() throws IOException {
+        BufferedImage held = read(YARN_HELD_ICON);
         BufferedImage herd = read(HERD_ICON);
 
         assertEquals(SIDE, herd.getWidth());
         assertEquals(SIDE, herd.getHeight());
-        assertArrayEquals(pixels(herd), pixels(brew));
+        assertArrayEquals(pixels(herd), pixels(held));
     }
 
     @Test

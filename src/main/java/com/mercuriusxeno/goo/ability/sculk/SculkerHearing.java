@@ -18,7 +18,7 @@ import net.neoforged.neoforge.network.PacketDistributor;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A Sculker hears far: while the brew stands the server carries every sound
+ * A Sculker hears far: while the held effect stands the server carries every sound
  * played within render distance to its holder, in the open as inside
  * blocks, past the range vanilla sends sounds over, so its rings and
  * outlines show there. Vanilla still sends the sounds within its own range.
@@ -54,7 +54,7 @@ public final class SculkerHearing {
     public static void carry(ServerLevel level, @Nullable Entity except, Vec3 at, double range, String sound) {
         double viewReach = viewReach(level);
         for (ServerPlayer player : level.players()) {
-            if (player != except && dives(player) && carriesTo(player.position().distanceTo(at), range, viewReach)) {
+            if (player != except && holdsSculker(player) && carriesTo(player.position().distanceTo(at), range, viewReach)) {
                 sendIfHeard(player, new SculkerHeardPayload(at.x, at.y, at.z, sound));
             }
         }
@@ -77,7 +77,7 @@ public final class SculkerHearing {
         Vec3 at = event.getEventPosition();
         double viewReach = viewReach(level);
         for (ServerPlayer player : level.players()) {
-            if (dives(player) && player.position().distanceTo(at) <= viewReach) {
+            if (holdsSculker(player) && player.position().distanceTo(at) <= viewReach) {
                 sendIfHeard(player, new SculkerVibrationPayload(at.x, at.y, at.z, rank));
             }
         }
@@ -108,8 +108,8 @@ public final class SculkerHearing {
         return rank > FLOOR_RANK;
     }
 
-    private static boolean dives(ServerPlayer player) {
-        return player.hasData(GooAttachments.SCULKER) && SculkerSwim.dives(player);
+    private static boolean holdsSculker(ServerPlayer player) {
+        return player.hasData(GooAttachments.SCULKER) && SculkerSwim.holdsSculker(player);
     }
 
     private static double viewReach(ServerLevel level) {
@@ -123,7 +123,7 @@ public final class SculkerHearing {
      * @param distance     how far the sound plays from the Sculker, in blocks
      * @param vanillaRange how far vanilla sends the sound, in blocks
      * @param viewReach    the render distance, in blocks
-     * @return true where the server carries the sound to the diver
+     * @return true where the server carries the sound to the submerged player
      */
     static boolean carriesTo(double distance, double vanillaRange, double viewReach) {
         return distance > vanillaRange && distance <= viewReach;

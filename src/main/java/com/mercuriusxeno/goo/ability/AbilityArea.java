@@ -20,7 +20,7 @@ import org.jspecify.annotations.NonNull;
  */
 public record AbilityArea(Shape shape, double size, double angle) {
 
-    /** An ability with no area, which shows the reticule alone. */
+    /** An ability with no area, which shows the crosshair alone. */
     public static final AbilityArea NONE = new AbilityArea(Shape.NONE, 0, 0);
 
     private static final String FIELD_SHAPE = "shape";

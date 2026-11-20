@@ -13,10 +13,12 @@ import net.minecraft.util.ARGB;
 import java.util.List;
 
 /**
- * Crystal goo's burnout explosion, the design the operator settled
- * (decision elemental-explosion-per-type): a prism burst. A glassy sphere
- * grows from the marker to the shard cloud's radius over the cloud's 10
- * expand ticks on an ease-out. Its fragment shader
+ * Crystal goo's burnout explosion, kept unplugged so its prismatic voronoi
+ * shell stays in the mod: no ability draws it (decision
+ * prismatic-voronoi-code-stays-and-is-unplugged-from-shatter). The design
+ * the operator settled (decision elemental-explosion-per-type) is a prism
+ * burst: a glassy sphere grows from the marker to its reach over 10 ticks
+ * on an ease-out. Its fragment shader
  * ({@code crystal_explosion.fsh}) cuts it into sharp voronoi facets, each
  * edge splitting light into a thin rainbow band about 77E9FF with bright
  * cyan glints; then over 6 more ticks the shell shatters, its facets
@@ -25,22 +27,20 @@ import java.util.List;
  * carries progress in red and how far the shell has shattered in blue,
  * since a core pipeline takes no per-draw uniforms.
  * <p>
- * Unplugged: no goo type's burnout or held ghost draws it since Shatter
- * became a spray, and the code stays, held for infinity goo.
- * prismatic-voronoi-code-stays-and-is-unplugged-from-shatter
+ * The code is held for infinity goo.
  */
 public final class CrystalExplosionVisual implements BurnoutVisual, HeldGhostVisual {
 
     /** The one instance the burnout registry holds. */
     public static final CrystalExplosionVisual INSTANCE = new CrystalExplosionVisual();
 
-    /** Ticks the sphere grows: the shard cloud's expand. */
+    /** Ticks the sphere grows. */
     static final int GROW_TICKS = 10;
     /** Ticks the shell takes to shatter. */
     static final int SHATTER_TICKS = 6;
     /** Ticks the explosion plays. */
     static final int DURATION_TICKS = GROW_TICKS + SHATTER_TICKS;
-    /** The cloud radius drawn when the ability's field-effect step cannot be read. */
+    /** The reach drawn when the ability's field-effect step cannot be read. */
     static final float FALLBACK_REACH = 4.5f;
     /** The progress at which the shell rests at full radius, whole before it shatters. */
     static final float RESTING_PROGRESS = (float) GROW_TICKS / DURATION_TICKS;
@@ -107,11 +107,11 @@ public final class CrystalExplosionVisual implements BurnoutVisual, HeldGhostVis
     }
 
     /**
-     * The glass shell's radius: an ease-out growth to the cloud's radius
+     * The glass shell's radius: an ease-out growth to its reach
      * over GROW_TICKS, held there while it shatters.
      *
      * @param progress the explosion's progress in [0, 1]
-     * @param reach    the shard cloud's radius in blocks
+     * @param reach    the sphere's full radius in blocks
      * @return the shell's radius in blocks
      */
     static float shellRadius(float progress, float reach) {
@@ -132,10 +132,11 @@ public final class CrystalExplosionVisual implements BurnoutVisual, HeldGhostVis
     }
 
     /**
-     * The shard cloud's radius at the burnout's stack count, read off the synced ability.
+     * The sphere's reach: the radius of a field_effect step in the burnout's synced ability,
+     * FALLBACK_REACH where it holds none.
      *
      * @param burnout the burnout
-     * @return the cloud's radius in blocks
+     * @return the reach in blocks
      */
     private static float cloudReach(ChainBurnouts.Burnout burnout) {
         return SyncedSteps.first(burnout.abilityId(), FieldEffectStep.class)

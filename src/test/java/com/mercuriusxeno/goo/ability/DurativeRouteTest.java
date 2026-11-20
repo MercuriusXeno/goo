@@ -22,11 +22,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class DurativeRouteTest {
 
-    private static final Identifier MADE_UP = Identifier.fromNamespaceAndPath("goo", "made_up_brew_ability");
+    private static final Identifier MADE_UP = Identifier.fromNamespaceAndPath("goo", "made_up_durative_ability");
     private static final int A_COST = 1000;
     private static final Delivery SELF = Delivery.of(DeliveryKind.SELF);
 
-    private static AbilityDefinition madeUpBrewAbility() {
+    private static AbilityDefinition madeUpDurativeAbility() {
         return new AbilityDefinition(MADE_UP, GooTypes.LEAF, MADE_UP.toString(), "", 0, A_COST,
                 SELF, List.of(), List.of(), AbilityBadge.DURATIVE, List.of());
     }
@@ -40,18 +40,18 @@ class DurativeRouteTest {
             assertFalse(files.isEmpty(), "No ability JSON found under " + AbilityJson.ABILITIES_DIR);
             for (Path file : files) {
                 AbilityDefinition ability = AbilityJson.decode(file);
-                boolean brewOnSelf = ability.delivery().kind() == DeliveryKind.SELF
+                boolean durativeOnSelf = ability.delivery().kind() == DeliveryKind.SELF
                         && ability.badge() == AbilityBadge.DURATIVE;
-                assertEquals(brewOnSelf, DurativeRoute.isDurative(ability.delivery(), ability.badge()),
+                assertEquals(durativeOnSelf, DurativeRoute.isDurative(ability.delivery(), ability.badge()),
                         ability.id() + " should be durative exactly when it wears the badge on a self delivery");
             }
         }
 
         @Test
         void theShippedDurativesTakeTheRouteAndTheShippedSelfAbilitiesRunOnCommand() {
-            for (String brew : List.of("blaze_kindle", "leaf_barkskin", "jelly_gluttony")) {
-                AbilityDefinition ability = AbilityJson.decode(brew);
-                assertTrue(DurativeRoute.isDurative(ability.delivery(), ability.badge()), brew);
+            for (String durative : List.of("blaze_kindle", "leaf_barkskin", "jelly_gluttony")) {
+                AbilityDefinition ability = AbilityJson.decode(durative);
+                assertTrue(DurativeRoute.isDurative(ability.delivery(), ability.badge()), durative);
             }
             for (String onCommand : List.of("ender_blink", "hex_enchant")) {
                 AbilityDefinition ability = AbilityJson.decode(onCommand);
@@ -61,9 +61,9 @@ class DurativeRouteTest {
 
         @Test
         void aMadeUpDurativeAbilityTakesTheRoute() {
-            AbilityDefinition brew = madeUpBrewAbility();
+            AbilityDefinition durative = madeUpDurativeAbility();
 
-            assertTrue(DurativeRoute.isDurative(brew.delivery(), brew.badge()));
+            assertTrue(DurativeRoute.isDurative(durative.delivery(), durative.badge()));
         }
 
         @Test

@@ -47,7 +47,7 @@ public final class GooNetworking {
         r.playToClient(OpenValuesManagerPayload.TYPE, OpenValuesManagerPayload.STREAM_CODEC);
         r.playToClient(WorkbenchReplyPayload.TYPE, WorkbenchReplyPayload.STREAM_CODEC);
         r.playToClient(PortalsSyncPayload.TYPE, PortalsSyncPayload.STREAM_CODEC);
-        r.playToClient(HolesSyncPayload.TYPE, HolesSyncPayload.STREAM_CODEC);
+        r.playToClient(TunnelsSyncPayload.TYPE, TunnelsSyncPayload.STREAM_CODEC);
         r.playToClient(RoomEdgesSyncPayload.TYPE, RoomEdgesSyncPayload.STREAM_CODEC);
         r.playToClient(ConjuredDoorPayload.TYPE, ConjuredDoorPayload.STREAM_CODEC);
         r.playToClient(ListenerSoundPayload.TYPE, ListenerSoundPayload.STREAM_CODEC);

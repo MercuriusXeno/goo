@@ -5,8 +5,8 @@ import net.minecraft.resources.ResourceKey;
 
 /**
  * Reads a goo type's four RGB channels from its registry entry: wheel
- * (radial menu), bright (hovered segment), highlight (aim arc, ghost fill,
- * fade walls) and edge (wireframe contours). Decision type-json-colors: the
+ * (radial menu), bright (hovered segment), highlight (ghost fill, fade
+ * walls) and edge (wireframe contours). Decision type-json-colors: the
  * channels live in the type JSON, so this holds no file and no cache.
  */
 public final class GooColors {
@@ -32,7 +32,7 @@ public final class GooColors {
 
     /**
      * @param type the goo type's registry entry
-     * @return the aim arc, ghost fill and fade wall RGB
+     * @return the ghost fill and fade wall RGB
      */
     public static int highlight(GooTypeDefinition type) {
         return type.highlight();
@@ -67,7 +67,7 @@ public final class GooColors {
     /**
      * @param type the goo type's registry entry
      * @param tick the tick to color, so a cycling type drifts around the hue wheel
-     * @return the aim arc, ghost fill and fade wall RGB at that tick
+     * @return the ghost fill and fade wall RGB at that tick
      */
     public static int highlight(GooTypeDefinition type, long tick) {
         return type.hueCycle().rotate(type.highlight(), tick);

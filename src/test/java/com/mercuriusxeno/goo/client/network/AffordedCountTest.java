@@ -70,7 +70,7 @@ class AffordedCountTest {
         }
     }
 
-    /** A stream or brew petal reads its cost a second then its whole seconds. */
+    /** A stream or durative petal reads its cost a second then its whole seconds. */
     @Nested
     class Seconds {
 
@@ -85,9 +85,9 @@ class AffordedCountTest {
         }
 
         @Test
-        void brewPayingOneATickReadsTwelveSeconds() {
-            ClientAbility brew = ability(0, Delivery.of(DeliveryKind.SELF), AbilityBadge.DURATIVE, List.of(), 1);
-            assertEquals("20/s | 12s", brew.petalLabel(250, NO_REAGENTS));
+        void durativePayingOneATickReadsTwelveSeconds() {
+            ClientAbility durative = ability(0, Delivery.of(DeliveryKind.SELF), AbilityBadge.DURATIVE, List.of(), 1);
+            assertEquals("20/s | 12s", durative.petalLabel(250, NO_REAGENTS));
         }
     }
 
@@ -104,10 +104,10 @@ class AffordedCountTest {
         }
 
         @Test
-        void brewCountsReadInTheirLargestUnit() {
-            ClientAbility brew = ability(0, Delivery.of(DeliveryKind.SELF), AbilityBadge.DURATIVE, List.of(), 1);
-            assertEquals("1.5m", AffordedCount.reckon(brew, 1800, NO_REAGENTS).orElseThrow().label());
-            assertEquals("12s", AffordedCount.reckon(brew, 250, NO_REAGENTS).orElseThrow().label());
+        void durativeCountsReadInTheirLargestUnit() {
+            ClientAbility durative = ability(0, Delivery.of(DeliveryKind.SELF), AbilityBadge.DURATIVE, List.of(), 1);
+            assertEquals("1.5m", AffordedCount.reckon(durative, 1800, NO_REAGENTS).orElseThrow().label());
+            assertEquals("12s", AffordedCount.reckon(durative, 250, NO_REAGENTS).orElseThrow().label());
         }
     }
 
@@ -129,10 +129,10 @@ class AffordedCountTest {
         }
 
         @Test
-        void brewSubtractsTheStandingUpkeep() {
-            ClientAbility brew = ability(0, Delivery.of(DeliveryKind.SELF), AbilityBadge.DURATIVE, List.of(), 2);
-            assertEquals("6s", count(brew, 250, StandingUpkeep.NONE));
-            assertEquals("3s", count(brew, 250, new StandingUpkeep(2)));
+        void durativeSubtractsTheStandingUpkeep() {
+            ClientAbility durative = ability(0, Delivery.of(DeliveryKind.SELF), AbilityBadge.DURATIVE, List.of(), 2);
+            assertEquals("6s", count(durative, 250, StandingUpkeep.NONE));
+            assertEquals("3s", count(durative, 250, new StandingUpkeep(2)));
         }
 
         @Test
@@ -141,15 +141,15 @@ class AffordedCountTest {
         }
     }
 
-    /** A brew standing on the glove counts its time left, its own upkeep counted once (decision active-brew-counts-its-time-left). */
+    /** A durative standing on the glove counts its time left, its own upkeep counted once (decision active-brew-counts-its-time-left). */
     @Nested
-    class ActiveBrew {
+    class ActiveDurative {
 
         private static final long STARTED = 100L;
-        private final ClientAbility brew = ability(0, Delivery.of(DeliveryKind.SELF), AbilityBadge.DURATIVE, List.of(), 1);
+        private final ClientAbility durative = ability(0, Delivery.of(DeliveryKind.SELF), AbilityBadge.DURATIVE, List.of(), 1);
 
-        private HeldEffects.Held standingBrew() {
-            return new HeldEffects.Held(brew.id(), GooTypes.BLAZE, 1, Set.of(), STARTED);
+        private HeldEffects.Held standingDurative() {
+            return new HeldEffects.Held(durative.id(), GooTypes.BLAZE, 1, Set.of(), STARTED);
         }
 
         private static HeldEffects holding(HeldEffects.Held... held) {
@@ -161,21 +161,21 @@ class AffordedCountTest {
         }
 
         @Test
-        void standingBrewCountsItsUpkeepOnce() {
-            StandingUpkeep standing = StandingUpkeep.on(holding(standingBrew()), GooTypes.BLAZE);
-            AffordedCount count = AffordedCount.reckon(brew, 250, NO_REAGENTS, standing).orElseThrow();
+        void standingDurativeCountsItsUpkeepOnce() {
+            StandingUpkeep standing = StandingUpkeep.on(holding(standingDurative()), GooTypes.BLAZE);
+            AffordedCount count = AffordedCount.reckon(durative, 250, NO_REAGENTS, standing).orElseThrow();
 
             assertEquals("12s", count.label());
             assertFalse(count.affordsNone());
         }
 
         @Test
-        void standingBrewBesideASecondEffectSharesTheGoo() {
+        void standingDurativeBesideASecondEffectSharesTheGoo() {
             HeldEffects.Held second = new HeldEffects.Held(Identifier.fromNamespaceAndPath(Goo.MODID, "other"),
                     GooTypes.BLAZE, 1, Set.of(), STARTED);
-            StandingUpkeep standing = StandingUpkeep.on(holding(standingBrew(), second), GooTypes.BLAZE);
+            StandingUpkeep standing = StandingUpkeep.on(holding(standingDurative(), second), GooTypes.BLAZE);
 
-            assertEquals("6s", AffordedCount.reckon(brew, 250, NO_REAGENTS, standing).orElseThrow().label());
+            assertEquals("6s", AffordedCount.reckon(durative, 250, NO_REAGENTS, standing).orElseThrow().label());
         }
     }
 

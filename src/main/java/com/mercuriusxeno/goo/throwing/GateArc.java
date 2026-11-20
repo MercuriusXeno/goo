@@ -9,8 +9,7 @@ import java.util.List;
  * A throw's arc split at a gate it passes: the near leg arcs from the hand to
  * the point the aim meets the gate's face, the far leg from the partner's
  * matching point to the target, each by its own length, so the two meet at
- * the gate however the pair is turned. The aim line draws the legs, and a
- * flight flies them.
+ * the gate however the pair is turned. A flight flies the legs.
  * aim-and-shots-carry-through-linked-gates
  */
 public final class GateArc {

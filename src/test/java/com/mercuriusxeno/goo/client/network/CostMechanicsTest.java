@@ -86,14 +86,14 @@ class CostMechanicsTest {
         assertFalse(text.contains("%"), definition.id() + ": " + text);
     }
 
-    static Stream<AbilityDefinition> brews() {
+    static Stream<AbilityDefinition> duratives() {
         return AbilityJson.files().stream().map(AbilityJson::decode)
                 .filter(definition -> definition.upkeep().in(GooValueTable.EMPTY) > AbilityDefinition.NO_UPKEEP);
     }
 
     @ParameterizedTest
-    @MethodSource("brews")
-    void brewTextNamesItsUpkeepASecond(AbilityDefinition definition) {
+    @MethodSource("duratives")
+    void durativeTextNamesItsUpkeepASecond(AbilityDefinition definition) {
         String text = clientOf(definition).costMechanics(LOOKUP).orElseThrow();
 
         assertTrue(text.contains(GooFormat.formatAmount(definition.upkeep().in(GooValueTable.EMPTY) * 20L) + " a second"),

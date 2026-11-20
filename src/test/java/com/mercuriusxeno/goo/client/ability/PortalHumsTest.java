@@ -4,7 +4,7 @@ import com.mercuriusxeno.goo.ability.quantum.PortalColor;
 import com.mercuriusxeno.goo.ability.quantum.Gate;
 import com.mercuriusxeno.goo.ability.quantum.Portal;
 import com.mercuriusxeno.goo.ability.quantum.QuantumPortals;
-import com.mercuriusxeno.goo.network.HolesSyncPayload;
+import com.mercuriusxeno.goo.network.TunnelsSyncPayload;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.GlobalPos;
@@ -71,13 +71,13 @@ class PortalHumsTest {
         }
 
         @Test
-        void anOpenHolesMouthsStartTwoHumsAtTheirCentres() {
+        void anOpenTunnelsMouthsStartTwoHumsAtTheirCentres() {
             PortalHums.Changes changes = PortalHums.changes(Set.of(STRUCK_MOUTH, FAR_MOUTH), Set.of());
             assertEquals(Set.of(STRUCK_MOUTH.center(), FAR_MOUTH.center()), centresOf(changes.starts()));
         }
 
         @Test
-        void aHoleClosingStopsBothMouthsHums() {
+        void aTunnelClosingStopsBothMouthsHums() {
             Set<Gate> humming = Set.of(ENTRY.gate(), STRUCK_MOUTH, FAR_MOUTH);
             PortalHums.Changes changes = PortalHums.changes(Set.of(ENTRY.gate()), humming);
             assertEquals(Set.of(), changes.starts());
@@ -92,7 +92,7 @@ class PortalHumsTest {
         void everyPortalDrawnInTheLevelStandsLinkedOrInertAndEveryMouth() {
             Set<Gate> standing = PortalHums.standing(List.of(ENTRY, EXIT, INERT, IN_THE_NETHER),
                     List.of(new QuantumPortals.Link(ENTRY, EXIT), new QuantumPortals.Link(THEIR_ENTRY, THEIR_EXIT)),
-                    List.of(new HolesSyncPayload.Pair(STRUCK_MOUTH, FAR_MOUTH)), OVERWORLD);
+                    List.of(new TunnelsSyncPayload.Pair(STRUCK_MOUTH, FAR_MOUTH)), OVERWORLD);
             assertEquals(Set.of(ENTRY.gate(), EXIT.gate(), INERT.gate(), THEIR_ENTRY.gate(), THEIR_EXIT.gate(),
                     STRUCK_MOUTH, FAR_MOUTH), standing);
         }

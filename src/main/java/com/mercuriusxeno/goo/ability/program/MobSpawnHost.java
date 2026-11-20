@@ -6,7 +6,7 @@ import net.minecraft.world.phys.Vec3;
 
 /**
  * A host a mob can be born at: the cell the mob stands in, and the point the
- * goo morphs into it from. Weird's Slime births its slime in the cell its
+ * goo morphs into it from. Weird's Mitosis births its slime in the cell its
  * blob landed in.
  * slime-creates-slimes-at-will
  */

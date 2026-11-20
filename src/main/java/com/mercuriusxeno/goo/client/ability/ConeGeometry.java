@@ -5,9 +5,9 @@ import com.mercuriusxeno.goo.client.RenderContext;
 import org.joml.Vector3f;
 
 /**
- * The one cone emitter and its basis math, serving the per-marker metal
- * spike trap and the in-flight metal dart (decision
- * render-context-is-the-one-emitter). Both extend a many-sided cone from a
+ * The one cone emitter and its basis math, serving Metal's burnout urchin,
+ * the in-flight metal dart, Glass's kunai and Crystal's shatter (decision
+ * render-context-is-the-one-emitter). Each extends a many-sided cone from a
  * base point along a direction and need a stable perpendicular + cross
  * basis to place vertices around the cone's circular base.
  *
