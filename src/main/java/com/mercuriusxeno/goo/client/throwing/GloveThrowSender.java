@@ -823,7 +823,7 @@ public final class GloveThrowSender {
      * @return the world-space aim line origin
      */
     private static Vec3 lineOrigin() {
-        return GloveAim.handPosition(Minecraft.getInstance().gameRenderer.getMainCamera());
+        return GloveAim.handPosition(Minecraft.getInstance().gameRenderer.mainCamera());
     }
 
     /**

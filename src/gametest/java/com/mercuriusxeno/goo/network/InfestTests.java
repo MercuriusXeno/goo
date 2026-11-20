@@ -13,7 +13,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -92,8 +92,8 @@ public final class InfestTests {
     public static void bitesACowAndHealsAZombie(GameTestHelper helper) {
         layFullCell(helper, COW_CELL);
         layFullCell(helper, ZOMBIE_CELL);
-        Mob cow = helper.spawnWithNoFreeWill(EntityType.COW, Vec3.atBottomCenterOf(COW_CELL.above()));
-        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, Vec3.atBottomCenterOf(ZOMBIE_CELL.above()));
+        Mob cow = helper.spawnWithNoFreeWill(EntityTypes.COW, Vec3.atBottomCenterOf(COW_CELL.above()));
+        Mob zombie = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, Vec3.atBottomCenterOf(ZOMBIE_CELL.above()));
         zombie.setHealth(zombie.getMaxHealth() / 2);
         float cowStart = cow.getHealth();
         float zombieStart = zombie.getHealth();

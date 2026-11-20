@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.sound.ListenerSounds;
@@ -185,8 +186,8 @@ public final class NovaRings {
             return;
         }
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        Vec3 camera = mc.gameRenderer.getMainCamera().position();
-        BurnoutFrame burnout = new BurnoutFrame(frame.poseStack(), mc.renderBuffers().bufferSource(), camera,
+        Vec3 camera = mc.gameRenderer.mainCamera().position();
+        BurnoutFrame burnout = new BurnoutFrame(frame.poseStack(), ImmediateBuffers.shared(), camera,
                 mc.level.getGameTime() + partialTick);
         for (Ring ring : rings) {
             draws.accept(new SortedDraw(ring.center().distanceToSqr(camera), () -> drawRing(burnout, ring)));

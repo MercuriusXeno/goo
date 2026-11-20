@@ -229,9 +229,9 @@ public record SeaCavern(DensityFunction.NoiseHolder floor, DensityFunction.Noise
     }
 
     @Override
-    public DensityFunction mapAll(DensityFunction.Visitor visitor) {
-        return visitor.apply(new SeaCavern(visitor.visitNoise(floor), visitor.visitNoise(roof),
-                visitor.visitNoise(pillars)));
+    public DensityFunction mapChildren(DensityFunction.Visitor visitor) {
+        return new SeaCavern(visitor.visitNoise(floor), visitor.visitNoise(roof),
+                visitor.visitNoise(pillars));
     }
 
     @Override

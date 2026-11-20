@@ -20,7 +20,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.AgeableMob;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.animal.cow.Cow;
 import net.minecraft.world.entity.item.ItemEntity;
@@ -107,7 +107,7 @@ public final class CharmLikeCastTests {
      * @param helper the gametest helper
      */
     public static void leadDartsAndLeads(GameTestHelper helper) {
-        Mob cow = helper.spawnWithNoFreeWill(EntityType.COW, MOB_POS);
+        Mob cow = helper.spawnWithNoFreeWill(EntityTypes.COW, MOB_POS);
         ServerPlayer[] caster = new ServerPlayer[1];
         caster[0] = castAndAssert(helper, GooTypes.YARN, LEAD, cow, mob -> OwnMinions.ownMinionOf(caster[0], mob));
     }
@@ -120,7 +120,7 @@ public final class CharmLikeCastTests {
      * @param helper the gametest helper
      */
     public static void shulkSpewsAShulkerBulletAtTheTakenMob(GameTestHelper helper) {
-        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, MOB_POS);
+        Mob zombie = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, MOB_POS);
         ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.TYPHOON, SHULK);
         AbilityDefinition shulk = AbilityRegistry.of(helper.getLevel()).getAbility(SHULK);
         helper.assertTrue(shulk != null, ABILITY_REQUIRED);
@@ -148,7 +148,7 @@ public final class CharmLikeCastTests {
      * @param helper the gametest helper
      */
     public static void revertStepsACowBackOncePerCast(GameTestHelper helper) {
-        Mob cow = helper.spawnWithNoFreeWill(EntityType.COW, MOB_POS);
+        Mob cow = helper.spawnWithNoFreeWill(EntityTypes.COW, MOB_POS);
         ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.XENO, REVERT);
         caster.getInventory().add(GooStacks.createForOutput(GooTypes.XENO, REVERT_GOO * GooStacks.THOUSAND));
         AbilityDefinition revert = AbilityRegistry.of(helper.getLevel()).getAbility(REVERT);
@@ -178,7 +178,7 @@ public final class CharmLikeCastTests {
      * @param helper the gametest helper
      */
     public static void revertAtAMobShrinkingIntoItsEggFizzles(GameTestHelper helper) {
-        Cow calf = helper.spawnWithNoFreeWill(EntityType.COW, MOB_POS);
+        Cow calf = helper.spawnWithNoFreeWill(EntityTypes.COW, MOB_POS);
         calf.setAge(AgeableMob.BABY_START_AGE);
         ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.XENO, REVERT);
         caster.getInventory().add(GooStacks.createForOutput(GooTypes.XENO, REVERT_GOO * GooStacks.THOUSAND));

@@ -2,6 +2,8 @@ package com.mercuriusxeno.goo.client.hud;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
+import com.mercuriusxeno.goo.client.ImmediateBuffers;
+import com.mercuriusxeno.goo.client.RenderTypeBuffers;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.item.GooFormat;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -12,7 +14,6 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
@@ -389,7 +390,7 @@ public final class PanelPainter {
      * @param x         the row's left X
      * @param y         the row's top Y
      */
-    public static void drawRow(PoseStack poseStack, Font font, MultiBufferSource buffers,
+    public static void drawRow(PoseStack poseStack, Font font, RenderTypeBuffers buffers,
                                PanelRow row, float x, float y) {
         drawRow(poseStack, font, buffers, row, new RowOrigin(x, y, 1f));
     }
@@ -403,7 +404,7 @@ public final class PanelPainter {
      * @param row       the row
      * @param origin    the row's top left and the fade it draws at
      */
-    private static void drawRow(PoseStack poseStack, Font font, MultiBufferSource buffers,
+    private static void drawRow(PoseStack poseStack, Font font, RenderTypeBuffers buffers,
                                 PanelRow row, RowOrigin origin) {
         PanelAmountGrid grid = row.grid();
         if (grid == null) {
@@ -422,7 +423,7 @@ public final class PanelPainter {
      * @param row       the row
      * @param origin    the row's top left and the fade it draws at
      */
-    private static void drawIconsAndText(PoseStack poseStack, Font font, MultiBufferSource buffers,
+    private static void drawIconsAndText(PoseStack poseStack, Font font, RenderTypeBuffers buffers,
                                          PanelRow row, RowOrigin origin) {
         float x = origin.x();
         RowGeometry geometry = rowGeometry(origin.y(), row.hasIcon(), DIGIT_GLYPH_HEIGHT);
@@ -506,7 +507,7 @@ public final class PanelPainter {
      */
     private static void paintBody(PoseStack poseStack, Font font, PanelLayout layout, List<PanelRow> rows,
                                   float opacity) {
-        MultiBufferSource.BufferSource buffers = Minecraft.getInstance().renderBuffers().bufferSource();
+        ImmediateBuffers buffers = ImmediateBuffers.shared();
         PanelSize size = layout.size();
         float left = -size.width() / HALF;
         float top = -size.height();
@@ -531,7 +532,7 @@ public final class PanelPainter {
      * @param rows      the rows top to bottom
      * @param panel     the panel's top left and the fade every part draws at
      */
-    private static void drawItemModels(PoseStack poseStack, MultiBufferSource.BufferSource buffers,
+    private static void drawItemModels(PoseStack poseStack, ImmediateBuffers buffers,
                                        PanelLayout layout, List<PanelRow> rows, RowOrigin panel) {
         // the item's render type draws both sides, where the background and text cull from behind
         if (!frontFacesCamera(poseStack.last().pose())) {
@@ -557,7 +558,7 @@ public final class PanelPainter {
      * @param slot      where the icon's top left stands
      * @param opacity   the fade factor [0, 1]
      */
-    static void drawTextureIcon(PoseStack poseStack, MultiBufferSource buffers, Identifier icon, PanelRectangle slot,
+    static void drawTextureIcon(PoseStack poseStack, RenderTypeBuffers buffers, Identifier icon, PanelRectangle slot,
                                 float opacity) {
         drawIcon(poseStack, buffers, false, new IconQuad(icon, WHOLE_TEXTURE, fadeColor(InWorldHud.OPAQUE_WHITE,
                 opacity)), slot.x(), slot.y());
@@ -574,7 +575,7 @@ public final class PanelPainter {
      * @param x         the left X in the pose's units
      * @param opacity   the fade factor [0, 1]
      */
-    static void drawFadedSegment(PoseStack poseStack, Font font, MultiBufferSource buffers,
+    static void drawFadedSegment(PoseStack poseStack, Font font, RenderTypeBuffers buffers,
                                  PanelRow.TextSegment segment, float x, float opacity) {
         drawSegment(poseStack, font, buffers, false,
                 new PanelRow.TextSegment(segment.text(), fadeColor(segment.color(), opacity)), x, 0);
@@ -591,7 +592,7 @@ public final class PanelPainter {
      * @param x          the left X
      * @param y          the top Y
      */
-    private static void drawSegment(PoseStack poseStack, Font font, MultiBufferSource buffers,
+    private static void drawSegment(PoseStack poseStack, Font font, RenderTypeBuffers buffers,
                                     boolean seeThrough, PanelRow.TextSegment segment, float x, float y) {
         if (seeThrough) {
             InWorldHud.drawTextSeeThrough(font, buffers, poseStack, segment.text(), x, y, segment.color());
@@ -610,7 +611,7 @@ public final class PanelPainter {
      * @param x          the icon's left X
      * @param y          the icon's top Y
      */
-    private static void drawIcon(PoseStack poseStack, MultiBufferSource buffers, boolean seeThrough,
+    private static void drawIcon(PoseStack poseStack, RenderTypeBuffers buffers, boolean seeThrough,
                                  IconQuad icon, float x, float y) {
         VertexConsumer vc = buffers.getBuffer(
                 seeThrough ? RenderTypes.textSeeThrough(icon.texture()) : RenderTypes.text(icon.texture()));

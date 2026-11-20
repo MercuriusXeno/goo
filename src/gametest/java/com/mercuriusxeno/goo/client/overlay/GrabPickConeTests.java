@@ -21,7 +21,7 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.animal.pig.Pig;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
@@ -77,7 +77,7 @@ public final class GrabPickConeTests {
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GooItems.GOO_GLOVE.get()));
         player.getInventory().add(GooStacks.createForOutput(GooTypes.KINETIC, HELD_GOO * GooStacks.THOUSAND));
         KnownRecipes.teachRequires(player, grab);
-        Pig pig = helper.spawn(EntityType.PIG, FIVE_BLOCKS_OUT);
+        Pig pig = helper.spawn(EntityTypes.PIG, FIVE_BLOCKS_OUT);
         player.lookAt(EntityAnchorArgument.Anchor.EYES, pig.getBoundingBox().getCenter());
         // How far off the pig the look turns: midway between the shared pick cone and Grab's live one.
         float insideGrabsCone = (float) ((AimAssistResolver.AIM_ASSIST_DEGREES

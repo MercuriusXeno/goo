@@ -2,12 +2,12 @@ package com.mercuriusxeno.goo.client.overlay;
 
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.CuboidBounds;
+import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.LineContext;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.core.BlockPos;
@@ -39,7 +39,7 @@ final class VoxelHighlightRenderer {
      * @param type         the goo type
      */
     static void renderBlockShape(
-            PoseStack poseStack, MultiBufferSource.BufferSource bufferSource,
+            PoseStack poseStack, ImmediateBuffers bufferSource,
             Camera camera, BlockPos pos, ResourceKey<GooTypeDefinition> type) {
         Minecraft mc = Minecraft.getInstance();
         VoxelShape shape = mc.level.getBlockState(pos).getShape(mc.level, pos);
@@ -59,7 +59,7 @@ final class VoxelHighlightRenderer {
      * @param type         the goo type
      */
     static void renderFullCube(
-            PoseStack poseStack, MultiBufferSource.BufferSource bufferSource,
+            PoseStack poseStack, ImmediateBuffers bufferSource,
             Camera camera, BlockPos pos, ResourceKey<GooTypeDefinition> type) {
         Minecraft mc = Minecraft.getInstance();
         Vec3 offset = cameraOffset(pos, camera);
@@ -110,7 +110,7 @@ final class VoxelHighlightRenderer {
      * @param lines        the lines render type, depth tested or seen through walls
      */
     private static void emitWireframeEdges(
-            PoseStack poseStack, MultiBufferSource.BufferSource bufferSource,
+            PoseStack poseStack, ImmediateBuffers bufferSource,
             Minecraft mc, VoxelShape shape, Vec3 offset, int rgb, RenderType lines) {
         int wireColor = ARGB.color(WIRE_ALPHA, rgb);
         float lineWidth = mc.getWindow().getAppropriateLineWidth();

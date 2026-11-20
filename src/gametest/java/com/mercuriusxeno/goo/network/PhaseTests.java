@@ -10,7 +10,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
@@ -81,9 +81,9 @@ public final class PhaseTests {
                 helper.setBlock(ZOMBIE_POS.below().offset(x, 0, z), Blocks.STONE);
             }
         }
-        Mob phased = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, ZOMBIE_POS);
+        Mob phased = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, ZOMBIE_POS);
         putOutOfPhase(phased);
-        Mob plain = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, ZOMBIE_POS);
+        Mob plain = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, ZOMBIE_POS);
         plain.setPos(phased.getX() + OVERLAP_OFFSET, phased.getY(), phased.getZ());
         Vec3 phasedStart = phased.position();
         Vec3 plainStart = plain.position();
@@ -105,7 +105,7 @@ public final class PhaseTests {
     public static void phasedPlayerIgnoredByZombie(GameTestHelper helper) {
         ServerPlayer player = SurvivalPlayers.placeIn(helper);
         putOutOfPhase(player);
-        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, ZOMBIE_POS);
+        Mob zombie = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, ZOMBIE_POS);
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             float health = player.getHealth();
             HeartOverlayTests.hurt(helper, player, helper.getLevel().damageSources().mobAttack(zombie), HIT);
@@ -126,7 +126,7 @@ public final class PhaseTests {
     public static void phasedPairHurtEachOther(GameTestHelper helper) {
         ServerPlayer player = SurvivalPlayers.placeIn(helper);
         putOutOfPhase(player);
-        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, ZOMBIE_POS);
+        Mob zombie = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, ZOMBIE_POS);
         putOutOfPhase(zombie);
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             float zombieHealth = zombie.getHealth();
@@ -152,7 +152,7 @@ public final class PhaseTests {
     public static void phasedZombieHuntsAPhasedPlayer(GameTestHelper helper) {
         ServerPlayer player = SurvivalPlayers.placeIn(helper);
         putOutOfPhase(player);
-        Mob zombie = helper.spawn(EntityType.ZOMBIE, ZOMBIE_POS);
+        Mob zombie = helper.spawn(EntityTypes.ZOMBIE, ZOMBIE_POS);
         putOutOfPhase(zombie);
         zombie.getRandom().setSeed(HUNT_SEED);
         helper.runAtTickTime(HUNTED_BY, () -> {

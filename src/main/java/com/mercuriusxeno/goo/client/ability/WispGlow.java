@@ -1,13 +1,13 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 import java.util.List;
@@ -49,7 +49,7 @@ public final class WispGlow {
         if (QUEUED.isEmpty()) {
             return;
         }
-        Vec3 camera = Minecraft.getInstance().gameRenderer.getMainCamera().position();
+        Vec3 camera = Minecraft.getInstance().gameRenderer.mainCamera().position();
         for (Sprite sprite : QUEUED) {
             draws.accept(new SortedDraw(sprite.center().distanceToSqr(camera),
                     () -> drawWisp(frame.poseStack(), sprite, camera)));
@@ -58,7 +58,7 @@ public final class WispGlow {
     }
 
     private static void drawWisp(PoseStack poseStack, Sprite sprite, Vec3 camera) {
-        MultiBufferSource.BufferSource buffers = Minecraft.getInstance().renderBuffers().bufferSource();
+        ImmediateBuffers buffers = ImmediateBuffers.shared();
         VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.GLOW_SHELL_TYPE);
         poseStack.pushPose();
         poseStack.translate(sprite.center().x - camera.x, sprite.center().y - camera.y,

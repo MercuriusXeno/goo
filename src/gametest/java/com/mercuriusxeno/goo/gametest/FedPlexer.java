@@ -12,7 +12,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTestHelper;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -67,7 +67,7 @@ public final class FedPlexer {
      * @return the stones ejected
      */
     public static int ejected(GameTestHelper helper) {
-        return helper.getEntities(EntityType.ITEM).stream().map(ItemEntity::getItem)
+        return helper.getEntities(EntityTypes.ITEM).stream().map(ItemEntity::getItem)
                 .filter(stack -> stack.is(TARGET)).mapToInt(ItemStack::getCount).sum();
     }
 }

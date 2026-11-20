@@ -21,10 +21,11 @@ public final class LunarLanding {
     /**
      * The first and last day ticks the moon stands above the horizon: vanilla's day timeline turns the moon angle
      * from 180 degrees at day tick 6000 through a full turn on an eased curve, and the moon clears the horizon while
-     * the angle stands within a quarter turn of overhead.
+     * the angle stands within a quarter turn of overhead, as the game's cubic-bezier easing solves that curve.
+     * decision minecraft-26-3-update-is-a-port-to-parity
      */
-    static final int MOONRISE_TICK = 12_782;
-    static final int MOONSET_TICK = 23_218;
+    static final int MOONRISE_TICK = 12_783;
+    static final int MOONSET_TICK = 23_217;
     static final int NIGHT_TICKS = MOONSET_TICK - MOONRISE_TICK + 1;
     /** One phase's share of the light side's width, in blocks. */
     private static final double PHASE_WIDTH = 2.0 * Lunar.LIGHT_SIDE_HALF_WIDTH / MoonPhase.COUNT;

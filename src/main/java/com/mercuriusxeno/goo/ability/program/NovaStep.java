@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.network.NovaRingPayload;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.phys.Vec3;
@@ -108,13 +109,13 @@ public record NovaStep(Expr radius, Expr amount, float crowd, float push, FrostC
             if (living instanceof Mob mob) {
                 FrozenEvents.freeze(mob, each, curve);
             }
+            // direct-goo-hit-credits-its-caster
+            // goo-hit-keeps-its-kind-and-names-the-player-behind-it
+            DamageSource cold = GooHitCredit.credit(host.level().damageSources().freeze(), living, selected.thrower());
             if (hurt > 0f) {
-                // direct-goo-hit-credits-its-caster
-                // goo-hit-keeps-its-kind-and-names-the-player-behind-it
-                living.hurtServer(host.level(),
-                        GooHitCredit.credit(host.level().damageSources().freeze(), living, selected.thrower()), hurt);
+                living.hurtServer(host.level(), cold, hurt);
             }
-            living.knockback(push, center.x - living.getX(), center.z - living.getZ());
+            living.knockback(push, center.x - living.getX(), center.z - living.getZ(), cold, hurt);
         }
         // frost-reach-extinguishes-fire-and-burning-mobs
         // nova-ring-and-cold-cone-freeze-water-and-lava

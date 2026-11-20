@@ -7,9 +7,9 @@ import com.mercuriusxeno.goo.block.ability.SlickLayPace;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
-import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
+import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooServerState;
@@ -25,7 +25,7 @@ import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -675,7 +675,7 @@ public final class SlickTests {
                 helper.setBlock(FAR_STREAMER_POS.east(east), GooBlocks.KINETIC_SLICK.get());
             }
         }
-        Mob pig = helper.spawnWithNoFreeWill(EntityType.PIG, FAR_STREAMER_POS);
+        Mob pig = helper.spawnWithNoFreeWill(EntityTypes.PIG, FAR_STREAMER_POS);
         Vec3 start = Vec3.atBottomCenterOf(helper.absolutePos(FAR_STREAMER_POS));
         pig.setPos(start.x, start.y + ONE_LAYER, start.z);
         ServerPlayer streamer = slickStreamerAt(helper, FAR_STREAMER_POS);
@@ -738,7 +738,7 @@ public final class SlickTests {
         helper.setBlock(left.west(), Blocks.STONE);
         helper.setBlock(RAISED_CELL.east(), Blocks.STONE);
         // a carpet fills the dip, so neither raised cell pours into it, and stands under the falling slider's feet
-        helper.setBlock(dip, Blocks.WHITE_CARPET);
+        helper.setBlock(dip, Blocks.CARPET.white());
         helper.setBlock(left, slickOf(LANE_LAYERS));
         helper.setBlock(RAISED_CELL, slickOf(LANE_LAYERS));
         double cellTop = helper.absolutePos(RAISED_CELL).getY() + (double) LANE_LAYERS / WHOLE_BLOCK_LAYERS;
@@ -789,7 +789,7 @@ public final class SlickTests {
                 helper.setBlock(cell, Blocks.AIR);
             }
         }
-        Mob pig = helper.spawnWithNoFreeWill(EntityType.PIG, new BlockPos(1, 1, row));
+        Mob pig = helper.spawnWithNoFreeWill(EntityTypes.PIG, new BlockPos(1, 1, row));
         Vec3 start = Vec3.atBottomCenterOf(helper.absolutePos(new BlockPos(1, 1, row)));
         pig.setPos(start.x, start.y + (double) LANE_LAYERS / WHOLE_BLOCK_LAYERS, start.z);
         double westEdge = helper.absolutePos(new BlockPos(0, 1, row)).getX();
@@ -1466,7 +1466,7 @@ public final class SlickTests {
         helper.setBlock(AT_REST_CELL, slickOf(BROKEN_LAYERS));
         // GameTestHelper.destroyBlock breaks with drops off; the level's own break drops what the block gives
         helper.getLevel().destroyBlock(helper.absolutePos(AT_REST_CELL), true);
-        List<ItemStack> kinetic = helper.getEntities(EntityType.ITEM, AT_REST_CELL, 1.0).stream()
+        List<ItemStack> kinetic = helper.getEntities(EntityTypes.ITEM, AT_REST_CELL, 1.0).stream()
                 .map(ItemEntity::getItem).filter(stack -> GooTypes.KINETIC.equals(GooStacks.keyOf(stack))).toList();
         int dropped = kinetic.stream().mapToInt(GooStacks::volumeOf).sum();
         int owed = ResidualPrices.slickLayersRefund(helper, BROKEN_LAYERS);
@@ -1810,7 +1810,7 @@ public final class SlickTests {
      * @return the walker
      */
     private static Walker walkTheLane(GameTestHelper helper, BlockPos start, Block slippery) {
-        Mob husk = helper.spawnWithNoFreeWill(EntityType.HUSK, start.west(2).above());
+        Mob husk = helper.spawnWithNoFreeWill(EntityTypes.HUSK, start.west(2).above());
         helper.walkTo(husk, start.east(STRIP_EAST - STRIP_WEST).above(), 1f);
         return new Walker(husk, slippery);
     }

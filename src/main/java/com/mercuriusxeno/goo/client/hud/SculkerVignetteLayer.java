@@ -55,7 +55,7 @@ public final class SculkerVignetteLayer {
 
     private static void render(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null || mc.level == null || mc.options.hideGui) {
+        if (mc.player == null || mc.level == null || mc.gui.hud.isHidden()) {
             return;
         }
         float time = mc.level.getGameTime() + deltaTracker.getGameTimeDeltaPartialTick(false);

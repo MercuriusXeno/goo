@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.quantum.PortalColor;
+import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.throwing.GooFlightRenderer;
@@ -10,7 +11,6 @@ import com.mercuriusxeno.goo.network.ScanWavePayload;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -129,7 +129,7 @@ public final class QuantumBlobDarts {
         float partial = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         float now = mc.level.getGameTime() + partial;
         DARTING.removeIf(darting -> arrived(darting.wave().ticks(), now - darting.start()));
-        Vec3 camera = PortalView.drawing() ? PortalView.cameraPosition() : mc.gameRenderer.getMainCamera().position();
+        Vec3 camera = PortalView.drawing() ? PortalView.cameraPosition() : mc.gameRenderer.mainCamera().position();
         for (Darting darting : DARTING) {
             Vec3 at = darting.at(now - darting.start());
             draws.accept(new SortedDraw(at.distanceToSqr(camera),
@@ -138,7 +138,7 @@ public final class QuantumBlobDarts {
     }
 
     private static void drawShot(Minecraft mc, PoseStack pose, Darting darting, Vec3 offset, float now) {
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        ImmediateBuffers buffers = ImmediateBuffers.shared();
         pose.pushPose();
         pose.translate(offset.x, offset.y, offset.z);
         GooFlightRenderer.renderThrownBlob(pose, buffers, GooTypes.QUANTUM, now,

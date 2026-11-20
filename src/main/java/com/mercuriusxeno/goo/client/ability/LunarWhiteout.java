@@ -103,7 +103,7 @@ public final class LunarWhiteout {
         if (player == null || followFixation(mc, player.getData(GooAttachments.LUNAR_FIXATION))) {
             return;
         }
-        boolean loading = mc.screen instanceof LevelLoadingScreen;
+        boolean loading = mc.gui.screen() instanceof LevelLoadingScreen;
         if (!loading) {
             ticksInStage++;
         }

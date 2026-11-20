@@ -100,7 +100,7 @@ public final class SpraySource {
         Minecraft mc = Minecraft.getInstance();
         Vector3f unswung = FirstPersonSwing.unswung(gloveToHandPass).transformPosition(palmInModel, new Vector3f());
         restingPalmInView = HandPassView.intoTheStillView(new Vec3(unswung),
-                mc.gameRenderer.getMainCamera().rotation(), HandPassView.frameBob(mc));
+                mc.gameRenderer.mainCamera().rotation(), HandPassView.frameBob(mc));
     }
 
     /** Forgets the recorded palm, as a test's end does. */
@@ -160,7 +160,7 @@ public final class SpraySource {
         }
         boolean gloveRight = GooCasters.casterOnTheRight(caster);
         if (caster == mc.player && mc.options.getCameraType().isFirstPerson()) {
-            Camera camera = mc.gameRenderer.getMainCamera();
+            Camera camera = mc.gameRenderer.mainCamera();
             return camera.position().add(HandPassView.fromHandPass(aboveTheRestingPalmInHand(camera.rotation(),
                     gloveRight, rise), camera.rotation(), camera.getFov(), HandPassView.frameBob(mc)));
         }

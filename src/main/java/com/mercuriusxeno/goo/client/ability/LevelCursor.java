@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import com.mercuriusxeno.goo.ability.program.LevelStep;
+import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
@@ -47,8 +48,8 @@ public final class LevelCursor {
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         BlockPos cell = cellUnder(CameraEye.of(mc, player, partialTick).eye(),
                 GloveThrowSender.drawnCursorPoint(player, partialTick), plane);
-        Vec3 camera = mc.gameRenderer.getMainCamera().position();
-        BurnoutFrame burnout = new BurnoutFrame(frame.poseStack(), mc.renderBuffers().bufferSource(), camera,
+        Vec3 camera = mc.gameRenderer.mainCamera().position();
+        BurnoutFrame burnout = new BurnoutFrame(frame.poseStack(), ImmediateBuffers.shared(), camera,
                 mc.level.getGameTime() + partialTick);
         draws.accept(new SortedDraw(Vec3.atCenterOf(cell).distanceToSqr(camera),
                 () -> RockExplosionVisual.INSTANCE.renderCursor(burnout, cell, plane.face())));

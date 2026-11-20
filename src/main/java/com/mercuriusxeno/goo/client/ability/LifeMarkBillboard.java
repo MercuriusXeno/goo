@@ -1,5 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.client.ImmediateBuffers;
+import com.mercuriusxeno.goo.client.RenderTypeBuffers;
 import com.mercuriusxeno.goo.client.hud.InWorldHud;
 import com.mercuriusxeno.goo.client.hud.MixedNumberSpacing;
 import com.mercuriusxeno.goo.registry.GooAttachments;
@@ -8,7 +10,6 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.resources.Identifier;
@@ -232,8 +233,8 @@ final class LifeMarkBillboard {
         }
         float time = mc.level.getGameTime() + partialTick;
         List<Shown> marks = shown.stream().map(living -> shownAt(living, time, mc.font)).toList();
-        Camera camera = mc.gameRenderer.getMainCamera();
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        Camera camera = mc.gameRenderer.mainCamera();
+        ImmediateBuffers buffers = ImmediateBuffers.shared();
         for (HeadMark headMark : HeadMark.values()) {
             drawIcons(poseStack, camera, buffers, marks, partialTick, headMark);
         }
@@ -247,7 +248,7 @@ final class LifeMarkBillboard {
         buffers.endBatch();
     }
 
-    private static void drawCount(PoseStack poseStack, MultiBufferSource buffers, Font font, Shown mark) {
+    private static void drawCount(PoseStack poseStack, RenderTypeBuffers buffers, Font font, Shown mark) {
         Layout layout = mark.layout();
         poseStack.pushPose();
         poseStack.translate(layout.countLeft(), layout.countTop(), 0f);
@@ -310,7 +311,7 @@ final class LifeMarkBillboard {
      * @param partialTick the frame's partial tick
      * @param sprite      the empty heart, the skull or the full heart
      */
-    private static void drawHearts(PoseStack poseStack, Camera camera, MultiBufferSource.BufferSource buffers,
+    private static void drawHearts(PoseStack poseStack, Camera camera, ImmediateBuffers buffers,
                                    List<Shown> marks, float partialTick, Identifier sprite) {
         RenderType icon = RenderTypes.textSeeThrough(sprite);
         VertexConsumer consumer = buffers.getBuffer(icon);
@@ -338,7 +339,7 @@ final class LifeMarkBillboard {
      * @param partialTick the frame's partial tick
      * @param headMark    the charm heart or the lead fist
      */
-    private static void drawIcons(PoseStack poseStack, Camera camera, MultiBufferSource.BufferSource buffers,
+    private static void drawIcons(PoseStack poseStack, Camera camera, ImmediateBuffers buffers,
                                   List<Shown> marks, float partialTick, HeadMark headMark) {
         RenderType icon = RenderTypes.textSeeThrough(headMark.texture());
         VertexConsumer consumer = buffers.getBuffer(icon);

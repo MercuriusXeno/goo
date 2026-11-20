@@ -5,7 +5,9 @@ import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.CuboidBounds;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.GooSubmitter;
+import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.RenderContext;
+import com.mercuriusxeno.goo.client.RenderTypeBuffers;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.ability.PortalView;
@@ -14,7 +16,6 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
@@ -150,7 +151,7 @@ public final class GooFlightRenderer {
         }
         boolean view = PortalView.drawing();
         FlightFrame ctx = buildFlightFrame(mc, frame.poseStack(),
-                view ? PortalView.camera() : mc.gameRenderer.getMainCamera());
+                view ? PortalView.camera() : mc.gameRenderer.mainCamera());
         for (GooFlightManager.GooFlight flight : flights) {
             collectFlight(ctx, flight, view, draws);
         }
@@ -203,7 +204,7 @@ public final class GooFlightRenderer {
      * @return the render context for this frame
      */
     private static FlightFrame buildFlightFrame(Minecraft mc, PoseStack poseStack, Camera camera) {
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        ImmediateBuffers buffers = ImmediateBuffers.shared();
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         float gameTime = mc.level.getGameTime() + partialTick;
         return new FlightFrame(poseStack, buffers, camera, gameTime, partialTick);
@@ -275,7 +276,7 @@ public final class GooFlightRenderer {
      * @param gameTime  the level game time in ticks
      * @param flight    the blob's velocity, blocks per tick, its size against a flight's and its tint
      */
-    public static void renderThrownBlob(PoseStack poseStack, MultiBufferSource buffers,
+    public static void renderThrownBlob(PoseStack poseStack, RenderTypeBuffers buffers,
                                         ResourceKey<GooTypeDefinition> type, float gameTime, ShotLook flight) {
         poseStack.pushPose();
         poseStack.scale(flight.scale(), flight.scale(), flight.scale());
@@ -310,7 +311,7 @@ public final class GooFlightRenderer {
      * @param gameTime  the level game time in ticks
      * @param scale     the blob's size against a flight's, 0 to 1
      */
-    public static void renderBlob(PoseStack poseStack, MultiBufferSource buffers,
+    public static void renderBlob(PoseStack poseStack, RenderTypeBuffers buffers,
                                   ResourceKey<GooTypeDefinition> type, float gameTime, float scale) {
         renderBlob(poseStack, buffers, type, gameTime, BlobShape.CUBE.scaled(scale));
     }
@@ -326,7 +327,7 @@ public final class GooFlightRenderer {
      * @param gameTime  the level game time in ticks
      * @param shape     the blob's box against a flight's cube
      */
-    public static void renderBlob(PoseStack poseStack, MultiBufferSource buffers,
+    public static void renderBlob(PoseStack poseStack, RenderTypeBuffers buffers,
                                   ResourceKey<GooTypeDefinition> type, float gameTime, BlobShape shape) {
         emitCore(poseStack.last(), buffers.getBuffer(GooSubmitter.renderType()), type, gameTime, shape);
         emitShell(poseStack.last(), buffers.getBuffer(GooSubmitter.renderType()), type, shape);
@@ -340,7 +341,7 @@ public final class GooFlightRenderer {
      * @param type      the goo type
      * @param gameTime  the level game time in ticks
      */
-    private static void renderCore(PoseStack poseStack, MultiBufferSource buffers,
+    private static void renderCore(PoseStack poseStack, RenderTypeBuffers buffers,
                                    ResourceKey<GooTypeDefinition> type, float gameTime) {
         emitCore(poseStack.last(), buffers.getBuffer(GooSubmitter.renderType()), type, gameTime, BlobShape.CUBE);
     }
@@ -352,7 +353,7 @@ public final class GooFlightRenderer {
      * @param buffers   the buffer source for rendering
      * @param type      the goo type
      */
-    private static void renderShell(PoseStack poseStack, MultiBufferSource buffers,
+    private static void renderShell(PoseStack poseStack, RenderTypeBuffers buffers,
                                     ResourceKey<GooTypeDefinition> type) {
         emitShell(poseStack.last(), buffers.getBuffer(GooSubmitter.renderType()), type, BlobShape.CUBE);
     }
@@ -475,7 +476,7 @@ public final class GooFlightRenderer {
      * @param velocity  the velocity direction vector
      * @param gameTime  the level game time in ticks
      */
-    private static void renderTail(PoseStack poseStack, MultiBufferSource buffers,
+    private static void renderTail(PoseStack poseStack, RenderTypeBuffers buffers,
                                    ResourceKey<GooTypeDefinition> type, Vec3 velocity, float gameTime) {
         GooRenderUtil.UvRect uv = spriteToUv(type);
         int tailColor = ARGB.color(TAIL_ALPHA, ClientGooTypes.color(type));
@@ -863,7 +864,7 @@ public final class GooFlightRenderer {
      * @param vel       the velocity direction
      * @param morphFrac morph progress [0, 1]
      */
-    private static void emitTravelForm(PoseStack poseStack, MultiBufferSource buffers,
+    private static void emitTravelForm(PoseStack poseStack, RenderTypeBuffers buffers,
                                        ResourceKey<GooTypeDefinition> type, TravelForm form, Vec3 vel,
                                        float morphFrac) {
         emitTravelForm(poseStack.last(), buffers.getBuffer(GooSubmitter.renderType()), type, form, vel, morphFrac);
@@ -900,7 +901,7 @@ public final class GooFlightRenderer {
      */
     private record FlightFrame(
             PoseStack poseStack,
-            MultiBufferSource.BufferSource buffers,
+            ImmediateBuffers buffers,
             Camera camera,
             float gameTime,
             float partialTick

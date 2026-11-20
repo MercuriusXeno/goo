@@ -12,7 +12,6 @@ import com.mercuriusxeno.goo.item.CanisterMetadata;
 import com.mercuriusxeno.goo.item.ContainerCapacity;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
-import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
@@ -23,6 +22,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.ARGB;
+import net.minecraft.util.LightCoordsUtil;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.NonNull;
@@ -219,7 +219,7 @@ public class ReactorBlockEntityRenderer
         if (be.getLevel() == null) { return 0; }
         Direction facing = be.getBlockState().getValue(ReactorBlock.FACING);
         BlockPos frontPos = be.getBlockPos().relative(facing);
-        return LevelRenderer.getLightCoords(be.getLevel(), frontPos);
+        return LightCoordsUtil.getLightCoords(be.getLevel(), frontPos);
     }
 
     /**
@@ -240,9 +240,9 @@ public class ReactorBlockEntityRenderer
             return;
         }
         BlockPos pos = be.getBlockPos();
-        state.westWheelLight = LevelRenderer.getLightCoords(
+        state.westWheelLight = LightCoordsUtil.getLightCoords(
                 be.getLevel(), pos.relative(state.facing.getClockWise()));
-        state.eastWheelLight = LevelRenderer.getLightCoords(
+        state.eastWheelLight = LightCoordsUtil.getLightCoords(
                 be.getLevel(), pos.relative(state.facing.getCounterClockWise()));
     }
 

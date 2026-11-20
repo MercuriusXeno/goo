@@ -435,7 +435,7 @@ public class CanisterBlockEntity extends GooGlowingMachineBlockEntity implements
         if (slot == null || slot.handler() == null) {
             return null;
         }
-        if (FluidUtil.interactWithFluidHandler(player, hand, worldPosition, slot.handler())) {
+        if (FluidUtil.interactWithFluidHandler(player, hand, worldPosition, slot.handler(), null)) {
             return InteractionResult.SUCCESS;
         }
         return null;

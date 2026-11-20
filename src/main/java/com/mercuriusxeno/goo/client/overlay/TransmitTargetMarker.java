@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.overlay;
 
 import com.mercuriusxeno.goo.ability.program.TransmitStep;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.ability.SporeMotes;
@@ -13,7 +14,6 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.data.AtlasIds;
@@ -105,7 +105,7 @@ public final class TransmitTargetMarker {
             return;
         }
         destination(player, ability).ifPresent(pos -> draws.accept(new SortedDraw(
-                Vec3.atCenterOf(pos).distanceToSqr(mc.gameRenderer.getMainCamera().position()),
+                Vec3.atCenterOf(pos).distanceToSqr(mc.gameRenderer.mainCamera().position()),
                 () -> draw(mc, frame.poseStack(), pos))));
     }
 
@@ -148,8 +148,8 @@ public final class TransmitTargetMarker {
     }
 
     private static void draw(Minecraft mc, PoseStack poseStack, BlockPos pos) {
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
-        Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        ImmediateBuffers buffers = ImmediateBuffers.shared();
+        Vec3 camera = mc.gameRenderer.mainCamera().position();
         float seconds = Util.getMillis() / MILLIS_PER_SECOND;
         RenderType glow = GooRenderTypes.fungusGlow(mc.getAtlasManager().getAtlasOrThrow(AtlasIds.BLOCKS).location());
         FungusXray.drawBlock(mc, poseStack, buffers.getBuffer(glow), camera, pos,

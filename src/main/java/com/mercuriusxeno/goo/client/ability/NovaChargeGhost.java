@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.ability.program.HostVariables;
 import com.mercuriusxeno.goo.ability.program.NovaStep;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.Variables;
+import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
@@ -143,9 +144,9 @@ public final class NovaChargeGhost {
             return;
         }
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        Vec3 camera = mc.gameRenderer.mainCamera().position();
         Vec3 middle = middleOf(player.getPosition(partialTick), CameraEye.bodyHeight(mc, player, partialTick));
-        BurnoutFrame burnout = new BurnoutFrame(frame.poseStack(), mc.renderBuffers().bufferSource(), camera,
+        BurnoutFrame burnout = new BurnoutFrame(frame.poseStack(), ImmediateBuffers.shared(), camera,
                 mc.level.getGameTime() + partialTick);
         float reach = (float) charging.get().reach();
         draws.accept(new SortedDraw(middle.distanceToSqr(camera), () -> drawGhost(burnout, middle, reach)));

@@ -181,7 +181,7 @@ public final class GooTrailParticles {
      * @param color  the RGB color of the goo type
      */
     private static void spawnFogParticles(Minecraft mc, Vec3 pos, TrailMotion motion, int color) {
-        Vec3 camPos = mc.gameRenderer.getMainCamera().position();
+        Vec3 camPos = mc.gameRenderer.mainCamera().position();
         if (pos.distanceToSqr(camPos) <= FOG_MIN_DIST_SQ) {
             return;
         }

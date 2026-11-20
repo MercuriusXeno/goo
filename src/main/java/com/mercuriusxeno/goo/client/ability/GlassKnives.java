@@ -7,6 +7,8 @@ import com.mercuriusxeno.goo.ability.program.SoundCue;
 import com.mercuriusxeno.goo.client.FlatQuadContext;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.GooSubmitter;
+import com.mercuriusxeno.goo.client.ImmediateBuffers;
+import com.mercuriusxeno.goo.client.RenderTypeBuffers;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.throwing.GooFlightRenderer;
@@ -21,7 +23,6 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
@@ -242,14 +243,14 @@ public final class GlassKnives {
         if (level == null || LIVE.isEmpty() && SLIVERS.isEmpty()) {
             return;
         }
-        Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        Vec3 camera = mc.gameRenderer.mainCamera().position();
         draws.accept(SortedDraw.nearestOf(LIVE.stream().map(knife -> knife.path.getLast()), camera,
                 () -> drawKnives(mc, level, frame, camera)));
     }
 
     private static void drawKnives(Minecraft mc, ClientLevel level, LevelFrame frame, Vec3 camera) {
         double now = level.getGameTime() + mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        ImmediateBuffers buffers = ImmediateBuffers.shared();
         FlatQuadContext quads = new FlatQuadContext(frame.poseStack().last(),
                 buffers.getBuffer(GooRenderTypes.CRYSTAL_SHARD_TYPE));
         for (Knife knife : LIVE) {
@@ -293,7 +294,7 @@ public final class GlassKnives {
      * @param age       ticks into its flight, with the partial tick
      * @param camera    the camera's position
      */
-    private static void drawJavelin(PoseStack poseStack, MultiBufferSource buffers, Knife knife, double age,
+    private static void drawJavelin(PoseStack poseStack, RenderTypeBuffers buffers, Knife knife, double age,
                                     Vec3 camera) {
         Placement placement = placementAt(knife.path, Math.max(0, age));
         Vec3 at = placement.point().subtract(camera);

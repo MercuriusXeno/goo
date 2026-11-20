@@ -3,12 +3,12 @@ package com.mercuriusxeno.goo.client.overlay;
 import com.mercuriusxeno.goo.ability.BuildFootprint;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.GooSubmitter;
+import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.LineContext;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.QuadInstance;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.block.dispatch.BlockStateModel;
 import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart;
 import net.minecraft.client.renderer.rendertype.RenderType;
@@ -63,7 +63,7 @@ final class BuildPreviewRenderer {
      * @param rgb        the goo type's highlight color
      * @param nowSeconds the real-time clock the rings run on
      */
-    static void render(PoseStack ps, MultiBufferSource.BufferSource buf, Vec3 camPos, BuildFootprint footprint,
+    static void render(PoseStack ps, ImmediateBuffers buf, Vec3 camPos, BuildFootprint footprint,
                        List<BlockPos> ghost, int rgb, double nowSeconds) {
         drawRings(ps, buf, camPos, footprint, rgb, nowSeconds);
         if (!ghost.isEmpty()) {
@@ -71,7 +71,7 @@ final class BuildPreviewRenderer {
         }
     }
 
-    private static void drawRings(PoseStack ps, MultiBufferSource.BufferSource buf, Vec3 camPos,
+    private static void drawRings(PoseStack ps, ImmediateBuffers buf, Vec3 camPos,
                                   BuildFootprint footprint, int rgb, double nowSeconds) {
         float width = Minecraft.getInstance().getWindow().getAppropriateLineWidth();
         LineContext lines = new LineContext(ps.last(), buf.getBuffer(GooRenderTypes.LINES_GLOW));
@@ -85,7 +85,7 @@ final class BuildPreviewRenderer {
         buf.endBatch(GooRenderTypes.LINES_GLOW);
     }
 
-    private static void drawGhostStone(Minecraft mc, PoseStack ps, MultiBufferSource.BufferSource buf, Vec3 camPos,
+    private static void drawGhostStone(Minecraft mc, PoseStack ps, ImmediateBuffers buf, Vec3 camPos,
                                        List<BlockPos> cells, int rgb) {
         RenderType ghost = GooSubmitter.movingBlockTranslucent();
         VertexConsumer consumer = buf.getBuffer(ghost);

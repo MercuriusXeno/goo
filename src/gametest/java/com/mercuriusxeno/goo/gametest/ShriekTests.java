@@ -12,6 +12,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Block;
@@ -83,7 +84,7 @@ public final class ShriekTests {
         helper.startSequence()
                 .thenWaitUntil(() -> helper.assertTrue(level.isPositionEntityTicking(zombieAt), SHOULD_TICK))
                 .thenExecute(() -> {
-                    mobs.add(spawn(helper, EntityType.ZOMBIE, zombieAt));
+                    mobs.add(spawn(helper, EntityTypes.ZOMBIE, zombieAt));
                     landShriek(helper, floor);
                 })
                 .thenIdle(WALK_TICKS)

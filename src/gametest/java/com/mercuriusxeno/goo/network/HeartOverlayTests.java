@@ -2,9 +2,11 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.hearts.HeartKind;
-import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
 import com.mercuriusxeno.goo.ability.held.HeldEffects;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.KnownRecipes;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooAttachments;
@@ -17,17 +19,15 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.damagesource.CombatRules;
 import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
+import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.Collections;
 import java.util.List;
-import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
-import com.mercuriusxeno.goo.gametest.GooTestFunctions;
-import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for the heart overlay through Blaze Kindle invoked on a survival
@@ -120,7 +120,7 @@ public final class HeartOverlayTests {
      */
     public static void kindleBurnsTheAttacker(GameTestHelper helper) {
         ServerPlayer player = kindled(helper);
-        Zombie zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, ATTACKER_POS);
+        Zombie zombie = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, ATTACKER_POS);
         float zombieMax = zombie.getMaxHealth();
         float embers = halves(player) / (float) HeartOverlay.FULL_SHIELD;
         // the zombie's natural armor takes its cut of the fire, as it would of any armored hit

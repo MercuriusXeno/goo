@@ -23,7 +23,7 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.monster.Witch;
 import net.minecraft.world.item.ItemStack;
@@ -240,8 +240,8 @@ public final class FrostAbilityTests {
      * @param helper the gametest helper
      */
     public static void novaHeldReachesBothZombies(GameTestHelper helper) {
-        Mob near = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, NEAR_POS);
-        Mob far = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, FAR_POS);
+        Mob near = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, NEAR_POS);
+        Mob far = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, FAR_POS);
         ServerPlayer caster = caster(helper);
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             release(caster, fullHoldTicks(helper));
@@ -407,7 +407,7 @@ public final class FrostAbilityTests {
         helper.setBlock(ORB_WIDE_WATER_POS, Blocks.WATER);
         basin(helper, ORB_MOLTEN_IRON_POS, GooBlocks.MOLTEN_IRON.get());
         helper.setBlock(ORB_BYSTANDER_POS.below(), Blocks.STONE);
-        Mob bystander = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, ORB_BYSTANDER_POS);
+        Mob bystander = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, ORB_BYSTANDER_POS);
         ServerPlayer thrower = orbThrower(helper);
         helper.runAfterDelay(SETTLE_TICKS, () -> throwOrbEast(helper, thrower));
         helper.runAfterDelay(ORB_ENDED_TICKS, () -> {
@@ -431,7 +431,7 @@ public final class FrostAbilityTests {
      */
     public static void orbEndsOnAMob(GameTestHelper helper) {
         helper.setBlock(ORB_BLOCKER_POS.below(), Blocks.STONE);
-        Mob blocker = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, ORB_BLOCKER_POS);
+        Mob blocker = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, ORB_BLOCKER_POS);
         ServerPlayer thrower = orbThrower(helper);
         helper.runAfterDelay(SETTLE_TICKS, () -> throwOrbEast(helper, thrower));
         helper.runAfterDelay(ORB_ENDED_TICKS, () -> {
@@ -531,8 +531,8 @@ public final class FrostAbilityTests {
         helper.setBlock(GLACIAL_PRISM_POS, GooBlocks.PRISM.get());
         helper.setBlock(GLACIAL_WATER_POS, Blocks.WATER);
         basin(helper, GLACIAL_MOLTEN_IRON_POS, GooBlocks.MOLTEN_IRON.get());
-        Mob inside = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, GLACIAL_INSIDE_POS);
-        Mob outside = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, GLACIAL_OUTSIDE_POS);
+        Mob inside = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, GLACIAL_INSIDE_POS);
+        Mob outside = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, GLACIAL_OUTSIDE_POS);
         float[] held = new float[1];
         int converted = PrismChanneler.hold(helper, COLD) + 1;
         ServerPlayer holder = PrismChanneler.holdOn(helper, GooTypes.FROST, COLD, GLACIAL_PRISM_POS,
@@ -599,7 +599,7 @@ public final class FrostAbilityTests {
      * @param helper the gametest helper
      */
     public static void frozenWitchDrinksNoPotion(GameTestHelper helper) {
-        Witch witch = helper.spawn(EntityType.WITCH, WITCH_POS);
+        Witch witch = helper.spawn(EntityTypes.WITCH, WITCH_POS);
         ServerPlayer caster = caster(helper);
         int hold = novaHoldTicks(helper);
         helper.runAfterDelay(SETTLE_TICKS, () -> encaseWithNovas(helper, caster, witch));
@@ -623,7 +623,7 @@ public final class FrostAbilityTests {
      * @param helper the gametest helper
      */
     public static void frozenWitchFallsAndThaws(GameTestHelper helper) {
-        Witch witch = helper.spawn(EntityType.WITCH, WITCH_DROP_POS);
+        Witch witch = helper.spawn(EntityTypes.WITCH, WITCH_DROP_POS);
         ServerPlayer caster = caster(helper);
         double[] frozeAt = new double[1];
         helper.runAfterDelay(SETTLE_TICKS, () -> {

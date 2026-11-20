@@ -29,7 +29,7 @@ public final class CasterPoses {
         if (mc.level == null || !(mc.level.getEntity(casterId) instanceof Entity caster)) {
             return null;
         }
-        Vec3 glove = caster == mc.player ? GloveAim.handPosition(mc.gameRenderer.getMainCamera())
+        Vec3 glove = caster == mc.player ? GloveAim.handPosition(mc.gameRenderer.mainCamera())
                 : caster.getEyePosition();
         return new GloveSwing.CasterPose(glove, caster.getLookAngle());
     }
@@ -46,7 +46,7 @@ public final class CasterPoses {
         Minecraft mc = Minecraft.getInstance();
         Entity local = mc.player;
         if (local != null && local.getId() == casterId) {
-            return GloveAim.handPosition(mc.gameRenderer.getMainCamera());
+            return GloveAim.handPosition(mc.gameRenderer.mainCamera());
         }
         return sentGlove;
     }

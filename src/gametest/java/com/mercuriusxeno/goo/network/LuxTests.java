@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.held.LuxEvents;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -10,15 +12,13 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EntitySpawnReason;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
-import com.mercuriusxeno.goo.gametest.GooTestFunctions;
-import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for glow's Lux as a held effect through the glove: cast, it
@@ -86,7 +86,7 @@ public final class LuxTests {
         AABB bay = helper.getBounds();
         player.snapTo(bay.getCenter().x, bay.maxY + OVER_THE_BAY, bay.getCenter().z, 0f, STRAIGHT_UP);
         Vec3 eye = player.getEyePosition();
-        Zombie zombie = EntityType.ZOMBIE.create(level, EntitySpawnReason.COMMAND);
+        Zombie zombie = EntityTypes.ZOMBIE.create(level, EntitySpawnReason.COMMAND);
         zombie.setNoGravity(true);
         zombie.setNoAi(true);
         zombie.setPos(eye.x, eye.y + WITHIN_REACH, eye.z);

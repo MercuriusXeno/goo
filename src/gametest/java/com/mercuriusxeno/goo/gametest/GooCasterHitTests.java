@@ -15,7 +15,6 @@ import com.mercuriusxeno.goo.network.GooStreamHandler;
 import com.mercuriusxeno.goo.network.GooStreamPayload;
 import com.mercuriusxeno.goo.network.GooThrowHandler;
 import com.mercuriusxeno.goo.network.HeartOverlayTests;
-import com.mercuriusxeno.goo.network.SelfDeliveryTests;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooItems;
 import com.mercuriusxeno.goo.registry.GooServerState;
@@ -32,7 +31,7 @@ import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageType;
 import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.item.ItemStack;
@@ -149,7 +148,7 @@ public final class GooCasterHitTests {
      * @param helper the gametest helper
      */
     public static void flamesNamesThePlayer(GameTestHelper helper) {
-        Mob husk = helper.spawnWithNoFreeWill(EntityType.HUSK, MOB_POS);
+        Mob husk = helper.spawnWithNoFreeWill(EntityTypes.HUSK, MOB_POS);
         ServerPlayer player = casterFacingEast(helper, GooTypes.BLAZE, BLAZE_FLAMES);
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             GooStreamHandler.streamTick(player, heldTick(player, GooTypes.BLAZE, BLAZE_FLAMES));
@@ -163,7 +162,7 @@ public final class GooCasterHitTests {
      * @param helper the gametest helper
      */
     public static void novaNamesThePlayer(GameTestHelper helper) {
-        Mob husk = helper.spawnWithNoFreeWill(EntityType.HUSK, MOB_POS);
+        Mob husk = helper.spawnWithNoFreeWill(EntityTypes.HUSK, MOB_POS);
         ServerPlayer player = casterFacingEast(helper, GooTypes.FROST, FROST_NOVA);
         int fullHold = ability(helper, FROST_NOVA).delivery().charge().maxTicks();
         helper.runAfterDelay(SETTLE_TICKS, () -> {
@@ -181,7 +180,7 @@ public final class GooCasterHitTests {
     public static void kindleRetaliationNamesThePlayer(GameTestHelper helper) {
         ServerPlayer player = HeartOverlayTests.crawledWhole(
                 HeartOverlayTests.selfInvoked(helper, GooTypes.BLAZE, BLAZE_KINDLE));
-        Mob husk = helper.spawnWithNoFreeWill(EntityType.HUSK, ATTACKER_POS);
+        Mob husk = helper.spawnWithNoFreeWill(EntityTypes.HUSK, ATTACKER_POS);
         husk.doHurtTarget(helper.getLevel(), player);
         assertNamesThePlayer(helper, player, husk, "Kindle's retaliation", DamageTypes.IN_FIRE);
     }
@@ -195,7 +194,7 @@ public final class GooCasterHitTests {
     @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
     public static void gooExplosionNamesThePlayer(GameTestHelper helper) {
         helper.setBlock(BLAST_STONE, Blocks.STONE);
-        Mob golem = helper.spawnWithNoFreeWill(EntityType.IRON_GOLEM, BLAST_MOB_POS);
+        Mob golem = helper.spawnWithNoFreeWill(EntityTypes.IRON_GOLEM, BLAST_MOB_POS);
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         standFacingEast(helper, player, FAR_FROM_THE_BLAST);
         GooEffectScheduler arrivals = GooServerState.of(helper.getLevel().getServer()).gooEffects();
@@ -214,7 +213,7 @@ public final class GooCasterHitTests {
      */
     public static void blockHunkNamesThePlayer(GameTestHelper helper) {
         layGougeSlab(helper);
-        Mob husk = helper.spawnWithNoFreeWill(EntityType.HUSK, HUNK_MOB_POS);
+        Mob husk = helper.spawnWithNoFreeWill(EntityTypes.HUSK, HUNK_MOB_POS);
         ServerPlayer player = casterFacingEast(helper, GooTypes.ROCK, ROCK_GOUGE);
         gougeAndHuck(helper, player);
         succeedOnceHit(helper, player, husk, "A hucked hunk", DamageTypes.FALLING_BLOCK);
@@ -227,8 +226,8 @@ public final class GooCasterHitTests {
      * @param helper the gametest helper
      */
     public static void flamesKeepsLeadAndCharm(GameTestHelper helper) {
-        Mob led = helper.spawnWithNoFreeWill(EntityType.HUSK, MOB_POS);
-        Mob charmed = helper.spawnWithNoFreeWill(EntityType.HUSK, MOB_BEHIND_POS);
+        Mob led = helper.spawnWithNoFreeWill(EntityTypes.HUSK, MOB_POS);
+        Mob charmed = helper.spawnWithNoFreeWill(EntityTypes.HUSK, MOB_BEHIND_POS);
         ServerPlayer player = casterFacingEast(helper, GooTypes.BLAZE, BLAZE_FLAMES);
         makeOwn(player, led, charmed);
         helper.runAfterDelay(SETTLE_TICKS, () -> {
@@ -244,8 +243,8 @@ public final class GooCasterHitTests {
      * @param helper the gametest helper
      */
     public static void novaKeepsLeadAndCharm(GameTestHelper helper) {
-        Mob led = helper.spawnWithNoFreeWill(EntityType.HUSK, MOB_POS);
-        Mob charmed = helper.spawnWithNoFreeWill(EntityType.HUSK, MOB_BEHIND_POS);
+        Mob led = helper.spawnWithNoFreeWill(EntityTypes.HUSK, MOB_POS);
+        Mob charmed = helper.spawnWithNoFreeWill(EntityTypes.HUSK, MOB_BEHIND_POS);
         ServerPlayer player = casterFacingEast(helper, GooTypes.FROST, FROST_NOVA);
         makeOwn(player, led, charmed);
         int fullHold = ability(helper, FROST_NOVA).delivery().charge().maxTicks();
@@ -265,8 +264,8 @@ public final class GooCasterHitTests {
     public static void kindleRetaliationKeepsLeadAndCharm(GameTestHelper helper) {
         ServerPlayer player = HeartOverlayTests.crawledWhole(
                 HeartOverlayTests.selfInvoked(helper, GooTypes.BLAZE, BLAZE_KINDLE));
-        Mob led = helper.spawnWithNoFreeWill(EntityType.HUSK, ATTACKER_POS);
-        Mob charmed = helper.spawnWithNoFreeWill(EntityType.HUSK, SECOND_ATTACKER_POS);
+        Mob led = helper.spawnWithNoFreeWill(EntityTypes.HUSK, ATTACKER_POS);
+        Mob charmed = helper.spawnWithNoFreeWill(EntityTypes.HUSK, SECOND_ATTACKER_POS);
         makeOwn(player, led, charmed);
         led.doHurtTarget(helper.getLevel(), player);
         charmed.doHurtTarget(helper.getLevel(), player);
@@ -281,8 +280,8 @@ public final class GooCasterHitTests {
      */
     public static void blockHunkKeepsLeadAndCharm(GameTestHelper helper) {
         layGougeSlab(helper);
-        Mob led = helper.spawnWithNoFreeWill(EntityType.HUSK, HUNK_MOB_POS);
-        Mob charmed = helper.spawnWithNoFreeWill(EntityType.HUSK, HUNK_SECOND_MOB_POS);
+        Mob led = helper.spawnWithNoFreeWill(EntityTypes.HUSK, HUNK_MOB_POS);
+        Mob charmed = helper.spawnWithNoFreeWill(EntityTypes.HUSK, HUNK_SECOND_MOB_POS);
         ServerPlayer player = casterFacingEast(helper, GooTypes.ROCK, ROCK_GOUGE);
         makeOwn(player, led, charmed);
         // a led mob walks to its leader and a charmed one to its charmer, out of the hunk's flight, over the hold

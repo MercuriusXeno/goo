@@ -1,5 +1,7 @@
 package com.mercuriusxeno.goo.network;
 
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooItems;
 import com.mercuriusxeno.goo.registry.GooMobEffects;
@@ -8,12 +10,12 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.protocol.game.ServerboundAttackPacket;
-import net.minecraft.resources.Identifier;
 import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.effect.MobEffectInstance;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameType;
@@ -21,8 +23,6 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
-import com.mercuriusxeno.goo.gametest.GooTestFunctions;
-import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for Kinetic's Remote, held on the glove by a survival mock
@@ -99,7 +99,7 @@ public final class RemoteTests {
     public static void remoteHitsBeyondReach(GameTestHelper helper) {
         assertInsideTheStructure(helper, FAR_MOB, "zombie");
         ServerPlayer player = reacher(helper);
-        Zombie zombie = helper.spawn(EntityType.ZOMBIE, FAR_MOB);
+        Zombie zombie = helper.spawn(EntityTypes.ZOMBIE, FAR_MOB);
         zombie.setNoAi(true);
         zombie.setNoGravity(true);
         float health = zombie.getHealth();

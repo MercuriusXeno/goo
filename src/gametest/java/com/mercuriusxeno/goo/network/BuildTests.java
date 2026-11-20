@@ -17,19 +17,18 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.level.block.entity.ChestBlockEntity;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.entity.ChestBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.List;
-import java.util.Map;
 import java.util.function.Consumer;
 
 /**
@@ -364,7 +363,7 @@ public final class BuildTests {
         submit(helper);
         Zombie[] rider = new Zombie[1];
         helper.runAfterDelay(OVERTAKEN_TICKS, () -> {
-            rider[0] = helper.spawn(EntityType.ZOMBIE, RIDER_POS);
+            rider[0] = helper.spawn(EntityTypes.ZOMBIE, RIDER_POS);
             rider[0].setNoAi(true);
         });
         helper.runAfterDelay(OVERTAKEN_TICKS + 2, () -> {
@@ -392,7 +391,7 @@ public final class BuildTests {
         layTheGround(helper);
         submit(helper);
         // Spawned after the hunk, the rider ticks after it: the order that left a rider's climb out of its own tick.
-        Zombie rider = helper.spawn(EntityType.ZOMBIE, RIDER_POS);
+        Zombie rider = helper.spawn(EntityTypes.ZOMBIE, RIDER_POS);
         rider.setNoAi(true);
         double[] lastTop = {Double.NaN};
         for (int tick = 1; tick < BuildStep.RISE_TICKS; tick++) {

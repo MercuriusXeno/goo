@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.ability.AbilityJson;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
@@ -160,7 +160,7 @@ class VacuumPullStepTest {
         void aMobIsDragged() {
             Mob mob = mock(Mob.class);
             when(mob.isAlive()).thenReturn(true);
-            when(mob.getType()).thenAnswer(unused -> EntityType.ZOMBIE);
+            when(mob.getType()).thenAnswer(unused -> EntityTypes.ZOMBIE);
 
             assertTrue(VacuumPullStep.drags(mob));
         }
@@ -169,7 +169,7 @@ class VacuumPullStepTest {
         void aBossIsNotDragged() {
             Mob boss = mock(Mob.class);
             when(boss.isAlive()).thenReturn(true);
-            when(boss.getType()).thenAnswer(unused -> EntityType.WITHER);
+            when(boss.getType()).thenAnswer(unused -> EntityTypes.WITHER);
 
             assertFalse(VacuumPullStep.drags(boss));
         }

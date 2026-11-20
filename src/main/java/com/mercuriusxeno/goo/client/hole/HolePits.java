@@ -3,9 +3,11 @@ package com.mercuriusxeno.goo.client.hole;
 import com.mercuriusxeno.goo.ability.hole.HoleFrame;
 import com.mercuriusxeno.goo.client.DepthCopyTarget;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.network.PortableHolesSyncPayload;
+import com.mojang.blaze3d.PrimitiveTopology;
 import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.buffers.GpuBufferSlice;
 import com.mojang.blaze3d.pipeline.RenderTarget;
@@ -20,9 +22,7 @@ import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.ARGB;
@@ -34,8 +34,8 @@ import org.joml.Matrix4fc;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
 import java.util.List;
+import java.util.Optional;
 import java.util.OptionalDouble;
-import java.util.OptionalInt;
 import java.util.function.Consumer;
 
 /**
@@ -92,7 +92,7 @@ public final class HolePits {
         if (drawn.isEmpty()) {
             return;
         }
-        Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        Vec3 camera = mc.gameRenderer.mainCamera().position();
         draws.accept(new SortedDraw(0, () -> drawPits(mc, frame, drawn, time, camera)));
     }
 
@@ -113,7 +113,7 @@ public final class HolePits {
      */
     private static void carve(List<PortableHolesSyncPayload.Mouth> drawn, float time, Vec3 camera,
                               Matrix4fc modelView) {
-        RenderTarget main = Minecraft.getInstance().getMainRenderTarget();
+        RenderTarget main = Minecraft.getInstance().gameRenderer.mainRenderTarget();
         TextureTarget copy = DEPTH_COPY_TARGET.matching(main);
         copy.copyDepthFrom(main);
         GpuDevice device = RenderSystem.getDevice();
@@ -122,20 +122,20 @@ public final class HolePits {
                 * DefaultVertexFormat.POSITION_COLOR.getVertexSize())) {
             MeshData mesh = ovalsOf(drawn, time, camera, bytes);
             GpuBuffer vertices = device.createBuffer(() -> CARVE_BUFFER, GpuBuffer.USAGE_VERTEX, mesh.vertexBuffer());
-            RenderSystem.AutoStorageIndexBuffer indices = RenderSystem.getSequentialBuffer(VertexFormat.Mode.QUADS);
+            RenderSystem.AutoStorageIndexBuffer indices = RenderSystem.getSequentialBuffer(PrimitiveTopology.QUADS);
             GpuBufferSlice transform = RenderSystem.getDynamicUniforms().writeTransform(new Matrix4f(modelView),
                     WHITE, new Vector3f(), new Matrix4f());
             try (RenderPass pass = device.createCommandEncoder().createRenderPass(() -> CARVE_PASS,
-                    main.getColorTextureView(), OptionalInt.empty(), main.getDepthTextureView(),
+                    main.getColorTextureView(), Optional.empty(), main.getDepthTextureView(),
                     OptionalDouble.empty())) {
                 pass.setPipeline(GooRenderTypes.PORTABLE_HOLE_CARVE);
                 RenderSystem.bindDefaultUniforms(pass);
                 pass.setUniform(TRANSFORMS_UNIFORM, transform);
                 pass.bindTexture(GooRenderTypes.PORTABLE_HOLE_DEPTH_SAMPLER, copy.getDepthTextureView(),
                         RenderSystem.getSamplerCache().getClampToEdge(FilterMode.NEAREST));
-                pass.setVertexBuffer(0, vertices);
+                pass.setVertexBuffer(0, vertices.slice());
                 pass.setIndexBuffer(indices.getBuffer(quads * INDICES_PER_QUAD), indices.type());
-                pass.drawIndexed(0, 0, quads * INDICES_PER_QUAD, 1);
+                pass.drawIndexed(quads * INDICES_PER_QUAD, 1, 0, 0, 0);
             }
             mesh.close();
             vertices.close();
@@ -154,7 +154,7 @@ public final class HolePits {
      */
     private static MeshData ovalsOf(List<PortableHolesSyncPayload.Mouth> drawn, float time, Vec3 camera,
                                     ByteBufferBuilder bytes) {
-        BufferBuilder builder = new BufferBuilder(bytes, VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
+        BufferBuilder builder = new BufferBuilder(bytes, PrimitiveTopology.QUADS, DefaultVertexFormat.POSITION_COLOR);
         int black = ARGB.opaque(FLOOR_RGB);
         for (PortableHolesSyncPayload.Mouth mouth : drawn) {
             Direction face = mouth.face();
@@ -230,7 +230,7 @@ public final class HolePits {
      */
     private static void fill(Minecraft mc, PoseStack.Pose pose, List<PortableHolesSyncPayload.Mouth> drawn,
                              Vec3 camera) {
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        ImmediateBuffers buffers = ImmediateBuffers.shared();
         VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.PORTABLE_HOLE_PIT_TYPE);
         for (PortableHolesSyncPayload.Mouth mouth : drawn) {
             HoleFrame.Pit pit = HoleFrame.pitOf(mouth.footprint(), mouth.face());

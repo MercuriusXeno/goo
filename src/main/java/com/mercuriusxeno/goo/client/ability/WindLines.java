@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.ability.AbilityArea;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.WindStep;
+import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.LineContext;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
@@ -10,7 +11,6 @@ import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.particle.VoidMoteParticle;
 import com.mercuriusxeno.goo.registry.GooParticles;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.resources.sounds.AbstractTickableSoundInstance;
@@ -805,7 +805,7 @@ public final class WindLines {
             return;
         }
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        Vec3 camera = mc.gameRenderer.mainCamera().position();
         Vec3 rider = mc.player == null ? Vec3.ZERO : mc.player.getPosition(partialTick);
         List<Line> live = List.copyOf(CLIENT.live);
         draws.accept(new SortedDraw(rider.distanceToSqr(camera),
@@ -825,7 +825,7 @@ public final class WindLines {
 
     private static void drawLines(Minecraft mc, LevelFrame frame, List<Line> live, LinesAt at) {
         Vec3 blob = CastOrigin.ofLocal(mc);
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        ImmediateBuffers buffers = ImmediateBuffers.shared();
         RenderType type = RenderTypes.linesTranslucent();
         LineContext lines = new LineContext(frame.poseStack().last(), buffers.getBuffer(type));
         for (Line line : live) {

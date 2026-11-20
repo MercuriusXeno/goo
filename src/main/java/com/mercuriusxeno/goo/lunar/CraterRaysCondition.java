@@ -4,7 +4,6 @@ import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.util.KeyDispatchDataCodec;
 import net.minecraft.world.level.levelgen.SurfaceRules;
 import net.minecraft.world.level.levelgen.synth.NormalNoise;
 
@@ -22,11 +21,10 @@ public record CraterRaysCondition(ResourceKey<NormalNoise.NoiseParameters> noise
     public static final MapCodec<CraterRaysCondition> DATA_CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
             ResourceKey.codec(Registries.NOISE).fieldOf("noise").forGetter(CraterRaysCondition::noise)
     ).apply(instance, CraterRaysCondition::new));
-    private static final KeyDispatchDataCodec<CraterRaysCondition> CODEC = KeyDispatchDataCodec.of(DATA_CODEC);
 
     @Override
-    public KeyDispatchDataCodec<? extends SurfaceRules.ConditionSource> codec() {
-        return CODEC;
+    public MapCodec<? extends SurfaceRules.ConditionSource> codec() {
+        return DATA_CODEC;
     }
 
     @Override

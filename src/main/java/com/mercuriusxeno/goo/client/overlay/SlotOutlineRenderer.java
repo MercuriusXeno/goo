@@ -66,8 +66,8 @@ public final class SlotOutlineRenderer {
      */
     private static CustomBlockOutlineRenderer slotRenderer(
             VoxelShape shape, @Nullable AABB preview, @Nullable AABB pickup) {
-        return (renderState, bufferSource, poseStack, translucent, levelRenderState) ->
-                SlotOutlineDrawing.renderOutline(renderState, bufferSource, poseStack, translucent,
-                        levelRenderState, shape, preview, pickup);
+        return (renderState, collector, poseStack, levelRenderState) ->
+                SlotOutlineDrawing.renderOutline(renderState, collector, poseStack, levelRenderState, shape,
+                        preview, pickup);
     }
 }

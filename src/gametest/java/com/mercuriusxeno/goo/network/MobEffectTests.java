@@ -5,41 +5,41 @@ import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.AbilityRegistrySource;
 import com.mercuriusxeno.goo.ability.hex.CharmEvents;
 import com.mercuriusxeno.goo.ability.seal.SealEvents;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.KnownRecipes;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import com.mercuriusxeno.goo.gametest.SurvivalPlayers;
 import com.mercuriusxeno.goo.network.GooEffectScheduler.PendingEffect;
 import com.mercuriusxeno.goo.registry.GooAttachments;
+import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
-import net.minecraft.server.level.ServerPlayer;
-import org.jspecify.annotations.Nullable;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.EquipmentSlot;
-import net.minecraft.world.entity.Mob;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.entity.ai.attributes.Attributes;
-import net.minecraft.world.entity.monster.Slime;
-import net.minecraft.world.entity.projectile.arrow.Arrow;
-import net.minecraft.world.entity.animal.cow.Cow;
-import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.animal.cow.Cow;
+import net.minecraft.world.entity.monster.cubemob.Slime;
+import net.minecraft.world.entity.projectile.arrow.Arrow;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.storage.TagValueInput;
 import net.minecraft.world.level.storage.TagValueOutput;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
+import org.jspecify.annotations.Nullable;
 import java.util.Map;
 import java.util.function.Consumer;
-import com.mercuriusxeno.goo.gametest.GooTestFunctions;
-import com.mercuriusxeno.goo.gametest.KnownRecipes;
-import com.mercuriusxeno.goo.gametest.RegistersGameTests;
-import com.mercuriusxeno.goo.type.GooTypes;
 
 /**
  * Gametests for the mob abilities: each test spawns a mob, lands a goo of
@@ -204,7 +204,7 @@ public final class MobEffectTests {
      * @param helper the gametest helper
      */
     public static void allureCourtsTheStruckAnimal(GameTestHelper helper) {
-        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
+        Cow cow = helper.spawnWithNoFreeWill(EntityTypes.COW, SPAWN_POS);
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             strike(helper, cow, ABILITY_ZOO_ALLURE);
             helper.assertTrue(cow.isInLove(), SHOULD_BE_IN_LOVE);
@@ -220,7 +220,7 @@ public final class MobEffectTests {
      * @param helper the gametest helper
      */
     public static void floatLevitatesAZombie(GameTestHelper helper) {
-        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, SPAWN_POS);
+        Mob zombie = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, SPAWN_POS);
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             strike(helper, zombie, ABILITY_TEST_FLOAT);
             MobEffectInstance levitation = zombie.getEffect(MobEffects.LEVITATION);
@@ -246,8 +246,8 @@ public final class MobEffectTests {
      */
     public static void charmTurnsZombieOnSkeleton(GameTestHelper helper) {
         ServerPlayer charmer = SurvivalPlayers.placeIn(helper);
-        Mob zombie = charmable(helper.spawnWithNoFreeWill(EntityType.ZOMBIE, SPAWN_POS));
-        Mob skeleton = helper.spawnWithNoFreeWill(EntityType.SKELETON, BYSTANDER_POS);
+        Mob zombie = charmable(helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, SPAWN_POS));
+        Mob skeleton = helper.spawnWithNoFreeWill(EntityTypes.SKELETON, BYSTANDER_POS);
         // spawnWithNoFreeWill leaves the target goals, which can lock the skeleton onto the survival
         // charmer on its first tick; the test stands a skeleton that has not aggressed
         skeleton.targetSelector.removeAllGoals(goal -> true);
@@ -273,7 +273,7 @@ public final class MobEffectTests {
      */
     public static void charmHoldsThroughASave(GameTestHelper helper) {
         ServerPlayer charmer = SurvivalPlayers.placeIn(helper);
-        Mob zombie = charmable(helper.spawnWithNoFreeWill(EntityType.ZOMBIE, SPAWN_POS));
+        Mob zombie = charmable(helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, SPAWN_POS));
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             strike(helper, zombie, ABILITY_HEX_CHARM, charmer);
             TagValueOutput saved = TagValueOutput.createWithContext(ProblemReporter.DISCARDING,
@@ -299,7 +299,7 @@ public final class MobEffectTests {
      */
     public static void charmBreaksOnTheCharmersHit(GameTestHelper helper) {
         ServerPlayer charmer = SurvivalPlayers.placeIn(helper);
-        Mob zombie = charmable(helper.spawnWithNoFreeWill(EntityType.ZOMBIE, SPAWN_POS));
+        Mob zombie = charmable(helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, SPAWN_POS));
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             strike(helper, zombie, ABILITY_HEX_CHARM, charmer);
             helper.assertTrue(zombie.hasData(GooAttachments.CHARMED), ZOMBIE_SHOULD_BE_CHARMED);
@@ -319,8 +319,8 @@ public final class MobEffectTests {
      */
     public static void charmedSlimeSparesItsCharmer(GameTestHelper helper) {
         ServerPlayer charmer = SurvivalPlayers.placeIn(helper);
-        Slime charmed = charmable(helper.spawnWithNoFreeWill(EntityType.SLIME, SPAWN_POS));
-        Slime wild = helper.spawnWithNoFreeWill(EntityType.SLIME, BYSTANDER_POS);
+        Slime charmed = charmable(helper.spawnWithNoFreeWill(EntityTypes.SLIME, SPAWN_POS));
+        Slime wild = helper.spawnWithNoFreeWill(EntityTypes.SLIME, BYSTANDER_POS);
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             strike(helper, charmed, ABILITY_HEX_CHARM, charmer);
             float before = charmer.getHealth();
@@ -344,8 +344,8 @@ public final class MobEffectTests {
      */
     public static void charmedZombieSparesACharmedZombie(GameTestHelper helper) {
         ServerPlayer charmer = SurvivalPlayers.placeIn(helper);
-        Mob striker = sunproof(charmable(helper.spawn(EntityType.ZOMBIE, SPAWN_POS)));
-        Mob struck = sunproof(charmable(helper.spawn(EntityType.ZOMBIE, BYSTANDER_POS)));
+        Mob striker = sunproof(charmable(helper.spawn(EntityTypes.ZOMBIE, SPAWN_POS)));
+        Mob struck = sunproof(charmable(helper.spawn(EntityTypes.ZOMBIE, BYSTANDER_POS)));
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             strike(helper, striker, ABILITY_HEX_CHARM, charmer);
             strike(helper, struck, ABILITY_HEX_CHARM, charmer);
@@ -376,7 +376,7 @@ public final class MobEffectTests {
         AbilityDefinition charm = AbilityRegistry.of(helper.getLevel()).getAbility(charmId);
         helper.assertTrue(charm != null, ABILITIES_REQUIRED);
         KnownRecipes.teachRequires(caster, charm);
-        Mob zombie = charmable(helper.spawnWithNoFreeWill(EntityType.ZOMBIE, SPAWN_POS));
+        Mob zombie = charmable(helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, SPAWN_POS));
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             GooThrowHandler.execute(caster, new GooThrowPayload(GooTypes.id(GooTypes.HEX), zombie.getId(),
                     BlockPos.ZERO, NO_FACE, false, ABILITY_HEX_CHARM, caster.getEyePosition(),
@@ -399,8 +399,8 @@ public final class MobEffectTests {
      */
     public static void charmedZombiesHitLandsNothingOnACharmedZombie(GameTestHelper helper) {
         ServerPlayer charmer = SurvivalPlayers.placeIn(helper);
-        Mob striker = sunproof(charmable(helper.spawnWithNoFreeWill(EntityType.ZOMBIE, SPAWN_POS)));
-        Mob struck = sunproof(charmable(helper.spawnWithNoFreeWill(EntityType.ZOMBIE, BYSTANDER_POS)));
+        Mob striker = sunproof(charmable(helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, SPAWN_POS)));
+        Mob struck = sunproof(charmable(helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, BYSTANDER_POS)));
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             strike(helper, striker, ABILITY_HEX_CHARM, charmer);
             strike(helper, struck, ABILITY_HEX_CHARM, charmer);
@@ -423,8 +423,8 @@ public final class MobEffectTests {
      */
     public static void charmedSkeletonsArrowLandsNothingOnACharmedZombie(GameTestHelper helper) {
         ServerPlayer charmer = SurvivalPlayers.placeIn(helper);
-        Mob skeleton = charmable(helper.spawnWithNoFreeWill(EntityType.SKELETON, SPAWN_POS));
-        Mob zombie = sunproof(charmable(helper.spawnWithNoFreeWill(EntityType.ZOMBIE, BYSTANDER_POS)));
+        Mob skeleton = charmable(helper.spawnWithNoFreeWill(EntityTypes.SKELETON, SPAWN_POS));
+        Mob zombie = sunproof(charmable(helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, BYSTANDER_POS)));
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             strike(helper, skeleton, ABILITY_HEX_CHARM, charmer);
             strike(helper, zombie, ABILITY_HEX_CHARM, charmer);
@@ -475,7 +475,7 @@ public final class MobEffectTests {
      */
     @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
     public static void sealWarpsThenExiles(GameTestHelper helper) {
-        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, SPAWN_POS);
+        Mob zombie = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, SPAWN_POS);
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         player.setPos(zombie.getX(), zombie.getY() + PLAYER_OUT_OF_REACH_ABOVE, zombie.getZ());
         helper.runAfterDelay(SETTLE_TICKS, () -> {
@@ -527,7 +527,7 @@ public final class MobEffectTests {
      */
     public static void unstableExplode(GameTestHelper helper) {
         helper.setBlock(BLAST_DIRT_POS, Blocks.DIRT);
-        Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
+        Mob mob = helper.spawnWithNoFreeWill(EntityTypes.COW, SPAWN_POS);
         float before = mob.getHealth();
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             strike(helper, mob, ABILITY_UNSTABLE_BLAST);

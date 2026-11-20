@@ -46,9 +46,11 @@ float brightnessAt(float distance) {
     return mix(BRIGHT_NEXT, 0.0, clamp((distance - NEXT_REACH) / (DARK_REACH - NEXT_REACH), 0.0, 1.0));
 }
 
+// The projection builds its perspective with the near and far planes swapped, so depth runs inverted
+// (decision minecraft-26-3-update-is-a-port-to-parity).
 float linearDepth(vec2 uv, float near, float far) {
     float z = texture(InDepthSampler, uv).r * 2.0 - 1.0;
-    return 2.0 * near * far / (far + near - z * (far - near));
+    return 2.0 * near * far / (far + near + z * (far - near));
 }
 
 void main() {

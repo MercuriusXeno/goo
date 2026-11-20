@@ -49,7 +49,7 @@ public final class CanisterHudRenderer {
             ANIMATOR.clear();
             return;
         }
-        Camera camera = Minecraft.getInstance().gameRenderer.getMainCamera();
+        Camera camera = Minecraft.getInstance().gameRenderer.mainCamera();
         Vec3 anchor = new Vec3(target.pos.getX() + target.cx, target.pos.getY() + target.lift,
                 target.pos.getZ() + target.cz);
         PanelPlacement placement = PanelPlacement.onFace(anchor, target.hitFace,

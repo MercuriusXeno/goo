@@ -40,6 +40,8 @@ import java.util.List;
 public final class BlockHunkRenderer extends EntityRenderer<BlockHunk, BlockHunkRenderer.HunkRenderState> {
 
     private static final double HALF = 0.5;
+    /** A hunk draws no outline. */
+    private static final int NO_OUTLINE = 0;
     /** A whole color channel, or full alpha. */
     private static final int OPAQUE = 255;
     /** How far a lingering hunk's blocks swell past the stone beneath them. */
@@ -233,7 +235,7 @@ public final class BlockHunkRenderer extends EntityRenderer<BlockHunk, BlockHunk
             poseStack.translate(offset.x + HALF, offset.y + HALF, offset.z + HALF);
             poseStack.scale(state.swell, state.swell, state.swell);
             poseStack.translate(-HALF, -HALF, -HALF);
-            collector.submitMovingBlock(poseStack, state.blocks.get(index));
+            collector.submitMovingBlock(poseStack, state.blocks.get(index), NO_OUTLINE);
             poseStack.popPose();
         }
         super.submit(state, poseStack, collector, camera);

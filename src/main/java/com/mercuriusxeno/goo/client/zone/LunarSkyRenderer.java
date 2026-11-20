@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.zone;
 
 import com.mercuriusxeno.goo.ability.astral.LunarSight;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mojang.blaze3d.PrimitiveTopology;
 import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.buffers.GpuBufferSlice;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
@@ -30,8 +31,8 @@ import org.joml.Vector3f;
 import org.joml.Vector4f;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
+import java.util.Optional;
 import java.util.OptionalDouble;
-import java.util.OptionalInt;
 
 /**
  * Draws goo:lunar's sky in place of vanilla's: the pocket's sea of dim stars, then vanilla's sun where it stands over
@@ -130,22 +131,22 @@ public final class LunarSkyRenderer implements CustomSkyboxRenderer {
         TextureAtlas celestials = Minecraft.getInstance().getAtlasManager().getAtlasOrThrow(AtlasIds.CELESTIALS);
         GpuBuffer quad = sunOn(celestials);
         Matrix4f pose = new Matrix4f(modelViewMatrix).mul(sunPose(sun));
-        RenderSystem.AutoStorageIndexBuffer sequential = RenderSystem.getSequentialBuffer(VertexFormat.Mode.QUADS);
+        RenderSystem.AutoStorageIndexBuffer sequential = RenderSystem.getSequentialBuffer(PrimitiveTopology.QUADS);
         GpuBuffer indices = sequential.getBuffer(QUAD_INDICES);
         GpuBufferSlice transforms = RenderSystem.getDynamicUniforms().writeTransform(pose,
                 new Vector4f(FULL_BRIGHTNESS, FULL_BRIGHTNESS, FULL_BRIGHTNESS, FULL_BRIGHTNESS), new Vector3f(),
                 new Matrix4f());
-        GpuTextureView color = Minecraft.getInstance().getMainRenderTarget().getColorTextureView();
-        GpuTextureView depth = Minecraft.getInstance().getMainRenderTarget().getDepthTextureView();
+        GpuTextureView color = Minecraft.getInstance().gameRenderer.mainRenderTarget().getColorTextureView();
+        GpuTextureView depth = Minecraft.getInstance().gameRenderer.mainRenderTarget().getDepthTextureView();
         try (RenderPass pass = RenderSystem.getDevice().createCommandEncoder()
-                .createRenderPass(() -> SUN_LABEL, color, OptionalInt.empty(), depth, OptionalDouble.empty())) {
+                .createRenderPass(() -> SUN_LABEL, color, Optional.empty(), depth, OptionalDouble.empty())) {
             pass.setPipeline(RenderPipelines.CELESTIAL);
             RenderSystem.bindDefaultUniforms(pass);
             pass.setUniform(DYNAMIC_TRANSFORMS, transforms);
             pass.bindTexture(SAMPLER, celestials.getTextureView(), celestials.getSampler());
-            pass.setVertexBuffer(0, quad);
+            pass.setVertexBuffer(0, quad.slice());
             pass.setIndexBuffer(indices, sequential.type());
-            pass.drawIndexed(0, 0, QUAD_INDICES, 1);
+            pass.drawIndexed(QUAD_INDICES, 1, 0, 0, 0);
         }
     }
 
@@ -175,7 +176,7 @@ public final class LunarSkyRenderer implements CustomSkyboxRenderer {
         VertexFormat format = DefaultVertexFormat.POSITION_TEX;
         try (ByteBufferBuilder bytes = ByteBufferBuilder.exactlySized(format.getVertexSize()
                 * LunarSky.FLAT_QUAD.size())) {
-            BufferBuilder builder = new BufferBuilder(bytes, VertexFormat.Mode.QUADS, format);
+            BufferBuilder builder = new BufferBuilder(bytes, PrimitiveTopology.QUADS, format);
             for (int corner = 0; corner < LunarSky.FLAT_QUAD.size(); corner++) {
                 builder.addVertex(LunarSky.FLAT_QUAD.get(corner)).setUv(uvs[corner][0], uvs[corner][1]);
             }

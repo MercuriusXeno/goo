@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.client;
 
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.rendertype.RenderType;
 
 /**
@@ -22,7 +21,7 @@ public record BufferedPass(VertexConsumer consumer, Runnable end) {
      * @param type    the render type the batch draws through
      * @return the batch
      */
-    public static BufferedPass of(MultiBufferSource.BufferSource buffers, RenderType type) {
+    public static BufferedPass of(ImmediateBuffers buffers, RenderType type) {
         return new BufferedPass(buffers.getBuffer(type), () -> buffers.endBatch(type));
     }
 }

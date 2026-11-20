@@ -10,7 +10,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.Mob;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
@@ -56,7 +56,7 @@ public final class VoidCancelTests {
      * @param helper the gametest helper
      */
     public static void voidDeletesTheStruckMob(GameTestHelper helper) {
-        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, SPAWN_POS);
+        Mob zombie = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, SPAWN_POS);
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             strike(helper, zombie);
             helper.assertTrue(zombie.isRemoved() && !zombie.isAlive(),
@@ -73,7 +73,7 @@ public final class VoidCancelTests {
      * @param helper the gametest helper
      */
     public static void voidSparesABoss(GameTestHelper helper) {
-        Mob wither = helper.spawnWithNoFreeWill(EntityType.WITHER, SPAWN_POS);
+        Mob wither = helper.spawnWithNoFreeWill(EntityTypes.WITHER, SPAWN_POS);
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             strike(helper, wither);
             helper.runAfterDelay(1, () -> {

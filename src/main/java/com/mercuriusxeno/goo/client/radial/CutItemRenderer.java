@@ -6,10 +6,8 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.render.TextureSetup;
 import net.minecraft.client.gui.render.pip.PictureInPictureRenderer;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderPipelines;
-import net.minecraft.client.renderer.SubmitNodeStorage;
-import net.minecraft.client.renderer.feature.FeatureRenderDispatcher;
+import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.item.TrackingItemStackRenderState;
 import net.minecraft.client.renderer.state.gui.BlitRenderState;
 import net.minecraft.client.renderer.state.gui.GuiRenderState;
@@ -33,8 +31,7 @@ public final class CutItemRenderer extends PictureInPictureRenderer<CutItemRende
     private static final int OPAQUE_WHITE = 0xFFFFFFFF;
     private static final float HALF = 0.5f;
 
-    private CutItemRenderer(MultiBufferSource.BufferSource bufferSource) {
-        super(bufferSource);
+    private CutItemRenderer() {
     }
 
     /**
@@ -51,19 +48,18 @@ public final class CutItemRenderer extends PictureInPictureRenderer<CutItemRende
         return CutItemRenderState.class;
     }
 
+    // The base renderer draws what the collector holds once this returns.
     @Override
-    protected void renderToTexture(CutItemRenderState renderState, PoseStack poseStack) {
+    protected void renderToTexture(CutItemRenderState renderState, PoseStack poseStack,
+                                   SubmitNodeCollector collector) {
         Minecraft minecraft = Minecraft.getInstance();
         TrackingItemStackRenderState item = new TrackingItemStackRenderState();
         minecraft.getItemModelResolver().updateForTopItem(item, renderState.stack(), ItemDisplayContext.GUI,
                 minecraft.level, minecraft.player, 0);
         poseStack.scale(1.0f, FLIP, FLIP);
-        minecraft.gameRenderer.getLighting().setupFor(item.usesBlockLight()
+        minecraft.gameRenderer.lighting().setupFor(item.usesBlockLight()
                 ? Lighting.Entry.ITEMS_3D : Lighting.Entry.ITEMS_FLAT);
-        FeatureRenderDispatcher dispatcher = minecraft.gameRenderer.getFeatureRenderDispatcher();
-        SubmitNodeStorage storage = dispatcher.getSubmitNodeStorage();
-        item.submit(poseStack, storage, GooSubmitter.fullbrightLight(), OverlayTexture.NO_OVERLAY, 0);
-        dispatcher.renderAllFeatures();
+        item.submit(poseStack, collector, GooSubmitter.fullbrightLight(), OverlayTexture.NO_OVERLAY, 0);
     }
 
     /**

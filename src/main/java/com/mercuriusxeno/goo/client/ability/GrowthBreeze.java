@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.ability.program.TickPlantsStep;
 import com.mercuriusxeno.goo.client.FlatQuadContext;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
@@ -11,7 +12,6 @@ import com.mercuriusxeno.goo.client.throwing.GloveAim;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 import java.util.function.Consumer;
@@ -51,7 +51,7 @@ public final class GrowthBreeze {
             return;
         }
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        Vec3 camera = mc.gameRenderer.mainCamera().position();
         Vec3 apex = CastOrigin.ofLocal(mc).subtract(camera);
         Vec3 axis = player.getViewVector(partialTick);
         double range = growth.delivery().range();
@@ -63,7 +63,7 @@ public final class GrowthBreeze {
     }
 
     private static void drawBreeze(Minecraft mc, LevelFrame frame, ConeSections.Volume volume) {
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        ImmediateBuffers buffers = ImmediateBuffers.shared();
         FlatQuadContext quads = new FlatQuadContext(frame.poseStack().last(),
                 buffers.getBuffer(GooRenderTypes.GROWTH_BREEZE_TYPE));
         ConeSections.emit(quads, volume);

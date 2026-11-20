@@ -84,7 +84,7 @@ public final class BlinkCursor {
         List<Afterimages.Afterimage<EntityRenderState>> ripples = ripplesAt(mc, player, trip, type, partialTick);
         if (!ripples.isEmpty()) {
             draws.accept(SortedDraw.nearestOf(ripples.stream().map(Afterimages.Afterimage::position),
-                    mc.gameRenderer.getMainCamera().position(), () -> AfterimageRenderer.drawRipples(frame, ripples)));
+                    mc.gameRenderer.mainCamera().position(), () -> AfterimageRenderer.drawRipples(frame, ripples)));
         }
     }
 

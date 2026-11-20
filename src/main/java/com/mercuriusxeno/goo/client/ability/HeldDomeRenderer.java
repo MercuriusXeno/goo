@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.ability.AbilityArea;
 import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.LineContext;
 import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
@@ -13,7 +14,6 @@ import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
@@ -188,7 +188,7 @@ public final class HeldDomeRenderer {
      * @param at         the ghost and where it draws
      * @param nowSeconds seconds on the real-time clock the layers run on
      */
-    public static void drawThroughBlocks(PoseStack poseStack, MultiBufferSource.BufferSource buffers, Vec3 camera,
+    public static void drawThroughBlocks(PoseStack poseStack, ImmediateBuffers buffers, Vec3 camera,
                                          GhostAt at, double nowSeconds) {
         drawLayers(poseStack, buffers, camera, at, nowSeconds, HeldLayer::throughBlocks, THROUGH_BLOCKS_OPACITY);
     }
@@ -205,13 +205,13 @@ public final class HeldDomeRenderer {
      * @param ringRgb    the goo type's highlight color
      * @param nowSeconds seconds on the real-time clock the layers and rings run on
      */
-    public static void drawOverBlocks(PoseStack poseStack, MultiBufferSource.BufferSource buffers, Vec3 camera,
+    public static void drawOverBlocks(PoseStack poseStack, ImmediateBuffers buffers, Vec3 camera,
                                       GhostAt at, int ringRgb, double nowSeconds) {
         drawLayers(poseStack, buffers, camera, at, nowSeconds, HeldLayer::overBlocks, HELD_OPACITY);
         drawRings(poseStack, buffers, camera, at.anchor(), at.ghost(), ringRgb, nowSeconds);
     }
 
-    private static void drawLayers(PoseStack poseStack, MultiBufferSource.BufferSource buffers, Vec3 camera,
+    private static void drawLayers(PoseStack poseStack, ImmediateBuffers buffers, Vec3 camera,
                                    GhostAt at, double nowSeconds, Function<HeldLayer, RenderType> passType,
                                    float opacity) {
         poseStack.pushPose();
@@ -241,7 +241,7 @@ public final class HeldDomeRenderer {
          * @param type      the pass's render type for the layer
          * @param opacity   the share of the landing's opacity
          */
-        void draw(PoseStack poseStack, MultiBufferSource.BufferSource buffers, HeldLayer layer, RenderType type,
+        void draw(PoseStack poseStack, ImmediateBuffers buffers, HeldLayer layer, RenderType type,
                   float opacity) {
             layer.emitter().emit(poseStack.last(), buffers.getBuffer(type), ghost, face, opacity, nowSeconds);
             buffers.endBatch(type);
@@ -260,7 +260,7 @@ public final class HeldDomeRenderer {
      * @param ringRgb    the goo type's highlight color
      * @param nowSeconds seconds on the real-time clock the rings run on
      */
-    private static void drawRings(PoseStack poseStack, MultiBufferSource.BufferSource buffers, Vec3 camera,
+    private static void drawRings(PoseStack poseStack, ImmediateBuffers buffers, Vec3 camera,
                                   DomeAnchor anchor, HeldGhost ghost, int ringRgb, double nowSeconds) {
         float width = Minecraft.getInstance().getWindow().getAppropriateLineWidth();
         int segments = Math.max(MIN_RING_SEGMENTS, (int) Math.ceil(ghost.ringRadius() * RING_SEGMENTS_PER_BLOCK));

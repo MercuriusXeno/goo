@@ -16,7 +16,7 @@ import com.mercuriusxeno.goo.ability.yarn.Led;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mojang.serialization.JsonOps;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.animal.cow.Cow;
 import net.minecraft.world.entity.item.ItemEntity;
@@ -142,7 +142,7 @@ class AimAssistResolverTest {
         @Test
         void withGrabSelectedAPlayerABossAndAPassengerAreNoCandidates() {
             Mob boss = pickable(Mob.class);
-            when(boss.getType()).thenAnswer(unused -> EntityType.WITHER);
+            when(boss.getType()).thenAnswer(unused -> EntityTypes.WITHER);
             Mob rider = pickable(Mob.class);
             when(rider.isPassenger()).thenReturn(true);
             assertFalse(AimAssistResolver.isCandidate(pickable(Player.class), grab));
@@ -276,7 +276,7 @@ class AimAssistResolverTest {
         Cow cow = mock(Cow.class);
         when(cow.isAlive()).thenReturn(true);
         when(cow.isPickable()).thenReturn(true);
-        when(cow.getType()).thenAnswer(unused -> EntityType.COW);
+        when(cow.getType()).thenAnswer(unused -> EntityTypes.COW);
         return cow;
     }
 

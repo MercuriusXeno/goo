@@ -15,7 +15,7 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.animal.pig.Pig;
 import net.minecraft.world.level.block.Blocks;
@@ -135,8 +135,8 @@ public final class LeechTests {
     public static void aStrikeOnAMobInLeechGooHealsItsAttacker(GameTestHelper helper) {
         layFullCell(helper);
         helper.setBlock(ATTACKER_FLOOR, Blocks.STONE);
-        Pig pig = helper.spawnWithNoFreeWill(EntityType.PIG, SPIRIT_FLOOR.above(2));
-        Mob husk = helper.spawnWithNoFreeWill(EntityType.HUSK, ATTACKER_FLOOR.above());
+        Pig pig = helper.spawnWithNoFreeWill(EntityTypes.PIG, SPIRIT_FLOOR.above(2));
+        Mob husk = helper.spawnWithNoFreeWill(EntityTypes.HUSK, ATTACKER_FLOOR.above());
         husk.setHealth(WOUNDED_HEALTH);
         AbilityDefinition leech = AbilityRegistry.of(helper.getLevel()).getAbility(LEECH);
         helper.assertTrue(leech != null, ABILITY_REQUIRED);
@@ -157,7 +157,7 @@ public final class LeechTests {
      */
     public static void leechGooSparesAMobStandingInIt(GameTestHelper helper) {
         layFullCell(helper);
-        Pig pig = helper.spawnWithNoFreeWill(EntityType.PIG, SPIRIT_FLOOR.above(2));
+        Pig pig = helper.spawnWithNoFreeWill(EntityTypes.PIG, SPIRIT_FLOOR.above(2));
         float start = pig.getHealth();
         helper.runAfterDelay(STANDING_TICKS, () -> {
             helper.assertTrue(pig.getHealth() == start,
@@ -201,7 +201,7 @@ public final class LeechTests {
      * @return the falling pig
      */
     private static Pig fallingPig(GameTestHelper helper, BlockPos landing) {
-        Pig pig = helper.spawnWithNoFreeWill(EntityType.PIG,
+        Pig pig = helper.spawnWithNoFreeWill(EntityTypes.PIG,
                 Vec3.atBottomCenterOf(landing).add(0, OVER_THE_LANDING, 0));
         pig.fallDistance = FALL_DISTANCE;
         pig.setDeltaMovement(0, FALLING_SPEED, 0);
@@ -220,8 +220,8 @@ public final class LeechTests {
     public static void aDrainedStrikeDepletesTheCellUnderItsVictim(GameTestHelper helper) {
         layFullCell(helper);
         helper.setBlock(ATTACKER_FLOOR, Blocks.STONE);
-        Pig pig = helper.spawnWithNoFreeWill(EntityType.PIG, SPIRIT_FLOOR.above(2));
-        Mob husk = helper.spawnWithNoFreeWill(EntityType.HUSK, ATTACKER_FLOOR.above());
+        Pig pig = helper.spawnWithNoFreeWill(EntityTypes.PIG, SPIRIT_FLOOR.above(2));
+        Mob husk = helper.spawnWithNoFreeWill(EntityTypes.HUSK, ATTACKER_FLOOR.above());
         MinecraftServer server = helper.getLevel().getServer();
         AbilityRegistrySource held = (AbilityRegistrySource) server.getServerResources().managers();
         AbilityRegistry shipped = held.abilityRegistry();
@@ -320,7 +320,7 @@ public final class LeechTests {
      * @return the walking husk
      */
     private static Mob walkTheLane(GameTestHelper helper, BlockPos start) {
-        Mob husk = helper.spawnWithNoFreeWill(EntityType.HUSK, start.above());
+        Mob husk = helper.spawnWithNoFreeWill(EntityTypes.HUSK, start.above());
         helper.walkTo(husk, start.east(LANE_EAST).above(), 1f);
         return husk;
     }

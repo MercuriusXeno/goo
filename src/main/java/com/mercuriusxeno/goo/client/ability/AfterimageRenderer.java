@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mojang.blaze3d.buffers.GpuBufferSlice;
@@ -13,7 +14,6 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.Model;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.LivingEntityRenderer;
@@ -27,9 +27,10 @@ import org.joml.Matrix4f;
 import org.joml.Matrix4fStack;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
+import org.joml.Vector4fc;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
-import java.util.OptionalInt;
+import java.util.Optional;
 import java.util.function.Consumer;
 
 /**
@@ -63,8 +64,14 @@ public final class AfterimageRenderer {
     /** The soft outline pass's label in GPU debuggers. */
     private static final String SOFT_PASS_LABEL = "Goo soft outline";
 
-    /** The value the cleared depth takes, past everything, so a body's mask fills through walls. */
-    private static final double FARTHEST = 1.0;
+    /** The ripple buffer's cleared color, every channel empty. */
+    private static final Vector4fc CLEAR_COLOR = new Vector4f(0, 0, 0, 0);
+
+    /**
+     * The value the cleared depth takes, past everything, so a body's mask fills through walls;
+     * zero since 26.2 inverted depth and put the far plane there.
+     */
+    private static final double FARTHEST = 0.0;
 
     /** The uniform block carrying ColorModulator, the goo type's color. */
     private static final String TRANSFORMS_UNIFORM = "DynamicTransforms";
@@ -94,7 +101,7 @@ public final class AfterimageRenderer {
         if (mc.level == null) {
             return;
         }
-        Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        Vec3 camera = mc.gameRenderer.mainCamera().position();
         List<Afterimages.Afterimage<EntityRenderState>> bodies = Afterimages.CLIENT.live(mc.level.getGameTime());
         if (!bodies.isEmpty()) {
             draws.accept(SortedDraw.nearestOf(bodies.stream().map(Afterimages.Afterimage::position), camera,
@@ -151,8 +158,8 @@ public final class AfterimageRenderer {
                 Vec3 corner = afterimage.position().subtract(ripples.camera().pos);
                 Matrix4f boxToView = new Matrix4f().translation((float) corner.x, (float) corner.y, (float) corner.z);
                 RenderSystem.getDevice().createCommandEncoder().clearColorTexture(ripples.ripple().getColorTexture(),
-                        0);
-                fillBoxMasks(mc.renderBuffers().bufferSource(), boxToView, afterimage.snapshot(), pulses);
+                        CLEAR_COLOR);
+                fillBoxMasks(ImmediateBuffers.shared(), boxToView, afterimage.snapshot(), pulses);
                 paintPerimeter(ripples.main(), ripples.ripple(), afterimage.rgb());
             }
         });
@@ -186,7 +193,7 @@ public final class AfterimageRenderer {
         }
         inRippleFrame(frame, ripples -> {
             RenderSystem.getDevice().createCommandEncoder().clearColorAndDepthTextures(
-                    ripples.ripple().getColorTexture(), 0, ripples.ripple().getDepthTexture(), FARTHEST);
+                    ripples.ripple().getColorTexture(), CLEAR_COLOR, ripples.ripple().getDepthTexture(), FARTHEST);
             boolean drew = false;
             for (SoftOutline outline : outlines) {
                 drew |= fillSoftMask(mc, ripples, outline);
@@ -211,7 +218,7 @@ public final class AfterimageRenderer {
         if (body == null || body.rootPose() == null) {
             return false;
         }
-        fillMasks(mc.renderBuffers().bufferSource(), body,
+        fillMasks(ImmediateBuffers.shared(), body,
                 List.of(new Afterimages.Pulse(0f, Math.round(outline.strength() * FULL_MASK), 0f)));
         return true;
     }
@@ -236,7 +243,7 @@ public final class AfterimageRenderer {
     private static void inRippleFrame(LevelFrame frame, Consumer<RippleFrame> drawer) {
         Minecraft mc = Minecraft.getInstance();
         float gameTime = mc.level.getGameTime() + mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        RenderTarget main = mc.getMainRenderTarget();
+        RenderTarget main = mc.gameRenderer.mainRenderTarget();
         RenderTarget ripple = RippleTarget.matching(main);
         ripple.copyDepthFrom(main);
         // The masks, laid in camera-relative world space, draw in the level's view. It is set, not multiplied
@@ -261,7 +268,7 @@ public final class AfterimageRenderer {
      * @param boxes     the block's shape boxes, about its cell's low corner
      * @param pulses    the ripple's standing silhouettes
      */
-    private static void fillBoxMasks(MultiBufferSource.BufferSource buffers, Matrix4f boxToView, List<AABB> boxes,
+    private static void fillBoxMasks(ImmediateBuffers buffers, Matrix4f boxToView, List<AABB> boxes,
             List<Afterimages.Pulse> pulses) {
         for (int channel = 0; channel < Math.min(CHANNELS, pulses.size()); channel++) {
             Afterimages.Pulse pulse = pulses.get(channel);
@@ -339,8 +346,8 @@ public final class AfterimageRenderer {
         if (pulses.isEmpty() || pose == null || pose.rootPose() == null) {
             return;
         }
-        RenderSystem.getDevice().createCommandEncoder().clearColorTexture(ripple.getColorTexture(), 0);
-        fillMasks(mc.renderBuffers().bufferSource(), pose, pulses);
+        RenderSystem.getDevice().createCommandEncoder().clearColorTexture(ripple.getColorTexture(), CLEAR_COLOR);
+        fillMasks(ImmediateBuffers.shared(), pose, pulses);
         paintPerimeter(main, ripple, body.rgb());
     }
 
@@ -377,7 +384,7 @@ public final class AfterimageRenderer {
      * @param body    the echoed body's pose
      * @param pulses  the ripple's standing silhouettes
      */
-    private static void fillMasks(MultiBufferSource.BufferSource buffers, BodyPoseCapture body,
+    private static void fillMasks(ImmediateBuffers buffers, BodyPoseCapture body,
             List<Afterimages.Pulse> pulses) {
         // diagnose-and-correct-the-floating-hat-brim-box: a part the skin leaves bare fills no box
         List<ModelRay.CubeBox> cubes = EncasedBodies.drawnCubes(body.body());
@@ -420,13 +427,13 @@ public final class AfterimageRenderer {
                 new Vector4f(ARGB.redFloat(rgb), ARGB.greenFloat(rgb), ARGB.blueFloat(rgb), 1f), new Vector3f(),
                 new Matrix4f());
         try (RenderPass pass = RenderSystem.getDevice().createCommandEncoder()
-                .createRenderPass(() -> label, main.getColorTextureView(), OptionalInt.empty())) {
+                .createRenderPass(() -> label, main.getColorTextureView(), Optional.empty())) {
             pass.setPipeline(pipeline);
             RenderSystem.bindDefaultUniforms(pass);
             pass.setUniform(TRANSFORMS_UNIFORM, tint);
             pass.bindTexture(MASK_SAMPLER, ripple.getColorTextureView(),
                     RenderSystem.getSamplerCache().getClampToEdge(FilterMode.NEAREST));
-            pass.draw(0, FULLSCREEN_VERTICES);
+            pass.draw(FULLSCREEN_VERTICES, 1, 0, 0);
         }
     }
 }

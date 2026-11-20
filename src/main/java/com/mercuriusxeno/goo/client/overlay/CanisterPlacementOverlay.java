@@ -12,9 +12,8 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
-import net.minecraft.client.renderer.state.level.BlockOutlineRenderState;
 import net.minecraft.client.renderer.state.level.LevelRenderState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.ARGB;
@@ -106,62 +105,52 @@ public final class CanisterPlacementOverlay {
      */
     private static net.neoforged.neoforge.client.CustomBlockOutlineRenderer previewRendererAt(
             BlockPos pos, AABB bounds) {
-        return (renderState, bufferSource, poseStack, translucent, levelRenderState) ->
-                renderPreview(renderState, bufferSource, poseStack, translucent,
-                        levelRenderState, pos, bounds);
+        return (renderState, collector, poseStack, levelRenderState) ->
+                renderPreview(collector, poseStack, levelRenderState, pos, bounds);
     }
 
     /**
      * Renders the wireframe preview at the target block position.
      *
-     * @param renderState      the block outline render state
-     * @param bufferSource     the buffer source for rendering
+     * @param collector        the frame's submit collector
      * @param poseStack        the pose stack for rendering
-     * @param translucent      whether the current pass is translucent
      * @param levelRenderState the level render state
      * @param targetPos        the target block position
      * @param bounds           the axis-aligned bounding box
      * @return false always (does not suppress other outline renderers)
      */
     private static boolean renderPreview(
-            BlockOutlineRenderState renderState,
-            MultiBufferSource.BufferSource bufferSource,
+            SubmitNodeCollector collector,
             PoseStack poseStack,
-            boolean translucent,
             LevelRenderState levelRenderState,
             BlockPos targetPos, AABB bounds) {
-        if (renderState.isTranslucent() != translucent) {
-            return false;
-        }
-
         Vec3 camPos = levelRenderState.cameraRenderState.pos;
         double ox = targetPos.getX() - camPos.x;
         double oy = targetPos.getY() - camPos.y;
         double oz = targetPos.getZ() - camPos.z;
 
-        emitPreviewWireframe(bufferSource, poseStack, bounds, ox, oy, oz);
+        emitPreviewWireframe(collector, poseStack, bounds, ox, oy, oz);
         return false;
     }
 
     /**
      * Draws the translucent green wireframe box at the camera-relative offset.
      *
-     * @param bufferSource the buffer source for line rendering
+     * @param collector    the frame's submit collector
      * @param poseStack    the pose stack for rendering
      * @param bounds       the slot bounding box in block-local coords
      * @param ox           the camera-relative X offset of the target block
      * @param oy           the camera-relative Y offset of the target block
      * @param oz           the camera-relative Z offset of the target block
      */
-    private static void emitPreviewWireframe(MultiBufferSource.BufferSource bufferSource,
+    private static void emitPreviewWireframe(SubmitNodeCollector collector,
                                              PoseStack poseStack, AABB bounds, double ox, double oy, double oz) {
         float lineWidth = Minecraft.getInstance().getWindow().getAppropriateLineWidth();
-        LineContext ctx = new LineContext(poseStack.last(), bufferSource.getBuffer(RenderTypes.lines()));
-        ctx.emitWireframe(new CuboidBounds(
-                        (float) (bounds.minX + ox), (float) (bounds.maxX + ox),
-                        (float) (bounds.minZ + oz), (float) (bounds.maxZ + oz),
-                        (float) (bounds.minY + oy), (float) (bounds.maxY + oy)),
-                PREVIEW_COLOR, lineWidth);
-        bufferSource.endLastBatch();
+        CuboidBounds cuboid = new CuboidBounds(
+                (float) (bounds.minX + ox), (float) (bounds.maxX + ox),
+                (float) (bounds.minZ + oz), (float) (bounds.maxZ + oz),
+                (float) (bounds.minY + oy), (float) (bounds.maxY + oy));
+        collector.submitCustomGeometry(poseStack, RenderTypes.lines(),
+                (pose, consumer) -> new LineContext(pose, consumer).emitWireframe(cuboid, PREVIEW_COLOR, lineWidth));
     }
 }

@@ -6,6 +6,8 @@ import com.mercuriusxeno.goo.ability.program.FuseBooksStep;
 import com.mercuriusxeno.goo.ability.program.TomeKind;
 import com.mercuriusxeno.goo.ability.program.TomeStep;
 import com.mercuriusxeno.goo.client.GooSubmitter;
+import com.mercuriusxeno.goo.client.ImmediateBuffers;
+import com.mercuriusxeno.goo.client.RenderTypeBuffers;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
@@ -20,16 +22,17 @@ import com.mercuriusxeno.goo.network.TomePayload;
 import com.mercuriusxeno.goo.registry.GooParticles;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.geom.ModelLayers;
 import net.minecraft.client.model.object.book.BookModel;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.blockentity.EnchantTableRenderer;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.texture.OverlayTexture;
+import net.minecraft.client.resources.model.sprite.SpriteId;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.sounds.SoundEvent;
@@ -402,7 +405,7 @@ public final class Tomes {
             return;
         }
         bakeBookOnce(mc);
-        Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        Vec3 camera = mc.gameRenderer.mainCamera().position();
         Stream<Vec3> casters = Stream.<Entity>concat(Stream.of(player), SHOWS.keySet().stream().map(level::getEntity)
                 .filter(Objects::nonNull)).map(Entity::position);
         draws.accept(SortedDraw.nearestOf(casters, camera, () -> drawTomes(mc, level, player, frame, camera)));
@@ -412,7 +415,7 @@ public final class Tomes {
                                   Vec3 camera) {
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         float time = level.getGameTime() + partialTick;
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        ImmediateBuffers buffers = ImmediateBuffers.shared();
         Pen pen = new Pen(frame.poseStack(), buffers, mc, camera);
         if (showsHeld(player)) {
             drawHeld(pen, player, partialTick, time);
@@ -497,7 +500,7 @@ public final class Tomes {
      * @param mc      the client
      * @param camera  the camera's position
      */
-    private record Pen(PoseStack pose, MultiBufferSource buffers, Minecraft mc, Vec3 camera) {
+    private record Pen(PoseStack pose, RenderTypeBuffers buffers, Minecraft mc, Vec3 camera) {
 
         /**
          * Draws one book at a point, its spine turned toward an eye.
@@ -520,8 +523,10 @@ public final class Tomes {
             float flip1 = Mth.clamp(Mth.frac(flip + FIRST_PAGE_PHASE) * FLIP_STRETCH - FLIP_LEAD, 0f, WHOLE);
             float flip2 = Mth.clamp(Mth.frac(flip + SECOND_PAGE_PHASE) * FLIP_STRETCH - FLIP_LEAD, 0f, WHOLE);
             book.setupAnim(new BookModel.State(openness, flip1, flip2));
-            book.renderToBuffer(pose, EnchantTableRenderer.BOOK_TEXTURE.buffer(mc.getAtlasManager(), buffers,
-                    RenderTypes::entityTranslucent), GooSubmitter.fullbrightLight(), OverlayTexture.NO_OVERLAY,
+            SpriteId bookSprite = EnchantTableRenderer.BOOK_TEXTURE;
+            VertexConsumer bookBuffer = mc.getAtlasManager().get(bookSprite)
+                    .wrap(buffers.getBuffer(bookSprite.renderType(RenderTypes::entityTranslucent)));
+            book.renderToBuffer(pose, bookBuffer, GooSubmitter.fullbrightLight(), OverlayTexture.NO_OVERLAY,
                     ARGB.white(alpha));
             pose.popPose();
         }

@@ -4,13 +4,13 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.petrify.BlockExposures;
 import com.mercuriusxeno.goo.ability.program.DegradeStep;
-import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
 import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import com.mercuriusxeno.goo.registry.GooBlocks;
+import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.commands.arguments.EntityAnchorArgument;
 import net.minecraft.core.BlockPos;
@@ -18,7 +18,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
@@ -101,7 +101,7 @@ public final class DecayPrismTests {
      */
     public static void decayBitesAMobBeforeCharging(GameTestHelper helper) {
         helper.setBlock(IN_THE_CONE.below(), Blocks.STONE);
-        Mob vindicator = helper.spawnWithNoFreeWill(EntityType.VINDICATOR, IN_THE_CONE);
+        Mob vindicator = helper.spawnWithNoFreeWill(EntityTypes.VINDICATOR, IN_THE_CONE);
         ServerPlayer player = streamer(helper);
         streamFor(helper, player, BITE_TICKS);
         helper.runAfterDelay(BITE_TICKS + 1, () -> {

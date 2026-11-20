@@ -1,10 +1,10 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.LivingEntityRenderer;
@@ -90,7 +90,7 @@ public final class GhostTrailRenderer {
         for (GhostTrails.Ghost ghost : trail.ghosts(gameTime)) {
             int color = ARGB.color(ghost.alpha(), trail.rgb());
             draws.accept(new SortedDraw(ghost.position().distanceToSqr(camera.pos), () -> {
-                MultiBufferSource.BufferSource buffers = Minecraft.getInstance().renderBuffers().bufferSource();
+                ImmediateBuffers buffers = ImmediateBuffers.shared();
                 Vec3 fromCamera = ghost.position().subtract(camera.pos);
                 dispatcher.submit(snapshot, camera, fromCamera.x, fromCamera.y, fromCamera.z, frame.poseStack(),
                         new GhostCollector(buffers, living.getModel(), ghostType, color));

@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.program.PetrifyStep;
 import com.mercuriusxeno.goo.client.FlatQuadContext;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
@@ -14,7 +15,6 @@ import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.phys.Vec3;
@@ -105,13 +105,13 @@ public final class PetrifyFog {
         double now = mc.level.getGameTime() + mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         List<PetrifyPuffs.Puff> poured = List.copyOf(PUFFS);
         Stream<Vec3> centers = poured.stream().map(puff -> PetrifyPuffs.positionAt(puff, now, range, halfAngle));
-        draws.accept(SortedDraw.nearestOf(centers, mc.gameRenderer.getMainCamera().position(),
+        draws.accept(SortedDraw.nearestOf(centers, mc.gameRenderer.mainCamera().position(),
                 () -> drawPuffs(mc, frame, poured, now)));
     }
 
     private static void drawPuffs(Minecraft mc, LevelFrame frame, List<PetrifyPuffs.Puff> poured, double now) {
-        Camera camera = mc.gameRenderer.getMainCamera();
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        Camera camera = mc.gameRenderer.mainCamera();
+        ImmediateBuffers buffers = ImmediateBuffers.shared();
         FlatQuadContext quads = new FlatQuadContext(frame.poseStack().last(),
                 buffers.getBuffer(GooRenderTypes.PETRIFY_FOG_TYPE));
         Vec3 left = toVec3(camera.leftVector());

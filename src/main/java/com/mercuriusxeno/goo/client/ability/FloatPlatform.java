@@ -1,13 +1,13 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.LineContext;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
@@ -67,7 +67,7 @@ public final class FloatPlatform {
         }
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         float gameTime = mc.level.getGameTime() + partialTick;
-        Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        Vec3 camera = mc.gameRenderer.mainCamera().position();
         draws.accept(SortedDraw.nearestOf(floating.stream().map(living -> living.getPosition(partialTick)), camera,
                 () -> drawPlatforms(mc, frame, floating, camera, partialTick, gameTime)));
     }
@@ -85,7 +85,7 @@ public final class FloatPlatform {
 
     private static void drawPlatforms(Minecraft mc, LevelFrame frame, List<LivingEntity> floating, Vec3 camera,
                                       float partialTick, float gameTime) {
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        ImmediateBuffers buffers = ImmediateBuffers.shared();
         LineContext lines = new LineContext(frame.poseStack().last(), buffers.getBuffer(GooRenderTypes.LINES_GLOW));
         float width = mc.getWindow().getAppropriateLineWidth() * WIDTH_SCALE;
         for (LivingEntity living : floating) {

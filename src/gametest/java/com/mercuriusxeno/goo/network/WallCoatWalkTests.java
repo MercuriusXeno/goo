@@ -10,7 +10,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.level.Level;
@@ -180,7 +180,7 @@ public final class WallCoatWalkTests {
         BlockPos first = new BlockPos(LANE_FROM + 1, 1, lane);
         BlockPos inWorld = helper.absolutePos(first);
         double top = first.getY() + gooTop(helper.getLevel(), inWorld) - inWorld.getY();
-        Mob cow = helper.spawnWithNoFreeWill(EntityType.COW, new Vec3(first.getX() + 0.5, top, lane + COW_Z));
+        Mob cow = helper.spawnWithNoFreeWill(EntityTypes.COW, new Vec3(first.getX() + 0.5, top, lane + COW_Z));
         helper.walkTo(cow, new BlockPos(LANE_TO, 1, lane), 1f);
         return cow;
     }

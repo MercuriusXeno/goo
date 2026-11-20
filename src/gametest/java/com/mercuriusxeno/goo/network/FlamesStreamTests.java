@@ -15,7 +15,7 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
@@ -95,7 +95,7 @@ public final class FlamesStreamTests {
             helper.getLevel().getServer().getPlayerList().remove(player);
             helper.assertBlockPresent(Blocks.AIR, SAND_POS);
             Vec3 center = Vec3.atCenterOf(helper.absolutePos(SAND_POS));
-            helper.assertTrue(helper.getEntities(EntityType.ITEM, SAND_POS, ITEM_SEARCH_RADIUS).stream()
+            helper.assertTrue(helper.getEntities(EntityTypes.ITEM, SAND_POS, ITEM_SEARCH_RADIUS).stream()
                     .anyMatch(item -> item.getItem().is(Items.CHARCOAL)
                             && Math.abs(item.getX() - center.x) < AT_REST
                             && Math.abs(item.getZ() - center.z) < AT_REST

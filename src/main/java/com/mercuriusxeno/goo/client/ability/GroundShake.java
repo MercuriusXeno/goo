@@ -10,6 +10,7 @@ import com.mercuriusxeno.goo.ability.program.PlayerHost;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.client.ClientGooValues;
 import com.mercuriusxeno.goo.client.GooSubmitter;
+import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
@@ -26,7 +27,6 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.block.ModelBlockRenderer;
 import net.minecraft.client.renderer.block.dispatch.BlockStateModel;
 import net.minecraft.client.renderer.rendertype.RenderType;
@@ -515,11 +515,11 @@ public final class GroundShake {
      * @param shake     the frame's shake
      */
     private static void drawShaken(Minecraft mc, PoseStack poseStack, Shake shake) {
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
-        MultiBufferSource.BufferSource crumbling = mc.renderBuffers().crumblingBufferSource();
+        ImmediateBuffers buffers = ImmediateBuffers.shared();
+        ImmediateBuffers crumbling = ImmediateBuffers.crumbling();
         RenderType blocks = renderType();
         VertexConsumer consumer = buffers.getBuffer(blocks);
-        Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        Vec3 camera = mc.gameRenderer.mainCamera().position();
         ModelBlockRenderer tesselator = new ModelBlockRenderer(mc.options.ambientOcclusion().get(), true,
                 mc.getBlockColors());
         for (BlockPos pos : shaken) {

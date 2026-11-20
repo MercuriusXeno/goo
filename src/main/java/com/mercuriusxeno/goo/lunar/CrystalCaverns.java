@@ -110,8 +110,8 @@ public record CrystalCaverns(DensityFunction.NoiseHolder shape) implements Densi
     }
 
     @Override
-    public DensityFunction mapAll(DensityFunction.Visitor visitor) {
-        return visitor.apply(new CrystalCaverns(visitor.visitNoise(shape)));
+    public DensityFunction mapChildren(DensityFunction.Visitor visitor) {
+        return new CrystalCaverns(visitor.visitNoise(shape));
     }
 
     @Override

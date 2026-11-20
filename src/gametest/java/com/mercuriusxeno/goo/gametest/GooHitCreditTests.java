@@ -16,7 +16,7 @@ import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageType;
 import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.gamerules.GameRules;
@@ -88,7 +88,7 @@ public final class GooHitCreditTests {
     public static void everyKindNamesThePlayerThrower(GameTestHelper helper) {
         ServerPlayer player = playerBeside(helper);
         for (DamageKind kind : DamageKind.values()) {
-            Mob cow = helper.spawnWithNoFreeWill(EntityType.COW, MOB_POS);
+            Mob cow = helper.spawnWithNoFreeWill(EntityTypes.COW, MOB_POS);
             strike(helper, cow, player, kind);
             DamageSource last = cow.getLastDamageSource();
             helper.assertTrue(last != null && last.getEntity() == player && last.is(typeOf(kind)),
@@ -105,10 +105,10 @@ public final class GooHitCreditTests {
      * @param helper the gametest helper
      */
     public static void noOrSelfThrowerNamesNone(GameTestHelper helper) {
-        Mob unthrown = helper.spawnWithNoFreeWill(EntityType.COW, MOB_POS);
+        Mob unthrown = helper.spawnWithNoFreeWill(EntityTypes.COW, MOB_POS);
         strike(helper, unthrown, null, DamageKind.MAGIC);
         assertNamesNone(helper, unthrown, "no thrower");
-        Mob selfThrown = helper.spawnWithNoFreeWill(EntityType.COW, MOB_POS);
+        Mob selfThrown = helper.spawnWithNoFreeWill(EntityTypes.COW, MOB_POS);
         strike(helper, selfThrown, selfThrown, DamageKind.MAGIC);
         assertNamesNone(helper, selfThrown, "the target as its thrower");
         helper.succeed();
@@ -142,7 +142,7 @@ public final class GooHitCreditTests {
      */
     public static void ownLedKeepsItsLead(GameTestHelper helper) {
         ServerPlayer player = playerBeside(helper);
-        Mob cow = helper.spawnWithNoFreeWill(EntityType.COW, MOB_POS);
+        Mob cow = helper.spawnWithNoFreeWill(EntityTypes.COW, MOB_POS);
         cow.setData(GooAttachments.LED, new Led(player.getUUID(), LEAD_DAMAGE));
         strike(helper, cow, player, DamageKind.MAGIC);
         assertKept(helper, cow, "led cow", "lead", cow.hasData(GooAttachments.LED));
@@ -158,7 +158,7 @@ public final class GooHitCreditTests {
      */
     public static void ownCharmedKeepsItsCharm(GameTestHelper helper) {
         ServerPlayer player = playerBeside(helper);
-        Mob husk = helper.spawnWithNoFreeWill(EntityType.HUSK, MOB_POS);
+        Mob husk = helper.spawnWithNoFreeWill(EntityTypes.HUSK, MOB_POS);
         husk.setData(GooAttachments.CHARMED, new Charmed(player.getUUID()));
         strike(helper, husk, player, DamageKind.MAGIC);
         assertKept(helper, husk, "charmed husk", "charm", husk.hasData(GooAttachments.CHARMED));
@@ -236,7 +236,7 @@ public final class GooHitCreditTests {
 
     // Vanilla knocks a hit naming no position the way the struck mob's random rolls, so each cow rolls from one seed.
     private static Vec3 horizontalMotionAfter(GameTestHelper helper, @Nullable Entity thrower, DamageKind kind) {
-        Mob cow = helper.spawnWithNoFreeWill(EntityType.COW, MOB_POS);
+        Mob cow = helper.spawnWithNoFreeWill(EntityTypes.COW, MOB_POS);
         cow.setDeltaMovement(Vec3.ZERO);
         cow.getRandom().setSeed(KNOCKBACK_SEED);
         strike(helper, cow, thrower, kind);

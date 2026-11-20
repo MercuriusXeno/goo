@@ -3,7 +3,6 @@ package com.mercuriusxeno.goo.lunar;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import net.minecraft.util.KeyDispatchDataCodec;
 import net.minecraft.util.StringRepresentable;
 import net.minecraft.world.level.levelgen.SurfaceRules;
 
@@ -21,7 +20,6 @@ public record SeaCavernCondition(Part part) implements SurfaceRules.ConditionSou
     public static final MapCodec<SeaCavernCondition> DATA_CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
             Part.CODEC.fieldOf("part").forGetter(SeaCavernCondition::part)
     ).apply(instance, SeaCavernCondition::new));
-    private static final KeyDispatchDataCodec<SeaCavernCondition> CODEC = KeyDispatchDataCodec.of(DATA_CODEC);
 
     /**
      * A part of the sea cavern.
@@ -47,8 +45,8 @@ public record SeaCavernCondition(Part part) implements SurfaceRules.ConditionSou
     }
 
     @Override
-    public KeyDispatchDataCodec<? extends SurfaceRules.ConditionSource> codec() {
-        return CODEC;
+    public MapCodec<? extends SurfaceRules.ConditionSource> codec() {
+        return DATA_CODEC;
     }
 
     @Override

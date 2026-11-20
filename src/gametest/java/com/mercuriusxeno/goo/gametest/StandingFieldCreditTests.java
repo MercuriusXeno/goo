@@ -17,7 +17,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.level.block.Blocks;
@@ -92,7 +92,7 @@ public final class StandingFieldCreditTests {
      */
     public static void spikeTrapStrikeNamesThePlayerWhoThrewIt(GameTestHelper helper) {
         ServerPlayer thrower = throwerOverhead(helper);
-        Mob pig = hardy(helper.spawnWithNoFreeWill(EntityType.PIG, SOUTH_OF_THE_FIELD));
+        Mob pig = hardy(helper.spawnWithNoFreeWill(EntityTypes.PIG, SOUTH_OF_THE_FIELD));
         landSpikeTrap(helper, thrower.getUUID());
         helper.succeedWhen(() -> {
             DamageSource last = struck(helper, pig, "pig");
@@ -108,7 +108,7 @@ public final class StandingFieldCreditTests {
      * @param helper the gametest helper
      */
     public static void spikeTrapStrikeNoPlayerThrewNamesNoEntity(GameTestHelper helper) {
-        Mob pig = hardy(helper.spawnWithNoFreeWill(EntityType.PIG, SOUTH_OF_THE_FIELD));
+        Mob pig = hardy(helper.spawnWithNoFreeWill(EntityTypes.PIG, SOUTH_OF_THE_FIELD));
         landSpikeTrap(helper, null);
         helper.succeedWhen(() -> {
             DamageSource last = struck(helper, pig, "pig");
@@ -125,9 +125,9 @@ public final class StandingFieldCreditTests {
      */
     public static void spikeTrapStrikeKeepsTheThrowersLeadAndCharm(GameTestHelper helper) {
         ServerPlayer thrower = throwerOverhead(helper);
-        Mob cow = hardy(helper.spawnWithNoFreeWill(EntityType.COW, SOUTH_OF_THE_FIELD));
+        Mob cow = hardy(helper.spawnWithNoFreeWill(EntityTypes.COW, SOUTH_OF_THE_FIELD));
         cow.setData(GooAttachments.LED, new Led(thrower.getUUID(), LEAD_DAMAGE));
-        Mob husk = hardy(helper.spawnWithNoFreeWill(EntityType.HUSK, EAST_OF_THE_FIELD));
+        Mob husk = hardy(helper.spawnWithNoFreeWill(EntityTypes.HUSK, EAST_OF_THE_FIELD));
         husk.setData(GooAttachments.CHARMED, new Charmed(thrower.getUUID()));
         landSpikeTrap(helper, thrower.getUUID());
         helper.succeedWhen(() -> {

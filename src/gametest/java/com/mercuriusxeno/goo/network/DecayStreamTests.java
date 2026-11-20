@@ -3,7 +3,9 @@ package com.mercuriusxeno.goo.network;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.program.DegradeStep;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooItems;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -12,7 +14,7 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.item.ItemStack;
@@ -22,8 +24,6 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
-import com.mercuriusxeno.goo.gametest.GooTestFunctions;
-import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for zombie decay: a held stream of gnats paints the stone it
@@ -63,7 +63,7 @@ public final class DecayStreamTests {
     public static void decayHealsAWoundedZombie(GameTestHelper helper) {
         BlockPos zombiePos = TARGET_POS.east();
         helper.setBlock(zombiePos.below(), Blocks.BEDROCK);
-        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, zombiePos);
+        Mob zombie = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, zombiePos);
         // the helmet keeps the noon sun off the zombie, so only the swarm touches its health
         zombie.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.LEATHER_HELMET));
         zombie.setHealth(WOUNDED_ZOMBIE_HEALTH);
@@ -278,7 +278,7 @@ public final class DecayStreamTests {
         hold(helper, player, 1, BRUSH_TICKS + finish);
         Mob[] vindicator = new Mob[1];
         helper.runAfterDelay(BRUSH_TICKS + 1, () -> {
-            vindicator[0] = helper.spawnWithNoFreeWill(EntityType.VINDICATOR, IN_THE_CONE);
+            vindicator[0] = helper.spawnWithNoFreeWill(EntityTypes.VINDICATOR, IN_THE_CONE);
         });
         helper.runAfterDelay(BRUSH_TICKS + finish + 1, () -> {
             helper.getLevel().getServer().getPlayerList().remove(player);

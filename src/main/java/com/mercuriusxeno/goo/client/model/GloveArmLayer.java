@@ -395,7 +395,7 @@ public final class GloveArmLayer extends RenderLayer<AvatarRenderState, PlayerMo
     private record BodyDraw(RenderType renderType, int lightCoords, int overlayCoords, int tint, int outlineColor) {
 
         void submit(SubmitNodeCollector collector, ModelPart part, PoseStack poseStack) {
-            collector.submitModelPart(part, poseStack, renderType, lightCoords, overlayCoords, null, false, false,
+            collector.submitModelPart(part, poseStack, renderType, lightCoords, overlayCoords, null,
                     tint, null, outlineColor);
         }
     }

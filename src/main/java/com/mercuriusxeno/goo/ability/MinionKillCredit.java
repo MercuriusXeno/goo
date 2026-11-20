@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.Goo;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
@@ -29,15 +30,17 @@ public final class MinionKillCredit {
     }
 
     /**
-     * Marks the struck entity as the minion's player's once the hit lands,
-     * which NeoForge reports before the hit's death, so a killing blow
-     * carries the mark. A lead or charm naming no player in the level
-     * leaves no mark.
+     * Marks the struck entity as the minion's player's as the hit lands,
+     * which NeoForge reports as the damage is applied, before the hit's
+     * death, so a killing blow carries the mark; NeoForge reports the
+     * damage's end only once a killing blow's death has run. A lead or charm
+     * naming no player in the level leaves no mark.
+     * decision minecraft-26-3-update-is-a-port-to-parity
      *
-     * @param event the damage event, after the damage landed
+     * @param event the damage event, as the damage is applied
      */
-    @SubscribeEvent
-    public static void onDamageLanded(LivingDamageEvent.Post event) {
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    public static void onDamageLanded(LivingDamageEvent.Pre event) {
         LivingEntity struck = event.getEntity();
         Entity minion = event.getSource().getEntity();
         if (struck.level() instanceof ServerLevel level && Minions.isMinion(minion)) {

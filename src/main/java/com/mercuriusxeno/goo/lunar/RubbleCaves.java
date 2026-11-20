@@ -174,8 +174,8 @@ public record RubbleCaves(DensityFunction.NoiseHolder footprint, DensityFunction
     }
 
     @Override
-    public DensityFunction mapAll(DensityFunction.Visitor visitor) {
-        return visitor.apply(new RubbleCaves(visitor.visitNoise(footprint), visitor.visitNoise(rubble)));
+    public DensityFunction mapChildren(DensityFunction.Visitor visitor) {
+        return new RubbleCaves(visitor.visitNoise(footprint), visitor.visitNoise(rubble));
     }
 
     @Override

@@ -17,7 +17,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -179,7 +179,7 @@ public final class MortarTests {
         }
         helper.setBlock(PETRIFY_CELL, GooBlocks.ROCK_MORTAR.get().defaultBlockState()
                 .setValue(VolumeCellBlock.LAYERS, VolumeCellBlock.MAX_LAYERS));
-        Mob cow = helper.spawnWithNoFreeWill(EntityType.COW, Vec3.atBottomCenterOf(PETRIFY_CELL.above()));
+        Mob cow = helper.spawnWithNoFreeWill(EntityTypes.COW, Vec3.atBottomCenterOf(PETRIFY_CELL.above()));
         float start = cow.getData(GooAttachments.PETRIFICATION).gauge();
         helper.succeedWhen(() -> {
             float gauge = cow.getData(GooAttachments.PETRIFICATION).gauge();
@@ -204,7 +204,7 @@ public final class MortarTests {
         }
         helper.setBlock(PACE_CELL, GooBlocks.ROCK_MORTAR.get().defaultBlockState()
                 .setValue(VolumeCellBlock.LAYERS, VolumeCellBlock.MAX_LAYERS));
-        Mob cow = helper.spawnWithNoFreeWill(EntityType.COW, Vec3.atBottomCenterOf(PACE_CELL.above()));
+        Mob cow = helper.spawnWithNoFreeWill(EntityTypes.COW, Vec3.atBottomCenterOf(PACE_CELL.above()));
         float least = step.fillFor(cow) * PACE_FILLS;
         helper.runAfterDelay(PACE_TICKS, () -> {
             float gauge = cow.getData(GooAttachments.PETRIFICATION).gauge();

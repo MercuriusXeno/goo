@@ -5,10 +5,10 @@ import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.program.ScanVisualStep;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
-import com.mercuriusxeno.goo.item.GooGloveItem;
-import com.mercuriusxeno.goo.item.GooStacks;
-import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
+import com.mercuriusxeno.goo.item.GooGloveItem;
+import com.mercuriusxeno.goo.item.GooSourceScanner;
+import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
@@ -20,7 +20,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Unit;
 import net.minecraft.world.entity.EntitySpawnReason;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.ai.memory.MemoryModuleType;
 import net.minecraft.world.entity.monster.warden.Warden;
 import net.minecraft.world.level.ChunkPos;
@@ -339,7 +339,7 @@ public final class ClickTests {
     }
 
     private static Warden spawnWarden(GameTestHelper helper, BlockPos at) {
-        Warden warden = EntityType.WARDEN.create(helper.getLevel(), EntitySpawnReason.COMMAND);
+        Warden warden = EntityTypes.WARDEN.create(helper.getLevel(), EntitySpawnReason.COMMAND);
         helper.assertTrue(warden != null, SHOULD_SPAWN);
         warden.snapTo(Vec3.atBottomCenterOf(at));
         warden.setPersistenceRequired();

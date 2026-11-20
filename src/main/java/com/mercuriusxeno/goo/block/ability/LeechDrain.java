@@ -140,7 +140,7 @@ public final class LeechDrain {
         }
         Optional<BlockPos> cell = LeechStanding.leechCellUnder(victim);
         Optional<LeechGooStep> leech = cell.flatMap(pos -> LeechStanding.stepAt(level, pos));
-        float drained = drainedLife(event.getNewDamage(), leech.isPresent(), DrainSource.of(event.getSource()),
+        float drained = drainedLife(event.getHealthDamage(), leech.isPresent(), DrainSource.of(event.getSource()),
                 leech.map(LeechGooStep::drainFraction).orElse(0f));
         if (drained > 0f) {
             depleteAt(level, cell.orElseThrow(), leech.orElseThrow());

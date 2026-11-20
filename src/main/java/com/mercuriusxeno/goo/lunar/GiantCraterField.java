@@ -386,8 +386,8 @@ public record GiantCraterField(DensityFunction.NoiseHolder noise) implements Den
     }
 
     @Override
-    public DensityFunction mapAll(DensityFunction.Visitor visitor) {
-        return visitor.apply(new GiantCraterField(visitor.visitNoise(noise)));
+    public DensityFunction mapChildren(DensityFunction.Visitor visitor) {
+        return new GiantCraterField(visitor.visitNoise(noise));
     }
 
     /** Every neighbouring cell's crater at its deepest bounds the field below. */

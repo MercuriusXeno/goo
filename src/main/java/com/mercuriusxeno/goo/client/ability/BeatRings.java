@@ -1,11 +1,11 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.LineContext;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.ARGB;
@@ -102,14 +102,14 @@ public final class BeatRings {
         double now = nowSeconds();
         BEATS.values().removeIf(beat -> (now - beat.bornSeconds()) / LIFETIME_SECONDS >= 1 + TRAIL_SHARE);
         Map<BlockPos, Beat> standing = Map.copyOf(BEATS);
-        Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        Vec3 camera = mc.gameRenderer.mainCamera().position();
         draws.accept(SortedDraw.nearestOf(standing.keySet().stream().map(Vec3::atCenterOf), camera,
                 () -> drawBeats(mc, frame, standing, camera, now)));
     }
 
     private static void drawBeats(Minecraft mc, LevelFrame frame, Map<BlockPos, Beat> standing, Vec3 camera,
                                   double now) {
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        ImmediateBuffers buffers = ImmediateBuffers.shared();
         LineContext lines = new LineContext(frame.poseStack().last(), buffers.getBuffer(GooRenderTypes.LINES_GLOW));
         float width = mc.getWindow().getAppropriateLineWidth() * WIDTH_SCALE;
         standing.forEach((pos, beat) -> {

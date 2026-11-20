@@ -7,13 +7,13 @@ import com.mercuriusxeno.goo.network.PortableHolesSyncPayload;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.item.ItemStackRenderState;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
+import net.minecraft.util.LightCoordsUtil;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.AABB;
@@ -189,7 +189,7 @@ public final class HoleContents {
 
         static MouthFrame of(Minecraft mc, PortableHolesSyncPayload.Mouth mouth) {
             HoleFrame hole = HoleFrame.of(mouth.footprint(), mouth.face());
-            int light = LevelRenderer.getLightCoords(mc.level,
+            int light = LightCoordsUtil.getLightCoords(mc.level,
                     BlockPos.containing(hole.centre().add(hole.normal().scale(FACE_OFFSET))));
             return new MouthFrame(hole, mouth.face(), light);
         }

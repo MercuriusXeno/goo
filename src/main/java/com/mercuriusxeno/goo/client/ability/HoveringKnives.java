@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.ability.program.SoundCue;
 import com.mercuriusxeno.goo.client.FlatQuadContext;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.GooSubmitter;
+import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.throwing.GooFlightRenderer;
@@ -19,7 +20,6 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.player.Player;
@@ -281,14 +281,14 @@ public final class HoveringKnives {
         double now = level.getGameTime() + partial;
         RETURNS.values().removeIf(release -> release.doneAt(now));
         Map<Player, List<Piece>> drawn = drawnIn(level, now, partial);
-        Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        Vec3 camera = mc.gameRenderer.mainCamera().position();
         draws.accept(SortedDraw.nearestOf(drawn.values().stream().flatMap(List::stream).map(Piece::at), camera,
                 () -> drawPieces(mc, frame, drawn, partial, camera)));
     }
 
     private static void drawPieces(Minecraft mc, LevelFrame frame, Map<Player, List<Piece>> drawn, float partial,
                                    Vec3 camera) {
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        ImmediateBuffers buffers = ImmediateBuffers.shared();
         FlatQuadContext quads = new FlatQuadContext(frame.poseStack().last(),
                 buffers.getBuffer(GooRenderTypes.CRYSTAL_SHARD_TYPE));
         drawn.forEach((caster, pieces) -> drawKnives(quads, caster, pieces, partial, camera));

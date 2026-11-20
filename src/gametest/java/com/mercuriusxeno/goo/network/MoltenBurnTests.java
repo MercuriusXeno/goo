@@ -15,7 +15,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
@@ -94,7 +94,7 @@ public final class MoltenBurnTests {
     public static void moltenBurnsAPigAsLavaDoes(GameTestHelper helper) {
         pit(helper);
         setCell(helper, FIVE_LAYERS);
-        Mob pig = helper.spawnWithNoFreeWill(EntityType.PIG, CELL);
+        Mob pig = helper.spawnWithNoFreeWill(EntityTypes.PIG, CELL);
         float whole = pig.getMaxHealth();
         helper.succeedWhen(() -> {
             helper.assertTrue(pig.getHealth() < whole, NOT_HIT);
@@ -114,7 +114,7 @@ public final class MoltenBurnTests {
     public static void moltenSparesAStrider(GameTestHelper helper) {
         pit(helper);
         setCell(helper, FIVE_LAYERS);
-        Mob strider = helper.spawnWithNoFreeWill(EntityType.STRIDER, CELL);
+        Mob strider = helper.spawnWithNoFreeWill(EntityTypes.STRIDER, CELL);
         helper.runAfterDelay(STRIDER_TICKS, () -> {
             helper.assertTrue(strider.getHealth() == strider.getMaxHealth() && layersOf(helper) == FIVE_LAYERS,
                     String.format(STRIDER_HURT, strider.getHealth(), strider.getMaxHealth(),
@@ -158,7 +158,7 @@ public final class MoltenBurnTests {
         ServerPlayer sprayer = SelfDeliveryTests.invoker(helper, GooTypes.BLAZE);
         KnownRecipes.teachRequires(sprayer, molten);
         LandedDrips.landOn(helper, sprayer, molten, FLOOR, FIVE_LAYERS);
-        Mob pig = helper.spawnWithNoFreeWill(EntityType.PIG, CELL);
+        Mob pig = helper.spawnWithNoFreeWill(EntityTypes.PIG, CELL);
         succeedWhenNamed(helper, pig, sprayer);
     }
 
@@ -171,7 +171,7 @@ public final class MoltenBurnTests {
     public static void moltenHitFromAnUnplacedCellNamesNoOne(GameTestHelper helper) {
         pit(helper);
         setCell(helper, FIVE_LAYERS);
-        Mob pig = helper.spawnWithNoFreeWill(EntityType.PIG, CELL);
+        Mob pig = helper.spawnWithNoFreeWill(EntityTypes.PIG, CELL);
         succeedWhenNamed(helper, pig, null);
     }
 

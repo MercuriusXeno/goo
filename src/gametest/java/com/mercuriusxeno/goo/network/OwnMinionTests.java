@@ -14,7 +14,7 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
@@ -68,7 +68,7 @@ public final class OwnMinionTests {
      * @param helper the gametest helper
      */
     public static void dartSparesLedCow(GameTestHelper helper) {
-        Mob cow = helper.spawnWithNoFreeWill(EntityType.COW, MOB_POS);
+        Mob cow = helper.spawnWithNoFreeWill(EntityTypes.COW, MOB_POS);
         ServerPlayer player = thrower(helper, GooTypes.METAL);
         assertSpared(helper, player, cow, "led cow", () -> lead(helper, cow, player));
     }
@@ -79,7 +79,7 @@ public final class OwnMinionTests {
      * @param helper the gametest helper
      */
     public static void dartSparesCharmedMob(GameTestHelper helper) {
-        Mob husk = helper.spawnWithNoFreeWill(EntityType.HUSK, MOB_POS);
+        Mob husk = helper.spawnWithNoFreeWill(EntityTypes.HUSK, MOB_POS);
         ServerPlayer player = thrower(helper, GooTypes.METAL);
         assertSpared(helper, player, husk, "charmed husk",
                 () -> husk.setData(GooAttachments.CHARMED, new Charmed(player.getUUID())));
@@ -91,7 +91,7 @@ public final class OwnMinionTests {
      * @param helper the gametest helper
      */
     public static void dartStrikesUnownedMob(GameTestHelper helper) {
-        Mob cow = helper.spawnWithNoFreeWill(EntityType.COW, MOB_POS);
+        Mob cow = helper.spawnWithNoFreeWill(EntityTypes.COW, MOB_POS);
         ServerPlayer player = thrower(helper, GooTypes.METAL);
         formAJavelin(player);
         helper.runAfterDelay(ONE_JAVELIN_TICKS, () -> {

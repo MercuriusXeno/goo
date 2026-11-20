@@ -1,15 +1,14 @@
 package com.mercuriusxeno.goo.ability.nectar;
 
+import net.minecraft.world.entity.animal.Animal;
+import net.minecraft.world.entity.monster.cubemob.Slime;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
-import net.minecraft.world.entity.animal.Animal;
-import net.minecraft.world.entity.monster.Slime;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
-import java.util.Optional;
 
 /**
  * The size a fed slime grows to: one vanilla step, 1 to 2 to 4, and no

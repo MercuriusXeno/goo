@@ -48,7 +48,7 @@ final class BuilderOverlays {
     private final ManagerActions actions;
     private final ItemIcons icons;
     private final GooTypePicker picker = GooTypePicker.overKnownTypes();
-    private @Nullable EditBox numberField;
+    private @Nullable FilteredEditBox numberField;
     private @Nullable EditBox searchField;
     private @Nullable SearchDropdown dropdown;
     private @Nullable List<Option> options;
@@ -228,7 +228,8 @@ final class BuilderOverlays {
      * @param font the screen's font
      */
     void init(Font font) {
-        numberField = actions.addWidget(new EditBox(font, 0, 0, NUMBER_WIDTH, BOX_HEIGHT, Component.literal(NOTHING)));
+        numberField = actions.addWidget(new FilteredEditBox(font, 0, 0, NUMBER_WIDTH, BOX_HEIGHT,
+                Component.literal(NOTHING)));
         searchField = actions.addWidget(new EditBox(font, 0, 0, SEARCH_WIDTH, BOX_HEIGHT,
                 Component.literal(SEARCH_HINT)));
         searchField.setHint(Component.literal(SEARCH_HINT));

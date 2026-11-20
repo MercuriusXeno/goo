@@ -1,18 +1,18 @@
 package com.mercuriusxeno.goo.network;
 
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
-import com.mercuriusxeno.goo.gametest.GooTestFunctions;
-import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for aggravated damage through Leaf Barkskin invoked on a survival
@@ -95,7 +95,7 @@ public final class BarkskinTests {
     }
 
     private static Zombie unarmored(GameTestHelper helper, BlockPos pos) {
-        Zombie zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, pos);
+        Zombie zombie = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, pos);
         // the zombie's natural armor would cut the thorns; the test reads the thorns whole
         zombie.getAttribute(Attributes.ARMOR).setBaseValue(0);
         return zombie;

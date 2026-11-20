@@ -4,13 +4,13 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.client.FlatQuadContext;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.entity.LivingEntity;
@@ -206,12 +206,12 @@ public final class CrystalShatterVisual {
                 (origin, direction) -> raycastBlockColor(level, origin, direction));
         Stream<Vec3> showing = CELLS.cells().entrySet().stream()
                 .filter(entry -> entry.getValue().shownAt(partialTick) > 0f).map(entry -> Vec3.atCenterOf(entry.getKey()));
-        draws.accept(SortedDraw.nearestOf(showing, mc.gameRenderer.getMainCamera().position(),
+        draws.accept(SortedDraw.nearestOf(showing, mc.gameRenderer.mainCamera().position(),
                 () -> drawCells(mc, levelFrame.poseStack(), frame)));
     }
 
     private static void drawCells(Minecraft mc, PoseStack poseStack, Frame frame) {
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        ImmediateBuffers buffers = ImmediateBuffers.shared();
         VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.CRYSTAL_SHARD_TYPE);
         CELLS.cells().forEach((pos, cell) -> drawCell(poseStack, consumer, pos, cell, frame));
         buffers.endBatch(GooRenderTypes.CRYSTAL_SHARD_TYPE);
@@ -270,7 +270,7 @@ public final class CrystalShatterVisual {
      * @param draw      what this frame of the cell draws
      */
     private static void submitCell(PoseStack poseStack, VertexConsumer consumer, CellDraw draw) {
-        Vec3 camera = Minecraft.getInstance().gameRenderer.getMainCamera().position();
+        Vec3 camera = Minecraft.getInstance().gameRenderer.mainCamera().position();
         poseStack.pushPose();
         poseStack.translate(draw.cell().getX() - camera.x, draw.cell().getY() - camera.y,
                 draw.cell().getZ() - camera.z);

@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.client.TypeBands;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
+import com.mojang.blaze3d.pipeline.BindGroupLayout;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.SubmitNodeCollector;
@@ -221,6 +222,6 @@ class DissolvingItemCollectorTest {
 
         assertEquals(Identifier.fromNamespaceAndPath("goo", "core/crucible_dissolve"), pipeline.getFragmentShader());
         assertEquals(Identifier.fromNamespaceAndPath("goo", "core/crucible_dissolve"), pipeline.getVertexShader());
-        assertEquals(List.of("Sampler0", "Sampler2"), pipeline.getSamplers());
+        assertEquals(List.of("Sampler0", "Sampler2"), BindGroupLayout.flattenSamplers(pipeline.getBindGroupLayouts()));
     }
 }

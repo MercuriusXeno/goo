@@ -5,11 +5,11 @@ import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.block.ability.SideCoat;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.data.GooFraction;
-import com.mercuriusxeno.goo.item.GooSourceScanner;
-import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
+import com.mercuriusxeno.goo.item.GooSourceScanner;
+import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.throwing.CoatRay;
@@ -19,7 +19,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.level.block.Blocks;
@@ -358,7 +358,7 @@ public final class GoopArcTests {
      */
     public static void goopWobblesAFarMobItsDripStrikes(GameTestHelper helper) {
         layFloor(helper, PERCHED_FLOOR_Y, LEVEL_STREAMER_POS.getZ());
-        Zombie zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE,
+        Zombie zombie = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE,
                 new BlockPos(LEVEL_STREAMER_POS.getX() + ZOMBIE_EAST, PERCHED_FLOOR_Y + 1, LEVEL_STREAMER_POS.getZ()));
         ServerPlayer streamer = perchedStreamer(helper, LOW_PERCH);
         DripAim.at(streamer, zombie.getBoundingBox().getCenter(), goop(helper).delivery().throwSpeed());
@@ -541,7 +541,7 @@ public final class GoopArcTests {
             helper.getLevel().destroyBlock(helper.absolutePos(FLOATING_WALL), false);
         });
         helper.runAfterDelay(FILM_WATCH_TICKS + FILM_FALL_TICKS, () -> {
-            int weird = helper.getEntities(EntityType.ITEM, film, FILM_DROP_REACH).stream()
+            int weird = helper.getEntities(EntityTypes.ITEM, film, FILM_DROP_REACH).stream()
                     .map(ItemEntity::getItem).filter(stack -> GooTypes.WEIRD.equals(GooStacks.keyOf(stack)))
                     .mapToInt(GooStacks::volumeOf).sum();
             int owed = ResidualPrices.layersRefund(helper, 1);

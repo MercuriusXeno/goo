@@ -16,7 +16,7 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.animal.pig.Pig;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
@@ -124,7 +124,7 @@ public final class HeadSoundTests {
     public static void soundStepOnAMobPlaysAtItsBodyCentre(GameTestHelper helper) {
         ServerPlayer thrower = SelfDeliveryTests.invoker(helper, GooTypes.FROST);
         ServerPlayer onlooker = onlookerBeside(helper, thrower);
-        Pig pig = helper.spawn(EntityType.PIG, helper.relativeVec(thrower.position().add(PIG_OFFSET)));
+        Pig pig = helper.spawn(EntityTypes.PIG, helper.relativeVec(thrower.position().add(PIG_OFFSET)));
         PacketRecorder throwerHeard = PacketRecorder.attachClaiming(thrower, ListenerSoundPayload.class);
         PacketRecorder onlookerHeard = PacketRecorder.attachTo(onlooker);
         new EntityHost(helper.getLevel(), pig, thrower).playSound(SoundCue.of(GLASS_BREAK));
@@ -146,7 +146,7 @@ public final class HeadSoundTests {
     public static void shulkerSpewReachesItsCasterAtTheListener(GameTestHelper helper) {
         ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.TYPHOON);
         ServerPlayer onlooker = onlookerBeside(helper, caster);
-        Pig taken = helper.spawn(EntityType.PIG, helper.relativeVec(caster.position().add(PIG_OFFSET)));
+        Pig taken = helper.spawn(EntityTypes.PIG, helper.relativeVec(caster.position().add(PIG_OFFSET)));
         PacketRecorder casterHeard = PacketRecorder.attachClaiming(caster, ListenerSoundPayload.class);
         PacketRecorder onlookerHeard = PacketRecorder.attachTo(onlooker);
         Vec3 blob = caster.getEyePosition().add(BLOB_OFFSET);

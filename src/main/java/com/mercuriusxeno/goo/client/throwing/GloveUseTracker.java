@@ -274,7 +274,7 @@ public final class GloveUseTracker {
      * @param player the local player
      */
     private static void trackGloveHold(Minecraft mc, LocalPlayer player) {
-        if (mc.screen != null || GooCasters.casterHand(player) != pressHand) {
+        if (mc.gui.screen() != null || GooCasters.casterHand(player) != pressHand) {
             if (PRESS.isArmed()) {
                 GlovePoses.drop(player);
             }

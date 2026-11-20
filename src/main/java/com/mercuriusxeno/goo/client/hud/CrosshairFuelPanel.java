@@ -179,7 +179,7 @@ public final class CrosshairFuelPanel {
     private static void render(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker) {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
-        if (player != null && !mc.options.hideGui && mc.screen == null) {
+        if (player != null && !mc.gui.hud.isHidden() && mc.gui.screen() == null) {
             renderFor(graphics, mc.font, player);
         }
     }
