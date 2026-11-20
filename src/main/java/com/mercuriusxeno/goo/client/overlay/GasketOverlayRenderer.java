@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.overlay;
 
 import com.mercuriusxeno.goo.block.gasket.IGasketHolder;
 import com.mercuriusxeno.goo.client.CuboidBounds;
+import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.LineContext;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
@@ -11,7 +12,6 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.ARGB;
@@ -156,8 +156,8 @@ public final class GasketOverlayRenderer {
     private static void renderFillOverlay(
             Minecraft mc, PoseStack poseStack,
             BlockPos pos, AABB bounds, GasketRole role, boolean connected) {
-        Vec3 ofs = cameraOffset(pos, mc.gameRenderer.getMainCamera());
-        MultiBufferSource.BufferSource buf = mc.renderBuffers().bufferSource();
+        Vec3 ofs = cameraOffset(pos, mc.gameRenderer.mainCamera());
+        ImmediateBuffers buf = ImmediateBuffers.shared();
         VertexConsumer quad = buf.getBuffer(RenderTypes.debugQuads());
 
         GasketMeshEmitter.renderFilledBox(poseStack, quad, bounds, ofs, roleColor(role));
@@ -204,8 +204,8 @@ public final class GasketOverlayRenderer {
     private static void renderWireframeOverlay(
             Minecraft mc, PoseStack poseStack,
             BlockPos pos, AABB bounds, GasketRole role) {
-        Vec3 ofs = cameraOffset(pos, mc.gameRenderer.getMainCamera());
-        MultiBufferSource.BufferSource buf = mc.renderBuffers().bufferSource();
+        Vec3 ofs = cameraOffset(pos, mc.gameRenderer.mainCamera());
+        ImmediateBuffers buf = ImmediateBuffers.shared();
         VertexConsumer line = buf.getBuffer(RenderTypes.lines());
 
         emitWireframeCuboid(poseStack, line, bounds, ofs, role, mc);
@@ -252,6 +252,6 @@ public final class GasketOverlayRenderer {
             IGasketHolder holder, boolean connected) {
         if (!connected) { return; }
         GasketConnectionRenderer.renderConnectionLine(mc, poseStack,
-                mc.gameRenderer.getMainCamera(), pos, bounds, role, slot, holder);
+                mc.gameRenderer.mainCamera(), pos, bounds, role, slot, holder);
     }
 }

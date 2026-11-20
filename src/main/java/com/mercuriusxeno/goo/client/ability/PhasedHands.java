@@ -138,8 +138,11 @@ public final class PhasedHands {
      * @param event the arm render event
      */
     @SubscribeEvent(priority = EventPriority.LOWEST)
-    public static void onRenderArm(RenderArmEvent event) {
-        AbstractClientPlayer player = event.getPlayer();
+    public static void onRenderArm(RenderArmEvent<?> event) {
+        // The arm event fires for every avatar, a mannequin among them; goo draws on a player's arm alone.
+        if (!(event.getAvatar() instanceof AbstractClientPlayer player)) {
+            return;
+        }
         if (!EldritchEvents.isOutOfPhase(player)) {
             return;
         }
@@ -150,7 +153,7 @@ public final class PhasedHands {
         arm.visible = true;
         arm.zRot = event.getArm() == HumanoidArm.RIGHT ? ARM_TILT : -ARM_TILT;
         event.getSubmitNodeCollector().submitModelPart(arm, event.getPoseStack(),
-                PhaseLook.bodyType(player.getSkin().body().texturePath()), event.getPackedLight(),
+                PhaseLook.bodyType(player.getSkin().body().texturePath()), event.getLightCoords(),
                 OverlayTexture.NO_OVERLAY, null, PhaseLook.ownTint(WHITE), null);
     }
 }

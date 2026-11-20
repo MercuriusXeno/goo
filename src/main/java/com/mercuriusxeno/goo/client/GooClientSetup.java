@@ -99,6 +99,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.player.PlayerModelType;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -273,7 +274,7 @@ public final class GooClientSetup {
         PrismComboStyles.register(HeaterPrismStyle.COMBO, new HeaterPrismStyle());
         event.registerBlockEntityRenderer(GooBlockEntities.STATUE.get(), StatueRenderer::new);
         // decision flecks-move-by-flexible-goo-physics-and-stay-items: a dropped goo item draws as its cuboid, still
-        event.registerEntityRenderer(EntityType.ITEM, GooItemEntityRenderer::new);
+        event.registerEntityRenderer(EntityTypes.ITEM, GooItemEntityRenderer::new);
         event.registerEntityRenderer(GooEntities.COMPRESSION_SPHERE.get(), CompressionSphereRenderer::new);
         // wisps-travel-as-entities-then-settle-as-glowy-air-blocks: a drifting wisp draws as a settled wisp's mote
         event.registerEntityRenderer(GooEntities.DRIFTING_WISP.get(), DriftingWispRenderer::new);

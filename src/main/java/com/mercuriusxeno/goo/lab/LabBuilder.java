@@ -4,13 +4,14 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.commands.arguments.blocks.BlockStateParser;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.Container;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
-import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.block.Block;
@@ -196,7 +197,7 @@ public final class LabBuilder {
      * @param spawn  the planned spawn
      */
     private static void spawn(ServerLevel level, BlockPos origin, LabSpawn spawn) {
-        Entity entity = EntityType.byString(spawn.entityId())
+        Entity entity = BuiltInRegistries.ENTITY_TYPE.getOptional(Identifier.tryParse(spawn.entityId()))
                 .map(type -> type.create(level, EntitySpawnReason.COMMAND)).orElse(null);
         if (entity == null) {
             return;

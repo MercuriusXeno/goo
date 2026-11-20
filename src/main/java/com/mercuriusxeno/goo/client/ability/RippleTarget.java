@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mojang.blaze3d.GpuFormat;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.pipeline.TextureTarget;
 import net.minecraft.client.renderer.rendertype.OutputTarget;
@@ -36,7 +37,7 @@ public final class RippleTarget {
      */
     static RenderTarget sizedTo(RenderTarget main) {
         if (target == null) {
-            target = new TextureTarget(LABEL, main.width, main.height, true);
+            target = new TextureTarget(LABEL, main.width, main.height, true, GpuFormat.RGBA8_UNORM);
         } else if (target.width != main.width || target.height != main.height) {
             target.resize(main.width, main.height);
         }

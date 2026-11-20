@@ -1,12 +1,12 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.network.ReapSwellPayload;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
@@ -116,7 +116,7 @@ public final class ReapSwells {
     }
 
     private static void drawSwell(PoseStack poseStack, Vec3 fromCamera, float radius, int color) {
-        MultiBufferSource.BufferSource buffers = Minecraft.getInstance().renderBuffers().bufferSource();
+        ImmediateBuffers buffers = ImmediateBuffers.shared();
         poseStack.pushPose();
         Vec3 corner = fromCamera.subtract(BurnoutGeometry.BLOCK_CENTER, BurnoutGeometry.BLOCK_CENTER,
                 BurnoutGeometry.BLOCK_CENTER);

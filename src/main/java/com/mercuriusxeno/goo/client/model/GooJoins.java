@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.client.model;
 
 import com.mercuriusxeno.goo.client.GooSubmitter;
+import com.mercuriusxeno.goo.client.ImmediateBuffers;
+import com.mercuriusxeno.goo.client.RenderTypeBuffers;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.throwing.BlobShape;
@@ -10,7 +12,6 @@ import com.mercuriusxeno.goo.network.GooJoinPayload;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.item.ItemEntity;
@@ -162,7 +163,7 @@ public final class GooJoins {
         if (drawn.isEmpty()) {
             return;
         }
-        Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        Vec3 camera = mc.gameRenderer.mainCamera().position();
         draws.accept(SortedDraw.nearestOf(drawn.stream().map(each -> each.bridge().leading()
                 .add(each.bridge().trailing()).scale(HALF)), camera, () -> drawBridges(frame, drawn, camera, now)));
     }
@@ -177,7 +178,7 @@ public final class GooJoins {
     }
 
     private static void drawBridges(LevelFrame frame, List<Drawn> drawn, Vec3 camera, double now) {
-        MultiBufferSource.BufferSource buffers = Minecraft.getInstance().renderBuffers().bufferSource();
+        ImmediateBuffers buffers = ImmediateBuffers.shared();
         for (Drawn each : drawn) {
             drawBridge(frame.poseStack(), buffers, each.type(), each.bridge(), camera, (float) now);
         }
@@ -195,7 +196,7 @@ public final class GooJoins {
      * @param camera    the camera's place
      * @param gameTime  the game time with the frame's partial tick
      */
-    private static void drawBridge(PoseStack poseStack, MultiBufferSource buffers,
+    private static void drawBridge(PoseStack poseStack, RenderTypeBuffers buffers,
                                    ResourceKey<GooTypeDefinition> type, GooJoin.Bridge bridge, Vec3 camera,
                                    float gameTime) {
         double halfWidth = GooCuboidSize.halfWidthInLevel(bridge.size());

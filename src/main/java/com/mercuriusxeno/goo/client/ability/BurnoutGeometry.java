@@ -26,7 +26,7 @@ final class BurnoutGeometry {
     private static final int SPHERE_LAT_SEGMENTS = 32;
     /** Longitude segments around the unit sphere mesh. */
     private static final int SPHERE_LON_SEGMENTS = 64;
-    /** Vertices per quad, matching {@code VertexFormat.Mode.QUADS}. */
+    /** Vertices per quad, matching {@code PrimitiveTopology.QUADS}. */
     private static final int VERTICES_PER_QUAD = 4;
     /** Latitude offset subtracted from {@code lat / latSegments} to center phi on zero. */
     private static final double LATITUDE_HALF_OFFSET = 0.5;

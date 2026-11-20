@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.overlay;
 
 import com.mercuriusxeno.goo.block.gasket.IGasketHolder;
+import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.LineContext;
 import com.mercuriusxeno.goo.item.gasket.GasketPartner;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
@@ -8,7 +9,6 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.ARGB;
@@ -66,7 +66,7 @@ final class GasketConnectionRenderer {
             Minecraft mc, PoseStack poseStack, Camera camera,
             BlockPos pos, AABB bounds, GasketRole role, int slot,
             com.mercuriusxeno.goo.block.gasket.IGasketHolder holder) {
-        MultiBufferSource.BufferSource buf = mc.renderBuffers().bufferSource();
+        ImmediateBuffers buf = ImmediateBuffers.shared();
         Vec3 to = resolveConnectionEndpoint(mc, role, slot, holder);
         if (to == null) { return; }
 
@@ -157,7 +157,7 @@ final class GasketConnectionRenderer {
      * @param mc the Minecraft instance
      */
     private static void renderGlowLine(
-            PoseStack poseStack, MultiBufferSource.BufferSource bufferSource,
+            PoseStack poseStack, ImmediateBuffers bufferSource,
             Camera camera, Vec3 from, Vec3 to, Minecraft mc) {
         float pulse = computeGlowPulse(mc);
         float baseWidth = mc.getWindow().getAppropriateLineWidth();

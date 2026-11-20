@@ -1,11 +1,11 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.throwing.GooFlightRenderer;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.client.renderer.entity.state.LivingEntityRenderState;
 import net.minecraft.core.BlockPos;
@@ -84,8 +84,8 @@ public final class TransformationRenderer {
         }
         List<Transformations.Transformation> transformations = Transformations.CLIENT.live(mc.level.getGameTime());
         float gameTime = gameTime(mc);
-        Vec3 camera = mc.gameRenderer.getMainCamera().position();
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        Vec3 camera = mc.gameRenderer.mainCamera().position();
+        ImmediateBuffers buffers = ImmediateBuffers.shared();
         for (Transformations.Transformation transformation : transformations) {
             float blobScale = transformation.blobScale(gameTime);
             if (blobScale > 0f) {
@@ -96,7 +96,7 @@ public final class TransformationRenderer {
         }
     }
 
-    private static void drawBlob(PoseStack poseStack, MultiBufferSource.BufferSource buffers, Vec3 blob,
+    private static void drawBlob(PoseStack poseStack, ImmediateBuffers buffers, Vec3 blob,
                                  Transformations.Transformation transformation, float gameTime, float blobScale) {
         poseStack.pushPose();
         poseStack.translate(blob.x, blob.y, blob.z);

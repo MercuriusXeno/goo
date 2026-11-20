@@ -33,7 +33,7 @@ public abstract class ScreenEffectRendererGateMixin {
      * @param player   the player the overlay draws for
      * @return whether the block blocks the view
      */
-    @WrapOperation(method = "getOverlayBlock", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/block/"
+    @WrapOperation(method = "getViewBlockingStateAndPos", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/block/"
             + "state/BlockState;isViewBlocking(Lnet/minecraft/world/level/BlockGetter;Lnet/minecraft/core/BlockPos;)Z"))
     private static boolean goo$seeThroughAGate(BlockState state, BlockGetter level, BlockPos pos,
             Operation<Boolean> original, @Local(argsOnly = true) Player player) {

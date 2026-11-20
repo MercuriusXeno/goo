@@ -59,7 +59,7 @@ public final class GloveRadialKey {
         Minecraft mc = Minecraft.getInstance();
         while (MAPPING.consumeClick()) {
             // sprayer-wheel-picks-nozzle-flow-and-goo-type: the held sprayer opens its own wheel
-            switch (wheelOpenedBy(mc.player, mc.screen != null)) {
+            switch (wheelOpenedBy(mc.player, mc.gui.screen() != null)) {
                 case SPRAYER -> SprayerRadialScreen.open();
                 case GLOVE -> GloveRadialScreen.open();
                 case NONE -> { }

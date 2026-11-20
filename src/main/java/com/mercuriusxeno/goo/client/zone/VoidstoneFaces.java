@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.zone;
 
 import com.mercuriusxeno.goo.ability.zone.ZoneRooms;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.ability.PortalView;
@@ -10,7 +11,6 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.SectionPos;
@@ -116,9 +116,9 @@ public final class VoidstoneFaces {
             return;
         }
         // inside a view through a linked portal the faces stand around the camera the view is drawn from
-        Vec3 camera = PortalView.drawing() ? PortalView.cameraPosition() : mc.gameRenderer.getMainCamera().position();
+        Vec3 camera = PortalView.drawing() ? PortalView.cameraPosition() : mc.gameRenderer.mainCamera().position();
         List<SectionFaces> sections = sectionsAround(level, camera, mc.options.getEffectiveRenderDistance());
-        draws.accept(new SortedDraw(0, () -> drawFaces(frame.poseStack().last(), mc.renderBuffers().bufferSource(),
+        draws.accept(new SortedDraw(0, () -> drawFaces(frame.poseStack().last(), ImmediateBuffers.shared(),
                 camera, sections)));
     }
 
@@ -179,7 +179,7 @@ public final class VoidstoneFaces {
         return faces;
     }
 
-    private static void drawFaces(PoseStack.Pose pose, MultiBufferSource.BufferSource buffers, Vec3 camera,
+    private static void drawFaces(PoseStack.Pose pose, ImmediateBuffers buffers, Vec3 camera,
                                   List<SectionFaces> sections) {
         VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.VOIDSTONE_TYPE);
         for (SectionFaces section : sections) {

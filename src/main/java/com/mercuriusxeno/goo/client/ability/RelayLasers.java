@@ -5,13 +5,13 @@ import com.mercuriusxeno.goo.ability.pulse.RelayNetwork;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
 import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.LineContext;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.ber.style.PulsePrismStyle;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.util.ARGB;
@@ -87,13 +87,13 @@ public final class RelayLasers {
         if (mc.level == null || standing.size() < RELAYS_IN_A_LINK) {
             return;
         }
-        Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        Vec3 camera = mc.gameRenderer.mainCamera().position();
         draws.accept(SortedDraw.nearestOf(standing.stream().map(Vec3::atCenterOf), camera,
                 () -> drawLinks(mc, frame, standing, camera)));
     }
 
     private static void drawLinks(Minecraft mc, LevelFrame frame, List<BlockPos> standing, Vec3 camera) {
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        ImmediateBuffers buffers = ImmediateBuffers.shared();
         LineContext lines = new LineContext(frame.poseStack().last(), buffers.getBuffer(GooRenderTypes.LINES_GLOW));
         float width = mc.getWindow().getAppropriateLineWidth() * WIDTH_SCALE;
         for (int i = 0; i < standing.size(); i++) {

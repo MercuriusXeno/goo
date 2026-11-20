@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.mixin;
 
 import com.mercuriusxeno.goo.client.hud.LowHealthJiggle;
-import net.minecraft.client.gui.Gui;
+import net.minecraft.client.gui.Hud;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.player.Player;
 import org.spongepowered.asm.mixin.Mixin;
@@ -18,7 +18,7 @@ import com.llamalad7.mixinextras.sugar.Local;
  * replays, stays vanilla's.
  * health-bar-stays-steady-while-filled-hearts-stand
  */
-@Mixin(Gui.class)
+@Mixin(Hud.class)
 public abstract class GuiLowHealthJiggleMixin {
 
     /**

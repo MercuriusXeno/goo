@@ -114,7 +114,7 @@ public final class FireStream {
         }
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         double now = player.level().getGameTime() + partialTick;
-        Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        Vec3 camera = mc.gameRenderer.mainCamera().position();
         List<FireField> fields = new ArrayList<>();
         addBurning(fields, heldField(player, now, partialTick, camera));
         addBurning(fields, pinnedField(now, camera));

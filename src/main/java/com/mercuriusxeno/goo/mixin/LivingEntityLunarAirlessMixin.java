@@ -1,9 +1,9 @@
 package com.mercuriusxeno.goo.mixin;
 
 import com.mercuriusxeno.goo.lunar.Lunar;
-import net.minecraft.tags.FluidTags;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.neoforged.neoforge.common.NeoForgeMod;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
@@ -42,6 +42,6 @@ public abstract class LivingEntityLunarAirlessMixin {
     @WrapOperation(method = "baseTick", at = @At(value = "INVOKE",
             target = "Lnet/minecraft/world/entity/Entity;dismountsUnderwater()Z"))
     private boolean goo$onlyRealWaterDismounts(Entity vehicle, Operation<Boolean> original) {
-        return original.call(vehicle) && ((LivingEntity) (Object) this).isEyeInFluid(FluidTags.WATER);
+        return original.call(vehicle) && ((LivingEntity) (Object) this).isEyeInFluid(NeoForgeMod.WATER_TYPE.value());
     }
 }

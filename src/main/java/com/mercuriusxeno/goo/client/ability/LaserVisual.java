@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.program.RayStep;
 import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
@@ -16,7 +17,6 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.blockentity.BeaconRenderer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.Mth;
@@ -125,7 +125,7 @@ public final class LaserVisual {
         long now = level.getGameTime();
         RAYS.entrySet().removeIf(entry -> level.getEntity(entry.getKey()) == null
                 || now - entry.getValue().arrivedAt() > LINGER_TICKS);
-        Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        Vec3 camera = mc.gameRenderer.mainCamera().position();
         draws.accept(SortedDraw.nearestOf(RAYS.keySet().stream()
                         .map(level::getEntity).filter(Objects::nonNull).map(Entity::position), camera,
                 () -> drawEveryRay(mc, level, frame.poseStack(), now)));
@@ -133,7 +133,7 @@ public final class LaserVisual {
 
     private static void drawEveryRay(Minecraft mc, ClientLevel level, PoseStack poseStack, long now) {
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        ImmediateBuffers buffers = ImmediateBuffers.shared();
         VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.glowBeam(BeaconRenderer.BEAM_LOCATION));
         BeamPhase phase = new BeamPhase(Mth.frac(-(now + partialTick) * SCROLL_PER_TICK),
                 GlowBeamMesh.breath(now + (double) partialTick));
@@ -157,7 +157,7 @@ public final class LaserVisual {
      */
     private static List<Vec3> drawRays(Minecraft mc, ClientLevel level, PoseStack poseStack, VertexConsumer consumer,
                                        float partialTick, BeamPhase phase) {
-        Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        Vec3 camera = mc.gameRenderer.mainCamera().position();
         List<Vec3> cores = new ArrayList<>();
         DRAWN.clear();
         for (Map.Entry<Integer, Ray> entry : RAYS.entrySet()) {
@@ -308,7 +308,7 @@ public final class LaserVisual {
      * @param buffers   the buffer source
      * @param cores     each core's middle, camera-relative
      */
-    private static void drawCores(PoseStack poseStack, MultiBufferSource.BufferSource buffers, List<Vec3> cores) {
+    private static void drawCores(PoseStack poseStack, ImmediateBuffers buffers, List<Vec3> cores) {
         if (cores.isEmpty()) {
             return;
         }

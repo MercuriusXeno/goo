@@ -23,12 +23,11 @@ public abstract class GameRendererPortalViewMixin {
     /**
      * Carries the local player through a gate ahead of the camera's placing.
      *
-     * @param deltaTracker     the frame's delta tracker
-     * @param advanceGameTime  whether the frame draws the level
-     * @param ci               the callback
+     * @param deltaTracker the frame's delta tracker
+     * @param ci           the callback
      */
     @Inject(method = "update", at = @At("HEAD"))
-    private void goo$carryBeforeTheCamera(DeltaTracker deltaTracker, boolean advanceGameTime, CallbackInfo ci) {
+    private void goo$carryBeforeTheCamera(DeltaTracker deltaTracker, CallbackInfo ci) {
         // A carry after the camera is placed draws its frame from the eye before it, against the entered gate,
         // whose view looks out from inside the carried player's own head.
         ClientGatePassage.crossBeforeFrame(deltaTracker);

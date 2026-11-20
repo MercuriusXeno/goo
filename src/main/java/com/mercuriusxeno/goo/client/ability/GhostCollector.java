@@ -1,8 +1,8 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.client.RenderTypeBuffers;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.model.Model;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 
@@ -15,7 +15,7 @@ import net.minecraft.client.renderer.texture.OverlayTexture;
  */
 final class GhostCollector extends BodyOnlyCollector {
 
-    private final MultiBufferSource buffers;
+    private final RenderTypeBuffers buffers;
     private final RenderType ghostType;
     private final int ghostColor;
 
@@ -25,7 +25,7 @@ final class GhostCollector extends BodyOnlyCollector {
      * @param ghostType  the ghost render type over the body's skin
      * @param ghostColor the ghost's ARGB color, its fade in the alpha
      */
-    GhostCollector(MultiBufferSource buffers, Model<?> body, RenderType ghostType, int ghostColor) {
+    GhostCollector(RenderTypeBuffers buffers, Model<?> body, RenderType ghostType, int ghostColor) {
         super(body);
         this.buffers = buffers;
         this.ghostType = ghostType;

@@ -77,7 +77,7 @@ public final class KnownItemsOverlay extends Screen {
                         new ItemStack(BuiltInRegistries.ITEM.getValue(id))))
                 .filter(item -> !item.stack().isEmpty())
                 .toList();
-        mc.setScreen(new KnownItemsOverlay(plexer, targetOf(mc.level, plexer), KnownItemsListing.order(known, locale),
+        mc.gui.setScreen(new KnownItemsOverlay(plexer, targetOf(mc.level, plexer), KnownItemsListing.order(known, locale),
                 locale));
     }
 

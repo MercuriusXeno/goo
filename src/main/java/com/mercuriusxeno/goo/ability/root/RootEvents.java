@@ -190,7 +190,7 @@ public final class RootEvents {
             return;
         }
         int layers = vinesLayersAt(level, rooted.lastCell());
-        RootStrike strike = RootStrike.of(rooted.vines(), event.getNewDamage(), false, rooted.fireFactor(), layers);
+        RootStrike strike = RootStrike.of(rooted.vines(), event.getHealthDamage(), false, rooted.fireFactor(), layers);
         if (strike.vinesLeft() == 0) {
             release(living, rooted.releasedAt(now));
             leaveLayers(level, rooted.lastCell(), layers, strike.layersKept());

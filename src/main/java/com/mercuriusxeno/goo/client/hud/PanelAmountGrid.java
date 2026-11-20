@@ -1,12 +1,12 @@
 package com.mercuriusxeno.goo.client.hud;
 
+import com.mercuriusxeno.goo.client.RenderTypeBuffers;
 import com.mercuriusxeno.goo.client.workbench.GooAmountGrid;
 import com.mercuriusxeno.goo.client.workbench.Lettering;
 import com.mercuriusxeno.goo.item.GooFormat;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import org.jspecify.annotations.Nullable;
@@ -214,7 +214,7 @@ public record PanelAmountGrid(List<Cell> cells) {
      * @param origin    the grid's top left, in the panel's scaled pixels
      * @param opacity   the fade every part draws at
      */
-    void draw(PoseStack poseStack, Font font, MultiBufferSource buffers, PanelRectangle origin, float opacity) {
+    void draw(PoseStack poseStack, Font font, RenderTypeBuffers buffers, PanelRectangle origin, float opacity) {
         for (int index = 0; index < cells.size(); index++) {
             Cell cell = cells.get(index);
             float left = origin.x() + cellLeft(index, font::width);

@@ -57,7 +57,7 @@ public abstract class ItemInHandRendererSwingMixin {
      *
      * @param ci the callback
      */
-    @Inject(method = "renderArmWithItem", at = @At("HEAD"))
+    @Inject(method = "submitArmWithItem", at = @At("HEAD"))
     private void goo$forgetTheLastHandsSwing(CallbackInfo ci) {
         FirstPersonSwing.forgetSwing();
     }
@@ -67,7 +67,7 @@ public abstract class ItemInHandRendererSwingMixin {
      *
      * @param ci the callback
      */
-    @Inject(method = "renderArmWithItem", at = @At("RETURN"))
+    @Inject(method = "submitArmWithItem", at = @At("RETURN"))
     private void goo$forgetThisHandsSwing(CallbackInfo ci) {
         FirstPersonSwing.forgetSwing();
     }

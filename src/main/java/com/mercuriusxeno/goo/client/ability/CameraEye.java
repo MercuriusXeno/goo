@@ -76,7 +76,7 @@ public final class CameraEye {
      * @return the camera's sight for the local player in first person, else the entity's
      */
     public static Sight of(Minecraft mc, Entity caster, float partialTick) {
-        return chosen(followsTheCamera(mc, caster), cameraSight(mc.gameRenderer.getMainCamera()),
+        return chosen(followsTheCamera(mc, caster), cameraSight(mc.gameRenderer.mainCamera()),
                 entitySight(caster, partialTick));
     }
 
@@ -118,7 +118,7 @@ public final class CameraEye {
      * @return the height, in blocks
      */
     public static double bodyHeight(Minecraft mc, Entity body, float partialTick) {
-        double cameraAboveFeet = mc.gameRenderer.getMainCamera().position().y - body.getPosition(partialTick).y;
+        double cameraAboveFeet = mc.gameRenderer.mainCamera().position().y - body.getPosition(partialTick).y;
         return bodyHeight(followsTheCamera(mc, body), cameraAboveFeet, body.getBbHeight());
     }
 
@@ -149,7 +149,7 @@ public final class CameraEye {
      * @return the eye height, in blocks above the feet
      */
     public static double eyeHeight(Minecraft mc, Entity caster, float partialTick) {
-        Camera camera = mc.gameRenderer.getMainCamera();
+        Camera camera = mc.gameRenderer.mainCamera();
         return eyeHeight(followsTheCamera(mc, caster), Mth.lerp(partialTick, camera.eyeHeightOld, camera.eyeHeight),
                 caster.getEyeHeight());
     }

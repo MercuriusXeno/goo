@@ -36,7 +36,7 @@ public final class CastOrigin {
      * @return the lifted blob's place, or the glove
      */
     public static Vec3 ofLocal(Minecraft mc) {
-        Vec3 glove = GloveAim.handPosition(mc.gameRenderer.getMainCamera());
+        Vec3 glove = GloveAim.handPosition(mc.gameRenderer.mainCamera());
         return mc.player == null ? glove
                 : of(mc.player.getId(), glove, mc.getDeltaTracker().getGameTimeDeltaPartialTick(false));
     }

@@ -106,8 +106,8 @@ public record RilleField(DensityFunction.NoiseHolder line, DensityFunction.Noise
     }
 
     @Override
-    public DensityFunction mapAll(DensityFunction.Visitor visitor) {
-        return visitor.apply(new RilleField(visitor.visitNoise(line), visitor.visitNoise(maria)));
+    public DensityFunction mapChildren(DensityFunction.Visitor visitor) {
+        return new RilleField(visitor.visitNoise(line), visitor.visitNoise(maria));
     }
 
     @Override

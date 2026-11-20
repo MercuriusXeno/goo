@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.ability.ClientRoomEdges;
 import com.mercuriusxeno.goo.client.ability.PortalView;
+import com.mojang.blaze3d.PrimitiveTopology;
 import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.buffers.GpuBufferSlice;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
@@ -17,9 +18,9 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.textures.AddressMode;
 import com.mojang.blaze3d.textures.FilterMode;
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderDispatcher;
+import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
 import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
 import net.minecraft.client.renderer.culling.Frustum;
@@ -37,9 +38,9 @@ import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
+import org.jspecify.annotations.Nullable;
 import java.util.Optional;
 import java.util.OptionalDouble;
-import java.util.OptionalInt;
 import java.util.function.Consumer;
 
 /**
@@ -140,7 +141,7 @@ public final class RoomCopyRenderer {
         Vec3 camera = state.cameraRenderState.pos;
         PoseStack poses = event.getPoseStack();
         for (BlockEntity entity : RoomCopyMeshes.blockEntities()) {
-            BlockEntityRenderState extracted = dispatcher.tryExtractRenderState(entity, partial, null, null);
+            BlockEntityRenderState extracted = extractCopy(dispatcher, entity, partial);
             if (extracted == null) {
                 continue;
             }
@@ -200,7 +201,7 @@ public final class RoomCopyRenderer {
         }
         RoomCopyMeshes.refresh(mc.level, bounds.get());
         Frustum frustum = PortalView.drawing() ? PortalView.camera().getCullFrustum()
-                : mc.gameRenderer.getMainCamera().getCullFrustum();
+                : mc.gameRenderer.mainCamera().getCullFrustum();
         RoomCopyDraws.Draws draws = RoomCopyDraws.of(bounds.get(),
                 RoomCopies.offsets(bounds.get(), RoomCopies.reachOf(mc.options.getEffectiveRenderDistance())),
                 RoomCopyMeshes.bottom(), RoomCopyMeshes.top(), frustum::isVisible);
@@ -229,19 +230,19 @@ public final class RoomCopyRenderer {
                 (float) (mesh.origin().getY() - copies.camera().y()), (float) (mesh.origin().getZ() - copies.camera().z()));
         GpuBufferSlice transforms = RenderSystem.getDynamicUniforms().writeTransform(new Matrix4f(modelView), WHITE,
                 fromCamera, new Matrix4f());
-        RenderSystem.AutoStorageIndexBuffer indices = RenderSystem.getSequentialBuffer(VertexFormat.Mode.QUADS);
-        RenderTarget target = mc.mainRenderTarget;
+        RenderSystem.AutoStorageIndexBuffer indices = RenderSystem.getSequentialBuffer(PrimitiveTopology.QUADS);
+        RenderTarget target = mc.gameRenderer.mainRenderTarget();
         try (RenderPass pass = RenderSystem.getDevice().createCommandEncoder().createRenderPass(() -> PASS_LABEL,
-                target.getColorTextureView(), OptionalInt.empty(), target.getDepthTextureView(),
+                target.getColorTextureView(), Optional.empty(), target.getDepthTextureView(),
                 OptionalDouble.empty())) {
             pass.setPipeline(pipeline);
             RenderSystem.bindDefaultUniforms(pass);
             pass.setUniform(TRANSFORMS, transforms);
             pass.setUniform(GooRenderTypes.ROOM_COPY_TRANSLATIONS, copies.translations());
             bindBlockTextures(mc, pass);
-            pass.setVertexBuffer(0, mesh.vertices());
+            pass.setVertexBuffer(0, mesh.vertices().slice());
             pass.setIndexBuffer(indices.getBuffer(mesh.indexCount()), indices.type());
-            pass.drawIndexed(0, 0, mesh.indexCount(), copies.draws().instances());
+            pass.drawIndexed(mesh.indexCount(), copies.draws().instances(), 0, 0, 0);
         }
     }
 
@@ -251,5 +252,14 @@ public final class RoomCopyRenderer {
                         FilterMode.LINEAR, FilterMode.NEAREST, true));
         pass.bindTexture(LIGHTMAP_SAMPLER, mc.gameRenderer.lightmap(),
                 RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR));
+    }
+
+    // The dispatcher extracts an off-screen renderer's block entity on a pass of its own and asks which pass
+    // it is; a copy draws every block entity on one, so it answers as each renderer asks.
+    private static @Nullable BlockEntityRenderState extractCopy(BlockEntityRenderDispatcher dispatcher, BlockEntity entity,
+                                                                float partial) {
+        BlockEntityRenderer<BlockEntity, BlockEntityRenderState> renderer = dispatcher.getRenderer(entity);
+        return renderer == null ? null
+                : dispatcher.tryExtractRenderState(entity, partial, null, renderer.shouldRenderOffScreen(), null);
     }
 }

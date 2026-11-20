@@ -51,7 +51,7 @@ public final class HeadMarks {
         }
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         draws.accept(SortedDraw.nearestOf(marked.stream().map(Entity::position),
-                mc.gameRenderer.getMainCamera().position(),
+                mc.gameRenderer.mainCamera().position(),
                 () -> LifeMarkBillboard.drawAll(frame.poseStack(), marked, partialTick)));
     }
 

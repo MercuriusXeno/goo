@@ -1,12 +1,12 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.LineContext;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.util.ARGB;
@@ -152,7 +152,7 @@ public final class PneumaWind {
         LIVE.removeIf(mote -> now - mote.startTick() >= LIFE_TICKS);
         if (!LIVE.isEmpty()) {
             float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-            Vec3 camera = mc.gameRenderer.getMainCamera().position();
+            Vec3 camera = mc.gameRenderer.mainCamera().position();
             draws.accept(new SortedDraw(player.getEyePosition(partialTick).distanceToSqr(camera),
                     () -> drawMotes(frame, mc, player, now)));
         }
@@ -172,8 +172,8 @@ public final class PneumaWind {
     private static void drawMotes(LevelFrame frame, Minecraft mc, LocalPlayer player, long now) {
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         Vec3 eye = CameraEye.of(mc, player, partialTick).eye();
-        Vec3 camera = mc.gameRenderer.getMainCamera().position();
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        Vec3 camera = mc.gameRenderer.mainCamera().position();
+        ImmediateBuffers buffers = ImmediateBuffers.shared();
         RenderType type = RenderTypes.linesTranslucent();
         LineContext lines = new LineContext(frame.poseStack().last(), buffers.getBuffer(type));
         for (Mote mote : LIVE) {

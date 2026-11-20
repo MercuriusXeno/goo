@@ -36,7 +36,7 @@ public final class StackInHand {
             return;
         }
         float partial = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        Camera camera = mc.gameRenderer.getMainCamera();
+        Camera camera = mc.gameRenderer.mainCamera();
         Matrix4f toHand = HandPassView.toHandPassMatrix(camera.rotation(), camera.getFov(), HandPassView.frameBob(mc));
         poseStack.pushPose();
         poseStack.last().pose().set(toHand);

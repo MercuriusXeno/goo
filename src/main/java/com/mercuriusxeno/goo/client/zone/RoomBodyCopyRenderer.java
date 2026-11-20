@@ -83,8 +83,8 @@ public final class RoomBodyCopyRenderer {
         List<RoomCopies.Offset> offsets = RoomCopies.offsets(bounds.get(),
                 RoomCopies.reachOf(mc.options.getEffectiveRenderDistance()));
         Frustum frustum = PortalView.drawing() ? PortalView.camera().getCullFrustum()
-                : mc.gameRenderer.getMainCamera().getCullFrustum();
-        Camera camera = PortalView.drawing() ? PortalView.camera() : mc.gameRenderer.getMainCamera();
+                : mc.gameRenderer.mainCamera().getCullFrustum();
+        Camera camera = PortalView.drawing() ? PortalView.camera() : mc.gameRenderer.mainCamera();
         for (Entity body : level.entitiesForRendering()) {
             float partial = mc.getDeltaTracker().getGameTimeDeltaPartialTick(
                     !level.tickRateManager().isEntityFrozen(body));
@@ -121,7 +121,8 @@ public final class RoomBodyCopyRenderer {
             }
             if (state == null) {
                 state = dispatcher.extractEntity(body, partial);
-                state.outlineColor = level.haveGlowingEntities ? state.outlineColor : 0;
+                // A copy outlines where the frame shows entity outlines at all.
+                state.outlineColor = level.shouldShowEntityOutlines ? state.outlineColor : 0;
             }
             Vec3 at = place.add(state.x - drawn.x(), state.y - drawn.y(), state.z - drawn.z());
             EntityRenderState copy = state;

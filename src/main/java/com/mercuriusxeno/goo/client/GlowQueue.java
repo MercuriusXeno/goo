@@ -3,8 +3,6 @@ package com.mercuriusxeno.goo.client;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mojang.blaze3d.vertex.PoseStack;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.world.phys.Vec3;
@@ -56,7 +54,7 @@ public final class GlowQueue {
     }
 
     private static void draw(Entry entry) {
-        MultiBufferSource.BufferSource buffers = Minecraft.getInstance().renderBuffers().bufferSource();
+        ImmediateBuffers buffers = ImmediateBuffers.shared();
         entry.geometry().render(entry.pose(), buffers.getBuffer(entry.renderType()));
         buffers.endBatch(entry.renderType());
     }

@@ -115,7 +115,7 @@ public class PrismRenderer implements BlockEntityRenderer<PrismBlockEntity, Pris
         // bulb-one-model-max-light-beacon-combo: a beam scrolls and widens as vanilla's beacon beam does
         long gameTime = prism.getLevel() == null ? 0L : prism.getLevel().getGameTime();
         state.animationTime = Math.floorMod(gameTime, BEAM_CYCLE_TICKS) + partialTick;
-        state.beamRadiusScale = beamRadiusScale((float) cameraPos.subtract(state.blockPos.getCenter()).horizontalDistance());
+        state.beamRadiusScale = beamRadiusScale((float) cameraPos.subtract(Vec3.atCenterOf(state.blockPos)).horizontalDistance());
         state.links = prism.getLinks().stream().map(link -> Vec3.atLowerCornerOf(link.subtract(prism.getBlockPos())))
                 .toList();
         state.linkLight = prism.getLinkLight();
@@ -199,7 +199,7 @@ public class PrismRenderer implements BlockEntityRenderer<PrismBlockEntity, Pris
                                       Vec3 cameraPos) {
         state.comboSince = prism.comboSince();
         state.gameTime = prism.getLevel() == null ? 0f : prism.getLevel().getGameTime() + partialTick;
-        state.yawToCamera = yawToward(prism.getBlockPos().getCenter(), cameraPos);
+        state.yawToCamera = yawToward(Vec3.atCenterOf(prism.getBlockPos()), cameraPos);
         state.lidClosure = OculusNodes.OCULUS.equals(state.combo) ? lidClosureFor(prism, state, cameraPos) : 1f;
     }
 
@@ -215,7 +215,7 @@ public class PrismRenderer implements BlockEntityRenderer<PrismBlockEntity, Pris
      */
     private static float lidClosureFor(PrismBlockEntity prism, PrismRenderState state, Vec3 cameraPos) {
         Vec3 eye = Vec3.atLowerCornerOf(prism.getBlockPos()).add(OculusStyle.eyeInCell(state.facing));
-        Vec3 forward = new Vec3(Minecraft.getInstance().gameRenderer.getMainCamera().forwardVector());
+        Vec3 forward = new Vec3(Minecraft.getInstance().gameRenderer.mainCamera().forwardVector());
         return OculusLids.closure(prism.getBlockPos(), OculusLids.lookedAt(cameraPos, forward, eye), state.gameTime);
     }
 

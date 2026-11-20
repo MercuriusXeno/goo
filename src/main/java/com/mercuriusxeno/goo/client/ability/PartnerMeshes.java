@@ -33,8 +33,8 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.OptionalDouble;
-import java.util.OptionalInt;
 import java.util.Set;
 import java.util.function.Consumer;
 
@@ -180,11 +180,19 @@ public final class PartnerMeshes {
                 (float) (origin.getY() - camera.y()), (float) (origin.getZ() - camera.z()));
         GpuBufferSlice transforms = RenderSystem.getDynamicUniforms().writeTransform(modelView,
                 new Vector4f(1F, 1F, 1F, 1F), new Vector3f(), new Matrix4f());
-        GpuBuffer vertices = pipeline.getVertexFormat().uploadImmediateVertexBuffer(mesh.vertexBuffer());
-        RenderSystem.AutoStorageIndexBuffer indices = RenderSystem.getSequentialBuffer(mesh.drawState().mode());
-        RenderTarget target = mc.mainRenderTarget;
+        // The buffer closes after the pass; the device destroys it once its frame ends.
+        try (GpuBuffer vertices = RenderSystem.getDevice().createBuffer(() -> PASS_LABEL, GpuBuffer.USAGE_VERTEX,
+                mesh.vertexBuffer())) {
+            drawPass(mc, pipeline, transforms, vertices, mesh);
+        }
+    }
+
+    private static void drawPass(Minecraft mc, RenderPipeline pipeline, GpuBufferSlice transforms,
+                                 GpuBuffer vertices, MeshData mesh) {
+        RenderSystem.AutoStorageIndexBuffer indices = RenderSystem.getSequentialBuffer(mesh.drawState().primitiveTopology());
+        RenderTarget target = mc.gameRenderer.mainRenderTarget();
         try (RenderPass pass = RenderSystem.getDevice().createCommandEncoder().createRenderPass(
-                () -> PASS_LABEL, target.getColorTextureView(), OptionalInt.empty(),
+                () -> PASS_LABEL, target.getColorTextureView(), Optional.empty(),
                 target.getDepthTextureView(), OptionalDouble.empty())) {
             pass.setPipeline(pipeline);
             RenderSystem.bindDefaultUniforms(pass);
@@ -194,9 +202,9 @@ public final class PartnerMeshes {
                     AddressMode.CLAMP_TO_EDGE, FilterMode.LINEAR, FilterMode.NEAREST, true));
             pass.bindTexture(LIGHTMAP_SAMPLER, mc.gameRenderer.lightmap(), RenderSystem.getSamplerCache()
                     .getClampToEdge(FilterMode.LINEAR));
-            pass.setVertexBuffer(0, vertices);
+            pass.setVertexBuffer(0, vertices.slice());
             pass.setIndexBuffer(indices.getBuffer(mesh.drawState().indexCount()), indices.type());
-            pass.drawIndexed(0, 0, mesh.drawState().indexCount(), 1);
+            pass.drawIndexed(mesh.drawState().indexCount(), 1, 0, 0, 0);
         }
     }
 

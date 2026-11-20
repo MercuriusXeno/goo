@@ -1,10 +1,10 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.LineContext;
 import com.mercuriusxeno.goo.registry.GooParticles;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.core.Direction;
@@ -78,7 +78,7 @@ public final class OrbSwirl {
      * @param time      the game time including the partial tick
      * @param seed      the seed the swirl's fog billows from, fixed for the ball
      */
-    public static void draw(ClientLevel level, PoseStack poseStack, MultiBufferSource.BufferSource buffers,
+    public static void draw(ClientLevel level, PoseStack poseStack, ImmediateBuffers buffers,
                             Vec3 camera, Vec3 center, float reach, float time, float seed) {
         FrostExplosionVisual.drawRing(new BurnoutFrame(poseStack, buffers, camera, time),
                 center.subtract(HALF_BLOCK, HALF_BLOCK, HALF_BLOCK), Direction.UP, 0f, reach, FOG_SPREAD_WHOLE, seed);

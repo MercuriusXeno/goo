@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.block.ability.CellSurface;
 import com.mercuriusxeno.goo.block.ability.GooShares;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mojang.blaze3d.opengl.GlStateManager;
@@ -14,7 +15,6 @@ import com.mojang.blaze3d.textures.GpuTexture;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
@@ -62,7 +62,7 @@ public final class DowsingXray {
 
     /** How far from the eye, in blocks on each axis, a Dowsing cell lenses ore. */
     private static final int LENS_REACH = 24;
-    private static final int SECTION_SIZE = LevelChunkSection.SECTION_WIDTH;
+    private static final int SECTION_SIZE = SectionPos.SECTION_SIZE;
     /** The ore's own color, a little translucent. */
     private static final int ORE_RGB = 0xFFFFFF;
     private static final float ORE_ALPHA = 0.8f;
@@ -102,7 +102,7 @@ public final class DowsingXray {
             windows = List.of();
             return;
         }
-        Vec3 eye = mc.gameRenderer.getMainCamera().position();
+        Vec3 eye = mc.gameRenderer.mainCamera().position();
         List<DowsingLens.Lens> lenses = lensesAround(mc.level, eye);
         Map<Integer, Set<BlockPos>> ore = DowsingLens.oreShownByLayers(eye, lenses, mc.level::getBlockState);
         Map<Integer, List<AABB>> goo = new TreeMap<>();
@@ -130,12 +130,12 @@ public final class DowsingXray {
     public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
         Minecraft mc = Minecraft.getInstance();
         List<Window> open = windows;
-        RenderTarget main = mc.getMainRenderTarget();
+        RenderTarget main = mc.gameRenderer.mainRenderTarget();
         GpuTexture depth = main.getDepthTexture();
         if (mc.level == null || open.isEmpty() || !main.useStencil || depth == null) {
             return;
         }
-        Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        Vec3 camera = mc.gameRenderer.mainCamera().position();
         draws.accept(SortedDraw.nearestOf(open.stream().flatMap(window -> window.ore().stream()).map(Vec3::atCenterOf),
                 camera, () -> drawWindows(mc, frame.poseStack(), camera, depth, open)));
     }
@@ -143,7 +143,7 @@ public final class DowsingXray {
     private static void drawWindows(Minecraft mc, PoseStack poseStack, Vec3 camera, GpuTexture depth,
                                     List<Window> open) {
         Identifier atlas = mc.getAtlasManager().getAtlasOrThrow(AtlasIds.BLOCKS).location();
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        ImmediateBuffers buffers = ImmediateBuffers.shared();
         for (Window window : open) {
             clearTheMark(depth);
             markTheGoo(buffers, poseStack, camera, window.goo());
@@ -173,7 +173,7 @@ public final class DowsingXray {
      * @param camera    the camera's position
      * @param goo       the goo boxes
      */
-    private static void markTheGoo(MultiBufferSource.BufferSource buffers, PoseStack poseStack, Vec3 camera,
+    private static void markTheGoo(ImmediateBuffers buffers, PoseStack poseStack, Vec3 camera,
                                    List<AABB> goo) {
         RenderType mask = GooRenderTypes.DOWSING_MASK_TYPE;
         VertexConsumer consumer = buffers.getBuffer(mask);
@@ -186,8 +186,8 @@ public final class DowsingXray {
 
     private static void drawPass(Minecraft mc, PoseStack poseStack, RenderType pass, Set<BlockPos> ore, int color,
                                  float swell) {
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
-        Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        ImmediateBuffers buffers = ImmediateBuffers.shared();
+        Vec3 camera = mc.gameRenderer.mainCamera().position();
         VertexConsumer consumer = buffers.getBuffer(pass);
         for (BlockPos pos : ore) {
             FungusXray.drawBlock(mc, poseStack, consumer, camera, pos, FungusXray.instance(color), swell);

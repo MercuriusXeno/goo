@@ -7,16 +7,18 @@ import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.renderer.OrderedSubmitNodeCollector;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.block.MovingBlockRenderState;
-import net.minecraft.client.renderer.block.dispatch.BlockStateModel;
 import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.client.renderer.feature.ModelFeatureRenderer;
+import net.minecraft.client.renderer.gizmos.DrawableGizmoPrimitives;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
+import net.minecraft.client.renderer.state.level.QuadParticleRenderState;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import org.joml.Quaternionf;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
@@ -48,7 +50,7 @@ public abstract class ItemSubmitCollector implements SubmitNodeCollector {
 
     @Override
     public void submitNameTag(PoseStack p, @Nullable Vec3 a, int o, Component n,
-                              boolean s, int l, double d, CameraRenderState c) {
+                              boolean s, int l, CameraRenderState c) {
     }
 
     @Override
@@ -66,12 +68,12 @@ public abstract class ItemSubmitCollector implements SubmitNodeCollector {
 
     @Override
     public void submitModelPart(ModelPart m, PoseStack p, RenderType r, int l, int o,
-                                @Nullable TextureAtlasSprite sp, boolean sh, boolean f, int t,
+                                @Nullable TextureAtlasSprite sp, int t,
                                 ModelFeatureRenderer.@Nullable CrumblingOverlay c, int oc) {
     }
 
     @Override
-    public void submitMovingBlock(PoseStack p, MovingBlockRenderState s) {
+    public void submitMovingBlock(PoseStack p, MovingBlockRenderState s, int oc) {
     }
 
     @Override
@@ -80,10 +82,18 @@ public abstract class ItemSubmitCollector implements SubmitNodeCollector {
     }
 
     @Override
-    public void submitBreakingBlockModel(PoseStack p, BlockStateModel m, long s, int pr) {
+    public void submitBreakingBlockModel(PoseStack p, List<BlockStateModelPart> parts, int pr) {
     }
 
     @Override
-    public void submitParticleGroup(ParticleGroupRenderer r) {
+    public void submitShapeOutline(PoseStack p, VoxelShape s, RenderType r, int c, float w, boolean a) {
+    }
+
+    @Override
+    public void submitQuadParticleGroup(QuadParticleRenderState particles) {
+    }
+
+    @Override
+    public void submitGizmoPrimitives(DrawableGizmoPrimitives.Group g, CameraRenderState c, boolean top) {
     }
 }

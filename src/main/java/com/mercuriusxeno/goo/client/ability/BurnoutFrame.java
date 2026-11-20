@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mojang.blaze3d.vertex.PoseStack;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.world.phys.Vec3;
 
 /**
@@ -12,6 +12,6 @@ import net.minecraft.world.phys.Vec3;
  * @param camera    the camera's world position
  * @param gameTime  the level's game time including the partial tick
  */
-public record BurnoutFrame(PoseStack poseStack, MultiBufferSource.BufferSource buffers,
+public record BurnoutFrame(PoseStack poseStack, ImmediateBuffers buffers,
                            Vec3 camera, float gameTime) {
 }

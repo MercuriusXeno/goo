@@ -74,7 +74,7 @@ public final class TartarusCover {
     private static void drawCover(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker) {
         double alpha = LOCAL.alpha;
         LOCAL.alpha = 0;
-        if (alpha <= 0 || Minecraft.getInstance().screen != null) {
+        if (alpha <= 0 || Minecraft.getInstance().gui.screen() != null) {
             return;
         }
         TextureAtlasSprite sprite = GooSubmitter.blockSprite(TartarusGateRenderer.TEXTURE);

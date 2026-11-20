@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.ability.quantum.Gate;
 import com.mercuriusxeno.goo.block.ability.FaceSupport;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
+import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
@@ -23,7 +24,6 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
@@ -97,8 +97,8 @@ public final class GooTargetHighlighter {
         }
         TargetResult target = AimTracker.currentTarget();
         AimIndicator indicator = indicatorFor(target, GloveAim.selectedAbilityId(mc.player));
-        HighlightFrame highlight = new HighlightFrame(frame.poseStack(), mc.renderBuffers().bufferSource(),
-                view ? PortalView.camera() : mc.gameRenderer.getMainCamera(), mc, selectedType);
+        HighlightFrame highlight = new HighlightFrame(frame.poseStack(), ImmediateBuffers.shared(),
+                view ? PortalView.camera() : mc.gameRenderer.mainCamera(), mc, selectedType);
         draws.accept(new SortedDraw(0, () -> {
             renderIndicator(target, indicator, highlight);
             highlight.buf().endBatch();
@@ -199,8 +199,8 @@ public final class GooTargetHighlighter {
         if (selectedType == null) {
             return null;
         }
-        HighlightFrame highlight = new HighlightFrame(frame.poseStack(), mc.renderBuffers().bufferSource(),
-                mc.gameRenderer.getMainCamera(), mc, selectedType);
+        HighlightFrame highlight = new HighlightFrame(frame.poseStack(), ImmediateBuffers.shared(),
+                mc.gameRenderer.mainCamera(), mc, selectedType);
         TargetResult target = AimTracker.currentTarget();
         Optional<BuildFootprint> footprint = BuildCast.footprint();
         HeldDomeRenderer.GhostAt ghost = footprint.isPresent() ? null
@@ -346,7 +346,7 @@ public final class GooTargetHighlighter {
      * @param mc           the Minecraft client instance
      * @param selectedType the selected goo type
      */
-    private record HighlightFrame(PoseStack ps, MultiBufferSource.BufferSource buf, Camera camera,
+    private record HighlightFrame(PoseStack ps, ImmediateBuffers buf, Camera camera,
                                   Minecraft mc, ResourceKey<GooTypeDefinition> selectedType) {
         /**
          * The client level the frame reads.

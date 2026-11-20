@@ -34,7 +34,7 @@ public final class WobbleEvents {
             LivingEntity struck = event.getEntity();
             event.setCanceled(true);
             struck.knockback(knockbackFor(event.getAmount()), attacker.getX() - struck.getX(),
-                    attacker.getZ() - struck.getZ());
+                    attacker.getZ() - struck.getZ(), event.getSource(), event.getAmount());
             struck.hurtMarked = true;
         }
     }

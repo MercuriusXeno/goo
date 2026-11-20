@@ -5,8 +5,8 @@ import com.mercuriusxeno.goo.ability.HeldEffectIcon;
 import com.mercuriusxeno.goo.registry.GooMobEffects;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
-import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.Hud;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.resources.Identifier;
@@ -33,10 +33,6 @@ import java.util.Map;
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class HeldEffectIcons {
 
-    /** Where vanilla draws a HUD effect's icon inside its background. */
-    static final int HUD_INSET = 3;
-    /** How far below the inventory card's top vanilla draws its effect icon; the x arrives inset. */
-    static final int INVENTORY_INSET = 7;
     /** An effect icon slot's size, as vanilla draws it. */
     private static final int SLOT_SIZE = 18;
     /** An ability icon's size, source and drawn alike. */
@@ -102,11 +98,11 @@ public final class HeldEffectIcons {
      * @param graphics the graphics to draw into
      * @param texture  the icon texture, null for none
      * @param x        the slot's left edge, as the inventory hands it
-     * @param y        the card's top edge
+     * @param y        the slot's top edge, as the inventory hands it
      * @return true when an icon drew, false for none so vanilla draws its own
      */
     static boolean drawInventoryIcon(GuiGraphicsExtractor graphics, @Nullable Identifier texture, int x, int y) {
-        return drawAbilityIcon(graphics, texture, x, y + INVENTORY_INSET, FULL_ALPHA);
+        return drawAbilityIcon(graphics, texture, x, y, FULL_ALPHA);
     }
 
     /**
@@ -129,15 +125,17 @@ public final class HeldEffectIcons {
             return HeldEffectIcon.of(type);
         }
 
+        // Both hooks hand the icon slot itself, vanilla's inset already taken, and the HUD's fade as a color.
         @Override
-        public boolean renderGuiIcon(MobEffectInstance instance, Gui gui, GuiGraphicsExtractor graphics, int x, int y,
-                                     float z, float alpha) {
-            return drawAbilityIcon(graphics, iconTexture(), x + HUD_INSET, y + HUD_INSET, alpha);
+        public boolean extractHudIcon(MobEffectInstance instance, Hud hud, GuiGraphicsExtractor graphics, int x, int y,
+                                      int width, int height, int color) {
+            return drawAbilityIcon(graphics, iconTexture(), x, y, ARGB.alphaFloat(color));
         }
 
         @Override
-        public boolean renderInventoryIcon(MobEffectInstance instance, AbstractContainerScreen<?> screen,
-                                           GuiGraphicsExtractor graphics, int x, int y, int blitOffset) {
+        public boolean extractInventoryIcon(MobEffectInstance instance, AbstractContainerScreen<?> screen,
+                                            GuiGraphicsExtractor graphics, int x, int y, int width, int height,
+                                            int color) {
             return drawInventoryIcon(graphics, iconTexture(), x, y);
         }
     }

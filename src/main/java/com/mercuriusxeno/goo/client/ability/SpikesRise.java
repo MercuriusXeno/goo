@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.program.SoundPlays;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.network.SpikesRisePayload;
@@ -11,7 +12,6 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
@@ -142,9 +142,9 @@ public final class SpikesRise {
     private static void drawRises(Minecraft mc, ClientLevel level, PoseStack.Pose pose) {
         float partial = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         double now = level.getGameTime() + partial;
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        ImmediateBuffers buffers = ImmediateBuffers.shared();
         Frame frame = new Frame(pose, buffers.getBuffer(GooRenderTypes.SPIKES_STEEL_TYPE),
-                mc.gameRenderer.getMainCamera().position(), partial);
+                mc.gameRenderer.mainCamera().position(), partial);
         for (Rise rise : RISES) {
             drawRise(level, rise, extension((float) (now - rise.startedAt), rise.payload.retractFrame()), frame);
         }

@@ -1,15 +1,17 @@
 package com.mercuriusxeno.goo.client.hud;
 
 import com.mercuriusxeno.goo.client.GooSubmitter;
+import com.mercuriusxeno.goo.client.RenderTypeBuffers;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Camera;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.gui.font.TextRenderable;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.phys.Vec3;
+import org.joml.Matrix4fc;
 import org.joml.Quaternionf;
 
 /**
@@ -73,7 +75,7 @@ public final class InWorldHud {
      * @param rect      the panel rectangle (position + size)
      * @param color     the ARGB tint, whose alpha fades the background
      */
-    public static void renderBackground(PoseStack poseStack, MultiBufferSource buffers,
+    public static void renderBackground(PoseStack poseStack, RenderTypeBuffers buffers,
                                         PanelRectangle rect, int color) {
         renderBackgroundInternal(poseStack, buffers, rect, false, color);
     }
@@ -85,7 +87,7 @@ public final class InWorldHud {
      * @param buffers   the buffer source for rendering
      * @param rect      the panel rectangle (position + size)
      */
-    public static void renderBackgroundSeeThrough(PoseStack poseStack, MultiBufferSource buffers,
+    public static void renderBackgroundSeeThrough(PoseStack poseStack, RenderTypeBuffers buffers,
                                                   PanelRectangle rect) {
         renderBackgroundInternal(poseStack, buffers, rect, true, OPAQUE_WHITE);
     }
@@ -99,7 +101,7 @@ public final class InWorldHud {
      * @param seeThrough whether to disable depth testing
      * @param color      the ARGB tint of every quad
      */
-    private static void renderBackgroundInternal(PoseStack poseStack, MultiBufferSource buffers,
+    private static void renderBackgroundInternal(PoseStack poseStack, RenderTypeBuffers buffers,
                                                  PanelRectangle rect, boolean seeThrough, int color) {
         VertexConsumer vc = buffers.getBuffer(
                 seeThrough ? RenderTypes.textSeeThrough(BG_TEXTURE) : RenderTypes.text(BG_TEXTURE));
@@ -155,7 +157,7 @@ public final class InWorldHud {
      * @param y         the Y coordinate
      * @param color     the ARGB color value
      */
-    public static void drawText(Font font, MultiBufferSource buffers,
+    public static void drawText(Font font, RenderTypeBuffers buffers,
                                 PoseStack poseStack, String text, float x, float y, int color) {
         drawTextInternal(font, buffers, poseStack, text, x, y, color, Font.DisplayMode.NORMAL);
     }
@@ -171,7 +173,7 @@ public final class InWorldHud {
      * @param y         the Y coordinate
      * @param color     the ARGB color value
      */
-    public static void drawTextSeeThrough(Font font, MultiBufferSource buffers,
+    public static void drawTextSeeThrough(Font font, RenderTypeBuffers buffers,
                                           PoseStack poseStack, String text, float x, float y, int color) {
         drawTextInternal(font, buffers, poseStack, text, x, y, color, Font.DisplayMode.SEE_THROUGH);
     }
@@ -188,14 +190,20 @@ public final class InWorldHud {
      * @param color       the ARGB color value
      * @param displayMode the font display mode
      */
-    private static void drawTextInternal(Font font, MultiBufferSource buffers,
+    private static void drawTextInternal(Font font, RenderTypeBuffers buffers,
                                          PoseStack poseStack, String text, float x, float y, int color,
                                          Font.DisplayMode displayMode) {
         poseStack.pushPose();
         poseStack.translate(0, 0, CONTENT_Z);
-        font.drawInBatch(text, x, y, color, false,
-                poseStack.last().pose(), buffers,
-                displayMode, 0, GooSubmitter.fullbrightLight());
+        Matrix4fc pose = poseStack.last().pose();
+        int light = GooSubmitter.fullbrightLight();
+        // Each glyph and effect draws to its own render type.
+        font.prepareText(text, x, y, color, false, 0).visit(new Font.GlyphVisitor() {
+            @Override
+            public void acceptRenderable(TextRenderable renderable) {
+                renderable.render(pose, buffers.getBuffer(renderable.renderType(displayMode, false)), light, false);
+            }
+        });
         poseStack.popPose();
     }
 

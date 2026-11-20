@@ -26,7 +26,7 @@ public final class ValuesManagerHandlers {
      * @param context the network context
      */
     public static void handleOpen(OpenValuesManagerPayload payload, IPayloadContext context) {
-        context.enqueueWork(() -> Minecraft.getInstance().setScreen(new ValuesManagerScreen(CONNECTION,
+        context.enqueueWork(() -> Minecraft.getInstance().gui.setScreen(new ValuesManagerScreen(CONNECTION,
                 new RegistryEntrySource())));
     }
 

@@ -29,10 +29,10 @@ public final class OpenNamingScreenHandler {
      */
     private static void toggleNamingScreen(OpenNamingScreenPayload payload) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.screen instanceof CanisterNamingScreen) {
-            mc.setScreen(null);
+        if (mc.gui.screen() instanceof CanisterNamingScreen) {
+            mc.gui.setScreen(null);
         } else {
-            mc.setScreen(new CanisterNamingScreen(
+            mc.gui.setScreen(new CanisterNamingScreen(
                 payload.pos(), payload.slot(), payload.currentLabel(),
                 payload.hasLink()));
         }

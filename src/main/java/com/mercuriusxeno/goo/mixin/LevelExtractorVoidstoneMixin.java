@@ -2,7 +2,7 @@ package com.mercuriusxeno.goo.mixin;
 
 import com.mercuriusxeno.goo.client.zone.RoomCopyRenderer;
 import com.mercuriusxeno.goo.client.zone.VoidstoneFaces;
-import net.minecraft.client.renderer.LevelRenderer;
+import net.minecraft.client.renderer.extract.LevelExtractor;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -15,8 +15,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * that section alone out afresh where the room stands in it
  * (decision room-tiles-to-render-distance-held-to-the-picture).
  */
-@Mixin(LevelRenderer.class)
-public abstract class LevelRendererVoidstoneMixin {
+@Mixin(LevelExtractor.class)
+public abstract class LevelExtractorVoidstoneMixin {
 
     @Inject(method = "setSectionDirty(IIIZ)V", at = @At("HEAD"))
     private void goo$forgetVoidstoneFaces(int sectionX, int sectionY, int sectionZ, boolean playerChanged,

@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.ability.program.BlinkLanding;
 import com.mercuriusxeno.goo.ability.program.TeleportStep;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.ber.style.OculusStyle;
@@ -19,7 +20,6 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.resources.model.geometry.BakedQuad;
 import net.minecraft.core.BlockPos;
@@ -100,7 +100,7 @@ public final class OculusXray {
         Optional<BlockPos> target = BlinkAim.trip(player, blink, partialTick).flatMap(BlinkLanding::node);
         if (!SEEN.isEmpty()) {
             draws.accept(SortedDraw.nearestOf(SEEN.stream().map(Vec3::atCenterOf),
-                    mc.gameRenderer.getMainCamera().position(), () -> drawAll(mc, frame.poseStack(), target)));
+                    mc.gameRenderer.mainCamera().position(), () -> drawAll(mc, frame.poseStack(), target)));
         }
     }
 
@@ -139,9 +139,9 @@ public final class OculusXray {
      * @param target    the oculus the blink snaps to this frame
      */
     private static void drawAll(Minecraft mc, PoseStack poseStack, Optional<BlockPos> target) {
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        ImmediateBuffers buffers = ImmediateBuffers.shared();
         Identifier atlas = mc.getAtlasManager().getAtlasOrThrow(AtlasIds.BLOCKS).location();
-        Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        Vec3 camera = mc.gameRenderer.mainCamera().position();
         RenderType xray = GooRenderTypes.fungusXray(atlas);
         VertexConsumer ghost = buffers.getBuffer(xray);
         QuadInstance ghostLook = FungusXray.instance(GHOST_TINT);

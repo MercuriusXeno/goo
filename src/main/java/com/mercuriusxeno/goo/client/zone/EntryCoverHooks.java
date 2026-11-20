@@ -79,7 +79,7 @@ public final class EntryCoverHooks {
 
     private static void drawCover(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker) {
         Minecraft mc = Minecraft.getInstance();
-        if (!EntryCover.LOCAL.covering() || mc.screen != null) {
+        if (!EntryCover.LOCAL.covering() || mc.gui.screen() != null) {
             return;
         }
         TextureManager textures = mc.getTextureManager();

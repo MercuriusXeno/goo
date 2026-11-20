@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.ability.program.HeldSweepSections;
 import com.mercuriusxeno.goo.client.BufferedPass;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.network.HeldSweepPayload;
@@ -13,7 +14,6 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
@@ -162,8 +162,8 @@ public final class HeldSweepVisual {
                 (sectionX, sectionY, sectionZ) -> holdsOnlyAir(level, sectionX, sectionY, sectionZ))), now,
                 level.entitiesForRendering(), mc.player);
         List<WallGlow> walls = wallsToDraw(SWEEPS.walls(), now);
-        Vec3 camera = mc.gameRenderer.getMainCamera().position();
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        Vec3 camera = mc.gameRenderer.mainCamera().position();
+        ImmediateBuffers buffers = ImmediateBuffers.shared();
         draws.accept(sortedByNearest(walls.stream().map(wall -> wall.face().middle()), camera,
                 () -> drawWalls(frame.poseStack().last(), BufferedPass.of(buffers, GooRenderTypes.SCRY_FACES_TYPE),
                         camera, walls)));
@@ -185,8 +185,8 @@ public final class HeldSweepVisual {
         }
         double now = clientTime();
         List<HeldSweepPulse> travelling = PULSES.values().stream().filter(pulse -> pulse.travelling(now)).toList();
-        Vec3 camera = mc.gameRenderer.getMainCamera().position();
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        Vec3 camera = mc.gameRenderer.mainCamera().position();
+        ImmediateBuffers buffers = ImmediateBuffers.shared();
         draws.accept(sortedByNearest(travelling.stream().map(pulse -> pulse.field().center()), camera,
                 () -> drawFronts(frame.poseStack().last(), BufferedPass.of(buffers, GooRenderTypes.GLOW_SHELL_TYPE),
                         camera, travelling, now)));

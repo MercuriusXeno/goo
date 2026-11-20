@@ -6,9 +6,9 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.core.Direction;
+import net.minecraft.util.LightCoordsUtil;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -69,7 +69,7 @@ public final class PeelChunkRenderer {
         event.getSubmitNodeCollector().submitCustomGeometry(event.getPoseStack(), GooSubmitter.cutoutOnBlockAtlas(),
                 (pose, consumer) -> {
                     for (BlockPeels.Peel peel : peels) {
-                        drawPeel(new Draw(pose, consumer, camera, LevelRenderer.getLightCoords(level, peel.pos())),
+                        drawPeel(new Draw(pose, consumer, camera, LightCoordsUtil.getLightCoords(level, peel.pos())),
                                 peel, now);
                     }
                 });
