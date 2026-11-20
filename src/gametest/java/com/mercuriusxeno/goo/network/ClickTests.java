@@ -185,10 +185,10 @@ public final class ClickTests {
 
     /**
      * Clicks at a point as the glove does for a free-aim ability: the throw
-     * names the point its reticule marks, through the real throw path.
+     * names the point its crosshair marks, through the real throw path.
      *
      * @param player the clicking player, holding the glove
-     * @param aimed  the point the reticule marks
+     * @param aimed  the point the crosshair marks
      */
     private static void clickAt(ServerPlayer player, Vec3 aimed) {
         KnownRecipes.teachRequires(player, AbilityRegistry.of(player.level()).getAbility(PULSE_CLICK));

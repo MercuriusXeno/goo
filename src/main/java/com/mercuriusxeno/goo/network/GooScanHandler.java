@@ -22,7 +22,7 @@ import java.util.List;
 
 /**
  * Sends a scan ability: it aims as every free-aim ability does, at the point
- * the glove's reticule marks, and lands there the tick the use fires, capped
+ * the crosshair marks, and lands there the tick the use fires, capped
  * onto the delivery's range; the wave that runs the ability's program there
  * arrives after the delay its speed gives the distance. No goo leaves the
  * hand and nothing plays at the thrower
@@ -43,7 +43,7 @@ public final class GooScanHandler {
 
     /**
      * Prices, pays and sends a scan from the player's eye to the point the
-     * glove aimed, as every free-aim ability lands at its reticule, capped
+     * glove aimed, as every free-aim ability lands at its crosshair, capped
      * onto the delivery's range along the same line.
      *
      * @param player  the throwing player
@@ -175,7 +175,7 @@ public final class GooScanHandler {
      * the range; the range's end along the same line when it lies past it.
      *
      * @param eye   the thrower's eye
-     * @param aimed the point the glove's reticule aimed at
+     * @param aimed the point the crosshair aimed at
      * @param range the scan's reach, in blocks
      * @return the landing
      */

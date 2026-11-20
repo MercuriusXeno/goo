@@ -88,8 +88,8 @@ public final class GooFlightManager {
     }
 
     /**
-     * The mob's endpoint when the throw lands on this client, the point the
-     * aim line arced to (decision diagnose-then-fix-goo-off-the-line).
+     * The mob's endpoint when the throw lands on this client, its
+     * bounding-box center (decision diagnose-then-fix-goo-off-the-line).
      *
      * @param entityId the target entity's id
      * @param start    the flight's start, standing in when the entity is not loaded
@@ -149,8 +149,8 @@ public final class GooFlightManager {
     }
 
     /**
-     * Resolves an entity's bounding-box center, the endpoint the aim line
-     * reads, or null if gone.
+     * Resolves an entity's bounding-box center, the endpoint a flight at a
+     * mob flies to, or null if gone.
      *
      * @param entityId the entityId identifier
      * @return the resolved result, or null if unresolvable
@@ -279,7 +279,7 @@ public final class GooFlightManager {
 
         /**
          * The peak of a flight's far leg through a gate, by the far leg's own
-         * length, as the aim line draws it.
+         * length.
          *
          * @param passed the gate's hop
          * @return the peak height in blocks

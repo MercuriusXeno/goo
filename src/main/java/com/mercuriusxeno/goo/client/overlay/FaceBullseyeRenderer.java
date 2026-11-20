@@ -15,7 +15,7 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * Draws concentric rings on the face of a block target the goo will strike,
- * where the aim arc ends, so the mark names the face as the outline names the
+ * so the mark names the face as the outline names the
  * block: on the struck face of the block's own shape, scaled down to a
  * smaller face (decision aim-arc-ends-in-face-bullseye).
  */
