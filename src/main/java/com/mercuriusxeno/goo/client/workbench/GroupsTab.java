@@ -16,7 +16,7 @@ import java.util.regex.Pattern;
 
 /**
  * The Groups tab's state with no Screen: each group the groups describe operation answers, the selected group and
- * member, the picker's choices, and the apply-to-group requests, as index.html's groups section holds them
+ * member, the picker's choices, and the apply-to-group requests
  * (decision goo-workbench-opens-the-in-game-manager-screen).
  */
 public final class GroupsTab {

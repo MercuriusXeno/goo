@@ -20,8 +20,8 @@ import java.util.function.Function;
 
 /**
  * The Values tab's state with no Screen: the client's items and tags filtered by the search text, each entry as
- * the server resolved it, the selected entry's row, and the edit a Save sends, as index.html's values section holds
- * them, over the draft every tab shares (decision goo-workbench-opens-the-in-game-manager-screen).
+ * the server resolved it, the selected entry's row, and the edit a Save sends,
+ * over the draft every tab shares (decision goo-workbench-opens-the-in-game-manager-screen).
  */
 public final class ValuesTab {
     /** The mark a tag's id starts with. */

@@ -17,7 +17,7 @@ import java.util.Optional;
 /**
  * One ray of a painting stream's fan: it leaves the eye along a heading
  * inside the cone and ends just inside the first block it meets, foliage
- * included, or at the stream's range where it meets none; Decay, Broil and
+ * included, or at the stream's range where it meets none; Decay, Flames and
  * Petrify paint the cells their rays cross. Goop's and Slick's drips launch
  * along the same fan and meet blocks through the same clip, and their coat
  * lands where each drip's arc strikes.

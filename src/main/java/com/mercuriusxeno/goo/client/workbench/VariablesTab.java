@@ -21,7 +21,7 @@ import java.util.stream.Collectors;
 /**
  * The Variables tab's state with no Screen: each constant's block from the draft and the constants evaluate
  * operation, which block's expression stands in the edit box, the rename, delete and hover requests, the delete's
- * cascade and the hover card, as index.html's variables section holds them (decisions
+ * cascade and the hover card (decisions
  * goo-workbench-opens-the-in-game-manager-screen, references-link-to-their-variable-and-hover-a-card).
  */
 public final class VariablesTab {

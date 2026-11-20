@@ -80,8 +80,8 @@ class AbilityRegistryTest {
     }
 
     /**
-     * A drunk brew runs the type's self ability wearing the durative badge, and a
-     * type wearing none runs nothing (decision brew-grants-the-self-ability-for-an-hour).
+     * A type's held effect is its self ability wearing the durative badge, and a
+     * type wearing none holds none (decision brew-grants-the-self-ability-for-an-hour).
      */
     @Nested
     class BrewAbility {

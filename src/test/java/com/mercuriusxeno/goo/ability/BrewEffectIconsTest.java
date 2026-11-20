@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 /**
  * Every goo type a shipped brew ability belongs to ships its brew effect's
  * icon, so the effect list never draws the missing-texture tile for a brew
- * held from the glove or drunk (decisions brew-runs-the-crawl-prepaid-on-a-shown-clock
+ * held from the glove (decisions brew-runs-the-crawl-prepaid-on-a-shown-clock
  * and dive-is-renamed-sculker).
  */
 class BrewEffectIconsTest {

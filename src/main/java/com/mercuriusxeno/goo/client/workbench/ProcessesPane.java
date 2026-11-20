@@ -20,8 +20,8 @@ import java.util.function.Supplier;
  * group-assignments-read-as-iterators, mutators-and-iterators-each-take-a-create-control). Each entry draws the key, the form, the parser's verdict and Delete on
  * an entry's first line and its sentence of controls at full width below (decision mutator-rows-take-an-extra-line),
  * which build the entry with nothing typed but a number or a search (decision
- * expression-builder-composes-every-form-without-typing), and Delete drops the entry, as
- * index.html's processes section does (decision goo-workbench-opens-the-in-game-manager-screen). The mutators column
+ * expression-builder-composes-every-form-without-typing), and Delete drops the entry
+ * (decision goo-workbench-opens-the-in-game-manager-screen). The mutators column
  * takes 60 percent of the width and the iterators column 40 (decision mutators-iterators-split-sixty-forty).
  * The rows scroll under a {@link ScrollBar} (decision every-tab-draws-a-scroll-bar). The state lives in {@link ProcessesTab}.
  */
