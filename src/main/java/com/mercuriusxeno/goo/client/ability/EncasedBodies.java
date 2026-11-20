@@ -6,6 +6,7 @@ import net.minecraft.client.model.geom.EntityModelSet;
 import net.minecraft.client.model.geom.ModelLayers;
 import net.minecraft.client.model.monster.witch.WitchModel;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
 
@@ -35,7 +36,7 @@ public final class EncasedBodies {
      * @return the body, or null where the encasement draws the renderer's own model
      */
     public static @Nullable EntityModel<?> of(EntityType<?> type, EntityModelSet models) {
-        if (type == EntityType.WITCH) {
+        if (type == EntityTypes.WITCH) {
             return withBareRimHidden(new WitchModel(models.bakeLayer(ModelLayers.WITCH)));
         }
         return null;

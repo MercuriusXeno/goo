@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.ability.program.TickToggleStep;
 import com.mercuriusxeno.goo.ability.program.Variables;
 import com.mercuriusxeno.goo.ability.pulse.ZapDevice;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.LineContext;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
@@ -16,7 +17,6 @@ import com.mercuriusxeno.goo.throwing.StreamCone;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.ARGB;
@@ -123,7 +123,7 @@ public final class SignalRings {
         BURSTS.removeIf(burst -> volleyEnded(now - burst.bornSeconds()));
         Ray stream = signal == null ? null : streamRay(mc, player, signal);
         List<Burst> bursts = List.copyOf(BURSTS);
-        Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        Vec3 camera = mc.gameRenderer.mainCamera().position();
         Stream<Vec3> hands = Stream.concat(Stream.ofNullable(stream), bursts.stream().map(Burst::ray)).map(Ray::hand);
         draws.accept(SortedDraw.nearestOf(hands, camera, () -> drawSignal(mc, frame, stream, bursts, camera, now)));
     }
@@ -136,7 +136,7 @@ public final class SignalRings {
 
     private static void drawSignal(Minecraft mc, LevelFrame frame, @Nullable Ray stream, List<Burst> bursts,
                                    Vec3 camera, double now) {
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        ImmediateBuffers buffers = ImmediateBuffers.shared();
         LineContext lines = new LineContext(frame.poseStack().last(), buffers.getBuffer(GooRenderTypes.LINES_GLOW));
         float width = mc.getWindow().getAppropriateLineWidth() * WIDTH_SCALE;
         if (stream != null) {

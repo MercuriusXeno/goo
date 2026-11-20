@@ -2,13 +2,13 @@ package com.mercuriusxeno.goo.client.hole;
 
 import com.mercuriusxeno.goo.ability.hole.HoleFrame;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.network.PortableHolesSyncPayload;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.core.Direction;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
@@ -73,13 +73,13 @@ public final class HoleMouths {
         if (drawn.isEmpty()) {
             return;
         }
-        Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        Vec3 camera = mc.gameRenderer.mainCamera().position();
         draws.accept(SortedDraw.nearestOf(drawn.stream()
                         .map(mouth -> HoleFrame.openingOn(mouth.footprint(), mouth.face()).getCenter()), camera,
-                () -> drawMouths(frame.poseStack().last(), mc.renderBuffers().bufferSource(), drawn, camera, time)));
+                () -> drawMouths(frame.poseStack().last(), ImmediateBuffers.shared(), drawn, camera, time)));
     }
 
-    private static void drawMouths(PoseStack.Pose pose, MultiBufferSource.BufferSource buffers,
+    private static void drawMouths(PoseStack.Pose pose, ImmediateBuffers buffers,
                                    List<PortableHolesSyncPayload.Mouth> drawn, Vec3 camera, float time) {
         VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.PORTABLE_HOLE_MOUTH_TYPE);
         for (PortableHolesSyncPayload.Mouth mouth : drawn) {

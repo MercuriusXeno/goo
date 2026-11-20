@@ -1,8 +1,8 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import net.minecraft.client.renderer.MultiBufferSource;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
 import java.util.ArrayList;
@@ -22,7 +22,7 @@ class LaserScorchTest {
 
     @Test
     void everyMarksCharDrawsBeforeAnyMarksGlow() {
-        MultiBufferSource.BufferSource buffers = mock(MultiBufferSource.BufferSource.class);
+        ImmediateBuffers buffers = mock(ImmediateBuffers.class);
         VertexConsumer charConsumer = mock(VertexConsumer.class);
         VertexConsumer glowConsumer = mock(VertexConsumer.class);
         when(buffers.getBuffer(GooRenderTypes.LASER_SCORCH_TYPE)).thenReturn(charConsumer);

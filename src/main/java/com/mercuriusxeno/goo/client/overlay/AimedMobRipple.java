@@ -46,7 +46,7 @@ public final class AimedMobRipple {
         ResourceKey<GooTypeDefinition> type = GloveAim.selectedGooType(mc.player);
         if (type != null) {
             Vec3 at = mob.getPosition(mc.getDeltaTracker().getGameTimeDeltaPartialTick(false));
-            draws.accept(new SortedDraw(at.distanceToSqr(mc.gameRenderer.getMainCamera().position()),
+            draws.accept(new SortedDraw(at.distanceToSqr(mc.gameRenderer.mainCamera().position()),
                     () -> drawMark(frame, mc, mob, type)));
         }
     }

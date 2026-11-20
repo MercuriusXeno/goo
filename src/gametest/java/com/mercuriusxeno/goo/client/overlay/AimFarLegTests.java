@@ -1,30 +1,30 @@
 package com.mercuriusxeno.goo.client.overlay;
 
-import com.mercuriusxeno.goo.ability.quantum.PortalColor;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.program.GrabStep;
 import com.mercuriusxeno.goo.ability.quantum.GatePassage;
 import com.mercuriusxeno.goo.ability.quantum.Portal;
+import com.mercuriusxeno.goo.ability.quantum.PortalColor;
 import com.mercuriusxeno.goo.ability.quantum.PortalPairs;
 import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.client.throwing.TargetingHint;
-import net.minecraft.core.Direction;
-import net.minecraft.core.GlobalPos;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.entity.monster.zombie.Zombie;
-import net.minecraft.world.level.block.Blocks;
-import java.util.List;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.GlobalPos;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.animal.pig.Pig;
+import net.minecraft.world.entity.monster.zombie.Zombie;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.List;
 import java.util.function.Consumer;
 
 /**
@@ -80,7 +80,7 @@ public final class AimFarLegTests {
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         Vec3 stand = helper.absoluteVec(STAND_FAR);
         player.setPos(stand.x, stand.y, stand.z);
-        Pig pig = helper.spawn(EntityType.PIG, PIG_POS);
+        Pig pig = helper.spawn(EntityTypes.PIG, PIG_POS);
         AimAssistResolver.AimHit hit = AimAssistResolver.findClosestAimHit(player, helper.absoluteVec(LEG_FROM),
                 helper.absoluteVec(LEG_TO), null, grab.behaviors());
         helper.assertTrue(hit instanceof AimAssistResolver.AimHit.EntityHit entityHit && entityHit.entity() == pig,
@@ -128,7 +128,7 @@ public final class AimFarLegTests {
                 Direction.UP, PortalColor.ORANGE);
         PortalPairs.place(level, player.getUUID(), near);
         PortalPairs.place(level, player.getUUID(), far);
-        Zombie zombie = helper.spawn(EntityType.ZOMBIE, PAST_THE_WALL);
+        Zombie zombie = helper.spawn(EntityTypes.ZOMBIE, PAST_THE_WALL);
         zombie.setNoAi(true);
         GatePassage.setClientPairs(GatePassage.pairsOf(level.getServer()));
         try {

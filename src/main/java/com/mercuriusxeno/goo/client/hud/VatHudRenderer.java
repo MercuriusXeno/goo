@@ -60,7 +60,7 @@ public final class VatHudRenderer {
             ANIMATOR.clear();
             return;
         }
-        Camera camera = Minecraft.getInstance().gameRenderer.getMainCamera();
+        Camera camera = Minecraft.getInstance().gameRenderer.mainCamera();
         draws.accept(new SortedDraw(anchorOf(target).distanceToSqr(camera.position()),
                 () -> renderPanel(frame.poseStack(), camera, data, target)));
     }

@@ -7,13 +7,13 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.gamerules.GameRules;
-import java.util.List;
 import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.List;
 import java.util.function.Consumer;
 
 /**
@@ -67,7 +67,7 @@ public final class SoulBoundTests {
         player.getInventory().setItem(STONE_SLOT, new ItemStack(Items.STONE_PICKAXE));
 
         player.die(helper.getLevel().damageSources().generic());
-        List<ItemEntity> drops = helper.getEntities(EntityType.ITEM, PLAYER_POS, DROP_REACH);
+        List<ItemEntity> drops = helper.getEntities(EntityTypes.ITEM, PLAYER_POS, DROP_REACH);
         helper.assertTrue(drops.size() == 1 && drops.getFirst().getItem().is(Items.STONE_PICKAXE),
                 WRONG_DROPS + drops.stream().map(ItemEntity::getItem).toList());
 

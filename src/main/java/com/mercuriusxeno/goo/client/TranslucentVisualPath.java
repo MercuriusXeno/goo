@@ -79,7 +79,6 @@ import com.mercuriusxeno.goo.client.zone.RoomCopyRenderer;
 import com.mercuriusxeno.goo.client.zone.VoidstoneFaces;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.state.level.LevelRenderState;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
@@ -301,7 +300,7 @@ public final class TranslucentVisualPath {
         for (SortRoute route : routes) {
             farToNear(drawsOf(route, frame)).forEach(draw -> draw.draw().run());
         }
-        Minecraft.getInstance().renderBuffers().bufferSource().endBatch();
+        ImmediateBuffers.shared().endBatch();
         modelViewStack.popMatrix();
     }
 

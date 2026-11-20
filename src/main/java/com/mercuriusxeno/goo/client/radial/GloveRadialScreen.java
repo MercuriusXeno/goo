@@ -101,7 +101,7 @@ public final class GloveRadialScreen extends EasedWheelScreen {
         if (player == null || GooTypes.order().isEmpty()) {
             return;
         }
-        mc.setScreen(new GloveRadialScreen(GooSourceScanner.aggregateAvailable(player), RadialWheel.castableTypes(
+        mc.gui.setScreen(new GloveRadialScreen(GooSourceScanner.aggregateAvailable(player), RadialWheel.castableTypes(
                 GooTypes.order(), GooCasters.castsFromAGlove(player), GooCasters.bareHandedType(player))));
     }
 

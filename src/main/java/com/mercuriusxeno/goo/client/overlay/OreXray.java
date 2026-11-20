@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.overlay;
 import com.mercuriusxeno.goo.ability.program.HeldSweepSections;
 import com.mercuriusxeno.goo.client.BufferedPass;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -63,10 +64,10 @@ public final class OreXray {
         double now = mc.level.getGameTime() + mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         List<OreSightings.Sighting> showing = showingAt(now);
         if (!showing.isEmpty()) {
-            Vec3 camera = mc.gameRenderer.getMainCamera().position();
+            Vec3 camera = mc.gameRenderer.mainCamera().position();
             draws.accept(sortedByNearest(showing, camera, () -> drawOre(pos -> FungusXray.partsAt(mc, pos),
                     frame.poseStack(), camera, showing,
-                    pass -> BufferedPass.of(mc.renderBuffers().bufferSource(), renderTypeOf(mc, pass)))));
+                    pass -> BufferedPass.of(ImmediateBuffers.shared(), renderTypeOf(mc, pass)))));
         }
     }
 

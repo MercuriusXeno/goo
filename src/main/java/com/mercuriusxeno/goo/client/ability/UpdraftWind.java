@@ -95,7 +95,7 @@ public final class UpdraftWind {
         if (level == null || mc.isPaused() || CELLS.isEmpty()) {
             return;
         }
-        Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        Vec3 camera = mc.gameRenderer.mainCamera().position();
         CELLS.removeIf(cell -> !(level.getBlockState(cell).getBlock() instanceof UpdraftCellBlock)
                 || camera.distanceToSqr(Vec3.atCenterOf(cell)) > BLOWS_WITHIN_SQUARED);
         AbilitySyncHandler.ClientAbility ability = AbilitySyncHandler.findAbility(

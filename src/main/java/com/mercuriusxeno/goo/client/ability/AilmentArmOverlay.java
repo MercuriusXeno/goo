@@ -24,8 +24,6 @@ public final class AilmentArmOverlay {
 
     /** The arm's sideways tilt the first-person hand draws with, as vanilla's hand does. */
     private static final float ARM_TILT = 0.1F;
-    private static final boolean NOT_SHEETED = false;
-    private static final boolean NO_FOIL = false;
     private static final int NO_OUTLINE = 0;
 
     private AilmentArmOverlay() {
@@ -37,8 +35,11 @@ public final class AilmentArmOverlay {
      * @param event the arm render event
      */
     @SubscribeEvent
-    public static void onRenderArm(RenderArmEvent event) {
-        AbstractClientPlayer player = event.getPlayer();
+    public static void onRenderArm(RenderArmEvent<?> event) {
+        // The arm event fires for every avatar, a mannequin among them; goo draws on a player's arm alone.
+        if (!(event.getAvatar() instanceof AbstractClientPlayer player)) {
+            return;
+        }
         float partialTick = Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(false);
         List<MobAilments.Worn> worn = MobAilments.CLIENT.ailmentsOf(player.getId(), player.level().getGameTime())
                 .stream().filter(ailment -> ailment.kind().drawsOverlay()).toList();
@@ -51,9 +52,8 @@ public final class AilmentArmOverlay {
         for (MobAilments.Worn ailment : worn) {
             float strength = MobAilments.strength(ailment.ticksLeft() - partialTick);
             event.getSubmitNodeCollector().submitModelPart(arm, poseStack, GooRenderTypes.GOO_AILMENT_OVERLAY_TYPE,
-                    event.getPackedLight(), AilmentOverlayLayer.patternCoords(ailment.kind().pattern(), model.root()),
-                    null, NOT_SHEETED,
-                    NO_FOIL, AilmentOverlayLayer.overlayColor(ailment.kind(), strength), null, NO_OUTLINE);
+                    event.getLightCoords(), AilmentOverlayLayer.patternCoords(ailment.kind().pattern(), model.root()),
+                    null, AilmentOverlayLayer.overlayColor(ailment.kind(), strength), null, NO_OUTLINE);
         }
     }
 

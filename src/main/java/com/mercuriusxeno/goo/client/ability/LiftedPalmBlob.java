@@ -4,6 +4,8 @@ import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.TravelForm;
 import com.mercuriusxeno.goo.ability.crystal.StackHover;
 import com.mercuriusxeno.goo.client.GooSubmitter;
+import com.mercuriusxeno.goo.client.ImmediateBuffers;
+import com.mercuriusxeno.goo.client.RenderTypeBuffers;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.model.GloveSpecialRenderer;
@@ -17,7 +19,6 @@ import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
@@ -723,7 +724,7 @@ public final class LiftedPalmBlob {
         if (lift == null || !lift.standsAt(now)) {
             return Optional.empty();
         }
-        Camera camera = mc.gameRenderer.getMainCamera();
+        Camera camera = mc.gameRenderer.mainCamera();
         Vec3 source = sourceOf(mc.player.getId(), lift, partial, now).subtract(camera.position());
         PalmBlobHop.Pose pose = lift.poseAt(now);
         Delivery delivery = PalmJavelin.selectedDelivery(GooCasters.casterOf(mc.player));
@@ -774,7 +775,7 @@ public final class LiftedPalmBlob {
     private static Vec3 palmOf(Minecraft mc, Player caster, float partialTick) {
         Vec3 drawn = GloveSpecialRenderer.getLastGooCenterCamRel();
         if (caster == mc.player && mc.options.getCameraType().isFirstPerson() && drawn != null) {
-            Camera camera = mc.gameRenderer.getMainCamera();
+            Camera camera = mc.gameRenderer.mainCamera();
             return camera.position().add(HandPassView.fromHandPass(drawn, camera.rotation(), camera.getFov(),
                     HandPassView.frameBob(mc)));
         }
@@ -848,7 +849,7 @@ public final class LiftedPalmBlob {
         long now = mc.level.getGameTime();
         LIFTS.values().removeIf(lift -> !lift.standsAt(now));
         float partial = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        Camera camera = PortalView.drawing() ? PortalView.camera() : mc.gameRenderer.getMainCamera();
+        Camera camera = PortalView.drawing() ? PortalView.camera() : mc.gameRenderer.mainCamera();
         List<Drawn> blobs = new ArrayList<>();
         for (Integer casterId : LIFTS.keySet()) {
             if (drawsInTheLevel(casterId)) {
@@ -856,11 +857,11 @@ public final class LiftedPalmBlob {
             }
         }
         draws.accept(SortedDraw.nearestOf(blobs.stream().map(drawn -> drawn.blob().place()), camera.position(),
-                () -> drawBlobs(frame.poseStack(), mc.renderBuffers().bufferSource(), blobs, camera.position(),
+                () -> drawBlobs(frame.poseStack(), ImmediateBuffers.shared(), blobs, camera.position(),
                         now + partial)));
     }
 
-    private static void drawBlobs(PoseStack pose, MultiBufferSource.BufferSource buffers, List<Drawn> blobs,
+    private static void drawBlobs(PoseStack pose, ImmediateBuffers buffers, List<Drawn> blobs,
                                   Vec3 camera, float time) {
         for (Drawn drawn : blobs) {
             drawBlob(pose, buffers, drawn, camera, time);
@@ -905,7 +906,7 @@ public final class LiftedPalmBlob {
     private record Drawn(Blob blob, Quaternionf facing) {
     }
 
-    private static void drawBlob(PoseStack pose, MultiBufferSource buffers, Drawn drawn, Vec3 camera, float time) {
+    private static void drawBlob(PoseStack pose, RenderTypeBuffers buffers, Drawn drawn, Vec3 camera, float time) {
         Blob blob = drawn.blob();
         Vec3 place = blob.place();
         pose.pushPose();

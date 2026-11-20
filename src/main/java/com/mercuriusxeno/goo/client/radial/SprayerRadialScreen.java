@@ -105,7 +105,7 @@ public final class SprayerRadialScreen extends EasedWheelScreen {
                 .map(type -> synced.offeredForType(type, ClientKnownItems.current()).stream()
                         .filter(offered -> offered.ability().badge() == AbilityBadge.RESIDUAL).toList())
                 .toList();
-        mc.setScreen(new SprayerRadialScreen(model, abilities, content.gooVolumes(), SprayerItem.settingOf(sprayer)));
+        mc.gui.setScreen(new SprayerRadialScreen(model, abilities, content.gooVolumes(), SprayerItem.settingOf(sprayer)));
     }
 
     @Override

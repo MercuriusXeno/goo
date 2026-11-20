@@ -1,18 +1,18 @@
 package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.seal.StandingColumn;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
-import com.mercuriusxeno.goo.gametest.GooTestFunctions;
-import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for ender's Elude held on the glove by a survival mock player:
@@ -56,7 +56,7 @@ public final class EludeTests {
      */
     public static void eludeEscapesAZombiesHit(GameTestHelper helper) {
         ServerPlayer player = HeartOverlayTests.selfInvoked(helper, GooTypes.ENDER, ENDER_ELUDE);
-        Zombie zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, ZOMBIE_POS);
+        Zombie zombie = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, ZOMBIE_POS);
         Vec3 stood = player.position();
 
         HeartOverlayTests.hurt(helper, player, player.damageSources().mobAttack(zombie), HIT);

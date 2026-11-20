@@ -2,13 +2,14 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
-import com.mercuriusxeno.goo.gametest.KnownRecipes;
-import com.mercuriusxeno.goo.item.GooStacks;
-import com.mercuriusxeno.goo.network.GooEffectScheduler.PendingEffect;
-import com.mercuriusxeno.goo.ability.weird.Wobbled;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.data.GooFraction;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.KnownRecipes;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
+import com.mercuriusxeno.goo.item.GooStacks;
+import com.mercuriusxeno.goo.network.GooEffectScheduler.PendingEffect;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.throwing.CoatRay;
@@ -18,13 +19,13 @@ import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.animal.pig.Pig;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.arrow.Arrow;
-import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.context.UseOnContext;
@@ -34,8 +35,6 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
-import com.mercuriusxeno.goo.gametest.GooTestFunctions;
-import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -359,7 +358,7 @@ public final class WeirdTests {
         helper.setBlock(FLOW_CELL, slimeOf(BROKEN_LAYERS));
         // GameTestHelper.destroyBlock breaks with drops off; the level's own break drops what the block gives
         helper.getLevel().destroyBlock(helper.absolutePos(FLOW_CELL), true);
-        List<ItemEntity> drops = helper.getEntities(EntityType.ITEM, FLOW_CELL, 1.0);
+        List<ItemEntity> drops = helper.getEntities(EntityTypes.ITEM, FLOW_CELL, 1.0);
         int weird = drops.stream().map(ItemEntity::getItem)
                 .filter(stack -> GooTypes.WEIRD.equals(GooStacks.keyOf(stack))).mapToInt(GooStacks::volumeOf).sum();
         int owed = ResidualPrices.layersRefund(helper, BROKEN_LAYERS);
@@ -387,7 +386,7 @@ public final class WeirdTests {
         stone.useOn(new UseOnContext(player, InteractionHand.MAIN_HAND,
                 new BlockHitResult(slimeTop, Direction.UP, cell, false)));
         int standing = VolumeCellBlock.layersOf(helper.getBlockState(FLOW_CELL));
-        List<ItemEntity> drops = helper.getEntities(EntityType.ITEM, FLOW_CELL, 1.0);
+        List<ItemEntity> drops = helper.getEntities(EntityTypes.ITEM, FLOW_CELL, 1.0);
         int weird = drops.stream().map(ItemEntity::getItem)
                 .filter(stack -> GooTypes.WEIRD.equals(GooStacks.keyOf(stack))).mapToInt(GooStacks::volumeOf).sum();
         int owed = ResidualPrices.layersRefund(helper, BROKEN_LAYERS);
@@ -430,7 +429,7 @@ public final class WeirdTests {
         GooEffectScheduler.applyEffect(new PendingEffect(0, helper.getLevel(), null, GooTypes.WEIRD,
                 NO_ENTITY, helper.absolutePos(POOL_FLOOR), Direction.UP, MITOSIS));
         helper.runAfterDelay(SLIME_MORPH_TICKS + 1, () -> {
-            helper.assertEntityPresent(EntityType.SLIME, POOL_FLOOR.above());
+            helper.assertEntityPresent(EntityTypes.SLIME, POOL_FLOOR.above());
             helper.succeed();
         });
     }
@@ -442,7 +441,7 @@ public final class WeirdTests {
      * @param helper the gametest helper
      */
     public static void goopSoftensTheMobItHits(GameTestHelper helper) {
-        Zombie zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, ZOMBIE_POS);
+        Zombie zombie = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, ZOMBIE_POS);
         ServerPlayer streamer = streamerAt(helper, AT_THE_ZOMBIE);
         holdGoop(helper, streamer, () -> {
             helper.assertTrue(zombie.hasData(GooAttachments.WOBBLED), NOT_WOBBLED);
@@ -467,7 +466,7 @@ public final class WeirdTests {
         helper.setBlock(POOL_FLOOR, Blocks.STONE);
         BlockPos coat = POOL_FLOOR.above();
         helper.setBlock(coat, GooBlocks.SLIME_COAT.get());
-        Pig pig = helper.spawn(EntityType.PIG, coat.above(DROP_START));
+        Pig pig = helper.spawn(EntityTypes.PIG, coat.above(DROP_START));
         pig.fallDistance = FALLEN_BLOCKS;
         pig.setDeltaMovement(0, FALL_SPEED, 0);
         double coatBottom = helper.absolutePos(coat).getY();
@@ -494,7 +493,7 @@ public final class WeirdTests {
         helper.setBlock(coat.east(), GooBlocks.SLIME_COAT.get());
         ItemEntity item = helper.spawnItem(Items.SLIME_BALL, Vec3.atBottomCenterOf(coat.above(DROP_START)));
         item.setDeltaMovement(0, FALL_SPEED, 0);
-        Arrow arrow = helper.spawn(EntityType.ARROW, Vec3.atBottomCenterOf(coat.east().above(DROP_START)));
+        Arrow arrow = helper.spawn(EntityTypes.ARROW, Vec3.atBottomCenterOf(coat.east().above(DROP_START)));
         arrow.setDeltaMovement(0, FALL_SPEED, 0);
         boolean[] itemBounced = {false};
         boolean[] arrowBounced = {false};
@@ -525,7 +524,7 @@ public final class WeirdTests {
         // on the bay's roof, open sky over it, so nothing caps the climb but the ramp
         helper.setBlock(OPEN_SKY_FLOOR, Blocks.STONE);
         helper.setBlock(OPEN_SKY_FLOOR.above(), GooBlocks.SLIME_COAT.get());
-        Pig pig = helper.spawnWithNoFreeWill(EntityType.PIG, OPEN_SKY_FLOOR.above());
+        Pig pig = helper.spawnWithNoFreeWill(EntityTypes.PIG, OPEN_SKY_FLOOR.above());
         double coatTop = helper.absolutePos(OPEN_SKY_FLOOR.above()).getY();
         List<Double> peaks = new java.util.ArrayList<>();
         double[] rising = {Double.NEGATIVE_INFINITY};

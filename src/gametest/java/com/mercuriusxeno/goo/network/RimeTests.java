@@ -17,7 +17,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.item.ItemStack;
@@ -170,7 +170,7 @@ public final class RimeTests {
     public static void thinRimeSetsTheFrictionUnderfoot(GameTestHelper helper) {
         helper.setBlock(RIME_CELL.below(), Blocks.STONE);
         helper.setBlock(RIME_CELL, GooBlocks.FROST_RIME.get());
-        Zombie zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE,
+        Zombie zombie = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE,
                 Vec3.atBottomCenterOf(RIME_CELL).add(0, ONE_LAYER, 0));
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             BlockPos underfoot = zombie.getBlockPosBelowThatAffectsMyMovement();
@@ -192,7 +192,7 @@ public final class RimeTests {
     public static void rimeFreezesAndHurtsABarefootZombie(GameTestHelper helper) {
         helper.setBlock(RIME_CELL.below(), Blocks.STONE);
         helper.setBlock(RIME_CELL, GooBlocks.FROST_RIME.get());
-        Zombie zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE,
+        Zombie zombie = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE,
                 Vec3.atBottomCenterOf(RIME_CELL).add(0, ONE_LAYER, 0));
         zombie.setItemSlot(EquipmentSlot.FEET, ItemStack.EMPTY);
         zombie.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.IRON_HELMET));

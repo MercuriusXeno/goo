@@ -1,13 +1,13 @@
 package com.mercuriusxeno.goo.client.overlay;
 
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.LineContext;
 import com.mercuriusxeno.goo.client.ShapeFace;
 import com.mercuriusxeno.goo.client.TargetResult;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.core.Direction;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.phys.Vec3;
@@ -77,7 +77,7 @@ public final class FaceBullseyeRenderer {
      * @param rgb          the goo's highlight color
      * @param nowSeconds   seconds on the real-time clock the ripple runs on
      */
-    static void render(PoseStack poseStack, MultiBufferSource.BufferSource bufferSource,
+    static void render(PoseStack poseStack, ImmediateBuffers bufferSource,
             Camera camera, TargetResult target, int rgb, double nowSeconds) {
         if (!(target instanceof TargetResult.BlockTarget block)) {
             return;

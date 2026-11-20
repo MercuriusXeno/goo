@@ -67,7 +67,7 @@ public final class SkyColumnRenderer {
         }
         CameraRenderState camera = event.getLevelRenderState().cameraRenderState;
         Frustum frustum = PortalView.drawing() ? PortalView.camera().getCullFrustum()
-                : mc.gameRenderer.getMainCamera().getCullFrustum();
+                : mc.gameRenderer.mainCamera().getCullFrustum();
         List<RoomCopies.Offset> copies = RoomCopies.offsets(bounds.get(),
                 RoomCopies.reachOf(mc.options.getEffectiveRenderDistance()));
         submit(event.getSubmitNodeCollector(), event.getPoseStack(), bounds.get(), copies, camera.pos,

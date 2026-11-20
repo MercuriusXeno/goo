@@ -2,15 +2,18 @@ package com.mercuriusxeno.goo.client;
 
 import com.mercuriusxeno.goo.client.ability.RippleTarget;
 import com.mercuriusxeno.goo.client.zone.VoidstoneRoom;
+import com.mojang.blaze3d.GpuFormat;
+import com.mojang.blaze3d.PrimitiveTopology;
+import com.mojang.blaze3d.pipeline.BindGroupLayout;
 import com.mojang.blaze3d.pipeline.BlendFunction;
 import com.mojang.blaze3d.pipeline.ColorTargetState;
 import com.mojang.blaze3d.pipeline.DepthStencilState;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.platform.CompareOp;
 import com.mojang.blaze3d.shaders.UniformType;
-import com.mojang.blaze3d.textures.TextureFormat;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormat;
+import net.minecraft.client.renderer.BindGroupLayouts;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.blockentity.AbstractEndPortalRenderer;
 import net.minecraft.client.renderer.rendertype.LayeringTransform;
@@ -42,9 +45,12 @@ public final class GooRenderTypes {
     private static final String PIPELINE_PATH = "pipeline/";
     /** Path prefix of a core shader. */
     private static final String CORE_SHADER_PATH = "core/";
-    /** The block transform's depth bias toward the camera, slope scaled and constant, as a decal's. */
-    private static final float BLOCK_MINGLE_DEPTH_BIAS_SCALE = -1f;
-    private static final float BLOCK_MINGLE_DEPTH_BIAS_CONSTANT = -10f;
+    /**
+     * The block transform's depth bias toward the camera, slope scaled and constant, as a decal's;
+     * positive since 26.2 inverted depth, so nearer reads larger.
+     */
+    private static final float BLOCK_MINGLE_DEPTH_BIAS_SCALE = 1f;
+    private static final float BLOCK_MINGLE_DEPTH_BIAS_CONSTANT = 10f;
     /** The alpha the game's cutout block pipeline discards under. */
     private static final float CUTOUT_BLOCK_ALPHA = 0.5F;
     /** The alpha the game's translucent block pipeline discards under. */
@@ -57,10 +63,10 @@ public final class GooRenderTypes {
     /**
      * The depth bias vanilla's block-breaking cracks draw with, pulling a
      * layer drawn in the same plane as the world's own faces in front of
-     * them so the two never fight.
+     * them so the two never fight; positive since 26.2 inverted depth, so nearer reads larger.
      */
-    private static final float DECAL_BIAS_SCALE = -1.0f;
-    private static final float DECAL_BIAS_CONSTANT = -10.0f;
+    private static final float DECAL_BIAS_SCALE = 1.0f;
+    private static final float DECAL_BIAS_CONSTANT = 10.0f;
     private static final String THROUGH_BLOCKS_SUFFIX = "_through_blocks";
     /** Must match goo_fluid_surface.fsh: the sampler the frame's mingle table binds to. */
     private static final String MINGLE_TABLE_SAMPLER = "MingleTable";
@@ -102,7 +108,7 @@ public final class GooRenderTypes {
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "fungus_xray"))
             .withShaderDefine("ALPHA_CUTOUT", ALPHA_CUTOUT)
             .withShaderDefine("PER_FACE_LIGHTING")
-            .withSampler("Sampler1")
+            .withBindGroupLayout(BindGroupLayouts.SAMPLER1)
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
             .withCull(false)
@@ -121,9 +127,10 @@ public final class GooRenderTypes {
                     .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "click_wave_through_blocks"))
                     .withVertexShader("core/particle")
                     .withFragmentShader("core/particle")
-                    .withSampler("Sampler0")
-                    .withSampler("Sampler2")
-                    .withVertexFormat(DefaultVertexFormat.PARTICLE, VertexFormat.Mode.QUADS)
+                    .withBindGroupLayout(BindGroupLayouts.SAMPLER0)
+                    .withBindGroupLayout(BindGroupLayouts.SAMPLER2)
+                    .withVertexBinding(0, DefaultVertexFormat.PARTICLE)
+                    .withPrimitiveTopology(PrimitiveTopology.QUADS)
                     .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
                     .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
                     .withCull(false)
@@ -137,7 +144,7 @@ public final class GooRenderTypes {
     public static final RenderPipeline FUNGUS_GLOW = sorted(PipelineSort.ON_THE_PATH, RenderPipeline.builder(RenderPipelines.ENTITY_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "fungus_glow"))
             .withShaderDefine("ALPHA_CUTOUT", ALPHA_CUTOUT)
-            .withSampler("Sampler1")
+            .withBindGroupLayout(BindGroupLayouts.SAMPLER1)
             .withColorTargetState(new ColorTargetState(BlendFunction.LIGHTNING))
             .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
             .withCull(false)
@@ -154,9 +161,10 @@ public final class GooRenderTypes {
      */
     public static final RenderPipeline DOWSING_MASK = RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "dowsing_mask"))
-            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
-            .withColorTargetState(new ColorTargetState(Optional.empty(), ColorTargetState.WRITE_NONE))
-            .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false,
+            .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR)
+            .withPrimitiveTopology(PrimitiveTopology.QUADS)
+            .withColorTargetState(new ColorTargetState(Optional.empty(), GpuFormat.RGBA8_UNORM, ColorTargetState.WRITE_NONE))
+            .withDepthStencilState(new DepthStencilState(CompareOp.GREATER_THAN_OR_EQUAL, false,
                     DECAL_BIAS_SCALE, DECAL_BIAS_CONSTANT))
             .withStencilTest(new StencilTest(new StencilPerFaceTest(StencilOperation.KEEP, StencilOperation.KEEP,
                     StencilOperation.REPLACE, CompareOp.ALWAYS_PASS), DOWSING_STENCIL_BIT, DOWSING_STENCIL_BIT,
@@ -238,9 +246,9 @@ public final class GooRenderTypes {
     public static final RenderPipeline SCULKER_GLASS = sorted(PipelineSort.ON_THE_PATH, RenderPipeline.builder(RenderPipelines.ENTITY_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "sculker_glass"))
             .withShaderDefine("ALPHA_CUTOUT", ALPHA_CUTOUT)
-            .withSampler("Sampler1")
+            .withBindGroupLayout(BindGroupLayouts.SAMPLER1)
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
-            .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, true,
+            .withDepthStencilState(new DepthStencilState(CompareOp.GREATER_THAN_OR_EQUAL, true,
                     DECAL_BIAS_SCALE, DECAL_BIAS_CONSTANT))
             .withCull(false)
             .build());
@@ -341,12 +349,13 @@ public final class GooRenderTypes {
      * the mouth and nowhere else.
      */
     public static final RenderPipeline PORTABLE_HOLE_CARVE = sorted(PipelineSort.ON_THE_PATH, RenderPipeline.builder(
-                    RenderPipelines.MATRICES_PROJECTION_SNIPPET)
+                    GooPipelineSnippets.MATRICES_PROJECTION_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "portable_hole_carve"))
             .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "portable_hole_carve"))
             .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "portable_hole_carve"))
-            .withSampler(PORTABLE_HOLE_DEPTH_SAMPLER)
-            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
+            .withBindGroupLayout(BindGroupLayout.builder().withSampler(PORTABLE_HOLE_DEPTH_SAMPLER).build())
+            .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR)
+            .withPrimitiveTopology(PrimitiveTopology.QUADS)
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, true))
             .withCull(false)
@@ -360,7 +369,8 @@ public final class GooRenderTypes {
      */
     public static final RenderPipeline PORTABLE_HOLE_PIT = sorted(PipelineSort.ON_THE_PATH, RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "portable_hole_pit"))
-            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
+            .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR)
+            .withPrimitiveTopology(PrimitiveTopology.QUADS)
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .withDepthStencilState(new DepthStencilState(DepthStencilState.DEFAULT.depthTest(), true))
             .withCull(false)
@@ -376,7 +386,8 @@ public final class GooRenderTypes {
      */
     public static final RenderPipeline METEOR_ROCK = sorted(PipelineSort.WRITES_DEPTH, RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "meteor_rock"))
-            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
+            .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR)
+            .withPrimitiveTopology(PrimitiveTopology.QUADS)
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .withDepthStencilState(DepthStencilState.DEFAULT)
             .withCull(false)
@@ -394,7 +405,8 @@ public final class GooRenderTypes {
      */
     public static final RenderPipeline SPIKES_STEEL = sorted(PipelineSort.ON_THE_PATH, RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "spikes_steel"))
-            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
+            .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR)
+            .withPrimitiveTopology(PrimitiveTopology.QUADS)
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .withDepthStencilState(DepthStencilState.DEFAULT)
             .withCull(false)
@@ -525,7 +537,7 @@ public final class GooRenderTypes {
     public static final RenderPipeline GLOW_BEAM = sorted(PipelineSort.ON_THE_PATH, RenderPipeline.builder(RenderPipelines.BEACON_BEAM_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "glow_beam"))
             .withColorTargetState(new ColorTargetState(BlendFunction.LIGHTNING))
-            .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false))
+            .withDepthStencilState(new DepthStencilState(CompareOp.GREATER_THAN_OR_EQUAL, false))
             .withCull(false)
             .build());
 
@@ -557,14 +569,15 @@ public final class GooRenderTypes {
      * portal-halo-glows-additively-onto-the-wall
      */
     public static final RenderPipeline GOO_PORTAL_HALO = sorted(PipelineSort.ON_THE_PATH, RenderPipeline.builder(
-                    RenderPipelines.MATRICES_PROJECTION_SNIPPET, RenderPipelines.GLOBALS_SNIPPET)
+                    GooPipelineSnippets.MATRICES_PROJECTION_SNIPPET, RenderPipelines.GLOBALS_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "goo_portal_halo"))
             .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_portal_idle"))
             .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_portal_halo"))
-            .withVertexFormat(DefaultVertexFormat.POSITION_TEX_LIGHTMAP_COLOR, VertexFormat.Mode.QUADS)
+            .withVertexBinding(0, DefaultVertexFormat.POSITION_TEX_LIGHTMAP_COLOR)
+            .withPrimitiveTopology(PrimitiveTopology.QUADS)
             // additive: SRC_ALPHA, ONE
             .withColorTargetState(new ColorTargetState(BlendFunction.LIGHTNING))
-            .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false))
+            .withDepthStencilState(new DepthStencilState(CompareOp.GREATER_THAN_OR_EQUAL, false))
             .withCull(false)
             .build());
 
@@ -581,14 +594,15 @@ public final class GooRenderTypes {
      * tornadic-halo-spirals-out-from-the-rim
      */
     public static final RenderPipeline GOO_PORTAL_SWIRL_BAND = sorted(PipelineSort.ON_THE_PATH, RenderPipeline.builder(
-                    RenderPipelines.MATRICES_PROJECTION_SNIPPET, RenderPipelines.GLOBALS_SNIPPET)
+                    GooPipelineSnippets.MATRICES_PROJECTION_SNIPPET, RenderPipelines.GLOBALS_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "goo_portal_swirl_band"))
             .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_portal_idle"))
             .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_portal_swirl_band"))
-            .withVertexFormat(DefaultVertexFormat.POSITION_TEX_LIGHTMAP_COLOR, VertexFormat.Mode.QUADS)
+            .withVertexBinding(0, DefaultVertexFormat.POSITION_TEX_LIGHTMAP_COLOR)
+            .withPrimitiveTopology(PrimitiveTopology.QUADS)
             // additive: SRC_ALPHA, ONE
             .withColorTargetState(new ColorTargetState(BlendFunction.LIGHTNING))
-            .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false))
+            .withDepthStencilState(new DepthStencilState(CompareOp.GREATER_THAN_OR_EQUAL, false))
             .withCull(false)
             .build());
 
@@ -609,14 +623,15 @@ public final class GooRenderTypes {
      * decision sky-funnel-points-down-to-the-doorway-from-any-distance
      */
     public static final RenderPipeline SKY_FUNNEL = RenderPipeline.builder(
-                    RenderPipelines.MATRICES_PROJECTION_SNIPPET, RenderPipelines.GLOBALS_SNIPPET)
+                    GooPipelineSnippets.MATRICES_PROJECTION_SNIPPET, RenderPipelines.GLOBALS_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "sky_funnel"))
             .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "sky_funnel"))
             .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "sky_funnel"))
-            .withSampler("Sampler0")
-            .withSampler("Sampler1")
+            .withBindGroupLayout(BindGroupLayouts.SAMPLER0)
+            .withBindGroupLayout(BindGroupLayouts.SAMPLER1)
             .withShaderDefine("PORTAL_LAYERS", SKY_FUNNEL_PORTAL_LAYERS)
-            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
+            .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR)
+            .withPrimitiveTopology(PrimitiveTopology.QUADS)
             .withDepthStencilState(DepthStencilState.DEFAULT)
             .build();
 
@@ -657,7 +672,7 @@ public final class GooRenderTypes {
      */
     public static final RenderPipeline LASER_SCORCH = sorted(PipelineSort.ON_THE_PATH, shaderPairPipeline("laser_scorch", "laser_scorch",
             BlendFunction.TRANSLUCENT, DefaultVertexFormat.POSITION_COLOR_NORMAL,
-            new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false,
+            new DepthStencilState(CompareOp.GREATER_THAN_OR_EQUAL, false,
                     BLOCK_MINGLE_DEPTH_BIAS_SCALE, BLOCK_MINGLE_DEPTH_BIAS_CONSTANT)));
 
     /** RenderType that draws Laser's scorch. */
@@ -726,12 +741,11 @@ public final class GooRenderTypes {
      * which the vat and crucible fluid drew on before.
      */
     public static final RenderPipeline GOO_FLUID_SURFACE = sorted(PipelineSort.WRITES_DEPTH, RenderPipeline.builder(
-                    RenderPipelines.ENTITY_EMISSIVE_SNIPPET,
-                    RenderPipelines.GLOBALS_SNIPPET)
+                    RenderPipelines.ENTITY_EMISSIVE_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, "pipeline/goo_fluid_surface"))
             .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, "core/goo_fluid_surface"))
             .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, "core/goo_fluid_surface"))
-            .withSampler(MINGLE_TABLE_SAMPLER)
+            .withBindGroupLayout(BindGroupLayout.builder().withSampler(MINGLE_TABLE_SAMPLER).build())
             .withShaderDefine("ALPHA_CUTOUT", 0.1F)
             .withShaderDefine("NO_OVERLAY")
             .withShaderDefine("NO_CARDINAL_LIGHTING")
@@ -765,12 +779,13 @@ public final class GooRenderTypes {
      * in a cloud volume. Depth test on, depth write off, cull off.
      */
     public static final RenderPipeline CRYSTAL_SHARD = sorted(PipelineSort.ON_THE_PATH, RenderPipeline.builder(
-                    RenderPipelines.MATRICES_PROJECTION_SNIPPET,
+                    GooPipelineSnippets.MATRICES_PROJECTION_SNIPPET,
                     RenderPipelines.GLOBALS_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, "pipeline/crystal_shard"))
             .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, "core/crystal_shard"))
             .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, "core/crystal_shard"))
-            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR_NORMAL, VertexFormat.Mode.QUADS)
+            .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR_NORMAL)
+            .withPrimitiveTopology(PrimitiveTopology.QUADS)
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .withDepthStencilState(new DepthStencilState(
                     DepthStencilState.DEFAULT.depthTest(), false))
@@ -795,8 +810,7 @@ public final class GooRenderTypes {
      * draw opaque over the body while a translucent item body keeps its alpha.
      */
     public static final RenderPipeline CRUCIBLE_DISSOLVE = sorted(PipelineSort.WRITES_DEPTH, RenderPipeline.builder(
-                    RenderPipelines.ENTITY_SNIPPET,
-                    RenderPipelines.GLOBALS_SNIPPET)
+                    RenderPipelines.ENTITY_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, "pipeline/crucible_dissolve"))
             .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, "core/crucible_dissolve"))
             .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, "core/crucible_dissolve"))
@@ -833,14 +847,13 @@ public final class GooRenderTypes {
      * overlay coordinates carry, so the old block mingles into the new.
      */
     public static final RenderPipeline BLOCK_MINGLE = RenderPipeline.builder(
-                    RenderPipelines.ENTITY_SNIPPET,
-                    RenderPipelines.GLOBALS_SNIPPET)
+                    RenderPipelines.ENTITY_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "block_mingle"))
             .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "block_mingle"))
             .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "block_mingle"))
             // Drawn on the new block's own faces, the old block wins the depth test by bias rather than by
             // swelling past them, so no face shifts when the transform ends.
-            .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, true,
+            .withDepthStencilState(new DepthStencilState(CompareOp.GREATER_THAN_OR_EQUAL, true,
                     BLOCK_MINGLE_DEPTH_BIAS_SCALE, BLOCK_MINGLE_DEPTH_BIAS_CONSTANT))
             .build();
 
@@ -850,13 +863,14 @@ public final class GooRenderTypes {
      * which the depth bias lets them win (decision outsider-is-a-channeled-pocket-with-a-door-voidstone-and-a-spiral-platform).
      */
     public static final RenderPipeline VOIDSTONE = RenderPipeline.builder(
-                    RenderPipelines.MATRICES_PROJECTION_SNIPPET,
+                    GooPipelineSnippets.MATRICES_PROJECTION_SNIPPET,
                     RenderPipelines.GLOBALS_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "voidstone"))
             .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "voidstone"))
             .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "voidstone"))
-            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR_NORMAL, VertexFormat.Mode.QUADS)
-            .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, true,
+            .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR_NORMAL)
+            .withPrimitiveTopology(PrimitiveTopology.QUADS)
+            .withDepthStencilState(new DepthStencilState(CompareOp.GREATER_THAN_OR_EQUAL, true,
                     BLOCK_MINGLE_DEPTH_BIAS_SCALE, BLOCK_MINGLE_DEPTH_BIAS_CONSTANT))
             .withCull(false)
             .build();
@@ -867,13 +881,14 @@ public final class GooRenderTypes {
      * test, as vanilla's stars draw (decision outsider-room-draws-a-skybox-of-stars).
      */
     public static final RenderPipeline POCKET_SKY = sorted(PipelineSort.WITH_THE_SKY, RenderPipeline.builder(
-                    RenderPipelines.MATRICES_PROJECTION_SNIPPET,
+                    GooPipelineSnippets.MATRICES_PROJECTION_SNIPPET,
                     RenderPipelines.GLOBALS_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "pocket_sky"))
             .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "pocket_sky"))
             .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "pocket_sky"))
             .withColorTargetState(new ColorTargetState(BlendFunction.ADDITIVE))
-            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
+            .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR)
+            .withPrimitiveTopology(PrimitiveTopology.QUADS)
             .build());
 
     /**
@@ -941,13 +956,12 @@ public final class GooRenderTypes {
      * (decision coat-is-a-green-slime-film-over-the-blocks-own-texture).
      */
     public static final RenderPipeline BLOCK_MINGLE_TRANSLUCENT = sorted(PipelineSort.ON_THE_PATH, RenderPipeline.builder(
-                    RenderPipelines.ENTITY_SNIPPET,
-                    RenderPipelines.GLOBALS_SNIPPET)
+                    RenderPipelines.ENTITY_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "block_mingle_translucent"))
             .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "block_mingle"))
             .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "block_mingle"))
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
-            .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false,
+            .withDepthStencilState(new DepthStencilState(CompareOp.GREATER_THAN_OR_EQUAL, false,
                     BLOCK_MINGLE_DEPTH_BIAS_SCALE, BLOCK_MINGLE_DEPTH_BIAS_CONSTANT))
             .build());
 
@@ -1100,13 +1114,13 @@ public final class GooRenderTypes {
      * since no pattern samples a texture, only the lightmap.
      */
     public static final RenderPipeline GOO_AILMENT_OVERLAY = sorted(PipelineSort.FLUSH_ON_A_DEPTH_WRITING_SURFACE, RenderPipeline.builder(
-                    RenderPipelines.MATRICES_FOG_LIGHT_DIR_SNIPPET,
-                    RenderPipelines.GLOBALS_SNIPPET)
+                    RenderPipelines.MATRICES_FOG_LIGHT_DIR_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "goo_ailment_overlay"))
             .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_ailment_overlay"))
             .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_ailment_overlay"))
-            .withSampler("Sampler2")
-            .withVertexFormat(DefaultVertexFormat.ENTITY, VertexFormat.Mode.QUADS)
+            .withBindGroupLayout(BindGroupLayouts.SAMPLER2)
+            .withVertexBinding(0, DefaultVertexFormat.ENTITY)
+            .withPrimitiveTopology(PrimitiveTopology.QUADS)
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .withDepthStencilState(new DepthStencilState(DepthStencilState.DEFAULT.depthTest(), false))
             .build());
@@ -1119,8 +1133,7 @@ public final class GooRenderTypes {
      * share of the model the vertex alpha carries, whole at a statue.
      */
     public static final RenderPipeline PETRIFY_STONE = sorted(PipelineSort.FLUSH_ON_A_DEPTH_WRITING_SURFACE, RenderPipeline.builder(
-                    RenderPipelines.ENTITY_SNIPPET,
-                    RenderPipelines.GLOBALS_SNIPPET)
+                    RenderPipelines.ENTITY_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "petrify_stone"))
             .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "petrify_stone"))
             .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "petrify_stone"))
@@ -1145,8 +1158,7 @@ public final class GooRenderTypes {
      * vines-unpack-root-and-thorn
      */
     public static final RenderPipeline VINE_TANGLE = sorted(PipelineSort.FLUSH_ON_A_DEPTH_WRITING_SURFACE, RenderPipeline.builder(
-                    RenderPipelines.ENTITY_SNIPPET,
-                    RenderPipelines.GLOBALS_SNIPPET)
+                    RenderPipelines.ENTITY_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "vine_tangle"))
             .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "vine_tangle"))
             .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "vine_tangle"))
@@ -1214,13 +1226,14 @@ public final class GooRenderTypes {
      * the clouds, stands behind it.
      */
     public static final RenderPipeline FIRE_FIELD = sorted(PipelineSort.ON_THE_PATH, RenderPipeline.builder(
-                    RenderPipelines.MATRICES_PROJECTION_SNIPPET,
+                    GooPipelineSnippets.MATRICES_PROJECTION_SNIPPET,
                     RenderPipelines.GLOBALS_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "fire_field"))
             .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "fire_field"))
             .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "fire_field"))
-            .withUniform(FIRE_FIELD_BLOCK, UniformType.UNIFORM_BUFFER)
-            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
+            .withBindGroupLayout(BindGroupLayout.builder().withUniform(FIRE_FIELD_BLOCK, UniformType.UNIFORM_BUFFER).build())
+            .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR)
+            .withPrimitiveTopology(PrimitiveTopology.QUADS)
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .withDepthStencilState(DepthStencilState.DEFAULT)
             .withCull(true)
@@ -1242,14 +1255,15 @@ public final class GooRenderTypes {
      * drain-casts-a-filled-tornadic-miasma-vortex-along-the-look
      */
     public static final RenderPipeline MIASMA_VORTEX = sorted(PipelineSort.ON_THE_PATH, RenderPipeline.builder(
-                    RenderPipelines.MATRICES_PROJECTION_SNIPPET,
+                    GooPipelineSnippets.MATRICES_PROJECTION_SNIPPET,
                     RenderPipelines.GLOBALS_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "miasma_vortex"))
             .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "miasma_vortex"))
             .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "miasma_vortex"))
-            .withUniform(MIASMA_VORTEX_BLOCK, UniformType.UNIFORM_BUFFER)
-            .withSampler(MIASMA_DEPTH_SAMPLER)
-            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
+            .withBindGroupLayout(BindGroupLayout.builder().withUniform(MIASMA_VORTEX_BLOCK, UniformType.UNIFORM_BUFFER).build())
+            .withBindGroupLayout(BindGroupLayout.builder().withSampler(MIASMA_DEPTH_SAMPLER).build())
+            .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR)
+            .withPrimitiveTopology(PrimitiveTopology.QUADS)
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
             .withCull(true)
@@ -1309,14 +1323,15 @@ public final class GooRenderTypes {
      * the march clips itself against the world.
      */
     public static final RenderPipeline BORE_DRILL = sorted(PipelineSort.ON_THE_PATH, RenderPipeline.builder(
-                    RenderPipelines.MATRICES_PROJECTION_SNIPPET,
+                    GooPipelineSnippets.MATRICES_PROJECTION_SNIPPET,
                     RenderPipelines.GLOBALS_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "bore_drill"))
             .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "bore_drill"))
             .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "bore_drill"))
-            .withUniform(BORE_DRILL_BLOCK, UniformType.UNIFORM_BUFFER)
-            .withSampler(BORE_DRILL_DEPTH_SAMPLER)
-            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
+            .withBindGroupLayout(BindGroupLayout.builder().withUniform(BORE_DRILL_BLOCK, UniformType.UNIFORM_BUFFER).build())
+            .withBindGroupLayout(BindGroupLayout.builder().withSampler(BORE_DRILL_DEPTH_SAMPLER).build())
+            .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR)
+            .withPrimitiveTopology(PrimitiveTopology.QUADS)
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
             .withCull(true)
@@ -1402,12 +1417,13 @@ public final class GooRenderTypes {
      * the face stands in the world.
      */
     public static final RenderPipeline GOO_PORTAL_VIEW = sorted(PipelineSort.ON_THE_PATH, RenderPipeline.builder(
-                    RenderPipelines.MATRICES_PROJECTION_SNIPPET, RenderPipelines.GLOBALS_SNIPPET)
+                    GooPipelineSnippets.MATRICES_PROJECTION_SNIPPET, RenderPipelines.GLOBALS_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "goo_portal_view"))
             .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_portal_view"))
             .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_portal_view"))
-            .withSampler("Sampler0")
-            .withVertexFormat(DefaultVertexFormat.POSITION_TEX_LIGHTMAP_COLOR, VertexFormat.Mode.QUADS)
+            .withBindGroupLayout(BindGroupLayouts.SAMPLER0)
+            .withVertexBinding(0, DefaultVertexFormat.POSITION_TEX_LIGHTMAP_COLOR)
+            .withPrimitiveTopology(PrimitiveTopology.QUADS)
             // portals-and-wormhole-draw-sixteen-texels-a-block: the rim's edge ring lets a quarter of the wall through
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .withDepthStencilState(DepthStencilState.DEFAULT)
@@ -1425,14 +1441,14 @@ public final class GooRenderTypes {
     public static final RenderPipeline ROOM_COPY_SOLID = RenderPipeline.builder(RenderPipelines.BLOCK_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "room_copy_solid"))
             .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "room_copy_block"))
-            .withUniform(ROOM_COPY_TRANSLATIONS, UniformType.TEXEL_BUFFER, TextureFormat.RED8I)
+            .withBindGroupLayout(BindGroupLayout.builder().withUniform(ROOM_COPY_TRANSLATIONS, UniformType.TEXEL_BUFFER, GpuFormat.R8_SINT).build())
             .build();
 
     /** A Zone room's cutout blocks in each of its copies, as {@link #ROOM_COPY_SOLID}. */
     public static final RenderPipeline ROOM_COPY_CUTOUT = RenderPipeline.builder(RenderPipelines.BLOCK_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "room_copy_cutout"))
             .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "room_copy_block"))
-            .withUniform(ROOM_COPY_TRANSLATIONS, UniformType.TEXEL_BUFFER, TextureFormat.RED8I)
+            .withBindGroupLayout(BindGroupLayout.builder().withUniform(ROOM_COPY_TRANSLATIONS, UniformType.TEXEL_BUFFER, GpuFormat.R8_SINT).build())
             .withShaderDefine("ALPHA_CUTOUT", CUTOUT_BLOCK_ALPHA)
             .build();
 
@@ -1440,7 +1456,7 @@ public final class GooRenderTypes {
     public static final RenderPipeline ROOM_COPY_TRANSLUCENT = sorted(PipelineSort.ON_THE_PATH, RenderPipeline.builder(RenderPipelines.BLOCK_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "room_copy_translucent"))
             .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "room_copy_block"))
-            .withUniform(ROOM_COPY_TRANSLATIONS, UniformType.TEXEL_BUFFER, TextureFormat.RED8I)
+            .withBindGroupLayout(BindGroupLayout.builder().withUniform(ROOM_COPY_TRANSLATIONS, UniformType.TEXEL_BUFFER, GpuFormat.R8_SINT).build())
             .withShaderDefine("ALPHA_CUTOUT", TRANSLUCENT_BLOCK_ALPHA)
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .withDepthStencilState(DepthStencilState.DEFAULT)
@@ -1454,11 +1470,12 @@ public final class GooRenderTypes {
      * the world.
      */
     public static final RenderPipeline GOO_PORTAL_IDLE = sorted(PipelineSort.ON_THE_PATH, RenderPipeline.builder(
-                    RenderPipelines.MATRICES_PROJECTION_SNIPPET, RenderPipelines.GLOBALS_SNIPPET)
+                    GooPipelineSnippets.MATRICES_PROJECTION_SNIPPET, RenderPipelines.GLOBALS_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "goo_portal_idle"))
             .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_portal_idle"))
             .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_portal_idle"))
-            .withVertexFormat(DefaultVertexFormat.POSITION_TEX_LIGHTMAP_COLOR, VertexFormat.Mode.QUADS)
+            .withVertexBinding(0, DefaultVertexFormat.POSITION_TEX_LIGHTMAP_COLOR)
+            .withPrimitiveTopology(PrimitiveTopology.QUADS)
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .withDepthStencilState(DepthStencilState.DEFAULT)
             .withCull(false)
@@ -1520,13 +1537,13 @@ public final class GooRenderTypes {
      * painting where any channel changes, the silhouettes' perimeters, in the goo
      * type's color that ColorModulator carries, blended over the frame.
      */
-    public static final RenderPipeline GOO_RIPPLE_EDGE = sorted(PipelineSort.ON_THE_PATH, RenderPipeline.builder(RenderPipelines.MATRICES_PROJECTION_SNIPPET)
+    public static final RenderPipeline GOO_RIPPLE_EDGE = sorted(PipelineSort.ON_THE_PATH, RenderPipeline.builder(GooPipelineSnippets.MATRICES_PROJECTION_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "goo_ripple_edge"))
             .withVertexShader(Identifier.withDefaultNamespace("core/screenquad"))
             .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_ripple_edge"))
-            .withSampler("InSampler")
+            .withBindGroupLayout(BindGroupLayouts.IN_SAMPLER)
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
-            .withVertexFormat(DefaultVertexFormat.EMPTY, VertexFormat.Mode.TRIANGLES)
+            .withPrimitiveTopology(PrimitiveTopology.TRIANGLES)
             .build());
 
     /**
@@ -1535,13 +1552,13 @@ public final class GooRenderTypes {
      * {@code goo_soft_outline.fsh}, painting a blurred glow out from each heard
      * body's edge in the color ColorModulator carries, blended over the frame.
      */
-    public static final RenderPipeline GOO_SOFT_OUTLINE = sorted(PipelineSort.ON_THE_PATH, RenderPipeline.builder(RenderPipelines.MATRICES_PROJECTION_SNIPPET)
+    public static final RenderPipeline GOO_SOFT_OUTLINE = sorted(PipelineSort.ON_THE_PATH, RenderPipeline.builder(GooPipelineSnippets.MATRICES_PROJECTION_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "goo_soft_outline"))
             .withVertexShader(Identifier.withDefaultNamespace("core/screenquad"))
             .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_soft_outline"))
-            .withSampler("InSampler")
+            .withBindGroupLayout(BindGroupLayouts.IN_SAMPLER)
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
-            .withVertexFormat(DefaultVertexFormat.EMPTY, VertexFormat.Mode.TRIANGLES)
+            .withPrimitiveTopology(PrimitiveTopology.TRIANGLES)
             .build());
 
     /** The one render type on the ailment overlay pipeline. */
@@ -1581,12 +1598,13 @@ public final class GooRenderTypes {
      * @return the pipeline
      */
     private static RenderPipeline rippleMaskPipeline(int channel, int writeMask) {
-        return RenderPipeline.builder(RenderPipelines.MATRICES_PROJECTION_SNIPPET)
+        return RenderPipeline.builder(GooPipelineSnippets.MATRICES_PROJECTION_SNIPPET)
                 .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + RIPPLE_MASK_CHANNEL + channel))
                 .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + RIPPLE_MASK))
                 .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + RIPPLE_MASK))
-                .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
-                .withColorTargetState(new ColorTargetState(Optional.empty(), writeMask))
+                .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR)
+                .withPrimitiveTopology(PrimitiveTopology.QUADS)
+                .withColorTargetState(new ColorTargetState(Optional.empty(), GpuFormat.RGBA8_UNORM, writeMask))
                 .withDepthStencilState(new DepthStencilState(DepthStencilState.DEFAULT.depthTest(), false))
                 .withCull(false)
                 .build();
@@ -1644,7 +1662,8 @@ public final class GooRenderTypes {
     private static RenderPipeline colorShellPipeline(String location, CompareOp depthTest, BlendFunction blend) {
         return RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
                 .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + location))
-                .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
+                .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR)
+                .withPrimitiveTopology(PrimitiveTopology.QUADS)
                 .withColorTargetState(new ColorTargetState(blend))
                 .withDepthStencilState(new DepthStencilState(depthTest, false))
                 .withCull(false)
@@ -1680,11 +1699,12 @@ public final class GooRenderTypes {
      */
     private static RenderPipeline shaderPairPipeline(String location, String shader, BlendFunction blend,
                                                      VertexFormat format, DepthStencilState depth) {
-        return RenderPipeline.builder(RenderPipelines.MATRICES_PROJECTION_SNIPPET, RenderPipelines.GLOBALS_SNIPPET)
+        return RenderPipeline.builder(GooPipelineSnippets.MATRICES_PROJECTION_SNIPPET, RenderPipelines.GLOBALS_SNIPPET)
                 .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + location))
                 .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + shader))
                 .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + shader))
-                .withVertexFormat(format, VertexFormat.Mode.QUADS)
+                .withVertexBinding(0, format)
+                .withPrimitiveTopology(PrimitiveTopology.QUADS)
                 .withColorTargetState(new ColorTargetState(blend))
                 .withDepthStencilState(depth)
                 .withCull(false)

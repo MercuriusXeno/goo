@@ -1,9 +1,9 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.world.phys.Vec3;
 import java.util.List;
 import java.util.function.Consumer;
@@ -39,8 +39,8 @@ public final class ChainBurnoutRenderer {
             return;
         }
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
-        Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        ImmediateBuffers buffers = ImmediateBuffers.shared();
+        Vec3 camera = mc.gameRenderer.mainCamera().position();
         BurnoutFrame burnoutFrame = new BurnoutFrame(frame.poseStack(), buffers, camera,
                 mc.level.getGameTime() + partialTick);
         for (ChainBurnouts.Burnout burnout : burnouts) {

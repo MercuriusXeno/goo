@@ -20,7 +20,7 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Blocks;
@@ -249,7 +249,7 @@ public final class DartHoldTests {
      */
     public static void dartDoesNotFollowAMobThatMoves(GameTestHelper helper) {
         layTheFloor(helper);
-        Mob husk = helper.spawnWithNoFreeWill(EntityType.HUSK, FAR_AHEAD);
+        Mob husk = helper.spawnWithNoFreeWill(EntityTypes.HUSK, FAR_AHEAD);
         ServerPlayer caster = casterHolding(helper);
         GooServerState state = GooServerState.of(helper.getLevel().getServer());
         holding(caster, true);
@@ -281,7 +281,7 @@ public final class DartHoldTests {
         for (int x = FENCE_WEST; x <= FENCE_EAST; x++) {
             helper.setBlock(new BlockPos(x, 1, FENCE_Z), Blocks.OAK_FENCE);
         }
-        Mob pig = helper.spawnWithNoFreeWill(EntityType.PIG, FAR_AHEAD);
+        Mob pig = helper.spawnWithNoFreeWill(EntityTypes.PIG, FAR_AHEAD);
         Vec3 behind = helper.absoluteVec(FENCE_PIG);
         pig.snapTo(behind.x, behind.y, behind.z, 0f, 0f);
         ServerPlayer caster = casterHolding(helper);
@@ -386,7 +386,7 @@ public final class DartHoldTests {
      * @param helper the gametest helper
      */
     public static void dartThrowBeforeAJavelinFormsIsRefused(GameTestHelper helper) {
-        Mob husk = helper.spawnWithNoFreeWill(EntityType.HUSK, AHEAD);
+        Mob husk = helper.spawnWithNoFreeWill(EntityTypes.HUSK, AHEAD);
         ServerPlayer caster = casterHolding(helper);
         GooServerState state = GooServerState.of(helper.getLevel().getServer());
         int start = metalHeld(caster);

@@ -14,7 +14,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
@@ -77,8 +77,8 @@ public final class GrudgeTests {
      * @param helper the gametest helper
      */
     public static void grudgeSparesTheCastersOwnMinions(GameTestHelper helper) {
-        Mob stranger = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, NEAR_POS);
-        Mob minion = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, MINION_POS);
+        Mob stranger = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, NEAR_POS);
+        Mob minion = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, MINION_POS);
         ServerPlayer caster = caster(helper);
         caster.setHealth(WOUNDED_HEALTH);
         minion.setData(GooAttachments.CHARMED, new Charmed(caster.getUUID()));
@@ -101,8 +101,8 @@ public final class GrudgeTests {
      * @param helper the gametest helper
      */
     public static void grudgeRingsOutTheCastersMissingHealth(GameTestHelper helper) {
-        Mob near = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, NEAR_POS);
-        Mob far = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, FAR_POS);
+        Mob near = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, NEAR_POS);
+        Mob far = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, FAR_POS);
         ServerPlayer caster = caster(helper);
         caster.setHealth(WOUNDED_HEALTH);
         helper.runAfterDelay(SETTLE_TICKS, () -> {

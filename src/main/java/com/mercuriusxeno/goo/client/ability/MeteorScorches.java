@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.network.MeteorScorchPayload;
@@ -8,7 +9,6 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.ARGB;
@@ -174,8 +174,8 @@ public final class MeteorScorches {
     }
 
     private static void drawScorches(Minecraft mc, PoseStack.Pose pose, List<Scorch> standing, long now) {
-        Vec3 camera = mc.gameRenderer.getMainCamera().position();
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        Vec3 camera = mc.gameRenderer.mainCamera().position();
+        ImmediateBuffers buffers = ImmediateBuffers.shared();
         VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.METEOR_SCORCH_TYPE);
         for (Scorch scorch : standing) {
             drawScorch(pose, consumer, camera, scorch, now - scorch.struckAt());

@@ -36,7 +36,7 @@ public final class GloveHand {
      */
     public static Vec3 of(Minecraft mc, Entity caster, float partialTick) {
         if (caster == mc.player && mc.options.getCameraType().isFirstPerson()) {
-            return GloveAim.handPosition(mc.gameRenderer.getMainCamera());
+            return GloveAim.handPosition(mc.gameRenderer.mainCamera());
         }
         Vec3 look = caster.getViewVector(partialTick);
         Vec3 side = look.cross(new Vec3(0, 1, 0)).normalize();

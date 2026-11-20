@@ -15,9 +15,10 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.monster.Slime;
+import net.minecraft.world.entity.monster.cubemob.Slime;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
@@ -112,7 +113,7 @@ public final class StitchTests {
         }
         helper.setBlock(SLIME_CELL, GooBlocks.YARN_STITCH.get().defaultBlockState()
                 .setValue(VolumeCellBlock.LAYERS, VolumeCellBlock.MAX_LAYERS));
-        Slime slime = helper.spawnWithNoFreeWill(EntityType.SLIME, Vec3.atBottomCenterOf(SLIME_CELL.above()));
+        Slime slime = helper.spawnWithNoFreeWill(EntityTypes.SLIME, Vec3.atBottomCenterOf(SLIME_CELL.above()));
         slime.setSize(1, true);
         Map<Identifier, Integer> table = helper.getLevel().registryAccess().lookupOrThrow(StitchMob.REGISTRY)
                 .stream().collect(Collectors.toMap(StitchMob::entity, StitchMob::layers));
@@ -156,10 +157,10 @@ public final class StitchTests {
         Block cell = laid.getBlock();
         layStitch(helper, cell, COWS_FROM, COWS_TO);
         layStitch(helper, cell, ZOMBIES_FROM, ZOMBIES_TO);
-        Mob cowOnStitch = walker(helper, EntityType.COW, STITCH_LANE, COWS_FROM, COWS_TO);
-        Mob cowOnStone = walker(helper, EntityType.COW, STONE_LANE, COWS_FROM, COWS_TO);
-        Mob zombieOnStitch = helmeted(walker(helper, EntityType.ZOMBIE, STITCH_LANE, ZOMBIES_FROM, ZOMBIES_TO));
-        Mob zombieOnStone = helmeted(walker(helper, EntityType.ZOMBIE, STONE_LANE, ZOMBIES_FROM, ZOMBIES_TO));
+        Mob cowOnStitch = walker(helper, EntityTypes.COW, STITCH_LANE, COWS_FROM, COWS_TO);
+        Mob cowOnStone = walker(helper, EntityTypes.COW, STONE_LANE, COWS_FROM, COWS_TO);
+        Mob zombieOnStitch = helmeted(walker(helper, EntityTypes.ZOMBIE, STITCH_LANE, ZOMBIES_FROM, ZOMBIES_TO));
+        Mob zombieOnStone = helmeted(walker(helper, EntityTypes.ZOMBIE, STONE_LANE, ZOMBIES_FROM, ZOMBIES_TO));
         double cowsStart = startX(helper, COWS_FROM);
         double zombiesStart = startX(helper, ZOMBIES_FROM);
         helper.runAfterDelay(WALK_TICKS, () -> {

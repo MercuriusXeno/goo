@@ -108,8 +108,8 @@ public record WarrenTunnels(DensityFunction.NoiseHolder first, DensityFunction.N
     }
 
     @Override
-    public DensityFunction mapAll(DensityFunction.Visitor visitor) {
-        return visitor.apply(new WarrenTunnels(visitor.visitNoise(first), visitor.visitNoise(second)));
+    public DensityFunction mapChildren(DensityFunction.Visitor visitor) {
+        return new WarrenTunnels(visitor.visitNoise(first), visitor.visitNoise(second));
     }
 
     @Override

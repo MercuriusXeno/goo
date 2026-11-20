@@ -54,7 +54,7 @@ public final class PlexerHudRenderer {
         if (rows.isEmpty()) {
             return;
         }
-        Camera camera = Minecraft.getInstance().gameRenderer.getMainCamera();
+        Camera camera = Minecraft.getInstance().gameRenderer.mainCamera();
         PanelPlacement placement = placementOf(pos, plexer.getBlockState().getValue(PlexerBlock.FACING), rows);
         draws.accept(new SortedDraw(placement.anchor().distanceToSqr(camera.position()),
                 () -> PanelPainter.paint(frame.poseStack(), camera, placement, rows, PlexerPanelTarget.MOUTH_HEIGHT)));

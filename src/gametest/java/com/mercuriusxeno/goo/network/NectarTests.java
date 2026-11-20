@@ -16,7 +16,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -225,7 +225,7 @@ public final class NectarTests {
      */
     public static void courtsAnAdultCowForALayer(GameTestHelper helper) {
         layPennedGoo(helper);
-        Cow cow = helper.spawn(EntityType.COW, GOO_CELL.above().east());
+        Cow cow = helper.spawn(EntityTypes.COW, GOO_CELL.above().east());
         helper.succeedWhen(() -> {
             BlockState cell = helper.getBlockState(GOO_CELL);
             helper.assertTrue(cow.isInLove() && cell.is(GooBlocks.JELLY_NECTAR.get())
@@ -242,8 +242,8 @@ public final class NectarTests {
      */
     public static void setsTwoZombiesFighting(GameTestHelper helper) {
         layPennedGoo(helper);
-        Mob first = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, GOO_CELL.above().east());
-        Mob second = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, GOO_CELL.above().west());
+        Mob first = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, GOO_CELL.above().east());
+        Mob second = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, GOO_CELL.above().west());
         helper.succeedWhen(() -> helper.assertTrue(first.getTarget() == second && second.getTarget() == first,
                 String.format(ZOMBIES_NOT_FIGHTING, first.getTarget(), second.getTarget())));
     }
@@ -256,7 +256,7 @@ public final class NectarTests {
      */
     public static void dripFeedsAStruckCalf(GameTestHelper helper) {
         helper.setBlock(CALF_FLOOR, Blocks.STONE);
-        Cow calf = helper.spawnWithNoFreeWill(EntityType.COW, CALF_FLOOR.above());
+        Cow calf = helper.spawnWithNoFreeWill(EntityTypes.COW, CALF_FLOOR.above());
         calf.setBaby(true);
         AbilityDefinition nectar = AbilityRegistry.of(helper.getLevel()).getAbility(NECTAR);
         helper.assertTrue(nectar != null, ABILITY_REQUIRED);
@@ -292,7 +292,7 @@ public final class NectarTests {
         BlockState cell = helper.getBlockState(coated);
         helper.assertTrue(cell.is(GooBlocks.JELLY_NECTAR.get())
                 && cell.getValue(VolumeCellBlock.WEST) == SideCoat.ATTACHED, String.format(WALL_NOT_COATED, cell));
-        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, Vec3.atBottomCenterOf(coated).add(0, 0.2, 0));
+        Mob zombie = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, Vec3.atBottomCenterOf(coated).add(0, 0.2, 0));
         double hungAt = zombie.getY();
         helper.runAfterDelay(HANG_TICKS, () -> {
             double dropped = hungAt - zombie.getY();
@@ -320,7 +320,7 @@ public final class NectarTests {
         KnownRecipes.teachRequires(caster, nectar);
         LandedDrips.landOnSide(helper, caster, nectar, WALL, Direction.EAST, ONE_DRIP);
         helper.getLevel().getServer().getPlayerList().remove(caster);
-        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, Vec3.atBottomCenterOf(coated).add(0, 0.2, 0));
+        Mob zombie = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, Vec3.atBottomCenterOf(coated).add(0, 0.2, 0));
         helper.runAfterDelay(STUCK_TICKS, () -> {
             helper.assertTrue(stuck(zombie), NEVER_STUCK);
             Vec3 out = helper.absoluteVec(Vec3.atBottomCenterOf(coated.east()).add(0, 0.2, 0));
@@ -356,7 +356,7 @@ public final class NectarTests {
         }
         helper.getLevel().getServer().getPlayerList().remove(caster);
         BlockPos top = TALL_WALL_FOOT.above(TALL_WALL_HEIGHT - 1).east();
-        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, Vec3.atBottomCenterOf(top).add(0, 0.2, 0));
+        Mob zombie = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, Vec3.atBottomCenterOf(top).add(0, 0.2, 0));
         helper.runAfterDelay(STUCK_TICKS, () -> {
             helper.assertTrue(stuck(zombie), NEVER_STUCK);
             zombie.setShiftKeyDown(true);
@@ -394,7 +394,7 @@ public final class NectarTests {
         helper.getLevel().getServer().getPlayerList().remove(caster);
         BlockPos top = TALL_WALL_FOOT.above(TALL_WALL_HEIGHT - 1).east();
         Vec3 pressed = new Vec3(top.getX() + PRESSED_TO_A_THIN_COAT, top.getY() + 0.2, top.getZ() + 0.5);
-        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, pressed);
+        Mob zombie = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, pressed);
         helper.runAfterDelay(STUCK_TICKS, () -> {
             helper.assertTrue(stuck(zombie), NEVER_STUCK);
             zombie.setShiftKeyDown(true);
@@ -432,7 +432,7 @@ public final class NectarTests {
         helper.setBlock(PILLAR_FOOT.east(), Blocks.AIR);
         BlockPos beside = PILLAR_FOOT.above(2).east();
         Vec3 pressed = new Vec3(beside.getX() + PRESSED_TO_THE_PILLAR, beside.getY() + 0.2, beside.getZ() + 0.5);
-        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, pressed);
+        Mob zombie = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, pressed);
         double hungAt = zombie.getY();
         helper.runAfterDelay(HANG_TICKS, () -> {
             double dropped = hungAt - zombie.getY();
@@ -467,7 +467,7 @@ public final class NectarTests {
         double top = helper.absolutePos(PILLAR_FOOT.above(2)).getY() + (double) THIN_CAP / VolumeCellBlock.MAX_LAYERS;
         BlockPos beside = PILLAR_FOOT.above().east();
         Vec3 pressed = new Vec3(beside.getX() + PRESSED_TO_THE_PILLAR, beside.getY() + 0.2, beside.getZ() + 0.5);
-        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, pressed);
+        Mob zombie = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, pressed);
         helper.runAfterDelay(STUCK_TICKS, () -> {
             helper.assertTrue(stuck(zombie), NEVER_STUCK);
             zombie.teleportTo(zombie.getX(), top - SHORT_OF_THE_TOP, zombie.getZ());
@@ -642,7 +642,7 @@ public final class NectarTests {
      */
     public static void drawsAnAdultCowFromRange(GameTestHelper helper) {
         layRangePen(helper);
-        Cow cow = helper.spawn(EntityType.COW, FAR_CORNER);
+        Cow cow = helper.spawn(EntityTypes.COW, FAR_CORNER);
         assertStartsInRange(helper, cow);
         helper.succeedWhen(() -> {
             BlockState cell = helper.getBlockState(RANGE_CELL);
@@ -661,8 +661,8 @@ public final class NectarTests {
      */
     public static void drawsTwoZombiesFromRange(GameTestHelper helper) {
         layRangePen(helper);
-        Mob first = helper.spawn(EntityType.ZOMBIE, EAST_CORNER);
-        Mob second = helper.spawn(EntityType.ZOMBIE, SOUTH_CORNER);
+        Mob first = helper.spawn(EntityTypes.ZOMBIE, EAST_CORNER);
+        Mob second = helper.spawn(EntityTypes.ZOMBIE, SOUTH_CORNER);
         assertStartsInRange(helper, first);
         assertStartsInRange(helper, second);
         helper.succeedWhen(() -> helper.assertTrue(first.getTarget() == second && second.getTarget() == first,

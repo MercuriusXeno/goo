@@ -10,7 +10,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.animal.cow.Cow;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
@@ -68,7 +68,7 @@ public final class HerdTests {
         player.setPos(stand.x, stand.y, stand.z);
         Herd herd = player.getData(GooAttachments.HERD);
         helper.assertTrue(herd.stands(), HERD_NOT_HELD);
-        Cow cow = helper.spawn(EntityType.COW, COW_POS);
+        Cow cow = helper.spawn(EntityTypes.COW, COW_POS);
         double started = cow.distanceTo(player);
         SelfDeliveryTests.tickFor(helper, player, HELD_BY - 1);
         helper.runAfterDelay(CLOSED_BY, () -> assertStandsShort(helper, player, cow, started, CLOSED_BY));

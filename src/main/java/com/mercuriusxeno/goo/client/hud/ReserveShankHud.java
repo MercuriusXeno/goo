@@ -55,7 +55,7 @@ public final class ReserveShankHud {
             Minecraft mc = Minecraft.getInstance();
             LocalPlayer player = mc.player;
             if (player != null && mc.gameMode != null && mc.gameMode.canHurtPlayer() && player.getVehicle() == null) {
-                paintShanks(graphics, player.getData(GooAttachments.RESERVE), mc.gui.rightHeight);
+                paintShanks(graphics, player.getData(GooAttachments.RESERVE), mc.gui.hud.rightHeight);
             }
             vanilla.render(graphics, deltaTracker);
         };

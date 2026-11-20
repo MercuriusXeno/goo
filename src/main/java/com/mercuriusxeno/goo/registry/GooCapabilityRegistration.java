@@ -17,6 +17,7 @@ import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mercuriusxeno.goo.registry.GooCapabilities;
 import com.mercuriusxeno.goo.registry.GooItems;
 import net.minecraft.core.Direction;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.capabilities.Capabilities;
@@ -73,7 +74,7 @@ final class GooCapabilityRegistration {
                 (be, slot) -> slotLedger(be, HubBlockEntity.MAX_CANISTERS, slot));
         event.registerBlockEntity(GooCapabilities.REMAINDER_BLOCK, GooBlockEntities.REACTOR.get(),
                 (be, slot) -> slotLedger(be, be.containerState().maxSlots(), slot));
-        event.registerEntity(GooCapabilities.REMAINDER_ENTITY, net.minecraft.world.entity.EntityType.PLAYER,
+        event.registerEntity(GooCapabilities.REMAINDER_ENTITY, EntityTypes.PLAYER,
                 (player, ignored) -> PlayerRemainderLedger.of(player));
         event.registerItem(GooCapabilities.REMAINDER_ITEM,
                 (stack, access) -> CanisterRemainderLedger.of(access), GooItems.CANISTER.get());
@@ -275,7 +276,7 @@ final class GooCapabilityRegistration {
      */
     static void registerGasketEntityCapabilities(RegisterCapabilitiesEvent event) {
         event.registerEntity(GooCapabilities.GASKET_ENTITY,
-                net.minecraft.world.entity.EntityType.PLAYER,
+                EntityTypes.PLAYER,
                 GooCapabilityRegistration::findPlayerCanisterForGasket);
     }
 

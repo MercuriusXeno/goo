@@ -15,7 +15,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.level.block.Blocks;
@@ -115,7 +115,7 @@ public final class NitroTests {
             helper.setBlock(cell, GooBlocks.UNSTABLE_NITRO.get().defaultBlockState()
                     .setValue(VolumeCellBlock.LAYERS, VolumeCellBlock.MAX_LAYERS));
         }
-        Mob cow = helper.spawnWithNoFreeWill(EntityType.COW, Vec3.atBottomCenterOf(FIRST_CELL));
+        Mob cow = helper.spawnWithNoFreeWill(EntityTypes.COW, Vec3.atBottomCenterOf(FIRST_CELL));
         float start = cow.getHealth();
         helper.succeedWhen(() -> {
             helper.assertTrue(helper.getBlockState(FIRST_CELL).isAir(),

@@ -2036,15 +2036,20 @@ public class VolumeCellBlock extends Block {
     }
 
     /**
-     * Bounces what lands on a bouncing cell, ramping while jump is held.
+     * Bounces what lands on a bouncing cell, ramping while jump is held. Minecraft 26.2 bounces a landing by
+     * restitution alone, so EntitySlimeCoatBounceMixin hands the cell the motion its lander fell with once the
+     * game's own restitution has stilled it.
      * bounce-ramps-jump-height-while-jump-is-held
+     * decision minecraft-26-3-update-is-a-port-to-parity
+     *
+     * @param entity        the lander
+     * @param landingMotion the motion it fell onto the cell with
      */
-    @Override
-    public void updateEntityMovementAfterFallOn(@NonNull BlockGetter level, @NonNull Entity entity) {
-        if (surface().bounces() && entity.getDeltaMovement().y < 0) {
+    public void bounceLanding(Entity entity, Vec3 landingMotion) {
+        if (surface().bounces() && landingMotion.y < 0) {
+            Vec3 stilled = entity.getDeltaMovement();
+            entity.setDeltaMovement(stilled.x, landingMotion.y, stilled.z);
             SlimeCoatBounce.bounce(entity);
-        } else {
-            super.updateEntityMovementAfterFallOn(level, entity);
         }
     }
 

@@ -8,8 +8,8 @@ import com.mercuriusxeno.goo.client.fade.Afterglow;
 import com.mercuriusxeno.goo.client.fade.Afterglows;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.Hud;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.resources.Identifier;
@@ -127,17 +127,17 @@ public final class HeartOverlayHud {
     private static GuiLayer overHealth(GuiLayer vanilla) {
         return (graphics, deltaTracker) -> {
             Minecraft mc = Minecraft.getInstance();
-            int leftHeightBefore = mc.gui.leftHeight;
+            int leftHeightBefore = mc.gui.hud.leftHeight;
             LocalPlayer player = hurtablePlayer(mc);
             if (player != null) {
                 // reserve-hearts-sit-behind-the-bar: the reserve row goes down first, so vanilla's hearts cover it
-                paintReserve(graphics, mc.gui, player, player.getData(GooAttachments.RESERVE), leftHeightBefore);
+                paintReserve(graphics, mc.gui.hud, player, player.getData(GooAttachments.RESERVE), leftHeightBefore);
             }
             vanilla.render(graphics, deltaTracker);
             if (player != null) {
                 float partialTick = deltaTracker.getGameTimeDeltaPartialTick(false);
-                paintOver(graphics, mc.gui, player, leftHeightBefore, partialTick);
-                paintTravels(graphics, mc.gui, player, leftHeightBefore, partialTick);
+                paintOver(graphics, mc.gui.hud, player, leftHeightBefore, partialTick);
+                paintTravels(graphics, mc.gui.hud, player, leftHeightBefore, partialTick);
             }
         };
     }
@@ -154,7 +154,7 @@ public final class HeartOverlayHud {
      * @param leftHeightBefore the gui's left stack height before vanilla drew health
      * @param partialTick      the fraction of the tick elapsed
      */
-    private static void paintTravels(GuiGraphicsExtractor graphics, Gui gui, LocalPlayer player, int leftHeightBefore,
+    private static void paintTravels(GuiGraphicsExtractor graphics, Hud gui, LocalPlayer player, int leftHeightBefore,
                                      float partialTick) {
         Reserve reserve = player.getData(GooAttachments.RESERVE);
         float now = gui.getGuiTicks() + partialTick;
@@ -191,7 +191,7 @@ public final class HeartOverlayHud {
         return player != null && mc.gameMode != null && mc.gameMode.canHurtPlayer() ? player : null;
     }
 
-    private static void paintOver(GuiGraphicsExtractor graphics, Gui gui, LocalPlayer player, int leftHeightBefore,
+    private static void paintOver(GuiGraphicsExtractor graphics, Hud gui, LocalPlayer player, int leftHeightBefore,
                                   float partialTick) {
         HeartOverlay live = player.getData(GooAttachments.HEART_OVERLAY);
         List<BarkBurns.Burn> burns = BURNS.update(live, player.isOnFire(), gui.getGuiTicks() + partialTick);
@@ -407,7 +407,7 @@ public final class HeartOverlayHud {
         return slotY - RESERVE_RISE;
     }
 
-    private static void paintReserve(GuiGraphicsExtractor graphics, Gui gui, LocalPlayer player, Reserve reserve,
+    private static void paintReserve(GuiGraphicsExtractor graphics, Hud gui, LocalPlayer player, Reserve reserve,
                                      int leftHeightBefore) {
         if (reserve.heartHalves() == 0) {
             return;
@@ -441,7 +441,7 @@ public final class HeartOverlayHud {
     private record BarFrame(int leftHeightBefore, float partialTick, List<BarkBurns.Burn> burns) {
     }
 
-    private static void paint(GuiGraphicsExtractor graphics, Gui gui, LocalPlayer player, PaintedOverlay painted,
+    private static void paint(GuiGraphicsExtractor graphics, Hud gui, LocalPlayer player, PaintedOverlay painted,
                               BarFrame frame) {
         int health = Mth.ceil(player.getHealth());
         HeartOverlay overlay = painted.overlay();
@@ -535,7 +535,7 @@ public final class HeartOverlayHud {
         }
     }
 
-    private static BarLayout layout(GuiGraphicsExtractor graphics, Gui gui, LocalPlayer player, int leftHeightBefore) {
+    private static BarLayout layout(GuiGraphicsExtractor graphics, Hud gui, LocalPlayer player, int leftHeightBefore) {
         int health = Mth.ceil(player.getHealth());
         float maxHealth = Math.max((float) player.getAttributeValue(Attributes.MAX_HEALTH), health);
         int absorption = Mth.ceil(player.getAbsorptionAmount());

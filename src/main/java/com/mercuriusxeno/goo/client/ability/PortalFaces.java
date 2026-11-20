@@ -5,12 +5,12 @@ import com.mercuriusxeno.goo.ability.quantum.GatePassage;
 import com.mercuriusxeno.goo.ability.quantum.Portal;
 import com.mercuriusxeno.goo.ability.quantum.PortalColor;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
@@ -178,13 +178,13 @@ public final class PortalFaces {
         if (mc.player == null || mc.level == null) {
             return;
         }
-        Vec3 camera = PortalView.drawing() ? PortalView.cameraPosition() : mc.gameRenderer.getMainCamera().position();
+        Vec3 camera = PortalView.drawing() ? PortalView.cameraPosition() : mc.gameRenderer.mainCamera().position();
         List<Drawn> gates = gatesIn(mc.level.dimension());
         draws.accept(SortedDraw.nearestOf(gates.stream().map(drawn -> drawn.ovalBox().getCenter()), camera,
-                () -> drawGates(frame.poseStack().last(), mc.renderBuffers().bufferSource(), camera, gates)));
+                () -> drawGates(frame.poseStack().last(), ImmediateBuffers.shared(), camera, gates)));
     }
 
-    private static void drawGates(PoseStack.Pose pose, MultiBufferSource.BufferSource buffers, Vec3 camera,
+    private static void drawGates(PoseStack.Pose pose, ImmediateBuffers buffers, Vec3 camera,
             List<Drawn> gates) {
         drawHalos(pose, buffers, camera, gates);
         drawViews(pose, buffers, camera, gates);
@@ -226,7 +226,7 @@ public final class PortalFaces {
      * @param camera  the camera's position
      * @param gates   the gates the frame draws
      */
-    private static void drawViews(PoseStack.Pose pose, MultiBufferSource.BufferSource buffers, Vec3 camera,
+    private static void drawViews(PoseStack.Pose pose, ImmediateBuffers buffers, Vec3 camera,
             List<Drawn> gates) {
         for (Drawn drawn : gates) {
             PortalView.viewOf(drawn.gate()).ifPresent(view -> {
@@ -277,7 +277,7 @@ public final class PortalFaces {
      * @param camera  the camera's position
      * @param gates   the gates the frame draws
      */
-    private static void drawIdle(PoseStack.Pose pose, MultiBufferSource.BufferSource buffers, Vec3 camera,
+    private static void drawIdle(PoseStack.Pose pose, ImmediateBuffers buffers, Vec3 camera,
             List<Drawn> gates) {
         VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.GOO_PORTAL_IDLE_TYPE);
         for (Drawn drawn : gates) {
@@ -340,7 +340,7 @@ public final class PortalFaces {
      * @param camera  the camera's position
      * @param gates   the gates the frame draws
      */
-    private static void drawHalos(PoseStack.Pose pose, MultiBufferSource.BufferSource buffers, Vec3 camera,
+    private static void drawHalos(PoseStack.Pose pose, ImmediateBuffers buffers, Vec3 camera,
             List<Drawn> gates) {
         Optional<GatePassage.Pair> viewing = PortalView.viewing();
         List<Drawn> worn = wornIn(gates, viewing.map(GatePassage.Pair::other));

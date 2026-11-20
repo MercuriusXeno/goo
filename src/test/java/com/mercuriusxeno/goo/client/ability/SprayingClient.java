@@ -4,8 +4,8 @@ import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooItem;
 import com.mercuriusxeno.goo.item.GooStacks;
-import com.mercuriusxeno.goo.type.GooTypes;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Camera;
 import net.minecraft.client.CameraType;
@@ -111,7 +111,7 @@ public final class SprayingClient implements AutoCloseable {
         when(frames.getGameTimeDeltaPartialTick(anyBoolean())).thenReturn(0f);
         when(minecraft.getDeltaTracker()).thenReturn(frames);
         renderer = mock(GameRenderer.class);
-        when(renderer.getMainCamera()).thenReturn(camera);
+        when(renderer.mainCamera()).thenReturn(camera);
         setRenderState(renderer);
         Options options = mock(Options.class);
         when(options.getCameraType()).thenReturn(CameraType.FIRST_PERSON);

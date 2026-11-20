@@ -178,7 +178,7 @@ public abstract class DripParticle extends SingleQuadParticle {
     static double roomBelow(ClientLevel level, double x, double y, double z, double reach) {
         double half = DRIP_SIZE * HALF;
         AABB box = new AABB(x - half, y, z - half, x + half, y + DRIP_SIZE, z + half);
-        return -Entity.collideBoundingBox(null, new Vec3(0.0, -reach, 0.0), box, level, List.of()).y;
+        return -Entity.collideBoundingBox((Entity) null, new Vec3(0.0, -reach, 0.0), box, level, List.of()).y;
     }
 
     /**

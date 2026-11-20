@@ -31,7 +31,7 @@ public final class ShroomVision {
     static final double VISION_REACH = 64;
     static final int RESCAN_TICKS = 20;
     private static final int MOST_SEEN = 512;
-    private static final int SECTION_SIZE = LevelChunkSection.SECTION_WIDTH;
+    private static final int SECTION_SIZE = SectionPos.SECTION_SIZE;
     /** Marks that no scan has run. */
     static final long UNSCANNED = Long.MIN_VALUE;
 

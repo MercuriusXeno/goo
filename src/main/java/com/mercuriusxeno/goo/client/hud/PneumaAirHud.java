@@ -8,7 +8,6 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.resources.Identifier;
-import net.minecraft.tags.FluidTags;
 import net.minecraft.util.Mth;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -16,6 +15,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
 import net.neoforged.neoforge.client.gui.GuiLayer;
 import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
+import net.neoforged.neoforge.common.NeoForgeMod;
 import java.util.Optional;
 
 /**
@@ -64,7 +64,7 @@ public final class PneumaAirHud {
         return (graphics, deltaTracker) -> {
             Minecraft mc = Minecraft.getInstance();
             LocalPlayer player = mc.player;
-            int rightHeightBefore = mc.gui.rightHeight;
+            int rightHeightBefore = mc.gui.hud.rightHeight;
             boolean drawn = false;
             if (player != null && mc.gameMode != null && mc.gameMode.canHurtPlayer() && player.getVehicle() == null) {
                 Breath breath = player.getData(GooAttachments.BREATH);
@@ -74,8 +74,8 @@ public final class PneumaAirHud {
                 }
             }
             vanilla.render(graphics, deltaTracker);
-            if (drawn && mc.gui.rightHeight == rightHeightBefore) {
-                mc.gui.rightHeight += ROW_HEIGHT;
+            if (drawn && mc.gui.hud.rightHeight == rightHeightBefore) {
+                mc.gui.hud.rightHeight += ROW_HEIGHT;
             }
         };
     }
@@ -89,7 +89,7 @@ public final class PneumaAirHud {
      * @return true when the row draws
      */
     private static boolean showsReserve(Breath breath, LocalPlayer player) {
-        boolean airShows = player.isEyeInFluid(FluidTags.WATER) || player.getAirSupply() < player.getMaxAirSupply();
+        boolean airShows = player.isEyeInFluid(NeoForgeMod.WATER_TYPE.value()) || player.getAirSupply() < player.getMaxAirSupply();
         return breath.reserveCap() > 0 && (breath.reserve() > 0 || airShows);
     }
 

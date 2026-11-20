@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.ability.crystal.StackHover;
 import com.mercuriusxeno.goo.ability.crystal.ThrownKnife;
 import com.mercuriusxeno.goo.ability.program.SoundCue;
 import com.mercuriusxeno.goo.client.GooSubmitter;
+import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.throwing.GooFlightRenderer;
@@ -18,7 +19,6 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.player.Player;
@@ -228,7 +228,7 @@ public final class HeldJavelins {
         double now = level.getGameTime() + partial;
         RETURNS.values().removeIf(release -> release.doneAt(now));
         Map<Player, List<HoveringKnives.Piece>> drawn = drawnIn(level, now, partial);
-        Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        Vec3 camera = mc.gameRenderer.mainCamera().position();
         draws.accept(SortedDraw.nearestOf(drawn.values().stream().flatMap(List::stream)
                 .map(HoveringKnives.Piece::at), camera, () -> drawStacks(mc, frame, drawn, partial, camera)));
     }
@@ -253,7 +253,7 @@ public final class HeldJavelins {
 
     private static void drawStacks(Minecraft mc, LevelFrame frame, Map<Player, List<HoveringKnives.Piece>> drawn,
                                    float partial, Vec3 camera) {
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        ImmediateBuffers buffers = ImmediateBuffers.shared();
         drawn.forEach((caster, pieces) -> {
             ResourceKey<GooTypeDefinition> type = gooTypeOf(caster);
             layStack(frame.poseStack(), caster, pieces, partial, camera,

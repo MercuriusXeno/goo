@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client;
 
+import com.mojang.blaze3d.GpuFormat;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.pipeline.TextureTarget;
 import org.jspecify.annotations.Nullable;
@@ -48,7 +49,8 @@ public final class DepthCopyTarget {
             if (held != null) {
                 held.destroyBuffers();
             }
-            held = new TextureTarget(label, build.width(), build.height(), true, build.stencil());
+            held = new TextureTarget(label, build.width(), build.height(), true, build.stencil(),
+                    GpuFormat.RGBA8_UNORM);
             targets[format] = held;
         }
         last = held;

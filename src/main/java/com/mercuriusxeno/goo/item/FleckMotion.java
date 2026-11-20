@@ -3,9 +3,9 @@ package com.mercuriusxeno.goo.item;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.tags.FluidTags;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.common.NeoForgeMod;
 import java.util.Optional;
 
 /**
@@ -157,7 +157,8 @@ public final class FleckMotion {
      * @return how deep water or lava stands over its feet, in blocks, 0 out of both
      */
     private static double submergedDepth(ItemEntity self) {
-        return Math.max(self.getFluidHeight(FluidTags.WATER), self.getFluidHeight(FluidTags.LAVA));
+        return Math.max(self.getFluidHeight(NeoForgeMod.WATER_TYPE.value()),
+                self.getFluidHeight(NeoForgeMod.LAVA_TYPE.value()));
     }
 
     private static Optional<GooTypeDefinition> typeOf(ItemEntity self) {

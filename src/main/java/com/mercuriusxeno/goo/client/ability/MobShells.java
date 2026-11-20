@@ -8,6 +8,7 @@ import net.minecraft.client.model.monster.slime.SlimeModel;
 import net.minecraft.client.renderer.entity.state.LivingEntityRenderState;
 import net.minecraft.client.renderer.entity.state.SheepRenderState;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -47,12 +48,12 @@ public final class MobShells {
      * @return its shell, or NONE
      */
     public static Shell of(EntityType<?> type, EntityModelSet models) {
-        if (type == EntityType.SHEEP) {
+        if (type == EntityTypes.SHEEP) {
             SheepFurModel adultWool = new SheepFurModel(models.bakeLayer(ModelLayers.SHEEP_WOOL));
             SheepFurModel babyWool = new SheepFurModel(models.bakeLayer(ModelLayers.SHEEP_BABY_WOOL));
             return state -> woolShown(state, adultWool, babyWool);
         }
-        if (type == EntityType.SLIME) {
+        if (type == EntityTypes.SLIME) {
             SlimeModel outerGel = new SlimeModel(models.bakeLayer(ModelLayers.SLIME_OUTER));
             return state -> outerGel;
         }

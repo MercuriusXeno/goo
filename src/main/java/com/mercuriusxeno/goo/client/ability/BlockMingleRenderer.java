@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -8,7 +9,6 @@ import com.mojang.blaze3d.vertex.QuadInstance;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.block.ModelBlockRenderer;
 import net.minecraft.client.renderer.block.dispatch.BlockStateModel;
 import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
@@ -77,7 +77,7 @@ public final class BlockMingleRenderer {
         List<Mingle> mingles = minglesThisFrame();
         if (!mingles.isEmpty()) {
             draws.accept(SortedDraw.nearestOf(mingles.stream().map(mingle -> Vec3.atCenterOf(mingle.pos())),
-                    Minecraft.getInstance().gameRenderer.getMainCamera().position(),
+                    Minecraft.getInstance().gameRenderer.mainCamera().position(),
                     () -> drawPass(frame.poseStack(), mingles, GooRenderTypes.blockMingleTranslucent(blockAtlas()),
                             true)));
         }
@@ -146,9 +146,9 @@ public final class BlockMingleRenderer {
     private static void drawPass(PoseStack poseStack, List<Mingle> mingles, RenderType renderType,
                                  boolean translucent) {
         Minecraft mc = Minecraft.getInstance();
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        ImmediateBuffers buffers = ImmediateBuffers.shared();
         VertexConsumer consumer = buffers.getBuffer(renderType);
-        Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        Vec3 camera = mc.gameRenderer.mainCamera().position();
         ModelBlockRenderer tesselator = worldTesselator(mc);
         for (Mingle mingle : mingles) {
             drawMingle(poseStack, consumer, camera, tesselator, mingle, translucent);

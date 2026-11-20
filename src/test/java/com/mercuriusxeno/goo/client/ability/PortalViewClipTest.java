@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.ability.quantum.Gate;
+import com.mojang.blaze3d.systems.DeviceInfo;
 import com.mojang.blaze3d.systems.GpuDevice;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.core.Direction;
@@ -17,6 +18,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.MockedStatic;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
@@ -62,8 +64,8 @@ class PortalViewClipTest {
         Matrix4f projection = clipped(zeroToOne, 0);
 
         float depth = depthOf(projection, BACK_BEHIND_THE_FACE);
-        assertTrue(depth < (zeroToOne ? 0F : -1F), "What stands behind the face should be cut away, its depth reads "
-                + depth);
+        assertFalse(depth >= (zeroToOne ? 0F : -1F) && depth <= 1F, "What stands behind the face should be cut away, "
+                + "its depth reads " + depth);
     }
 
     @Test
@@ -78,10 +80,13 @@ class PortalViewClipTest {
         assertEquals(0, PortalView.bodyBehindTheFace(PARTNER, STRADDLING.move(3, 0, 0)), 1.0E-9);
     }
 
+    // The game's own projection, which inverts depth by building its perspective with the near and far swapped.
     private static Matrix4f clipped(boolean zeroToOne, double reach) {
-        Matrix4f projection = new Matrix4f().perspective(FOV, 1F, NEAR, FAR, zeroToOne);
+        Matrix4f projection = new Matrix4f().perspective(FOV, 1F, FAR, NEAR, zeroToOne);
         GpuDevice device = mock(GpuDevice.class);
-        when(device.isZZeroToOne()).thenReturn(zeroToOne);
+        DeviceInfo info = mock(DeviceInfo.class);
+        when(info.isZZeroToOne()).thenReturn(zeroToOne);
+        when(device.getDeviceInfo()).thenReturn(info);
         try (MockedStatic<RenderSystem> render = mockStatic(RenderSystem.class)) {
             render.when(RenderSystem::getDevice).thenReturn(device);
             PortalView.clipAt(projection, new Matrix4f(), Vec3.ZERO, PARTNER, reach);

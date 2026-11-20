@@ -1,11 +1,11 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mojang.blaze3d.PrimitiveTopology;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.block.BlockAndTintGetter;
@@ -111,7 +111,7 @@ public final class SectionMeshes {
         return builders.computeIfAbsent(layer, key -> {
             ByteBufferBuilder bytes = new ByteBufferBuilder(BUFFER_START);
             memory.put(key, bytes);
-            return new BufferBuilder(bytes, VertexFormat.Mode.QUADS, pipelineOf(key).getVertexFormat());
+            return new BufferBuilder(bytes, PrimitiveTopology.QUADS, pipelineOf(key).getVertexFormatBinding(0));
         });
     }
 

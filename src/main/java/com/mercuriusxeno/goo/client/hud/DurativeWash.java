@@ -251,7 +251,7 @@ public final class DurativeWash {
      * @return true where the view takes the wash
      */
     private static boolean drawsInView(Minecraft mc) {
-        return !mc.options.hideGui && mc.options.getCameraType().isFirstPerson();
+        return !mc.gui.hud.isHidden() && mc.options.getCameraType().isFirstPerson();
     }
 
     /**

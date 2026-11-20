@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.fluid.GooFluidType;
+import com.mercuriusxeno.goo.fluid.MoltenIronFluidType;
 import net.neoforged.neoforge.fluids.FluidType;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
@@ -49,7 +50,7 @@ public final class GooFluidTypes {
      * decision lunar-matter-is-anorthosite-basalt-regolith-and-an-iron-core
      */
     public static final DeferredHolder<FluidType, FluidType> MOLTEN_IRON =
-            FLUID_TYPES.register(GooFluids.MOLTEN_IRON_PATH, () -> new FluidType(FluidType.Properties.create()
+            FLUID_TYPES.register(GooFluids.MOLTEN_IRON_PATH, () -> new MoltenIronFluidType(FluidType.Properties.create()
                     .density(MOLTEN_IRON_DENSITY)
                     .viscosity(MOLTEN_IRON_VISCOSITY)
                     .temperature(MOLTEN_IRON_TEMPERATURE)

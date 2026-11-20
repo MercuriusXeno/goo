@@ -6,7 +6,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.animal.pig.Pig;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.projectile.throwableitemprojectile.Snowball;
@@ -72,7 +72,7 @@ public final class LunarGravityTests {
     public static void lunarSixthsEveryFallingThingsGravity(GameTestHelper helper) {
         ServerLevel overworld = helper.getLevel();
         ServerLevel lunar = lunarOf(helper);
-        assertSixthed(helper, "A pig", level -> EntityType.PIG.create(level, EntitySpawnReason.COMMAND), overworld,
+        assertSixthed(helper, "A pig", level -> EntityTypes.PIG.create(level, EntitySpawnReason.COMMAND), overworld,
                 lunar);
         assertSixthed(helper, "An item", level -> new ItemEntity(level, HIGH_OVER_LUNAR.x, HIGH_OVER_LUNAR.y,
                 HIGH_OVER_LUNAR.z, new ItemStack(Items.STONE)), overworld, lunar);
@@ -126,7 +126,7 @@ public final class LunarGravityTests {
     }
 
     private static Pig pigIn(ServerLevel level) {
-        Pig pig = EntityType.PIG.create(level, EntitySpawnReason.COMMAND);
+        Pig pig = EntityTypes.PIG.create(level, EntitySpawnReason.COMMAND);
         pig.setPos(HIGH_OVER_LUNAR);
         return pig;
     }

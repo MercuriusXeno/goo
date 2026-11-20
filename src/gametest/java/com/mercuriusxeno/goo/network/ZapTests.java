@@ -1,6 +1,4 @@
 package com.mercuriusxeno.goo.network;
-import net.minecraft.resources.Identifier;
-
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.program.HostKind;
@@ -8,13 +6,16 @@ import com.mercuriusxeno.goo.ability.program.LandingHost;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.block.reactor.ReactorBlock;
 import com.mercuriusxeno.goo.gametest.FedPlexer;
-import com.mercuriusxeno.goo.registry.GooBlocks;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import com.mercuriusxeno.goo.network.GooEffectScheduler.PendingEffect;
+import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.resources.Identifier;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.GameType;
@@ -27,8 +28,6 @@ import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
-import com.mercuriusxeno.goo.gametest.GooTestFunctions;
-import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for Zap: a strike on a lever flips it, one on dust powers it
@@ -274,7 +273,7 @@ public final class ZapTests {
      */
     public static void zapLightsACopperBulb(GameTestHelper helper) {
         helper.setBlock(FLOOR, Blocks.STONE);
-        helper.setBlock(ON_FLOOR, Blocks.COPPER_BULB);
+        helper.setBlock(ON_FLOOR, Blocks.COPPER_BULB.weathering().unaffected());
         landOn(helper, ON_FLOOR);
         helper.assertTrue(helper.getBlockState(ON_FLOOR).getValue(CopperBulbBlock.LIT), BULB_LIT);
         helper.succeed();
@@ -291,8 +290,8 @@ public final class ZapTests {
     private static Mob targetingZombie(GameTestHelper helper) {
         helper.setBlock(FLOOR, Blocks.STONE);
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
-        player.setPos(helper.absoluteVec(ON_FLOOR.east(2).getCenter()));
-        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, ON_FLOOR);
+        player.setPos(helper.absoluteVec(Vec3.atCenterOf(ON_FLOOR.east(2))));
+        Mob zombie = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, ON_FLOOR);
         zombie.setTarget(player);
         return zombie;
     }

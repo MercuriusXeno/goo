@@ -206,7 +206,7 @@ public final class ReserveVisual {
     }
 
     private static Vec3 gloveNow(Minecraft mc) {
-        return GloveAim.handPosition(mc.gameRenderer.getMainCamera());
+        return GloveAim.handPosition(mc.gameRenderer.mainCamera());
     }
 
     private static Vec3 spread(RandomSource random, double radius) {

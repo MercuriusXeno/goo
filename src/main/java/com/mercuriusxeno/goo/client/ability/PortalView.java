@@ -9,6 +9,7 @@ import com.mercuriusxeno.goo.ability.quantum.ViewSize;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.TranslucentVisualPath;
+import com.mojang.blaze3d.GpuFormat;
 import com.mojang.blaze3d.ProjectionType;
 import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.buffers.GpuBufferSlice;
@@ -24,8 +25,6 @@ import net.minecraft.client.renderer.CloudRenderer;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.ProjectionMatrixBuffer;
-import net.minecraft.client.renderer.chunk.CompiledSectionMesh;
-import net.minecraft.client.renderer.chunk.RenderRegionCache;
 import net.minecraft.client.renderer.chunk.SectionRenderDispatcher;
 import net.minecraft.client.renderer.fog.FogData;
 import net.minecraft.client.renderer.fog.FogRenderer;
@@ -89,6 +88,8 @@ public final class PortalView {
     private static final String VIEW_LABEL = "goo_portal_view";
     /** The depth span of a minus-one-to-one clip space, which the oblique plane's scale doubles for. */
     private static final float MINUS_ONE_TO_ONE_DEPTH = 2F;
+    /** The far plane's depth in a minus-one-to-one clip space, inverted so the far plane lies at its bottom. */
+    private static final float MINUS_ONE_TO_ONE_FAR = -1F;
     private static final Vector3fc UP = new Vector3f(0, 1, 0);
 
     /** The most views one frame draws, the views within views among them. */
@@ -229,10 +230,10 @@ public final class PortalView {
         passes = 0;
         VIEW_CLOUDS.forEach(CloudRenderer::endFrame);
         Minecraft mc = Minecraft.getInstance();
-        if (!advance || !inWorld(mc) || !mc.gameRenderer.getMainCamera().isInitialized()) {
+        if (!advance || !inWorld(mc) || !mc.gameRenderer.mainCamera().isInitialized()) {
             return;
         }
-        Camera main = mc.gameRenderer.getMainCamera();
+        Camera main = mc.gameRenderer.mainCamera();
         Eye eye = new Eye(main.position(), vec(main.forwardVector()), vec(main.upVector()));
         Seen frame = new Seen(MAIN_PASS, eye, main, null);
         // Every gate the frame sees directly holds a view before any view within a view spends the budget,
@@ -311,7 +312,7 @@ public final class PortalView {
      */
     private static boolean tooSmall(Minecraft mc, Seen seen, Gate near, int depth) {
         return ViewSize.skips(depth, ViewSize.pixelsAcross(seen.eye().position(), near,
-                mc.gameRenderer.getMainCamera().getFov(), mc.getWindow().getHeight()));
+                mc.gameRenderer.mainCamera().getFov(), mc.getWindow().getHeight()));
     }
 
     private static boolean faces(Minecraft mc, Seen seen, Gate near) {
@@ -335,7 +336,7 @@ public final class PortalView {
     private static PartnerView.Source sourceOf(Minecraft mc, Gate far) {
         ChunkPos chunk = ChunkPos.containing(BlockPos.containing(far.center()));
         boolean clientLevelHolds = mc.level.hasChunk(chunk.x(), chunk.z())
-                && far.center().distanceTo(mc.gameRenderer.getMainCamera().position())
+                && far.center().distanceTo(mc.gameRenderer.mainCamera().position())
                 < (mc.options.getEffectiveRenderDistance() - 1) * BLOCKS_PER_CHUNK;
         return far.dimension().equals(mc.level.dimension())
                 ? PartnerView.sourceFor(clientLevelHolds, PartnerView.CLIENT.holds(chunk)) : PartnerView.Source.NONE;
@@ -380,7 +381,7 @@ public final class PortalView {
         ViewCone own = ViewCone.through(eye.position(), far);
         ViewCone cone = seen.cone() == null ? own : own.and(seen.cone().through(through));
         PortalCamera camera = cameraAt(depth);
-        camera.place(mc.level, mc.player, delta, mc.gameRenderer.getMainCamera().getFov(), eye.position(),
+        camera.place(mc.level, mc.player, delta, mc.gameRenderer.mainCamera().getFov(), eye.position(),
                 turnOf(eye.forward(), eye.up()));
         if (depth < DEEPEST_VIEW) {
             for (Gate[] way : ways()) {
@@ -395,26 +396,47 @@ public final class PortalView {
         currentFar = far;
         currentNear = near;
         source = from;
+        LevelRenderer levels = mc.levelRenderer;
+        List<SectionRenderDispatcher.RenderSection> mainSections = new ArrayList<>(levels.visibleSections);
         try {
-            extractingView = true;
-            extractingGate = depth == 1 ? near : null;
-            CameraRenderState state;
-            try {
-                state = extractThrough(mc, delta, camera);
-            } finally {
-                extractingView = false;
-                extractingGate = null;
-            }
-            bobAsTheFrameDoes(mc, state);
-            Matrix4f unclipped = new Matrix4f(state.projectionMatrix);
-            clipAt(state.projectionMatrix, state.viewRotationMatrix, eye.position(), far,
-                    deepestBehindTheFace(mc, far, delta.getGameTimeDeltaPartialTick(false)));
-            renderInto(mc, delta, targetFor(mc, pass - 1), state, unclipped);
+            drawView(mc, delta, camera, eye, far, depth == 1 ? near : null, pass);
         } finally {
+            // The level render reads the visible sections, so the frame's own go back once the view is drawn.
+            levels.visibleSections.clear();
+            levels.visibleSections.addAll(mainSections);
             currentPass = MAIN_PASS;
             currentCone = null;
         }
         VIEWS.put(new ViewKey(seen.pass(), near), Identifier.fromNamespaceAndPath(Goo.MODID, VIEW_PATH + (pass - 1)));
+    }
+
+    /**
+     * Extracts and draws one view into its pass's target.
+     *
+     * @param mc     the client
+     * @param delta  the frame's delta tracker
+     * @param camera the view's camera
+     * @param eye    the mirrored eye
+     * @param far    the partner it looks out of
+     * @param gate   the gate looked into where the main frame sees it directly, else null
+     * @param pass   the view's pass
+     */
+    private static void drawView(Minecraft mc, DeltaTracker delta, PortalCamera camera, Eye eye, Gate far,
+                                 @Nullable Gate gate, int pass) {
+        extractingView = true;
+        extractingGate = gate;
+        CameraRenderState state;
+        try {
+            state = extractThrough(mc, delta, camera);
+        } finally {
+            extractingView = false;
+            extractingGate = null;
+        }
+        bobAsTheFrameDoes(mc, state);
+        Matrix4f unclipped = new Matrix4f(state.projectionMatrix);
+        clipAt(state.projectionMatrix, state.viewRotationMatrix, eye.position(), far,
+                deepestBehindTheFace(mc, far, delta.getGameTimeDeltaPartialTick(false)));
+        renderInto(mc, delta, targetFor(mc, pass - 1), state, unclipped);
     }
 
     private static PortalCamera cameraAt(int depth) {
@@ -508,7 +530,7 @@ public final class PortalView {
 
     /**
      * Extracts the level for the portal camera over the sections it sees,
-     * putting the frame's own visible sections back after.
+     * which stay the visible sections until the view is drawn.
      *
      * @param mc     the client
      * @param delta  the frame's delta tracker
@@ -518,18 +540,12 @@ public final class PortalView {
     private static CameraRenderState extractThrough(Minecraft mc, DeltaTracker delta, PortalCamera portal) {
         LevelRenderer levels = mc.levelRenderer;
         CameraRenderState camera = mc.gameRenderer.gameRenderState.levelRenderState.cameraRenderState;
-        List<SectionRenderDispatcher.RenderSection> mainSections = new ArrayList<>(levels.visibleSections);
-        try {
-            seenSections(levels.visibleSections, levels, portal);
-            levels.extractLevel(delta, portal, delta.getGameTimeDeltaPartialTick(false));
-            portal.extractRenderState(camera, portal.getCameraEntityPartialTicks(delta));
-            camera.fogType = portal.getFluidInCamera();
-            camera.fogData = mc.gameRenderer.fogRenderer.setupFog(portal, mc.options.getEffectiveRenderDistance(),
-                    delta, 0F, mc.level);
-        } finally {
-            levels.visibleSections.clear();
-            levels.visibleSections.addAll(mainSections);
-        }
+        seenSections(levels.visibleSections, levels, portal);
+        PortalLevelExtract.extract(mc, delta, portal, delta.getGameTimeDeltaPartialTick(false));
+        portal.extractRenderState(camera, portal.getCameraEntityPartialTicks(delta));
+        camera.fogType = portal.getFluidInCamera();
+        camera.fogData = mc.gameRenderer.fogRenderer.setupFog(portal, mc.options.getEffectiveRenderDistance(),
+                delta, 0F, mc.level);
         return camera;
     }
 
@@ -550,18 +566,18 @@ public final class PortalView {
             Matrix4f unclipped) {
         GameRenderer game = mc.gameRenderer;
         LevelRenderState state = game.gameRenderState.levelRenderState;
-        RenderTarget frame = mc.mainRenderTarget;
+        RenderTarget frame = mc.gameRenderer.mainRenderTarget();
         CloudRenderer frameClouds = mc.levelRenderer.cloudRenderer;
         drawing = true;
         try {
             // The cloud renderer keeps one mesh built around one camera; each view draws its clouds with its own,
             // so the frame's clouds keep theirs.
             mc.levelRenderer.cloudRenderer = cloudsFor(currentPass);
-            mc.mainRenderTarget = target;
+            mc.gameRenderer.mainRenderTarget = target;
             placeGlobalCamera(mc, delta, camera.pos);
             projectForTheSky(state, camera, unclipped);
-            mc.levelRenderer.renderLevel(game.resourcePool, delta, false, camera, camera.viewRotationMatrix,
-                    viewFog(camera.fogData), camera.fogData.color, true, state.chunkSectionsToRender);
+            mc.levelRenderer.render(game.resourcePool, delta, false, camera, camera.viewRotationMatrix,
+                    viewFog(camera.fogData), camera.fogData.color, true);
             // renderLevel posts no AfterLevel, so the view draws the path's far-to-near visuals itself, into its target
             // decision translucent-goo-visuals-draw-through-one-checked-sorting-path
             TranslucentVisualPath.drawAfterAPortalsLevel(camera.viewRotationMatrix, state);
@@ -570,7 +586,7 @@ public final class PortalView {
             mc.levelRenderer.doEntityOutline();
         } finally {
             mc.levelRenderer.cloudRenderer = frameClouds;
-            mc.mainRenderTarget = frame;
+            mc.gameRenderer.mainRenderTarget = frame;
             drawing = false;
             clippedAfterSky = null;
         }
@@ -697,9 +713,8 @@ public final class PortalView {
     /**
      * Fills the visible sections with every section in the view area the
      * portal camera's frustum and the view's cone through its openings
-     * hold, and queues a build for each one that
-     * waits for one: the frame builds only the sections the main camera sees,
-     * so a section seen through the portal alone would stand unbuilt.
+     * hold; the view's extraction queues a build for each one that waits for
+     * one (PortalLevelExtract).
      *
      * @param visible the level renderer's visible sections, refilled
      * @param levels  the level renderer
@@ -711,27 +726,10 @@ public final class PortalView {
         if (levels.viewArea == null) {
             return;
         }
-        RenderRegionCache cache = new RenderRegionCache();
         for (SectionRenderDispatcher.RenderSection section : levels.viewArea.sections) {
             if (seesThrough(camera, section.getBoundingBox())) {
                 visible.add(section);
-                buildWhenWaiting(section, cache);
             }
-        }
-    }
-
-    /**
-     * Queues a section's build where it waits for one, as the frame's own
-     * compile does for the sections the main camera sees.
-     *
-     * @param section the section
-     * @param cache   the frame's region cache
-     */
-    private static void buildWhenWaiting(SectionRenderDispatcher.RenderSection section, RenderRegionCache cache) {
-        if (section.isDirty()
-                && (section.getSectionMesh() != CompiledSectionMesh.UNCOMPILED || section.hasAllNeighbors())) {
-            section.rebuildSectionAsync(cache);
-            section.setNotDirty();
         }
     }
 
@@ -820,7 +818,11 @@ public final class PortalView {
     /**
      * Bends a projection's near plane onto the partner's face (the oblique
      * near plane), so nothing between the mirrored eye and the partner draws,
-     * set back by a reach behind the face.
+     * set back by a reach behind the face. Minecraft 26.2 inverts depth, the
+     * near plane at the top of the depth range and the far plane at its
+     * bottom, so the depth row is solved for the face to land on the top and
+     * the frustum's far corner on the bottom.
+     * decision minecraft-26-3-update-is-a-port-to-parity
      *
      * @param projection the projection, changed in place
      * @param viewRotation the camera's view rotation
@@ -834,22 +836,19 @@ public final class PortalView {
                 (float) normal.z()));
         float distance = (float) (normal.dot(eye.subtract(far.center())) + reach) - CLIP_OFFSET;
         Vector4f plane = new Vector4f(inView.x(), inView.y(), inView.z(), distance);
-        Vector4f corner = projection.invert(new Matrix4f())
-                .transform(new Vector4f(Math.signum(plane.x()), Math.signum(plane.y()), 1F, 1F));
-        boolean zeroToOne = RenderSystem.getDevice().isZZeroToOne();
+        boolean zeroToOne = RenderSystem.getDevice().getDeviceInfo().isZZeroToOne();
+        Vector4f corner = projection.invert(new Matrix4f()).transform(new Vector4f(Math.signum(plane.x()),
+                Math.signum(plane.y()), zeroToOne ? 0F : MINUS_ONE_TO_ONE_FAR, 1F));
         Vector4f scaled = new Vector4f(plane).mul((zeroToOne ? (float) UNIT : MINUS_ONE_TO_ONE_DEPTH)
                 / plane.dot(corner));
-        if (!zeroToOne) {
-            scaled.sub(projection.getRow(CLIP_W_ROW, new Vector4f()));
-        }
-        projection.setRow(CLIP_DEPTH_ROW, scaled);
+        projection.setRow(CLIP_DEPTH_ROW, projection.getRow(CLIP_W_ROW, new Vector4f()).sub(scaled));
     }
 
     private static RenderTarget targetFor(Minecraft mc, int slot) {
-        int width = mc.getMainRenderTarget().width;
-        int height = mc.getMainRenderTarget().height;
+        int width = mc.gameRenderer.mainRenderTarget().width;
+        int height = mc.gameRenderer.mainRenderTarget().height;
         while (TARGETS.size() <= slot) {
-            RenderTarget target = new TextureTarget(VIEW_LABEL, width, height, true);
+            RenderTarget target = new TextureTarget(VIEW_LABEL, width, height, true, GpuFormat.RGBA8_UNORM);
             PortalViewTexture texture = new PortalViewTexture();
             TARGETS.add(target);
             TEXTURES.add(texture);

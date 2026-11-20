@@ -114,7 +114,7 @@ public final class BuildCast {
             CAST.cancel();
             return;
         }
-        if (CAST.phase() != BuildChoreography.Phase.IDLE && (mc.screen != null || !stillCasting(player))) {
+        if (CAST.phase() != BuildChoreography.Phase.IDLE && (mc.gui.screen() != null || !stillCasting(player))) {
             CAST.cancel();
         }
         CAST.tick(mc.options.keyUse.isDown(), player.getEyePosition(), player.getViewVector(1f), player.getXRot());

@@ -9,12 +9,12 @@ import com.mercuriusxeno.goo.block.crucible.CrucibleShape;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooRemainders;
 import com.mercuriusxeno.goo.data.GooValues;
-import com.mercuriusxeno.goo.registry.GooDataComponents;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.item.PartiallyMeltedItem;
 import com.mercuriusxeno.goo.network.PlayerKnowledge;
 import com.mercuriusxeno.goo.registry.GooBlocks;
+import com.mercuriusxeno.goo.registry.GooDataComponents;
 import com.mercuriusxeno.goo.registry.GooItems;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -27,7 +27,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
@@ -38,11 +38,11 @@ import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
 
 /**
@@ -216,7 +216,7 @@ public final class CrucibleTests {
         crucible.reservoirHandler().ledger().creditExact(GooTypes.ZOO, SPILLED_PART);
         survivalPlayerBreaks(helper);
         helper.succeedWhen(() -> {
-            List<ItemStack> dropped = helper.getEntities(EntityType.ITEM, BE_POS, DROP_REACH).stream()
+            List<ItemStack> dropped = helper.getEntities(EntityTypes.ITEM, BE_POS, DROP_REACH).stream()
                     .map(ItemEntity::getItem).toList();
             GooFraction spilled = dropped.stream().filter(stack -> GooTypes.ZOO.equals(GooStacks.keyOf(stack)))
                     .map(GooStacks::exactValueOf).reduce(GooFraction.ZERO, GooFraction::plus);
@@ -575,7 +575,7 @@ public final class CrucibleTests {
             GooContents remainder = unmelted.getFirst();
             helper.assertTrue(remainder.totalVolume() > 0 && remainder.totalVolume() < perItem.totalVolume(),
                 PART_MELTED + remainder);
-            List<ItemEntity> dropped = helper.getEntities(EntityType.ITEM, BE_POS, DROP_REACH).stream()
+            List<ItemEntity> dropped = helper.getEntities(EntityTypes.ITEM, BE_POS, DROP_REACH).stream()
                 .filter(entity -> entity.getItem().is(GooItems.PARTIALLY_MELTED_ITEM.get())).toList();
             helper.assertValueEqual(1, dropped.size(), ONE_MELTED_ITEM_DROPPED);
             helper.assertValueEqual(remainder, PartiallyMeltedItem.getContents(dropped.getFirst().getItem()),

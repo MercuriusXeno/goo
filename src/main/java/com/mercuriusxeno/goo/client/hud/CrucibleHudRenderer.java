@@ -47,7 +47,7 @@ public final class CrucibleHudRenderer {
             ANIMATOR.clear();
             return;
         }
-        Camera camera = Minecraft.getInstance().gameRenderer.getMainCamera();
+        Camera camera = Minecraft.getInstance().gameRenderer.mainCamera();
         List<PanelRow> rows = CruciblePanelRows.rows(be);
         if (rows.isEmpty()) {
             return;

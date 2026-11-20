@@ -3,10 +3,8 @@ package com.mercuriusxeno.goo.client.overlay;
 import com.mercuriusxeno.goo.client.CuboidBounds;
 import com.mercuriusxeno.goo.client.LineContext;
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.ShapeRenderer;
+import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.state.level.BlockOutlineRenderState;
@@ -21,6 +19,11 @@ import org.jspecify.annotations.Nullable;
 /**
  * Low-level outline and wireframe drawing routines for slot outline rendering.
  * Extracted from SlotOutlineRenderer to keep method counts under threshold.
+ * Minecraft 26.2 hands an outline renderer the frame's submit collector, once,
+ * in place of 26.1's buffer source called on the opaque and translucent passes
+ * apart: the outline submits as vanilla's does, after the translucent terrain
+ * where the target block is translucent.
+ * decision minecraft-26-3-update-is-a-port-to-parity
  */
 final class SlotOutlineDrawing {
 
@@ -50,48 +53,40 @@ final class SlotOutlineDrawing {
      *
      * @return true to suppress vanilla outline rendering
      *
-     * @param renderState the block outline render state
-     * @param bufferSource the buffer source for rendering
-     * @param poseStack the pose stack for rendering
-     * @param translucent whether the current pass is translucent
+     * @param renderState      the block outline render state
+     * @param collector        the frame's submit collector
+     * @param poseStack        the pose stack for rendering
      * @param levelRenderState the level render state
-     * @param shape the voxel shape to render
-     * @param preview the placement preview bounds, or null
+     * @param shape            the voxel shape to render
+     * @param preview          the placement preview bounds, or null
      */
-    static boolean renderOutline(BlockOutlineRenderState renderState,
-            MultiBufferSource.BufferSource bufferSource, PoseStack poseStack,
-            boolean translucent, LevelRenderState levelRenderState,
-            VoxelShape shape, @Nullable AABB preview) {
-        return renderOutline(renderState, bufferSource, poseStack, translucent,
-                levelRenderState, shape, preview, null);
+    static boolean renderOutline(BlockOutlineRenderState renderState, SubmitNodeCollector collector,
+            PoseStack poseStack, LevelRenderState levelRenderState, VoxelShape shape, @Nullable AABB preview) {
+        return renderOutline(renderState, collector, poseStack, levelRenderState, shape, preview, null);
     }
 
     /**
      * Renders outline with optional green preview and red pickup highlight.
      *
      * @param renderState      the block outline render state
-     * @param bufferSource     the buffer source for rendering
+     * @param collector        the frame's submit collector
      * @param poseStack        the pose stack for rendering
-     * @param translucent      whether the current pass is translucent
      * @param levelRenderState the level render state
      * @param shape            the voxel shape to render
      * @param preview          the placement preview bounds, or null
      * @param pickup           the pickup highlight bounds, or null
      * @return true to suppress vanilla outline rendering
      */
-    static boolean renderOutline(BlockOutlineRenderState renderState,
-            MultiBufferSource.BufferSource bufferSource, PoseStack poseStack,
-            boolean translucent, LevelRenderState levelRenderState,
-            VoxelShape shape, @Nullable AABB preview, @Nullable AABB pickup) {
-        if (renderState.isTranslucent() != translucent) { return true; }
+    static boolean renderOutline(BlockOutlineRenderState renderState, SubmitNodeCollector collector,
+            PoseStack poseStack, LevelRenderState levelRenderState, VoxelShape shape, @Nullable AABB preview,
+            @Nullable AABB pickup) {
         Vec3 camPos = levelRenderState.cameraRenderState.pos;
         BlockPos pos = renderState.pos();
-        renderSelectionOutline(renderState, bufferSource, poseStack, shape, pos, camPos);
-        renderOptionalPreview(poseStack, bufferSource, preview, pos, camPos);
+        renderSelectionOutline(renderState, collector, poseStack, shape, pos, camPos);
+        renderOptionalPreview(poseStack, collector, preview, pos, camPos);
         if (pickup != null) {
-            renderCameraRelativeWireframe(poseStack, bufferSource, pickup, pos, camPos, PICKUP_COLOR);
+            renderCameraRelativeWireframe(poseStack, collector, pickup, pos, camPos, PICKUP_COLOR);
         }
-        bufferSource.endLastBatch();
         return true;
     }
 
@@ -99,16 +94,15 @@ final class SlotOutlineDrawing {
      * Renders the placement preview wireframe if a preview AABB is present.
      *
      * @param poseStack the pose stack for rendering
-     * @param bufferSource the buffer source for rendering
-     * @param preview the placement preview bounds, or null
-     * @param pos the block position
-     * @param camPos the camera world position
+     * @param collector the frame's submit collector
+     * @param preview   the placement preview bounds, or null
+     * @param pos       the block position
+     * @param camPos    the camera world position
      */
-    static void renderOptionalPreview(PoseStack poseStack,
-            MultiBufferSource.BufferSource bufferSource,
+    static void renderOptionalPreview(PoseStack poseStack, SubmitNodeCollector collector,
             @Nullable AABB preview, BlockPos pos, Vec3 camPos) {
         if (preview != null) {
-            renderPreviewWireframe(poseStack, bufferSource, preview, pos, camPos);
+            renderPreviewWireframe(poseStack, collector, preview, pos, camPos);
         }
     }
 
@@ -116,77 +110,80 @@ final class SlotOutlineDrawing {
      * Renders the standard selection outline (with high-contrast support).
      *
      * @param renderState the block outline render state
-     * @param bufferSource the buffer source for rendering
-     * @param poseStack the pose stack for rendering
-     * @param shape the voxel shape to render
-     * @param pos the block position
-     * @param camPos the camera world position
+     * @param collector   the frame's submit collector
+     * @param poseStack   the pose stack for rendering
+     * @param shape       the voxel shape to render
+     * @param pos         the block position
+     * @param camPos      the camera world position
      */
-    static void renderSelectionOutline(BlockOutlineRenderState renderState,
-            MultiBufferSource.BufferSource bufferSource, PoseStack poseStack,
-            VoxelShape shape, BlockPos pos, Vec3 camPos) {
+    static void renderSelectionOutline(BlockOutlineRenderState renderState, SubmitNodeCollector collector,
+            PoseStack poseStack, VoxelShape shape, BlockPos pos, Vec3 camPos) {
+        boolean afterTerrain = renderState.isTranslucent();
         if (renderState.highContrast()) {
-            renderShapeOutline(poseStack, bufferSource, RenderTypes.secondaryBlockOutline(),
-                    shape, pos, camPos, HC_SECONDARY_COLOR, HC_SECONDARY_WIDTH);
+            renderShapeOutline(poseStack, collector, RenderTypes.secondaryBlockOutline(),
+                    shape, pos, camPos, HC_SECONDARY_COLOR, HC_SECONDARY_WIDTH, afterTerrain);
         }
         int color = renderState.highContrast() ? HC_PRIMARY_COLOR : ARGB.black(OUTLINE_BLACK_ALPHA);
         float lineWidth = Minecraft.getInstance().getWindow().getAppropriateLineWidth();
-        renderShapeOutline(poseStack, bufferSource, RenderTypes.lines(), shape, pos, camPos, color, lineWidth);
+        renderShapeOutline(poseStack, collector, RenderTypes.lines(), shape, pos, camPos, color, lineWidth,
+                afterTerrain);
     }
 
     /**
      * Renders a wireframe cuboid offset to camera-relative coordinates.
      *
      * @param poseStack the pose stack for rendering
-     * @param bufferSource the buffer source for rendering
-     * @param bounds the axis-aligned bounding box
-     * @param pos the block position
-     * @param camPos the camera world position
-     * @param color the ARGB color value
+     * @param collector the frame's submit collector
+     * @param bounds    the axis-aligned bounding box
+     * @param pos       the block position
+     * @param camPos    the camera world position
+     * @param color     the ARGB color value
      */
-    private static void renderCameraRelativeWireframe(PoseStack poseStack,
-            MultiBufferSource.BufferSource bufferSource,
+    private static void renderCameraRelativeWireframe(PoseStack poseStack, SubmitNodeCollector collector,
             AABB bounds, BlockPos pos, Vec3 camPos, int color) {
         float lineWidth = Minecraft.getInstance().getWindow().getAppropriateLineWidth();
-        LineContext ctx = new LineContext(poseStack.last(), bufferSource.getBuffer(RenderTypes.lines()));
         AABB offset = bounds.move(pos.getX() - camPos.x, pos.getY() - camPos.y, pos.getZ() - camPos.z);
-        ctx.emitWireframe(new CuboidBounds(
+        CuboidBounds cuboid = new CuboidBounds(
             (float) offset.minX, (float) offset.maxX,
             (float) offset.minZ, (float) offset.maxZ,
-            (float) offset.minY, (float) offset.maxY), color, lineWidth);
+            (float) offset.minY, (float) offset.maxY);
+        collector.submitCustomGeometry(poseStack, RenderTypes.lines(),
+                (pose, consumer) -> new LineContext(pose, consumer).emitWireframe(cuboid, color, lineWidth));
     }
 
     /**
      * Renders a wireframe placement preview for an empty slot.
      *
      * @param poseStack the pose stack for rendering
-     * @param bufferSource the buffer source for rendering
-     * @param bounds the axis-aligned bounding box
-     * @param pos the block position
-     * @param camPos the camera world position
+     * @param collector the frame's submit collector
+     * @param bounds    the axis-aligned bounding box
+     * @param pos       the block position
+     * @param camPos    the camera world position
      */
-    static void renderPreviewWireframe(PoseStack poseStack, MultiBufferSource.BufferSource bufferSource,
+    static void renderPreviewWireframe(PoseStack poseStack, SubmitNodeCollector collector,
             AABB bounds, BlockPos pos, Vec3 camPos) {
-        renderCameraRelativeWireframe(poseStack, bufferSource, bounds, pos, camPos, PREVIEW_COLOR);
+        renderCameraRelativeWireframe(poseStack, collector, bounds, pos, camPos, PREVIEW_COLOR);
     }
 
     /**
-     * Delegates to ShapeRenderer with camera-relative coordinates.
+     * Submits a shape's outline at the block, camera relative, as vanilla submits a block's.
      *
-     * @param poseStack the pose stack for rendering
-     * @param bufferSource the buffer source for rendering
-     * @param renderType the render type for lines
-     * @param shape the voxel shape to render
-     * @param pos the block position
-     * @param camPos the camera world position
-     * @param color the ARGB color value
-     * @param lineWidth the line width in pixels
+     * @param poseStack    the pose stack for rendering
+     * @param collector    the frame's submit collector
+     * @param renderType   the render type for lines
+     * @param shape        the voxel shape to render
+     * @param pos          the block position
+     * @param camPos       the camera world position
+     * @param color        the ARGB color value
+     * @param lineWidth    the line width in pixels
+     * @param afterTerrain whether it draws after the translucent terrain, as a translucent block's outline does
      */
-    static void renderShapeOutline(PoseStack poseStack, MultiBufferSource.BufferSource bufferSource,
-            RenderType renderType, VoxelShape shape, BlockPos pos, Vec3 camPos, int color, float lineWidth) {
-        VertexConsumer consumer = bufferSource.getBuffer(renderType);
-        ShapeRenderer.renderShape(poseStack, consumer, shape,
-                pos.getX() - camPos.x, pos.getY() - camPos.y, pos.getZ() - camPos.z, color, lineWidth);
+    static void renderShapeOutline(PoseStack poseStack, SubmitNodeCollector collector, RenderType renderType,
+            VoxelShape shape, BlockPos pos, Vec3 camPos, int color, float lineWidth, boolean afterTerrain) {
+        poseStack.pushPose();
+        poseStack.translate(pos.getX() - camPos.x, pos.getY() - camPos.y, pos.getZ() - camPos.z);
+        collector.submitShapeOutline(poseStack, shape, renderType, color, lineWidth, afterTerrain);
+        poseStack.popPose();
     }
 
 }

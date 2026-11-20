@@ -19,7 +19,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.monster.zombie.Zombie;
@@ -159,7 +159,7 @@ public final class CreepTests {
             helper.setBlock(CELL.relative(side), Blocks.STONE);
         }
         layFullCellOn(helper);
-        Zombie zombie = helper.spawn(EntityType.ZOMBIE, CELL.above());
+        Zombie zombie = helper.spawn(EntityTypes.ZOMBIE, CELL.above());
         zombie.kill(helper.getLevel());
         helper.succeedWhen(() -> {
             BlockState under = helper.getBlockState(FLOOR);
@@ -186,14 +186,14 @@ public final class CreepTests {
         layFullCellOn(helper);
         ServerPlayer killer = SelfDeliveryTests.invoker(helper, GooTypes.SCULK);
         Mob bystander = helmetedZombieAt(helper, BYSTANDER);
-        Zombie zombie = helper.spawn(EntityType.ZOMBIE, CELL.above());
+        Zombie zombie = helper.spawn(EntityTypes.ZOMBIE, CELL.above());
         zombie.hurtServer(helper.getLevel(), helper.getLevel().damageSources().playerAttack(killer), Float.MAX_VALUE);
         helper.getLevel().getServer().getPlayerList().remove(killer);
         helper.assertTrue(zombie.isDeadOrDying(), "The zombie should die of the blow");
         helper.succeedWhen(() -> {
             BlockState under = helper.getBlockState(FLOOR);
             helper.assertTrue(under.is(Blocks.SCULK), String.format(NOT_SCULK, under));
-            helper.assertEntityNotPresent(EntityType.EXPERIENCE_ORB);
+            helper.assertEntityNotPresent(EntityTypes.EXPERIENCE_ORB);
             AABB bay = helper.getBounds();
             BlockPos.betweenClosedStream(bay).filter(pos -> helper.getLevel().getBlockState(pos).is(Blocks.MYCELIUM))
                     .findFirst().ifPresent(pos -> helper.fail(String.format(MYCELIUM_GROWN, pos)));
@@ -217,7 +217,7 @@ public final class CreepTests {
         }
         helper.setBlock(CELL, GooBlocks.SCULK_CREEP.get().defaultBlockState());
         ServerPlayer killer = SelfDeliveryTests.invoker(helper, GooTypes.SCULK);
-        Zombie zombie = helper.spawn(EntityType.ZOMBIE, CELL);
+        Zombie zombie = helper.spawn(EntityTypes.ZOMBIE, CELL);
         zombie.hurtServer(helper.getLevel(), helper.getLevel().damageSources().playerAttack(killer), Float.MAX_VALUE);
         helper.getLevel().getServer().getPlayerList().remove(killer);
         CreepSpreaders spreaders = GooServerState.of(helper.getLevel().getServer()).creepSpreaders();
@@ -403,7 +403,7 @@ public final class CreepTests {
     }
 
     private static Mob helmetedZombieAt(GameTestHelper helper, BlockPos at) {
-        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, Vec3.atBottomCenterOf(at));
+        Mob zombie = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, Vec3.atBottomCenterOf(at));
         zombie.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.LEATHER_HELMET));
         return zombie;
     }

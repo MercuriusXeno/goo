@@ -1,21 +1,21 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.ability.AbilityJson;
-import com.mercuriusxeno.goo.ability.program.SimpleParticles;
-import com.mercuriusxeno.goo.client.particle.BlendPalette;
 import com.mercuriusxeno.goo.ability.Delivery;
+import com.mercuriusxeno.goo.ability.program.SimpleParticles;
 import com.mercuriusxeno.goo.client.model.GloveSpecialRenderer;
+import com.mercuriusxeno.goo.client.particle.BlendPalette;
 import com.mercuriusxeno.goo.client.particle.SporeParticle;
 import com.mercuriusxeno.goo.client.particle.SprayDripParticle;
-import com.mercuriusxeno.goo.network.GooStreamHandler;
-import com.mercuriusxeno.goo.item.GooGloveItem;
-import com.mercuriusxeno.goo.type.GooTypes;
 import com.mercuriusxeno.goo.item.GooCasters;
-import com.mercuriusxeno.goo.network.StreamMotesPayload;
+import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.SprayerNozzle;
+import com.mercuriusxeno.goo.network.GooStreamHandler;
+import com.mercuriusxeno.goo.network.StreamMotesPayload;
 import com.mercuriusxeno.goo.throwing.CoatRay;
 import com.mercuriusxeno.goo.throwing.ConeShape;
 import com.mercuriusxeno.goo.throwing.DripArc;
+import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.client.Camera;
 import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
@@ -557,7 +557,7 @@ class StreamMotesTest {
                 0f));
         when(camera.getFov()).thenReturn(WORLD_FOV);
         GameRenderer renderer = mock(GameRenderer.class);
-        when(renderer.getMainCamera()).thenReturn(camera);
+        when(renderer.mainCamera()).thenReturn(camera);
         SprayingClient.setRenderState(renderer);
         Options options = mock(Options.class);
         when(options.getCameraType()).thenReturn(CameraType.FIRST_PERSON);

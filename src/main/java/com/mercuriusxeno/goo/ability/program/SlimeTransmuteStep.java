@@ -14,10 +14,11 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobCategory;
-import net.minecraft.world.entity.monster.Slime;
+import net.minecraft.world.entity.monster.cubemob.Slime;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.event.EventHooks;
 import org.jspecify.annotations.Nullable;
@@ -86,7 +87,7 @@ public record SlimeTransmuteStep(ResourceKey<GooTypeDefinition> goo, boolean hos
         if (takesEntity(target) && target.level() instanceof ServerLevel level) {
             Slime slime = (Slime) target;
             NaturalSpawns.drawAt(level, slime.blockPosition(), level.getRandom(), categoryFilter(hostile),
-                    type -> type != EntityType.SLIME)
+                    type -> type != EntityTypes.SLIME)
                     .flatMap(type -> transmute(level, slime, type, goo, morphTicks))
                     .ifPresent(born -> runOn(level, born, host.thrower()));
         }

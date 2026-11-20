@@ -1,11 +1,11 @@
 package com.mercuriusxeno.goo.network;
 
-import com.mercuriusxeno.goo.ability.quantum.PortalColor;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.GloveButton;
 import com.mercuriusxeno.goo.ability.quantum.GatePassage;
 import com.mercuriusxeno.goo.ability.quantum.PartnerStreaming;
 import com.mercuriusxeno.goo.ability.quantum.Portal;
+import com.mercuriusxeno.goo.ability.quantum.PortalColor;
 import com.mercuriusxeno.goo.ability.quantum.PortalPairs;
 import com.mercuriusxeno.goo.ability.quantum.PortalShots;
 import com.mercuriusxeno.goo.ability.quantum.PortalTether;
@@ -26,10 +26,10 @@ import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.animal.pig.Pig;
-import net.minecraft.world.entity.monster.Slime;
+import net.minecraft.world.entity.monster.cubemob.Slime;
 import net.minecraft.world.entity.projectile.arrow.Arrow;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -254,8 +254,8 @@ public final class PortalTests {
                 && QuantumPortals.get(level).partnerOf(neverLinked).isEmpty(), "Both test frames should stand unlinked");
         fenceIn(helper, NEVER_LINKED);
         fenceIn(helper, LEFT_UNLINKED);
-        Pig onNever = helper.spawn(EntityType.PIG, Vec3.atBottomCenterOf(NEVER_LINKED.above()));
-        Pig onLeft = helper.spawn(EntityType.PIG, Vec3.atBottomCenterOf(LEFT_UNLINKED.above()));
+        Pig onNever = helper.spawn(EntityTypes.PIG, Vec3.atBottomCenterOf(NEVER_LINKED.above()));
+        Pig onLeft = helper.spawn(EntityTypes.PIG, Vec3.atBottomCenterOf(LEFT_UNLINKED.above()));
         helper.runAfterDelay(STOOD, () -> {
             assertStandsOn(helper, onNever, NEVER_LINKED, "never linked");
             assertStandsOn(helper, onLeft, LEFT_UNLINKED, "whose partner broke");
@@ -286,7 +286,7 @@ public final class PortalTests {
         ServerPlayer owner = SelfDeliveryTests.invoker(helper, GooTypes.QUANTUM);
         Portal in = floorAt(helper, owner, FLOOR_IN, PortalColor.BLUE);
         Portal out = floorAt(helper, owner, FLOOR_OUT, PortalColor.ORANGE);
-        Pig pig = helper.spawn(EntityType.PIG, Vec3.atBottomCenterOf(FLOOR_IN.above(2)));
+        Pig pig = helper.spawn(EntityTypes.PIG, Vec3.atBottomCenterOf(FLOOR_IN.above(2)));
         helper.runAfterDelay(THROUGH, () -> {
             double top = helper.absolutePos(FLOOR_OUT).getY() + 1;
             helper.assertTrue(level.noCollision(pig, pig.getBoundingBox().deflate(EPSILON)),
@@ -366,7 +366,7 @@ public final class PortalTests {
         Portal wallOut = castAt(helper, other, SECOND, Direction.NORTH, PortalColor.ORANGE);
         helper.assertTrue(QuantumPortals.get(level).partnerOf(wallIn).equals(Optional.of(wallOut))
                 && QuantumPortals.get(level).partnerOf(in).isPresent(), "Both pairs should stand linked");
-        Pig pig = helper.spawn(EntityType.PIG, A_BLOCK_OFF);
+        Pig pig = helper.spawn(EntityTypes.PIG, A_BLOCK_OFF);
         pig.setDeltaMovement(0, 0, -SHOVE);
         helper.runAfterDelay(THROUGH, () -> {
             double itemFrom = item.position().distanceTo(helper.absoluteVec(Vec3.atCenterOf(FLOOR_IN)));
@@ -445,7 +445,7 @@ public final class PortalTests {
                 .with(Direction.Axis.Z, in.gate().center().z() + from.z());
         // A silverfish stands in for the operator's small slime, its box alike: a slime here would be found by the
         // slime-spawning test beside it, which reads the first slime anywhere near as the one it threw.
-        Mob thrown = helper.spawnWithNoFreeWill(EntityType.SILVERFISH, helper.relativeVec(feet));
+        Mob thrown = helper.spawnWithNoFreeWill(EntityTypes.SILVERFISH, helper.relativeVec(feet));
         thrown.setNoGravity(true);
         thrown.snapTo(feet.x(), feet.y(), feet.z(), 0, 0);
         thrown.setDeltaMovement(motion);
@@ -503,7 +503,7 @@ public final class PortalTests {
         Portal in = walledPair(helper, owner);
         Vec3 middle = in.gate().center().add(in.gate().right().scale(-JUST_PAST_THE_EDGE))
                 .add(in.gate().face().getUnitVec3().scale(JUST_BEFORE_THE_FACE));
-        Mob mob = helper.spawnWithNoFreeWill(EntityType.SILVERFISH, helper.relativeVec(middle));
+        Mob mob = helper.spawnWithNoFreeWill(EntityTypes.SILVERFISH, helper.relativeVec(middle));
         mob.setNoGravity(true);
         mob.snapTo(middle.x(), middle.y() - mob.getBbHeight() / 2, middle.z(), 0, 0);
         float health = mob.getHealth();

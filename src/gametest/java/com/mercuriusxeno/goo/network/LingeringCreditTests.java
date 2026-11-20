@@ -22,7 +22,7 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageType;
 import net.minecraft.world.damagesource.DamageTypes;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.item.ItemStack;
@@ -101,7 +101,7 @@ public final class LingeringCreditTests {
      */
     @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
     public static void toxinNamesTheApplier(GameTestHelper helper) {
-        Mob husk = helper.spawnWithNoFreeWill(EntityType.HUSK, MOB_POS);
+        Mob husk = helper.spawnWithNoFreeWill(EntityTypes.HUSK, MOB_POS);
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         helper.runAfterDelay(SETTLE_TICKS, () -> land(helper, player, LEAF_BIO, husk));
         succeedOnceNamed(helper, player, husk, "Toxin", DamageTypes.MAGIC);
@@ -113,7 +113,7 @@ public final class LingeringCreditTests {
      * @param helper the gametest helper
      */
     public static void mycosisNamesTheApplier(GameTestHelper helper) {
-        Mob husk = still(helper.spawnWithNoFreeWill(EntityType.HUSK, MOB_POS));
+        Mob husk = still(helper.spawnWithNoFreeWill(EntityTypes.HUSK, MOB_POS));
         ServerPlayer player = sprayer(helper);
         spray(helper, player);
         succeedOnceNamed(helper, player, husk, "Mycosis", DamageTypes.MAGIC);
@@ -127,8 +127,8 @@ public final class LingeringCreditTests {
      */
     @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
     public static void toxinKeepsLeadAndCharm(GameTestHelper helper) {
-        Mob led = still(helper.spawnWithNoFreeWill(EntityType.HUSK, MOB_POS));
-        Mob charmed = still(helper.spawnWithNoFreeWill(EntityType.HUSK, SECOND_MOB_POS));
+        Mob led = still(helper.spawnWithNoFreeWill(EntityTypes.HUSK, MOB_POS));
+        Mob charmed = still(helper.spawnWithNoFreeWill(EntityTypes.HUSK, SECOND_MOB_POS));
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         makeOwn(player, led, charmed);
         helper.runAfterDelay(SETTLE_TICKS, () -> {
@@ -145,8 +145,8 @@ public final class LingeringCreditTests {
      * @param helper the gametest helper
      */
     public static void mycosisKeepsLeadAndCharm(GameTestHelper helper) {
-        Mob led = still(helper.spawnWithNoFreeWill(EntityType.HUSK, MOB_POS));
-        Mob charmed = still(helper.spawnWithNoFreeWill(EntityType.HUSK, SECOND_MOB_POS));
+        Mob led = still(helper.spawnWithNoFreeWill(EntityTypes.HUSK, MOB_POS));
+        Mob charmed = still(helper.spawnWithNoFreeWill(EntityTypes.HUSK, SECOND_MOB_POS));
         ServerPlayer player = sprayer(helper);
         makeOwn(player, led, charmed);
         spray(helper, player);

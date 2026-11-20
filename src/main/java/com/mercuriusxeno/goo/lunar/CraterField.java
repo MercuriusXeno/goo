@@ -394,8 +394,8 @@ public record CraterField(DensityFunction.NoiseHolder noise) implements DensityF
     }
 
     @Override
-    public DensityFunction mapAll(DensityFunction.Visitor visitor) {
-        return visitor.apply(new CraterField(visitor.visitNoise(noise)));
+    public DensityFunction mapChildren(DensityFunction.Visitor visitor) {
+        return new CraterField(visitor.visitNoise(noise));
     }
 
     @Override

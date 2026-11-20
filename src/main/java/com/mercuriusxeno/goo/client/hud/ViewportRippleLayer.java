@@ -44,7 +44,7 @@ public final class ViewportRippleLayer {
     private static void render(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker) {
         Minecraft mc = Minecraft.getInstance();
         // In third person the blinker sees the 3D ripple around their body, so the frame copy is first person's alone.
-        if (mc.level == null || mc.options.hideGui || !mc.options.getCameraType().isFirstPerson()) {
+        if (mc.level == null || mc.gui.hud.isHidden() || !mc.options.getCameraType().isFirstPerson()) {
             return;
         }
         float gameTime = mc.level.getGameTime() + deltaTracker.getGameTimeDeltaPartialTick(false);

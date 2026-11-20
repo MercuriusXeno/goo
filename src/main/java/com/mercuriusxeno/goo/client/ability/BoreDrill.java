@@ -201,7 +201,7 @@ public final class BoreDrill {
 
     private static ConeSections.Volume vortexOf(Minecraft mc, LocalPlayer player, BoreStep step, float partialTick,
                                                 boolean held) {
-        Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        Vec3 camera = mc.gameRenderer.mainCamera().position();
         ConeSections.Volume full = volume(CastOrigin.ofLocal(mc).subtract(camera),
                 pointAhead(mc.level, CameraEye.of(mc, player, partialTick), step,
                         GooCasters.casterOnTheRight(player), lastReach).subtract(camera),

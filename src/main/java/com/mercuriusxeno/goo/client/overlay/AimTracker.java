@@ -62,7 +62,7 @@ public final class AimTracker {
         }
         ResourceKey<GooTypeDefinition> selectedType = GloveAim.selectedGooType(player);
         int entityOutline = selectedType != null ? ARGB.opaque(ClientGooTypes.highlight(selectedType)) : 0;
-        Camera camera = mc.gameRenderer.getMainCamera();
+        Camera camera = mc.gameRenderer.mainCamera();
         AimTargets.AimRay ray = AimTargets.AimRay.along(camera.position(), new Vec3(camera.forwardVector()),
                 GloveAim.aimRange(player));
         List<Step> behaviors = GloveAim.selectedBehaviors(player);

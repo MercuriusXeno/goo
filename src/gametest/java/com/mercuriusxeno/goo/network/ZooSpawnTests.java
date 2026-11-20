@@ -3,28 +3,29 @@ package com.mercuriusxeno.goo.network;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import com.mercuriusxeno.goo.network.GooEffectScheduler.PendingEffect;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.MobCategory;
-import net.minecraft.world.entity.monster.Slime;
+import net.minecraft.world.entity.monster.cubemob.Slime;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.biome.MobSpawnSettings;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
+import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
-import net.neoforged.neoforge.registries.RegisterEvent;
-import java.util.function.Consumer;
-import com.mercuriusxeno.goo.gametest.GooTestFunctions;
-import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for Zoo's Spawn and Shape: a blob on a slime consumes it and
@@ -72,7 +73,7 @@ public final class ZooSpawnTests {
         AbilityDefinition ability = AbilityRegistry.of(helper.getLevel()).getAbility(abilityId);
         helper.assertTrue(ability != null, String.format(ABILITY_REQUIRED, abilityId));
         helper.setBlock(SLIME_POS.below(), Blocks.STONE);
-        Slime slime = helper.spawnWithNoFreeWill(EntityType.SLIME, SLIME_POS);
+        Slime slime = helper.spawnWithNoFreeWill(EntityTypes.SLIME, SLIME_POS);
         slime.setSize(1, true);
         BlockPos cell = slime.blockPosition();
         Set<EntityType<?>> natural = naturalSpawnsAt(helper, cell, categories);

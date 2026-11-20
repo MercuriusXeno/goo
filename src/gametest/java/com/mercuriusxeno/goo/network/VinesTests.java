@@ -21,10 +21,10 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.EquipmentSlot;
-import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
@@ -181,7 +181,7 @@ public final class VinesTests {
     public static void vinesFullCellHoldsAWalkerInPlace(GameTestHelper helper) {
         layLane(helper);
         layCell(helper, FULL_CELL, VolumeCellBlock.MAX_LAYERS);
-        Mob husk = helper.spawnWithNoFreeWill(EntityType.HUSK, LANE.above());
+        Mob husk = helper.spawnWithNoFreeWill(EntityTypes.HUSK, LANE.above());
         helper.walkTo(husk, LANE.east(LANE_EAST).above(), 1f);
         int cellX = helper.absolutePos(FULL_CELL).getX();
         long[] reachedAt = {-1};
@@ -206,7 +206,7 @@ public final class VinesTests {
     public static void vinesHitEndsTheRootAndEatsALayer(GameTestHelper helper) {
         layLane(helper);
         layCell(helper, FULL_CELL, VolumeCellBlock.MAX_LAYERS);
-        Mob zombie = helmeted(helper.spawnWithNoFreeWill(EntityType.ZOMBIE, FULL_CELL.above()));
+        Mob zombie = helmeted(helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, FULL_CELL.above()));
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             Rooted held = zombie.getData(GooAttachments.ROOTED);
             helper.assertTrue(held.vines() == VineHold.MOST_VINES, String.format(SHOULD_BE_HELD, held));
@@ -236,7 +236,7 @@ public final class VinesTests {
         // a thin cell lies only on a sturdy top, which the path's lowered top is not
         helper.setBlock(THIN_CELL.below(), Blocks.STONE);
         layCell(helper, THIN_CELL, 1);
-        Mob zombie = helmeted(helper.spawnWithNoFreeWill(EntityType.ZOMBIE, LANE.above()));
+        Mob zombie = helmeted(helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, LANE.above()));
         helper.walkTo(zombie, LANE.east(LANE_EAST).above(), 1f);
         float start = zombie.getHealth();
         boolean[] rooted = {false};
@@ -360,7 +360,7 @@ public final class VinesTests {
      */
     public static void vinesEatenCellLeavesItsVinesHanging(GameTestHelper helper) {
         layVinedCell(helper, VINED_CELL);
-        Mob zombie = helmeted(helper.spawnWithNoFreeWill(EntityType.ZOMBIE, onThinCell(VINED_CELL)));
+        Mob zombie = helmeted(helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, onThinCell(VINED_CELL)));
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             Rooted held = zombie.getData(GooAttachments.ROOTED);
             helper.assertTrue(held.vines() == 1, String.format(SHOULD_BE_HELD, held));
@@ -383,8 +383,8 @@ public final class VinesTests {
         layVinedCell(helper, VINED_CELL);
         helper.setBlock(BARE_CELL.below(), Blocks.STONE);
         layCell(helper, BARE_CELL, 1);
-        Mob onVines = helmeted(helper.spawnWithNoFreeWill(EntityType.ZOMBIE, onThinCell(VINED_CELL)));
-        Mob onBare = helmeted(helper.spawnWithNoFreeWill(EntityType.ZOMBIE, onThinCell(BARE_CELL)));
+        Mob onVines = helmeted(helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, onThinCell(VINED_CELL)));
+        Mob onBare = helmeted(helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, onThinCell(BARE_CELL)));
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             helper.assertTrue(onVines.onClimbable() && !onBare.onClimbable(),
                     String.format(SHOULD_CLIMB, onVines.onClimbable(), onBare.onClimbable()));

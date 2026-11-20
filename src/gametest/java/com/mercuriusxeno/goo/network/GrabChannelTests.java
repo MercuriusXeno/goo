@@ -1,40 +1,41 @@
 package com.mercuriusxeno.goo.network;
 
-import com.mercuriusxeno.goo.ability.quantum.PortalColor;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
-import com.mercuriusxeno.goo.ability.program.GrabStep;
 import com.mercuriusxeno.goo.ability.kinetic.GrabEvents;
+import com.mercuriusxeno.goo.ability.program.GrabStep;
 import com.mercuriusxeno.goo.ability.quantum.Portal;
+import com.mercuriusxeno.goo.ability.quantum.PortalColor;
 import com.mercuriusxeno.goo.ability.quantum.PortalPairs;
-import net.minecraft.core.Direction;
-import net.minecraft.core.GlobalPos;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.level.block.Blocks;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooItems;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.commands.arguments.EntityAnchorArgument;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.GlobalPos;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.animal.pig.Pig;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import java.util.concurrent.atomic.AtomicReference;
 import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
-import com.mercuriusxeno.goo.gametest.GooTestFunctions;
-import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for Kinetic's Grab, driven through the channel's stream tick
@@ -137,8 +138,8 @@ public final class GrabChannelTests {
         java.util.List<Double> early = new java.util.ArrayList<>();
         int pigRun = 1;
         int ravagerRun = pigRun + SETTLE_HOLD_TICKS + 2;
-        heldFromTheSouth(helper, player, EntityType.PIG, pigRun, early);
-        heldFromTheSouth(helper, player, EntityType.RAVAGER, ravagerRun, early);
+        heldFromTheSouth(helper, player, EntityTypes.PIG, pigRun, early);
+        heldFromTheSouth(helper, player, EntityTypes.RAVAGER, ravagerRun, early);
         helper.runAfterDelay(ravagerRun + SETTLE_HOLD_TICKS + 1, () -> {
             helper.assertTrue(early.get(0) < early.get(1), "The pig should stand nearer the hold point after "
                     + EARLY_TICKS + " ticks, the pig " + early.get(0) + " off, the ravager " + early.get(1) + " off");
@@ -357,7 +358,7 @@ public final class GrabChannelTests {
     public static void grabLockedItemLeavesALaterMobFree(GameTestHelper helper) {
         ServerPlayer player = grabber(helper);
         ItemEntity item = restingItem(helper, ITEM_POS, Items.SLIME_BALL);
-        Pig pig = helper.spawn(EntityType.PIG, PASSED_PIG_POS);
+        Pig pig = helper.spawn(EntityTypes.PIG, PASSED_PIG_POS);
         helper.runAfterDelay(1, () -> sweepTick(player, holdTick(player, item)));
         for (int tick = 2; tick <= HOMING_TICKS; tick++) {
             helper.runAfterDelay(tick, () -> sweepTick(player, holdTick(player, pig)));
@@ -382,7 +383,7 @@ public final class GrabChannelTests {
      */
     public static void grabHeldMobLeavesALaterItemUnlocked(GameTestHelper helper) {
         ServerPlayer player = grabber(helper);
-        Pig pig = helper.spawn(EntityType.PIG, ZOMBIE_POS);
+        Pig pig = helper.spawn(EntityTypes.PIG, ZOMBIE_POS);
         ItemEntity item = restingItem(helper, ON_THE_FLOOR, Items.SLIME_BALL);
         holdFor(helper, player, pig, HOLD_TICKS);
         AtomicReference<Vec3> lay = new AtomicReference<>();
@@ -542,7 +543,7 @@ public final class GrabChannelTests {
      */
     public static void grabSuspendsTheZombie(GameTestHelper helper) {
         ServerPlayer player = grabber(helper);
-        Zombie zombie = helper.spawn(EntityType.ZOMBIE, ZOMBIE_POS);
+        Zombie zombie = helper.spawn(EntityTypes.ZOMBIE, ZOMBIE_POS);
         zombie.setTarget(player);
         double stoodAt = zombie.getY();
         holdFor(helper, player, zombie, HOLD_TICKS);
@@ -562,7 +563,7 @@ public final class GrabChannelTests {
      */
     public static void grabThrowsAlongTheLook(GameTestHelper helper) {
         ServerPlayer player = grabber(helper);
-        Zombie zombie = helper.spawn(EntityType.ZOMBIE, ZOMBIE_POS);
+        Zombie zombie = helper.spawn(EntityTypes.ZOMBIE, ZOMBIE_POS);
         throwAfterHold(helper, player, zombie);
         helper.runAfterDelay(HOLD_TICKS + 2, () -> helper.assertTrue(!zombie.isNoAi(),
                 "A thrown zombie's AI should be handed back"));
@@ -629,7 +630,7 @@ public final class GrabChannelTests {
      */
     private static void throwWhileTheChannelHolds(GameTestHelper helper, boolean clicksAgain) {
         ServerPlayer player = grabber(helper);
-        Zombie zombie = helper.spawn(EntityType.ZOMBIE, ZOMBIE_POS);
+        Zombie zombie = helper.spawn(EntityTypes.ZOMBIE, ZOMBIE_POS);
         AtomicReference<Vec3> heldAt = new AtomicReference<>();
         holdFor(helper, player, zombie, HOLD_TICKS);
         helper.runAfterDelay(HOLD_TICKS + 1, () -> {
@@ -706,7 +707,7 @@ public final class GrabChannelTests {
                 Direction.UP, PortalColor.ORANGE);
         PortalPairs.place(level, player.getUUID(), near);
         PortalPairs.place(level, player.getUUID(), far);
-        Pig pig = helper.spawn(EntityType.PIG, PAST_THE_WALL);
+        Pig pig = helper.spawn(EntityTypes.PIG, PAST_THE_WALL);
         holdFor(helper, player, pig, THROUGH_TICKS);
         helper.runAfterDelay(THROUGH_TICKS + 1, () -> {
             helper.assertTrue(GrabEvents.heldBy(player) == pig, "The pig behind the wall should be held through the "
@@ -783,7 +784,7 @@ public final class GrabChannelTests {
                 Direction.UP, PortalColor.ORANGE);
         PortalPairs.place(level, player.getUUID(), floor);
         PortalPairs.place(level, player.getUUID(), far);
-        Pig pig = helper.spawn(EntityType.PIG, PAST_THE_WALL);
+        Pig pig = helper.spawn(EntityTypes.PIG, PAST_THE_WALL);
         double wall = helper.absolutePos(NEAR_PORTAL).getX();
         java.util.List<Vec3> motions = new java.util.ArrayList<>();
         java.util.List<Vec3> cameOut = new java.util.ArrayList<>();
@@ -853,7 +854,7 @@ public final class GrabChannelTests {
                 Direction.UP, PortalColor.ORANGE);
         PortalPairs.place(level, player.getUUID(), near);
         PortalPairs.place(level, player.getUUID(), far);
-        Zombie zombie = helper.spawn(EntityType.ZOMBIE, IN_PLAIN_SIGHT);
+        Zombie zombie = helper.spawn(EntityTypes.ZOMBIE, IN_PLAIN_SIGHT);
         Vec3 holdMiddle = helper.absoluteVec(eyeAtStand.add(holdDistance(helper), 0, 0));
         net.minecraft.world.phys.BlockHitResult straight = level.clip(new net.minecraft.world.level.ClipContext(
                 zombie.getBoundingBox().getCenter(), holdMiddle, net.minecraft.world.level.ClipContext.Block.COLLIDER,
@@ -927,7 +928,7 @@ public final class GrabChannelTests {
                 Direction.UP, PortalColor.ORANGE);
         PortalPairs.place(level, player.getUUID(), west);
         PortalPairs.place(level, player.getUUID(), east);
-        Pig pig = helper.spawn(EntityType.PIG, BETWEEN);
+        Pig pig = helper.spawn(EntityTypes.PIG, BETWEEN);
         java.util.List<Vec3> path = new java.util.ArrayList<>();
         path.add(pig.position());
         for (int held = 1; held <= CYCLE_TICKS; held++) {
@@ -997,7 +998,7 @@ public final class GrabChannelTests {
                 Direction.WEST, Direction.UP, PortalColor.ORANGE);
         PortalPairs.place(level, player.getUUID(), west);
         PortalPairs.place(level, player.getUUID(), east);
-        Pig pig = helper.spawn(EntityType.PIG, BETWEEN_THE_PAIR);
+        Pig pig = helper.spawn(EntityTypes.PIG, BETWEEN_THE_PAIR);
         java.util.List<Vec3> held = new java.util.ArrayList<>();
         for (int tick = 1; tick <= SETTLE_TICKS + WATCHED_TICKS; tick++) {
             boolean watched = tick > SETTLE_TICKS;
@@ -1067,7 +1068,7 @@ public final class GrabChannelTests {
         PortalPairs.place(level, player.getUUID(), west);
         PortalPairs.place(level, player.getUUID(), east);
         // A silverfish, its box small enough to hang between the player and the east portal.
-        net.minecraft.world.entity.Mob mob = helper.spawnWithNoFreeWill(EntityType.SILVERFISH, BEFORE_THE_WEST_FACE);
+        net.minecraft.world.entity.Mob mob = helper.spawnWithNoFreeWill(EntityTypes.SILVERFISH, BEFORE_THE_WEST_FACE);
         java.util.List<Vec3> path = new java.util.ArrayList<>();
         for (int tick = 1; tick <= CUSP_TICKS; tick++) {
             helper.runAfterDelay(tick, () -> {
@@ -1134,7 +1135,7 @@ public final class GrabChannelTests {
         PortalPairs.place(level, player.getUUID(), west);
         PortalPairs.place(level, player.getUUID(), east);
         // A silverfish, its box small enough to hang between the player and the east portal.
-        net.minecraft.world.entity.Mob mob = helper.spawnWithNoFreeWill(EntityType.SILVERFISH,
+        net.minecraft.world.entity.Mob mob = helper.spawnWithNoFreeWill(EntityTypes.SILVERFISH,
                 BlockPos.containing(HUNG_PAST_THE_PORTAL));
         java.util.List<Double> moves = new java.util.ArrayList<>();
         for (int tick = 1; tick <= SETTLE_TICKS + WATCHED_TICKS; tick++) {
@@ -1193,7 +1194,7 @@ public final class GrabChannelTests {
                 }
             }
         }
-        Pig pig = helper.spawn(EntityType.PIG, ON_THE_LEDGE);
+        Pig pig = helper.spawn(EntityTypes.PIG, ON_THE_LEDGE);
         holdFor(helper, player, pig, OFF_THE_LEDGE_TICKS);
         helper.runAfterDelay(OFF_THE_LEDGE_TICKS + 1, () -> {
             AABB box = pig.getBoundingBox();
@@ -1223,7 +1224,7 @@ public final class GrabChannelTests {
         double reach = GrabStep.reachOf(grab.behaviors(), null).orElseThrow();
         Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(ZOMBIE_POS)).subtract(reach + PAST_THE_REACH, 0, 0);
         player.setPos(stand.x, stand.y, stand.z);
-        Pig pig = helper.spawn(EntityType.PIG, ZOMBIE_POS);
+        Pig pig = helper.spawn(EntityTypes.PIG, ZOMBIE_POS);
         player.lookAt(EntityAnchorArgument.Anchor.EYES, pig.getBoundingBox().getCenter());
         refusesTheSent(helper, player, pig, pig::discard);
     }
@@ -1242,7 +1243,7 @@ public final class GrabChannelTests {
                 Direction.UP, PortalColor.ORANGE);
         PortalPairs.place(level, player.getUUID(), near);
         PortalPairs.place(level, player.getUUID(), far);
-        Pig pig = helper.spawn(EntityType.PIG, pigAt);
+        Pig pig = helper.spawn(EntityTypes.PIG, pigAt);
         double wall = helper.absolutePos(NEAR_PORTAL).getX();
         java.util.List<Vec3> path = new java.util.ArrayList<>();
         java.util.List<Vec3> cameOut = new java.util.ArrayList<>();

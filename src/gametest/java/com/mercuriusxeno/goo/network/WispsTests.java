@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.network;
 
-import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.GooConfig;
+import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.AbilityRegistrySource;
 import com.mercuriusxeno.goo.block.ability.SideCoat;
@@ -19,7 +19,7 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.monster.skeleton.WitherSkeleton;
 import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.level.LightLayer;
@@ -590,7 +590,7 @@ public final class WispsTests {
         sealRoom(helper);
         helper.setBlock(OVER_THE_FLOOR, GooBlocks.GLOW_WISPS.get().defaultBlockState()
                 .setValue(VolumeCellBlock.LAYERS, VolumeCellBlock.MAX_LAYERS));
-        Zombie zombie = helper.spawn(EntityType.ZOMBIE, OVER_THE_FLOOR.above());
+        Zombie zombie = helper.spawn(EntityTypes.ZOMBIE, OVER_THE_FLOOR.above());
         float startingHealth = zombie.getHealth();
         helper.succeedWhen(() -> {
             helper.assertTrue(zombie.isOnFire(), ZOMBIE_UNLIT);
@@ -618,7 +618,7 @@ public final class WispsTests {
         }
         helper.setBlock(OVER_THE_FLOOR, GooBlocks.GLOW_WISPS.get().defaultBlockState()
                 .setValue(VolumeCellBlock.LAYERS, VolumeCellBlock.MAX_LAYERS));
-        WitherSkeleton skeleton = helper.spawn(EntityType.WITHER_SKELETON, OVER_THE_FLOOR.above());
+        WitherSkeleton skeleton = helper.spawn(EntityTypes.WITHER_SKELETON, OVER_THE_FLOOR.above());
         float startingHealth = skeleton.getHealth();
         helper.succeedWhen(() -> helper.assertTrue(skeleton.getHealth() < startingHealth, SKELETON_UNHARMED));
     }

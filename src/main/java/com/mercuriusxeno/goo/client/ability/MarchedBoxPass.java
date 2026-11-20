@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.client.DepthCopyTarget;
+import com.mojang.blaze3d.PrimitiveTopology;
 import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.buffers.GpuBufferSlice;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
@@ -14,7 +15,6 @@ import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.MeshData;
-import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -23,8 +23,8 @@ import org.joml.Matrix4fc;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
 import java.nio.ByteBuffer;
+import java.util.Optional;
 import java.util.OptionalDouble;
-import java.util.OptionalInt;
 
 /**
  * One render pass drawing a box around a volume as an {@link InwardBox},
@@ -79,7 +79,7 @@ final class MarchedBoxPass {
      * @return true where depth runs 0 to 1
      */
     static boolean depthZeroToOne() {
-        return RenderSystem.getDevice().isZZeroToOne();
+        return RenderSystem.getDevice().getDeviceInfo().isZZeroToOne();
     }
 
     /**
@@ -105,7 +105,7 @@ final class MarchedBoxPass {
      * @param modelView the level's model view matrix this frame
      */
     void draw(AABB box, ByteBuffer block, Matrix4fc modelView) {
-        RenderTarget main = Minecraft.getInstance().getMainRenderTarget();
+        RenderTarget main = Minecraft.getInstance().gameRenderer.mainRenderTarget();
         TextureTarget depth = depthCopy.matching(main);
         depth.copyDepthFrom(main);
         GpuDevice device = RenderSystem.getDevice();
@@ -124,25 +124,25 @@ final class MarchedBoxPass {
 
     private void drawBox(GpuDevice device, RenderTarget main, TextureTarget depth, Matrix4fc modelView,
                          GpuBuffer[] uniformsAndVertices) {
-        RenderSystem.AutoStorageIndexBuffer indices = RenderSystem.getSequentialBuffer(VertexFormat.Mode.QUADS);
+        RenderSystem.AutoStorageIndexBuffer indices = RenderSystem.getSequentialBuffer(PrimitiveTopology.QUADS);
         GpuBufferSlice transform = RenderSystem.getDynamicUniforms().writeTransform(new Matrix4f(modelView), WHITE,
                 new Vector3f(), new Matrix4f());
         try (RenderPass pass = device.createCommandEncoder().createRenderPass(() -> label,
-                main.getColorTextureView(), OptionalInt.empty(), main.getDepthTextureView(), OptionalDouble.empty())) {
+                main.getColorTextureView(), Optional.empty(), main.getDepthTextureView(), OptionalDouble.empty())) {
             pass.setPipeline(pipeline);
             RenderSystem.bindDefaultUniforms(pass);
             pass.setUniform(TRANSFORMS_UNIFORM, transform);
             pass.setUniform(blockName, uniformsAndVertices[0].slice(0, bytes));
             pass.bindTexture(depthSampler, depth.getDepthTextureView(),
                     RenderSystem.getSamplerCache().getClampToEdge(FilterMode.NEAREST));
-            pass.setVertexBuffer(0, uniformsAndVertices[1]);
+            pass.setVertexBuffer(0, uniformsAndVertices[1].slice());
             pass.setIndexBuffer(indices.getBuffer(FACES * INDICES_PER_QUAD), indices.type());
-            pass.drawIndexed(0, 0, FACES * INDICES_PER_QUAD, 1);
+            pass.drawIndexed(FACES * INDICES_PER_QUAD, 1, 0, 0, 0);
         }
     }
 
     private static MeshData boxOf(AABB box, ByteBufferBuilder vertexBytes) {
-        BufferBuilder builder = new BufferBuilder(vertexBytes, VertexFormat.Mode.QUADS,
+        BufferBuilder builder = new BufferBuilder(vertexBytes, PrimitiveTopology.QUADS,
                 DefaultVertexFormat.POSITION_COLOR);
         InwardBox.emit(builder, box.getMinPosition(), box.getMaxPosition());
         return builder.buildOrThrow();

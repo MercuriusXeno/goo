@@ -19,7 +19,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.stats.Stats;
 import net.minecraft.world.entity.EntityReference;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
@@ -136,8 +136,8 @@ public final class MinionKillTests {
      */
     public static void ledCowsStrikeMarksTheZombieAsItsLeaders(GameTestHelper helper) {
         ServerPlayer leader = survivalPlayer(helper, GooTypes.YARN);
-        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, MINION_POS);
-        Mob zombie = sunproof(helper.spawnWithNoFreeWill(EntityType.ZOMBIE, FOE_POS));
+        Cow cow = helper.spawnWithNoFreeWill(EntityTypes.COW, MINION_POS);
+        Mob zombie = sunproof(helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, FOE_POS));
         provoke(helper, leader, zombie);
         lead(helper, cow, leader);
 
@@ -158,8 +158,8 @@ public final class MinionKillTests {
      */
     public static void ledCowsKillDropsExperienceAndPlayerOnlyLoot(GameTestHelper helper) {
         ServerPlayer leader = survivalPlayer(helper, GooTypes.YARN);
-        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, MINION_POS);
-        Mob guardian = helper.spawnWithNoFreeWill(EntityType.ELDER_GUARDIAN, FOE_POS);
+        Cow cow = helper.spawnWithNoFreeWill(EntityTypes.COW, MINION_POS);
+        Mob guardian = helper.spawnWithNoFreeWill(EntityTypes.ELDER_GUARDIAN, FOE_POS);
         provoke(helper, leader, guardian);
         guardian.setHealth(ONE_STRIKE_HEALTH);
         lead(helper, cow, leader);
@@ -167,8 +167,8 @@ public final class MinionKillTests {
         helper.succeedWhen(() -> {
             helper.assertTrue(guardian.isDeadOrDying(),
                     String.format(NOT_DEAD, "elder guardian", guardian.getHealth()));
-            helper.assertFalse(helper.getEntities(EntityType.EXPERIENCE_ORB, FOE_POS, DROP_REACH).isEmpty(), NO_ORB);
-            helper.assertTrue(helper.getEntities(EntityType.ITEM, FOE_POS, DROP_REACH).stream()
+            helper.assertFalse(helper.getEntities(EntityTypes.EXPERIENCE_ORB, FOE_POS, DROP_REACH).isEmpty(), NO_ORB);
+            helper.assertTrue(helper.getEntities(EntityTypes.ITEM, FOE_POS, DROP_REACH).stream()
                     .anyMatch(item -> item.getItem().is(Items.WET_SPONGE)), NO_SPONGE);
             helper.getLevel().getServer().getPlayerList().remove(leader);
         });
@@ -184,10 +184,10 @@ public final class MinionKillTests {
      */
     public static void wolfStruckByARalliedCowTargetsTheCow(GameTestHelper helper) {
         ServerPlayer leader = survivalPlayer(helper, GooTypes.YARN);
-        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, MINION_POS);
+        Cow cow = helper.spawnWithNoFreeWill(EntityTypes.COW, MINION_POS);
         lead(helper, cow, leader);
         helper.assertTrue(cow.hasData(GooAttachments.LED), String.format(NOT_A_MINION, "cow", "lead"));
-        Wolf wolf = helper.spawn(EntityType.WOLF, FOE_POS);
+        Wolf wolf = helper.spawn(EntityTypes.WOLF, FOE_POS);
 
         helper.startSequence()
                 // vanilla's retaliation goal reads a hit stamped on the wolf's first tick, tick 0, as no hit
@@ -212,8 +212,8 @@ public final class MinionKillTests {
      */
     public static void ledCowsMarkStandsAfterItsLeadEnds(GameTestHelper helper) {
         ServerPlayer leader = survivalPlayer(helper, GooTypes.YARN);
-        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, MINION_POS);
-        Mob zombie = sunproof(helper.spawnWithNoFreeWill(EntityType.ZOMBIE, FOE_POS));
+        Cow cow = helper.spawnWithNoFreeWill(EntityTypes.COW, MINION_POS);
+        Mob zombie = sunproof(helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, FOE_POS));
         provoke(helper, leader, zombie);
         lead(helper, cow, leader);
 
@@ -239,8 +239,8 @@ public final class MinionKillTests {
      */
     public static void charmedZombiesHitMarksTheSkeletonAsItsCharmers(GameTestHelper helper) {
         ServerPlayer charmer = survivalPlayer(helper, GooTypes.HEX);
-        Mob zombie = sunproof(charmable(helper.spawnWithNoFreeWill(EntityType.ZOMBIE, MINION_POS)));
-        Mob skeleton = sunproof(helper.spawnWithNoFreeWill(EntityType.SKELETON, FOE_POS));
+        Mob zombie = sunproof(charmable(helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, MINION_POS)));
+        Mob skeleton = sunproof(helper.spawnWithNoFreeWill(EntityTypes.SKELETON, FOE_POS));
         charm(helper, zombie, charmer);
         helper.assertTrue(zombie.hasData(GooAttachments.CHARMED), String.format(NOT_A_MINION, "zombie", "charm"));
 
@@ -260,8 +260,8 @@ public final class MinionKillTests {
      */
     public static void charmedSkeletonsArrowMarksTheZombieAsItsCharmers(GameTestHelper helper) {
         ServerPlayer charmer = survivalPlayer(helper, GooTypes.HEX);
-        Mob skeleton = sunproof(charmable(helper.spawnWithNoFreeWill(EntityType.SKELETON, MINION_POS)));
-        Mob zombie = sunproof(helper.spawnWithNoFreeWill(EntityType.ZOMBIE, FOE_POS));
+        Mob skeleton = sunproof(charmable(helper.spawnWithNoFreeWill(EntityTypes.SKELETON, MINION_POS)));
+        Mob zombie = sunproof(helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, FOE_POS));
         charm(helper, skeleton, charmer);
         helper.assertTrue(skeleton.hasData(GooAttachments.CHARMED), String.format(NOT_A_MINION, "skeleton", "charm"));
 
@@ -283,8 +283,8 @@ public final class MinionKillTests {
      */
     public static void ledCowsKillCountsInItsLeadersStatsAndAdvancements(GameTestHelper helper) {
         ServerPlayer leader = survivalPlayer(helper, GooTypes.YARN);
-        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, MINION_POS);
-        Mob zombie = sunproof(helper.spawnWithNoFreeWill(EntityType.ZOMBIE, FOE_POS));
+        Cow cow = helper.spawnWithNoFreeWill(EntityTypes.COW, MINION_POS);
+        Mob zombie = sunproof(helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, FOE_POS));
         provoke(helper, leader, zombie);
         zombie.setHealth(ONE_STRIKE_HEALTH);
         lead(helper, cow, leader);

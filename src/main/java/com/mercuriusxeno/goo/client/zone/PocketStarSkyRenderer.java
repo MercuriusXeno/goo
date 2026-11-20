@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.zone;
 
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mojang.blaze3d.PrimitiveTopology;
 import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.buffers.GpuBufferSlice;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
@@ -11,7 +12,6 @@ import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.MeshData;
-import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.state.level.LevelRenderState;
 import net.minecraft.client.renderer.state.level.SkyRenderState;
@@ -24,8 +24,8 @@ import org.joml.Vector3f;
 import org.joml.Vector4f;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
+import java.util.Optional;
 import java.util.OptionalDouble;
-import java.util.OptionalInt;
 import java.util.function.Consumer;
 
 /**
@@ -107,7 +107,7 @@ public final class PocketStarSkyRenderer implements CustomSkyboxRenderer {
     public static SkyQuads buildQuads(String label, int quads, Consumer<BufferBuilder> fill) {
         try (ByteBufferBuilder bytes = ByteBufferBuilder.exactlySized(
                 DefaultVertexFormat.POSITION_COLOR.getVertexSize() * quads * CORNERS)) {
-            BufferBuilder builder = new BufferBuilder(bytes, VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
+            BufferBuilder builder = new BufferBuilder(bytes, PrimitiveTopology.QUADS, DefaultVertexFormat.POSITION_COLOR);
             fill.accept(builder);
             try (MeshData mesh = builder.buildOrThrow()) {
                 return new SkyQuads(RenderSystem.getDevice().createBuffer(() -> label,
@@ -141,20 +141,20 @@ public final class PocketStarSkyRenderer implements CustomSkyboxRenderer {
      */
     public static void drawQuads(RenderPipeline pipeline, SkyQuads quads, Matrix4fc modelViewMatrix, String label,
             Vector4f modulator) {
-        RenderSystem.AutoStorageIndexBuffer sequential = RenderSystem.getSequentialBuffer(VertexFormat.Mode.QUADS);
+        RenderSystem.AutoStorageIndexBuffer sequential = RenderSystem.getSequentialBuffer(PrimitiveTopology.QUADS);
         GpuBuffer indices = sequential.getBuffer(quads.indexCount());
-        GpuBufferSlice transforms = RenderSystem.getDynamicUniforms().writeTransform(modelViewMatrix,
+        GpuBufferSlice transforms = RenderSystem.getDynamicUniforms().writeTransform(new Matrix4f(modelViewMatrix),
                 modulator, new Vector3f(), new Matrix4f());
-        GpuTextureView color = Minecraft.getInstance().getMainRenderTarget().getColorTextureView();
-        GpuTextureView depth = Minecraft.getInstance().getMainRenderTarget().getDepthTextureView();
+        GpuTextureView color = Minecraft.getInstance().gameRenderer.mainRenderTarget().getColorTextureView();
+        GpuTextureView depth = Minecraft.getInstance().gameRenderer.mainRenderTarget().getDepthTextureView();
         try (RenderPass pass = RenderSystem.getDevice().createCommandEncoder()
-                .createRenderPass(() -> label, color, OptionalInt.empty(), depth, OptionalDouble.empty())) {
+                .createRenderPass(() -> label, color, Optional.empty(), depth, OptionalDouble.empty())) {
             pass.setPipeline(pipeline);
             RenderSystem.bindDefaultUniforms(pass);
             pass.setUniform(DYNAMIC_TRANSFORMS, transforms);
-            pass.setVertexBuffer(0, quads.vertices());
+            pass.setVertexBuffer(0, quads.vertices().slice());
             pass.setIndexBuffer(indices, sequential.type());
-            pass.drawIndexed(0, 0, quads.indexCount(), 1);
+            pass.drawIndexed(quads.indexCount(), 1, 0, 0, 0);
         }
     }
 

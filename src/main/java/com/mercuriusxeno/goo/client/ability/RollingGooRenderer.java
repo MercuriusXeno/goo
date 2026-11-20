@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.ability.program.TravelingStep;
+import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
@@ -10,7 +11,6 @@ import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
@@ -54,8 +54,8 @@ public final class RollingGooRenderer {
         }
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         float gameTime = level.getGameTime() + partialTick;
-        Vec3 camera = mc.gameRenderer.getMainCamera().position();
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        Vec3 camera = mc.gameRenderer.mainCamera().position();
+        ImmediateBuffers buffers = ImmediateBuffers.shared();
         for (Entity entity : level.entitiesForRendering()) {
             if (entity instanceof RollingGoo goo && goo.gooType() != null) {
                 Vec3 at = goo.getPosition(partialTick);
@@ -67,7 +67,7 @@ public final class RollingGooRenderer {
         }
     }
 
-    private static void drawGoo(ClientLevel level, PoseStack poseStack, MultiBufferSource.BufferSource buffers,
+    private static void drawGoo(ClientLevel level, PoseStack poseStack, ImmediateBuffers buffers,
                                 Vec3 camera, RollingGoo goo, Vec3 at, float gameTime) {
         ResourceKey<GooTypeDefinition> type = goo.gooType();
         poseStack.pushPose();

@@ -18,7 +18,7 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.protocol.game.ClientboundSoundPacket;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -122,8 +122,8 @@ public final class PhaseGooTests {
     public static void phasesAVillagerAndItsZombieLosesIt(GameTestHelper helper) {
         BlockPos cell = wallTheCell(helper);
         helper.setBlock(ZOMBIE_POS.below(), Blocks.STONE);
-        Mob villager = helper.spawnWithNoFreeWill(EntityType.VILLAGER, cell);
-        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, ZOMBIE_POS);
+        Mob villager = helper.spawnWithNoFreeWill(EntityTypes.VILLAGER, cell);
+        Mob zombie = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, ZOMBIE_POS);
         zombie.setTarget(villager);
         helper.assertTrue(zombie.getTarget() == villager, TARGET_NOT_TAKEN);
         helper.setBlock(cell, GooBlocks.QUANTUM_PHASE.get().defaultBlockState());
@@ -148,7 +148,7 @@ public final class PhaseGooTests {
         helper.setBlock(OFF_THE_GOO.below(), Blocks.STONE);
         helper.setBlock(cell, GooBlocks.QUANTUM_PHASE.get().defaultBlockState()
                 .setValue(VolumeCellBlock.LAYERS, VolumeCellBlock.MAX_LAYERS));
-        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, cell.above());
+        Mob zombie = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, cell.above());
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             helper.assertTrue(phasedNow(helper, zombie), NOT_PHASED_IN_THE_GOO);
             Vec3 off = Vec3.atBottomCenterOf(helper.absolutePos(OFF_THE_GOO));
@@ -176,7 +176,7 @@ public final class PhaseGooTests {
         PacketRecorder heard = PacketRecorder.attachTo(listener);
         helper.setBlock(cell, GooBlocks.QUANTUM_PHASE.get().defaultBlockState()
                 .setValue(VolumeCellBlock.LAYERS, VolumeCellBlock.MAX_LAYERS));
-        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, cell.above());
+        Mob zombie = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, cell.above());
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             Vec3 off = Vec3.atBottomCenterOf(helper.absolutePos(OFF_THE_GOO));
             zombie.teleportTo(off.x, off.y, off.z);
@@ -206,7 +206,7 @@ public final class PhaseGooTests {
         BlockPos cell = wallTheCell(helper);
         helper.setBlock(cell, GooBlocks.QUANTUM_PHASE.get().defaultBlockState()
                 .setValue(VolumeCellBlock.LAYERS, VolumeCellBlock.MAX_LAYERS));
-        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, cell.above());
+        Mob zombie = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, cell.above());
         zombie.setNoGravity(true);
         Vec3 gooTop = Vec3.atBottomCenterOf(helper.absolutePos(cell.above()));
         helper.runAfterDelay(SETTLE_TICKS, () -> {

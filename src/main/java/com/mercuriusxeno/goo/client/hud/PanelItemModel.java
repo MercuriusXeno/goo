@@ -1,14 +1,15 @@
 package com.mercuriusxeno.goo.client.hud;
 
 import com.mercuriusxeno.goo.client.GooSubmitter;
+import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.ItemSubmitCollector;
+import com.mercuriusxeno.goo.client.RenderTypeBuffers;
 import com.mojang.blaze3d.platform.Lighting;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.QuadInstance;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.Model;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.feature.ModelFeatureRenderer;
 import net.minecraft.client.renderer.item.ItemStackRenderState;
 import net.minecraft.client.renderer.rendertype.RenderType;
@@ -55,7 +56,7 @@ final class PanelItemModel {
      * @param item      the item's registry id
      * @param slot      the icon slot's top left and the fade the model draws at
      */
-    static void draw(PoseStack poseStack, MultiBufferSource.BufferSource buffers, Identifier item,
+    static void draw(PoseStack poseStack, ImmediateBuffers buffers, Identifier item,
                      IconSlot slot) {
         ItemStack stack = BuiltInRegistries.ITEM.getValue(item).getDefaultInstance();
         Minecraft minecraft = Minecraft.getInstance();
@@ -74,7 +75,7 @@ final class PanelItemModel {
         PoseStack guiSpace = new PoseStack();
         guiSpace.scale(1f, GUI_Y_FLIP, 1f);
         RENDER_STATE.submit(guiSpace, collector, GooSubmitter.fullbrightLight(), OverlayTexture.NO_OVERLAY, 0);
-        Lighting lighting = minecraft.gameRenderer.getLighting();
+        Lighting lighting = minecraft.gameRenderer.lighting();
         lighting.setupFor(RENDER_STATE.usesBlockLight() ? Lighting.Entry.ITEMS_3D : Lighting.Entry.ITEMS_FLAT);
         buffers.endBatch();
         lighting.setupFor(Lighting.Entry.LEVEL);
@@ -98,11 +99,11 @@ final class PanelItemModel {
      * alpha whole. The enchantment glint is left undrawn.
      */
     private static final class PanelCollector extends ItemSubmitCollector {
-        private final MultiBufferSource buffers;
+        private final RenderTypeBuffers buffers;
         private final Matrix4f panelPose;
         private final int fadeColor;
 
-        PanelCollector(MultiBufferSource buffers, Matrix4f panelPose, int fadeColor) {
+        PanelCollector(RenderTypeBuffers buffers, Matrix4f panelPose, int fadeColor) {
             this.buffers = buffers;
             this.panelPose = panelPose;
             this.fadeColor = fadeColor;

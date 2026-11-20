@@ -13,8 +13,8 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntitySpawnReason;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.monster.Slime;
+import net.minecraft.world.entity.EntityTypes;
+import net.minecraft.world.entity.monster.cubemob.Slime;
 import net.minecraft.world.phys.Vec3;
 import java.util.Set;
 import java.util.stream.Stream;
@@ -63,7 +63,7 @@ public record SpawnSlimeStep(ResourceKey<GooTypeDefinition> goo, int size) imple
     public boolean tick(StepContext context) {
         MobSpawnHost host = context.hostAs(MobSpawnHost.class);
         ServerLevel level = host.level();
-        Slime slime = EntityType.SLIME.create(level, EntitySpawnReason.MOB_SUMMONED);
+        Slime slime = EntityTypes.SLIME.create(level, EntitySpawnReason.MOB_SUMMONED);
         if (slime == null) {
             return true;
         }
@@ -96,7 +96,7 @@ public record SpawnSlimeStep(ResourceKey<GooTypeDefinition> goo, int size) imple
     static TransformationPayload morphOf(ResourceKey<GooTypeDefinition> goo, BlockPos cell, int slimeId) {
         Vec3 at = Vec3.atBottomCenterOf(cell);
         return TransformationPayload.intoHeldEntity(goo, at, at, slimeId,
-                BuiltInRegistries.ENTITY_TYPE.getKey(EntityType.SLIME), TRANSFORMATION_TICKS);
+                BuiltInRegistries.ENTITY_TYPE.getKey(EntityTypes.SLIME), TRANSFORMATION_TICKS);
     }
 
     @Override

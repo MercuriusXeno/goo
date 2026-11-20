@@ -71,7 +71,7 @@ class GooRenderTypesTest {
                 new StencilPerFaceTest(StencilOperation.KEEP, StencilOperation.KEEP, StencilOperation.KEEP,
                         CompareOp.EQUAL), marks.writeMask(), 0, marks.referenceValue());
 
-        assertEquals(List.of(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false).depthTest(), false,
+        assertEquals(List.of(new DepthStencilState(CompareOp.GREATER_THAN_OR_EQUAL, false).depthTest(), false,
                         ColorTargetState.WRITE_NONE, CompareOp.ALWAYS_PASS, StencilOperation.REPLACE),
                 List.of(mask.getDepthStencilState().depthTest(), mask.getDepthStencilState().writeDepth(),
                         mask.getColorTargetState().writeMask(), marks.front().compare(), marks.front().pass()));
@@ -135,7 +135,7 @@ class GooRenderTypesTest {
      */
     @Test
     void theGlowColumnTestsDepthAndWritesNone() {
-        assertEquals(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false),
+        assertEquals(new DepthStencilState(CompareOp.GREATER_THAN_OR_EQUAL, false),
                 GooRenderTypes.GLOW_COLUMN.getDepthStencilState());
     }
 

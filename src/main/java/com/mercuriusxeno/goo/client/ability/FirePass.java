@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mojang.blaze3d.PrimitiveTopology;
 import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.buffers.GpuBufferSlice;
 import com.mojang.blaze3d.pipeline.RenderTarget;
@@ -11,7 +12,6 @@ import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.MeshData;
-import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
@@ -20,8 +20,8 @@ import org.joml.Vector3f;
 import org.joml.Vector4f;
 import java.nio.ByteBuffer;
 import java.util.List;
+import java.util.Optional;
 import java.util.OptionalDouble;
-import java.util.OptionalInt;
 
 /**
  * Draws every burning Flames field this frame in one render pass on the fire
@@ -58,7 +58,7 @@ final class FirePass {
         GpuDevice device = RenderSystem.getDevice();
         int stride = strideOf(device);
         GpuBuffer uniforms = device.createBuffer(() -> FIELDS_BUFFER, GpuBuffer.USAGE_UNIFORM,
-                pack(fields, stride, camera, device.isZZeroToOne()));
+                pack(fields, stride, camera, device.getDeviceInfo().isZZeroToOne()));
         int quads = fields.size() * FACES;
         try (ByteBufferBuilder bytes = new ByteBufferBuilder(quads * CORNERS
                 * DefaultVertexFormat.POSITION_COLOR.getVertexSize())) {
@@ -98,29 +98,29 @@ final class FirePass {
 
     private static void drawAll(GpuDevice device, Matrix4fc modelView, List<FireField> fields, GpuBuffer uniforms,
                                 int stride, GpuBuffer vertices, int quads) {
-        RenderSystem.AutoStorageIndexBuffer indices = RenderSystem.getSequentialBuffer(VertexFormat.Mode.QUADS);
+        RenderSystem.AutoStorageIndexBuffer indices = RenderSystem.getSequentialBuffer(PrimitiveTopology.QUADS);
         try (RenderPass pass = openPass(device, modelView)) {
-            pass.setVertexBuffer(0, vertices);
+            pass.setVertexBuffer(0, vertices.slice());
             pass.setIndexBuffer(indices.getBuffer(quads * INDICES_PER_QUAD), indices.type());
             for (int index = 0; index < fields.size(); index++) {
                 pass.setUniform(GooRenderTypes.FIRE_FIELD_BLOCK, uniforms.slice((long) index * stride,
                         FireField.BYTES));
-                pass.drawIndexed(0, index * FACES * INDICES_PER_QUAD, FACES * INDICES_PER_QUAD, 1);
+                pass.drawIndexed(FACES * INDICES_PER_QUAD, 1, index * FACES * INDICES_PER_QUAD, 0, 0);
             }
         }
     }
 
     private static int strideOf(GpuDevice device) {
-        int alignment = Math.max(1, device.getUniformOffsetAlignment());
+        int alignment = Math.max(1, device.getDeviceInfo().limits().minUniformOffsetAlignment());
         return Math.ceilDiv(FireField.BYTES, alignment) * alignment;
     }
 
     private static RenderPass openPass(GpuDevice device, Matrix4fc modelView) {
-        RenderTarget main = Minecraft.getInstance().getMainRenderTarget();
+        RenderTarget main = Minecraft.getInstance().gameRenderer.mainRenderTarget();
         GpuBufferSlice transform = RenderSystem.getDynamicUniforms().writeTransform(new Matrix4f(modelView), WHITE,
                 new Vector3f(), new Matrix4f());
         RenderPass pass = device.createCommandEncoder().createRenderPass(() -> PASS, main.getColorTextureView(),
-                OptionalInt.empty(), main.getDepthTextureView(), OptionalDouble.empty());
+                Optional.empty(), main.getDepthTextureView(), OptionalDouble.empty());
         pass.setPipeline(GooRenderTypes.FIRE_FIELD);
         RenderSystem.bindDefaultUniforms(pass);
         pass.setUniform(TRANSFORMS_UNIFORM, transform);
@@ -128,7 +128,7 @@ final class FirePass {
     }
 
     private static MeshData boxesOf(List<FireField> fields, ByteBufferBuilder bytes) {
-        BufferBuilder builder = new BufferBuilder(bytes, VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
+        BufferBuilder builder = new BufferBuilder(bytes, PrimitiveTopology.QUADS, DefaultVertexFormat.POSITION_COLOR);
         for (FireField field : fields) {
             Vec3[] box = field.box();
             InwardBox.emit(builder, box[0], box[1]);

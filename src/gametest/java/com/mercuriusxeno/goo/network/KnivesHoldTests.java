@@ -13,8 +13,8 @@ import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.GooStacks;
-import com.mercuriusxeno.goo.registry.GooItems;
 import com.mercuriusxeno.goo.registry.GooCapabilities;
+import com.mercuriusxeno.goo.registry.GooItems;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.serialization.Codec;
@@ -24,7 +24,7 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Blocks;
@@ -242,7 +242,7 @@ public final class KnivesHoldTests {
      */
     public static void knivesFiveTicksApartBothDamageOneMob(GameTestHelper helper) {
         layTheFloor(helper);
-        Mob pig = helper.spawnWithNoFreeWill(EntityType.PIG, PIG_POS);
+        Mob pig = helper.spawnWithNoFreeWill(EntityTypes.PIG, PIG_POS);
         ServerPlayer caster = casterHolding(helper, TWO_PRICES);
         standAt(helper, caster, Vec3.atBottomCenterOf(CASTER_POS), 0f);
         GooServerState state = GooServerState.of(helper.getLevel().getServer());
@@ -427,7 +427,7 @@ public final class KnivesHoldTests {
      */
     public static void knivesDoNotTurnTowardAMobThatMoves(GameTestHelper helper) {
         layTheFloor(helper);
-        Mob husk = helper.spawnWithNoFreeWill(EntityType.HUSK, HUSK_POS);
+        Mob husk = helper.spawnWithNoFreeWill(EntityTypes.HUSK, HUSK_POS);
         ServerPlayer caster = casterHolding(helper, TWELVE_PRICES);
         standAt(helper, caster, Vec3.atBottomCenterOf(CASTER_POS), 0f);
         GooServerState state = GooServerState.of(helper.getLevel().getServer());
@@ -459,7 +459,7 @@ public final class KnivesHoldTests {
         for (int x = FENCE_WEST; x <= FENCE_EAST; x++) {
             helper.setBlock(new BlockPos(x, 1, FENCE_Z), Blocks.OAK_FENCE);
         }
-        Mob husk = helper.spawnWithNoFreeWill(EntityType.HUSK, HUSK_POS);
+        Mob husk = helper.spawnWithNoFreeWill(EntityTypes.HUSK, HUSK_POS);
         Vec3 behind = helper.absoluteVec(FENCE_HUSK);
         husk.snapTo(behind.x, behind.y, behind.z, 0f, 0f);
         ServerPlayer caster = casterHolding(helper, TWO_PRICES);

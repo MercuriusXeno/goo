@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.gametest;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
-import com.mercuriusxeno.goo.ability.ChargeSize;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.program.ExplodeStep;
 import com.mercuriusxeno.goo.ability.program.Variables;
@@ -14,10 +13,10 @@ import com.mercuriusxeno.goo.entity.CompressionSphere;
 import com.mercuriusxeno.goo.entity.SphereCore;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.network.GooChargePayload;
-import com.mercuriusxeno.goo.network.GooThrowHandler;
-import com.mercuriusxeno.goo.network.GooThrowPayload;
 import com.mercuriusxeno.goo.network.GooEffectScheduler;
 import com.mercuriusxeno.goo.network.GooEffectScheduler.PendingEffect;
+import com.mercuriusxeno.goo.network.GooThrowHandler;
+import com.mercuriusxeno.goo.network.GooThrowPayload;
 import com.mercuriusxeno.goo.network.HeldAbilitySteps;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooItems;
@@ -30,11 +29,12 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.InteractionHand;
 import net.minecraft.util.ProblemReporter;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.animal.pig.Pig;
 import net.minecraft.world.entity.item.ItemEntity;
@@ -48,12 +48,12 @@ import net.minecraft.world.level.storage.TagValueInput;
 import net.minecraft.world.level.storage.TagValueOutput;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.function.Consumer;
-import net.neoforged.neoforge.registries.RegisterEvent;
 
 /**
  * Gametests for ability blocks. Each test stands a marker initialized
@@ -307,7 +307,7 @@ public final class EffectExecutorTests {
      */
     private static Pig spawnShufflingPig(GameTestHelper helper, BlockPos pos) {
         helper.setBlock(pos.below(), Blocks.STONE);
-        Pig pig = helper.spawnWithNoFreeWill(EntityType.PIG, pos);
+        Pig pig = helper.spawnWithNoFreeWill(EntityTypes.PIG, pos);
         helper.onEachTick(() -> pig.setDeltaMovement(
                 helper.getTick() % SHUFFLE_PERIOD == 0 ? SHUFFLE_SPEED : -SHUFFLE_SPEED,
                 pig.getDeltaMovement().y(), 0));
@@ -560,7 +560,7 @@ public final class EffectExecutorTests {
         placeMetalTrap(helper);
         Pig[] pig = new Pig[1];
         helper.startSequence()
-                .thenExecuteAfter(SHORT_WAIT, () -> pig[0] = helper.spawnWithNoFreeWill(EntityType.PIG, MINE_TARGET_POS))
+                .thenExecuteAfter(SHORT_WAIT, () -> pig[0] = helper.spawnWithNoFreeWill(EntityTypes.PIG, MINE_TARGET_POS))
                 .thenWaitUntil(() -> helper.assertTrue(pig[0].getHealth() < pig[0].getMaxHealth(), SPIKE_MISSED))
                 .thenExecute(() -> pig[0].discard())
                 .thenSucceed();

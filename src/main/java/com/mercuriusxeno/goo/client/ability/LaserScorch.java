@@ -1,13 +1,13 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.phys.BlockHitResult;
@@ -82,10 +82,10 @@ public final class LaserScorch {
         if (TRAILS.isEmpty()) {
             return;
         }
-        Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        Vec3 camera = mc.gameRenderer.mainCamera().position();
         PoseStack.Pose pose = frame.poseStack().last();
         ClientLevel level = mc.level;
-        draws.accept(new SortedDraw(0, () -> drawInTwoPasses(mc.renderBuffers().bufferSource(), consumer -> {
+        draws.accept(new SortedDraw(0, () -> drawInTwoPasses(ImmediateBuffers.shared(), consumer -> {
             for (ScorchTrail trail : TRAILS.values()) {
                 for (ScorchTrail.Mark mark : trail.marksOnBlocks(pos -> blockStands(level, pos))) {
                     emitMark(pose, consumer, mark, camera, now);
@@ -102,7 +102,7 @@ public final class LaserScorch {
      * @param buffers   the buffer source
      * @param drawMarks emits every mark into the consumer it is handed
      */
-    static void drawInTwoPasses(MultiBufferSource.BufferSource buffers, Consumer<VertexConsumer> drawMarks) {
+    static void drawInTwoPasses(ImmediateBuffers buffers, Consumer<VertexConsumer> drawMarks) {
         drawMarks.accept(buffers.getBuffer(GooRenderTypes.LASER_SCORCH_TYPE));
         buffers.endBatch(GooRenderTypes.LASER_SCORCH_TYPE);
         drawMarks.accept(buffers.getBuffer(GooRenderTypes.LASER_SCORCH_GLOW_TYPE));

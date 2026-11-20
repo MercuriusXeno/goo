@@ -138,7 +138,7 @@ public final class BlobRest {
         if (rest == Rest.ABOVE_THE_HAND) {
             return SpraySource.of(casterId, sentGlove, partialTick);
         }
-        Camera camera = mc.gameRenderer.getMainCamera();
+        Camera camera = mc.gameRenderer.mainCamera();
         return inView(camera.position(), camera.xRot(), camera.yRot(), gloveRight, rest);
     }
 

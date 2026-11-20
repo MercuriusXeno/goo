@@ -82,7 +82,7 @@ final class OwnedPostEffect {
             return;
         }
         writeUniforms(chain, bytes);
-        RenderTarget main = mc.getMainRenderTarget();
+        RenderTarget main = mc.gameRenderer.mainRenderTarget();
         FrameGraphBuilder frame = new FrameGraphBuilder();
         chain.addToFrame(frame, main.width, main.height,
                 PostChain.TargetBundle.of(PostChain.MAIN_TARGET_ID, frame.importExternal(MAIN_TARGET_NAME, main)));

@@ -4,13 +4,13 @@ import com.mercuriusxeno.goo.ability.reap.ReapSlash;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.FlatQuadContext;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.network.ReapSlashPayload;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
@@ -131,14 +131,14 @@ public final class ReapSlashBlades {
         }
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         Frame frame = new Frame(mc, levelFrame.poseStack().last(), tick + partialTick, partialTick);
-        Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        Vec3 camera = mc.gameRenderer.mainCamera().position();
         draws.accept(SortedDraw.nearestOf(LIVE.stream().map(Shown::thrownFrom), camera,
                 () -> drawSlashes(mc, frame, camera)));
     }
 
     // The local player's own slash skims the ground while they view in first person, every other at its own height.
     private static void drawSlashes(Minecraft mc, Frame frame, Vec3 camera) {
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        ImmediateBuffers buffers = ImmediateBuffers.shared();
         FlatQuadContext quads = new FlatQuadContext(frame.pose(), buffers.getBuffer(GooRenderTypes.GLOW_SHELL_TYPE));
         int leaf = ClientGooTypes.color(GooTypes.LEAF);
         for (Shown shown : LIVE) {

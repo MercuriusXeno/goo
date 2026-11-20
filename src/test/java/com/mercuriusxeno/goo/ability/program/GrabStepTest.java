@@ -8,12 +8,8 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.decoration.ArmorStand;
@@ -21,6 +17,10 @@ import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.io.IOException;
@@ -467,7 +467,7 @@ class GrabStepTest {
         @Test
         void grabRefusesAPlayerABossAnArmorStandAndAPassenger() {
             Mob boss = alive(Mob.class);
-            when(boss.getType()).thenAnswer(unused -> EntityType.WITHER);
+            when(boss.getType()).thenAnswer(unused -> EntityTypes.WITHER);
             Mob rider = alive(Mob.class);
             when(rider.isPassenger()).thenReturn(true);
             assertFalse(Step.takenByAny(grabProgram, alive(Player.class)));

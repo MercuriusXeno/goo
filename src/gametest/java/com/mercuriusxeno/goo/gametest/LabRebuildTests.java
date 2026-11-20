@@ -8,7 +8,7 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.entity.EntitySpawnReason;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.animal.pig.Pig;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -61,7 +61,7 @@ public final class LabRebuildTests {
         LabPlacement broken = plan.placements().stream().filter(p -> p.offset().y() == 0).findFirst().orElseThrow();
         BlockPos brokenPos = LabBuilder.worldPos(origin, broken.offset());
         helper.getLevel().setBlock(brokenPos, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
-        Pig stray = EntityType.PIG.spawn(helper.getLevel(), foreign.above(), EntitySpawnReason.COMMAND);
+        Pig stray = EntityTypes.PIG.spawn(helper.getLevel(), foreign.above(), EntitySpawnReason.COMMAND);
         helper.assertTrue(stray != null, STRAY_MISSING);
         try {
             LabBuilder.rebuild(helper.getLevel(), origin, plan);

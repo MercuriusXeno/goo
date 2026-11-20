@@ -14,6 +14,7 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
+import net.minecraft.world.entity.EntitySpawnRequest;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.block.Block;
@@ -115,7 +116,7 @@ public final class Statues {
     private static Optional<Entity> loadedFrom(ServerLevel level, CompoundTag saved) {
         try (ProblemReporter.ScopedCollector reporter = new ProblemReporter.ScopedCollector(Goo.LOGGER)) {
             return EntityType.create(TagValueInput.create(reporter, level.registryAccess(), saved), level,
-                    EntitySpawnReason.LOAD);
+                    new EntitySpawnRequest(EntitySpawnReason.LOAD, false));
         }
     }
 

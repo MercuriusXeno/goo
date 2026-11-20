@@ -230,8 +230,8 @@ public record LavaTubes(DensityFunction.NoiseHolder noise) implements DensityFun
     }
 
     @Override
-    public DensityFunction mapAll(DensityFunction.Visitor visitor) {
-        return visitor.apply(new LavaTubes(visitor.visitNoise(noise)));
+    public DensityFunction mapChildren(DensityFunction.Visitor visitor) {
+        return new LavaTubes(visitor.visitNoise(noise));
     }
 
     @Override

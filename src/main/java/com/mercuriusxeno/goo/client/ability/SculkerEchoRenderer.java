@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.overlay.FungusXray;
@@ -11,7 +12,6 @@ import com.mojang.blaze3d.vertex.QuadInstance;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.block.dispatch.BlockStateModel;
 import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart;
 import net.minecraft.client.renderer.culling.Frustum;
@@ -97,7 +97,7 @@ public final class SculkerEchoRenderer {
     }
 
     private static void drawEchoes(Minecraft mc, LocalPlayer player, SculkerEchoes echoes, PoseStack poseStack) {
-        Frustum frustum = mc.gameRenderer.getMainCamera().getCullFrustum();
+        Frustum frustum = mc.gameRenderer.mainCamera().getCullFrustum();
         FrustumView view = new FrustumView(frustum);
         long now = mc.level.getGameTime();
         float presence = SculkerVision.presence();
@@ -111,8 +111,8 @@ public final class SculkerEchoRenderer {
         if (lit.isEmpty()) {
             return;
         }
-        Vec3 camera = mc.gameRenderer.getMainCamera().position();
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        Vec3 camera = mc.gameRenderer.mainCamera().position();
+        ImmediateBuffers buffers = ImmediateBuffers.shared();
         RenderType echo = GooRenderTypes.fungusXray(mc.getAtlasManager().getAtlasOrThrow(AtlasIds.BLOCKS).location());
         drawLit(new LevelEchoWorld(mc), SculkerSenses.echoQuads(), poseStack, buffers.getBuffer(echo),
                 camera, lit);

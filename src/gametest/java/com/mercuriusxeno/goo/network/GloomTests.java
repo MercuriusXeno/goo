@@ -13,7 +13,7 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.entity.monster.Enemy;
@@ -94,8 +94,8 @@ public final class GloomTests {
                 helper.setBlock(pos, pos.getY() == DRIP_FLOOR.getY() ? Blocks.STONE : Blocks.AIR));
         helper.setBlock(SHADED_ZOMBIE, GooBlocks.NETHER_GLOOM.get().defaultBlockState());
         helper.setTime(NOON);
-        Zombie onGloom = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, SHADED_ZOMBIE);
-        Zombie onStone = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, BURNT_ZOMBIE);
+        Zombie onGloom = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, SHADED_ZOMBIE);
+        Zombie onStone = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, BURNT_ZOMBIE);
         helper.onEachTick(() -> {
             if (onGloom.isOnFire()) {
                 helper.fail(ZOMBIE_ON_GLOOM_BURNS);

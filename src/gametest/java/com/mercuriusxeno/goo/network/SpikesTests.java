@@ -17,7 +17,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.animal.pig.Pig;
@@ -136,7 +136,7 @@ public final class SpikesTests {
         BlockPos cell = LANE.east(CELL_EAST);
         helper.setBlock(cell, GooBlocks.METAL_SPIKES.get().defaultBlockState()
                 .setValue(VolumeCellBlock.LAYERS, VolumeCellBlock.MAX_LAYERS));
-        Zombie zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, LANE.above());
+        Zombie zombie = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, LANE.above());
         zombie.getAttribute(Attributes.ARMOR).setBaseValue(0);
         zombie.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.CARVED_PUMPKIN));
         float started = zombie.getHealth();
@@ -235,7 +235,7 @@ public final class SpikesTests {
                 .setValue(VolumeCellBlock.LAYERS, VolumeCellBlock.MAX_LAYERS));
         BlockPos absolute = helper.absolutePos(cell);
         helper.getLevel().getBlockTicks().clearArea(new BoundingBox(absolute));
-        Pig pig = helper.spawnWithNoFreeWill(EntityType.PIG, cell.above());
+        Pig pig = helper.spawnWithNoFreeWill(EntityTypes.PIG, cell.above());
         float started = pig.getHealth();
         helper.runAfterDelay(PIG_TICKS, () -> {
             helper.assertTrue(pig.getHealth() <= started - strikeDamage,

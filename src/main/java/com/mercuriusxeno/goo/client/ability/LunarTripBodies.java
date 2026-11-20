@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.zone.BluePlanetRenderer;
 import com.mercuriusxeno.goo.client.zone.LunarSky;
+import com.mojang.blaze3d.PrimitiveTopology;
 import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.buffers.GpuBufferSlice;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
@@ -27,8 +28,8 @@ import org.joml.Vector3f;
 import org.joml.Vector4f;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
+import java.util.Optional;
 import java.util.OptionalDouble;
-import java.util.OptionalInt;
 
 /**
  * The bodies the Lunar trip swells over the frame: vanilla's moon, its sprite on its quad as vanilla's sky lays it,
@@ -77,19 +78,19 @@ final class LunarTripBodies {
         Matrix4f moon = new Matrix4f(view).mul(moonPose(moonAngle, discHalfTangent));
         GpuBufferSlice transforms = RenderSystem.getDynamicUniforms().writeTransform(moon,
                 new Vector4f(FULL, FULL, FULL, brightness), new Vector3f(), new Matrix4f());
-        RenderSystem.AutoStorageIndexBuffer sequential = RenderSystem.getSequentialBuffer(VertexFormat.Mode.QUADS);
+        RenderSystem.AutoStorageIndexBuffer sequential = RenderSystem.getSequentialBuffer(PrimitiveTopology.QUADS);
         GpuBuffer indices = sequential.getBuffer(QUAD_INDICES);
-        GpuTextureView color = Minecraft.getInstance().getMainRenderTarget().getColorTextureView();
-        GpuTextureView depth = Minecraft.getInstance().getMainRenderTarget().getDepthTextureView();
+        GpuTextureView color = Minecraft.getInstance().gameRenderer.mainRenderTarget().getColorTextureView();
+        GpuTextureView depth = Minecraft.getInstance().gameRenderer.mainRenderTarget().getDepthTextureView();
         try (RenderPass pass = RenderSystem.getDevice().createCommandEncoder()
-                .createRenderPass(() -> MOON_LABEL, color, OptionalInt.empty(), depth, OptionalDouble.empty())) {
+                .createRenderPass(() -> MOON_LABEL, color, Optional.empty(), depth, OptionalDouble.empty())) {
             pass.setPipeline(GooRenderTypes.LUNAR_MOON);
             RenderSystem.bindDefaultUniforms(pass);
             pass.setUniform(DYNAMIC_TRANSFORMS, transforms);
             pass.bindTexture(MOON_SAMPLER, atlas.getTextureView(), atlas.getSampler());
-            pass.setVertexBuffer(0, phases);
+            pass.setVertexBuffer(0, phases.slice());
             pass.setIndexBuffer(indices, sequential.type());
-            pass.drawIndexed(phase.index() * CORNERS, 0, QUAD_INDICES, 1);
+            pass.drawIndexed(QUAD_INDICES, 1, 0, phase.index() * CORNERS, 0);
         }
     }
 
@@ -179,7 +180,7 @@ final class LunarTripBodies {
         MoonPhase[] all = MoonPhase.values();
         VertexFormat format = DefaultVertexFormat.POSITION_TEX;
         try (ByteBufferBuilder bytes = ByteBufferBuilder.exactlySized(all.length * CORNERS * format.getVertexSize())) {
-            BufferBuilder builder = new BufferBuilder(bytes, VertexFormat.Mode.QUADS, format);
+            BufferBuilder builder = new BufferBuilder(bytes, PrimitiveTopology.QUADS, format);
             for (MoonPhase phase : all) {
                 TextureAtlasSprite sprite = atlas.getSprite(
                         Identifier.withDefaultNamespace(MOON_SPRITE_PREFIX + phase.getSerializedName()));

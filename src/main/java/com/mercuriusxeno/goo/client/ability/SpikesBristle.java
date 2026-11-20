@@ -3,13 +3,13 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.entity.LivingEntity;
@@ -199,8 +199,8 @@ public final class SpikesBristle {
 
     private static void drawPyramids(Minecraft mc, Level level, PoseStack.Pose pose) {
         float partial = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        Vec3 camera = mc.gameRenderer.getMainCamera().position();
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        Vec3 camera = mc.gameRenderer.mainCamera().position();
+        ImmediateBuffers buffers = ImmediateBuffers.shared();
         VertexConsumer steel = buffers.getBuffer(GooRenderTypes.SPIKES_STEEL_TYPE);
         CELLS.cells().forEach((pos, cell) -> {
             float shown = cell.shownAt(partial);
