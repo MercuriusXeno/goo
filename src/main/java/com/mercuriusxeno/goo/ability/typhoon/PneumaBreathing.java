@@ -4,11 +4,11 @@ import com.mercuriusxeno.goo.registry.GooAttachments;
 import net.minecraft.world.entity.player.Player;
 
 /**
- * The server's half of Pneuma: each tick vanilla takes a breath from a player
- * who cannot breathe, the breath Pneuma banked answers first. Vanilla takes
- * that breath through {@code LivingEntity.decreaseAirSupply}, underwater and
- * wherever else air drains as underwater, so every airless place reads the
- * reserve and the immunity through the one path.
+ * The server's half of Pneuma: each tick a player who cannot breathe takes a
+ * breath, the breath Pneuma banked answers first. NeoForge's breathe event
+ * hands LunarBreathing that breath, underwater and wherever else air drains
+ * as underwater, so every airless place reads the reserve and the immunity
+ * through the one path.
  * pneuma-overfills-the-air-meter-with-a-brief-airless-immunity
  */
 public final class PneumaBreathing {
