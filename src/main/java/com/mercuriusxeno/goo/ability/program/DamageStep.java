@@ -117,8 +117,8 @@ public record DamageStep(Expr amount, DamageKind source, boolean knockback,
         if (healsUndead && healedOrSpared(target, context)) {
             return true;
         }
-        // A goo hit clears damage immunity on both sides, so a touch and the melee hit of the same
-        // attack-key press both land in full, in either order; a held bite respecting i-frames leaves it be.
+        // A goo hit clears damage immunity on both sides, so it lands in full through a hit the target just
+        // took, a melee hit or another goo hit; a held bite respecting i-frames leaves it be.
         // decision attack-key-touches-plus-punches
         // decision decay-gnats-degrade-each-block-once
         if (!iFrames) {

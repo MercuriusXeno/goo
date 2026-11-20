@@ -14,8 +14,8 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 /**
  * Client-side handler for a goo landing on a mob: coats the mob in the goo
- * type and bursts its drips off the struck point. Throw, touch and punch
- * arrive through the one payload alike.
+ * type and bursts its drips off the struck point. A landing thrown or touched
+ * arrives through the one payload alike.
  * Decision hit-bursts-goo-particles.
  * Decision shader-coat-on-every-mob-landing.
  */

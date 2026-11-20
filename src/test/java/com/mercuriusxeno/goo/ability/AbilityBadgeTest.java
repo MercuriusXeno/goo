@@ -166,7 +166,7 @@ class AbilityBadgeTest {
      * decision clock-badge-marks-durative-abilities
      */
     @ParameterizedTest
-    @CsvSource({"splash", "punch", "self", "brew"})
+    @CsvSource({"splash", "self", "brew"})
     void aWordOutsideTheVocabularyFailsToParse(String word) {
         assertTrue(AbilityBadge.CODEC.parse(JsonOps.INSTANCE, new JsonPrimitive(word)).isError());
     }

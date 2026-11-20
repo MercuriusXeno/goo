@@ -380,7 +380,7 @@ public final class GooEffectScheduler {
 
     /**
      * The aim a landing struck along: the crosshair's line, captured as a
-     * throw leaves the hand or read this tick for a punch or touch landing at
+     * throw leaves the hand or read this tick for a touch landing at
      * once; none where no striker stands.
      *
      * @param pe the pending effect
