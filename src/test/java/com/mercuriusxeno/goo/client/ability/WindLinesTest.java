@@ -39,81 +39,6 @@ class WindLinesTest {
             SOUTH.scale(WindLines.SWAY), 0.3, 1.1, 0.2, 0.15);
 
     /**
-     * A jet's tailwind rides along with the player, leaving just behind the
-     * eye and rushing forward along the look past the camera
-     * (decision jet-pushes-along-the-look-while-held).
-     */
-    @Nested
-    class Tailwind {
-
-        private static final double EYE_HEIGHT = 1.62;
-        private static final WindStep.Tailwind TAILWIND = new WindStep.Tailwind(6, 30);
-
-        @Test
-        void aTailwindLeavesBehindTheEyeAndRushesForwardAlongTheLook() {
-            WindLines.Gust gust = WindLines.tailwindGust(TAILWIND, EYE_HEIGHT, EAST);
-
-            assertEquals(EAST, gust.axis());
-            assertEquals(-WindLines.TAILWIND_SETBACK, gust.origin().x, EPSILON);
-            assertEquals(EYE_HEIGHT, gust.origin().y, EPSILON);
-            assertEquals(0, gust.origin().z, EPSILON);
-            assertEquals(TAILWIND.range(), gust.range(), EPSILON);
-            assertEquals(TAILWIND.coneDegrees(), gust.coneDegrees(), EPSILON);
-            assertTrue(gust.carried());
-        }
-
-        @Test
-        void aCarriedLineRidesWithThePlayerAndAnyOtherStaysInTheWorld() {
-            Vec3 rider = new Vec3(10, 64, -5);
-
-            assertEquals(rider, WindLines.anchorOf(line(WindLines.Sway.NONE, true), rider));
-            assertEquals(Vec3.ZERO, WindLines.anchorOf(line(WindLines.Sway.NONE, false), rider));
-        }
-
-        @Test
-        void aCarriedLineOvertakesTheCameraOnItsStraightRun() {
-            WindLines.Gust gust = WindLines.tailwindGust(TAILWIND, EYE_HEIGHT, EAST);
-            WindLines.Line rushing = new WindLines.Line(gust.origin(), EAST, SOUTH, EAST.cross(SOUTH), STRAIGHT,
-                    WindLines.Sway.NONE, 1, 0f, false, 0L, true);
-
-            assertTrue(WindLines.pathPoint(rushing, 0).x < 0);
-            assertTrue(WindLines.pathPoint(rushing, WindLines.STRAIGHT_TICKS).x > 0);
-        }
-    }
-
-    /**
-     * A tailwind gust leaves the camera's eased eye for the local player in
-     * first person, so a sneak moves no new line's start until the view eases,
-     * and any other player's leaves its own eye
-     * (decision diagnose-and-correct-eye-drawn-visuals-jumping-on-sneak).
-     */
-    @Nested
-    class EasesWithTheCamera {
-
-        private static final double STANDING_EYE = 1.62;
-        private static final double CROUCHED_EYE = 1.27;
-        private static final double EASING_CAMERA_EYE = 1.47;
-        private static final WindStep.Tailwind TAILWIND = new WindStep.Tailwind(6, 30);
-
-        private static Vec3 gustOrigin(boolean followsTheCamera, double entityEyeHeight) {
-            return WindLines.tailwindGust(TAILWIND,
-                    CameraEye.eyeHeight(followsTheCamera, EASING_CAMERA_EYE, entityEyeHeight), EAST).origin();
-        }
-
-        @Test
-        void theLocalFirstPersonGustLeavesTheCamerasEasedEyeWhateverTheEntityEye() {
-            assertEquals(gustOrigin(true, STANDING_EYE), gustOrigin(true, CROUCHED_EYE));
-            assertEquals(EASING_CAMERA_EYE, gustOrigin(true, CROUCHED_EYE).y, EPSILON);
-        }
-
-        @Test
-        void anyOtherGustLeavesTheEntitysOwnEye() {
-            assertEquals(STANDING_EYE, gustOrigin(false, STANDING_EYE).y, EPSILON);
-            assertEquals(CROUCHED_EYE, gustOrigin(false, CROUCHED_EYE).y, EPSILON);
-        }
-    }
-
-    /**
      * operator ruling: "the cold spray from the blob has the same problem that the decay and mycosis sprays had"
      * every-ability-casts-from-the-lifted-palm-blob: a line blown from the lifted blob leaves it where it stands
      */
@@ -126,7 +51,7 @@ class WindLinesTest {
 
         private WindLines.Line blown() {
             return new WindLines.Line(blownFrom, EAST, SOUTH, EAST.cross(SOUTH), STRAIGHT, WindLines.Sway.NONE, 1, 0f,
-                    true, 0L, false);
+                    true, 0L);
         }
 
         @Test
@@ -159,11 +84,7 @@ class WindLinesTest {
 
     /** A line blown straight along the look, twisting out south first. */
     private static WindLines.Line line(WindLines.Sway sway) {
-        return line(sway, false);
-    }
-
-    private static WindLines.Line line(WindLines.Sway sway, boolean carried) {
-        return new WindLines.Line(Vec3.ZERO, EAST, SOUTH, EAST.cross(SOUTH), STRAIGHT, sway, 1, 0f, true, 0L, carried);
+        return new WindLines.Line(Vec3.ZERO, EAST, SOUTH, EAST.cross(SOUTH), STRAIGHT, sway, 1, 0f, true, 0L);
     }
 
     /**
@@ -175,7 +96,7 @@ class WindLinesTest {
     class Inward {
 
         private final WindLines.Line inward = new WindLines.Line(Vec3.ZERO, EAST, SOUTH, EAST.cross(SOUTH), STRAIGHT,
-                SWAYING, 1, 0f, false, 0L, false, true);
+                SWAYING, 1, 0f, false, 0L, true);
 
         @Test
         void anInwardLinesHeadClosesOnTheBlobUntilItArrives() {
@@ -207,7 +128,7 @@ class WindLinesTest {
         @Test
         void anInwardLineRunsItsCourseWithNoSway() {
             WindLines.Line steady = new WindLines.Line(Vec3.ZERO, EAST, SOUTH, EAST.cross(SOUTH), STRAIGHT,
-                    WindLines.Sway.NONE, 1, 0f, false, 0L, false, true);
+                    WindLines.Sway.NONE, 1, 0f, false, 0L, true);
             for (int tick = 0; tick <= WindLines.LIFE_TICKS; tick++) {
                 assertEquals(0, WindLines.pathPoint(inward, tick).distanceTo(WindLines.pathPoint(steady, tick)),
                         EPSILON, "tick " + tick + " sways off course");
@@ -230,7 +151,7 @@ class WindLinesTest {
             Vec3 outward = WindLines.radial(EAST, about);
             Vec3 across = EAST.cross(outward).normalize();
             WindLines.Line tilted = new WindLines.Line(Vec3.ZERO, WindLines.tilt(EAST, Math.toRadians(15), about),
-                    outward, across, STRAIGHT, WindLines.Sway.NONE, 1, 0f, false, 0L, false, true);
+                    outward, across, STRAIGHT, WindLines.Sway.NONE, 1, 0f, false, 0L, true);
             double start = angleAbout(tilted, 0, outward, across);
             double last = start;
             double direction = 0;
@@ -257,9 +178,9 @@ class WindLinesTest {
             private static final double SPREAD = 0.3;
             private final Vec3 blob = new Vec3(2, 64, -3);
             private final WindLines.Line gusts = new WindLines.Line(blob, EAST, SOUTH, EAST.cross(SOUTH),
-                    WindLines.runOf(RANGE, SPREAD), WindLines.Sway.NONE, 1, 0f, false, 0L, false);
+                    WindLines.runOf(RANGE, SPREAD), WindLines.Sway.NONE, 1, 0f, false, 0L);
             private final WindLines.Line vacuums = new WindLines.Line(blob, EAST, SOUTH, EAST.cross(SOUTH),
-                    WindLines.runOf(RANGE, SPREAD), SWAYING, 1, 0f, false, 0L, false, true);
+                    WindLines.runOf(RANGE, SPREAD), SWAYING, 1, 0f, false, 0L, true);
 
             private double gustsRun() {
                 return gustsReachAt(WindLines.LIFE_TICKS);
@@ -360,7 +281,7 @@ class WindLinesTest {
         void aVoidMoteStartsAtARandomPointInsideTheStreamsCone() {
             Vec3 blob = new Vec3(2, 64, -3);
             Vec3 look = new Vec3(1, -0.3, 0.4).normalize();
-            WindLines.Gust gust = new WindLines.Gust(blob, look, 8, 40, false);
+            WindLines.Gust gust = new WindLines.Gust(blob, look, 8, 40);
             RandomSource random = RandomSource.create(1168L);
             double halfAngle = Math.toRadians(gust.coneDegrees() / 2);
             Set<Vec3> drawn = new HashSet<>();
@@ -385,7 +306,7 @@ class WindLinesTest {
 
         private static WindLines.Line colored(float gray, WindStep.LineColors colors) {
             return new WindLines.Line(Vec3.ZERO, EAST, SOUTH, EAST.cross(SOUTH), STRAIGHT, WindLines.Sway.NONE, 1,
-                    gray, false, 0L, false, true, colors);
+                    gray, false, 0L, true, colors);
         }
 
         private static WindStep windOf(String ability) {
@@ -547,14 +468,6 @@ class WindLinesTest {
             assertTrue(WindLines.TWIST_TURNS * 2 * Math.PI / WindLines.TWIST_TICKS <= LAST_TURN_PER_TICK,
                     "no faster a spin");
         }
-    }
-
-    // jet-pushes-along-the-look-while-held
-    @Test
-    void aJetsWindWhistlesHigherTheFasterThePlayerMoves() {
-        assertEquals(WindLines.WIND_PITCH, WindLines.pitchAt(0), 1e-6);
-        assertTrue(WindLines.pitchAt(1.2) > WindLines.pitchAt(0.4));
-        assertEquals(WindLines.MAX_PITCH, WindLines.pitchAt(10), 1e-6);
     }
 
     // cold-wind-fades-on-release

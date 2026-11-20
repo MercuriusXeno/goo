@@ -67,6 +67,5 @@ class UpdraftWindTest {
         assertEquals(BASE.y, gust.origin().y, EPSILON);
         assertEquals(new Vec3(0, 1, 0), gust.axis());
         assertEquals(8, gust.range(), EPSILON);
-        assertFalse(gust.carried());
     }
 }
