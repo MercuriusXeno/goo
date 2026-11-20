@@ -25,7 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 /**
- * Every bundled type's brew effect draws the icon the radial draws for the brew ability the shipped
+ * Every bundled type's held effect draws the icon the radial draws for the durative ability the shipped
  * goo_abilities JSON grants it, a texture the jar carries, and no icon for a type granting none.
  * decision every-brew-effect-draws-its-abilitys-icon
  */
@@ -46,18 +46,18 @@ class HeldEffectIconTest {
 
     @ParameterizedTest
     @MethodSource("bundledKeys")
-    void brewEffectDrawsTheIconTheRadialDrawsForItsAbility(ResourceKey<GooTypeDefinition> type) throws IOException {
+    void heldEffectDrawsTheIconTheRadialDrawsForItsAbility(ResourceKey<GooTypeDefinition> type) throws IOException {
         AbilityDefinition granted = shipped.durativeAbilityFor(type);
 
         Identifier icon = HeldEffectIcon.textureOf(granted, Level.OVERWORLD);
 
         if (granted == null) {
-            assertNull(icon, () -> GooTypes.id(type) + " grants no brew ability");
+            assertNull(icon, () -> GooTypes.id(type) + " grants no durative ability");
             return;
         }
         Identifier radial = ClientAbility.fromEntry(
                 AbilitySyncPayload.gloveEntries(type, List.of(granted)).getFirst()).iconTexture();
-        assertEquals(radial, icon, () -> GooTypes.id(type) + "'s brew effect icon");
+        assertEquals(radial, icon, () -> GooTypes.id(type) + "'s held effect icon");
         String resource = ASSETS + radial.getNamespace() + PATH_SEPARATOR + radial.getPath();
         try (InputStream in = HeldEffectIconTest.class.getResourceAsStream(resource)) {
             assertNotNull(in, resource);

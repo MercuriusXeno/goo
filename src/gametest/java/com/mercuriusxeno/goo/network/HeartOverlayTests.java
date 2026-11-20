@@ -40,7 +40,7 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 public final class HeartOverlayTests {
     private static final String SELF_KINDLE_SHIELDS = "self_kindle_shields_then_quenches";
     private static final String SELF_KINDLE_BURNS = "self_kindle_burns_the_attacker";
-    private static final String SELF_HEART_BREWS_REPLACE = "self_heart_brews_replace_each_other";
+    private static final String SELF_HEART_DURATIVES_REPLACE = "self_heart_duratives_replace_each_other";
     private static final String SELF_KINDLE_FIRE = "self_kindle_fire_relights_for_a_heart";
 
     /**
@@ -51,7 +51,7 @@ public final class HeartOverlayTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, SELF_KINDLE_SHIELDS, HeartOverlayTests::kindleShieldsThenQuenches);
         GooTestFunctions.registerTest(registrar, SELF_KINDLE_BURNS, HeartOverlayTests::kindleBurnsTheAttacker);
-        GooTestFunctions.registerTest(registrar, SELF_HEART_BREWS_REPLACE, HeartOverlayTests::heartBrewsReplaceEachOther);
+        GooTestFunctions.registerTest(registrar, SELF_HEART_DURATIVES_REPLACE, HeartOverlayTests::heartDurativesReplaceEachOther);
         GooTestFunctions.registerTest(registrar, SELF_KINDLE_FIRE, HeartOverlayTests::kindleFireRelightsForAHeart);
     }
 
@@ -231,13 +231,13 @@ public final class HeartOverlayTests {
     }
 
     /**
-     * Invokes a heart brew the way the glove does, so the
+     * Invokes a heart durative the way the glove does, so the
      * hearts stand when the call returns (decision
      * durative-self-abilities-wash-over-the-view-in-place-of-eating).
      *
      * @param player  the invoking player
-     * @param gooType the brew's goo type
-     * @param ability the brew's id
+     * @param gooType the durative's goo type
+     * @param ability the durative's id
      */
     static void invoke(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType, Identifier ability) {
         KnownRecipes.teachRequires(player, AbilityRegistry.of(player.level()).getAbility(ability));
@@ -254,7 +254,7 @@ public final class HeartOverlayTests {
      *
      * @param helper the gametest helper
      */
-    public static void heartBrewsReplaceEachOther(GameTestHelper helper) {
+    public static void heartDurativesReplaceEachOther(GameTestHelper helper) {
         ServerPlayer player = kindled(helper);
         player.getInventory().add(GooStacks.createForOutput(GooTypes.LEAF, SECOND_GOO));
         hurt(helper, player, player.damageSources().generic(), ONE_POINT);

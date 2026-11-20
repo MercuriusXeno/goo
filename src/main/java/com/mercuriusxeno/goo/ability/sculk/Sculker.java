@@ -15,7 +15,7 @@ import net.minecraft.network.codec.StreamCodec;
  * decision dive-is-a-brew-of-warden-senses-and-free-swimming-through-solid-blocks
  * decision dive-is-renamed-sculker
  *
- * @param expiresAt the game time the brew ends at; zero when none stands
+ * @param expiresAt the game time the held effect ends at; zero when none stands
  * @param diving    whether the player is in the dive now, swimming through solid blocks
  */
 public record Sculker(long expiresAt, boolean diving) {
@@ -59,10 +59,10 @@ public record Sculker(long expiresAt, boolean diving) {
     }
 
     /**
-     * The same brew with the player in or out of the dive.
+     * The same held effect with the player in or out of the dive.
      *
      * @param inTheDive whether the player is in the dive
-     * @return the brew with that dive state
+     * @return the held effect with that dive state
      */
     public Sculker withDiving(boolean inTheDive) {
         return new Sculker(expiresAt, inTheDive);

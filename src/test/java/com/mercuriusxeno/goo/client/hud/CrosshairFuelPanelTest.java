@@ -97,10 +97,10 @@ class CrosshairFuelPanelTest {
         }
 
         @Test
-        void brewReadsItsSeconds() {
-            ClientAbility brew = ability(0, AbilityBadge.DURATIVE, List.of(), 1);
-            assertEquals(concat(head(brew), new Count("12s")),
-                    CrosshairFuelPanel.rowCells(GooTypes.UNSTABLE, brew, 250, PLENTY, NOT_READ));
+        void durativeReadsItsSeconds() {
+            ClientAbility durative = ability(0, AbilityBadge.DURATIVE, List.of(), 1);
+            assertEquals(concat(head(durative), new Count("12s")),
+                    CrosshairFuelPanel.rowCells(GooTypes.UNSTABLE, durative, 250, PLENTY, NOT_READ));
         }
 
         /** A dynamic ability's row reads the live mB at the aim (decision dynamic-costs-keep-the-mb-quantity). */

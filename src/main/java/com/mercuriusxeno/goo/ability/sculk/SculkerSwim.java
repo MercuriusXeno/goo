@@ -60,7 +60,7 @@ public final class SculkerSwim {
      * Whether a player's Sculker stands now.
      *
      * @param player the player
-     * @return true while the brew stands
+     * @return true while the held effect stands
      */
     public static boolean dives(Player player) {
         return player.getData(GooAttachments.SCULKER).standsAt(player.level().getGameTime());
@@ -78,7 +78,7 @@ public final class SculkerSwim {
 
     /**
      * Moves a server player into or out of the dive by its last input: sneak
-     * and jump together take it in while the brew stands, rising out of a top
+     * and jump together take it in while the held effect stands, rising out of a top
      * face with jump held takes it out, and so does leaving the ground. The
      * state syncs to its client.
      *
@@ -102,7 +102,7 @@ public final class SculkerSwim {
      * it holds.
      *
      * @param diving      whether it is in the dive now
-     * @param stands      whether its brew stands
+     * @param stands      whether its held effect stands
      * @param keys        its held keys
      * @param inside      whether its body is in the ground: inside a solid block or below the world's floor
      * @param overATopFace whether a block's top face lies under its feet within a jump's height

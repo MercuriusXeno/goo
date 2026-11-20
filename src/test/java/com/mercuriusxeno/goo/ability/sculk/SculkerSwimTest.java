@@ -11,7 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Sneak and jump together enter the dive, jumping clear of a top face leaves
- * it, a body clear of the ground is out of it and the brew's end ends it;
+ * it, a body clear of the ground is out of it and the held effect's end ends it;
  * sneak sinks over jump; the world's floor and ceiling stop a body leaving
  * and never one coming back; and the swim drives along the look, steering a
  * share of the way each tick
@@ -71,7 +71,7 @@ class SculkerSwimTest {
         }
 
         @Test
-        void theDiveEndsWithTheBrew() {
+        void theDiveEndsWithTheHeldEffect() {
             assertFalse(SculkerSwim.nextDiving(true, false, NONE, true, false));
         }
 

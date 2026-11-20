@@ -28,7 +28,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 /**
- * The registrar answers one extension per bundled brew effect, reading the connection's brew ability
+ * The registrar answers one extension per bundled held effect, reading the connection's durative ability
  * icons over the shipped goo_abilities JSON: each draws its granted ability's icon, or none for a type granting
  * none.
  * decision every-brew-effect-draws-its-abilitys-icon
@@ -63,32 +63,32 @@ class HeldEffectIconsTest {
     }
 
     @Test
-    void everyBundledBrewEffectHoldsOneExtension() {
+    void everyBundledHeldEffectHoldsOneExtension() {
         assertEquals(Set.copyOf(GooTypes.BUNDLED), extensions.keySet());
     }
 
 
     @ParameterizedTest
-    @MethodSource("bundledKeysGrantingABrew")
-    void brewEffectDrawsItsGrantedAbilitysIcon(ResourceKey<GooTypeDefinition> type) {
+    @MethodSource("bundledKeysGrantingADurative")
+    void heldEffectDrawsItsGrantedAbilitysIcon(ResourceKey<GooTypeDefinition> type) {
         HeldEffectIcons.AbilityIconExtension extension =
                 assertInstanceOf(HeldEffectIcons.AbilityIconExtension.class, extensions.get(type));
-        assertNotNull(extension.iconTexture(), () -> GooTypes.id(type) + " draws no brew effect icon");
+        assertNotNull(extension.iconTexture(), () -> GooTypes.id(type) + " draws no held effect icon");
         assertEquals(HeldEffectIcon.textureOf(shipped.durativeAbilityFor(type), Level.OVERWORLD), extension.iconTexture(),
-                () -> GooTypes.id(type) + "'s brew effect icon");
+                () -> GooTypes.id(type) + "'s held effect icon");
     }
 
     @Test
-    void typesGrantingNoBrewAbilityDrawNoIconSoVanillaDrawsTheirTile() {
+    void typesGrantingNoDurativeAbilityDrawNoIconSoVanillaDrawsTheirTile() {
         for (ResourceKey<GooTypeDefinition> type : GRANTING_NONE) {
-            assertNull(shipped.durativeAbilityFor(type), () -> GooTypes.id(type) + " grants a brew ability");
+            assertNull(shipped.durativeAbilityFor(type), () -> GooTypes.id(type) + " grants a durative ability");
             HeldEffectIcons.AbilityIconExtension extension =
                     assertInstanceOf(HeldEffectIcons.AbilityIconExtension.class, extensions.get(type));
             assertNull(extension.iconTexture(), () -> GooTypes.id(type) + " draws an icon");
         }
     }
 
-    static Stream<ResourceKey<GooTypeDefinition>> bundledKeysGrantingABrew() {
+    static Stream<ResourceKey<GooTypeDefinition>> bundledKeysGrantingADurative() {
         return GooTypes.BUNDLED.stream().filter(type -> !GRANTING_NONE.contains(type));
     }
 }

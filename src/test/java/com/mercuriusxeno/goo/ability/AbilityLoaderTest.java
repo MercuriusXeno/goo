@@ -82,8 +82,8 @@ class AbilityLoaderTest {
 
     private static final String DIRECTORY = "goo_abilities";
     private static final String EN_US = "/assets/goo/lang/en_us.json";
-    /** The one brew that starts silent (decision rally-drops-its-sound-and-gets-its-sprite). */
-    private static final Identifier SILENT_BREW = Identifier.fromNamespaceAndPath(Goo.MODID, "yarn_lead");
+    /** The one durative that starts silent (decision rally-drops-its-sound-and-gets-its-sprite). */
+    private static final Identifier SILENT_DURATIVE = Identifier.fromNamespaceAndPath(Goo.MODID, "yarn_lead");
     /** The proving example of a world ability that stays after its blob lands. */
     private static final String LINGERING = "xeno_shriek";
     /** The ability whose program ends the tick it lands. */
@@ -140,7 +140,7 @@ class AbilityLoaderTest {
 
     /**
      * Typhoon's abilities after the flight merge: Shulk levitates the struck
-     * mob, and Float is typhoon's brew carrying the flight.
+     * mob, and Float is typhoon's durative carrying the flight.
      * decision mob-float-renamed-shulk
      * decision tailwind-and-airborn-merge-into-float
      */
@@ -170,7 +170,7 @@ class AbilityLoaderTest {
         }
 
         @Test
-        void floatIsTyphoonsBrewCarryingTheFlight() {
+        void floatIsTyphoonsDurativeCarryingTheFlight() {
             AbilityDefinition flight = AbilityJson.decode("typhoon_float");
 
             assertEquals("goo.ability.typhoon.float", flight.displayName());
@@ -328,7 +328,7 @@ class AbilityLoaderTest {
      * (decision self-effects-trickle-until-ended).
      */
     @Test
-    void selfBrewAbilitiesNameAnUpkeepInPlaceOfACost() {
+    void selfDurativeAbilitiesNameAnUpkeepInPlaceOfACost() {
         Map<Identifier, AbilityDefinition> scanned = shippedById();
 
         for (AbilityDefinition ability : scanned.values()) {
@@ -402,21 +402,21 @@ class AbilityLoaderTest {
     }
 
     /**
-     * Every brew but Lead sounds as its effect starts, as every held effect
+     * Every durative but Lead sounds as its effect starts, as every held effect
      * sounds as it ends.
      * held-effects-sound-up-and-down
      * rally-drops-its-sound-and-gets-its-sprite
      */
     @ParameterizedTest
-    @MethodSource("shippedBrews")
-    void everyBrewButLeadSoundsAsItStarts(AbilityDefinition brew) {
-        boolean sounds = brew.behaviors().stream().flatMap(AbilityLoaderTest::stepTree)
+    @MethodSource("shippedDuratives")
+    void everyDurativeButLeadSoundsAsItStarts(AbilityDefinition durative) {
+        boolean sounds = durative.behaviors().stream().flatMap(AbilityLoaderTest::stepTree)
                 .anyMatch(SoundStep.class::isInstance);
-        assertEquals(!brew.id().equals(SILENT_BREW), sounds, brew.id().toString());
+        assertEquals(!durative.id().equals(SILENT_DURATIVE), sounds, durative.id().toString());
     }
 
     /** Every shipped durative ability (decision tests-read-the-inventory-from-loaded-json). */
-    static Stream<AbilityDefinition> shippedBrews() {
+    static Stream<AbilityDefinition> shippedDuratives() {
         return AbilityJson.files().stream().map(AbilityJson::decode)
                 .filter(ability -> DurativeRoute.isDurative(ability.delivery(), ability.badge()));
     }
@@ -648,9 +648,9 @@ class AbilityLoaderTest {
      * the load naming both (decision every-type-ships-one-brew-ability).
      */
     @Nested
-    class OneBrewPerType {
+    class OneDurativePerType {
 
-        private static AbilityDefinition brew(String name) {
+        private static AbilityDefinition durative(String name) {
             return new AbilityDefinition(Identifier.fromNamespaceAndPath(Goo.MODID, name), GooTypes.ROCK,
                     name, "", 0, 0, Delivery.of(DeliveryKind.SELF), List.of(), List.of(),
                     AbilityBadge.DURATIVE, List.of());
@@ -661,8 +661,8 @@ class AbilityLoaderTest {
         }
 
         @Test
-        void secondBrewOfATypeFailsTheLoadNamingBoth() {
-            Map<Identifier, AbilityDefinition> abilities = byId(brew("rock_stoneskin"), brew("rock_pebbleskin"));
+        void secondDurativeOfATypeFailsTheLoadNamingBoth() {
+            Map<Identifier, AbilityDefinition> abilities = byId(durative("rock_stoneskin"), durative("rock_pebbleskin"));
 
             ProgramLoadException refusal = assertThrows(ProgramLoadException.class,
                     () -> AbilityLoader.refuseASecondDurative(abilities));
@@ -672,17 +672,17 @@ class AbilityLoaderTest {
         }
 
         @Test
-        void shippedBlazeLeafAndYarnEachCarryExactlyOneBrew() {
+        void shippedBlazeLeafAndYarnEachCarryExactlyOneDurative() {
             Map<Identifier, AbilityDefinition> shipped = scanShipped(AbilityJson.files());
             // leader-is-zoos-brew-ability
             // kin-becomes-herd-and-rally-becomes-lead-on-yarn
             List<ResourceKey<GooTypeDefinition>> carriers = List.of(GooTypes.BLAZE, GooTypes.LEAF, GooTypes.YARN);
 
             for (ResourceKey<GooTypeDefinition> type : carriers) {
-                long brews = shipped.values().stream()
+                long duratives = shipped.values().stream()
                         .filter(def -> def.gooType() == type && DurativeRoute.isDurative(def.delivery(), def.badge()))
                         .count();
-                assertEquals(1, brews, type.identifier().toString());
+                assertEquals(1, duratives, type.identifier().toString());
             }
         }
 

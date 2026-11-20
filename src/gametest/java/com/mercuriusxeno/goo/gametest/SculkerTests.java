@@ -29,7 +29,7 @@ import java.util.function.Consumer;
  * stands on that block, out of the dive; a diver that swims out of the
  * stone into open air is out of the dive and falls, hurt where it lands; a
  * creative flier that switches flight off falls; a diver below the world's
- * floor rises back in; nothing in the stone suffocates a player whose brew
+ * floor rises back in; nothing in the stone suffocates a player whose held effect
  * stands; and a sculk sensor never hears a player under Sculker walk or jump
  * (decisions sculker-swims-solid-blocks-and-surfaces-at-will,
  * diagnose-and-correct-sculker-flying-through-air,
@@ -106,7 +106,7 @@ public final class SculkerTests {
     private static final String SHOULD_SINK = "Sneak and jump should sink the player below the stone's top at y=%d, it stands at y=%.2f";
     private static final String SHOULD_STAND = "The diver should stand on the stone's top at y=%d out of the dive: y=%.2f, on ground %b, diving %b";
     private static final String SHOULD_MUTE = "A sensor beside a walking, jumping Sculker should stay unpowered, it reached power %d";
-    private static final String SHOULD_HEAR = "The same sensor beside the walk with the brew ended should power, it reached power %d";
+    private static final String SHOULD_HEAR = "The same sensor beside the walk with the held effect ended should power, it reached power %d";
     private static final String SHOULD_MOVE = "The diver should swim a block east through the stone, moved %.2f";
     /**
      * Ticks a diver swims west from the stone's top layer at its west column,
@@ -148,7 +148,7 @@ public final class SculkerTests {
     public static void sculkerEntersOnSneakAndJump(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         BlockPos top = layStone(helper);
-        ServerPlayer player = brewed(helper);
+        ServerPlayer player = holdingTheSculkerDurative(helper);
         player.teleportTo(top.getX() + 0.5, top.getY() + 1, top.getZ() + 0.5);
         swimFor(player, SNEAK_AND_JUMP, SINK_TICKS);
         double sunk = player.getY();
@@ -262,7 +262,7 @@ public final class SculkerTests {
 
     /**
      * A sculk sensor beside a player under Sculker that walks and jumps
-     * along the stone stays unpowered; with the brew ended, the same walk
+     * along the stone stays unpowered; with the held effect ended, the same walk
      * beside the same sensor powers it.
      *
      * @param helper the gametest helper
@@ -272,7 +272,7 @@ public final class SculkerTests {
         BlockPos top = layStone(helper);
         BlockPos start = top.above().west(HALF_WIDTH - 1);
         BlockPos sensor = top.above().south(SENSOR_OFFSET);
-        ServerPlayer player = brewed(helper);
+        ServerPlayer player = holdingTheSculkerDurative(helper);
         int[] mutedPower = {0};
         int[] heardPower = {0};
         holdTheSensorsChunks(level, sensor, true);
@@ -345,12 +345,12 @@ public final class SculkerTests {
     }
 
     /**
-     * A survival player holding Sculker from the glove, out of the dive.
+     * A survival player holding the Sculker durative from the glove, out of the dive.
      *
      * @param helper the gametest helper
      * @return the player
      */
-    private static ServerPlayer brewed(GameTestHelper helper) {
+    private static ServerPlayer holdingTheSculkerDurative(GameTestHelper helper) {
         return HeartOverlayTests.selfInvoked(helper, GooTypes.SCULK, SCULK_SCULKER);
     }
 
@@ -361,7 +361,7 @@ public final class SculkerTests {
      * @return the player
      */
     private static ServerPlayer diving(GameTestHelper helper) {
-        ServerPlayer player = brewed(helper);
+        ServerPlayer player = holdingTheSculkerDurative(helper);
         player.setData(GooAttachments.SCULKER, player.getData(GooAttachments.SCULKER).withDiving(true));
         return player;
     }
@@ -426,7 +426,7 @@ public final class SculkerTests {
     public static void sculkerCreativeFlightSwitchesOff(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         BlockPos top = layStone(helper);
-        ServerPlayer player = brewed(helper);
+        ServerPlayer player = holdingTheSculkerDurative(helper);
         player.setGameMode(GameType.CREATIVE);
         player.getAbilities().flying = true;
         player.onUpdateAbilities();

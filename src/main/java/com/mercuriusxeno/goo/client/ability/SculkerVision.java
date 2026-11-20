@@ -18,7 +18,7 @@ import org.lwjgl.system.MemoryStack;
 import java.util.function.Consumer;
 
 /**
- * Sculker's warden senses: while the brew stands the world dims through
+ * Sculker's warden senses: while the held effect stands the world dims through
  * {@code goo:sculker_sense} with its distance from the diver, black by 6
  * blocks, so past the near world only what a real echo touched shows.
  * decision dive-is-a-brew-of-warden-senses-and-free-swimming-through-solid-blocks
@@ -65,13 +65,13 @@ public final class SculkerVision {
     private SculkerVision() {
     }
 
-    private static boolean brewStands(Minecraft mc) {
+    private static boolean heldEffectStands(Minecraft mc) {
         LocalPlayer player = mc.player;
         return player != null && mc.level != null && SculkerSwim.dives(player);
     }
 
     /**
-     * How fully the vision stands now, easing in as the brew starts and out as it ends.
+     * How fully the vision stands now, easing in as the held effect starts and out as it ends.
      *
      * @return the presence, 0 to 1
      */
@@ -103,10 +103,10 @@ public final class SculkerVision {
 
     /**
      * The presence after a frame: it closes a share of the gap to full
-     * presence while the brew stands, and to none otherwise.
+     * presence while the held effect stands, and to none otherwise.
      *
      * @param presence   the presence before the frame, 0 to 1
-     * @param stands     whether the brew stands
+     * @param stands     whether the held effect stands
      * @param deltaTicks the frame's length in ticks
      * @return the presence after the frame
      */
@@ -131,7 +131,7 @@ public final class SculkerVision {
      */
     public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
         Minecraft mc = Minecraft.getInstance();
-        boolean stands = brewStands(mc);
+        boolean stands = heldEffectStands(mc);
         presence = easedPresence(presence, stands, mc.getDeltaTracker().getRealtimeDeltaTicks());
         SLOT.hide(mc.gameRenderer);
         if (mc.level == null || !stands && presence < GONE) {

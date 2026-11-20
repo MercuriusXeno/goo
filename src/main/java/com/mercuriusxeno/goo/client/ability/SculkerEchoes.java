@@ -30,7 +30,7 @@ import java.util.function.Predicate;
  * makes a sound outlines for as long as its rank holds, three seconds at
  * rank 10. What is heard draws fainter the farther the player stands from it,
  * down to a fifth at the edge of render distance and not at all past it;
- * the brew's end forgets every face. The faces whose light runs out soonest
+ * the held effect's end forgets every face. The faces whose light runs out soonest
  * give way once the memory holds its most, so a loud dive never outgrows it
  * and weak sounds never push out what a strong one lit.
  * decision sculker-sight-persists-where-echoes-have-touched
@@ -414,7 +414,7 @@ public final class SculkerEchoes {
         return Collections.unmodifiableList(ripples);
     }
 
-    /** Forgets every face and ripple, as the brew's end does. */
+    /** Forgets every face and ripple, as the held effect's end does. */
     public void clear() {
         remembered.clear();
         bySection.clear();

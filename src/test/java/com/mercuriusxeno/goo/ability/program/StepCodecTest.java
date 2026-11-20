@@ -287,7 +287,7 @@ class StepCodecTest {
 
     @Test
     void heldEffectStepsDecodeWithNoDuration() {
-        // self-effects-trickle-until-ended: the brew alone names a duration
+        // self-effects-trickle-until-ended: a held effect step names no duration
         assertEquals(new HeartOverlayStep(HeartKind.KINDLE),
                 decode("{\"type\": \"heart_overlay\", \"kind\": \"kindle\"}").getOrThrow());
         // gluttony-overheals-and-overhungers: the step names the caps alone, no clock

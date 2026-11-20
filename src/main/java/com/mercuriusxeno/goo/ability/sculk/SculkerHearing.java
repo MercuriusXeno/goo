@@ -18,7 +18,7 @@ import net.neoforged.neoforge.network.PacketDistributor;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A Sculker hears far: while the brew stands the server carries every sound
+ * A Sculker hears far: while the held effect stands the server carries every sound
  * played within render distance to its holder, in the open as inside
  * blocks, past the range vanilla sends sounds over, so its rings and
  * outlines show there. Vanilla still sends the sounds within its own range.

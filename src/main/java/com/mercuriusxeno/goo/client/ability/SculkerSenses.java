@@ -32,14 +32,14 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 /**
- * What a Sculker senses, while its brew stands. Every sound heard sends its
+ * What a Sculker senses, while its held effect stands. Every sound heard sends its
  * rings out at its vibration rank across the block faces open to air near its source, whose
  * blocks SculkerEchoRenderer draws tinted sculk teal ({@link SculkerEchoes}).
  * A mob that makes a sound shows a soft blurred sculk-teal glow around its
  * body, through walls, for its outline's time, fading; all of it draws
  * fainter the farther it stands, down to a fifth at the edge of render
  * distance. The diver also hears the sounds the server carries to it
- * from anywhere within render distance. The brew's end
+ * from anywhere within render distance. The held effect's end
  * forgets it all.
  * decision sculker-sight-persists-where-echoes-have-touched
  * decision sculker-echo-intensity-follows-vibration-rank
@@ -254,7 +254,7 @@ public final class SculkerSenses {
     }
 
     /**
-     * Whether the local Sculker hears a sound at a point: its brew stands
+     * Whether the local Sculker hears a sound at a point: its held effect stands
      * and the point lies within render distance.
      *
      * @param mc the client

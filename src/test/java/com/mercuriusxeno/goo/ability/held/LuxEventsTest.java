@@ -7,7 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Lux's standing and its night vision: held Lux stands until its effect
- * ends, a brew's for its duration, and only Lux's endless hidden night
+ * ends, and only Lux's endless hidden night
  * vision reads as Lux's, so a potion's is neither hidden nor removed.
  * decision lux-night-vision-without-particles
  */

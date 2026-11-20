@@ -3,7 +3,7 @@
 // Sculker's warden senses: the world dims with its distance from the
 // diver, showing at 60% of its own look within 2 blocks, 30% at 3.5, 10% at
 // 5 and black by 6, the sky black with it. The whole vision eases in as
-// the brew starts and out as it ends. The glass field and what the diver's
+// the held effect starts and out as it ends. The glass field and what the diver's
 // echoes lit draw over the world once this has dimmed it, so only what a
 // real echo touched lights up past the near world.
 // decision dive-is-a-brew-of-warden-senses-and-free-swimming-through-solid-blocks

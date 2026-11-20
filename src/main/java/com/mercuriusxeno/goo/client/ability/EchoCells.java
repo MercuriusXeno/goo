@@ -71,7 +71,7 @@ final class EchoCells {
         }
     }
 
-    /** Forgets every answer, as a chunk loading or unloading or the brew's end does. */
+    /** Forgets every answer, as a chunk loading or unloading or the held effect's end does. */
     void clear() {
         answered.clear();
     }

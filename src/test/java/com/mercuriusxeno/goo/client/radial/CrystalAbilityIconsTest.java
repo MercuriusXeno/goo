@@ -14,13 +14,13 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
  * Covers that each crystal ability shows a drawn icon rather than the goo
- * droplet placeholder, read by its silhouette, and that the crystal brew
+ * droplet placeholder, read by its silhouette, and that the crystal held
  * effect has an icon.
  */
 class CrystalAbilityIconsTest {
 
     private static final String ABILITY_ICONS = "/assets/goo/textures/goo/ability/";
-    private static final String CRYSTAL_BREW = "/assets/goo/textures/mob_effect/crystal_held.png";
+    private static final String CRYSTAL_HELD = "/assets/goo/textures/mob_effect/crystal_held.png";
     private static final int SIDE = 16;
     private static final int ALPHA_SHIFT = 24;
 
@@ -51,8 +51,8 @@ class CrystalAbilityIconsTest {
     }
 
     @Test
-    void crystalBrewEffectHasASixteenPixelIcon() throws IOException {
-        BufferedImage icon = read(CRYSTAL_BREW);
+    void crystalHeldEffectHasASixteenPixelIcon() throws IOException {
+        BufferedImage icon = read(CRYSTAL_HELD);
         assertEquals(SIDE, icon.getWidth());
         assertEquals(SIDE, icon.getHeight());
     }
