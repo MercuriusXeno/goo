@@ -16,9 +16,8 @@ import java.util.List;
 
 /**
  * Metal goo's burnout explosion, the design the operator settled (decision
- * elemental-explosion-per-type): an urchin, a quick show of force that
- * shows the trap is primed. About 24 short cone spikes, the cone shape the
- * trap stabs with, spread evenly over the outward half of the marker (none
+ * elemental-explosion-per-type): an urchin, a quick show of force. About
+ * 24 short cone spikes spread evenly over the outward half of the marker (none
  * into the wall), extend to 1 block over 6 ticks, hold bristling for 5
  * ticks, then retract over 10, 21 ticks in all. The fragment shader
  * ({@code metal_explosion.fsh}) shades each cone chrome, C0C0C0 to
@@ -96,7 +95,7 @@ public final class MetalExplosionVisual implements BurnoutVisual, HeldGhostVisua
     /**
      * Metal's ghost: the urchin at its hold, the landing flare's size, the
      * specular band still sweeping on the real-time clock; the dome around
-     * it shows the trap's reach.
+     * it shows the reach.
      * held-visual-ghosts-the-landing-in-two-passes
      *
      * @param pose       the pose entry
@@ -202,7 +201,7 @@ public final class MetalExplosionVisual implements BurnoutVisual, HeldGhostVisua
     }
 
     /**
-     * Emits one spike: the trap's cone from the common base along dir,
+     * Emits one spike: a cone from the common base along dir,
      * each vertex's green its place along the spike.
      *
      * @param pose   the pose entry
@@ -216,9 +215,8 @@ public final class MetalExplosionVisual implements BurnoutVisual, HeldGhostVisua
     }
 
     /**
-     * Emits one of the urchin's spikes, the one spine mesh every spike trap
-     * view draws: the landing flare's, the bristle's, the held ghost's and
-     * each shot's.
+     * Emits one of the urchin's spikes, the one spine mesh the landing flare
+     * and the held ghost both draw.
      * urchin-spines-return-to-the-original-spikes
      *
      * @param pose         the pose entry

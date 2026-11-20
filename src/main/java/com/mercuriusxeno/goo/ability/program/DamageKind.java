@@ -16,7 +16,7 @@ public enum DamageKind {
      */
     FREEZE,
     /**
-     * Stalagmite damage, the spike trap's source: goo:stalagmite, which no
+     * Stalagmite damage, Spikes' source: goo:stalagmite, which no
      * fall tag holds, so a fall-immune mob takes it.
      */
     STALAGMITE,
