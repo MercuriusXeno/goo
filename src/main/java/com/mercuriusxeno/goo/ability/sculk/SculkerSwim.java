@@ -17,21 +17,21 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * How a Sculker moves. Pressing sneak and jump together enters the dive,
+ * How a Sculker moves. Pressing sneak and jump together submerges,
  * and from then on every solid block but bedrock is swimmable: the
  * body passes through stone with no key pressed into a block, weightless,
  * the movement input driving it along the look, jump lifting it and sneak
- * sinking it. The diver leaves the dive by rising out through a block's top
+ * sinking it. The submerged player stops submerging by rising out through a block's top
  * face and jumping clear, which stands it on that block. Sculker swims the
  * ground alone: a body neither inside a solid block nor just over a top face
- * is out of the dive whatever it holds, a walker again that falls, lands and
+ * is no longer submerged whatever it holds, a walker again that falls, lands and
  * takes fall damage as any player does, until sneak and jump on the ground
  * take it back in. Bedrock is a hard
- * wall a diver stops at from any side, and one it never stays trapped in:
+ * wall a submerged player stops at from any side, and one it never stays trapped in:
  * a body already inside bedrock moves out of it freely. The world's floor
- * and ceiling hold a diver from leaving the world and never from coming
- * back into it, so a diver below the floor rises back in on jump and no
- * diver is trapped under the ground, creative included.
+ * and ceiling hold a submerged player from leaving the world and never from coming
+ * back into it, so a submerged player below the floor rises back in on jump and no
+ * submerged player is trapped under the ground, creative included.
  * decision sculker-swims-solid-blocks-and-surfaces-at-will
  * decision diagnose-and-correct-sculker-flying-through-air
  */
@@ -44,9 +44,9 @@ public final class SculkerSwim {
     /** How far the box shrinks before asking whether it is inside a solid block, so a body resting on a face is not. */
     private static final double INSIDE_INSET = 1.0E-7;
     /**
-     * How far below the feet a diver looks for the ground it swims in: past
-     * the height of a jump, so the jump that sneak and jump start the dive
-     * with leaves the diver over the ground it sinks into.
+     * How far below the feet a submerged player looks for the ground it swims in: past
+     * the height of a jump, so the jump that sneak and jump start submerging
+     * with leaves the submerged player over the ground it sinks into.
      */
     private static final double SURFACE_REACH = 1.3;
     private static final double SINK = -1;
@@ -62,7 +62,7 @@ public final class SculkerSwim {
      * @param player the player
      * @return true while the held effect stands
      */
-    public static boolean dives(Player player) {
+    public static boolean holdsSculker(Player player) {
         return player.getData(GooAttachments.SCULKER).standsAt(player.level().getGameTime());
     }
 
@@ -70,49 +70,49 @@ public final class SculkerSwim {
      * Whether a player passes through solid blocks this tick.
      *
      * @param player the player
-     * @return true while its Sculker stands and it is in the dive
+     * @return true while its Sculker stands and it is submerged
      */
     public static boolean passesThrough(Player player) {
-        return dives(player) && player.getData(GooAttachments.SCULKER).diving();
+        return holdsSculker(player) && player.getData(GooAttachments.SCULKER).submerged();
     }
 
     /**
-     * Moves a server player into or out of the dive by its last input: sneak
+     * Moves a server player into or out of the submerged state by its last input: sneak
      * and jump together take it in while the held effect stands, rising out of a top
      * face with jump held takes it out, and so does leaving the ground. The
      * state syncs to its client.
      *
      * @param player the player
      */
-    public static void updateDive(ServerPlayer player) {
+    public static void updateSubmerged(ServerPlayer player) {
         Sculker sculker = player.getData(GooAttachments.SCULKER);
-        if (!sculker.diving() && !dives(player)) {
+        if (!sculker.submerged() && !holdsSculker(player)) {
             return;
         }
-        boolean diving = nextDiving(sculker.diving() && dives(player), dives(player), player.getLastClientInput(),
+        boolean submerged = nextSubmerged(sculker.submerged() && holdsSculker(player), holdsSculker(player), player.getLastClientInput(),
                 inTheGround(player), overATopFace(player));
-        if (diving != sculker.diving()) {
-            player.setData(GooAttachments.SCULKER, sculker.withDiving(diving));
+        if (submerged != sculker.submerged()) {
+            player.setData(GooAttachments.SCULKER, sculker.withSubmerged(submerged));
         }
     }
 
     /**
-     * Whether a player is in the dive next tick: never with its body clear of
+     * Whether a player is submerged next tick: never with its body clear of
      * the ground, neither inside a solid block nor over a top face, whatever
      * it holds.
      *
-     * @param diving      whether it is in the dive now
+     * @param submerged      whether it is submerged now
      * @param stands      whether its held effect stands
      * @param keys        its held keys
      * @param inside      whether its body is in the ground: inside a solid block or below the world's floor
      * @param overATopFace whether a block's top face lies under its feet within a jump's height
-     * @return true where it stays in or enters the dive
+     * @return true where it stays in or submerges
      */
-    static boolean nextDiving(boolean diving, boolean stands, Input keys, boolean inside, boolean overATopFace) {
+    static boolean nextSubmerged(boolean submerged, boolean stands, Input keys, boolean inside, boolean overATopFace) {
         if (!stands || !inside && !overATopFace) {
             return false;
         }
-        if (!diving) {
+        if (!submerged) {
             return keys.shift() && keys.jump();
         }
         return !jumpsClear(keys, inside, overATopFace);
@@ -123,16 +123,16 @@ public final class SculkerSwim {
     }
 
     /**
-     * Holds a diver in the swimming pose, which the pose update inside stone
-     * could never fit, so the diver swims through stone with the swim's own
-     * animation; once out of the dive, lets the pose go back to the player's
+     * Holds a submerged player in the swimming pose, which the pose update inside stone
+     * could never fit, so the submerged player swims through stone with the swim's own
+     * animation; once no longer submerged, lets the pose go back to the player's
      * own, leaving any pose another source forced.
      *
      * @param player the player
-     * @param diving whether it is in the dive this tick
+     * @param submerged whether it is submerged this tick
      */
-    public static void holdTheSwimPose(Player player, boolean diving) {
-        if (diving) {
+    public static void holdTheSwimPose(Player player, boolean submerged) {
+        if (submerged) {
             player.setForcedPose(Pose.SWIMMING);
         } else if (player.getForcedPose() == Pose.SWIMMING) {
             player.setForcedPose(null);
@@ -152,7 +152,7 @@ public final class SculkerSwim {
 
     /**
      * Whether a player's body is in the ground: inside a solid block, or
-     * below the world's floor, which holds a diver as the ground does so it
+     * below the world's floor, which holds a submerged player as the ground does so it
      * rises back into the world rather than falling out of it.
      *
      * @param player the player
@@ -168,7 +168,7 @@ public final class SculkerSwim {
     }
 
     /**
-     * The rise a diver's held keys give its swim: sneak sinks it, winning
+     * The rise a submerged player's held keys give its swim: sneak sinks it, winning
      * over jump, so holding both sinks a player into the ground; jump alone
      * lifts it.
      *
@@ -183,11 +183,11 @@ public final class SculkerSwim {
     }
 
     /**
-     * The velocity a diver's first stroke steers from as it enters the dive:
-     * its own across the ground, its fall or rise dropped, so the dive starts
+     * The velocity a submerged player's first stroke steers from as it submerges:
+     * its own across the ground, its fall or rise dropped, so the submerging starts
      * weightless and no gravity carried in draws it down.
      *
-     * @param player the diver
+     * @param player the submerged player
      * @return the velocity the first stroke steers from
      */
     public static Vec3 enteringStroke(Player player) {
@@ -196,18 +196,18 @@ public final class SculkerSwim {
     }
 
     /**
-     * One tick of a diver's swim: the velocity it moves at next, steered from
+     * One tick of a submerged player's swim: the velocity it moves at next, steered from
      * the stroke before rather than from the velocity the tick's gravity has
-     * pulled down, so a diver is weightless and hangs where it stops, with its
+     * pulled down, so a submerged player is weightless and hangs where it stops, with its
      * rise or fall stopped where it would carry the body out past the world's
      * floor or ceiling, never where it brings the body back in.
      *
-     * @param player     the diver
-     * @param lastStroke the velocity the stroke before set, or {@link #enteringStroke} as it enters the dive
+     * @param player     the submerged player
+     * @param lastStroke the velocity the stroke before set, or {@link #enteringStroke} as it submerges
      * @param forward    the forward input, -1 to 1
      * @param strafe     the strafe input, -1 to 1, left positive
      * @param rise       the rise input, jump 1, sneak -1
-     * @return the velocity the swim moves the diver at
+     * @return the velocity the swim moves the submerged player at
      */
     public static Vec3 swimStroke(Player player, Vec3 lastStroke, double forward, double strafe, double rise) {
         Vec3 swim = swum(lastStroke, forward, strafe, rise, player.getLookAngle());
@@ -221,7 +221,7 @@ public final class SculkerSwim {
     /**
      * A move kept from carrying a body into bedrock: each axis in turn, as
      * vanilla collides, stops at the face of any bedrock the body is not
-     * already inside, so bedrock walls a diver off from every side and a body
+     * already inside, so bedrock walls a submerged player off from every side and a body
      * already inside bedrock moves out freely.
      *
      * @param level the level

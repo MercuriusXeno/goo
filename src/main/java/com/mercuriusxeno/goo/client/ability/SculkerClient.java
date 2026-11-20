@@ -12,24 +12,24 @@ import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 
 /**
  * The client's half of Sculker's swim: the client moves its own player, so
- * after each of its ticks in the dive it steers the player weightless along
+ * after each of its ticks submerged it steers the player weightless along
  * its input and look, jump lifting and sneak sinking, kept inside the world,
  * weightless, each stroke steering from the one before so gravity never
- * draws the diver down, and keeps no fall building.
+ * draws the submerged player down, and keeps no fall building.
  * decision dive-is-a-brew-of-warden-senses-and-free-swimming-through-solid-blocks
  * decision sculker-swims-solid-blocks-and-surfaces-at-will
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class SculkerClient {
 
-    /** The velocity the last stroke set, which the next steers from; null out of the dive. */
+    /** The velocity the last stroke set, which the next steers from; null while not submerged. */
     private static Vec3 lastStroke;
 
     private SculkerClient() {
     }
 
     /**
-     * Swims the local player while it is in the dive.
+     * Swims the local player while it is submerged.
      *
      * @param event the player tick
      */

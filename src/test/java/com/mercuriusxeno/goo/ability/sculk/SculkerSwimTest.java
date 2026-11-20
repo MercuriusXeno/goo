@@ -10,7 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Sneak and jump together enter the dive, jumping clear of a top face leaves
+ * Sneak and jump together submerge, jumping clear of a top face leaves
  * it, a body clear of the ground is out of it and the held effect's end ends it;
  * sneak sinks over jump; the world's floor and ceiling stop a body leaving
  * and never one coming back; and the swim drives along the look, steering a
@@ -24,7 +24,7 @@ class SculkerSwimTest {
     private static final double CLOSE = 1e-9;
 
     @Nested
-    class Diving {
+    class Submerging {
 
         private static final Input NONE = Input.EMPTY;
         private static final Input JUMP = new Input(false, false, false, false, true, false, false);
@@ -33,46 +33,46 @@ class SculkerSwimTest {
         private static final Input FORWARD = new Input(true, false, false, false, false, false, false);
 
         @Test
-        void sneakAndJumpTogetherEnterTheDive() {
-            assertTrue(SculkerSwim.nextDiving(false, true, SNEAK_AND_JUMP, false, true));
-            assertFalse(SculkerSwim.nextDiving(false, true, JUMP, false, true));
+        void sneakAndJumpTogetherSubmerge() {
+            assertTrue(SculkerSwim.nextSubmerged(false, true, SNEAK_AND_JUMP, false, true));
+            assertFalse(SculkerSwim.nextSubmerged(false, true, JUMP, false, true));
         }
 
         @Test
-        void jumpingClearOfATopFaceLeavesTheDive() {
-            assertFalse(SculkerSwim.nextDiving(true, true, JUMP, false, true));
+        void jumpingClearOfATopFaceStopsSubmerging() {
+            assertFalse(SculkerSwim.nextSubmerged(true, true, JUMP, false, true));
         }
 
         @Test
-        void aDiverClearOfTheGroundLeavesTheDiveWhateverItHolds() {
+        void aSubmergedPlayerClearOfTheGroundStopsSubmergingWhateverItHolds() {
             for (Input keys : List.of(NONE, JUMP, SNEAK, SNEAK_AND_JUMP, FORWARD)) {
-                assertFalse(SculkerSwim.nextDiving(true, true, keys, false, false), keys::toString);
+                assertFalse(SculkerSwim.nextSubmerged(true, true, keys, false, false), keys::toString);
             }
         }
 
         @Test
-        void aDiverInsideStoneStaysInTheDiveWhateverItHolds() {
+        void aSubmergedPlayerInsideStoneStaysSubmergedWhateverItHolds() {
             for (Input keys : List.of(NONE, JUMP, SNEAK, SNEAK_AND_JUMP, FORWARD)) {
-                assertTrue(SculkerSwim.nextDiving(true, true, keys, true, false), keys::toString);
-                assertTrue(SculkerSwim.nextDiving(true, true, keys, true, true), keys::toString);
+                assertTrue(SculkerSwim.nextSubmerged(true, true, keys, true, false), keys::toString);
+                assertTrue(SculkerSwim.nextSubmerged(true, true, keys, true, true), keys::toString);
             }
         }
 
         @Test
-        void aDiverOverATopFaceStaysInTheDiveUnlessItHoldsJumpAlone() {
+        void aSubmergedPlayerOverATopFaceStaysSubmergedUnlessItHoldsJumpAlone() {
             for (Input keys : List.of(NONE, SNEAK, SNEAK_AND_JUMP, FORWARD)) {
-                assertTrue(SculkerSwim.nextDiving(true, true, keys, false, true), keys::toString);
+                assertTrue(SculkerSwim.nextSubmerged(true, true, keys, false, true), keys::toString);
             }
         }
 
         @Test
-        void sneakAndJumpClearOfTheGroundEnterNoDive() {
-            assertFalse(SculkerSwim.nextDiving(false, true, SNEAK_AND_JUMP, false, false));
+        void sneakAndJumpClearOfTheGroundDoNotSubmerge() {
+            assertFalse(SculkerSwim.nextSubmerged(false, true, SNEAK_AND_JUMP, false, false));
         }
 
         @Test
-        void theDiveEndsWithTheHeldEffect() {
-            assertFalse(SculkerSwim.nextDiving(true, false, NONE, true, false));
+        void submergingEndsWithTheHeldEffect() {
+            assertFalse(SculkerSwim.nextSubmerged(true, false, NONE, true, false));
         }
 
         @Test

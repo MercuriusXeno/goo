@@ -77,7 +77,7 @@ public final class ClickWaveParticle extends SingleQuadParticle {
 
     /**
      * Draws through blocks: a submerged Click's rings stand inside the stone
-     * the diver swims in, where the depth test would hide every one of them
+     * the submerged player swims in, where the depth test would hide every one of them
      * (decision submerged-click-ripples-through-the-ground-to-its-range).
      */
     @Override

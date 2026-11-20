@@ -111,7 +111,7 @@ public final class GooRenderTypes {
     /**
      * Pulse Click's shriek rings drawn through blocks: vanilla's translucent
      * particle pipeline passing every depth test and writing no depth, so a
-     * Click rippling through stone shows to the diver inside it
+     * Click rippling through stone shows to the submerged player inside it
      * (decision submerged-click-ripples-through-the-ground-to-its-range).
      */
     public static final RenderPipeline CLICK_WAVE_THROUGH_BLOCKS =
@@ -227,7 +227,7 @@ public final class GooRenderTypes {
 
     /**
      * Sculker's glass field (decision sculker-shows-blocks-translucent-close-up):
-     * the x-ray's translucent block quads, depth tested so the diver's own
+     * the x-ray's translucent block quads, depth tested so the submerged player's own
      * body and every entity in front of the glass stands over it, writing
      * depth so the vision dims each block by its true distance and, drawn
      * nearest first, only the nearest face shows at each point with no layers

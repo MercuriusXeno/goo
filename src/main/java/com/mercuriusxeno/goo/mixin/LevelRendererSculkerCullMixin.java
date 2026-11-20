@@ -8,7 +8,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
 
 /**
- * Lets a diver see through the stone it swims in the way a spectator does:
+ * Lets a submerged player see through the stone it swims in the way a spectator does:
  * with the camera inside a solid block, the terrain is culled as for a
  * spectator, so the caves and open space around draw through the stone
  * rather than the stone hiding them.
@@ -18,16 +18,16 @@ import org.spongepowered.asm.mixin.injection.ModifyArg;
 public abstract class LevelRendererSculkerCullMixin {
 
     /**
-     * Culls terrain as for a spectator while the local player dives.
+     * Culls terrain as for a spectator while the local player holds Sculker.
      *
      * @param spectator vanilla's answer, whether the local player spectates
-     * @return true for a spectator or a diver
+     * @return true for a spectator or a submerged player
      */
     @ModifyArg(method = "update", at = @At(value = "INVOKE",
             target = "Lnet/minecraft/client/renderer/LevelRenderer;cullTerrain(Lnet/minecraft/client/Camera;Lnet/minecraft/client/renderer/culling/Frustum;Z)V"),
             index = 2)
-    private boolean goo$diverCullsAsASpectator(boolean spectator) {
+    private boolean goo$submergedPlayerCullsAsASpectator(boolean spectator) {
         Minecraft mc = Minecraft.getInstance();
-        return spectator || mc.player != null && SculkerSwim.dives(mc.player);
+        return spectator || mc.player != null && SculkerSwim.holdsSculker(mc.player);
     }
 }

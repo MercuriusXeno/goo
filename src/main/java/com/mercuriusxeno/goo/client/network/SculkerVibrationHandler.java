@@ -6,7 +6,7 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 /**
- * Client-side handler for a vibration the server forwarded to a diver:
+ * Client-side handler for a vibration the server forwarded to a submerged player:
  * lends its frequency to the sound its noise played.
  * decision sculker-echo-intensity-follows-vibration-rank
  */

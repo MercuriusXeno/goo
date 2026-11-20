@@ -16,7 +16,7 @@ import it.unimi.dsi.fastutil.longs.Long2BooleanOpenHashMap;
  */
 final class EchoCells {
 
-    /** The most cells kept before the memory starts over, so a long dive never outgrows it. */
+    /** The most cells kept before the memory starts over, so a long swim submerged never outgrows it. */
     private static final int MOST_CELLS = 1 << 20;
     private static final Direction[] SIDES = Direction.values();
 

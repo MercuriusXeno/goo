@@ -31,7 +31,7 @@ import java.util.function.Predicate;
  * rank 10. What is heard draws fainter the farther the player stands from it,
  * down to a fifth at the edge of render distance and not at all past it;
  * the held effect's end forgets every face. The faces whose light runs out soonest
- * give way once the memory holds its most, so a loud dive never outgrows it
+ * give way once the memory holds its most, so a loud swim submerged never outgrows it
  * and weak sounds never push out what a strong one lit.
  * decision sculker-sight-persists-where-echoes-have-touched
  * decision sculker-echo-intensity-follows-vibration-rank

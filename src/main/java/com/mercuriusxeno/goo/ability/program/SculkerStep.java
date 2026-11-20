@@ -8,7 +8,7 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 /**
- * Grants the host's target the dive and finishes: it swims through solid
+ * Grants the host's target Sculker and finishes: it swims through solid
  * blocks and sees the way the deep sees. Cast from the glove it stands as a
  * held effect, paying its upkeep until ended.
  * Sculker is {@code sculker}.

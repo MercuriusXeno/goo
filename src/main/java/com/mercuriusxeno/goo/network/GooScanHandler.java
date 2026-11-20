@@ -91,7 +91,7 @@ public final class GooScanHandler {
     }
 
     /**
-     * Whether a thrower clicks from inside the ground: diving under Sculker
+     * Whether a thrower clicks from inside the ground: submerged under Sculker
      * with its eyes in a block that stops movement.
      * submerged-click-ripples-through-the-ground-to-its-range
      *
@@ -153,7 +153,7 @@ public final class GooScanHandler {
     }
 
     /**
-     * The line a scan runs along: from inside the ground, the way the diver
+     * The line a scan runs along: from inside the ground, the way the submerged player
      * faces, since the glove's aim from inside a block meets that block at the
      * camera and names no direction; from the surface, toward the aimed point.
      * submerged-click-ripples-through-the-ground-to-its-range

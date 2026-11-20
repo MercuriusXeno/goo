@@ -38,7 +38,7 @@ import java.util.function.Consumer;
  * A mob that makes a sound shows a soft blurred sculk-teal glow around its
  * body, through walls, for its outline's time, fading; all of it draws
  * fainter the farther it stands, down to a fifth at the edge of render
- * distance. The diver also hears the sounds the server carries to it
+ * distance. The submerged player also hears the sounds the server carries to it
  * from anywhere within render distance. The held effect's end
  * forgets it all.
  * decision sculker-sight-persists-where-echoes-have-touched
@@ -169,7 +169,7 @@ public final class SculkerSenses {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
         ClientLevel level = mc.level;
-        if (player == null || level == null || !SculkerSwim.dives(player)) {
+        if (player == null || level == null || !SculkerSwim.holdsSculker(player)) {
             ECHOES.clear();
             ECHO_QUADS.clear();
             ECHO_CELLS.clear();
@@ -263,7 +263,7 @@ public final class SculkerSenses {
      */
     private static boolean hearsAt(Minecraft mc, Vec3 at) {
         LocalPlayer player = mc.player;
-        return player != null && mc.level != null && SculkerSwim.dives(player)
+        return player != null && mc.level != null && SculkerSwim.holdsSculker(player)
                 && SculkerEchoes.strengthAt(at.distanceTo(player.position()), sightReach()) > 0;
     }
 

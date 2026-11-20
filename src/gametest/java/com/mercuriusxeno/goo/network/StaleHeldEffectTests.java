@@ -17,7 +17,7 @@ import java.util.function.Consumer;
 
 /**
  * Gametest for a held effect saved under an ability the registry no longer
- * holds, as a save from before deep's dive took the name Sculker carries:
+ * holds, as a save naming the ability Sculker was before its rename carries:
  * the player's next tick ends it and takes its effect, and its missing
  * icon, off the effect list (decision dive-is-renamed-sculker).
  */
