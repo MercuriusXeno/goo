@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Entangle's vines read each mob's own skin size: the layer hands it to the
+ * Vines' tangle reads each mob's own skin size: the layer hands it to the
  * shader, the patch edges lie on the skin's texel grid, and one skin texel
  * spans one vine texel along either axis
  * (decision diagnose-and-correct-vines-and-ailment-overlay-assuming-a-square-skin).

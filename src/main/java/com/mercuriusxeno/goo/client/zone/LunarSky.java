@@ -14,7 +14,7 @@ import java.util.Optional;
 /**
  * Lunar's sky: the void, PocketStarSky's sea of dim stars, a sun crossing it once a phase cycle over both halves of
  * the moon, and the blue planet, the overworld, four moons wide, hanging fixed where the camera's x stands it and lit
- * by the phase opposite the moon's, its face hand-drawn. Astral's gate home looks at the planet.
+ * by the phase opposite the moon's, its face hand-drawn. Lunar's trip home looks at the planet.
  * decision sun-follows-the-phase-and-lights-the-far-side-too
  * decision blue-planet-hangs-fixed-with-its-height-set-by-x
  * decision astral-sky-is-the-void-with-one-bright-blue-overworld-star
