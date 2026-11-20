@@ -42,7 +42,7 @@ public final class PortalHitsClient {
         Minecraft mc = Minecraft.getInstance();
         return mc.level != null && (ClientPortals.portals().stream().anyMatch(portal -> portal.face() == event.getFace()
                 && portal.block().dimension().equals(mc.level.dimension()) && portal.covers(event.getPos()))
-                || ClientHoles.holes().stream().flatMap(hole -> java.util.stream.Stream.of(hole.entry(), hole.exit()))
+                || ClientTunnels.tunnels().stream().flatMap(tunnel -> java.util.stream.Stream.of(tunnel.entry(), tunnel.exit()))
                         .anyMatch(mouth -> mouth.face() == event.getFace()
                                 && mouth.dimension().equals(mc.level.dimension()) && mouth.covers(event.getPos())));
     }

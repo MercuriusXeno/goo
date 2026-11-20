@@ -75,7 +75,7 @@ public final class Wormhole {
                             && level.noCollision(player, box),
                     cell -> level.getBlockState(cell).isSolidRender(),
                     (cell, face) -> standing.portalAt(GlobalPos.of(level.dimension(), cell), face).isPresent()
-                            || OpenHoles.mouthAt(level.dimension(), cell, face));
+                            || OpenTunnels.mouthAt(level.dimension(), cell, face));
         }
     }
 
@@ -104,13 +104,13 @@ public final class Wormhole {
      * @param width  the body's width
      * @return the tunnel, empty where none fits
      */
-    public static Optional<Opening> largestHole(Space space, BlockPos struck, Direction face, int reach,
+    public static Optional<Opening> largestTunnel(Space space, BlockPos struck, Direction face, int reach,
             double width) {
         Direction inward = face.getOpposite();
         for (List<BlockPos> mouth : mouthsOver(struck, acrossOf(inward))) {
-            Optional<Opening> hole = holeThrough(space, mouth, face, reach, width);
-            if (hole.isPresent()) {
-                return hole;
+            Optional<Opening> tunnel = tunnelThrough(space, mouth, face, reach, width);
+            if (tunnel.isPresent()) {
+                return tunnel;
             }
         }
         return Optional.empty();
@@ -126,7 +126,7 @@ public final class Wormhole {
      * @param width the body's width
      * @return the tunnel, empty where the shape does not fit
      */
-    private static Optional<Opening> holeThrough(Space space, List<BlockPos> mouth, Direction face, int reach,
+    private static Optional<Opening> tunnelThrough(Space space, List<BlockPos> mouth, Direction face, int reach,
             double width) {
         if (!mouth.stream().allMatch(cell -> standsOn(space, cell, face) && space.open().test(cell.relative(face)))) {
             return Optional.empty();
@@ -256,7 +256,7 @@ public final class Wormhole {
             int lifetime) {
         Space space = Space.of(level, caster);
         Direction inward = face.getOpposite();
-        Optional<Opening> found = largestHole(space, struck, face, reach, caster.getBbWidth());
+        Optional<Opening> found = largestTunnel(space, struck, face, reach, caster.getBbWidth());
         if (found.isEmpty()) {
             collapse(level, struck, face);
             return false;
@@ -264,7 +264,7 @@ public final class Wormhole {
         Vec3 up = face.getAxis().isHorizontal() ? Direction.UP.getUnitVec3() : Direction.NORTH.getUnitVec3();
         Gate entry = new Gate(level.dimension(), boxOf(found.get().mouth()), face, up);
         Gate exit = new Gate(level.dimension(), boxOf(found.get().farWall()), inward, up);
-        OpenHoles.open(level.getServer(), new OpenHoles.Hole(level.dimension(), entry, exit,
+        OpenTunnels.open(level.getServer(), new OpenTunnels.Tunnel(level.dimension(), entry, exit,
                 level.getGameTime() + lifetime));
         mouth(level, entry);
         mouth(level, exit);
@@ -293,7 +293,7 @@ public final class Wormhole {
      * @return true where an opening lies within reach
      */
     public static boolean opens(ServerLevel level, ServerPlayer player, BlockPos struck, Direction face, int reach) {
-        return largestHole(Space.of(level, player), struck, face, reach, player.getBbWidth()).isPresent();
+        return largestTunnel(Space.of(level, player), struck, face, reach, player.getBbWidth()).isPresent();
     }
 
     /**

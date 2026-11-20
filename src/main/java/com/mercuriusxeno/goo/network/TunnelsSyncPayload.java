@@ -11,26 +11,26 @@ import org.jspecify.annotations.NonNull;
 import java.util.List;
 
 /**
- * Server-to-client payload: the Quantum holes standing open in the player's
+ * Server-to-client payload: the Quantum tunnels standing open in the player's
  * level, each as its two mouths, so the client draws the view through each
- * the way it draws a portal's. Sent whenever a hole opens or closes.
+ * the way it draws a portal's. Sent whenever a tunnel opens or closes.
  * hole-closes-the-space-to-an-opening-ahead
  *
- * @param holes each open hole's mouths
+ * @param tunnels each open tunnel's mouths
  */
-public record HolesSyncPayload(List<Pair> holes) implements CustomPacketPayload {
+public record TunnelsSyncPayload(List<Pair> tunnels) implements CustomPacketPayload {
 
     /** Payload type ID for registration. */
-    public static final Type<HolesSyncPayload> TYPE =
-            new Type<>(Identifier.fromNamespaceAndPath(Goo.MODID, "holes_sync"));
+    public static final Type<TunnelsSyncPayload> TYPE =
+            new Type<>(Identifier.fromNamespaceAndPath(Goo.MODID, "tunnels_sync"));
 
     /** Stream codec for encoding/decoding. */
-    public static final StreamCodec<ByteBuf, HolesSyncPayload> STREAM_CODEC = StreamCodec.composite(
-            Pair.STREAM_CODEC.apply(ByteBufCodecs.list()), HolesSyncPayload::holes,
-            HolesSyncPayload::new);
+    public static final StreamCodec<ByteBuf, TunnelsSyncPayload> STREAM_CODEC = StreamCodec.composite(
+            Pair.STREAM_CODEC.apply(ByteBufCodecs.list()), TunnelsSyncPayload::tunnels,
+            TunnelsSyncPayload::new);
 
     /**
-     * A hole's two mouths.
+     * A tunnel's two mouths.
      *
      * @param entry the mouth on the struck face
      * @param exit  the mouth on the wall's far face

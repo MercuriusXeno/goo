@@ -7,7 +7,7 @@ import com.mercuriusxeno.goo.ability.program.Variables;
 import com.mercuriusxeno.goo.ability.program.WormholeStep;
 import com.mercuriusxeno.goo.ability.quantum.Gate;
 import com.mercuriusxeno.goo.ability.quantum.GatePassage;
-import com.mercuriusxeno.goo.ability.quantum.OpenHoles;
+import com.mercuriusxeno.goo.ability.quantum.OpenTunnels;
 import com.mercuriusxeno.goo.ability.quantum.Portal;
 import com.mercuriusxeno.goo.ability.quantum.QuantumPortals;
 import com.mercuriusxeno.goo.data.GooValueTable;
@@ -73,9 +73,9 @@ public final class WormholeTests {
                 WormholeTests::keepsOffAPortalOnTheStruckFace);
         GooTestFunctions.registerTest(registrar, KEEPS_OFF_A_PORTAL_ON_THE_FAR_FACE,
                 WormholeTests::keepsOffAPortalOnTheFarFace);
-        GooTestFunctions.registerTest(registrar, KEEPS_OFF_AN_OPEN_HOLE, WormholeTests::keepsOffAnOpenHole);
-        GooTestFunctions.registerTest(registrar, JOINING_PLAYER_IS_TOLD_THE_OPEN_HOLES,
-                WormholeTests::joiningPlayerIsToldTheOpenHoles);
+        GooTestFunctions.registerTest(registrar, KEEPS_OFF_AN_OPEN_TUNNEL, WormholeTests::keepsOffAnOpenTunnel);
+        GooTestFunctions.registerTest(registrar, JOINING_PLAYER_IS_TOLD_THE_OPEN_TUNNELS,
+                WormholeTests::joiningPlayerIsToldTheOpenTunnels);
         GooTestFunctions.registerTest(registrar, THROUGH_TO_A_FULL_OPENING, WormholeTests::throughToAFullOpening);
         GooTestFunctions.registerTest(registrar, THROUGH_TO_A_NARROW_OPENING, WormholeTests::throughToANarrowOpening);
         GooTestFunctions.registerTest(registrar, REFUSED_WITH_NO_OPENING, WormholeTests::refusedWithNoOpening);
@@ -96,7 +96,7 @@ public final class WormholeTests {
                 WormholeTests::crossingWhooshesAtBothMouths);
     }
 
-    private static final String CROSSING_WHOOSHES_AT_BOTH_MOUTHS = "hole_crossing_whooshes_at_both_mouths";
+    private static final String CROSSING_WHOOSHES_AT_BOTH_MOUTHS = "tunnel_crossing_whooshes_at_both_mouths";
 
     /**
      * Going through the struck mouth plays the portals' whoosh once at the
@@ -112,11 +112,11 @@ public final class WormholeTests {
         heard.markClientLoaded();
         throwAt(caster, helper.absolutePos(STRUCK), Direction.NORTH);
         helper.runAfterDelay(LANDED, () -> {
-            java.util.Optional<OpenHoles.Hole> hole = holeStruckAt(helper, STRUCK);
-            helper.assertTrue(hole.isPresent(), "The hole should stand open on the struck face");
+            java.util.Optional<OpenTunnels.Tunnel> tunnel = tunnelStruckAt(helper, STRUCK);
+            helper.assertTrue(tunnel.isPresent(), "The tunnel should stand open on the struck face");
             crossAt(helper, caster, THROUGH_THE_FACE);
-            Vec3 in = hole.get().entry().center();
-            Vec3 out = hole.get().exit().center();
+            Vec3 in = tunnel.get().entry().center();
+            Vec3 out = tunnel.get().exit().center();
             helper.assertTrue(HeardSounds.at(heard, GooSoundIds.PORTAL_CROSS, in) == 1
                     && HeardSounds.at(heard, GooSoundIds.PORTAL_CROSS, out) == 1, "Going through the struck mouth "
                     + "should play the whoosh once at its centre " + in + " and once at the far mouth's " + out
@@ -171,7 +171,7 @@ public final class WormholeTests {
         ServerPlayer caster = caster(helper);
         throwAt(caster, helper.absolutePos(STRUCK), Direction.NORTH);
         helper.runAfterDelay(LANDED, () -> {
-            assertAt(helper, caster, START, "The hole should carry no one the moment it lands");
+            assertAt(helper, caster, START, "The tunnel should carry no one the moment it lands");
             helper.assertTrue(helper.getLevel().getBlockState(helper.absolutePos(STRUCK)).is(Blocks.STONE),
                     "The struck wall should stand as it was");
             crossAt(helper, caster, THROUGH_THE_FACE);
@@ -222,7 +222,7 @@ public final class WormholeTests {
         throwAt(caster, helper.absolutePos(STRUCK), Direction.NORTH);
         helper.runAfterDelay(LANDED + lifetime(helper), () -> crossAt(helper, caster, THROUGH_THE_FACE));
         helper.runAfterDelay(LANDED + lifetime(helper) + STEP, () -> {
-            assertAt(helper, caster, THROUGH_THE_FACE, "A closed hole should carry no one");
+            assertAt(helper, caster, THROUGH_THE_FACE, "A closed tunnel should carry no one");
             helper.getLevel().getServer().getPlayerList().remove(caster);
             helper.succeed();
         });
@@ -236,8 +236,8 @@ public final class WormholeTests {
     private static void crossAt(GameTestHelper helper, ServerPlayer player, Vec3 feet) {
         standAt(helper, player, feet);
         Vec3 stood = player.position();
-        for (OpenHoles.Hole hole : OpenHoles.open()) {
-            for (Gate mouth : List.of(hole.entry(), hole.exit())) {
+        for (OpenTunnels.Tunnel tunnel : OpenTunnels.open()) {
+            for (Gate mouth : List.of(tunnel.entry(), tunnel.exit())) {
                 if (player.position().equals(stood)) {
                     GatePassage.announced(player, mouth, stood, Vec3.ZERO, player.getYRot(), player.getXRot());
                 }
@@ -280,10 +280,10 @@ public final class WormholeTests {
         throwAt(caster, top, Direction.UP);
         int heldAfter = GooSourceScanner.aggregateAvailable(caster).getOrDefault(GooTypes.QUANTUM, 0);
         helper.assertTrue(heldAfter == heldBefore,
-                "A refused hole should cost nothing, held " + heldBefore + " then " + heldAfter);
+                "A refused tunnel should cost nothing, held " + heldBefore + " then " + heldAfter);
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             helper.assertTrue(caster.position().distanceTo(start) < THERE,
-                    "A refused hole should leave the caster where they stood, stands at " + caster.position());
+                    "A refused tunnel should leave the caster where they stood, stands at " + caster.position());
             level.getServer().getPlayerList().remove(caster);
             helper.succeed();
         });
@@ -309,7 +309,7 @@ public final class WormholeTests {
             crossAt(helper, caster, THROUGH_THE_FACE);
         });
         helper.runAfterDelay(LANDED + STEP, () -> {
-            assertAt(helper, caster, OUT_PAST_THE_WALL, "Going through a 1x2 hole should come out past the wall");
+            assertAt(helper, caster, OUT_PAST_THE_WALL, "Going through a 1x2 tunnel should come out past the wall");
             helper.getLevel().getServer().getPlayerList().remove(caster);
             helper.succeed();
         });
@@ -329,7 +329,7 @@ public final class WormholeTests {
                 helper.setBlock(new BlockPos(x, FLOOR_Y - 1, z), x == 2 && z == 2 ? Blocks.AIR : Blocks.STONE);
                 // Stone deeper than the tunnel's reach under the floor, so a smaller mouth beside the open cell, which
                 // the 3x3 centred on the struck block also tries, finds no opening below.
-                for (int depth = FLOOR_Y - 2; depth >= FLOOR_Y - 2 - holeReach(helper); depth--) {
+                for (int depth = FLOOR_Y - 2; depth >= FLOOR_Y - 2 - tunnelReach(helper); depth--) {
                     helper.setBlock(new BlockPos(x, depth, z), Blocks.STONE);
                 }
             }
@@ -342,7 +342,7 @@ public final class WormholeTests {
             crossAt(helper, caster, SUNK_IN_THE_FLOOR);
         });
         helper.runAfterDelay(LANDED + STEP, () -> {
-            assertAt(helper, caster, IN_THE_CELL_BELOW, "Dropping into a 1x1 floor hole should come out in the "
+            assertAt(helper, caster, IN_THE_CELL_BELOW, "Dropping into a 1x1 floor tunnel should come out in the "
                     + "cell beneath");
             helper.getLevel().getServer().getPlayerList().remove(caster);
             helper.succeed();
@@ -372,7 +372,7 @@ public final class WormholeTests {
         ServerPlayer caster = caster(helper);
         throwAt(caster, helper.absolutePos(THICK_CEILING), Direction.DOWN);
         helper.runAfterDelay(LANDED, () -> {
-            helper.assertTrue(holeStruckAt(helper, THICK_CEILING).isPresent(), "A hole thrown at a ceiling twenty "
+            helper.assertTrue(tunnelStruckAt(helper, THICK_CEILING).isPresent(), "A tunnel thrown at a ceiling twenty "
                     + "blocks thick should open through it");
             helper.getLevel().getServer().getPlayerList().remove(caster);
             helper.succeed();
@@ -391,12 +391,12 @@ public final class WormholeTests {
         throwAt(caster, helper.absolutePos(STRUCK), Direction.NORTH);
         helper.runAfterDelay(LANDED, () -> standAt(helper, caster, IN_THE_MOUTH));
         helper.runAfterDelay(LANDED + lifetime(helper) + STEP, () -> {
-            helper.assertTrue(holeStruckAt(helper, STRUCK).isPresent(), "A hole with a body in its mouth should stay "
+            helper.assertTrue(tunnelStruckAt(helper, STRUCK).isPresent(), "A tunnel with a body in its mouth should stay "
                     + "open past its time");
             standAt(helper, caster, START);
         });
         helper.runAfterDelay(LANDED + lifetime(helper) + STEP + STEP, () -> {
-            helper.assertTrue(holeStruckAt(helper, STRUCK).isEmpty(), "A hole past its time should close once the "
+            helper.assertTrue(tunnelStruckAt(helper, STRUCK).isEmpty(), "A tunnel past its time should close once the "
                     + "body steps clear");
             helper.getLevel().getServer().getPlayerList().remove(caster);
             helper.succeed();
@@ -452,12 +452,12 @@ public final class WormholeTests {
         ServerPlayer caster = caster(helper);
         throwAt(caster, helper.absolutePos(STRUCK), Direction.NORTH);
         helper.runAfterDelay(LANDED, () -> {
-            helper.assertTrue(holeStruckAt(helper, STRUCK).isPresent(), "The hole should stand open before the hit");
-            helper.assertTrue(OpenHoles.dismissAt(helper.getLevel(), helper.absolutePos(STRUCK), Direction.NORTH),
-                    "A hit on the hole's mouth should dismiss it");
-            helper.assertTrue(holeStruckAt(helper, STRUCK).isEmpty(), "The hole should stand dismissed");
+            helper.assertTrue(tunnelStruckAt(helper, STRUCK).isPresent(), "The tunnel should stand open before the hit");
+            helper.assertTrue(OpenTunnels.dismissAt(helper.getLevel(), helper.absolutePos(STRUCK), Direction.NORTH),
+                    "A hit on the tunnel's mouth should dismiss it");
+            helper.assertTrue(tunnelStruckAt(helper, STRUCK).isEmpty(), "The tunnel should stand dismissed");
             helper.assertTrue(helper.getLevel().getBlockState(helper.absolutePos(STRUCK)).is(Blocks.STONE),
-                    "The wall behind a dismissed hole should stand");
+                    "The wall behind a dismissed tunnel should stand");
             helper.getLevel().getServer().getPlayerList().remove(caster);
             helper.succeed();
         });
@@ -480,8 +480,8 @@ public final class WormholeTests {
         throwAt(caster, helper.absolutePos(HIGH_IN_THE_TALL_WALL), Direction.NORTH);
         helper.runAfterDelay(LANDED, () -> {
             assertMouthSpans(helper, HIGH_IN_THE_TALL_WALL, 1, 3, 1);
-            double bottom = holeStruckAt(helper, HIGH_IN_THE_TALL_WALL).orElseThrow().entry().blocks().minY;
-            helper.assertTrue(bottom == helper.absolutePos(HIGH_IN_THE_TALL_WALL.below()).getY(), "The hole should "
+            double bottom = tunnelStruckAt(helper, HIGH_IN_THE_TALL_WALL).orElseThrow().entry().blocks().minY;
+            helper.assertTrue(bottom == helper.absolutePos(HIGH_IN_THE_TALL_WALL.below()).getY(), "The tunnel should "
                     + "centre on the struck block, its bottom the block below it, stands at " + bottom);
             helper.getLevel().getServer().getPlayerList().remove(caster);
             helper.succeed();
@@ -505,7 +505,7 @@ public final class WormholeTests {
         ServerPlayer caster = caster(helper);
         throwAt(caster, helper.absolutePos(STRUCK), Direction.NORTH);
         helper.runAfterDelay(LANDED, () -> {
-            helper.assertTrue(holeStruckAt(helper, STRUCK).isEmpty(), "A hole thrown at glass should be refused");
+            helper.assertTrue(tunnelStruckAt(helper, STRUCK).isEmpty(), "A tunnel thrown at glass should be refused");
             helper.getLevel().getServer().getPlayerList().remove(caster);
             helper.succeed();
         });
@@ -543,7 +543,7 @@ public final class WormholeTests {
         portals.place(portalOwner, portal);
         throwAt(caster, helper.absolutePos(STRUCK), Direction.NORTH);
         helper.runAfterDelay(LANDED, () -> {
-            List<Gate> over = OpenHoles.open().stream().flatMap(hole -> Stream.of(hole.entry(), hole.exit()))
+            List<Gate> over = OpenTunnels.open().stream().flatMap(tunnel -> Stream.of(tunnel.entry(), tunnel.exit()))
                     .filter(mouth -> mouth.face() == portalFace && mouth.blocks().intersects(portal.blocks()))
                     .toList();
             portals.fall(portal);
@@ -554,7 +554,7 @@ public final class WormholeTests {
         });
     }
 
-    private static final String JOINING_PLAYER_IS_TOLD_THE_OPEN_HOLES = "tunnel_joining_player_is_told_the_open_holes";
+    private static final String JOINING_PLAYER_IS_TOLD_THE_OPEN_TUNNELS = "tunnel_joining_player_is_told_the_open_tunnels";
 
     /**
      * A player joining a level where a tunnel stands open is told the tunnels
@@ -564,26 +564,26 @@ public final class WormholeTests {
      *
      * @param helper the gametest helper
      */
-    public static void joiningPlayerIsToldTheOpenHoles(GameTestHelper helper) {
+    public static void joiningPlayerIsToldTheOpenTunnels(GameTestHelper helper) {
         buildWall(helper);
         ServerPlayer caster = caster(helper);
         com.mercuriusxeno.goo.ability.quantum.Wormhole.open(helper.getLevel(), caster, helper.absolutePos(STRUCK),
-                Direction.NORTH, holeReach(helper), lifetime(helper));
-        PacketRecorder told = PacketRecorder.attachClaiming(caster, com.mercuriusxeno.goo.network.HolesSyncPayload.class);
+                Direction.NORTH, tunnelReach(helper), lifetime(helper));
+        PacketRecorder told = PacketRecorder.attachClaiming(caster, com.mercuriusxeno.goo.network.TunnelsSyncPayload.class);
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.post(
                 new net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent(caster));
-        List<Gate> toldOf = told.payloadsOf(com.mercuriusxeno.goo.network.HolesSyncPayload.class).stream()
-                .flatMap(payload -> payload.holes().stream()).map(com.mercuriusxeno.goo.network.HolesSyncPayload.Pair::entry)
+        List<Gate> toldOf = told.payloadsOf(com.mercuriusxeno.goo.network.TunnelsSyncPayload.class).stream()
+                .flatMap(payload -> payload.tunnels().stream()).map(com.mercuriusxeno.goo.network.TunnelsSyncPayload.Pair::entry)
                 .toList();
-        OpenHoles.dismissAt(helper.getLevel(), helper.absolutePos(STRUCK), Direction.NORTH);
+        OpenTunnels.dismissAt(helper.getLevel(), helper.absolutePos(STRUCK), Direction.NORTH);
         helper.getLevel().getServer().getPlayerList().remove(caster);
         helper.assertTrue(toldOf.stream().anyMatch(mouth -> mouth.covers(helper.absolutePos(STRUCK))),
-                "A player joining should be told the hole standing open at " + helper.absolutePos(STRUCK)
+                "A player joining should be told the tunnel standing open at " + helper.absolutePos(STRUCK)
                         + ", told of " + toldOf.stream().map(Gate::blocks).toList());
         helper.succeed();
     }
 
-    private static final String KEEPS_OFF_AN_OPEN_HOLE = "tunnel_keeps_off_an_open_hole";
+    private static final String KEEPS_OFF_AN_OPEN_TUNNEL = "tunnel_keeps_off_an_open_tunnel";
 
     /**
      * Thrown at a wall where a tunnel already stands open, the new tunnel counts
@@ -593,24 +593,24 @@ public final class WormholeTests {
      *
      * @param helper the gametest helper
      */
-    public static void keepsOffAnOpenHole(GameTestHelper helper) {
+    public static void keepsOffAnOpenTunnel(GameTestHelper helper) {
         buildWall(helper);
         ServerPlayer caster = caster(helper);
         com.mercuriusxeno.goo.ability.quantum.Wormhole.open(helper.getLevel(), caster, helper.absolutePos(STRUCK),
-                Direction.NORTH, holeReach(helper), lifetime(helper));
+                Direction.NORTH, tunnelReach(helper), lifetime(helper));
         throwAt(caster, helper.absolutePos(STRUCK), Direction.NORTH);
         helper.runAfterDelay(LANDED, () -> {
             net.minecraft.world.phys.AABB wall = new net.minecraft.world.phys.AABB(helper.absolutePos(
                     new BlockPos(1, 1, WALL_NEAR_Z))).minmax(new net.minecraft.world.phys.AABB(helper.absolutePos(
                     new BlockPos(3, 3, WALL_FAR_Z))));
-            List<Gate> mouths = OpenHoles.open().stream().flatMap(hole -> Stream.of(hole.entry(), hole.exit()))
+            List<Gate> mouths = OpenTunnels.open().stream().flatMap(tunnel -> Stream.of(tunnel.entry(), tunnel.exit()))
                     .filter(mouth -> mouth.blocks().intersects(wall)).toList();
             List<Gate> overlapping = mouths.stream().filter(mouth -> mouths.stream().anyMatch(other -> other != mouth
                     && other.face() == mouth.face() && other.blocks().intersects(mouth.blocks()))).toList();
-            OpenHoles.dismissAt(helper.getLevel(), helper.absolutePos(STRUCK), Direction.NORTH);
-            OpenHoles.dismissAt(helper.getLevel(), helper.absolutePos(STRUCK), Direction.NORTH);
+            OpenTunnels.dismissAt(helper.getLevel(), helper.absolutePos(STRUCK), Direction.NORTH);
+            OpenTunnels.dismissAt(helper.getLevel(), helper.absolutePos(STRUCK), Direction.NORTH);
             helper.getLevel().getServer().getPlayerList().remove(caster);
-            helper.assertTrue(overlapping.isEmpty(), "No tunnel mouth should lie over an open hole's mouth, "
+            helper.assertTrue(overlapping.isEmpty(), "No tunnel mouth should lie over an open tunnel's mouth, "
                     + "overlapping: " + overlapping.stream().map(mouth -> mouth.face() + " " + mouth.blocks()).toList());
             helper.succeed();
         });
@@ -629,17 +629,17 @@ public final class WormholeTests {
 
     /** Asserts the tunnel struck at a block opened, its struck-face mouth covering a box of blocks this size. */
     private static void assertMouthSpans(GameTestHelper helper, BlockPos struck, int x, int y, int z) {
-        java.util.Optional<OpenHoles.Hole> hole = holeStruckAt(helper, struck);
-        helper.assertTrue(hole.isPresent(), "A hole should stand open on the struck face at " + struck);
-        net.minecraft.world.phys.AABB mouth = hole.get().entry().blocks();
+        java.util.Optional<OpenTunnels.Tunnel> tunnel = tunnelStruckAt(helper, struck);
+        helper.assertTrue(tunnel.isPresent(), "A tunnel should stand open on the struck face at " + struck);
+        net.minecraft.world.phys.AABB mouth = tunnel.get().entry().blocks();
         helper.assertTrue(mouth.getXsize() == x && mouth.getYsize() == y && mouth.getZsize() == z,
-                "The hole's mouth should span " + x + "x" + y + "x" + z + " blocks, spans " + mouth);
+                "The tunnel's mouth should span " + x + "x" + y + "x" + z + " blocks, spans " + mouth);
     }
 
     /** The open tunnel whose struck-face mouth covers a block, among the tunnels every test in the run opened. */
-    private static java.util.Optional<OpenHoles.Hole> holeStruckAt(GameTestHelper helper, BlockPos struck) {
+    private static java.util.Optional<OpenTunnels.Tunnel> tunnelStruckAt(GameTestHelper helper, BlockPos struck) {
         BlockPos at = helper.absolutePos(struck);
-        return OpenHoles.open().stream().filter(hole -> hole.entry().covers(at)).findFirst();
+        return OpenTunnels.open().stream().filter(tunnel -> tunnel.entry().covers(at)).findFirst();
     }
 
     /** The lower block of the slim wall, the throw's mark. */
@@ -679,7 +679,7 @@ public final class WormholeTests {
     }
 
     /** The tunnel's cost, which the caster holds exactly. */
-    private static int holeCost(GameTestHelper helper) {
+    private static int tunnelCost(GameTestHelper helper) {
         return AbilityRegistry.of(helper.getLevel()).getAbility(QUANTUM_TUNNEL).cost().in(GooValueTable.EMPTY);
     }
 
@@ -689,7 +689,7 @@ public final class WormholeTests {
     }
 
     /** How far through a wall the tunnel reaches. */
-    private static int holeReach(GameTestHelper helper) {
+    private static int tunnelReach(GameTestHelper helper) {
         return wormhole(helper).reach().evaluateInt(Variables.NONE);
     }
 
@@ -700,7 +700,7 @@ public final class WormholeTests {
         caster.connection.markClientLoaded();
         caster.getInventory().clearContent();
         caster.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GooItems.GOO_GLOVE.get()));
-        caster.getInventory().add(GooStacks.createForOutput(GooTypes.QUANTUM, holeCost(helper)));
+        caster.getInventory().add(GooStacks.createForOutput(GooTypes.QUANTUM, tunnelCost(helper)));
         KnownRecipes.teachRequires(caster, AbilityRegistry.of(caster.level()).getAbility(QUANTUM_TUNNEL));
         caster.snapTo(helper.absoluteVec(START));
         return caster;

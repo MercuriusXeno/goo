@@ -6,7 +6,7 @@ import java.util.List;
 
 /**
  * Tells the passage which gates the client knows linked, the local player's
- * portal pair, each open hole's mouths and the edges of the Zone room it
+ * portal pair, each open tunnel's mouths and the edges of the Zone room it
  * stands in, so the client's own movement walks into them as the server's does.
  * portals-link-by-looking-through-portal-vision
  * hole-closes-the-space-to-an-opening-ahead
@@ -24,7 +24,7 @@ final class ClientGates {
         List<GatePassage.Pair> pairs = new ArrayList<>();
         ClientPortals.links().forEach(link -> pairs.add(new GatePassage.Pair(link.entry().gate(),
                 link.exit().gate())));
-        ClientHoles.holes().forEach(hole -> pairs.add(new GatePassage.Pair(hole.entry(), hole.exit())));
+        ClientTunnels.tunnels().forEach(tunnel -> pairs.add(new GatePassage.Pair(tunnel.entry(), tunnel.exit())));
         pairs.addAll(ClientRoomEdges.edges());
         GatePassage.setClientPairs(pairs);
     }

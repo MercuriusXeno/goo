@@ -268,9 +268,9 @@ public final class PortalView {
             ways.add(new Gate[] {link.entry().gate(), link.exit().gate()});
             ways.add(new Gate[] {link.exit().gate(), link.entry().gate()});
         });
-        ClientHoles.holes().forEach(hole -> {
-            ways.add(new Gate[] {hole.entry(), hole.exit()});
-            ways.add(new Gate[] {hole.exit(), hole.entry()});
+        ClientTunnels.tunnels().forEach(tunnel -> {
+            ways.add(new Gate[] {tunnel.entry(), tunnel.exit()});
+            ways.add(new Gate[] {tunnel.exit(), tunnel.entry()});
         });
         return ways;
     }

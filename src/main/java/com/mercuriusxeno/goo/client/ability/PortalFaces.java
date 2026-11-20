@@ -127,9 +127,9 @@ public final class PortalFaces {
      *
      * @param gate a portal's frame or a tunnel's mouth
      * @param rgb  its color, 0xRRGGBB
-     * @param hole whether it is a tunnel's mouth, grown open as a tunnel's mouth grows, drawn as a portal is
+     * @param tunnel whether it is a tunnel's mouth, grown open as a tunnel's mouth grows, drawn as a portal is
      */
-    record Drawn(Gate gate, int rgb, boolean hole) {
+    record Drawn(Gate gate, int rgb, boolean tunnel) {
 
         /**
          * The box the gate's oval fills on its face: its blocks drawn in by
@@ -155,7 +155,7 @@ public final class PortalFaces {
             AABB box = ovalBox().move(camera.reverse());
             float partialTick = Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(false);
             // a portal, as a tunnel's mouth, grows in from nothing to its size as it is placed
-            float grown = hole ? ClientHoles.grownOpen(gate, partialTick) : ClientPortals.grownOpen(gate, partialTick);
+            float grown = tunnel ? ClientTunnels.grownOpen(gate, partialTick) : ClientPortals.grownOpen(gate, partialTick);
             Direction.Axis normal = gate.face().getAxis();
             return AABB.ofSize(box.getCenter(), box.getXsize() * (normal == Direction.Axis.X ? 1 : grown),
                     box.getYsize() * (normal == Direction.Axis.Y ? 1 : grown),
@@ -208,9 +208,9 @@ public final class PortalFaces {
                     gates.add(new Drawn(link.entry().gate(), colorOf(link.entry()), false));
                     gates.add(new Drawn(link.exit().gate(), colorOf(link.exit()), false));
                 });
-        ClientHoles.holes().forEach(hole -> {
-            gates.add(new Drawn(hole.entry(), BLUE_RGB, true));
-            gates.add(new Drawn(hole.exit(), ORANGE_RGB, true));
+        ClientTunnels.tunnels().forEach(tunnel -> {
+            gates.add(new Drawn(tunnel.entry(), BLUE_RGB, true));
+            gates.add(new Drawn(tunnel.exit(), ORANGE_RGB, true));
         });
         gates.removeIf(drawn -> !drawn.gate().dimension().equals(dimension));
         return gates;
@@ -321,7 +321,7 @@ public final class PortalFaces {
      */
     static List<Drawn> sleevedIn(List<Drawn> gates, Optional<GatePassage.Pair> viewing) {
         return viewing.flatMap(pair -> gates.stream().filter(drawn -> drawn.gate().equals(pair.one())).findFirst()
-                .map(near -> new Drawn(pair.other(), near.rgb(), near.hole()))).stream().toList();
+                .map(near -> new Drawn(pair.other(), near.rgb(), near.tunnel()))).stream().toList();
     }
 
     /**

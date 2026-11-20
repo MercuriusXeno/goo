@@ -40,7 +40,7 @@ public final class PortalHits {
     }
 
     private static boolean dismissesAt(ServerLevel level, BlockPos block, Direction face) {
-        return PortalPairs.breakAt(level, block, face) || OpenHoles.dismissAt(level, block, face)
+        return PortalPairs.breakAt(level, block, face) || OpenTunnels.dismissAt(level, block, face)
                 || PortableHoles.dismissAt(level, block, face);
     }
 }

@@ -372,7 +372,7 @@ public final class GatePassage {
         List<Pair> pairs = new ArrayList<>();
         QuantumPortals.get(server.overworld()).links()
                 .forEach(link -> pairs.add(new Pair(link.entry().gate(), link.exit().gate())));
-        OpenHoles.open().forEach(hole -> pairs.add(new Pair(hole.entry(), hole.exit())));
+        OpenTunnels.open().forEach(tunnel -> pairs.add(new Pair(tunnel.entry(), tunnel.exit())));
         // outsider-room-wraps-and-repeats-at-the-platform-edge
         pairs.addAll(RoomEdges.pairsOf(server));
         return pairs;

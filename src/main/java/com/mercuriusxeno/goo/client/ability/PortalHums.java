@@ -4,7 +4,7 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.quantum.Gate;
 import com.mercuriusxeno.goo.ability.quantum.Portal;
 import com.mercuriusxeno.goo.ability.quantum.QuantumPortals;
-import com.mercuriusxeno.goo.network.HolesSyncPayload;
+import com.mercuriusxeno.goo.network.TunnelsSyncPayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.resources.ResourceKey;
@@ -63,7 +63,7 @@ public final class PortalHums {
             playingIn = mc.level;
         }
         Set<Gate> standing = mc.level == null ? Set.of() : standing(ClientPortals.portals(), ClientPortals.links(),
-                ClientHoles.holes(), mc.level.dimension());
+                ClientTunnels.tunnels(), mc.level.dimension());
         Changes changes = changes(standing, PLAYING.keySet());
         changes.stops().forEach(gate -> PLAYING.remove(gate).fall());
         changes.starts().forEach(gate -> {
@@ -96,15 +96,15 @@ public final class PortalHums {
      *
      * @param portals   the local player's portals
      * @param links     every linked pair the client is told of
-     * @param holes     every open tunnel the client is told of
+     * @param tunnels   every open tunnel the client is told of
      * @param dimension the local player's level
      * @return the gates standing there
      */
     static Set<Gate> standing(List<Portal> portals, List<QuantumPortals.Link> links,
-            List<HolesSyncPayload.Pair> holes, ResourceKey<Level> dimension) {
+            List<TunnelsSyncPayload.Pair> tunnels, ResourceKey<Level> dimension) {
         Stream<Portal> placed = Stream.concat(portals.stream(),
                 links.stream().flatMap(link -> Stream.of(link.entry(), link.exit())));
-        Stream<Gate> mouths = holes.stream().flatMap(hole -> Stream.of(hole.entry(), hole.exit()));
+        Stream<Gate> mouths = tunnels.stream().flatMap(tunnel -> Stream.of(tunnel.entry(), tunnel.exit()));
         return Stream.concat(placed.map(Portal::gate), mouths)
                 .filter(gate -> gate.dimension().equals(dimension))
                 .collect(Collectors.toUnmodifiableSet());
