@@ -18,12 +18,13 @@ import com.mercuriusxeno.goo.lab.LabSpawn;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.phys.AABB;
+import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.List;
 import java.util.UUID;
-import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
 
 /**
@@ -137,7 +138,8 @@ public final class LabBayTests {
         AABB inside = new AABB(low.getX(), low.getY(), low.getZ(), high.getX() + 1, high.getY() + 1, high.getZ() + 1);
         List<LabSpawn> penSpawns = plan.spawns().stream().filter(s -> pen.interior().contains(s.offset())).toList();
         for (LabSpawn spawn : penSpawns) {
-            EntityType<?> type = EntityType.byString(spawn.entityId()).orElseThrow();
+            EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getOptional(Identifier.tryParse(spawn.entityId()))
+                    .orElseThrow();
             long planned = penSpawns.stream().filter(s -> s.entityId().equals(spawn.entityId())).count();
             List<Entity> found = helper.getLevel().getEntities((Entity) null, inside, e -> e.getType() == type);
             helper.assertTrue(found.size() == planned, MOB_MISSING + BuiltInRegistries.ENTITY_TYPE.getKey(type));

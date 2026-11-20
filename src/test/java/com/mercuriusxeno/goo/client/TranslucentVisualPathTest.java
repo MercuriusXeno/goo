@@ -68,6 +68,7 @@ import com.mercuriusxeno.goo.client.overlay.TransmitTargetMarker;
 import com.mercuriusxeno.goo.client.throwing.GooFlightRenderer;
 import com.mercuriusxeno.goo.client.zone.RoomCopyRenderer;
 import com.mercuriusxeno.goo.client.zone.VoidstoneFaces;
+import com.mojang.blaze3d.pipeline.BindGroupLayout;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.platform.CompareOp;
 import net.minecraft.client.renderer.RenderPipelines;
@@ -312,7 +313,7 @@ class TranslucentVisualPathTest {
             List<RenderPipeline> opaque = List.of(GooRenderTypes.PORTABLE_HOLE_CARVE, GooRenderTypes.PORTABLE_HOLE_PIT,
                     GooRenderTypes.ROOM_COPY_SOLID, GooRenderTypes.ROOM_COPY_CUTOUT, GooRenderTypes.VOIDSTONE);
             assertAll(Stream.concat(
-                    sorted.stream().map(pipeline -> () -> assertEquals(CompareOp.LESS_THAN_OR_EQUAL,
+                    sorted.stream().map(pipeline -> () -> assertEquals(CompareOp.GREATER_THAN_OR_EQUAL,
                             pipeline.getDepthStencilState().depthTest(), pipeline.getLocation().toString())),
                     opaque.stream().map(pipeline -> () -> assertTrue(pipeline.getDepthStencilState().writeDepth(),
                             pipeline.getLocation().toString()))));
@@ -362,14 +363,14 @@ class TranslucentVisualPathTest {
         void eachSortedPartTestsDepthAgainstTheLevel() {
             List<RenderPipeline> sorted = List.of(RenderPipelines.ENTITY_TRANSLUCENT, RenderPipelines.LINES_TRANSLUCENT,
                     GooRenderTypes.BLOCK_MINGLE_TRANSLUCENT, GooRenderTypes.SCULKER_GLASS);
-            assertAll(sorted.stream().map(pipeline -> () -> assertEquals(CompareOp.LESS_THAN_OR_EQUAL,
+            assertAll(sorted.stream().map(pipeline -> () -> assertEquals(CompareOp.GREATER_THAN_OR_EQUAL,
                     pipeline.getDepthStencilState().depthTest(), pipeline.getLocation().toString())));
         }
 
         /** Bore's drill clips itself against a copy of the level's depth in its shader, clouds included. */
         @Test
         void boresDrillReadsTheLevelsDepth() {
-            assertTrue(GooRenderTypes.BORE_DRILL.getSamplers().contains(GooRenderTypes.BORE_DRILL_DEPTH_SAMPLER));
+            assertTrue(BindGroupLayout.flattenSamplers(GooRenderTypes.BORE_DRILL.getBindGroupLayouts()).contains(GooRenderTypes.BORE_DRILL_DEPTH_SAMPLER));
         }
 
         @Test
@@ -417,7 +418,7 @@ class TranslucentVisualPathTest {
             List<RenderPipeline> sorted = List.of(GooRenderTypes.LINES_ADDITIVE_GLOW, GooRenderTypes.FROST_EXPLOSION,
                     GooRenderTypes.METEOR_SCORCH, GooRenderTypes.PETRIFY_FOG, GooRenderTypes.CRYSTAL_SHARD,
                     GooRenderTypes.GLOW_SHELL, GooRenderTypes.ROCK_EXPLOSION);
-            assertAll(sorted.stream().map(pipeline -> () -> assertEquals(CompareOp.LESS_THAN_OR_EQUAL,
+            assertAll(sorted.stream().map(pipeline -> () -> assertEquals(CompareOp.GREATER_THAN_OR_EQUAL,
                     pipeline.getDepthStencilState().depthTest(), pipeline.getLocation().toString())));
         }
 
@@ -485,7 +486,7 @@ class TranslucentVisualPathTest {
         void eachSortedOneTestsDepthAgainstTheLevel() {
             assertAll(ROUTES.entrySet().stream()
                     .flatMap(entry -> entry.getValue().pipelines().stream().map(pipeline -> () -> assertEquals(
-                            CompareOp.LESS_THAN_OR_EQUAL, pipeline.getDepthStencilState().depthTest(),
+                            CompareOp.GREATER_THAN_OR_EQUAL, pipeline.getDepthStencilState().depthTest(),
                             entry.getKey().getSimpleName() + " through " + pipeline.getLocation()))));
         }
     }

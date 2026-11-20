@@ -7,7 +7,7 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.animal.cow.Cow;
 import net.minecraft.world.entity.monster.zombie.Zombie;
@@ -165,7 +165,7 @@ public final class DownedTests {
     public static void lethalAttackDownsARalliedCow(GameTestHelper helper) {
         Zombie zombie = attacker(helper);
         Cow led = ledCow(helper);
-        Cow plain = helper.spawnWithNoFreeWill(EntityType.COW, PLAIN_COW_POS);
+        Cow plain = helper.spawnWithNoFreeWill(EntityTypes.COW, PLAIN_COW_POS);
 
         strike(helper, led, zombie);
         strike(helper, plain, zombie);
@@ -263,7 +263,7 @@ public final class DownedTests {
      * @return the led cow
      */
     static Cow ledCow(GameTestHelper helper) {
-        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, COW_POS);
+        Cow cow = helper.spawnWithNoFreeWill(EntityTypes.COW, COW_POS);
         cow.setData(GooAttachments.LED, new Led(UUID.randomUUID(), 1f));
         return cow;
     }
@@ -275,7 +275,7 @@ public final class DownedTests {
      * @return the zombie
      */
     static Zombie attacker(GameTestHelper helper) {
-        Zombie zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, ZOMBIE_POS);
+        Zombie zombie = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, ZOMBIE_POS);
         zombie.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.LEATHER_HELMET));
         zombie.setNoAi(true);
         return zombie;

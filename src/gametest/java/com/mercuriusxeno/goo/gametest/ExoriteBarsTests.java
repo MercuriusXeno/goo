@@ -7,7 +7,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.CreativeModeTab;
@@ -18,9 +18,9 @@ import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.IronBarsBlock;
 import net.minecraft.world.level.block.state.BlockState;
+import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.Collections;
 import java.util.List;
-import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
 
 /**
@@ -128,7 +128,7 @@ public final class ExoriteBarsTests {
         ServerLevel level = helper.getLevel();
         BlockPos pos = helper.absolutePos(BARS_POS);
         Block.dropResources(level.getBlockState(pos), level, pos, null, null, new ItemStack(Items.DIAMOND_PICKAXE));
-        List<ItemEntity> drops = helper.getEntities(EntityType.ITEM, BARS_POS, DROP_REACH);
+        List<ItemEntity> drops = helper.getEntities(EntityTypes.ITEM, BARS_POS, DROP_REACH);
         helper.assertTrue(drops.size() == 1 && drops.getFirst().getItem().is(GooItems.EXORITE_BARS.get())
                 && drops.getFirst().getItem().getCount() == 1,
                 WRONG_DROP + drops.stream().map(ItemEntity::getItem).toList());

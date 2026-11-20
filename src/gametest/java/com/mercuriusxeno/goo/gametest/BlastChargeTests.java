@@ -20,7 +20,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageTypes;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -159,7 +159,7 @@ public final class BlastChargeTests {
      * @param helper the gametest helper
      */
     public static void blastNamesItsCaster(GameTestHelper helper) {
-        Mob golem = helper.spawnWithNoFreeWill(EntityType.IRON_GOLEM, AIMED.above().east());
+        Mob golem = helper.spawnWithNoFreeWill(EntityTypes.IRON_GOLEM, AIMED.above().east());
         ServerPlayer[] caster = new ServerPlayer[1];
         castBlast(helper, 0, player -> caster[0] = player);
         DamageSource last = golem.getLastDamageSource();
@@ -177,8 +177,8 @@ public final class BlastChargeTests {
      * @param helper the gametest helper
      */
     public static void blastKeepsLeadAndCharm(GameTestHelper helper) {
-        Mob led = helper.spawnWithNoFreeWill(EntityType.IRON_GOLEM, AIMED.above().east());
-        Mob charmed = helper.spawnWithNoFreeWill(EntityType.IRON_GOLEM, AIMED.above().west());
+        Mob led = helper.spawnWithNoFreeWill(EntityTypes.IRON_GOLEM, AIMED.above().east());
+        Mob charmed = helper.spawnWithNoFreeWill(EntityTypes.IRON_GOLEM, AIMED.above().west());
         castBlast(helper, 0, player -> GooCasterHitTests.makeOwn(player, led, charmed));
         GooCasterHitTests.assertKeepsLeadAndCharm(helper, "Blast", DamageTypes.EXPLOSION, led, charmed);
         helper.succeed();

@@ -12,7 +12,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.animal.pig.Pig;
 import net.minecraft.world.level.block.Blocks;
 import net.neoforged.neoforge.registries.RegisterEvent;
@@ -96,7 +96,7 @@ public final class PrismComboTests {
     private static Pig standPrismBesidePig(GameTestHelper helper) {
         standPrism(helper);
         helper.setBlock(PIG_POS.below(), Blocks.STONE);
-        return helper.spawnWithNoFreeWill(EntityType.PIG, PIG_POS);
+        return helper.spawnWithNoFreeWill(EntityTypes.PIG, PIG_POS);
     }
 
     private static void standPrism(GameTestHelper helper) {

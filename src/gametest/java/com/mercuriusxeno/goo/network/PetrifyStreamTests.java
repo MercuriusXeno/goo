@@ -4,7 +4,9 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.petrify.Petrification;
 import com.mercuriusxeno.goo.ability.petrify.Statues;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooBlocks;
@@ -16,7 +18,7 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -27,8 +29,6 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
-import com.mercuriusxeno.goo.gametest.GooTestFunctions;
-import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for rock petrify: a held stream fills a penned zombie's gauge,
@@ -173,7 +173,7 @@ public final class PetrifyStreamTests {
             helper.getLevel().getServer().getPlayerList().remove(miner);
             helper.assertBlockPresent(Blocks.AIR, TARGET_POS);
             helper.assertItemEntityPresent(Items.COBBLESTONE, TARGET_POS, ITEM_SEARCH_RADIUS);
-            helper.assertTrue(!helper.getEntities(EntityType.EXPERIENCE_ORB, TARGET_POS, ITEM_SEARCH_RADIUS).isEmpty(),
+            helper.assertTrue(!helper.getEntities(EntityTypes.EXPERIENCE_ORB, TARGET_POS, ITEM_SEARCH_RADIUS).isEmpty(),
                     SHOULD_DROP_EXPERIENCE);
             helper.succeed();
         });
@@ -193,7 +193,7 @@ public final class PetrifyStreamTests {
             helper.setBlock(TARGET_POS.relative(side), Blocks.GLASS);
             helper.setBlock(TARGET_POS.relative(side).above(), Blocks.GLASS);
         }
-        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, TARGET_POS);
+        Mob zombie = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, TARGET_POS);
         zombie.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.LEATHER_HELMET));
         return zombie;
     }

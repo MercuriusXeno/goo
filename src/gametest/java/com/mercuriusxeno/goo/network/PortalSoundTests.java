@@ -1,8 +1,8 @@
 package com.mercuriusxeno.goo.network;
 
-import com.mercuriusxeno.goo.ability.quantum.PortalColor;
 import com.mercuriusxeno.goo.ability.quantum.GatePassage;
 import com.mercuriusxeno.goo.ability.quantum.Portal;
+import com.mercuriusxeno.goo.ability.quantum.PortalColor;
 import com.mercuriusxeno.goo.ability.quantum.PortalPairs;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.HeardSounds;
@@ -17,7 +17,7 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.protocol.game.ClientboundSoundPacket;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.animal.pig.Pig;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
@@ -106,7 +106,7 @@ public final class PortalSoundTests {
         PortalPairs.place(helper.getLevel(), owner.getUUID(), entry);
         PortalPairs.place(helper.getLevel(), owner.getUUID(), exit);
         helper.runAfterDelay(STEP, () -> {
-            Pig pig = helper.spawn(EntityType.PIG, A_BLOCK_OFF);
+            Pig pig = helper.spawn(EntityTypes.PIG, A_BLOCK_OFF);
             pig.setDeltaMovement(0, 0, -SHOVE);
         });
         helper.runAfterDelay(STEP + THROUGH, () -> {

@@ -9,7 +9,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EntitySpawnReason;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.animal.pig.Pig;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -130,7 +130,7 @@ public final class GravityBounceTests {
             level.setBlockAndUpdate(site, coat);
             floor = (double) VolumeCellBlock.layersOf(coat) / VolumeCellBlock.MAX_LAYERS;
         }
-        Pig pig = EntityType.PIG.create(level, EntitySpawnReason.COMMAND);
+        Pig pig = EntityTypes.PIG.create(level, EntitySpawnReason.COMMAND);
         pig.setPos(Vec3.atBottomCenterOf(site).add(0, floor, 0));
         pig.removeFreeWill();
         pig.addEffect(new MobEffectInstance(MobEffects.WATER_BREATHING, BREATH_TICKS));

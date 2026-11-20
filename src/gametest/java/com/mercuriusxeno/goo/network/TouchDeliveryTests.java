@@ -2,6 +2,8 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooItems;
@@ -14,15 +16,13 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.damagesource.CombatRules;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageTypes;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
-import com.mercuriusxeno.goo.gametest.GooTestFunctions;
-import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for metal Dart's javelin, a mob ability thrown as a projectile:
@@ -103,7 +103,7 @@ public final class TouchDeliveryTests {
     // A javelin thrown at a husk in its path strikes it with Dart's damage, at whatever distance.
     private static void dartStrikesAlongItsFlight(GameTestHelper helper, BlockPos mobPos, BlockPos playerPos) {
         dart(helper);
-        Mob husk = helper.spawnWithNoFreeWill(EntityType.HUSK, mobPos);
+        Mob husk = helper.spawnWithNoFreeWill(EntityTypes.HUSK, mobPos);
         ServerPlayer player = thrower(helper, playerPos);
         formAJavelin(player);
         helper.runAfterDelay(ONE_JAVELIN_TICKS, () -> {

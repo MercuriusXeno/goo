@@ -2,8 +2,7 @@ package com.mercuriusxeno.goo.client;
 
 import com.mojang.blaze3d.pipeline.BlendFunction;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.platform.DestFactor;
-import com.mojang.blaze3d.platform.SourceFactor;
+import com.mojang.blaze3d.platform.BlendFactor;
 
 /**
  * A pipeline's color blend worked by hand: the color a fragment leaves on the target, as the GPU blends it from the
@@ -30,8 +29,8 @@ public final class BlendComposite {
             return new float[] {source[0], source[1], source[2]};
         }
         float alpha = source[CHANNELS];
-        float sourceFactor = sourceFactor(blend.sourceColor(), alpha);
-        float destFactor = destFactor(blend.destColor(), alpha);
+        float sourceFactor = factor(blend.color().sourceFactor(), alpha);
+        float destFactor = factor(blend.color().destFactor(), alpha);
         float[] shown = new float[CHANNELS];
         for (int channel = 0; channel < CHANNELS; channel++) {
             shown[channel] = Math.min(1F, source[channel] * sourceFactor + target[channel] * destFactor);
@@ -39,23 +38,13 @@ public final class BlendComposite {
         return shown;
     }
 
-    private static float sourceFactor(SourceFactor factor, float alpha) {
+    private static float factor(BlendFactor factor, float alpha) {
         return switch (factor) {
             case ONE -> 1F;
             case ZERO -> 0F;
             case SRC_ALPHA -> alpha;
             case ONE_MINUS_SRC_ALPHA -> 1F - alpha;
-            default -> throw new IllegalArgumentException("unworked source factor " + factor);
-        };
-    }
-
-    private static float destFactor(DestFactor factor, float alpha) {
-        return switch (factor) {
-            case ONE -> 1F;
-            case ZERO -> 0F;
-            case SRC_ALPHA -> alpha;
-            case ONE_MINUS_SRC_ALPHA -> 1F - alpha;
-            default -> throw new IllegalArgumentException("unworked dest factor " + factor);
+            default -> throw new IllegalArgumentException("unworked blend factor " + factor);
         };
     }
 }

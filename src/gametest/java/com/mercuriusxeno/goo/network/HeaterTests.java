@@ -15,7 +15,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.item.ItemStack;
@@ -122,7 +122,7 @@ public final class HeaterTests {
     private static Mob helmetedZombie(GameTestHelper helper, BlockPos at) {
         // the bay has no floor there, and a falling zombie drops out of the heater's sight
         helper.setBlock(at.below(), Blocks.STONE);
-        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, at);
+        Mob zombie = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, at);
         // a helmet keeps daylight from setting it alight on its own
         zombie.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.LEATHER_HELMET));
         return zombie;

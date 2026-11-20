@@ -10,6 +10,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.player.Player;
@@ -55,7 +56,7 @@ public final class HiveTests {
     public static void hiveHealsAWoundedZombie(GameTestHelper helper) {
         helper.setBlock(FLOOR_POS, Blocks.STONE);
         helper.setBlock(PRISM_POS, GooBlocks.PRISM.get());
-        Mob zombie = standOnStone(helper, EntityType.ZOMBIE, IN_THE_RADIUS);
+        Mob zombie = standOnStone(helper, EntityTypes.ZOMBIE, IN_THE_RADIUS);
         // the helmet keeps the noon sun off the zombie, so only the swarm touches its health
         zombie.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.LEATHER_HELMET));
         zombie.setHealth(WOUNDED_HEALTH);
@@ -92,7 +93,7 @@ public final class HiveTests {
     public static void hiveEatsTheApproacher(GameTestHelper helper) {
         helper.setBlock(FLOOR_POS, Blocks.STONE);
         helper.setBlock(PRISM_POS, GooBlocks.PRISM.get());
-        Mob vindicator = standOnStone(helper, EntityType.VINDICATOR, IN_THE_RADIUS);
+        Mob vindicator = standOnStone(helper, EntityTypes.VINDICATOR, IN_THE_RADIUS);
         Player player = standPlayer(helper);
 
         PrismBlockEntity prism = helper.getBlockEntity(PRISM_POS, PrismBlockEntity.class);

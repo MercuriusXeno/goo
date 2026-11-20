@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import net.minecraft.world.entity.animal.Animal;
-import net.minecraft.world.entity.monster.Slime;
+import net.minecraft.world.entity.monster.cubemob.Slime;
 import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.entity.player.Player;
 import org.junit.jupiter.api.Test;

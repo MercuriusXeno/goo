@@ -5,7 +5,7 @@ import com.mercuriusxeno.goo.ability.reap.Reaping;
 import com.mercuriusxeno.goo.ability.reap.SlashCuts;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -16,9 +16,9 @@ import net.minecraft.world.level.block.FarmlandBlock;
 import net.minecraft.world.level.block.SweetBerryBushBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.ArrayList;
 import java.util.List;
-import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
 
 /**
@@ -138,8 +138,8 @@ public final class ReapTests {
                 helper.setBlock(new BlockPos(x, 0, z), Blocks.STONE);
             }
         }
-        Mob inside = helper.spawnWithNoFreeWill(EntityType.COW, new Vec3(CUT_X, GROUND_Y, INSIDE_Z + 0.5));
-        Mob outside = helper.spawnWithNoFreeWill(EntityType.COW, new Vec3(CUT_X, GROUND_Y, OUTSIDE_Z + 0.5));
+        Mob inside = helper.spawnWithNoFreeWill(EntityTypes.COW, new Vec3(CUT_X, GROUND_Y, INSIDE_Z + 0.5));
+        Mob outside = helper.spawnWithNoFreeWill(EntityTypes.COW, new Vec3(CUT_X, GROUND_Y, OUTSIDE_Z + 0.5));
         SlashCuts.Throw thrown = thrownAlongTheRow(helper, GROUND_Y);
         helper.runAfterDelay(1, () -> {
             long now = helper.getLevel().getGameTime();

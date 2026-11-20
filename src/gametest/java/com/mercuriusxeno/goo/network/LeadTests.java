@@ -29,6 +29,7 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.Attribute;
@@ -148,9 +149,9 @@ public final class LeadTests {
      */
     public static void charmedZombieAndLedCowLandNoHitOnEachOther(GameTestHelper helper) {
         ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.YARN);
-        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, COW_POS);
+        Cow cow = helper.spawnWithNoFreeWill(EntityTypes.COW, COW_POS);
         lead(helper, cow, caster);
-        Zombie zombie = charmable(helper.spawnWithNoFreeWill(EntityType.ZOMBIE, ZOMBIE_POS));
+        Zombie zombie = charmable(helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, ZOMBIE_POS));
         charm(helper, zombie, caster);
         float cowBefore = cow.getHealth();
         float zombieBefore = zombie.getHealth();
@@ -196,9 +197,9 @@ public final class LeadTests {
      */
     public static void charmedZombieSparesARalliedCow(GameTestHelper helper) {
         ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.YARN);
-        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, COW_POS);
+        Cow cow = helper.spawnWithNoFreeWill(EntityTypes.COW, COW_POS);
         lead(helper, cow, caster);
-        Zombie zombie = charmable(helper.spawn(EntityType.ZOMBIE, ZOMBIE_POS));
+        Zombie zombie = charmable(helper.spawn(EntityTypes.ZOMBIE, ZOMBIE_POS));
         charm(helper, zombie, caster);
         zombie.setTarget(cow);
         float before = cow.getHealth();
@@ -223,9 +224,9 @@ public final class LeadTests {
      */
     public static void ledCowSparesAZombieCharmedAfterItStruck(GameTestHelper helper) {
         ServerPlayer caster = survivalLeader(helper);
-        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, COW_POS);
+        Cow cow = helper.spawnWithNoFreeWill(EntityTypes.COW, COW_POS);
         lead(helper, cow, caster);
-        Zombie zombie = charmable(helper.spawnWithNoFreeWill(EntityType.ZOMBIE, ZOMBIE_POS));
+        Zombie zombie = charmable(helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, ZOMBIE_POS));
         caster.hurtServer(helper.getLevel(), zombie.damageSources().mobAttack(zombie), ZOMBIE_HIT);
         caster.attack(zombie);
         charm(helper, zombie, caster);
@@ -311,13 +312,13 @@ public final class LeadTests {
      */
     public static void ledCowHealsBackToItsRaisedMaxHealth(GameTestHelper helper) {
         ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.YARN);
-        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, COW_POS);
+        Cow cow = helper.spawnWithNoFreeWill(EntityTypes.COW, COW_POS);
         // a cow with no free will still walks to its leader, and would leave the heal's cone
         cow.setNoAi(true);
         float unled = cow.getMaxHealth();
         lead(helper, cow, caster);
         float raised = cow.getMaxHealth();
-        Zombie zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, ZOMBIE_POS);
+        Zombie zombie = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, ZOMBIE_POS);
         cow.hurtServer(helper.getLevel(), zombie.damageSources().mobAttack(zombie), DEEP_HIT);
         // an undead zombie in the heal's cone would take the heal as harm
         zombie.discard();
@@ -351,7 +352,7 @@ public final class LeadTests {
      */
     public static void leadReleaseThrowDrainsNoYarnGoo(GameTestHelper helper) {
         ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.YARN);
-        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, COW_POS);
+        Cow cow = helper.spawnWithNoFreeWill(EntityTypes.COW, COW_POS);
         lead(helper, cow, caster);
         int before = yarnHeld(caster);
 
@@ -374,10 +375,10 @@ public final class LeadTests {
      */
     public static void ledCowKeepsItsRaisedMaxHealthAfterAHit(GameTestHelper helper) {
         ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.YARN);
-        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, COW_POS);
+        Cow cow = helper.spawnWithNoFreeWill(EntityTypes.COW, COW_POS);
         lead(helper, cow, caster);
         float raised = cow.getMaxHealth();
-        Zombie zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, ZOMBIE_POS);
+        Zombie zombie = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, ZOMBIE_POS);
         zombie.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.LEATHER_HELMET));
         zombie.setNoAi(true);
 
@@ -418,7 +419,7 @@ public final class LeadTests {
      */
     public static void leadReleaseThrowNeedsNoYarnGooHeld(GameTestHelper helper) {
         ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.YARN);
-        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, COW_POS);
+        Cow cow = helper.spawnWithNoFreeWill(EntityTypes.COW, COW_POS);
         lead(helper, cow, caster);
         caster.getInventory().clearContent();
         caster.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GooItems.GOO_GLOVE.get()));
@@ -439,7 +440,7 @@ public final class LeadTests {
      */
     public static void leadThrowAtAnotherMobPaysItsCost(GameTestHelper helper) {
         ServerPlayer thrower = SelfDeliveryTests.invoker(helper, GooTypes.YARN);
-        Cow unled = helper.spawnWithNoFreeWill(EntityType.COW, COW_POS);
+        Cow unled = helper.spawnWithNoFreeWill(EntityTypes.COW, COW_POS);
         AbilityDefinition ability = AbilityRegistry.of(helper.getLevel()).getAbility(YARN_LEAD);
         helper.assertTrue(ability != null, ABILITIES_REQUIRED);
         int cost = ability.cost().exactIn(GooValues.of(helper.getLevel())).floor();
@@ -470,7 +471,7 @@ public final class LeadTests {
      */
     public static void refusedCharmAtARalliedCowPaysNothing(GameTestHelper helper) {
         ServerPlayer thrower = charmThrower(helper);
-        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, COW_POS);
+        Cow cow = helper.spawnWithNoFreeWill(EntityTypes.COW, COW_POS);
         lead(helper, cow, thrower);
 
         assertRefusedThrowPaysNothing(helper, thrower, charmThrow(thrower, cow), GooTypes.HEX, "a led cow");
@@ -488,7 +489,7 @@ public final class LeadTests {
      */
     public static void refusedLeadAtACharmedCowPaysNothing(GameTestHelper helper) {
         ServerPlayer thrower = SelfDeliveryTests.invoker(helper, GooTypes.YARN);
-        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, COW_POS);
+        Cow cow = helper.spawnWithNoFreeWill(EntityTypes.COW, COW_POS);
         charm(helper, cow, thrower);
         helper.assertTrue(cow.hasData(GooAttachments.CHARMED), NOT_CHARMED);
 
@@ -508,7 +509,7 @@ public final class LeadTests {
     public static void refusedLeadAtAnotherPlayersLedCowPaysNothing(GameTestHelper helper) {
         ServerPlayer leader = SelfDeliveryTests.invoker(helper, GooTypes.YARN);
         ServerPlayer thrower = SelfDeliveryTests.invoker(helper, GooTypes.YARN);
-        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, COW_POS);
+        Cow cow = helper.spawnWithNoFreeWill(EntityTypes.COW, COW_POS);
         lead(helper, cow, leader);
 
         assertRefusedThrowPaysNothing(helper, thrower, leadThrow(thrower, cow), GooTypes.YARN,
@@ -529,7 +530,7 @@ public final class LeadTests {
     public static void refusedCharmAtAnotherPlayersCharmedZombiePaysNothing(GameTestHelper helper) {
         ServerPlayer charmer = SelfDeliveryTests.invoker(helper, GooTypes.HEX);
         ServerPlayer thrower = charmThrower(helper);
-        Zombie zombie = charmable(helper.spawnWithNoFreeWill(EntityType.ZOMBIE, ZOMBIE_POS));
+        Zombie zombie = charmable(helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, ZOMBIE_POS));
         charm(helper, zombie, charmer);
         helper.assertTrue(zombie.hasData(GooAttachments.CHARMED), NOT_CHARMED);
 
@@ -618,7 +619,7 @@ public final class LeadTests {
      */
     public static void leadAgainReleasesTheCow(GameTestHelper helper) {
         ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.YARN);
-        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, COW_POS);
+        Cow cow = helper.spawnWithNoFreeWill(EntityTypes.COW, COW_POS);
         lead(helper, cow, caster);
         helper.assertTrue(cow.hasData(GooAttachments.LED), COW_NOT_LED);
 
@@ -648,7 +649,7 @@ public final class LeadTests {
      */
     public static void leadReleaseDealsNoDamage(GameTestHelper helper) {
         ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.YARN);
-        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, COW_POS);
+        Cow cow = helper.spawnWithNoFreeWill(EntityTypes.COW, COW_POS);
         float unbuffedMax = cow.getMaxHealth();
         lead(helper, cow, caster);
         float before = cow.getHealth();
@@ -675,7 +676,7 @@ public final class LeadTests {
         ServerPlayer first = SelfDeliveryTests.invoker(helper, GooTypes.YARN);
         ServerPlayer second = SelfDeliveryTests.invoker(helper, GooTypes.YARN);
         second.setItemSlot(EquipmentSlot.CHEST, new ItemStack(Items.DIAMOND_CHESTPLATE));
-        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, COW_POS);
+        Cow cow = helper.spawnWithNoFreeWill(EntityTypes.COW, COW_POS);
         lead(helper, cow, first);
         Led before = cow.getData(GooAttachments.LED);
 
@@ -698,7 +699,7 @@ public final class LeadTests {
     public static void charmByASecondPlayerKeepsTheFirstCharmer(GameTestHelper helper) {
         ServerPlayer first = SelfDeliveryTests.invoker(helper, GooTypes.HEX);
         ServerPlayer second = SelfDeliveryTests.invoker(helper, GooTypes.HEX);
-        Zombie zombie = charmable(helper.spawnWithNoFreeWill(EntityType.ZOMBIE, ZOMBIE_POS));
+        Zombie zombie = charmable(helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, ZOMBIE_POS));
         charm(helper, zombie, first);
         helper.assertTrue(zombie.hasData(GooAttachments.CHARMED), NOT_CHARMED);
 
@@ -723,7 +724,7 @@ public final class LeadTests {
     public static void charmLeavesARalliedCowItsLead(GameTestHelper helper) {
         ServerPlayer leader = SelfDeliveryTests.invoker(helper, GooTypes.YARN);
         ServerPlayer second = SelfDeliveryTests.invoker(helper, GooTypes.HEX);
-        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, COW_POS);
+        Cow cow = helper.spawnWithNoFreeWill(EntityTypes.COW, COW_POS);
         cow.getAttribute(Attributes.MAX_HEALTH).setBaseValue(CERTAIN_CHARM_COW_HEALTH);
         cow.setHealth(cow.getMaxHealth());
         lead(helper, cow, leader);
@@ -755,7 +756,7 @@ public final class LeadTests {
     public static void leadLeavesACharmedCowItsCharm(GameTestHelper helper) {
         ServerPlayer charmer = SelfDeliveryTests.invoker(helper, GooTypes.HEX);
         ServerPlayer second = SelfDeliveryTests.invoker(helper, GooTypes.YARN);
-        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, COW_POS);
+        Cow cow = helper.spawnWithNoFreeWill(EntityTypes.COW, COW_POS);
         double baseMaxHealth = cow.getAttribute(Attributes.MAX_HEALTH).getBaseValue();
         charm(helper, cow, charmer);
         helper.assertTrue(cow.hasData(GooAttachments.CHARMED), NOT_CHARMED);
@@ -788,7 +789,7 @@ public final class LeadTests {
      */
     public static void releasedCowTakesAFreshLead(GameTestHelper helper) {
         ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.YARN);
-        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, COW_POS);
+        Cow cow = helper.spawnWithNoFreeWill(EntityTypes.COW, COW_POS);
         lead(helper, cow, caster);
         lead(helper, cow, caster);
         helper.assertFalse(cow.hasData(GooAttachments.LED), RELEASE_LEFT_THE_LEAD);
@@ -848,7 +849,7 @@ public final class LeadTests {
         Vec3 heading = end.subtract(start).normalize();
         double length = end.distanceTo(start);
         caster.setPos(start);
-        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, BEHIND_THE_STEP_POS);
+        Cow cow = helper.spawnWithNoFreeWill(EntityTypes.COW, BEHIND_THE_STEP_POS);
         lead(helper, cow, caster);
         int[] walked = new int[1];
         helper.onEachTick(() -> caster.setPos(start.add(heading.scale(Math.min(length, STEP_PACE * walked[0]++)))));
@@ -875,7 +876,7 @@ public final class LeadTests {
         ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.YARN);
         caster.setPos(helper.absoluteVec(WHEAT_STAND));
         caster.setItemInHand(InteractionHand.OFF_HAND, new ItemStack(Items.WHEAT));
-        Cow cow = helper.spawn(EntityType.COW, FREE_COW_POS);
+        Cow cow = helper.spawn(EntityTypes.COW, FREE_COW_POS);
         lead(helper, cow, caster);
         Vec3 stood = cow.position();
         helper.runAfterDelay(TEMPTED_TICKS, () -> {
@@ -911,7 +912,7 @@ public final class LeadTests {
     public static void leadCowWearsHalfItsLeadersArmor(GameTestHelper helper) {
         ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.YARN);
         wear(caster, FULL_DIAMOND_ARMOR, FULL_DIAMOND_TOUGHNESS);
-        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, COW_POS);
+        Cow cow = helper.spawnWithNoFreeWill(EntityTypes.COW, COW_POS);
 
         lead(helper, cow, caster);
 
@@ -964,7 +965,7 @@ public final class LeadTests {
         // the bay may stand rotated, so the walk's world heading is read from its world ends
         Vec3 heading = end.subtract(start).normalize();
         caster.setPos(start);
-        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, BESIDE_THE_WALK_POS);
+        Cow cow = helper.spawnWithNoFreeWill(EntityTypes.COW, BESIDE_THE_WALK_POS);
         lead(helper, cow, caster);
         int[] walked = new int[1];
         helper.onEachTick(() -> {
@@ -1025,8 +1026,8 @@ public final class LeadTests {
         Vec3 heading = end.subtract(start).normalize();
         double length = end.distanceTo(start);
         caster.setPos(start);
-        Cow north = helper.spawnWithNoFreeWill(EntityType.COW, NORTH_COW_POS);
-        Cow south = helper.spawnWithNoFreeWill(EntityType.COW, SOUTH_COW_POS);
+        Cow north = helper.spawnWithNoFreeWill(EntityTypes.COW, NORTH_COW_POS);
+        Cow south = helper.spawnWithNoFreeWill(EntityTypes.COW, SOUTH_COW_POS);
         Cow first = northCowFirst ? north : south;
         Cow second = northCowFirst ? south : north;
         lead(helper, first, caster);
@@ -1086,8 +1087,8 @@ public final class LeadTests {
         // the bay may stand rotated, so the walk's world heading is read from its world points
         Vec3 heading = helper.absoluteVec(MARCH_BAY_HEADING).subtract(start).normalize();
         caster.setPos(start);
-        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, BESIDE_THE_LEADER_POS);
-        Fox fox = helper.spawnWithNoFreeWill(EntityType.FOX, BEHIND_THE_LEADER_POS);
+        Cow cow = helper.spawnWithNoFreeWill(EntityTypes.COW, BESIDE_THE_LEADER_POS);
+        Fox fox = helper.spawnWithNoFreeWill(EntityTypes.FOX, BEHIND_THE_LEADER_POS);
         lead(helper, cow, caster);
         helper.runAfterDelay(1, () -> lead(helper, fox, caster));
         List<LeadFollow.Slot> slots = LeadFollow.formation(caster.getBbWidth(), List.of((double) cow.getBbWidth(),
@@ -1150,7 +1151,7 @@ public final class LeadTests {
         // the bay may stand rotated, so the walk's world heading is read from its world points
         Vec3 heading = helper.absoluteVec(AWAY_WALK_HEADING).subtract(start).normalize();
         caster.setPos(start);
-        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, STRAIGHT_BEHIND_POS);
+        Cow cow = helper.spawnWithNoFreeWill(EntityTypes.COW, STRAIGHT_BEHIND_POS);
         lead(helper, cow, caster);
         LeadFollow.Slot slot = LeadFollow.formation(caster.getBbWidth(), List.of((double) cow.getBbWidth()))
                 .getFirst();
@@ -1268,8 +1269,8 @@ public final class LeadTests {
         caster.setGameMode(GameType.SURVIVAL);
         // a player whose client has not reported loaded is invulnerable, and no mock client reports
         caster.connection.markClientLoaded();
-        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, COW_POS);
-        Zombie zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, ZOMBIE_POS);
+        Cow cow = helper.spawnWithNoFreeWill(EntityTypes.COW, COW_POS);
+        Zombie zombie = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, ZOMBIE_POS);
         // the bay stands open to the sky, and a bare-headed zombie's sunburn would pass for the cow's strike
         zombie.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.LEATHER_HELMET));
         caster.hurtServer(helper.getLevel(), zombie.damageSources().mobAttack(zombie), ZOMBIE_HIT);
@@ -1299,8 +1300,8 @@ public final class LeadTests {
         caster.connection.markClientLoaded();
         helper.setBlock(WALL_POS, Blocks.COBBLESTONE_WALL);
         helper.setBlock(WALL_POS.above(), Blocks.COBBLESTONE_WALL);
-        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, COW_POS);
-        Zombie zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, ZOMBIE_POS);
+        Cow cow = helper.spawnWithNoFreeWill(EntityTypes.COW, COW_POS);
+        Zombie zombie = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, ZOMBIE_POS);
         // the bay stands open to the sky, so a bare-headed zombie burns and its health reads more than strikes
         zombie.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.LEATHER_HELMET));
         // placed from the wall's world block on the world X axis, since the bay may stand rotated
@@ -1334,7 +1335,7 @@ public final class LeadTests {
      */
     public static void leadSurvivesAReload(GameTestHelper helper) {
         ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.YARN);
-        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, COW_POS);
+        Cow cow = helper.spawnWithNoFreeWill(EntityTypes.COW, COW_POS);
         lead(helper, cow, caster);
         Mob[] reloaded = new Mob[1];
         helper.succeedWhen(() -> {
@@ -1357,8 +1358,8 @@ public final class LeadTests {
      */
     public static void leadTakesOneOfTwoCows(GameTestHelper helper) {
         ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.YARN);
-        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, COW_POS);
-        Cow bystander = helper.spawnWithNoFreeWill(EntityType.COW, BESIDE_COW_POS);
+        Cow cow = helper.spawnWithNoFreeWill(EntityTypes.COW, COW_POS);
+        Cow bystander = helper.spawnWithNoFreeWill(EntityTypes.COW, BESIDE_COW_POS);
 
         lead(helper, cow, caster);
 
@@ -1377,7 +1378,7 @@ public final class LeadTests {
      */
     public static void leadHoldsPastTheOldLead(GameTestHelper helper) {
         ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.YARN);
-        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, COW_POS);
+        Cow cow = helper.spawnWithNoFreeWill(EntityTypes.COW, COW_POS);
         lead(helper, cow, caster);
         helper.runAfterDelay(PAST_THE_OLD_LEAD_TICKS, () -> {
             helper.getLevel().getServer().getPlayerList().remove(caster);
@@ -1413,8 +1414,8 @@ public final class LeadTests {
      */
     public static void leadersPunchLeavesTheCowAlive(GameTestHelper helper) {
         ServerPlayer caster = survivalLeader(helper);
-        Cow cow = helper.spawn(EntityType.COW, COW_POS);
-        Cow other = helper.spawn(EntityType.COW, BESIDE_COW_POS);
+        Cow cow = helper.spawn(EntityTypes.COW, COW_POS);
+        Cow other = helper.spawn(EntityTypes.COW, BESIDE_COW_POS);
         lead(helper, cow, caster);
         lead(helper, other, caster);
         helper.runAfterDelay(SETTLED_TICKS, () -> {
@@ -1440,8 +1441,8 @@ public final class LeadTests {
      */
     public static void secondPunchMakesTheFreedCowAFoe(GameTestHelper helper) {
         ServerPlayer caster = survivalLeader(helper);
-        Cow cow = helper.spawn(EntityType.COW, COW_POS);
-        Cow other = helper.spawn(EntityType.COW, BESIDE_COW_POS);
+        Cow cow = helper.spawn(EntityTypes.COW, COW_POS);
+        Cow other = helper.spawn(EntityTypes.COW, BESIDE_COW_POS);
         lead(helper, cow, caster);
         lead(helper, other, caster);
         helper.runAfterDelay(SETTLED_TICKS, () -> {
@@ -1473,7 +1474,7 @@ public final class LeadTests {
      */
     public static void leadKeepsAHurtCowsHealth(GameTestHelper helper) {
         ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.YARN);
-        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, COW_POS);
+        Cow cow = helper.spawnWithNoFreeWill(EntityTypes.COW, COW_POS);
         cow.setHealth(HURT_HEALTH);
         lead(helper, cow, caster);
         helper.getLevel().getServer().getPlayerList().remove(caster);
@@ -1512,7 +1513,7 @@ public final class LeadTests {
      */
     public static void leadEndsOnTheLeadersHit(GameTestHelper helper) {
         ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.YARN);
-        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, COW_POS);
+        Cow cow = helper.spawnWithNoFreeWill(EntityTypes.COW, COW_POS);
         lead(helper, cow, caster);
         helper.assertTrue(cow.hasData(GooAttachments.LED), COW_NOT_LED);
 

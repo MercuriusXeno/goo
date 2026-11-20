@@ -1,10 +1,9 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.RecordingVertexConsumer;
 import com.mojang.blaze3d.vertex.PoseStack;
-import java.util.List;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.ARGB;
@@ -12,6 +11,7 @@ import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -61,7 +61,7 @@ class GlowExplosionVisualTest {
     @Test
     void aWallLandingBurnsOutAsAWholeSphereAboutTheCell() {
         RecordingVertexConsumer consumer = new RecordingVertexConsumer();
-        MultiBufferSource.BufferSource buffers = mock(MultiBufferSource.BufferSource.class);
+        ImmediateBuffers buffers = mock(ImmediateBuffers.class);
         when(buffers.getBuffer(any())).thenReturn(consumer);
         float gameTime = START + GlowExplosionVisual.DURATION_TICKS;
 
@@ -87,7 +87,7 @@ class GlowExplosionVisualTest {
     @ValueSource(floats = {0f, 0.3f, 1f})
     void domeRendersAtHalfOpacity(float progress) {
         RecordingVertexConsumer consumer = new RecordingVertexConsumer();
-        MultiBufferSource.BufferSource buffers = mock(MultiBufferSource.BufferSource.class);
+        ImmediateBuffers buffers = mock(ImmediateBuffers.class);
         when(buffers.getBuffer(any())).thenReturn(consumer);
         float gameTime = START + progress * GlowExplosionVisual.DURATION_TICKS;
 

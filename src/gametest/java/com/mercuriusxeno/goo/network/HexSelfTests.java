@@ -22,7 +22,7 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.Item;
@@ -108,8 +108,8 @@ public final class HexSelfTests {
      * @param helper the gametest helper
      */
     public static void drainHealsTheCaster(GameTestHelper helper) {
-        Mob near = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, NEAR_ZOMBIE_POS);
-        Mob side = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, SIDE_ZOMBIE_POS);
+        Mob near = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, NEAR_ZOMBIE_POS);
+        Mob side = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, SIDE_ZOMBIE_POS);
         float full = near.getMaxHealth();
         ServerPlayer player = drainer(helper);
         player.setHealth(HURT_HEALTH);
@@ -138,7 +138,7 @@ public final class HexSelfTests {
      * @param helper the gametest helper
      */
     public static void drainSparesLedCow(GameTestHelper helper) {
-        Mob cow = helper.spawnWithNoFreeWill(EntityType.COW, NEAR_ZOMBIE_POS);
+        Mob cow = helper.spawnWithNoFreeWill(EntityTypes.COW, NEAR_ZOMBIE_POS);
         drainSparesOwn(helper, cow, "led cow", caster -> cow.setData(GooAttachments.LED,
                 new Led(caster.getUUID(), LEAD_DAMAGE)));
     }
@@ -152,13 +152,13 @@ public final class HexSelfTests {
      */
     public static void drainSparesCharmedMob(GameTestHelper helper) {
         // a husk, since a zombie catches fire in the bay's daylight and the burn reads as a drain
-        Mob charmed = helper.spawnWithNoFreeWill(EntityType.HUSK, NEAR_ZOMBIE_POS);
+        Mob charmed = helper.spawnWithNoFreeWill(EntityTypes.HUSK, NEAR_ZOMBIE_POS);
         drainSparesOwn(helper, charmed, "charmed husk",
                 caster -> charmed.setData(GooAttachments.CHARMED, new Charmed(caster.getUUID())));
     }
 
     private static void drainSparesOwn(GameTestHelper helper, Mob own, String kind, Consumer<ServerPlayer> makeOwn) {
-        Mob unowned = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, SIDE_ZOMBIE_POS);
+        Mob unowned = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, SIDE_ZOMBIE_POS);
         float ownFull = own.getHealth();
         float unownedFull = unowned.getHealth();
         ServerPlayer player = drainer(helper);

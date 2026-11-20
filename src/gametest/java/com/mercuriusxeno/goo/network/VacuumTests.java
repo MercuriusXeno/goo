@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.kinetic.GrabEvents;
 import com.mercuriusxeno.goo.ability.program.VacuumPullStep;
 import com.mercuriusxeno.goo.ability.program.VacuumStep;
+import com.mercuriusxeno.goo.block.ability.SideCoat;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.HeardSounds;
@@ -18,7 +19,6 @@ import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import com.mercuriusxeno.goo.block.ability.SideCoat;
 import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -27,7 +27,7 @@ import net.minecraft.network.protocol.game.ClientboundLevelParticlesPacket;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
@@ -460,7 +460,7 @@ public final class VacuumTests {
             // the turns before were checked with their drops still loose, and a drop of another goo touching the
             // cell sets Nitro off (nitro-explodes-when-touched-heated-shocked-pulsed-or-struck), so each turn lays
             // its cell on a lane clear of them
-            helper.getEntities(EntityType.ITEM).forEach(ItemEntity::discard);
+            helper.getEntities(EntityTypes.ITEM).forEach(ItemEntity::discard);
             helper.setBlock(cell, worldGoo.defaultBlockState().setValue(VolumeCellBlock.LAYERS, VACUUMED_LAYERS));
             before[0] = gooReturned(helper, vacuumer, type);
         });
@@ -923,7 +923,7 @@ public final class VacuumTests {
      */
     public static void vacuumDragsAMobToABlockInFront(GameTestHelper helper) {
         layTheFloor(helper);
-        Mob husk = helper.spawnWithNoFreeWill(EntityType.HUSK, laneCell(MOB_FAR));
+        Mob husk = helper.spawnWithNoFreeWill(EntityTypes.HUSK, laneCell(MOB_FAR));
         float health = husk.getHealth();
         ServerPlayer vacuumer = vacuumer(helper);
         List<Double> distances = new ArrayList<>();
@@ -948,7 +948,7 @@ public final class VacuumTests {
     @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
     public static void vacuumLeavesPlayersAndMobsBehindUnmoved(GameTestHelper helper) {
         layTheFloor(helper);
-        Mob husk = helper.spawnWithNoFreeWill(EntityType.HUSK, laneCell(BEHIND));
+        Mob husk = helper.spawnWithNoFreeWill(EntityTypes.HUSK, laneCell(BEHIND));
         ServerPlayer bystander = helper.makeMockServerPlayerInLevel();
         Vec3 inCone = Vec3.atBottomCenterOf(helper.absolutePos(laneCell(MOB_INSIDE)));
         bystander.setPos(inCone.x, inCone.y, inCone.z);
@@ -1209,7 +1209,7 @@ public final class VacuumTests {
      * inventory, where the pull lands what it reaches.
      */
     private static void assertDropped(GameTestHelper helper, ServerPlayer player, ResourceKey<GooTypeDefinition> type) {
-        List<ItemEntity> drops = helper.getEntities(EntityType.ITEM);
+        List<ItemEntity> drops = helper.getEntities(EntityTypes.ITEM);
         int dropped = gooReturned(helper, player, type);
         helper.assertTrue(dropped > 0,
                 String.format(GOO_OWED, type.identifier().getPath(), dropped, drops.stream()
@@ -1227,7 +1227,7 @@ public final class VacuumTests {
      * @return the mb of it
      */
     private static int gooReturned(GameTestHelper helper, ServerPlayer player, ResourceKey<GooTypeDefinition> type) {
-        return helper.getEntities(EntityType.ITEM).stream().map(ItemEntity::getItem)
+        return helper.getEntities(EntityTypes.ITEM).stream().map(ItemEntity::getItem)
                 .filter(stack -> type.equals(GooStacks.keyOf(stack))).mapToInt(GooStacks::volumeOf).sum()
                 + GooSourceScanner.aggregateAvailable(player).getOrDefault(type, 0);
     }

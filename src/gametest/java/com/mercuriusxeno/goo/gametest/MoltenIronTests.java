@@ -7,7 +7,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.animal.golem.IronGolem;
@@ -274,7 +274,7 @@ public final class MoltenIronTests {
 
     /** A zombified piglin with no goals, its feet at {@code y} in the middle of the column standing on {@code column}. */
     private static Mob dropAt(GameTestHelper helper, BlockPos column, double y) {
-        return helper.spawnWithNoFreeWill(EntityType.ZOMBIFIED_PIGLIN,
+        return helper.spawnWithNoFreeWill(EntityTypes.ZOMBIFIED_PIGLIN,
                 new Vec3(column.getX() + CELL_MIDDLE, y, column.getZ() + CELL_MIDDLE));
     }
 
@@ -331,8 +331,8 @@ public final class MoltenIronTests {
         layStoneFloor(helper);
         helper.setBlock(LAVA_POOL, Blocks.LAVA);
         helper.setBlock(MOLTEN_POOL, GooBlocks.MOLTEN_IRON.get());
-        IronGolem inLava = helper.spawnWithNoFreeWill(EntityType.IRON_GOLEM, LAVA_POOL);
-        IronGolem inMolten = helper.spawnWithNoFreeWill(EntityType.IRON_GOLEM, MOLTEN_POOL);
+        IronGolem inLava = helper.spawnWithNoFreeWill(EntityTypes.IRON_GOLEM, LAVA_POOL);
+        IronGolem inMolten = helper.spawnWithNoFreeWill(EntityTypes.IRON_GOLEM, MOLTEN_POOL);
         float full = inLava.getMaxHealth();
         helper.succeedWhen(() -> {
             float lavaTook = full - inLava.getHealth();
@@ -354,7 +354,7 @@ public final class MoltenIronTests {
     public static void moltenIronHurtsByItsOwnDamageType(GameTestHelper helper) {
         layStoneFloor(helper);
         helper.setBlock(MOLTEN_POOL, GooBlocks.MOLTEN_IRON.get());
-        Pig pig = helper.spawnWithNoFreeWill(EntityType.PIG, MOLTEN_POOL);
+        Pig pig = helper.spawnWithNoFreeWill(EntityTypes.PIG, MOLTEN_POOL);
         pig.getAttribute(Attributes.MAX_HEALTH).setBaseValue(HARDY_HEALTH);
         pig.setHealth(HARDY_HEALTH);
         helper.succeedWhen(() -> {
@@ -375,7 +375,7 @@ public final class MoltenIronTests {
     public static void moltenIronSparesAFireImmuneMob(GameTestHelper helper) {
         layStoneFloor(helper);
         helper.setBlock(MOLTEN_POOL, GooBlocks.MOLTEN_IRON.get());
-        Strider strider = helper.spawnWithNoFreeWill(EntityType.STRIDER, MOLTEN_POOL);
+        Strider strider = helper.spawnWithNoFreeWill(EntityTypes.STRIDER, MOLTEN_POOL);
         float full = strider.getMaxHealth();
         helper.startSequence()
                 .thenIdle(FIRE_IMMUNE_WATCH_TICKS)

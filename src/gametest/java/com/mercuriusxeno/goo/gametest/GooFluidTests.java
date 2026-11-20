@@ -10,7 +10,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Blocks;
@@ -130,7 +130,7 @@ public final class GooFluidTests {
     }
 
     private static Mob spawnBurningCow(GameTestHelper helper, BlockPos pos) {
-        Mob cow = helper.spawnWithNoFreeWill(EntityType.COW, pos);
+        Mob cow = helper.spawnWithNoFreeWill(EntityTypes.COW, pos);
         cow.setRemainingFireTicks(FIRE_TICKS);
         return cow;
     }

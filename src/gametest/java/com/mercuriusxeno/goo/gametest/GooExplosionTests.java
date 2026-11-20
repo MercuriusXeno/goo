@@ -11,7 +11,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -88,7 +88,7 @@ public final class GooExplosionTests {
         strike(helper, ability);
 
         long removed = before - countFloor(helper, Blocks.DIRT);
-        Stream<ItemStack> loose = helper.getEntities(EntityType.ITEM).stream().map(ItemEntity::getItem);
+        Stream<ItemStack> loose = helper.getEntities(EntityTypes.ITEM).stream().map(ItemEntity::getItem);
         Stream<ItemStack> gathered = helper.getLevel().getEntitiesOfClass(CompressionSphere.class, helper.getBounds())
                 .stream().flatMap(sphere -> sphere.hoard().stacks().stream());
         int dropped = Stream.concat(loose, gathered).filter(stack -> stack.is(Items.DIRT))

@@ -32,7 +32,8 @@ class BlockMingleDrawTest {
     void theDrawnFacesWinTheDepthTestByBiasTowardTheCamera() {
         DepthStencilState depth = GooRenderTypes.BLOCK_MINGLE.getDepthStencilState();
 
-        assertTrue(depth.depthBiasConstant() < 0f && depth.depthBiasScaleFactor() < 0f,
+        // Depth runs inverted, nearer reading larger, so a bias toward the camera is positive.
+        assertTrue(depth.depthBiasConstant() > 0f && depth.depthBiasScaleFactor() > 0f,
             "depth bias " + depth.depthBiasScaleFactor() + ", " + depth.depthBiasConstant());
     }
 }

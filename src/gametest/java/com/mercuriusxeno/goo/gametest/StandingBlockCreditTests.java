@@ -21,6 +21,7 @@ import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageType;
 import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -96,7 +97,7 @@ public final class StandingBlockCreditTests {
     public static void railNamesThePlayerWhoLaidIt(GameTestHelper helper) {
         ServerPlayer player = playerOverhead(helper);
         List<BlockPos> floorCells = railFloorCells();
-        Mob zombie = undeadIn(helper, EntityType.ZOMBIE, floorCells.getFirst());
+        Mob zombie = undeadIn(helper, EntityTypes.ZOMBIE, floorCells.getFirst());
         layRail(helper, player.getUUID());
         succeedWhenNamed(helper, zombie, "rail", player, DamageTypes.MAGIC);
     }
@@ -110,7 +111,7 @@ public final class StandingBlockCreditTests {
         BlockPos cell = railFloorCells().getFirst();
         helper.setBlock(cell.below(), Blocks.STONE);
         helper.setBlock(cell, GooBlocks.LIGHT_RAIL.get());
-        Mob zombie = undeadIn(helper, EntityType.ZOMBIE, cell);
+        Mob zombie = undeadIn(helper, EntityTypes.ZOMBIE, cell);
         helper.succeedWhen(() -> {
             DamageSource last = struck(helper, zombie, "zombie");
             helper.assertTrue(last.getEntity() == null && last.is(DamageTypes.MAGIC),
@@ -127,9 +128,9 @@ public final class StandingBlockCreditTests {
     public static void railKeepsTheLayersLeadAndCharm(GameTestHelper helper) {
         ServerPlayer player = playerOverhead(helper);
         List<BlockPos> floorCells = railFloorCells();
-        Mob zombie = undeadIn(helper, EntityType.ZOMBIE, floorCells.getFirst());
+        Mob zombie = undeadIn(helper, EntityTypes.ZOMBIE, floorCells.getFirst());
         zombie.setData(GooAttachments.LED, new Led(player.getUUID(), LEAD_DAMAGE));
-        Mob husk = undeadIn(helper, EntityType.HUSK, floorCells.getLast());
+        Mob husk = undeadIn(helper, EntityTypes.HUSK, floorCells.getLast());
         husk.setData(GooAttachments.CHARMED, new Charmed(player.getUUID()));
         layRail(helper, player.getUUID());
         helper.succeedWhen(() -> {
@@ -152,7 +153,7 @@ public final class StandingBlockCreditTests {
     public static void wispsCellNamesItsPlacer(GameTestHelper helper) {
         ServerPlayer player = playerOverhead(helper);
         placeCell(helper, GooBlocks.GLOW_WISPS.get(), player.getUUID());
-        Mob skeleton = undeadIn(helper, EntityType.WITHER_SKELETON, CELL);
+        Mob skeleton = undeadIn(helper, EntityTypes.WITHER_SKELETON, CELL);
         succeedWhenNamed(helper, skeleton, "Wisps cell", player, WispsSmite.HOLY);
     }
 
@@ -164,7 +165,7 @@ public final class StandingBlockCreditTests {
     public static void rimeCellNamesItsPlacer(GameTestHelper helper) {
         ServerPlayer player = playerOverhead(helper);
         placeCell(helper, GooBlocks.FROST_RIME.get(), player.getUUID());
-        Mob pig = hardy(helper.spawnWithNoFreeWill(EntityType.PIG, CELL));
+        Mob pig = hardy(helper.spawnWithNoFreeWill(EntityTypes.PIG, CELL));
         succeedWhenNamed(helper, pig, "Rime cell", player, DamageTypes.FREEZE);
     }
 

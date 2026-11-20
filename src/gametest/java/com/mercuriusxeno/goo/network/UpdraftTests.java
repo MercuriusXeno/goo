@@ -17,7 +17,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -176,7 +176,7 @@ public final class UpdraftTests {
         layStone(helper);
         Rider tall = new Rider(helper, TALL_CELL, TALL_LAYERS);
         Rider low = new Rider(helper, SHORT_CELL, SHORT_LAYERS);
-        Mob beside = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, Vec3.atBottomCenterOf(BESIDE.above()));
+        Mob beside = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, Vec3.atBottomCenterOf(BESIDE.above()));
         double besideStart = beside.getY();
         double[] besideHighest = {besideStart};
         helper.onEachTick(() -> {
@@ -283,7 +283,7 @@ public final class UpdraftTests {
                 : updraft.defaultBlockState().setValue(VolumeCellBlock.LAYERS, SHORT_GLIDE_LAYERS));
         double over = (double) SHORT_GLIDE_LAYERS / VolumeCellBlock.MAX_LAYERS + SHORT_GLIDE_LAYERS
                 + GLIDE_START_OVER_THE_PUSH;
-        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE,
+        Mob zombie = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE,
                 Vec3.atBottomCenterOf(SHORT_GLIDE_CELL).add(0, over, 0));
         double[] last = {zombie.getY()};
         double[] fastest = {0};
@@ -310,7 +310,7 @@ public final class UpdraftTests {
         layStone(helper);
         placeCell(helper, AIR_CELL, AIR_LAYERS);
         double over = (double) AIR_LAYERS / VolumeCellBlock.MAX_LAYERS + SPAWN_OVER_THE_TOP;
-        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, Vec3.atBottomCenterOf(AIR_CELL).add(0, over, 0));
+        Mob zombie = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, Vec3.atBottomCenterOf(AIR_CELL).add(0, over, 0));
         zombie.setAirSupply(0);
         int full = zombie.getMaxAirSupply();
         int refillTicks = RISE_LAG_TICKS + (int) Math.ceil((double) full / airRefilledATick(helper));
@@ -414,7 +414,7 @@ public final class UpdraftTests {
             helper.setBlock(cell, updraft == Blocks.AIR ? Blocks.AIR.defaultBlockState()
                     : updraft.defaultBlockState().setValue(VolumeCellBlock.LAYERS, layers));
             double over = (double) layers / VolumeCellBlock.MAX_LAYERS + SPAWN_OVER_THE_TOP;
-            this.zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, Vec3.atBottomCenterOf(cell).add(0, over, 0));
+            this.zombie = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, Vec3.atBottomCenterOf(cell).add(0, over, 0));
             this.top = helper.absolutePos(cell).getY() + (double) layers / VolumeCellBlock.MAX_LAYERS;
             this.highest = zombie.getY();
         }

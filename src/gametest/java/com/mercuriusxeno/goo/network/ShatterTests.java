@@ -14,7 +14,7 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.animal.pig.Pig;
 import net.minecraft.world.level.block.Blocks;
@@ -120,7 +120,7 @@ public final class ShatterTests {
      */
     public static void shatterCutDepletesALastLayerToAir(GameTestHelper helper) {
         layCell(helper, 1);
-        Pig mover = helper.spawnWithNoFreeWill(EntityType.PIG, OVER_THE_FLOOR);
+        Pig mover = helper.spawnWithNoFreeWill(EntityTypes.PIG, OVER_THE_FLOOR);
         mover.setDeltaMovement(WALK_SPEED, 0, 0);
         BlockPos cellPos = helper.absolutePos(OVER_THE_FLOOR);
         BlockState cellState = helper.getLevel().getBlockState(cellPos);
@@ -156,7 +156,7 @@ public final class ShatterTests {
      */
     private static Pig walkingPig(GameTestHelper helper) {
         // spawned over the cell, the pig drops onto the goo whatever its height
-        Pig pig = helper.spawnWithNoFreeWill(EntityType.PIG, OVER_THE_FLOOR.above());
+        Pig pig = helper.spawnWithNoFreeWill(EntityTypes.PIG, OVER_THE_FLOOR.above());
         pig.getAttribute(Attributes.MAX_HEALTH).setBaseValue(HARDY_HEALTH);
         pig.setHealth(HARDY_HEALTH);
         helper.onEachTick(() -> pig.setDeltaMovement(

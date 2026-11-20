@@ -1,13 +1,15 @@
 package com.mercuriusxeno.goo.network;
 
-import com.mercuriusxeno.goo.gametest.KnownRecipes;
-import com.mercuriusxeno.goo.gametest.PayloadRecorder;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.program.HealPulse;
 import com.mercuriusxeno.goo.ability.program.LeafStep;
 import com.mercuriusxeno.goo.ability.program.LeafSteps;
 import com.mercuriusxeno.goo.ability.program.Variables;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.KnownRecipes;
+import com.mercuriusxeno.goo.gametest.PayloadRecorder;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooItems;
@@ -19,7 +21,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
@@ -29,8 +31,6 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
-import com.mercuriusxeno.goo.gametest.GooTestFunctions;
-import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametest for the stream delivery: holding blaze flames at a zombie runs
@@ -77,7 +77,7 @@ public final class StreamDeliveryTests {
         AbilityDefinition heal = jellyHeal(helper);
         HealPulse pulse = healPulseOf(heal);
         float amount = amountOf(pulse);
-        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, ZOMBIE_POS);
+        Cow cow = helper.spawnWithNoFreeWill(EntityTypes.COW, ZOMBIE_POS);
         cow.setHealth(cow.getMaxHealth() - (HELD_PULSES + 1) * amount);
         ServerPlayer player = streamer(helper, GooTypes.JELLY);
         KnownRecipes.teachRequires(player, heal);
@@ -212,7 +212,7 @@ public final class StreamDeliveryTests {
     public static void healHarmsAZombie(GameTestHelper helper) {
         AbilityDefinition heal = AbilityRegistry.of(helper.getLevel()).getAbility(JELLY_HEAL);
         helper.assertTrue(heal != null, VITALITY_REQUIRED);
-        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, ZOMBIE_POS);
+        Mob zombie = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, ZOMBIE_POS);
         // the helmet keeps the noon sun off the zombie, so only the stream harms it
         zombie.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.LEATHER_HELMET));
         float healthBefore = zombie.getHealth();
@@ -242,7 +242,7 @@ public final class StreamDeliveryTests {
     public static void healTouchesAFullHealthCow(GameTestHelper helper) {
         AbilityDefinition heal = AbilityRegistry.of(helper.getLevel()).getAbility(JELLY_HEAL);
         helper.assertTrue(heal != null, VITALITY_REQUIRED);
-        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, ZOMBIE_POS);
+        Cow cow = helper.spawnWithNoFreeWill(EntityTypes.COW, ZOMBIE_POS);
         ServerPlayer player = streamer(helper, GooTypes.JELLY);
         KnownRecipes.teachRequires(player, heal);
         PayloadRecorder<StreamHealedPayload> received = PayloadRecorder.attachTo(player, StreamHealedPayload.class);
@@ -269,7 +269,7 @@ public final class StreamDeliveryTests {
     public static void flamesDamagesPerTick(GameTestHelper helper) {
         AbilityDefinition flames = AbilityRegistry.of(helper.getLevel()).getAbility(BLAZE_FLAMES);
         helper.assertTrue(flames != null, ABILITY_REQUIRED);
-        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, ZOMBIE_POS);
+        Mob zombie = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, ZOMBIE_POS);
         zombie.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.LEATHER_HELMET));
         float healthBefore = zombie.getHealth();
         ServerPlayer player = streamer(helper, GooTypes.BLAZE);
@@ -340,7 +340,7 @@ public final class StreamDeliveryTests {
     public static void blazeFlames(GameTestHelper helper) {
         AbilityDefinition flames = AbilityRegistry.of(helper.getLevel()).getAbility(BLAZE_FLAMES);
         helper.assertTrue(flames != null, ABILITY_REQUIRED);
-        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, ZOMBIE_POS);
+        Mob zombie = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, ZOMBIE_POS);
         zombie.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.LEATHER_HELMET));
         ServerPlayer player = streamer(helper, GooTypes.BLAZE);
         KnownRecipes.teachRequires(player, flames);
@@ -371,7 +371,7 @@ public final class StreamDeliveryTests {
     public static void vitalityHealsCowAndCaster(GameTestHelper helper) {
         AbilityDefinition vitality = AbilityRegistry.of(helper.getLevel()).getAbility(JELLY_HEAL);
         helper.assertTrue(vitality != null, VITALITY_REQUIRED);
-        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, ZOMBIE_POS);
+        Cow cow = helper.spawnWithNoFreeWill(EntityTypes.COW, ZOMBIE_POS);
         cow.setHealth(HURT_COW_HEALTH);
         ServerPlayer player = streamer(helper, GooTypes.JELLY);
         KnownRecipes.teachRequires(player, vitality);

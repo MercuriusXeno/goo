@@ -11,15 +11,15 @@ import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.block.Blocks;
-import java.util.List;
 import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.List;
 import java.util.function.Consumer;
 
 /**
@@ -72,7 +72,7 @@ public final class ReflectorTests {
         standPrism(helper, LOW_PRISM);
         standPrism(helper, FAR_PRISM);
         helper.setBlock(standing.below(), Blocks.STONE);
-        Zombie zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, standing);
+        Zombie zombie = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, standing);
         zombie.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.LEATHER_HELMET));
         float before = zombie.getHealth();
         landReflector(helper, LOW_PRISM);

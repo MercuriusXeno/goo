@@ -26,7 +26,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -218,8 +218,8 @@ public final class HealCuresPetrifyTests {
     public static void healReturnsTheVillagerThatRodeABoat(GameTestHelper helper) {
         ServerPlayer player = healer(helper);
         helper.setBlock(TARGET_POS.below(), Blocks.STONE);
-        Boat boat = helper.spawn(EntityType.OAK_BOAT, TARGET_POS);
-        Villager villager = helper.spawnWithNoFreeWill(EntityType.VILLAGER, TARGET_POS);
+        Boat boat = helper.spawn(EntityTypes.OAK_BOAT, TARGET_POS);
+        Villager villager = helper.spawnWithNoFreeWill(EntityTypes.VILLAGER, TARGET_POS);
         villager.setCustomName(Component.literal(VILLAGER_NAME));
         villager.setVillagerData(villager.getVillagerData()
                 .withProfession(helper.getLevel().registryAccess(), VillagerProfession.LIBRARIAN));
@@ -317,10 +317,10 @@ public final class HealCuresPetrifyTests {
     public static void healReturnsTheOwnedWolfAndTheTradingVillager(GameTestHelper helper) {
         ServerPlayer player = healer(helper);
         helper.setBlock(TARGET_POS.below(), Blocks.STONE);
-        Wolf wolf = helper.spawnWithNoFreeWill(EntityType.WOLF, TARGET_POS);
+        Wolf wolf = helper.spawnWithNoFreeWill(EntityTypes.WOLF, TARGET_POS);
         wolf.tame(player);
         helper.setBlock(BESIDE_TARGET_POS.below(), Blocks.STONE);
-        Villager villager = helper.spawnWithNoFreeWill(EntityType.VILLAGER, BESIDE_TARGET_POS);
+        Villager villager = helper.spawnWithNoFreeWill(EntityTypes.VILLAGER, BESIDE_TARGET_POS);
         villager.setVillagerData(villager.getVillagerData()
                 .withProfession(helper.getLevel().registryAccess(), VillagerProfession.LIBRARIAN));
         List<String> offers = offersOf(villager);
@@ -355,7 +355,7 @@ public final class HealCuresPetrifyTests {
         BlockEntity placed = helper.getBlockEntity(TARGET_POS, BlockEntity.class);
         helper.assertTrue(placed instanceof StatueBlockEntity, SHOULD_HOLD_STATUE);
         CompoundTag old = new CompoundTag();
-        old.putString(TAG_ENTITY, BuiltInRegistries.ENTITY_TYPE.getKey(EntityType.ZOMBIE).toString());
+        old.putString(TAG_ENTITY, BuiltInRegistries.ENTITY_TYPE.getKey(EntityTypes.ZOMBIE).toString());
         old.putFloat(TAG_YAW, STATUE_YAW);
         old.putBoolean(TAG_BABY, false);
         old.putInt(TAG_EXPERIENCE, OLD_STATUE_EXPERIENCE);
@@ -548,7 +548,7 @@ public final class HealCuresPetrifyTests {
      */
     private static Mob standingZombie(GameTestHelper helper, BlockPos pos) {
         helper.setBlock(pos.below(), Blocks.STONE);
-        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, pos);
+        Mob zombie = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, pos);
         zombie.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.LEATHER_HELMET));
         return zombie;
     }

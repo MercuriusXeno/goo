@@ -4,7 +4,9 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.AbilityRegistrySource;
 import com.mercuriusxeno.goo.ability.spray.Spored;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooBlocks;
@@ -16,7 +18,7 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.item.ItemStack;
@@ -27,8 +29,6 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.Map;
 import java.util.function.Consumer;
-import com.mercuriusxeno.goo.gametest.GooTestFunctions;
-import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for Mycosis: its stream poisons what it reaches with Goo's spore
@@ -77,7 +77,7 @@ public final class MycosisTests {
     public static void streamSporedDeathConvertsNoDirt(GameTestHelper helper) {
         helper.setBlock(FELL_ON_DIRT.below(), Blocks.DIRT);
         helper.setBlock(FELL_ON_DIRT, Blocks.AIR);
-        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, Vec3.atBottomCenterOf(FELL_ON_DIRT));
+        Mob zombie = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, Vec3.atBottomCenterOf(FELL_ON_DIRT));
         zombie.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.LEATHER_HELMET));
         zombie.setData(GooAttachments.SPORED, new Spored(MYCOSIS, STREAM_SPORE_RADIUS,
                 helper.getLevel().getGameTime() + STREAM_SPORE_TICKS));
@@ -238,7 +238,7 @@ public final class MycosisTests {
     }
 
     private static Mob helmetedZombie(GameTestHelper helper, BlockPos at) {
-        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, at);
+        Mob zombie = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, at);
         zombie.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.LEATHER_HELMET));
         return zombie;
     }
