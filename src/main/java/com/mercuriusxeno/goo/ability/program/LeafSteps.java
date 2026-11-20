@@ -134,8 +134,7 @@ public final class LeafSteps {
     /**
      * Puts the host's target in love on a percent roll when it is an animal
      * an empty-handed feed could breed now: grown, off its breeding
-     * cooldown and out of love. Heal rolls {@code court chance=0.25} on
-     * every animal its waves wash over each tick.
+     * cooldown and out of love.
      * vitality-waves-regenerate-and-court
      */
     public static final LeafStepType<Expr> COURT = StepType.onTarget("court", "chance", Animal.class,
