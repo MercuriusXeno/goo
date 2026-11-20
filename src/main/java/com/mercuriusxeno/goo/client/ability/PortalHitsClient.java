@@ -8,10 +8,10 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 
 /**
- * The client's half of a portal or a hole's mouth counting as a block for a
- * hit: a hit on one of the player's own portals, or on a hole's mouth, starts
+ * The client's half of a portal or a tunnel's mouth counting as a block for a
+ * hit: a hit on one of the player's own portals, or on a tunnel's mouth, starts
  * no break on the wall behind it, so no cracks draw there while the server
- * breaks the portal or dismisses the hole.
+ * breaks the portal or dismisses the tunnel.
  * portals-link-by-looking-through-portal-vision
  * hole-closes-the-space-to-an-opening-ahead
  */

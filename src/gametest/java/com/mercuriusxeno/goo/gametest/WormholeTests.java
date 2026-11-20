@@ -159,7 +159,7 @@ public final class WormholeTests {
     }
 
     /**
-     * Thrown at a two-thick wall with open air past it, the hole leaves the
+     * Thrown at a two-thick wall with open air past it, the tunnel leaves the
      * caster where they stood; going through the struck face carries them on
      * out of the far mouth into the opening, and going back through the far
      * mouth carries them out before the struck face.
@@ -211,7 +211,7 @@ public final class WormholeTests {
     }
 
     /**
-     * Once the hole's lifetime has run, its mouths are closed: stepping
+     * Once the tunnel's lifetime has run, its mouths are closed: stepping
      * against the struck face carries no one.
      *
      * @param helper the gametest helper
@@ -231,7 +231,7 @@ public final class WormholeTests {
     /**
      * Stands the player's feet at a spot and has the server hear what a
      * client says on the frame its eye crosses a gate there: it crossed the
-     * open hole's mouth, whichever one the server finds the eye behind.
+     * open tunnel's mouth, whichever one the server finds the eye behind.
      */
     private static void crossAt(GameTestHelper helper, ServerPlayer player, Vec3 feet) {
         standAt(helper, player, feet);
@@ -258,7 +258,7 @@ public final class WormholeTests {
 
     /**
      * Thrown down at a stone column running to the bottom of the world, the
-     * hole finds no opening within its reach: it is refused, the caster
+     * tunnel finds no opening within its reach: it is refused, the caster
      * stays and keeps the goo it held.
      *
      * @param helper the gametest helper
@@ -290,7 +290,7 @@ public final class WormholeTests {
     }
 
     /**
-     * Thrown at a wall one block wide and two tall, the hole uses the space
+     * Thrown at a wall one block wide and two tall, the tunnel uses the space
      * it is thrown on: a 1x2 mouth on the struck face, and going through it
      * comes out past the wall.
      *
@@ -316,7 +316,7 @@ public final class WormholeTests {
     }
 
     /**
-     * Thrown down at a floor over a cell only one block wide, the hole makes
+     * Thrown down at a floor over a cell only one block wide, the tunnel makes
      * the 1x1 the space below leaves room for, and a body dropping into it
      * comes out in the cell beneath.
      *
@@ -327,7 +327,7 @@ public final class WormholeTests {
             for (int z = 1; z <= 3; z++) {
                 helper.setBlock(new BlockPos(x, FLOOR_Y, z), Blocks.STONE);
                 helper.setBlock(new BlockPos(x, FLOOR_Y - 1, z), x == 2 && z == 2 ? Blocks.AIR : Blocks.STONE);
-                // Stone deeper than the hole's reach under the floor, so a smaller mouth beside the open cell, which
+                // Stone deeper than the tunnel's reach under the floor, so a smaller mouth beside the open cell, which
                 // the 3x3 centred on the struck block also tries, finds no opening below.
                 for (int depth = FLOOR_Y - 2; depth >= FLOOR_Y - 2 - holeReach(helper); depth--) {
                     helper.setBlock(new BlockPos(x, depth, z), Blocks.STONE);
@@ -350,8 +350,8 @@ public final class WormholeTests {
     }
 
     /**
-     * Thrown up at a ceiling twenty blocks thick, well within the hole's
-     * reach, the hole opens through to the room above.
+     * Thrown up at a ceiling twenty blocks thick, well within the tunnel's
+     * reach, the tunnel opens through to the room above.
      * The wall runs up over the bay rather than across it, since the bay is
      * six blocks deep and a wall twenty long across it stands in the next
      * test's bay, and the world's floor lies too near beneath it.
@@ -380,7 +380,7 @@ public final class WormholeTests {
     }
 
     /**
-     * A hole whose time runs out while a body stands in one of its mouths
+     * A tunnel whose time runs out while a body stands in one of its mouths
      * stays open until the body steps clear, then closes.
      *
      * @param helper the gametest helper
@@ -404,7 +404,7 @@ public final class WormholeTests {
     }
 
     /**
-     * A 1x1 hole on a wall is crawled through: standing before its mouth puts
+     * A 1x1 tunnel on a wall is crawled through: standing before its mouth puts
      * a player in a crawl, while before a 3x3 mouth it stays standing.
      *
      * @param helper the gametest helper
@@ -442,7 +442,7 @@ public final class WormholeTests {
     }
 
     /**
-     * A hit on a hole's mouth dismisses the hole, as a hit on a portal breaks
+     * A hit on a tunnel's mouth dismisses the tunnel, as a hit on a portal breaks
      * the portal, and the wall behind it stands.
      *
      * @param helper the gametest helper
@@ -464,7 +464,7 @@ public final class WormholeTests {
     }
 
     /**
-     * Thrown at a wall one block wide and four tall, the hole centres on the
+     * Thrown at a wall one block wide and four tall, the tunnel centres on the
      * struck block, its mouth the block below it, the struck block and the
      * one above, rather than opening down to the wall's foot.
      *
@@ -489,7 +489,7 @@ public final class WormholeTests {
     }
 
     /**
-     * A hole opens only on opaque solid blocks: thrown at a wall of glass it
+     * A tunnel opens only on opaque solid blocks: thrown at a wall of glass it
      * is refused, no mouth opening.
      *
      * @param helper the gametest helper
@@ -557,9 +557,9 @@ public final class WormholeTests {
     private static final String JOINING_PLAYER_IS_TOLD_THE_OPEN_HOLES = "tunnel_joining_player_is_told_the_open_holes";
 
     /**
-     * A player joining a level where a hole stands open is told the holes
+     * A player joining a level where a tunnel stands open is told the tunnels
      * standing there, so the client counts that first word as the level's
-     * standing holes shown full size, and the next hole opened grows open
+     * standing tunnels shown full size, and the next tunnel opened grows open
      * from nothing rather than popping in at full size.
      *
      * @param helper the gametest helper
@@ -586,8 +586,8 @@ public final class WormholeTests {
     private static final String KEEPS_OFF_AN_OPEN_HOLE = "tunnel_keeps_off_an_open_hole";
 
     /**
-     * Thrown at a wall where a hole already stands open, the tunnel counts
-     * the open hole's mouths in the way as it counts a portal: no mouth it
+     * Thrown at a wall where a tunnel already stands open, the new tunnel counts
+     * the open tunnel's mouths in the way as it counts a portal: no mouth it
      * opens lies over an open mouth on the same face, an invalid placement
      * the operator saw as two mouths overlapping.
      *
@@ -627,7 +627,7 @@ public final class WormholeTests {
     /** Feet in the struck mouth, the body halfway into the wall's first block. */
     private static final Vec3 IN_THE_MOUTH = new Vec3(2.5, 1, 2.2);
 
-    /** Asserts the hole struck at a block opened, its struck-face mouth covering a box of blocks this size. */
+    /** Asserts the tunnel struck at a block opened, its struck-face mouth covering a box of blocks this size. */
     private static void assertMouthSpans(GameTestHelper helper, BlockPos struck, int x, int y, int z) {
         java.util.Optional<OpenHoles.Hole> hole = holeStruckAt(helper, struck);
         helper.assertTrue(hole.isPresent(), "A hole should stand open on the struck face at " + struck);
@@ -636,7 +636,7 @@ public final class WormholeTests {
                 "The hole's mouth should span " + x + "x" + y + "x" + z + " blocks, spans " + mouth);
     }
 
-    /** The open hole whose struck-face mouth covers a block, among the holes every test in the run opened. */
+    /** The open tunnel whose struck-face mouth covers a block, among the tunnels every test in the run opened. */
     private static java.util.Optional<OpenHoles.Hole> holeStruckAt(GameTestHelper helper, BlockPos struck) {
         BlockPos at = helper.absolutePos(struck);
         return OpenHoles.open().stream().filter(hole -> hole.entry().covers(at)).findFirst();
@@ -648,11 +648,11 @@ public final class WormholeTests {
     private static final int FLOOR_Y = 3;
     /** Where the caster stands on the floor. */
     private static final Vec3 ON_THE_FLOOR = new Vec3(2.5, FLOOR_Y + 1, 0.5);
-    /** Feet sunk into the 1x1 floor hole, the middle a tenth below the floor's face. */
+    /** Feet sunk into the 1x1 tunnel's mouth in the floor, the middle a tenth below the floor's face. */
     private static final Vec3 SUNK_IN_THE_FLOOR = new Vec3(2.5, FLOOR_Y, 2.5);
     /** Where feet come out, in the one-block cell beneath the floor. */
     private static final Vec3 IN_THE_CELL_BELOW = new Vec3(2.5, FLOOR_Y - 1, 2.5);
-    /** A wall twenty blocks thick, well within the hole's reach. */
+    /** A wall twenty blocks thick, well within the tunnel's reach. */
     private static final int THICK_WALL = 20;
     /** How tall the room over the thick ceiling stands, room for a body to come out. */
     private static final int ROOM_ABOVE = 3;
@@ -688,12 +688,12 @@ public final class WormholeTests {
         return wormhole(helper).lifetime().evaluateInt(Variables.NONE);
     }
 
-    /** How far through a wall the hole reaches. */
+    /** How far through a wall the tunnel reaches. */
     private static int holeReach(GameTestHelper helper) {
         return wormhole(helper).reach().evaluateInt(Variables.NONE);
     }
 
-    /** A survival Quantum caster holding the hole's cost exactly and knowing the hole. */
+    /** A survival Quantum caster holding Tunnel's cost exactly and knowing Tunnel. */
     private static ServerPlayer caster(GameTestHelper helper) {
         ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.QUANTUM);
         caster.setGameMode(GameType.SURVIVAL);

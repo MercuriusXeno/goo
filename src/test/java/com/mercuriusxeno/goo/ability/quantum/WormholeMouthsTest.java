@@ -10,7 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * A hole's mouth is the 3x3 centred where the blob struck, and where that
+ * A tunnel's mouth is the 3x3 centred where the blob struck, and where that
  * does not fit, the largest smaller mouth inside that same 3x3, the lower of
  * two the same size first, whether or not it covers the struck block itself
  * (decision hole-closes-the-space-to-an-opening-ahead).
@@ -46,7 +46,7 @@ class WormholeMouthsTest {
 
     /**
      * The mouths run largest first, and of two the same size the lower
-     * first, so a hole opens the one largest mouth the space holds, the
+     * first, so a tunnel opens the one largest mouth the space holds, the
      * lowest where two that large fit.
      */
     @Test

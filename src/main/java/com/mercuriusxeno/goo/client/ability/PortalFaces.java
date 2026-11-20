@@ -27,7 +27,7 @@ import java.util.function.Function;
 
 /**
  * Draws every gate as an oval on the face it covers, blue or orange: each
- * portal in its own color, and each open hole's mouths, blue on the struck
+ * portal in its own color, and each open tunnel's mouths, blue on the struck
  * side and orange on the far side. A gate whose view drew this frame shows
  * the far side flush inside its oval under a rim of its color; one with no
  * view, a portal standing alone among them, shows its idle swirl. Inside a
@@ -125,9 +125,9 @@ public final class PortalFaces {
     /**
      * A gate the frame draws and the color it wears.
      *
-     * @param gate a portal's frame or a hole's mouth
+     * @param gate a portal's frame or a tunnel's mouth
      * @param rgb  its color, 0xRRGGBB
-     * @param hole whether it is a hole's mouth, grown open as a hole's mouth grows, drawn as a portal is
+     * @param hole whether it is a tunnel's mouth, grown open as a tunnel's mouth grows, drawn as a portal is
      */
     record Drawn(Gate gate, int rgb, boolean hole) {
 
@@ -154,7 +154,7 @@ public final class PortalFaces {
         AABB drawnBox(Vec3 camera) {
             AABB box = ovalBox().move(camera.reverse());
             float partialTick = Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(false);
-            // a portal, as a hole's mouth, grows in from nothing to its size as it is placed
+            // a portal, as a tunnel's mouth, grows in from nothing to its size as it is placed
             float grown = hole ? ClientHoles.grownOpen(gate, partialTick) : ClientPortals.grownOpen(gate, partialTick);
             Direction.Axis normal = gate.face().getAxis();
             return AABB.ofSize(box.getCenter(), box.getXsize() * (normal == Direction.Axis.X ? 1 : grown),
@@ -193,7 +193,7 @@ public final class PortalFaces {
 
     /**
      * Every gate in a level the frame draws: the local player's portals,
-     * every other player's linked pair, and each open hole's two mouths.
+     * every other player's linked pair, and each open tunnel's two mouths.
      *
      * @param dimension the level drawn
      * @return the gates
@@ -218,7 +218,7 @@ public final class PortalFaces {
 
     /**
      * Draws the view through each gate that drew one this frame, inside its
-     * oval, a hole's mouth through the portals' own view.
+     * oval, a tunnel's mouth through the portals' own view.
      * tunnel-drops-its-crisp-wiggly-outline-and-looks-like-the-portals
      *
      * @param pose    the pose
@@ -326,7 +326,7 @@ public final class PortalFaces {
 
     /**
      * Draws the halo of every placed portal, waiting or linked, blinking or
-     * not, and of both mouths of each hole, glowing onto the wall around its
+     * not, and of both mouths of each tunnel, glowing onto the wall around its
      * edge in its own color and onto no corner face beside it; beside it
      * each one's swirl band standing out of the wall; and inside a view
      * through a pair, the near gate's band's sleeve running back into it.
@@ -355,7 +355,7 @@ public final class PortalFaces {
 
     /**
      * Emits the swirl band of every gate the frame draws, each portal and
-     * each of a hole's two mouths, beside its surface glow, in its own color,
+     * each of a tunnel's two mouths, beside its surface glow, in its own color,
      * a mouth's arching over its rim as a portal's does.
      * tornadic-halo-spirals-out-from-the-rim
      * hole-mouths-wear-the-tornadic-halo
@@ -499,7 +499,7 @@ public final class PortalFaces {
 
     /**
      * Emits the halo of every gate the frame draws, each portal and each of
-     * a hole's two mouths, in its own color, around the same clean oval.
+     * a tunnel's two mouths, in its own color, around the same clean oval.
      * portal-halo-glows-additively-onto-the-wall
      * hole-mouths-wear-the-portal-halo
      * tunnel-drops-its-crisp-wiggly-outline-and-looks-like-the-portals

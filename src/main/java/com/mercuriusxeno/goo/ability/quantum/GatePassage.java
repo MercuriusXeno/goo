@@ -36,12 +36,12 @@ import java.util.UUID;
 import java.util.stream.Stream;
 
 /**
- * Going through a linked gate, a portal's or a hole's mouth: the blocks a
+ * Going through a linked gate, a portal's or a tunnel's mouth: the blocks a
  * gate lies on stand open to a body in front of its oval, so the body walks
  * into the opening, and once it crosses the gate's face it carries on out of
  * the partner, at the matching point, with its momentum and its view turned
  * through the pair, as the portal gun does. Read on both sides:
- * the server's gates from the saved links and open holes, the client's from
+ * the server's gates from the saved links and open tunnels, the client's from
  * what the server told it. A Zone room's edges are gates too, each
  * carrying a body across to the opposite edge.
  * portals-link-by-looking-through-portal-vision
@@ -358,7 +358,7 @@ public final class GatePassage {
     }
 
     /**
-     * The gates the server holds linked now, portals, holes and Zone
+     * The gates the server holds linked now, portals, tunnels and Zone
      * rooms' edges alike.
      *
      * @param server the server
@@ -668,7 +668,7 @@ public final class GatePassage {
     /**
      * Feet set clear of the blocks around a gate's opening: on a floor no
      * lower than the face, under a ceiling low enough that a crawling body's
-     * head stands below it, so a body dropping through a 1x1 hole into a cell
+     * head stands below it, so a body dropping through a 1x1 tunnel into a cell
      * one block tall comes out crawling in it rather than pressed into its
      * floor, and out of a wall no lower than the opening's bottom edge, so a
      * body crossing low, by its middle through a floor portal's far half,

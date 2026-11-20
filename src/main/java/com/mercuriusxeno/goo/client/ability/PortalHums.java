@@ -92,11 +92,11 @@ public final class PortalHums {
     /**
      * The gates the client draws in a level, each of which hums: every portal
      * the local player placed, linked or inert, every pair any player linked,
-     * and each open hole's two mouths, the set PortalFaces draws.
+     * and each open tunnel's two mouths, the set PortalFaces draws.
      *
      * @param portals   the local player's portals
      * @param links     every linked pair the client is told of
-     * @param holes     every open hole the client is told of
+     * @param holes     every open tunnel the client is told of
      * @param dimension the local player's level
      * @return the gates standing there
      */

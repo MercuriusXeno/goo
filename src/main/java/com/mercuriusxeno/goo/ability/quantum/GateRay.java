@@ -11,7 +11,7 @@ import java.util.OptionalDouble;
 /**
  * A ray carried through linked gates: a ray that meets a linked gate's face
  * going in, within its oval, carries on out of the partner, turned through
- * the pair, for the reach it has left. Portals and holes both stand in the
+ * the pair, for the reach it has left. Portals and tunnels both stand in the
  * pairs, so a ray passes a tunnel as it passes a portal; an inert portal
  * stands in no pair, so a ray stops on it as on any surface.
  * aim-and-shots-carry-through-linked-gates

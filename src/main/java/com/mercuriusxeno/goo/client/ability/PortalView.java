@@ -188,7 +188,7 @@ public final class PortalView {
     /**
      * The view through a gate drawn this frame.
      *
-     * @param gate a gate: a portal's frame or a hole's mouth
+     * @param gate a gate: a portal's frame or a tunnel's mouth
      * @return the view texture's id, empty where the gate drew no view
      */
     public static Optional<Identifier> viewOf(Gate gate) {
@@ -217,7 +217,7 @@ public final class PortalView {
 
     /**
      * Draws the view through each gate the main camera faces, a linked
-     * portal's or an open hole's mouth, before the frame's own extraction,
+     * portal's or an open tunnel's mouth, before the frame's own extraction,
      * and within each view the views through the gates that view sees, so a
      * pair facing each other draws the tunnel between them.
      *
@@ -236,7 +236,7 @@ public final class PortalView {
         Eye eye = new Eye(main.position(), vec(main.forwardVector()), vec(main.upVector()));
         Seen frame = new Seen(MAIN_PASS, eye, main, null);
         // Every gate the frame sees directly holds a view before any view within a view spends the budget,
-        // so a tunnel never leaves a portal or a hole in plain sight showing its swirl.
+        // so a chain of views within views never leaves a portal or a tunnel in plain sight showing its swirl.
         List<Gate[]> direct = ways().stream().filter(way -> shows(mc, frame, way[0])).toList();
         reserved = Math.min(direct.size(), MOST_VIEWS);
         for (Gate[] way : direct) {
@@ -257,7 +257,7 @@ public final class PortalView {
 
     /**
      * Every way through a pair a view can be drawn, each gate looked into
-     * then its partner: the linked portals' and each open hole's two mouths,
+     * then its partner: the linked portals' and each open tunnel's two mouths,
      * each pair both ways.
      *
      * @return the ways
