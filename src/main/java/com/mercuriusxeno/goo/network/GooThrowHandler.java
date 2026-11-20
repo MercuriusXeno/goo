@@ -291,7 +291,7 @@ public final class GooThrowHandler {
     /**
      * Refuses a throw at a block face a step of its ability cannot take,
      * before anything is paid, the step showing the refusal there; Quantum's
-     * hole refuses a face with no opening ahead within its reach.
+     * Tunnel refuses a face with no opening ahead within its reach.
      * hole-closes-the-space-to-an-opening-ahead
      *
      * @param player  the throwing player

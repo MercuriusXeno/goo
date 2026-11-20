@@ -6,7 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The stacks a black hole pulled in and the compression sphere it leaves
+ * The stacks a large Blast gathers and the compression sphere it leaves
  * holds: each stack added tops up the held stacks of the same item and
  * components before it opens a new one, so the hoard keeps whole stacks
  * (decision black-hole-leaves-a-compression-sphere).

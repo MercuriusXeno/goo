@@ -184,8 +184,8 @@ public final class GooSelfHandler {
     }
 
     /**
-     * Whether every step of the ability can act on the player now; Fungal
-     * Shift aimed at no fungus cannot, and so neither runs nor drains
+     * Whether every step of the ability can act on the player now;
+     * Transmit aimed at no fungus cannot, and so neither runs nor drains
      * (decision fungal-shift-blinks-to-the-aimed-fungus).
      *
      * @param host    the player host

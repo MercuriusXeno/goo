@@ -764,7 +764,7 @@ class AbilityLoaderTest {
 
     /**
      * Weird's abilities are the make-this-harmless family: Goop's stream coats
-     * what it hits and is the one petal laying slime, and Slime stands apart.
+     * what it hits and is the one petal laying slime, and Mitosis stands apart.
      * weird-bounces-and-softens-harm
      */
     @Nested

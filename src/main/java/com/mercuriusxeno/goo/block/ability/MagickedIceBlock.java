@@ -22,7 +22,8 @@ import org.jspecify.annotations.Nullable;
  * override).
  *
  * <p>The only difference is that this block never melts. Placed permanently
- * by the frost cold snap effect. There is no item form; it is unobtainable
+ * by a {@code freeze_blocks} step whose {@code lasting} is true; Frost's Orb
+ * runs that step with {@code lasting} false. There is no item form; it is unobtainable
  * in its true form. The block id {@code goo:magicked_ice} exists for
  * internal identification and mod interop.</p>
  */

@@ -21,7 +21,7 @@ import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 /**
- * What a player sees while Vitality is held: a soft undulating fog filling
+ * What a player sees while Heal is held: a soft undulating fog filling
  * the cone from the glove along the aim, motes of jelly goo homing from the
  * glove onto each thing being healed, and amber healing stars on it, like
  * bonemeal's green ones. The fog stands in for any wireframe area indicator

@@ -6,7 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
 
-/** Vitality's fog fills a cone from the glove along the aim whose rim undulates in a wave rolling outward (decision vitality-waves-regenerate-and-court). */
+/** Heal's fog fills a cone from the glove along the aim whose rim undulates in a wave rolling outward (decision vitality-waves-regenerate-and-court). */
 class VitalityVisualTest {
 
     private static final double DELTA = 1e-9;

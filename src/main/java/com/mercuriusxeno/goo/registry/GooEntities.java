@@ -23,7 +23,7 @@ import net.neoforged.neoforge.registries.DeferredRegister;
 /**
  * Entity type registry. World effects stand as blocks; an entity is
  * registered here only where a thing moves or acts on its own: a goo rolling through
- * the air (decision orb-carries-a-swirling-nova), the orb a black hole
+ * the air (decision orb-carries-a-swirling-nova), the orb a large Blast
  * leaves (decision black-hole-leaves-a-compression-sphere), the nectar
  * Jelly's Nectar lays (decision feed-blob-feeds-and-draws-mobs), the Eldritch
  * Monstrosity living out of phase (decision monstrosities-harvest-under-quantum),
@@ -65,7 +65,7 @@ public final class GooEntities {
             .build(ResourceKey.create(Registries.ENTITY_TYPE, id)));
 
     /**
-     * The orb a black hole leaves holding what it pulled in
+     * The orb a large Blast leaves holding the drops it gathered
      * (decision black-hole-leaves-a-compression-sphere).
      */
     public static final DeferredHolder<EntityType<?>, EntityType<CompressionSphere>> COMPRESSION_SPHERE =
