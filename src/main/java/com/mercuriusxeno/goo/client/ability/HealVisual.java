@@ -31,7 +31,7 @@ import java.util.stream.Stream;
  * nourish-and-healing-ship-on-jelly
  * touched-mobs-show-hearts-or-a-count-over-max
  */
-public final class VitalityVisual {
+public final class HealVisual {
 
     /** Fog puffs spawned into the cone each held tick. */
     static final int FOG_PER_TICK = 6;
@@ -61,7 +61,7 @@ public final class VitalityVisual {
     /** An axis this close to straight up or down takes the world's x as its side. */
     private static final double NEAR_VERTICAL = 0.99;
 
-    private VitalityVisual() {
+    private HealVisual() {
     }
 
     /**
@@ -253,11 +253,11 @@ public final class VitalityVisual {
      */
     static boolean heals(String abilityId) {
         AbilitySyncHandler.ClientAbility ability = AbilitySyncHandler.findAbility(abilityId);
-        return ability != null && ability.behaviors().stream().flatMap(VitalityVisual::withDescendants)
+        return ability != null && ability.behaviors().stream().flatMap(HealVisual::withDescendants)
                 .anyMatch(step -> step instanceof LeafStep<?> leaf && leaf.leaf() == LeafSteps.HEAL);
     }
 
     private static Stream<Step> withDescendants(Step step) {
-        return Stream.concat(Stream.of(step), step.children().flatMap(VitalityVisual::withDescendants));
+        return Stream.concat(Stream.of(step), step.children().flatMap(HealVisual::withDescendants));
     }
 }

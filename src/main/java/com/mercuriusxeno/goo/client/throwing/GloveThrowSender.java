@@ -22,9 +22,9 @@ import com.mercuriusxeno.goo.client.ability.CameraEye;
 import com.mercuriusxeno.goo.client.ability.CastOrigin;
 import com.mercuriusxeno.goo.client.ability.ChargeEase;
 import com.mercuriusxeno.goo.client.ability.ChargeMotes;
+import com.mercuriusxeno.goo.client.ability.HealVisual;
 import com.mercuriusxeno.goo.client.ability.LiftedPalmBlob;
 import com.mercuriusxeno.goo.client.ability.ReserveVisual;
-import com.mercuriusxeno.goo.client.ability.VitalityVisual;
 import com.mercuriusxeno.goo.client.ability.WindLines;
 import com.mercuriusxeno.goo.client.hud.DurativeWash;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
@@ -165,7 +165,7 @@ public final class GloveThrowSender {
                             .targeting(outlinedEntityId())));
         }
         // every-ability-casts-from-the-lifted-palm-blob: the server's cone keeps the glove, the drawn effect leaves the blob
-        VitalityVisual.drawFog(player, abilityId, selectedArea(abilityId), drawnFrom);
+        HealVisual.drawFog(player, abilityId, selectedArea(abilityId), drawnFrom);
         WindLines.blow(player, abilityId, selectedArea(abilityId), drawnFrom);
         ReserveVisual.drawDrain(player, abilityId);
         loopStreamSound(player, abilityId);

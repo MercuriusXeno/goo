@@ -7,7 +7,7 @@ import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
 
 /** Heal's fog fills a cone from the glove along the aim whose rim undulates in a wave rolling outward (decision vitality-waves-regenerate-and-court). */
-class VitalityVisualTest {
+class HealVisualTest {
 
     private static final double DELTA = 1e-9;
     private static final Vec3 APEX = new Vec3(1, 2, 3);
@@ -20,40 +20,40 @@ class VitalityVisualTest {
 
     @Test
     void fogAtTheStartOfTheConeSitsOnTheGlove() {
-        assertEquals(APEX, VitalityVisual.fogPoint(APEX, EAST, RANGE, CONE, 0, 1, 1.0, 0));
+        assertEquals(APEX, HealVisual.fogPoint(APEX, EAST, RANGE, CONE, 0, 1, 1.0, 0));
     }
 
     @Test
     void fogOnTheAxisRunsAlongTheAim() {
-        Vec3 at = VitalityVisual.fogPoint(APEX, EAST, RANGE, CONE, 0.5, 0, 0, 0);
+        Vec3 at = HealVisual.fogPoint(APEX, EAST, RANGE, CONE, 0.5, 0, 0, 0);
         assertEquals(new Vec3(4, 2, 3), at);
     }
 
     @Test
     void fogAtTheRimSitsAtTheConesAngleScaledByTheUndulation() {
         double time = 3;
-        Vec3 at = VitalityVisual.fogPoint(APEX, EAST, RANGE, CONE, 1, 1, 0, time);
-        double expected = RANGE * Math.tan(Math.toRadians(CONE / 2)) * VitalityVisual.undulation(1, time);
+        Vec3 at = HealVisual.fogPoint(APEX, EAST, RANGE, CONE, 1, 1, 0, time);
+        double expected = RANGE * Math.tan(Math.toRadians(CONE / 2)) * HealVisual.undulation(1, time);
         assertEquals(expected, at.subtract(APEX.add(EAST.scale(RANGE))).length(), DELTA);
     }
 
     /** At its crest the undulation swells the rim by a quarter, at its trough it shrinks it by a quarter. */
     @Test
     void theUndulationSwellsTheRimByAQuarterAtItsCrestAndShrinksItByAQuarterAtItsTrough() {
-        assertEquals(1.25, VitalityVisual.undulation(1.0 / 6, 0), DELTA);
-        assertEquals(0.75, VitalityVisual.undulation(0.5, 0), DELTA);
+        assertEquals(1.25, HealVisual.undulation(1.0 / 6, 0), DELTA);
+        assertEquals(0.75, HealVisual.undulation(0.5, 0), DELTA);
     }
 
     @Test
     void theUndulationRollsOutwardOverTime() {
         double along = 0.4;
-        double later = along + VitalityVisual.ROLL_PER_TICK / (2 * Math.PI * VitalityVisual.WAVES_ALONG);
-        assertEquals(VitalityVisual.undulation(along, 0), VitalityVisual.undulation(later, 1), DELTA);
+        double later = along + HealVisual.ROLL_PER_TICK / (2 * Math.PI * HealVisual.WAVES_ALONG);
+        assertEquals(HealVisual.undulation(along, 0), HealVisual.undulation(later, 1), DELTA);
     }
 
     @Test
     void anAimStraightUpStillOpensACone() {
-        Vec3 at = VitalityVisual.fogPoint(APEX, new Vec3(0, 1, 0), RANGE, CONE, 1, 1, 0, 0);
+        Vec3 at = HealVisual.fogPoint(APEX, new Vec3(0, 1, 0), RANGE, CONE, 1, 1, 0, 0);
         assertTrue(at.subtract(APEX.add(0, RANGE, 0)).length() > 0);
     }
 
@@ -63,7 +63,7 @@ class VitalityVisualTest {
      */
     @Test
     void aFirstPersonCastersLowestRollStarRisesAtTheArcsEdgeNearAndAtTheWaist() {
-        Vec3 at = VitalityVisual.starAt(FEET, STAR_HEIGHT, STAR_YAW, 0, 0, 0);
+        Vec3 at = HealVisual.starAt(FEET, STAR_HEIGHT, STAR_YAW, 0, 0, 0);
         assertEquals(FEET.x, at.x, DELTA);
         assertEquals(FEET.y + 0.9, at.y, DELTA);
         assertEquals(FEET.z + 0.7, at.z, DELTA);
@@ -75,7 +75,7 @@ class VitalityVisualTest {
      */
     @Test
     void aFirstPersonCastersHighestRollStarRisesAtTheArcsOtherEdgeFarAndOverTheHead() {
-        Vec3 at = VitalityVisual.starAt(FEET, STAR_HEIGHT, STAR_YAW, 1, 1, 1);
+        Vec3 at = HealVisual.starAt(FEET, STAR_HEIGHT, STAR_YAW, 1, 1, 1);
         assertEquals(FEET.x - 0.6 * Math.sqrt(3), at.x, DELTA);
         assertEquals(FEET.y + 2.07, at.y, DELTA);
         assertEquals(FEET.z - 0.6, at.z, DELTA);
