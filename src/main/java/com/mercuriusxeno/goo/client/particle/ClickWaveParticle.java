@@ -14,7 +14,7 @@ import org.joml.Quaternionf;
 import org.jspecify.annotations.Nullable;
 
 /**
- * One ring of Deep Click's sound wave: the sculk shrieker's shriek ring, held
+ * One ring of Pulse Click's sound wave: the sculk shrieker's shriek ring, held
  * square to the wave's line of travel rather than lying flat and rising as a
  * shrieker's does, so a wave seen down its line reads as rings face on. It
  * stays where it was set, swelling a little and fading out. The speed it is

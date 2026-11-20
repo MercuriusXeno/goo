@@ -10,8 +10,8 @@ import java.util.stream.Stream;
 /**
  * Runs the child steps on each open floor within a radius of the host's
  * anchor, each on a sprayed-floor host whose {@code distance} reads how far
- * that floor's open cell sits from the anchor, then finishes. Spore buds
- * the landing for certain and the floors around it by chance:
+ * that floor's open cell sits from the anchor, then finishes. A branch on
+ * {@code distance} tells the landing's own floor from the floors around it:
  * {@code floors radius=2 steps=[branch when="at_least(1, distance) ..."]}
  * (decision colonize-blob-grows-the-network).
  *

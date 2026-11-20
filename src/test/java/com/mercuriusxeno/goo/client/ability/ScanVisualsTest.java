@@ -6,7 +6,7 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * The client registers a renderer for the wave visual Deep's Click names, so
+ * The client registers a renderer for the wave visual Pulse's Click names, so
  * the name its JSON choreography carries reaches a drawing
  * (decisions ability-json-names-its-choreography, click-is-a-hit-scan-drawn-as-a-delayed-wave).
  */

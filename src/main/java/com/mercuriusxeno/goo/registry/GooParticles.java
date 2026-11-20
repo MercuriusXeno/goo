@@ -227,7 +227,7 @@ public class GooParticles {
         PARTICLE_TYPES.register("snowflake", () -> new SimpleParticleType(false));
 
     /**
-     * A ring of Deep Click's sound wave, the shriek held square to its line
+     * A ring of Pulse Click's sound wave, the shriek held square to its line
      * (decision click-is-a-hit-scan-drawn-as-a-delayed-wave).
      */
     public static final DeferredHolder<ParticleType<?>, SimpleParticleType> CLICK_WAVE =

@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
- * Covers what Herd ships beside its JSON: its 16x16 icon, the Zoo held
+ * Covers what Herd ships beside its JSON: its 16x16 icon, the Yarn held
  * effect drawing that icon, and its name and description in the lang.
  * leader-is-zoos-brew-ability
  */

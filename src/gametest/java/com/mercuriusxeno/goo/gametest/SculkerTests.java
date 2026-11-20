@@ -22,7 +22,7 @@ import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
 
 /**
- * Gametests for Deep's Sculker held from the glove: sneak and jump together
+ * Gametests for Sculk's Sculker held from the glove: sneak and jump together
  * take a player into the ground, and from then on it swims through stone
  * with no key pressed into a block; a player that only walks into a wall
  * stays outside it; a diver that rises out of a top face and jumps clear

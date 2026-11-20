@@ -7,8 +7,8 @@ import java.util.function.Consumer;
 /**
  * A one-tick host anchored at a point that can hand a sprayed-floor host
  * for each open floor around its anchor (capability
- * {@link HostCapability#FLOOR_SCAN}); Spore buds the ground around a
- * landing on no network this way (decision colonize-blob-grows-the-network).
+ * {@link HostCapability#FLOOR_SCAN}); the {@code floors} step reaches the
+ * floors around a landing this way (decision colonize-blob-grows-the-network).
  */
 public interface FloorScanHost extends StepHost {
 

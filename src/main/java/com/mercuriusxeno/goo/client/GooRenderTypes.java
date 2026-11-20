@@ -109,7 +109,7 @@ public final class GooRenderTypes {
             .build());
 
     /**
-     * Deep Click's shriek rings drawn through blocks: vanilla's translucent
+     * Pulse Click's shriek rings drawn through blocks: vanilla's translucent
      * particle pipeline passing every depth test and writing no depth, so a
      * Click rippling through stone shows to the diver inside it
      * (decision submerged-click-ripples-through-the-ground-to-its-range).

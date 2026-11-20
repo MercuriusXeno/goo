@@ -19,8 +19,8 @@ public final class HerdOutline {
     }
 
     /**
-     * Render state modifier callback: outlines a sensed mob in the pulse's
-     * Zoo color this frame. Registered via RegisterRenderStateModifiersEvent in GooClientSetup.
+     * Render state modifier callback: outlines a sensed mob in the pulsing
+     * outline in Yarn's color this frame. Registered via RegisterRenderStateModifiersEvent in GooClientSetup.
      *
      * @param entity the entity being rendered
      * @param state  its render state

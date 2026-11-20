@@ -16,7 +16,7 @@ import java.util.OptionalDouble;
 /**
  * The {@link StepHost} over the point a scan's wave reaches: the world around
  * it, acted on the tick the wave arrives, with no target, no thrower and no
- * driver of its own. Deep's Click sounds and vibrates here, so nothing it sets
+ * driver of its own. Pulse's Click sounds and vibrates here, so nothing it sets
  * off traces back to the player who clicked
  * (decisions click-is-a-hit-scan-drawn-as-a-delayed-wave,
  * click-vibration-carries-no-source-entity).
