@@ -129,21 +129,6 @@ public final class MetalExplosionVisual implements BurnoutVisual, HeldGhostVisua
     }
 
     /**
-     * The urchin a live metal spike trap bristles as it shoots: the landing's
-     * flare out to a share of its reach, the band's place on the clock the
-     * caller keeps.
-     * urchin-rests-bristled-and-spears
-     *
-     * @param face  the placed face
-     * @param sweep where the specular band sits, in [0, 1]
-     * @param share how far out the spines stand, as a share of the flare's reach
-     * @return the urchin
-     */
-    static Urchin bristled(Direction face, float sweep, float share) {
-        return new Urchin(face, SPIKE_REACH * share, SPIKE_BASE_RADIUS, ColorBytes.toByte(sweep), OPAQUE);
-    }
-
-    /**
      * Where the urchin's spikes share their base, block-local: just off
      * the face plane, inside the block the marker stands in.
      *
