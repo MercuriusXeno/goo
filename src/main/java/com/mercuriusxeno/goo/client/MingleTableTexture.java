@@ -17,7 +17,11 @@ import java.util.List;
  * from (decision one-pass-blends-every-type): emptied as each frame starts,
  * filled as surfaces submit, and uploaded when a surface's geometry is
  * built, before the draw that reads it. It grows to hold every row a frame
- * writes, so a surface's type count meets no cap.
+ * writes, so a surface's type count meets no cap. The texture stands, sized
+ * for the rows, as each surface submits: the game takes a render type's
+ * texture views when its draw is prepared, before the geometry is built, and
+ * a texture replaced after that closes the view the prepared draw holds.
+ * decision minecraft-26-3-update-is-a-port-to-parity
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class MingleTableTexture {
@@ -54,21 +58,22 @@ public final class MingleTableTexture {
      */
     public static int append(List<MingleLayer> layers) {
         stale = true;
-        return TABLE.append(layers);
-    }
-
-    /**
-     * Uploads every row written since the last upload, growing the texture
-     * when the frame wrote more rows than it holds. Called as a surface's
-     * geometry is built, outside any render pass.
-     */
-    public static void uploadIfStale() {
-        if (!stale) {
-            return;
-        }
+        int rows = TABLE.append(layers);
         if (texture == null || TABLE.rows() > textureRows) {
             replaceTexture(Math.max(INITIAL_ROWS,
                 Integer.highestOneBit(Math.max(TABLE.rows(), 1)) * MingleTable.GROWTH_FACTOR));
+        }
+        return rows;
+    }
+
+    /**
+     * Uploads every row written since the last upload, into the texture the
+     * surfaces' submits sized. Called as a surface's geometry is built,
+     * outside any render pass.
+     */
+    public static void uploadIfStale() {
+        if (!stale || texture == null) {
+            return;
         }
         NativeImage pixels = texture.getPixels();
         for (int row = 0; row < TABLE.rows(); row++) {
