@@ -4,9 +4,7 @@
   "size": 4,
   "targets": [
     {
-      "state": {
-        "Name": "goo:meteoric_iron"
-      },
+      "state": "goo:meteoric_iron",
       "target": {
         "predicate_type": "minecraft:block_match",
         "block": "goo:regolith"

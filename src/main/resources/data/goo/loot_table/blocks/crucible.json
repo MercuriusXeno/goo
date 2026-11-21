@@ -1,24 +1,22 @@
 {
-  "type": "minecraft:block",
   "pools": [
     {
-      "bonus_rolls": 0.0,
+      "bonus_rolls": 0,
       "entries": [
         {
-          "type": "minecraft:item",
-          "functions": [
-            {
-              "function": "minecraft:copy_components",
-              "include": [
-                "goo:remainders"
-              ],
-              "source": "block_entity"
-            }
-          ],
-          "name": "goo:crucible"
+          "modifier": {
+            "type": "minecraft:copy_components",
+            "include": [
+              "goo:remainders"
+            ],
+            "source": "block_entity"
+          },
+          "name": "goo:crucible",
+          "type": "minecraft:item"
         }
       ],
-      "rolls": 1.0
+      "rolls": 1
     }
-  ]
+  ],
+  "type": "minecraft:block"
 }

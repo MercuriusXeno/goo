@@ -1,24 +1,20 @@
 {
   "type": "goo:boulder",
   "stone": {
-    "type": "minecraft:weighted_state_provider",
+    "type": "minecraft:weighted",
     "entries": [
       {
-        "data": {
-          "Name": "goo:anorthosite"
-        },
+        "data": "goo:anorthosite",
+        "weight": 4
+      },
+      {
+        "data": "goo:breccia",
         "weight": 4
       },
       {
         "data": {
-          "Name": "goo:breccia"
-        },
-        "weight": 4
-      },
-      {
-        "data": {
-          "Name": "minecraft:basalt",
-          "Properties": {
+          "id": "minecraft:basalt",
+          "properties": {
             "axis": "y"
           }
         },

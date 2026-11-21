@@ -1,26 +1,24 @@
 {
-  "type": "minecraft:block",
   "pools": [
     {
-      "bonus_rolls": 0.0,
+      "bonus_rolls": 0,
       "entries": [
         {
-          "type": "minecraft:item",
-          "functions": [
-            {
-              "function": "minecraft:copy_components",
-              "include": [
-                "minecraft:enchantments",
-                "goo:goo_label",
-                "goo:goo_contents"
-              ],
-              "source": "block_entity"
-            }
-          ],
-          "name": "goo:vat"
+          "modifier": {
+            "type": "minecraft:copy_components",
+            "include": [
+              "minecraft:enchantments",
+              "goo:goo_label",
+              "goo:goo_contents"
+            ],
+            "source": "block_entity"
+          },
+          "name": "goo:vat",
+          "type": "minecraft:item"
         }
       ],
-      "rolls": 1.0
+      "rolls": 1
     }
-  ]
+  ],
+  "type": "minecraft:block"
 }

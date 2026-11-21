@@ -46,7 +46,7 @@ class LunarSpawnsTest {
     }
 
     private static JsonObject monstrosityIn(String biome) throws IOException {
-        for (JsonElement spawner : resourceJson(biome).getAsJsonObject("spawners").getAsJsonArray("monster")) {
+        for (JsonElement spawner : BiomeSpawnJson.monsterSpawners(resourceJson(biome))) {
             if (MONSTROSITY.equals(spawner.getAsJsonObject().get("type").getAsString())) {
                 return spawner.getAsJsonObject();
             }
@@ -59,10 +59,12 @@ class LunarSpawnsTest {
     void theWarrensSpawnTheMonstrosityInLargerGroupsThanTheSurface() throws IOException {
         JsonObject surface = monstrosityIn(LUNAR_BIOME);
         JsonObject warrens = monstrosityIn(WARREN_BIOME);
-        assertTrue(warrens.get("maxCount").getAsInt() > surface.get("maxCount").getAsInt(),
-                "the warrens spawn up to " + warrens.get("maxCount") + ", the surface up to " + surface.get("maxCount"));
-        assertTrue(warrens.get("minCount").getAsInt() > surface.get("minCount").getAsInt(),
-                "the warrens spawn at least " + warrens.get("minCount") + ", the surface " + surface.get("minCount"));
+        int warrensMax = BiomeSpawnJson.maxCount(warrens);
+        int surfaceMax = BiomeSpawnJson.maxCount(surface);
+        int warrensMin = BiomeSpawnJson.minCount(warrens);
+        int surfaceMin = BiomeSpawnJson.minCount(surface);
+        assertTrue(warrensMax > surfaceMax, "the warrens spawn up to " + warrensMax + ", the surface up to " + surfaceMax);
+        assertTrue(warrensMin > surfaceMin, "the warrens spawn at least " + warrensMin + ", the surface " + surfaceMin);
         assertTrue(warrens.get("weight").getAsInt() >= surface.get("weight").getAsInt(),
                 "the warrens weigh " + warrens.get("weight") + ", the surface " + surface.get("weight"));
     }
@@ -70,8 +72,7 @@ class LunarSpawnsTest {
     @Test
     void lunarSpawnsEachEldritchMobAboveItsOverworldWeight() throws IOException {
         Map<String, Integer> overworld = weights(resourceJson(OVERWORLD_ELDRITCH).getAsJsonArray("spawners"));
-        Map<String, Integer> lunar = weights(resourceJson(LUNAR_BIOME).getAsJsonObject("spawners")
-                .getAsJsonArray("monster"));
+        Map<String, Integer> lunar = weights(BiomeSpawnJson.monsterSpawners(resourceJson(LUNAR_BIOME)));
         assertFalse(overworld.isEmpty(), "the overworld spawns no eldritch mob");
         overworld.forEach((mob, weight) -> assertTrue(lunar.getOrDefault(mob, 0) > weight,
                 "lunar spawns " + mob + " at " + lunar.getOrDefault(mob, 0) + ", the overworld at " + weight));

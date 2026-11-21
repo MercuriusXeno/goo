@@ -122,11 +122,11 @@ public final class UndeadInversion {
      * @param caster the entity whose heal it is, or null when unknown
      */
     private static void harmUndead(LivingEntity target, float amount, @Nullable Entity caster) {
-        int immunity = target.getInvulnerableTime();
+        int immunity = target.damageCooldownTime;
         Vec3 motion = target.getDeltaMovement();
-        target.setInvulnerableTime(0);
+        target.damageCooldownTime = 0;
         target.hurtServer((ServerLevel) target.level(), magicFrom(target, caster), amount);
-        target.setInvulnerableTime(immunity);
+        target.damageCooldownTime = immunity;
         target.setDeltaMovement(motion);
         target.syncVelocity = false;
     }

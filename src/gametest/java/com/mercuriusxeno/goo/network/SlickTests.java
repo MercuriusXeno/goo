@@ -21,6 +21,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.protocol.game.ServerboundAcceptTeleportationPacket;
+import net.minecraft.network.protocol.game.ServerboundClientTickEndPacket;
 import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
@@ -644,6 +645,8 @@ public final class SlickTests {
         runner.setPos(runner.getX(), clientTop, runner.getZ());
         runner.connection.markClientLoaded();
         runner.connection.handleMovePlayer(new ServerboundMovePlayerPacket.Pos(runner.position(), true, false));
+        // the client ends its tick before its next move, as 26.3 takes one position from a client a tick
+        runner.connection.handleClientTickEnd(ServerboundClientTickEndPacket.INSTANCE);
         // the drip lands on the server; the client has not had the cell's update when it moves the runner on
         helper.setBlock(ahead, slickOf(3));
         Vec3 target = Vec3.atBottomCenterOf(helper.absolutePos(ahead)).add(0, clientTop

@@ -3,9 +3,8 @@
   "biomes": "#minecraft:is_overworld",
   "spawners": [
     {
+      "count": 1,
       "type": "goo:eldritch_monstrosity",
-      "minCount": 1,
-      "maxCount": 1,
       "weight": 10
     }
   ]

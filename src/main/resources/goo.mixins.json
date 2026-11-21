@@ -1,11 +1,15 @@
 {
   "required": true,
+  "injectors": {
+    "defaultRequire": 1
+  },
   "package": "com.mercuriusxeno.goo.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
     "BlockStateGatePassageMixin",
     "ContainerShiftClickMergeMixin",
     "EntityCellLiftMixin",
+    "EntityHunkRiderLiftMixin",
     "EnvironmentAttributeSystemLunarSunMixin",
     "EntityGatePassageMixin",
     "EntityGloomDaylightMixin",

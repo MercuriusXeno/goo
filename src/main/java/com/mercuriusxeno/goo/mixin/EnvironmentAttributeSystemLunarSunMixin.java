@@ -19,13 +19,14 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class EnvironmentAttributeSystemLunarSunMixin {
 
     /**
-     * Adds the sun's layers once lunar's default layers stand.
+     * Adds the sun's layers once lunar's dynamic layers, its timelines and weather, stand: 26.3 builds a level's
+     * default layers as its static layers and then these.
      *
      * @param builder the attribute system being built
      * @param level   the level it is built for
      * @param ci      the callback
      */
-    @Inject(method = "addDefaultLayers", at = @At("TAIL"))
+    @Inject(method = "addDynamicLayers", at = @At("TAIL"))
     private static void goo$addLunarSun(EnvironmentAttributeSystem.Builder builder, Level level, CallbackInfo ci) {
         if (level.dimension() == Lunar.LEVEL) {
             LunarNight.addSunLayers(builder, level::getOverworldClockTime);

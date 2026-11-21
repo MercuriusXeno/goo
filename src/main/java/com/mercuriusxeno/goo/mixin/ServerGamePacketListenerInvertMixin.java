@@ -31,7 +31,7 @@ public abstract class ServerGamePacketListenerInvertMixin {
      * @param yDist        the vertical move
      * @return whether the move rose off the player's ground
      */
-    @ModifyVariable(method = "handleMovePlayer", at = @At("STORE"), name = "movedUpwards")
+    @ModifyVariable(method = "handlePlayerPositionChange", at = @At("STORE"), name = "movedUpwards")
     private boolean goo$movedOffTheCeiling(boolean movedUpwards, @Local(name = "yDist") double yDist) {
         return Invert.isInverted(player) ? CeilingGround.towardGround(yDist, true) > 0 : movedUpwards;
     }

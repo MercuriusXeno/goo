@@ -122,7 +122,7 @@ public record DamageStep(Expr amount, DamageKind source, boolean knockback,
         // decision attack-key-touches-plus-punches
         // decision decay-gnats-degrade-each-block-once
         if (!iFrames) {
-            target.setInvulnerableTime(0);
+            target.damageCooldownTime = 0;
         }
         Vec3 before = target.getDeltaMovement();
         target.hurtServer((ServerLevel) target.level(), damageSource(target, causeOf(context.hostAs(TargetHost.class))),
@@ -133,7 +133,7 @@ public record DamageStep(Expr amount, DamageKind source, boolean knockback,
             target.syncVelocity = false;
         }
         if (!iFrames) {
-            target.setInvulnerableTime(invulnerableTicks.map(ticks -> ticks.evaluateInt(context)).orElse(0));
+            target.damageCooldownTime = invulnerableTicks.map(ticks -> ticks.evaluateInt(context)).orElse(0);
         }
         return true;
     }

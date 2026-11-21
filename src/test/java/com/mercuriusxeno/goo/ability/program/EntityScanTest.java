@@ -19,7 +19,6 @@ import java.util.Map;
 import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /**
  * What the entity filters keep, read through {@link EntityScan#passes} on mocked entities of each class a filter checks.
@@ -61,8 +60,7 @@ class EntityScanTest {
     @Test
     void vulnerableKeepsTheMobWhoseImmunityHasRunOut() {
         Mob immune = mock(Mob.class);
-        // 26.3 makes the immunity private behind its accessor, which the mock answers with the immunity left
-        when(immune.getInvulnerableTime()).thenReturn(IMMUNE_TICKS);
+        immune.damageCooldownTime = IMMUNE_TICKS;
         Mob spent = mock(Mob.class);
         Map<String, Mob> mobs = new LinkedHashMap<>();
         mobs.put("immune", immune);
