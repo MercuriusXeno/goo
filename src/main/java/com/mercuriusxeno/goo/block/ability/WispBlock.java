@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.block.ability;
 
-import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
@@ -26,7 +25,6 @@ import org.jspecify.annotations.NonNull;
  */
 public class WispBlock extends BaseEntityBlock {
 
-    public static final MapCodec<WispBlock> CODEC = simpleCodec(WispBlock::new);
 
     /** How far the wisp has faded: 0 bright, LAST_FADE about to go out. */
     public static final int LAST_FADE = 3;
@@ -82,11 +80,6 @@ public class WispBlock extends BaseEntityBlock {
      */
     public static int ticksBeforeFading(int lifeTicks) {
         return Math.max(1, lifeTicks - (LAST_FADE + 1) * FADE_STAGE_TICKS);
-    }
-
-    @Override
-    protected @NonNull MapCodec<? extends BaseEntityBlock> codec() {
-        return CODEC;
     }
 
     @Override

@@ -14,7 +14,7 @@ import net.minecraft.client.renderer.gizmos.DrawableGizmoPrimitives;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.client.renderer.state.level.QuadParticleRenderState;
-import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+import net.minecraft.client.renderer.texture.UvMapping;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.phys.Vec3;
@@ -40,8 +40,7 @@ public abstract class ItemSubmitCollector implements SubmitNodeCollector {
 
     @Override
     public <S> void submitModel(Model<? super S> m, S s, PoseStack p, RenderType r,
-                                int l, int o, int t, @Nullable TextureAtlasSprite sp, int oc,
-                                ModelFeatureRenderer.@Nullable CrumblingOverlay c) {
+                                int l, int o, int t, @Nullable UvMapping sp, int oc) {
     }
 
     @Override
@@ -59,6 +58,16 @@ public abstract class ItemSubmitCollector implements SubmitNodeCollector {
     }
 
     @Override
+    public void submitTextBackground(PoseStack p, float x0, float y0, float x1, float y1, int c,
+                                     Font.DisplayMode m, int l) {
+    }
+
+    @Override
+    public <S> void submitCrumblingOverlay(Model<? super S> m, S s, PoseStack p, RenderType r, int l, int o, int t,
+                                           ModelFeatureRenderer.CrumblingOverlay c) {
+    }
+
+    @Override
     public void submitFlame(PoseStack p, EntityRenderState s, Quaternionf r) {
     }
 
@@ -68,8 +77,8 @@ public abstract class ItemSubmitCollector implements SubmitNodeCollector {
 
     @Override
     public void submitModelPart(ModelPart m, PoseStack p, RenderType r, int l, int o,
-                                @Nullable TextureAtlasSprite sp, int t,
-                                ModelFeatureRenderer.@Nullable CrumblingOverlay c, int oc) {
+                                @Nullable UvMapping sp, int t,
+                                int oc) {
     }
 
     @Override
@@ -82,7 +91,8 @@ public abstract class ItemSubmitCollector implements SubmitNodeCollector {
     }
 
     @Override
-    public void submitBreakingBlockModel(PoseStack p, List<BlockStateModelPart> parts, int pr) {
+    public void submitBreakingBlockModel(PoseStack p, List<BlockStateModelPart> parts, int pr,
+                                         boolean isBlockTranslucent) {
     }
 
     @Override

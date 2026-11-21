@@ -6,7 +6,6 @@ import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
-import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleTypes;
@@ -19,7 +18,6 @@ import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.ScheduledTickAccess;
-import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.SimpleWaterloggedBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -66,7 +64,6 @@ public class AbilityBlock extends AbstractEffectBlock implements SimpleWaterlogg
      * Waterlogged state property: true when this marker co-occupies a water block.
      */
     public static final BooleanProperty WATERLOGGED = BlockStateProperties.WATERLOGGED;
-    public static final MapCodec<AbilityBlock> CODEC = simpleCodec(AbilityBlock::new);
     /**
      * Ambient particle spread radius.
      */
@@ -462,16 +459,6 @@ public class AbilityBlock extends AbstractEffectBlock implements SimpleWaterlogg
             return super.onDestroyedByPlayer(state, level, pos, player, toolStack, canHarvest, fluidState);
         }
         return false;
-    }
-
-    /**
-     * Returns the codec for serialization.
-     *
-     * @return the codec
-     */
-    @Override
-    protected @NonNull MapCodec<? extends BaseEntityBlock> codec() {
-        return CODEC;
     }
 
     /**

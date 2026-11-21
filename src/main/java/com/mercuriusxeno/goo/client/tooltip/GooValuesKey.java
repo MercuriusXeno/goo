@@ -4,12 +4,11 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.client.radial.GloveRadialKey;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.KeyMapping;
-import net.minecraft.client.Minecraft;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
-import org.lwjgl.glfw.GLFW;
+import org.lwjgl.sdl.SDLMouse;
 
 /**
  * The Goo values key mapping, held over an item to reveal its goo tooltip
@@ -21,7 +20,7 @@ public final class GooValuesKey {
 
     /** The Goo values mapping. */
     public static final KeyMapping MAPPING = new KeyMapping(GooValuesKeyGate.NAME_KEY,
-            GooValuesKeyGate.CONFLICT_CONTEXT, InputConstants.Type.KEYSYM, GooValuesKeyGate.DEFAULT_KEY,
+            GooValuesKeyGate.CONFLICT_CONTEXT, InputConstants.Type.KEYBOARD, GooValuesKeyGate.DEFAULT_KEY,
             GloveRadialKey.CATEGORY);
 
     private GooValuesKey() {}
@@ -45,16 +44,16 @@ public final class GooValuesKey {
      */
     public static boolean isHeld() {
         InputConstants.Key bound = MAPPING.getKey();
-        long window = Minecraft.getInstance().getWindow().handle();
         return GooValuesKeyGate.boundInputDown(bound.getType(), bound.getValue(), new GooValuesKeyGate.InputStates() {
             @Override
             public boolean keyDown(int key) {
-                return GLFW.glfwGetKey(window, key) == GLFW.GLFW_PRESS;
+                return InputConstants.isKeyDown(key);
             }
 
             @Override
             public boolean mouseButtonDown(int button) {
-                return GLFW.glfwGetMouseButton(window, button) == GLFW.GLFW_PRESS;
+                // SDL_BUTTON_MASK as SDL_mouse.h defines it: button n holds bit n - 1 of the mouse state.
+                return (SDLMouse.SDL_GetMouseState(null, null) & 1 << (button - 1)) != 0;
             }
         });
     }

@@ -2,12 +2,12 @@ package com.mercuriusxeno.goo.client.workbench;
 
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mercuriusxeno.goo.workbench.WorkbenchOperations;
+import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.network.chat.Component;
 import org.jspecify.annotations.Nullable;
-import org.lwjgl.glfw.GLFW;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -211,7 +211,7 @@ final class ProcessesPane {
     }
 
     /**
-     * @param key the GLFW key pressed
+     * @param key the SDL scancode of the key pressed
      * @return whether the controls took the key: Enter commits a number box or the name box, and Escape closes a list
      *     or the name box
      */
@@ -223,11 +223,11 @@ final class ProcessesPane {
     }
 
     private boolean nameKey(EditBox box, int key) {
-        if (key == GLFW.GLFW_KEY_ENTER || key == GLFW.GLFW_KEY_KP_ENTER) {
+        if (key == InputConstants.KEY_RETURN || key == InputConstants.KEY_NUMPADENTER) {
             create(box.getValue());
             return true;
         }
-        if (key == GLFW.GLFW_KEY_ESCAPE) {
+        if (key == InputConstants.KEY_ESCAPE) {
             stopNaming();
             return true;
         }

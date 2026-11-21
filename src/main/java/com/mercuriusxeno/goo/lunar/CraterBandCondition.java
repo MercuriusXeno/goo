@@ -5,7 +5,10 @@ import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.world.level.levelgen.SurfaceRules;
+import net.minecraft.world.level.levelgen.material.MaterialRuleContext;
+import net.minecraft.world.level.levelgen.material.condition.ConditionEvaluator;
+import net.minecraft.world.level.levelgen.material.condition.MaterialCondition;
+import net.minecraft.world.level.levelgen.synth.Noise;
 import net.minecraft.world.level.levelgen.synth.NormalNoise;
 
 /**
@@ -20,8 +23,8 @@ import net.minecraft.world.level.levelgen.synth.NormalNoise;
  * @param maxReach  the band's outer edge, in radii, exclusive
  * @param minRadius the least radius a crater counts at, in blocks; zero counts every crater
  */
-public record CraterBandCondition(ResourceKey<NormalNoise.NoiseParameters> noise, double minReach, double maxReach,
-        double minRadius) implements SurfaceRules.ConditionSource {
+public record CraterBandCondition(ResourceKey<NormalNoise> noise, double minReach, double maxReach,
+        double minRadius) implements MaterialCondition {
 
     /** The data codec of the condition, naming its noise and its band. */
     public static final MapCodec<CraterBandCondition> DATA_CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
@@ -32,13 +35,13 @@ public record CraterBandCondition(ResourceKey<NormalNoise.NoiseParameters> noise
     ).apply(instance, CraterBandCondition::new));
 
     @Override
-    public MapCodec<? extends SurfaceRules.ConditionSource> codec() {
+    public MapCodec<CraterBandCondition> codec() {
         return DATA_CODEC;
     }
 
     @Override
-    public SurfaceRules.Condition apply(SurfaceRules.Context context) {
-        NormalNoise craterNoise = context.randomState.getOrCreateNoise(noise);
+    public ConditionEvaluator compile(MaterialRuleContext context) {
+        Noise craterNoise = context.randomState.getOrCreateNoise(noise);
         CraterField craters = CraterField.seeded(craterNoise);
         GiantCraterField giants = GiantCraterField.seeded(craterNoise);
         return new ColumnTest(context, (x, z) -> craters.reachesBandAt(x, z, minReach, maxReach, minRadius)

@@ -315,8 +315,8 @@ final class CrucibleMeltingItems {
         Vec3Center center = new Vec3Center(item.getModelBoundingBox());
         poseStack.pushPose();
         poseStack.translate(pose.x(), pose.y(), pose.z());
-        poseStack.mulPose(Axis.YP.rotation(pose.spin()));
-        poseStack.mulPose(Axis.XP.rotationDegrees(pose.tilt()));
+        poseStack.rotate(Axis.YP.rotation(pose.spin()));
+        poseStack.rotate(Axis.XP.rotationDegrees(pose.tilt()));
         poseStack.scale(pose.scale(), pose.scale(), pose.scale());
         poseStack.translate(-center.x(), -center.y(), -center.z());
         item.submit(poseStack, collectorAt.apply(poseStack.last().pose()), light, OverlayTexture.NO_OVERLAY, 0);

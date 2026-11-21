@@ -9,14 +9,14 @@ import com.mercuriusxeno.goo.ability.quantum.ViewSize;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.TranslucentVisualPath;
-import com.mojang.blaze3d.GpuFormat;
 import com.mojang.blaze3d.ProjectionType;
-import com.mojang.blaze3d.buffers.GpuBuffer;
-import com.mojang.blaze3d.buffers.GpuBufferSlice;
 import com.mojang.blaze3d.buffers.Std140Builder;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.pipeline.TextureTarget;
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.renderpearl.api.GpuFormat;
+import com.mojang.renderpearl.api.buffers.GpuBuffer;
+import com.mojang.renderpearl.api.buffers.GpuBufferSlice;
 import net.minecraft.client.Camera;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
@@ -542,7 +542,7 @@ public final class PortalView {
         CameraRenderState camera = mc.gameRenderer.gameRenderState.levelRenderState.cameraRenderState;
         seenSections(levels.visibleSections, levels, portal);
         PortalLevelExtract.extract(mc, delta, portal, delta.getGameTimeDeltaPartialTick(false));
-        portal.extractRenderState(camera, portal.getCameraEntityPartialTicks(delta));
+        portal.extractRenderState(camera, delta);
         camera.fogType = portal.getFluidInCamera();
         camera.fogData = mc.gameRenderer.fogRenderer.setupFog(portal, mc.options.getEffectiveRenderDistance(),
                 delta, 0F, mc.level);
@@ -576,14 +576,14 @@ public final class PortalView {
             mc.gameRenderer.mainRenderTarget = target;
             placeGlobalCamera(mc, delta, camera.pos);
             projectForTheSky(state, camera, unclipped);
-            mc.levelRenderer.render(game.resourcePool, delta, false, camera, camera.viewRotationMatrix,
-                    viewFog(camera.fogData), camera.fogData.color, true);
+            mc.levelRenderer.render(game.resourcePool, false, camera, viewFog(camera.fogData), camera.fogData.color,
+                    true, false);
             // renderLevel posts no AfterLevel, so the view draws the path's far-to-near visuals itself, into its target
             // decision translucent-goo-visuals-draw-through-one-checked-sorting-path
             TranslucentVisualPath.drawAfterAPortalsLevel(camera.viewRotationMatrix, state);
             // aim-and-shots-carry-through-linked-gates: the view's own glow outlines, the aimed mob's among them,
             // blend into the view as the frame's do after its level, before the frame's level clears them
-            mc.levelRenderer.doEntityOutline();
+            mc.levelRenderer.blitEntityOutline();
         } finally {
             mc.levelRenderer.cloudRenderer = frameClouds;
             mc.gameRenderer.mainRenderTarget = frame;
@@ -705,7 +705,7 @@ public final class PortalView {
     private static void placeGlobalCamera(Minecraft mc, DeltaTracker delta, Vec3 eye) {
         GameRenderState frame = mc.gameRenderer.gameRenderState;
         mc.gameRenderer.globalSettingsUniform.update(frame.windowRenderState.width, frame.windowRenderState.height,
-                frame.optionsRenderState.glintStrength, mc.level.getGameTime(), delta,
+                frame.optionsRenderState.glintStrength, mc.level.getGameTime(), frame.levelRenderState.worldPartialTicks,
                 frame.optionsRenderState.menuBackgroundBlurriness, eye,
                 frame.optionsRenderState.textureFiltering == TextureFilteringMethod.RGSS);
     }
@@ -848,7 +848,7 @@ public final class PortalView {
         int width = mc.gameRenderer.mainRenderTarget().width;
         int height = mc.gameRenderer.mainRenderTarget().height;
         while (TARGETS.size() <= slot) {
-            RenderTarget target = new TextureTarget(VIEW_LABEL, width, height, true, GpuFormat.RGBA8_UNORM);
+            RenderTarget target = new TextureTarget(VIEW_LABEL, width, height, GpuFormat.RGBA8_UNORM, GpuFormat.D32_FLOAT);
             PortalViewTexture texture = new PortalViewTexture();
             TARGETS.add(target);
             TEXTURES.add(texture);

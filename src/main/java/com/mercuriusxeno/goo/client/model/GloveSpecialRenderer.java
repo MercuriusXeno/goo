@@ -248,10 +248,9 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
         int tint = ghost ? PhaseLook.ownTint(COLOR_WHITE) : COLOR_WHITE;
         poseStack.pushPose();
         arm.standInGloveBody(poseStack);
-        nodeCollector.submitModelPart(arm.arm(), poseStack, type, packedLight, OverlayTexture.NO_OVERLAY, null, tint,
-                null);
+        nodeCollector.submitModelPart(arm.arm(), poseStack, type, packedLight, OverlayTexture.NO_OVERLAY, null, tint);
         nodeCollector.submitModelPart(arm.sleeve(), poseStack, type, packedLight, OverlayTexture.NO_OVERLAY, null,
-                tint, null);
+                tint);
         poseStack.popPose();
     }
 
@@ -387,7 +386,7 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
         float gameTime = gameTime();
         poseStack.pushPose();
         poseStack.translate(center.x(), center.y(), center.z());
-        poseStack.mulPose(turn);
+        poseStack.rotate(turn);
         nodeCollector.submitCustomGeometry(poseStack, coreType(),
                 (pose, c) -> GooFlightRenderer.emitCore(pose, c, type, gameTime, shape));
         nodeCollector.submitCustomGeometry(poseStack, GooSubmitter.renderType(),
@@ -444,7 +443,7 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
                                       Vec3 along, LiftedPalmBlob.HandLift lift) {
         poseStack.pushPose();
         poseStack.translate(center.x(), center.y(), center.z());
-        poseStack.mulPose(turn);
+        poseStack.rotate(turn);
         nodeCollector.submitCustomGeometry(poseStack, GooSubmitter.renderType(),
                 (pose, c) -> GooFlightRenderer.emitTravelForm(pose, c, type, lift.form(), along, lift.javelin()));
         poseStack.popPose();

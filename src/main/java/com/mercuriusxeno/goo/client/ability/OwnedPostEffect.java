@@ -1,11 +1,11 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.framegraph.FrameGraphBuilder;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.resource.GraphicsResourceAllocator;
-import com.mojang.blaze3d.systems.CommandEncoder;
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.renderpearl.api.buffers.GpuBuffer;
+import com.mojang.renderpearl.api.commands.CommandEncoder;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.LevelTargetBundle;
@@ -17,7 +17,9 @@ import java.nio.ByteBuffer;
 
 /**
  * One of Goo's post-effect chains holding the game renderer's single post
- * effect slot, with one custom uniform block it rewrites each frame. The
+ * effect slot, with one custom uniform block it rewrites each frame. Minecraft
+ * 26.3 names that slot the spectated entity's post effect and runs it beside the
+ * frame's own effects, as 26.2 ran its one slot. The
  * chain yields the slot to any other post effect already standing (a
  * vanilla spectator cam or another chain), and releases only a slot it holds.
  *
@@ -60,9 +62,9 @@ final class OwnedPostEffect {
             return;
         }
         writeUniforms(chain, bytes);
-        Identifier current = mc.gameRenderer.currentPostEffect();
+        Identifier current = mc.gameRenderer.spectatedEntityPostEffect();
         if (current == null) {
-            mc.gameRenderer.setPostEffect(chainId);
+            mc.gameRenderer.setSpectatedEntityPostEffect(chainId);
         }
     }
 
@@ -95,8 +97,8 @@ final class OwnedPostEffect {
      * @param gameRenderer the active game renderer
      */
     void hide(GameRenderer gameRenderer) {
-        if (chainId.equals(gameRenderer.currentPostEffect())) {
-            gameRenderer.clearPostEffect();
+        if (chainId.equals(gameRenderer.spectatedEntityPostEffect())) {
+            gameRenderer.clearSpectatedEntityPostEffect();
         }
     }
 

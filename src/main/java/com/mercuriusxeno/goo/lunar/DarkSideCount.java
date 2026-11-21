@@ -1,11 +1,9 @@
 package com.mercuriusxeno.goo.lunar;
 
-import com.mercuriusxeno.goo.registry.GooPlacementModifiers;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.RandomSource;
-import net.minecraft.world.level.levelgen.placement.PlacementModifierType;
 import net.minecraft.world.level.levelgen.placement.RepeatingPlacement;
 
 /**
@@ -13,7 +11,7 @@ import net.minecraft.world.level.levelgen.placement.RepeatingPlacement;
  * for the side of the moon the chunk stands on, so void and xeno blocks concentrate on the dark side.
  * decision dark-side-is-an-endless-night-of-eldritch-rich-in-void-and-xeno
  */
-public final class DarkSideCount extends RepeatingPlacement {
+public final class DarkSideCount implements RepeatingPlacement {
 
     private static final int MOST_ATTEMPTS = 256;
     /** The data codec: a count for each side. */
@@ -31,12 +29,12 @@ public final class DarkSideCount extends RepeatingPlacement {
     }
 
     @Override
-    protected int count(RandomSource random, BlockPos origin) {
+    public int count(RandomSource random, BlockPos origin) {
         return counts.at(origin.getX());
     }
 
     @Override
-    public PlacementModifierType<?> type() {
-        return GooPlacementModifiers.DARK_SIDE_COUNT.get();
+    public MapCodec<DarkSideCount> codec() {
+        return CODEC;
     }
 }

@@ -378,7 +378,7 @@ public final class GloveArmLayer extends RenderLayer<AvatarRenderState, PlayerMo
             poseStack.translate(BODY_CENTER_PX / PIXELS_PER_BLOCK, (FINGERS_Y_PX + HAND_END_Y) / PIXELS_PER_BLOCK,
                     BODY_CENTER_PX / PIXELS_PER_BLOCK);
             poseStack.scale(BODY_WIDTH_PX / (width + sleeveGrowth), 1f, BODY_WIDTH_PX / (ARM_DEPTH + sleeveGrowth));
-            poseStack.mulPose(Axis.XP.rotationDegrees(HALF_TURN_DEGREES));
+            poseStack.rotate(Axis.XP.rotationDegrees(HALF_TURN_DEGREES));
             poseStack.translate(-centerX / PIXELS_PER_BLOCK, 0f, 0f);
         }
     }
@@ -396,7 +396,7 @@ public final class GloveArmLayer extends RenderLayer<AvatarRenderState, PlayerMo
 
         void submit(SubmitNodeCollector collector, ModelPart part, PoseStack poseStack) {
             collector.submitModelPart(part, poseStack, renderType, lightCoords, overlayCoords, null,
-                    tint, null, outlineColor);
+                    tint, outlineColor);
         }
     }
 

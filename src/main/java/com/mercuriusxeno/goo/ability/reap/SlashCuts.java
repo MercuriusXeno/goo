@@ -196,8 +196,8 @@ public final class SlashCuts {
      * @param damage what the cut deals
      */
     private static void hurt(ServerLevel level, LivingEntity body, DamageSource source, float damage) {
-        body.invulnerableTime = 0;
+        body.setInvulnerableTime(0);
         body.hurtServer(level, source, damage);
-        body.invulnerableTime = 0;
+        body.setInvulnerableTime(0);
     }
 }

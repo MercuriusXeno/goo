@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.block.ability;
 
-import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
@@ -24,7 +23,6 @@ import org.jspecify.annotations.NonNull;
  */
 public class ZapPulseBlock extends Block {
 
-    public static final MapCodec<ZapPulseBlock> CODEC = simpleCodec(ZapPulseBlock::new);
 
     /** Redstone's full signal. */
     private static final int FULL_SIGNAL = 15;
@@ -38,11 +36,6 @@ public class ZapPulseBlock extends Block {
      */
     public ZapPulseBlock(Properties properties) {
         super(properties);
-    }
-
-    @Override
-    protected @NonNull MapCodec<? extends Block> codec() {
-        return CODEC;
     }
 
     @Override

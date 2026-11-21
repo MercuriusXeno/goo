@@ -2,22 +2,21 @@ package com.mercuriusxeno.goo.client;
 
 import com.mercuriusxeno.goo.client.ability.RippleTarget;
 import com.mercuriusxeno.goo.client.zone.VoidstoneRoom;
-import com.mojang.blaze3d.GpuFormat;
-import com.mojang.blaze3d.PrimitiveTopology;
-import com.mojang.blaze3d.pipeline.BindGroupLayout;
-import com.mojang.blaze3d.pipeline.BlendFunction;
-import com.mojang.blaze3d.pipeline.ColorTargetState;
-import com.mojang.blaze3d.pipeline.DepthStencilState;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.platform.CompareOp;
-import com.mojang.blaze3d.shaders.UniformType;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.VertexFormat;
+import com.mojang.renderpearl.api.GpuFormat;
+import com.mojang.renderpearl.api.pipeline.BindGroupLayout;
+import com.mojang.renderpearl.api.pipeline.BlendFunction;
+import com.mojang.renderpearl.api.pipeline.ColorTargetState;
+import com.mojang.renderpearl.api.pipeline.CompareOp;
+import com.mojang.renderpearl.api.pipeline.DepthStencilState;
+import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
+import com.mojang.renderpearl.api.pipeline.UniformType;
+import com.mojang.renderpearl.api.vertex.VertexFormat;
 import net.minecraft.client.renderer.BindGroupLayouts;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.blockentity.AbstractEndPortalRenderer;
 import net.minecraft.client.renderer.rendertype.LayeringTransform;
-import net.minecraft.client.renderer.rendertype.OutputTarget;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.TextureTransform;
@@ -30,6 +29,7 @@ import net.neoforged.neoforge.client.stencil.StencilTest;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -95,7 +95,6 @@ public final class GooRenderTypes {
             "goo_lines_additive_glow",
             RenderSetup.builder(LINES_ADDITIVE_GLOW)
                     .setLayeringTransform(LayeringTransform.VIEW_OFFSET_Z_LAYERING)
-                    .setOutputTarget(OutputTarget.ITEM_ENTITY_TARGET)
                     .createRenderSetup()
     );
 
@@ -165,10 +164,9 @@ public final class GooRenderTypes {
             .withPrimitiveTopology(PrimitiveTopology.QUADS)
             .withColorTargetState(new ColorTargetState(Optional.empty(), GpuFormat.RGBA8_UNORM, ColorTargetState.WRITE_NONE))
             .withDepthStencilState(new DepthStencilState(CompareOp.GREATER_THAN_OR_EQUAL, false,
-                    DECAL_BIAS_SCALE, DECAL_BIAS_CONSTANT))
-            .withStencilTest(new StencilTest(new StencilPerFaceTest(StencilOperation.KEEP, StencilOperation.KEEP,
-                    StencilOperation.REPLACE, CompareOp.ALWAYS_PASS), DOWSING_STENCIL_BIT, DOWSING_STENCIL_BIT,
-                    DOWSING_STENCIL_BIT))
+                    DECAL_BIAS_SCALE, DECAL_BIAS_CONSTANT, new StencilTest(new StencilPerFaceTest(
+                    StencilOperation.KEEP, StencilOperation.KEEP, StencilOperation.REPLACE, CompareOp.ALWAYS_PASS),
+                    DOWSING_STENCIL_BIT, DOWSING_STENCIL_BIT, DOWSING_STENCIL_BIT)))
             .withCull(true)
             .build();
 
@@ -178,12 +176,25 @@ public final class GooRenderTypes {
             DOWSING_STENCIL_BIT, 0, DOWSING_STENCIL_BIT);
 
     /**
+     * A pipeline's depth state with Dowsing's mark test laid on it: Minecraft 26.3 holds the stencil test in the
+     * depth stencil state.
+     *
+     * @param pipeline the pipeline the Dowsing pass copies
+     * @return its depth state, cut to the window mask
+     */
+    private static DepthStencilState onTheDowsingMark(RenderPipeline pipeline) {
+        DepthStencilState depth = Objects.requireNonNull(pipeline.getDepthStencilState());
+        return new DepthStencilState(depth.depthTest(), depth.writeDepth(), depth.depthBiasScaleFactor(),
+                depth.depthBiasConstant(), ON_THE_DOWSING_MARK);
+    }
+
+    /**
      * Dowsing's ore (decision dowsing-goo-is-a-window-onto-the-ore-behind-it):
      * the fungus x-ray's draw through every block, cut to the window mask.
      */
     public static final RenderPipeline DOWSING_ORE = sorted(PipelineSort.ON_THE_PATH, FUNGUS_XRAY.toBuilder()
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "dowsing_ore"))
-            .withStencilTest(ON_THE_DOWSING_MARK)
+            .withDepthStencilState(onTheDowsingMark(FUNGUS_XRAY))
             .build());
 
     /**
@@ -192,12 +203,12 @@ public final class GooRenderTypes {
      */
     public static final RenderPipeline DOWSING_GLOW = sorted(PipelineSort.ON_THE_PATH, FUNGUS_GLOW.toBuilder()
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "dowsing_glow"))
-            .withStencilTest(ON_THE_DOWSING_MARK)
+            .withDepthStencilState(onTheDowsingMark(FUNGUS_GLOW))
             .build());
 
     /** The render type marking Dowsing's window. */
     public static final RenderType DOWSING_MASK_TYPE = RenderType.create("goo_dowsing_mask",
-            RenderSetup.builder(DOWSING_MASK).setOutputTarget(OutputTarget.MAIN_TARGET).createRenderSetup());
+            RenderSetup.builder(DOWSING_MASK).createRenderSetup());
 
     /** Per-atlas memoized render types on Dowsing's ore pipeline. */
     private static final java.util.function.Function<Identifier, RenderType> DOWSING_ORE_FACTORY =
@@ -353,7 +364,7 @@ public final class GooRenderTypes {
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "portable_hole_carve"))
             .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "portable_hole_carve"))
             .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "portable_hole_carve"))
-            .withBindGroupLayout(BindGroupLayout.builder().withSampler(PORTABLE_HOLE_DEPTH_SAMPLER).build())
+            .withBindGroupLayout(BindGroupLayout.builder().withUniform(PORTABLE_HOLE_DEPTH_SAMPLER, UniformType.COMBINED_IMAGE_SAMPLER).build())
             .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR)
             .withPrimitiveTopology(PrimitiveTopology.QUADS)
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
@@ -583,7 +594,7 @@ public final class GooRenderTypes {
 
     /** RenderType for a gate's halo. */
     public static final RenderType GOO_PORTAL_HALO_TYPE = RenderType.create("goo_portal_halo",
-            RenderSetup.builder(GOO_PORTAL_HALO).setOutputTarget(OutputTarget.MAIN_TARGET).sortOnUpload()
+            RenderSetup.builder(GOO_PORTAL_HALO).sortOnUpload()
                     .createRenderSetup());
 
     /**
@@ -608,7 +619,7 @@ public final class GooRenderTypes {
 
     /** RenderType for a gate's swirl band. */
     public static final RenderType GOO_PORTAL_SWIRL_BAND_TYPE = RenderType.create("goo_portal_swirl_band",
-            RenderSetup.builder(GOO_PORTAL_SWIRL_BAND).setOutputTarget(OutputTarget.MAIN_TARGET).sortOnUpload()
+            RenderSetup.builder(GOO_PORTAL_SWIRL_BAND).sortOnUpload()
                     .createRenderSetup());
 
     /** The layers of the End portal's starfield the sky funnel draws, as the End portal's own. */
@@ -745,7 +756,7 @@ public final class GooRenderTypes {
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, "pipeline/goo_fluid_surface"))
             .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, "core/goo_fluid_surface"))
             .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, "core/goo_fluid_surface"))
-            .withBindGroupLayout(BindGroupLayout.builder().withSampler(MINGLE_TABLE_SAMPLER).build())
+            .withBindGroupLayout(BindGroupLayout.builder().withUniform(MINGLE_TABLE_SAMPLER, UniformType.COMBINED_IMAGE_SAMPLER).build())
             .withShaderDefine("ALPHA_CUTOUT", 0.1F)
             .withShaderDefine("NO_OVERLAY")
             .withShaderDefine("NO_CARDINAL_LIGHTING")
@@ -796,7 +807,6 @@ public final class GooRenderTypes {
     public static final RenderType CRYSTAL_SHARD_TYPE = RenderType.create(
             "goo_crystal_shard",
             RenderSetup.builder(CRYSTAL_SHARD)
-                    .setOutputTarget(OutputTarget.MAIN_TARGET)
                     .createRenderSetup()
     );
 
@@ -1261,7 +1271,7 @@ public final class GooRenderTypes {
             .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "miasma_vortex"))
             .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "miasma_vortex"))
             .withBindGroupLayout(BindGroupLayout.builder().withUniform(MIASMA_VORTEX_BLOCK, UniformType.UNIFORM_BUFFER).build())
-            .withBindGroupLayout(BindGroupLayout.builder().withSampler(MIASMA_DEPTH_SAMPLER).build())
+            .withBindGroupLayout(BindGroupLayout.builder().withUniform(MIASMA_DEPTH_SAMPLER, UniformType.COMBINED_IMAGE_SAMPLER).build())
             .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR)
             .withPrimitiveTopology(PrimitiveTopology.QUADS)
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
@@ -1329,7 +1339,7 @@ public final class GooRenderTypes {
             .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "bore_drill"))
             .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "bore_drill"))
             .withBindGroupLayout(BindGroupLayout.builder().withUniform(BORE_DRILL_BLOCK, UniformType.UNIFORM_BUFFER).build())
-            .withBindGroupLayout(BindGroupLayout.builder().withSampler(BORE_DRILL_DEPTH_SAMPLER).build())
+            .withBindGroupLayout(BindGroupLayout.builder().withUniform(BORE_DRILL_DEPTH_SAMPLER, UniformType.COMBINED_IMAGE_SAMPLER).build())
             .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR)
             .withPrimitiveTopology(PrimitiveTopology.QUADS)
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
@@ -1483,7 +1493,7 @@ public final class GooRenderTypes {
 
     /** RenderType for an idle portal's swirl. */
     public static final RenderType GOO_PORTAL_IDLE_TYPE = RenderType.create("goo_portal_idle",
-            RenderSetup.builder(GOO_PORTAL_IDLE).setOutputTarget(OutputTarget.MAIN_TARGET).sortOnUpload()
+            RenderSetup.builder(GOO_PORTAL_IDLE).sortOnUpload()
                     .createRenderSetup());
 
     /** Per-view memoized render types on the portal view pipeline. */
@@ -1492,7 +1502,6 @@ public final class GooRenderTypes {
                     "goo_portal_view",
                     RenderSetup.builder(GOO_PORTAL_VIEW)
                             .withTexture("Sampler0", view)
-                            .setOutputTarget(OutputTarget.MAIN_TARGET)
                             .createRenderSetup()
             ));
 
@@ -1527,8 +1536,8 @@ public final class GooRenderTypes {
 
     /** The render types filling the ripple buffer's channels, in channel order. */
     public static final List<RenderType> GOO_RIPPLE_MASK_TYPES = GOO_RIPPLE_MASKS.stream()
-            .map(pipeline -> RenderType.create(pipeline.getLocation().getPath(),
-                    RenderSetup.builder(pipeline).setOutputTarget(RippleTarget.OUTPUT).createRenderSetup()))
+            .map(pipeline -> DrawTarget.drawingInto(RenderType.create(pipeline.getLocation().getPath(),
+                    RenderSetup.builder(pipeline).createRenderSetup()), RippleTarget::current))
             .toList();
 
     /**
@@ -1720,7 +1729,7 @@ public final class GooRenderTypes {
     private static RenderType burnoutType(RenderPipeline pipeline) {
         String name = pipeline.getLocation().getPath().substring(PIPELINE_PATH.length());
         return RenderType.create(TYPE_NAME_PREFIX + name,
-                RenderSetup.builder(pipeline).setOutputTarget(OutputTarget.MAIN_TARGET).createRenderSetup());
+                RenderSetup.builder(pipeline).createRenderSetup());
     }
 
     /**

@@ -4,7 +4,6 @@ import com.mercuriusxeno.goo.block.BlockEntityTicks;
 import com.mercuriusxeno.goo.block.GooMachineBlock;
 import com.mercuriusxeno.goo.block.Waterlogging;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
-import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.RandomSource;
@@ -42,7 +41,6 @@ public class ChoralGasketBlock extends GooMachineBlock implements SimpleWaterlog
      * Whether the block is waterlogged.
      */
     public static final BooleanProperty WATERLOGGED = BlockStateProperties.WATERLOGGED;
-    public static final MapCodec<ChoralGasketBlock> CODEC = simpleCodec(ChoralGasketBlock::new);
     /**
      * 4x4x1 pixel shape centered at the bottom of the blockspace.
      */
@@ -57,11 +55,6 @@ public class ChoralGasketBlock extends GooMachineBlock implements SimpleWaterlog
         super(properties);
         registerDefaultState(stateDefinition.any()
                 .setValue(WATERLOGGED, false));
-    }
-
-    @Override
-    protected @NonNull MapCodec<? extends BaseEntityBlock> codec() {
-        return CODEC;
     }
 
     @Override

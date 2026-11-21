@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.workbench;
 
 import com.mercuriusxeno.goo.ability.AbilityIconTexture;
 import com.mercuriusxeno.goo.workbench.WorkbenchOperations;
+import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -10,7 +11,6 @@ import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import org.jspecify.annotations.Nullable;
-import org.lwjgl.glfw.GLFW;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -179,12 +179,12 @@ final class AbilitiesPane {
     /**
      * Enter closes the leaf's text box keeping what it holds, and Escape closes it restoring the value it opened on.
      *
-     * @param key the GLFW key pressed
+     * @param key the SDL scancode of the key pressed
      * @return whether the pane took the key
      */
     boolean keyPressed(int key) {
         // Escape over a held rail puts its ability back.
-        if (key == GLFW.GLFW_KEY_ESCAPE && held != null) {
+        if (key == InputConstants.KEY_ESCAPE && held != null) {
             held = null;
             return true;
         }
@@ -196,8 +196,8 @@ final class AbilitiesPane {
         if (editing == null || builder.isOpen()) {
             return false;
         }
-        boolean enter = key == GLFW.GLFW_KEY_ENTER || key == GLFW.GLFW_KEY_KP_ENTER;
-        if (enter || key == GLFW.GLFW_KEY_ESCAPE) {
+        boolean enter = key == InputConstants.KEY_RETURN || key == InputConstants.KEY_NUMPADENTER;
+        if (enter || key == InputConstants.KEY_ESCAPE) {
             stopEditing(!enter);
             return true;
         }

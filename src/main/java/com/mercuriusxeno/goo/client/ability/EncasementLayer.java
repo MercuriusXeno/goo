@@ -172,7 +172,7 @@ public final class EncasementLayer<S extends LivingEntityRenderState, M extends 
                                   PoseStack poseStack, int lightCoords, float share) {
         collector.order(ENCASEMENT_ORDER).submitModel(model, state, poseStack, renderType,
                 lightCoords, skinSizeCoords(model), shareColor(share, state.getRenderDataOrDefault(SEED, 0)), null,
-                NO_OUTLINE, null);
+                NO_OUTLINE);
     }
 
     /**

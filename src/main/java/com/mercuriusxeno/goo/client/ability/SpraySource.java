@@ -27,7 +27,7 @@ public final class SpraySource {
 
     /**
      * Where the first-person glove's palm rests in the view for a glove in
-     * the right hand, no ability posing the hand: ItemInHandRenderer's arm
+     * the right hand, no ability posing the hand: FirstPersonHandsAndItemsRenderer's arm
      * place (0.56, -0.52, -0.72), then goo_glove.json's first-person display
      * turn and scale, carrying the resting palm blob's center
      * (GloveSpecialRenderer.palmCenter) to here. A left-hand glove mirrors it across.

@@ -4,20 +4,21 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.zone.RoomExtent;
 import com.mercuriusxeno.goo.ability.zone.ZoneRooms;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.StagePass;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.ability.ClientRoomEdges;
 import com.mercuriusxeno.goo.client.ability.PortalView;
-import com.mojang.blaze3d.PrimitiveTopology;
-import com.mojang.blaze3d.buffers.GpuBuffer;
-import com.mojang.blaze3d.buffers.GpuBufferSlice;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.pipeline.RenderTarget;
-import com.mojang.blaze3d.systems.RenderPass;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.textures.AddressMode;
-import com.mojang.blaze3d.textures.FilterMode;
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.renderpearl.api.buffers.GpuBuffer;
+import com.mojang.renderpearl.api.buffers.GpuBufferSlice;
+import com.mojang.renderpearl.api.commands.RenderPass;
+import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
+import com.mojang.renderpearl.api.textures.AddressMode;
+import com.mojang.renderpearl.api.textures.FilterMode;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderDispatcher;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
@@ -40,7 +41,6 @@ import org.joml.Vector3f;
 import org.joml.Vector4f;
 import org.jspecify.annotations.Nullable;
 import java.util.Optional;
-import java.util.OptionalDouble;
 import java.util.function.Consumer;
 
 /**
@@ -232,10 +232,9 @@ public final class RoomCopyRenderer {
                 fromCamera, new Matrix4f());
         RenderSystem.AutoStorageIndexBuffer indices = RenderSystem.getSequentialBuffer(PrimitiveTopology.QUADS);
         RenderTarget target = mc.gameRenderer.mainRenderTarget();
-        try (RenderPass pass = RenderSystem.getDevice().createCommandEncoder().createRenderPass(() -> PASS_LABEL,
-                target.getColorTextureView(), Optional.empty(), target.getDepthTextureView(),
-                OptionalDouble.empty())) {
-            pass.setPipeline(pipeline);
+        try (StagePass stage = StagePass.onMain(() -> PASS_LABEL)) {
+            RenderPass pass = stage.pass();
+            pass.setPipeline(RenderSystem.getCompiledPipeline(pipeline));
             RenderSystem.bindDefaultUniforms(pass);
             pass.setUniform(TRANSFORMS, transforms);
             pass.setUniform(GooRenderTypes.ROOM_COPY_TRANSLATIONS, copies.translations());
@@ -247,10 +246,10 @@ public final class RoomCopyRenderer {
     }
 
     private static void bindBlockTextures(Minecraft mc, RenderPass pass) {
-        pass.bindTexture(BLOCK_ATLAS_SAMPLER, mc.getAtlasManager().getAtlasOrThrow(AtlasIds.BLOCKS).getTextureView(),
+        pass.setUniform(BLOCK_ATLAS_SAMPLER, mc.getAtlasManager().getAtlasOrThrow(AtlasIds.BLOCKS).getTextureView(),
                 RenderSystem.getSamplerCache().getSampler(AddressMode.CLAMP_TO_EDGE, AddressMode.CLAMP_TO_EDGE,
                         FilterMode.LINEAR, FilterMode.NEAREST, true));
-        pass.bindTexture(LIGHTMAP_SAMPLER, mc.gameRenderer.lightmap(),
+        pass.setUniform(LIGHTMAP_SAMPLER, mc.gameRenderer.lightmap(),
                 RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR));
     }
 

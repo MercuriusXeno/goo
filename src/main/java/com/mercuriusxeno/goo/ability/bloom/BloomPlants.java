@@ -20,9 +20,9 @@ import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.VineBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.GenerationStep;
-import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
-import net.minecraft.world.level.levelgen.feature.configurations.SimpleBlockConfiguration;
-import net.minecraft.world.level.levelgen.feature.configurations.TreeConfiguration;
+import net.minecraft.world.level.levelgen.feature.Feature;
+import net.minecraft.world.level.levelgen.feature.SimpleBlockFeature;
+import net.minecraft.world.level.levelgen.feature.TreeFeature;
 import net.minecraft.world.level.levelgen.placement.PlacedFeature;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -161,12 +161,12 @@ public final class BloomPlants {
         Holder<Biome> biome = level.getBiome(pos);
         Set<BlockState> plants = new LinkedHashSet<>();
         boolean growsTrees = false;
-        for (ConfiguredFeature<?, ?> feature : vegetationOf(biome.value().getGenerationSettings()).toList()) {
-            if (feature.config() instanceof TreeConfiguration) {
+        for (Feature feature : vegetationOf(biome.value().getGenerationSettings()).toList()) {
+            if (feature instanceof TreeFeature) {
                 growsTrees = true;
-            } else if (feature.config() instanceof SimpleBlockConfiguration simple) {
+            } else if (feature instanceof SimpleBlockFeature simple) {
                 for (int draw = 0; draw < PROVIDER_DRAWS; draw++) {
-                    plants.add(simple.toPlace().getState(level, random, pos));
+                    plants.add(simple.toPlace().value().getState(level, random, pos));
                 }
             }
         }
@@ -183,19 +183,19 @@ public final class BloomPlants {
      * @param settings the biome's generation settings
      * @return the features
      */
-    private static Stream<ConfiguredFeature<?, ?>> vegetationOf(BiomeGenerationSettings settings) {
+    private static Stream<Feature> vegetationOf(BiomeGenerationSettings settings) {
         int vegetal = GenerationStep.Decoration.VEGETAL_DECORATION.ordinal();
         List<HolderSet<PlacedFeature>> steps = settings.features();
-        Stream<ConfiguredFeature<?, ?>> placed = steps.size() <= vegetal ? Stream.empty()
+        Stream<Feature> placed = steps.size() <= vegetal ? Stream.empty()
                 : steps.get(vegetal).stream().flatMap(feature -> feature.value().getFeatures()).map(Holder::value);
-        Stream<ConfiguredFeature<?, ?>> boneMeal = settings.getBoneMealFeatures().stream()
+        Stream<Feature> boneMeal = settings.getBoneMealFeatures().stream()
                 .flatMap(BloomPlants::withNested);
         return Stream.concat(placed, boneMeal);
     }
 
-    private static Stream<ConfiguredFeature<?, ?>> withNested(ConfiguredFeature<?, ?> feature) {
+    private static Stream<Feature> withNested(Feature feature) {
         return Stream.concat(Stream.of(feature),
-                feature.config().getSubFeatures().map(Holder::value).flatMap(BloomPlants::withNested));
+                feature.getSubFeatures().map(Holder::value).flatMap(BloomPlants::withNested));
     }
 
     /**

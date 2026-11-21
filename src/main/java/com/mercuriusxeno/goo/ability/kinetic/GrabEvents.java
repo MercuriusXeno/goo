@@ -185,7 +185,7 @@ public final class GrabEvents {
         held.move(MoverType.SELF, step);
         held.setDeltaMovement(Vec3.ZERO);
         held.fallDistance = 0;
-        held.hurtMarked = true;
+        held.syncVelocity = true;
         // decision grabbed-mob-accelerates-slower-the-bigger-its-hitbox: a body stopped by a block keeps no speed into it
         player.setData(GooAttachments.GRAB_HOLD,
                 new GrabHold(held.getId(), throwSpeed, until, false, held.position().subtract(before)));
@@ -270,7 +270,7 @@ public final class GrabEvents {
         suspend(item, player.level().getGameTime() + HOLD_GRACE_TICKS);
         item.setDeltaMovement(velocity);
         item.setNoPickUpDelay();
-        item.hurtMarked = true;
+        item.syncVelocity = true;
         EntityVisuals.sendToWatchers(item, new AilmentPayload(item.getId(), AilmentKind.GRABBED, FLAIL_OVERLAY_TICKS));
     }
 
@@ -343,7 +343,7 @@ public final class GrabEvents {
             GougeHolds.threw(player.getUUID(), player.level().getGameTime());
         }
         held.setDeltaMovement(player.getLookAngle().scale(speed));
-        held.hurtMarked = true;
+        held.syncVelocity = true;
         EntityVisuals.sendToWatchers(held, new AilmentPayload(held.getId(), AilmentKind.GRABBED, 0));
         return true;
     }

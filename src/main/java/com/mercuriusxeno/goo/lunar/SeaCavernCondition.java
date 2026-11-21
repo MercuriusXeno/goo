@@ -4,7 +4,9 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.util.StringRepresentable;
-import net.minecraft.world.level.levelgen.SurfaceRules;
+import net.minecraft.world.level.levelgen.material.MaterialRuleContext;
+import net.minecraft.world.level.levelgen.material.condition.ConditionEvaluator;
+import net.minecraft.world.level.levelgen.material.condition.MaterialCondition;
 
 /**
  * The {@code goo:sea_cavern} surface rule condition: it passes a block in one part of the sea cavern, read from the
@@ -14,7 +16,7 @@ import net.minecraft.world.level.levelgen.SurfaceRules;
  *
  * @param part the part of the cavern the condition passes
  */
-public record SeaCavernCondition(Part part) implements SurfaceRules.ConditionSource {
+public record SeaCavernCondition(Part part) implements MaterialCondition {
 
     /** The data codec of the condition, naming its part. */
     public static final MapCodec<SeaCavernCondition> DATA_CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
@@ -45,12 +47,12 @@ public record SeaCavernCondition(Part part) implements SurfaceRules.ConditionSou
     }
 
     @Override
-    public MapCodec<? extends SurfaceRules.ConditionSource> codec() {
+    public MapCodec<SeaCavernCondition> codec() {
         return DATA_CODEC;
     }
 
     @Override
-    public SurfaceRules.Condition apply(SurfaceRules.Context context) {
+    public ConditionEvaluator compile(MaterialRuleContext context) {
         SeaCavern cavern = SeaCavern.seeded(context.randomState.getOrCreateNoise(SeaCavern.FLOOR_NOISE),
                 context.randomState.getOrCreateNoise(SeaCavern.ROOF_NOISE),
                 context.randomState.getOrCreateNoise(SeaCavern.PILLAR_NOISE));
@@ -60,8 +62,8 @@ public record SeaCavernCondition(Part part) implements SurfaceRules.ConditionSou
     /**
      * Tests the block the surface rules stand on, reading the column's floor and pillar once per column.
      */
-    private static final class BlockTest implements SurfaceRules.Condition {
-        private final SurfaceRules.Context context;
+    private static final class BlockTest implements ConditionEvaluator {
+        private final MaterialRuleContext context;
         private final SeaCavern cavern;
         private final Part part;
         private int testedX = Integer.MIN_VALUE;
@@ -69,7 +71,7 @@ public record SeaCavernCondition(Part part) implements SurfaceRules.ConditionSou
         private int floorY;
         private boolean pillar;
 
-        private BlockTest(SurfaceRules.Context context, SeaCavern cavern, Part part) {
+        private BlockTest(MaterialRuleContext context, SeaCavern cavern, Part part) {
             this.context = context;
             this.cavern = cavern;
             this.part = part;
@@ -77,13 +79,13 @@ public record SeaCavernCondition(Part part) implements SurfaceRules.ConditionSou
 
         @Override
         public boolean test() {
-            if (context.blockX != testedX || context.blockZ != testedZ) {
-                testedX = context.blockX;
-                testedZ = context.blockZ;
+            if (context.blockX() != testedX || context.blockZ() != testedZ) {
+                testedX = context.blockX();
+                testedZ = context.blockZ();
                 floorY = cavern.floorYAt(testedX, testedZ);
                 pillar = cavern.isPillarAt(testedX, testedZ);
             }
-            return part == Part.CORE ? context.blockY <= floorY : SeaCavern.isSea(context.blockY, floorY, pillar);
+            return part == Part.CORE ? context.blockY() <= floorY : SeaCavern.isSea(context.blockY(), floorY, pillar);
         }
     }
 }

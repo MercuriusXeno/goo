@@ -1,12 +1,12 @@
 package com.mercuriusxeno.goo.client.workbench;
 
 import com.mercuriusxeno.goo.workbench.WorkbenchOperations;
+import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.network.chat.Component;
 import org.jspecify.annotations.Nullable;
-import org.lwjgl.glfw.GLFW;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -173,7 +173,7 @@ final class GroupsPane {
     }
 
     /**
-     * @param key the GLFW key pressed
+     * @param key the SDL scancode of the key pressed
      * @return whether the pane took the key: Enter on the name box creates the group, Escape drops it
      */
     boolean keyPressed(int key) {
@@ -184,11 +184,11 @@ final class GroupsPane {
     }
 
     private boolean nameKey(EditBox box, int key) {
-        if (key == GLFW.GLFW_KEY_ENTER || key == GLFW.GLFW_KEY_KP_ENTER) {
+        if (key == InputConstants.KEY_RETURN || key == InputConstants.KEY_NUMPADENTER) {
             commitName(box.getValue());
             return true;
         }
-        if (key == GLFW.GLFW_KEY_ESCAPE) {
+        if (key == InputConstants.KEY_ESCAPE) {
             stopNaming();
             return true;
         }

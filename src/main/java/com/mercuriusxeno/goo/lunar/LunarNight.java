@@ -5,6 +5,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.attribute.EnvironmentAttributeLayer;
 import net.minecraft.world.attribute.EnvironmentAttributeSystem;
 import net.minecraft.world.attribute.EnvironmentAttributes;
+import org.joml.Vector3fc;
 import java.util.function.LongSupplier;
 
 /**
@@ -95,9 +96,9 @@ public final class LunarNight {
      * @param overworldClock the overworld clock's total ticks, read as the layer is
      * @return the layer
      */
-    public static EnvironmentAttributeLayer.Positional<Integer> skyLightColorLayer(LongSupplier overworldClock) {
-        return (timeline, position, biomes) -> SKY_LIGHT_FACTOR.sampleColor(LunarSun.dayTickAt(position.x,
-                overworldClock.getAsLong()), SKY_LIGHT_COLORS);
+    public static EnvironmentAttributeLayer.Positional<Vector3fc> skyLightColorLayer(LongSupplier overworldClock) {
+        return (timeline, position, biomes) -> ARGB.vector3fFromRGB24(SKY_LIGHT_FACTOR.sampleColor(
+                LunarSun.dayTickAt(position.x, overworldClock.getAsLong()), SKY_LIGHT_COLORS));
     }
 
     /**

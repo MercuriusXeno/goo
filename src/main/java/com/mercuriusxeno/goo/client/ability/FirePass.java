@@ -1,18 +1,17 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.client.GooRenderTypes;
-import com.mojang.blaze3d.PrimitiveTopology;
-import com.mojang.blaze3d.buffers.GpuBuffer;
-import com.mojang.blaze3d.buffers.GpuBufferSlice;
-import com.mojang.blaze3d.pipeline.RenderTarget;
-import com.mojang.blaze3d.systems.GpuDevice;
-import com.mojang.blaze3d.systems.RenderPass;
+import com.mercuriusxeno.goo.client.StagePass;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.MeshData;
-import net.minecraft.client.Minecraft;
+import com.mojang.renderpearl.api.buffers.GpuBuffer;
+import com.mojang.renderpearl.api.buffers.GpuBufferSlice;
+import com.mojang.renderpearl.api.commands.RenderPass;
+import com.mojang.renderpearl.api.device.GpuDevice;
+import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
@@ -20,8 +19,6 @@ import org.joml.Vector3f;
 import org.joml.Vector4f;
 import java.nio.ByteBuffer;
 import java.util.List;
-import java.util.Optional;
-import java.util.OptionalDouble;
 
 /**
  * Draws every burning Flames field this frame in one render pass on the fire
@@ -99,7 +96,8 @@ final class FirePass {
     private static void drawAll(GpuDevice device, Matrix4fc modelView, List<FireField> fields, GpuBuffer uniforms,
                                 int stride, GpuBuffer vertices, int quads) {
         RenderSystem.AutoStorageIndexBuffer indices = RenderSystem.getSequentialBuffer(PrimitiveTopology.QUADS);
-        try (RenderPass pass = openPass(device, modelView)) {
+        try (StagePass stage = openPass(modelView)) {
+            RenderPass pass = stage.pass();
             pass.setVertexBuffer(0, vertices.slice());
             pass.setIndexBuffer(indices.getBuffer(quads * INDICES_PER_QUAD), indices.type());
             for (int index = 0; index < fields.size(); index++) {
@@ -115,16 +113,15 @@ final class FirePass {
         return Math.ceilDiv(FireField.BYTES, alignment) * alignment;
     }
 
-    private static RenderPass openPass(GpuDevice device, Matrix4fc modelView) {
-        RenderTarget main = Minecraft.getInstance().gameRenderer.mainRenderTarget();
+    private static StagePass openPass(Matrix4fc modelView) {
         GpuBufferSlice transform = RenderSystem.getDynamicUniforms().writeTransform(new Matrix4f(modelView), WHITE,
                 new Vector3f(), new Matrix4f());
-        RenderPass pass = device.createCommandEncoder().createRenderPass(() -> PASS, main.getColorTextureView(),
-                Optional.empty(), main.getDepthTextureView(), OptionalDouble.empty());
-        pass.setPipeline(GooRenderTypes.FIRE_FIELD);
+        StagePass stage = StagePass.onMain(() -> PASS);
+        RenderPass pass = stage.pass();
+        pass.setPipeline(RenderSystem.getCompiledPipeline(GooRenderTypes.FIRE_FIELD));
         RenderSystem.bindDefaultUniforms(pass);
         pass.setUniform(TRANSFORMS_UNIFORM, transform);
-        return pass;
+        return stage;
     }
 
     private static MeshData boxesOf(List<FireField> fields, ByteBufferBuilder bytes) {

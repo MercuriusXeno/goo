@@ -105,12 +105,12 @@ public class GooItems {
     // --- Exorite tools and armor (decision exorite-tool-and-armor-set) ---
     public static final DeferredItem<ExoriteGearItem> EXORITE_PICKAXE = ITEMS.registerItem("exorite_pickaxe",
             props -> new ExoriteGearItem(props.pickaxe(ExoriteMaterials.TOOL, PICKAXE_DAMAGE, PICKAXE_SPEED).fireResistant()));
-    public static final DeferredItem<ExoriteAxeItem> EXORITE_AXE = ITEMS.registerItem("exorite_axe",
-            props -> new ExoriteAxeItem(ExoriteMaterials.TOOL, AXE_DAMAGE, AXE_SPEED, props.fireResistant()));
-    public static final DeferredItem<ExoriteShovelItem> EXORITE_SHOVEL = ITEMS.registerItem("exorite_shovel",
-            props -> new ExoriteShovelItem(ExoriteMaterials.TOOL, SHOVEL_DAMAGE, SHOVEL_SPEED, props.fireResistant()));
-    public static final DeferredItem<ExoriteHoeItem> EXORITE_HOE = ITEMS.registerItem("exorite_hoe",
-            props -> new ExoriteHoeItem(ExoriteMaterials.TOOL, HOE_DAMAGE, HOE_SPEED, props.fireResistant()));
+    public static final DeferredItem<ExoriteGearItem> EXORITE_AXE = ITEMS.registerItem("exorite_axe",
+            props -> new ExoriteGearItem(props.axe(ExoriteMaterials.TOOL, AXE_DAMAGE, AXE_SPEED).fireResistant()));
+    public static final DeferredItem<ExoriteGearItem> EXORITE_SHOVEL = ITEMS.registerItem("exorite_shovel",
+            props -> new ExoriteGearItem(props.shovel(ExoriteMaterials.TOOL, SHOVEL_DAMAGE, SHOVEL_SPEED).fireResistant()));
+    public static final DeferredItem<ExoriteGearItem> EXORITE_HOE = ITEMS.registerItem("exorite_hoe",
+            props -> new ExoriteGearItem(props.hoe(ExoriteMaterials.TOOL, HOE_DAMAGE, HOE_SPEED).fireResistant()));
     public static final DeferredItem<ExoriteGearItem> EXORITE_SWORD = ITEMS.registerItem("exorite_sword",
             props -> new ExoriteGearItem(props.sword(ExoriteMaterials.TOOL, SWORD_DAMAGE, SWORD_SPEED).fireResistant()));
     public static final DeferredItem<ExoriteGearItem> EXORITE_HELMET = registerExoriteArmor("exorite_helmet", ArmorType.HELMET);

@@ -6,7 +6,6 @@ import com.mercuriusxeno.goo.ability.program.PlaceBlockStep;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.block.BlockEntityTicks;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
-import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
@@ -49,7 +48,6 @@ import java.util.Map;
  */
 public class PrismBlock extends BaseEntityBlock {
 
-    public static final MapCodec<PrismBlock> CODEC = simpleCodec(PrismBlock::new);
 
     /** The prism's registry id, which an ability's place_block step names to grow one. */
     public static final Identifier ID = Identifier.fromNamespaceAndPath(Goo.MODID, "prism");
@@ -136,11 +134,6 @@ public class PrismBlock extends BaseEntityBlock {
             shapes.put(facing, PrismColumn.shapeFor(facing));
         }
         return shapes;
-    }
-
-    @Override
-    protected @NonNull MapCodec<? extends BaseEntityBlock> codec() {
-        return CODEC;
     }
 
     @Override

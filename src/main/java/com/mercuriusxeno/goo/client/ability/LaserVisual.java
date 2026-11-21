@@ -452,7 +452,7 @@ public final class LaserVisual {
         }
         poseStack.pushPose();
         poseStack.translate(from.x, from.y, from.z);
-        poseStack.mulPose(GlowBeamMesh.alongBeam(along));
+        poseStack.rotate(GlowBeamMesh.alongBeam(along));
         for (GlowBeamMesh.Layer layer : GlowBeamMesh.LAYERS) {
             float radius = layer.radius() * RAY_WIDTH * breath;
             int color = GlowBeamMesh.breathed(layer.color(), breath);

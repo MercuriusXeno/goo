@@ -103,7 +103,7 @@ public class SprayerSpecialRenderer implements SpecialModelRenderer<CanisterSpec
                        int outlineColor) {
         poseStack.pushPose();
         poseStack.translate(CANISTER_CENTER, CRADLE_HEIGHT, CANISTER_CENTER);
-        poseStack.mulPose(Axis.ZP.rotationDegrees(ON_ITS_SIDE_DEGREES));
+        poseStack.rotate(Axis.ZP.rotationDegrees(ON_ITS_SIDE_DEGREES));
         poseStack.translate(-CANISTER_CENTER, -LENGTH_MIDDLE, -CANISTER_CENTER);
         submitFitted(data, new FittedParts() {
             @Override

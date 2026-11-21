@@ -191,7 +191,7 @@ public final class OculusXray {
         float yaw = (float) Math.toDegrees(Math.atan2(camera.x - eye.x, camera.z - eye.z));
         poseStack.pushPose();
         poseStack.translate(eye.x - camera.x, eye.y - camera.y, eye.z - camera.z);
-        poseStack.mulPose(Axis.YP.rotationDegrees(yaw));
+        poseStack.rotate(Axis.YP.rotationDegrees(yaw));
         poseStack.scale(swell, swell, swell);
         poseStack.translate(-HALF, -HALF, -HALF);
         for (BakedQuad quad : OculusModels.eye().getAll()) {

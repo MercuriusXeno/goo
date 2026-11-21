@@ -7,6 +7,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.PositionAndRotation;
 import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.sounds.SoundSource;
@@ -74,8 +75,8 @@ public final class HunkCrumbles {
         if (!(hunk.level() instanceof ClientLevel level)) {
             return;
         }
-        Vec3 at = hunk.getInterpolation().hasActiveInterpolation() ? hunk.getInterpolation().position()
-                : hunk.position();
+        PositionAndRotation heading = hunk.getInterpolation().target();
+        Vec3 at = heading != null ? heading.position() : hunk.position();
         List<BlockHunk.HunkBlock> blocks = hunk.blocks();
         Direction face = hunk.shatterFace();
         int[] turns = HunkShatter.turnsOf(blocks, face);

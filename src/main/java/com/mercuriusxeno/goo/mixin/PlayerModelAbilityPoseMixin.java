@@ -27,7 +27,9 @@ public abstract class PlayerModelAbilityPoseMixin {
      */
     @Inject(method = "setupAnim(Lnet/minecraft/client/renderer/entity/state/AvatarRenderState;)V", at = @At("TAIL"))
     private void goo$layAbilityPose(AvatarRenderState state, CallbackInfo ci) {
-        AbilityPoses.layOver((PlayerModel) (Object) this, state.id, state.attackTime > 0f ? state.attackArm : null);
+        AbilityPoses.layOver((PlayerModel) (Object) this, state.id,
+                state.currentSwing != null && state.swingAnimation > 0f ? state.currentSwing.hand().asArm(state.mainArm)
+                        : null);
         GloveArmLayer.hideGlovedArms((PlayerModel) (Object) this, state);
     }
 }

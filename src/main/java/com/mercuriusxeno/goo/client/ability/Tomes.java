@@ -517,8 +517,8 @@ public final class Tomes {
             }
             pose.pushPose();
             pose.translate(at.x - camera.x, at.y - camera.y, at.z - camera.z);
-            pose.mulPose(Axis.YP.rotation((float) -Math.atan2(eye.z - at.z, eye.x - at.x)));
-            pose.mulPose(Axis.ZP.rotationDegrees(SPINE_TILT_DEGREES));
+            pose.rotate(Axis.YP.rotation((float) -Math.atan2(eye.z - at.z, eye.x - at.x)));
+            pose.rotate(Axis.ZP.rotationDegrees(SPINE_TILT_DEGREES));
             pose.scale(BOOK_SCALE, BOOK_SCALE, BOOK_SCALE);
             float flip1 = Mth.clamp(Mth.frac(flip + FIRST_PAGE_PHASE) * FLIP_STRETCH - FLIP_LEAD, 0f, WHOLE);
             float flip2 = Mth.clamp(Mth.frac(flip + SECOND_PAGE_PHASE) * FLIP_STRETCH - FLIP_LEAD, 0f, WHOLE);

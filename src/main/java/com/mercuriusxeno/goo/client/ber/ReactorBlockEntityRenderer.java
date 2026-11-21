@@ -519,7 +519,7 @@ public class ReactorBlockEntityRenderer
      */
     private static void rotateToFacing(PoseStack poseStack, Direction facing) {
         poseStack.translate(BLOCK_CENTER, 0, BLOCK_CENTER);
-        poseStack.mulPose(Axis.YP.rotationDegrees(-facing.toYRot()));
+        poseStack.rotate(Axis.YP.rotationDegrees(-facing.toYRot()));
         poseStack.translate(-BLOCK_CENTER, 0, -BLOCK_CENTER);
     }
 }

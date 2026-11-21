@@ -68,7 +68,7 @@ public final class LeafSteps {
      */
     public static final LeafStepType<Boolean> SET_INVULNERABLE = StepType.of("set_invulnerable", ENABLED, TARGET,
             (enabled, context) -> {
-                context.hostAs(TargetHost.class).target().setInvulnerable(enabled);
+                context.hostAs(TargetHost.class).target().setPermanentlyInvulnerable(enabled);
                 return true;
             });
 

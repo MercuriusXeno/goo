@@ -4,7 +4,7 @@ import com.mercuriusxeno.goo.ability.yarn.StitchMob;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.neoforged.bus.api.IEventBus;
-import net.neoforged.neoforge.registries.DataPackRegistryEvent;
+import net.neoforged.neoforge.registries.NewDatapackRegistryEvent;
 
 /**
  * Stands the {@code goo:goo_type} datapack registry. NeoForge loads every
@@ -36,8 +36,8 @@ public final class GooTypeRegistry {
      *
      * @param event the datapack registry declaration event
      */
-    private static void onNewRegistry(DataPackRegistryEvent.NewRegistry event) {
-        event.dataPackRegistry(GooTypes.REGISTRY, GooTypeDefinition.CODEC, GooTypeDefinition.CODEC);
-        event.dataPackRegistry(StitchMob.REGISTRY, StitchMob.CODEC);
+    private static void onNewRegistry(NewDatapackRegistryEvent event) {
+        event.worldRegistry(GooTypes.REGISTRY, GooTypeDefinition.CODEC, GooTypeDefinition.CODEC);
+        event.worldRegistry(StitchMob.REGISTRY, StitchMob.CODEC);
     }
 }

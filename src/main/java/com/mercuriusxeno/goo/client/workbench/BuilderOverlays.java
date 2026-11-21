@@ -1,11 +1,11 @@
 package com.mercuriusxeno.goo.client.workbench;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.network.chat.Component;
 import org.jspecify.annotations.Nullable;
-import org.lwjgl.glfw.GLFW;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -331,14 +331,14 @@ final class BuilderOverlays {
     }
 
     /**
-     * @param key the GLFW key pressed
+     * @param key the SDL scancode of the key pressed
      * @return whether an overlay took the key: Enter commits the number box, Escape closes a list or the box
      */
     boolean keyPressed(int key) {
         if (numberField != null && numberField.visible) {
             return numberKey(numberField, key);
         }
-        if (key == GLFW.GLFW_KEY_ESCAPE && listOpen()) {
+        if (key == InputConstants.KEY_ESCAPE && listOpen()) {
             closeLists();
             return true;
         }
@@ -346,11 +346,11 @@ final class BuilderOverlays {
     }
 
     private boolean numberKey(EditBox field, int key) {
-        if (key == GLFW.GLFW_KEY_ENTER || key == GLFW.GLFW_KEY_KP_ENTER) {
+        if (key == InputConstants.KEY_RETURN || key == InputConstants.KEY_NUMPADENTER) {
             commitNumber();
             return true;
         }
-        if (key == GLFW.GLFW_KEY_ESCAPE) {
+        if (key == InputConstants.KEY_ESCAPE) {
             numberCommits = null;
             field.visible = false;
             return true;

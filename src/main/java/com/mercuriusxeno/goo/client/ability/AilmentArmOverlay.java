@@ -7,6 +7,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.model.player.PlayerModel;
 import net.minecraft.client.player.AbstractClientPlayer;
+import net.minecraft.client.renderer.entity.state.AvatarRenderState;
 import net.minecraft.world.entity.HumanoidArm;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -35,9 +36,11 @@ public final class AilmentArmOverlay {
      * @param event the arm render event
      */
     @SubscribeEvent
-    public static void onRenderArm(RenderArmEvent<?> event) {
-        // The arm event fires for every avatar, a mannequin among them; goo draws on a player's arm alone.
-        if (!(event.getAvatar() instanceof AbstractClientPlayer player)) {
+    public static void onRenderArm(RenderArmEvent event) {
+        // Minecraft 26.3 fires the arm event for the local player's first-person hands alone.
+        AbstractClientPlayer player = Minecraft.getInstance().player;
+        AvatarRenderState avatar = event.getPlayerRenderState().avatarRenderState;
+        if (player == null || avatar == null) {
             return;
         }
         float partialTick = Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(false);
@@ -46,14 +49,14 @@ public final class AilmentArmOverlay {
         if (worn.isEmpty()) {
             return;
         }
-        PlayerModel model = Minecraft.getInstance().getEntityRenderDispatcher().getPlayerRenderer(player).getModel();
+        PlayerModel model = Minecraft.getInstance().getEntityRenderDispatcher().getRenderer(avatar).getModel();
         ModelPart arm = posedArm(model, event.getArm());
         PoseStack poseStack = event.getPoseStack();
         for (MobAilments.Worn ailment : worn) {
             float strength = MobAilments.strength(ailment.ticksLeft() - partialTick);
             event.getSubmitNodeCollector().submitModelPart(arm, poseStack, GooRenderTypes.GOO_AILMENT_OVERLAY_TYPE,
                     event.getLightCoords(), AilmentOverlayLayer.patternCoords(ailment.kind().pattern(), model.root()),
-                    null, AilmentOverlayLayer.overlayColor(ailment.kind(), strength), null, NO_OUTLINE);
+                    null, AilmentOverlayLayer.overlayColor(ailment.kind(), strength), NO_OUTLINE);
         }
     }
 

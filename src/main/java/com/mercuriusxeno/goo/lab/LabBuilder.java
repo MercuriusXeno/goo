@@ -17,6 +17,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.SignBlockEntity;
+import net.minecraft.world.level.block.entity.SignTextSlot;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 
@@ -185,7 +186,8 @@ public final class LabBuilder {
         BlockPos pos = worldPos(origin, placement.offset());
         level.setBlock(pos, parseState(blocks, placement.blockState()), UPDATE_FLAGS);
         if (placement.isSign() && level.getBlockEntity(pos) instanceof SignBlockEntity sign) {
-            sign.updateText(text -> text.setMessage(NAME_LINE, Component.literal(placement.signText())), true);
+            sign.updateText(text -> text.asMutable().setLine(NAME_LINE, Component.literal(placement.signText()))
+                    .asImmutable(), SignTextSlot.FRONT);
         }
     }
 

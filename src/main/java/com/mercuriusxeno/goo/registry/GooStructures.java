@@ -10,7 +10,7 @@ import com.mojang.serialization.MapCodec;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.level.levelgen.structure.StructureType;
 import net.minecraft.world.level.levelgen.structure.pieces.StructurePieceType;
-import net.minecraft.world.level.levelgen.structure.placement.StructurePlacementType;
+import net.minecraft.world.level.levelgen.structure.placement.StructurePlacement;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import java.util.function.Supplier;
@@ -64,15 +64,15 @@ public final class GooStructures {
     /**
      * Deferred register for structure placement types.
      */
-    public static final DeferredRegister<StructurePlacementType<?>> PLACEMENT_TYPES =
+    public static final DeferredRegister<MapCodec<? extends StructurePlacement>> PLACEMENT_TYPES =
             DeferredRegister.create(Registries.STRUCTURE_PLACEMENT, Goo.MODID);
 
     /**
      * {@code goo:dark_side_spread}, a random spread at a spacing for each side of the moon.
      * decision dark-side-is-an-endless-night-of-eldritch-rich-in-void-and-xeno
      */
-    public static final DeferredHolder<StructurePlacementType<?>, StructurePlacementType<DarkSideSpread>>
-            DARK_SIDE_SPREAD = PLACEMENT_TYPES.register("dark_side_spread", () -> () -> DarkSideSpread.CODEC);
+    public static final DeferredHolder<MapCodec<? extends StructurePlacement>, MapCodec<DarkSideSpread>>
+            DARK_SIDE_SPREAD = PLACEMENT_TYPES.register("dark_side_spread", () -> DarkSideSpread.CODEC);
 
     private GooStructures() {
     }

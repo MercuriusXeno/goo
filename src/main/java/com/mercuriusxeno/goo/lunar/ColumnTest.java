@@ -1,13 +1,13 @@
 package com.mercuriusxeno.goo.lunar;
 
-import net.minecraft.world.level.levelgen.SurfaceRules;
+import net.minecraft.world.level.levelgen.material.MaterialRuleContext;
 
 /**
  * A surface rule condition testing the column the rules stand on, reading its test once per column as the rules walk
  * down it.
  * decision lunar-ground-gains-meteoric-iron-impact-glass-breccia-and-crater-ice
  */
-final class ColumnTest implements SurfaceRules.Condition {
+final class ColumnTest extends MaterialRuleContext.LazyXZCondition {
 
     /**
      * A test of one column.
@@ -22,24 +22,15 @@ final class ColumnTest implements SurfaceRules.Condition {
         boolean test(int x, int z);
     }
 
-    private final SurfaceRules.Context context;
     private final ColumnPredicate predicate;
-    private int testedX = Integer.MIN_VALUE;
-    private int testedZ = Integer.MIN_VALUE;
-    private boolean passes;
 
-    ColumnTest(SurfaceRules.Context context, ColumnPredicate predicate) {
-        this.context = context;
+    ColumnTest(MaterialRuleContext context, ColumnPredicate predicate) {
+        super(context);
         this.predicate = predicate;
     }
 
     @Override
-    public boolean test() {
-        if (context.blockX != testedX || context.blockZ != testedZ) {
-            testedX = context.blockX;
-            testedZ = context.blockZ;
-            passes = predicate.test(testedX, testedZ);
-        }
-        return passes;
+    protected boolean compute() {
+        return predicate.test(context.blockX(), context.blockZ());
     }
 }

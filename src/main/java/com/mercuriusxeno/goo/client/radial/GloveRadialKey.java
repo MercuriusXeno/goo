@@ -34,7 +34,7 @@ public final class GloveRadialKey {
 
     /** The glove menu mapping. */
     public static final KeyMapping MAPPING = new KeyMapping(GloveRadialKeyGate.NAME_KEY, GLOVE_HELD,
-            InputConstants.Type.KEYSYM, GloveRadialKeyGate.DEFAULT_KEY, CATEGORY);
+            InputConstants.Type.KEYBOARD, GloveRadialKeyGate.DEFAULT_KEY, CATEGORY);
 
     private GloveRadialKey() {}
 

@@ -10,12 +10,12 @@ import com.mojang.blaze3d.vertex.QuadInstance;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.Model;
-import net.minecraft.client.renderer.feature.ModelFeatureRenderer;
 import net.minecraft.client.renderer.item.ItemStackRenderState;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.texture.OverlayTexture;
-import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+import net.minecraft.client.renderer.texture.UvMapping;
 import net.minecraft.client.resources.model.geometry.BakedQuad;
+import net.minecraft.client.resources.model.geometry.ItemQuads;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.ARGB;
@@ -123,8 +123,9 @@ final class PanelItemModel {
 
         @Override
         public void submitItem(PoseStack poseStack, ItemDisplayContext displayContext, int lightCoords,
-                               int overlayCoords, int outlineColor, int[] tintLayers, List<BakedQuad> quads,
+                               int overlayCoords, int outlineColor, int[] tintLayers, ItemQuads itemQuads,
                                ItemStackRenderState.FoilType foilType) {
+            List<BakedQuad> quads = itemQuads.all();
             PoseStack.Pose pose = inPanel(poseStack).last();
             QuadInstance instance = new QuadInstance();
             instance.setLightCoords(lightCoords);
@@ -139,8 +140,7 @@ final class PanelItemModel {
         @Override
         public <S> void submitModel(Model<? super S> model, S state, PoseStack poseStack, RenderType renderType,
                                     int lightCoords, int overlayCoords, int tintedColor,
-                                    @Nullable TextureAtlasSprite sprite, int outlineColor,
-                                    ModelFeatureRenderer.@Nullable CrumblingOverlay crumbling) {
+                                    @Nullable UvMapping sprite, int outlineColor) {
             VertexConsumer buffer = buffers.getBuffer(renderType);
             model.setupAnim(state);
             model.renderToBuffer(inPanel(poseStack), sprite == null ? buffer : sprite.wrap(buffer),

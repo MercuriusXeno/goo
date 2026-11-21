@@ -46,6 +46,6 @@ public interface TargetHost extends StepHost {
     default void push(Vec3 motion) {
         LivingEntity target = target();
         target.setDeltaMovement(motion);
-        target.hurtMarked = true;
+        target.syncVelocity = true;
     }
 }

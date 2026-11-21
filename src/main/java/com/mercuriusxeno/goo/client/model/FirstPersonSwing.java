@@ -6,7 +6,7 @@ import org.joml.Matrix4fc;
 /**
  * The carry and turn vanilla's swing laid on the first-person hand being
  * drawn, kept so the glove's model can be carried back to where it would
- * stand unswung. ItemInHandRenderer.swingArm carries the hand's pose and
+ * stand unswung. FirstPersonHandsAndItemsRenderer.swingArm carries the hand's pose and
  * applyItemArmAttackTransform turns it; this holds the pose before the swing
  * against the pose after it, for the hand renderArmWithItem draws now, and
  * nothing outside that draw.

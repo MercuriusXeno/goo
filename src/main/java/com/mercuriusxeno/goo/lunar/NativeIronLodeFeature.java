@@ -1,14 +1,14 @@
 package com.mercuriusxeno.goo.lunar;
 
 import com.mercuriusxeno.goo.registry.GooBlocks;
+import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.levelgen.feature.Feature;
-import net.minecraft.world.level.levelgen.feature.FeaturePlaceContext;
-import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -19,7 +19,10 @@ import java.util.List;
  * decision native-iron-lodes-are-worth-whole-iron-blocks
  * decision each-lunar-zone-holds-its-own-deposit-richer-by-depth
  */
-public final class NativeIronLodeFeature extends Feature<NoneFeatureConfiguration> {
+public final class NativeIronLodeFeature implements Feature {
+
+    /** The feature type's codec, which reads no settings. */
+    public static final MapCodec<NativeIronLodeFeature> CODEC = MapCodec.unit(NativeIronLodeFeature::new);
 
     /** How far from the open spot the lode's first block may sit, each way. */
     static final int REACH = 2;
@@ -29,14 +32,15 @@ public final class NativeIronLodeFeature extends Feature<NoneFeatureConfiguratio
 
     /** Creates the feature, which takes no configuration. */
     public NativeIronLodeFeature() {
-        super(NoneFeatureConfiguration.CODEC);
     }
 
     @Override
-    public boolean place(FeaturePlaceContext<NoneFeatureConfiguration> context) {
-        WorldGenLevel level = context.level();
-        BlockPos origin = context.origin();
-        RandomSource random = context.random();
+    public MapCodec<NativeIronLodeFeature> codec() {
+        return CODEC;
+    }
+
+    @Override
+    public boolean place(WorldGenLevel level, ChunkGenerator chunkGenerator, RandomSource random, BlockPos origin) {
         if (!inShallowZone(origin.getY()) || !level.getBlockState(origin).isAir()) {
             return false;
         }

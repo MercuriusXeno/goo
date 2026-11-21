@@ -243,7 +243,6 @@ public final class AilmentOverlayLayer<S extends LivingEntityRenderState, M exte
                                PoseStack poseStack, int lightCoords, StampedAilment ailment) {
         collector.order(OVERLAY_ORDER).submitModel(model, state, poseStack, GooRenderTypes.GOO_AILMENT_OVERLAY_TYPE,
                 lightCoords, patternCoords(ailment.kind().pattern(), model.root()),
-                overlayColor(ailment.kind(), ailment.strength()), null,
-                NO_OUTLINE, null);
+                overlayColor(ailment.kind(), ailment.strength()), null, NO_OUTLINE);
     }
 }

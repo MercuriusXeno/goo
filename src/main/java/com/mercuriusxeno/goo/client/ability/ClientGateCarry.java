@@ -6,10 +6,12 @@ import com.mercuriusxeno.goo.ability.quantum.PortalTransform;
 import com.mercuriusxeno.goo.network.GateCarriedPayload;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
+import net.minecraft.core.PositionAndRotation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.InterpolationHandler;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.PositionPath;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import java.util.ArrayDeque;
@@ -62,7 +64,7 @@ public final class ClientGateCarry {
     static void snap(Entity body, GateCarriedPayload carry, long gameTime) {
         CARRIED.put(carry.entityId(), new Carried(carry.feet(), gameTime + STALE_TICKS));
         InterpolationHandler slide = body.getInterpolation();
-        if (slide == null) {
+        if (slide == InterpolationHandler.NO_OP) {
             turnThrough(body, new Crossing(carry.entered(), carry.exit(),
                     Mth.wrapDegrees(carry.yaw() - body.getYRot()), body.getBbHeight(), gameTime), gameTime);
             body.setPos(carry.feet());
@@ -117,13 +119,14 @@ public final class ClientGateCarry {
             PENDING.remove(body.getId());
         }
         InterpolationHandler slide = body.getInterpolation();
-        if (slide == null || !slide.hasActiveInterpolation()) {
+        PositionAndRotation heading = slide.target();
+        if (heading == null) {
             turnThrough(body, next, gameTime);
             return;
         }
-        Vec3 target = next.through(slide.position());
+        Vec3 target = next.through(heading.position());
         turnThrough(body, next, gameTime);
-        retarget(slide, target, slide.yRot() + next.turn(), slide.xRot());
+        retarget(slide, target, heading.yRot() + next.turn(), heading.xRot());
     }
 
     /**
@@ -187,7 +190,7 @@ public final class ClientGateCarry {
     private static void retarget(InterpolationHandler slide, Vec3 target, float yaw, float pitch) {
         retargeting = true;
         try {
-            slide.interpolateTo(target, yaw, pitch);
+            slide.interpolateTo(PositionPath.of(target), yaw, pitch, true);
         } finally {
             retargeting = false;
         }

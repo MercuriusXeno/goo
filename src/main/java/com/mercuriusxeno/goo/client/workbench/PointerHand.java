@@ -19,7 +19,7 @@ final class PointerHand {
     }
 
     /**
-     * @return the hand, built on the first call; the default cursor where the image or GLFW fails it
+     * @return the hand, built on the first call; the default cursor where the image or SDL fails it
      */
     static CursorType cursor() {
         return HAND.cursor();

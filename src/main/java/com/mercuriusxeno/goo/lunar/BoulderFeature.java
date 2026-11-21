@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.lunar;
 
-import com.mojang.serialization.Codec;
+import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.RandomSource;
@@ -9,9 +9,8 @@ import net.minecraft.util.valueproviders.IntProviders;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.levelgen.feature.Feature;
-import net.minecraft.world.level.levelgen.feature.FeaturePlaceContext;
-import net.minecraft.world.level.levelgen.feature.configurations.FeatureConfiguration;
 import net.minecraft.world.level.levelgen.feature.stateproviders.BlockStateProvider;
 import java.util.ArrayList;
 import java.util.List;
@@ -20,8 +19,17 @@ import java.util.List;
  * One boulder a crater threw: a lumpy rock of a single stone, 10 to 20 blocks across at the sizes lunar names, a
  * squat ellipsoid with knobs swelling from its upper face, sunk a third of its height into the ground it landed on.
  * decision lunar-surface-gains-giant-craters-mountains-rilles-and-boulder-fields
+ *
+ * @param stone  the stone a boulder is cut from, one per boulder
+ * @param radius the boulder's radius east to west, in blocks
  */
-public final class BoulderFeature extends Feature<BoulderFeature.Configuration> {
+public record BoulderFeature(BlockStateProvider stone, IntProvider radius) implements Feature {
+
+    /** The feature type's codec, naming the stone a boulder is cut from and its radius. */
+    public static final MapCodec<BoulderFeature> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
+            BlockStateProvider.DIRECT_CODEC.fieldOf("stone").forGetter(BoulderFeature::stone),
+            IntProviders.codec(1, 16).fieldOf("radius").forGetter(BoulderFeature::radius)
+    ).apply(instance, BoulderFeature::new));
 
     /** The boulder's half height and its breadth north to south, as shares of its radius east to west. */
     static final double HEIGHT_SHARE = 0.65;
@@ -40,20 +48,6 @@ public final class BoulderFeature extends Feature<BoulderFeature.Configuration> 
     private static final double FULL_TURN = 2.0 * Math.PI;
     /** Block flags for a feature's placement: tell clients, and skip neighbour updates. */
     private static final int PLACE_FLAGS = Block.UPDATE_CLIENTS;
-
-    /**
-     * A boulder's settings.
-     *
-     * @param stone  the stone a boulder is cut from, one per boulder
-     * @param radius the boulder's radius east to west, in blocks
-     */
-    public record Configuration(BlockStateProvider stone, IntProvider radius) implements FeatureConfiguration {
-        /** The configuration's codec. */
-        public static final Codec<Configuration> CODEC = RecordCodecBuilder.create(instance -> instance.group(
-                BlockStateProvider.CODEC.fieldOf("stone").forGetter(Configuration::stone),
-                IntProviders.codec(1, 16).fieldOf("radius").forGetter(Configuration::radius)
-        ).apply(instance, Configuration::new));
-    }
 
     /**
      * A boulder's shape: its squat ellipsoid's radii and the knobs swelling from it.
@@ -98,13 +92,6 @@ public final class BoulderFeature extends Feature<BoulderFeature.Configuration> 
     record Knob(double x, double y, double z) {
     }
 
-    /**
-     * The boulder feature, reading its configuration through its codec.
-     */
-    public BoulderFeature() {
-        super(Configuration.CODEC);
-    }
-
     private static double sq(double value) {
         return value * value;
     }
@@ -130,15 +117,17 @@ public final class BoulderFeature extends Feature<BoulderFeature.Configuration> 
     }
 
     @Override
-    public boolean place(FeaturePlaceContext<Configuration> context) {
-        WorldGenLevel level = context.level();
-        RandomSource random = context.random();
-        BlockPos origin = context.origin();
+    public MapCodec<BoulderFeature> codec() {
+        return CODEC;
+    }
+
+    @Override
+    public boolean place(WorldGenLevel level, ChunkGenerator chunkGenerator, RandomSource random, BlockPos origin) {
         if (level.getBlockState(origin.below()).isAir()) {
             return false;
         }
-        Shape shape = shape(context.config().radius().sample(random), random);
-        BlockState stone = context.config().stone().getState(level, random, origin);
+        Shape shape = shape(radius.sample(random), random);
+        BlockState placed = stone.getState(level, random, origin);
         BlockPos centre = origin.below().above((int) Math.round(shape.height() * (1.0 - SUNK_SHARE - SUNK_SHARE)));
         int reach = (int) Math.ceil(shape.radius() + shape.knobRadius());
         BlockPos.MutableBlockPos at = new BlockPos.MutableBlockPos();
@@ -146,7 +135,7 @@ public final class BoulderFeature extends Feature<BoulderFeature.Configuration> 
             for (int dy = -reach; dy <= reach; dy++) {
                 for (int dz = -reach; dz <= reach; dz++) {
                     if (shape.holds(dx, dy, dz)) {
-                        level.setBlock(at.setWithOffset(centre, dx, dy, dz), stone, PLACE_FLAGS);
+                        level.setBlock(at.setWithOffset(centre, dx, dy, dz), placed, PLACE_FLAGS);
                     }
                 }
             }

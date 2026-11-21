@@ -153,7 +153,7 @@ public final class TangleLayer<S extends LivingEntityRenderState, M extends Enti
     private void submitTangle(SubmitNodeCollector collector, EntityModel<? super S> model, S state,
                               PoseStack poseStack, int lightCoords, float share) {
         collector.order(TANGLE_ORDER).submitModel(model, state, poseStack, wrap.type(),
-                lightCoords, skinSizeCoords(model.root()), shareColor(share, wrap.tint()), null, NO_OUTLINE, null);
+                lightCoords, skinSizeCoords(model.root()), shareColor(share, wrap.tint()), null, NO_OUTLINE);
     }
 
     /**

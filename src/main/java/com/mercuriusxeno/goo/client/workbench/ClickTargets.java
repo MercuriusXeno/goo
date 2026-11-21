@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.client.workbench;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import org.jspecify.annotations.Nullable;
-import org.lwjgl.glfw.GLFW;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -37,10 +37,10 @@ final class ClickTargets {
             if (shield) {
                 return modify;
             }
-            if (button != GLFW.GLFW_MOUSE_BUTTON_LEFT) {
+            if (button != InputConstants.MOUSE_BUTTON_LEFT) {
                 return null;
             }
-            return (modifiers & GLFW.GLFW_MOD_SHIFT) != 0 ? follow : modify;
+            return (modifiers & InputConstants.MOD_SHIFT) != 0 ? follow : modify;
         }
     }
 
@@ -388,14 +388,14 @@ final class ClickTargets {
      * @return whether an area took the click
      */
     boolean click(double x, double y) {
-        return click(x, y, GLFW.GLFW_MOUSE_BUTTON_LEFT, 0);
+        return click(x, y, InputConstants.MOUSE_BUTTON_LEFT, 0);
     }
 
     /**
      * @param x         the click's x
      * @param y         the click's y
-     * @param button    the GLFW mouse button pressed
-     * @param modifiers the GLFW modifier bits held as it was pressed
+     * @param button    the SDL mouse button pressed
+     * @param modifiers the SDL modifier bits held as it was pressed
      * @return whether an area holding an action for the gesture took the click
      */
     boolean click(double x, double y, int button, int modifiers) {
@@ -420,7 +420,7 @@ final class ClickTargets {
     boolean takesClick(double x, double y) {
         for (int index = targets.size() - 1; index >= 0; index--) {
             Target target = targets.get(index);
-            if (target.contains(x, y) && target.actions().forGesture(GLFW.GLFW_MOUSE_BUTTON_LEFT, 0) != null) {
+            if (target.contains(x, y) && target.actions().forGesture(InputConstants.MOUSE_BUTTON_LEFT, 0) != null) {
                 return true;
             }
         }
@@ -437,7 +437,7 @@ final class ClickTargets {
         for (int index = targets.size() - 1; index >= 0; index--) {
             Target target = targets.get(index);
             if (target.contains(x, y)
-                    && target.actions().forGesture(GLFW.GLFW_MOUSE_BUTTON_LEFT, GLFW.GLFW_MOD_SHIFT) != null) {
+                    && target.actions().forGesture(InputConstants.MOUSE_BUTTON_LEFT, InputConstants.MOD_SHIFT) != null) {
                 return !target.actions().shield() && target.actions().follow() != null;
             }
         }

@@ -4,24 +4,25 @@ import com.mercuriusxeno.goo.ability.hole.HoleFrame;
 import com.mercuriusxeno.goo.client.DepthCopyTarget;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.ImmediateBuffers;
+import com.mercuriusxeno.goo.client.StagePass;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.network.PortableHolesSyncPayload;
-import com.mojang.blaze3d.PrimitiveTopology;
-import com.mojang.blaze3d.buffers.GpuBuffer;
-import com.mojang.blaze3d.buffers.GpuBufferSlice;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.pipeline.TextureTarget;
-import com.mojang.blaze3d.systems.GpuDevice;
-import com.mojang.blaze3d.systems.RenderPass;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.textures.FilterMode;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import com.mojang.renderpearl.api.buffers.GpuBuffer;
+import com.mojang.renderpearl.api.buffers.GpuBufferSlice;
+import com.mojang.renderpearl.api.commands.RenderPass;
+import com.mojang.renderpearl.api.device.GpuDevice;
+import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
+import com.mojang.renderpearl.api.textures.FilterMode;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -34,8 +35,6 @@ import org.joml.Matrix4fc;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
 import java.util.List;
-import java.util.Optional;
-import java.util.OptionalDouble;
 import java.util.function.Consumer;
 
 /**
@@ -125,13 +124,12 @@ public final class HolePits {
             RenderSystem.AutoStorageIndexBuffer indices = RenderSystem.getSequentialBuffer(PrimitiveTopology.QUADS);
             GpuBufferSlice transform = RenderSystem.getDynamicUniforms().writeTransform(new Matrix4f(modelView),
                     WHITE, new Vector3f(), new Matrix4f());
-            try (RenderPass pass = device.createCommandEncoder().createRenderPass(() -> CARVE_PASS,
-                    main.getColorTextureView(), Optional.empty(), main.getDepthTextureView(),
-                    OptionalDouble.empty())) {
-                pass.setPipeline(GooRenderTypes.PORTABLE_HOLE_CARVE);
+            try (StagePass stage = StagePass.onMain(() -> CARVE_PASS)) {
+                RenderPass pass = stage.pass();
+                pass.setPipeline(RenderSystem.getCompiledPipeline(GooRenderTypes.PORTABLE_HOLE_CARVE));
                 RenderSystem.bindDefaultUniforms(pass);
                 pass.setUniform(TRANSFORMS_UNIFORM, transform);
-                pass.bindTexture(GooRenderTypes.PORTABLE_HOLE_DEPTH_SAMPLER, copy.getDepthTextureView(),
+                pass.setUniform(GooRenderTypes.PORTABLE_HOLE_DEPTH_SAMPLER, copy.getDepthTextureView(),
                         RenderSystem.getSamplerCache().getClampToEdge(FilterMode.NEAREST));
                 pass.setVertexBuffer(0, vertices.slice());
                 pass.setIndexBuffer(indices.getBuffer(quads * INDICES_PER_QUAD), indices.type());

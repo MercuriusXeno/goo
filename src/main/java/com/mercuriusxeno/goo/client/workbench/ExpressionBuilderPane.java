@@ -1,11 +1,11 @@
 package com.mercuriusxeno.goo.client.workbench;
 
 import com.mercuriusxeno.goo.type.GooTypes;
+import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.navigation.ScreenRectangle;
 import org.jspecify.annotations.Nullable;
-import org.lwjgl.glfw.GLFW;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -248,7 +248,7 @@ final class ExpressionBuilderPane {
     }
 
     /**
-     * @param key the GLFW key pressed
+     * @param key the SDL scancode of the key pressed
      * @return whether the builder took the key
      */
     boolean keyPressed(int key) {
@@ -256,7 +256,7 @@ final class ExpressionBuilderPane {
         // Decision parenthetical-handle-drags-onto-a-term: Escape drops the held () and wraps nothing.
         // Decision type-rows-drag-by-a-rail-to-reorder-or-trash: Escape drops the held row back.
         // Decision x-and-slash-drag-from-the-bay-onto-a-term: Escape drops the held x or / and scales nothing.
-        if (key == GLFW.GLFW_KEY_ESCAPE && holdsADrop()) {
+        if (key == InputConstants.KEY_ESCAPE && holdsADrop()) {
             dragging = null;
             wrapping = null;
             rowDragging = null;

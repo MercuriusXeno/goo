@@ -7,7 +7,6 @@ import com.mercuriusxeno.goo.block.ShapeHitCheck;
 import com.mercuriusxeno.goo.block.gasket.GasketInstallation;
 import com.mercuriusxeno.goo.item.GooInteractionType;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
-import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.InteractionHand;
@@ -17,7 +16,6 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelReader;
-import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -44,10 +42,6 @@ public class HubBlock extends GooMachineBlock {
      * Whether a choral gasket is installed on the hub's intake.
      */
     public static final BooleanProperty HAS_GASKET = BooleanProperty.create("has_gasket");
-    /**
-     * Codec for serialization.
-     */
-    public static final MapCodec<HubBlock> CODEC = simpleCodec(HubBlock::new);
     /**
      * Canister slot center positions in pixel coordinates (XZ only), indexed by slot.
      */
@@ -249,16 +243,6 @@ public class HubBlock extends GooMachineBlock {
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
         builder.add(HAS_GASKET);
-    }
-
-    /**
-     * Returns the codec for serialization.
-     *
-     * @return the codec
-     */
-    @Override
-    protected @NonNull MapCodec<? extends BaseEntityBlock> codec() {
-        return CODEC;
     }
 
     /**

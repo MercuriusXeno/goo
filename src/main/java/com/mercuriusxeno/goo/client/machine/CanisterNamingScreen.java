@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.machine;
 import com.mercuriusxeno.goo.item.gasket.ChoralTunerItem;
 import com.mercuriusxeno.goo.network.CanisterRenamePayload;
 import com.mercuriusxeno.goo.network.CanisterUnlinkPayload;
+import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
@@ -92,8 +93,8 @@ public class CanisterNamingScreen extends Screen {
     /** Fully opaque white for text rendering. */
     private static final int COLOR_WHITE = 0xFFFFFFFF;
 
-    /** GLFW key code for Enter/Return. */
-    private static final int KEY_ENTER = 257;
+    /** SDL scancode for Enter/Return. */
+    private static final int KEY_ENTER = InputConstants.KEY_RETURN;
 
     /** Font line height for centering button text. */
     private static final int FONT_LINE_HEIGHT = 8;

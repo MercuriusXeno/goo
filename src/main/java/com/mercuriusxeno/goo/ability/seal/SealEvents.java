@@ -120,7 +120,7 @@ public final class SealEvents {
         for (int tryIndex = 0; tryIndex < WARP_TRIES; tryIndex++) {
             Vec3 roll = rollSpot(level, mob.position(), curse.range(), random);
             if (roll.distanceTo(player.position()) > curse.radius()
-                    && mob.randomTeleport(roll.x, roll.y, roll.z, true)) {
+                    && mob.randomTeleport(roll.x, roll.y, roll.z, true, state -> false)) {
                 return true;
             }
         }

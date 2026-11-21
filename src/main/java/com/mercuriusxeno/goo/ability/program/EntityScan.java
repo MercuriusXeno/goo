@@ -236,7 +236,7 @@ public final class EntityScan {
         table.put(EntityFilter.PEACEFUL, (entity, self, caster) -> entity instanceof Mob
                 && entity.getType().getCategory().isFriendly() && !(entity instanceof Enemy));
         table.put(EntityFilter.VULNERABLE,
-                (entity, self, caster) -> entity instanceof LivingEntity living && living.invulnerableTime == 0);
+                (entity, self, caster) -> entity instanceof LivingEntity living && living.getInvulnerableTime() == 0);
     }
 
     /**

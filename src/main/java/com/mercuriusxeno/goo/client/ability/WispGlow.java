@@ -63,7 +63,7 @@ public final class WispGlow {
         poseStack.pushPose();
         poseStack.translate(sprite.center().x - camera.x, sprite.center().y - camera.y,
                 sprite.center().z - camera.z);
-        poseStack.mulPose(Axis.YP.rotationDegrees(sprite.turnDegrees()));
+        poseStack.rotate(Axis.YP.rotationDegrees(sprite.turnDegrees()));
         sprite.draw().accept(poseStack.last(), consumer);
         poseStack.popPose();
         buffers.endBatch(GooRenderTypes.GLOW_SHELL_TYPE);

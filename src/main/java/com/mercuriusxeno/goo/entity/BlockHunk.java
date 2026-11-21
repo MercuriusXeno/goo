@@ -22,6 +22,7 @@ import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.world.entity.LinearInterpolationHandler;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
@@ -174,8 +175,6 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
     /** The origin cell the hunk's blocks are at home in: where they were lifted from, or where they settle. */
     private BlockPos home = BlockPos.ZERO;
     private boolean settled;
-    /** Interpolated over one tick, so a held hunk drawn where the server holds it trails it by no more. */
-    private final InterpolationHandler interpolation = new InterpolationHandler(this, INTERPOLATION_TICKS);
     /** The player who threw the hunk, whom its strike names, or null for one let go or never thrown. */
     private @Nullable UUID throwerId;
     /** Ticks the hunk has flown free since a hold last stood on it. */
@@ -754,14 +753,14 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
             riseTick(level().getGameTime());
         } else if (level() instanceof ServerLevel server) {
             liftedTick(server);
-        } else if (interpolation.hasActiveInterpolation()) {
-            interpolation.interpolate();
+        } else if (getInterpolation().hasActiveInterpolation()) {
+            getInterpolation().interpolate();
         }
     }
 
     private void riseTick(long now) {
         // The rise reads the clock, so any server position update the client took is dropped.
-        interpolation.cancel();
+        getInterpolation().cancel();
         setPos(positionAt(now));
         if (level().isClientSide() && climbsAt(now)) {
             BuildRumble.play(this, now - riseStartTime);
@@ -809,9 +808,14 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
         }
     }
 
+    /**
+     * Interpolated over one tick, so a held hunk drawn where the server holds it trails it by no more.
+     *
+     * @return the client's slide over one tick
+     */
     @Override
-    public InterpolationHandler getInterpolation() {
-        return interpolation;
+    protected InterpolationHandler createInterpolationHandler() {
+        return LinearInterpolationHandler.create(this, INTERPOLATION_TICKS);
     }
 
     @Override

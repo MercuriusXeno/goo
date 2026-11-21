@@ -77,7 +77,7 @@ public final class ExitTiltLook {
         if (turned != null) {
             event.getPoseStack().pushPose();
             event.getPoseStack().translate(0, turned.pivot(), 0);
-            event.getPoseStack().mulPose(turned.turn());
+            event.getPoseStack().rotate(turned.turn());
             event.getPoseStack().translate(0, -turned.pivot(), 0);
         }
     }

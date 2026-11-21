@@ -111,7 +111,7 @@ public final class GooSubmitter {
             return RenderTypes.entityTranslucent(texture);
         }
         if (!invisibleToPlayer) {
-            return RenderTypes.entityTranslucentCullItemTarget(texture);
+            return RenderTypes.entityTranslucentCull(texture);
         }
         return glowing ? RenderTypes.outline(texture) : null;
     }

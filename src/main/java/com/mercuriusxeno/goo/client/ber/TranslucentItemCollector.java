@@ -7,6 +7,7 @@ import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.item.ItemStackRenderState;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.resources.model.geometry.BakedQuad;
+import net.minecraft.client.resources.model.geometry.ItemQuads;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.item.ItemDisplayContext;
 import java.util.List;
@@ -46,14 +47,15 @@ class TranslucentItemCollector extends ItemQuadCollector {
      * @param overlayCoords  packed overlay coordinates
      * @param outlineColor   outline color (unused for ghost rendering)
      * @param tintLayers     per-tint-index colors from the item color handler
-     * @param quads          the baked quads to render
+     * @param itemQuads      the baked quads to render, split solid from translucent; all of them draw
      * @param foilType       the foil/glint type (unused for ghost rendering)
      */
     @Override
     public void submitItem(PoseStack poseStack, ItemDisplayContext displayContext,
                            int lightCoords, int overlayCoords, int outlineColor,
-                           int[] tintLayers, List<BakedQuad> quads,
+                           int[] tintLayers, ItemQuads itemQuads,
                            ItemStackRenderState.FoilType foilType) {
+        List<BakedQuad> quads = itemQuads.all();
         resubmitByAtlas(poseStack, quads, tintLayers, GooSubmitter::translucentOn, (instance, tint) -> {
             instance.setLightCoords(lightCoords);
             instance.setOverlayCoords(overlayCoords);
@@ -110,6 +112,12 @@ class TranslucentItemCollector extends ItemQuadCollector {
         @Override
         public VertexConsumer setUv1(int u, int v) {
             inner.setUv1(u, v);
+            return this;
+        }
+
+        @Override
+        public VertexConsumer setUv3(float u, float v) {
+            inner.setUv3(u, v);
             return this;
         }
 

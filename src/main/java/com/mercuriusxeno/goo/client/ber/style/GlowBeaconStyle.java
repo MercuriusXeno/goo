@@ -42,9 +42,9 @@ public final class GlowBeaconStyle implements PrismComboStyle {
         Vec3 center = Vec3.atCenterOf(state.blockPos);
         poseStack.pushPose();
         poseStack.translate(HALF, HALF, HALF);
-        poseStack.mulPose(state.facing.getRotation());
+        poseStack.rotate(state.facing.getRotation());
         poseStack.translate(0f, -HALF, 0f);
-        poseStack.mulPose(Axis.YP.rotationDegrees(state.animationTime * SPIN_DEGREES_PER_TICK));
+        poseStack.rotate(Axis.YP.rotationDegrees(state.animationTime * SPIN_DEGREES_PER_TICK));
         float scroll = Mth.frac(-state.animationTime * SCROLL_PER_TICK);
         float breath = GlowBeamMesh.breath(state.animationTime);
         float radiusScale = state.beamRadiusScale;

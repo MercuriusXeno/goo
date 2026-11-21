@@ -911,7 +911,7 @@ public final class LiftedPalmBlob {
         Vec3 place = blob.place();
         pose.pushPose();
         pose.translate(place.x - camera.x, place.y - camera.y, place.z - camera.z);
-        pose.mulPose(drawn.facing());
+        pose.rotate(drawn.facing());
         if (blob.javelin() < 1f) {
             GooFlightRenderer.renderBlob(pose, buffers, blob.type(), time,
                     blob.shape().scaled(FLIGHT_SIZE_OF_PALM_REST * (1f - blob.javelin())));

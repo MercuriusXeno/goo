@@ -58,7 +58,7 @@
     "GameRendererPortalViewMixin",
     "InterpolationHandlerGateCarryMixin",
     "InventoryScreenPhasedDollMixin",
-    "ItemInHandRendererSwingMixin",
+    "FirstPersonHandsSwingMixin",
     "ItemStackLayerPhaseMixin",
     "LevelRendererPortalPassMixin",
     "CameraSculkerCullMixin",
@@ -71,7 +71,7 @@
     "GuiLowHealthJiggleMixin",
     "GuiPhasedHeartsMixin",
     "PlayerModelAbilityPoseMixin",
-    "ScreenEffectRendererGateMixin",
+    "LevelExtractorGateViewMixin",
     "EntityScryOutlineColorMixin",
     "MinecraftScryOutlineMixin",
     "MouseHandlerLunarHoldMixin"

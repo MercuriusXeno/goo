@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.item;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.Prediction;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -71,7 +72,7 @@ public final class SoulBoundEvents {
             if (inventory.getItem(kept.slot()).isEmpty()) {
                 inventory.setItem(kept.slot(), stack);
             } else if (!inventory.add(stack)) {
-                respawned.drop(stack, false);
+                respawned.drop(stack, false, Prediction.PREDICTED);
             }
         }
         original.removeData(GooAttachments.SOUL_BOUND_STACKS);

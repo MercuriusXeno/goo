@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.ability.hex;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.attribute.EnvironmentAttributes;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.entity.SpawnPlacements;
@@ -54,9 +55,9 @@ public final class NaturalSpawns {
     public static Optional<EntityType<?>> drawAt(ServerLevel level, BlockPos cell, RandomSource random,
                                                  Predicate<MobCategory> categories,
                                                  Predicate<EntityType<?>> allowed) {
-        MobSpawnSettings settings = level.getBiome(cell).value().getMobSettings();
+        MobSpawnSettings settings = level.environmentAttributes().getValue(EnvironmentAttributes.NATURAL_MOB_SPAWNS, cell);
         Stream<EntityType<?>> listed = Arrays.stream(MobCategory.values()).filter(categories)
-                .flatMap(category -> settings.getMobs(category).unwrap().stream())
+                .flatMap(category -> settings.getMobsToSpawn(category).unwrap().stream())
                 .map(weighted -> weighted.value().type());
         List<EntityType<?>> pool = pool(listed, type -> allowed.test(type) && fits(level, cell, type));
         return pool.isEmpty() ? Optional.empty() : Optional.of(pool.get(random.nextInt(pool.size())));

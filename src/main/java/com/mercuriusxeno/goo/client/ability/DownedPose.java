@@ -74,7 +74,7 @@ public final class DownedPose {
         Quaternionf fallen = event.getRenderState().getRenderData(FALLEN);
         if (fallen != null) {
             event.getPoseStack().pushPose();
-            event.getPoseStack().mulPose(fallen);
+            event.getPoseStack().rotate(fallen);
         }
     }
 

@@ -9,7 +9,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import java.util.function.Consumer;
 
 /**
- * An exorite pickaxe, sword or armor piece: it keeps working until 0
+ * An exorite tool or armor piece: it keeps working until 0
  * durability, where it stays whole and works as a bare hand (decision
  * zero-durability-stops-working).
  */
@@ -28,7 +28,7 @@ public class ExoriteGearItem extends Item implements ExoriteGear {
     }
 
     @Override
-    public <T extends LivingEntity> int damageItem(ItemStack stack, int amount, T entity, Consumer<Item> onBroken) {
+    public <T extends LivingEntity> int damageItem(ItemStack stack, int amount, T entity, Consumer<ItemStack> onBroken) {
         return ExoriteGear.absorbBreakingDamage(stack, super.damageItem(stack, amount, entity, onBroken), entity);
     }
 

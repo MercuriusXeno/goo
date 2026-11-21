@@ -347,7 +347,7 @@ public record SlimeCoreModel(BlockStateModel shell, BakedQuad.MaterialInfo core,
      * @return the core's material
      */
     static BakedQuad.MaterialInfo coreMaterial(Material.Baked fluid) {
-        return BakedQuad.MaterialInfo.of(fluid, Transparency.TRANSLUCENT, VolumeCellTint.CORE_TINT_INDEX, true, 0,
+        return BakedQuad.MaterialInfo.of(fluid, Transparency.TRANSLUCENT, VolumeCellTint.CORE_TINT_INDEX, null, 0,
                 false);
     }
 
@@ -468,7 +468,7 @@ public record SlimeCoreModel(BlockStateModel shell, BakedQuad.MaterialInfo core,
             BlockStateModel layers = new SingleVariant.Unbaked(shell).bake(baker);
             BakedQuad.MaterialInfo core = baker.interner().materialInfo(coreMaterial(layers.particleMaterial()));
             BakedQuad.MaterialInfo film = baker.interner().materialInfo(BakedQuad.MaterialInfo.of(
-                    layers.particleMaterial(), Transparency.TRANSLUCENT, SHELL_TINT, true, 0, false));
+                    layers.particleMaterial(), Transparency.TRANSLUCENT, SHELL_TINT, null, 0, false));
             Map<Direction, BlockStateModel> turned = new EnumMap<>(Direction.class);
             drips.ifPresent(north -> DRIP_TURNS.forEach((side, turn) ->
                     turned.put(side, new SingleVariant.Unbaked(north.withYRot(turn)).bake(baker))));

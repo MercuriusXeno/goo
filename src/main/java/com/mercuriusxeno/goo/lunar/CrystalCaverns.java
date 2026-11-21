@@ -7,8 +7,14 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.util.KeyDispatchDataCodec;
-import net.minecraft.world.level.levelgen.DensityFunction;
+import net.minecraft.util.Interval;
+import net.minecraft.world.level.levelgen.densityfunction.DensityBuffer;
+import net.minecraft.world.level.levelgen.densityfunction.DensityFunction;
+import net.minecraft.world.level.levelgen.densityfunction.DensitySampler;
+import net.minecraft.world.level.levelgen.densityfunction.DensityVolume;
+import net.minecraft.world.level.levelgen.densityfunction.DfRewriteRule;
+import net.minecraft.world.level.levelgen.densityfunction.SamplerContext;
+import net.minecraft.world.level.levelgen.synth.Noise;
 import net.minecraft.world.level.levelgen.synth.NormalNoise;
 
 /**
@@ -20,15 +26,14 @@ import net.minecraft.world.level.levelgen.synth.NormalNoise;
  *
  * @param shape the noise swelling the caverns
  */
-public record CrystalCaverns(DensityFunction.NoiseHolder shape) implements DensityFunction {
+public record CrystalCaverns(Noise shape) implements DensitySampler {
 
     /** The data codec of the {@code goo:crystal_caverns} density function type, naming its noise. */
-    public static final MapCodec<CrystalCaverns> DATA_CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
-            DensityFunction.NoiseHolder.CODEC.fieldOf("shape").forGetter(CrystalCaverns::shape)
-    ).apply(instance, CrystalCaverns::new));
-    private static final KeyDispatchDataCodec<CrystalCaverns> CODEC = KeyDispatchDataCodec.of(DATA_CODEC);
+    public static final MapCodec<Definition> DATA_CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
+            NormalNoise.CODEC.fieldOf("shape").forGetter(Definition::shape)
+    ).apply(instance, Definition::new));
     /** The noise swelling the caverns. */
-    public static final ResourceKey<NormalNoise.NoiseParameters> NOISE = ResourceKey.create(Registries.NOISE,
+    public static final ResourceKey<NormalNoise> NOISE = ResourceKey.create(Registries.NOISE,
             Identifier.fromNamespaceAndPath(Goo.MODID, "lunar_crystal_caverns"));
 
     /** A cavern opens where the noise reads past this, deep inside the zone. */
@@ -79,8 +84,8 @@ public record CrystalCaverns(DensityFunction.NoiseHolder shape) implements Densi
      * @param noise the seeded noise
      * @return the caverns that noise draws
      */
-    public static CrystalCaverns seeded(NormalNoise noise) {
-        return new CrystalCaverns(new DensityFunction.NoiseHolder(Holder.direct(noise.parameters()), noise));
+    public static CrystalCaverns seeded(Noise noise) {
+        return new CrystalCaverns(noise);
     }
 
     /**
@@ -92,40 +97,58 @@ public record CrystalCaverns(DensityFunction.NoiseHolder shape) implements Densi
      * @return true in a cavern
      */
     public boolean isOpenAt(int x, int y, int z) {
-        return isOpen(y, shape.getValue(x, y * VERTICAL_STRETCH, z));
+        return isOpen(y, shape.get(x, y * VERTICAL_STRETCH, z));
     }
 
     @Override
-    public double compute(DensityFunction.FunctionContext context) {
-        int y = context.blockY();
+    public float sampleValue(SamplerContext context, int blockX, int blockY, int blockZ) {
+        return (float) densityAt(blockX, blockY, blockZ);
+    }
+
+    @Override
+    public void sampleVolume(SamplerContext context, DensityBuffer outputBuffer, DensityVolume volume) {
+        DensitySampler.sampleVolumeNaive(context, outputBuffer, volume, this);
+    }
+
+    private double densityAt(int blockX, int blockY, int blockZ) {
+        int y = blockY;
         if (y < LunarDepths.WARREN_ZONE_TOP_Y || y >= LunarDepths.CAVERN_ZONE_TOP_Y) {
             return SOLID;
         }
-        return density(y, shape.getValue(context.blockX(), y * VERTICAL_STRETCH, context.blockZ()));
+        return density(y, shape.get(blockX, y * VERTICAL_STRETCH, blockZ));
     }
 
-    @Override
-    public void fillArray(double[] output, DensityFunction.ContextProvider contextProvider) {
-        contextProvider.fillAllDirectly(output, this);
-    }
+    /**
+     * The density function lunar's noise settings name, compiling to the field its noises draw once the world's
+     * random state seeds them.
+     *
+     * @param shape the noise swelling the caverns
+     */
+    public record Definition(Holder<NormalNoise> shape) implements DensityFunction {
 
-    @Override
-    public DensityFunction mapChildren(DensityFunction.Visitor visitor) {
-        return new CrystalCaverns(visitor.visitNoise(shape));
-    }
+        @Override
+        public DensitySampler compileSampler(DensityFunction.CompileContext context) {
+            return new CrystalCaverns(context.createNoiseSampler(shape));
+        }
 
-    @Override
-    public double minValue() {
-        return OPEN;
-    }
+        @Override
+        public DensityFunction rewriteChildren(DfRewriteRule rule) {
+            return this;
+        }
 
-    @Override
-    public double maxValue() {
-        return SOLID;
-    }
+        @Override
+        public Interval range() {
+            return Interval.of((float) OPEN, (float) SOLID);
+        }
 
-    @Override
-    public KeyDispatchDataCodec<? extends DensityFunction> codec() {
-        return CODEC;
+        @Override
+        public @DensityFunction.Axes int domainAxes() {
+            return DensityFunction.ALL_AXES;
+        }
+
+        @Override
+        public MapCodec<Definition> codec() {
+            return DATA_CODEC;
+        }
     }
 }

@@ -2,18 +2,19 @@ package com.mercuriusxeno.goo.client.zone;
 
 import com.mercuriusxeno.goo.ability.astral.LunarSight;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
-import com.mojang.blaze3d.PrimitiveTopology;
-import com.mojang.blaze3d.buffers.GpuBuffer;
-import com.mojang.blaze3d.buffers.GpuBufferSlice;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.systems.RenderPass;
+import com.mercuriusxeno.goo.client.StagePass;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.textures.GpuTextureView;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.MeshData;
-import com.mojang.blaze3d.vertex.VertexFormat;
+import com.mojang.renderpearl.api.buffers.GpuBuffer;
+import com.mojang.renderpearl.api.buffers.GpuBufferSlice;
+import com.mojang.renderpearl.api.commands.RenderPass;
+import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
+import com.mojang.renderpearl.api.textures.GpuTextureView;
+import com.mojang.renderpearl.api.vertex.VertexFormat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.RenderPipelines;
@@ -31,8 +32,6 @@ import org.joml.Vector3f;
 import org.joml.Vector4f;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
-import java.util.Optional;
-import java.util.OptionalDouble;
 
 /**
  * Draws goo:lunar's sky in place of vanilla's: the pocket's sea of dim stars, then vanilla's sun where it stands over
@@ -78,8 +77,8 @@ public final class LunarSkyRenderer implements CustomSkyboxRenderer {
 
     @Override
     public boolean renderSky(LevelRenderState levelRenderState, SkyRenderState skyRenderState,
-            Matrix4fc modelViewMatrix, Runnable setupFog) {
-        sea.renderSky(levelRenderState, skyRenderState, modelViewMatrix, setupFog);
+            Matrix4fc modelViewMatrix, GpuBufferSlice skyFog) {
+        sea.renderSky(levelRenderState, skyRenderState, modelViewMatrix, skyFog);
         double cameraX = levelRenderState.cameraRenderState.pos.x();
         ClientLevel level = Minecraft.getInstance().level;
         // decision sun-follows-the-phase-and-lights-the-far-side-too
@@ -138,12 +137,12 @@ public final class LunarSkyRenderer implements CustomSkyboxRenderer {
                 new Matrix4f());
         GpuTextureView color = Minecraft.getInstance().gameRenderer.mainRenderTarget().getColorTextureView();
         GpuTextureView depth = Minecraft.getInstance().gameRenderer.mainRenderTarget().getDepthTextureView();
-        try (RenderPass pass = RenderSystem.getDevice().createCommandEncoder()
-                .createRenderPass(() -> SUN_LABEL, color, Optional.empty(), depth, OptionalDouble.empty())) {
-            pass.setPipeline(RenderPipelines.CELESTIAL);
+        try (StagePass stage = StagePass.onMain(() -> SUN_LABEL)) {
+            RenderPass pass = stage.pass();
+            pass.setPipeline(RenderSystem.getCompiledPipeline(RenderPipelines.CELESTIAL));
             RenderSystem.bindDefaultUniforms(pass);
             pass.setUniform(DYNAMIC_TRANSFORMS, transforms);
-            pass.bindTexture(SAMPLER, celestials.getTextureView(), celestials.getSampler());
+            pass.setUniform(SAMPLER, celestials.getTextureView(), celestials.getSampler());
             pass.setVertexBuffer(0, quad.slice());
             pass.setIndexBuffer(indices, sequential.type());
             pass.drawIndexed(QUAD_INDICES, 1, 0, 0, 0);

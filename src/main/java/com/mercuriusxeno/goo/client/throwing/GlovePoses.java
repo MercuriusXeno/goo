@@ -53,7 +53,7 @@ public final class GlovePoses {
         ArmPose pose = selectedPose(player);
         show(player, pose == null ? ArmPoseKind.NONE : pose.releaseFrame());
         if (pose != null && pose.swingsOnRelease()) {
-            player.swing(hand);
+            player.swing(hand, player.getItemInHand(hand).getAttackAnimation(), false);
         }
     }
 
