@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.PipelineReads;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -126,7 +127,7 @@ class GhostTrailsTest {
 
     @Test
     void ghostsDrawThroughTheirOwnShaderPair() {
-        assertEquals("core/goo_ghost", GooRenderTypes.GOO_GHOST.getVertexShader().getPath());
+        assertEquals("core/goo_ghost", PipelineReads.vertexShader(GooRenderTypes.GOO_GHOST).getPath());
         PipelineShaders.assertExist(GooRenderTypes.GOO_GHOST);
     }
 }

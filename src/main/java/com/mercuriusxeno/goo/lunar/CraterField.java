@@ -7,9 +7,15 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.util.KeyDispatchDataCodec;
+import net.minecraft.util.Interval;
 import net.minecraft.util.Mth;
-import net.minecraft.world.level.levelgen.DensityFunction;
+import net.minecraft.world.level.levelgen.densityfunction.DensityBuffer;
+import net.minecraft.world.level.levelgen.densityfunction.DensityFunction;
+import net.minecraft.world.level.levelgen.densityfunction.DensitySampler;
+import net.minecraft.world.level.levelgen.densityfunction.DensityVolume;
+import net.minecraft.world.level.levelgen.densityfunction.DfRewriteRule;
+import net.minecraft.world.level.levelgen.densityfunction.SamplerContext;
+import net.minecraft.world.level.levelgen.synth.Noise;
 import net.minecraft.world.level.levelgen.synth.NormalNoise;
 import java.util.Optional;
 
@@ -22,15 +28,14 @@ import java.util.Optional;
  *
  * @param noise the seeded noise each cell's rolls read
  */
-public record CraterField(DensityFunction.NoiseHolder noise) implements DensityFunction {
+public record CraterField(Noise noise) implements DensitySampler {
 
     /** The data codec of the {@code goo:craters} density function type, naming the noise its rolls read. */
-    public static final MapCodec<CraterField> DATA_CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
-            DensityFunction.NoiseHolder.CODEC.fieldOf("noise").forGetter(CraterField::noise)
-    ).apply(instance, CraterField::new));
-    private static final KeyDispatchDataCodec<CraterField> CODEC = KeyDispatchDataCodec.of(DATA_CODEC);
+    public static final MapCodec<Definition> DATA_CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
+            NormalNoise.CODEC.fieldOf("noise").forGetter(Definition::noise)
+    ).apply(instance, Definition::new));
     /** The noise lunar's {@code goo:craters} density function rolls its cells from. */
-    public static final ResourceKey<NormalNoise.NoiseParameters> NOISE = ResourceKey.create(Registries.NOISE,
+    public static final ResourceKey<NormalNoise> NOISE = ResourceKey.create(Registries.NOISE,
             Identifier.fromNamespaceAndPath(Goo.MODID, "lunar_craters"));
 
     /** A cell's side in blocks; a crater's farthest reach stays under it, so a column reads its own cell's
@@ -94,8 +99,17 @@ public record CraterField(DensityFunction.NoiseHolder noise) implements DensityF
     }
 
     @Override
-    public double compute(DensityFunction.FunctionContext context) {
-        return heightAt(context.blockX(), context.blockZ(), this::roll);
+    public float sampleValue(SamplerContext context, int blockX, int blockY, int blockZ) {
+        return (float) densityAt(blockX, blockY, blockZ);
+    }
+
+    @Override
+    public void sampleVolume(SamplerContext context, DensityBuffer outputBuffer, DensityVolume volume) {
+        DensitySampler.sampleVolumeNaive(context, outputBuffer, volume, this);
+    }
+
+    private double densityAt(int blockX, int blockY, int blockZ) {
+        return heightAt(blockX, blockZ, this::roll);
     }
 
     private double roll(int cellX, int cellZ, int roll) {
@@ -111,8 +125,8 @@ public record CraterField(DensityFunction.NoiseHolder noise) implements DensityF
      * @param roll  which of the cell's rolls
      * @return the roll, in [0, 1)
      */
-    static double rollFrom(DensityFunction.NoiseHolder noise, int cellX, int cellZ, int roll) {
-        double value = noise.getValue(cellX * CELL_STRIDE + roll * ROLL_STRIDE, roll, cellZ * CELL_STRIDE);
+    static double rollFrom(Noise noise, int cellX, int cellZ, int roll) {
+        double value = noise.get(cellX * CELL_STRIDE + roll * ROLL_STRIDE, roll, cellZ * CELL_STRIDE);
         return Mth.frac(value * ROLL_SPREAD);
     }
 
@@ -317,8 +331,8 @@ public record CraterField(DensityFunction.NoiseHolder noise) implements DensityF
      * @param noise the seeded crater noise
      * @return the field that noise draws
      */
-    public static CraterField seeded(NormalNoise noise) {
-        return new CraterField(new DensityFunction.NoiseHolder(Holder.direct(noise.parameters()), noise));
+    public static CraterField seeded(Noise noise) {
+        return new CraterField(noise);
     }
 
     /**
@@ -388,28 +402,37 @@ public record CraterField(DensityFunction.NoiseHolder noise) implements DensityF
         return fall > 0.0 ? rim * fall * fall : 0.0;
     }
 
-    @Override
-    public void fillArray(double[] output, DensityFunction.ContextProvider contextProvider) {
-        contextProvider.fillAllDirectly(output, this);
-    }
+    /**
+     * The density function lunar's noise settings name, compiling to the field its noises draw once the world's
+     * random state seeds them.
+     *
+     * @param noise the noise each cell's rolls read
+     */
+    public record Definition(Holder<NormalNoise> noise) implements DensityFunction {
 
-    @Override
-    public DensityFunction mapChildren(DensityFunction.Visitor visitor) {
-        return new CraterField(visitor.visitNoise(noise));
-    }
+        @Override
+        public DensitySampler compileSampler(DensityFunction.CompileContext context) {
+            return new CraterField(context.createNoiseSampler(noise));
+        }
 
-    @Override
-    public double minValue() {
-        return -NEIGHBOURHOOD * MAX_RADIUS * DEPTH_PER_RADIUS;
-    }
+        @Override
+        public DensityFunction rewriteChildren(DfRewriteRule rule) {
+            return this;
+        }
 
-    @Override
-    public double maxValue() {
-        return NEIGHBOURHOOD * MAX_RADIUS * RIM_PER_RADIUS;
-    }
+        @Override
+        public Interval range() {
+            return Interval.of((float) (-NEIGHBOURHOOD * MAX_RADIUS * DEPTH_PER_RADIUS), (float) (NEIGHBOURHOOD * MAX_RADIUS * RIM_PER_RADIUS));
+        }
 
-    @Override
-    public KeyDispatchDataCodec<? extends DensityFunction> codec() {
-        return CODEC;
+        @Override
+        public @DensityFunction.Axes int domainAxes() {
+            return DensityFunction.ALL_AXES;
+        }
+
+        @Override
+        public MapCodec<Definition> codec() {
+            return DATA_CODEC;
+        }
     }
 }

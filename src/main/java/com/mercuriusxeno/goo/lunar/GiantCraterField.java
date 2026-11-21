@@ -4,8 +4,14 @@ import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
-import net.minecraft.util.KeyDispatchDataCodec;
-import net.minecraft.world.level.levelgen.DensityFunction;
+import net.minecraft.util.Interval;
+import net.minecraft.world.level.levelgen.densityfunction.DensityBuffer;
+import net.minecraft.world.level.levelgen.densityfunction.DensityFunction;
+import net.minecraft.world.level.levelgen.densityfunction.DensitySampler;
+import net.minecraft.world.level.levelgen.densityfunction.DensityVolume;
+import net.minecraft.world.level.levelgen.densityfunction.DfRewriteRule;
+import net.minecraft.world.level.levelgen.densityfunction.SamplerContext;
+import net.minecraft.world.level.levelgen.synth.Noise;
 import net.minecraft.world.level.levelgen.synth.NormalNoise;
 import java.util.ArrayList;
 import java.util.List;
@@ -21,13 +27,12 @@ import java.util.Optional;
  *
  * @param noise the seeded noise each cell's rolls read
  */
-public record GiantCraterField(DensityFunction.NoiseHolder noise) implements DensityFunction {
+public record GiantCraterField(Noise noise) implements DensitySampler {
 
     /** The data codec of the {@code goo:giant_craters} density function type, naming the noise its rolls read. */
-    public static final MapCodec<GiantCraterField> DATA_CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
-            DensityFunction.NoiseHolder.CODEC.fieldOf("noise").forGetter(GiantCraterField::noise)
-    ).apply(instance, GiantCraterField::new));
-    private static final KeyDispatchDataCodec<GiantCraterField> CODEC = KeyDispatchDataCodec.of(DATA_CODEC);
+    public static final MapCodec<Definition> DATA_CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
+            NormalNoise.CODEC.fieldOf("noise").forGetter(Definition::noise)
+    ).apply(instance, Definition::new));
 
     /** A cell's side in blocks; a giant crater's farthest reach stays under it. */
     public static final int CELL = 640;
@@ -331,8 +336,8 @@ public record GiantCraterField(DensityFunction.NoiseHolder noise) implements Den
      * @param noise the seeded crater noise
      * @return the field that noise draws
      */
-    public static GiantCraterField seeded(NormalNoise noise) {
-        return new GiantCraterField(new DensityFunction.NoiseHolder(Holder.direct(noise.parameters()), noise));
+    public static GiantCraterField seeded(Noise noise) {
+        return new GiantCraterField(noise);
     }
 
     /**
@@ -376,34 +381,50 @@ public record GiantCraterField(DensityFunction.NoiseHolder noise) implements Den
     }
 
     @Override
-    public double compute(DensityFunction.FunctionContext context) {
-        return heightAt(context.blockX(), context.blockZ(), this::roll);
+    public float sampleValue(SamplerContext context, int blockX, int blockY, int blockZ) {
+        return (float) densityAt(blockX, blockY, blockZ);
     }
 
     @Override
-    public void fillArray(double[] output, DensityFunction.ContextProvider contextProvider) {
-        contextProvider.fillAllDirectly(output, this);
+    public void sampleVolume(SamplerContext context, DensityBuffer outputBuffer, DensityVolume volume) {
+        DensitySampler.sampleVolumeNaive(context, outputBuffer, volume, this);
     }
 
-    @Override
-    public DensityFunction mapChildren(DensityFunction.Visitor visitor) {
-        return new GiantCraterField(visitor.visitNoise(noise));
+    private double densityAt(int blockX, int blockY, int blockZ) {
+        return heightAt(blockX, blockZ, this::roll);
     }
 
-    /** Every neighbouring cell's crater at its deepest bounds the field below. */
-    @Override
-    public double minValue() {
-        return -NEIGHBOURHOOD * MAX_RADIUS * DEPTH_PER_RADIUS;
-    }
+    /**
+     * The density function lunar's noise settings name, compiling to the field its noises draw once the world's
+     * random state seeds them.
+     *
+     * @param noise the noise each cell's rolls read
+     */
+    public record Definition(Holder<NormalNoise> noise) implements DensityFunction {
 
-    /** Every neighbouring cell's crater at its highest bounds the field above. */
-    @Override
-    public double maxValue() {
-        return NEIGHBOURHOOD * MAX_RADIUS * RIM_PER_RADIUS;
-    }
+        @Override
+        public DensitySampler compileSampler(DensityFunction.CompileContext context) {
+            return new GiantCraterField(context.createNoiseSampler(noise));
+        }
 
-    @Override
-    public KeyDispatchDataCodec<? extends DensityFunction> codec() {
-        return CODEC;
+        @Override
+        public DensityFunction rewriteChildren(DfRewriteRule rule) {
+            return this;
+        }
+
+        @Override
+        public Interval range() {
+            return Interval.of((float) (-NEIGHBOURHOOD * MAX_RADIUS * DEPTH_PER_RADIUS), (float) (NEIGHBOURHOOD * MAX_RADIUS * RIM_PER_RADIUS));
+        }
+
+        @Override
+        public @DensityFunction.Axes int domainAxes() {
+            return DensityFunction.ALL_AXES;
+        }
+
+        @Override
+        public MapCodec<Definition> codec() {
+            return DATA_CODEC;
+        }
     }
 }

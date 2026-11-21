@@ -91,8 +91,8 @@ public abstract class BobbingDiscRenderer<T extends Entity>
                        CameraRenderState camera) {
         poseStack.pushPose();
         poseStack.translate(0, LIFT + Mth.sin(state.ageInTicks * BOB_RATE) * BOB_HEIGHT, 0);
-        poseStack.mulPose(camera.orientation);
-        poseStack.mulPose(Axis.ZP.rotationDegrees(state.ageInTicks * SPIN_DEGREES_PER_TICK));
+        poseStack.rotate(camera.orientation);
+        poseStack.rotate(Axis.ZP.rotationDegrees(state.ageInTicks * SPIN_DEGREES_PER_TICK));
         poseStack.scale(size, size, size);
         int light = state.lightCoords;
         collector.submitCustomGeometry(poseStack, state.renderType, (pose, buffer) -> {

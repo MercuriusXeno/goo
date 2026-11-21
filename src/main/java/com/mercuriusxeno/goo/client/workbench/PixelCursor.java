@@ -7,16 +7,17 @@ import com.mojang.logging.LogUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.Identifier;
 import org.jspecify.annotations.Nullable;
-import org.lwjgl.glfw.GLFW;
-import org.lwjgl.glfw.GLFWImage;
-import org.lwjgl.system.MemoryUtil;
+import org.lwjgl.sdl.SDLMouse;
+import org.lwjgl.sdl.SDLPixels;
+import org.lwjgl.sdl.SDLSurface;
+import org.lwjgl.sdl.SDL_Surface;
 import org.slf4j.Logger;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 
 /**
- * A pixel-art cursor the manager shows, drawn from one of the mod's own images and built once into a GLFW cursor, each
+ * A pixel-art cursor the manager shows, drawn from one of the mod's own images and built once into an SDL cursor, each
  * image pixel a SCALE-wide square so the pixels stay crisp. CursorType's constructor is opened by
  * META-INF/accesstransformer.cfg.
  * Decision shift-over-a-link-shows-a-pixel-pointer-hand.
@@ -24,7 +25,6 @@ import java.nio.ByteBuffer;
  */
 final class PixelCursor {
     private static final int SCALE = 2;
-    private static final int CHANNELS = 4;
     private static final int BYTE_MASK = 0xFF;
     private static final int RED_SHIFT = 16;
     private static final int GREEN_SHIFT = 8;
@@ -51,7 +51,7 @@ final class PixelCursor {
     }
 
     /**
-     * @return the cursor, built on the first call; the default cursor where the image or GLFW fails it
+     * @return the cursor, built on the first call; the default cursor where the image or SDL fails it
      */
     CursorType cursor() {
         if (built == null) {
@@ -74,25 +74,27 @@ final class PixelCursor {
     private CursorType wrap(NativeImage drawn) {
         int width = drawn.getWidth() * SCALE;
         int height = drawn.getHeight() * SCALE;
-        ByteBuffer pixels = MemoryUtil.memAlloc(width * height * CHANNELS);
-        GLFWImage glfwImage = GLFWImage.malloc();
+        // SDL owns the surface's pixels, so a cursor that keeps a reference to the surface outlives this method safely.
+        SDL_Surface surface = SDLSurface.SDL_CreateSurface(width, height, SDLPixels.SDL_PIXELFORMAT_RGBA32);
+        if (surface == null) {
+            return CursorType.DEFAULT;
+        }
         try {
+            ByteBuffer pixels = surface.pixels();
             for (int y = 0; y < height; y++) {
+                pixels.position(y * surface.pitch());
                 for (int x = 0; x < width; x++) {
                     putRgba(pixels, drawn.getPixel(x / SCALE, y / SCALE));
                 }
             }
-            pixels.flip();
-            glfwImage.set(width, height, pixels);
-            long handle = GLFW.glfwCreateCursor(glfwImage, hotX * SCALE, hotY * SCALE);
+            long handle = SDLMouse.SDL_CreateColorCursor(surface, hotX * SCALE, hotY * SCALE);
             return handle == 0L ? CursorType.DEFAULT : new CursorType(name, handle);
         } finally {
-            glfwImage.free();
-            MemoryUtil.memFree(pixels);
+            SDLSurface.SDL_DestroySurface(surface);
         }
     }
 
-    // GLFW reads each pixel as red, green, blue and alpha bytes; the image answers ARGB.
+    // SDL_PIXELFORMAT_RGBA32 holds each pixel as red, green, blue and alpha bytes; the image answers ARGB.
     private static void putRgba(ByteBuffer pixels, int argb) {
         pixels.put((byte) (argb >> RED_SHIFT & BYTE_MASK));
         pixels.put((byte) (argb >> GREEN_SHIFT & BYTE_MASK));

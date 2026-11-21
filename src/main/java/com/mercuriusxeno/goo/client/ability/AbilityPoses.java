@@ -507,8 +507,8 @@ public final class AbilityPoses {
     private static void moveHand(PoseStack pose, HandOffset hand, boolean gloveRight) {
         float side = gloveRight ? 1f : MIRRORED;
         pose.translate(side * hand.across(), hand.lift(), -hand.forward());
-        pose.mulPose(Axis.YP.rotationDegrees(side * hand.turnDegrees()));
-        pose.mulPose(Axis.ZP.rotationDegrees(side * hand.tiltDegrees()));
+        pose.rotate(Axis.YP.rotationDegrees(side * hand.turnDegrees()));
+        pose.rotate(Axis.ZP.rotationDegrees(side * hand.tiltDegrees()));
     }
 
     /**

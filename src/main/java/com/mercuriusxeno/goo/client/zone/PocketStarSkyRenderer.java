@@ -1,17 +1,18 @@
 package com.mercuriusxeno.goo.client.zone;
 
 import com.mercuriusxeno.goo.client.GooRenderTypes;
-import com.mojang.blaze3d.PrimitiveTopology;
-import com.mojang.blaze3d.buffers.GpuBuffer;
-import com.mojang.blaze3d.buffers.GpuBufferSlice;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.systems.RenderPass;
+import com.mercuriusxeno.goo.client.StagePass;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.textures.GpuTextureView;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.MeshData;
+import com.mojang.renderpearl.api.buffers.GpuBuffer;
+import com.mojang.renderpearl.api.buffers.GpuBufferSlice;
+import com.mojang.renderpearl.api.commands.RenderPass;
+import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
+import com.mojang.renderpearl.api.textures.GpuTextureView;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.state.level.LevelRenderState;
 import net.minecraft.client.renderer.state.level.SkyRenderState;
@@ -24,8 +25,6 @@ import org.joml.Vector3f;
 import org.joml.Vector4f;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
-import java.util.Optional;
-import java.util.OptionalDouble;
 import java.util.function.Consumer;
 
 /**
@@ -72,8 +71,8 @@ public final class PocketStarSkyRenderer implements CustomSkyboxRenderer {
 
     @Override
     public boolean renderSky(LevelRenderState levelRenderState, SkyRenderState skyRenderState,
-            Matrix4fc modelViewMatrix, Runnable setupFog) {
-        setupFog.run();
+            Matrix4fc modelViewMatrix, GpuBufferSlice skyFog) {
+        RenderSystem.setShaderFog(skyFog);
         drawStars(modelViewMatrix, FULL_BRIGHTNESS);
         return true;
     }
@@ -147,9 +146,9 @@ public final class PocketStarSkyRenderer implements CustomSkyboxRenderer {
                 modulator, new Vector3f(), new Matrix4f());
         GpuTextureView color = Minecraft.getInstance().gameRenderer.mainRenderTarget().getColorTextureView();
         GpuTextureView depth = Minecraft.getInstance().gameRenderer.mainRenderTarget().getDepthTextureView();
-        try (RenderPass pass = RenderSystem.getDevice().createCommandEncoder()
-                .createRenderPass(() -> label, color, Optional.empty(), depth, OptionalDouble.empty())) {
-            pass.setPipeline(pipeline);
+        try (StagePass stage = StagePass.onMain(() -> label)) {
+            RenderPass pass = stage.pass();
+            pass.setPipeline(RenderSystem.getCompiledPipeline(pipeline));
             RenderSystem.bindDefaultUniforms(pass);
             pass.setUniform(DYNAMIC_TRANSFORMS, transforms);
             pass.setVertexBuffer(0, quads.vertices().slice());

@@ -266,7 +266,7 @@ class VolumeCellLookTest {
                 new MutableObject<>());
         return FaceBakery.bakeQuad(baker, new Vector3f(0, 0, 0), new Vector3f(16, 8, 16), face,
                 new Material.Baked(sprite, material.forceTranslucent()), Direction.UP, BlockModelRotation.IDENTITY,
-                null, true, 0).materialInfo().layer();
+                null, null, 0).materialInfo().layer();
     }
 
     /**

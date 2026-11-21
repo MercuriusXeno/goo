@@ -1,7 +1,8 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
-#moj_import <minecraft:projection.glsl>
-#moj_import <minecraft:dynamictransforms.glsl>
+#include <minecraft:projection.glsl>
+#include <minecraft:dynamictransforms.glsl>
 
 // Frost goo's burnout explosion (decision elemental-explosion-per-type).
 // FrostExplosionVisual packs the vertex color: red is the explosion's
@@ -10,14 +11,14 @@
 // The normal carries the ring's seed as its angle about the up axis, so each
 // ring billows from its own noise (decision nova-ring-grows-with-the-hold).
 
-in vec3 Position;
-in vec4 Color;
-in vec3 Normal;
+layout(location = 0) in vec3 Position;
+layout(location = 1) in vec4 Color;
+layout(location = 2) in vec3 Normal;
 
-out float progress;
-out vec2 discPos;
-out float fog;
-out float seed;
+layout(location = 0) out float progress;
+layout(location = 1) out vec2 discPos;
+layout(location = 2) out float fog;
+layout(location = 3) out float seed;
 
 void main() {
     gl_Position = ProjMat * ModelViewMat * vec4(Position, 1.0);

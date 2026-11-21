@@ -1,20 +1,21 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.StagePass;
 import com.mercuriusxeno.goo.client.zone.BluePlanetRenderer;
 import com.mercuriusxeno.goo.client.zone.LunarSky;
-import com.mojang.blaze3d.PrimitiveTopology;
-import com.mojang.blaze3d.buffers.GpuBuffer;
-import com.mojang.blaze3d.buffers.GpuBufferSlice;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.systems.RenderPass;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.textures.GpuTextureView;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.MeshData;
-import com.mojang.blaze3d.vertex.VertexFormat;
+import com.mojang.renderpearl.api.buffers.GpuBuffer;
+import com.mojang.renderpearl.api.buffers.GpuBufferSlice;
+import com.mojang.renderpearl.api.commands.RenderPass;
+import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
+import com.mojang.renderpearl.api.textures.GpuTextureView;
+import com.mojang.renderpearl.api.vertex.VertexFormat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
@@ -28,8 +29,6 @@ import org.joml.Vector3f;
 import org.joml.Vector4f;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
-import java.util.Optional;
-import java.util.OptionalDouble;
 
 /**
  * The bodies the Lunar trip swells over the frame: vanilla's moon, its sprite on its quad as vanilla's sky lays it,
@@ -82,12 +81,12 @@ final class LunarTripBodies {
         GpuBuffer indices = sequential.getBuffer(QUAD_INDICES);
         GpuTextureView color = Minecraft.getInstance().gameRenderer.mainRenderTarget().getColorTextureView();
         GpuTextureView depth = Minecraft.getInstance().gameRenderer.mainRenderTarget().getDepthTextureView();
-        try (RenderPass pass = RenderSystem.getDevice().createCommandEncoder()
-                .createRenderPass(() -> MOON_LABEL, color, Optional.empty(), depth, OptionalDouble.empty())) {
-            pass.setPipeline(GooRenderTypes.LUNAR_MOON);
+        try (StagePass stage = StagePass.onMain(() -> MOON_LABEL)) {
+            RenderPass pass = stage.pass();
+            pass.setPipeline(RenderSystem.getCompiledPipeline(GooRenderTypes.LUNAR_MOON));
             RenderSystem.bindDefaultUniforms(pass);
             pass.setUniform(DYNAMIC_TRANSFORMS, transforms);
-            pass.bindTexture(MOON_SAMPLER, atlas.getTextureView(), atlas.getSampler());
+            pass.setUniform(MOON_SAMPLER, atlas.getTextureView(), atlas.getSampler());
             pass.setVertexBuffer(0, phases.slice());
             pass.setIndexBuffer(indices, sequential.type());
             pass.drawIndexed(QUAD_INDICES, 1, 0, phase.index() * CORNERS, 0);

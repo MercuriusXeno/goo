@@ -1,8 +1,9 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
-#moj_import <minecraft:dynamictransforms.glsl>
-#moj_import <minecraft:projection.glsl>
-#moj_import <minecraft:globals.glsl>
+#include <minecraft:dynamictransforms.glsl>
+#include <minecraft:projection.glsl>
+#include <minecraft:globals.glsl>
 
 // Drain's miasma vortex (decision drain-casts-a-filled-tornadic-miasma-vortex-along-the-look): the cone
 // Drain strikes, from the glove hand along the look, filled with clumps of miasma being pulled into the
@@ -29,9 +30,9 @@ layout(std140) uniform MiasmaVortex {
 
 uniform sampler2D MiasmaDepthSampler;
 
-in vec3 rayPoint;
+layout(location = 0) in vec3 rayPoint;
 
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;
 
 // GameTime runs from zero to one over a day of 24000 ticks; this many seconds make one day.
 const float SECONDS_PER_DAY = 1200.0;

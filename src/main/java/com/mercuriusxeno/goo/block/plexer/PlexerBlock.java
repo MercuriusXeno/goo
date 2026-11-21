@@ -83,7 +83,7 @@ public class PlexerBlock extends FacingRedstoneMachineBlock {
      * @param properties the block properties
      */
     public PlexerBlock(Properties properties) {
-        super(properties, PlexerBlock::new);
+        super(properties);
     }
 
     /**

@@ -11,6 +11,7 @@ import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.Sheets;
 import net.minecraft.client.renderer.SubmitNodeCollector;
+import net.minecraft.client.renderer.entity.state.AvatarRenderState;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.client.resources.model.geometry.BakedQuad;
@@ -138,22 +139,24 @@ public final class PhasedHands {
      * @param event the arm render event
      */
     @SubscribeEvent(priority = EventPriority.LOWEST)
-    public static void onRenderArm(RenderArmEvent<?> event) {
-        // The arm event fires for every avatar, a mannequin among them; goo draws on a player's arm alone.
-        if (!(event.getAvatar() instanceof AbstractClientPlayer player)) {
+    public static void onRenderArm(RenderArmEvent event) {
+        // Minecraft 26.3 fires the arm event for the local player's first-person hands alone.
+        AbstractClientPlayer player = Minecraft.getInstance().player;
+        AvatarRenderState avatar = event.getPlayerRenderState().avatarRenderState;
+        if (player == null || avatar == null) {
             return;
         }
         if (!EldritchEvents.isOutOfPhase(player)) {
             return;
         }
         event.setCanceled(true);
-        PlayerModel model = Minecraft.getInstance().getEntityRenderDispatcher().getPlayerRenderer(player).getModel();
+        PlayerModel model = Minecraft.getInstance().getEntityRenderDispatcher().getRenderer(avatar).getModel();
         ModelPart arm = event.getArm() == HumanoidArm.RIGHT ? model.rightArm : model.leftArm;
         arm.resetPose();
         arm.visible = true;
         arm.zRot = event.getArm() == HumanoidArm.RIGHT ? ARM_TILT : -ARM_TILT;
         event.getSubmitNodeCollector().submitModelPart(arm, event.getPoseStack(),
-                PhaseLook.bodyType(player.getSkin().body().texturePath()), event.getLightCoords(),
-                OverlayTexture.NO_OVERLAY, null, PhaseLook.ownTint(WHITE), null);
+                PhaseLook.bodyType(event.getSkinTexture()), event.getLightCoords(),
+                OverlayTexture.NO_OVERLAY, null, PhaseLook.ownTint(WHITE));
     }
 }

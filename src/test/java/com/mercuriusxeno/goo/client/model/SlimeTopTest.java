@@ -8,7 +8,6 @@ import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -27,8 +26,8 @@ class SlimeTopTest {
     private static final int PILES = 200;
     /** The sprite records no call, since the reach sweep bakes every quad of thousands of blocks against it. */
     private static final BakedQuad.MaterialInfo MATERIAL = new BakedQuad.MaterialInfo(
-            mock(TextureAtlasSprite.class, withSettings().stubOnly()), ChunkSectionLayer.TRANSLUCENT, null,
-            SlimeCoreModel.SHELL_TINT, true, 0, false);
+            mock(TextureAtlasSprite.class, withSettings().stubOnly()), ChunkSectionLayer.TRANSLUCENT, null, null, null,
+            SlimeCoreModel.SHELL_TINT, null, 0, false);
     private static final int WEST = 0;
     private static final int NORTH = 0;
     private static final int EAST = 3;

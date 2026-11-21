@@ -395,7 +395,7 @@ final class LifeMarkBillboard {
         }
         poseStack.pushPose();
         poseStack.translate(above.x, above.y, above.z);
-        poseStack.mulPose(camera.rotation());
+        poseStack.rotate(camera.rotation());
         poseStack.scale(1f, Y_DOWNWARD, 1f);
         poseStack.translate(0f, -Layout.HEART_WIDTH, 0f);
         draw.run();

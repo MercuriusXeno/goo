@@ -6,7 +6,6 @@ import com.mercuriusxeno.goo.block.GooMachineBlock;
 import com.mercuriusxeno.goo.block.gasket.GasketInstallation;
 import com.mercuriusxeno.goo.item.GooInteractionType;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
-import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.InteractionHand;
@@ -16,7 +15,6 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.HorizontalDirectionalBlock;
 import net.minecraft.world.level.block.RenderShape;
@@ -44,7 +42,6 @@ import java.util.Set;
  */
 public class CrucibleBlock extends GooMachineBlock {
 
-    public static final MapCodec<CrucibleBlock> CODEC = simpleCodec(CrucibleBlock::new);
 
     /** Horizontal facing direction - orients the crucible's front (fire-glow) face toward the player. */
     public static final EnumProperty<Direction> FACING = HorizontalDirectionalBlock.FACING;
@@ -83,15 +80,6 @@ public class CrucibleBlock extends GooMachineBlock {
     public BlockState getStateForPlacement(BlockPlaceContext context) {
         return defaultBlockState()
             .setValue(FACING, context.getHorizontalDirection().getOpposite());
-    }
-
-    /** Returns the codec for serialization.
-     *
-     * @return the codec
-     */
-    @Override
-    protected MapCodec<? extends BaseEntityBlock> codec() {
-        return CODEC;
     }
 
     /** Registers all crucible blockstate properties.

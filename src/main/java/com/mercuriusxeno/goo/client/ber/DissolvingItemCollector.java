@@ -7,6 +7,7 @@ import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.item.ItemStackRenderState;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.resources.model.geometry.BakedQuad;
+import net.minecraft.client.resources.model.geometry.ItemQuads;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.item.ItemDisplayContext;
 import org.joml.Matrix4f;
@@ -61,14 +62,15 @@ class DissolvingItemCollector extends ItemQuadCollector {
      * @param overlayCoords  packed overlay coordinates, replaced by the dissolve
      * @param outlineColor   outline color (unused)
      * @param tintLayers     per-tint-index colors from the item color handler
-     * @param quads          the baked quads to render
+     * @param itemQuads      the baked quads to render, split solid from translucent; all of them draw
      * @param foilType       the foil/glint type (unused)
      */
     @Override
     public void submitItem(PoseStack poseStack, ItemDisplayContext displayContext,
                            int lightCoords, int overlayCoords, int outlineColor,
-                           int[] tintLayers, List<BakedQuad> quads,
+                           int[] tintLayers, ItemQuads itemQuads,
                            ItemStackRenderState.FoilType foilType) {
+        List<BakedQuad> quads = itemQuads.all();
         GridSpace space = GridSpace.between(shardPose, poseStack.last().pose());
         resubmitByAtlas(poseStack, quads, GooRenderTypes::crucibleDissolve, (pose, buffer, group) -> {
             for (DissolveGlow.Layer layer : glow.layers()) {

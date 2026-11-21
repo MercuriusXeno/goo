@@ -101,7 +101,7 @@ public final class OculusStyle implements PrismComboStyle {
                 .scale(hover(state.gameTime - state.comboSince - TRANSFORM_TICKS)));
         poseStack.pushPose();
         poseStack.translate(eye.x, eye.y, eye.z);
-        poseStack.mulPose(Axis.YP.rotationDegrees(state.yawToCamera));
+        poseStack.rotate(Axis.YP.rotationDegrees(state.yawToCamera));
         poseStack.translate(-HALF, -HALF, -HALF);
         GooSubmitter.submitBakedBody(poseStack, nodeCollector, state.lightCoords, OculusModels.eye());
         for (int row = 0; row < lidRows(state.lidClosure, TOP_LID_ROWS); row++) {

@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.block.statue;
 
-import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.ItemStack;
@@ -24,7 +23,6 @@ import org.jspecify.annotations.Nullable;
  */
 public class StatueBlock extends BaseEntityBlock {
 
-    public static final MapCodec<StatueBlock> CODEC = simpleCodec(StatueBlock::new);
 
     /**
      * Creates the statue block.
@@ -33,11 +31,6 @@ public class StatueBlock extends BaseEntityBlock {
      */
     public StatueBlock(Properties properties) {
         super(properties);
-    }
-
-    @Override
-    protected @NonNull MapCodec<? extends BaseEntityBlock> codec() {
-        return CODEC;
     }
 
     /**

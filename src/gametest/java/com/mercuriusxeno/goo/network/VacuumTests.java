@@ -306,9 +306,9 @@ public final class VacuumTests {
                     .filter(event -> event.getType() == BREAK_PARTICLES_EVENT && event.getPos().equals(at))
                     .mapToInt(event -> vanillaBurstOf(helper, Block.stateById(event.getData()), at)).sum();
             int sent = seen.sentOf(ClientboundLevelParticlesPacket.class).stream()
-                    .filter(particles -> particles.getParticle() instanceof BlockParticleOption
-                            && BlockPos.containing(particles.getX(), particles.getY(), particles.getZ()).equals(at))
-                    .mapToInt(ClientboundLevelParticlesPacket::getCount).sum();
+                    .filter(particles -> particles.particle() instanceof BlockParticleOption
+                            && BlockPos.containing(particles.x(), particles.y(), particles.z()).equals(at))
+                    .mapToInt(ClientboundLevelParticlesPacket::count).sum();
             int owed = VACUUMED_LAYERS * PARTICLES_PER_LAYER;
             helper.assertTrue(burst + sent == owed, String.format(PARTICLES_WRONG, VACUUMED_LAYERS, owed,
                     burst + sent, burst, sent));

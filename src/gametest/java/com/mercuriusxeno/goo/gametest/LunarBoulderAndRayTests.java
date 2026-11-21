@@ -18,7 +18,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.RandomState;
-import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
+import net.minecraft.world.level.levelgen.feature.Feature;
 import net.minecraft.world.level.levelgen.placement.PlacedFeature;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.List;
@@ -39,8 +39,8 @@ public final class LunarBoulderAndRayTests {
             Identifier.fromNamespaceAndPath(Goo.MODID, "lunar"));
     private static final ResourceKey<PlacedFeature> BOULDER_FIELD = ResourceKey.create(Registries.PLACED_FEATURE,
             Identifier.fromNamespaceAndPath(Goo.MODID, "boulder_field"));
-    private static final ResourceKey<ConfiguredFeature<?, ?>> BOULDER = ResourceKey.create(
-            Registries.CONFIGURED_FEATURE, Identifier.fromNamespaceAndPath(Goo.MODID, "boulder"));
+    private static final ResourceKey<Feature> BOULDER = ResourceKey.create(
+            Registries.FEATURE, Identifier.fromNamespaceAndPath(Goo.MODID, "boulder"));
     private static final int FLOOR_Y = 1;
     private static final int FLOOR_EDGE = 8;
     private static final BlockPos BOULDER_SPOT = new BlockPos(4, FLOOR_Y + 1, 4);
@@ -95,7 +95,7 @@ public final class LunarBoulderAndRayTests {
                 helper.setBlock(new BlockPos(x, FLOOR_Y, z), GooBlocks.REGOLITH.get());
             }
         }
-        ConfiguredFeature<?, ?> boulder = level.registryAccess().lookupOrThrow(Registries.CONFIGURED_FEATURE)
+        Feature boulder = level.registryAccess().lookupOrThrow(Registries.FEATURE)
                 .getOrThrow(BOULDER).value();
         boulder.place(level, level.getChunkSource().getGenerator(), level.getRandom(), helper.absolutePos(BOULDER_SPOT));
         BlockState standing = helper.getBlockState(BOULDER_SPOT);

@@ -43,7 +43,7 @@ final class ShardModels {
         TextureAtlasSprite sprite = mock(TextureAtlasSprite.class);
         when(sprite.atlasLocation()).thenReturn(ITEM_ATLAS);
         BakedQuad.MaterialInfo material = new BakedQuad.MaterialInfo(
-                sprite, ChunkSectionLayer.CUTOUT, null, -1, true, 0, false);
+                sprite, ChunkSectionLayer.CUTOUT, null, null, null, -1, null, 0, false);
         return new BakedQuad(new Vector3f(origin), new Vector3f(origin).add(alongB),
                 new Vector3f(origin).add(alongA).add(alongB), new Vector3f(origin).add(alongA),
                 UVPair.pack(0f, 1f), UVPair.pack(0f, 0f), UVPair.pack(1f, 0f), UVPair.pack(1f, 1f),

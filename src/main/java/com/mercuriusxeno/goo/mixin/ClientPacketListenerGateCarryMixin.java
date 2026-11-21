@@ -38,7 +38,7 @@ public abstract class ClientPacketListenerGateCarryMixin {
             shift = At.Shift.AFTER), cancellable = true)
     private void goo$dropStaleCarrySync(ClientboundEntityPositionSyncPacket packet, CallbackInfo ci) {
         Entity body = level == null ? null : level.getEntity(packet.id());
-        if (body != null && ClientGateCarry.dropStale(body, packet.values().position(), level.getGameTime())) {
+        if (body != null && ClientGateCarry.dropStale(body, packet.position().endPosition(), level.getGameTime())) {
             ci.cancel();
         }
     }

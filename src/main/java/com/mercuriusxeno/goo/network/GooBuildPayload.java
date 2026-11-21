@@ -51,11 +51,11 @@ public record GooBuildPayload(String gooTypeId, String abilityId, BlockPos corne
         buf.writeBlockPos(payload.corner);
         buf.writeBlockPos(payload.opposite);
         buf.writeVarInt(payload.rise);
-        buf.writeEnum(payload.face);
+        buf.writeVarInt(payload.face.ordinal());
     }
 
     private static GooBuildPayload decode(FriendlyByteBuf buf) {
         return new GooBuildPayload(buf.readUtf(), buf.readUtf(), buf.readBlockPos(), buf.readBlockPos(),
-                buf.readVarInt(), buf.readEnum(Direction.class));
+                buf.readVarInt(), Direction.values()[buf.readVarInt()]);
     }
 }

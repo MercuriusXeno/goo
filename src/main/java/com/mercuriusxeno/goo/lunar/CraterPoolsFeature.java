@@ -1,8 +1,10 @@
 package com.mercuriusxeno.goo.lunar;
 
 import com.mercuriusxeno.goo.registry.GooBlocks;
+import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
@@ -10,9 +12,7 @@ import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.RandomState;
 import net.minecraft.world.level.levelgen.feature.Feature;
-import net.minecraft.world.level.levelgen.feature.FeaturePlaceContext;
-import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration;
-import net.minecraft.world.level.levelgen.synth.NormalNoise;
+import net.minecraft.world.level.levelgen.synth.Noise;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -27,7 +27,10 @@ import java.util.Map;
  * shoreline follows the ground's own contour, so the ice never climbs a central peak or a terraced wall.
  * decision lunar-ground-gains-meteoric-iron-impact-glass-breccia-and-crater-ice
  */
-public final class CraterPoolsFeature extends Feature<NoneFeatureConfiguration> {
+public final class CraterPoolsFeature implements Feature {
+
+    /** The feature type's codec, which reads no settings. */
+    public static final MapCodec<CraterPoolsFeature> CODEC = MapCodec.unit(CraterPoolsFeature::new);
 
     /** A small deep crater's pool stands this far over its floor, and a giant crater's this far. */
     static final int SMALL_POOL_DEPTH = 2;
@@ -55,7 +58,7 @@ public final class CraterPoolsFeature extends Feature<NoneFeatureConfiguration> 
             });
 
     /** A crater's pool, keyed by the crater noise it was rolled from, its scale and its cell. */
-    private record PoolKey(NormalNoise noise, boolean giant, int cellX, int cellZ) {
+    private record PoolKey(Noise noise, boolean giant, int cellX, int cellZ) {
     }
 
     /** One crater with a pool: its centre, its radius and its pool's flat level. */
@@ -66,7 +69,6 @@ public final class CraterPoolsFeature extends Feature<NoneFeatureConfiguration> 
      * The crater pools feature, which takes no configuration.
      */
     public CraterPoolsFeature() {
-        super(NoneFeatureConfiguration.CODEC);
     }
 
     /**
@@ -82,14 +84,18 @@ public final class CraterPoolsFeature extends Feature<NoneFeatureConfiguration> 
     }
 
     @Override
-    public boolean place(FeaturePlaceContext<NoneFeatureConfiguration> context) {
-        WorldGenLevel level = context.level();
+    public MapCodec<CraterPoolsFeature> codec() {
+        return CODEC;
+    }
+
+    @Override
+    public boolean place(WorldGenLevel level, ChunkGenerator chunkGenerator, RandomSource random, BlockPos origin) {
         ServerLevel server = level.getLevel();
         RandomState randomState = server.getChunkSource().randomState();
-        NormalNoise noise = randomState.getOrCreateNoise(CraterField.NOISE);
-        int minX = Math.floorDiv(context.origin().getX(), CHUNK_SIDE) * CHUNK_SIDE;
-        int minZ = Math.floorDiv(context.origin().getZ(), CHUNK_SIDE) * CHUNK_SIDE;
-        List<Pool> pools = poolsNear(context.chunkGenerator(), server, randomState, noise, minX, minZ);
+        Noise noise = randomState.getOrCreateNoise(CraterField.NOISE);
+        int minX = Math.floorDiv(origin.getX(), CHUNK_SIDE) * CHUNK_SIDE;
+        int minZ = Math.floorDiv(origin.getZ(), CHUNK_SIDE) * CHUNK_SIDE;
+        List<Pool> pools = poolsNear(chunkGenerator, server, randomState, noise, minX, minZ);
         if (pools.isEmpty()) {
             return false;
         }
@@ -131,7 +137,7 @@ public final class CraterPoolsFeature extends Feature<NoneFeatureConfiguration> 
     }
 
     private static List<Pool> poolsNear(ChunkGenerator generator, ServerLevel server, RandomState randomState,
-            NormalNoise noise, int minX, int minZ) {
+            Noise noise, int minX, int minZ) {
         List<Pool> pools = new ArrayList<>();
         CraterField craters = CraterField.seeded(noise);
         int smallReach = (int) Math.ceil(CraterField.MIN_RADIUS + CraterField.RADIUS_SPREAD);

@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.client.workbench;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import org.junit.jupiter.api.Test;
-import org.lwjgl.glfw.GLFW;
 import java.util.ArrayList;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -25,9 +25,9 @@ class ClickTargetsTest {
         ClickTargets targets = new ClickTargets();
         targets.add(0, 0, 100, 20, () -> ran.add("modify"));
         targets.addFollow(10, 5, 30, 10, () -> ran.add("follow"), null);
-        targets.click(15, 8, GLFW.GLFW_MOUSE_BUTTON_LEFT, NO_MODIFIERS);
-        targets.click(15, 8, GLFW.GLFW_MOUSE_BUTTON_LEFT, GLFW.GLFW_MOD_SHIFT);
-        assertFalse(targets.click(15, 8, GLFW.GLFW_MOUSE_BUTTON_RIGHT, NO_MODIFIERS));
+        targets.click(15, 8, InputConstants.MOUSE_BUTTON_LEFT, NO_MODIFIERS);
+        targets.click(15, 8, InputConstants.MOUSE_BUTTON_LEFT, InputConstants.MOD_SHIFT);
+        assertFalse(targets.click(15, 8, InputConstants.MOUSE_BUTTON_RIGHT, NO_MODIFIERS));
         assertEquals(List.of("modify", "follow"), ran);
     }
 
@@ -42,9 +42,9 @@ class ClickTargetsTest {
         targets.add(0, 0, 100, 20, () -> ran.add("modify"));
         targets.addFollow(10, 5, 30, 10, () -> ran.add("follow"), null);
         targets.addShield(0, 0, 100, 20, () -> ran.add("shield"));
-        targets.click(15, 8, GLFW.GLFW_MOUSE_BUTTON_LEFT, NO_MODIFIERS);
-        targets.click(15, 8, GLFW.GLFW_MOUSE_BUTTON_LEFT, GLFW.GLFW_MOD_SHIFT);
-        targets.click(15, 8, GLFW.GLFW_MOUSE_BUTTON_RIGHT, NO_MODIFIERS);
+        targets.click(15, 8, InputConstants.MOUSE_BUTTON_LEFT, NO_MODIFIERS);
+        targets.click(15, 8, InputConstants.MOUSE_BUTTON_LEFT, InputConstants.MOD_SHIFT);
+        targets.click(15, 8, InputConstants.MOUSE_BUTTON_RIGHT, NO_MODIFIERS);
         assertEquals(List.of("shield", "shield", "shield"), ran);
     }
 }

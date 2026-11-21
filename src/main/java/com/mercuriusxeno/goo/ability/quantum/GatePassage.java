@@ -520,7 +520,7 @@ public final class GatePassage {
         entity.teleport(new TeleportTransition(target, landing.feet(), landing.motion(), landing.yaw(),
                 landing.pitch(), Set.of(), TeleportTransition.DO_NOTHING));
         entity.setDeltaMovement(landing.motion());
-        entity.hurtMarked = true;
+        entity.syncVelocity = true;
         entity.resetFallDistance();
         // aim-and-shots-carry-through-linked-gates: watchers turn the body they draw through the same pair, never
         // sliding it through the walls between

@@ -1,23 +1,24 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
-#moj_import <minecraft:projection.glsl>
-#moj_import <minecraft:dynamictransforms.glsl>
+#include <minecraft:projection.glsl>
+#include <minecraft:dynamictransforms.glsl>
 
 // Crystal goo's burnout explosion (decision elemental-explosion-per-type).
 // CrystalExplosionVisual packs the vertex color: red is the explosion's
 // progress, blue how far the shell has shattered. The normal is the unit
 // direction from the center.
 
-in vec3 Position;
-in vec4 Color;
-in vec3 Normal;
+layout(location = 0) in vec3 Position;
+layout(location = 1) in vec4 Color;
+layout(location = 2) in vec3 Normal;
 
-out vec3 viewPos;
-out vec3 viewNormal;
-out vec3 surfaceDir;
-out float progress;
-out float opacity;
-out float shattered;
+layout(location = 0) out vec3 viewPos;
+layout(location = 1) out vec3 viewNormal;
+layout(location = 2) out vec3 surfaceDir;
+layout(location = 3) out float progress;
+layout(location = 4) out float opacity;
+layout(location = 5) out float shattered;
 
 void main() {
     vec4 vp = ModelViewMat * vec4(Position, 1.0);

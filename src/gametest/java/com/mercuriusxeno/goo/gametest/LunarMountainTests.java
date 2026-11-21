@@ -13,6 +13,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.RandomState;
+import net.minecraft.world.level.levelgen.synth.Noise;
 import net.minecraft.world.level.levelgen.synth.NormalNoise;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
@@ -26,7 +27,7 @@ import java.util.function.Consumer;
 public final class LunarMountainTests {
     private static final String LUNAR_RANGES_RISE_OVER_THE_BASINS = "lunar_ranges_rise_over_the_basins";
 
-    private static final ResourceKey<NormalNoise.NoiseParameters> MARIA = ResourceKey.create(Registries.NOISE,
+    private static final ResourceKey<NormalNoise> MARIA = ResourceKey.create(Registries.NOISE,
             Identifier.fromNamespaceAndPath(Goo.MODID, "lunar_maria"));
     /** The stretch sampled reaches this far from the origin each way, in blocks. */
     private static final int STRETCH_REACH = 1024;
@@ -68,7 +69,7 @@ public final class LunarMountainTests {
         helper.assertTrue(lunar != null, LUNAR_REQUIRED);
         ChunkGenerator generator = lunar.getChunkSource().getGenerator();
         RandomState randomState = lunar.getChunkSource().randomState();
-        NormalNoise maria = randomState.getOrCreateNoise(MARIA);
+        Noise maria = randomState.getOrCreateNoise(MARIA);
         BlockPos peak = null;
         BlockPos basinFloor = null;
         for (int x = -STRETCH_REACH; x <= STRETCH_REACH; x += SAMPLE_STEP) {
@@ -78,7 +79,7 @@ public final class LunarMountainTests {
                 if (peak == null || surfaceY > peak.getY()) {
                     peak = column;
                 }
-                boolean basin = maria.getValue(x, 0.0, z) > 0.0;
+                boolean basin = maria.get(x, 0.0, z) > 0.0;
                 if (basin && (basinFloor == null || surfaceY < basinFloor.getY())) {
                     basinFloor = column;
                 }

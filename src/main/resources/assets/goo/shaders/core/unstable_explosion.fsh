@@ -1,4 +1,5 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
 // Unstable goo's burnout explosion (decision elemental-explosion-per-type):
 // a neon fireball whose white-green core fades to a 39FF14 rim, its surface
@@ -8,17 +9,17 @@
 // ghost's fireball holds unfaded with no flash and evenly bright, crackling
 // on the game clock (decision held-visual-ghosts-the-landing-in-two-passes).
 
-in vec3 viewPos;
-in vec3 viewNormal;
-in vec3 surfaceDir;
-in float progress;
-in float opacity;
-in float ringFlag;
-in float ringRadial;
-in float held;
-in float clock;
+layout(location = 0) in vec3 viewPos;
+layout(location = 1) in vec3 viewNormal;
+layout(location = 2) in vec3 surfaceDir;
+layout(location = 3) in float progress;
+layout(location = 4) in float opacity;
+layout(location = 5) in float ringFlag;
+layout(location = 6) in float ringRadial;
+layout(location = 7) in float held;
+layout(location = 8) in float clock;
 
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;
 
 const vec3 CORE_COLOR = vec3(0.86, 1.0, 0.74);
 const vec3 RIM_COLOR = vec3(0.224, 1.0, 0.078);

@@ -2,16 +2,17 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.ImmediateBuffers;
+import com.mercuriusxeno.goo.client.StagePass;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
-import com.mojang.blaze3d.buffers.GpuBufferSlice;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.pipeline.RenderTarget;
-import com.mojang.blaze3d.systems.RenderPass;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.textures.FilterMode;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import com.mojang.renderpearl.api.buffers.GpuBufferSlice;
+import com.mojang.renderpearl.api.commands.RenderPass;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
+import com.mojang.renderpearl.api.textures.FilterMode;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.Model;
 import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
@@ -30,7 +31,6 @@ import org.joml.Vector4f;
 import org.joml.Vector4fc;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
-import java.util.Optional;
 import java.util.function.Consumer;
 
 /**
@@ -426,12 +426,12 @@ public final class AfterimageRenderer {
         GpuBufferSlice tint = RenderSystem.getDynamicUniforms().writeTransform(new Matrix4f(),
                 new Vector4f(ARGB.redFloat(rgb), ARGB.greenFloat(rgb), ARGB.blueFloat(rgb), 1f), new Vector3f(),
                 new Matrix4f());
-        try (RenderPass pass = RenderSystem.getDevice().createCommandEncoder()
-                .createRenderPass(() -> label, main.getColorTextureView(), Optional.empty())) {
-            pass.setPipeline(pipeline);
+        try (StagePass stage = StagePass.onMainColor(() -> label)) {
+            RenderPass pass = stage.pass();
+            pass.setPipeline(RenderSystem.getCompiledPipeline(pipeline));
             RenderSystem.bindDefaultUniforms(pass);
             pass.setUniform(TRANSFORMS_UNIFORM, tint);
-            pass.bindTexture(MASK_SAMPLER, ripple.getColorTextureView(),
+            pass.setUniform(MASK_SAMPLER, ripple.getColorTextureView(),
                     RenderSystem.getSamplerCache().getClampToEdge(FilterMode.NEAREST));
             pass.draw(FULLSCREEN_VERTICES, 1, 0, 0);
         }

@@ -1,48 +1,92 @@
 {
-  "type": "minecraft:chest",
   "pools": [
     {
-      "rolls": { "type": "minecraft:uniform", "min": 3, "max": 6 },
-      "bonus_rolls": 0.0,
+      "rolls": {
+        "max": 6,
+        "min": 3,
+        "type": "minecraft:uniform"
+      },
+      "bonus_rolls": 0,
       "entries": [
         {
-          "type": "minecraft:item",
+          "modifier": {
+            "type": "minecraft:set_count",
+            "count": {
+              "type": "minecraft:uniform",
+              "min": 1,
+              "max": 4
+            }
+          },
           "name": "goo:meteoric_iron",
-          "weight": 10,
-          "functions": [{ "function": "minecraft:set_count", "count": { "type": "minecraft:uniform", "min": 1, "max": 4 } }]
+          "type": "minecraft:item",
+          "weight": 10
         },
         {
-          "type": "minecraft:item",
+          "modifier": {
+            "type": "minecraft:set_count",
+            "count": {
+              "type": "minecraft:uniform",
+              "min": 2,
+              "max": 6
+            }
+          },
           "name": "goo:impact_glass",
-          "weight": 10,
-          "functions": [{ "function": "minecraft:set_count", "count": { "type": "minecraft:uniform", "min": 2, "max": 6 } }]
+          "type": "minecraft:item",
+          "weight": 10
         },
         {
-          "type": "minecraft:item",
+          "modifier": {
+            "type": "minecraft:set_count",
+            "count": {
+              "type": "minecraft:uniform",
+              "min": 1,
+              "max": 3
+            }
+          },
           "name": "goo:crater_ice",
-          "weight": 6,
-          "functions": [{ "function": "minecraft:set_count", "count": { "type": "minecraft:uniform", "min": 1, "max": 3 } }]
+          "type": "minecraft:item",
+          "weight": 6
         },
         {
-          "type": "minecraft:item",
+          "modifier": {
+            "type": "minecraft:set_count",
+            "count": {
+              "type": "minecraft:uniform",
+              "min": 2,
+              "max": 8
+            }
+          },
           "name": "goo:breccia",
-          "weight": 6,
-          "functions": [{ "function": "minecraft:set_count", "count": { "type": "minecraft:uniform", "min": 2, "max": 8 } }]
+          "type": "minecraft:item",
+          "weight": 6
         },
         {
-          "type": "minecraft:item",
+          "modifier": {
+            "type": "minecraft:set_components",
+            "components": {
+              "goo:goo_type": "goo:astral",
+              "goo:goo_volume": 250
+            }
+          },
           "name": "goo:goo",
-          "weight": 8,
-          "functions": [{ "function": "minecraft:set_components", "components": { "goo:goo_type": "goo:astral", "goo:goo_volume": 250 } }]
+          "type": "minecraft:item",
+          "weight": 8
         },
         {
-          "type": "minecraft:item",
+          "modifier": {
+            "type": "minecraft:set_components",
+            "components": {
+              "goo:goo_type": "goo:xeno",
+              "goo:goo_volume": 250
+            }
+          },
           "name": "goo:goo",
-          "weight": 8,
-          "functions": [{ "function": "minecraft:set_components", "components": { "goo:goo_type": "goo:xeno", "goo:goo_volume": 250 } }]
+          "type": "minecraft:item",
+          "weight": 8
         }
       ]
     }
   ],
-  "random_sequence": "goo:chests/lunar_ruin"
+  "random_sequence": "goo:chests/lunar_ruin",
+  "type": "minecraft:chest"
 }

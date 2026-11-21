@@ -13,9 +13,10 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.SignBlockEntity;
+import net.minecraft.world.level.block.entity.SignTextSlot;
 import net.minecraft.world.level.block.state.BlockState;
-import java.util.function.Consumer;
 import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametests that build the Goo Lab plan through {@link LabBuilder} into a
@@ -129,7 +130,7 @@ public final class LabTests {
         helper.assertTrue(state.is(plannedBlock(placement)), WRONG_BLOCK + placement.offset());
         if (placement.isSign()) {
             SignBlockEntity sign = (SignBlockEntity) helper.getLevel().getBlockEntity(pos);
-            String written = sign == null ? null : sign.getFrontText().getMessage(NAME_LINE, false).getString();
+            String written = sign == null ? null : sign.getText(SignTextSlot.FRONT).getMessages(false).get(NAME_LINE).getString();
             helper.assertTrue(placement.signText().equals(written), WRONG_SIGN_TEXT + placement.offset());
         }
     }

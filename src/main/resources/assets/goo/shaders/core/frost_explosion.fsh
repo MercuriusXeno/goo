@@ -1,18 +1,19 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
 // Frost goo's burnout explosion (decision elemental-explosion-per-type): a
 // fog ring. White-blue fog billows across the disc, drifting outward, dense
 // at the leading edge and thinning behind it, with a crisp frost-white band
 // where the edge meets air. TRANSLUCENT blend.
 
-in float progress;
-in vec2 discPos;
-in float fog;
+layout(location = 0) in float progress;
+layout(location = 1) in vec2 discPos;
+layout(location = 2) in float fog;
 // The ring's seed, an angle: its fog's noise turns by it and shifts along it,
 // so no two rings billow alike (decision nova-ring-grows-with-the-hold).
-in float seed;
+layout(location = 3) in float seed;
 
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;
 
 const vec3 FOG_COLOR = vec3(0.80, 0.90, 0.96);
 const vec3 SHADE_COLOR = vec3(0.62, 0.78, 0.90);

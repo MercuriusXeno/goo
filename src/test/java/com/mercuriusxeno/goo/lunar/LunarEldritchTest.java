@@ -71,8 +71,8 @@ class LunarEldritchTest {
         void theDarkSideSpawnsLargerGroupsThanTheLightSideByTheDatasFactor() throws IOException {
             int factor = resourceJson(DATA_MAP).getAsJsonObject("values").getAsJsonObject(LUNAR_BIOME)
                     .get(LunarEldritch.GROUP_FACTOR_FIELD).getAsInt();
-            int lightSideMax = resourceJson(LUNAR_BIOME_FILE).getAsJsonObject("spawners").getAsJsonArray("monster")
-                    .get(0).getAsJsonObject().get("maxCount").getAsInt();
+            int lightSideMax = BiomeSpawnJson.maxCount(BiomeSpawnJson.monsterSpawners(resourceJson(LUNAR_BIOME_FILE))
+                    .get(0).getAsJsonObject());
             int darkSide = LunarEldritch.volumeAt(DARK_SIDE_X, lightSideMax, factor);
             int lightSide = LunarEldritch.volumeAt(LIGHT_SIDE_X, lightSideMax, factor);
             assertTrue(darkSide > lightSide, "the dark side spawns up to " + darkSide + ", the light side "

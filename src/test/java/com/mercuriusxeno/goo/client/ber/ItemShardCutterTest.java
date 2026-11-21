@@ -5,6 +5,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.item.ItemStackRenderState;
 import net.minecraft.client.resources.model.geometry.BakedQuad;
+import net.minecraft.client.resources.model.geometry.ItemQuads;
 import net.minecraft.world.item.ItemDisplayContext;
 import org.joml.Matrix4f;
 import org.junit.jupiter.api.Nested;
@@ -41,7 +42,7 @@ class ItemShardCutterTest {
                                                                   int shard) {
         SubmitNodeCollector delegate = mock(SubmitNodeCollector.class);
         new DissolvingItemCollector(delegate, DissolveGlow.single(0f, 0xFFFFFF), model, shard, new Matrix4f())
-                .submitItem(new PoseStack(), ItemDisplayContext.FIXED, 0, 0, 0, new int[0], quads,
+                .submitItem(new PoseStack(), ItemDisplayContext.FIXED, 0, 0, 0, new int[0], new ItemQuads(quads, quads, List.of()),
                         ItemStackRenderState.FoilType.NONE);
         ArgumentCaptor<SubmitNodeCollector.CustomGeometryRenderer> geometry =
                 ArgumentCaptor.forClass(SubmitNodeCollector.CustomGeometryRenderer.class);

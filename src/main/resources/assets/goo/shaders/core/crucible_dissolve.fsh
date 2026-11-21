@@ -1,9 +1,10 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
-#moj_import <minecraft:fog.glsl>
-#moj_import <minecraft:dynamictransforms.glsl>
-#moj_import <minecraft:globals.glsl>
-#moj_import "mingle_noise.glsl"
+#include <minecraft:fog.glsl>
+#include <minecraft:dynamictransforms.glsl>
+#include <minecraft:globals.glsl>
+#include <goo:mingle_noise.glsl>
 
 // The dissolve of decision dissolve-shader-on-item: the mingle noise field over
 // the item's sprite pixels is thresholded so the share of the item left standing is the
@@ -18,18 +19,18 @@
 
 uniform sampler2D Sampler0;
 
-in float sphericalVertexDistance;
-in float cylindricalVertexDistance;
-in vec4 vertexColor;
-in vec4 lightMapColor;
-in vec2 texCoord0;
-flat in float dissolveFraction;
-flat in vec3 glowColor;
-flat in float glowShare;
-flat in float glowLayer;
-flat in float dissolveSeed;
+layout(location = 0) in float sphericalVertexDistance;
+layout(location = 1) in float cylindricalVertexDistance;
+layout(location = 2) in vec4 vertexColor;
+layout(location = 3) in vec4 lightMapColor;
+layout(location = 4) in vec2 texCoord0;
+layout(location = 5) flat in float dissolveFraction;
+layout(location = 6) flat in vec3 glowColor;
+layout(location = 7) flat in float glowShare;
+layout(location = 8) flat in float glowLayer;
+layout(location = 9) flat in float dissolveSeed;
 
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;
 
 // Noise cells per item pixel: a cell spans four of a 16-pixel item's pixels,
 // so a melting patch is several pixels across however small the crucible

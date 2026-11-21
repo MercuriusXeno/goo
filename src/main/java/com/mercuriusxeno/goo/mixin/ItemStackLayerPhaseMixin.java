@@ -4,15 +4,13 @@ import com.mercuriusxeno.goo.client.ability.PhasedHands;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.special.SpecialModelRenderer;
-import net.minecraft.client.resources.model.geometry.BakedQuad;
+import net.minecraft.client.resources.model.geometry.ItemQuads;
 import org.jspecify.annotations.Nullable;
-import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import java.util.List;
 import it.unimi.dsi.fastutil.ints.IntList;
 
 /**
@@ -28,8 +26,7 @@ public abstract class ItemStackLayerPhaseMixin {
     private static final String SHADOWED = "shadowed by mixin";
 
     @Shadow
-    @Final
-    private List<BakedQuad> quads;
+    private ItemQuads quads;
 
     @Shadow
     private @Nullable IntList tintLayers;
@@ -60,7 +57,7 @@ public abstract class ItemStackLayerPhaseMixin {
         }
         poseStack.pushPose();
         applyTransform(poseStack.last());
-        PhasedHands.submitFaded(poseStack, collector, quads,
+        PhasedHands.submitFaded(poseStack, collector, quads.all(),
                 tintLayers != null ? tintLayers.toIntArray() : new int[0], light, overlay);
         poseStack.popPose();
         ci.cancel();

@@ -3,7 +3,7 @@ package com.mercuriusxeno.goo.client.tooltip;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.neoforged.neoforge.client.settings.IKeyConflictContext;
 import net.neoforged.neoforge.client.settings.KeyConflictContext;
-import org.lwjgl.glfw.GLFW;
+import org.lwjgl.sdl.SDLScancode;
 
 /**
  * The Goo values key as pure decisions: its name, its default key, the
@@ -17,7 +17,7 @@ public final class GooValuesKeyGate {
     public static final String NAME_KEY = "key.goo.goo_values";
 
     /** The Goo values mapping's default key. */
-    public static final int DEFAULT_KEY = GLFW.GLFW_KEY_G;
+    public static final int DEFAULT_KEY = InputConstants.KEY_G;
 
     /** Active in any screen, conflicting only with other GUI keys. */
     public static final IKeyConflictContext CONFLICT_CONTEXT = KeyConflictContext.GUI;
@@ -28,7 +28,7 @@ public final class GooValuesKeyGate {
         /**
          * Whether a keyboard key is down.
          *
-         * @param key the GLFW key code
+         * @param key the SDL scancode
          * @return true while the key is held
          */
         boolean keyDown(int key);
@@ -36,7 +36,7 @@ public final class GooValuesKeyGate {
         /**
          * Whether a mouse button is down.
          *
-         * @param button the GLFW mouse button
+         * @param button the SDL mouse button
          * @return true while the button is held
          */
         boolean mouseButtonDown(int button);
@@ -45,8 +45,7 @@ public final class GooValuesKeyGate {
     private GooValuesKeyGate() {}
 
     /**
-     * Whether the input bound to Goo values is down. An unbound key or a
-     * scancode binding reads up.
+     * Whether the input bound to Goo values is down. An unbound key reads up.
      *
      * @param type   the bound input's type
      * @param code   the bound input's code
@@ -55,9 +54,8 @@ public final class GooValuesKeyGate {
      */
     public static boolean boundInputDown(InputConstants.Type type, int code, InputStates states) {
         return switch (type) {
-            case KEYSYM -> code != GLFW.GLFW_KEY_UNKNOWN && states.keyDown(code);
+            case KEYBOARD -> code != SDLScancode.SDL_SCANCODE_UNKNOWN && states.keyDown(code);
             case MOUSE -> states.mouseButtonDown(code);
-            case SCANCODE -> false;
         };
     }
 }

@@ -1,6 +1,7 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
-#moj_import <minecraft:globals.glsl>
+#include <minecraft:globals.glsl>
 
 // Leaf's held ghost, Bloom's sphere (decision bloom-places-buds-by-biome-and-surface):
 // a soft glowing green-gold haze filling the sphere Bloom covers, a green fog
@@ -8,10 +9,10 @@
 // up through the haze, brighter low down. A whole sphere, whichever face the
 // throw strikes. LIGHTNING blend, so the haze glows.
 
-in vec3 surfaceDir;
-in float opacity;
+layout(location = 0) in vec3 surfaceDir;
+layout(location = 1) in float opacity;
 
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;
 
 // GameTime is the fraction of a 24000-tick day.
 const float TICKS_PER_DAY = 24000.0;

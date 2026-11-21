@@ -8,8 +8,14 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.util.KeyDispatchDataCodec;
-import net.minecraft.world.level.levelgen.DensityFunction;
+import net.minecraft.util.Interval;
+import net.minecraft.world.level.levelgen.densityfunction.DensityBuffer;
+import net.minecraft.world.level.levelgen.densityfunction.DensityFunction;
+import net.minecraft.world.level.levelgen.densityfunction.DensitySampler;
+import net.minecraft.world.level.levelgen.densityfunction.DensityVolume;
+import net.minecraft.world.level.levelgen.densityfunction.DfRewriteRule;
+import net.minecraft.world.level.levelgen.densityfunction.SamplerContext;
+import net.minecraft.world.level.levelgen.synth.Noise;
 import net.minecraft.world.level.levelgen.synth.NormalNoise;
 import java.util.Optional;
 
@@ -22,15 +28,14 @@ import java.util.Optional;
  *
  * @param noise the seeded noise each cell's rolls read
  */
-public record LavaTubes(DensityFunction.NoiseHolder noise) implements DensityFunction {
+public record LavaTubes(Noise noise) implements DensitySampler {
 
     /** The data codec of the {@code goo:lava_tubes} density function type, naming the noise its rolls read. */
-    public static final MapCodec<LavaTubes> DATA_CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
-            DensityFunction.NoiseHolder.CODEC.fieldOf("noise").forGetter(LavaTubes::noise)
-    ).apply(instance, LavaTubes::new));
-    private static final KeyDispatchDataCodec<LavaTubes> CODEC = KeyDispatchDataCodec.of(DATA_CODEC);
+    public static final MapCodec<Definition> DATA_CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
+            NormalNoise.CODEC.fieldOf("noise").forGetter(Definition::noise)
+    ).apply(instance, Definition::new));
     /** The noise the tubes' cells roll from. */
-    public static final ResourceKey<NormalNoise.NoiseParameters> NOISE = ResourceKey.create(Registries.NOISE,
+    public static final ResourceKey<NormalNoise> NOISE = ResourceKey.create(Registries.NOISE,
             Identifier.fromNamespaceAndPath(Goo.MODID, "lunar_lava_tubes"));
 
     /** A tube's highest point, over the highest ground, so every tube opens on the surface. */
@@ -150,8 +155,8 @@ public record LavaTubes(DensityFunction.NoiseHolder noise) implements DensityFun
      * @param noise the seeded tube noise
      * @return the field that noise draws
      */
-    public static LavaTubes seeded(NormalNoise noise) {
-        return new LavaTubes(new DensityFunction.NoiseHolder(Holder.direct(noise.parameters()), noise));
+    public static LavaTubes seeded(Noise noise) {
+        return new LavaTubes(noise);
     }
 
     /**
@@ -187,13 +192,22 @@ public record LavaTubes(DensityFunction.NoiseHolder noise) implements DensityFun
      * tube noise rolls once per cell rather than once per block.
      */
     @Override
-    public double compute(DensityFunction.FunctionContext context) {
-        int y = context.blockY();
+    public float sampleValue(SamplerContext context, int blockX, int blockY, int blockZ) {
+        return (float) densityAt(blockX, blockY, blockZ);
+    }
+
+    @Override
+    public void sampleVolume(SamplerContext context, DensityBuffer outputBuffer, DensityVolume volume) {
+        DensitySampler.sampleVolumeNaive(context, outputBuffer, volume, this);
+    }
+
+    private double densityAt(int blockX, int blockY, int blockZ) {
+        int y = blockY;
         if (y > TOP_Y || y < BOTTOM_Y) {
             return SOLID;
         }
-        int x = context.blockX();
-        int z = context.blockZ();
+        int x = blockX;
+        int z = blockZ;
         Tube tube = LAST_CELL.get().tubeAt(this, Math.floorDiv(x, CELL), Math.floorDiv(z, CELL));
         if (tube == null || !tube.crossesColumn(x, z)) {
             return SOLID;
@@ -224,28 +238,37 @@ public record LavaTubes(DensityFunction.NoiseHolder noise) implements DensityFun
         }
     }
 
-    @Override
-    public void fillArray(double[] output, DensityFunction.ContextProvider contextProvider) {
-        contextProvider.fillAllDirectly(output, this);
-    }
+    /**
+     * The density function lunar's noise settings name, compiling to the field its noises draw once the world's
+     * random state seeds them.
+     *
+     * @param noise the noise each cell's rolls read
+     */
+    public record Definition(Holder<NormalNoise> noise) implements DensityFunction {
 
-    @Override
-    public DensityFunction mapChildren(DensityFunction.Visitor visitor) {
-        return new LavaTubes(visitor.visitNoise(noise));
-    }
+        @Override
+        public DensitySampler compileSampler(DensityFunction.CompileContext context) {
+            return new LavaTubes(context.createNoiseSampler(noise));
+        }
 
-    @Override
-    public double minValue() {
-        return OPEN;
-    }
+        @Override
+        public DensityFunction rewriteChildren(DfRewriteRule rule) {
+            return this;
+        }
 
-    @Override
-    public double maxValue() {
-        return SOLID;
-    }
+        @Override
+        public Interval range() {
+            return Interval.of((float) OPEN, (float) SOLID);
+        }
 
-    @Override
-    public KeyDispatchDataCodec<? extends DensityFunction> codec() {
-        return CODEC;
+        @Override
+        public @DensityFunction.Axes int domainAxes() {
+            return DensityFunction.ALL_AXES;
+        }
+
+        @Override
+        public MapCodec<Definition> codec() {
+            return DATA_CODEC;
+        }
     }
 }

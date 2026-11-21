@@ -35,11 +35,11 @@ public record AilmentPayload(int entityId, AilmentKind kind, int durationTicks) 
 
     private static void encode(FriendlyByteBuf buf, AilmentPayload payload) {
         buf.writeVarInt(payload.entityId);
-        buf.writeEnum(payload.kind);
+        buf.writeVarInt(payload.kind.ordinal());
         buf.writeVarInt(payload.durationTicks);
     }
 
     private static AilmentPayload decode(FriendlyByteBuf buf) {
-        return new AilmentPayload(buf.readVarInt(), buf.readEnum(AilmentKind.class), buf.readVarInt());
+        return new AilmentPayload(buf.readVarInt(), AilmentKind.values()[buf.readVarInt()], buf.readVarInt());
     }
 }

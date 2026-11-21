@@ -7,8 +7,14 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.util.KeyDispatchDataCodec;
-import net.minecraft.world.level.levelgen.DensityFunction;
+import net.minecraft.util.Interval;
+import net.minecraft.world.level.levelgen.densityfunction.DensityBuffer;
+import net.minecraft.world.level.levelgen.densityfunction.DensityFunction;
+import net.minecraft.world.level.levelgen.densityfunction.DensitySampler;
+import net.minecraft.world.level.levelgen.densityfunction.DensityVolume;
+import net.minecraft.world.level.levelgen.densityfunction.DfRewriteRule;
+import net.minecraft.world.level.levelgen.densityfunction.SamplerContext;
+import net.minecraft.world.level.levelgen.synth.Noise;
 import net.minecraft.world.level.levelgen.synth.NormalNoise;
 
 /**
@@ -20,19 +26,18 @@ import net.minecraft.world.level.levelgen.synth.NormalNoise;
  * @param line  the noise whose zero line a rille follows
  * @param maria the noise reading basin above zero
  */
-public record RilleField(DensityFunction.NoiseHolder line, DensityFunction.NoiseHolder maria) implements DensityFunction {
+public record RilleField(Noise line, Noise maria) implements DensitySampler {
 
     /** The data codec of the {@code goo:rilles} density function type, naming its line noise and the maria noise. */
-    public static final MapCodec<RilleField> DATA_CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
-            DensityFunction.NoiseHolder.CODEC.fieldOf("line").forGetter(RilleField::line),
-            DensityFunction.NoiseHolder.CODEC.fieldOf("maria").forGetter(RilleField::maria)
-    ).apply(instance, RilleField::new));
-    private static final KeyDispatchDataCodec<RilleField> CODEC = KeyDispatchDataCodec.of(DATA_CODEC);
+    public static final MapCodec<Definition> DATA_CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
+            NormalNoise.CODEC.fieldOf("line").forGetter(Definition::line),
+            NormalNoise.CODEC.fieldOf("maria").forGetter(Definition::maria)
+    ).apply(instance, Definition::new));
     /** The noise lunar's rilles follow the zero line of. */
-    public static final ResourceKey<NormalNoise.NoiseParameters> LINE_NOISE = ResourceKey.create(Registries.NOISE,
+    public static final ResourceKey<NormalNoise> LINE_NOISE = ResourceKey.create(Registries.NOISE,
             Identifier.fromNamespaceAndPath(Goo.MODID, "lunar_rilles"));
     /** The noise reading lunar's basins above zero. */
-    public static final ResourceKey<NormalNoise.NoiseParameters> MARIA_NOISE = ResourceKey.create(Registries.NOISE,
+    public static final ResourceKey<NormalNoise> MARIA_NOISE = ResourceKey.create(Registries.NOISE,
             Identifier.fromNamespaceAndPath(Goo.MODID, "lunar_maria"));
 
     /** How deep a rille cuts on its line, in blocks. */
@@ -68,9 +73,9 @@ public record RilleField(DensityFunction.NoiseHolder line, DensityFunction.Noise
      * @param maria the seeded maria noise
      * @return the field those noises draw
      */
-    public static RilleField seeded(NormalNoise line, NormalNoise maria) {
-        return new RilleField(new DensityFunction.NoiseHolder(Holder.direct(line.parameters()), line),
-                new DensityFunction.NoiseHolder(Holder.direct(maria.parameters()), maria));
+    public static RilleField seeded(Noise line, Noise maria) {
+        return new RilleField(line,
+                maria);
     }
 
     /**
@@ -81,7 +86,7 @@ public record RilleField(DensityFunction.NoiseHolder line, DensityFunction.Noise
      * @return the cut, at most zero
      */
     public double cutAt(int x, int z) {
-        return profile(line.getValue(x, 0.0, z), maria.getValue(x, 0.0, z));
+        return profile(line.get(x, 0.0, z), maria.get(x, 0.0, z));
     }
 
     /**
@@ -96,32 +101,51 @@ public record RilleField(DensityFunction.NoiseHolder line, DensityFunction.Noise
     }
 
     @Override
-    public double compute(DensityFunction.FunctionContext context) {
-        return cutAt(context.blockX(), context.blockZ());
+    public float sampleValue(SamplerContext context, int blockX, int blockY, int blockZ) {
+        return (float) densityAt(blockX, blockY, blockZ);
     }
 
     @Override
-    public void fillArray(double[] output, DensityFunction.ContextProvider contextProvider) {
-        contextProvider.fillAllDirectly(output, this);
+    public void sampleVolume(SamplerContext context, DensityBuffer outputBuffer, DensityVolume volume) {
+        DensitySampler.sampleVolumeNaive(context, outputBuffer, volume, this);
     }
 
-    @Override
-    public DensityFunction mapChildren(DensityFunction.Visitor visitor) {
-        return new RilleField(visitor.visitNoise(line), visitor.visitNoise(maria));
+    private double densityAt(int blockX, int blockY, int blockZ) {
+        return cutAt(blockX, blockZ);
     }
 
-    @Override
-    public double minValue() {
-        return -DEPTH;
-    }
+    /**
+     * The density function lunar's noise settings name, compiling to the field its noises draw once the world's
+     * random state seeds them.
+     *
+     * @param line the noise whose zero line a rille follows
+     * @param maria the noise reading basin above zero
+     */
+    public record Definition(Holder<NormalNoise> line, Holder<NormalNoise> maria) implements DensityFunction {
 
-    @Override
-    public double maxValue() {
-        return 0.0;
-    }
+        @Override
+        public DensitySampler compileSampler(DensityFunction.CompileContext context) {
+            return new RilleField(context.createNoiseSampler(line), context.createNoiseSampler(maria));
+        }
 
-    @Override
-    public KeyDispatchDataCodec<? extends DensityFunction> codec() {
-        return CODEC;
+        @Override
+        public DensityFunction rewriteChildren(DfRewriteRule rule) {
+            return this;
+        }
+
+        @Override
+        public Interval range() {
+            return Interval.of((float) (-DEPTH), (float) (0.0));
+        }
+
+        @Override
+        public @DensityFunction.Axes int domainAxes() {
+            return DensityFunction.ALL_AXES;
+        }
+
+        @Override
+        public MapCodec<Definition> codec() {
+            return DATA_CODEC;
+        }
     }
 }

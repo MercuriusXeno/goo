@@ -93,8 +93,8 @@ public class MeteorRenderer extends EntityRenderer<Meteor, MeteorRenderer.Meteor
         Vec3 rock = new Vec3(state.x, state.y + ROCK_SIZE * HALF, state.z).add(state.pathOffset);
         QUEUED.queue(poseStack.last().copy(), rock, GooRenderTypes.GLOW_SHELL_TYPE, (pose, buffer) ->
                 ColorSphere.emit(pose, buffer, Vec3.ZERO, HALO_RADIUS, ARGB.color(HALO_ALPHA, HALO_RGB)));
-        poseStack.mulPose(Axis.XP.rotationDegrees(state.ageInTicks * TUMBLE_X));
-        poseStack.mulPose(Axis.ZP.rotationDegrees(state.ageInTicks * TUMBLE_Z));
+        poseStack.rotate(Axis.XP.rotationDegrees(state.ageInTicks * TUMBLE_X));
+        poseStack.rotate(Axis.ZP.rotationDegrees(state.ageInTicks * TUMBLE_Z));
         poseStack.scale(ROCK_SIZE, ROCK_SIZE, ROCK_SIZE);
         collector.submitCustomGeometry(poseStack, GooRenderTypes.METEOR_ROCK_TYPE, MeteorRenderer::emitRock);
         poseStack.popPose();

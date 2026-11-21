@@ -7,8 +7,14 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.util.KeyDispatchDataCodec;
-import net.minecraft.world.level.levelgen.DensityFunction;
+import net.minecraft.util.Interval;
+import net.minecraft.world.level.levelgen.densityfunction.DensityBuffer;
+import net.minecraft.world.level.levelgen.densityfunction.DensityFunction;
+import net.minecraft.world.level.levelgen.densityfunction.DensitySampler;
+import net.minecraft.world.level.levelgen.densityfunction.DensityVolume;
+import net.minecraft.world.level.levelgen.densityfunction.DfRewriteRule;
+import net.minecraft.world.level.levelgen.densityfunction.SamplerContext;
+import net.minecraft.world.level.levelgen.synth.Noise;
 import net.minecraft.world.level.levelgen.synth.NormalNoise;
 
 /**
@@ -20,20 +26,18 @@ import net.minecraft.world.level.levelgen.synth.NormalNoise;
  * @param footprint the noise spreading the caves where it reads past its threshold
  * @param rubble    the noise heaving the caves' floors
  */
-public record RubbleCaves(DensityFunction.NoiseHolder footprint, DensityFunction.NoiseHolder rubble)
-        implements DensityFunction {
+public record RubbleCaves(Noise footprint, Noise rubble) implements DensitySampler {
 
     /** The data codec of the {@code goo:rubble_caves} density function type, naming its two noises. */
-    public static final MapCodec<RubbleCaves> DATA_CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
-            DensityFunction.NoiseHolder.CODEC.fieldOf("footprint").forGetter(RubbleCaves::footprint),
-            DensityFunction.NoiseHolder.CODEC.fieldOf("rubble").forGetter(RubbleCaves::rubble)
-    ).apply(instance, RubbleCaves::new));
-    private static final KeyDispatchDataCodec<RubbleCaves> CODEC = KeyDispatchDataCodec.of(DATA_CODEC);
+    public static final MapCodec<Definition> DATA_CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
+            NormalNoise.CODEC.fieldOf("footprint").forGetter(Definition::footprint),
+            NormalNoise.CODEC.fieldOf("rubble").forGetter(Definition::rubble)
+    ).apply(instance, Definition::new));
 
     /** The noise spreading the caves. */
-    public static final ResourceKey<NormalNoise.NoiseParameters> FOOTPRINT_NOISE = key("lunar_rubble_caves");
+    public static final ResourceKey<NormalNoise> FOOTPRINT_NOISE = key("lunar_rubble_caves");
     /** The noise heaving the caves' rubble floors. */
-    public static final ResourceKey<NormalNoise.NoiseParameters> RUBBLE_NOISE = key("lunar_rubble");
+    public static final ResourceKey<NormalNoise> RUBBLE_NOISE = key("lunar_rubble");
 
     /** A cave spreads where the footprint noise reads past this. */
     static final double FOOTPRINT_THRESHOLD = 0.2;
@@ -46,7 +50,7 @@ public record RubbleCaves(DensityFunction.NoiseHolder footprint, DensityFunction
     private static final double OPEN = -1.0;
     private static final double SOLID = 1.0;
 
-    private static ResourceKey<NormalNoise.NoiseParameters> key(String path) {
+    private static ResourceKey<NormalNoise> key(String path) {
         return ResourceKey.create(Registries.NOISE, Identifier.fromNamespaceAndPath(Goo.MODID, path));
     }
 
@@ -89,9 +93,9 @@ public record RubbleCaves(DensityFunction.NoiseHolder footprint, DensityFunction
      * @param rubble    the seeded rubble noise
      * @return the caves those noises draw
      */
-    public static RubbleCaves seeded(NormalNoise footprint, NormalNoise rubble) {
-        return new RubbleCaves(new DensityFunction.NoiseHolder(Holder.direct(footprint.parameters()), footprint),
-                new DensityFunction.NoiseHolder(Holder.direct(rubble.parameters()), rubble));
+    public static RubbleCaves seeded(Noise footprint, Noise rubble) {
+        return new RubbleCaves(footprint,
+                rubble);
     }
 
     /**
@@ -102,7 +106,7 @@ public record RubbleCaves(DensityFunction.NoiseHolder footprint, DensityFunction
      * @return true over a cave
      */
     public boolean holdsCaveAt(int x, int z) {
-        return caveDepth(footprint.getValue(x, 0.0, z)) > 0.0;
+        return caveDepth(footprint.get(x, 0.0, z)) > 0.0;
     }
 
     /**
@@ -113,7 +117,7 @@ public record RubbleCaves(DensityFunction.NoiseHolder footprint, DensityFunction
      * @return the floor's top y
      */
     public int floorYAt(int x, int z) {
-        return floorY(rubble.getValue(x, 0.0, z));
+        return floorY(rubble.get(x, 0.0, z));
     }
 
     /**
@@ -124,7 +128,7 @@ public record RubbleCaves(DensityFunction.NoiseHolder footprint, DensityFunction
      * @return the first solid y over the cave's air
      */
     public int roofYAt(int x, int z) {
-        return roofY(floorYAt(x, z), caveDepth(footprint.getValue(x, 0.0, z)));
+        return roofY(floorYAt(x, z), caveDepth(footprint.get(x, 0.0, z)));
     }
 
     /**
@@ -132,12 +136,21 @@ public record RubbleCaves(DensityFunction.NoiseHolder footprint, DensityFunction
      * and roof, so the footprint and rubble noises read once per column rather than once per block.
      */
     @Override
-    public double compute(DensityFunction.FunctionContext context) {
-        int y = context.blockY();
+    public float sampleValue(SamplerContext context, int blockX, int blockY, int blockZ) {
+        return (float) densityAt(blockX, blockY, blockZ);
+    }
+
+    @Override
+    public void sampleVolume(SamplerContext context, DensityBuffer outputBuffer, DensityVolume volume) {
+        DensitySampler.sampleVolumeNaive(context, outputBuffer, volume, this);
+    }
+
+    private double densityAt(int blockX, int blockY, int blockZ) {
+        int y = blockY;
         if (y < LunarDepths.CAVERN_ZONE_TOP_Y || y >= LunarDepths.SHALLOW_ZONE_TOP_Y) {
             return SOLID;
         }
-        LastColumn column = LAST_COLUMN.get().read(this, context.blockX(), context.blockZ());
+        LastColumn column = LAST_COLUMN.get().read(this, blockX, blockZ);
         return y > column.floorY && y < column.roofY ? OPEN : SOLID;
     }
 
@@ -168,28 +181,38 @@ public record RubbleCaves(DensityFunction.NoiseHolder footprint, DensityFunction
         }
     }
 
-    @Override
-    public void fillArray(double[] output, DensityFunction.ContextProvider contextProvider) {
-        contextProvider.fillAllDirectly(output, this);
-    }
+    /**
+     * The density function lunar's noise settings name, compiling to the field its noises draw once the world's
+     * random state seeds them.
+     *
+     * @param footprint the noise spreading the caves where it reads past its threshold
+     * @param rubble the noise heaving the caves' floors
+     */
+    public record Definition(Holder<NormalNoise> footprint, Holder<NormalNoise> rubble) implements DensityFunction {
 
-    @Override
-    public DensityFunction mapChildren(DensityFunction.Visitor visitor) {
-        return new RubbleCaves(visitor.visitNoise(footprint), visitor.visitNoise(rubble));
-    }
+        @Override
+        public DensitySampler compileSampler(DensityFunction.CompileContext context) {
+            return new RubbleCaves(context.createNoiseSampler(footprint), context.createNoiseSampler(rubble));
+        }
 
-    @Override
-    public double minValue() {
-        return OPEN;
-    }
+        @Override
+        public DensityFunction rewriteChildren(DfRewriteRule rule) {
+            return this;
+        }
 
-    @Override
-    public double maxValue() {
-        return SOLID;
-    }
+        @Override
+        public Interval range() {
+            return Interval.of((float) OPEN, (float) SOLID);
+        }
 
-    @Override
-    public KeyDispatchDataCodec<? extends DensityFunction> codec() {
-        return CODEC;
+        @Override
+        public @DensityFunction.Axes int domainAxes() {
+            return DensityFunction.ALL_AXES;
+        }
+
+        @Override
+        public MapCodec<Definition> codec() {
+            return DATA_CODEC;
+        }
     }
 }

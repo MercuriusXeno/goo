@@ -1,6 +1,7 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
-#moj_import <minecraft:dynamictransforms.glsl>
+#include <minecraft:dynamictransforms.glsl>
 
 // A soft blurred outline around the bodies the red channel of the ripple buffer holds, each
 // at its strength (decision sculker-sight-persists-where-echoes-have-touched): the mask is
@@ -10,9 +11,9 @@
 
 uniform sampler2D InSampler;
 
-in vec2 texCoord;
+layout(location = 0) in vec2 texCoord;
 
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;
 
 // Pixels the glow spreads out from the body's edge.
 const int SOFT_RADIUS = 8;

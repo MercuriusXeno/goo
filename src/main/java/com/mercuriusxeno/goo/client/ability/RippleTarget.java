@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.client.DepthCopyTarget;
 import com.mojang.blaze3d.pipeline.RenderTarget;
-import net.minecraft.client.renderer.rendertype.OutputTarget;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -13,9 +12,6 @@ import org.jspecify.annotations.Nullable;
  */
 public final class RippleTarget {
 
-    /** The output the ripple's mask render types draw into. */
-    public static final OutputTarget OUTPUT = new OutputTarget("goo_ripple", RippleTarget::current);
-
     /** The buffer's label in GPU debuggers. */
     private static final String LABEL = "Goo Ripple";
 
@@ -24,7 +20,12 @@ public final class RippleTarget {
     private RippleTarget() {
     }
 
-    private static @Nullable RenderTarget current() {
+    /**
+     * The target the ripple's mask render types draw into.
+     *
+     * @return the ripple buffer, or null before the first ripple makes it
+     */
+    public static @Nullable RenderTarget current() {
         return TARGET.current();
     }
 

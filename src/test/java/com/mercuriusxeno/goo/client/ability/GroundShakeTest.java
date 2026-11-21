@@ -9,9 +9,10 @@ import com.mercuriusxeno.goo.ability.program.BoreDrillShape;
 import com.mercuriusxeno.goo.ability.program.BoreStep;
 import com.mercuriusxeno.goo.ability.program.BreakPace;
 import com.mercuriusxeno.goo.ability.program.ChannelAim;
+import com.mercuriusxeno.goo.ability.program.GougeStep;
 import com.mercuriusxeno.goo.ability.program.LevelStep;
 import com.mercuriusxeno.goo.ability.program.Step;
-import com.mercuriusxeno.goo.ability.program.GougeStep;
+import com.mercuriusxeno.goo.client.PipelineReads;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.throwing.GloveThrowSender;
 import net.minecraft.client.renderer.state.level.BlockBreakingRenderState;
@@ -182,7 +183,7 @@ class GroundShakeTest {
     void theShakingBlocksAreLitAsTheWorldLightsThemWithNoEntityShadeOverIt() {
         // The tesselator bakes the world's face shade in; a pipeline shading by direction again darkens it.
         assertEquals(Identifier.withDefaultNamespace("core/block"),
-                GroundShake.renderType().pipeline().getVertexShader());
+                PipelineReads.vertexShader(GroundShake.renderType().pipeline()));
     }
 
     @Test

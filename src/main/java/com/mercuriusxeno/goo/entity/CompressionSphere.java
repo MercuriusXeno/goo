@@ -8,6 +8,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.MoveSimulationType;
 import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
@@ -98,6 +99,18 @@ public class CompressionSphere extends Entity {
     @Override
     protected Entity.MovementEmission getMovementEmission() {
         return Entity.MovementEmission.NONE;
+    }
+
+    /**
+     * The sphere moves itself on the server and on each client, as the game's dropped items do: Minecraft 26.3
+     * lets an entity move itself only on a side its move simulation names.
+     * decision minecraft-26-3-update-is-a-port-to-parity
+     *
+     * @return the server and each client
+     */
+    @Override
+    public MoveSimulationType getMoveSimulationType() {
+        return MoveSimulationType.SERVER_AND_CLIENT;
     }
 
     @Override

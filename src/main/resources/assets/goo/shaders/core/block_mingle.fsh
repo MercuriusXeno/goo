@@ -1,9 +1,10 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
-#moj_import <minecraft:fog.glsl>
-#moj_import <minecraft:dynamictransforms.glsl>
-#moj_import <minecraft:globals.glsl>
-#moj_import "mingle_noise.glsl"
+#include <minecraft:fog.glsl>
+#include <minecraft:dynamictransforms.glsl>
+#include <minecraft:globals.glsl>
+#include <goo:mingle_noise.glsl>
 
 // The block transform of decision petrify-stone-encasement-and-calcify-map:
 // the old block mingles into the new. The mingle noise field over world
@@ -14,16 +15,16 @@
 
 uniform sampler2D Sampler0;
 
-in float sphericalVertexDistance;
-in float cylindricalVertexDistance;
-in vec4 vertexColor;
-in vec4 lightMapColor;
-in vec2 texCoord0;
-in vec3 mingleWorldPos;
-flat in float mingleProgress;
-flat in float mingleSeed;
+layout(location = 0) in float sphericalVertexDistance;
+layout(location = 1) in float cylindricalVertexDistance;
+layout(location = 2) in vec4 vertexColor;
+layout(location = 3) in vec4 lightMapColor;
+layout(location = 4) in vec2 texCoord0;
+layout(location = 5) in vec3 mingleWorldPos;
+layout(location = 6) flat in float mingleProgress;
+layout(location = 7) flat in float mingleSeed;
 
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;
 
 // Noise cells per block: a block face breaks into several patches, each
 // several texels across (decision mingle-noise-snaps-to-texels).

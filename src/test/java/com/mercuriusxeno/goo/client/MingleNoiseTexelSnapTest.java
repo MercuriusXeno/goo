@@ -21,7 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class MingleNoiseTexelSnapTest {
 
-    private static final String SHADERS = "/assets/goo/shaders/core/";
+    private static final String SHADERS = "/assets/goo/shaders/";
     /** A world-space cell count, a cell four texels across. */
     private static final float WORLD_CELLS_PER_BLOCK = 4f;
     /** crucible_dissolve.fsh's DISSOLVE_CELLS_PER_PIXEL. */
@@ -90,7 +90,7 @@ class MingleNoiseTexelSnapTest {
 
         @Test
         void mingleNoiseDefinesTheSnapAtSixteenTexelsPerBlock() throws IOException {
-            String noise = shader("mingle_noise.glsl");
+            String noise = shader("include/mingle_noise.glsl");
 
             assertTrue(noise.contains("const float MINGLE_WORLD_TEXELS = 16.0;"), "the world texel");
             assertTrue(noise.contains("vec3 mingleTexelSnap(vec3 p, float texelsPerUnit) {\n"
@@ -101,7 +101,7 @@ class MingleNoiseTexelSnapTest {
 
         @Test
         void theFaceTexelStepsOffTheFaceThenSnapsAtTheWorldTexel() throws IOException {
-            String noise = shader("mingle_noise.glsl");
+            String noise = shader("include/mingle_noise.glsl");
 
             assertTrue(noise.contains("return worldPos - faceNormal * (0.25 / MINGLE_WORLD_TEXELS);"), "the face step");
             assertTrue(noise.contains("vec3 mingleFaceTexel(vec3 worldPos) {\n"
@@ -110,14 +110,14 @@ class MingleNoiseTexelSnapTest {
 
         @Test
         void theModelsTexelsAreTheShaders() throws IOException {
-            String noise = shader("mingle_noise.glsl");
+            String noise = shader("include/mingle_noise.glsl");
 
             assertTrue(noise.contains("const float MINGLE_WORLD_TEXELS = " + MingleNoiseModel.WORLD_TEXELS + ";"));
         }
 
         @Test
         void theCrucibleGlowPickKeepsTheSnap() throws IOException {
-            String dissolve = shader("crucible_dissolve.fsh");
+            String dissolve = shader("core/crucible_dissolve.fsh");
             int snapAt = dissolve.indexOf(
                 "vec3 itemPixel = vec3(mingleTexelSnap(texCoord0, atlasPixels) * atlasPixels, 0.0);");
 
@@ -145,7 +145,7 @@ class MingleNoiseTexelSnapTest {
 
         @Test
         void mingleNoiseDefinesTheEaseAndTheCornerBlend() throws IOException {
-            String noise = shader("mingle_noise.glsl");
+            String noise = shader("include/mingle_noise.glsl");
 
             assertTrue(noise.contains("const float MINGLE_CORNER_EASE = "), "the artist's dial");
             assertTrue(noise.contains("return mix(fraction, fraction * fraction * (3.0 - 2.0 * fraction), "
@@ -158,7 +158,7 @@ class MingleNoiseTexelSnapTest {
 
         @Test
         void theCrucibleDissolveThresholdsTheCornerBlend() throws IOException {
-            String dissolve = shader("crucible_dissolve.fsh");
+            String dissolve = shader("core/crucible_dissolve.fsh");
             int fieldAt = indexAfter(dissolve,
                 "float field = mingleCornerField(texCoord0 * atlasPixels, vec2(1.0), DISSOLVE_CELLS_PER_PIXEL,", 0);
 
@@ -168,7 +168,7 @@ class MingleNoiseTexelSnapTest {
 
         @Test
         void theBlockTransformThresholdsTheCornerBlend() throws IOException {
-            String mingle = shader("block_mingle.fsh");
+            String mingle = shader("core/block_mingle.fsh");
             int fieldAt = indexAfter(mingle,
                 "float field = mingleWorldCornerField(mingleWorldPos, MINGLE_BLOCK_CELLS, mingleSeed * MINGLE_SEED_OFFSET);",
                 0);
@@ -180,8 +180,8 @@ class MingleNoiseTexelSnapTest {
 
         @Test
         void petrifyAndVinesThresholdTheCornerBlendAtTheSkinTexel() throws IOException {
-            String stone = shader("petrify_stone.fsh");
-            String vine = shader("vine_tangle.fsh");
+            String stone = shader("core/petrify_stone.fsh");
+            String vine = shader("core/vine_tangle.fsh");
             int stoneAt = indexAfter(stone, "float field = mingleCornerField(skinCoord, skinTexels, PATCH_CELLS,", 0);
 
             assertTrue(indexAfter(stone, "if (field < threshold)", stoneAt) > stoneAt);
@@ -193,7 +193,7 @@ class MingleNoiseTexelSnapTest {
 
         @Test
         void theCoatEdgeBlendsItsNoiseAtTheCorners() throws IOException {
-            String coat = shader("goo_mob_coat.fsh");
+            String coat = shader("core/goo_mob_coat.fsh");
 
             assertTrue(coat.contains("float splatReach(vec3 offset) {\n"
                 + "    float noise = mingleWorldCornerNoise(offset, EDGE_CELLS_PER_BLOCK) - 0.5;\n"
@@ -203,12 +203,12 @@ class MingleNoiseTexelSnapTest {
 
         @Test
         void theSurfaceAndTheOverlayKeepThePlainSnap() throws IOException {
-            String surface = shader("goo_fluid_surface.fsh");
+            String surface = shader("core/goo_fluid_surface.fsh");
             assertTrue(surface.contains("vec3 faceTexel = mingleFaceTexel(mingleWorldPos);"),
                 "the surface no longer snaps its mingle position to the world texel");
             assertTrue(surface.contains("float opacity = mingleOpacity(faceTexel, GameTime, share, seed);"),
                 "the surface's opacity no longer reads the snapped texel");
-            String overlay = shader("goo_ailment_overlay.fsh");
+            String overlay = shader("core/goo_ailment_overlay.fsh");
             assertTrue(overlay.contains("vec2 skinTexel = mingleTexelSnap(skinCoord, skinTexels);"));
             assertTrue(!overlay.contains("mingleCornerField"), "the overlay blends corners where it should keep the plain snap");
         }
@@ -275,7 +275,7 @@ class MingleNoiseTexelSnapTest {
 
         @Test
         void everyNoiseCallInMainTakesTheSnappedSkinTexel() throws IOException {
-            String source = shader("goo_ailment_overlay.fsh");
+            String source = shader("core/goo_ailment_overlay.fsh");
             String main = source.substring(source.indexOf("void main() {"));
             int snapAt = main.indexOf("vec2 skinTexel = mingleTexelSnap(skinCoord, skinTexels);");
             Matcher call = MINGLE_CALL.matcher(main);
@@ -322,9 +322,9 @@ class MingleNoiseTexelSnapTest {
 
         @Test
         void everySkinShaderTakesTheSkinSizeItsLayerHands() throws IOException {
-            String stone = shader("petrify_stone.fsh");
-            String vine = shader("vine_tangle.fsh");
-            String overlay = shader("goo_ailment_overlay.fsh");
+            String stone = shader("core/petrify_stone.fsh");
+            String vine = shader("core/vine_tangle.fsh");
+            String overlay = shader("core/goo_ailment_overlay.fsh");
 
             for (String fragment : new String[] {stone, vine, overlay}) {
                 assertTrue(fragment.contains("flat in vec2 skinTexels;"), "a skin shader takes its layer's skin size");

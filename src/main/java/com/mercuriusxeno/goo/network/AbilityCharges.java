@@ -12,6 +12,7 @@ import com.mercuriusxeno.goo.item.SprayerItem;
 import com.mercuriusxeno.goo.registry.GooCapabilities;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.util.Prediction;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import java.util.OptionalInt;
@@ -174,7 +175,7 @@ final class AbilityCharges {
             int[] homeless = {mb};
             refit(canister -> homeless[0] -= CanisterItem.addGoo(canister, type, mb));
             if (homeless[0] > 0) {
-                player.drop(GooStacks.createForOutput(type, homeless[0]), false);
+                player.drop(GooStacks.createForOutput(type, homeless[0]), false, Prediction.PREDICTED);
             }
         }
 
@@ -225,7 +226,7 @@ final class AbilityCharges {
         public void deposit(ResourceKey<GooTypeDefinition> type, int mb) {
             int homeless = GooDeposit.intoInventory(player, ItemStack.EMPTY).deposit(type, mb);
             if (homeless > 0) {
-                player.drop(GooStacks.createForOutput(type, homeless), false);
+                player.drop(GooStacks.createForOutput(type, homeless), false, Prediction.PREDICTED);
             }
         }
     }

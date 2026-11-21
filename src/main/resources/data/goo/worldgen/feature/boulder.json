@@ -1,0 +1,30 @@
+{
+  "type": "goo:boulder",
+  "stone": {
+    "type": "minecraft:weighted",
+    "entries": [
+      {
+        "data": "goo:anorthosite",
+        "weight": 4
+      },
+      {
+        "data": "goo:breccia",
+        "weight": 4
+      },
+      {
+        "data": {
+          "id": "minecraft:basalt",
+          "properties": {
+            "axis": "y"
+          }
+        },
+        "weight": 2
+      }
+    ]
+  },
+  "radius": {
+    "type": "minecraft:uniform",
+    "min_inclusive": 5,
+    "max_inclusive": 10
+  }
+}

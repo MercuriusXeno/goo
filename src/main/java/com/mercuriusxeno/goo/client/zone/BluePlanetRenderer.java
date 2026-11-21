@@ -1,17 +1,18 @@
 package com.mercuriusxeno.goo.client.zone;
 
-import com.mojang.blaze3d.PrimitiveTopology;
-import com.mojang.blaze3d.buffers.GpuBuffer;
-import com.mojang.blaze3d.buffers.GpuBufferSlice;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.systems.RenderPass;
+import com.mercuriusxeno.goo.client.StagePass;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.textures.GpuTextureView;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.MeshData;
-import com.mojang.blaze3d.vertex.VertexFormat;
+import com.mojang.renderpearl.api.buffers.GpuBuffer;
+import com.mojang.renderpearl.api.buffers.GpuBufferSlice;
+import com.mojang.renderpearl.api.commands.RenderPass;
+import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
+import com.mojang.renderpearl.api.textures.GpuTextureView;
+import com.mojang.renderpearl.api.vertex.VertexFormat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.AbstractTexture;
 import net.minecraft.world.level.MoonPhase;
@@ -20,8 +21,6 @@ import org.joml.Matrix4fc;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
 import org.jspecify.annotations.Nullable;
-import java.util.Optional;
-import java.util.OptionalDouble;
 
 /**
  * Draws the blue planet's disc: the hand-drawn sprite of its phase on a quad laid as vanilla's sky lays its moon
@@ -69,12 +68,12 @@ public final class BluePlanetRenderer {
                 new Vector4f(FULL, FULL, FULL, FULL), new Vector3f(), new Matrix4f());
         GpuTextureView color = Minecraft.getInstance().gameRenderer.mainRenderTarget().getColorTextureView();
         GpuTextureView depth = Minecraft.getInstance().gameRenderer.mainRenderTarget().getDepthTextureView();
-        try (RenderPass pass = RenderSystem.getDevice().createCommandEncoder()
-                .createRenderPass(() -> LABEL, color, Optional.empty(), depth, OptionalDouble.empty())) {
-            pass.setPipeline(pipeline);
+        try (StagePass stage = StagePass.onMain(() -> LABEL)) {
+            RenderPass pass = stage.pass();
+            pass.setPipeline(RenderSystem.getCompiledPipeline(pipeline));
             RenderSystem.bindDefaultUniforms(pass);
             pass.setUniform(DYNAMIC_TRANSFORMS, transforms);
-            pass.bindTexture(SAMPLER, sprite.getTextureView(), sprite.getSampler());
+            pass.setUniform(SAMPLER, sprite.getTextureView(), sprite.getSampler());
             pass.setVertexBuffer(0, vertices.slice());
             pass.setIndexBuffer(indices, sequential.type());
             pass.drawIndexed(QUAD_INDICES, 1, 0, 0, 0);

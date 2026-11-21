@@ -186,7 +186,7 @@ public class ContainerEvaluator {
     private void collectFromBundle(ItemStack container, List<ItemStack> items) {
         BundleContents data = container.get(DataComponents.BUNDLE_CONTENTS);
         if (data != null) {
-            data.itemCopyStream().forEach(items::add);
+            data.itemCopies().forEach(items::add);
         }
     }
 

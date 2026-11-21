@@ -1,16 +1,17 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
-#moj_import <minecraft:globals.glsl>
-#moj_import <goo:void_stars.glsl>
+#include <minecraft:globals.glsl>
+#include <goo:void_stars.glsl>
 
 // The pocket's sky stars (decision sky-stars-sit-distant-sparser-and-dimmer-than-voidstone): drawn in the
 // voidstone's own star color at the brightness PocketStarSky gave each star, fainter than the voidstone's,
 // twinkling on the voidstone's clock. Red carries the brightness, green the twinkle rate and blue its phase;
 // alpha carries how bright the whole sea draws.
 
-in vec4 starColor;
+layout(location = 0) in vec4 starColor;
 
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;
 
 const float TICKS_PER_CLOCK = 24000.0;
 const float SLOWEST_TWINKLE = 0.03;

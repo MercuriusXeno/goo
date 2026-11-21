@@ -4,16 +4,17 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.block.ability.CellSurface;
 import com.mercuriusxeno.goo.block.ability.GooShares;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
+import com.mercuriusxeno.goo.client.DepthCopyTarget;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
-import com.mojang.blaze3d.opengl.GlStateManager;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.textures.GpuTexture;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import com.mojang.renderpearl.api.textures.GpuTexture;
+import com.mojang.renderpearl.backend.opengl.GlStateManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.core.BlockPos;
@@ -132,7 +133,7 @@ public final class DowsingXray {
         List<Window> open = windows;
         RenderTarget main = mc.gameRenderer.mainRenderTarget();
         GpuTexture depth = main.getDepthTexture();
-        if (mc.level == null || open.isEmpty() || !main.useStencil || depth == null) {
+        if (mc.level == null || open.isEmpty() || !DepthCopyTarget.hasStencil(main) || depth == null) {
             return;
         }
         Vec3 camera = mc.gameRenderer.mainCamera().position();

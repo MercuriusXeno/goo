@@ -1,12 +1,12 @@
 package com.mercuriusxeno.goo.client.workbench;
 
 import com.mercuriusxeno.goo.workbench.WorkbenchOperations;
+import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.network.chat.Component;
 import org.jspecify.annotations.Nullable;
-import org.lwjgl.glfw.GLFW;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.LinkedHashMap;
@@ -213,7 +213,7 @@ final class VariablesPane {
     /**
      * Enter submits a rename or ends an edit and Escape drops a rename, so Escape on the box keeps the screen open.
      *
-     * @param key the GLFW key pressed
+     * @param key the SDL scancode of the key pressed
      * @return whether the pane took the key
      */
     boolean keyPressed(int key) {
@@ -239,7 +239,7 @@ final class VariablesPane {
             done.run();
             return true;
         }
-        if (key == GLFW.GLFW_KEY_ESCAPE) {
+        if (key == InputConstants.KEY_ESCAPE) {
             cancel.run();
             return true;
         }
@@ -247,7 +247,7 @@ final class VariablesPane {
     }
 
     private static boolean isEnter(int key) {
-        return key == GLFW.GLFW_KEY_ENTER || key == GLFW.GLFW_KEY_KP_ENTER;
+        return key == InputConstants.KEY_RETURN || key == InputConstants.KEY_NUMPADENTER;
     }
 
     

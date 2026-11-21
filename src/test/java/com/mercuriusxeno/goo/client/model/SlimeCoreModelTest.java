@@ -88,10 +88,10 @@ class SlimeCoreModelTest {
                     && Math.abs(at.getZ() - CELL.getZ()) <= 1 ? cell : air;
         });
         BakedQuad.MaterialInfo layers = new BakedQuad.MaterialInfo(mock(TextureAtlasSprite.class),
-                ChunkSectionLayer.TRANSLUCENT, null, 0, true, 0, false);
+                ChunkSectionLayer.TRANSLUCENT, null, null, null, 0, null, 0, false);
         BlockStateModel shell = mock(BlockStateModel.class);
         BakedQuad.MaterialInfo core = new BakedQuad.MaterialInfo(mock(TextureAtlasSprite.class),
-                ChunkSectionLayer.TRANSLUCENT, null, VolumeCellTint.CORE_TINT_INDEX, true, 0, false);
+                ChunkSectionLayer.TRANSLUCENT, null, null, null, VolumeCellTint.CORE_TINT_INDEX, null, 0, false);
         List<BlockStateModelPart> parts = new ArrayList<>();
 
         new SlimeCoreModel(shell, core, layers, Map.of()).collectParts(level, CELL, cell, RandomSource.create(0), parts);
@@ -121,7 +121,7 @@ class SlimeCoreModelTest {
         BlockAndTintGetter level = mock(BlockAndTintGetter.class);
         when(level.getBlockState(any())).thenReturn(mock(BlockState.class));
         BakedQuad.MaterialInfo drip = new BakedQuad.MaterialInfo(mock(TextureAtlasSprite.class),
-                ChunkSectionLayer.TRANSLUCENT, null, 0, true, 0, false);
+                ChunkSectionLayer.TRANSLUCENT, null, null, null, 0, null, 0, false);
         BakedQuad band = SlimeCoreQuads.faceOf(new Vector3f(0, 8 * LAYER_PIXELS - 3, -0.05f),
                 new Vector3f(16, 8 * LAYER_PIXELS, -0.05f), Direction.NORTH, drip);
         BlockStateModelPart dripPart = mock(BlockStateModelPart.class);
@@ -131,7 +131,7 @@ class SlimeCoreModelTest {
         doAnswer(call -> call.<List<BlockStateModelPart>>getArgument(4).add(dripPart))
                 .when(drips).collectParts(any(), any(), any(), any(), any());
         BakedQuad.MaterialInfo film = new BakedQuad.MaterialInfo(mock(TextureAtlasSprite.class),
-                ChunkSectionLayer.TRANSLUCENT, null, 0, true, 0, false);
+                ChunkSectionLayer.TRANSLUCENT, null, null, null, 0, null, 0, false);
         List<BlockStateModelPart> parts = new ArrayList<>();
 
         new SlimeCoreModel(mock(BlockStateModel.class), film, film, Map.of(Direction.NORTH, drips))
@@ -163,7 +163,7 @@ class SlimeCoreModelTest {
         when(level.getBlockState(CELL.below())).thenReturn(full);
         BlockStateModel drips = mock(BlockStateModel.class);
         BakedQuad.MaterialInfo film = new BakedQuad.MaterialInfo(mock(TextureAtlasSprite.class),
-                ChunkSectionLayer.TRANSLUCENT, null, 0, true, 0, false);
+                ChunkSectionLayer.TRANSLUCENT, null, null, null, 0, null, 0, false);
 
         new SlimeCoreModel(mock(BlockStateModel.class), film, film, Map.of(Direction.NORTH, drips))
                 .collectParts(level, CELL, cell, RandomSource.create(0), new ArrayList<>());
@@ -182,7 +182,7 @@ class SlimeCoreModelTest {
     @Test
     void theBreakLinesFindTheBlocksBox() {
         BakedQuad.MaterialInfo film = new BakedQuad.MaterialInfo(mock(TextureAtlasSprite.class),
-                ChunkSectionLayer.TRANSLUCENT, null, 0, true, 0, false);
+                ChunkSectionLayer.TRANSLUCENT, null, null, null, 0, null, 0, false);
         List<BlockStateModelPart> parts = new ArrayList<>();
 
         new SlimeCoreModel(mock(BlockStateModel.class), film, film, Map.of(), 8)

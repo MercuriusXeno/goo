@@ -10,6 +10,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.attribute.EnvironmentAttributes;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.LivingEntity;
@@ -93,9 +94,10 @@ public final class ZooSpawnTests {
 
     private static Set<EntityType<?>> naturalSpawnsAt(GameTestHelper helper, BlockPos cell,
                                                       Predicate<MobCategory> categories) {
-        MobSpawnSettings settings = helper.getLevel().getBiome(cell).value().getMobSettings();
+        MobSpawnSettings settings = helper.getLevel().environmentAttributes()
+                .getValue(EnvironmentAttributes.NATURAL_MOB_SPAWNS, cell);
         return Arrays.stream(MobCategory.values()).filter(categories)
-                .flatMap(category -> settings.getMobs(category).unwrap().stream())
+                .flatMap(category -> settings.getMobsToSpawn(category).unwrap().stream())
                 .map(weighted -> weighted.value().type())
                 .collect(Collectors.toSet());
     }

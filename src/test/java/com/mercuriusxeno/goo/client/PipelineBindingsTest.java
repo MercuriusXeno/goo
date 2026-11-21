@@ -1,8 +1,8 @@
 package com.mercuriusxeno.goo.client;
 
-import com.mojang.blaze3d.pipeline.BindGroupLayout;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.shaders.UniformType;
+import com.mojang.renderpearl.api.pipeline.BindGroupLayout;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
+import com.mojang.renderpearl.api.pipeline.UniformType;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.DynamicTest;
@@ -22,6 +22,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -38,7 +39,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class PipelineBindingsTest {
 
-    private static final Pattern IMPORT = Pattern.compile("#moj_import\\s*<([\\w.-]+):([\\w/.-]+)>");
+    private static final Pattern IMPORT = Pattern.compile("#include\\s*<([\\w.-]+):([\\w/.-]+)>");
     private static final String SHADERS = "/assets/%s/shaders/%s";
 
     @TestFactory
@@ -47,13 +48,13 @@ class PipelineBindingsTest {
         return pipelines().stream().map(pipeline -> DynamicTest.dynamicTest(pipeline.getLocation().toString(), () -> {
             String sources = sourcesOf(pipeline);
             List<String> missing = new ArrayList<>();
-            for (String sampler : BindGroupLayout.flattenSamplers(pipeline.getBindGroupLayouts())) {
+            for (String sampler : PipelineReads.samplers(pipeline.getBindGroupLayouts())) {
                 if (!declares(sources, "uniform\\s+\\w*sampler\\w*\\s+" + sampler + "\\s*;")) {
                     missing.add("sampler " + sampler);
                 }
             }
             for (BindGroupLayout.UniformDescription uniform
-                    : BindGroupLayout.flattenUniforms(pipeline.getBindGroupLayouts())) {
+                    : PipelineReads.uniforms(pipeline.getBindGroupLayouts())) {
                 if (uniform.type() == UniformType.UNIFORM_BUFFER && vanillaBlocks.contains(uniform.name())) {
                     continue;
                 }
@@ -71,12 +72,24 @@ class PipelineBindingsTest {
     @TestFactory
     Stream<DynamicTest> noBindingStandsInTwoLayoutsOfOnePipeline() {
         return pipelines().stream().map(pipeline -> DynamicTest.dynamicTest(pipeline.getLocation().toString(), () -> {
-            List<String> names = new ArrayList<>(BindGroupLayout.flattenSamplers(pipeline.getBindGroupLayouts()));
-            BindGroupLayout.flattenUniforms(pipeline.getBindGroupLayouts()).forEach(u -> names.add(u.name()));
+            List<String> names = new ArrayList<>(PipelineReads.samplers(pipeline.getBindGroupLayouts()));
+            PipelineReads.uniforms(pipeline.getBindGroupLayouts()).forEach(u -> names.add(u.name()));
             Set<String> seen = new HashSet<>();
             List<String> twice = names.stream().filter(name -> !seen.add(name)).toList();
             assertTrue(twice.isEmpty(), pipeline.getLocation() + " declares twice: " + twice);
         }));
+    }
+
+    /**
+     * Every goo pipeline draws into a color target: 26.2 gave a pipeline naming none the default target, and 26.3
+     * gives it none, so a pipeline still leaning on that default would draw nothing.
+     * decision minecraft-26-3-update-is-a-port-to-parity
+     */
+    @TestFactory
+    Stream<DynamicTest> everyPipelineDrawsIntoAColorTarget() {
+        return pipelines().stream().map(pipeline -> DynamicTest.dynamicTest(pipeline.getLocation().toString(),
+                () -> assertNotNull(PipelineReads.colorTarget(pipeline),
+                        pipeline.getLocation() + " names no color target")));
     }
 
     @Test
@@ -131,7 +144,7 @@ class PipelineBindingsTest {
 
     private static String sourcesOf(RenderPipeline pipeline) {
         Set<String> read = new HashSet<>();
-        return source(pipeline.getVertexShader(), ".vsh", read) + source(pipeline.getFragmentShader(), ".fsh", read);
+        return source(PipelineReads.vertexShader(pipeline), ".vsh", read) + source(PipelineReads.fragmentShader(pipeline), ".fsh", read);
     }
 
     private static String source(Identifier shader, String extension, Set<String> read) {

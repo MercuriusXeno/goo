@@ -1,8 +1,9 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.client.GooRenderTypes;
-import com.mojang.blaze3d.pipeline.ColorTargetState;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
+import com.mercuriusxeno.goo.client.PipelineReads;
+import com.mojang.renderpearl.api.pipeline.ColorTargetState;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -138,10 +139,10 @@ class AfterimagesTest {
             assertEquals(PULSES, GooRenderTypes.GOO_RIPPLE_MASKS.size());
             assertEquals(List.of(ColorTargetState.WRITE_RED, ColorTargetState.WRITE_GREEN, ColorTargetState.WRITE_BLUE,
                             ColorTargetState.WRITE_ALPHA),
-                    GooRenderTypes.GOO_RIPPLE_MASKS.stream().map(mask -> mask.getColorTargetState().writeMask())
+                    GooRenderTypes.GOO_RIPPLE_MASKS.stream().map(mask -> PipelineReads.colorTarget(mask).writeMask())
                             .toList());
             for (RenderPipeline mask : GooRenderTypes.GOO_RIPPLE_MASKS) {
-                assertTrue(mask.getColorTargetState().blendFunction().isEmpty(), "a mask blends into another");
+                assertTrue(PipelineReads.colorTarget(mask).blendFunction().isEmpty(), "a mask blends into another");
                 assertFalse(mask.getDepthStencilState().writeDepth(), "a mask writes the world's depth");
                 PipelineShaders.assertExist(mask);
             }
@@ -156,8 +157,8 @@ class AfterimagesTest {
         void edgePassReadsTheMasksOverTheWholeScreen() {
             RenderPipeline edge = GooRenderTypes.GOO_RIPPLE_EDGE;
 
-            assertEquals("core/screenquad", edge.getVertexShader().getPath());
-            assertEquals("core/goo_ripple_edge", edge.getFragmentShader().getPath());
+            assertEquals("core/screenquad", PipelineReads.vertexShader(edge).getPath());
+            assertEquals("core/goo_ripple_edge", PipelineReads.fragmentShader(edge).getPath());
             PipelineShaders.assertExist(edge);
         }
     }

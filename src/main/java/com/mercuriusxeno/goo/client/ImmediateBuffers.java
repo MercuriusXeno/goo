@@ -1,14 +1,16 @@
 package com.mercuriusxeno.goo.client;
 
-import com.mojang.blaze3d.IndexType;
-import com.mojang.blaze3d.buffers.GpuBuffer;
-import com.mojang.blaze3d.systems.GpuDevice;
+import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import com.mojang.renderpearl.api.buffers.GpuBuffer;
+import com.mojang.renderpearl.api.device.GpuDevice;
 import net.minecraft.client.renderer.Sheets;
+import net.minecraft.client.renderer.StagedVertexBuffer;
+import net.minecraft.client.renderer.rendertype.PreparedRenderType;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.resources.model.ModelBakery;
@@ -18,6 +20,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.SequencedMap;
+import java.util.function.Supplier;
 
 /**
  * Render type buffers drawn the moment a batch ends, as 26.1's
@@ -37,6 +40,7 @@ public final class ImmediateBuffers implements RenderTypeBuffers {
     private static final int FIXED_BUFFER_BYTES = RenderType.TRANSIENT_BUFFER_SIZE;
     private static final String VERTEX_LABEL = "Goo immediate vertices";
     private static final String INDEX_LABEL = "Goo immediate indices";
+    private static final String DRAW_LABEL = "Goo immediate draw with ";
 
     private static @Nullable ImmediateBuffers shared;
     private static @Nullable ImmediateBuffers crumbling;
@@ -56,8 +60,9 @@ public final class ImmediateBuffers implements RenderTypeBuffers {
 
     /**
      * The buffers every goo visual on the level stages draws through, as
-     * 26.1's game render buffers handed out: the item sheets and the glints
-     * held to the source's end, every other type shared.
+     * 26.1's game render buffers handed out: the item sheets held to the
+     * source's end, every other type shared. Minecraft 26.3 draws an item's
+     * glint in the item's own render type, so no glint type stands apart.
      *
      * @return the shared source
      */
@@ -65,9 +70,7 @@ public final class ImmediateBuffers implements RenderTypeBuffers {
         if (shared == null) {
             shared = new ImmediateBuffers(SHARED_BUFFER_BYTES, List.of(
                     Sheets.cutoutBlockItemSheet(), Sheets.translucentBlockItemSheet(),
-                    Sheets.cutoutItemSheet(), Sheets.translucentItemSheet(),
-                    RenderTypes.armorEntityGlint(), RenderTypes.glint(), RenderTypes.glintTranslucent(),
-                    RenderTypes.entityGlint(), RenderTypes.waterMask()));
+                    Sheets.cutoutItemSheet(), Sheets.translucentItemSheet(), RenderTypes.waterMask()));
         }
         return shared;
     }
@@ -162,18 +165,34 @@ public final class ImmediateBuffers implements RenderTypeBuffers {
                 RenderSystem.AutoStorageIndexBuffer sequential = RenderSystem.getSequentialBuffer(
                         state.primitiveTopology());
                 GpuBuffer indices = sequential.getBuffer(state.indexCount());
-                type.prepare().drawFromBuffer(vertices, indices, sequential.type(), 0, 0, state.indexCount());
+                drawIn(type, new StagedVertexBuffer.ExecuteInfo(vertices, indices, sequential.type(), 0, 0,
+                        state.indexCount(), state.primitiveTopology()));
             } else {
-                drawIndexed(device, type, vertices, mesh, state.indexType(), state.indexCount());
+                drawIndexed(device, type, vertices, mesh, state);
             }
         }
     }
 
     private static void drawIndexed(GpuDevice device, RenderType type, GpuBuffer vertices, MeshData mesh,
-                                    IndexType indexType, int indexCount) {
+                                    MeshData.DrawState state) {
         try (GpuBuffer indices = device.createBuffer(() -> INDEX_LABEL, GpuBuffer.USAGE_INDEX,
                 mesh.indexBuffer())) {
-            type.prepare().drawFromBuffer(vertices, indices, indexType, 0, 0, indexCount);
+            drawIn(type, new StagedVertexBuffer.ExecuteInfo(vertices, indices, state.indexType(), 0, 0,
+                    state.indexCount(), state.primitiveTopology()));
+        }
+    }
+
+    // The render type's own target where it names one, else the main target, through the stage's pass if it holds one.
+    // The type prepares before any pass of its own opens, since its first prepare may upload its textures.
+    private static void drawIn(RenderType type, StagedVertexBuffer.ExecuteInfo info) {
+        PreparedRenderType prepared = RenderTypePreparation.prepared(type, StagePass.current() != null);
+        if (prepared == null) {
+            return;
+        }
+        RenderTarget own = DrawTarget.ownTargetOf(type);
+        Supplier<String> label = () -> DRAW_LABEL + type;
+        try (StagePass pass = own == null ? StagePass.onMain(label) : StagePass.onTarget(label, own)) {
+            prepared.drawFromBuffer(info, pass.pass());
         }
     }
 }

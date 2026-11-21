@@ -1,4 +1,5 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
 // Flames' heat wave: the view shimmers like air over a fire inside a small
 // box around the point the flame reaches, strongest at its center and gone
@@ -7,7 +8,7 @@
 
 uniform sampler2D InSampler;
 
-in vec2 texCoord;
+layout(location = 0) in vec2 texCoord;
 
 layout(std140) uniform SamplerInfo {
     vec2 OutSize;
@@ -21,7 +22,7 @@ layout(std140) uniform HeatConfig {
     vec4 HeatRegion;
 };
 
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;
 
 const vec3 WARM = vec3(1.0, 0.45, 0.1);
 const float WARM_SHARE = 0.08;

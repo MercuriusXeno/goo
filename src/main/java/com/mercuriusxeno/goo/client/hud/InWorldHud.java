@@ -201,7 +201,7 @@ public final class InWorldHud {
         font.prepareText(text, x, y, color, false, 0).visit(new Font.GlyphVisitor() {
             @Override
             public void acceptRenderable(TextRenderable renderable) {
-                renderable.render(pose, buffers.getBuffer(renderable.renderType(displayMode, false)), light, false);
+                renderable.render(pose, buffers.getBuffer(renderable.renderType(displayMode)), light, false);
             }
         });
         poseStack.popPose();
@@ -219,8 +219,8 @@ public final class InWorldHud {
                                               float pitchFactor) {
         float yaw = (float) Math.toRadians(-camera.yRot() + YAW_OFFSET);
         float pitch = (float) Math.toRadians(camera.xRot()) * pitchFactor;
-        poseStack.mulPose(new Quaternionf().rotationY(yaw));
-        poseStack.mulPose(new Quaternionf().rotationX(-pitch));
+        poseStack.rotate(new Quaternionf().rotationY(yaw));
+        poseStack.rotate(new Quaternionf().rotationX(-pitch));
     }
 
     /**
@@ -232,7 +232,7 @@ public final class InWorldHud {
      * @param face      the block face direction
      */
     public static void applyFaceRotation(PoseStack poseStack, Direction face) {
-        poseStack.mulPose(faceRotation(face));
+        poseStack.rotate(faceRotation(face));
     }
 
     /**
@@ -261,8 +261,8 @@ public final class InWorldHud {
      */
     public static void applyFlatRotation(PoseStack poseStack, Camera camera) {
         float yaw = (float) Math.toRadians(-camera.yRot() + YAW_OFFSET);
-        poseStack.mulPose(new Quaternionf().rotationY(yaw));
-        poseStack.mulPose(new Quaternionf().rotationX((float) Math.PI / HALF));
+        poseStack.rotate(new Quaternionf().rotationY(yaw));
+        poseStack.rotate(new Quaternionf().rotationX((float) Math.PI / HALF));
     }
 
     /**

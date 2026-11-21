@@ -26,7 +26,7 @@ public class Goo {
         GooTypeRegistry.init(modEventBus);
         registerModListeners(modEventBus);
 
-        modContainer.registerConfig(ModConfig.Type.COMMON, GooConfig.SPEC);
+        modContainer.registerConfig(ModConfig.Type.LOCAL, GooConfig.SPEC);
 
         GooEventWiring.register(modEventBus);
 

@@ -98,14 +98,26 @@ public final class KnownItemsOverlay extends Screen {
     }
 
     /**
-     * Places the close button, a red X in the top right corner; Escape closes as well.
+     * Places the close button, a red X in the top right corner; Escape closes as well. The search bar is no
+     * EditBox, so the overlay starts SDL's text input itself, as vanilla's sign editor does, for typing to reach
+     * {@link #charTyped}.
+     * decision minecraft-26-3-update-is-a-port-to-parity
      */
     @Override
     protected void init() {
+        minecraft.textInputManager().startTextInput(this);
         KnownItemsOverlayRenderer.Box close = KnownItemsOverlayRenderer.closeButton(width);
         addRenderableWidget(Button.builder(Component.literal(CLOSE_MARK).withStyle(ChatFormatting.RED), button -> onClose())
                 .bounds(close.left(), close.top(), close.size(), close.size())
                 .build());
+    }
+
+    /**
+     * Stops the text input {@link #init} started.
+     */
+    @Override
+    public void removed() {
+        minecraft.textInputManager().stopTextInput(this);
     }
 
     @Override

@@ -15,8 +15,8 @@ import net.minecraft.client.renderer.item.ItemStackRenderState;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.client.renderer.state.level.QuadParticleRenderState;
-import net.minecraft.client.renderer.texture.TextureAtlasSprite;
-import net.minecraft.client.resources.model.geometry.BakedQuad;
+import net.minecraft.client.renderer.texture.UvMapping;
+import net.minecraft.client.resources.model.geometry.ItemQuads;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.item.ItemDisplayContext;
@@ -69,8 +69,7 @@ abstract class BodyOnlyCollector implements SubmitNodeCollector {
 
     @Override
     public final <S> void submitModel(Model<? super S> model, S state, PoseStack poseStack, RenderType renderType,
-            int lightCoords, int overlayCoords, int tintedColor, @Nullable TextureAtlasSprite sprite, int outlineColor,
-            ModelFeatureRenderer.@Nullable CrumblingOverlay crumblingOverlay) {
+            int lightCoords, int overlayCoords, int tintedColor, @Nullable UvMapping sprite, int outlineColor) {
         if (model == body) {
             onBody(model, state, poseStack, lightCoords);
         }
@@ -95,6 +94,19 @@ abstract class BodyOnlyCollector implements SubmitNodeCollector {
     }
 
     @Override
+    public final void submitTextBackground(PoseStack poseStack, float x0, float y0, float x1, float y1, int color,
+            Font.DisplayMode displayMode, int lightCoords) {
+        // The body alone carries no text.
+    }
+
+    @Override
+    public final <S> void submitCrumblingOverlay(Model<? super S> model, S state, PoseStack poseStack,
+            RenderType renderType, int lightCoords, int overlayCoords, int tintedColor,
+            ModelFeatureRenderer.CrumblingOverlay crumblingOverlay) {
+        // The body alone breaks no block.
+    }
+
+    @Override
     public final void submitFlame(PoseStack poseStack, EntityRenderState renderState, Quaternionf rotation) {
         // The body alone does not burn.
     }
@@ -106,8 +118,7 @@ abstract class BodyOnlyCollector implements SubmitNodeCollector {
 
     @Override
     public final void submitModelPart(ModelPart modelPart, PoseStack poseStack, RenderType renderType,
-            int lightCoords, int overlayCoords, @Nullable TextureAtlasSprite sprite,
-            int tintedColor, ModelFeatureRenderer.@Nullable CrumblingOverlay crumblingOverlay, int outlineColor) {
+            int lightCoords, int overlayCoords, @Nullable UvMapping sprite, int tintedColor, int outlineColor) {
         // A loose part is equipment, which the body alone drops.
     }
 
@@ -124,13 +135,13 @@ abstract class BodyOnlyCollector implements SubmitNodeCollector {
     }
 
     @Override
-    public final void submitBreakingBlockModel(PoseStack poseStack, List<BlockStateModelPart> parts, int progress) {
+    public final void submitBreakingBlockModel(PoseStack poseStack, List<BlockStateModelPart> parts, int progress, boolean isBlockTranslucent) {
         // The body alone breaks no block.
     }
 
     @Override
     public final void submitItem(PoseStack poseStack, ItemDisplayContext displayContext, int lightCoords,
-            int overlayCoords, int outlineColor, int[] tintLayers, List<BakedQuad> quads,
+            int overlayCoords, int outlineColor, int[] tintLayers, ItemQuads itemQuads,
             ItemStackRenderState.FoilType foilType) {
         // The body alone holds no item.
     }

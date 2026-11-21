@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.ability.hex;
 
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.util.Prediction;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -50,7 +51,7 @@ public final class RandomEnchantment {
         pick(pool, player.getRandom()).ifPresent(enchantment -> {
             ItemStack book = EnchantmentHelper.createBook(new EnchantmentInstance(enchantment, LEVEL));
             if (!player.getInventory().add(book)) {
-                player.drop(book, false);
+                player.drop(book, false, Prediction.PREDICTED);
             }
         });
     }

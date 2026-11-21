@@ -1,10 +1,11 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
-#moj_import <minecraft:light.glsl>
-#moj_import <minecraft:fog.glsl>
-#moj_import <minecraft:globals.glsl>
-#moj_import <minecraft:dynamictransforms.glsl>
-#moj_import <minecraft:projection.glsl>
+#include <minecraft:light.glsl>
+#include <minecraft:fog.glsl>
+#include <minecraft:globals.glsl>
+#include <minecraft:dynamictransforms.glsl>
+#include <minecraft:projection.glsl>
 
 // The vanilla entity vertex shader, lit by the lightmap, plus the dissolve of
 // decisions dissolve-shader-on-item and glow-color-from-mingling: the overlay
@@ -14,25 +15,25 @@
 // light byte, which the lightmap lookup drops, carries half the melt's seed
 // (decision diagnose-then-fix-dissolve-repeat).
 
-in vec3 Position;
-in vec4 Color;
-in vec2 UV0;
-in ivec2 UV1;
-in ivec2 UV2;
-in vec3 Normal;
+layout(location = 0) in vec3 Position;
+layout(location = 1) in vec4 Color;
+layout(location = 2) in vec2 UV0;
+layout(location = 3) in ivec2 UV1;
+layout(location = 4) in ivec2 UV2;
+layout(location = 5) in vec3 Normal;
 
 uniform sampler2D Sampler2;
 
-out float sphericalVertexDistance;
-out float cylindricalVertexDistance;
-out vec4 vertexColor;
-out vec4 lightMapColor;
-out vec2 texCoord0;
-flat out float dissolveFraction;
-flat out vec3 glowColor;
-flat out float glowShare;
-flat out float glowLayer;
-flat out float dissolveSeed;
+layout(location = 0) out float sphericalVertexDistance;
+layout(location = 1) out float cylindricalVertexDistance;
+layout(location = 2) out vec4 vertexColor;
+layout(location = 3) out vec4 lightMapColor;
+layout(location = 4) out vec2 texCoord0;
+layout(location = 5) flat out float dissolveFraction;
+layout(location = 6) flat out vec3 glowColor;
+layout(location = 7) flat out float glowShare;
+layout(location = 8) flat out float glowLayer;
+layout(location = 9) flat out float dissolveSeed;
 
 // Must match DissolveGlow.FRACTION_UNITS: UV1.x carries the fraction dissolved.
 const float FRACTION_UNITS = 4096.0;

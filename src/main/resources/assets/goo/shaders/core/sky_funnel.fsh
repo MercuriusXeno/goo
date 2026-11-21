@@ -1,7 +1,8 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
-#moj_import <minecraft:matrix.glsl>
-#moj_import <minecraft:globals.glsl>
+#include <minecraft:matrix.glsl>
+#include <minecraft:globals.glsl>
 
 // The sky funnel and the doorway it rises from (decision
 // sky-funnel-points-down-to-the-doorway-from-any-distance): vanilla's End portal fragment shader as
@@ -15,8 +16,8 @@
 uniform sampler2D Sampler0;
 uniform sampler2D Sampler1;
 
-in vec3 seenAlong;
-in vec4 brightness;
+layout(location = 0) in vec3 seenAlong;
+layout(location = 1) in vec4 brightness;
 
 // How many repeats of the star layers span a direction plane's unit: more repeats, smaller stars.
 const float STARS_ACROSS = 1.5;
@@ -74,7 +75,7 @@ vec3 layersAt(vec2 across) {
     return color;
 }
 
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;
 
 void main() {
     vec3 along = normalize(seenAlong);

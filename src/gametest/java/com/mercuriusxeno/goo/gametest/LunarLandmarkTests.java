@@ -16,15 +16,17 @@ import net.minecraft.server.commands.PlaceCommand;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.random.Weighted;
 import net.minecraft.util.random.WeightedList;
+import net.minecraft.world.attribute.EnvironmentAttributes;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.MobSpawnSettings;
-import net.minecraft.world.level.block.entity.RandomizableContainerBlockEntity;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.entity.RandomizableContainerBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.level.levelgen.densityfunction.SamplerContext;
 import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.minecraft.world.level.levelgen.structure.Structure;
 import net.minecraft.world.level.levelgen.structure.StructureSet;
@@ -170,7 +172,8 @@ public final class LunarLandmarkTests {
         helper.assertTrue(roof.is(Blocks.SCULK) && hollow >= LEAST_HOLLOW && floor.is(Blocks.SCULK),
                 String.format(NEST_HOLLOW, column.atY(top), LEAST_HOLLOW, roof, hollow, floor));
         int biomeWeight = monstrosityWeight(lunar.registryAccess().lookupOrThrow(Registries.BIOME).getOrThrow(LUNAR_BIOME)
-                .value().getMobSettings().getMobs(MobCategory.MONSTER));
+                .value().getAttributes().applyModifier(EnvironmentAttributes.NATURAL_MOB_SPAWNS, MobSpawnSettings.EMPTY)
+                .getMobsToSpawn(MobCategory.MONSTER));
         StructureSpawnOverride overrides = lunar.registryAccess().lookupOrThrow(Registries.STRUCTURE).getOrThrow(NEST)
                 .value().spawnOverrides().get(MobCategory.MONSTER);
         int nestWeight = overrides == null ? 0 : monstrosityWeight(overrides.spawns());
@@ -246,7 +249,9 @@ public final class LunarLandmarkTests {
                 .getOrThrow(structure);
         ChunkGenerator generator = lunar.getChunkSource().getGenerator();
         StructureStart start = holder.value().generate(holder, lunar.dimension(), lunar.registryAccess(), generator,
-                generator.getBiomeSource(), lunar.getChunkSource().randomState(), lunar.getStructureManager(),
+                generator.getBiomeSource(), lunar.getChunkSource().randomState()
+                        .createClimateSampler(SamplerContext.builder().enableCaches().build()),
+                lunar.getChunkSource().randomState(), lunar.getServer().getStructureTemplateManager(),
                 lunar.getSeed(), ChunkPos.containing(spot), 0, lunar, biome -> true);
         if (start.isValid()) {
             BoundingBox box = start.getBoundingBox();

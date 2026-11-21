@@ -2,7 +2,7 @@ package com.mercuriusxeno.goo.mixin;
 
 import com.mercuriusxeno.goo.client.model.FirstPersonSwing;
 import com.mojang.blaze3d.vertex.PoseStack;
-import net.minecraft.client.renderer.ItemInHandRenderer;
+import net.minecraft.client.renderer.FirstPersonHandsAndItemsRenderer;
 import net.minecraft.world.entity.HumanoidArm;
 import org.joml.Matrix4f;
 import org.spongepowered.asm.mixin.Mixin;
@@ -18,8 +18,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * decision blob-holds-its-angle-through-a-throws-swing
  * palm-blob-lifts-as-the-spray-source: the lifted blob stands above the palm as it rests unswung
  */
-@Mixin(ItemInHandRenderer.class)
-public abstract class ItemInHandRendererSwingMixin {
+@Mixin(FirstPersonHandsAndItemsRenderer.class)
+public abstract class FirstPersonHandsSwingMixin {
 
     @Unique
     private final Matrix4f goo$beforeTheSwing = new Matrix4f();

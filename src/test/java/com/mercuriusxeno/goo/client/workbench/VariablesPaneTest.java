@@ -1,14 +1,13 @@
 package com.mercuriusxeno.goo.client.workbench;
 
 import com.mercuriusxeno.goo.workbench.WorkbenchOperations;
+import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.network.chat.Component;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.lwjgl.glfw.GLFW;
 import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
 import org.mockito.InOrder;
@@ -16,7 +15,6 @@ import org.mockito.Mockito;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -893,7 +891,7 @@ class VariablesPaneTest {
         verify(actions).focus(box);
         GroupsPaneTest.GroupCards.focus(box);
         box.setValue("fresh_prefab");
-        assertTrue(read.keyPressed(GLFW.GLFW_KEY_ENTER));
+        assertTrue(read.keyPressed(InputConstants.KEY_RETURN));
         assertEquals(Optional.of("fresh_prefab"), prefabs.editing());
         verify(actions).draftChanged();
         DrawnFrame opened = new DrawnFrame();

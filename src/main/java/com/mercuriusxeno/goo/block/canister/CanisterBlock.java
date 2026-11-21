@@ -7,7 +7,6 @@ import com.mercuriusxeno.goo.block.ShapeHitCheck;
 import com.mercuriusxeno.goo.block.gasket.GasketInstallation;
 import com.mercuriusxeno.goo.item.GooInteractionType;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
-import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -15,7 +14,6 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -36,8 +34,6 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class CanisterBlock extends GooMachineBlock {
 
-    /** Codec for serialization. */
-    public static final MapCodec<CanisterBlock> CODEC = simpleCodec(CanisterBlock::new);
 
     /** Number of slots in the 3x3 grid. */
     public static final int SLOT_COUNT = CanisterSlotLayout.SLOT_COUNT;
@@ -128,16 +124,6 @@ public class CanisterBlock extends GooMachineBlock {
     @Override
     protected boolean canBeReplaced(BlockState state, Fluid fluid) {
         return false;
-    }
-
-    /**
-     * Returns the codec for serialization.
-     *
-     * @return the canister block codec
-     */
-    @Override
-    protected @NonNull MapCodec<? extends BaseEntityBlock> codec() {
-        return CODEC;
     }
 
     /**

@@ -1,7 +1,8 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
-#moj_import <minecraft:globals.glsl>
-#moj_import "portal_texels.glsl"
+#include <minecraft:globals.glsl>
+#include <goo:portal_texels.glsl>
 
 // A gate's swirl band (decision tornadic-halo-spirals-out-from-the-rim): one dense, bright band
 // straddling the rim, arching from just inside it, over the portal's view, to just outside it on the
@@ -14,11 +15,11 @@
 // A hole's mouth wears the same band over the same clean rim (decisions hole-mouths-wear-the-tornadic-halo,
 // tunnel-drops-its-crisp-wiggly-outline-and-looks-like-the-portals).
 
-in vec2 frameCoord;
-flat in vec2 texels;
-in vec4 frameColor;
+layout(location = 0) in vec2 frameCoord;
+layout(location = 1) flat in vec2 texels;
+layout(location = 2) in vec4 frameColor;
 
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;
 
 // GameTime runs from zero to one over a day of 24000 ticks; this many seconds make one day. Each
 // period below divides it whole, so the band carries on unbroken as the day wraps.

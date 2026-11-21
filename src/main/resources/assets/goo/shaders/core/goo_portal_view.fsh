@@ -1,7 +1,8 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
-#moj_import <minecraft:globals.glsl>
-#moj_import "portal_texels.glsl"
+#include <minecraft:globals.glsl>
+#include <goo:portal_texels.glsl>
 
 // A gate's face showing the view through it (decision portals-link-by-looking-through-portal-vision):
 // an oval filling the face, inside it the partner side rendered from the camera mirrored through
@@ -14,11 +15,11 @@
 
 uniform sampler2D Sampler0;
 
-in vec2 frameCoord;
-flat in vec2 texels;
-in vec4 frameColor;
+layout(location = 0) in vec2 frameCoord;
+layout(location = 1) flat in vec2 texels;
+layout(location = 2) in vec4 frameColor;
 
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;
 
 void main() {
     vec2 across = portalTexelCenter(frameCoord, texels) * 2.0 - 1.0;

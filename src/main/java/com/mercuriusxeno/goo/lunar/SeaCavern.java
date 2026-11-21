@@ -7,8 +7,14 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.util.KeyDispatchDataCodec;
-import net.minecraft.world.level.levelgen.DensityFunction;
+import net.minecraft.util.Interval;
+import net.minecraft.world.level.levelgen.densityfunction.DensityBuffer;
+import net.minecraft.world.level.levelgen.densityfunction.DensityFunction;
+import net.minecraft.world.level.levelgen.densityfunction.DensitySampler;
+import net.minecraft.world.level.levelgen.densityfunction.DensityVolume;
+import net.minecraft.world.level.levelgen.densityfunction.DfRewriteRule;
+import net.minecraft.world.level.levelgen.densityfunction.SamplerContext;
+import net.minecraft.world.level.levelgen.synth.Noise;
 import net.minecraft.world.level.levelgen.synth.NormalNoise;
 
 /**
@@ -19,27 +25,25 @@ import net.minecraft.world.level.levelgen.synth.NormalNoise;
  * {@link SeaCavernCondition}, reading the same functions.
  * decision lunar-underground-changes-by-depth-down-to-a-molten-iron-sea
  *
- * @param floor   the noise rolling the sea floor
- * @param roof    the noise rolling the roof
- * @param pillars the noise standing the pillars where it reads high
+ * @param floor   the seeded noise rolling the sea floor
+ * @param roof    the seeded noise rolling the roof
+ * @param pillars the seeded noise standing the pillars where it reads high
  */
-public record SeaCavern(DensityFunction.NoiseHolder floor, DensityFunction.NoiseHolder roof,
-        DensityFunction.NoiseHolder pillars) implements DensityFunction {
+public record SeaCavern(Noise floor, Noise roof, Noise pillars) implements DensitySampler {
 
     /** The data codec of the {@code goo:sea_cavern} density function type, naming its three noises. */
-    public static final MapCodec<SeaCavern> DATA_CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
-            DensityFunction.NoiseHolder.CODEC.fieldOf("floor").forGetter(SeaCavern::floor),
-            DensityFunction.NoiseHolder.CODEC.fieldOf("roof").forGetter(SeaCavern::roof),
-            DensityFunction.NoiseHolder.CODEC.fieldOf("pillars").forGetter(SeaCavern::pillars)
-    ).apply(instance, SeaCavern::new));
-    private static final KeyDispatchDataCodec<SeaCavern> CODEC = KeyDispatchDataCodec.of(DATA_CODEC);
+    public static final MapCodec<Definition> DATA_CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
+            NormalNoise.CODEC.fieldOf("floor").forGetter(Definition::floor),
+            NormalNoise.CODEC.fieldOf("roof").forGetter(Definition::roof),
+            NormalNoise.CODEC.fieldOf("pillars").forGetter(Definition::pillars)
+    ).apply(instance, Definition::new));
 
     /** The noise rolling the sea floor. */
-    public static final ResourceKey<NormalNoise.NoiseParameters> FLOOR_NOISE = key("lunar_sea_floor");
+    public static final ResourceKey<NormalNoise> FLOOR_NOISE = key("lunar_sea_floor");
     /** The noise rolling the cavern's roof. */
-    public static final ResourceKey<NormalNoise.NoiseParameters> ROOF_NOISE = key("lunar_sea_roof");
+    public static final ResourceKey<NormalNoise> ROOF_NOISE = key("lunar_sea_roof");
     /** The noise standing the pillars. */
-    public static final ResourceKey<NormalNoise.NoiseParameters> PILLAR_NOISE = key("lunar_sea_pillars");
+    public static final ResourceKey<NormalNoise> PILLAR_NOISE = key("lunar_sea_pillars");
 
     /** The sea floor's mean height, under the sea's level. */
     static final int FLOOR_BASE_Y = -200;
@@ -51,10 +55,10 @@ public record SeaCavern(DensityFunction.NoiseHolder floor, DensityFunction.Noise
     /** A pillar stands where the pillar noise reads past this. */
     static final double PILLAR_THRESHOLD = 0.5;
     /** The density of open air in the cavern, and of everything it leaves solid. */
-    private static final double OPEN = -1.0;
-    private static final double SOLID = 1.0;
+    private static final float OPEN = -1.0f;
+    private static final float SOLID = 1.0f;
 
-    private static ResourceKey<NormalNoise.NoiseParameters> key(String path) {
+    private static ResourceKey<NormalNoise> key(String path) {
         return ResourceKey.create(Registries.NOISE, Identifier.fromNamespaceAndPath(Goo.MODID, path));
     }
 
@@ -122,12 +126,8 @@ public record SeaCavern(DensityFunction.NoiseHolder floor, DensityFunction.Noise
      * @param pillars the seeded pillar noise
      * @return the cavern those noises draw
      */
-    public static SeaCavern seeded(NormalNoise floor, NormalNoise roof, NormalNoise pillars) {
-        return new SeaCavern(holder(floor), holder(roof), holder(pillars));
-    }
-
-    private static DensityFunction.NoiseHolder holder(NormalNoise noise) {
-        return new DensityFunction.NoiseHolder(Holder.direct(noise.parameters()), noise);
+    public static SeaCavern seeded(Noise floor, Noise roof, Noise pillars) {
+        return new SeaCavern(floor, roof, pillars);
     }
 
     /**
@@ -138,7 +138,7 @@ public record SeaCavern(DensityFunction.NoiseHolder floor, DensityFunction.Noise
      * @return the last y of iron core
      */
     public int floorYAt(int x, int z) {
-        return floorY(floor.getValue(x, 0.0, z));
+        return floorY(floor.get(x, 0.0, z));
     }
 
     /**
@@ -149,7 +149,7 @@ public record SeaCavern(DensityFunction.NoiseHolder floor, DensityFunction.Noise
      * @return the first solid y over the cavern's air
      */
     public int roofYAt(int x, int z) {
-        return roofY(roof.getValue(x, 0.0, z));
+        return roofY(roof.get(x, 0.0, z));
     }
 
     /**
@@ -160,7 +160,7 @@ public record SeaCavern(DensityFunction.NoiseHolder floor, DensityFunction.Noise
      * @return true where a pillar stands from floor to roof
      */
     public boolean isPillarAt(int x, int z) {
-        return isPillar(pillars.getValue(x, 0.0, z));
+        return isPillar(pillars.get(x, 0.0, z));
     }
 
     /**
@@ -186,13 +186,17 @@ public record SeaCavern(DensityFunction.NoiseHolder floor, DensityFunction.Noise
     }
 
     @Override
-    public double compute(DensityFunction.FunctionContext context) {
-        int y = context.blockY();
-        if (y < LunarDepths.SEA_LEVEL_Y || y >= LunarDepths.SEA_ZONE_TOP_Y) {
+    public float sampleValue(SamplerContext context, int blockX, int blockY, int blockZ) {
+        if (blockY < LunarDepths.SEA_LEVEL_Y || blockY >= LunarDepths.SEA_ZONE_TOP_Y) {
             return SOLID;
         }
-        LastColumn column = LAST_COLUMN.get().read(this, context.blockX(), context.blockZ());
-        return isOpenAir(y, column.floorY, column.roofY, column.pillar) ? OPEN : SOLID;
+        LastColumn column = LAST_COLUMN.get().read(this, blockX, blockZ);
+        return isOpenAir(blockY, column.floorY, column.roofY, column.pillar) ? OPEN : SOLID;
+    }
+
+    @Override
+    public void sampleVolume(SamplerContext context, DensityBuffer outputBuffer, DensityVolume volume) {
+        DensitySampler.sampleVolumeNaive(context, outputBuffer, volume, this);
     }
 
     /** Each thread's last column read, so the cavern's three noises read once per column rather than per block. */
@@ -223,29 +227,41 @@ public record SeaCavern(DensityFunction.NoiseHolder floor, DensityFunction.Noise
         }
     }
 
-    @Override
-    public void fillArray(double[] output, DensityFunction.ContextProvider contextProvider) {
-        contextProvider.fillAllDirectly(output, this);
-    }
+    /**
+     * The {@code goo:sea_cavern} density function lunar's noise settings name, compiling to the cavern its three
+     * noises draw once the world's random state seeds them.
+     *
+     * @param floor   the noise rolling the sea floor
+     * @param roof    the noise rolling the roof
+     * @param pillars the noise standing the pillars
+     */
+    public record Definition(Holder<NormalNoise> floor, Holder<NormalNoise> roof, Holder<NormalNoise> pillars)
+            implements DensityFunction {
 
-    @Override
-    public DensityFunction mapChildren(DensityFunction.Visitor visitor) {
-        return new SeaCavern(visitor.visitNoise(floor), visitor.visitNoise(roof),
-                visitor.visitNoise(pillars));
-    }
+        @Override
+        public DensitySampler compileSampler(DensityFunction.CompileContext context) {
+            return seeded(context.createNoiseSampler(floor), context.createNoiseSampler(roof),
+                    context.createNoiseSampler(pillars));
+        }
 
-    @Override
-    public double minValue() {
-        return OPEN;
-    }
+        @Override
+        public DensityFunction rewriteChildren(DfRewriteRule rule) {
+            return this;
+        }
 
-    @Override
-    public double maxValue() {
-        return SOLID;
-    }
+        @Override
+        public Interval range() {
+            return Interval.of(OPEN, SOLID);
+        }
 
-    @Override
-    public KeyDispatchDataCodec<? extends DensityFunction> codec() {
-        return CODEC;
+        @Override
+        public @DensityFunction.Axes int domainAxes() {
+            return DensityFunction.ALL_AXES;
+        }
+
+        @Override
+        public MapCodec<Definition> codec() {
+            return DATA_CODEC;
+        }
     }
 }

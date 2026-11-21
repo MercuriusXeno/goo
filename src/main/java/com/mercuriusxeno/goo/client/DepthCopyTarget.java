@@ -1,8 +1,8 @@
 package com.mercuriusxeno.goo.client;
 
-import com.mojang.blaze3d.GpuFormat;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.pipeline.TextureTarget;
+import com.mojang.renderpearl.api.GpuFormat;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -49,8 +49,8 @@ public final class DepthCopyTarget {
             if (held != null) {
                 held.destroyBuffers();
             }
-            held = new TextureTarget(label, build.width(), build.height(), true, build.stencil(),
-                    GpuFormat.RGBA8_UNORM);
+            held = new TextureTarget(label, build.width(), build.height(), GpuFormat.RGBA8_UNORM,
+                    depthFormatOf(source));
             targets[format] = held;
         }
         last = held;
@@ -64,6 +64,21 @@ public final class DepthCopyTarget {
      */
     public @Nullable TextureTarget current() {
         return last;
+    }
+
+    /**
+     * Whether a target's depth texture carries a stencil.
+     *
+     * @param target the target
+     * @return true where the depth format it builds its depth texture in holds a stencil aspect
+     */
+    public static boolean hasStencil(RenderTarget target) {
+        return target.depthFormat != null && target.depthFormat.hasStencilAspect();
+    }
+
+    // The copy takes the source's own depth format, so the depth copies texel for texel.
+    private static GpuFormat depthFormatOf(RenderTarget source) {
+        return source.depthFormat == null ? GpuFormat.D32_FLOAT : source.depthFormat;
     }
 
     private static int formatOf(Shape shape) {
@@ -80,7 +95,7 @@ public final class DepthCopyTarget {
     record Shape(int width, int height, boolean stencil) {
 
         static Shape of(RenderTarget target) {
-            return new Shape(target.width, target.height, target.useStencil);
+            return new Shape(target.width, target.height, hasStencil(target));
         }
     }
 

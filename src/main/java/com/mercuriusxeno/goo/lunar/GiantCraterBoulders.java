@@ -1,14 +1,12 @@
 package com.mercuriusxeno.goo.lunar;
 
-import com.mercuriusxeno.goo.registry.GooPlacementModifiers;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.levelgen.placement.PlacementContext;
 import net.minecraft.world.level.levelgen.placement.PlacementModifier;
-import net.minecraft.world.level.levelgen.placement.PlacementModifierType;
-import java.util.stream.Stream;
+import java.util.function.Consumer;
 
 /**
  * The {@code goo:giant_crater_boulders} placement modifier: it turns a chunk's origin into the spots in that chunk
@@ -16,7 +14,7 @@ import java.util.stream.Stream;
  * from, so every giant crater has its boulders and no open ground does.
  * decision lunar-surface-gains-giant-craters-mountains-rilles-and-boulder-fields
  */
-public final class GiantCraterBoulders extends PlacementModifier {
+public final class GiantCraterBoulders implements PlacementModifier {
 
     private static final GiantCraterBoulders INSTANCE = new GiantCraterBoulders();
     /** The data codec of the modifier, which takes no fields. */
@@ -29,7 +27,7 @@ public final class GiantCraterBoulders extends PlacementModifier {
     }
 
     @Override
-    public Stream<BlockPos> getPositions(PlacementContext context, RandomSource random, BlockPos origin) {
+    public void modify(PlacementContext context, RandomSource random, BlockPos origin, Consumer<BlockPos> output) {
         ServerLevel level = context.getLevel().getLevel();
         GiantCraterField giants = GiantCraterField.seeded(level.getChunkSource().randomState()
                 .getOrCreateNoise(CraterField.NOISE));
@@ -37,20 +35,18 @@ public final class GiantCraterBoulders extends PlacementModifier {
         int minZ = Math.floorDiv(origin.getZ(), CHUNK_SIDE) * CHUNK_SIDE;
         int cellX = Math.floorDiv(minX, GiantCraterField.CELL);
         int cellZ = Math.floorDiv(minZ, GiantCraterField.CELL);
-        Stream.Builder<BlockPos> spots = Stream.builder();
         for (int dx = -NEIGHBOUR_REACH; dx <= NEIGHBOUR_REACH; dx++) {
             for (int dz = -NEIGHBOUR_REACH; dz <= NEIGHBOUR_REACH; dz++) {
                 giants.craterInCell(cellX + dx, cellZ + dz).ifPresent(crater -> crater.boulderSpots().stream()
                         .filter(spot -> spot.getX() >= minX && spot.getX() < minX + CHUNK_SIDE
                                 && spot.getZ() >= minZ && spot.getZ() < minZ + CHUNK_SIDE)
-                        .forEach(spot -> spots.add(spot.atY(origin.getY()))));
+                        .forEach(spot -> output.accept(spot.atY(origin.getY()))));
             }
         }
-        return spots.build();
     }
 
     @Override
-    public PlacementModifierType<?> type() {
-        return GooPlacementModifiers.GIANT_CRATER_BOULDERS.get();
+    public MapCodec<GiantCraterBoulders> codec() {
+        return CODEC;
     }
 }

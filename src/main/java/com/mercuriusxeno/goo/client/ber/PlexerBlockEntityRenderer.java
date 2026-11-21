@@ -108,7 +108,7 @@ public class PlexerBlockEntityRenderer
      */
     private static void translateToCutaway(PoseStack poseStack, Direction facing) {
         poseStack.translate(BLOCK_CENTER, CUTAWAY_Y, BLOCK_CENTER);
-        poseStack.mulPose(Axis.YP.rotationDegrees(-facing.toYRot()));
+        poseStack.rotate(Axis.YP.rotationDegrees(-facing.toYRot()));
         poseStack.translate(0f, 0f, CUTAWAY_Z_OFFSET);
     }
 }

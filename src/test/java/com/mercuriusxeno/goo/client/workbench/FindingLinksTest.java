@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.client.workbench;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import org.junit.jupiter.api.Test;
-import org.lwjgl.glfw.GLFW;
 import java.util.List;
 import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -46,6 +46,6 @@ class FindingLinksTest {
         int x = DrawnFrame.font().width(LINE.substring(0, LINE.indexOf(label))) + 1;
         assertEquals(Optional.of(hoverKey), frame.targets.hoveredArea(x, 1)
                 .map(ClickTargets.HoveredArea::hoverKey), label);
-        assertTrue(frame.targets.click(x, 1, GLFW.GLFW_MOUSE_BUTTON_LEFT, GLFW.GLFW_MOD_SHIFT), label);
+        assertTrue(frame.targets.click(x, 1, InputConstants.MOUSE_BUTTON_LEFT, InputConstants.MOD_SHIFT), label);
     }
 }

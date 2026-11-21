@@ -1,15 +1,13 @@
 package com.mercuriusxeno.goo.lunar;
 
-import com.mercuriusxeno.goo.registry.GooStructures;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.Vec3i;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.chunk.ChunkGeneratorStructureState;
+import net.minecraft.world.level.levelgen.structure.placement.AbstractSpreadingStructurePlacement;
 import net.minecraft.world.level.levelgen.structure.placement.RandomSpreadStructurePlacement;
 import net.minecraft.world.level.levelgen.structure.placement.RandomSpreadType;
-import net.minecraft.world.level.levelgen.structure.placement.StructurePlacement;
-import net.minecraft.world.level.levelgen.structure.placement.StructurePlacementType;
 import java.util.Optional;
 
 /**
@@ -18,7 +16,7 @@ import java.util.Optional;
  * place there for each chunk while the light side keeps its own spacing.
  * decision dark-side-is-an-endless-night-of-eldritch-rich-in-void-and-xeno
  */
-public final class DarkSideSpread extends StructurePlacement {
+public final class DarkSideSpread extends AbstractSpreadingStructurePlacement {
 
     /** The data codec: vanilla's placement fields and a spread for each side. */
     public static final MapCodec<DarkSideSpread> CODEC = RecordCodecBuilder.mapCodec(i -> placementCodec(i)
@@ -30,8 +28,8 @@ public final class DarkSideSpread extends StructurePlacement {
 
     // Vanilla's placement codec still reads and hands over the deprecated exclusion zone.
     @SuppressWarnings("deprecation")
-    private DarkSideSpread(Vec3i locateOffset, StructurePlacement.FrequencyReductionMethod frequencyReductionMethod,
-            float frequency, int salt, Optional<StructurePlacement.ExclusionZone> exclusionZone,
+    private DarkSideSpread(Vec3i locateOffset, AbstractSpreadingStructurePlacement.FrequencyReductionMethod frequencyReductionMethod,
+            float frequency, int salt, Optional<AbstractSpreadingStructurePlacement.ExclusionZone> exclusionZone,
             Sided<Sided.Spread> spreads) {
         super(locateOffset, frequencyReductionMethod, frequency, salt, exclusionZone);
         this.spreads = spreads;
@@ -63,7 +61,7 @@ public final class DarkSideSpread extends StructurePlacement {
     }
 
     @Override
-    public StructurePlacementType<?> type() {
-        return GooStructures.DARK_SIDE_SPREAD.get();
+    public MapCodec<DarkSideSpread> codec() {
+        return CODEC;
     }
 }

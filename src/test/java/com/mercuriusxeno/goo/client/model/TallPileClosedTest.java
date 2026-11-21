@@ -13,7 +13,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.TreeMap;
-
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.withSettings;
@@ -48,8 +47,8 @@ class TallPileClosedTest {
     private static final int EXAMPLES = 6;
     /** The sprite records no call, since the sweep bakes millions of vertices against it. */
     private static final BakedQuad.MaterialInfo MATERIAL = new BakedQuad.MaterialInfo(
-            mock(TextureAtlasSprite.class, withSettings().stubOnly()), ChunkSectionLayer.TRANSLUCENT, null,
-            SlimeCoreModel.SHELL_TINT, true, 0, false);
+            mock(TextureAtlasSprite.class, withSettings().stubOnly()), ChunkSectionLayer.TRANSLUCENT, null, null, null,
+            SlimeCoreModel.SHELL_TINT, null, 0, false);
 
     /**
      * Along every edge two goo blocks of one level share, the higher of

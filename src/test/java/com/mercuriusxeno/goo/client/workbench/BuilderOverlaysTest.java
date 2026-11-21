@@ -1,10 +1,10 @@
 package com.mercuriusxeno.goo.client.workbench;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
 import org.junit.jupiter.api.Nested;
-import org.lwjgl.glfw.GLFW;
 import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.List;
@@ -101,7 +101,7 @@ class BuilderOverlaysTest {
         overlays.openDropdown(new BuilderOverlays.Anchor(20, 20), SearchDropdown.over(List.of(), List.of("oak"),
                 false), choice -> { });
         assertTrue(overlays.listOpen());
-        assertTrue(overlays.keyPressed(GLFW.GLFW_KEY_ESCAPE));
+        assertTrue(overlays.keyPressed(InputConstants.KEY_ESCAPE));
         assertFalse(overlays.listOpen());
     }
 

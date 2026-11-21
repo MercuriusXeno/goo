@@ -1,6 +1,7 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
-#moj_import <minecraft:globals.glsl>
+#include <minecraft:globals.glsl>
 
 // Growth's breeze (decision growth-breeze-ticks-plants): ragged wisps of
 // glowing leaf green, torn and warped like wind, fill each cross-section of
@@ -13,10 +14,10 @@
 // runs along the cone and back with time, so it swirls in place and flows
 // outward rather than sliding across the section.
 
-in float along;
-in vec2 discPos;
+layout(location = 0) in float along;
+layout(location = 1) in vec2 discPos;
 
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;
 
 // GameTime is the fraction of a 24000-tick day.
 const float TICKS_PER_DAY = 24000.0;

@@ -1,8 +1,9 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
-#moj_import <minecraft:dynamictransforms.glsl>
-#moj_import <minecraft:projection.glsl>
-#moj_import <minecraft:globals.glsl>
+#include <minecraft:dynamictransforms.glsl>
+#include <minecraft:projection.glsl>
+#include <minecraft:globals.glsl>
 
 // Bore's vortex (decisions bore-shows-a-big-drill-from-the-glove, bore-breaks-what-is-in-the-vortex): a
 // vortex of earth magic held out in front of the player, marched as Drain's vortex is (decision
@@ -32,9 +33,9 @@ layout(std140) uniform BoreDrill {
 
 uniform sampler2D BoreDrillDepthSampler;
 
-in vec3 rayPoint;
+layout(location = 0) in vec3 rayPoint;
 
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;
 
 // GameTime runs from zero to one over a day of 24000 ticks; this many seconds make one day.
 const float SECONDS_PER_DAY = 1200.0;

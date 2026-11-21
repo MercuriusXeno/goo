@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.client;
 
-import com.mojang.blaze3d.GpuFormat;
 import com.mojang.blaze3d.pipeline.RenderTarget;
+import com.mojang.renderpearl.api.GpuFormat;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -84,7 +84,8 @@ class DepthCopyTargetTest {
     }
 
     private static RenderTarget sourceOf(boolean stencil, int width, int height) {
-        RenderTarget source = new RenderTarget("source", true, stencil, GpuFormat.RGBA8_UNORM) {
+        RenderTarget source = new RenderTarget("source", GpuFormat.RGBA8_UNORM,
+                stencil ? GpuFormat.D32_FLOAT_S8_UINT : GpuFormat.D32_FLOAT) {
         };
         source.width = width;
         source.height = height;

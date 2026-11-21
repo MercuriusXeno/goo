@@ -13,7 +13,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -29,7 +28,7 @@ class SlimeTopQuadsTest {
     private static final float EPSILON = 1e-5f;
     private static final float ONE_LAYER = 1f / 15;
     private static final BakedQuad.MaterialInfo SHELL = new BakedQuad.MaterialInfo(mock(TextureAtlasSprite.class),
-            ChunkSectionLayer.TRANSLUCENT, null, SlimeCoreModel.SHELL_TINT, true, 0, false);
+            ChunkSectionLayer.TRANSLUCENT, null, null, null, SlimeCoreModel.SHELL_TINT, null, 0, false);
 
     /**
      * A block of 12 beside a block of 6 to its east: the vertices the 12

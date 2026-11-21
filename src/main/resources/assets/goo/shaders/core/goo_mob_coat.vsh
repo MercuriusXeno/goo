@@ -1,8 +1,9 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
-#moj_import <minecraft:fog.glsl>
-#moj_import <minecraft:dynamictransforms.glsl>
-#moj_import <minecraft:projection.glsl>
+#include <minecraft:fog.glsl>
+#include <minecraft:dynamictransforms.glsl>
+#include <minecraft:projection.glsl>
 
 // The goo splat on a struck mob (decision shader-coat-on-every-mob-landing): the
 // vanilla entity vertex transform, lifted off the skin along its normal, with the
@@ -12,24 +13,24 @@
 // (x, y) and the high bytes of UV2 (z), in OFFSET_UNITS per block. The color's
 // alpha carries the splat's remaining reach, 1 whole and 0 dissolved.
 
-in vec3 Position;
-in vec4 Color;
-in vec2 UV0;
-in ivec2 UV1;
-in ivec2 UV2;
-in vec3 Normal;
+layout(location = 0) in vec3 Position;
+layout(location = 1) in vec4 Color;
+layout(location = 2) in vec2 UV0;
+layout(location = 3) in ivec2 UV1;
+layout(location = 4) in ivec2 UV2;
+layout(location = 5) in vec3 Normal;
 
 uniform sampler2D Sampler2;
 
-out float sphericalVertexDistance;
-out float cylindricalVertexDistance;
-out vec3 gooTint;
-out vec4 lightMapColor;
-out vec3 viewPosition;
-out vec3 skinNormal;
-out vec3 splatOffset;
-flat out vec2 spriteOrigin;
-flat out float splatKeep;
+layout(location = 0) out float sphericalVertexDistance;
+layout(location = 1) out float cylindricalVertexDistance;
+layout(location = 2) out vec3 gooTint;
+layout(location = 3) out vec4 lightMapColor;
+layout(location = 4) out vec3 viewPosition;
+layout(location = 5) out vec3 skinNormal;
+layout(location = 6) out vec3 splatOffset;
+layout(location = 7) flat out vec2 spriteOrigin;
+layout(location = 8) flat out float splatKeep;
 
 // Must match SplatVertices.OFFSET_UNITS_PER_BLOCK.
 const float OFFSET_UNITS = 1024.0;

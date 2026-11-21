@@ -537,7 +537,7 @@ public final class LeadEvents {
         }
         mob.getLookControl().setLookAt(foe);
         if (strikeReady(mob.tickCount, mob.getLastHurtMobTimestamp())) {
-            mob.swing(mob.getUsedItemHand());
+            mob.swingForAttack(mob.getUsedItemHand());
             foe.hurtServer(level, mob.damageSources().mobAttack(mob), damage);
             // the strike stamps the mob's last-hurt tick, which strikeReady counts the cooldown from
             mob.setLastHurtMob(foe);

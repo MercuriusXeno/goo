@@ -4,13 +4,13 @@ import com.google.gson.JsonElement;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mercuriusxeno.goo.workbench.WorkbenchOperations;
 import com.mercuriusxeno.goo.workbench.WorkbenchPaths;
+import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.lwjgl.glfw.GLFW;
 import org.mockito.ArgumentCaptor;
 import java.io.IOException;
 import java.io.InputStream;
@@ -218,7 +218,7 @@ class GroupsPaneTest {
                 .filter(box -> box != search).findFirst().orElseThrow();
         GroupCards.focus(nameBox);
         nameBox.setValue(created);
-        assertTrue(pane.keyPressed(GLFW.GLFW_KEY_ENTER));
+        assertTrue(pane.keyPressed(InputConstants.KEY_RETURN));
         assertEquals("", search.getValue(), "the create empties the search at once");
 
         groups.readDescribed("{\"groups\": [" + describedGroups(listed) + "]}");
@@ -559,7 +559,7 @@ class GroupsPaneTest {
             VariablesPaneTest.assertNameBoxButtons(open, box);
             box.setValue("boards");
             focus(box);
-            assertTrue(pane.keyPressed(GLFW.GLFW_KEY_ENTER));
+            assertTrue(pane.keyPressed(InputConstants.KEY_RETURN));
             assertEquals("boards", draft.sectionEntries("_groups").get(0).getAsJsonObject().get("key").getAsString());
             assertFalse(inList(frame(), "#boards").isEmpty(), frame().texts().toString());
         }

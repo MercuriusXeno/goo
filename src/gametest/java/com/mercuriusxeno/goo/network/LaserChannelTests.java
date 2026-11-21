@@ -178,8 +178,8 @@ public final class LaserChannelTests {
 
     private static long flamesAt(PacketRecorder recorder, Vec3 point) {
         return recorder.sentOf(ClientboundLevelParticlesPacket.class).stream().filter(packet ->
-                packet.getParticle().getType() == ParticleTypes.SMALL_FLAME
-                        && point.distanceTo(new Vec3(packet.getX(), packet.getY(), packet.getZ())) < TOLERANCE).count();
+                packet.particle().getType() == ParticleTypes.SMALL_FLAME
+                        && point.distanceTo(new Vec3(packet.x(), packet.y(), packet.z())) < TOLERANCE).count();
     }
 
     private static long soundsAt(PacketRecorder recorder, Vec3 point) {

@@ -1,16 +1,13 @@
 package com.mercuriusxeno.goo.client.workbench;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
 import org.joml.Matrix3x2fStack;
 import org.junit.jupiter.api.Test;
-import org.lwjgl.glfw.GLFW;
 import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
-import java.util.ArrayList;
-import java.util.ArrayList;
-import java.util.ArrayList;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -23,8 +20,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
@@ -670,7 +667,7 @@ class ValuesPaneTest {
                 ArgumentCaptor.forClass(AbstractWidget.class);
         verify(actions, atLeastOnce()).focus(focused.capture());
         ((EditBox) focused.getValue()).setValue("3");
-        assertTrue(pane.keyPressed(GLFW.GLFW_KEY_ENTER), "no number box stood open");
+        assertTrue(pane.keyPressed(InputConstants.KEY_RETURN), "no number box stood open");
         GroupsPane.Bounds squat = new GroupsPane.Bounds(0, 0, 500, 50);
         for (int notch = 0; notch < 20; notch++) {
             DrawnFrame scrolled = new DrawnFrame();

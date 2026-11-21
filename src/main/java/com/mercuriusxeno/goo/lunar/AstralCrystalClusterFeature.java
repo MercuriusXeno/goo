@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.lunar;
 
 import com.mercuriusxeno.goo.registry.GooBlocks;
+import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.RandomSource;
@@ -8,9 +9,8 @@ import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.block.AmethystClusterBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.levelgen.feature.Feature;
-import net.minecraft.world.level.levelgen.feature.FeaturePlaceContext;
-import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -22,7 +22,10 @@ import java.util.List;
  * decision astral-crystal-is-lunars-scarce-rich-block
  * decision each-lunar-zone-holds-its-own-deposit-richer-by-depth
  */
-public final class AstralCrystalClusterFeature extends Feature<NoneFeatureConfiguration> {
+public final class AstralCrystalClusterFeature implements Feature {
+
+    /** The feature type's codec, which reads no settings. */
+    public static final MapCodec<AstralCrystalClusterFeature> CODEC = MapCodec.unit(AstralCrystalClusterFeature::new);
 
     /** How far from the cluster's centre a crystal may grow, each way. */
     static final int REACH = 2;
@@ -34,13 +37,15 @@ public final class AstralCrystalClusterFeature extends Feature<NoneFeatureConfig
 
     /** Creates the feature, which takes no configuration. */
     public AstralCrystalClusterFeature() {
-        super(NoneFeatureConfiguration.CODEC);
     }
 
     @Override
-    public boolean place(FeaturePlaceContext<NoneFeatureConfiguration> context) {
-        WorldGenLevel level = context.level();
-        BlockPos origin = context.origin();
+    public MapCodec<AstralCrystalClusterFeature> codec() {
+        return CODEC;
+    }
+
+    @Override
+    public boolean place(WorldGenLevel level, ChunkGenerator chunkGenerator, RandomSource random, BlockPos origin) {
         if (!opensInMiddleZone(level, origin)) {
             return false;
         }
@@ -50,7 +55,7 @@ public final class AstralCrystalClusterFeature extends Feature<NoneFeatureConfig
             if (grown >= MOST_CRYSTALS) {
                 break;
             }
-            if (growCrystal(level, spot, context.random())) {
+            if (growCrystal(level, spot, random)) {
                 grown++;
             }
         }

@@ -123,7 +123,7 @@ public final class PhasedSight {
     private static void warp(PoseStack poseStack, float ageInTicks) {
         float swell = SWELL * Mth.sin(ageInTicks * SWELL_PER_TICK);
         poseStack.pushPose();
-        poseStack.mulPose(Axis.YP.rotationDegrees(TWIST_DEGREES * Mth.sin(ageInTicks * TWIST_PER_TICK)));
+        poseStack.rotate(Axis.YP.rotationDegrees(TWIST_DEGREES * Mth.sin(ageInTicks * TWIST_PER_TICK)));
         poseStack.scale(1f + swell, 1f - swell, 1f + swell);
     }
 }

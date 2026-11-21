@@ -26,10 +26,10 @@ class GooHitCreditTest {
     private ServerPlayer player;
     private Mob cow;
 
+    // Minecraft 26.3 seals Holder, so the hit's type is a real direct holder rather than a mock.
     @BeforeEach
-    @SuppressWarnings("unchecked") // Mockito mocks the raw Holder
     void standUpTheHit() {
-        magic = mock(Holder.class);
+        magic = Holder.direct(new DamageType("magic", 0.0F));
         player = mock(ServerPlayer.class);
         cow = mock(Mob.class);
     }

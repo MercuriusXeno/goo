@@ -34,10 +34,10 @@ public record TomePayload(int playerId, TomeKind kind) implements CustomPacketPa
 
     private static void encode(FriendlyByteBuf buf, TomePayload payload) {
         buf.writeVarInt(payload.playerId);
-        buf.writeEnum(payload.kind);
+        buf.writeVarInt(payload.kind.ordinal());
     }
 
     private static TomePayload decode(FriendlyByteBuf buf) {
-        return new TomePayload(buf.readVarInt(), buf.readEnum(TomeKind.class));
+        return new TomePayload(buf.readVarInt(), TomeKind.values()[buf.readVarInt()]);
     }
 }

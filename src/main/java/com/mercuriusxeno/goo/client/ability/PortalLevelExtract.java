@@ -59,17 +59,20 @@ final class PortalLevelExtract {
         Vec3 position = camera.position();
         Frustum cull = camera.getCullFrustum();
         state.reset();
+        state.worldPartialTicks = partial;
         state.gameTime = level.getGameTime();
+        extractor.extractPlayerState(camera, delta, partial, state.playerRenderState);
         levels.blockEntityRenderDispatcher().prepare(position);
         levels.entityRenderDispatcher().prepare(camera, mc.crosshairPickEntity);
         queueSectionBuilds(extractor, levels, level, state);
         extractor.extractVisibleEntities(camera, cull, delta, state);
-        extractor.extractVisibleBlockEntities(camera, partial, state, cull);
+        extractor.extractVisibleBlockEntities(camera, partial, state);
         extractor.extractBlockOutline(camera, state);
         extractor.extractBlockDestroyAnimation(camera, state);
         extractSurroundings(mc, camera, partial, state);
-        NeoForge.EVENT_BUS.post(new ExtractLevelRenderStateEvent(extractor, state, level, camera, cull, delta));
-        state.shouldShowEntityOutlines = extractor.shouldShowEntityOutlines(camera);
+        state.shouldShowEntityOutlines = LevelExtractor.shouldShowEntityOutlines(camera, state.playerRenderState);
+        NeoForge.EVENT_BUS.post(new ExtractLevelRenderStateEvent(extractor, state,
+                mc.gameRenderer.gameRenderState().optionsRenderState, level, camera, cull, delta));
         state.playerCompiledSectionCallback = null;
     }
 
@@ -87,7 +90,8 @@ final class PortalLevelExtract {
                 mc.options.getEffectiveRenderDistance() * BLOCKS_PER_CHUNK, state.worldBorderRenderState);
         mc.particleEngine.extract(state.particlesRenderState,
                 new Frustum(camera.getCullFrustum()).offset(PARTICLE_FRUSTUM_OFFSET), camera, partial);
-        state.cloudColor = camera.attributeProbe().getValue(EnvironmentAttributes.CLOUD_COLOR, partial);
+        state.cloudColor = ARGB.colorFromVector4f(camera.attributeProbe().getValue(EnvironmentAttributes.CLOUD_COLOR,
+                partial));
         if (ARGB.alpha(state.cloudColor) > 0) {
             state.cloudHeight = camera.attributeProbe().getValue(EnvironmentAttributes.CLOUD_HEIGHT, partial);
         }

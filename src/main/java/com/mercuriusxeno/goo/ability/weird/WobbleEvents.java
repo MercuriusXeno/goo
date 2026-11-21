@@ -35,7 +35,7 @@ public final class WobbleEvents {
             event.setCanceled(true);
             struck.knockback(knockbackFor(event.getAmount()), attacker.getX() - struck.getX(),
                     attacker.getZ() - struck.getZ(), event.getSource(), event.getAmount());
-            struck.hurtMarked = true;
+            struck.syncVelocity = true;
         }
     }
 

@@ -101,7 +101,7 @@ public class LightRailBlock extends Block {
                                 @NonNull Entity entity, @NonNull InsideBlockEffectApplier effects,
                                 boolean pastEdges) {
         if (level instanceof ServerLevel server && entity instanceof LivingEntity living
-                && living.isInvertedHealAndHarm() && living.invulnerableTime == 0) {
+                && living.isInvertedHealAndHarm() && living.damageCooldownTime == 0) {
             Entity placer = GooHitCredit.placerOf(server, CellPlacers.of(server).placerAt(pos).orElse(null));
             living.hurtServer(server, GooHitCredit.credit(living.damageSources().magic(), living, placer),
                     RADIANT_DAMAGE);

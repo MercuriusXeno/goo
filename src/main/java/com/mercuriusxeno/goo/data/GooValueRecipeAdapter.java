@@ -4,7 +4,6 @@ import com.mercuriusxeno.goo.Goo;
 import net.minecraft.core.Holder;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.HolderSet;
-import net.minecraft.core.component.DataComponentPatch;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.tags.TagKey;
@@ -221,7 +220,8 @@ public final class GooValueRecipeAdapter {
      */
     private static ItemStack assembleResult(Recipe<?> recipe) {
         if (recipe instanceof TransmuteRecipe transmute) {
-            return transmute.result.apply(DataComponentPatch.EMPTY);
+            return transmute.result.item().map(item -> new ItemStackTemplate(item, transmute.result.count(),
+                    transmute.result.components()).create()).orElse(ItemStack.EMPTY);
         } else if (recipe instanceof CraftingRecipe crafting) {
             return crafting.assemble(CraftingInput.EMPTY);
         } else if (recipe instanceof SingleItemRecipe single) {

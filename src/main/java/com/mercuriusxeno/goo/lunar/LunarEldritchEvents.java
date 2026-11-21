@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.registry.GooEntities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.random.Weighted;
+import net.minecraft.util.valueproviders.UniformInt;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.level.biome.MobSpawnSettings;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -46,9 +47,9 @@ public final class LunarEldritchEvents {
             MobSpawnSettings.SpawnerData spawner = entry.value();
             if (spawner.type() == GooEntities.ELDRITCH_MONSTROSITY.get()) {
                 event.removeSpawnerData(entry);
-                event.addSpawnerData(new Weighted<>(new MobSpawnSettings.SpawnerData(spawner.type(),
-                        LunarEldritch.volumeAt(pos.getX(), spawner.minCount(), groups.groupFactor()),
-                        LunarEldritch.volumeAt(pos.getX(), spawner.maxCount(), groups.groupFactor())),
+                event.addSpawnerData(new Weighted<>(new MobSpawnSettings.SpawnerData(spawner.type(), UniformInt.of(
+                        LunarEldritch.volumeAt(pos.getX(), spawner.count().minInclusive(), groups.groupFactor()),
+                        LunarEldritch.volumeAt(pos.getX(), spawner.count().maxInclusive(), groups.groupFactor()))),
                         entry.weight()));
             }
         }

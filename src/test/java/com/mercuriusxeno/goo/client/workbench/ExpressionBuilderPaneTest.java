@@ -1,12 +1,12 @@
 package com.mercuriusxeno.goo.client.workbench;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.navigation.ScreenRectangle;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.lwjgl.glfw.GLFW;
 import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
@@ -115,7 +115,7 @@ class ExpressionBuilderPaneTest {
             ArgumentCaptor<AbstractWidget> focused = ArgumentCaptor.forClass(AbstractWidget.class);
             verify(actions, atLeastOnce()).focus(focused.capture());
             ((EditBox) focused.getValue()).setValue(digits);
-            assertTrue(pane.keyPressed(GLFW.GLFW_KEY_ENTER), "no number box stood open");
+            assertTrue(pane.keyPressed(InputConstants.KEY_RETURN), "no number box stood open");
         }
     }
 
@@ -136,7 +136,7 @@ class ExpressionBuilderPaneTest {
         int y = ys.getAllValues().getFirst() + 1;
         assertEquals(Optional.of(ItemIcons.hoverKey("minecraft:stick")),
                 frame.targets.hoveredArea(x, y).map(ClickTargets.HoveredArea::hoverKey));
-        assertTrue(frame.targets.click(x, y, GLFW.GLFW_MOUSE_BUTTON_LEFT, GLFW.GLFW_MOD_SHIFT));
+        assertTrue(frame.targets.click(x, y, InputConstants.MOUSE_BUTTON_LEFT, InputConstants.MOD_SHIFT));
         verify(builder.actions).openItem("minecraft:stick");
     }
 
@@ -910,7 +910,7 @@ class ExpressionBuilderPaneTest {
             DrawnFrame second = escaped.frame();
             DrawnFrame.Text edited = second.find("$edited");
             hold(escaped, second, "/", edited.x() + 1, edited.y() + 1);
-            assertTrue(escaped.pane.keyPressed(GLFW.GLFW_KEY_ESCAPE), "Escape drops the held /");
+            assertTrue(escaped.pane.keyPressed(InputConstants.KEY_ESCAPE), "Escape drops the held /");
             second.targets.release();
         }
     }

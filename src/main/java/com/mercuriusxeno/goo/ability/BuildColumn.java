@@ -101,7 +101,7 @@ public record BuildColumn(BlockPos ground, int reach, int rise, Direction face) 
     }
 
     private static boolean pistonMoves(PushReaction reaction) {
-        return reaction != PushReaction.BLOCK && reaction != PushReaction.DESTROY;
+        return reaction != PushReaction.IMMOVEABLE && reaction != PushReaction.POPPED;
     }
 
     /**

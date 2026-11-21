@@ -79,6 +79,7 @@ import com.mercuriusxeno.goo.client.zone.RoomCopyRenderer;
 import com.mercuriusxeno.goo.client.zone.VoidstoneFaces;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.renderpearl.api.commands.RenderPass;
 import net.minecraft.client.renderer.state.level.LevelRenderState;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
@@ -256,9 +257,12 @@ public final class TranslucentVisualPath {
     }
 
     // RenderSystem's model view is set to the level's while the draws run: LevelRenderer pops its view off the
-    // model view stack before AfterLevel, and every render type draw reads the stack's top.
+    // model view stack before AfterLevel, and every render type draw reads the stack's top. AfterOpaqueBlocks holds
+    // the main pass open, which every draw on it draws through.
     private static void drawStage(RenderLevelStageEvent event, Class<? extends RenderLevelStageEvent> stage) {
-        drawRoutes(event.getModelViewMatrix(), event.getLevelRenderState(), routesAt(stage));
+        RenderPass open = event instanceof RenderLevelStageEvent.AfterOpaqueBlocks opaque ? opaque.getRenderPass() : null;
+        StagePass.during(open, () -> drawRoutes(event.getModelViewMatrix(), event.getLevelRenderState(),
+                routesAt(stage)));
     }
 
     /**

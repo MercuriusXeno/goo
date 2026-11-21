@@ -8,6 +8,7 @@ import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.client.renderer.texture.SpriteContents;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.resources.model.geometry.BakedQuad;
+import net.minecraft.client.resources.model.geometry.ItemQuads;
 import net.minecraft.world.item.ItemDisplayContext;
 import org.joml.Vector3f;
 import org.jspecify.annotations.Nullable;
@@ -73,13 +74,14 @@ final class ItemModelProbe extends ItemQuadCollector {
      * @param overlayCoords  packed overlay coordinates (unused)
      * @param outlineColor   outline color (unused)
      * @param tintLayers     per-tint-index colors (unused)
-     * @param layerQuads     the baked quads
+     * @param itemQuads      the baked quads, split solid from translucent; all of them are read
      * @param foilType       the foil type (unused)
      */
     @Override
     public void submitItem(PoseStack poseStack, ItemDisplayContext displayContext, int lightCoords,
-                           int overlayCoords, int outlineColor, int[] tintLayers, List<BakedQuad> layerQuads,
+                           int overlayCoords, int outlineColor, int[] tintLayers, ItemQuads itemQuads,
                            ItemStackRenderState.FoilType foilType) {
+        List<BakedQuad> layerQuads = itemQuads.all();
         if (checking != null) {
             for (BakedQuad quad : layerQuads) {
                 if (checking.cutOf(quad) == null) {

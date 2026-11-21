@@ -95,7 +95,7 @@ public class ReactorBlock extends FacingRedstoneMachineBlock {
      * @param properties the block properties
      */
     public ReactorBlock(Properties properties) {
-        super(properties, ReactorBlock::new);
+        super(properties);
     }
 
     /**

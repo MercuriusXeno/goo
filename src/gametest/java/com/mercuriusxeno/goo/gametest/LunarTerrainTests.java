@@ -20,7 +20,7 @@ import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
 import net.minecraft.world.level.levelgen.RandomState;
-import net.minecraft.world.level.levelgen.synth.NormalNoise;
+import net.minecraft.world.level.levelgen.synth.Noise;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.List;
 import java.util.function.Consumer;
@@ -329,7 +329,7 @@ public final class LunarTerrainTests {
     private record RayFree(CraterField craters, GiantCraterField giants) implements Predicate<BlockPos> {
 
         static RayFree of(ServerLevel lunar) {
-            NormalNoise noise = lunar.getChunkSource().randomState().getOrCreateNoise(CraterField.NOISE);
+            Noise noise = lunar.getChunkSource().randomState().getOrCreateNoise(CraterField.NOISE);
             return new RayFree(CraterField.seeded(noise), GiantCraterField.seeded(noise));
         }
 

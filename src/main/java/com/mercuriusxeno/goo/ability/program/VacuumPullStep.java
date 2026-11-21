@@ -96,7 +96,7 @@ public record VacuumPullStep(double itemAcceleration, double itemTopSpeed, doubl
         Vec3 step = dragStep(mob.position(), player.position(), pace(mobSpeed, resistance), stopDistance);
         // set even when zero, so a mob at the stop halts there rather than drifting on the last tick's drag
         mob.setDeltaMovement(step.x, mob.getDeltaMovement().y, step.z);
-        mob.hurtMarked = true;
+        mob.syncVelocity = true;
     }
 
     /**
@@ -112,7 +112,7 @@ public record VacuumPullStep(double itemAcceleration, double itemTopSpeed, doubl
         item.setDeltaMovement(pulledVelocity(item.getDeltaMovement(), item.position(), eye, itemAcceleration,
                 itemTopSpeed));
         item.setNoPickUpDelay();
-        item.hurtMarked = true;
+        item.syncVelocity = true;
     }
 
     /**

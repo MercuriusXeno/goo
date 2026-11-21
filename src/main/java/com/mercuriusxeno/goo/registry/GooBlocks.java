@@ -85,7 +85,7 @@ public class GooBlocks {
                     .instabreak()
                     .noLootTable()
                     .noOcclusion()
-                    .pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY));
+                    .pushReaction(net.minecraft.world.level.material.PushReaction.POPPED));
 
     /**
      * Exorite bars: iron bars retextured to exorite and obsidian tier, hardness
@@ -115,7 +115,7 @@ public class GooBlocks {
                     .replaceable()
                     .instabreak()
                     .sound(SoundType.AMETHYST_CLUSTER)
-                    .pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY)
+                    .pushReaction(net.minecraft.world.level.material.PushReaction.POPPED)
                     .lightLevel(WispBlock::lightLevel));
     /**
      * One cell of the light rail between linked reflector prisms: lit,
@@ -130,7 +130,7 @@ public class GooBlocks {
                     .noLootTable()
                     .replaceable()
                     .instabreak()
-                    .pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY)
+                    .pushReaction(net.minecraft.world.level.material.PushReaction.POPPED)
                     .lightLevel(LightRailBlock::lightLevel));
     public static final DeferredBlock<GlowCrystalBlock> GLOW_CRYSTAL = BLOCKS.registerBlock(
             "glow_crystal", GlowCrystalBlock::new,
@@ -141,7 +141,7 @@ public class GooBlocks {
                     .noLootTable()
                     .noOcclusion()
                     .sound(SoundType.GLASS)
-                    .pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY)
+                    .pushReaction(net.minecraft.world.level.material.PushReaction.POPPED)
                     .lightLevel(state -> GlowCrystalBlock.LIGHT_LEVEL));
     /**
      * Fungal bud: the colony bud Mycosis leaves on a sprayed floor, ripening
@@ -157,7 +157,7 @@ public class GooBlocks {
                     .noLootTable()
                     .noOcclusion()
                     .sound(SoundType.FUNGUS)
-                    .pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY));
+                    .pushReaction(net.minecraft.world.level.material.PushReaction.POPPED));
     /**
      * Zap pulse: the moment of full power Zap stands beside a block with no
      * toggle of its own (decision zap-ticks-the-device-and-stuns).
@@ -170,7 +170,7 @@ public class GooBlocks {
                     .noLootTable()
                     .noOcclusion()
                     .replaceable()
-                    .pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY));
+                    .pushReaction(net.minecraft.world.level.material.PushReaction.POPPED));
     /**
      * Slime coat: the volume cell bound to Weird's slime, the layered green
      * slime Goop lays on a block's top, one to fifteen layers, bouncing what
@@ -189,7 +189,7 @@ public class GooBlocks {
                     .noOcclusion()
                     .replaceable()
                     .noLootTable()
-                    .pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY));
+                    .pushReaction(net.minecraft.world.level.material.PushReaction.POPPED));
     /**
      * Slick: the volume cell bound to Kinetic's slick, the electric blue and
      * white goo Slick lays on a block's top, one to fifteen layers, slippery
@@ -208,7 +208,7 @@ public class GooBlocks {
                     .noOcclusion()
                     .replaceable()
                     .noLootTable()
-                    .pushReaction(PushReaction.DESTROY));
+                    .pushReaction(PushReaction.POPPED));
     /**
      * Molten: the volume cell bound to Blaze's molten goo, the orange goo
      * Molten sprays onto a block's top or a lava source's surface, one to
@@ -229,7 +229,7 @@ public class GooBlocks {
                     .noOcclusion()
                     .replaceable()
                     .noLootTable()
-                    .pushReaction(PushReaction.DESTROY));
+                    .pushReaction(PushReaction.POPPED));
     /**
      * Shatter: the volume cell bound to Crystal's shatter goo, the pale blue
      * goo Shatter sprays onto a block's top, one to fifteen layers, ordinary
@@ -248,7 +248,7 @@ public class GooBlocks {
                     .noOcclusion()
                     .replaceable()
                     .noLootTable()
-                    .pushReaction(PushReaction.DESTROY));
+                    .pushReaction(PushReaction.POPPED));
     /**
      * Creep: the volume cell bound to Sculk's sculky slime, the dark teal goo
      * Creep sprays onto a block's top, one to fifteen layers, ordinary ground
@@ -267,7 +267,7 @@ public class GooBlocks {
                     .noOcclusion()
                     .replaceable()
                     .noLootTable()
-                    .pushReaction(PushReaction.DESTROY));
+                    .pushReaction(PushReaction.POPPED));
     /**
      * Rime: the volume cell bound to Frost's endothermic goo, the pale blue
      * goo Rime sprays onto a block's top, one to fifteen layers, as slippery
@@ -286,7 +286,7 @@ public class GooBlocks {
                     .noOcclusion()
                     .replaceable()
                     .noLootTable()
-                    .pushReaction(PushReaction.DESTROY));
+                    .pushReaction(PushReaction.POPPED));
     /**
      * Wisps: the volume cell bound to Glow's goo, the golden goo Wisps sprays
      * onto a block's top, one to fifteen layers, ordinary ground underfoot,
@@ -306,7 +306,7 @@ public class GooBlocks {
                     .noOcclusion()
                     .replaceable()
                     .noLootTable()
-                    .pushReaction(PushReaction.DESTROY)
+                    .pushReaction(PushReaction.POPPED)
                     .lightLevel(state -> state.getValue(VolumeCellBlock.LAYERS)));
     /**
      * Leech: the volume cell bound to Hex's goo, the violet goo Leech sprays
@@ -326,7 +326,7 @@ public class GooBlocks {
                     .noOcclusion()
                     .replaceable()
                     .noLootTable()
-                    .pushReaction(PushReaction.DESTROY));
+                    .pushReaction(PushReaction.POPPED));
     /**
      * Updraft: the volume cell bound to Typhoon's goo, the pale green goo
      * Updraft sprays onto a block's top, one to fifteen layers, ordinary
@@ -346,7 +346,7 @@ public class GooBlocks {
                     .noOcclusion()
                     .replaceable()
                     .noLootTable()
-                    .pushReaction(PushReaction.DESTROY));
+                    .pushReaction(PushReaction.POPPED));
     /**
      * Nectar: the volume cell bound to Jelly's goo, the orange goo Nectar
      * sprays onto a block's top, one to fifteen layers, ordinary ground
@@ -367,7 +367,7 @@ public class GooBlocks {
                     .noOcclusion()
                     .replaceable()
                     .noLootTable()
-                    .pushReaction(PushReaction.DESTROY));
+                    .pushReaction(PushReaction.POPPED));
     /**
      * Phase: the volume cell bound to Quantum's goo, the blue goo Phase
      * sprays onto a block's top, one to fifteen layers, ordinary ground
@@ -387,7 +387,7 @@ public class GooBlocks {
                     .noOcclusion()
                     .replaceable()
                     .noLootTable()
-                    .pushReaction(PushReaction.DESTROY));
+                    .pushReaction(PushReaction.POPPED));
     /**
      * Signal: the volume cell bound to Pulse's goo, the red goo Signal sprays
      * onto a block's top, one to fifteen layers, ordinary ground underfoot
@@ -409,7 +409,7 @@ public class GooBlocks {
                     .noOcclusion()
                     .replaceable()
                     .noLootTable()
-                    .pushReaction(PushReaction.DESTROY));
+                    .pushReaction(PushReaction.POPPED));
     /**
      * Vines: the volume cell bound to Leaf's goo, the green goo Vines sprays
      * onto a block's top or a wall, one to fifteen layers, ordinary ground
@@ -429,7 +429,7 @@ public class GooBlocks {
                     .noOcclusion()
                     .replaceable()
                     .noLootTable()
-                    .pushReaction(PushReaction.DESTROY));
+                    .pushReaction(PushReaction.POPPED));
     /**
      * Stitch: the volume cell bound to Yarn's goo, the woolly goo Stitch
      * sprays onto a block's top, one to fifteen layers, ordinary ground
@@ -450,7 +450,7 @@ public class GooBlocks {
                     .noOcclusion()
                     .replaceable()
                     .noLootTable()
-                    .pushReaction(PushReaction.DESTROY));
+                    .pushReaction(PushReaction.POPPED));
     /**
      * Spikes: the volume cell bound to Metal's goo, the silver goo Spikes
      * sprays onto a block's top, one to fifteen layers, ordinary ground
@@ -470,7 +470,7 @@ public class GooBlocks {
                     .noOcclusion()
                     .replaceable()
                     .noLootTable()
-                    .pushReaction(PushReaction.DESTROY));
+                    .pushReaction(PushReaction.POPPED));
     /**
      * Infest: the volume cell bound to Zombie's goo, the rotten green goo Infest
      * sprays onto a block's top, one to fifteen layers, ordinary ground
@@ -492,7 +492,7 @@ public class GooBlocks {
                     .noOcclusion()
                     .replaceable()
                     .noLootTable()
-                    .pushReaction(PushReaction.DESTROY));
+                    .pushReaction(PushReaction.POPPED));
     /**
      * Gloom: the volume cell bound to Nether's goo, the maroon goo Gloom
      * sprays onto a block's top, one to fifteen layers, ordinary ground
@@ -512,7 +512,7 @@ public class GooBlocks {
                     .noOcclusion()
                     .replaceable()
                     .noLootTable()
-                    .pushReaction(PushReaction.DESTROY));
+                    .pushReaction(PushReaction.POPPED));
     /**
      * Nitro: the volume cell bound to Unstable's goo, the green goo Nitro
      * sprays onto a block's top, one to fifteen layers, sounding as goo
@@ -533,7 +533,7 @@ public class GooBlocks {
                     .noOcclusion()
                     .replaceable()
                     .noLootTable()
-                    .pushReaction(PushReaction.DESTROY));
+                    .pushReaction(PushReaction.POPPED));
     /**
      * Mortar: the volume cell bound to Rock's goo, the stony goo Mortar
      * sprays onto a block's top or clings with to its sides, one to fifteen
@@ -554,7 +554,7 @@ public class GooBlocks {
                     .noOcclusion()
                     .replaceable()
                     .noLootTable()
-                    .pushReaction(PushReaction.DESTROY));
+                    .pushReaction(PushReaction.POPPED));
     /**
      * Dowsing: the volume cell bound to Astral's Dowsing goo, the starry blue
      * goo Dowsing lays on a block's top, one to fifteen layers, ordinary
@@ -573,7 +573,7 @@ public class GooBlocks {
                     .noOcclusion()
                     .replaceable()
                     .noLootTable()
-                    .pushReaction(PushReaction.DESTROY));
+                    .pushReaction(PushReaction.POPPED));
     /**
      * Prism: the milky quartz crystal Crystal's Prism grows, the host every
      * prism combo grows on (decision prism-blob-becomes-a-milky-quartz-crystal).
@@ -598,7 +598,7 @@ public class GooBlocks {
                     .noLootTable()
                     .noOcclusion()
                     .sound(SoundType.AMETHYST_CLUSTER)
-                    .pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY)
+                    .pushReaction(net.minecraft.world.level.material.PushReaction.POPPED)
                     .lightLevel(PrismBlock::lightLevel));
     /**
      * Voidstone: the unbreakable block at the center of each Zone room,
@@ -607,7 +607,7 @@ public class GooBlocks {
      */
     public static final DeferredBlock<Block> VOIDSTONE = BLOCKS.registerSimpleBlock("voidstone",
             () -> BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_BLACK).strength(UNBREAKABLE, UNBLASTABLE)
-                    .noLootTable().pushReaction(PushReaction.BLOCK).lightLevel(state -> VOIDSTONE_GLOW));
+                    .noLootTable().pushReaction(PushReaction.IMMOVEABLE).lightLevel(state -> VOIDSTONE_GLOW));
 
     /**
      * The dimension door standing in each Zone room, which leads back
@@ -617,7 +617,7 @@ public class GooBlocks {
     public static final DeferredBlock<DimensionDoorBlock> DIMENSION_DOOR = BLOCKS.registerBlock(
             "dimension_door", DimensionDoorBlock::new,
             () -> BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_PURPLE).strength(UNBREAKABLE, UNBLASTABLE)
-                    .noCollision().noOcclusion().noLootTable().pushReaction(PushReaction.BLOCK)
+                    .noCollision().noOcclusion().noLootTable().pushReaction(PushReaction.IMMOVEABLE)
                     .lightLevel(state -> DOOR_GLOW));
 
     /**
@@ -759,7 +759,7 @@ public class GooBlocks {
             properties -> new AmethystClusterBlock(ASTRAL_CRYSTAL_HEIGHT, ASTRAL_CRYSTAL_WIDTH, properties),
             () -> BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_BLUE).forceSolidOn().noOcclusion()
                     .sound(SoundType.AMETHYST_CLUSTER).strength(1.5F).lightLevel(state -> ASTRAL_CRYSTAL_LIGHT)
-                    .pushReaction(PushReaction.DESTROY));
+                    .pushReaction(PushReaction.POPPED));
 
     /**
      * Impact glass: lunar's regolith melted where meteorites struck, dark glass that holds back light as tinted
@@ -770,7 +770,7 @@ public class GooBlocks {
             TintedGlassBlock::new, () -> BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_BLACK)
                     .strength(GLASS_HARDNESS).sound(SoundType.GLASS).noOcclusion()
                     .isValidSpawn((state, level, pos, type) -> false).isRedstoneConductor(GooBlocks::never)
-                    .isSuffocating(GooBlocks::never).isViewBlocking(GooBlocks::never));
+                    .isSuffocating(GooBlocks::never).isViewBlocking((state, level, pos, nearPlane) -> false));
 
     /**
      * Breccia: rubble an impact fused into rock, anorthosite and basalt shards set in a dark matrix, ringing lunar's
@@ -797,7 +797,7 @@ public class GooBlocks {
                     .replaceable()
                     .noCollision()
                     .strength(MOLTEN_IRON_RESISTANCE)
-                    .pushReaction(PushReaction.DESTROY)
+                    .pushReaction(PushReaction.POPPED)
                     .noLootTable()
                     .liquid()
                     .sound(SoundType.EMPTY)

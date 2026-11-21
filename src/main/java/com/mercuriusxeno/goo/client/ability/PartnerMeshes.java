@@ -1,18 +1,19 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.client.StagePass;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.ability.SectionMeshes.Built;
-import com.mojang.blaze3d.buffers.GpuBuffer;
-import com.mojang.blaze3d.buffers.GpuBufferSlice;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.pipeline.RenderTarget;
-import com.mojang.blaze3d.systems.RenderPass;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.textures.AddressMode;
-import com.mojang.blaze3d.textures.FilterMode;
 import com.mojang.blaze3d.vertex.MeshData;
+import com.mojang.renderpearl.api.buffers.GpuBuffer;
+import com.mojang.renderpearl.api.buffers.GpuBufferSlice;
+import com.mojang.renderpearl.api.commands.RenderPass;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
+import com.mojang.renderpearl.api.textures.AddressMode;
+import com.mojang.renderpearl.api.textures.FilterMode;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
 import net.minecraft.client.renderer.chunk.VisibilitySet;
@@ -33,8 +34,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
-import java.util.OptionalDouble;
 import java.util.Set;
 import java.util.function.Consumer;
 
@@ -191,16 +190,15 @@ public final class PartnerMeshes {
                                  GpuBuffer vertices, MeshData mesh) {
         RenderSystem.AutoStorageIndexBuffer indices = RenderSystem.getSequentialBuffer(mesh.drawState().primitiveTopology());
         RenderTarget target = mc.gameRenderer.mainRenderTarget();
-        try (RenderPass pass = RenderSystem.getDevice().createCommandEncoder().createRenderPass(
-                () -> PASS_LABEL, target.getColorTextureView(), Optional.empty(),
-                target.getDepthTextureView(), OptionalDouble.empty())) {
-            pass.setPipeline(pipeline);
+        try (StagePass stage = StagePass.onMain(() -> PASS_LABEL)) {
+            RenderPass pass = stage.pass();
+            pass.setPipeline(RenderSystem.getCompiledPipeline(pipeline));
             RenderSystem.bindDefaultUniforms(pass);
             pass.setUniform(TRANSFORMS, transforms);
-            pass.bindTexture(BLOCK_ATLAS_SAMPLER, mc.getAtlasManager().getAtlasOrThrow(AtlasIds.BLOCKS)
+            pass.setUniform(BLOCK_ATLAS_SAMPLER, mc.getAtlasManager().getAtlasOrThrow(AtlasIds.BLOCKS)
                     .getTextureView(), RenderSystem.getSamplerCache().getSampler(AddressMode.CLAMP_TO_EDGE,
                     AddressMode.CLAMP_TO_EDGE, FilterMode.LINEAR, FilterMode.NEAREST, true));
-            pass.bindTexture(LIGHTMAP_SAMPLER, mc.gameRenderer.lightmap(), RenderSystem.getSamplerCache()
+            pass.setUniform(LIGHTMAP_SAMPLER, mc.gameRenderer.lightmap(), RenderSystem.getSamplerCache()
                     .getClampToEdge(FilterMode.LINEAR));
             pass.setVertexBuffer(0, vertices.slice());
             pass.setIndexBuffer(indices.getBuffer(mesh.drawState().indexCount()), indices.type());

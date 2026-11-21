@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.client.radial;
 
-import org.lwjgl.glfw.GLFW;
+import com.mojang.blaze3d.platform.InputConstants;
 
 /**
  * The glove menu key as pure decisions: a press with a glove held and no
@@ -19,7 +19,7 @@ public final class GloveRadialKeyGate {
     /** The path of the glove menu category's id, under the goo namespace. */
     public static final String CATEGORY_PATH = "glove";
     /** The glove menu mapping's default key. */
-    public static final int DEFAULT_KEY = GLFW.GLFW_KEY_G;
+    public static final int DEFAULT_KEY = InputConstants.KEY_G;
 
     /** What a release of the key does to the open radial. */
     public interface ReleaseActions {

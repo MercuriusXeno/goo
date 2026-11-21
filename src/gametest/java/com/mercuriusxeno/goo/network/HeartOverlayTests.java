@@ -293,7 +293,7 @@ public final class HeartOverlayTests {
      * @param amount the damage
      */
     static void hurt(GameTestHelper helper, ServerPlayer player, DamageSource source, float amount) {
-        player.invulnerableTime = 0;
+        player.damageCooldownTime = 0;
         player.hurtServer(helper.getLevel(), source, amount);
     }
 

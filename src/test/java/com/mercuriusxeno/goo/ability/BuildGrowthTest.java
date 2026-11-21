@@ -23,7 +23,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.Set;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -261,8 +260,8 @@ class BuildGrowthTest {
             BlockState state = mock(BlockState.class);
             switch (kind) {
                 case NAMED_LIKE_OBSIDIAN -> when(state.is(ANCHORS)).thenReturn(true);
-                case PUSH_REACTION_BLOCK -> when(state.getPistonPushReaction()).thenReturn(PushReaction.BLOCK);
-                case PUSH_REACTION_DESTROY -> when(state.getPistonPushReaction()).thenReturn(PushReaction.DESTROY);
+                case PUSH_REACTION_BLOCK -> when(state.getPistonPushReaction()).thenReturn(PushReaction.IMMOVEABLE);
+                case PUSH_REACTION_DESTROY -> when(state.getPistonPushReaction()).thenReturn(PushReaction.POPPED);
                 case UNBREAKABLE -> when(state.getDestroySpeed(any(), any())).thenReturn(-1f);
             }
             return state;

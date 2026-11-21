@@ -62,7 +62,7 @@ final class EntityLift {
             Vec3 carried = carried(now, base.y + height - entity.getY(), speed, fallCap);
             if (!carried.equals(now)) {
                 entity.setDeltaMovement(carried);
-                entity.hurtMarked = true;
+                entity.syncVelocity = true;
             }
         }
     }

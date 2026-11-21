@@ -11,6 +11,7 @@ import net.minecraft.client.renderer.item.ItemStackRenderState;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.resources.model.geometry.BakedQuad;
+import net.minecraft.client.resources.model.geometry.ItemQuads;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemDisplayContext;
@@ -48,7 +49,7 @@ class CrucibleMeltingItemsTest {
         TextureAtlasSprite sprite = mock(TextureAtlasSprite.class);
         when(sprite.atlasLocation()).thenReturn(ITEM_ATLAS);
         BakedQuad.MaterialInfo material = new BakedQuad.MaterialInfo(
-                sprite, ChunkSectionLayer.CUTOUT, null, -1, true, 0, false);
+                sprite, ChunkSectionLayer.CUTOUT, null, null, null, -1, null, 0, false);
         return new BakedQuad(new Vector3f(0, 0, FRONT_Z), new Vector3f(0, 1, FRONT_Z),
                 new Vector3f(1, 1, FRONT_Z), new Vector3f(1, 0, FRONT_Z), 0L, 0L, 0L, 0L,
                 Direction.SOUTH, material);
@@ -62,7 +63,7 @@ class CrucibleMeltingItemsTest {
         doAnswer(call -> {
             SubmitNodeCollector collector = call.getArgument(1);
             collector.submitItem(call.getArgument(0), ItemDisplayContext.FIXED, call.getArgument(2), 0, 0,
-                    new int[0], List.of(face), ItemStackRenderState.FoilType.NONE);
+                    new int[0], new ItemQuads(List.of(face), List.of(face), List.of()), ItemStackRenderState.FoilType.NONE);
             return null;
         }).when(item).submit(any(PoseStack.class), any(SubmitNodeCollector.class), anyInt(), anyInt(), anyInt());
         return item;
@@ -76,7 +77,7 @@ class CrucibleMeltingItemsTest {
     private static ItemStackRenderState transformedLayerItem() {
         ItemStackRenderState item = new ItemStackRenderState();
         ItemStackRenderState.LayerRenderState layer = item.newLayer();
-        layer.prepareQuadList().add(frontFace());
+        layer.setQuads(new ItemQuads(List.of(frontFace()), List.of(frontFace()), List.of()));
         layer.setLocalTransform(new Matrix4f().rotateY((float) Math.PI).translate(-0.5f, -0.5f, -0.5f));
         Vector3fc[] corners = {new Vector3f(0, 0, FRONT_Z), new Vector3f(1, 1, FRONT_Z)};
         layer.setExtents(() -> corners);
@@ -99,7 +100,7 @@ class CrucibleMeltingItemsTest {
         doAnswer(call -> {
             SubmitNodeCollector collector = call.getArgument(1);
             collector.submitItem(call.getArgument(0), ItemDisplayContext.FIXED, call.getArgument(2), 0, 0,
-                    new int[0], faces, ItemStackRenderState.FoilType.NONE);
+                    new int[0], new ItemQuads(faces, faces, List.of()), ItemStackRenderState.FoilType.NONE);
             return null;
         }).when(item).submit(any(PoseStack.class), any(SubmitNodeCollector.class), anyInt(), anyInt(), anyInt());
         return item;

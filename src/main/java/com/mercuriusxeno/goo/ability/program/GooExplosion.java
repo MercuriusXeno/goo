@@ -208,7 +208,7 @@ public final class GooExplosion extends ServerExplosion {
             if (player.distanceToSqr(center) < PACKET_RANGE_SQR) {
                 Optional<Vec3> knockback = Optional.ofNullable(explosion.getHitPlayers().get(player));
                 player.connection.send(new ClientboundExplodePacket(center, smokeRadius, blockCount, knockback,
-                        particle, look.sound(), look.blockParticles()));
+                        particle, look.sound(), look.blockParticles(), true));
             }
         }
     }

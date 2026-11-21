@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.workbench;
 
 import com.mercuriusxeno.goo.workbench.WorkbenchOperations;
+import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -16,7 +17,6 @@ import org.joml.Vector2ic;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.lwjgl.glfw.GLFW;
 import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
 import org.mockito.MockedStatic;
@@ -66,7 +66,7 @@ class ValuesManagerScreenTest {
         targets.addShield(-DrawnFrame.SCREEN_WIDTH, -DrawnFrame.SCREEN_HEIGHT, 3 * DrawnFrame.SCREEN_WIDTH,
                 3 * DrawnFrame.SCREEN_HEIGHT, () -> picked.add("closed"));
         targets.add(20, 20, 60, 12, () -> picked.add("birch"), null);
-        MouseButtonEvent press = new MouseButtonEvent(30, 25, new MouseButtonInfo(GLFW.GLFW_MOUSE_BUTTON_LEFT, 0));
+        MouseButtonEvent press = new MouseButtonEvent(30, 25, new MouseButtonInfo(InputConstants.MOUSE_BUTTON_LEFT, 0));
 
         assertTrue(ValuesManagerScreen.routePress(targets, press, event -> true, () -> { }));
         assertEquals(List.of("birch"), picked);
@@ -199,7 +199,7 @@ class ValuesManagerScreenTest {
      */
     @Test
     void searchBoxTakesTheClickWhenNoDropdownIsOpen() {
-        MouseButtonEvent press = new MouseButtonEvent(30, 25, new MouseButtonInfo(GLFW.GLFW_MOUSE_BUTTON_LEFT, 0));
+        MouseButtonEvent press = new MouseButtonEvent(30, 25, new MouseButtonInfo(InputConstants.MOUSE_BUTTON_LEFT, 0));
         List<MouseButtonEvent> reachedWidgets = new ArrayList<>();
         assertTrue(ValuesManagerScreen.routePress(new ClickTargets(), press, event -> reachedWidgets.add(event),
                 () -> { }));
@@ -423,7 +423,7 @@ class ValuesManagerScreenTest {
             EditBox search = box(0, 0, "iron");
             responded.clear();
             boolean took = ValuesManagerScreen.emptyBoxUnder(List.of(search),
-                    press(5, 5, GLFW.GLFW_MOUSE_BUTTON_RIGHT));
+                    press(5, 5, InputConstants.MOUSE_BUTTON_RIGHT));
             assertTrue(took);
             assertEquals("", search.getValue());
             assertEquals(List.of(""), responded);
@@ -435,7 +435,7 @@ class ValuesManagerScreenTest {
         @Test
         void rightPressEmptiesOnlyTheBoxUnderIt() {
             List<EditBox> boxes = List.of(box(0, 0, "items"), box(0, 20, "prefabs"));
-            ValuesManagerScreen.emptyBoxUnder(boxes, press(5, 5, GLFW.GLFW_MOUSE_BUTTON_RIGHT));
+            ValuesManagerScreen.emptyBoxUnder(boxes, press(5, 5, InputConstants.MOUSE_BUTTON_RIGHT));
             assertEquals(List.of("", "prefabs"), boxes.stream().map(EditBox::getValue).toList());
         }
 
@@ -449,9 +449,9 @@ class ValuesManagerScreenTest {
             EditBox hidden = box(0, 20, "iron");
             hidden.visible = false;
             List<EditBox> boxes = List.of(search, hidden);
-            assertFalse(ValuesManagerScreen.emptyBoxUnder(boxes, press(300, 5, GLFW.GLFW_MOUSE_BUTTON_RIGHT)));
-            assertFalse(ValuesManagerScreen.emptyBoxUnder(boxes, press(5, 5, GLFW.GLFW_MOUSE_BUTTON_LEFT)));
-            assertFalse(ValuesManagerScreen.emptyBoxUnder(boxes, press(5, 25, GLFW.GLFW_MOUSE_BUTTON_RIGHT)));
+            assertFalse(ValuesManagerScreen.emptyBoxUnder(boxes, press(300, 5, InputConstants.MOUSE_BUTTON_RIGHT)));
+            assertFalse(ValuesManagerScreen.emptyBoxUnder(boxes, press(5, 5, InputConstants.MOUSE_BUTTON_LEFT)));
+            assertFalse(ValuesManagerScreen.emptyBoxUnder(boxes, press(5, 25, InputConstants.MOUSE_BUTTON_RIGHT)));
             assertEquals("iron", search.getValue());
             assertEquals("iron", hidden.getValue());
         }

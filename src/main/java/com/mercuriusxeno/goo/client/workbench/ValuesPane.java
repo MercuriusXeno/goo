@@ -131,7 +131,7 @@ final class ValuesPane {
     }
 
     /**
-     * @param key the GLFW key pressed
+     * @param key the SDL scancode of the key pressed
      * @return whether the builder took the key
      */
     boolean keyPressed(int key) {

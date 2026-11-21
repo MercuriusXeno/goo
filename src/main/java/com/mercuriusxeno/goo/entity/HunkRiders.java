@@ -1,11 +1,7 @@
 package com.mercuriusxeno.goo.entity;
 
-import com.mercuriusxeno.goo.Goo;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.tick.EntityTickEvent;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -17,9 +13,10 @@ import java.util.concurrent.ConcurrentHashMap;
  * climb falls inside the rider's interpolation and the rider glides with the
  * stone whichever of them ticks first. A player is lifted by their own
  * client alone, as their client moves them; the server lifts every other rider.
+ * Minecraft 26.3 takes the last position inside Entity.commonTick, after the entity tick event, so
+ * EntityHunkRiderLiftMixin lifts the rider at that method's tail.
  * decision spire-carries-its-riders-up-with-the-rising-stone
  */
-@EventBusSubscriber(modid = Goo.MODID)
 public final class HunkRiders {
 
     /**
@@ -60,13 +57,11 @@ public final class HunkRiders {
     }
 
     /**
-     * Lifts an entity standing on a climbing hunk at the start of its tick.
+     * Lifts an entity standing on a climbing hunk at the start of its tick, once its last position is taken.
      *
-     * @param event the entity tick event
+     * @param rider the entity starting its tick
      */
-    @SubscribeEvent
-    public static void onEntityTickPre(EntityTickEvent.Pre event) {
-        Entity rider = event.getEntity();
+    public static void liftAtTickStart(Entity rider) {
         Set<BlockHunk> climbing = climbingOn(rider.level().isClientSide());
         if (!climbing.isEmpty() && mayRide(rider)) {
             liftOnAnyHunk(rider, climbing);

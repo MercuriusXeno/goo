@@ -217,9 +217,9 @@ public final class HoleContents {
         poseStack.pushPose();
         poseStack.translate(fromCamera.x(), fromCamera.y(), fromCamera.z());
         if (frame.face() == Direction.DOWN) {
-            poseStack.mulPose(Axis.XP.rotationDegrees(HALF_TURN_DEGREES));
+            poseStack.rotate(Axis.XP.rotationDegrees(HALF_TURN_DEGREES));
         }
-        poseStack.mulPose(Axis.YP.rotation(turn));
+        poseStack.rotate(Axis.YP.rotation(turn));
         // every model draws the placement's size across at its largest span, so its drift keeps it in the pit
         AABB model = item.getModelBoundingBox();
         float scale = (float) (size / Math.max(largestSpanOf(item), MIN_MODEL_SPAN));

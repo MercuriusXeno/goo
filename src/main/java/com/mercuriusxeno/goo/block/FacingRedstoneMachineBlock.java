@@ -1,11 +1,9 @@
 package com.mercuriusxeno.goo.block;
 
-import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.HorizontalDirectionalBlock;
 import net.minecraft.world.level.block.RenderShape;
@@ -16,7 +14,6 @@ import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
-import java.util.function.Function;
 
 /**
  * The shell the plexer and the reactor share: a machine that faces the player
@@ -39,18 +36,13 @@ public abstract class FacingRedstoneMachineBlock extends GooMachineBlock {
      */
     public static final BooleanProperty CRAFTING = BlockStateProperties.CRAFTING;
 
-    private final MapCodec<? extends FacingRedstoneMachineBlock> codec;
-
     /**
      * Creates the machine and registers its default state: facing north, untriggered, idle.
      *
-     * @param properties  the block properties
-     * @param constructor the machine's own constructor, which its codec rebuilds it with
+     * @param properties the block properties
      */
-    protected FacingRedstoneMachineBlock(Properties properties,
-                                         Function<Properties, ? extends FacingRedstoneMachineBlock> constructor) {
+    protected FacingRedstoneMachineBlock(Properties properties) {
         super(properties);
-        this.codec = simpleCodec(constructor);
         registerDefaultState(stateDefinition.any()
                 .setValue(FACING, Direction.NORTH)
                 .setValue(TRIGGERED, false)
@@ -87,14 +79,9 @@ public abstract class FacingRedstoneMachineBlock extends GooMachineBlock {
      * @return true: dust connects on every side
      */
     @Override
-    public final boolean canConnectRedstone(@NonNull BlockState state, @NonNull BlockGetter level,
-                                            @NonNull BlockPos pos, @Nullable Direction direction) {
+    protected final boolean shouldRedstoneWireConnectTo(@NonNull BlockState state, @NonNull BlockGetter level,
+                                                        @NonNull BlockPos pos, @Nullable Direction direction) {
         return true;
-    }
-
-    @Override
-    protected final @NonNull MapCodec<? extends BaseEntityBlock> codec() {
-        return codec;
     }
 
     @Override

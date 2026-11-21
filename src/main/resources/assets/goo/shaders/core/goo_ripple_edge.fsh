@@ -1,6 +1,7 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
-#moj_import <minecraft:dynamictransforms.glsl>
+#include <minecraft:dynamictransforms.glsl>
 
 // The perimeter of an afterimage's silhouettes (decision afterimage-is-one-shared-effect):
 // each channel of the ripple buffer holds one silhouette's mask at its fade. A pixel is
@@ -10,9 +11,9 @@
 
 uniform sampler2D InSampler;
 
-in vec2 texCoord;
+layout(location = 0) in vec2 texCoord;
 
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;
 
 // Pixels the perimeter reaches to either side of the silhouette's border.
 const int EDGE_RADIUS = 2;

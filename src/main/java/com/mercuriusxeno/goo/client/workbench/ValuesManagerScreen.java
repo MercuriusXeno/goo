@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.workbench;
 
 import com.mercuriusxeno.goo.workbench.WorkbenchOperations;
+import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.datafixers.util.Either;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -18,7 +19,6 @@ import net.minecraft.world.inventory.tooltip.TooltipComponent;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.client.ClientHooks;
 import org.jspecify.annotations.Nullable;
-import org.lwjgl.glfw.GLFW;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -373,7 +373,7 @@ public final class ValuesManagerScreen extends Screen {
      * @return whether a box took the press
      */
     static boolean emptyBoxUnder(List<? extends GuiEventListener> widgets, MouseButtonEvent event) {
-        if (event.button() != GLFW.GLFW_MOUSE_BUTTON_RIGHT) {
+        if (event.button() != InputConstants.MOUSE_BUTTON_RIGHT) {
             return false;
         }
         for (GuiEventListener widget : widgets) {
@@ -434,11 +434,11 @@ public final class ValuesManagerScreen extends Screen {
 
     @Override
     public boolean keyPressed(KeyEvent event) {
-        if (event.key() == GLFW.GLFW_KEY_ESCAPE && explainer.leave()) {
+        if (event.key() == InputConstants.KEY_ESCAPE && explainer.leave()) {
             return true;
         }
         return paneTakesKey(event.key())
-                || event.key() == GLFW.GLFW_KEY_ESCAPE && escapeEmpties(getFocused(), () -> setFocused(null))
+                || event.key() == InputConstants.KEY_ESCAPE && escapeEmpties(getFocused(), () -> setFocused(null))
                 || super.keyPressed(event);
     }
 
@@ -597,7 +597,9 @@ public final class ValuesManagerScreen extends Screen {
             return;
         }
         graphics.nextStratum();
-        graphics.tooltip(font, components, mouseX, mouseY, positioner.get(), null);
+        // Decision minecraft-26-3-update-is-a-port-to-parity: 26.1 always set the first line apart, which 26.3 asks
+        // for by its extraSpaceAfterFirstLine flag.
+        graphics.tooltip(font, components, mouseX, mouseY, positioner.get(), null, true);
     }
 
     // A goo type, a control or a truncated group name names itself on one line; an item or a prefab names itself,

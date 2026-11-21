@@ -1,5 +1,9 @@
 package com.mercuriusxeno.goo.client.model;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.GooSubmitter;
@@ -12,10 +16,6 @@ import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
 import com.mercuriusxeno.goo.client.throwing.GooFlightRenderer;
 import com.mercuriusxeno.goo.client.zone.RoomBodyCopyRenderer;
 import com.mercuriusxeno.goo.type.GooTypes;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
@@ -336,11 +336,11 @@ class GloveSpecialRendererTest {
         private static Matrix4f vanillaSwing(float attack) {
             PoseStack swing = new PoseStack();
             float ySwing = Mth.sin(attack * attack * Mth.PI);
-            swing.mulPose(Axis.YP.rotationDegrees(45f + ySwing * -20f));
+            swing.rotate(Axis.YP.rotationDegrees(45f + ySwing * -20f));
             float xzSwing = Mth.sin(Mth.sqrt(attack) * Mth.PI);
-            swing.mulPose(Axis.ZP.rotationDegrees(xzSwing * -20f));
-            swing.mulPose(Axis.XP.rotationDegrees(xzSwing * -80f));
-            swing.mulPose(Axis.YP.rotationDegrees(-45f));
+            swing.rotate(Axis.ZP.rotationDegrees(xzSwing * -20f));
+            swing.rotate(Axis.XP.rotationDegrees(xzSwing * -80f));
+            swing.rotate(Axis.YP.rotationDegrees(-45f));
             return new Matrix4f(swing.last().pose());
         }
 
@@ -520,7 +520,7 @@ class GloveSpecialRendererTest {
     private static Matrix4f corePoseDrawnAt(GloveSpecialRenderer.GloveData data, Quaternionf handTurn) {
         PoseStack hand = new PoseStack();
         hand.translate(HAND_AHEAD * 0.6, -HAND_AHEAD * 0.8, -HAND_AHEAD);
-        hand.mulPose(handTurn);
+        hand.rotate(handTurn);
         hand.scale(0.5f, 0.5f, 0.5f);
         List<Matrix4f> cores = new ArrayList<>();
         SubmitNodeCollector collector = mock(SubmitNodeCollector.class);

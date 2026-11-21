@@ -64,6 +64,6 @@ public final class DownedRaise {
         mob.setNoAi(downed.wasNoAi());
         Vec3 motion = mob.getDeltaMovement();
         mob.setDeltaMovement(motion.x, HOP_SPEED, motion.z);
-        mob.hurtMarked = true;
+        mob.syncVelocity = true;
     }
 }

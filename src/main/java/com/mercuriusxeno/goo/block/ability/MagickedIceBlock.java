@@ -1,12 +1,10 @@
 package com.mercuriusxeno.goo.block.ability;
 
-import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.RandomSource;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.IceBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -29,19 +27,12 @@ import org.jspecify.annotations.Nullable;
  */
 public class MagickedIceBlock extends IceBlock {
 
-    public static final MapCodec<MagickedIceBlock> CODEC = simpleCodec(MagickedIceBlock::new);
-
     /** Creates a new magicked ice block.
      *
      * @param properties the block properties
      */
     public MagickedIceBlock(Properties properties) {
         super(properties);
-    }
-
-    @Override
-    public @NonNull MapCodec<? extends IceBlock> codec() {
-        return CODEC;
     }
 
     /**
@@ -56,7 +47,7 @@ public class MagickedIceBlock extends IceBlock {
      * @param destroyedWith the tool used
      */
     @Override
-    public void playerDestroy(@NonNull Level level, @NonNull Player player,
+    public void playerDestroy(@NonNull ServerLevel level, @NonNull ServerPlayer player,
             @NonNull BlockPos pos, @NonNull BlockState state,
             @Nullable BlockEntity blockEntity, @NonNull ItemStack destroyedWith) {
         dropResources(state, level, pos, blockEntity, player, destroyedWith);

@@ -169,7 +169,7 @@ public final class GloomTests {
         try {
             for (int pass = 0; pass < SPAWN_PASSES_PER_TICK && spawned.isEmpty(); pass++) {
                 NaturalSpawner.spawnCategoryForPosition(MobCategory.MONSTER, level, level.getChunk(cell), cell,
-                        (type, pos, chunk) -> pos.equals(cell), (mob, chunk) -> spawned.add(mob));
+                        (type, spawnLevel, pos, chunk) -> pos.equals(cell), (mob, chunk) -> spawned.add(mob));
             }
         } finally {
             level.setRespawnData(spawnPoint);

@@ -60,7 +60,7 @@ class EntityScanTest {
     @Test
     void vulnerableKeepsTheMobWhoseImmunityHasRunOut() {
         Mob immune = mock(Mob.class);
-        immune.invulnerableTime = IMMUNE_TICKS;
+        immune.damageCooldownTime = IMMUNE_TICKS;
         Mob spent = mock(Mob.class);
         Map<String, Mob> mobs = new LinkedHashMap<>();
         mobs.put("immune", immune);

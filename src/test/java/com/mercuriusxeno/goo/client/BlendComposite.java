@@ -1,8 +1,8 @@
 package com.mercuriusxeno.goo.client;
 
-import com.mojang.blaze3d.pipeline.BlendFunction;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.platform.BlendFactor;
+import com.mojang.renderpearl.api.pipeline.BlendFactor;
+import com.mojang.renderpearl.api.pipeline.BlendFunction;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
 
 /**
  * A pipeline's color blend worked by hand: the color a fragment leaves on the target, as the GPU blends it from the
@@ -24,7 +24,7 @@ public final class BlendComposite {
      * @return the target's red, green and blue after the draw
      */
     public static float[] over(RenderPipeline pipeline, float[] source, float[] target) {
-        BlendFunction blend = pipeline.getColorTargetState().blendFunction().orElse(null);
+        BlendFunction blend = PipelineReads.colorTarget(pipeline).blendFunction().orElse(null);
         if (blend == null) {
             return new float[] {source[0], source[1], source[2]};
         }

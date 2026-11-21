@@ -1,18 +1,19 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
-#moj_import <minecraft:globals.glsl>
-#moj_import "portal_texels.glsl"
+#include <minecraft:globals.glsl>
+#include <goo:portal_texels.glsl>
 
 // A portal with no view to show (decision portals-link-by-looking-through-portal-vision): an
 // oval filling the frame, near black at its heart, the portal's color swirling in from a bright
 // glowing rim, so it reads as open but leading nowhere yet. All of it draws on sixteen texels a
 // block; the swirl turns smoothly in time (decision portals-and-wormhole-draw-sixteen-texels-a-block).
 
-in vec2 frameCoord;
-flat in vec2 texels;
-in vec4 frameColor;
+layout(location = 0) in vec2 frameCoord;
+layout(location = 1) flat in vec2 texels;
+layout(location = 2) in vec4 frameColor;
 
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;
 
 // GameTime runs over a day of 24000 ticks; this many seconds make one day.
 const float SECONDS_PER_DAY = 1200.0;

@@ -4,7 +4,10 @@ import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.world.level.levelgen.SurfaceRules;
+import net.minecraft.world.level.levelgen.material.MaterialRuleContext;
+import net.minecraft.world.level.levelgen.material.condition.ConditionEvaluator;
+import net.minecraft.world.level.levelgen.material.condition.MaterialCondition;
+import net.minecraft.world.level.levelgen.synth.Noise;
 import net.minecraft.world.level.levelgen.synth.NormalNoise;
 
 /**
@@ -14,8 +17,8 @@ import net.minecraft.world.level.levelgen.synth.NormalNoise;
  *
  * @param noise the crater noise the fields roll their cells from
  */
-public record CraterRaysCondition(ResourceKey<NormalNoise.NoiseParameters> noise)
-        implements SurfaceRules.ConditionSource {
+public record CraterRaysCondition(ResourceKey<NormalNoise> noise)
+        implements MaterialCondition {
 
     /** The data codec of the condition, naming its noise. */
     public static final MapCodec<CraterRaysCondition> DATA_CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
@@ -23,13 +26,13 @@ public record CraterRaysCondition(ResourceKey<NormalNoise.NoiseParameters> noise
     ).apply(instance, CraterRaysCondition::new));
 
     @Override
-    public MapCodec<? extends SurfaceRules.ConditionSource> codec() {
+    public MapCodec<CraterRaysCondition> codec() {
         return DATA_CODEC;
     }
 
     @Override
-    public SurfaceRules.Condition apply(SurfaceRules.Context context) {
-        NormalNoise craterNoise = context.randomState.getOrCreateNoise(noise);
+    public ConditionEvaluator compile(MaterialRuleContext context) {
+        Noise craterNoise = context.randomState.getOrCreateNoise(noise);
         CraterField craters = CraterField.seeded(craterNoise);
         GiantCraterField giants = GiantCraterField.seeded(craterNoise);
         return new ColumnTest(context, (x, z) -> craters.isOnRayAt(x, z) || giants.isOnRayAt(x, z));
