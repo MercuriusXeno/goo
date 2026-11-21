@@ -10,6 +10,7 @@ import com.mojang.renderpearl.api.buffers.GpuBuffer;
 import com.mojang.renderpearl.api.device.GpuDevice;
 import net.minecraft.client.renderer.Sheets;
 import net.minecraft.client.renderer.StagedVertexBuffer;
+import net.minecraft.client.renderer.rendertype.PreparedRenderType;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.resources.model.ModelBakery;
@@ -182,11 +183,16 @@ public final class ImmediateBuffers implements RenderTypeBuffers {
     }
 
     // The render type's own target where it names one, else the main target, through the stage's pass if it holds one.
+    // The type prepares before any pass of its own opens, since its first prepare may upload its textures.
     private static void drawIn(RenderType type, StagedVertexBuffer.ExecuteInfo info) {
+        PreparedRenderType prepared = RenderTypePreparation.prepared(type, StagePass.current() != null);
+        if (prepared == null) {
+            return;
+        }
         RenderTarget own = DrawTarget.ownTargetOf(type);
         Supplier<String> label = () -> DRAW_LABEL + type;
         try (StagePass pass = own == null ? StagePass.onMain(label) : StagePass.onTarget(label, own)) {
-            type.prepare().drawFromBuffer(info, pass.pass());
+            prepared.drawFromBuffer(info, pass.pass());
         }
     }
 }
