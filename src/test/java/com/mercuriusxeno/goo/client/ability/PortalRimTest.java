@@ -19,7 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class PortalRimTest {
 
-    private static final String PORTAL_TEXELS = "/assets/goo/shaders/core/portal_texels.glsl";
+    private static final String PORTAL_TEXELS = "/assets/goo/shaders/include/portal_texels.glsl";
     private static final double TEXELS_PER_BLOCK = 16;
     /** How far apart two numbers may stand and still read as one, float rounding only. */
     private static final double NEAR = 1.0e-6;

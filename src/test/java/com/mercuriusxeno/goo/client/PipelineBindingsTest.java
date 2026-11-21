@@ -39,7 +39,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class PipelineBindingsTest {
 
-    private static final Pattern IMPORT = Pattern.compile("#moj_import\\s*<([\\w.-]+):([\\w/.-]+)>");
+    private static final Pattern IMPORT = Pattern.compile("#include\\s*<([\\w.-]+):([\\w/.-]+)>");
     private static final String SHADERS = "/assets/%s/shaders/%s";
 
     @TestFactory

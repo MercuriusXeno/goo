@@ -29,7 +29,7 @@ class PocketStarSkyTest {
     private static final String VOID_STARS = "assets/goo/shaders/include/void_stars.glsl";
     private static final String VOIDSTONE_SHADER = "assets/goo/shaders/core/voidstone.fsh";
     private static final String SKY_SHADER = "assets/goo/shaders/core/pocket_sky.fsh";
-    private static final String VOID_STARS_IMPORT = "#moj_import <goo:void_stars.glsl>";
+    private static final String VOID_STARS_IMPORT = "#include <goo:void_stars.glsl>";
     private static final Pattern STAR_COLOR = Pattern.compile("vec3\\s+STAR\\s*=");
     /** How many view directions the sweep asks along, spread evenly over the sphere. */
     private static final int SWEEP = 20_000;

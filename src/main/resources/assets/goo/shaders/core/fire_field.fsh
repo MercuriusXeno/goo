@@ -1,8 +1,9 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
-#moj_import <minecraft:dynamictransforms.glsl>
-#moj_import <minecraft:projection.glsl>
-#moj_import <minecraft:globals.glsl>
+#include <minecraft:dynamictransforms.glsl>
+#include <minecraft:projection.glsl>
+#include <minecraft:globals.glsl>
 
 // Flames' fire (decision flames-draws-as-particle-style-fire): separate licks
 // of flame and small embers poured down the cone from the spout, marched
@@ -27,9 +28,9 @@ layout(std140) uniform FireField {
     vec4 Grid;        // the camera's world position modulo 16, so the voxels hold to the world
 };
 
-in vec3 rayPoint;
+layout(location = 0) in vec3 rayPoint;
 
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;
 
 const float TICKS_PER_DAY = 24000.0;
 const float TEXELS_PER_BLOCK = 16.0;

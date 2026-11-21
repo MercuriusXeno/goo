@@ -1,9 +1,10 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
-#moj_import <minecraft:fog.glsl>
-#moj_import <minecraft:dynamictransforms.glsl>
-#moj_import <minecraft:globals.glsl>
-#moj_import "mingle_noise.glsl"
+#include <minecraft:fog.glsl>
+#include <minecraft:dynamictransforms.glsl>
+#include <minecraft:globals.glsl>
+#include <goo:mingle_noise.glsl>
 
 // Vines tangled over a rooted mob (decision vines-unpack-root-and-thorn):
 // vanilla's vine texture laid over the model's skin coordinates, its gaps left
@@ -13,17 +14,17 @@
 
 uniform sampler2D Sampler0;
 
-in float sphericalVertexDistance;
-in float cylindricalVertexDistance;
-in vec4 vineColor;
-in vec4 lightMapColor;
-in vec2 skinCoord;
-in vec3 skinNormal;
+layout(location = 0) in float sphericalVertexDistance;
+layout(location = 1) in float cylindricalVertexDistance;
+layout(location = 2) in vec4 vineColor;
+layout(location = 3) in vec4 lightMapColor;
+layout(location = 4) in vec2 skinCoord;
+layout(location = 5) in vec3 skinNormal;
 // The skin's texels across and down, which the vine tile and the patch field lay their grid on
 // (decision diagnose-and-correct-vines-and-ailment-overlay-assuming-a-square-skin).
-flat in vec2 skinTexels;
+layout(location = 6) flat in vec2 skinTexels;
 
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;
 
 // Noise cells across the skin's coordinates: a handful of patches over a body.
 const float PATCH_CELLS = 6.0;

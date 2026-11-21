@@ -1,8 +1,9 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
-#moj_import <minecraft:light.glsl>
-#moj_import <minecraft:fog.glsl>
-#moj_import <minecraft:dynamictransforms.glsl>
+#include <minecraft:light.glsl>
+#include <minecraft:fog.glsl>
+#include <minecraft:dynamictransforms.glsl>
 
 // A phased entity's body (decision phased-things-draw-as-a-ghostly-image), drawn in place
 // of its own: the skin washed most of the way toward its grey, lit as vanilla lights an
@@ -11,15 +12,15 @@
 
 uniform sampler2D Sampler0;
 
-in float sphericalVertexDistance;
-in float cylindricalVertexDistance;
-in vec4 ghostColor;
-in vec4 lightMapColor;
-in vec2 skinCoord;
-in vec3 skinNormal;
-in vec3 towardEye;
+layout(location = 0) in float sphericalVertexDistance;
+layout(location = 1) in float cylindricalVertexDistance;
+layout(location = 2) in vec4 ghostColor;
+layout(location = 3) in vec4 lightMapColor;
+layout(location = 4) in vec2 skinCoord;
+layout(location = 5) in vec3 skinNormal;
+layout(location = 6) in vec3 towardEye;
 
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;
 
 // Skin texels below this alpha are holes in the body, as vanilla's cutout reads them.
 const float SKIN_CUTOUT = 0.1;

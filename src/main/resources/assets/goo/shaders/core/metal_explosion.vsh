@@ -1,7 +1,8 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
-#moj_import <minecraft:projection.glsl>
-#moj_import <minecraft:dynamictransforms.glsl>
+#include <minecraft:projection.glsl>
+#include <minecraft:dynamictransforms.glsl>
 
 // Metal goo's burnout explosion (decision elemental-explosion-per-type).
 // MetalExplosionVisual packs the vertex color: red is the explosion's
@@ -9,15 +10,15 @@
 // the tip), alpha its opacity, whole for a landing and a share of it for a
 // held ghost. The normal is the cone side's outward normal.
 
-in vec3 Position;
-in vec4 Color;
-in vec3 Normal;
+layout(location = 0) in vec3 Position;
+layout(location = 1) in vec4 Color;
+layout(location = 2) in vec3 Normal;
 
-out vec3 viewPos;
-out vec3 viewNormal;
-out float progress;
-out float along;
-out float opacity;
+layout(location = 0) out vec3 viewPos;
+layout(location = 1) out vec3 viewNormal;
+layout(location = 2) out float progress;
+layout(location = 3) out float along;
+layout(location = 4) out float opacity;
 
 void main() {
     vec4 vp = ModelViewMat * vec4(Position, 1.0);

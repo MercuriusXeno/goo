@@ -1,4 +1,5 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
 // Glow goo's burnout explosion (decisions elemental-explosion-per-type,
 // burnouts-are-whole-spheres): an aurora bloom, a whole sphere. Vertical
@@ -6,12 +7,12 @@
 // a pale white crown, sliding slowly around the sphere like the fade walls'
 // curtains. LIGHTNING blend (SRC_ALPHA, ONE).
 
-in vec3 surfaceDir;
-in float progress;
-in float opacity;
-in float brightness;
+layout(location = 0) in vec3 surfaceDir;
+layout(location = 1) in float progress;
+layout(location = 2) in float opacity;
+layout(location = 3) in float brightness;
 
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;
 
 const vec3 BASE_COLOR = vec3(1.0, 1.0, 0.157);
 const vec3 BODY_COLOR = vec3(1.0, 0.843, 0.0);

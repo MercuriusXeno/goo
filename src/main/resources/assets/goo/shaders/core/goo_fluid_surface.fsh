@@ -1,9 +1,10 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
-#moj_import <minecraft:fog.glsl>
-#moj_import <minecraft:dynamictransforms.glsl>
-#moj_import <minecraft:globals.glsl>
-#moj_import "mingle_noise.glsl"
+#include <minecraft:fog.glsl>
+#include <minecraft:dynamictransforms.glsl>
+#include <minecraft:globals.glsl>
+#include <goo:mingle_noise.glsl>
 
 // The vanilla entity fragment shader under EMISSIVE and NO_OVERLAY, blending
 // every goo type a surface holds in one pass (decision one-pass-blends-every-type):
@@ -14,14 +15,14 @@
 uniform sampler2D Sampler0;
 uniform sampler2D MingleTable;
 
-in float sphericalVertexDistance;
-in float cylindricalVertexDistance;
-in vec4 vertexColor;
-in vec2 texCoord0;
-in vec3 mingleWorldPos;
-flat in ivec2 mingleRows;
+layout(location = 0) in float sphericalVertexDistance;
+layout(location = 1) in float cylindricalVertexDistance;
+layout(location = 2) in vec4 vertexColor;
+layout(location = 3) in vec2 texCoord0;
+layout(location = 4) in vec3 mingleWorldPos;
+layout(location = 5) flat in ivec2 mingleRows;
 
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;
 
 // Must match MingleTable: the column of each field in a row.
 const int SPRITE_U0 = 0;

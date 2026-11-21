@@ -17,6 +17,6 @@ float roomCopyFixedAt(int first) {
 }
 
 vec3 roomCopyTranslation() {
-    int first = gl_InstanceID * FIXED_PER_COPY * BYTES_PER_FIXED;
+    int first = gl_InstanceIndex * FIXED_PER_COPY * BYTES_PER_FIXED;
     return vec3(roomCopyFixedAt(first), 0.0, roomCopyFixedAt(first + BYTES_PER_FIXED));
 }

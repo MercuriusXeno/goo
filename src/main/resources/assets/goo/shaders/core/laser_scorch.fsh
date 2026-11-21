@@ -1,4 +1,5 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
 // Laser's scorch (decision sunbeam-leaves-a-glowing-scorch-that-trails-and-fades):
 // one burnt spot as a ragged disc. A fresh mark glows white-hot across the
@@ -9,11 +10,11 @@
 // glow added onto the face, the block showing through, so overlapping marks
 // blend into one streak rather than stacking as decals.
 
-in vec2 acrossMark;
-in float heat;
-in float seed;
+layout(location = 0) in vec2 acrossMark;
+layout(location = 1) in float heat;
+layout(location = 2) in float seed;
 
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;
 
 const vec3 WHITE_HOT = vec3(1.0, 0.97, 0.86);
 const vec3 YELLOW = vec3(1.0, 0.78, 0.30);

@@ -1,4 +1,5 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
 // Sculker's warden senses: the world dims with its distance from the
 // submerged player, showing at 60% of its own look within 2 blocks, 30% at 3.5, 10% at
@@ -12,7 +13,7 @@
 uniform sampler2D InSampler;
 uniform sampler2D InDepthSampler;
 
-in vec2 texCoord;
+layout(location = 0) in vec2 texCoord;
 
 layout(std140) uniform SculkerConfig {
     // (unused, unused, far, near): the camera's far and near planes
@@ -21,7 +22,7 @@ layout(std140) uniform SculkerConfig {
     vec4 SculkerLook;
 };
 
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;
 
 // the world's brightness by its distance from the submerged player, a share of how it looks with no effect:
 // 60% within 2 blocks, 30% at 3.5, 10% at 5, black by 6

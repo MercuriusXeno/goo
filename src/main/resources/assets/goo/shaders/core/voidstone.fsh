@@ -1,8 +1,9 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
-#moj_import <minecraft:globals.glsl>
-#moj_import <minecraft:dynamictransforms.glsl>
-#moj_import <goo:void_stars.glsl>
+#include <minecraft:globals.glsl>
+#include <minecraft:dynamictransforms.glsl>
+#include <goo:void_stars.glsl>
 
 // Voidstone (decision outsider-is-a-channeled-pocket-with-a-door-voidstone-and-a-spiral-platform):
 // near-black stone holding a field of pale stars. Every star sits on a sixteenth-of-a-block texel picked by
@@ -25,10 +26,10 @@
 // place shows the room's own place whole room widths back, so the floor's copies need none of the room's
 // blocks, and a room wider than the client's loaded chunks still shows every copy's floor.
 
-in vec3 voidLocal;
-flat in vec3 voidNormal;
+layout(location = 0) in vec3 voidLocal;
+layout(location = 1) flat in vec3 voidNormal;
 
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;
 
 const float TEXELS = 16.0;
 const int BLOCK_TEXELS = 16;

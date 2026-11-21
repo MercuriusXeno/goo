@@ -1,4 +1,5 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
 // Metal goo's burnout explosion (decision elemental-explosion-per-type): an
 // urchin of chrome spikes. Each cone shades from C0C0C0 to E8E8E8 by how
@@ -6,13 +7,13 @@
 // show runs, and each tip carries a white glint. TRANSLUCENT blend, the
 // spikes drawn solid at the vertex alpha's opacity, whole for a landing.
 
-in vec3 viewPos;
-in vec3 viewNormal;
-in float progress;
-in float along;
-in float opacity;
+layout(location = 0) in vec3 viewPos;
+layout(location = 1) in vec3 viewNormal;
+layout(location = 2) in float progress;
+layout(location = 3) in float along;
+layout(location = 4) in float opacity;
 
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;
 
 const vec3 SHADOW_COLOR = vec3(0.753, 0.753, 0.753);
 const vec3 LIT_COLOR = vec3(0.91, 0.91, 0.91);

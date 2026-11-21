@@ -1,9 +1,10 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
-in vec4 vertColor;
-in vec3 reflectedColor;
+layout(location = 0) in vec4 vertColor;
+layout(location = 1) in vec3 reflectedColor;
 
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;
 
 // Base opacity
 const float BASE_ALPHA = 0.8;

@@ -1,10 +1,11 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
-#moj_import <minecraft:light.glsl>
-#moj_import <minecraft:fog.glsl>
-#moj_import <minecraft:dynamictransforms.glsl>
-#moj_import <minecraft:globals.glsl>
-#moj_import "mingle_noise.glsl"
+#include <minecraft:light.glsl>
+#include <minecraft:fog.glsl>
+#include <minecraft:dynamictransforms.glsl>
+#include <minecraft:globals.glsl>
+#include <goo:mingle_noise.glsl>
 
 // A status ailment's overlay over a whole model (decision ailment-overlay-shader-per-ailment):
 // one field per pattern, laid over the model's skin coordinates so it rides the body,
@@ -12,18 +13,18 @@
 // and the gel encase the model and take its light. The ailments that mark a mob rather than
 // coat it wear the pulsing outline instead (decision ailment-glisten-becomes-a-pulsing-outline).
 
-in float sphericalVertexDistance;
-in float cylindricalVertexDistance;
-in vec4 ailmentColor;
-in vec4 lightMapColor;
-in vec2 skinCoord;
-in vec3 skinNormal;
-flat in int pattern;
+layout(location = 0) in float sphericalVertexDistance;
+layout(location = 1) in float cylindricalVertexDistance;
+layout(location = 2) in vec4 ailmentColor;
+layout(location = 3) in vec4 lightMapColor;
+layout(location = 4) in vec2 skinCoord;
+layout(location = 5) in vec3 skinNormal;
+layout(location = 6) flat in int pattern;
 // The skin's texels across and down, which the noise snaps to and each pattern lays its cells on
 // (decision diagnose-and-correct-vines-and-ailment-overlay-assuming-a-square-skin).
-flat in vec2 skinTexels;
+layout(location = 7) flat in vec2 skinTexels;
 
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;
 
 // Must match AilmentPattern's order.
 const int PATTERN_FACETS = 0;

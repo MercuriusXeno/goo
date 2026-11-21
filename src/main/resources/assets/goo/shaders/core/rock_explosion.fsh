@@ -1,4 +1,5 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
 // Rock goo's burnout explosion (decision elemental-explosion-per-type): a
 // dust shock disc. Billowing dust in C2A868 with EAD090 highlights drifts
@@ -6,11 +7,11 @@
 // ring crosses the disc once. TRANSLUCENT blend, so the dust hides what is
 // behind it.
 
-in float progress;
-in vec2 discPos;
-in float opacity;
+layout(location = 0) in float progress;
+layout(location = 1) in vec2 discPos;
+layout(location = 2) in float opacity;
 
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;
 
 const vec3 DUST_COLOR = vec3(0.761, 0.659, 0.408);
 const vec3 HIGHLIGHT_COLOR = vec3(0.918, 0.816, 0.565);

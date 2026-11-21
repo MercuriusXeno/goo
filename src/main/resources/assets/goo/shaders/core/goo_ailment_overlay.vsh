@@ -1,33 +1,34 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
-#moj_import <minecraft:fog.glsl>
-#moj_import <minecraft:dynamictransforms.glsl>
-#moj_import <minecraft:projection.glsl>
-#moj_import <minecraft:globals.glsl>
+#include <minecraft:fog.glsl>
+#include <minecraft:dynamictransforms.glsl>
+#include <minecraft:projection.glsl>
+#include <minecraft:globals.glsl>
 
 // A status ailment's overlay on a mob or player (decision ailment-overlay-shader-per-ailment):
 // the vanilla entity vertex transform, the model lifted a hair off its skin so the
 // overlay encases it. AilmentOverlayLayer hands the ailment's color in Color, its
 // strength in Color's alpha, and in the overlay coordinates its pattern's ordinal and the mob's skin size.
 
-in vec3 Position;
-in vec4 Color;
-in vec2 UV0;
-in ivec2 UV1;
-in ivec2 UV2;
-in vec3 Normal;
+layout(location = 0) in vec3 Position;
+layout(location = 1) in vec4 Color;
+layout(location = 2) in vec2 UV0;
+layout(location = 3) in ivec2 UV1;
+layout(location = 4) in ivec2 UV2;
+layout(location = 5) in vec3 Normal;
 
 uniform sampler2D Sampler2;
 
-out float sphericalVertexDistance;
-out float cylindricalVertexDistance;
-out vec4 ailmentColor;
-out vec4 lightMapColor;
-out vec2 skinCoord;
-out vec3 skinNormal;
-flat out int pattern;
+layout(location = 0) out float sphericalVertexDistance;
+layout(location = 1) out float cylindricalVertexDistance;
+layout(location = 2) out vec4 ailmentColor;
+layout(location = 3) out vec4 lightMapColor;
+layout(location = 4) out vec2 skinCoord;
+layout(location = 5) out vec3 skinNormal;
+layout(location = 6) flat out int pattern;
 // The skin's texels across and down (decision diagnose-and-correct-vines-and-ailment-overlay-assuming-a-square-skin).
-flat out vec2 skinTexels;
+layout(location = 7) flat out vec2 skinTexels;
 
 // AilmentOverlayLayer packs the pattern's ordinal in U's top four bits over the skin's width in its low twelve,
 // and the skin's height in V. UV1 arrives sign-extended, so each is masked back to its sixteen bits.

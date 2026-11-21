@@ -1,4 +1,5 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
 // A portable hole's mouth carved out of the world's depth
 // (decision hole-items-are-a-three-dimensional-soup-sunk-in-the-hole): where the mouth's
@@ -10,9 +11,9 @@
 
 uniform sampler2D HoleDepthSampler;
 
-in vec4 vertexColor;
+layout(location = 0) in vec4 vertexColor;
 
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;
 
 void main() {
     float world = texelFetch(HoleDepthSampler, ivec2(gl_FragCoord.xy), 0).r;

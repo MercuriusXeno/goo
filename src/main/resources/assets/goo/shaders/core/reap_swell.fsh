@@ -1,6 +1,7 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
-#moj_import <minecraft:globals.glsl>
+#include <minecraft:globals.glsl>
 
 // Reap's swell (decision reap-breeze-harvests-and-replants): a whole sphere of
 // Growth's breeze, torn green wisps over its surface swirling as it swells out
@@ -8,10 +9,10 @@
 // over the surface's direction and time, so nothing slides or bands. LIGHTNING
 // blend, so the swell glows.
 
-in vec3 surfaceDir;
-in float strength;
+layout(location = 0) in vec3 surfaceDir;
+layout(location = 1) in float strength;
 
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;
 
 // GameTime is the fraction of a 24000-tick day.
 const float TICKS_PER_DAY = 24000.0;

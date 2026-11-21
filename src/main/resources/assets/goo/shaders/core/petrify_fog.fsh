@@ -1,6 +1,7 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
-#moj_import <minecraft:globals.glsl>
+#include <minecraft:globals.glsl>
 
 // Petrify's fog (decisions petrify-fog-is-billowing-roiling-dust,
 // petrify-stone-encasement-and-calcify-map): one puff of a medusa's gaze
@@ -9,11 +10,11 @@
 // changing as the dust churns. It thickens as it leaves the glove and thins
 // away at the reach. TRANSLUCENT blend, the puffs pouring over each other.
 
-in float age;
-in vec2 corner;
-flat in float seed;
+layout(location = 0) in float age;
+layout(location = 1) in vec2 corner;
+layout(location = 2) flat in float seed;
 
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;
 
 const float TAU = 6.2831853;
 // GameTime runs from zero to one over a day of 24000 ticks; this many seconds make one day.

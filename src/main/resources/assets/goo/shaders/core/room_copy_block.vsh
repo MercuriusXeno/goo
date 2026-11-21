@@ -1,26 +1,27 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
-#moj_import <minecraft:fog.glsl>
-#moj_import <minecraft:dynamictransforms.glsl>
-#moj_import <minecraft:projection.glsl>
-#moj_import <minecraft:sample_lightmap.glsl>
-#moj_import <goo:room_copy.glsl>
+#include <minecraft:fog.glsl>
+#include <minecraft:dynamictransforms.glsl>
+#include <minecraft:projection.glsl>
+#include <minecraft:sample_lightmap.glsl>
+#include <goo:room_copy.glsl>
 
 // The game's moving-block vertex shader, each instance moved to its copy of the room (decision
 // room-tiles-to-render-distance-held-to-the-picture). The fog reads the moved place, so a far copy fades as the
 // terrain there would.
 
-in vec3 Position;
-in vec4 Color;
-in vec2 UV0;
-in ivec2 UV2;
+layout(location = 0) in vec3 Position;
+layout(location = 1) in vec4 Color;
+layout(location = 2) in vec2 UV0;
+layout(location = 3) in ivec2 UV2;
 
 uniform sampler2D Sampler2;
 
-out float sphericalVertexDistance;
-out float cylindricalVertexDistance;
-out vec4 vertexColor;
-out vec2 texCoord0;
+layout(location = 0) out float sphericalVertexDistance;
+layout(location = 1) out float cylindricalVertexDistance;
+layout(location = 2) out vec4 vertexColor;
+layout(location = 3) out vec2 texCoord0;
 
 void main() {
     vec3 pos = Position + ModelOffset + roomCopyTranslation();

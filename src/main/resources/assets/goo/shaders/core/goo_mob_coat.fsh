@@ -1,9 +1,10 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
-#moj_import <minecraft:light.glsl>
-#moj_import <minecraft:fog.glsl>
-#moj_import <minecraft:dynamictransforms.glsl>
-#moj_import "mingle_noise.glsl"
+#include <minecraft:light.glsl>
+#include <minecraft:fog.glsl>
+#include <minecraft:dynamictransforms.glsl>
+#include <goo:mingle_noise.glsl>
 
 // The goo splat on a struck mob (decision shader-coat-on-every-mob-landing): the
 // goo type's animated fluid texture, under the type's tint, over the half block
@@ -16,17 +17,17 @@
 
 uniform sampler2D Sampler0;
 
-in float sphericalVertexDistance;
-in float cylindricalVertexDistance;
-in vec3 gooTint;
-in vec4 lightMapColor;
-in vec3 viewPosition;
-in vec3 skinNormal;
-in vec3 splatOffset;
-flat in vec2 spriteOrigin;
-flat in float splatKeep;
+layout(location = 0) in float sphericalVertexDistance;
+layout(location = 1) in float cylindricalVertexDistance;
+layout(location = 2) in vec3 gooTint;
+layout(location = 3) in vec4 lightMapColor;
+layout(location = 4) in vec3 viewPosition;
+layout(location = 5) in vec3 skinNormal;
+layout(location = 6) in vec3 splatOffset;
+layout(location = 7) flat in vec2 spriteOrigin;
+layout(location = 8) flat in float splatKeep;
 
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;
 
 // Half the operator's half-block splat: the splat's radius in blocks.
 const float SPLAT_RADIUS = 0.25;

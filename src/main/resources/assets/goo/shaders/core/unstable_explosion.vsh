@@ -1,8 +1,9 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
-#moj_import <minecraft:projection.glsl>
-#moj_import <minecraft:dynamictransforms.glsl>
-#moj_import <minecraft:globals.glsl>
+#include <minecraft:projection.glsl>
+#include <minecraft:dynamictransforms.glsl>
+#include <minecraft:globals.glsl>
 
 // Unstable goo's burnout explosion (decision elemental-explosion-per-type).
 // UnstableExplosionVisual packs the vertex color: red is the explosion's
@@ -11,19 +12,19 @@
 // held-visual-ghosts-the-landing-in-two-passes): it never fades, and its
 // crackle runs on the game clock rather than on progress.
 
-in vec3 Position;
-in vec4 Color;
-in vec3 Normal;
+layout(location = 0) in vec3 Position;
+layout(location = 1) in vec4 Color;
+layout(location = 2) in vec3 Normal;
 
-out vec3 viewPos;
-out vec3 viewNormal;
-out vec3 surfaceDir;
-out float progress;
-out float opacity;
-out float ringFlag;
-out float ringRadial;
-out float held;
-out float clock;
+layout(location = 0) out vec3 viewPos;
+layout(location = 1) out vec3 viewNormal;
+layout(location = 2) out vec3 surfaceDir;
+layout(location = 3) out float progress;
+layout(location = 4) out float opacity;
+layout(location = 5) out float ringFlag;
+layout(location = 6) out float ringRadial;
+layout(location = 7) out float held;
+layout(location = 8) out float clock;
 
 // Landing progress per day fraction: a 24000-tick day over a 16-tick show.
 const float HELD_CLOCK_RATE = 1500.0;

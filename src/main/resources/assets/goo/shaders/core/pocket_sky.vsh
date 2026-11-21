@@ -1,7 +1,8 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
-#moj_import <minecraft:dynamictransforms.glsl>
-#moj_import <minecraft:projection.glsl>
+#include <minecraft:dynamictransforms.glsl>
+#include <minecraft:projection.glsl>
 
 // The pocket's sky stars (decision outsider-room-draws-a-skybox-of-stars): each star is a small quad on a
 // sphere round the camera, drawn under the view's rotation alone, so where a star sits on screen follows the
@@ -10,10 +11,10 @@
 // so the gate trip fades the void's stars in over the overworld's sky
 // (decision gate-fixates-your-view-on-the-moon-until-it-takes-you).
 
-in vec3 Position;
-in vec4 Color;
+layout(location = 0) in vec3 Position;
+layout(location = 1) in vec4 Color;
 
-out vec4 starColor;
+layout(location = 0) out vec4 starColor;
 
 void main() {
     gl_Position = ProjMat * ModelViewMat * vec4(Position, 1.0);

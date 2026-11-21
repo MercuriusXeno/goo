@@ -1,17 +1,18 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
-#moj_import <minecraft:projection.glsl>
-#moj_import <minecraft:dynamictransforms.glsl>
-#moj_import <minecraft:globals.glsl>
+#include <minecraft:projection.glsl>
+#include <minecraft:dynamictransforms.glsl>
+#include <minecraft:globals.glsl>
 
 uniform sampler2D SceneSampler;
 
-in vec3 Position;
-in vec4 Color;
-in vec3 Normal;
+layout(location = 0) in vec3 Position;
+layout(location = 1) in vec4 Color;
+layout(location = 2) in vec3 Normal;
 
-out vec4 vertColor;
-out vec3 reflectedColor;
+layout(location = 0) out vec4 vertColor;
+layout(location = 1) out vec3 reflectedColor;
 
 // How far the reflection sample jumps across the screen (in UV space)
 const float REFLECT_STRENGTH = 0.35;

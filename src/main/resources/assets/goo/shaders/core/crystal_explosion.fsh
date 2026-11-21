@@ -1,4 +1,5 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
 // Crystal goo's burnout explosion (decision elemental-explosion-per-type): a
 // prism burst. The glass shell is cut into voronoi facets whose edges split
@@ -6,14 +7,14 @@
 // as it shatters, facets drop out one by one by their cell's hash.
 // TRANSLUCENT blend.
 
-in vec3 viewPos;
-in vec3 viewNormal;
-in vec3 surfaceDir;
-in float progress;
-in float opacity;
-in float shattered;
+layout(location = 0) in vec3 viewPos;
+layout(location = 1) in vec3 viewNormal;
+layout(location = 2) in vec3 surfaceDir;
+layout(location = 3) in float progress;
+layout(location = 4) in float opacity;
+layout(location = 5) in float shattered;
 
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;
 
 const vec3 GLASS_COLOR = vec3(0.467, 0.914, 1.0);
 const vec3 GLINT_COLOR = vec3(0.85, 1.0, 1.0);
