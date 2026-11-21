@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mojang.blaze3d.pipeline.RenderPipeline;
+import com.mercuriusxeno.goo.client.PipelineReads;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
 import net.minecraft.resources.Identifier;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
@@ -16,8 +17,8 @@ final class PipelineShaders {
      * @param pipeline the pipeline whose shader pair must exist
      */
     static void assertExist(RenderPipeline pipeline) {
-        assertShaderExists(pipeline.getVertexShader(), ".vsh");
-        assertShaderExists(pipeline.getFragmentShader(), ".fsh");
+        assertShaderExists(PipelineReads.vertexShader(pipeline), ".vsh");
+        assertShaderExists(PipelineReads.fragmentShader(pipeline), ".fsh");
     }
 
     private static void assertShaderExists(Identifier shader, String extension) {

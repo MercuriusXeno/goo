@@ -326,7 +326,7 @@ public final class MobEffectTests {
             float before = charmer.getHealth();
             charmer.hurtServer(helper.getLevel(), charmer.damageSources().mobAttack(charmed), SLIME_HIT);
             helper.assertTrue(charmer.getHealth() == before, CHARMED_SLIME_SHOULD_SPARE);
-            charmer.invulnerableTime = 0;
+            charmer.setInvulnerableTime(0);
             charmer.hurtServer(helper.getLevel(), charmer.damageSources().mobAttack(wild), SLIME_HIT);
             helper.assertTrue(charmer.getHealth() < before, WILD_SLIME_SHOULD_HURT);
             helper.getLevel().getServer().getPlayerList().remove(charmer);

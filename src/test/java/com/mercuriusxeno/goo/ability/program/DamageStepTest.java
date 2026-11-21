@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.ability.program;
 
-import com.mercuriusxeno.goo.ability.SpikeTrapFixture;
 import com.mercuriusxeno.goo.ability.AbilityJson;
+import com.mercuriusxeno.goo.ability.SpikeTrapFixture;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
@@ -14,6 +14,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyFloat;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -55,17 +57,14 @@ class DamageStepTest {
      */
     @Test
     void boresHitLeavesItsTargetTheImmunityItNames() {
-        LivingEntity cow = mock(LivingEntity.class);
-        when(cow.level()).thenReturn(mock(ServerLevel.class));
-        when(cow.damageSources()).thenReturn(mock(DamageSources.class));
-        when(cow.getDeltaMovement()).thenReturn(Vec3.ZERO);
+        LivingEntity cow = struck(Vec3.ZERO);
         TargetHost host = mock(TargetHost.class);
         when(host.target()).thenReturn(cow);
 
         DamageStep strike = boresStrike();
         strike.tick(new StepContext(host, 0, 0));
 
-        assertEquals(strike.invulnerableTicks().orElseThrow().evaluateInt(Variables.NONE), cow.invulnerableTime);
+        assertEquals(strike.invulnerableTicks().orElseThrow().evaluateInt(Variables.NONE), cow.getInvulnerableTime());
     }
 
     /**
@@ -77,13 +76,13 @@ class DamageStepTest {
         LivingEntity villager = struck(Vec3.ZERO);
         // vanilla's hurt leaves its target immune, so the step's reset after the hurt is what reads here
         when(villager.hurtServer(any(), any(), anyFloat())).thenAnswer(call -> {
-            villager.invulnerableTime = IMMUNE_AFTER_A_VANILLA_HURT;
+            villager.setInvulnerableTime(IMMUNE_AFTER_A_VANILLA_HURT);
             return true;
         });
 
         new DamageStep(Expr.literal(1), DamageKind.MAGIC).tick(new StepContext(hostOn(villager), 0, 0));
 
-        assertEquals(0, villager.invulnerableTime);
+        assertEquals(0, villager.getInvulnerableTime());
     }
 
     /**
@@ -93,10 +92,10 @@ class DamageStepTest {
     @Test
     void aGooHitClearsItsTargetsImmunityBeforeItHurts() {
         LivingEntity villager = struck(Vec3.ZERO);
-        villager.invulnerableTime = IMMUNE_AFTER_A_MELEE_HIT;
+        villager.setInvulnerableTime(IMMUNE_AFTER_A_MELEE_HIT);
         int[] immuneAtTheHurt = {-1};
         when(villager.hurtServer(any(), any(), anyFloat())).thenAnswer(call -> {
-            immuneAtTheHurt[0] = villager.invulnerableTime;
+            immuneAtTheHurt[0] = villager.getInvulnerableTime();
             return true;
         });
 
@@ -124,6 +123,9 @@ class DamageStepTest {
         when(target.level()).thenReturn(mock(ServerLevel.class));
         when(target.damageSources()).thenReturn(mock(DamageSources.class));
         when(target.getDeltaMovement()).thenReturn(motion);
+        // 26.3 makes the immunity private behind its accessors, which the mock keeps real so a hit's immunity reads back
+        doCallRealMethod().when(target).setInvulnerableTime(anyInt());
+        when(target.getInvulnerableTime()).thenCallRealMethod();
         return target;
     }
 

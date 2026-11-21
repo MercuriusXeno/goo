@@ -3,9 +3,10 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.ability.program.AilmentKind;
 import com.mercuriusxeno.goo.ability.program.AilmentPattern;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.PipelineReads;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
 import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.model.geom.builders.CubeDeformation;
@@ -59,11 +60,11 @@ class AilmentOverlayLayerTest {
     }
 
     private static String fragmentSource() throws IOException {
-        return shaderSource(GooRenderTypes.GOO_AILMENT_OVERLAY.getFragmentShader(), ".fsh");
+        return shaderSource(PipelineReads.fragmentShader(GooRenderTypes.GOO_AILMENT_OVERLAY), ".fsh");
     }
 
     private static String vertexSource() throws IOException {
-        return shaderSource(GooRenderTypes.GOO_AILMENT_OVERLAY.getVertexShader(), ".vsh");
+        return shaderSource(PipelineReads.vertexShader(GooRenderTypes.GOO_AILMENT_OVERLAY), ".vsh");
     }
 
     private static boolean holds(String source, String regex) {
@@ -74,8 +75,8 @@ class AilmentOverlayLayerTest {
     void pipelineDrawsThroughTheAilmentOverlayShaderPair() {
         RenderPipeline pipeline = GooRenderTypes.GOO_AILMENT_OVERLAY;
 
-        assertEquals("core/goo_ailment_overlay", pipeline.getVertexShader().getPath());
-        assertEquals("core/goo_ailment_overlay", pipeline.getFragmentShader().getPath());
+        assertEquals("core/goo_ailment_overlay", PipelineReads.vertexShader(pipeline).getPath());
+        assertEquals("core/goo_ailment_overlay", PipelineReads.fragmentShader(pipeline).getPath());
         PipelineShaders.assertExist(pipeline);
     }
 

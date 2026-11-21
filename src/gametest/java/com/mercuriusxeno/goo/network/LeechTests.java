@@ -234,7 +234,7 @@ public final class LeechTests {
         int lower = VolumeCellBlock.MAX_LAYERS - 1;
         BlockState struck = helper.getBlockState(SPIRIT_FLOOR.above());
         helper.assertTrue(VolumeCellBlock.layersOf(struck) == lower, String.format(NOT_DEPLETED, lower, struck));
-        pig.invulnerableTime = 0;
+        pig.setInvulnerableTime(0);
         float before = pig.getHealth();
         pig.hurtServer(helper.getLevel(), helper.getLevel().damageSources().magic(), SOURCELESS_DAMAGE);
         helper.assertTrue(pig.getHealth() < before, String.format(SOURCELESS_MISSED, before, pig.getHealth()));

@@ -636,6 +636,7 @@ public final class GooRenderTypes {
     public static final RenderPipeline SKY_FUNNEL = RenderPipeline.builder(
                     GooPipelineSnippets.MATRICES_PROJECTION_SNIPPET, RenderPipelines.GLOBALS_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "sky_funnel"))
+            .withColorTargetState(ColorTargetState.DEFAULT)
             .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "sky_funnel"))
             .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "sky_funnel"))
             .withBindGroupLayout(BindGroupLayouts.SAMPLER0)
@@ -859,6 +860,7 @@ public final class GooRenderTypes {
     public static final RenderPipeline BLOCK_MINGLE = RenderPipeline.builder(
                     RenderPipelines.ENTITY_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "block_mingle"))
+            .withColorTargetState(ColorTargetState.DEFAULT)
             .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "block_mingle"))
             .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "block_mingle"))
             // Drawn on the new block's own faces, the old block wins the depth test by bias rather than by
@@ -876,6 +878,7 @@ public final class GooRenderTypes {
                     GooPipelineSnippets.MATRICES_PROJECTION_SNIPPET,
                     RenderPipelines.GLOBALS_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "voidstone"))
+            .withColorTargetState(ColorTargetState.DEFAULT)
             .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "voidstone"))
             .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "voidstone"))
             .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR_NORMAL)
@@ -1450,6 +1453,7 @@ public final class GooRenderTypes {
      */
     public static final RenderPipeline ROOM_COPY_SOLID = RenderPipeline.builder(RenderPipelines.BLOCK_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "room_copy_solid"))
+            .withColorTargetState(ColorTargetState.DEFAULT)
             .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "room_copy_block"))
             .withBindGroupLayout(BindGroupLayout.builder().withUniform(ROOM_COPY_TRANSLATIONS, UniformType.TEXEL_BUFFER, GpuFormat.R8_SINT).build())
             .build();
@@ -1457,6 +1461,7 @@ public final class GooRenderTypes {
     /** A Zone room's cutout blocks in each of its copies, as {@link #ROOM_COPY_SOLID}. */
     public static final RenderPipeline ROOM_COPY_CUTOUT = RenderPipeline.builder(RenderPipelines.BLOCK_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "room_copy_cutout"))
+            .withColorTargetState(ColorTargetState.DEFAULT)
             .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "room_copy_block"))
             .withBindGroupLayout(BindGroupLayout.builder().withUniform(ROOM_COPY_TRANSLATIONS, UniformType.TEXEL_BUFFER, GpuFormat.R8_SINT).build())
             .withShaderDefine("ALPHA_CUTOUT", CUTOUT_BLOCK_ALPHA)

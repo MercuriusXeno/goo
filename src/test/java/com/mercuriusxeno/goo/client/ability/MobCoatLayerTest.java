@@ -1,9 +1,10 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.PipelineReads;
 import com.mercuriusxeno.goo.client.RecordingVertexConsumer;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
 import net.minecraft.client.model.monster.witch.WitchModel;
 import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.Nested;
@@ -34,7 +35,7 @@ class MobCoatLayerTest {
     }
 
     private static String fragmentSource() throws IOException {
-        return shaderSource(GooRenderTypes.GOO_MOB_COAT.getFragmentShader(), ".fsh");
+        return shaderSource(PipelineReads.fragmentShader(GooRenderTypes.GOO_MOB_COAT), ".fsh");
     }
 
     private static boolean holds(String source, String regex) {
@@ -45,8 +46,8 @@ class MobCoatLayerTest {
     void pipelineDrawsThroughTheGooMobCoatShaderPair() {
         RenderPipeline pipeline = GooRenderTypes.GOO_MOB_COAT;
 
-        assertEquals("core/goo_mob_coat", pipeline.getVertexShader().getPath());
-        assertEquals("core/goo_mob_coat", pipeline.getFragmentShader().getPath());
+        assertEquals("core/goo_mob_coat", PipelineReads.vertexShader(pipeline).getPath());
+        assertEquals("core/goo_mob_coat", PipelineReads.fragmentShader(pipeline).getPath());
         PipelineShaders.assertExist(pipeline);
     }
 
@@ -141,7 +142,7 @@ class MobCoatLayerTest {
 
         @Test
         void keepRidesTheTintsAlpha() throws IOException {
-            String vertex = shaderSource(GooRenderTypes.GOO_MOB_COAT.getVertexShader(), ".vsh");
+            String vertex = shaderSource(PipelineReads.vertexShader(GooRenderTypes.GOO_MOB_COAT), ".vsh");
 
             assertTrue(holds(vertex, "splatKeep\\s*=\\s*Color\\.a;"), "the keep does not come from the tint's alpha");
         }
@@ -166,7 +167,7 @@ class MobCoatLayerTest {
 
     @Test
     void vertexShaderLiftsTheSplatOffTheSkinAlongTheNormal() throws IOException {
-        String vertex = shaderSource(GooRenderTypes.GOO_MOB_COAT.getVertexShader(), ".vsh");
+        String vertex = shaderSource(PipelineReads.vertexShader(GooRenderTypes.GOO_MOB_COAT), ".vsh");
 
         assertTrue(holds(vertex, "Position\\s*\\+\\s*normalize\\(Normal\\)\\s*\\*"),
                 "the splat sits on the skin and fights it for depth");

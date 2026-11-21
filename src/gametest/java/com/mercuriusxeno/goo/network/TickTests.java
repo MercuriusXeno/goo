@@ -4,9 +4,11 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.block.reactor.ReactorBlock;
 import com.mercuriusxeno.goo.gametest.FedPlexer;
-import com.mercuriusxeno.goo.registry.GooBlocks;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import com.mercuriusxeno.goo.item.GooStacks;
+import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooItems;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
@@ -18,15 +20,13 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.LeverBlock;
-import net.minecraft.world.level.block.RedStoneWireBlock;
+import net.minecraft.world.level.block.RedstoneWireBlock;
 import net.minecraft.world.level.block.state.properties.AttachFace;
 import net.minecraft.world.phys.Vec3;
-import java.util.function.BooleanSupplier;
-import java.util.function.IntUnaryOperator;
 import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
-import com.mercuriusxeno.goo.gametest.GooTestFunctions;
-import com.mercuriusxeno.goo.gametest.RegistersGameTests;
+import java.util.function.IntUnaryOperator;
 
 /**
  * Gametest for Tick: a hold aimed at a lever flips it again and again for
@@ -134,7 +134,7 @@ public final class TickTests {
     public static void tickPulsesDustRepeatedly(GameTestHelper helper) {
         helper.setBlock(LEVER.below(), Blocks.STONE);
         helper.setBlock(LEVER, Blocks.REDSTONE_WIRE);
-        countChanges(helper, () -> helper.getBlockState(LEVER).getValue(RedStoneWireBlock.POWER) > 0, DUST_SEVERAL);
+        countChanges(helper, () -> helper.getBlockState(LEVER).getValue(RedstoneWireBlock.POWER) > 0, DUST_SEVERAL);
     }
 
     private static ServerPlayer holdAt(GameTestHelper helper) {

@@ -1,11 +1,11 @@
 package com.mercuriusxeno.goo.client.workbench;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.FormattedText;
 import org.joml.Matrix3x2fStack;
-import org.lwjgl.glfw.GLFW;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -349,8 +349,8 @@ final class DrawnFrame {
      */
     void shiftClick(String label) {
         Text text = find(label);
-        assertTrue(targets.click(text.x() + 1, text.y() + 1, GLFW.GLFW_MOUSE_BUTTON_LEFT, GLFW.GLFW_MOD_SHIFT),
-                label + " took no shift click");
+        assertTrue(targets.click(text.x() + 1, text.y() + 1, InputConstants.MOUSE_BUTTON_LEFT,
+                InputConstants.MOD_SHIFT), label + " took no shift click");
     }
 
     /**
@@ -361,6 +361,6 @@ final class DrawnFrame {
      */
     boolean rightClick(String label) {
         Text text = find(label);
-        return targets.click(text.x() + 1, text.y() + 1, GLFW.GLFW_MOUSE_BUTTON_RIGHT, 0);
+        return targets.click(text.x() + 1, text.y() + 1, InputConstants.MOUSE_BUTTON_RIGHT, 0);
     }
 }

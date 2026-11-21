@@ -1,21 +1,22 @@
 package com.mercuriusxeno.goo.client.ber;
 
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.PipelineReads;
 import com.mercuriusxeno.goo.client.RecordingVertexConsumer;
 import com.mercuriusxeno.goo.client.TypeBand;
 import com.mercuriusxeno.goo.client.TypeBands;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
-import com.mojang.blaze3d.pipeline.BindGroupLayout;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
 import net.minecraft.client.renderer.item.ItemStackRenderState;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.resources.model.geometry.BakedQuad;
+import net.minecraft.client.resources.model.geometry.ItemQuads;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
@@ -29,6 +30,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Set;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -63,7 +65,7 @@ class DissolvingItemCollectorTest {
         TextureAtlasSprite sprite = mock(TextureAtlasSprite.class);
         when(sprite.atlasLocation()).thenReturn(ITEM_ATLAS);
         BakedQuad.MaterialInfo material = new BakedQuad.MaterialInfo(
-                sprite, ChunkSectionLayer.CUTOUT, null, -1, true, 0, false);
+                sprite, ChunkSectionLayer.CUTOUT, null, null, null, -1, null, 0, false);
         return new BakedQuad(new Vector3f(0, 0, 0), new Vector3f(0, 1, 0), new Vector3f(1, 1, 0),
                 new Vector3f(1, 0, 0), 0L, 0L, 0L, 0L, Direction.SOUTH, material);
     }
@@ -79,7 +81,8 @@ class DissolvingItemCollectorTest {
                                                                       RenderType[] renderType) {
         SubmitNodeCollector delegate = mock(SubmitNodeCollector.class);
         new DissolvingItemCollector(delegate, glow, null, 0, new Matrix4f()).submitItem(new PoseStack(), ItemDisplayContext.FIXED,
-                LIGHT, 0, 0, new int[0], List.of(quadOnItemAtlas()), ItemStackRenderState.FoilType.NONE);
+                LIGHT, 0, 0, new int[0], new ItemQuads(List.of(quadOnItemAtlas()), List.of(quadOnItemAtlas()), List.of()),
+                ItemStackRenderState.FoilType.NONE);
 
         ArgumentCaptor<RenderType> type = ArgumentCaptor.forClass(RenderType.class);
         ArgumentCaptor<SubmitNodeCollector.CustomGeometryRenderer> geometry =
@@ -220,8 +223,9 @@ class DissolvingItemCollectorTest {
     void dissolvePipelineDrawsWithItsOwnShadersOverTheEntitySamplers() {
         RenderPipeline pipeline = GooRenderTypes.CRUCIBLE_DISSOLVE;
 
-        assertEquals(Identifier.fromNamespaceAndPath("goo", "core/crucible_dissolve"), pipeline.getFragmentShader());
-        assertEquals(Identifier.fromNamespaceAndPath("goo", "core/crucible_dissolve"), pipeline.getVertexShader());
-        assertEquals(List.of("Sampler0", "Sampler2"), BindGroupLayout.flattenSamplers(pipeline.getBindGroupLayouts()));
+        assertEquals(Identifier.fromNamespaceAndPath("goo", "core/crucible_dissolve"), PipelineReads.fragmentShader(pipeline));
+        assertEquals(Identifier.fromNamespaceAndPath("goo", "core/crucible_dissolve"), PipelineReads.vertexShader(pipeline));
+        // 26.3's entity snippet lays the same two samplers out in the other order
+        assertEquals(Set.of("Sampler0", "Sampler2"), Set.copyOf(PipelineReads.samplers(pipeline.getBindGroupLayouts())));
     }
 }

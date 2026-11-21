@@ -1,13 +1,13 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.client.GooRenderTypes;
-import com.mojang.blaze3d.platform.CompareOp;
-import java.util.List;
+import com.mojang.renderpearl.api.pipeline.CompareOp;
 import net.minecraft.core.Direction;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 

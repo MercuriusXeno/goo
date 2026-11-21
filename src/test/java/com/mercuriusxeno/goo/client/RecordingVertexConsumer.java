@@ -116,6 +116,11 @@ public final class RecordingVertexConsumer implements VertexConsumer {
     }
 
     @Override
+    public VertexConsumer setUv3(float u, float v) {
+        return this;
+    }
+
+    @Override
     public VertexConsumer setUv2(int lightU, int lightV) {
         lightWrites++;
         uv2U = lightU;

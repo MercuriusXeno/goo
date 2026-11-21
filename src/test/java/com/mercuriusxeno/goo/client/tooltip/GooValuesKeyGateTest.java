@@ -9,12 +9,11 @@ import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.lwjgl.glfw.GLFW;
+import org.lwjgl.sdl.SDLScancode;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.Set;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -51,7 +50,7 @@ class GooValuesKeyGateTest {
 
         @Test
         void defaultsToTheGloveMenuKeysG() {
-            assertEquals(GLFW.GLFW_KEY_G, GooValuesKeyGate.DEFAULT_KEY);
+            assertEquals(InputConstants.KEY_G, GooValuesKeyGate.DEFAULT_KEY);
             assertEquals(GloveRadialKeyGate.DEFAULT_KEY, GooValuesKeyGate.DEFAULT_KEY);
         }
 
@@ -70,39 +69,40 @@ class GooValuesKeyGateTest {
         @Test
         void heldGRevealsAtTheDefault() {
             assertTrue(GooValuesKeyGate.boundInputDown(
-                    InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_G, HeldInputs.keys(GLFW.GLFW_KEY_G)));
+                    InputConstants.Type.KEYBOARD, InputConstants.KEY_G, HeldInputs.keys(InputConstants.KEY_G)));
         }
 
         @Test
         void heldShiftRevealsNothingAtTheDefault() {
-            assertFalse(GooValuesKeyGate.boundInputDown(InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_G,
-                    HeldInputs.keys(GLFW.GLFW_KEY_LEFT_SHIFT, GLFW.GLFW_KEY_RIGHT_SHIFT)));
+            assertFalse(GooValuesKeyGate.boundInputDown(InputConstants.Type.KEYBOARD, InputConstants.KEY_G,
+                    HeldInputs.keys(InputConstants.KEY_LSHIFT, InputConstants.KEY_RSHIFT)));
         }
 
         @Test
         void heldShiftRevealsOnceReboundToShift() {
-            assertTrue(GooValuesKeyGate.boundInputDown(InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_LEFT_SHIFT,
-                    HeldInputs.keys(GLFW.GLFW_KEY_LEFT_SHIFT)));
+            assertTrue(GooValuesKeyGate.boundInputDown(InputConstants.Type.KEYBOARD, InputConstants.KEY_LSHIFT,
+                    HeldInputs.keys(InputConstants.KEY_LSHIFT)));
         }
 
         @Test
         void heldMouseButtonRevealsWhenBoundToIt() {
-            HeldInputs middleHeld = new HeldInputs(Set.of(), Set.of(GLFW.GLFW_MOUSE_BUTTON_MIDDLE));
+            HeldInputs middleHeld = new HeldInputs(Set.of(), Set.of(InputConstants.MOUSE_BUTTON_MIDDLE));
 
             assertTrue(GooValuesKeyGate.boundInputDown(
-                    InputConstants.Type.MOUSE, GLFW.GLFW_MOUSE_BUTTON_MIDDLE, middleHeld));
+                    InputConstants.Type.MOUSE, InputConstants.MOUSE_BUTTON_MIDDLE, middleHeld));
         }
 
         @Test
         void unboundKeyRevealsNothing() {
-            assertFalse(GooValuesKeyGate.boundInputDown(InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_UNKNOWN,
-                    HeldInputs.keys(GLFW.GLFW_KEY_UNKNOWN)));
+            assertFalse(GooValuesKeyGate.boundInputDown(InputConstants.Type.KEYBOARD, SDLScancode.SDL_SCANCODE_UNKNOWN,
+                    HeldInputs.keys(SDLScancode.SDL_SCANCODE_UNKNOWN)));
         }
 
+        // 26.3 dropped the scancode binding type, so a binding of the one other type stands for it.
         @Test
-        void scancodeBindingRevealsNothing() {
-            assertFalse(GooValuesKeyGate.boundInputDown(InputConstants.Type.SCANCODE, GLFW.GLFW_KEY_G,
-                    HeldInputs.keys(GLFW.GLFW_KEY_G)));
+        void mouseBindingRevealsNothingWhileItsCodeIsHeldAsAKey() {
+            assertFalse(GooValuesKeyGate.boundInputDown(InputConstants.Type.MOUSE, InputConstants.KEY_G,
+                    HeldInputs.keys(InputConstants.KEY_G)));
         }
     }
 

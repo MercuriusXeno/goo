@@ -635,7 +635,8 @@ public final class SlickTests {
         ServerPlayer runner = slickStreamerAt(helper, RUNNER_CELL);
         // the client accepts the teleport it joined with, as a client does, so its moves are read
         for (int teleport = 0; teleport <= JOIN_TELEPORTS; teleport++) {
-            runner.connection.handleAcceptTeleportPacket(new ServerboundAcceptTeleportationPacket(teleport));
+            runner.connection.handleAcceptTeleportPacket(new ServerboundAcceptTeleportationPacket(teleport,
+                    runner.getX(), runner.getY(), runner.getZ(), runner.getYRot(), runner.getXRot()));
         }
         Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(RUNNER_CELL));
         runner.setPos(stand.x, stand.y, stand.z);

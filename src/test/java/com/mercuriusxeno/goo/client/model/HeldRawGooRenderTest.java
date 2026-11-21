@@ -82,7 +82,7 @@ class HeldRawGooRenderTest {
     /** Every vertex the palm cube's core and shell emit, in a hand turned some way. */
     private static List<RecordingVertexConsumer.Vertex> palmCubeDrawn(GloveSpecialRenderer.GloveData data) {
         PoseStack hand = new PoseStack();
-        hand.mulPose(new Quaternionf().rotationXYZ(1.2f, 0.4f, -0.3f));
+        hand.rotate(new Quaternionf().rotationXYZ(1.2f, 0.4f, -0.3f));
         RecordingVertexConsumer drawn = new RecordingVertexConsumer();
         SubmitNodeCollector collector = mock(SubmitNodeCollector.class);
         doAnswer(call -> {

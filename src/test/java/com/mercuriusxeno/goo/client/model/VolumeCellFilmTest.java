@@ -45,7 +45,7 @@ class VolumeCellFilmTest {
     private boolean ceiling;
 
     private final BakedQuad.MaterialInfo film = new BakedQuad.MaterialInfo(mock(TextureAtlasSprite.class),
-            ChunkSectionLayer.TRANSLUCENT, null, 0, true, 0, false);
+            ChunkSectionLayer.TRANSLUCENT, null, null, null, 0, null, 0, false);
 
     @ParameterizedTest
     @EnumSource(value = Direction.class, names = {"NORTH", "EAST", "SOUTH", "WEST"})
@@ -148,7 +148,7 @@ class VolumeCellFilmTest {
         BlockAndTintGetter level = mock(BlockAndTintGetter.class);
         when(level.getBlockState(any())).thenReturn(mock(BlockState.class));
         BakedQuad.MaterialInfo core = new BakedQuad.MaterialInfo(mock(TextureAtlasSprite.class),
-                ChunkSectionLayer.TRANSLUCENT, null, 1, true, 0, false);
+                ChunkSectionLayer.TRANSLUCENT, null, null, null, 1, null, 0, false);
         SlimeCoreModel model = new SlimeCoreModel(mock(BlockStateModel.class), core, film, Map.of());
         List<BlockStateModelPart> parts = new ArrayList<>();
         model.collectParts(level, CELL, state, RandomSource.create(1L), parts);

@@ -7,8 +7,8 @@ import net.minecraft.world.level.block.ComparatorBlock;
 import net.minecraft.world.level.block.DoorBlock;
 import net.minecraft.world.level.block.FenceGateBlock;
 import net.minecraft.world.level.block.LeverBlock;
-import net.minecraft.world.level.block.RedStoneWireBlock;
 import net.minecraft.world.level.block.RedstoneLampBlock;
+import net.minecraft.world.level.block.RedstoneWireBlock;
 import net.minecraft.world.level.block.RepeaterBlock;
 import net.minecraft.world.level.block.TrapDoorBlock;
 import net.minecraft.world.level.block.WeatheringCopperDoorBlock;
@@ -20,7 +20,6 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import java.util.Optional;
 import java.util.stream.Stream;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -44,7 +43,7 @@ class ZapDeviceTest {
                 Arguments.of(FenceGateBlock.class, ZapDevice.OPENABLE),
                 Arguments.of(RepeaterBlock.class, ZapDevice.REPEATER),
                 Arguments.of(ComparatorBlock.class, ZapDevice.POWER_SOURCE),
-                Arguments.of(RedStoneWireBlock.class, ZapDevice.POWER_SOURCE),
+                Arguments.of(RedstoneWireBlock.class, ZapDevice.POWER_SOURCE),
                 Arguments.of(RedstoneLampBlock.class, ZapDevice.POWER_SOURCE),
                 Arguments.of(PistonBaseBlock.class, ZapDevice.POWER_SOURCE),
                 Arguments.of(Block.class, ZapDevice.POWER_SOURCE));

@@ -23,7 +23,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.CopperBulbBlock;
 import net.minecraft.world.level.block.DoorBlock;
 import net.minecraft.world.level.block.LeverBlock;
-import net.minecraft.world.level.block.RedStoneWireBlock;
+import net.minecraft.world.level.block.RedstoneWireBlock;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
@@ -187,9 +187,9 @@ public final class ZapTests {
         helper.setBlock(FLOOR, Blocks.STONE);
         helper.setBlock(ON_FLOOR, Blocks.REDSTONE_WIRE);
         landOn(helper, ON_FLOOR);
-        helper.assertTrue(helper.getBlockState(ON_FLOOR).getValue(RedStoneWireBlock.POWER) > 0, DUST_POWERED);
+        helper.assertTrue(helper.getBlockState(ON_FLOOR).getValue(RedstoneWireBlock.POWER) > 0, DUST_POWERED);
         helper.runAfterDelay(PAST_THE_PULSE, () -> {
-            helper.assertTrue(helper.getBlockState(ON_FLOOR).getValue(RedStoneWireBlock.POWER) == 0, DUST_UNPOWERED);
+            helper.assertTrue(helper.getBlockState(ON_FLOOR).getValue(RedstoneWireBlock.POWER) == 0, DUST_UNPOWERED);
             helper.succeed();
         });
     }

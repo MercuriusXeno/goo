@@ -68,9 +68,8 @@ import com.mercuriusxeno.goo.client.overlay.TransmitTargetMarker;
 import com.mercuriusxeno.goo.client.throwing.GooFlightRenderer;
 import com.mercuriusxeno.goo.client.zone.RoomCopyRenderer;
 import com.mercuriusxeno.goo.client.zone.VoidstoneFaces;
-import com.mojang.blaze3d.pipeline.BindGroupLayout;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.platform.CompareOp;
+import com.mojang.renderpearl.api.pipeline.CompareOp;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
@@ -370,7 +369,7 @@ class TranslucentVisualPathTest {
         /** Bore's drill clips itself against a copy of the level's depth in its shader, clouds included. */
         @Test
         void boresDrillReadsTheLevelsDepth() {
-            assertTrue(BindGroupLayout.flattenSamplers(GooRenderTypes.BORE_DRILL.getBindGroupLayouts()).contains(GooRenderTypes.BORE_DRILL_DEPTH_SAMPLER));
+            assertTrue(PipelineReads.samplers(GooRenderTypes.BORE_DRILL.getBindGroupLayouts()).contains(GooRenderTypes.BORE_DRILL_DEPTH_SAMPLER));
         }
 
         @Test

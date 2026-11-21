@@ -37,7 +37,7 @@ class BlockMingleRendererTest {
 
     private static BakedQuad quadOn(ChunkSectionLayer layer) {
         return new BakedQuad(new Vector3f(), new Vector3f(), new Vector3f(), new Vector3f(), 0L, 0L, 0L, 0L,
-                Direction.UP, new BakedQuad.MaterialInfo(mock(TextureAtlasSprite.class), layer, null, -1, true, 0, true));
+                Direction.UP, new BakedQuad.MaterialInfo(mock(TextureAtlasSprite.class), layer, null, null, null, -1, null, 0, true));
     }
 
     @Test

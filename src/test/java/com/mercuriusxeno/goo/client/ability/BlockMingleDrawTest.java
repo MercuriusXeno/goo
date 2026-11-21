@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.client.GooRenderTypes;
-import com.mojang.blaze3d.pipeline.DepthStencilState;
+import com.mojang.renderpearl.api.pipeline.DepthStencilState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.state.BlockState;
 import org.junit.jupiter.api.Test;

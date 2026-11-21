@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.client.workbench;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import org.junit.jupiter.api.Test;
-import org.lwjgl.glfw.GLFW;
 import java.util.List;
 import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -141,6 +141,6 @@ class UsedByLineTest {
 
     private static void assertHoverAndFollow(DrawnFrame frame, int x, int y, String hoverKey) {
         assertEquals(Optional.of(hoverKey), frame.targets.hoveredArea(x, y).map(ClickTargets.HoveredArea::hoverKey));
-        assertTrue(frame.targets.click(x, y, GLFW.GLFW_MOUSE_BUTTON_LEFT, GLFW.GLFW_MOD_SHIFT), hoverKey);
+        assertTrue(frame.targets.click(x, y, InputConstants.MOUSE_BUTTON_LEFT, InputConstants.MOD_SHIFT), hoverKey);
     }
 }

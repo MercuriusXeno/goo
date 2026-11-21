@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.gametest;
 
-import com.mercuriusxeno.goo.GooConfig;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlockEntity;
 import com.mercuriusxeno.goo.block.hub.HubBlock;
 import com.mercuriusxeno.goo.block.hub.HubBlockEntity;
@@ -18,8 +17,8 @@ import com.mercuriusxeno.goo.item.ContainerCapacity;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.item.PartiallyMeltedItem;
-import com.mercuriusxeno.goo.network.PlexerTargetPickHandler;
 import com.mercuriusxeno.goo.network.PlayerKnowledge;
+import com.mercuriusxeno.goo.network.PlexerTargetPickHandler;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooFluids;
@@ -46,10 +45,10 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
 
 /**
@@ -324,9 +323,9 @@ public final class MachineInteractionTests {
                 plexer.getBlockState().getValue(PlexerBlock.FACING));
         List<ClientboundLevelParticlesPacket> puffs = recorder.sentOf(ClientboundLevelParticlesPacket.class);
         ClientboundLevelParticlesPacket puff = puffs.isEmpty() ? null : puffs.getLast();
-        helper.assertTrue(puffs.size() == refusals && puff != null && puff.getParticle() == ParticleTypes.SMOKE
-                && puff.getCount() == PlexerRefusalCue.SMOKE_COUNT
-                && new Vec3(puff.getX(), puff.getY(), puff.getZ()).distanceTo(center) < CUE_EPSILON,
+        helper.assertTrue(puffs.size() == refusals && puff != null && puff.particle() == ParticleTypes.SMOKE
+                && puff.count() == PlexerRefusalCue.SMOKE_COUNT
+                && new Vec3(puff.x(), puff.y(), puff.z()).distanceTo(center) < CUE_EPSILON,
                 "Each refusal should puff smoke at the cutaway's center " + center + ", sent " + puffs);
         List<ClientboundSoundPacket> sounds = recorder.sentOf(ClientboundSoundPacket.class);
         helper.assertTrue(sounds.size() == refusals && sounds.getLast().getSound().value() == SoundEvents.FIRE_EXTINGUISH

@@ -5,9 +5,10 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.SpikeTrapFixture;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.PipelineReads;
 import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.type.GooTypes;
-import com.mojang.blaze3d.platform.CompareOp;
+import com.mojang.renderpearl.api.pipeline.CompareOp;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.phys.Vec3;
@@ -123,7 +124,7 @@ class HeldDomeRendererTest {
         PipelineShaders.assertExist(GooRenderTypes.CRYSTAL_EXPLOSION_THROUGH_BLOCKS);
         assertEquals(CompareOp.ALWAYS_PASS,
                 GooRenderTypes.CRYSTAL_EXPLOSION_THROUGH_BLOCKS.getDepthStencilState().depthTest());
-        assertEquals(GooRenderTypes.CRYSTAL_EXPLOSION.getVertexShader(),
-                GooRenderTypes.CRYSTAL_EXPLOSION_THROUGH_BLOCKS.getVertexShader());
+        assertEquals(PipelineReads.vertexShader(GooRenderTypes.CRYSTAL_EXPLOSION),
+                PipelineReads.vertexShader(GooRenderTypes.CRYSTAL_EXPLOSION_THROUGH_BLOCKS));
     }
 }

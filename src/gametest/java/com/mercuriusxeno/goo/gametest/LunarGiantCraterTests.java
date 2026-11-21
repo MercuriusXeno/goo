@@ -13,7 +13,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.RandomState;
-import net.minecraft.world.level.levelgen.synth.NormalNoise;
+import net.minecraft.world.level.levelgen.synth.Noise;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.List;
 import java.util.Optional;
@@ -89,7 +89,7 @@ public final class LunarGiantCraterTests {
         helper.assertTrue(lunar != null, LUNAR_REQUIRED);
         RandomState randomState = lunar.getChunkSource().randomState();
         GiantCraterField giants = GiantCraterField.seeded(randomState.getOrCreateNoise(CraterField.NOISE));
-        NormalNoise maria = randomState.getOrCreateNoise(RilleField.MARIA_NOISE);
+        Noise maria = randomState.getOrCreateNoise(RilleField.MARIA_NOISE);
         GiantCraterField.Crater crater = findCraterInABasin(giants, maria);
         helper.assertTrue(crater != null, String.format(NO_GIANT_CRATER, CELL_REACH));
         BlockPos centre = BlockPos.containing(crater.centerX(), 0.0, crater.centerZ());
@@ -172,7 +172,7 @@ public final class LunarGiantCraterTests {
         return column.atY(lunar.getHeight(Heightmap.Types.WORLD_SURFACE, column.getX(), column.getZ()) - 1);
     }
 
-    private static GiantCraterField.Crater findCraterInABasin(GiantCraterField giants, NormalNoise maria) {
+    private static GiantCraterField.Crater findCraterInABasin(GiantCraterField giants, Noise maria) {
         for (int cellX = -CELL_REACH; cellX <= CELL_REACH; cellX++) {
             for (int cellZ = -CELL_REACH; cellZ <= CELL_REACH; cellZ++) {
                 Optional<GiantCraterField.Crater> crater = giants.craterInCell(cellX, cellZ);
@@ -184,9 +184,9 @@ public final class LunarGiantCraterTests {
         return null;
     }
 
-    private static boolean liesInABasin(GiantCraterField.Crater crater, NormalNoise maria) {
+    private static boolean liesInABasin(GiantCraterField.Crater crater, Noise maria) {
         for (double reach : new double[] {0.0, FLOOR_REACH, 1.0}) {
-            if (maria.getValue(crater.centerX() + crater.radius() * reach, 0.0, crater.centerZ()) <= DEEP_IN_A_BASIN) {
+            if (maria.get(crater.centerX() + crater.radius() * reach, 0.0, crater.centerZ()) <= DEEP_IN_A_BASIN) {
                 return false;
             }
         }

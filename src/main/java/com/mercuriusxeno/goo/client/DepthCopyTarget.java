@@ -3,7 +3,6 @@ package com.mercuriusxeno.goo.client;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.pipeline.TextureTarget;
 import com.mojang.renderpearl.api.GpuFormat;
-import com.mojang.renderpearl.api.textures.GpuTexture;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -71,17 +70,15 @@ public final class DepthCopyTarget {
      * Whether a target's depth texture carries a stencil.
      *
      * @param target the target
-     * @return true where its depth format holds a stencil aspect
+     * @return true where the depth format it builds its depth texture in holds a stencil aspect
      */
     public static boolean hasStencil(RenderTarget target) {
-        GpuTexture depth = target.getDepthTexture();
-        return depth != null && depth.getFormat().hasStencilAspect();
+        return target.depthFormat != null && target.depthFormat.hasStencilAspect();
     }
 
     // The copy takes the source's own depth format, so the depth copies texel for texel.
     private static GpuFormat depthFormatOf(RenderTarget source) {
-        GpuTexture depth = source.getDepthTexture();
-        return depth == null ? GpuFormat.D32_FLOAT : depth.getFormat();
+        return source.depthFormat == null ? GpuFormat.D32_FLOAT : source.depthFormat;
     }
 
     private static int formatOf(Shape shape) {

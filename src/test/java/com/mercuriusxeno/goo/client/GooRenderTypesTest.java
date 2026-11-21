@@ -1,10 +1,10 @@
 package com.mercuriusxeno.goo.client;
 
-import com.mojang.blaze3d.pipeline.BlendFunction;
-import com.mojang.blaze3d.pipeline.ColorTargetState;
-import com.mojang.blaze3d.pipeline.DepthStencilState;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.platform.CompareOp;
+import com.mojang.renderpearl.api.pipeline.BlendFunction;
+import com.mojang.renderpearl.api.pipeline.ColorTargetState;
+import com.mojang.renderpearl.api.pipeline.CompareOp;
+import com.mojang.renderpearl.api.pipeline.DepthStencilState;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
 import net.neoforged.neoforge.client.event.RegisterRenderPipelinesEvent;
 import net.neoforged.neoforge.client.stencil.StencilOperation;
 import net.neoforged.neoforge.client.stencil.StencilPerFaceTest;
@@ -66,7 +66,7 @@ class GooRenderTypesTest {
     @Test
     void dowsingsMaskMarksTheNearestGooAndItsOreDrawsOnlyThere() {
         RenderPipeline mask = GooRenderTypes.DOWSING_MASK;
-        StencilTest marks = mask.getStencilTest().orElseThrow();
+        StencilTest marks = PipelineReads.stencilTest(mask).orElseThrow();
         StencilTest onTheMark = new StencilTest(
                 new StencilPerFaceTest(StencilOperation.KEEP, StencilOperation.KEEP, StencilOperation.KEEP,
                         CompareOp.EQUAL), marks.writeMask(), 0, marks.referenceValue());
@@ -74,9 +74,9 @@ class GooRenderTypesTest {
         assertEquals(List.of(new DepthStencilState(CompareOp.GREATER_THAN_OR_EQUAL, false).depthTest(), false,
                         ColorTargetState.WRITE_NONE, CompareOp.ALWAYS_PASS, StencilOperation.REPLACE),
                 List.of(mask.getDepthStencilState().depthTest(), mask.getDepthStencilState().writeDepth(),
-                        mask.getColorTargetState().writeMask(), marks.front().compare(), marks.front().pass()));
+                        PipelineReads.colorTarget(mask).writeMask(), marks.front().compare(), marks.front().pass()));
         assertEquals(List.of(Optional.of(onTheMark), Optional.of(onTheMark)),
-                List.of(GooRenderTypes.DOWSING_ORE.getStencilTest(), GooRenderTypes.DOWSING_GLOW.getStencilTest()));
+                List.of(PipelineReads.stencilTest(GooRenderTypes.DOWSING_ORE), PipelineReads.stencilTest(GooRenderTypes.DOWSING_GLOW)));
     }
 
     /**
@@ -89,8 +89,8 @@ class GooRenderTypesTest {
         DepthStencilState throughEverything = new DepthStencilState(CompareOp.ALWAYS_PASS, false);
 
         assertEquals(List.of(throughEverything, Optional.empty(), throughEverything, Optional.empty()),
-                List.of(GooRenderTypes.FUNGUS_XRAY.getDepthStencilState(), GooRenderTypes.FUNGUS_XRAY.getStencilTest(),
-                        GooRenderTypes.FUNGUS_GLOW.getDepthStencilState(), GooRenderTypes.FUNGUS_GLOW.getStencilTest()));
+                List.of(GooRenderTypes.FUNGUS_XRAY.getDepthStencilState(), PipelineReads.stencilTest(GooRenderTypes.FUNGUS_XRAY),
+                        GooRenderTypes.FUNGUS_GLOW.getDepthStencilState(), PipelineReads.stencilTest(GooRenderTypes.FUNGUS_GLOW)));
     }
 
     /**
@@ -108,7 +108,7 @@ class GooRenderTypesTest {
 
         verify(event, atLeastOnce()).registerPipeline(registered.capture());
         Set<String> unrecorded = registered.getAllValues().stream()
-                .filter(pipeline -> pipeline.getColorTargetState().blendFunction().isPresent())
+                .filter(pipeline -> PipelineReads.colorTarget(pipeline).blendFunction().isPresent())
                 .filter(pipeline -> GooRenderTypes.sortOf(pipeline).isEmpty())
                 .map(pipeline -> pipeline.getLocation().toString())
                 .collect(Collectors.toCollection(TreeSet::new));
@@ -123,9 +123,9 @@ class GooRenderTypesTest {
     @Test
     void lasersScorchAddsItsGlowOntoTheFace() {
         assertEquals(Optional.of(BlendFunction.TRANSLUCENT),
-                GooRenderTypes.LASER_SCORCH.getColorTargetState().blendFunction());
+                PipelineReads.colorTarget(GooRenderTypes.LASER_SCORCH).blendFunction());
         assertEquals(Optional.of(BlendFunction.ADDITIVE),
-                GooRenderTypes.LASER_SCORCH_GLOW.getColorTargetState().blendFunction());
+                PipelineReads.colorTarget(GooRenderTypes.LASER_SCORCH_GLOW).blendFunction());
     }
 
     /**

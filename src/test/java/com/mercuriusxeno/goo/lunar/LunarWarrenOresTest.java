@@ -37,12 +37,18 @@ class LunarWarrenOresTest {
         return "/data/" + parts[0] + "/worldgen/" + kind + "/" + parts[1] + ".json";
     }
 
-    private static JsonObject configuredOf(String placedId) throws IOException {
+    // 26.3 keeps a feature under worldgen/feature with its settings at its top level, where 26.2 nested them in config.
+    private static JsonObject featureOf(String placedId) throws IOException {
         JsonObject placed = resourceJson(worldgenPath(placedId, "placed_feature"));
-        return resourceJson(worldgenPath(placed.get("feature").getAsString(), "configured_feature"));
+        return resourceJson(worldgenPath(placed.get("feature").getAsString(), "feature"));
     }
 
-    /** A placed feature's veins per chunk times its configured feature's vein size. */
+    // A target's state reads as a block id alone or as the block with its properties.
+    private static String blockOf(JsonElement state) {
+        return state.isJsonPrimitive() ? state.getAsString() : state.getAsJsonObject().get("Name").getAsString();
+    }
+
+    /** A placed feature's veins per chunk times its feature's vein size. */
     static int yieldOf(String placedId) throws IOException {
         JsonObject placed = resourceJson(worldgenPath(placedId, "placed_feature"));
         int count = 1;
@@ -52,7 +58,7 @@ class LunarWarrenOresTest {
                 count *= modifier.get("count").getAsInt();
             }
         }
-        return count * configuredOf(placedId).getAsJsonObject("config").get("size").getAsInt();
+        return count * featureOf(placedId).get("size").getAsInt();
     }
 
     private static List<String> warrenFeatures() throws IOException {
@@ -65,11 +71,11 @@ class LunarWarrenOresTest {
 
     /** The block states an ore feature's targets place, or none for a feature with no targets. */
     private static List<String> placedStates(String placedId) throws IOException {
-        JsonObject config = configuredOf(placedId).getAsJsonObject("config");
+        JsonObject feature = featureOf(placedId);
         List<String> states = new ArrayList<>();
-        if (config != null && config.has("targets")) {
-            config.getAsJsonArray("targets").forEach(target -> states.add(
-                    target.getAsJsonObject().getAsJsonObject("state").get("Name").getAsString()));
+        if (feature.has("targets")) {
+            feature.getAsJsonArray("targets").forEach(target -> states.add(
+                    blockOf(target.getAsJsonObject().get("state"))));
         }
         return states;
     }

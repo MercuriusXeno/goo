@@ -5,12 +5,14 @@ import com.mercuriusxeno.goo.ability.quantum.PortalTransform;
 import com.mercuriusxeno.goo.network.GateCarriedPayload;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.PositionAndRotation;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.protocol.game.VecDeltaCodec;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.world.entity.PositionPath;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -22,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyFloat;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -63,6 +66,8 @@ class ClientGateCarryTest {
     private static Entity mockBody() {
         Entity body = mock(Entity.class);
         when(body.getDeltaMovement()).thenReturn(Vec3.ZERO);
+        // 26.3 answers an entity drawn with no slide with the no-op handler where 26.2 answered null
+        when(body.getInterpolation()).thenReturn(InterpolationHandler.NO_OP);
         return body;
     }
 
@@ -84,7 +89,7 @@ class ClientGateCarryTest {
 
         verify(body, never()).setPos(any(Vec3.class));
         Vec3 landingSeenFromTheEntry = PortalTransform.between(EXIT, ENTERED).point(CARRY.feet());
-        verify(slide).interpolateTo(landingSeenFromTheEntry, CARRY.yaw(), CARRY.pitch());
+        verify(slide).interpolateTo(PositionPath.of(landingSeenFromTheEntry), CARRY.yaw(), CARRY.pitch(), true);
     }
 
     private static final float PARTIAL = 0.5F;
@@ -107,7 +112,8 @@ class ClientGateCarryTest {
         when(body.position()).thenReturn(pastTheFace);
         when(body.getPosition(PARTIAL)).thenReturn(new Vec3(0.5, 0.0, 0.02));
         when(slide.hasActiveInterpolation()).thenReturn(true);
-        when(slide.position()).thenReturn(PortalTransform.between(EXIT, ENTERED).point(CARRY.feet()));
+        when(slide.target()).thenReturn(new PositionAndRotation.Immutable(
+                PortalTransform.between(EXIT, ENTERED).point(CARRY.feet()), 0F, 0F));
         body.xo = DRAWN_BEFORE.x();
         body.yo = DRAWN_BEFORE.y();
         body.zo = DRAWN_BEFORE.z();
@@ -119,8 +125,8 @@ class ClientGateCarryTest {
         Vec3 before = new Vec3(body.xo, body.yo, body.zo);
         assertTrue(before.distanceTo(through.point(DRAWN_BEFORE)) < 1.0E-6, "The body's last tick should turn "
                 + "through the pair with it, so it is drawn moving on unbroken, stands at " + before);
-        verify(slide).interpolateTo(argThat(target -> target.distanceTo(CARRY.feet()) < 1.0E-6), anyFloat(),
-                anyFloat());
+        verify(slide).interpolateTo(argThat(target -> target.endPosition().distanceTo(CARRY.feet()) < 1.0E-6),
+                anyFloat(), anyFloat(), eq(true));
     }
 
     /** A body drawn still short of the gate it went into stays where it is drawn. */

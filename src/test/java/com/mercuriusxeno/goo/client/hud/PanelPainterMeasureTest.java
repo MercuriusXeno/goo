@@ -5,8 +5,11 @@ import com.mercuriusxeno.goo.item.ContainerCapacity;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
+import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
+import org.joml.Matrix4f;
+import org.joml.Quaternionf;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -18,9 +21,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.ToIntFunction;
 import java.util.stream.Stream;
-import com.mojang.blaze3d.vertex.PoseStack;
-import org.joml.Matrix4f;
-import org.joml.Quaternionf;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -236,7 +236,7 @@ class PanelPainterMeasureTest {
         private static Matrix4f northFacingPanel(float panelZFromCamera) {
             PoseStack poseStack = new PoseStack();
             poseStack.translate(0, 0, panelZFromCamera);
-            poseStack.mulPose(new Quaternionf().rotationY((float) Math.PI));
+            poseStack.rotate(new Quaternionf().rotationY((float) Math.PI));
             poseStack.scale(InWorldHud.PIXEL_SCALE, -InWorldHud.PIXEL_SCALE, InWorldHud.PIXEL_SCALE);
             return poseStack.last().pose();
         }

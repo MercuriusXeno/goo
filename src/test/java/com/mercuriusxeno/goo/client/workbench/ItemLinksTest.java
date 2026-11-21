@@ -1,8 +1,8 @@
 package com.mercuriusxeno.goo.client.workbench;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.network.chat.Component;
 import org.junit.jupiter.api.Test;
-import org.lwjgl.glfw.GLFW;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -34,7 +34,7 @@ class ItemLinksTest {
         assertEquals(ItemIcons.hoverKey(STICK), targets.hovered(25, 35).orElseThrow());
         assertTrue(targets.click(25, 35));
         assertEquals(List.of("beneath"), beneath);
-        assertTrue(targets.click(25, 35, GLFW.GLFW_MOUSE_BUTTON_LEFT, GLFW.GLFW_MOD_SHIFT));
+        assertTrue(targets.click(25, 35, InputConstants.MOUSE_BUTTON_LEFT, InputConstants.MOD_SHIFT));
         verify(actions).openItem(STICK);
         assertEquals(List.of("beneath"), beneath);
     }

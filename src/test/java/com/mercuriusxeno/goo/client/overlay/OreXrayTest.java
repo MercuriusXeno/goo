@@ -26,8 +26,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.function.Function;
-import static org.mockito.Mockito.mock;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.mock;
 
 /**
  * One frame of the revealed ore over the fixed synthetic world draws the
@@ -123,6 +123,11 @@ class OreXrayTest {
 
         @Override
         public VertexConsumer setUv1(int u, int v) {
+            return this;
+        }
+
+        @Override
+        public VertexConsumer setUv3(float u, float v) {
             return this;
         }
 
