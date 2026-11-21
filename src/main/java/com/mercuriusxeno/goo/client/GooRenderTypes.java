@@ -349,26 +349,51 @@ public final class GooRenderTypes {
     /** RenderType for Void's portable hole mouth. */
     public static final RenderType PORTABLE_HOLE_MOUTH_TYPE = burnoutType(PORTABLE_HOLE_MOUTH);
 
-    /** The sampler the portable hole carve reads a copy of the world's depth through. */
-    public static final String PORTABLE_HOLE_DEPTH_SAMPLER = "HoleDepthSampler";
+    /** The stencil bit a portable hole's mark sets where its oval is the nearest thing seen, reserved from NeoForge's eight. */
+    public static final int PORTABLE_HOLE_STENCIL_BIT = stencilBitOf(StencilManager.reserveBit());
+
+    /**
+     * Void's portable hole mark (decision hole-items-are-a-three-dimensional-soup-sunk-in-the-hole):
+     * the mouth's oval through the carve's own vertex shader, writing no color and no depth,
+     * depth tested, so it sets the hole's stencil bit wherever the oval is the nearest thing
+     * seen. The carve draws inside the opaque stage's open pass, where Minecraft 26.3 takes no
+     * copy of the world's depth to read that from.
+     * decision minecraft-26-3-update-is-a-port-to-parity
+     */
+    public static final RenderPipeline PORTABLE_HOLE_MARK = sorted(PipelineSort.ON_THE_PATH, RenderPipeline.builder(
+                    GooPipelineSnippets.MATRICES_PROJECTION_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "portable_hole_mark"))
+            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "portable_hole_carve"))
+            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "portable_hole_mark"))
+            .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR)
+            .withPrimitiveTopology(PrimitiveTopology.QUADS)
+            .withColorTargetState(new ColorTargetState(Optional.empty(), GpuFormat.RGBA8_UNORM, ColorTargetState.WRITE_NONE))
+            .withDepthStencilState(new DepthStencilState(CompareOp.GREATER_THAN_OR_EQUAL, false, 0F, 0F,
+                    new StencilTest(new StencilPerFaceTest(StencilOperation.KEEP, StencilOperation.KEEP,
+                            StencilOperation.REPLACE, CompareOp.ALWAYS_PASS),
+                            PORTABLE_HOLE_STENCIL_BIT, PORTABLE_HOLE_STENCIL_BIT, PORTABLE_HOLE_STENCIL_BIT)))
+            .withCull(false)
+            .build());
 
     /**
      * Void's portable hole carve (decision hole-items-are-a-three-dimensional-soup-sunk-in-the-hole):
      * the mouth's oval through {@code portable_hole_carve.vsh / .fsh}, pushing the depth
-     * to the far plane wherever the oval is the nearest thing seen, read against a copy
-     * of the world's depth, so the pit and the items sunk behind the face draw through
-     * the mouth and nowhere else.
+     * to the far plane on the pixels the mark set, where the oval is the nearest thing seen,
+     * and clearing the mark as it goes, so the pit and the items sunk behind the face draw
+     * through the mouth and nowhere else.
      */
     public static final RenderPipeline PORTABLE_HOLE_CARVE = sorted(PipelineSort.ON_THE_PATH, RenderPipeline.builder(
                     GooPipelineSnippets.MATRICES_PROJECTION_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "portable_hole_carve"))
             .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "portable_hole_carve"))
             .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "portable_hole_carve"))
-            .withBindGroupLayout(BindGroupLayout.builder().withUniform(PORTABLE_HOLE_DEPTH_SAMPLER, UniformType.COMBINED_IMAGE_SAMPLER).build())
             .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR)
             .withPrimitiveTopology(PrimitiveTopology.QUADS)
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
-            .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, true))
+            .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, true, 0F, 0F,
+                    new StencilTest(new StencilPerFaceTest(StencilOperation.KEEP, StencilOperation.KEEP,
+                            StencilOperation.ZERO, CompareOp.EQUAL),
+                            PORTABLE_HOLE_STENCIL_BIT, PORTABLE_HOLE_STENCIL_BIT, PORTABLE_HOLE_STENCIL_BIT)))
             .withCull(false)
             .build());
 
@@ -1819,13 +1844,14 @@ public final class GooRenderTypes {
 
     /**
      * Registers the pipelines that draw solid surfaces in the world:
-     * Spikes' steel pyramids and the portable hole's mouth, carve and pit.
+     * Spikes' steel pyramids and the portable hole's mouth, mark, carve and pit.
      *
      * @param event the event instance
      */
     private static void registerSolidSurfacePipelines(RegisterRenderPipelinesEvent event) {
         event.registerPipeline(SPIKES_STEEL);
         event.registerPipeline(PORTABLE_HOLE_MOUTH);
+        event.registerPipeline(PORTABLE_HOLE_MARK);
         event.registerPipeline(PORTABLE_HOLE_CARVE);
         event.registerPipeline(PORTABLE_HOLE_PIT);
     }

@@ -63,6 +63,33 @@ class GooRenderTypesTest {
      * shroom vision keep drawing through everything.
      * dowsing-goo-is-a-window-onto-the-ore-behind-it
      */
+    /**
+     * A hole's mouth opens inside the opaque stage's open pass, where Minecraft 26.3 takes no depth copy: the mark
+     * sets the hole's stencil bit wherever the oval is the nearest thing seen, and the carve opens the depth on that
+     * bit alone and clears it, reading no copy of the world's depth.
+     * decision hole-items-are-a-three-dimensional-soup-sunk-in-the-hole
+     * decision minecraft-26-3-update-is-a-port-to-parity
+     */
+    @Test
+    void aHolesMarkSetsItsBitWhereTheOvalIsNearestAndTheCarveOpensThatBitAlone() {
+        RenderPipeline mark = GooRenderTypes.PORTABLE_HOLE_MARK;
+        RenderPipeline carve = GooRenderTypes.PORTABLE_HOLE_CARVE;
+        int bit = GooRenderTypes.PORTABLE_HOLE_STENCIL_BIT;
+        StencilTest marks = new StencilTest(new StencilPerFaceTest(StencilOperation.KEEP, StencilOperation.KEEP,
+                StencilOperation.REPLACE, CompareOp.ALWAYS_PASS), bit, bit, bit);
+        StencilTest opensTheMark = new StencilTest(new StencilPerFaceTest(StencilOperation.KEEP,
+                StencilOperation.KEEP, StencilOperation.ZERO, CompareOp.EQUAL), bit, bit, bit);
+
+        assertEquals(List.of(CompareOp.GREATER_THAN_OR_EQUAL, false, ColorTargetState.WRITE_NONE, Optional.of(marks)),
+                List.of(mark.getDepthStencilState().depthTest(), mark.getDepthStencilState().writeDepth(),
+                        PipelineReads.colorTarget(mark).writeMask(), PipelineReads.stencilTest(mark)));
+        assertEquals(List.of(CompareOp.ALWAYS_PASS, true, Optional.of(opensTheMark), List.of()),
+                List.of(carve.getDepthStencilState().depthTest(), carve.getDepthStencilState().writeDepth(),
+                        PipelineReads.stencilTest(carve), PipelineReads.samplers(carve.getBindGroupLayouts())));
+        assertEquals(PipelineReads.vertexShader(carve), PipelineReads.vertexShader(mark),
+                "the mark rasterizes the very pixels the carve does");
+    }
+
     @Test
     void dowsingsMaskMarksTheNearestGooAndItsOreDrawsOnlyThere() {
         RenderPipeline mask = GooRenderTypes.DOWSING_MASK;

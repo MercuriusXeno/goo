@@ -1,15 +1,12 @@
 package com.mercuriusxeno.goo.client.hole;
 
 import com.mercuriusxeno.goo.ability.hole.HoleFrame;
-import com.mercuriusxeno.goo.client.DepthCopyTarget;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.StagePass;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.network.PortableHolesSyncPayload;
-import com.mojang.blaze3d.pipeline.RenderTarget;
-import com.mojang.blaze3d.pipeline.TextureTarget;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
@@ -22,7 +19,7 @@ import com.mojang.renderpearl.api.buffers.GpuBufferSlice;
 import com.mojang.renderpearl.api.commands.RenderPass;
 import com.mojang.renderpearl.api.device.GpuDevice;
 import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
-import com.mojang.renderpearl.api.textures.FilterMode;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -51,7 +48,6 @@ public final class HolePits {
 
     private static final String CARVE_PASS = "Goo portable hole carve";
     private static final String CARVE_BUFFER = "Goo portable hole carve ovals";
-    private static final String DEPTH_COPY = "Goo portable hole depth";
     private static final String TRANSFORMS_UNIFORM = "DynamicTransforms";
     private static final Vector4f WHITE = new Vector4f(1, 1, 1, 1);
     /** How far the carved oval stands off its face, so the face it lies on never hides it. */
@@ -63,8 +59,6 @@ public final class HolePits {
     private static final int RIM_RGB = 0x1E0A36;
     /** The pit's color at its floor, near black. */
     private static final int FLOOR_RGB = 0x030006;
-
-    private static final DepthCopyTarget DEPTH_COPY_TARGET = new DepthCopyTarget(DEPTH_COPY);
 
     private HolePits() {
     }
@@ -103,7 +97,10 @@ public final class HolePits {
 
     /**
      * Pushes the depth to the far plane across each mouth's oval wherever the
-     * oval is the nearest thing seen, reading a copy of the world's depth.
+     * oval is the nearest thing seen: the mark sets the hole's stencil bit
+     * there, then the carve opens the depth on that bit and clears it, both in
+     * the opaque stage's open pass, where Minecraft 26.3 takes no depth copy.
+     * decision minecraft-26-3-update-is-a-port-to-parity
      *
      * @param drawn     the mouths drawn this frame
      * @param time      the client's game time, partial tick included
@@ -112,9 +109,6 @@ public final class HolePits {
      */
     private static void carve(List<PortableHolesSyncPayload.Mouth> drawn, float time, Vec3 camera,
                               Matrix4fc modelView) {
-        RenderTarget main = Minecraft.getInstance().gameRenderer.mainRenderTarget();
-        TextureTarget copy = DEPTH_COPY_TARGET.matching(main);
-        copy.copyDepthFrom(main);
         GpuDevice device = RenderSystem.getDevice();
         int quads = drawn.size() * SEGMENTS;
         try (ByteBufferBuilder bytes = new ByteBufferBuilder(quads * CORNERS
@@ -125,15 +119,17 @@ public final class HolePits {
             GpuBufferSlice transform = RenderSystem.getDynamicUniforms().writeTransform(new Matrix4f(modelView),
                     WHITE, new Vector3f(), new Matrix4f());
             try (StagePass stage = StagePass.onMain(() -> CARVE_PASS)) {
-                RenderPass pass = stage.pass();
-                pass.setPipeline(RenderSystem.getCompiledPipeline(GooRenderTypes.PORTABLE_HOLE_CARVE));
-                RenderSystem.bindDefaultUniforms(pass);
-                pass.setUniform(TRANSFORMS_UNIFORM, transform);
-                pass.setUniform(GooRenderTypes.PORTABLE_HOLE_DEPTH_SAMPLER, copy.getDepthTextureView(),
-                        RenderSystem.getSamplerCache().getClampToEdge(FilterMode.NEAREST));
-                pass.setVertexBuffer(0, vertices.slice());
-                pass.setIndexBuffer(indices.getBuffer(quads * INDICES_PER_QUAD), indices.type());
-                pass.drawIndexed(quads * INDICES_PER_QUAD, 1, 0, 0, 0);
+                GpuBuffer indexBuffer = indices.getBuffer(quads * INDICES_PER_QUAD);
+                for (RenderPipeline pipeline : List.of(GooRenderTypes.PORTABLE_HOLE_MARK,
+                        GooRenderTypes.PORTABLE_HOLE_CARVE)) {
+                    RenderPass pass = stage.pass();
+                    pass.setPipeline(RenderSystem.getCompiledPipeline(pipeline));
+                    RenderSystem.bindDefaultUniforms(pass);
+                    pass.setUniform(TRANSFORMS_UNIFORM, transform);
+                    pass.setVertexBuffer(0, vertices.slice());
+                    pass.setIndexBuffer(indexBuffer, indices.type());
+                    pass.drawIndexed(quads * INDICES_PER_QUAD, 1, 0, 0, 0);
+                }
             }
             mesh.close();
             vertices.close();
