@@ -59,6 +59,22 @@ class SprayerSpecialRendererTest {
                 "both goo types should be drawn, drawn " + typesDrawn);
     }
 
+    /**
+     * The fitted canister's goo is submitted before its body, since the GUI's item atlas sorts no quad under
+     * improved transparency and the body, drawn first, would hide the goo behind the depth it writes (defect row 7).
+     * decision goo-translucency-draws-through-order-independent-transparency
+     */
+    @Test
+    void fittedCanisterSubmitsItsGooBeforeItsBody() {
+        CanisterFluidContent content = CanisterFluidContent.of(goo.resource(GooTypes.ROCK), ROCK_VOLUME);
+        CanisterSpecialRenderer.GooData data = CanisterSpecialRenderer.dataOf(content, CAPACITY, false, false);
+        RecordingParts parts = new RecordingParts();
+
+        SprayerSpecialRenderer.submitFitted(data, parts);
+
+        assertEquals(List.of("fluid", "body"), parts.order);
+    }
+
     @Test
     void emptySprayerDrawsItsFrameAlone() {
         RecordingParts parts = new RecordingParts();
@@ -74,14 +90,17 @@ class SprayerSpecialRendererTest {
         private int bodies;
         private final List<CuboidBounds> fluidBounds = new ArrayList<>();
         private final List<List<TypeBand>> bands = new ArrayList<>();
+        private final List<String> order = new ArrayList<>();
 
         @Override
         public void body(CanisterSpecialRenderer.GooData data) {
             bodies++;
+            order.add("body");
         }
 
         @Override
         public void fluid(CanisterSpecialRenderer.GooData data, CuboidBounds bounds) {
+            order.add("fluid");
             fluidBounds.add(bounds);
             bands.add(data.bands());
         }

@@ -16,6 +16,7 @@ import com.mojang.renderpearl.api.vertex.VertexFormat;
 import net.minecraft.client.renderer.BindGroupLayouts;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.blockentity.AbstractEndPortalRenderer;
+import net.minecraft.client.renderer.oit.OitPipelineSet;
 import net.minecraft.client.renderer.rendertype.LayeringTransform;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
 import net.minecraft.client.renderer.rendertype.RenderType;
@@ -60,6 +61,13 @@ public final class GooRenderTypes {
     /** Name suffix of a burnout pipeline's twin that draws through blocks. */
     /** Fragments fainter than this are cut, as vanilla's translucent entity cuts them. */
     private static final float ALPHA_CUTOUT = 0.1f;
+    /** The shader defines the goo fluid surface's base sets, as vanilla's entity shader names them. */
+    private static final String ALPHA_CUTOUT_DEFINE = "ALPHA_CUTOUT";
+    private static final String NO_OVERLAY_DEFINE = "NO_OVERLAY";
+    private static final String NO_CARDINAL_LIGHTING_DEFINE = "NO_CARDINAL_LIGHTING";
+    /** The vertex and fragment shader pair the goo fluid surface draws through, on every path. */
+    private static final Identifier GOO_FLUID_SURFACE_SHADER =
+            Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_fluid_surface");
     /**
      * The depth bias vanilla's block-breaking cracks draw with, pulling a
      * layer drawn in the same plane as the world's own faces in front of
@@ -777,24 +785,44 @@ public final class GooRenderTypes {
      * one-pass-blends-every-type). Cull is off as on entityTranslucent,
      * which the vat and crucible fluid drew on before.
      */
-    public static final RenderPipeline GOO_FLUID_SURFACE = sorted(PipelineSort.WRITES_DEPTH, RenderPipeline.builder(
-                    RenderPipelines.ENTITY_EMISSIVE_SNIPPET)
+    public static final RenderPipeline GOO_FLUID_SURFACE = sorted(PipelineSort.WRITES_DEPTH,
+            gooFluidSurfaceBase()
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, "pipeline/goo_fluid_surface"))
-            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, "core/goo_fluid_surface"))
-            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, "core/goo_fluid_surface"))
-            .withBindGroupLayout(BindGroupLayout.builder().withUniform(MINGLE_TABLE_SAMPLER, UniformType.COMBINED_IMAGE_SAMPLER).build())
-            .withShaderDefine("ALPHA_CUTOUT", 0.1F)
-            .withShaderDefine("NO_OVERLAY")
-            .withShaderDefine("NO_CARDINAL_LIGHTING")
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
-            .withCull(false)
             .build());
+
+    /**
+     * The goo fluid surface's depth bounds, transmittance and accumulate phases, which its render type draws
+     * through when the client's improved transparency is on, as vanilla's own translucent types do.
+     * decision goo-translucency-draws-through-order-independent-transparency
+     */
+    public static final OitPipelineSet GOO_FLUID_SURFACE_OIT = OitPipelineSet.builder(
+            Identifier.fromNamespaceAndPath(NAMESPACE, "goo_fluid_surface"), gooFluidSurfaceBase()).build();
+
+    /**
+     * The fluid surface's shaders, bindings and defines, shared by its parity pipeline and its OIT phases;
+     * it names no color target or depth state, since each OIT phase brings its own and a snippet merge keeps
+     * the first color target it meets.
+     *
+     * @return a fresh builder holding the fluid surface's base
+     */
+    private static RenderPipeline.Builder gooFluidSurfaceBase() {
+        return RenderPipeline.builder(RenderPipelines.ENTITY_EMISSIVE_SNIPPET)
+                .withVertexShader(GOO_FLUID_SURFACE_SHADER)
+                .withFragmentShader(GOO_FLUID_SURFACE_SHADER)
+                .withBindGroupLayout(BindGroupLayout.builder().withUniform(MINGLE_TABLE_SAMPLER, UniformType.COMBINED_IMAGE_SAMPLER).build())
+                .withShaderDefine(ALPHA_CUTOUT_DEFINE, ALPHA_CUTOUT)
+                .withShaderDefine(NO_OVERLAY_DEFINE)
+                .withShaderDefine(NO_CARDINAL_LIGHTING_DEFINE)
+                .withCull(false);
+    }
 
     /** Per-texture memoized render types on the goo fluid surface pipeline. */
     private static final java.util.function.Function<Identifier, RenderType> GOO_FLUID_SURFACE_FACTORY =
             net.minecraft.util.Util.memoize(texture -> RenderType.create(
                     "goo_fluid_surface",
                     RenderSetup.builder(GOO_FLUID_SURFACE)
+                            .setOitPipelines(GOO_FLUID_SURFACE_OIT)
                             .withTexture("Sampler0", texture)
                             .withTexture(MINGLE_TABLE_SAMPLER, MingleTableTexture.ID)
                             .sortOnUpload()
@@ -1794,6 +1822,7 @@ public final class GooRenderTypes {
         event.registerPipeline(CRYSTAL_SHARD);
         event.registerPipeline(GOO_FLUID);
         event.registerPipeline(GOO_FLUID_SURFACE);
+        event.registerOitPipelineSet(GOO_FLUID_SURFACE_OIT);
         event.registerPipeline(CRUCIBLE_DISSOLVE);
         event.registerPipeline(BLOCK_MINGLE);
         event.registerPipeline(BLOCK_MINGLE_TRANSLUCENT);

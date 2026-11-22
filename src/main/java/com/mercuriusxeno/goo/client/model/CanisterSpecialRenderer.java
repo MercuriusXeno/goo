@@ -343,12 +343,52 @@ public class CanisterSpecialRenderer implements SpecialModelRenderer<CanisterSpe
                        PoseStack poseStack, SubmitNodeCollector nodeCollector,
                        int packedLight, int packedOverlay, boolean hasFoil, int outlineColor) {
         poseStack.pushPose();
+        submitParts(data, new CanisterParts() {
+            @Override
+            public void goo(GooData filled) {
+                submitFluidIfPresent(poseStack, nodeCollector, filled);
+            }
 
-        GooSubmitter.submitCanisterBody(poseStack, nodeCollector, packedLight);
-        submitGaskets(poseStack, nodeCollector, packedLight, data);
-        submitFluidIfPresent(poseStack, nodeCollector, data);
-
+            @Override
+            public void shell(@Nullable GooData capped) {
+                GooSubmitter.submitCanisterBody(poseStack, nodeCollector, packedLight);
+                submitGaskets(poseStack, nodeCollector, packedLight, capped);
+            }
+        });
         poseStack.popPose();
+    }
+
+    /**
+     * Submits a canister item's parts goo first: under improved transparency the GUI's item atlas sorts no quad,
+     * so a body submitted first would write its depth in front of the goo and hide it (defect row 7).
+     * decision goo-translucency-draws-through-order-independent-transparency
+     *
+     * @param data  the extracted render data, or null for an empty canister
+     * @param parts submits each part
+     */
+    static void submitParts(@Nullable GooData data, CanisterParts parts) {
+        if (data != null && data.fill() > 0f) {
+            parts.goo(data);
+        }
+        parts.shell(data);
+    }
+
+    /** The parts a canister item submits, apart so a test reads the order they draw in. */
+    interface CanisterParts {
+
+        /**
+         * Submits the canister's goo.
+         *
+         * @param data the canister's render data, holding some fill
+         */
+        void goo(GooData data);
+
+        /**
+         * Submits the canister's body and gasket caps.
+         *
+         * @param data the canister's render data, or null for an empty canister
+         */
+        void shell(@Nullable GooData data);
     }
 
     /**

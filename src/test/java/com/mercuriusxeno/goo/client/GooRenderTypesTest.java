@@ -5,13 +5,20 @@ import com.mojang.renderpearl.api.pipeline.ColorTargetState;
 import com.mojang.renderpearl.api.pipeline.CompareOp;
 import com.mojang.renderpearl.api.pipeline.DepthStencilState;
 import com.mojang.renderpearl.api.pipeline.RenderPipeline;
+import net.minecraft.client.renderer.oit.OitPipelineSet;
+import net.minecraft.client.renderer.oit.OitStage;
+import net.minecraft.client.renderer.rendertype.RenderType;
+import net.minecraft.resources.Identifier;
 import net.neoforged.neoforge.client.event.RegisterRenderPipelinesEvent;
 import net.neoforged.neoforge.client.stencil.StencilOperation;
 import net.neoforged.neoforge.client.stencil.StencilPerFaceTest;
 import net.neoforged.neoforge.client.stencil.StencilTest;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Field;
+import java.nio.charset.StandardCharsets;
 import java.lang.reflect.Modifier;
 import java.util.HashSet;
 import java.util.List;
@@ -20,6 +27,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
@@ -169,6 +177,41 @@ class GooRenderTypesTest {
     @Test
     void theGlowColumnTypeDrawsOnTheGlowColumnPipeline() {
         assertEquals(GooRenderTypes.GLOW_COLUMN, GooRenderTypes.GLOW_COLUMN_TYPE.pipeline());
+    }
+
+    /**
+     * The goo fluid surface draws through 26.3's order-independent transparency under improved transparency: its
+     * render type carries a registered OIT set whose three phases run the fluid surface's own shaders with every
+     * sampler they read, and its fragment shader takes the OIT stages from minecraft:oit.glsl; with transparency
+     * off it keeps drawing on its translucent parity pipeline.
+     * decision goo-translucency-draws-through-order-independent-transparency
+     */
+    @Test
+    void theFluidSurfaceDrawsThroughOrderIndependentTransparency() throws IOException {
+        RenderType surface = GooRenderTypes.gooFluidSurface(Identifier.withDefaultNamespace("textures/atlas/blocks.png"));
+        OitPipelineSet oit = PipelineReads.oitPipelines(surface);
+        assertNotNull(oit, "the fluid surface's render type carries no OIT pipeline set");
+        RegisterRenderPipelinesEvent event = mock(RegisterRenderPipelinesEvent.class);
+        GooRenderTypes.registerPipelines(event);
+        Identifier shader = PipelineReads.vertexShader(GooRenderTypes.GOO_FLUID_SURFACE);
+
+        verify(event).registerOitPipelineSet(oit);
+        for (OitStage stage : OitStage.values()) {
+            RenderPipeline phase = oit.getPipeline(stage);
+            assertEquals(List.of(true, shader, shader, true),
+                    List.of(phase.getShaderDefines().flags().contains("OIT_" + stage.name()),
+                            PipelineReads.vertexShader(phase), PipelineReads.fragmentShader(phase),
+                            PipelineReads.samplers(phase.getBindGroupLayouts()).containsAll(List.of("Sampler0", "MingleTable"))),
+                    stage + " phase: its define, its vertex and fragment shaders, and its samplers");
+        }
+        assertEquals(List.of(GooRenderTypes.GOO_FLUID_SURFACE, Optional.of(BlendFunction.TRANSLUCENT)),
+                List.of(surface.pipeline(), PipelineReads.colorTarget(surface.pipeline()).blendFunction()));
+        try (InputStream in = GooRenderTypesTest.class.getResourceAsStream(
+                "/assets/goo/shaders/core/goo_fluid_surface.fsh")) {
+            assertNotNull(in, "goo_fluid_surface.fsh is not on the classpath");
+            assertTrue(new String(in.readAllBytes(), StandardCharsets.UTF_8).contains("#include <minecraft:oit.glsl>"),
+                    "goo_fluid_surface.fsh includes no minecraft:oit.glsl");
+        }
     }
 
     /** Meteo's rock writes depth, so its near faces hide its far ones rather than drawing back to front. */
