@@ -106,18 +106,54 @@ class TranslucentVisualPathTest {
      * the Fabulous blend after the main pass, and GameRenderer posts
      * AfterLevel once renderLevel returns, so a visual drawn there has the
      * clouds and weather already behind it; the path subscribes to each
-     * stage a route names and no other.
+     * stage a route names, and to 26.3's OIT stage with the buffer
+     * preparation before it, where the far-to-near visuals moved onto order-
+     * independent transparency draw, and no other.
      * decision diagnose-and-correct-translucent-goo-visuals-that-depth-sort-wrong
+     * decision goo-translucency-draws-through-order-independent-transparency
      */
     @Test
     void drawsAfterTheCloudsAndTheWeather() {
         Set<Class<?>> stages = Arrays.stream(TranslucentVisualPath.class.getDeclaredMethods())
                 .filter(method -> method.isAnnotationPresent(SubscribeEvent.class))
                 .map(method -> method.getParameterTypes()[0]).collect(Collectors.toSet());
+        Set<Class<?>> expected = Arrays.stream(SortRoute.values()).map(SortRoute::stage)
+                .collect(Collectors.toSet());
+        expected.add(RenderLevelStageEvent.OitTranslucent.class);
+        expected.add(net.neoforged.neoforge.client.event.PrepareRenderBuffersEvent.class);
         assertAll(
                 () -> assertEquals(RenderLevelStageEvent.AfterLevel.class, SortRoute.FAR_TO_NEAR.stage()),
-                () -> assertEquals(Arrays.stream(SortRoute.values()).map(SortRoute::stage)
-                        .collect(Collectors.toSet()), stages));
+                () -> assertEquals(expected, stages));
+    }
+
+    /**
+     * The glow shell's immediate draws register far to near, draw through ImmediateBuffers alone, so the path draws
+     * them inside the OIT stages' open pass, and draw through GLOW_SHELL_TYPE, whose set the path draws there.
+     * WispEchoes queues onto WispGlow's queue as it collects, so it collects with it.
+     * decision goo-translucency-draws-through-order-independent-transparency
+     */
+    @Test
+    void theGlowShellsImmediateDrawsDrawInTheOitPhase() {
+        List<Class<?>> glowShells = List.of(LaserVisual.class, ReapSlashBlades.class, WispGlow.class,
+                com.mercuriusxeno.goo.client.ber.style.GlowReflectorStyle.class,
+                com.mercuriusxeno.goo.client.entity.MeteorRenderer.class, HeldSweepVisual.class,
+                com.mercuriusxeno.goo.client.model.GloveSpecialRenderer.class);
+        com.tngtech.archunit.core.domain.JavaClasses imported = new com.tngtech.archunit.core.importer
+                .ClassFileImporter().importClasses(glowShells);
+        assertAll(Stream.concat(Stream.of(() -> assertTrue(
+                        PipelineReads.oitPipelines(GooRenderTypes.GLOW_SHELL_TYPE) != null, "GLOW_SHELL_TYPE's set"),
+                () -> assertTrue(TranslucentVisualPath.REGISTRATIONS.stream().anyMatch(registration ->
+                        registration.visual() == WispEchoes.class
+                                && registration.drawing() == TranslucentVisualPath.Drawing.IMMEDIATE_BUFFERS_ALONE),
+                        "WispEchoes collects with WispGlow")),
+                glowShells.stream().map(visual -> () -> assertAll(
+                        () -> assertTrue(TranslucentVisualPath.REGISTRATIONS.stream().anyMatch(registration ->
+                                registration.visual() == visual && registration.route() == SortRoute.FAR_TO_NEAR
+                                        && registration.drawing() == TranslucentVisualPath.Drawing.IMMEDIATE_BUFFERS_ALONE),
+                                visual.getSimpleName() + " registers far to near, drawing through ImmediateBuffers alone"),
+                        () -> assertTrue(imported.get(visual).getFieldAccessesFromSelf().stream().anyMatch(access ->
+                                access.getTarget().getName().equals("GLOW_SHELL_TYPE")),
+                                visual.getSimpleName() + " draws through GLOW_SHELL_TYPE")))));
     }
 
     /**

@@ -85,6 +85,7 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.client.event.PrepareRenderBuffersEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.joml.Matrix4fStack;
 import org.joml.Matrix4fc;
@@ -112,12 +113,14 @@ public final class TranslucentVisualPath {
     /** Every visual the path draws, each naming its sort route. */
     static final List<Registration> REGISTRATIONS = List.of(
             new Registration(MiasmaVortex.class, SortRoute.FAR_TO_NEAR, MiasmaVortex::collect),
-            new Registration(LaserVisual.class, SortRoute.FAR_TO_NEAR, LaserVisual::collect),
+            new Registration(LaserVisual.class, SortRoute.FAR_TO_NEAR, LaserVisual::collect,
+                    Drawing.IMMEDIATE_BUFFERS_ALONE),
             new Registration(LaserScorch.class, SortRoute.ON_OPAQUE_FACES, LaserScorch::collect),
             new Registration(RelayLasers.class, SortRoute.FAR_TO_NEAR, RelayLasers::collect),
             new Registration(ZapBolts.class, SortRoute.FAR_TO_NEAR, ZapBolts::collect),
             new Registration(FireStream.class, SortRoute.FAR_TO_NEAR, FireStream::collect),
-            new Registration(ReapSlashBlades.class, SortRoute.FAR_TO_NEAR, ReapSlashBlades::collect),
+            new Registration(ReapSlashBlades.class, SortRoute.FAR_TO_NEAR, ReapSlashBlades::collect,
+                    Drawing.IMMEDIATE_BUFFERS_ALONE),
             new Registration(GlassKnives.class, SortRoute.FAR_TO_NEAR, GlassKnives::collect),
             new Registration(HoveringKnives.class, SortRoute.FAR_TO_NEAR, HoveringKnives::collect),
             new Registration(HeldJavelins.class, SortRoute.FAR_TO_NEAR, HeldJavelins::collect),
@@ -126,15 +129,20 @@ public final class TranslucentVisualPath {
             new Registration(PneumaWind.class, SortRoute.FAR_TO_NEAR, PneumaWind::collect),
             new Registration(GrowthBreeze.class, SortRoute.FAR_TO_NEAR, GrowthBreeze::collect),
             // beaming-wisp-leaves-fading-echoes-behind-it: the echoes queue to WispGlow, so they register ahead of it
-            new Registration(WispEchoes.class, SortRoute.FAR_TO_NEAR, WispEchoes::collect),
-            new Registration(WispGlow.class, SortRoute.FAR_TO_NEAR, WispGlow::collect),
+            new Registration(WispEchoes.class, SortRoute.FAR_TO_NEAR, WispEchoes::collect,
+                    Drawing.IMMEDIATE_BUFFERS_ALONE),
+            new Registration(WispGlow.class, SortRoute.FAR_TO_NEAR, WispGlow::collect,
+                    Drawing.IMMEDIATE_BUFFERS_ALONE),
             // operator ruling 2026-11-18: the glows vanilla's main pass drew before the clouds, queued by their
             // renderers; a prism's column registers before its beams, which sort at its center and draw after it.
             new Registration(GlowColumn.class, SortRoute.FAR_TO_NEAR, GlowColumn::collect),
             new Registration(GlowBeaconStyle.class, SortRoute.FAR_TO_NEAR, GlowBeaconStyle::collect),
-            new Registration(GlowReflectorStyle.class, SortRoute.FAR_TO_NEAR, GlowReflectorStyle::collect),
-            new Registration(MeteorRenderer.class, SortRoute.FAR_TO_NEAR, MeteorRenderer::collect),
-            new Registration(GloveSpecialRenderer.class, SortRoute.FAR_TO_NEAR, GloveSpecialRenderer::collect),
+            new Registration(GlowReflectorStyle.class, SortRoute.FAR_TO_NEAR, GlowReflectorStyle::collect,
+                    Drawing.IMMEDIATE_BUFFERS_ALONE),
+            new Registration(MeteorRenderer.class, SortRoute.FAR_TO_NEAR, MeteorRenderer::collect,
+                    Drawing.IMMEDIATE_BUFFERS_ALONE),
+            new Registration(GloveSpecialRenderer.class, SortRoute.FAR_TO_NEAR, GloveSpecialRenderer::collect,
+                    Drawing.IMMEDIATE_BUFFERS_ALONE),
             new Registration(ReapSwells.class, SortRoute.FAR_TO_NEAR, ReapSwells::collect),
             new Registration(GhostTrailRenderer.class, SortRoute.FAR_TO_NEAR, GhostTrailRenderer::collect),
             new Registration(SpikesBristle.class, SortRoute.OPAQUE_SHAPE, SpikesBristle::collect),
@@ -149,7 +157,8 @@ public final class TranslucentVisualPath {
             new Registration(PetrifyFog.class, SortRoute.FAR_TO_NEAR, PetrifyFog::collect),
             new Registration(FloatPlatform.class, SortRoute.FAR_TO_NEAR, FloatPlatform::collect),
             new Registration(CrystalShatterVisual.class, SortRoute.FAR_TO_NEAR, CrystalShatterVisual::collect),
-            new Registration(HeldSweepVisual.class, SortRoute.FAR_TO_NEAR, HeldSweepVisual::collect),
+            new Registration(HeldSweepVisual.class, SortRoute.FAR_TO_NEAR, HeldSweepVisual::collect,
+                    Drawing.IMMEDIATE_BUFFERS_ALONE),
             new Registration(HeldSweepVisual.class, SortRoute.THROUGH_BLOCKS, HeldSweepVisual::collectFaces),
             new Registration(LevelCursor.class, SortRoute.FAR_TO_NEAR, LevelCursor::collect),
             new Registration(HeadMarks.class, SortRoute.THROUGH_BLOCKS, HeadMarks::collect),
@@ -198,6 +207,9 @@ public final class TranslucentVisualPath {
             new Registration(PlexerHudRenderer.class, SortRoute.FAR_TO_NEAR, PlexerHudRenderer::collect),
             new Registration(VatHudRenderer.class, SortRoute.FAR_TO_NEAR, VatHudRenderer::collect));
 
+    /** The far-to-near draws the current level pass's OIT phase draws, held for its AfterLevel. */
+    private static final OitDrawReplay OIT_REPLAY = new OitDrawReplay();
+
     /** The camera of the level pass submitting its entities now, null outside one. */
     private static @Nullable Vec3 submittingCamera;
 
@@ -238,6 +250,42 @@ public final class TranslucentVisualPath {
         drawStage(event, RenderLevelStageEvent.AfterOpaqueBlocks.class);
         // LevelRenderer submits the pass's entities, block entities and particles right after this stage.
         submittingCamera = event.getLevelRenderState().cameraRenderState.pos;
+    }
+
+    /**
+     * Requests the index counts the OIT stages' draws use, before the stages' open passes stand.
+     * decision goo-translucency-draws-through-order-independent-transparency
+     *
+     * @param event the buffer preparation event
+     */
+    @SubscribeEvent
+    public static void onPrepareRenderBuffers(PrepareRenderBuffersEvent event) {
+        ImmediateBuffers.requestOitIndexCounts();
+    }
+
+    /**
+     * Draws, in one of 26.3's OIT stages, the far-to-near draws of the visuals that draw through ImmediateBuffers
+     * alone, each in the stage's open pass through its render type's OIT pipeline for the stage; a draw whose type
+     * carries no set draws at AfterLevel instead. A visual drawing through passes of its own stays at AfterLevel,
+     * since a second pass cannot open inside the stage's.
+     * decision goo-translucency-draws-through-order-independent-transparency
+     *
+     * @param event the level render stage event
+     */
+    @SubscribeEvent
+    public static void onOitTranslucent(RenderLevelStageEvent.OitTranslucent event) {
+        LevelFrame frame = new LevelFrame(event.getModelViewMatrix(), new PoseStack(), event.getLevelRenderState());
+        List<SortedDraw> draws = OIT_REPLAY.atOitStage(event.getOitStage(), () -> farToNear(
+                drawsOf(SortRoute.FAR_TO_NEAR, frame, Drawing.IMMEDIATE_BUFFERS_ALONE)));
+        Matrix4fStack modelViewStack = RenderSystem.getModelViewStack();
+        modelViewStack.pushMatrix();
+        modelViewStack.set(event.getModelViewMatrix());
+        StagePass.during(event.getRenderPass(), () -> OitDrawPhase.during(
+                OitDrawPhase.inTheOitStage(event.getOitStage()), () -> {
+                    draws.forEach(draw -> draw.draw().run());
+                    ImmediateBuffers.shared().endBatch();
+                }));
+        modelViewStack.popMatrix();
     }
 
     /**
@@ -302,16 +350,35 @@ public final class TranslucentVisualPath {
         modelViewStack.pushMatrix();
         modelViewStack.set(modelView);
         for (SortRoute route : routes) {
-            farToNear(drawsOf(route, frame)).forEach(draw -> draw.draw().run());
+            farToNear(route == SortRoute.FAR_TO_NEAR ? farToNearDrawsOf(frame) : drawsOf(route, frame, null))
+                    .forEach(draw -> draw.draw().run());
         }
         ImmediateBuffers.shared().endBatch();
         modelViewStack.popMatrix();
     }
 
-    private static List<SortedDraw> drawsOf(SortRoute route, LevelFrame frame) {
+    // The far-to-near draws once the level is drawn: where the pass's OIT phase drew the immediate visuals, their held
+    // draws replay beside the rest, each batch ending inside its own phase, so what carries an OIT set stays out.
+    private static List<SortedDraw> farToNearDrawsOf(LevelFrame frame) {
+        List<SortedDraw> held = OIT_REPLAY.takeHeld();
+        if (held == null) {
+            return drawsOf(SortRoute.FAR_TO_NEAR, frame, null);
+        }
+        List<SortedDraw> draws = new ArrayList<>(drawsOf(SortRoute.FAR_TO_NEAR, frame, Drawing.ITS_OWN_PASSES));
+        held.forEach(draw -> draws.add(new SortedDraw(draw.cameraDistanceSquared(), () -> {
+            ImmediateBuffers.shared().endBatch();
+            OitDrawPhase.during(OitDrawPhase.AFTER_THE_OIT_PHASE, () -> {
+                draw.draw().run();
+                ImmediateBuffers.shared().endBatch();
+            });
+        })));
+        return draws;
+    }
+
+    private static List<SortedDraw> drawsOf(SortRoute route, LevelFrame frame, @Nullable Drawing drawing) {
         List<SortedDraw> draws = new ArrayList<>();
         for (Registration registration : REGISTRATIONS) {
-            if (registration.route() == route) {
+            if (registration.route() == route && (drawing == null || registration.drawing() == drawing)) {
                 registration.source().collect(frame, draws::add);
             }
         }
@@ -334,10 +401,34 @@ public final class TranslucentVisualPath {
     /**
      * A visual the path draws.
      *
-     * @param visual the class that shows it
-     * @param route  how it sorts
-     * @param source what hands the path its draws
+     * @param visual  the class that shows it
+     * @param route   how it sorts
+     * @param source  what hands the path its draws
+     * @param drawing what its draws draw through
      */
-    record Registration(Class<?> visual, SortRoute route, TranslucentVisual source) {
+    record Registration(Class<?> visual, SortRoute route, TranslucentVisual source, Drawing drawing) {
+
+        /**
+         * A visual whose draws may open passes of their own.
+         *
+         * @param visual the class that shows it
+         * @param route  how it sorts
+         * @param source what hands the path its draws
+         */
+        Registration(Class<?> visual, SortRoute route, TranslucentVisual source) {
+            this(visual, route, source, Drawing.ITS_OWN_PASSES);
+        }
+    }
+
+    /**
+     * What a visual's draws draw through, which decides whether the path may draw them inside an OIT stage's open
+     * pass, where no second pass opens and nothing writes through the command encoder.
+     * decision goo-translucency-draws-through-order-independent-transparency
+     */
+    enum Drawing {
+        /** ImmediateBuffers alone, so a far-to-near visual's draws draw in the OIT stages. */
+        IMMEDIATE_BUFFERS_ALONE,
+        /** Passes, targets or buffer writes of its own as well, so it draws at its route's stage. */
+        ITS_OWN_PASSES
     }
 }
