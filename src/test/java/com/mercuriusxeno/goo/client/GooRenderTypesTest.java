@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.lang.reflect.Modifier;
 import java.util.HashSet;
 import java.util.List;
@@ -40,6 +41,9 @@ import static org.mockito.Mockito.verify;
  * decision meteo-winds-up-then-drops-in-a-second-trailing-fire
  */
 class GooRenderTypesTest {
+
+    private static final String PIPELINE_PREFIX = "pipeline/";
+    private static final String OIT_ACCUMULATE_PREFIX = "pipeline/oit_accumulate_";
 
     @Test
     void everyDeclaredPipelineIsRegistered() throws IllegalAccessException {
@@ -211,6 +215,93 @@ class GooRenderTypesTest {
             assertNotNull(in, "goo_fluid_surface.fsh is not on the classpath");
             assertTrue(new String(in.readAllBytes(), StandardCharsets.UTF_8).contains("#include <minecraft:oit.glsl>"),
                     "goo_fluid_surface.fsh includes no minecraft:oit.glsl");
+        }
+    }
+
+    /**
+     * Every translucent goo type submitted through the frame's collector draws in 26.3's OIT phase under improved
+     * transparency, where a type with no OIT set crashes the client (defect row 9): each carries a registered set
+     * whose three phases run its own parity pipeline's shaders, and each of those fragment shaders takes the OIT
+     * stages from minecraft:oit.glsl.
+     * decision goo-translucency-draws-through-order-independent-transparency
+     */
+    @Test
+    void everySubmittedTranslucentTypeDrawsThroughOrderIndependentTransparency() throws IOException {
+        Identifier texture = Identifier.withDefaultNamespace("textures/atlas/blocks.png");
+        List<RenderType> submitted = List.of(GooRenderTypes.METEOR_ROCK_TYPE, GooRenderTypes.CRYSTAL_SHARD_TYPE,
+                GooRenderTypes.crucibleDissolve(texture), GooRenderTypes.gooMobCoat(texture),
+                GooRenderTypes.PETRIFY_STONE_TYPE, GooRenderTypes.FROST_ICE_TYPE, GooRenderTypes.VINE_TANGLE_TYPE,
+                GooRenderTypes.WEB_TANGLE_TYPE, GooRenderTypes.gooPhase(texture), GooRenderTypes.GOO_AILMENT_OVERLAY_TYPE);
+        RegisterRenderPipelinesEvent event = mock(RegisterRenderPipelinesEvent.class);
+        ArgumentCaptor<OitPipelineSet> registered = ArgumentCaptor.forClass(OitPipelineSet.class);
+        GooRenderTypes.registerPipelines(event);
+        verify(event, atLeastOnce()).registerOitPipelineSet(registered.capture());
+        List<String> missing = new java.util.ArrayList<>();
+
+        for (RenderType type : submitted) {
+            OitPipelineSet oit = PipelineReads.oitPipelines(type);
+            if (oit == null || !registered.getAllValues().contains(oit)) {
+                missing.add(type.pipeline().getLocation() + " carries no registered OIT set");
+                continue;
+            }
+            for (OitStage stage : OitStage.values()) {
+                RenderPipeline phase = oit.getPipeline(stage);
+                if (!PipelineReads.fragmentShader(phase).equals(PipelineReads.fragmentShader(type.pipeline()))
+                        || !PipelineReads.vertexShader(phase).equals(PipelineReads.vertexShader(type.pipeline()))) {
+                    missing.add(phase.getLocation() + " runs other shaders than its parity pipeline");
+                }
+            }
+            if (!fragmentSource(type.pipeline()).contains("#include <minecraft:oit.glsl>")) {
+                missing.add(PipelineReads.fragmentShader(type.pipeline()) + " includes no minecraft:oit.glsl");
+            }
+        }
+
+        assertEquals(List.of(), missing);
+    }
+
+    /**
+     * Every goo pipeline that blends in the level either draws through a registered OIT set of its own or stays on
+     * its parity path with a reason; an immediately drawn pipeline counts by its stays entry, never by a set it does
+     * not use, and the glow shell's set adds its light under OIT_ADDITIVE.
+     * decision goo-translucency-draws-through-order-independent-transparency
+     */
+    @Test
+    void everyBlendingPipelineDrawsThroughOrderIndependentTransparencyOrStaysWithAReason() {
+        RegisterRenderPipelinesEvent event = mock(RegisterRenderPipelinesEvent.class);
+        ArgumentCaptor<RenderPipeline> pipelines = ArgumentCaptor.forClass(RenderPipeline.class);
+        ArgumentCaptor<OitPipelineSet> sets = ArgumentCaptor.forClass(OitPipelineSet.class);
+        GooRenderTypes.registerPipelines(event);
+        verify(event, atLeastOnce()).registerPipeline(pipelines.capture());
+        verify(event, atLeastOnce()).registerOitPipelineSet(sets.capture());
+        Set<String> withSets = sets.getAllValues().stream()
+                .map(set -> set.accumulatePipeline().getLocation().getPath().substring(OIT_ACCUMULATE_PREFIX.length()))
+                .collect(Collectors.toSet());
+
+        Set<String> blending = pipelines.getAllValues().stream()
+                .filter(pipeline -> PipelineReads.colorTarget(pipeline) != null
+                        && PipelineReads.colorTarget(pipeline).blendFunction().isPresent())
+                .map(pipeline -> pipeline.getLocation().getPath().substring(PIPELINE_PREFIX.length()))
+                .collect(Collectors.toCollection(TreeSet::new));
+        Set<String> unaccounted = blending.stream()
+                .filter(name -> withSets.contains(name) == GooOitStays.REASONS.containsKey(name))
+                .collect(Collectors.toCollection(TreeSet::new));
+        Set<String> stale = GooOitStays.REASONS.keySet().stream().filter(name -> !blending.contains(name))
+                .collect(Collectors.toCollection(TreeSet::new));
+
+        assertEquals(List.of(Set.of(), Set.of()), List.of(unaccounted, stale),
+                "blending pipelines with neither a set nor a stays reason, or both; then stays entries naming no blending pipeline");
+        assertEquals(List.of(true, true, true), Arrays.stream(OitStage.values())
+                .map(stage -> GooRenderTypes.GLOW_SHELL_OIT.getPipeline(stage).getShaderDefines().flags()
+                        .contains("OIT_ADDITIVE"))
+                .toList(), "the glow shell's phases add its light under OIT_ADDITIVE");
+    }
+
+    private static String fragmentSource(RenderPipeline pipeline) throws IOException {
+        Identifier shader = PipelineReads.fragmentShader(pipeline);
+        String path = "/assets/" + shader.getNamespace() + "/shaders/" + shader.getPath() + ".fsh";
+        try (InputStream in = GooRenderTypesTest.class.getResourceAsStream(path)) {
+            assertNotNull(in, path + " is not on the classpath");
+            return new String(in.readAllBytes(), StandardCharsets.UTF_8);
         }
     }
 
