@@ -293,6 +293,55 @@ class GooRenderTypesTest {
     }
 
     /**
+     * The beam, bolt and wind visuals' far-to-near pipelines draw in the OIT phase: each carries a registered set whose
+     * phases run its own shaders, each fragment shader taking the OIT stages from minecraft:oit.glsl, an additive one
+     * built with coverage under no OIT_ADDITIVE define while its parity pipeline keeps adding its light, and the
+     * stays-on-parity list names none of them. FIRE_FIELD writes its own depth, so it stays where it draws.
+     * decision goo-translucency-draws-through-order-independent-transparency
+     * decision additive-glows-draw-as-translucent-layers-in-the-oit-phase
+     */
+    @Test
+    void theBeamBoltAndWindPipelinesDrawInTheOitPhase() throws IOException {
+        List<RenderPipeline> moved = List.of(GooRenderTypes.GLOW_BEAM, GooRenderTypes.LINES_ADDITIVE_GLOW,
+                GooRenderTypes.GROWTH_BREEZE, GooRenderTypes.CRYSTAL_SHARD, GooRenderTypes.GLOW_SHELL,
+                GooRenderTypes.GLOW_COLUMN);
+        List<RenderPipeline> additive = List.of(GooRenderTypes.GLOW_BEAM, GooRenderTypes.LINES_ADDITIVE_GLOW,
+                GooRenderTypes.GROWTH_BREEZE, GooRenderTypes.GLOW_SHELL);
+        RegisterRenderPipelinesEvent event = mock(RegisterRenderPipelinesEvent.class);
+        ArgumentCaptor<OitPipelineSet> sets = ArgumentCaptor.forClass(OitPipelineSet.class);
+        GooRenderTypes.registerPipelines(event);
+        verify(event, atLeastOnce()).registerOitPipelineSet(sets.capture());
+        List<String> wrong = new java.util.ArrayList<>();
+
+        for (RenderPipeline pipeline : moved) {
+            String name = pipeline.getLocation().getPath().substring(PIPELINE_PREFIX.length());
+            OitPipelineSet set = sets.getAllValues().stream().filter(candidate -> candidate.accumulatePipeline()
+                    .getLocation().getPath().equals(OIT_ACCUMULATE_PREFIX + name)).findFirst().orElse(null);
+            if (set == null || GooOitStays.REASONS.containsKey(name)) {
+                wrong.add(name + " carries no registered set, or stays on parity");
+                continue;
+            }
+            for (OitStage stage : OitStage.values()) {
+                RenderPipeline phase = set.getPipeline(stage);
+                if (!PipelineReads.fragmentShader(phase).equals(PipelineReads.fragmentShader(pipeline))
+                        || !PipelineReads.vertexShader(phase).equals(PipelineReads.vertexShader(pipeline))
+                        || phase.getShaderDefines().flags().contains("OIT_ADDITIVE")) {
+                    wrong.add(phase.getLocation() + " runs other shaders than its parity pipeline, or adds");
+                }
+            }
+            if (!fragmentSource(pipeline).contains("#include <minecraft:oit.glsl>")) {
+                wrong.add(name + "'s fragment shader includes no minecraft:oit.glsl");
+            }
+        }
+        additive.stream().filter(pipeline -> !PipelineReads.colorTarget(pipeline).blendFunction()
+                        .equals(Optional.of(BlendFunction.LIGHTNING)))
+                .forEach(pipeline -> wrong.add(pipeline.getLocation() + " no longer adds its light off the OIT phase"));
+
+        assertEquals(List.of(), wrong);
+        assertEquals(GooOitStays.WRITES_DEPTH, GooOitStays.REASONS.get("fire_field"));
+    }
+
+    /**
      * Under improved transparency the glow shell draws as a translucent layer with coverage, as vanilla's beacon
      * beam does, through a fragment shader that retunes its color toward its additive look, while with improved
      * transparency off it keeps adding its light.
@@ -300,7 +349,7 @@ class GooRenderTypesTest {
      */
     @Test
     void theGlowShellDrawsAsATranslucentLayerInTheOitPhaseAndAddsItsLightOffIt() {
-        Identifier retuned = Identifier.fromNamespaceAndPath("goo", "core/glow_shell_oit");
+        Identifier retuned = Identifier.fromNamespaceAndPath("goo", "core/glow_shell");
         assertEquals(List.of(List.of(false, false, false), List.of(retuned, retuned, retuned),
                         Optional.of(BlendFunction.LIGHTNING)),
                 List.of(Arrays.stream(OitStage.values()).map(stage -> GooRenderTypes.GLOW_SHELL_OIT.getPipeline(stage)

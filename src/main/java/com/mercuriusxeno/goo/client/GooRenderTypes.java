@@ -92,19 +92,39 @@ public final class GooRenderTypes {
      *
      * @return the result
      */
-    // Under improved transparency this stays on its parity path: drawn far to near on the sorting path, until the task on this thread that moves it lands.
-    // decision goo-translucency-draws-through-order-independent-transparency
     public static final RenderPipeline LINES_ADDITIVE_GLOW = sorted(PipelineSort.ON_THE_PATH, RenderPipeline.builder(RenderPipelines.LINES_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, "pipeline/lines_additive_glow"))
+            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "lines_glow"))
             .withColorTargetState(new ColorTargetState(BlendFunction.LIGHTNING))
             .withDepthStencilState(new DepthStencilState(
                     DepthStencilState.DEFAULT.depthTest(), false))
             .build());
 
+    /**
+     * The glow lines' OIT phases, drawing them as a see-through layer with coverage, their shader retuning them
+     * toward the light they add with improved transparency off.
+     * decision additive-glows-draw-as-translucent-layers-in-the-oit-phase
+     */
+    public static final OitPipelineSet LINES_ADDITIVE_GLOW_OIT = oitSetOf(LINES_ADDITIVE_GLOW);
+
     /** RenderType that draws lines with additive glow blending. */
     public static final RenderType LINES_GLOW = RenderType.create(
             "goo_lines_additive_glow",
             RenderSetup.builder(LINES_ADDITIVE_GLOW)
+                    .setOitPipelines(LINES_ADDITIVE_GLOW_OIT)
+                    .setLayeringTransform(LayeringTransform.VIEW_OFFSET_Z_LAYERING)
+                    .createRenderSetup()
+    );
+
+    /**
+     * Vanilla's translucent lines with vanilla's OIT set beside them, which vanilla's own translucent lines type
+     * lacks, so the winds drawn through them draw in the OIT phase under improved transparency.
+     * decision goo-translucency-draws-through-order-independent-transparency
+     */
+    public static final RenderType TRANSLUCENT_LINES = RenderType.create(
+            "goo_lines_translucent",
+            RenderSetup.builder(RenderPipelines.LINES_TRANSLUCENT)
+                    .setOitPipelines(RenderPipelines.OIT_LINES_TRANSLUCENT)
                     .setLayeringTransform(LayeringTransform.VIEW_OFFSET_Z_LAYERING)
                     .createRenderSetup()
     );
@@ -348,7 +368,9 @@ public final class GooRenderTypes {
      * off and both faces drawn, so a caster inside the sphere sees its shell.
      */
     public static final RenderPipeline GLOW_SHELL = sorted(PipelineSort.ON_THE_PATH, colorShellPipeline("glow_shell",
-            DepthStencilState.DEFAULT.depthTest(), BlendFunction.LIGHTNING));
+            DepthStencilState.DEFAULT.depthTest(), BlendFunction.LIGHTNING).toBuilder()
+            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "glow_shell"))
+            .build());
 
     /** Scry's revealed faces: added onto the world through every depth test, so they show through walls. */
     // Under improved transparency this stays on its parity path: drawn through blocks under a standing decision.
@@ -366,9 +388,7 @@ public final class GooRenderTypes {
      */
     public static final OitPipelineSet GLOW_SHELL_OIT = OitPipelineSet.builder(
             Identifier.fromNamespaceAndPath(NAMESPACE, "glow_shell"),
-            GLOW_SHELL.toBuilder().withUnusedColorTargetState(0)
-                    .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "glow_shell_oit")))
-            .build();
+            GLOW_SHELL.toBuilder().withUnusedColorTargetState(0)).build();
 
     /** RenderType for glow's shell of light. */
     public static final RenderType GLOW_SHELL_TYPE = RenderType.create(TYPE_NAME_PREFIX + "glow_shell",
@@ -657,14 +677,20 @@ public final class GooRenderTypes {
      * vanilla's beacon beam shader blended additively, depth tested with depth
      * write off and both faces drawn, so its layers stack into a bloom.
      */
-    // Under improved transparency this stays on its parity path: drawn far to near on the sorting path, until the task on this thread that moves it lands.
-    // decision goo-translucency-draws-through-order-independent-transparency
     public static final RenderPipeline GLOW_BEAM = sorted(PipelineSort.ON_THE_PATH, RenderPipeline.builder(RenderPipelines.BEACON_BEAM_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "glow_beam"))
+            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "glow_beam"))
             .withColorTargetState(new ColorTargetState(BlendFunction.LIGHTNING))
             .withDepthStencilState(new DepthStencilState(CompareOp.GREATER_THAN_OR_EQUAL, false))
             .withCull(false)
             .build());
+
+    /**
+     * Glow's beams' OIT phases, drawing them as a see-through layer with coverage, as vanilla builds its beacon
+     * beam's, their shader retuning them toward the light they add with improved transparency off.
+     * decision additive-glows-draw-as-translucent-layers-in-the-oit-phase
+     */
+    public static final OitPipelineSet GLOW_BEAM_OIT = oitSetOf(GLOW_BEAM);
 
     /**
      * A glow prism's column and halo (decision diagnose-and-correct-the-sunbeam-prism-depth):
@@ -794,6 +820,7 @@ public final class GooRenderTypes {
             net.minecraft.util.Util.memoize(texture -> RenderType.create(
                     "goo_glow_beam",
                     RenderSetup.builder(GLOW_BEAM)
+                            .setOitPipelines(GLOW_BEAM_OIT)
                             .withTexture("Sampler0", texture)
                             .sortOnUpload()
                             .createRenderSetup()
@@ -1435,7 +1462,7 @@ public final class GooRenderTypes {
      * nearest voxel it draws, so whatever draws later and farther, such as
      * the clouds, stands behind it.
      */
-    // Under improved transparency this stays on its parity path: drawn far to near on the sorting path, until the task on this thread that moves it lands.
+    // Under improved transparency this stays on its parity path: writes its own depth.
     // decision goo-translucency-draws-through-order-independent-transparency
     public static final RenderPipeline FIRE_FIELD = sorted(PipelineSort.ON_THE_PATH, RenderPipeline.builder(
                     GooPipelineSnippets.MATRICES_PROJECTION_SNIPPET,
@@ -1489,12 +1516,18 @@ public final class GooRenderTypes {
      * with pulses running out from the glove.
      * growth-breeze-ticks-plants
      */
-    // Under improved transparency this stays on its parity path: drawn far to near on the sorting path, until the task on this thread that moves it lands.
-    // decision goo-translucency-draws-through-order-independent-transparency
     public static final RenderPipeline GROWTH_BREEZE = sorted(PipelineSort.ON_THE_PATH, burnoutPipeline("growth_breeze", BlendFunction.LIGHTNING));
 
+    /**
+     * Growth's breeze's OIT phases, drawing it as a see-through layer with coverage, its shader retuning it toward the
+     * glow it adds with improved transparency off.
+     * decision additive-glows-draw-as-translucent-layers-in-the-oit-phase
+     */
+    public static final OitPipelineSet GROWTH_BREEZE_OIT = oitSetOf(GROWTH_BREEZE);
+
     /** The growth breeze render type. */
-    public static final RenderType GROWTH_BREEZE_TYPE = burnoutType(GROWTH_BREEZE);
+    public static final RenderType GROWTH_BREEZE_TYPE = RenderType.create(TYPE_NAME_PREFIX + "growth_breeze",
+            RenderSetup.builder(GROWTH_BREEZE).setOitPipelines(GROWTH_BREEZE_OIT).createRenderSetup());
 
     /**
      * Leaf's held ghost, Bloom's pollen haze dome, drawn through
@@ -2051,7 +2084,8 @@ public final class GooRenderTypes {
      * @param event the event instance
      */
     private static void registerSubmittedOitSets(RegisterRenderPipelinesEvent event) {
-        List.of(CLICK_WAVE_THROUGH_BLOCKS_OIT, GLOW_SHELL_OIT, GLOW_COLUMN_OIT, METEOR_ROCK_OIT, CRYSTAL_SHARD_OIT, CRUCIBLE_DISSOLVE_OIT, GOO_MOB_COAT_OIT, PETRIFY_STONE_OIT,
+        List.of(CLICK_WAVE_THROUGH_BLOCKS_OIT, GLOW_SHELL_OIT, GLOW_COLUMN_OIT, GLOW_BEAM_OIT,
+                LINES_ADDITIVE_GLOW_OIT, GROWTH_BREEZE_OIT, METEOR_ROCK_OIT, CRYSTAL_SHARD_OIT, CRUCIBLE_DISSOLVE_OIT, GOO_MOB_COAT_OIT, PETRIFY_STONE_OIT,
                 VINE_TANGLE_OIT, GOO_PHASE_OIT, GOO_AILMENT_OVERLAY_OIT).forEach(event::registerOitPipelineSet);
     }
 

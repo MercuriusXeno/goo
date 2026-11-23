@@ -158,6 +158,29 @@ class TranslucentVisualPathTest {
     }
 
     /**
+     * The beam, bolt and wind visuals draw through ImmediateBuffers alone, so the path draws their far-to-near draws
+     * in the OIT phase; Flames' fire writes its own depth through a pass of its own, so it stays where it draws.
+     * decision goo-translucency-draws-through-order-independent-transparency
+     */
+    @Test
+    void theBeamBoltAndWindVisualsDrawInTheOitPhase() {
+        List<Class<?>> moved = List.of(LaserVisual.class, RelayLasers.class, ZapBolts.class, ReapSlashBlades.class,
+                GlassKnives.class, HoveringKnives.class, HeldJavelins.class, WindLines.class, AirbornWind.class,
+                PneumaWind.class, GrowthBreeze.class, WispEchoes.class, WispGlow.class,
+                com.mercuriusxeno.goo.client.ber.style.GlowColumn.class,
+                com.mercuriusxeno.goo.client.ber.style.GlowBeaconStyle.class,
+                com.mercuriusxeno.goo.client.ber.style.GlowReflectorStyle.class);
+        assertAll(Stream.concat(moved.stream().map(visual -> () -> assertTrue(TranslucentVisualPath.REGISTRATIONS
+                                .stream().anyMatch(registration -> registration.visual() == visual
+                                        && registration.drawing() == TranslucentVisualPath.Drawing.IMMEDIATE_BUFFERS_ALONE),
+                        visual.getSimpleName() + " draws in the OIT phase")),
+                Stream.of(() -> assertTrue(TranslucentVisualPath.REGISTRATIONS.stream().noneMatch(registration ->
+                                registration.visual() == FireStream.class
+                                        && registration.drawing() == TranslucentVisualPath.Drawing.IMMEDIATE_BUFFERS_ALONE),
+                        "FireStream stays where it draws"))));
+    }
+
+    /**
      * A glow prism's column draws in the OIT phase beside the Laser's core at a struck prism, which wraps it: the OIT
      * composite writes the nearest translucent depth, the core's outer layer, into the level's depth, so a column
      * left at AfterLevel failed its depth test inside the core and vanished.
