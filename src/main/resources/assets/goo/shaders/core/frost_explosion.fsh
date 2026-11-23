@@ -1,6 +1,8 @@
 #version 330
 #extension GL_ARB_separate_shader_objects : require
 
+#include <minecraft:oit.glsl>
+
 // Frost goo's burnout explosion (decision elemental-explosion-per-type): a
 // fog ring. White-blue fog billows across the disc, drifting outward, dense
 // at the leading edge and thinning behind it, with a crisp frost-white band
@@ -13,7 +15,12 @@ layout(location = 2) in float fog;
 // so no two rings billow alike (decision nova-ring-grows-with-the-hold).
 layout(location = 3) in float seed;
 
+// Under improved transparency the depth bounds and transmittance phases take the alpha alone, and the
+// accumulate phase weights the color by the transmittance in front of it
+// (decision goo-translucency-draws-through-order-independent-transparency).
+#ifndef OIT_ALPHA_ONLY
 layout(location = 0) out vec4 fragColor;
+#endif
 
 const vec3 FOG_COLOR = vec3(0.80, 0.90, 0.96);
 const vec3 SHADE_COLOR = vec3(0.62, 0.78, 0.90);
@@ -67,5 +74,12 @@ void main() {
     vec3 color = mix(SHADE_COLOR, FOG_COLOR, smoothstep(0.3, 0.8, billows));
     color = mix(color, EDGE_COLOR, edge);
     float alpha = FOG_OPACITY * density + edge;
-    fragColor = vec4(color, clamp(alpha * fog, 0.0, 1.0));
+    vec4 drawn = vec4(color, clamp(alpha * fog, 0.0, 1.0));
+#ifdef OIT_ALPHA_ONLY
+    executeAlphaOnlyPhase(gl_FragCoord.z, drawn.a);
+#elif defined(OIT_ACCUMULATE)
+    fragColor = sampleColorForAccumulation(drawn);
+#else
+    fragColor = drawn;
+#endif
 }

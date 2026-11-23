@@ -302,11 +302,32 @@ class GooRenderTypesTest {
      */
     @Test
     void theBeamBoltAndWindPipelinesDrawInTheOitPhase() throws IOException {
-        List<RenderPipeline> moved = List.of(GooRenderTypes.GLOW_BEAM, GooRenderTypes.LINES_ADDITIVE_GLOW,
-                GooRenderTypes.GROWTH_BREEZE, GooRenderTypes.CRYSTAL_SHARD, GooRenderTypes.GLOW_SHELL,
-                GooRenderTypes.GLOW_COLUMN);
-        List<RenderPipeline> additive = List.of(GooRenderTypes.GLOW_BEAM, GooRenderTypes.LINES_ADDITIVE_GLOW,
-                GooRenderTypes.GROWTH_BREEZE, GooRenderTypes.GLOW_SHELL);
+        assertDrawInTheOitPhase(List.of(GooRenderTypes.GLOW_BEAM, GooRenderTypes.LINES_ADDITIVE_GLOW,
+                        GooRenderTypes.GROWTH_BREEZE, GooRenderTypes.CRYSTAL_SHARD, GooRenderTypes.GLOW_SHELL,
+                        GooRenderTypes.GLOW_COLUMN),
+                List.of(GooRenderTypes.GLOW_BEAM, GooRenderTypes.LINES_ADDITIVE_GLOW, GooRenderTypes.GROWTH_BREEZE,
+                        GooRenderTypes.GLOW_SHELL));
+        assertEquals(GooOitStays.WRITES_DEPTH, GooOitStays.REASONS.get("fire_field"));
+    }
+
+    /**
+     * The ring, marker, ghost and ground visuals' far-to-near pipelines draw in the OIT phase, as the beam, bolt and
+     * wind visuals' do.
+     * decision goo-translucency-draws-through-order-independent-transparency
+     * decision additive-glows-draw-as-translucent-layers-in-the-oit-phase
+     */
+    @Test
+    void theRingMarkerGhostAndGroundPipelinesDrawInTheOitPhase() throws IOException {
+        assertDrawInTheOitPhase(List.of(GooRenderTypes.GOO_GHOST, GooRenderTypes.PETRIFY_FOG,
+                        GooRenderTypes.REAP_SWELL, GooRenderTypes.FROST_EXPLOSION, GooRenderTypes.ROCK_EXPLOSION,
+                        GooRenderTypes.LINES_ADDITIVE_GLOW, GooRenderTypes.CRYSTAL_SHARD, GooRenderTypes.GLOW_SHELL),
+                List.of(GooRenderTypes.REAP_SWELL, GooRenderTypes.LINES_ADDITIVE_GLOW, GooRenderTypes.GLOW_SHELL));
+    }
+
+    // Each moved pipeline carries a registered set running its own shaders under no OIT_ADDITIVE, its fragment
+    // shader takes the OIT stages, the stays list names none, and each additive one keeps adding off the OIT phase.
+    private static void assertDrawInTheOitPhase(List<RenderPipeline> moved, List<RenderPipeline> additive)
+            throws IOException {
         RegisterRenderPipelinesEvent event = mock(RegisterRenderPipelinesEvent.class);
         ArgumentCaptor<OitPipelineSet> sets = ArgumentCaptor.forClass(OitPipelineSet.class);
         GooRenderTypes.registerPipelines(event);
@@ -338,7 +359,6 @@ class GooRenderTypesTest {
                 .forEach(pipeline -> wrong.add(pipeline.getLocation() + " no longer adds its light off the OIT phase"));
 
         assertEquals(List.of(), wrong);
-        assertEquals(GooOitStays.WRITES_DEPTH, GooOitStays.REASONS.get("fire_field"));
     }
 
     /**

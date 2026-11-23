@@ -181,6 +181,26 @@ class TranslucentVisualPathTest {
     }
 
     /**
+     * The ring, marker, ghost and ground visuals draw through ImmediateBuffers alone, so the path draws their
+     * far-to-near draws in the OIT phase.
+     * decision goo-translucency-draws-through-order-independent-transparency
+     */
+    @Test
+    void theRingMarkerGhostAndGroundVisualsDrawInTheOitPhase() {
+        List<Class<?>> moved = List.of(com.mercuriusxeno.goo.client.entity.MeteorRenderer.class,
+                com.mercuriusxeno.goo.client.model.GloveSpecialRenderer.class,
+                com.mercuriusxeno.goo.client.ability.ReapSwells.class,
+                com.mercuriusxeno.goo.client.ability.GhostTrailRenderer.class, BeatRings.class, NovaRings.class,
+                NovaChargeGhost.class, SignalRings.class, PetrifyFog.class, FloatPlatform.class,
+                CrystalShatterVisual.class, HeldSweepVisual.class, LevelCursor.class);
+        assertAll(moved.stream().map(visual -> () -> assertTrue(TranslucentVisualPath.REGISTRATIONS.stream()
+                        .anyMatch(registration -> registration.visual() == visual
+                                && registration.route() == SortRoute.FAR_TO_NEAR
+                                && registration.drawing() == TranslucentVisualPath.Drawing.IMMEDIATE_BUFFERS_ALONE),
+                visual.getSimpleName() + " draws in the OIT phase")));
+    }
+
+    /**
      * A glow prism's column draws in the OIT phase beside the Laser's core at a struck prism, which wraps it: the OIT
      * composite writes the nearest translucent depth, the core's outer layer, into the level's depth, so a column
      * left at AfterLevel failed its depth test inside the core and vanished.

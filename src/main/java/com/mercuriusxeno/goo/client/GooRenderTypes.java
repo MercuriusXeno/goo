@@ -568,12 +568,16 @@ public final class GooRenderTypes {
      * blended so the dust hides what is behind it, through
      * {@code rock_explosion.vsh / .fsh}.
      */
-    // Under improved transparency this stays on its parity path: drawn far to near on the sorting path, until the task on this thread that moves it lands.
-    // decision goo-translucency-draws-through-order-independent-transparency
     public static final RenderPipeline ROCK_EXPLOSION = sorted(PipelineSort.ON_THE_PATH, burnoutPipeline("rock_explosion", BlendFunction.TRANSLUCENT));
 
     /** RenderType that draws rock goo's burnout explosion. */
-    public static final RenderType ROCK_EXPLOSION_TYPE = burnoutType(ROCK_EXPLOSION);
+    /**
+     * Rock's dust's OIT phases.
+     * decision goo-translucency-draws-through-order-independent-transparency
+     */
+    public static final OitPipelineSet ROCK_EXPLOSION_OIT = oitSetOf(ROCK_EXPLOSION);
+
+    public static final RenderType ROCK_EXPLOSION_TYPE = burnoutType(ROCK_EXPLOSION, ROCK_EXPLOSION_OIT);
 
     /**
      * Rock's held ghost through blocks: the rock dust shader with no depth
@@ -592,12 +596,16 @@ public final class GooRenderTypes {
      * Frost goo's burnout explosion pipeline: the fog ring, alpha blended,
      * through {@code frost_explosion.vsh / .fsh}.
      */
-    // Under improved transparency this stays on its parity path: drawn far to near on the sorting path, until the task on this thread that moves it lands.
-    // decision goo-translucency-draws-through-order-independent-transparency
     public static final RenderPipeline FROST_EXPLOSION = sorted(PipelineSort.ON_THE_PATH, burnoutPipeline("frost_explosion", BlendFunction.TRANSLUCENT));
 
     /** RenderType that draws frost goo's burnout explosion. */
-    public static final RenderType FROST_EXPLOSION_TYPE = burnoutType(FROST_EXPLOSION);
+    /**
+     * Frost's fog's OIT phases.
+     * decision goo-translucency-draws-through-order-independent-transparency
+     */
+    public static final OitPipelineSet FROST_EXPLOSION_OIT = oitSetOf(FROST_EXPLOSION);
+
+    public static final RenderType FROST_EXPLOSION_TYPE = burnoutType(FROST_EXPLOSION, FROST_EXPLOSION_OIT);
 
     /**
      * Frost's held ghost through blocks: the frost fog shader with no depth
@@ -1443,12 +1451,16 @@ public final class GooRenderTypes {
      * through {@code petrify_fog.vsh / .fsh}, churning as it billows out
      * (decision petrify-fog-is-billowing-roiling-dust).
      */
-    // Under improved transparency this stays on its parity path: drawn far to near on the sorting path, until the task on this thread that moves it lands.
-    // decision goo-translucency-draws-through-order-independent-transparency
     public static final RenderPipeline PETRIFY_FOG = sorted(PipelineSort.ON_THE_PATH, burnoutPipeline("petrify_fog", BlendFunction.TRANSLUCENT));
 
     /** The petrify fog render type. */
-    public static final RenderType PETRIFY_FOG_TYPE = burnoutType(PETRIFY_FOG);
+    /**
+     * Petrify's fog's OIT phases.
+     * decision goo-translucency-draws-through-order-independent-transparency
+     */
+    public static final OitPipelineSet PETRIFY_FOG_OIT = oitSetOf(PETRIFY_FOG);
+
+    public static final RenderType PETRIFY_FOG_TYPE = burnoutType(PETRIFY_FOG, PETRIFY_FOG_OIT);
 
     /** The uniform block the fire field pipeline reads one burning Flames jet's shape from. */
     public static final String FIRE_FIELD_BLOCK = "FireField";
@@ -1552,12 +1564,17 @@ public final class GooRenderTypes {
      * radius, drawn through {@code reap_swell.vsh / .fsh}.
      * reap-breeze-harvests-and-replants
      */
-    // Under improved transparency this stays on its parity path: drawn far to near on the sorting path, until the task on this thread that moves it lands.
-    // decision goo-translucency-draws-through-order-independent-transparency
     public static final RenderPipeline REAP_SWELL = sorted(PipelineSort.ON_THE_PATH, burnoutPipeline("reap_swell", BlendFunction.LIGHTNING));
 
     /** The reap swell render type. */
-    public static final RenderType REAP_SWELL_TYPE = burnoutType(REAP_SWELL);
+    /**
+     * Reap's swell's OIT phases, drawing it as a see-through layer with coverage, its shader retuning it toward the glow it adds with improved transparency off.
+     * decision goo-translucency-draws-through-order-independent-transparency
+     * decision additive-glows-draw-as-translucent-layers-in-the-oit-phase
+     */
+    public static final OitPipelineSet REAP_SWELL_OIT = oitSetOf(REAP_SWELL);
+
+    public static final RenderType REAP_SWELL_TYPE = burnoutType(REAP_SWELL, REAP_SWELL_OIT);
 
     /** The leaf ghost's through-blocks render type. */
     public static final RenderType LEAF_GHOST_THROUGH_BLOCKS_TYPE = burnoutType(LEAF_GHOST_THROUGH_BLOCKS);
@@ -1600,8 +1617,6 @@ public final class GooRenderTypes {
      * echo in the goo type's color, its skin read for the cutout and the
      * shading alone. Depth write off, so ghosts and the world behind show through.
      */
-    // Under improved transparency this stays on its parity path: drawn far to near on the sorting path, until the task on this thread that moves it lands.
-    // decision goo-translucency-draws-through-order-independent-transparency
     public static final RenderPipeline GOO_GHOST = sorted(PipelineSort.ON_THE_PATH, RenderPipeline.builder(RenderPipelines.ENTITY_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "goo_ghost"))
             .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_ghost"))
@@ -1611,10 +1626,17 @@ public final class GooRenderTypes {
             .build());
 
     /** Per-skin memoized render types on the ghost pipeline. */
+    /**
+     * The ghost trail's OIT phases.
+     * decision goo-translucency-draws-through-order-independent-transparency
+     */
+    public static final OitPipelineSet GOO_GHOST_OIT = oitSetOf(GOO_GHOST);
+
     private static final java.util.function.Function<Identifier, RenderType> GOO_GHOST_FACTORY =
             net.minecraft.util.Util.memoize(skin -> RenderType.create(
                     "goo_ghost",
                     RenderSetup.builder(GOO_GHOST)
+                            .setOitPipelines(GOO_GHOST_OIT)
                             .withTexture("Sampler0", skin)
                             .useLightmap()
                             .sortOnUpload()
@@ -2016,6 +2038,21 @@ public final class GooRenderTypes {
     }
 
     /**
+     * The render type that draws a burnout pipeline to the main target, through its OIT set under improved
+     * transparency.
+     * decision goo-translucency-draws-through-order-independent-transparency
+     *
+     * @param pipeline the pipeline
+     * @param oit      its OIT set
+     * @return the render type
+     */
+    private static RenderType burnoutType(RenderPipeline pipeline, OitPipelineSet oit) {
+        String name = pipeline.getLocation().getPath().substring(PIPELINE_PATH.length());
+        return RenderType.create(TYPE_NAME_PREFIX + name,
+                RenderSetup.builder(pipeline).setOitPipelines(oit).createRenderSetup());
+    }
+
+    /**
      * The render type that draws a burnout explosion pipeline to the main target.
      *
      * @param pipeline the explosion's pipeline
@@ -2085,7 +2122,8 @@ public final class GooRenderTypes {
      */
     private static void registerSubmittedOitSets(RegisterRenderPipelinesEvent event) {
         List.of(CLICK_WAVE_THROUGH_BLOCKS_OIT, GLOW_SHELL_OIT, GLOW_COLUMN_OIT, GLOW_BEAM_OIT,
-                LINES_ADDITIVE_GLOW_OIT, GROWTH_BREEZE_OIT, METEOR_ROCK_OIT, CRYSTAL_SHARD_OIT, CRUCIBLE_DISSOLVE_OIT, GOO_MOB_COAT_OIT, PETRIFY_STONE_OIT,
+                LINES_ADDITIVE_GLOW_OIT, GROWTH_BREEZE_OIT, GOO_GHOST_OIT, PETRIFY_FOG_OIT, REAP_SWELL_OIT,
+                FROST_EXPLOSION_OIT, ROCK_EXPLOSION_OIT, METEOR_ROCK_OIT, CRYSTAL_SHARD_OIT, CRUCIBLE_DISSOLVE_OIT, GOO_MOB_COAT_OIT, PETRIFY_STONE_OIT,
                 VINE_TANGLE_OIT, GOO_PHASE_OIT, GOO_AILMENT_OVERLAY_OIT).forEach(event::registerOitPipelineSet);
     }
 
