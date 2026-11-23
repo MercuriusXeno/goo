@@ -344,8 +344,6 @@ public final class GooRenderTypes {
      * depth tested with depth write off, both faces drawn; its twin passes every
      * depth test so the shell shows through blocks.
      */
-    // Under improved transparency this stays on its parity path: drawn far to near on the sorting path, until the task on this thread that moves it lands.
-    // decision goo-translucency-draws-through-order-independent-transparency
     public static final RenderPipeline SPORE_SHELL = sorted(PipelineSort.ON_THE_PATH, colorShellPipeline("spore_shell",
             DepthStencilState.DEFAULT.depthTest(), BlendFunction.TRANSLUCENT));
 
@@ -356,7 +354,13 @@ public final class GooRenderTypes {
             "spore_shell" + THROUGH_BLOCKS_SUFFIX, CompareOp.ALWAYS_PASS, BlendFunction.TRANSLUCENT));
 
     /** RenderType for sculk's held spore shell over blocks. */
-    public static final RenderType SPORE_SHELL_TYPE = burnoutType(SPORE_SHELL);
+    /**
+     * The spore shell's OIT phases.
+     * decision goo-translucency-draws-through-order-independent-transparency
+     */
+    public static final OitPipelineSet SPORE_SHELL_OIT = oitSetOf(SPORE_SHELL);
+
+    public static final RenderType SPORE_SHELL_TYPE = burnoutType(SPORE_SHELL, SPORE_SHELL_OIT);
 
     /** RenderType for sculk's held spore shell through blocks. */
     public static final RenderType SPORE_SHELL_THROUGH_BLOCKS_TYPE = burnoutType(SPORE_SHELL_THROUGH_BLOCKS);
@@ -546,12 +550,16 @@ public final class GooRenderTypes {
      * ring, additive with depth write off and both faces drawn, through
      * {@code unstable_explosion.vsh / .fsh}.
      */
-    // Under improved transparency this stays on its parity path: drawn far to near on the sorting path, until the task on this thread that moves it lands.
-    // decision goo-translucency-draws-through-order-independent-transparency
     public static final RenderPipeline UNSTABLE_EXPLOSION = sorted(PipelineSort.ON_THE_PATH, burnoutPipeline("unstable_explosion", BlendFunction.LIGHTNING));
 
     /** RenderType that draws unstable goo's burnout explosion. */
-    public static final RenderType UNSTABLE_EXPLOSION_TYPE = burnoutType(UNSTABLE_EXPLOSION);
+    /**
+     * Unstable's fireball's OIT phases, drawing it as a see-through layer with coverage, its shader retuning it toward the light it adds with improved transparency off.
+     * decision additive-glows-draw-as-translucent-layers-in-the-oit-phase
+     */
+    public static final OitPipelineSet UNSTABLE_EXPLOSION_OIT = oitSetOf(UNSTABLE_EXPLOSION);
+
+    public static final RenderType UNSTABLE_EXPLOSION_TYPE = burnoutType(UNSTABLE_EXPLOSION, UNSTABLE_EXPLOSION_OIT);
 
     /**
      * Unstable's held ghost through blocks: the unstable explosion shader with
@@ -628,12 +636,16 @@ public final class GooRenderTypes {
      * Metal goo's burnout explosion pipeline: the chrome urchin, drawn
      * solid, through {@code metal_explosion.vsh / .fsh}.
      */
-    // Under improved transparency this stays on its parity path: drawn far to near on the sorting path, until the task on this thread that moves it lands.
-    // decision goo-translucency-draws-through-order-independent-transparency
     public static final RenderPipeline METAL_EXPLOSION = sorted(PipelineSort.ON_THE_PATH, burnoutPipeline("metal_explosion", BlendFunction.TRANSLUCENT));
 
     /** RenderType that draws metal goo's burnout explosion. */
-    public static final RenderType METAL_EXPLOSION_TYPE = burnoutType(METAL_EXPLOSION);
+    /**
+     * Metal's spikes's OIT phases.
+     * decision goo-translucency-draws-through-order-independent-transparency
+     */
+    public static final OitPipelineSet METAL_EXPLOSION_OIT = oitSetOf(METAL_EXPLOSION);
+
+    public static final RenderType METAL_EXPLOSION_TYPE = burnoutType(METAL_EXPLOSION, METAL_EXPLOSION_OIT);
 
     /**
      * Metal's held ghost through blocks: the metal explosion shader with no
@@ -652,13 +664,17 @@ public final class GooRenderTypes {
      * Crystal goo's burnout explosion pipeline: the prism burst, alpha
      * blended, through {@code crystal_explosion.vsh / .fsh}.
      */
-    // Under improved transparency this stays on its parity path: drawn far to near on the sorting path, until the task on this thread that moves it lands.
-    // decision goo-translucency-draws-through-order-independent-transparency
     public static final RenderPipeline CRYSTAL_EXPLOSION = sorted(PipelineSort.ON_THE_PATH, burnoutPipeline("crystal_explosion",
             BlendFunction.TRANSLUCENT));
 
     /** RenderType that draws crystal goo's burnout explosion. */
-    public static final RenderType CRYSTAL_EXPLOSION_TYPE = burnoutType(CRYSTAL_EXPLOSION);
+    /**
+     * Crystal's shatter's OIT phases.
+     * decision goo-translucency-draws-through-order-independent-transparency
+     */
+    public static final OitPipelineSet CRYSTAL_EXPLOSION_OIT = oitSetOf(CRYSTAL_EXPLOSION);
+
+    public static final RenderType CRYSTAL_EXPLOSION_TYPE = burnoutType(CRYSTAL_EXPLOSION, CRYSTAL_EXPLOSION_OIT);
 
     /**
      * Crystal's held ghost through blocks: the crystal explosion shader with no
@@ -677,12 +693,16 @@ public final class GooRenderTypes {
      * Glow goo's burnout explosion pipeline: the aurora bloom, additive,
      * through {@code glow_explosion.vsh / .fsh}.
      */
-    // Under improved transparency this stays on its parity path: drawn far to near on the sorting path, until the task on this thread that moves it lands.
-    // decision goo-translucency-draws-through-order-independent-transparency
     public static final RenderPipeline GLOW_EXPLOSION = sorted(PipelineSort.ON_THE_PATH, burnoutPipeline("glow_explosion", BlendFunction.LIGHTNING));
 
     /** RenderType that draws glow goo's burnout explosion. */
-    public static final RenderType GLOW_EXPLOSION_TYPE = burnoutType(GLOW_EXPLOSION);
+    /**
+     * Glow's aurora's OIT phases, drawing it as a see-through layer with coverage, its shader retuning it toward the light it adds with improved transparency off.
+     * decision additive-glows-draw-as-translucent-layers-in-the-oit-phase
+     */
+    public static final OitPipelineSet GLOW_EXPLOSION_OIT = oitSetOf(GLOW_EXPLOSION);
+
+    public static final RenderType GLOW_EXPLOSION_TYPE = burnoutType(GLOW_EXPLOSION, GLOW_EXPLOSION_OIT);
 
     /**
      * Bulb's prism beacon (decision bulb-one-model-max-light-beacon-combo):
@@ -1567,12 +1587,16 @@ public final class GooRenderTypes {
      * {@code leaf_ghost.vsh / .fsh}.
      * bloom-places-buds-by-biome-and-surface
      */
-    // Under improved transparency this stays on its parity path: drawn far to near on the sorting path, until the task on this thread that moves it lands.
-    // decision goo-translucency-draws-through-order-independent-transparency
     public static final RenderPipeline LEAF_GHOST = sorted(PipelineSort.ON_THE_PATH, burnoutPipeline("leaf_ghost", BlendFunction.LIGHTNING));
 
     /** The leaf ghost render type. */
-    public static final RenderType LEAF_GHOST_TYPE = burnoutType(LEAF_GHOST);
+    /**
+     * Leaf's held ghost's OIT phases, drawing it as a see-through layer with coverage, its shader retuning it toward the light it adds with improved transparency off.
+     * decision additive-glows-draw-as-translucent-layers-in-the-oit-phase
+     */
+    public static final OitPipelineSet LEAF_GHOST_OIT = oitSetOf(LEAF_GHOST);
+
+    public static final RenderType LEAF_GHOST_TYPE = burnoutType(LEAF_GHOST, LEAF_GHOST_OIT);
 
     /** Leaf's held ghost through blocks, so the haze shows where blocks stand between. */
     // Under improved transparency this stays on its parity path: drawn through blocks under a standing decision.
@@ -2149,7 +2173,9 @@ public final class GooRenderTypes {
         List.of(CLICK_WAVE_THROUGH_BLOCKS_OIT, GLOW_SHELL_OIT, GLOW_COLUMN_OIT, GLOW_BEAM_OIT,
                 LINES_ADDITIVE_GLOW_OIT, GROWTH_BREEZE_OIT, GOO_GHOST_OIT, PETRIFY_FOG_OIT, REAP_SWELL_OIT,
                 FROST_EXPLOSION_OIT, ROCK_EXPLOSION_OIT, PORTABLE_HOLE_MOUTH_OIT, GOO_PORTAL_HALO_OIT,
-                GOO_PORTAL_SWIRL_BAND_OIT, BLOCK_MINGLE_TRANSLUCENT_OIT, MIASMA_VORTEX_OIT, BORE_DRILL_OIT, METEOR_ROCK_OIT, CRYSTAL_SHARD_OIT, CRUCIBLE_DISSOLVE_OIT, GOO_MOB_COAT_OIT, PETRIFY_STONE_OIT,
+                GOO_PORTAL_SWIRL_BAND_OIT, BLOCK_MINGLE_TRANSLUCENT_OIT, MIASMA_VORTEX_OIT, BORE_DRILL_OIT,
+                CRYSTAL_EXPLOSION_OIT, METAL_EXPLOSION_OIT, GLOW_EXPLOSION_OIT, UNSTABLE_EXPLOSION_OIT, LEAF_GHOST_OIT,
+                SPORE_SHELL_OIT, METEOR_ROCK_OIT, CRYSTAL_SHARD_OIT, CRUCIBLE_DISSOLVE_OIT, GOO_MOB_COAT_OIT, PETRIFY_STONE_OIT,
                 VINE_TANGLE_OIT, GOO_PHASE_OIT, GOO_AILMENT_OVERLAY_OIT).forEach(event::registerOitPipelineSet);
     }
 

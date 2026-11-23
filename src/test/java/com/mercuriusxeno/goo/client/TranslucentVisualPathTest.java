@@ -224,6 +224,29 @@ class TranslucentVisualPathTest {
     }
 
     /**
+     * The overlay, flight and join visuals draw in the OIT phase; the aimed mob's mark and Blink's cursor draw through
+     * the afterimage's post effect over a target of its own, and the in-world panels are HUD draws, so each stays where
+     * it draws.
+     * decision goo-translucency-draws-through-order-independent-transparency
+     */
+    @Test
+    void theOverlayFlightAndJoinVisualsDrawInTheOitPhase() {
+        List<Class<?>> moved = List.of(GooFlightRenderer.class, GooJoins.class, ChainBurnoutRenderer.class,
+                GooTargetHighlighter.class);
+        List<Class<?>> staying = List.of(AimedMobRipple.class, BlinkCursor.class, CanisterHudRenderer.class,
+                CrucibleHudRenderer.class, PlexerHudRenderer.class, VatHudRenderer.class);
+        assertAll(Stream.concat(moved.stream().map(visual -> () -> assertTrue(TranslucentVisualPath.REGISTRATIONS
+                                .stream().anyMatch(registration -> registration.visual() == visual
+                                        && registration.route() == SortRoute.FAR_TO_NEAR
+                                        && registration.drawing() == TranslucentVisualPath.Drawing.IN_THE_OIT_PHASE),
+                        visual.getSimpleName() + " draws in the OIT phase")),
+                staying.stream().map(visual -> () -> assertTrue(TranslucentVisualPath.REGISTRATIONS.stream()
+                                .noneMatch(registration -> registration.visual() == visual
+                                        && registration.drawing() == TranslucentVisualPath.Drawing.IN_THE_OIT_PHASE),
+                        visual.getSimpleName() + " stays where it draws"))));
+    }
+
+    /**
      * A glow prism's column draws in the OIT phase beside the Laser's core at a struck prism, which wraps it: the OIT
      * composite writes the nearest translucent depth, the core's outer layer, into the level's depth, so a column
      * left at AfterLevel failed its depth test inside the core and vanished.

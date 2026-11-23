@@ -11,17 +11,15 @@ import static java.util.Map.entry;
  */
 final class GooOitStays {
 
-    static final String FAR_TO_NEAR =
-            "drawn far to near on the sorting path, until the task on this thread that moves it lands";
     static final String THROUGH_BLOCKS = "drawn through blocks under a standing decision";
     static final String DECAL = "a decal on an opaque face";
     static final String WRITES_DEPTH = "writes its own depth";
     static final String WITH_THE_SKY = "drawn with the sky";
     static final String POST_EFFECT = "a post effect";
+    static final String GUI_OR_HUD = "a GUI or HUD draw";
 
     /** Each staying pipeline's reason. */
     static final Map<String, String> REASONS = Map.ofEntries(
-            entry("crystal_explosion", FAR_TO_NEAR),
             entry("crystal_explosion_through_blocks", THROUGH_BLOCKS),
             entry("dowsing_glow", THROUGH_BLOCKS),
             entry("dowsing_ore", THROUGH_BLOCKS),
@@ -29,7 +27,6 @@ final class GooOitStays {
             entry("frost_explosion_through_blocks", THROUGH_BLOCKS),
             entry("fungus_glow", THROUGH_BLOCKS),
             entry("fungus_xray", THROUGH_BLOCKS),
-            entry("glow_explosion", FAR_TO_NEAR),
             entry("goo_fluid", WRITES_DEPTH),
             entry("goo_portal_idle", WRITES_DEPTH),
             entry("goo_portal_view", WRITES_DEPTH),
@@ -37,13 +34,11 @@ final class GooOitStays {
             entry("goo_soft_outline", POST_EFFECT),
             entry("laser_scorch", DECAL),
             entry("laser_scorch_glow", DECAL),
-            entry("leaf_ghost", FAR_TO_NEAR),
             entry("leaf_ghost_through_blocks", THROUGH_BLOCKS),
             entry("lunar_moon", THROUGH_BLOCKS),
             entry("lunar_planet", WITH_THE_SKY),
             entry("lunar_sky_veil", WITH_THE_SKY),
             entry("lunar_trip_planet", THROUGH_BLOCKS),
-            entry("metal_explosion", FAR_TO_NEAR),
             entry("metal_explosion_through_blocks", THROUGH_BLOCKS),
             entry("meteor_scorch", DECAL),
             entry("pocket_sky", WITH_THE_SKY),
@@ -54,9 +49,7 @@ final class GooOitStays {
             entry("scry_faces", THROUGH_BLOCKS),
             entry("sculker_glass", POST_EFFECT),
             entry("spikes_steel", WRITES_DEPTH),
-            entry("spore_shell", FAR_TO_NEAR),
             entry("spore_shell_through_blocks", THROUGH_BLOCKS),
-            entry("unstable_explosion", FAR_TO_NEAR),
             entry("unstable_explosion_through_blocks", THROUGH_BLOCKS));
 
     private GooOitStays() {

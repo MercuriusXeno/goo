@@ -23,6 +23,7 @@ import java.util.Arrays;
 import java.lang.reflect.Modifier;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
@@ -343,6 +344,26 @@ class GooRenderTypesTest {
                 List.of(GooOitStays.REASONS.get("goo_portal_view"), GooOitStays.REASONS.get("goo_portal_idle"),
                         GooOitStays.REASONS.get("room_copy_translucent"), GooOitStays.REASONS.get("goo_ripple_edge"),
                         GooOitStays.REASONS.get("goo_soft_outline")));
+    }
+
+    /**
+     * The overlay, flight and join visuals' far-to-near pipelines draw in the OIT phase, the glow and unstable
+     * explosions and the leaf ghost added with coverage, and the stays-on-parity list holds standing reasons alone, so
+     * the walk fails any far-to-near pipeline carrying no set.
+     * decision goo-translucency-draws-through-order-independent-transparency
+     * decision additive-glows-draw-as-translucent-layers-in-the-oit-phase
+     */
+    @Test
+    void theOverlayFlightAndJoinPipelinesDrawInTheOitPhaseAndNoneWaits() throws IOException {
+        assertDrawInTheOitPhase(List.of(GooRenderTypes.CRYSTAL_EXPLOSION, GooRenderTypes.GLOW_EXPLOSION,
+                        GooRenderTypes.METAL_EXPLOSION, GooRenderTypes.UNSTABLE_EXPLOSION, GooRenderTypes.LEAF_GHOST,
+                        GooRenderTypes.SPORE_SHELL),
+                List.of(GooRenderTypes.GLOW_EXPLOSION, GooRenderTypes.UNSTABLE_EXPLOSION, GooRenderTypes.LEAF_GHOST));
+        Set<String> standing = Set.of(GooOitStays.THROUGH_BLOCKS, GooOitStays.DECAL, GooOitStays.WRITES_DEPTH,
+                GooOitStays.WITH_THE_SKY, GooOitStays.POST_EFFECT, GooOitStays.GUI_OR_HUD);
+        assertEquals(Set.of(), GooOitStays.REASONS.entrySet().stream()
+                .filter(entry -> !standing.contains(entry.getValue())).map(Map.Entry::getKey)
+                .collect(Collectors.toCollection(TreeSet::new)), "stays entries under no standing reason");
     }
 
     // Each moved pipeline carries a registered set running its own shaders under no OIT_ADDITIVE, its fragment
