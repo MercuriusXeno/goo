@@ -290,10 +290,24 @@ class GooRenderTypesTest {
 
         assertEquals(List.of(Set.of(), Set.of()), List.of(unaccounted, stale),
                 "blending pipelines with neither a set nor a stays reason, or both; then stays entries naming no blending pipeline");
-        assertEquals(List.of(true, true, true), Arrays.stream(OitStage.values())
-                .map(stage -> GooRenderTypes.GLOW_SHELL_OIT.getPipeline(stage).getShaderDefines().flags()
-                        .contains("OIT_ADDITIVE"))
-                .toList(), "the glow shell's phases add its light under OIT_ADDITIVE");
+    }
+
+    /**
+     * Under improved transparency the glow shell draws as a translucent layer with coverage, as vanilla's beacon
+     * beam does, through a fragment shader that retunes its color toward its additive look, while with improved
+     * transparency off it keeps adding its light.
+     * decision additive-glows-draw-as-translucent-layers-in-the-oit-phase
+     */
+    @Test
+    void theGlowShellDrawsAsATranslucentLayerInTheOitPhaseAndAddsItsLightOffIt() {
+        Identifier retuned = Identifier.fromNamespaceAndPath("goo", "core/glow_shell_oit");
+        assertEquals(List.of(List.of(false, false, false), List.of(retuned, retuned, retuned),
+                        Optional.of(BlendFunction.LIGHTNING)),
+                List.of(Arrays.stream(OitStage.values()).map(stage -> GooRenderTypes.GLOW_SHELL_OIT.getPipeline(stage)
+                                .getShaderDefines().flags().contains("OIT_ADDITIVE")).toList(),
+                        Arrays.stream(OitStage.values()).map(stage -> PipelineReads.fragmentShader(
+                                GooRenderTypes.GLOW_SHELL_OIT.getPipeline(stage))).toList(),
+                        PipelineReads.colorTarget(GooRenderTypes.GLOW_SHELL).blendFunction()));
     }
 
     private static String fragmentSource(RenderPipeline pipeline) throws IOException {

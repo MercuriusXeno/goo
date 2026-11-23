@@ -308,10 +308,18 @@ public final class HeldSweepVisual {
             VertexConsumer consumer = pass.consumer();
             for (HeldSweepPulse pulse : travelling) {
                 ColorSphere.emit(pose, consumer, pulse.field().center().subtract(camera),
-                        (float) pulse.drawnRadius(now), ARGB.color(SPHERE_ALPHA, pulse.tintRgb()));
+                        (float) pulse.drawnRadius(now), frontColor(pulse.tintRgb()));
             }
             pass.end().run();
         });
+    }
+
+    /**
+     * @param tintRgb the front's tint
+     * @return the color a travelling front's sphere glows
+     */
+    public static int frontColor(int tintRgb) {
+        return ARGB.color(SPHERE_ALPHA, tintRgb);
     }
 
     /**

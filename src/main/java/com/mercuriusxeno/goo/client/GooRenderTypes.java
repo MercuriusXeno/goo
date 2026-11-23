@@ -65,8 +65,7 @@ public final class GooRenderTypes {
     private static final String ALPHA_CUTOUT_DEFINE = "ALPHA_CUTOUT";
     private static final String NO_OVERLAY_DEFINE = "NO_OVERLAY";
     private static final String NO_CARDINAL_LIGHTING_DEFINE = "NO_CARDINAL_LIGHTING";
-    /** The define under which oit.glsl treats a surface as additive, occluding nothing. */
-    private static final String OIT_ADDITIVE_DEFINE = "OIT_ADDITIVE";
+    private static final String PER_FACE_LIGHTING_DEFINE = "PER_FACE_LIGHTING";
     /** The vertex and fragment shader pair the goo fluid surface draws through, on every path. */
     private static final Identifier GOO_FLUID_SURFACE_SHADER =
             Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_fluid_surface");
@@ -358,13 +357,18 @@ public final class GooRenderTypes {
             CompareOp.ALWAYS_PASS, BlendFunction.LIGHTNING));
 
     /**
-     * Glow's shell's OIT phases, adding its light as vanilla's lightning does: its alpha phases discard and its
-     * accumulate phase adds its color, since an additive surface occludes nothing.
+     * Glow's shell's OIT phases, drawing it as a translucent layer with coverage, as vanilla builds its beacon beam's:
+     * its alpha phases write its coverage and its accumulate phase blends by it, so it sorts and dims behind water
+     * and stained glass. Its fragment shader retunes each layer toward the light the shell adds with improved
+     * transparency off, raising its coverage and whitening its dense middle.
      * decision goo-translucency-draws-through-order-independent-transparency
+     * decision additive-glows-draw-as-translucent-layers-in-the-oit-phase
      */
     public static final OitPipelineSet GLOW_SHELL_OIT = OitPipelineSet.builder(
             Identifier.fromNamespaceAndPath(NAMESPACE, "glow_shell"),
-            GLOW_SHELL.toBuilder().withUnusedColorTargetState(0).withShaderDefine(OIT_ADDITIVE_DEFINE)).build();
+            GLOW_SHELL.toBuilder().withUnusedColorTargetState(0)
+                    .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "glow_shell_oit")))
+            .build();
 
     /** RenderType for glow's shell of light. */
     public static final RenderType GLOW_SHELL_TYPE = RenderType.create(TYPE_NAME_PREFIX + "glow_shell",
@@ -668,16 +672,31 @@ public final class GooRenderTypes {
      * drawn after it, Laser's ray among them, show in front of the column
      * rather than fail the depth it would write.
      */
-    // Under improved transparency this stays on its parity path: drawn far to near on the sorting path, until the task on this thread that moves it lands.
-    // decision goo-translucency-draws-through-order-independent-transparency
     public static final RenderPipeline GLOW_COLUMN = sorted(PipelineSort.ON_THE_PATH, RenderPipelines.ENTITY_TRANSLUCENT.toBuilder()
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "glow_column"))
             .withDepthStencilState(new DepthStencilState(DepthStencilState.DEFAULT.depthTest(), false))
             .build());
 
+    /**
+     * A glow prism's column's OIT phases: vanilla's translucent entity set, as vanilla builds it for
+     * entityTranslucent, since no OIT phase writes depth. The column draws in the OIT phase beside the Laser's core
+     * at a struck prism, which wraps it; left at AfterLevel it failed the depth the OIT composite writes from the
+     * core's outer layer, and vanished.
+     * decision goo-translucency-draws-through-order-independent-transparency
+     * decision additive-glows-draw-as-translucent-layers-in-the-oit-phase
+     */
+    public static final OitPipelineSet GLOW_COLUMN_OIT = OitPipelineSet.builder(
+                    Identifier.fromNamespaceAndPath(NAMESPACE, "glow_column"),
+                    RenderPipeline.builder(RenderPipelines.OIT_ENTITY_SNIPPET).withCull(false))
+            .withAccumulateModifier(accumulate -> accumulate.withShaderDefine(PER_FACE_LIGHTING_DEFINE)
+                    .withBindGroupLayout(BindGroupLayouts.SAMPLER1)
+                    .withBindGroupLayout(BindGroupLayouts.SAMPLER2))
+            .build();
+
     /** The glow column render type, on the block atlas. */
     public static final RenderType GLOW_COLUMN_TYPE = RenderType.create("goo_glow_column",
             RenderSetup.builder(GLOW_COLUMN)
+                    .setOitPipelines(GLOW_COLUMN_OIT)
                     .withTexture("Sampler0", Identifier.withDefaultNamespace("textures/atlas/blocks.png"))
                     .useLightmap()
                     .useOverlay()
@@ -2032,7 +2051,7 @@ public final class GooRenderTypes {
      * @param event the event instance
      */
     private static void registerSubmittedOitSets(RegisterRenderPipelinesEvent event) {
-        List.of(CLICK_WAVE_THROUGH_BLOCKS_OIT, GLOW_SHELL_OIT, METEOR_ROCK_OIT, CRYSTAL_SHARD_OIT, CRUCIBLE_DISSOLVE_OIT, GOO_MOB_COAT_OIT, PETRIFY_STONE_OIT,
+        List.of(CLICK_WAVE_THROUGH_BLOCKS_OIT, GLOW_SHELL_OIT, GLOW_COLUMN_OIT, METEOR_ROCK_OIT, CRYSTAL_SHARD_OIT, CRUCIBLE_DISSOLVE_OIT, GOO_MOB_COAT_OIT, PETRIFY_STONE_OIT,
                 VINE_TANGLE_OIT, GOO_PHASE_OIT, GOO_AILMENT_OVERLAY_OIT).forEach(event::registerOitPipelineSet);
     }
 

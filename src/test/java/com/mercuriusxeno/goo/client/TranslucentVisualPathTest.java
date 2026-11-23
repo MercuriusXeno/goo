@@ -72,6 +72,7 @@ import com.mojang.renderpearl.api.pipeline.CompareOp;
 import com.mojang.renderpearl.api.pipeline.RenderPipeline;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.neoforge.client.event.RegisterRenderPipelinesEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -154,6 +155,28 @@ class TranslucentVisualPathTest {
                         () -> assertTrue(imported.get(visual).getFieldAccessesFromSelf().stream().anyMatch(access ->
                                 access.getTarget().getName().equals("GLOW_SHELL_TYPE")),
                                 visual.getSimpleName() + " draws through GLOW_SHELL_TYPE")))));
+    }
+
+    /**
+     * A glow prism's column draws in the OIT phase beside the Laser's core at a struck prism, which wraps it: the OIT
+     * composite writes the nearest translucent depth, the core's outer layer, into the level's depth, so a column
+     * left at AfterLevel failed its depth test inside the core and vanished.
+     * decision goo-translucency-draws-through-order-independent-transparency
+     * decision additive-glows-draw-as-translucent-layers-in-the-oit-phase
+     */
+    @Test
+    void aGlowPrismsColumnSortsWithTheLasersCoreInTheOitPhase() {
+        RegisterRenderPipelinesEvent event = org.mockito.Mockito.mock(RegisterRenderPipelinesEvent.class);
+        GooRenderTypes.registerPipelines(event);
+        net.minecraft.client.renderer.oit.OitPipelineSet column =
+                PipelineReads.oitPipelines(GooRenderTypes.GLOW_COLUMN_TYPE);
+        assertAll(
+                () -> assertTrue(column != null, "GLOW_COLUMN_TYPE carries no OIT set"),
+                () -> org.mockito.Mockito.verify(event).registerOitPipelineSet(column),
+                () -> assertTrue(TranslucentVisualPath.REGISTRATIONS.stream().anyMatch(registration ->
+                        registration.visual() == com.mercuriusxeno.goo.client.ber.style.GlowColumn.class
+                                && registration.drawing() == TranslucentVisualPath.Drawing.IMMEDIATE_BUFFERS_ALONE),
+                        "GlowColumn draws through ImmediateBuffers alone"));
     }
 
     /**

@@ -33,7 +33,6 @@ final class GooOitStays {
             entry("fungus_glow", THROUGH_BLOCKS),
             entry("fungus_xray", THROUGH_BLOCKS),
             entry("glow_beam", FAR_TO_NEAR),
-            entry("glow_column", FAR_TO_NEAR),
             entry("glow_explosion", FAR_TO_NEAR),
             entry("goo_fluid", WRITES_DEPTH),
             entry("goo_ghost", FAR_TO_NEAR),
