@@ -145,12 +145,12 @@ class TranslucentVisualPathTest {
                         PipelineReads.oitPipelines(GooRenderTypes.GLOW_SHELL_TYPE) != null, "GLOW_SHELL_TYPE's set"),
                 () -> assertTrue(TranslucentVisualPath.REGISTRATIONS.stream().anyMatch(registration ->
                         registration.visual() == WispEchoes.class
-                                && registration.drawing() == TranslucentVisualPath.Drawing.IMMEDIATE_BUFFERS_ALONE),
+                                && registration.drawing() == TranslucentVisualPath.Drawing.IN_THE_OIT_PHASE),
                         "WispEchoes collects with WispGlow")),
                 glowShells.stream().map(visual -> () -> assertAll(
                         () -> assertTrue(TranslucentVisualPath.REGISTRATIONS.stream().anyMatch(registration ->
                                 registration.visual() == visual && registration.route() == SortRoute.FAR_TO_NEAR
-                                        && registration.drawing() == TranslucentVisualPath.Drawing.IMMEDIATE_BUFFERS_ALONE),
+                                        && registration.drawing() == TranslucentVisualPath.Drawing.IN_THE_OIT_PHASE),
                                 visual.getSimpleName() + " registers far to near, drawing through ImmediateBuffers alone"),
                         () -> assertTrue(imported.get(visual).getFieldAccessesFromSelf().stream().anyMatch(access ->
                                 access.getTarget().getName().equals("GLOW_SHELL_TYPE")),
@@ -172,11 +172,11 @@ class TranslucentVisualPathTest {
                 com.mercuriusxeno.goo.client.ber.style.GlowReflectorStyle.class);
         assertAll(Stream.concat(moved.stream().map(visual -> () -> assertTrue(TranslucentVisualPath.REGISTRATIONS
                                 .stream().anyMatch(registration -> registration.visual() == visual
-                                        && registration.drawing() == TranslucentVisualPath.Drawing.IMMEDIATE_BUFFERS_ALONE),
+                                        && registration.drawing() == TranslucentVisualPath.Drawing.IN_THE_OIT_PHASE),
                         visual.getSimpleName() + " draws in the OIT phase")),
                 Stream.of(() -> assertTrue(TranslucentVisualPath.REGISTRATIONS.stream().noneMatch(registration ->
                                 registration.visual() == FireStream.class
-                                        && registration.drawing() == TranslucentVisualPath.Drawing.IMMEDIATE_BUFFERS_ALONE),
+                                        && registration.drawing() == TranslucentVisualPath.Drawing.IN_THE_OIT_PHASE),
                         "FireStream stays where it draws"))));
     }
 
@@ -196,8 +196,31 @@ class TranslucentVisualPathTest {
         assertAll(moved.stream().map(visual -> () -> assertTrue(TranslucentVisualPath.REGISTRATIONS.stream()
                         .anyMatch(registration -> registration.visual() == visual
                                 && registration.route() == SortRoute.FAR_TO_NEAR
-                                && registration.drawing() == TranslucentVisualPath.Drawing.IMMEDIATE_BUFFERS_ALONE),
+                                && registration.drawing() == TranslucentVisualPath.Drawing.IN_THE_OIT_PHASE),
                 visual.getSimpleName() + " draws in the OIT phase")));
+    }
+
+    /**
+     * The blob, body, portal and zone visuals draw in the OIT phase, the vortex, the drill and the partner meshes
+     * through their own pass taking the stage's pipeline; the afterimage draws into a target of its own and the room
+     * copy writes its own depth, so each stays where it draws.
+     * decision goo-translucency-draws-through-order-independent-transparency
+     */
+    @Test
+    void theBlobBodyPortalAndZoneVisualsDrawInTheOitPhase() {
+        List<Class<?>> moved = List.of(BlockMingleRenderer.class, LiftedPalmBlob.class, RollingGooRenderer.class,
+                TransformationRenderer.class, Tomes.class, PartnerMeshes.class, BoreDrill.class, PortalFaces.class,
+                QuantumBlobDarts.class, HoleMouths.class, MiasmaVortex.class);
+        List<Class<?>> staying = List.of(AfterimageRenderer.class, RoomCopyRenderer.class);
+        assertAll(Stream.concat(moved.stream().map(visual -> () -> assertTrue(TranslucentVisualPath.REGISTRATIONS
+                                .stream().anyMatch(registration -> registration.visual() == visual
+                                        && registration.route() == SortRoute.FAR_TO_NEAR
+                                        && registration.drawing() == TranslucentVisualPath.Drawing.IN_THE_OIT_PHASE),
+                        visual.getSimpleName() + " draws in the OIT phase")),
+                staying.stream().map(visual -> () -> assertTrue(TranslucentVisualPath.REGISTRATIONS.stream()
+                                .noneMatch(registration -> registration.visual() == visual
+                                        && registration.drawing() == TranslucentVisualPath.Drawing.IN_THE_OIT_PHASE),
+                        visual.getSimpleName() + " stays where it draws"))));
     }
 
     /**
@@ -218,7 +241,7 @@ class TranslucentVisualPathTest {
                 () -> org.mockito.Mockito.verify(event).registerOitPipelineSet(column),
                 () -> assertTrue(TranslucentVisualPath.REGISTRATIONS.stream().anyMatch(registration ->
                         registration.visual() == com.mercuriusxeno.goo.client.ber.style.GlowColumn.class
-                                && registration.drawing() == TranslucentVisualPath.Drawing.IMMEDIATE_BUFFERS_ALONE),
+                                && registration.drawing() == TranslucentVisualPath.Drawing.IN_THE_OIT_PHASE),
                         "GlowColumn draws through ImmediateBuffers alone"));
     }
 

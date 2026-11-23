@@ -3,6 +3,8 @@
 
 #include <minecraft:globals.glsl>
 #include <goo:portal_texels.glsl>
+#include <minecraft:oit.glsl>
+#include <goo:see_through_glow.glsl>
 
 // A gate's swirl band (decision tornadic-halo-spirals-out-from-the-rim): one dense, bright band
 // straddling the rim, arching from just inside it, over the portal's view, to just outside it on the
@@ -19,7 +21,12 @@ layout(location = 0) in vec2 frameCoord;
 layout(location = 1) flat in vec2 texels;
 layout(location = 2) in vec4 frameColor;
 
+// Under improved transparency the depth bounds and transmittance phases take the alpha alone, and the
+// accumulate phase weights the color by the transmittance in front of it
+// (decision goo-translucency-draws-through-order-independent-transparency).
+#ifndef OIT_ALPHA_ONLY
 layout(location = 0) out vec4 fragColor;
+#endif
 
 // GameTime runs from zero to one over a day of 24000 ticks; this many seconds make one day. Each
 // period below divides it whole, so the band carries on unbroken as the day wraps.
@@ -83,5 +90,12 @@ void main() {
     float core = exp(-pow((across - 0.5) / BAND_CORE, 2.0));
     float glow = feather * (BAND_GLOW + BAND_STREAK_GLOW * streaks);
     vec3 color = mix(frameColor.rgb, vec3(1.0), BAND_HOT * core * streaks);
-    fragColor = vec4(color, glow);
+    vec4 drawn = seeThroughGlow(vec4(color, glow));
+#ifdef OIT_ALPHA_ONLY
+    executeAlphaOnlyPhase(gl_FragCoord.z, drawn.a);
+#elif defined(OIT_ACCUMULATE)
+    fragColor = sampleColorForAccumulation(drawn);
+#else
+    fragColor = drawn;
+#endif
 }

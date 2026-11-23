@@ -170,6 +170,18 @@ public final class ImmediateBuffers implements RenderTypeBuffers {
                 .requestIndexCount(count));
     }
 
+    /**
+     * Notes the index count a draw in an OIT stage asks of a sequential index buffer, so the next frame grows
+     * that buffer before the stages' open passes stand.
+     * decision goo-translucency-draws-through-order-independent-transparency
+     *
+     * @param topology   the draw's primitive topology
+     * @param indexCount the index count it asks
+     */
+    public static void noteOitIndexCount(PrimitiveTopology topology, int indexCount) {
+        OIT_INDEX_COUNTS.merge(topology, indexCount, Math::max);
+    }
+
     // The buffers close straight after the draw; the device destroys each once the frame holding it is done.
     // The type prepares before any pass of its own opens, since its first prepare may upload its textures, and the
     // phase the path stands in picks its pipeline before anything uploads, so a batch the phase skips costs nothing.
@@ -187,7 +199,7 @@ public final class ImmediateBuffers implements RenderTypeBuffers {
                 mesh.vertexBuffer())) {
             if (mesh.indexBuffer() == null) {
                 if (phase.stage() != null) {
-                    OIT_INDEX_COUNTS.merge(state.primitiveTopology(), state.indexCount(), Math::max);
+                    noteOitIndexCount(state.primitiveTopology(), state.indexCount());
                 }
                 RenderSystem.AutoStorageIndexBuffer sequential = RenderSystem.getSequentialBuffer(
                         state.primitiveTopology());

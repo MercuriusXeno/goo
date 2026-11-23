@@ -324,6 +324,27 @@ class GooRenderTypesTest {
                 List.of(GooRenderTypes.REAP_SWELL, GooRenderTypes.LINES_ADDITIVE_GLOW, GooRenderTypes.GLOW_SHELL));
     }
 
+    /**
+     * The blob, body, portal and zone visuals' far-to-near pipelines draw in the OIT phase, the portal's halo and
+     * swirl band added with coverage, Drain's vortex and Bore's drill through their own pass in the stage's pass; the
+     * portal's view and idle swirl and the room copy write their own depth, and the afterimage's edge and outline are
+     * post effects over a target of its own, so each stays where it draws.
+     * decision goo-translucency-draws-through-order-independent-transparency
+     * decision additive-glows-draw-as-translucent-layers-in-the-oit-phase
+     */
+    @Test
+    void theBlobBodyPortalAndZonePipelinesDrawInTheOitPhase() throws IOException {
+        assertDrawInTheOitPhase(List.of(GooRenderTypes.BLOCK_MINGLE_TRANSLUCENT, GooRenderTypes.PORTABLE_HOLE_MOUTH,
+                        GooRenderTypes.GOO_PORTAL_HALO, GooRenderTypes.GOO_PORTAL_SWIRL_BAND,
+                        GooRenderTypes.MIASMA_VORTEX, GooRenderTypes.BORE_DRILL),
+                List.of(GooRenderTypes.GOO_PORTAL_HALO, GooRenderTypes.GOO_PORTAL_SWIRL_BAND));
+        assertEquals(List.of(GooOitStays.WRITES_DEPTH, GooOitStays.WRITES_DEPTH, GooOitStays.WRITES_DEPTH,
+                        GooOitStays.POST_EFFECT, GooOitStays.POST_EFFECT),
+                List.of(GooOitStays.REASONS.get("goo_portal_view"), GooOitStays.REASONS.get("goo_portal_idle"),
+                        GooOitStays.REASONS.get("room_copy_translucent"), GooOitStays.REASONS.get("goo_ripple_edge"),
+                        GooOitStays.REASONS.get("goo_soft_outline")));
+    }
+
     // Each moved pipeline carries a registered set running its own shaders under no OIT_ADDITIVE, its fragment
     // shader takes the OIT stages, the stays list names none, and each additive one keeps adding off the OIT phase.
     private static void assertDrawInTheOitPhase(List<RenderPipeline> moved, List<RenderPipeline> additive)
