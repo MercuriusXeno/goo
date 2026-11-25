@@ -275,20 +275,36 @@ public final class SculkerEchoes {
      * @param echoesOff whether an echo lights a block: one that lights, beside a block sound passes through
      */
     void advanceEchoing(long now, Predicate<BlockPos> echoesOff) {
+        SculkerEchoSections.profiled(SculkerEchoSections.RINGS, () -> growRings(now, echoesOff));
+        SculkerEchoSections.profiled(SculkerEchoSections.FADE, () -> forgetTheFaded(now));
+        SculkerEchoSections.profiled(SculkerEchoSections.FAINTEST, this::forgetTheFaintest);
+    }
+
+    private void growRings(long now, Predicate<BlockPos> echoesOff) {
+        int walked = 0;
+        int lit = 0;
         for (Ripple ripple : ripples) {
             if (ripple.startTick() >= now) {
                 continue;
             }
-            for (BlockPos cell : ScryReveal.shell(ripple.source(), ripple.swept(), ripple.radiusAt(now))) {
+            List<BlockPos> shell = ScryReveal.shell(ripple.source(), ripple.swept(), ripple.radiusAt(now));
+            walked += shell.size();
+            for (BlockPos cell : shell) {
                 if (echoesOff.test(cell)) {
                     light(cell.immutable(), now, ripple.lightAt(cell), ripple.adds());
+                    lit++;
                 }
             }
         }
         ripples.replaceAll(ripple -> ripple.grownTo(now));
         ripples.removeIf(ripple -> ripple.radiusAt(now) >= ripple.reach());
+        SculkerEchoSections.count(SculkerEchoSections.SHELL_CELLS_COUNTER, walked);
+        SculkerEchoSections.count(SculkerEchoSections.FACES_LIT_COUNTER, lit);
+    }
+
+    private void forgetTheFaded(long now) {
+        SculkerEchoSections.count(SculkerEchoSections.FADE_WEIGHED_COUNTER, remembered.size());
         remembered.entrySet().removeIf(face -> now >= face.getValue().fadedAt() && leftItsSection(face.getKey()));
-        forgetTheFaintest();
     }
 
     /**
@@ -336,8 +352,10 @@ public final class SculkerEchoes {
     private void forgetTheFaintest() {
         int over = remembered.size() - mostFaces;
         if (over <= 0) {
+            SculkerEchoSections.count(SculkerEchoSections.FAINTEST_SORTED_COUNTER, 0);
             return;
         }
+        SculkerEchoSections.count(SculkerEchoSections.FAINTEST_SORTED_COUNTER, remembered.size());
         remembered.entrySet().stream()
                 .sorted(Comparator.comparingLong(entry -> entry.getValue().fadedAt()))
                 .limit(over)

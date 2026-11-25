@@ -32,4 +32,16 @@ public final class TranslucentVisualPathRegistrations {
     public static List<SortedDraw> farToNear(List<SortedDraw> draws) {
         return TranslucentVisualPath.farToNear(draws);
     }
+
+    /**
+     * One route's draws as the path gathers and orders them each frame.
+     *
+     * @param sources the visuals on the route, in registered order
+     * @param frame   the frame being drawn
+     * @return the draws, farthest first
+     */
+    public static List<SortedDraw> orderedDraws(List<? extends TranslucentVisual> sources,
+                                                TranslucentVisual.LevelFrame frame) {
+        return TranslucentVisualPath.orderedDraws(sources, frame);
+    }
 }
