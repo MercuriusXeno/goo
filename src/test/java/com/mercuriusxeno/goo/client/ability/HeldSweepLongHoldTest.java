@@ -71,8 +71,11 @@ class HeldSweepLongHoldTest {
      * spot, and each new spot's field of walls walked the cave from nothing
      * on the render thread (the operator found Scry lag hardest while
      * moving); a walking hold's walk reads in a second, a minute in, against
-     * a still hold's and against commit a14a3b3's.
+     * a still hold's and against commit a14a3b3's. The count fell again once
+     * the walk read blocks by the sculker echo's rules, which read no wall's
+     * shape.
      * decision diagnose-and-correct-scry-lag-building-over-a-long-cast
+     * decision scry-shows-surfaces-as-the-sculker-echo-does
      */
     @Test
     void aWalkingScryHoldReadsFewerBlocksEachSecondThanItDidAtA14a3b3() {
@@ -90,7 +93,7 @@ class HeldSweepLongHoldTest {
 
         System.out.println("WALK READS still " + stillReads + ", walking " + walkingReads);
         assertTrue(walkingReads < WALKING_READS_AT_A14A3B3, "fewer walk reads than at a14a3b3, walking " + walkingReads);
-        assertEquals(523_282, walkingReads, "a walking hold's walk reads in its last second; a still one's " + stillReads);
+        assertEquals(508_942, walkingReads, "a walking hold's walk reads in its last second; a still one's " + stillReads);
     }
 
     /** Where the caster stands on a held tick: walking a circle at a player's pace. */
