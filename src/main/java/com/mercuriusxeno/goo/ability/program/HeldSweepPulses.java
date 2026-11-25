@@ -52,6 +52,27 @@ public final class HeldSweepPulses {
     }
 
     /**
+     * A press of an instant sweep: drops the caster's pulses whose fronts
+     * have landed and starts one where the caster stands, beside any still out.
+     * decision scry-is-instant-and-no-longer-channeled
+     *
+     * @param caster   the caster
+     * @param position where the caster stands
+     * @param gameTime the game time
+     * @param pace     the sweep's pace
+     * @return the pulse started
+     */
+    public Pulse start(UUID caster, Vec3 position, long gameTime, HeldSweepPace pace) {
+        List<Pulse> pulses = live.computeIfAbsent(caster, key -> new ArrayList<>());
+        landsAfter.put(caster, pace.ticksToRange());
+        pulses.removeIf(pulse -> pulse.ageAt(gameTime) > pace.ticksToRange());
+        lastId++;
+        Pulse started = new Pulse(lastId, position, gameTime);
+        pulses.add(started);
+        return started;
+    }
+
+    /**
      * Drops every caster's pulses whose fronts have landed, each server
      * tick: no step hears a hold end, so a hold let go with a front still
      * out would leave its pulses standing until the caster held again.

@@ -1,11 +1,11 @@
 {
   "gooType": "astral",
   "displayName": "goo.ability.astral.scry",
-  "badge": "channeled",
+  "badge": "instant",
   "order": 20,
   "cost": 200,
   "requires": ["minecraft:spyglass"],
-  "delivery": { "kind": "self", "ticks_per_charge": 20 },
+  "delivery": { "kind": "self" },
   "behaviors": [
     {
       "type": "scry",
