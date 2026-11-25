@@ -34,7 +34,7 @@ public final class LunarGravityTests {
     private static final double ONE_SIXTH = 1.0 / 6.0;
     private static final double SAME = 1e-9;
     /** High over lunar's ground, so nothing placed there stands in a block. */
-    private static final Vec3 HIGH_OVER_LUNAR = new Vec3(0.5, 300, 0.5);
+    private static final Vec3 HIGH_OVER_LUNAR = new Vec3(0.5, 150, 0.5);
     /** A drop the safe fall covers once cut to a sixth: three blocks, the safe fall distance. */
     private static final double SHORT_DROP = 18;
     /** A drop that, cut to a sixth, deals what the overworld drop deals. */

@@ -25,6 +25,7 @@ import java.util.Optional;
  * the sea cavern's roof, so a player walks from the surface to the molten iron sea. The ground is cut into square
  * cells, each holding one tube or none, rolled from the tube noise.
  * decision lunar-underground-changes-by-depth-down-to-a-molten-iron-sea
+ * decision moon-is-288-tall-half-of-today
  *
  * @param noise the seeded noise each cell's rolls read
  */
@@ -39,16 +40,16 @@ public record LavaTubes(Noise noise) implements DensitySampler {
             Identifier.fromNamespaceAndPath(Goo.MODID, "lunar_lava_tubes"));
 
     /** A tube's highest point, over the highest ground, so every tube opens on the surface. */
-    public static final int TOP_Y = 256;
+    public static final int TOP_Y = 128;
     /** A tube's lowest point, under the sea cavern's lowest roof, so every tube opens into the cavern. */
-    public static final int BOTTOM_Y = LunarDepths.SEA_ZONE_TOP_Y - 22;
+    public static final int BOTTOM_Y = LunarDepths.SEA_ZONE_TOP_Y - 11;
     /** A cell's side in blocks. */
     static final int CELL = 192;
     /** The share of cells holding a tube. */
     static final double TUBE_CHANCE = 0.5;
     /** The helix's radius about its axis, and how far it falls each turn: a slope a player walks down. */
     static final double HELIX_RADIUS = 20.0;
-    static final double HELIX_PITCH = 48.0;
+    static final double HELIX_PITCH = 24.0;
     /** The tunnel's radius about the helix. */
     public static final double TUBE_RADIUS = 3.5;
     /** The tube's centre keeps this far inside its cell, so a column reads its own cell's tube alone. */

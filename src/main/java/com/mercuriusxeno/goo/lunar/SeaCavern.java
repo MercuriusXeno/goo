@@ -24,6 +24,7 @@ import net.minecraft.world.level.levelgen.synth.NormalNoise;
  * everything under the sea's level solid, and lunar's surface rule lays molten iron and iron core there through
  * {@link SeaCavernCondition}, reading the same functions.
  * decision lunar-underground-changes-by-depth-down-to-a-molten-iron-sea
+ * decision moon-is-288-tall-half-of-today
  *
  * @param floor   the seeded noise rolling the sea floor
  * @param roof    the seeded noise rolling the roof
@@ -46,12 +47,12 @@ public record SeaCavern(Noise floor, Noise roof, Noise pillars) implements Densi
     public static final ResourceKey<NormalNoise> PILLAR_NOISE = key("lunar_sea_pillars");
 
     /** The sea floor's mean height, under the sea's level. */
-    static final int FLOOR_BASE_Y = -200;
+    static final int FLOOR_BASE_Y = -100;
     /** How far the sea floor rolls either way; past three fifths of it the floor breaks the sea as an island. */
-    static final double FLOOR_SWELL = 40.0;
+    static final double FLOOR_SWELL = 20.0;
     /** The roof's mean height, under the sea zone's top. */
-    static final int ROOF_BASE_Y = LunarDepths.SEA_ZONE_TOP_Y - 8;
-    static final double ROOF_SWELL = 8.0;
+    static final int ROOF_BASE_Y = LunarDepths.SEA_ZONE_TOP_Y - 4;
+    static final double ROOF_SWELL = 4.0;
     /** A pillar stands where the pillar noise reads past this. */
     static final double PILLAR_THRESHOLD = 0.5;
     /** The density of open air in the cavern, and of everything it leaves solid. */
