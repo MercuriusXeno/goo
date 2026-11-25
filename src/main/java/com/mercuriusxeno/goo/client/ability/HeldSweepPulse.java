@@ -1,8 +1,10 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Deque;
+import java.util.List;
 
 /**
  * One held-sweep pulse on the caster's client: its front travels at the
@@ -21,8 +23,10 @@ final class HeldSweepPulse {
     private final boolean paintsMobs;
     private final LitWalls walls;
     private final long order;
-    /** The walls this front lit, oldest hit first, so the walls whose glow ran out leave from the front. */
-    private final Deque<LitFace> lit = new ArrayDeque<>();
+    /** The walls this front lit out of the caster's sight, oldest hit first, so the walls whose glow ran out leave from the front. */
+    private final Deque<LitFace> held = new ArrayDeque<>();
+    /** The walls this front lit in the caster's sight, oldest hit first, which fade with the ring. */
+    private final Deque<LitFace> ringed = new ArrayDeque<>();
     private double frontBefore;
     private double lastRadius;
     private double lastRadiusAt;
@@ -96,6 +100,21 @@ final class HeldSweepPulse {
      * @param room  how many more walls may light across every live pulse
      */
     void advance(double now, WallWorld world, int room) {
+        advance(now, world, FaceSight.NONE, room);
+    }
+
+    /**
+     * Moves the front on to a moment through a world, lighting each wall it
+     * passes while there is room, each judged once by whether the caster sees
+     * it as the front reaches it, and lets the walls whose glow has run out go.
+     * decision scry-shows-only-hidden-hollows-and-mobs
+     *
+     * @param now   the game time with its partial tick
+     * @param world the world the front walks
+     * @param sight whether the caster sees a wall the front reaches
+     * @param room  how many more walls may light across every live pulse
+     */
+    void advance(double now, WallWorld world, FaceSight sight, int room) {
         frontBefore = front;
         double radius = drawnRadius(now);
         field.reachTo(radius, world);
@@ -103,8 +122,9 @@ final class HeldSweepPulse {
         int left = room;
         while (nextFace < field.size() && field.face(nextFace).distance() <= radius) {
             if (left > 0) {
-                LitFace hit = new LitFace(field.face(nextFace), now, this);
-                lit.add(hit);
+                EchoField.EchoFace face = field.face(nextFace);
+                LitFace hit = new LitFace(face, now, this, sight.sees(face));
+                (hit.inSight() ? ringed : held).add(hit);
                 walls.lit(hit);
                 left--;
             }
@@ -119,8 +139,13 @@ final class HeldSweepPulse {
      * @param now the game time with its partial tick
      */
     void fadeOut(double now) {
-        while (!lit.isEmpty() && HeldSweepVisual.glowAt(now - lit.getFirst().hitAt()) <= 0f) {
-            walls.faded(lit.removeFirst());
+        fadeOut(held, now);
+        fadeOut(ringed, now);
+    }
+
+    private void fadeOut(Deque<LitFace> hits, double now) {
+        while (!hits.isEmpty() && hits.getFirst().glowAt(now) <= 0f) {
+            walls.faded(hits.removeFirst());
         }
     }
 
@@ -131,7 +156,7 @@ final class HeldSweepPulse {
      * @return true once nothing of it shows
      */
     boolean finished(double now) {
-        return drawnRadius(now) >= range && lit.isEmpty();
+        return drawnRadius(now) >= range && held.isEmpty() && ringed.isEmpty();
     }
 
     /**
@@ -185,17 +210,45 @@ final class HeldSweepPulse {
         return order;
     }
 
+    /**
+     * The walls this front holds lit, in sight and out of it.
+     *
+     * @return the hits, those out of sight first
+     */
     Collection<LitFace> lit() {
-        return lit;
+        List<LitFace> all = new ArrayList<>(held);
+        all.addAll(ringed);
+        return all;
     }
 
     /**
-     * A wall a front hit, when, and the pulse whose front it was.
-     *
-     * @param face  the wall
-     * @param hitAt the game time with its partial tick the front reached it
-     * @param by    the pulse whose front hit it
+     * @return how many walls this front holds lit
      */
-    record LitFace(EchoField.EchoFace face, double hitAt, HeldSweepPulse by) {
+    int litCount() {
+        return held.size() + ringed.size();
+    }
+
+    /**
+     * A wall a front hit, when, the pulse whose front it was, and whether
+     * the caster saw it as the front reached it.
+     *
+     * @param face    the wall
+     * @param hitAt   the game time with its partial tick the front reached it
+     * @param by      the pulse whose front hit it
+     * @param inSight whether the caster saw it, so it takes only the ring
+     */
+    record LitFace(EchoField.EchoFace face, double hitAt, HeldSweepPulse by, boolean inSight) {
+
+        /**
+         * How brightly the hit shows: a wall in sight with the ring alone, a
+         * wall out of sight held and then faded.
+         * decision scry-visible-blocks-take-only-the-fading-ring
+         *
+         * @param now the game time with its partial tick
+         * @return the glow, 0 to 1
+         */
+        float glowAt(double now) {
+            return inSight ? HeldSweepVisual.ringGlowAt(now - hitAt) : HeldSweepVisual.glowAt(now - hitAt);
+        }
     }
 }

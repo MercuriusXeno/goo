@@ -20,6 +20,12 @@ public record HeldSweepPace(double range, double blocksASecond) {
     public static final int LINGER_TICKS = 120;
     /** Ticks of the linger a hit wall holds full brightness before it fades: three seconds. */
     public static final int FULL_TICKS = 60;
+    /**
+     * Ticks a wall the caster already sees glows as the ring crosses it,
+     * fading from the hit with no hold: half a second.
+     * decision scry-visible-blocks-take-only-the-fading-ring
+     */
+    public static final int RING_TICKS = 10;
     /** Game ticks in a second. */
     public static final double TICKS_A_SECOND = 20;
 

@@ -95,14 +95,15 @@ final class LitWalls {
     }
 
     /**
-     * Whether two hits draw a wall alike: in one color, on the same sides.
+     * Whether two hits draw a wall alike: in one color, on the same sides, both in sight or both out of it.
      *
      * @param one   a hit
      * @param other another hit on the same block
      * @return true when either draws the wall as the other would at the same glow
      */
     static boolean drawsAlike(HeldSweepPulse.LitFace one, HeldSweepPulse.LitFace other) {
-        return one.by().tintRgb() == other.by().tintRgb() && one.face().sides().equals(other.face().sides());
+        return one.by().tintRgb() == other.by().tintRgb() && one.face().sides().equals(other.face().sides())
+                && one.inSight() == other.inSight();
     }
 
     /** One wall's live hits, the latest of them, and whether they all draw alike. */
@@ -144,16 +145,15 @@ final class LitWalls {
 
         HeldSweepVisual.WallGlow glowAt(double now) {
             HeldSweepPulse.LitFace best = alike ? latest : brightest(now);
-            return new HeldSweepVisual.WallGlow(best.face(), HeldSweepVisual.glowAt(now - best.hitAt()),
-                    best.by().tintRgb());
+            return new HeldSweepVisual.WallGlow(best.face(), best.glowAt(now), best.by().tintRgb());
         }
 
         private HeldSweepPulse.LitFace brightest(double now) {
             HeldSweepPulse.LitFace best = hits.getFirst();
-            float bestGlow = HeldSweepVisual.glowAt(now - best.hitAt());
+            float bestGlow = best.glowAt(now);
             for (int index = 1; index < hits.size(); index++) {
                 HeldSweepPulse.LitFace hit = hits.get(index);
-                float glow = HeldSweepVisual.glowAt(now - hit.hitAt());
+                float glow = hit.glowAt(now);
                 if (glow > bestGlow || glow == bestGlow && hit.by().order() < best.by().order()) {
                     best = hit;
                     bestGlow = glow;

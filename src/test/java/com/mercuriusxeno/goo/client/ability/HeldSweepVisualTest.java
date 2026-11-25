@@ -216,6 +216,63 @@ class HeldSweepVisualTest {
     }
 
     /**
+     * A wall the caster can already see takes only the ring, lighting as the
+     * front crosses it and fading at once; a wall of a hollow hidden behind
+     * blocks holds for three seconds and fades over three more.
+     * decision scry-shows-only-hidden-hollows-and-mobs
+     * decision scry-visible-blocks-take-only-the-fading-ring
+     */
+    @Nested
+    class OutOfSight {
+
+        private static final Vec3 BODY = new Vec3(0.5, 0.9, 0.5);
+        private static final Vec3 EYE = new Vec3(0.5, 1.62, 0.5);
+        private static final double RANGE = 12;
+        private static final int TINT = 0x8866FF;
+        private static final long HEARD_AT = 100;
+        private static final double HIT_AT = HEARD_AT + 1;
+        private static final int ROOM = HeldSweepVisual.MOST_BLOCKS;
+        /** The open wall's face toward the caster, ten blocks east of the eye. */
+        private static final BlockPos OPEN_WALL = new BlockPos(10, 1, 0);
+        /** The closed cave's far wall, its face toward the caster behind a two block wall. */
+        private static final BlockPos CAVE_WALL = new BlockPos(9, 1, 0);
+
+        @Test
+        void aWallTheCasterSeesLightsAsTheRingCrossesAndIsUnlitTwentyTicksLater() {
+            Predicate<BlockPos> stone = pos -> pos.getX() == OPEN_WALL.getX() && Math.abs(pos.getZ()) <= 2
+                    && pos.getY() >= -1 && pos.getY() <= 3;
+            HeldSweepPulse.LitFace wall = hitAt(OPEN_WALL, stone);
+
+            assertTrue(wall.glowAt(HIT_AT) > 0f, "lit as the front crosses it");
+            assertEquals(0f, wall.glowAt(HIT_AT + 20), 0f, "unlit twenty ticks later");
+        }
+
+        @Test
+        void aHiddenCavesWallHoldsFullForThreeSecondsAndIsUnlitAtSix() {
+            Predicate<BlockPos> stone = pos -> !inBox(pos, -2, 2) && !inBox(pos, 5, 8);
+            HeldSweepPulse.LitFace wall = hitAt(CAVE_WALL, stone);
+
+            assertEquals(1f, wall.glowAt(HIT_AT + 59), 0f, "full 59 ticks after the hit");
+            assertTrue(wall.glowAt(HIT_AT + 90) < 1f, "fading at 90");
+            assertEquals(0f, wall.glowAt(HIT_AT + 120), 0f, "unlit at 120");
+        }
+
+        /** Air from one x to another, the caster's height and a little either side. */
+        private static boolean inBox(BlockPos pos, int fromX, int toX) {
+            return pos.getX() >= fromX && pos.getX() <= toX && pos.getY() >= -1 && pos.getY() <= 3
+                    && Math.abs(pos.getZ()) <= 2;
+        }
+
+        /** The hit a front crossing its whole range on one tick leaves on a block of a world of stone and air. */
+        private static HeldSweepPulse.LitFace hitAt(BlockPos pos, Predicate<BlockPos> stone) {
+            HeldSweepPulse pulse = new HeldSweepPulse(new EchoField(BODY), RANGE, RANGE, TINT);
+            pulse.heard(RANGE, HEARD_AT);
+            pulse.advance(HIT_AT, new WallWorld(stone, stone.negate()), FaceSight.from(EYE, stone), ROOM);
+            return pulse.lit().stream().filter(hit -> hit.face().pos().equals(pos)).findFirst().orElseThrow();
+        }
+    }
+
+    /**
      * The sweep reads blocks by the sculker echo's rules: its front passes
      * through a block that does not fill its cell and lights the wall behind
      * it, lights only a block with a collision shape, and draws each lit
@@ -376,6 +433,8 @@ class HeldSweepVisualTest {
         private static final int SKY_FROM = 16;
         private static final int SECTION = 16;
         private static final double SKY_WALK = 30;
+        private static final double SIGHT_RANGE = 16;
+        private static final int FRAMES = 100;
 
         private final HeldSweepWorld world = new HeldSweepWorld();
         private int blockReads;
@@ -462,6 +521,29 @@ class HeldSweepVisualTest {
                 walls.add(field.face(index).pos());
             }
             return walls;
+        }
+
+        /**
+         * The sight test runs once for each face as it lights and never
+         * again, however many frames draw the pulse after its front landed.
+         * decision scry-shows-only-hidden-hollows-and-mobs
+         */
+        @Test
+        void aHundredFramesOfALandedPulseRunTheSightTestOncePerFaceLit() {
+            int[] sightTests = new int[1];
+            FaceSight counted = face -> {
+                sightTests[0]++;
+                return false;
+            };
+            HeldSweepPulse pulse = new HeldSweepPulse(new EchoField(BODY), SIGHT_RANGE, SIGHT_RANGE, TINT);
+            pulse.heard(SIGHT_RANGE, HEARD_AT);
+
+            for (int frame = 0; frame < FRAMES; frame++) {
+                pulse.advance(HEARD_AT + 1 + frame / 3.0, CubeWalls.of(HeldSweepWorld::isAir), counted, ROOM);
+            }
+
+            assertTrue(!pulse.lit().isEmpty(), "the pulse lit faces");
+            assertEquals(pulse.lit().size(), sightTests[0], "sight tests across a hundred frames");
         }
 
         /** The faces the field around the caster holds once the first front has walked out to Scry's reach. */

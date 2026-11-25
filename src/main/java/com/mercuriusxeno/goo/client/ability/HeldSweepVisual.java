@@ -139,6 +139,19 @@ public final class HeldSweepVisual {
     }
 
     /**
+     * How brightly a wall the caster already sees shows a while after the
+     * ring crossed it: whole at the hit, fading at once to nothing over the
+     * ring's half second.
+     * decision scry-visible-blocks-take-only-the-fading-ring
+     *
+     * @param sinceHit ticks since the front hit it
+     * @return the glow in [0, 1]
+     */
+    static float ringGlowAt(double sinceHit) {
+        return (float) Math.clamp(1 - sinceHit / HeldSweepPace.RING_TICKS, 0, 1);
+    }
+
+    /**
      * The color the fronts and the walls draw in: the casting goo type's
      * color, so each sweep reads in its own type's colors and a datapack
      * recoloring the type recolors the sweep.
@@ -177,8 +190,8 @@ public final class HeldSweepVisual {
         }
         double now = level.getGameTime() + mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         upkeepFronts(new Upkeep(SWEEPS, WallWorld.of(level,
-                (sectionX, sectionY, sectionZ) -> holdsOnlyAir(level, sectionX, sectionY, sectionZ))), now,
-                level.entitiesForRendering(), mc.player);
+                (sectionX, sectionY, sectionZ) -> holdsOnlyAir(level, sectionX, sectionY, sectionZ)),
+                sightOf(level, mc.player)), now, level.entitiesForRendering(), mc.player);
         List<WallGlow> walls = wallsToDraw(SWEEPS.walls(), now);
         keepQuadsOf(walls);
         Vec3 camera = mc.gameRenderer.mainCamera().position();
@@ -225,6 +238,22 @@ public final class HeldSweepVisual {
     }
 
     /**
+     * Whether the caster sees a wall: from the local player's eye, through
+     * every block that does not hide what lies behind it.
+     * decision scry-shows-only-hidden-hollows-and-mobs
+     *
+     * @param level  the client level
+     * @param player the local player, the caster of every sweep its client draws
+     * @return the sight, none with no player
+     */
+    private static FaceSight sightOf(ClientLevel level, @Nullable Entity player) {
+        if (player == null) {
+            return FaceSight.NONE;
+        }
+        return FaceSight.from(player.getEyePosition(), at -> level.getBlockState(at).isSolidRender());
+    }
+
+    /**
      * Whether a section of the client's level holds only air, as its blocks
      * read: a chunk the client holds not answers air, as does a section past
      * the build height.
@@ -245,12 +274,24 @@ public final class HeldSweepVisual {
     }
 
     /**
-     * What a frame's upkeep moves on: the live sweeps and the world the fronts walk.
+     * What a frame's upkeep moves on: the live sweeps, the world the fronts
+     * walk, and whether the caster sees a wall a front reaches.
      *
      * @param sweeps the live pulses, the walls around each spot they leave from and the walls lit
      * @param world  the world the fronts walk
+     * @param sight  whether the caster sees a wall a front reaches
      */
-    record Upkeep(LiveSweeps sweeps, WallWorld world) {
+    record Upkeep(LiveSweeps sweeps, WallWorld world, FaceSight sight) {
+
+        /**
+         * An upkeep whose caster sees no wall, so every wall holds its light.
+         *
+         * @param sweeps the live sweeps
+         * @param world  the world the fronts walk
+         */
+        Upkeep(LiveSweeps sweeps, WallWorld world) {
+            this(sweeps, world, FaceSight.NONE);
+        }
     }
 
     /**
@@ -266,7 +307,7 @@ public final class HeldSweepVisual {
     static void upkeepFronts(Upkeep upkeep, double now, Iterable<Entity> entities, @Nullable Entity caster) {
         HeldSweepSections.profiled(HeldSweepSections.FRONT_UPKEEP, () -> {
             Map<Integer, HeldSweepPulse> pulses = upkeep.sweeps().pulses();
-            advanceAll(pulses, now, upkeep.world());
+            advanceAll(pulses, now, upkeep.world(), upkeep.sight());
             upkeep.sweeps().dropUnusedFields();
             paintCrossedMobs(pulses.values(), entities, caster, now);
         });
@@ -293,9 +334,23 @@ public final class HeldSweepVisual {
      * @param world  the world the fronts walk
      */
     static void advanceAll(Map<Integer, HeldSweepPulse> pulses, double now, WallWorld world) {
+        advanceAll(pulses, now, world, FaceSight.NONE);
+    }
+
+    /**
+     * Moves every live pulse's front on to a moment through a world, judging
+     * each wall a front reaches by whether the caster sees it, and drops the
+     * pulses that have finished.
+     *
+     * @param pulses the live pulses by id
+     * @param now    the game time with its partial tick
+     * @param world  the world the fronts walk
+     * @param sight  whether the caster sees a wall a front reaches
+     */
+    static void advanceAll(Map<Integer, HeldSweepPulse> pulses, double now, WallWorld world, FaceSight sight) {
         for (HeldSweepPulse pulse : pulses.values()) {
             // each front gets its own room, so an old front lit far out never starves a new one near the caster
-            pulse.advance(now, world, MOST_BLOCKS - pulse.lit().size());
+            pulse.advance(now, world, sight, MOST_BLOCKS - pulse.litCount());
         }
         pulses.values().removeIf(pulse -> pulse.finished(now));
     }
