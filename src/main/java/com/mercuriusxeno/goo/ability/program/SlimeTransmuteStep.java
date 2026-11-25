@@ -85,13 +85,30 @@ public record SlimeTransmuteStep(ResourceKey<GooTypeDefinition> goo, boolean hos
         TargetHost host = context.hostAs(TargetHost.class);
         LivingEntity target = host.target();
         if (takesEntity(target) && target.level() instanceof ServerLevel level) {
-            Slime slime = (Slime) target;
-            NaturalSpawns.drawAt(level, slime.blockPosition(), level.getRandom(), categoryFilter(hostile),
-                    type -> type != EntityTypes.SLIME)
-                    .flatMap(type -> transmute(level, slime, type, goo, morphTicks))
-                    .ifPresent(born -> runOn(level, born, host.thrower()));
+            transmuteDrawn(level, (Slime) target, host.thrower());
         }
         return true;
+    }
+
+    /**
+     * Transmutes a slime into a mob drawn from what its biome spawns
+     * naturally, of the step's side, and runs the step's steps on the mob
+     * born. Spawn's blob and a slime standing on Gloom both turn a slime
+     * this way.
+     * spawn-hostile-shape-peaceful-from-a-slime
+     * gloom-turns-slimes-into-random-hostiles-in-place-of-spawn
+     *
+     * @param level   the level
+     * @param slime   the slime
+     * @param thrower the entity behind the goo, or null where none is known
+     * @return the mob born, empty where the biome spawns nothing that fits
+     */
+    public Optional<Entity> transmuteDrawn(ServerLevel level, Slime slime, @Nullable Entity thrower) {
+        Optional<Entity> born = NaturalSpawns.drawAt(level, slime.blockPosition(), level.getRandom(),
+                        categoryFilter(hostile), type -> type != EntityTypes.SLIME)
+                .flatMap(type -> transmute(level, slime, type, goo, morphTicks));
+        born.ifPresent(mob -> runOn(level, mob, thrower));
+        return born;
     }
 
     /**
