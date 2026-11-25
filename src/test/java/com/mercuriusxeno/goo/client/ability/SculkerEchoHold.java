@@ -7,13 +7,21 @@ import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.TranslucentVisualPathRegistrations;
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.QuadInstance;
+import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.renderer.state.level.LevelRenderState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
+import org.joml.Vector3f;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
 
 /**
  * Sculker held headless over the {@link SculkerEchoWorld}, its player still
@@ -34,6 +42,10 @@ final class SculkerEchoHold {
     static final double SIGHT_REACH = 192;
     /** Where the player stands: the foot of a tunnel crossing. */
     static final Vec3 PLAYER = HeldSweepWorld.CASTER;
+    /** The block under the player's feet. */
+    static final BlockPos PLAYER_FLOOR = BlockPos.containing(PLAYER).below();
+    /** The sections of one chunk column within the shroom vision's reach of the player's eyes, y -4 to 4. */
+    static final long SECTIONS_A_COLUMN_IN_REACH = 9;
     private static final double EYE = 1.62;
     private static final long START = 1_000;
     /** The player's own swim through stone: a step every fifth of a second, a vibration of frequency 1 beside it. */
@@ -98,11 +110,36 @@ final class SculkerEchoHold {
     }
 
     private void drawEchoes() {
+        drawEchoesInto(consumer);
+    }
+
+    private void drawEchoesInto(VertexConsumer into) {
         Vec3 camera = PLAYER.add(0, EYE, 0);
         Map<BlockPos, Float> lit = SculkerEchoRenderer.drawnThisFrame(echoes, new AheadView(camera),
                 new SculkerEchoRenderer.Sight(PLAYER, gameTime, SIGHT_REACH, 1f), world, camera, world::inNetwork);
         drawn = lit.size();
-        SculkerEchoRenderer.drawLit(world, quads, new PoseStack(), consumer, camera, lit);
+        SculkerEchoRenderer.drawLit(world, quads, new PoseStack(), into, camera, lit);
+    }
+
+    /**
+     * Draws one frame into a recording consumer.
+     *
+     * @return each quad submitted as its pose's translation and its tint, sorted, so the order a map hands the
+     *         blocks over in reads alike
+     */
+    List<String> recordedFrame() {
+        List<String> submitted = new ArrayList<>();
+        VertexConsumer recording = mock(VertexConsumer.class);
+        doAnswer(call -> {
+            PoseStack.Pose pose = call.getArgument(0);
+            Vector3f moved = pose.pose().getTranslation(new Vector3f());
+            QuadInstance look = call.getArgument(2);
+            submitted.add(String.format(Locale.ROOT, "%.3f %.3f %.3f %08x", moved.x(), moved.y(), moved.z(),
+                    look.getColor(0)));
+            return null;
+        }).when(recording).putBakedQuad(any(), any(), any());
+        drawEchoesInto(recording);
+        return submitted.stream().sorted().toList();
     }
 
     /**
@@ -117,6 +154,25 @@ final class SculkerEchoHold {
                 frame();
             }
         }
+    }
+
+    /**
+     * Tells the shroom vision of a block change, as the client level's block update does.
+     *
+     * @param pos the block that changed
+     */
+    void blockChanged(BlockPos pos) {
+        ShroomVision.blockChanged(pos);
+    }
+
+    /**
+     * Tells the shroom vision of a chunk loading, as the client's chunk load does.
+     *
+     * @param chunkX the chunk's x
+     * @param chunkZ the chunk's z
+     */
+    void chunkLoaded(int chunkX, int chunkZ) {
+        ShroomVision.chunkChanged(chunkX, chunkZ);
     }
 
     /** @return the faces the echoes remember */

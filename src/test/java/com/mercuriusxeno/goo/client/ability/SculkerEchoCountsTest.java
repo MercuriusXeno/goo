@@ -123,7 +123,18 @@ class SculkerEchoCountsTest {
     @TestInstance(TestInstance.Lifecycle.PER_CLASS)
     class OneRescan {
 
+        /** Every section within the vision's reach that may hold sculk, as the first scan of a hold reads them. */
+        private static final long SECTIONS_IN_REACH = 729;
+        private static final long BLOCKS_A_SECTION = 4_096;
+
+        private final Map<String, Long> first = firstScanCounts();
         private final Map<String, Long> counted = rescanCounts();
+
+        private Map<String, Long> firstScanCounts() {
+            SculkerEchoHold hold = new SculkerEchoHold();
+            hold.tick();
+            return recorded(hold::frame);
+        }
 
         private Map<String, Long> rescanCounts() {
             SculkerEchoHold hold = new SculkerEchoHold();
@@ -133,13 +144,46 @@ class SculkerEchoCountsTest {
         }
 
         @Test
-        void theScanReadsEverySectionThatMayHoldSculk() {
-            assertEquals(729L, count(counted, SculkerEchoSections.SHROOM_SECTIONS_COUNTER), "sections scanned");
+        void theFirstScanReadsEverySectionThatMayHoldSculk() {
+            assertEquals(SECTIONS_IN_REACH, count(first, SculkerEchoSections.SHROOM_SECTIONS_COUNTER),
+                    "sections the first scan read");
+            assertEquals(SECTIONS_IN_REACH * BLOCKS_A_SECTION, count(first, SculkerEchoSections.SHROOM_BLOCKS_COUNTER),
+                    "blocks the first scan read");
+        }
+
+        /**
+         * A rescan over sections no block change or chunk load reached reads
+         * none of them again; at the parent commit of task
+         * sculker-echo-costs-less-each-frame-and-tick each rescan read all 729,
+         * 2,985,984 blocks.
+         */
+        @Test
+        void aRescanReadsNoSectionAnEarlierScanAlreadyRead() {
+            assertEquals(0L, count(counted, SculkerEchoSections.SHROOM_SECTIONS_COUNTER), "sections the rescan read");
+            assertEquals(0L, count(counted, SculkerEchoSections.SHROOM_BLOCKS_COUNTER), "blocks the rescan read");
         }
 
         @Test
-        void theScanReadsEveryBlockOfThoseSections() {
-            assertEquals(2_985_984L, count(counted, SculkerEchoSections.SHROOM_BLOCKS_COUNTER), "blocks scanned");
+        void aBlockChangeHasTheNextRescanReadItsSectionAlone() {
+            SculkerEchoHold hold = new SculkerEchoHold();
+            hold.hold(SculkerEchoHold.TEN_SECONDS);
+            hold.blockChanged(SculkerEchoHold.PLAYER_FLOOR);
+            hold.tick();
+            Map<String, Long> changed = recorded(hold::frame);
+            assertEquals(1L, count(changed, SculkerEchoSections.SHROOM_SECTIONS_COUNTER), "sections the rescan read");
+            assertEquals(BLOCKS_A_SECTION, count(changed, SculkerEchoSections.SHROOM_BLOCKS_COUNTER),
+                    "blocks the rescan read");
+        }
+
+        @Test
+        void aChunkLoadHasTheNextRescanReadItsColumnAlone() {
+            SculkerEchoHold hold = new SculkerEchoHold();
+            hold.hold(SculkerEchoHold.TEN_SECONDS);
+            hold.chunkLoaded(0, 0);
+            hold.tick();
+            Map<String, Long> loaded = recorded(hold::frame);
+            assertEquals(SculkerEchoHold.SECTIONS_A_COLUMN_IN_REACH,
+                    count(loaded, SculkerEchoSections.SHROOM_SECTIONS_COUNTER), "sections the rescan read");
         }
     }
 }

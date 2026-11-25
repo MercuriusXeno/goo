@@ -317,6 +317,7 @@ public final class SculkerSenses {
         SculkerEchoSections.profiled(SculkerEchoSections.BLOCK_CHANGED, () -> {
             ECHO_QUADS.forgetAround(pos);
             ECHO_CELLS.forgetAround(pos);
+            ShroomVision.blockChanged(pos);
             ECHOES.uncover(pos, SculkerSenses::lightsUpInLevel, SculkerSenses::passesSoundInLevel);
         });
     }
@@ -353,6 +354,7 @@ public final class SculkerSenses {
         if (event.getLevel().isClientSide()) {
             SculkerEchoSections.profiled(SculkerEchoSections.CHUNK_FORGET, () -> {
                 ECHO_QUADS.forgetChunk(event.getChunk().getPos().x(), event.getChunk().getPos().z());
+                ShroomVision.chunkChanged(event.getChunk().getPos().x(), event.getChunk().getPos().z());
                 ECHO_CELLS.clear();
             });
         }

@@ -11,18 +11,21 @@ import net.minecraft.world.level.chunk.status.ChunkStatus;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
+import it.unimi.dsi.fastutil.doubles.DoubleArrayList;
+import it.unimi.dsi.fastutil.ints.IntArrays;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 
 /**
  * Sculker's shroom vision: while Sculker stands, every fungus block within reach, a block whose block item's goo value
  * holds sculk (FungusBlocks), is in what the sense view draws at any noise level, with no echo needed to reveal it,
  * beside the blocks the echoes lit. The blocks are scanned again once a second, chunk section by chunk section,
- * skipping any section whose palette holds none, and the nearest are kept up to a cap.
+ * skipping any section whose palette holds none and reading each section's blocks once, until a block in it
+ * changes or its chunk loads or unloads, and the nearest are kept up to a cap.
  * decision sculker-absorbs-sight-as-shroom-vision
  */
 public final class ShroomVision {
@@ -37,6 +40,19 @@ public final class ShroomVision {
     static final long UNSCANNED = Long.MIN_VALUE;
 
     private static final List<BlockPos> SEEN = new ArrayList<>();
+    /**
+     * Each chunk section's fungus blocks within the vision's reach, in the
+     * order a scan meets them, by packed section position: a section's
+     * fungus changes only when a block in it changes or its chunk loads or
+     * unloads, so a scan reads each section's blocks once and those changes
+     * alone drop it. A section not loaded or holding none keeps none.
+     * decision diagnose-and-correct-the-lag-on-four-sense-abilities
+     */
+    private static final Long2ObjectOpenHashMap<List<BlockPos>> SECTIONS = new Long2ObjectOpenHashMap<>();
+    /** Each block a scan found within reach, its squared distance from the eyes, beside it in SEEN. */
+    private static final DoubleArrayList DISTANCES = new DoubleArrayList();
+    /** From a block's corner to its center, along each axis. */
+    private static final double HALF = 0.5;
     private static long scannedAt = UNSCANNED;
 
     private ShroomVision() {
@@ -151,9 +167,33 @@ public final class ShroomVision {
         });
     }
 
-    /** Forgets the last scan, so the next vision scans afresh. */
+    /**
+     * Drops the kept fungus blocks of the section a changed block stands in,
+     * so the next scan reads that section again.
+     * decision diagnose-and-correct-the-lag-on-four-sense-abilities
+     *
+     * @param pos the block that changed
+     */
+    static void blockChanged(BlockPos pos) {
+        SECTIONS.remove(SectionPos.asLong(pos));
+    }
+
+    /**
+     * Drops the kept fungus blocks of every section of a chunk that loaded or
+     * unloaded, so the next scan reads its column again.
+     * decision diagnose-and-correct-the-lag-on-four-sense-abilities
+     *
+     * @param chunkX the chunk's x
+     * @param chunkZ the chunk's z
+     */
+    static void chunkChanged(int chunkX, int chunkZ) {
+        SECTIONS.keySet().removeIf((long section) -> SectionPos.x(section) == chunkX && SectionPos.z(section) == chunkZ);
+    }
+
+    /** Forgets the last scan and every section's kept fungus blocks, so the next vision scans afresh. */
     static void forget() {
         SEEN.clear();
+        SECTIONS.clear();
         scannedAt = UNSCANNED;
     }
 
@@ -170,40 +210,110 @@ public final class ShroomVision {
 
     private static void rescan(ShroomWorld world, Vec3 eye) {
         SEEN.clear();
+        DISTANCES.clear();
         SectionPos low = SectionPos.of(BlockPos.containing(eye.subtract(VISION_REACH, VISION_REACH, VISION_REACH)));
         SectionPos high = SectionPos.of(BlockPos.containing(eye.add(VISION_REACH, VISION_REACH, VISION_REACH)));
         int read = 0;
         for (int sx = low.x(); sx <= high.x(); sx++) {
             for (int sz = low.z(); sz <= high.z(); sz++) {
                 for (int sy = low.y(); sy <= high.y(); sy++) {
-                    FungusSection section = world.fungusSection(sx, sy, sz);
-                    if (section != null) {
-                        scanSection(section, SectionPos.of(sx, sy, sz).origin(), eye);
-                        read++;
-                    }
+                    read += addSectionWithinReach(world, SectionPos.of(sx, sy, sz), eye);
                 }
             }
         }
+        SECTIONS.keySet().removeIf((long section) -> !within(section, low, high));
         SculkerEchoSections.count(SculkerEchoSections.SHROOM_SECTIONS_COUNTER, read);
         SculkerEchoSections.count(SculkerEchoSections.SHROOM_BLOCKS_COUNTER, read * BLOCKS_A_SECTION);
-        SEEN.sort(Comparator.comparingDouble(pos -> Vec3.atCenterOf(pos).distanceToSqr(eye)));
-        if (SEEN.size() > MOST_SEEN) {
-            SEEN.subList(MOST_SEEN, SEEN.size()).clear();
+        keepTheNearest();
+    }
+
+    /**
+     * Keeps the nearest fungus blocks found, up to the cap, nearest first,
+     * blocks at one distance in the order the scan met them: each block's
+     * distance worked out once, beside it, rather than at every comparison.
+     * decision diagnose-and-correct-the-lag-on-four-sense-abilities
+     */
+    private static void keepTheNearest() {
+        int found = SEEN.size();
+        int[] order = new int[found];
+        for (int index = 0; index < found; index++) {
+            order[index] = index;
+        }
+        IntArrays.quickSort(order, (first, second) -> {
+            int byDistance = Double.compare(DISTANCES.getDouble(first), DISTANCES.getDouble(second));
+            return byDistance != 0 ? byDistance : Integer.compare(first, second);
+        });
+        List<BlockPos> nearest = new ArrayList<>(Math.min(found, MOST_SEEN));
+        for (int index = 0; index < Math.min(found, MOST_SEEN); index++) {
+            nearest.add(SEEN.get(order[index]));
+        }
+        SEEN.clear();
+        SEEN.addAll(nearest);
+        DISTANCES.clear();
+    }
+
+    /**
+     * Adds a section's fungus blocks within reach, its blocks read once and kept until a change drops them.
+     *
+     * @param world   the world the vision reads
+     * @param section the section
+     * @param eye     the local player's eyes
+     * @return 1 where the section's blocks were read now, 0 where they were kept or it holds none
+     */
+    private static int addSectionWithinReach(ShroomWorld world, SectionPos section, Vec3 eye) {
+        long key = section.asLong();
+        List<BlockPos> fungus = SECTIONS.get(key);
+        int read = 0;
+        if (fungus == null) {
+            FungusSection blocks = world.fungusSection(section.x(), section.y(), section.z());
+            fungus = blocks == null ? List.of() : fungusIn(blocks, section.origin());
+            read = blocks == null ? 0 : 1;
+            SECTIONS.put(key, fungus);
+        }
+        addWithinReach(fungus, eye);
+        return read;
+    }
+
+    private static boolean within(long section, SectionPos low, SectionPos high) {
+        return between(SectionPos.x(section), low.x(), high.x()) && between(SectionPos.y(section), low.y(), high.y())
+                && between(SectionPos.z(section), low.z(), high.z());
+    }
+
+    private static boolean between(int coordinate, int low, int high) {
+        return coordinate >= low && coordinate <= high;
+    }
+
+    private static void addWithinReach(List<BlockPos> fungus, Vec3 eye) {
+        for (BlockPos pos : fungus) {
+            double dx = pos.getX() + HALF - eye.x;
+            double dy = pos.getY() + HALF - eye.y;
+            double dz = pos.getZ() + HALF - eye.z;
+            double distanceSquared = dx * dx + dy * dy + dz * dz;
+            if (Math.sqrt(distanceSquared) <= VISION_REACH) {
+                SEEN.add(pos);
+                DISTANCES.add(distanceSquared);
+            }
         }
     }
 
-    private static void scanSection(FungusSection section, BlockPos base, Vec3 eye) {
+    /**
+     * Every fungus block of a section, in the order a scan meets them.
+     *
+     * @param section the section's blocks
+     * @param base    the section's lowest corner
+     * @return the fungus blocks
+     */
+    private static List<BlockPos> fungusIn(FungusSection section, BlockPos base) {
+        List<BlockPos> fungus = new ArrayList<>();
         for (int x = 0; x < SECTION_SIZE; x++) {
             for (int y = 0; y < SECTION_SIZE; y++) {
                 for (int z = 0; z < SECTION_SIZE; z++) {
                     if (section.holdsFungusAt(x, y, z)) {
-                        BlockPos pos = base.offset(x, y, z);
-                        if (Vec3.atCenterOf(pos).distanceTo(eye) <= VISION_REACH) {
-                            SEEN.add(pos);
-                        }
+                        fungus.add(base.offset(x, y, z));
                     }
                 }
             }
         }
+        return List.copyOf(fungus);
     }
 }
