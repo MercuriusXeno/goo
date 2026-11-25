@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.ability.ThrowRange;
 import com.mercuriusxeno.goo.ability.quantum.Gate;
 import com.mercuriusxeno.goo.ability.quantum.GatePassage;
 import com.mercuriusxeno.goo.item.ReagentScanner;
+import com.mercuriusxeno.goo.throwing.AimReach;
 import com.mercuriusxeno.goo.throwing.GateArc;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -17,6 +18,8 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -142,24 +145,126 @@ class GooThrowHandlerTest {
         }
 
         @Test
-        void aBioFlightAtAMobSeventeenBlocksOutIsRefusedAndFifteenStands() {
+        void aBioFlightAtAMobEighteenBlocksOutIsRefusedAndFifteenStands() {
             assertReleasedWithinSixteen("leaf_bio");
         }
 
         @Test
-        void aHoleCastSeventeenBlocksOutIsRefusedAndFifteenStands() {
+        void aHoleCastEighteenBlocksOutIsRefusedAndFifteenStands() {
             assertReleasedWithinSixteen("void_hole");
         }
 
         @Test
-        void aShulkSpewSeventeenBlocksOutIsRefusedAndFifteenStands() {
+        void aShulkSpewEighteenBlocksOutIsRefusedAndFifteenStands() {
             assertReleasedWithinSixteen("typhoon_shulk");
         }
 
         private void assertReleasedWithinSixteen(String name) {
-            assertFalse(GooThrowHandler.withinRange(17 * 17, rangeOf(name)), name + " should refuse 17 blocks");
-            assertTrue(GooThrowHandler.withinRange(15 * 15, rangeOf(name)), name + " should stand at 15 blocks");
+            assertFalse(takenAt(18, name), name + " should refuse 18 blocks");
+            assertTrue(takenAt(15, name), name + " should stand at 15 blocks");
         }
+
+        private boolean takenAt(double blocks, String name) {
+            Vec3 aimed = out(blocks);
+            return GooThrowHandler.takesAim(EYE, new AABB(BlockPos.containing(aimed)), aimed, rangeOf(name));
+        }
+    }
+
+    /**
+     * Every release the server range-gates measures the caster's eye to the
+     * aimed point, so a face or a mob lit within range is taken where the
+     * block's center or the mob's feet stand past that range of the caster's feet.
+     * decision diagnose-and-correct-the-indicator-disagreeing-with-the-cast
+     */
+    @Nested
+    class EachReleaseMeasuresTheEyeToTheAimedPoint {
+
+        private static final double EYE_HEIGHT = 1.62;
+
+        @Test
+        void aMeteoCastAtTheNearEdgeOfATopFaceWithinRangeOfTheEyeIsTaken() {
+            double range = rangeOf("astral_meteo");
+            BlockPos ground = new BlockPos(40, 64, 0);
+            Vec3 struck = new Vec3(40, 65, 0.5);
+            double across = Math.sqrt(square(range - 0.25) - square(EYE_HEIGHT));
+            Vec3 eye = struck.add(-across, EYE_HEIGHT, 0);
+
+            assertTrue(feetOf(eye).distanceTo(Vec3.atCenterOf(ground)) > range,
+                    "The ground's center should stand past range of the caster's feet");
+            assertTrue(GooThrowHandler.takesAim(eye, new AABB(ground), struck, range),
+                    "A Meteo cast at a face within range of the eye should be taken");
+        }
+
+        @Test
+        void aBloomFlightAtAWallFaceWithinRangeOfTheEyeIsTaken() {
+            double range = rangeOf("leaf_bloom");
+            BlockPos wall = new BlockPos(40, 66, 0);
+            Vec3 struck = new Vec3(40, 66.62, 0.5);
+            Vec3 eye = struck.add(-(range - 0.25), 0, 0);
+
+            assertTrue(feetOf(eye).distanceTo(Vec3.atCenterOf(wall)) > range,
+                    "The wall's center should stand past range of the caster's feet");
+            assertTrue(GooThrowHandler.takesAim(eye, new AABB(wall), struck, range),
+                    "A Bloom flight at a face within range of the eye should be taken");
+        }
+
+        @Test
+        void aBioFlightAtAMobsNearSideWithinRangeOfTheEyeIsTaken() {
+            double range = rangeOf("leaf_bio");
+            AABB zombie = zombieStandingAt(40, 65);
+            Vec3 struck = new Vec3(zombie.minX, 66.62, 0.5);
+            Vec3 eye = struck.add(-(range - 0.1), 0, 0);
+
+            assertTrue(feetOf(eye).distanceTo(zombie.getBottomCenter()) > range,
+                    "The mob's feet should stand past range of the caster's feet");
+            assertTrue(GooThrowHandler.takesAim(eye, zombie, struck, range),
+                    "A Bio flight at a mob within range of the eye should be taken");
+        }
+
+        private static Vec3 feetOf(Vec3 eye) {
+            return eye.subtract(0, EYE_HEIGHT, 0);
+        }
+    }
+
+    /**
+     * The client's indicator and the server's range gate read one table of
+     * eye, aimed point and range alike, for a block face and for a mob.
+     * decision diagnose-and-correct-the-indicator-disagreeing-with-the-cast
+     */
+    @Nested
+    class TheIndicatorAndTheGateReadOneMeasure {
+
+        private static final double FACE_X = 40;
+
+        @ParameterizedTest
+        @CsvSource({"-0.5, true", "0, true", "2, false"})
+        void aWallFaceIsLitAndTakenAlike(double pastRange, boolean expected) {
+            Vec3 struck = new Vec3(FACE_X, 66.62, 0.5);
+            Vec3 eye = struck.add(-(RANGE + pastRange), 0, 0);
+
+            assertEquals(expected, AimReach.lights(eye, struck, RANGE), "the indicator");
+            assertEquals(expected, GooThrowHandler.takesAim(eye, new AABB(BlockPos.containing(FACE_X, 66, 0)), struck,
+                    RANGE), "the server's range gate");
+        }
+
+        @ParameterizedTest
+        @CsvSource({"-0.5, true", "0, true", "2, false"})
+        void aMobIsLitAndTakenAlike(double pastRange, boolean expected) {
+            AABB zombie = zombieStandingAt(FACE_X + 0.3, 65);
+            Vec3 struck = new Vec3(zombie.minX, 66.62, 0.5);
+            Vec3 eye = struck.add(-(RANGE + pastRange), 0, 0);
+
+            assertEquals(expected, AimReach.lights(eye, struck, RANGE), "the indicator");
+            assertEquals(expected, GooThrowHandler.takesAim(eye, zombie, struck, RANGE), "the server's range gate");
+        }
+    }
+
+    private static AABB zombieStandingAt(double x, double feetY) {
+        return new AABB(x - 0.3, feetY, 0.2, x + 0.3, feetY + 1.95, 0.8);
+    }
+
+    private static double square(double value) {
+        return value * value;
     }
 
     private static Vec3 out(double blocks) {

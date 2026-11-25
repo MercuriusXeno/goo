@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.gametest;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.ThrowRange;
 import com.mercuriusxeno.goo.ability.world.AbilityImpact;
 import com.mercuriusxeno.goo.ability.world.MeteorFall;
 import com.mercuriusxeno.goo.data.GooValueTable;
@@ -55,6 +56,48 @@ public final class MeteoTests {
         GooTestFunctions.registerTest(registrar, METEO_RELEASE_LEAVES_NO_SPLAT, MeteoTests::meteoReleaseLeavesNoSplat);
         GooTestFunctions.registerTest(registrar, METEOR_LANDS_A_SECOND_AFTER_RELEASE,
                 MeteoTests::meteorLandsASecondAfterRelease);
+        GooTestFunctions.registerTest(registrar, METEO_LANDS_AT_A_FACE_WITHIN_RANGE_OF_THE_EYE,
+                MeteoTests::meteoLandsAtAFaceWithinRangeOfTheEye);
+    }
+
+    private static final String METEO_LANDS_AT_A_FACE_WITHIN_RANGE_OF_THE_EYE =
+            "meteo_lands_at_a_face_within_range_of_the_eye";
+    /** How far inside Meteo's range of the eye the struck point stands. */
+    private static final double INSIDE_THE_RANGE = 0.25;
+
+    /**
+     * Released at the near edge of a top face within Meteo's range of the
+     * caster's eye, the ground's center past that range of the caster's feet,
+     * Meteo calls its meteor over that face.
+     * decision diagnose-and-correct-the-indicator-disagreeing-with-the-cast
+     *
+     * @param helper the gametest helper
+     */
+    public static void meteoLandsAtAFaceWithinRangeOfTheEye(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        AbilityDefinition meteo = AbilityRegistry.of(level).getAbility(ASTRAL_METEO);
+        helper.assertTrue(meteo != null, ABILITY_REQUIRED);
+        double range = ThrowRange.of(meteo);
+        BlockPos ground = helper.absolutePos(GROUND);
+        level.setBlockAndUpdate(ground, Blocks.STONE.defaultBlockState());
+        openCageRoofOver(level, ground);
+        ServerPlayer player = StackKeyTests.makeThrower(helper, GooTypes.ASTRAL);
+        KnownRecipes.teachRequires(player, meteo);
+        player.getInventory().add(GooStacks.createForOutput(GooTypes.ASTRAL, meteo.cost().in(GooValueTable.EMPTY)));
+        Vec3 struck = new Vec3(ground.getX(), ground.getY() + 1, ground.getZ() + 0.5);
+        double eyeHeight = player.getEyeHeight();
+        double across = Math.sqrt((range - INSIDE_THE_RANGE) * (range - INSIDE_THE_RANGE) - eyeHeight * eyeHeight);
+        player.setPos(struck.x - across, struck.y, struck.z);
+        helper.assertTrue(player.getEyePosition().distanceTo(struck) <= range,
+                "The struck point should stand within range of the eye");
+        helper.assertTrue(player.position().distanceTo(Vec3.atCenterOf(ground)) > range,
+                "The ground's center should stand past range of the feet");
+        GooThrowHandler.execute(player, new GooThrowPayload(GooTypes.id(GooTypes.ASTRAL), NO_TARGET_ENTITY,
+                ground, Direction.UP.ordinal(), false, ASTRAL_METEO.toString(), player.getEyePosition(), struck));
+        int called = meteorsOver(level, ground).size();
+        level.getServer().getPlayerList().remove(player);
+        helper.assertTrue(called == 1, "One meteor should fall over the face lit within range, " + called + " fall");
+        helper.succeed();
     }
 
     private static final String METEOR_LANDS_A_SECOND_AFTER_RELEASE = "meteor_lands_a_second_after_release";

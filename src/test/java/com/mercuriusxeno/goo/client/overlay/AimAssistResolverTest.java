@@ -100,11 +100,34 @@ class AimAssistResolverTest {
             assertEquals(nearer, bestUnder(shippedGrab(), List.of(farther, nearer)));
         }
 
+        /**
+         * With the camera four blocks behind the eye, the cone takes a mob by
+         * its distance from the eye, the measure the server's range gate reads.
+         * decision diagnose-and-correct-the-indicator-disagreeing-with-the-cast
+         */
+        @Test
+        void theConeTakesAMobWithinRangeOfTheEyeAndNonePastIt() {
+            Vec3 eye = new Vec3(4, 0, 0);
+            AimTargets.AimRay ray = AimTargets.AimRay.fromCamera(Vec3.ZERO, new Vec3(1, 0, 0), eye, RANGE);
+            double coneCos = Math.cos(Math.toRadians(AimAssistResolver.pickConeDegrees(heal)));
+            AimAssistResolver.AimHit within = mobCenteredAt(eye.add(RANGE - 0.5, 0, 0));
+            AimAssistResolver.AimHit past = mobCenteredAt(eye.add(RANGE + 0.5, 0, 0));
+
+            assertEquals(within, AimAssistResolver.findBestConeHit(List.of(within), ray, coneCos, candidate -> true));
+            assertNull(AimAssistResolver.findBestConeHit(List.of(past), ray, coneCos, candidate -> true));
+        }
+
+        private static AimAssistResolver.AimHit mobCenteredAt(Vec3 middle) {
+            Mob mob = mock(Mob.class);
+            when(mob.getBoundingBox()).thenReturn(new AABB(middle, middle).inflate(0.3));
+            return new AimAssistResolver.AimHit.EntityHit(mob);
+        }
+
         private static AimAssistResolver.@Nullable AimHit bestUnder(List<Step> behaviors,
                 List<AimAssistResolver.AimHit> candidates) {
             double coneCos = Math.cos(Math.toRadians(AimAssistResolver.pickConeDegrees(behaviors)));
-            return AimAssistResolver.findBestConeHit(candidates, Vec3.ZERO, new Vec3(1, 0, 0), RANGE, coneCos,
-                    candidate -> true);
+            return AimAssistResolver.findBestConeHit(candidates,
+                    AimTargets.AimRay.along(Vec3.ZERO, new Vec3(1, 0, 0), RANGE), coneCos, candidate -> true);
         }
 
         private static AimAssistResolver.AimHit mobOffTheLookBy(double degrees) {

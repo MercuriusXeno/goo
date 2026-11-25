@@ -33,8 +33,19 @@ class AimTargetsTest {
     private static final TargetResult POINT_TARGET = TargetResult.pointOnBlock(new Vec3(1.5, 65.2, 2.25), BLOCK, Direction.UP);
     private static final Vec3 ENTITY_POINT = new Vec3(8.3, 65.1, 4.4);
 
-    /** Answers fixed sources: the entity hit given, a block target and a point target. */
-    private record FixedSources(AimAssistResolver.@Nullable AimHit entityHit) implements AimTargets.AimSources {
+    /** Answers fixed sources: the entity hit given, a block target and a point target, each within range or not. */
+    private record FixedSources(AimAssistResolver.@Nullable AimHit entityHit, boolean inRange)
+            implements AimTargets.AimSources {
+
+        FixedSources(AimAssistResolver.@Nullable AimHit entityHit) {
+            this(entityHit, true);
+        }
+
+        @Override
+        public boolean reaches(Vec3 point) {
+            return inRange;
+        }
+
         @Override
         public TargetResult blockTarget() {
             return BLOCK_TARGET;
@@ -109,6 +120,84 @@ class AimTargetsTest {
             TargetResult.EntityTarget target = assertInstanceOf(TargetResult.EntityTarget.class, resolution.target());
             assertSame(zombie, target.entity());
             assertEquals(ENTITY_POINT, target.point());
+        }
+
+        /** decision diagnose-and-correct-the-indicator-disagreeing-with-the-cast */
+        @Test
+        void aMobPastRangeOfTheEyeLocksNoMobAim() {
+            AimState.Resolution resolution = AimTargets.resolveFor(TargetingHint.of(AbilityBadge.MOB),
+                    new FixedSources(new AimAssistResolver.AimHit.EntityHit(mock(Entity.class)), false));
+
+            assertSame(TargetResult.NONE, resolution.target());
+            assertNull(resolution.hit());
+        }
+    }
+
+    /**
+     * With the camera standing apart from the caster's eye, a face lights
+     * only within the ability's range of the eye, the measure the server's
+     * range gate reads (decision diagnose-and-correct-the-indicator-disagreeing-with-the-cast).
+     */
+    @Nested
+    class TheCameraApartFromTheEye {
+
+        private static final double RANGE = 16;
+        private static final Vec3 EYE = new Vec3(0.5, 65.62, 0.5);
+        private static final Vec3 FACING = new Vec3(1, 0, 0);
+        /** The camera four blocks behind the eye, as the third-person view stands it. */
+        private static final Vec3 BEHIND = EYE.subtract(FACING.scale(4));
+
+        /** A wall facing the ray at the given x: the clip meets it where the segment crosses that plane. */
+        private static AimTargets.BlockClip wallAt(double x) {
+            return (from, to) -> {
+                double fraction = (x - from.x) / (to.x - from.x);
+                if (fraction < 0 || fraction > 1) {
+                    return BlockHitResult.miss(to, Direction.UP, BlockPos.containing(to));
+                }
+                Vec3 met = from.add(to.subtract(from).scale(fraction));
+                return new BlockHitResult(met, Direction.WEST, BlockPos.containing(met), false);
+            };
+        }
+
+        /** A wall facing the ray at the given z, for a ray looking along z. */
+        private static AimTargets.BlockClip wallAcrossZ(double z) {
+            return (from, to) -> {
+                double fraction = (z - from.z) / (to.z - from.z);
+                if (fraction < 0 || fraction > 1) {
+                    return BlockHitResult.miss(to, Direction.UP, BlockPos.containing(to));
+                }
+                Vec3 met = from.add(to.subtract(from).scale(fraction));
+                return new BlockHitResult(met, Direction.NORTH, BlockPos.containing(met), false);
+            };
+        }
+
+        private static TargetResult faceAlong(AimTargets.AimRay ray, AimTargets.BlockClip clip) {
+            return AimTargets.blockTargetAlong(ray, clip,
+                    hit -> TargetResult.block(hit.getBlockPos(), hit.getDirection(), hit.getLocation()),
+                    reach -> TargetResult.NONE);
+        }
+
+        @Test
+        void aFaceWithinRangeOfTheEyeLightsThoughPastRangeOfTheCamera() {
+            AimTargets.AimRay ray = AimTargets.AimRay.fromCamera(BEHIND, FACING, EYE, RANGE);
+
+            TargetResult target = faceAlong(ray, wallAt(EYE.x + RANGE - 0.5));
+
+            TargetResult.BlockTarget lit = assertInstanceOf(TargetResult.BlockTarget.class, target);
+            assertEquals(RANGE - 0.5, lit.point().distanceTo(EYE), 1e-6);
+        }
+
+        @Test
+        void aFacePastRangeOfTheEyeLightsNothingThoughWithinRangeOfTheCamera() {
+            Vec3 across = new Vec3(0, 0, 1);
+            AimTargets.AimRay ray = AimTargets.AimRay.fromCamera(BEHIND, across, EYE, RANGE);
+            double wallZ = BEHIND.z + RANGE - 0.2;
+
+            TargetResult target = faceAlong(ray, wallAcrossZ(wallZ));
+
+            assertEquals(RANGE - 0.2, new Vec3(BEHIND.x, BEHIND.y, wallZ).distanceTo(BEHIND), 1e-6,
+                    "The face should stand within range of the camera");
+            assertSame(TargetResult.NONE, target);
         }
     }
 

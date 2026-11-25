@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.ability.ThrowRange;
 import com.mercuriusxeno.goo.ability.world.AbilityImpact;
 import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
+import com.mercuriusxeno.goo.throwing.AimReach;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
@@ -56,8 +57,10 @@ public final class GooChargedCastHandler {
     }
 
     /**
-     * Whether a charged cast's target stands within its ability's range of the eye.
+     * Whether a charged cast's target stands within its ability's range of
+     * the eye, with the slack every release gate gives the caster's movement.
      * decision each-ability-names-its-range-and-the-shared-throw-range-retires
+     * decision diagnose-and-correct-the-indicator-disagreeing-with-the-cast
      *
      * @param eye     the caster's eye
      * @param target  the aimed target point
@@ -65,6 +68,6 @@ public final class GooChargedCastHandler {
      * @return true for a target in range
      */
     static boolean reaches(Vec3 eye, Vec3 target, AbilityDefinition ability) {
-        return eye.distanceTo(target) <= ThrowRange.of(ability);
+        return AimReach.takes(eye.distanceTo(target), ThrowRange.of(ability));
     }
 }
