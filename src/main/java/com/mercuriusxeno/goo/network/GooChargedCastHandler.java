@@ -12,6 +12,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.phys.Vec3;
+import java.util.Optional;
 
 /**
  * Server side of a spontaneous cast sized by its charge: on release it lands
@@ -27,19 +28,21 @@ public final class GooChargedCastHandler {
 
     /**
      * Casts a sized ability at the target its release aimed: refused whole for
-     * a target past the ability's range or a size the goo cannot pay for.
+     * a target past the ability's range of where the charge began, or a size
+     * the goo cannot pay for.
      *
      * @param player    the casting player
      * @param gooType   the ability's goo type
      * @param ability   the ability, one the player may use with its reagents held
-     * @param aimed     the target the crosshair aimed as the release let go
-     * @param heldTicks the ticks the use key was held
+     * @param release   the release, its hold and where the caster's eye stood as the charge rooted
+     * @param aimed     the target the release sends
      */
     static void cast(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType, AbilityDefinition ability,
-                     GooThrowPayload aimed, int heldTicks) {
-        if (!reaches(player.getEyePosition(), aimed.targetPoint(), ability)) {
+                     GooChargePayload release, GooThrowPayload aimed) {
+        if (!reaches(player.getEyePosition(), release.eyeAsRooted(), aimed.targetPoint(), ability)) {
             return;
         }
+        int heldTicks = release.heldTicks();
         int holdings = GooSourceScanner.aggregateAvailable(player).getOrDefault(gooType, 0);
         // goo-is-an-int-and-only-the-remainder-is-a-fraction: a fractional cost scales exactly, the size's price rounded up
         double unitCost = ability.cost().exactIn(GooValues.of(player.level())).toDouble();
@@ -58,16 +61,20 @@ public final class GooChargedCastHandler {
 
     /**
      * Whether a charged cast's target stands within its ability's range of
-     * the eye, with the slack every release gate gives the caster's movement.
+     * where the caster's eye stood as the charge began, with the slack every
+     * release gate gives the caster's movement.
      * decision each-ability-names-its-range-and-the-shared-throw-range-retires
+     * decision what-starts-in-range-resolves-out-of-range
      * decision diagnose-and-correct-the-indicator-disagreeing-with-the-cast
      *
-     * @param eye     the caster's eye
-     * @param target  the aimed target point
-     * @param ability the cast ability
+     * @param eyeAtRelease the caster's eye as the release arrives
+     * @param eyeAsRooted  the caster's eye as the charge rooted, empty for a charge that rooted nowhere
+     * @param target       the aimed target point
+     * @param ability      the cast ability
      * @return true for a target in range
      */
-    static boolean reaches(Vec3 eye, Vec3 target, AbilityDefinition ability) {
-        return AimReach.takes(eye.distanceTo(target), ThrowRange.of(ability));
+    public static boolean reaches(Vec3 eyeAtRelease, Optional<Vec3> eyeAsRooted, Vec3 target,
+                                  AbilityDefinition ability) {
+        return AimReach.takes(eyeAsRooted.orElse(eyeAtRelease).distanceTo(target), ThrowRange.of(ability));
     }
 }

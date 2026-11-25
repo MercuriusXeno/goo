@@ -271,7 +271,7 @@ public final class SculkerEchoRenderer {
      *
      * @param mc the client, its level loaded
      */
-    private record LevelEchoWorld(Minecraft mc) implements EchoWorld {
+    record LevelEchoWorld(Minecraft mc) implements EchoWorld {
 
         @Override
         public BlockState stateAt(BlockPos pos) {

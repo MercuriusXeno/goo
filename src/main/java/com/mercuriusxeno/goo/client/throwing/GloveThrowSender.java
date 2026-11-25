@@ -405,16 +405,39 @@ public final class GloveThrowSender {
      */
     private static boolean sendCharge(Player player, ResourceKey<GooTypeDefinition> gooType, String abilityId,
                                       int heldTicks) {
-        boolean sized = selectedSizesByCharge(abilityId);
-        Optional<GooThrowPayload> aimed = sized ? aimedTarget(gooType, abilityId) : Optional.empty();
-        if (sized && aimed.isEmpty() || !affordsThrow(AbilitySyncHandler.findAbility(abilityId),
+        String typeId = GooTypes.id(gooType);
+        Optional<GooChargePayload> release = selectedSizesByCharge(abilityId)
+                ? sizedRelease(CHARGE_ROOT, AimTracker.currentTarget(), typeId, abilityId, heldTicks, throwOrigin())
+                : Optional.of(new GooChargePayload(typeId, abilityId, heldTicks));
+        if (release.isEmpty() || !affordsThrow(AbilitySyncHandler.findAbility(abilityId),
                 amount -> GooSourceScanner.hasEnough(player, gooType, amount),
                 reagent -> ReagentScanner.holds(player, reagent))) {
             return false;
         }
-        sendPayload(new GooChargePayload(GooTypes.id(gooType), abilityId, heldTicks, aimed));
+        sendPayload(release.get());
         unrootTheCharge();
         return true;
+    }
+
+    /**
+     * The release a sized charge sends: the spot the charge rooted at as it
+     * began, whatever the crosshair rests on now, with where the caster's eye
+     * stood as it rooted, which the server's range gate measures from.
+     * decision blast-roots-to-the-spot-the-cast-began
+     * decision what-starts-in-range-resolves-out-of-range
+     *
+     * @param root      the live charge's root
+     * @param current   the crosshair's target at release
+     * @param typeId    the goo type registry id
+     * @param abilityId the selected ability id string
+     * @param heldTicks the ticks the use key was held
+     * @param origin    the cast origin
+     * @return the release, empty where the charge rooted nowhere and the crosshair aims at nothing
+     */
+    static Optional<GooChargePayload> sizedRelease(ChargeRoot root, TargetResult current, String typeId,
+                                                   String abilityId, int heldTicks, Vec3 origin) {
+        return chargeTarget(root.anchor(current), typeId, abilityId, origin).map(aimed ->
+                new GooChargePayload(typeId, abilityId, heldTicks, Optional.of(aimed), root.eyeAsRooted()));
     }
 
     /**
@@ -433,29 +456,18 @@ public final class GloveThrowSender {
                 : Optional.of(buildPayload(anchored, typeId, abilityId, origin));
     }
 
-    /**
-     * The target a sized charge's release sends: the spot the charge rooted
-     * at as it began, whatever the crosshair rests on now.
-     * decision blast-roots-to-the-spot-the-cast-began
-     *
-     * @param gooType   the selected goo type
-     * @param abilityId the selected ability id string
-     * @return the target, empty where the charge rooted nowhere and the crosshair aims at nothing
-     */
-    private static Optional<GooThrowPayload> aimedTarget(ResourceKey<GooTypeDefinition> gooType, String abilityId) {
-        return chargeTarget(chargeAnchor(), GooTypes.id(gooType), abilityId, throwOrigin());
-    }
-
     /** The spot the live sized charge rooted at. */
     private static final ChargeRoot CHARGE_ROOT = new ChargeRoot();
 
     /**
      * Roots the local player's sized charge at the crosshair's target as it begins.
      * decision blast-roots-to-the-spot-the-cast-began
+     *
+     * @param eye where the local player's eye stands as the charge begins
      */
-    static void rootTheCharge() {
+    static void rootTheCharge(Vec3 eye) {
         CHARGE_ROOT.clear();
-        CHARGE_ROOT.holdAt(AimTracker.currentTarget());
+        CHARGE_ROOT.holdAt(AimTracker.currentTarget(), eye);
         CHARGE_WUBS.reset();
     }
 

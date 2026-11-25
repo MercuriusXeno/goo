@@ -2,18 +2,15 @@ package com.mercuriusxeno.goo.client.ability;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
-import java.util.function.Function;
-import java.util.function.Predicate;
 
 /**
  * The walls around one spot a held sweep's pulses leave from: every face
- * open to air, found once as the farthest front reaches it and kept in
+ * open to the front, by the sculker echo's rules, found once as the farthest front reaches it and kept in
  * order of distance, so the pulses that leave the same spot after it light
  * the same walls without walking the cave again.
  * decision held-sweeps-share-one-fast-shell-visual
@@ -68,27 +65,13 @@ final class EchoField {
     /**
      * Finds the walls out to a radius not yet walked, appending them in
      * order of distance: taken from an older field as far as one has found
-     * every wall, and walked past that.
+     * every wall, and walked past that, reading no block of a section that
+     * holds only air.
      *
-     * @param radius  the radius to walk out to
-     * @param isAir   whether a position holds air
-     * @param shapeOf a block's voxel shape boxes, block-local
+     * @param radius the radius to walk out to
+     * @param world  the world the walk reads
      */
-    void reachTo(double radius, Predicate<BlockPos> isAir, Function<BlockPos, List<AABB>> shapeOf) {
-        reachTo(radius, isAir, shapeOf, AirSections.NONE);
-    }
-
-    /**
-     * Finds the walls out to a radius not yet walked, as
-     * {@link #reachTo(double, Predicate, Function)} finds them, reading no
-     * block of a section that holds only air.
-     *
-     * @param radius  the radius to walk out to
-     * @param isAir   whether a position holds air
-     * @param shapeOf a block's voxel shape boxes, block-local
-     * @param air     which sections hold only air
-     */
-    void reachTo(double radius, Predicate<BlockPos> isAir, Function<BlockPos, List<AABB>> shapeOf, AirSections air) {
+    void reachTo(double radius, WallWorld world) {
         if (radius <= scannedTo) {
             return;
         }
@@ -100,7 +83,7 @@ final class EchoField {
         }
         takeFromSources(radius);
         if (radius > scannedTo && faces.size() < MOST_FACES) {
-            walk(radius, isAir, shapeOf, air);
+            walk(radius, world);
         }
         scannedTo = radius;
     }
@@ -158,7 +141,7 @@ final class EchoField {
             }
             double distance = face.middle().distanceTo(spot);
             if (distance > inner && distance <= outer) {
-                band.add(new EchoFace(face.pos(), face.sides(), face.boxes(), distance, face.middle()));
+                band.add(new EchoFace(face.pos(), face.sides(), distance, face.middle()));
             }
         }
         return band;
@@ -182,8 +165,8 @@ final class EchoField {
         return low;
     }
 
-    private void walk(double radius, Predicate<BlockPos> isAir, Function<BlockPos, List<AABB>> shapeOf,
-                      AirSections air) {
+    private void walk(double radius, WallWorld world) {
+        AirSections air = world.air();
         List<EchoFace> band = new ArrayList<>();
         List<BlockPos> shell = ScryReveal.shell(center, scannedTo, radius);
         shellPositions += shell.size();
@@ -197,10 +180,10 @@ final class EchoField {
             if (airAlone != null && airAlone.holdsOnlyAir(pos)) {
                 continue;
             }
-            List<Direction> sides = ScryReveal.exposedFaces(isAir, pos);
+            List<Direction> sides = ScryReveal.exposedFaces(world.lightsUp(), world.passesSound(), pos);
             if (!sides.isEmpty()) {
                 Vec3 middle = Vec3.atCenterOf(pos);
-                band.add(new EchoFace(pos, sides, shapeOf.apply(pos), middle.distanceTo(center), middle));
+                band.add(new EchoFace(pos, sides, middle.distanceTo(center), middle));
             }
         }
         append(band, radius, whole);
@@ -314,14 +297,14 @@ final class EchoField {
     }
 
     /**
-     * A block whose faces open to air.
+     * A block that lights, with its sides open to the front.
+     * decision scry-shows-surfaces-as-the-sculker-echo-does
      *
      * @param pos      the block
-     * @param sides    its sides open to air
-     * @param boxes    its voxel shape's boxes, block-local, so slabs and stairs light as they stand
+     * @param sides    its sides facing a block the front passes through
      * @param distance its center's distance from the spot
      * @param middle   its center, which a frame's walls sort by
      */
-    record EchoFace(BlockPos pos, List<Direction> sides, List<AABB> boxes, double distance, Vec3 middle) {
+    record EchoFace(BlockPos pos, List<Direction> sides, double distance, Vec3 middle) {
     }
 }

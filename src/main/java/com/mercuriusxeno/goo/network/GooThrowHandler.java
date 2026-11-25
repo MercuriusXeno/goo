@@ -144,8 +144,7 @@ public final class GooThrowHandler {
         if (ability.delivery().kind() == DeliveryKind.SELF) {
             GooSelfHandler.release(player, gooType, ability, payload.heldTicks());
         } else if (ability.delivery().sizesByCharge()) {
-            payload.aimed().ifPresent(aimed -> GooChargedCastHandler.cast(player, gooType, ability, aimed,
-                    payload.heldTicks()));
+            payload.aimed().ifPresent(aimed -> GooChargedCastHandler.cast(player, gooType, ability, payload, aimed));
         }
     }
 

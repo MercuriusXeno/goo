@@ -144,6 +144,18 @@ class GooThrowHandlerTest {
                     TOLERANCE);
         }
 
+        /**
+         * decision meteo-range-is-thirty-two-blocks
+         */
+        @Test
+        void aMeteoReleaseThirtyOneBlocksOutStandsAndThirtyFourIsRefused() {
+            double meteoRange = rangeOf("astral_meteo");
+
+            assertEquals(32, meteoRange);
+            assertTrue(takenAt(31, "astral_meteo"), "Meteo should stand at 31 blocks");
+            assertFalse(takenAt(34, "astral_meteo"), "Meteo should refuse 34 blocks");
+        }
+
         @Test
         void aBioFlightAtAMobEighteenBlocksOutIsRefusedAndFifteenStands() {
             assertReleasedWithinSixteen("leaf_bio");
