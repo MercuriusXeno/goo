@@ -95,15 +95,14 @@ final class LitWalls {
     }
 
     /**
-     * Whether two hits draw a wall alike: in one color, on one shape.
+     * Whether two hits draw a wall alike: in one color, on the same sides.
      *
      * @param one   a hit
      * @param other another hit on the same block
      * @return true when either draws the wall as the other would at the same glow
      */
     static boolean drawsAlike(HeldSweepPulse.LitFace one, HeldSweepPulse.LitFace other) {
-        return one.by().tintRgb() == other.by().tintRgb() && one.face().sides().equals(other.face().sides())
-                && one.face().boxes().equals(other.face().boxes());
+        return one.by().tintRgb() == other.by().tintRgb() && one.face().sides().equals(other.face().sides());
     }
 
     /** One wall's live hits, the latest of them, and whether they all draw alike. */

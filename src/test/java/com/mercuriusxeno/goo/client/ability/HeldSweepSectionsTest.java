@@ -54,7 +54,7 @@ class HeldSweepSectionsTest {
         @Test
         void frontUpkeepReportsUnderItsOwnSection() {
             HeldSweepVisual.Upkeep upkeep = new HeldSweepVisual.Upkeep(new LiveSweeps(),
-                    HeldSweepWorld::isAir, HeldSweepWorld::shapeOf);
+                    CubeWalls.of(HeldSweepWorld::isAir));
 
             assertEquals(List.of(HeldSweepSections.FRONT_UPKEEP),
                     sectionsOf(() -> HeldSweepVisual.upkeepFronts(upkeep, 0, List.of(), null)));
@@ -75,7 +75,7 @@ class HeldSweepSectionsTest {
         @Test
         void wallDrawReportsUnderItsOwnSection() {
             assertEquals(List.of(HeldSweepSections.WALL_DRAW), sectionsOf(() ->
-                    HeldSweepVisual.drawWalls(poseStack.last(), consumer.pass(), Vec3.ZERO, List.of())));
+                    HeldSweepVisual.drawWalls(poseStack, consumer.pass(), Vec3.ZERO, List.of(), pos -> List.of())));
         }
 
         @Test

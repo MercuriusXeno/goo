@@ -7,11 +7,13 @@ import com.mercuriusxeno.goo.ability.program.HeldSweepPace;
 import com.mercuriusxeno.goo.ability.program.HeldSweepPulses;
 import com.mercuriusxeno.goo.ability.program.HeldSweepStep;
 import com.mercuriusxeno.goo.ability.program.HeldSweepWorld;
+import com.mercuriusxeno.goo.client.BufferedPass;
 import com.mercuriusxeno.goo.client.RecordingVertexConsumer;
 import com.mercuriusxeno.goo.type.GooColors;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.serialization.JsonOps;
 import java.io.IOException;
 import java.io.InputStream;
@@ -23,21 +25,33 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.ToIntFunction;
+import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart;
+import net.minecraft.client.resources.model.geometry.BakedQuad;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * HeldSweepVisual's shell traces a block's voxel shape: a revealed side is
- * drawn on each of the shape's boxes, at the box's own bounds rather than
+ * HeldSweepVisual's sonar return: its fronts, the walls they light by the
+ * sculker echo's rules drawn as each block's own model quads, and the box
+ * face Meteo's scorch draws through it at the box's own bounds rather than
  * the cube's; and Scry's sphere, faces and glisten take the casting goo
  * type's color, read from the bundled type JSON.
  * decision scry-sphere-reveals-faces-and-glistens-mobs
@@ -60,7 +74,6 @@ class HeldSweepVisualTest {
 
         /** A world of air over one floor of solid blocks just under the caster's feet. */
         private static final Predicate<BlockPos> OVER_A_FLOOR = pos -> pos.getY() != -1;
-        private static final Function<BlockPos, List<AABB>> CUBES = pos -> List.of(new AABB(0, 0, 0, 1, 1, 1));
         private static final Vec3 CENTER = new Vec3(0.5, 0.9, 0.5);
         private static final double SCRY_RANGE = 96;
         private static final int TINT = 0x8866FF;
@@ -85,7 +98,7 @@ class HeldSweepVisualTest {
         void aWallWhoseGlowReachedNothingLeavesTheRevealSet() {
             HeldSweepPulse pulse = new HeldSweepPulse(new EchoField(CENTER), SCRY_RANGE, BLOCKS_A_TICK, TINT);
             pulse.heard(12, HEARD_AT);
-            pulse.advance(HEARD_AT + 1, OVER_A_FLOOR, CUBES, ROOM);
+            pulse.advance(HEARD_AT + 1, CubeWalls.of(OVER_A_FLOOR), ROOM);
             assertTrue(!pulse.lit().isEmpty(), "the floor the front crossed lights");
 
             pulse.fadeOut(HEARD_AT + 1 + 120);
@@ -140,8 +153,8 @@ class HeldSweepVisualTest {
             second.heard(BLOCKS_A_TICK, HEARD_AT);
             double frame = HEARD_AT + 1;
 
-            first.advance(frame, OVER_A_FLOOR, CUBES, ROOM);
-            second.advance(frame, OVER_A_FLOOR, CUBES, ROOM);
+            first.advance(frame, CubeWalls.of(OVER_A_FLOOR), ROOM);
+            second.advance(frame, CubeWalls.of(OVER_A_FLOOR), ROOM);
 
             assertFront(first, frame);
             assertFront(second, frame);
@@ -163,7 +176,7 @@ class HeldSweepVisualTest {
             live.put(1, older);
             live.put(2, newer);
 
-            HeldSweepVisual.advanceAll(live, HEARD_AT + 1, OVER_A_FLOOR, CUBES);
+            HeldSweepVisual.advanceAll(live, HEARD_AT + 1, CubeWalls.of(OVER_A_FLOOR));
 
             assertEquals(HeldSweepVisual.MOST_BLOCKS, older.lit().size(), "the older front lit its most, far out");
             assertTrue(!newer.lit().isEmpty(), "the newer front still lights the floor beside the caster");
@@ -181,9 +194,9 @@ class HeldSweepVisualTest {
             HeldSweepPulse first = new HeldSweepPulse(field, SCRY_RANGE, BLOCKS_A_TICK, TINT, false, lit);
             HeldSweepPulse second = new HeldSweepPulse(field, SCRY_RANGE, BLOCKS_A_TICK, TINT, false, lit);
             first.heard(4 * BLOCKS_A_TICK, HEARD_AT);
-            first.advance(HEARD_AT + 1, OVER_A_FLOOR, CUBES, ROOM);
+            first.advance(HEARD_AT + 1, CubeWalls.of(OVER_A_FLOOR), ROOM);
             second.heard(4 * BLOCKS_A_TICK, HEARD_AT + 10);
-            second.advance(HEARD_AT + 11, OVER_A_FLOOR, CUBES, ROOM);
+            second.advance(HEARD_AT + 11, CubeWalls.of(OVER_A_FLOOR), ROOM);
 
             List<HeldSweepVisual.WallGlow> walls = HeldSweepVisual.wallsToDraw(lit, HEARD_AT + 11);
 
@@ -199,6 +212,150 @@ class HeldSweepVisualTest {
             double farthest = pulse.lit().stream().mapToDouble(lit -> lit.face().distance()).max().orElse(-1);
             assertTrue(farthest <= front && farthest > front - BLOCKS_A_TICK,
                     "the farthest lit wall " + farthest + " stands at the front " + front);
+        }
+    }
+
+    /**
+     * The sweep reads blocks by the sculker echo's rules: its front passes
+     * through a block that does not fill its cell and lights the wall behind
+     * it, lights only a block with a collision shape, and draws each lit
+     * block's own model quads on its sides open to sound.
+     * decision scry-shows-surfaces-as-the-sculker-echo-does
+     */
+    @Nested
+    class SculkerRules {
+
+        private static final Vec3 CENTER = new Vec3(0.5, 0.9, 0.5);
+        /** Between the caster and the wall behind it, a block east of the caster. */
+        private static final BlockPos BETWEEN = new BlockPos(3, 0, 0);
+        private static final BlockPos BEHIND = new BlockPos(4, 0, 0);
+        private static final double RANGE = 8;
+        private static final int TINT = 0x8866FF;
+        private static final long HEARD_AT = 100;
+        private static final int ROOM = HeldSweepVisual.MOST_BLOCKS;
+
+        /** The walls the last pulse a test sent holds lit. */
+        private LitWalls lit = new LitWalls();
+        private final BlockState air = state(true, false, false);
+        private final BlockState stone = state(false, true, true);
+        private final BlockState slab = state(false, false, true);
+        private final BlockState fence = state(false, false, true);
+        private final BlockState stair = state(false, false, true);
+        private final BlockState tallGrass = state(false, false, false);
+
+        @Test
+        void aFullBlockBehindASlabLightsItsSideFacingTheSlab() {
+            List<HeldSweepPulse.LitFace> lit = litBy(Map.of(BETWEEN, slab, BEHIND, stone));
+
+            assertTrue(sidesLitAt(lit, BEHIND).contains(Direction.WEST), "the side behind the slab");
+        }
+
+        @Test
+        void aFullBlockBehindAFenceLightsItsSideFacingTheFence() {
+            List<HeldSweepPulse.LitFace> lit = litBy(Map.of(BETWEEN, fence, BEHIND, stone));
+
+            assertTrue(sidesLitAt(lit, BEHIND).contains(Direction.WEST), "the side behind the fence");
+        }
+
+        @Test
+        void tallGrassInTheFrontsPathLightsNothing() {
+            List<HeldSweepPulse.LitFace> lit = litBy(Map.of(BETWEEN, tallGrass));
+
+            assertTrue(lit.stream().noneMatch(face -> face.face().pos().equals(BETWEEN)), "no face of the grass");
+        }
+
+        /** A lit stair, stone below it and west of it, draws its own quads on the four sides open to sound. */
+        @Test
+        void aLitStairDrawsItsOwnModelQuadsOnItsSidesOpenToSound() {
+            BlockPos below = BETWEEN.below();
+            BlockPos west = BETWEEN.west();
+            BlockGetter level = levelOf(Map.of(BETWEEN, stair, below, stone, west, stone));
+            Map<Direction, BakedQuad> sideQuads = new LinkedHashMap<>();
+            BlockStateModelPart stairPart = mock(BlockStateModelPart.class);
+            for (Direction side : Direction.values()) {
+                BakedQuad quad = mock(BakedQuad.class);
+                sideQuads.put(side, quad);
+                when(stairPart.getQuads(side)).thenReturn(List.of(quad));
+            }
+            BakedQuad inner = mock(BakedQuad.class);
+            when(stairPart.getQuads(null)).thenReturn(List.of(inner));
+            SculkerEchoRenderer.EchoWorld world = echoWorld(level, Map.of(BETWEEN, stairPart));
+            EchoQuads quads = new EchoQuads();
+            pulseThrough(level);
+            VertexConsumer consumer = mock(VertexConsumer.class);
+
+            HeldSweepVisual.drawWalls(new PoseStack(), new BufferedPass(consumer, () -> { }), Vec3.ZERO,
+                    HeldSweepVisual.wallsToDraw(lit, HEARD_AT + 1), pos -> quads.at(world, pos));
+
+            ArgumentCaptor<BakedQuad> drawn = ArgumentCaptor.forClass(BakedQuad.class);
+            verify(consumer, atLeastOnce()).putBakedQuad(any(), drawn.capture(), any());
+            List<BakedQuad> expected = List.of(sideQuads.get(Direction.UP), sideQuads.get(Direction.NORTH),
+                    sideQuads.get(Direction.SOUTH), sideQuads.get(Direction.EAST), inner);
+            assertEquals(expected, quads.at(world, BETWEEN), "the quads EchoQuads collects for the stair");
+            assertEquals(expected, drawn.getAllValues(), "the quads the frame submits");
+        }
+
+        private List<HeldSweepPulse.LitFace> litBy(Map<BlockPos, BlockState> blocks) {
+            return List.copyOf(pulseThrough(levelOf(blocks)).lit());
+        }
+
+        /** A pulse whose front crosses its whole range on its first tick, through a level. */
+        private HeldSweepPulse pulseThrough(BlockGetter level) {
+            lit = new LitWalls();
+            HeldSweepPulse pulse = new HeldSweepPulse(new EchoField(CENTER), RANGE, RANGE, TINT, false, lit);
+            pulse.heard(RANGE, HEARD_AT);
+            pulse.advance(HEARD_AT + 1, WallWorld.of(level, AirSections.NONE), ROOM);
+            return pulse;
+        }
+
+        private static List<Direction> sidesLitAt(List<HeldSweepPulse.LitFace> lit, BlockPos pos) {
+            return lit.stream().filter(face -> face.face().pos().equals(pos)).findFirst()
+                    .map(face -> face.face().sides()).orElse(List.of());
+        }
+
+        private BlockGetter levelOf(Map<BlockPos, BlockState> blocks) {
+            BlockGetter level = mock(BlockGetter.class);
+            when(level.getBlockState(any(BlockPos.class))).thenAnswer(call -> blocks.getOrDefault(call.getArgument(0), air));
+            return level;
+        }
+
+        /** The level's blocks as an echo draw reads them, each block's model the one part a map names, else none. */
+        private static SculkerEchoRenderer.EchoWorld echoWorld(BlockGetter level, Map<BlockPos, BlockStateModelPart> parts) {
+            return new SculkerEchoRenderer.EchoWorld() {
+                @Override
+                public BlockState stateAt(BlockPos pos) {
+                    return level.getBlockState(pos);
+                }
+
+                @Override
+                public void collectParts(BlockPos pos, BlockState state, List<BlockStateModelPart> collected) {
+                    if (parts.containsKey(pos)) {
+                        collected.add(parts.get(pos));
+                    }
+                }
+
+                @Override
+                public boolean passesSound(BlockPos pos) {
+                    return SculkerSenses.passesSound(level, pos);
+                }
+            };
+        }
+
+        /**
+         * A block's state as the walk reads it: whether it is air, whether
+         * its collision shape fills its cell, whether it has one at all.
+         */
+        private static BlockState state(boolean isAir, boolean full, boolean collides) {
+            BlockState state = mock(BlockState.class);
+            when(state.isAir()).thenReturn(isAir);
+            when(state.isCollisionShapeFullBlock(any(BlockGetter.class), any(BlockPos.class))).thenReturn(full);
+            VoxelShape collision = mock(VoxelShape.class);
+            when(collision.isEmpty()).thenReturn(!collides);
+            when(state.getCollisionShape(any(BlockGetter.class), any(BlockPos.class))).thenReturn(collision);
+            VoxelShape shape = mock(VoxelShape.class);
+            when(shape.toAabbs()).thenReturn(isAir ? List.of() : List.of(new AABB(0, 0, 0, 1, 1, 1)));
+            when(state.getShape(any(BlockGetter.class), any(BlockPos.class))).thenReturn(shape);
+            return state;
         }
     }
 
@@ -228,9 +385,9 @@ class HeldSweepVisualTest {
             return HeldSweepWorld.isAir(pos);
         }
 
-        private List<AABB> countedShapeOf(BlockPos pos) {
-            blockReads++;
-            return HeldSweepWorld.shapeOf(pos);
+        /** The fixed world with each block read counted, whether the walk asks if it lights or lets the front by. */
+        private WallWorld countedWorld() {
+            return new WallWorld(pos -> !countedIsAir(pos), this::countedIsAir);
         }
 
         /**
@@ -242,11 +399,11 @@ class HeldSweepVisualTest {
             EchoField field = new EchoField(BODY);
             HeldSweepPulse pulse = new HeldSweepPulse(field, range, ONE_TICK, TINT);
             pulse.heard(range - ONE_TICK, HEARD_AT);
-            pulse.advance(HEARD_AT + 1, this::countedIsAir, this::countedShapeOf, ROOM);
+            pulse.advance(HEARD_AT + 1, countedWorld(), ROOM);
             blockReads = 0;
             long walkedBefore = field.shellPositions();
             pulse.heard(range, HEARD_AT + 1);
-            pulse.advance(HEARD_AT + 2, this::countedIsAir, this::countedShapeOf, ROOM);
+            pulse.advance(HEARD_AT + 2, countedWorld(), ROOM);
             return new long[] {field.shellPositions() - walkedBefore, blockReads};
         }
 
@@ -282,12 +439,12 @@ class HeldSweepVisualTest {
         void aWalkPassesOverSectionsOfAirAloneAndFindsTheSameWalls() {
             Predicate<BlockPos> openSky = pos -> pos.getY() >= SKY_FROM || HeldSweepWorld.isAir(pos);
             EchoField everyBlock = new EchoField(BODY);
-            everyBlock.reachTo(SKY_WALK, pos -> countedRead(openSky, pos), this::countedShapeOf);
+            everyBlock.reachTo(SKY_WALK, new WallWorld(pos -> !countedRead(openSky, pos), pos -> countedRead(openSky, pos)));
             int readEveryBlock = blockReads;
             blockReads = 0;
             EchoField bySection = new EchoField(BODY);
-            bySection.reachTo(SKY_WALK, pos -> countedRead(openSky, pos), this::countedShapeOf,
-                    (sectionX, sectionY, sectionZ) -> sectionY >= SKY_FROM / SECTION);
+            bySection.reachTo(SKY_WALK, new WallWorld(pos -> !countedRead(openSky, pos), pos -> countedRead(openSky, pos),
+                    (sectionX, sectionY, sectionZ) -> sectionY >= SKY_FROM / SECTION));
 
             System.out.println("AIR SECTIONS reads every block " + readEveryBlock + ", by section " + blockReads);
             assertEquals(walls(everyBlock), walls(bySection), "the same walls, in the same order");
@@ -311,7 +468,7 @@ class HeldSweepVisualTest {
         @Test
         void aFieldWalkedOutToScrysReachHoldsTheMostFacesItKeeps() {
             EchoField field = new EchoField(BODY);
-            field.reachTo(HeldSweepHold.SCRY_REACH, HeldSweepWorld::isAir, HeldSweepWorld::shapeOf);
+            field.reachTo(HeldSweepHold.SCRY_REACH, CubeWalls.of(HeldSweepWorld::isAir));
 
             assertEquals(EchoField.MOST_FACES, field.size(), "faces the field keeps");
             assertEquals(HeldSweepHold.SCRY_REACH, field.face(field.size() - 1).distance(), 0.5,

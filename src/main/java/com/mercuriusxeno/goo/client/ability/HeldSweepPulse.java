@@ -1,13 +1,8 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.phys.AABB;
 import java.util.ArrayDeque;
 import java.util.Collection;
 import java.util.Deque;
-import java.util.List;
-import java.util.function.Function;
-import java.util.function.Predicate;
 
 /**
  * One held-sweep pulse on the caster's client: its front travels at the
@@ -92,19 +87,6 @@ final class HeldSweepPulse {
     }
 
     /**
-     * Moves the front on to a moment, lighting each wall it passes while
-     * there is room, and lets the walls whose glow has run out go.
-     *
-     * @param now     the game time with its partial tick
-     * @param isAir   whether a position holds air
-     * @param shapeOf a block's voxel shape boxes, block-local
-     * @param room    how many more walls may light across every live pulse
-     */
-    void advance(double now, Predicate<BlockPos> isAir, Function<BlockPos, List<AABB>> shapeOf, int room) {
-        advance(now, new WallWorld(isAir, shapeOf), room);
-    }
-
-    /**
      * Moves the front on to a moment through a world that names its air
      * sections, lighting each wall it passes while there is room, and lets
      * the walls whose glow has run out go.
@@ -116,7 +98,7 @@ final class HeldSweepPulse {
     void advance(double now, WallWorld world, int room) {
         frontBefore = front;
         double radius = drawnRadius(now);
-        field.reachTo(radius, world.isAir(), world.shapeOf(), world.air());
+        field.reachTo(radius, world);
         field.reachedRange(range);
         int left = room;
         while (nextFace < field.size() && field.face(nextFace).distance() <= radius) {

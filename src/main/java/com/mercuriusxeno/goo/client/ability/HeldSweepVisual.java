@@ -11,9 +11,11 @@ import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.network.HeldSweepPayload;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.QuadInstance;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.resources.model.geometry.BakedQuad;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
@@ -30,19 +32,21 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.function.Predicate;
 import java.util.function.ToIntFunction;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
  * The caster's side of every held sweep, Scry's, Glimmer's and Magnet's, as
  * a sonar return: each live pulse's front leaves the caster at the steady
- * pace as a faint skin in the casting goo type's color, every wall open to
- * air that a front hits lights through walls at the hit, holds for three
+ * pace as a faint skin in the casting goo type's color, every wall a front
+ * hits lights through walls at the hit, drawn as its own model's quads on
+ * the sides open to the front by the sculker echo's rules, holds for three
  * seconds and fades over three more, so the cave hangs lit behind the fronts; fronts overlap, and a
  * front already out when the hold lets go runs on to its range.
  * decision held-sweeps-share-one-fast-shell-visual
  * decision scry-sphere-reveals-faces-and-glistens-mobs
+ * decision scry-shows-surfaces-as-the-sculker-echo-does
  */
 public final class HeldSweepVisual {
 
@@ -54,8 +58,12 @@ public final class HeldSweepVisual {
     private static final int FACE_ALPHA = 110;
     /** How far a face quad stands off its block, so it never sinks into the face it marks. */
     private static final float FACE_LIFT = 0.002f;
+    /** How many blocks' quads the cache may hold past the walls a frame draws before the stale go. */
+    private static final int QUADS_SLACK = 1024;
 
     private static final LiveSweeps SWEEPS = new LiveSweeps();
+    /** Each lit wall's model quads, kept while pulses live, collected the first frame the wall draws. */
+    private static final EchoQuads WALL_QUADS = new EchoQuads();
     private static final Map<Integer, HeldSweepPulse> PULSES = SWEEPS.pulses();
     private static ClientLevel heardIn;
 
@@ -89,8 +97,18 @@ public final class HeldSweepVisual {
     /** Drops every pulse, every lit wall and every painted mob, as a disconnect or a change of dimension does. */
     public static void clear() {
         SWEEPS.clear();
+        WALL_QUADS.clear();
         ScryPaintedMobs.CLIENT.clear();
         heardIn = null;
+    }
+
+    /**
+     * Drops a changed block's kept quads and its neighbours' quads, whose open sides it sets.
+     *
+     * @param pos the block that changed
+     */
+    public static void blockChanged(BlockPos pos) {
+        WALL_QUADS.forgetAround(pos);
     }
 
     /**
@@ -150,6 +168,7 @@ public final class HeldSweepVisual {
         Minecraft mc = Minecraft.getInstance();
         ClientLevel level = mc.level;
         if (level == null || PULSES.isEmpty()) {
+            WALL_QUADS.clear();
             return;
         }
         if (level != heardIn) {
@@ -157,16 +176,29 @@ public final class HeldSweepVisual {
             return;
         }
         double now = level.getGameTime() + mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        upkeepFronts(new Upkeep(SWEEPS, new WallWorld(at -> level.getBlockState(at).isAir(),
-                at -> level.getBlockState(at).getShape(level, at).toAabbs(),
+        upkeepFronts(new Upkeep(SWEEPS, WallWorld.of(level,
                 (sectionX, sectionY, sectionZ) -> holdsOnlyAir(level, sectionX, sectionY, sectionZ))), now,
                 level.entitiesForRendering(), mc.player);
         List<WallGlow> walls = wallsToDraw(SWEEPS.walls(), now);
+        keepQuadsOf(walls);
         Vec3 camera = mc.gameRenderer.mainCamera().position();
         ImmediateBuffers buffers = ImmediateBuffers.shared();
+        SculkerEchoRenderer.EchoWorld world = new SculkerEchoRenderer.LevelEchoWorld(mc);
         draws.accept(sortedByNearest(walls.stream().map(wall -> wall.face().middle()), camera,
-                () -> drawWalls(frame.poseStack().last(), BufferedPass.of(buffers, GooRenderTypes.SCRY_FACES_TYPE),
-                        camera, walls)));
+                () -> drawWalls(frame.poseStack(), BufferedPass.of(buffers, GooRenderTypes.SCRY_FACES_TYPE),
+                        camera, walls, at -> WALL_QUADS.at(world, at))));
+    }
+
+    /**
+     * Lets go of the kept quads of walls no longer lit, once enough have
+     * gone stale to be worth the sweep.
+     *
+     * @param walls the walls the frame draws
+     */
+    private static void keepQuadsOf(List<WallGlow> walls) {
+        if (WALL_QUADS.size() > walls.size() + QUADS_SLACK) {
+            WALL_QUADS.keepWithin(walls.stream().map(wall -> wall.face().pos()).collect(Collectors.toSet()));
+        }
     }
 
     /**
@@ -219,17 +251,6 @@ public final class HeldSweepVisual {
      * @param world  the world the fronts walk
      */
     record Upkeep(LiveSweeps sweeps, WallWorld world) {
-
-        /**
-         * An upkeep over a world read block by block.
-         *
-         * @param sweeps  the live sweeps
-         * @param isAir   whether a position holds air
-         * @param shapeOf a block's voxel shape boxes, block-local
-         */
-        Upkeep(LiveSweeps sweeps, Predicate<BlockPos> isAir, Function<BlockPos, List<AABB>> shapeOf) {
-            this(sweeps, new WallWorld(isAir, shapeOf));
-        }
     }
 
     /**
@@ -261,20 +282,6 @@ public final class HeldSweepVisual {
      */
     static SortedDraw sortedByNearest(Stream<Vec3> shapes, Vec3 camera, Runnable draw) {
         return HeldSweepSections.profiled(HeldSweepSections.SORT_KEY, () -> SortedDraw.nearestOf(shapes, camera, draw));
-    }
-
-    /**
-     * Moves every live pulse's front on to a moment and drops the pulses
-     * that have finished.
-     *
-     * @param pulses  the live pulses by id
-     * @param now     the game time with its partial tick
-     * @param isAir   whether a position holds air
-     * @param shapeOf a block's voxel shape boxes, block-local
-     */
-    static void advanceAll(Map<Integer, HeldSweepPulse> pulses, double now, Predicate<BlockPos> isAir,
-                           Function<BlockPos, List<AABB>> shapeOf) {
-        advanceAll(pulses, now, new WallWorld(isAir, shapeOf));
     }
 
     /**
@@ -315,25 +322,30 @@ public final class HeldSweepVisual {
     }
 
     /**
-     * Emits every lit wall's quads, each side open to air on each box of its
-     * shape, and submits the batch.
+     * Emits every lit wall's own model quads, on each of its sides open to
+     * the front, in the wall's color and glow, and submits the batch.
+     * decision scry-shows-surfaces-as-the-sculker-echo-does
      *
-     * @param pose   the pose
-     * @param pass   the batch the walls fill
-     * @param camera the camera's position
-     * @param walls  the walls to draw
+     * @param poseStack the pose stack
+     * @param pass      the batch the walls fill
+     * @param camera    the camera's position
+     * @param walls     the walls to draw
+     * @param quadsOf   a lit block's model quads on its sides open to the front, as an echo collects them
      */
-    static void drawWalls(PoseStack.Pose pose, BufferedPass pass, Vec3 camera, List<WallGlow> walls) {
+    static void drawWalls(PoseStack poseStack, BufferedPass pass, Vec3 camera, List<WallGlow> walls,
+                          Function<BlockPos, List<BakedQuad>> quadsOf) {
         HeldSweepSections.profiled(HeldSweepSections.WALL_DRAW, () -> {
             VertexConsumer consumer = pass.consumer();
+            QuadInstance look = new QuadInstance();
             for (WallGlow wall : walls) {
-                int color = ARGB.color(Math.round(FACE_ALPHA * wall.glow()), wall.tintRgb());
-                Vec3 corner = Vec3.atLowerCornerOf(wall.face().pos()).subtract(camera);
-                for (AABB box : wall.face().boxes()) {
-                    for (Direction side : wall.face().sides()) {
-                        emitBoxFace(pose, consumer, box.move(corner), side, color);
-                    }
+                look.setColor(ARGB.color(Math.round(FACE_ALPHA * wall.glow()), wall.tintRgb()));
+                BlockPos pos = wall.face().pos();
+                poseStack.pushPose();
+                poseStack.translate(pos.getX() - camera.x, pos.getY() - camera.y, pos.getZ() - camera.z);
+                for (BakedQuad quad : quadsOf.apply(pos)) {
+                    consumer.putBakedQuad(poseStack.last(), quad, look);
                 }
+                poseStack.popPose();
             }
             pass.end().run();
         });
