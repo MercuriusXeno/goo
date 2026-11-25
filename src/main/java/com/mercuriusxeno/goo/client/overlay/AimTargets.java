@@ -48,6 +48,8 @@ final class AimTargets {
     private static final double GRANNY_ARC_THRESHOLD = 0.85;
     /** How far before a gate's face the near leg's clip ends, clear of the gate's own blocks. */
     private static final double BEFORE_THE_FACE = 0.01;
+    /** How far in along the look each drop of a sliding ground highlight steps, in blocks. */
+    private static final double SLIDE_STEP = 0.25;
 
     private AimTargets() {
     }
@@ -408,60 +410,98 @@ final class AimTargets {
 
     /**
      * Clips against blocks and returns a block or granny-arc target.
-     * On a miss, projects to max range along the look vector so the
-     * arc always renders toward the aimed direction.
+     * On a miss, drops to the farthest ground under the look within range,
+     * so a level look still lights a face that casts.
      *
-     * @param level  the current level, whose height bounds a miss's cast to the ground
+     * @param level  the current level, whose height bounds a miss's drop to the ground
      * @param blocks the blocks the ray clips against
      * @param ray    the aim ray
      * @param clip   the block clip
-     * @return the resolved block target, or max-range projection on miss
+     * @return the resolved block target, or NONE where nothing under the look is in range
      */
     private static TargetResult resolveBlockTarget(Level level, BlockGetter blocks, AimRay ray, BlockClip clip) {
+        BlockClip drop = (from, to) -> blocks.clip(new ClipContext(from, to, ClipContext.Block.OUTLINE,
+                ClipContext.Fluid.SOURCE_ONLY, CollisionContext.empty()));
         return blockTargetAlong(ray, clip, hit -> classifyBlockHit(blocks, hit),
-                reach -> projectToGround(level, blocks, reach));
+                new Ground(drop, level.getMaxY(), level.getMinY()));
     }
 
     /**
-     * The block face a ray lights: the face it meets, or the ground a miss
-     * drops to, either lit only where the aimed point lies within range of the eye.
-     * decision diagnose-and-correct-the-indicator-disagreeing-with-the-cast
+     * The ground a straight drop meets, within the level's height.
      *
-     * @param ray      the aim ray
-     * @param clip     the block clip
-     * @param faceOf   the target a met face reads as
-     * @param dropFrom the target a miss drops to from the ray's end
+     * @param clip    the clip a drop runs, against block outlines and fluid sources
+     * @param ceiling the level's top, where a drop from above it starts
+     * @param floor   the level's bottom, where a drop ends at the latest
+     */
+    record Ground(BlockClip clip, double ceiling, double floor) {
+
+        /**
+         * The top face a drop straight down from a point meets, no lower than the given height.
+         *
+         * @param point  the point the drop falls from
+         * @param lowest the lowest the drop reaches, above the level's floor
+         * @return a block target on the ground's top face, or NONE where the drop meets none
+         */
+        TargetResult under(Vec3 point, double lowest) {
+            double top = Math.min(point.y, ceiling);
+            double bottom = Math.max(floor, lowest);
+            if (top <= bottom) {
+                return TargetResult.NONE;
+            }
+            BlockHitResult ground = clip.clip(new Vec3(point.x, top, point.z), new Vec3(point.x, bottom, point.z));
+            return ground.getType() == HitResult.Type.BLOCK
+                    ? TargetResult.block(ground.getBlockPos(), Direction.UP, ground.getLocation()) : TargetResult.NONE;
+        }
+    }
+
+    /**
+     * The block face a ray lights: the face it meets within range of the eye,
+     * else the farthest ground under the look within that range.
+     * decision diagnose-and-correct-the-indicator-disagreeing-with-the-cast
+     * decision dropped-ground-highlight-lights-only-within-range
+     *
+     * @param ray    the aim ray
+     * @param clip   the block clip
+     * @param faceOf the target a met face reads as
+     * @param ground the ground a miss drops to
      * @return the block target, or NONE where it lies beyond range of the eye
      */
     static TargetResult blockTargetAlong(AimRay ray, BlockClip clip, Function<BlockHitResult, TargetResult> faceOf,
-                                         Function<Vec3, TargetResult> dropFrom) {
+                                         Ground ground) {
         BlockHitResult hit = clip.clip(ray.origin(), ray.reach());
-        TargetResult target = hit.getType() == HitResult.Type.BLOCK ? faceOf.apply(hit) : dropFrom.apply(ray.reach());
-        Vec3 point = target.point();
-        return point != null && ray.reaches(point) ? target : TargetResult.NONE;
+        boolean met = hit.getType() == HitResult.Type.BLOCK;
+        if (met) {
+            TargetResult face = faceOf.apply(hit);
+            Vec3 point = face.point();
+            if (point != null && ray.reaches(point)) {
+                return face;
+            }
+        }
+        return groundSlidingIn(ray, ground, met ? hit.getLocation() : ray.reach());
     }
 
     /**
-     * Raycasts down from the max-range endpoint to find the ground.
-     * If the endpoint is above max build height (looking upward), starts
-     * the downward cast from build height at the same XZ.
+     * The farthest ground under the look within range of the eye: the drop
+     * from each point along the look, sliding in from where the look stopped
+     * toward its start, lights the first ground it meets within range.
+     * decision dropped-ground-highlight-lights-only-within-range
      *
-     * @param level  the current level, whose height bounds the cast
-     * @param blocks the blocks the cast clips against
-     * @param reach  the max-range endpoint along the look vector
-     * @return a block target on the ground, or NONE if no ground found
+     * @param ray     the aim ray
+     * @param ground  the ground a drop meets
+     * @param stopped where the look stopped, a face past range or the ray's end
+     * @return the ground's top face, or NONE where no ground under the look is in range
      */
-    private static TargetResult projectToGround(Level level, BlockGetter blocks, Vec3 reach) {
-        double topY = Math.min(reach.y, level.getMaxY());
-        Vec3 top = new Vec3(reach.x, topY, reach.z);
-        Vec3 bottom = new Vec3(reach.x, level.getMinY(), reach.z);
-        BlockHitResult ground = blocks.clip(new ClipContext(
-                top, bottom, ClipContext.Block.OUTLINE,
-                ClipContext.Fluid.SOURCE_ONLY, CollisionContext.empty()));
-        if (ground.getType() != HitResult.Type.BLOCK) {
-            return TargetResult.NONE;
+    private static TargetResult groundSlidingIn(AimRay ray, Ground ground, Vec3 stopped) {
+        Vec3 look = ray.reach().subtract(ray.origin()).normalize();
+        double lowest = ray.measuredFrom().y - ray.rangeLeft();
+        for (double along = ray.origin().distanceTo(stopped); along >= 0; along -= SLIDE_STEP) {
+            TargetResult dropped = ground.under(ray.origin().add(look.scale(along)), lowest);
+            Vec3 point = dropped.point();
+            if (point != null && ray.reaches(point)) {
+                return dropped;
+            }
         }
-        return TargetResult.block(ground.getBlockPos(), Direction.UP, ground.getLocation());
+        return TargetResult.NONE;
     }
 
     /**

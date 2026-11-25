@@ -564,7 +564,7 @@ public final class GooThrowHandler {
      * @param range   the ability's range in blocks
      * @return true for a release the server takes
      */
-    static boolean takesAim(Vec3 eye, AABB target, Vec3 claimed, double range) {
+    public static boolean takesAim(Vec3 eye, AABB target, Vec3 claimed, double range) {
         return AimReach.takes(aimedLength(eye, Optional.empty(), target, claimed), range);
     }
 

@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.overlay;
 import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.client.throwing.TargetingHint;
+import com.mercuriusxeno.goo.network.GooThrowHandler;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.entity.Entity;
@@ -15,10 +16,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import java.util.function.DoubleUnaryOperator;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 
 /**
@@ -32,6 +35,80 @@ class AimTargetsTest {
     private static final TargetResult BLOCK_TARGET = TargetResult.block(BLOCK, Direction.NORTH);
     private static final TargetResult POINT_TARGET = TargetResult.pointOnBlock(new Vec3(1.5, 65.2, 2.25), BLOCK, Direction.UP);
     private static final Vec3 ENTITY_POINT = new Vec3(8.3, 65.1, 4.4);
+    private static final double CEILING = 320;
+    private static final double FLOOR = -64;
+
+    private static TargetResult faceOf(BlockHitResult hit) {
+        return TargetResult.block(hit.getBlockPos(), hit.getDirection(), hit.getLocation());
+    }
+
+    /**
+     * A look meeting no block within range drops to the farthest ground under
+     * it within range of the eye, sliding in from the look's end, and lights
+     * nothing where no ground under the look is in range
+     * (decision dropped-ground-highlight-lights-only-within-range).
+     */
+    @Nested
+    class TheDroppedHighlight {
+
+        private static final double RANGE = 16;
+        private static final double EYE_HEIGHT = 1.62;
+        private static final Vec3 LEVEL = new Vec3(1, 0, 0);
+
+        /**
+         * Ground whose top stands at the height the column's x gives: the
+         * clip meets a straight drop at that top, and a level look above the
+         * ground meets nothing.
+         */
+        private static AimTargets.BlockClip groundTopping(DoubleUnaryOperator topAt) {
+            return (from, to) -> {
+                double top = topAt.applyAsDouble(from.x);
+                boolean drop = from.x == to.x && from.z == to.z;
+                if (!drop || top > from.y || top < to.y) {
+                    return BlockHitResult.miss(to, Direction.UP, BlockPos.containing(to));
+                }
+                Vec3 met = new Vec3(from.x, top, from.z);
+                return new BlockHitResult(met, Direction.UP, BlockPos.containing(from.x, top - 1, from.z), false);
+            };
+        }
+
+        private static TargetResult droppedFrom(Vec3 eye, DoubleUnaryOperator topAt) {
+            AimTargets.BlockClip ground = groundTopping(topAt);
+            return AimTargets.blockTargetAlong(AimTargets.AimRay.along(eye, LEVEL, RANGE), ground,
+                    AimTargetsTest::faceOf, new AimTargets.Ground(ground, CEILING, FLOOR));
+        }
+
+        @Test
+        void aLevelLookOverLevelGroundLightsGroundTheServerTakes() {
+            Vec3 eye = new Vec3(0.5, 65 + EYE_HEIGHT, 0.5);
+
+            TargetResult target = droppedFrom(eye, x -> 65);
+
+            TargetResult.BlockTarget lit = assertInstanceOf(TargetResult.BlockTarget.class, target);
+            assertTrue(lit.point().distanceTo(eye) <= RANGE, "The lit ground should lie within range of the eye");
+            assertTrue(GooThrowHandler.takesAim(eye, new AABB(lit.pos()), lit.point(), RANGE),
+                    "The server's range gate should take a release at the lit ground");
+        }
+
+        @Test
+        void fromALedgeOverADeepDropTheLedgesGroundLights() {
+            Vec3 eye = new Vec3(0.5, 65 + EYE_HEIGHT, 0.5);
+            double ledgeEnds = eye.x + 8;
+
+            TargetResult target = droppedFrom(eye, x -> x < ledgeEnds ? 65 : 35);
+
+            TargetResult.BlockTarget lit = assertInstanceOf(TargetResult.BlockTarget.class, target);
+            assertEquals(64, lit.pos().getY(), "The ledge's ground should light, not the floor below");
+            assertTrue(lit.point().distanceTo(eye) <= RANGE, "The lit ground should lie within range of the eye");
+        }
+
+        @Test
+        void anEyeHighOverTheOnlyGroundLightsNothing() {
+            Vec3 eye = new Vec3(0.5, 35 + 30, 0.5);
+
+            assertSame(TargetResult.NONE, droppedFrom(eye, x -> 35));
+        }
+    }
 
     /** Answers fixed sources: the entity hit given, a block target and a point target, each within range or not. */
     private record FixedSources(AimAssistResolver.@Nullable AimHit entityHit, boolean inRange)
@@ -172,9 +249,9 @@ class AimTargetsTest {
         }
 
         private static TargetResult faceAlong(AimTargets.AimRay ray, AimTargets.BlockClip clip) {
-            return AimTargets.blockTargetAlong(ray, clip,
-                    hit -> TargetResult.block(hit.getBlockPos(), hit.getDirection(), hit.getLocation()),
-                    reach -> TargetResult.NONE);
+            return AimTargets.blockTargetAlong(ray, clip, AimTargetsTest::faceOf,
+                    new AimTargets.Ground((from, to) -> BlockHitResult.miss(to, Direction.UP, BlockPos.containing(to)),
+                            CEILING, FLOOR));
         }
 
         @Test
