@@ -46,7 +46,7 @@ final class HeldSweepHold {
     static final int FRAMES_A_TICK = 3;
     /** Ticks a ten second hold runs. */
     static final int TEN_SECONDS = 200;
-    /** Scry's reach, as astral_scry.json sets it. */
+    /** The reach the lag thread measured Scry at, where its two second crossing runs 48 blocks a second. */
     static final double SCRY_REACH = 96;
     /** The ore sense's radius, as crystal_glimmer.json and metal_magnet.json set it. */
     static final int ORE_RADIUS = 64;

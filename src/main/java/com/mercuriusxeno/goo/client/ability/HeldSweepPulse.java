@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.ability.program.HeldSweepPace;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.AABB;
 import java.util.ArrayDeque;
@@ -12,18 +11,17 @@ import java.util.function.Predicate;
 
 /**
  * One held-sweep pulse on the caster's client: its front travels at the
- * steady pace from the last radius the server sent, on to its range even
- * after the hold lets go, and lights each wall it passes, which fades over
- * the linger behind it.
+ * steady pace the server sent from the last radius the server sent, on to
+ * its range even after the hold lets go, and lights each wall it passes,
+ * which fades over the linger behind it.
  * decision held-sweeps-share-one-fast-shell-visual
+ * decision scry-ring-crosses-its-reach-in-two-seconds
  */
 final class HeldSweepPulse {
 
-    private static final double TICKS_A_SECOND = 20;
-    private static final double BLOCKS_A_TICK = HeldSweepPace.BLOCKS_A_SECOND / TICKS_A_SECOND;
-
     private final EchoField field;
     private final double range;
+    private final double blocksATick;
     private final int tintRgb;
     private final boolean paintsMobs;
     private final LitWalls walls;
@@ -39,24 +37,28 @@ final class HeldSweepPulse {
     /**
      * A pulse whose walls draw on their own, apart from every other pulse's.
      *
-     * @param field   the walls around the spot the pulse left from
-     * @param range   the radius its front reaches
-     * @param tintRgb its color, 0xRRGGBB
+     * @param field       the walls around the spot the pulse left from
+     * @param range       the radius its front reaches
+     * @param blocksATick the blocks its front travels each tick
+     * @param tintRgb     its color, 0xRRGGBB
      */
-    HeldSweepPulse(EchoField field, double range, int tintRgb) {
-        this(field, range, tintRgb, false, new LitWalls());
+    HeldSweepPulse(EchoField field, double range, double blocksATick, int tintRgb) {
+        this(field, range, blocksATick, tintRgb, false, new LitWalls());
     }
 
     /**
-     * @param field      the walls around the spot the pulse left from
-     * @param range      the radius its front reaches
-     * @param tintRgb    its color, 0xRRGGBB
-     * @param paintsMobs whether its front outlines the mobs it crosses
-     * @param walls      the walls every live pulse holds lit, which this pulse's hits join
+     * @param field       the walls around the spot the pulse left from
+     * @param range       the radius its front reaches
+     * @param blocksATick the blocks its front travels each tick
+     * @param tintRgb     its color, 0xRRGGBB
+     * @param paintsMobs  whether its front outlines the mobs it crosses
+     * @param walls       the walls every live pulse holds lit, which this pulse's hits join
      */
-    HeldSweepPulse(EchoField field, double range, int tintRgb, boolean paintsMobs, LitWalls walls) {
+    HeldSweepPulse(EchoField field, double range, double blocksATick, int tintRgb, boolean paintsMobs,
+                   LitWalls walls) {
         this.field = field;
         this.range = range;
+        this.blocksATick = blocksATick;
         this.tintRgb = tintRgb;
         this.paintsMobs = paintsMobs;
         this.walls = walls;
@@ -84,7 +86,7 @@ final class HeldSweepPulse {
      * @return the radius to draw
      */
     double drawnRadius(double now) {
-        double steady = lastRadius + (now - lastRadiusAt - 1) * BLOCKS_A_TICK;
+        double steady = lastRadius + (now - lastRadiusAt - 1) * blocksATick;
         front = Math.max(front, Math.clamp(steady, 0, range));
         return front;
     }

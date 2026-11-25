@@ -57,7 +57,7 @@ public final class ScryChannelTests {
     private static final int A_MINUTE = 1_201;
     /** Enough astral goo to pay Scry each second of a minute's hold and some over. */
     private static final int MINUTE_OF_GOO = 70;
-    /** Ticks past the hold's end by which Scry's last front, ninety-six blocks out in forty ticks, has landed. */
+    /** Ticks past the hold's end by which Scry's last front, out to its reach in forty ticks, has landed. */
     private static final int LANDED_AFTER = 45;
     /** Astral Scry itself, whose child step lays only the astral overlay, so a minute's hold harms no other test's mob. */
     private static final Identifier ASTRAL_SCRY = Identifier.fromNamespaceAndPath("goo", "astral_scry");
@@ -116,11 +116,12 @@ public final class ScryChannelTests {
     private static final int BAY_WIDTH = 7;
     private static final BlockPos ZOMBIE_POS = new BlockPos(5, 1, 3);
     /**
-     * The probe's pulse eases out to its eight block reach, kept inside the
-     * bay so it strikes no other test's player: ten ticks carry it past the
-     * zombie four blocks off, inside its first pulse.
+     * The probe's pulse crosses its eight block reach in two seconds, kept
+     * inside the bay so it strikes no other test's player: twenty-five ticks
+     * carry its first front past the zombie four blocks off on its twentieth
+     * tick, before the second front, leaving on the twenty-first, reaches it.
      */
-    private static final int HOLD_TICKS = 10;
+    private static final int HOLD_TICKS = 25;
     private static final int HELD_GOO = 2;
     private static final float PROBE_DAMAGE = 3f;
     private static final float TOLERANCE = 0.01f;
@@ -134,7 +135,7 @@ public final class ScryChannelTests {
     }
 
     /**
-     * A mock player holds the scry probe for ten ticks with a stone wall
+     * A mock player holds the scry probe for twenty-five ticks with a stone wall
      * between it and a zombie four blocks off: the zombie, unseen, loses the
      * probe's damage once, as the front crosses it and never again.
      *

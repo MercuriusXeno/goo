@@ -1,7 +1,11 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.google.gson.JsonParser;
+import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.program.AilmentKind;
+import com.mercuriusxeno.goo.ability.program.HeldSweepPace;
+import com.mercuriusxeno.goo.ability.program.HeldSweepPulses;
+import com.mercuriusxeno.goo.ability.program.HeldSweepStep;
 import com.mercuriusxeno.goo.ability.program.HeldSweepWorld;
 import com.mercuriusxeno.goo.client.RecordingVertexConsumer;
 import com.mercuriusxeno.goo.type.GooColors;
@@ -63,6 +67,7 @@ class HeldSweepVisualTest {
         private static final int ROOM = 100_000;
         private static final double BLOCKS_A_TICK = 2.4;
         private static final long HEARD_AT = 100;
+        private static final int SCRY_CROSSING_TICKS = 40;
 
         /**
          * A hit wall holds full brightness for three seconds, then fades
@@ -78,7 +83,7 @@ class HeldSweepVisualTest {
 
         @Test
         void aWallWhoseGlowReachedNothingLeavesTheRevealSet() {
-            HeldSweepPulse pulse = new HeldSweepPulse(new EchoField(CENTER), SCRY_RANGE, TINT);
+            HeldSweepPulse pulse = new HeldSweepPulse(new EchoField(CENTER), SCRY_RANGE, BLOCKS_A_TICK, TINT);
             pulse.heard(12, HEARD_AT);
             pulse.advance(HEARD_AT + 1, OVER_A_FLOOR, CUBES, ROOM);
             assertTrue(!pulse.lit().isEmpty(), "the floor the front crossed lights");
@@ -90,7 +95,7 @@ class HeldSweepVisualTest {
 
         @Test
         void aLetGoFrontRunsOnToItsRangeAndNeverSnapsBack() {
-            HeldSweepPulse pulse = new HeldSweepPulse(new EchoField(CENTER), SCRY_RANGE, TINT);
+            HeldSweepPulse pulse = new HeldSweepPulse(new EchoField(CENTER), SCRY_RANGE, BLOCKS_A_TICK, TINT);
             pulse.heard(24, HEARD_AT);
 
             assertEquals(24, pulse.drawnRadius(HEARD_AT + 1), 1e-9, "the last radius the server sent");
@@ -104,11 +109,33 @@ class HeldSweepVisualTest {
             assertEquals(SCRY_RANGE, drawn, 1e-9, "on to its range");
         }
 
+        /**
+         * The shipped Scry's front, heard once as it leaves and then left
+         * unheard, draws on each tick of its two second crossing the radius
+         * the server strikes mobs at on that tick.
+         * decision scry-ring-crosses-its-reach-in-two-seconds
+         */
+        @Test
+        void theShippedScrysDrawnFrontKeepsToTheRadiusTheServerStrikesAt() {
+            HeldSweepStep scry = AbilityJson.decode("astral_scry").behaviors().stream()
+                    .filter(HeldSweepStep.class::isInstance).map(HeldSweepStep.class::cast).findFirst().orElseThrow();
+            HeldSweepPace pace = scry.pace();
+            LiveSweeps sweeps = new LiveSweeps();
+            HeldSweepPulses.Pulse leaving = new HeldSweepPulses.Pulse(1, HeldSweepWorld.CASTER, HEARD_AT);
+
+            sweeps.hear(scry.sweepOf(leaving, HEARD_AT), HEARD_AT, type -> TINT);
+            HeldSweepPulse drawn = sweeps.pulses().get(1);
+
+            for (int age = 1; age <= SCRY_CROSSING_TICKS; age++) {
+                assertEquals(pace.radiusAt(age), drawn.drawnRadius(HEARD_AT + age), 1e-5, "age " + age);
+            }
+        }
+
         @Test
         void twoPulsesWallsDrawInOneFrameEachAtItsOwnFront() {
             EchoField field = new EchoField(CENTER);
-            HeldSweepPulse first = new HeldSweepPulse(field, SCRY_RANGE, TINT);
-            HeldSweepPulse second = new HeldSweepPulse(field, SCRY_RANGE, TINT);
+            HeldSweepPulse first = new HeldSweepPulse(field, SCRY_RANGE, BLOCKS_A_TICK, TINT);
+            HeldSweepPulse second = new HeldSweepPulse(field, SCRY_RANGE, BLOCKS_A_TICK, TINT);
             first.heard(11 * BLOCKS_A_TICK, HEARD_AT);
             second.heard(BLOCKS_A_TICK, HEARD_AT);
             double frame = HEARD_AT + 1;
@@ -128,8 +155,8 @@ class HeldSweepVisualTest {
         @Test
         void aNewPulseLightsNearWallsWhileAnOlderOneHasLitItsMost() {
             EchoField field = new EchoField(CENTER);
-            HeldSweepPulse older = new HeldSweepPulse(field, SCRY_RANGE, TINT);
-            HeldSweepPulse newer = new HeldSweepPulse(field, SCRY_RANGE, TINT);
+            HeldSweepPulse older = new HeldSweepPulse(field, SCRY_RANGE, BLOCKS_A_TICK, TINT);
+            HeldSweepPulse newer = new HeldSweepPulse(field, SCRY_RANGE, BLOCKS_A_TICK, TINT);
             older.heard(SCRY_RANGE, HEARD_AT);
             newer.heard(BLOCKS_A_TICK, HEARD_AT);
             Map<Integer, HeldSweepPulse> live = new LinkedHashMap<>();
@@ -151,8 +178,8 @@ class HeldSweepVisualTest {
         void aWallTwoFrontsLitDrawsOnceAtItsBrighterGlow() {
             EchoField field = new EchoField(CENTER);
             LitWalls lit = new LitWalls();
-            HeldSweepPulse first = new HeldSweepPulse(field, SCRY_RANGE, TINT, false, lit);
-            HeldSweepPulse second = new HeldSweepPulse(field, SCRY_RANGE, TINT, false, lit);
+            HeldSweepPulse first = new HeldSweepPulse(field, SCRY_RANGE, BLOCKS_A_TICK, TINT, false, lit);
+            HeldSweepPulse second = new HeldSweepPulse(field, SCRY_RANGE, BLOCKS_A_TICK, TINT, false, lit);
             first.heard(4 * BLOCKS_A_TICK, HEARD_AT);
             first.advance(HEARD_AT + 1, OVER_A_FLOOR, CUBES, ROOM);
             second.heard(4 * BLOCKS_A_TICK, HEARD_AT + 10);
@@ -213,7 +240,7 @@ class HeldSweepVisualTest {
          */
         private long[] workOfTheLastTickTo(double range) {
             EchoField field = new EchoField(BODY);
-            HeldSweepPulse pulse = new HeldSweepPulse(field, range, TINT);
+            HeldSweepPulse pulse = new HeldSweepPulse(field, range, ONE_TICK, TINT);
             pulse.heard(range - ONE_TICK, HEARD_AT);
             pulse.advance(HEARD_AT + 1, this::countedIsAir, this::countedShapeOf, ROOM);
             blockReads = 0;

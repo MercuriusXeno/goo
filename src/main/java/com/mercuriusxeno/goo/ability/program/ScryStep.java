@@ -19,17 +19,18 @@ import java.util.stream.Stream;
 
 /**
  * Astral's Scry: a press sends a pulse at once and a hold another every
- * second, each front leaving where the caster stood at the held
- * sweeps' steady pace, fronts overlapping. The child steps run on every
+ * second, each front leaving where the caster stood and crossing its reach
+ * in two seconds, fronts overlapping. The child steps run on every
  * living entity a front crosses, seen or behind walls, once for each
  * front. The caster's client is sent each live pulse each tick and lights
  * the walls each front hits in the goo type's colors, and each pulse pings
  * as it leaves, an amethyst resonance (operator ruling 2026-11-06). Scry is
- * {@code scry goo=astral reach=96} with an astral {@code ailment_overlay}
+ * {@code scry goo=astral reach=32} with an astral {@code ailment_overlay}
  * as its child.
  * decision held-sweeps-share-one-fast-shell-visual
  * decision scry-sphere-reveals-faces-and-glistens-mobs
  * decision scry-ships-on-astral
+ * decision scry-reach-drops-to-thirty-two
  *
  * @param goo   the goo type whose colors tint the fronts and the walls they light
  * @param reach how far each pulse reaches, in blocks
@@ -47,6 +48,8 @@ public record ScryStep(ResourceKey<GooTypeDefinition> goo, double reach, List<En
     /** The ping each pulse sounds as it leaves: the amethyst block's resonance, pitched up to a sonar ping. */
     private static final float PING_VOLUME = 1f;
     private static final float PING_PITCH = 1.6f;
+    /** Ticks each front takes to reach Scry's reach: two seconds. */
+    private static final int CROSSING_TICKS = 40;
 
     /**
      * Codec for the step's params. The child list codec is read lazily
@@ -69,9 +72,14 @@ public record ScryStep(ResourceKey<GooTypeDefinition> goo, double reach, List<En
         return TYPE;
     }
 
+    /**
+     * Scry's front crosses its reach in two seconds, slow enough to see the
+     * echo come back off the cavern.
+     * decision scry-ring-crosses-its-reach-in-two-seconds
+     */
     @Override
     public HeldSweepPace pace() {
-        return new HeldSweepPace(reach);
+        return HeldSweepPace.crossing(reach, CROSSING_TICKS);
     }
 
     /**

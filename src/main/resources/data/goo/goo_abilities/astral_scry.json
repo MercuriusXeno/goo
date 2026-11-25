@@ -10,7 +10,7 @@
     {
       "type": "scry",
       "goo": "goo:astral",
-      "reach": 96,
+      "reach": 32,
       "where": ["living"],
       "steps": [
         { "type": "ailment_overlay", "kind": "astral", "duration": 200 }

@@ -23,7 +23,6 @@ class HeldSweepStepTest {
 
     private static final List<String> HELD_SWEEPS = List.of("astral_scry", "crystal_glimmer", "metal_magnet");
     private static final long PRESSED_AT = 1000;
-    private static final double BLOCKS_A_TICK = 2.4;
     private static final double EXACT = 1e-5;
 
     @Test
@@ -54,8 +53,9 @@ class HeldSweepStepTest {
 
         assertEquals(2, sent.size(), "two fronts stand at once");
         assertEquals(2, sent.stream().map(HeldSweepPayload::pulse).distinct().count(), "each names its own pulse");
-        assertEquals(21 * BLOCKS_A_TICK, sent.get(0).radius(), EXACT, "the first front, twenty-one ticks out");
-        assertEquals(BLOCKS_A_TICK, sent.get(1).radius(), EXACT, "the second front, just leaving");
+        assertEquals(scry.pace().radiusAt(21), sent.get(0).radius(), EXACT, "the first front, twenty-one ticks out");
+        assertEquals(scry.pace().radiusAt(1), sent.get(1).radius(), EXACT, "the second front, just leaving");
+        assertTrue(sent.get(1).radius() < sent.get(0).radius(), "the second front trails the first");
     }
 
     @Test

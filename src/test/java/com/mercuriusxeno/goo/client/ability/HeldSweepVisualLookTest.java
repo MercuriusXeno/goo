@@ -38,7 +38,8 @@ class HeldSweepVisualLookTest {
     private static final int CRYSTAL_TINT = 0x66DDEE;
     private static final ToIntFunction<ResourceKey<GooTypeDefinition>> TINTS =
             key -> key == GooTypes.ASTRAL ? ASTRAL_TINT : CRYSTAL_TINT;
-    private static final HeldSweepPace PACE = new HeldSweepPace(96);
+    /** The pace the captures were taken at: 96 blocks at 48 a second. */
+    private static final HeldSweepPace PACE = new HeldSweepPace(96, 48);
     private static final long START = 1_000;
     private static final int PULSES = 5;
     private static final int PULSE_EVERY = 20;
@@ -96,7 +97,7 @@ class HeldSweepVisualLookTest {
             if (age >= 1 && age <= PACE.ticksToRange()) {
                 ResourceKey<GooTypeDefinition> goo = pulse % 2 == 0 ? GooTypes.ASTRAL : GooTypes.CRYSTAL;
                 HeldSweepPayload payload = new HeldSweepPayload(pulse + 1, HeldSweepWorld.CASTER,
-                        (float) PACE.radiusAt(age), (float) PACE.range(), goo, false);
+                        (float) PACE.radiusAt(age), (float) PACE.range(), (float) PACE.blocksATick(), goo, false);
                 sweeps.hear(payload, START + tick, TINTS);
             }
         }
