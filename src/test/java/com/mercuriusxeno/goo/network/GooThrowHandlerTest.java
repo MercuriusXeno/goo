@@ -162,6 +162,53 @@ class GooThrowHandlerTest {
         }
     }
 
+    /**
+     * An orb leaving the lifted blob off the eye rolls at what the look
+     * intersects (decision ability-goes-where-the-look-intersects).
+     */
+    @Nested
+    class OrbHeading {
+
+        private static final double ON_THE_LINE = 0.05;
+        private static final Vec3 LOOK_NORTH = new Vec3(0, 0, -1);
+        private static final Vec3 HALF_A_BLOCK_RIGHT = EYE.add(0.5, 0, 0);
+        private static final double WALL_OUT = 10;
+
+        @Test
+        void anOrbStartedBesideTheEyeHeadsAtTheBlockTheLookHits() {
+            Vec3 hit = EYE.add(LOOK_NORTH.scale(WALL_OUT));
+            Vec3 heading = GooThrowHandler.rollHeading(HALF_A_BLOCK_RIGHT, EYE, LOOK_NORTH, rangeOf("frost_orb"),
+                    OrbHeading::wallTenBlocksNorth);
+            assertTrue(offLine(hit, HALF_A_BLOCK_RIGHT, heading) < ON_THE_LINE,
+                    "The orb's path should pass within a twentieth of a block of the look's hit point, passed "
+                            + offLine(hit, HALF_A_BLOCK_RIGHT, heading) + " off it");
+        }
+
+        @Test
+        void anOrbStartedBesideTheEyeHeadsAtTheLooksPointAtItsRangeInOpenAir() {
+            double range = rangeOf("frost_orb");
+            Vec3 far = EYE.add(LOOK_NORTH.scale(range));
+            Vec3 heading = GooThrowHandler.rollHeading(HALF_A_BLOCK_RIGHT, EYE, LOOK_NORTH, range,
+                    (from, to) -> to);
+            assertTrue(offLine(far, HALF_A_BLOCK_RIGHT, heading) < ON_THE_LINE,
+                    "The orb's path should pass within a twentieth of a block of the look's point at its range, "
+                            + "passed " + offLine(far, HALF_A_BLOCK_RIGHT, heading) + " off it");
+        }
+
+        private static Vec3 wallTenBlocksNorth(Vec3 from, Vec3 to) {
+            double wallZ = EYE.z - WALL_OUT;
+            if (to.z > wallZ || from.z <= wallZ) {
+                return to;
+            }
+            return from.lerp(to, (from.z - wallZ) / (from.z - to.z));
+        }
+
+        private static double offLine(Vec3 point, Vec3 origin, Vec3 heading) {
+            Vec3 offset = point.subtract(origin);
+            return offset.subtract(heading.scale(offset.dot(heading))).length();
+        }
+    }
+
     private static Vec3 out(double blocks) {
         return EYE.add(new Vec3(1, 2, -3).normalize().scale(blocks));
     }
