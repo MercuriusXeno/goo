@@ -24,7 +24,7 @@ class GloomAbilityTest {
     private static final String GLOOM_KEY = "goo.ability.nether.gloom";
     /** The layers a block of Gloom holds, over which its cost per block is spread. */
     private static final int LAYERS_PER_BLOCK = 15;
-    /** The zoo goo zoo_spawn.json's cast cost to turn one slime hostile. */
+    /** The zoo goo Spawn's cast cost to turn one slime hostile, before Gloom took that power. */
     private static final double SPAWN_CAST_COST = 2000;
 
     @Test

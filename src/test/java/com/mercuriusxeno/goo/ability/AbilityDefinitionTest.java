@@ -70,15 +70,6 @@ class AbilityDefinitionTest {
         assertEquals(written, AbilityDefinition.previewAtMaxReach(written, explodes));
     }
 
-    @Test
-    void spawnConsumesNoItemAndNeedsNoRecipe() {
-        // ability-json-names-its-reagent
-        // spawn-hostile-shape-peaceful-from-a-slime
-        AbilityDefinition spawn = AbilityJson.decode("zoo_spawn");
-        assertEquals(List.of(), spawn.consumes());
-        assertEquals(List.of(), spawn.requires());
-    }
-
     // decision blast-keeps-its-explosion-gated-on-gunpowder
     @Test
     void blastRequiresGunpowder() {

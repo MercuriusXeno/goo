@@ -6,10 +6,8 @@ import com.mercuriusxeno.goo.ability.revert.RevertEvents;
 import com.mojang.datafixers.util.Unit;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.entity.player.Player;
 import java.util.Set;
 import java.util.function.Predicate;
@@ -27,7 +25,6 @@ public final class LeafSteps {
     private static final MapCodec<Unit> NO_PARAMS = MapCodec.unit(Unit.INSTANCE);
     private static final Set<HostCapability> TARGET = Set.of(HostCapability.TARGET);
     private static final Set<HostCapability> IGNITE_LANDING = Set.of(HostCapability.IGNITE);
-    private static final float PERCENT = 100;
     private static final Predicate<Object> ANY = entity -> true;
 
     /**
@@ -132,22 +129,6 @@ public final class LeafSteps {
             });
 
     /**
-     * Puts the host's target in love on a percent roll when it is an animal
-     * an empty-handed feed could breed now: grown, off its breeding
-     * cooldown and out of love.
-     * vitality-waves-regenerate-and-court
-     */
-    public static final LeafStepType<Expr> COURT = StepType.onTarget("court", "chance", Animal.class,
-            animal -> !animal.isBaby(), (animal, chance, context) -> {
-                // the client reads no breeding cooldown, so the aim takes every adult and the roll waits for one off it
-                if (animal.getAge() == 0 && animal.canFallInLove()
-                        && courts(chance.evaluateFloat(context), animal.getRandom().nextFloat())) {
-                    Entity thrower = context.hostAs(TargetHost.class).thrower();
-                    animal.setInLove(thrower instanceof Player player ? player : null);
-                }
-            });
-
-    /**
      * Ticks the redstone device the host's blob landed on, as one pulse of
      * power would: Zap is {@code power_pulse}.
      * zap-ticks-the-device-and-stuns
@@ -178,16 +159,5 @@ public final class LeafSteps {
             ANY, (player, none, context) -> RandomEnchantment.giveBook(player));
 
     private LeafSteps() {
-    }
-
-    /**
-     * Whether a court roll lands: a roll in [0, 1) lands under a percent chance.
-     *
-     * @param chancePercent the percent chance the step names
-     * @param roll          the uniform roll in [0, 1)
-     * @return true when the roll lands
-     */
-    static boolean courts(float chancePercent, float roll) {
-        return roll * PERCENT < chancePercent;
     }
 }

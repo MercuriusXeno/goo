@@ -34,10 +34,11 @@ import java.util.stream.Stream;
  * spawns naturally, hostile or peaceful, and finishes: the slime is
  * consumed, no egg is spent, and the players watching see the goo morph
  * into the mob where the slime stood; the steps under it then run on the
- * new mob. A blob on anything but a slime does nothing. Zoo's Spawn is
- * {@code transmute_slime goo=zoo hostile=true}, Shape the same with
- * {@code hostile=false}.
+ * new mob. A blob on anything but a slime does nothing. Gloom's turn of a
+ * slime standing on it is {@code transmute_slime goo=nether hostile=true};
+ * {@code hostile=false} draws a peaceful mob.
  * spawn-hostile-shape-peaceful-from-a-slime
+ * gloom-turns-slimes-into-random-hostiles-in-place-of-spawn
  * model-transformation-is-one-animation
  *
  * @param goo        the goo type that morphs into the mob
@@ -93,8 +94,7 @@ public record SlimeTransmuteStep(ResourceKey<GooTypeDefinition> goo, boolean hos
     /**
      * Transmutes a slime into a mob drawn from what its biome spawns
      * naturally, of the step's side, and runs the step's steps on the mob
-     * born. Spawn's blob and a slime standing on Gloom both turn a slime
-     * this way.
+     * born. A slime standing on Gloom turns this way.
      * spawn-hostile-shape-peaceful-from-a-slime
      * gloom-turns-slimes-into-random-hostiles-in-place-of-spawn
      *
@@ -114,8 +114,8 @@ public record SlimeTransmuteStep(ResourceKey<GooTypeDefinition> goo, boolean hos
     /**
      * Transmutes a slime into a mob of a type: the slime is consumed, and a
      * mob of the type stands in its cell while the players watching see the
-     * goo morph into it from where the slime stood. Shape's blob and a slime
-     * standing on Stitch both turn a slime this way.
+     * goo morph into it from where the slime stood. A slime standing on
+     * Stitch and one standing on Gloom both turn this way.
      * spawn-hostile-shape-peaceful-from-a-slime
      * stitch-is-yarns-residual-that-turns-slimes-into-passive-mobs
      * model-transformation-is-one-animation
