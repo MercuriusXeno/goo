@@ -98,7 +98,8 @@ class HeldSweepSectionsTest {
         @Test
         void oreDrawReportsUnderItsOwnSection() {
             assertEquals(List.of(HeldSweepSections.ORE_DRAW), sectionsOf(() ->
-                    OreXray.drawOre(pos -> List.of(), poseStack, Vec3.ZERO, List.of(), pass -> consumer.pass())));
+                    OreXray.drawOre(pos -> List.of(), poseStack, Vec3.ZERO, List.of(), gooType -> 0,
+                            pass -> consumer.pass())));
         }
     }
 
