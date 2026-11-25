@@ -136,7 +136,8 @@ public record DetectOreStep(TagKey<Block> tag, ResourceKey<GooTypeDefinition> go
         List<OreVeins.Vein> veins = HeldSweepSections.profiled(HeldSweepSections.ORE_WALK,
                 () -> OreVeins.firstReachedIn(BlockPos.containing(origin), pace.radiusAt(pulseTick - 1),
                         pace.radiusAt(pulseTick), radius, ores));
-        return new OreRevealPayload(veins, life);
+        // decision ore-glow-takes-the-casting-goos-color
+        return new OreRevealPayload(veins, life, goo);
     }
 
     /**

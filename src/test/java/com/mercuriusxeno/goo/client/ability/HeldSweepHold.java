@@ -165,7 +165,7 @@ final class HeldSweepHold {
         for (HeldSweepPulses.Pulse pulse : live) {
             if (walked.add(pulse.origin())) {
                 OreRevealPayload reveal = ore.revealAt(HeldSweepWorld.ORES, pulse.origin(), pulse.ageAt(gameTime));
-                OreSightings.CLIENT.reveal(gameTime, reveal.veins(), reveal.life());
+                OreSightings.CLIENT.reveal(gameTime, reveal.veins(), reveal.life(), reveal.gooType());
             }
         }
     }
@@ -200,7 +200,7 @@ final class HeldSweepHold {
         List<OreSightings.Sighting> showing = OreXray.showingAt(now);
         if (!showing.isEmpty()) {
             OreXray.sortedByNearest(showing, camera, () -> OreXray.drawOre(pos -> cube, poseStack, camera, showing,
-                    pass -> consumer.pass())).draw().run();
+                    gooType -> 0, pass -> consumer.pass())).draw().run();
         }
     }
 

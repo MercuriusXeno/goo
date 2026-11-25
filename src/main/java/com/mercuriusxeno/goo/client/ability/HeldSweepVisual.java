@@ -123,13 +123,15 @@ public final class HeldSweepVisual {
     /**
      * The color the fronts and the walls draw in: the casting goo type's
      * color, so each sweep reads in its own type's colors and a datapack
-     * recoloring the type recolors the sweep.
+     * recoloring the type recolors the sweep. The ore the sweep reveals glows
+     * in this color too, so the sweep and its ore agree.
+     * decision ore-glow-takes-the-casting-goos-color
      *
      * @param gooType   the goo type the pulse names
      * @param typeColor answers a goo type's color
      * @return 0xRRGGBB
      */
-    static int tint(ResourceKey<GooTypeDefinition> gooType, ToIntFunction<ResourceKey<GooTypeDefinition>> typeColor) {
+    public static int tint(ResourceKey<GooTypeDefinition> gooType, ToIntFunction<ResourceKey<GooTypeDefinition>> typeColor) {
         return typeColor.applyAsInt(gooType);
     }
 
