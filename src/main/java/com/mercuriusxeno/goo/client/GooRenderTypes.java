@@ -762,7 +762,7 @@ public final class GooRenderTypes {
                     .createRenderSetup());
 
     /**
-     * A gate's halo: its color glowing onto the wall around its oval, fading
+     * A portal's halo: its color glowing onto the wall around its oval, fading
      * outward to nothing on the sixteen-texel grid, blended additively and
      * depth tested without writing depth, so the wall and the rim stay as
      * they draw beneath it.
@@ -781,9 +781,9 @@ public final class GooRenderTypes {
             .withCull(false)
             .build());
 
-    /** RenderType for a gate's halo. */
+    /** RenderType for a portal's halo. */
     /**
-     * A gate's halo's OIT phases, drawing it as a see-through layer with coverage, its shader retuning it toward the light it adds with improved transparency off.
+     * A portal's halo's OIT phases, drawing it as a see-through layer with coverage, its shader retuning it toward the light it adds with improved transparency off.
      * decision additive-glows-draw-as-translucent-layers-in-the-oit-phase
      */
     public static final OitPipelineSet GOO_PORTAL_HALO_OIT = oitSetOf(GOO_PORTAL_HALO);
@@ -793,7 +793,7 @@ public final class GooRenderTypes {
                     .createRenderSetup());
 
     /**
-     * A gate's swirl band: a funnel spiralling out from its rim in front
+     * A portal's swirl band: a funnel spiralling out from its rim in front
      * of it, standing off the wall, banded on the sixteen-texel grid, blended
      * additively and depth tested without writing depth, beside the surface
      * glow.
@@ -812,9 +812,9 @@ public final class GooRenderTypes {
             .withCull(false)
             .build());
 
-    /** RenderType for a gate's swirl band. */
+    /** RenderType for a portal's swirl band. */
     /**
-     * A gate's swirl band's OIT phases, drawing it as a see-through layer with coverage, its shader retuning it toward the light it adds with improved transparency off.
+     * A portal's swirl band's OIT phases, drawing it as a see-through layer with coverage, its shader retuning it toward the light it adds with improved transparency off.
      * decision additive-glows-draw-as-translucent-layers-in-the-oit-phase
      */
     public static final OitPipelineSet GOO_PORTAL_SWIRL_BAND_OIT = oitSetOf(GOO_PORTAL_SWIRL_BAND);
