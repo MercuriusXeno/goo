@@ -1,6 +1,9 @@
 #version 330
 #extension GL_ARB_separate_shader_objects : require
 
+#include <minecraft:oit.glsl>
+#include <goo:see_through_glow.glsl>
+
 // Unstable goo's burnout explosion (decision elemental-explosion-per-type):
 // a neon fireball whose white-green core fades to a 39FF14 rim, its surface
 // crackling and flickering with animated noise, and a shockwave ring
@@ -19,7 +22,12 @@ layout(location = 6) in float ringRadial;
 layout(location = 7) in float held;
 layout(location = 8) in float clock;
 
+// Under improved transparency the depth bounds and transmittance phases take the alpha alone, and the
+// accumulate phase weights the color by the transmittance in front of it
+// (decision goo-translucency-draws-through-order-independent-transparency).
+#ifndef OIT_ALPHA_ONLY
 layout(location = 0) out vec4 fragColor;
+#endif
 
 const vec3 CORE_COLOR = vec3(0.86, 1.0, 0.74);
 const vec3 RIM_COLOR = vec3(0.224, 1.0, 0.078);
@@ -49,12 +57,25 @@ float noise(vec3 x) {
         f.z);
 }
 
+// Draws a fragment of the explosion, retuned toward its added light in the OIT phase alone
+// (decision additive-glows-draw-as-translucent-layers-in-the-oit-phase).
+void drawGlow(vec4 glow) {
+    vec4 drawn = seeThroughGlow(glow);
+#ifdef OIT_ALPHA_ONLY
+    executeAlphaOnlyPhase(gl_FragCoord.z, drawn.a);
+#elif defined(OIT_ACCUMULATE)
+    fragColor = sampleColorForAccumulation(drawn);
+#else
+    fragColor = drawn;
+#endif
+}
+
 void main() {
     float fade = held > 0.5 ? 1.0 : (1.0 - progress) * (1.0 - progress);
 
     if (ringFlag > 0.5) {
         float band = sin(ringRadial * PI);
-        fragColor = vec4(BRIGHT_COLOR * RING_INTENSITY, band * fade * opacity);
+        drawGlow(vec4(BRIGHT_COLOR * RING_INTENSITY, band * fade * opacity));
         return;
     }
 
@@ -70,5 +91,5 @@ void main() {
     // full opacity; the landing's fireball keeps its rim-weighted glow.
     float strength = held > 0.5 ? 1.0 : mix(0.35 + 0.65 * rim, 1.0, flash);
     float alpha = fade * flicker * strength * (0.55 + 0.45 * crackle);
-    fragColor = vec4(color, clamp(alpha, 0.0, 1.0) * opacity);
+    drawGlow(vec4(color, clamp(alpha, 0.0, 1.0) * opacity));
 }

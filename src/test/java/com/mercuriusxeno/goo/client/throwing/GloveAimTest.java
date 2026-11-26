@@ -90,6 +90,14 @@ class GloveAimTest {
         assertEquals(16, GloveAim.aimRangeOf(shipped("frost_orb"), null));
     }
 
+    /**
+     * decision meteo-range-is-thirty-two-blocks
+     */
+    @Test
+    void meteoAimsThirtyTwoBlocks() {
+        assertEquals(32, GloveAim.aimRangeOf(shipped("astral_meteo"), null));
+    }
+
     @Test
     void laserAimsThirtyTwoBlocks() {
         assertEquals(32, GloveAim.aimRangeOf(shipped("glow_laser"), null));

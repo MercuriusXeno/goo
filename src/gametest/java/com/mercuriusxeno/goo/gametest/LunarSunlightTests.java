@@ -22,9 +22,9 @@ public final class LunarSunlightTests {
     private static final String LUNAR_SUNLIGHT_FOLLOWS_THE_SUN_ON_BOTH_HALVES =
             "lunar_sunlight_follows_the_sun_on_both_halves";
     /** An open-sky block on the dark side, high over the ground, where the planet's angle stands at 144 degrees. */
-    private static final BlockPos DARK_SIDE_SKY = new BlockPos(6_000_000, 300, 0);
+    private static final BlockPos DARK_SIDE_SKY = new BlockPos(6_000_000, 150, 0);
     /** An open-sky block at the light side's middle, under the planet. */
-    private static final BlockPos LIGHT_SIDE_SKY = new BlockPos(0, 300, 0);
+    private static final BlockPos LIGHT_SIDE_SKY = new BlockPos(0, 150, 0);
     /** The overworld's midnight under its full moon, when the sun stands where the planet stands at every x. */
     private static final long FULL_MOON_MIDNIGHT = 18_000;
     private static final long WHOLE_CYCLE = 192_000;

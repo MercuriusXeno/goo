@@ -47,7 +47,8 @@ public final class AimTracker {
     /**
      * Frame start: resolves the aim along the camera's ray. The frame's
      * camera update runs before this event, so the camera holds the eye
-     * height it eases toward a crouch, the one the frame draws.
+     * height it eases toward a crouch, the one the frame draws; a target
+     * lights only within range of the player's eye, wherever the camera stands.
      * decision aim-ray-starts-at-the-camera
      *
      * @param event the event instance
@@ -63,7 +64,9 @@ public final class AimTracker {
         ResourceKey<GooTypeDefinition> selectedType = GloveAim.selectedGooType(player);
         int entityOutline = selectedType != null ? ARGB.opaque(ClientGooTypes.highlight(selectedType)) : 0;
         Camera camera = mc.gameRenderer.mainCamera();
-        AimTargets.AimRay ray = AimTargets.AimRay.along(camera.position(), new Vec3(camera.forwardVector()),
+        // diagnose-and-correct-the-indicator-disagreeing-with-the-cast: the range reads the eye the server measures
+        AimTargets.AimRay ray = AimTargets.AimRay.fromCamera(camera.position(), new Vec3(camera.forwardVector()),
+                player.getEyePosition(mc.getDeltaTracker().getGameTimeDeltaPartialTick(false)),
                 GloveAim.aimRange(player));
         List<Step> behaviors = GloveAim.selectedBehaviors(player);
         boolean grabPressed = GloveUseTracker.showsArea() && behaviors.stream().anyMatch(GrabStep.class::isInstance);

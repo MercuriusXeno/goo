@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.client.DepthCopyTarget;
+import com.mercuriusxeno.goo.client.ImmediateBuffers;
+import com.mercuriusxeno.goo.client.OitDrawPhase;
 import com.mercuriusxeno.goo.client.StagePass;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.pipeline.TextureTarget;
@@ -17,6 +19,7 @@ import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
 import com.mojang.renderpearl.api.pipeline.RenderPipeline;
 import com.mojang.renderpearl.api.textures.FilterMode;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.oit.OitPipelineSet;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
@@ -24,6 +27,8 @@ import org.joml.Matrix4fc;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
 import java.nio.ByteBuffer;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * One render pass drawing a box around a volume as an {@link InwardBox},
@@ -46,29 +51,59 @@ final class MarchedBoxPass {
     private static final int FLOATS_PER_ROW = 4;
     private static final Vector4f WHITE = new Vector4f(1, 1, 1, 1);
 
+    /** How long after a draw in an OIT stage the pass keeps copying the depth before the OIT phase, in nanoseconds. */
+    private static final long WANTED_NANOS = 250_000_000L;
+    /** Every marched pass, each of which may copy the depth before the OIT phase. */
+    private static final List<MarchedBoxPass> PASSES = new CopyOnWriteArrayList<>();
+
     private final String label;
     private final RenderPipeline pipeline;
+    private final OitPipelineSet oit;
     private final String blockName;
     private final String depthSampler;
     private final int bytes;
     private final DepthCopyTarget depthCopy;
+    /** Until when a draw in an OIT stage wants the depth copied before the OIT phase. */
+    private long wantedUntil;
+    /** Whether the depth was copied before this level pass's OIT phase. */
+    private boolean copiedBeforeTheOitPhase;
 
     /**
      * A marched pass.
      *
      * @param label        the name the pass and its buffers carry in a frame capture
      * @param pipeline     the pipeline whose fragment shader marches the volume
+     * @param oit          the pipeline's OIT set, which it draws through in an OIT stage
      * @param blockName    the uniform block the shader reads the volume from
      * @param depthSampler the sampler the shader reads the world's depth through
      * @param bytes        the uniform block's size in bytes
      */
-    MarchedBoxPass(String label, RenderPipeline pipeline, String blockName, String depthSampler, int bytes) {
+    MarchedBoxPass(String label, RenderPipeline pipeline, OitPipelineSet oit, String blockName, String depthSampler,
+                   int bytes) {
         this.label = label;
         this.pipeline = pipeline;
+        this.oit = oit;
         this.blockName = blockName;
         this.depthSampler = depthSampler;
         this.bytes = bytes;
         this.depthCopy = new DepthCopyTarget(label + DEPTH_SUFFIX);
+        PASSES.add(this);
+    }
+
+    /**
+     * Copies the level's depth for each marched pass an OIT stage drew lately, before the level pass's OIT phase
+     * opens its passes, where 26.3 refuses a copy, the opaque depth whole by then.
+     * decision goo-translucency-draws-through-order-independent-transparency
+     */
+    static void copyDepthBeforeTheOitPhase() {
+        long now = System.nanoTime();
+        RenderTarget main = Minecraft.getInstance().gameRenderer.mainRenderTarget();
+        for (MarchedBoxPass pass : PASSES) {
+            pass.copiedBeforeTheOitPhase = now < pass.wantedUntil;
+            if (pass.copiedBeforeTheOitPhase) {
+                pass.depthCopy.matching(main).copyDepthFrom(main);
+            }
+        }
     }
 
     /**
@@ -104,9 +139,23 @@ final class MarchedBoxPass {
      * @param modelView the level's model view matrix this frame
      */
     void draw(AABB box, ByteBuffer block, Matrix4fc modelView) {
+        OitDrawPhase phase = OitDrawPhase.current();
+        RenderPipeline drawn = OitDrawPhase.pipelineFor(phase, pipeline, oit);
+        if (drawn == null) {
+            return;
+        }
         RenderTarget main = Minecraft.getInstance().gameRenderer.mainRenderTarget();
         TextureTarget depth = depthCopy.matching(main);
-        depth.copyDepthFrom(main);
+        if (phase.stage() == null) {
+            depth.copyDepthFrom(main);
+        } else {
+            // Inside an OIT stage's open pass the copy waits for the next phase's start, taken before it opens.
+            wantedUntil = System.nanoTime() + WANTED_NANOS;
+            if (!copiedBeforeTheOitPhase) {
+                return;
+            }
+            ImmediateBuffers.noteOitIndexCount(PrimitiveTopology.QUADS, FACES * INDICES_PER_QUAD);
+        }
         GpuDevice device = RenderSystem.getDevice();
         GpuBuffer uniforms = device.createBuffer(() -> label + SHAPE_SUFFIX, GpuBuffer.USAGE_UNIFORM, block);
         try (ByteBufferBuilder vertexBytes = new ByteBufferBuilder(FACES * CORNERS
@@ -114,21 +163,23 @@ final class MarchedBoxPass {
             MeshData mesh = boxOf(box, vertexBytes);
             GpuBuffer vertices = device.createBuffer(() -> label + BOX_SUFFIX, GpuBuffer.USAGE_VERTEX,
                     mesh.vertexBuffer());
-            drawBox(device, main, depth, modelView, new GpuBuffer[] {uniforms, vertices});
+            drawBox(drawn, depth, modelView, new GpuBuffer[] {uniforms, vertices});
             mesh.close();
             vertices.close();
         }
         uniforms.close();
     }
 
-    private void drawBox(GpuDevice device, RenderTarget main, TextureTarget depth, Matrix4fc modelView,
+    // In an OIT stage the stage's own pass stands for the main target, so the box draws there through its phase's
+    // pipeline.
+    private void drawBox(RenderPipeline drawn, TextureTarget depth, Matrix4fc modelView,
                          GpuBuffer[] uniformsAndVertices) {
         RenderSystem.AutoStorageIndexBuffer indices = RenderSystem.getSequentialBuffer(PrimitiveTopology.QUADS);
         GpuBufferSlice transform = RenderSystem.getDynamicUniforms().writeTransform(new Matrix4f(modelView), WHITE,
                 new Vector3f(), new Matrix4f());
         try (StagePass stage = StagePass.onMain(() -> label)) {
             RenderPass pass = stage.pass();
-            pass.setPipeline(RenderSystem.getCompiledPipeline(pipeline));
+            pass.setPipeline(RenderSystem.getCompiledPipeline(drawn));
             RenderSystem.bindDefaultUniforms(pass);
             pass.setUniform(TRANSFORMS_UNIFORM, transform);
             pass.setUniform(blockName, uniformsAndVertices[0].slice(0, bytes));

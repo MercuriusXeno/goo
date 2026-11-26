@@ -209,7 +209,7 @@ class StepCodecTest {
                     SoundCue.of(Identifier.parse("minecraft:item.axe.scrape")), 3)),
             Map.entry("mortar", new MortarStep(Identifier.fromNamespaceAndPath("goo", "calcify"), 10, Expr.literal(2),
                     20)),
-            Map.entry("infest", new InfestStep(Identifier.fromNamespaceAndPath("goo", "decay"), 20, 2f, 0.1)),
+            Map.entry("infest", new InfestStep(Identifier.fromNamespaceAndPath("goo", "decay"), 20, 2f)),
             Map.entry("nitro", new NitroStep(1.0, 0.2, 4)),
             Map.entry("gloom", new GloomStep()),
             Map.entry("phase_goo", new PhaseGooStep(2)),

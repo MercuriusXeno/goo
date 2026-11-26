@@ -65,6 +65,7 @@
     "FirstPersonHandsSwingMixin",
     "ItemStackLayerPhaseMixin",
     "LevelRendererPortalPassMixin",
+    "LevelRendererOitPhaseStartMixin",
     "CameraSculkerCullMixin",
     "LevelExtractorVoidstoneMixin",
     "LivingEntityRendererInvertMixin",

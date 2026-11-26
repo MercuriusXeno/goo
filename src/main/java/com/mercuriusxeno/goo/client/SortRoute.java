@@ -54,10 +54,13 @@ public enum SortRoute {
     /**
      * Drawn once the level is drawn, clouds, weather and the Fabulous blend
      * included, tested against the level's depth, after every other goo
-     * visual farther from the camera and before every nearer one. A visual
-     * behind water or glass stays hidden on Fast and Fancy and untinted on
-     * Fabulous until order-independent transparency lands on 26.3 (decision
-     * goo-translucency-draws-through-order-independent-transparency).
+     * visual farther from the camera and before every nearer one. Under
+     * improved transparency, a draw of a visual drawing through
+     * ImmediateBuffers alone whose render type carries an OIT set draws in
+     * 26.3's OIT phase instead, blending with water, glass and the level's
+     * other translucency in any order, and a post effect applies to it as
+     * to the rest of the level; every other draw stays at AfterLevel.
+     * decision goo-translucency-draws-through-order-independent-transparency
      */
     FAR_TO_NEAR(RenderLevelStageEvent.AfterLevel.class);
 

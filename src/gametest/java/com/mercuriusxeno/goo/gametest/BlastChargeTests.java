@@ -54,6 +54,8 @@ public final class BlastChargeTests {
                 BlastChargeTests::unchargedBlastBreaksOutToTwo);
         GooTestFunctions.registerTest(registrar, ROOTED_BLAST_EXPLODES_WHERE_THE_CHARGE_BEGAN,
                 BlastChargeTests::rootedBlastExplodesWhereTheChargeBegan);
+        GooTestFunctions.registerTest(registrar, BLAST_BEGUN_IN_RANGE_EXPLODES_RELEASED_OUT_OF_RANGE,
+                BlastChargeTests::blastBegunInRangeExplodesReleasedOutOfRange);
         GooTestFunctions.registerTest(registrar, CHARGED_BLAST_NAMES_ITS_CASTER, BlastChargeTests::blastNamesItsCaster);
         GooTestFunctions.registerTest(registrar, CHARGED_BLAST_KEEPS_LEAD_AND_CHARM,
                 BlastChargeTests::blastKeepsLeadAndCharm);
@@ -67,6 +69,8 @@ public final class BlastChargeTests {
 
     private static final String ROOTED_BLAST_EXPLODES_WHERE_THE_CHARGE_BEGAN =
             "rooted_blast_explodes_where_the_charge_began";
+    private static final String BLAST_BEGUN_IN_RANGE_EXPLODES_RELEASED_OUT_OF_RANGE =
+            "blast_begun_in_range_explodes_released_out_of_range";
     private static final double HALF_BLOCK = 0.5;
 
     private static final Identifier BLAST = Identifier.fromNamespaceAndPath(Goo.MODID, "unstable_blast");
@@ -150,6 +154,24 @@ public final class BlastChargeTests {
         helper.succeed();
     }
 
+    /** How far the caster rises between the charge rooting and the release, carrying the eye past Blast's 16. */
+    private static final int RISEN_BEYOND_RANGE = 20;
+
+    /**
+     * A charge rooted with its caster seven blocks from the stone, released
+     * after the caster rises twenty blocks, past Blast's 16 block range,
+     * breaks the stone beside the rooted spot.
+     * decision what-starts-in-range-resolves-out-of-range
+     *
+     * @param helper the gametest helper
+     */
+    public static void blastBegunInRangeExplodesReleasedOutOfRange(GameTestHelper helper) {
+        castBlast(helper, 0, player -> player.setPos(player.position().add(0, RISEN_BEYOND_RANGE, 0)));
+        helper.assertTrue(helper.getBlockState(AIMED.east(INSIDE_THE_FIRST_STAGE)).isAir(),
+                "The blast begun in range should break the stone beside the rooted spot after the caster left range");
+        helper.succeed();
+    }
+
     /**
      * A release with no hold, aimed at stone beside an iron golem, hurts the
      * golem with an explosion naming the caster.
@@ -199,7 +221,7 @@ public final class BlastChargeTests {
      * @param helper    the gametest helper
      * @param heldTicks the ticks the charge was held
      * @param target    the stone the release aims at
-     * @param posed     what the caster does before the release, such as looking elsewhere
+     * @param posed     what the caster does after the charge roots and before the release, such as looking elsewhere
      */
     @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
     private static void castBlast(GameTestHelper helper, int heldTicks, BlockPos target, Consumer<ServerPlayer> posed) {
@@ -214,12 +236,13 @@ public final class BlastChargeTests {
         player.getInventory().add(GooStacks.createForOutput(GooTypes.UNSTABLE, AMPLE_UNSTABLE));
         player.getInventory().add(new ItemStack(Items.GUNPOWDER));
         KnownRecipes.teachRequires(player, blast);
-        posed.accept(player);
+        Vec3 eyeAsRooted = player.getEyePosition();
         GooThrowPayload aimed = new GooThrowPayload(GooTypes.id(GooTypes.UNSTABLE), -1, helper.absolutePos(target),
-                Direction.UP.ordinal(), false, BLAST.toString(), player.getEyePosition(),
+                Direction.UP.ordinal(), false, BLAST.toString(), eyeAsRooted,
                 helper.absoluteVec(Vec3.atCenterOf(target).add(0, HALF_BLOCK, 0)));
+        posed.accept(player);
         GooThrowHandler.releaseCharge(player, new GooChargePayload(GooTypes.id(GooTypes.UNSTABLE), BLAST.toString(),
-                heldTicks, Optional.of(aimed)));
+                heldTicks, Optional.of(aimed), Optional.of(eyeAsRooted)));
         helper.getLevel().getServer().getPlayerList().remove(player);
     }
 

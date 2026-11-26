@@ -25,6 +25,7 @@ import java.util.Optional;
  * cells, each holding one crater or none, its place and size rolled from the world's seeded noise, so every world
  * draws its own craters and a column reads the same craters on every call.
  * decision lunar-generates-from-its-own-noise-and-surface-rules
+ * decision moon-is-288-tall-half-of-today
  *
  * @param noise the seeded noise each cell's rolls read
  */
@@ -47,8 +48,8 @@ public record CraterField(Noise noise) implements DensitySampler {
     /** The radius a cell adds over the least, at its largest; squared rolls make small craters common. */
     static final double RADIUS_SPREAD = 17.0;
     /** A bowl sinks a third of its radius, and its rim rises an eighth, the shape fresh lunar craters keep. */
-    static final double DEPTH_PER_RADIUS = 0.35;
-    static final double RIM_PER_RADIUS = 0.12;
+    static final double DEPTH_PER_RADIUS = 0.175;
+    static final double RIM_PER_RADIUS = 0.06;
     /** The rim falls back to the ground at 1.6 radii. */
     static final double RIM_REACH = 0.6;
     /** A crater's floor reaches half its radius from its centre, the flat of the bowl where impacts melt the ground. */

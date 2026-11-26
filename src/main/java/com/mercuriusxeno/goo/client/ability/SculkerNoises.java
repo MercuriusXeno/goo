@@ -80,6 +80,10 @@ public final class SculkerNoises {
      * @param tick  the game time it was heard
      */
     public void sound(String sound, Vec3 at, long tick) {
+        SculkerEchoSections.profiled(SculkerEchoSections.HEAR, () -> joinSound(sound, at, tick));
+    }
+
+    private void joinSound(String sound, Vec3 at, long tick) {
         OptionalInt subRank = ranks.rankOf(sound);
         if (subRank.isPresent()) {
             ringer.ring(at, tick, subRank.getAsInt());
@@ -102,6 +106,10 @@ public final class SculkerNoises {
      * @param rank its vibration frequency
      */
     public void vibration(Vec3 at, long tick, int rank) {
+        SculkerEchoSections.profiled(SculkerEchoSections.HEAR, () -> joinVibration(at, tick, rank));
+    }
+
+    private void joinVibration(Vec3 at, long tick, int rank) {
         Noise sound = takeBeside(sounds, at);
         if (sound == null) {
             vibrations.add(new Noise(at, tick, rank));
@@ -134,13 +142,17 @@ public final class SculkerNoises {
     }
 
     private static @Nullable Noise takeBeside(List<Noise> waiting, Vec3 at) {
+        int weighed = 0;
         for (Iterator<Noise> each = waiting.iterator(); each.hasNext(); ) {
             Noise noise = each.next();
+            weighed++;
             if (noise.beside(at)) {
                 each.remove();
+                SculkerEchoSections.count(SculkerEchoSections.NOISES_WEIGHED_COUNTER, weighed);
                 return noise;
             }
         }
+        SculkerEchoSections.count(SculkerEchoSections.NOISES_WEIGHED_COUNTER, weighed);
         return null;
     }
 }

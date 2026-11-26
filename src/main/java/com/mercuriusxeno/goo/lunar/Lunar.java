@@ -25,6 +25,12 @@ public final class Lunar {
      */
     public static final int LIGHT_SIDE_HALF_WIDTH = 3_750_000;
     /**
+     * Half the moon's world border's width, in blocks: the border runs from minus this to plus this on x and z, a
+     * quarter of the overworld's plus and minus 30 million.
+     * decision moon-is-a-quarter-the-overworld-bordered-at-seven-and-a-half-million
+     */
+    public static final int BORDER_HALF_WIDTH = 7_500_000;
+    /**
      * The moon's way around along x, in blocks: the light side and the dark side, each half of it, the seam at plus
      * and minus half.
      */
