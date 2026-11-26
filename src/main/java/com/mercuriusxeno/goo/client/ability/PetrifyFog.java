@@ -45,18 +45,37 @@ public final class PetrifyFog {
 
     /** Puffs poured a tick, their births spread across it so the stream runs smooth. */
     private static final int PUFFS_PER_TICK = 6;
-    private static final double HALF = 0.5;
     private static final float SIGNED_TO_UNIT = 0.5f;
     /** A quad corner's two sides of its center, along each of its directions. */
     private static final int OUT = 1;
     private static final int BACK = -OUT;
 
-    /** The poured puffs, and the reach and half angle they pour by. */
+    /** The ability the fog is registered under in {@link ConeVisuals}. */
+    static final String PETRIFY_ID = "goo:rock_petrify";
+
+    /** The poured puffs, each keeping the cone it was poured through. */
     private static final List<PetrifyPuffs.Puff> PUFFS = new ArrayList<>();
-    private static double range;
-    private static double halfAngle;
 
     private PetrifyFog() {
+    }
+
+    /**
+     * Pours a tick's puffs through the cone Petrify pours through, the glove's or a nozzle's.
+     * decision spray-abilities-render-procedurally-bound-to-their-cone
+     *
+     * @param cone the cone poured through
+     */
+    static void pour(SprayCone cone) {
+        ClientLevel level = Minecraft.getInstance().level;
+        if (level == null) {
+            return;
+        }
+        double now = level.getGameTime();
+        RandomSource random = level.getRandom();
+        for (int puff = 0; puff < PUFFS_PER_TICK; puff++) {
+            PUFFS.add(PetrifyPuffs.pour(cone, now + (double) puff / PUFFS_PER_TICK, random.nextDouble(),
+                    random.nextDouble(), random.nextFloat()));
+        }
     }
 
     /**
@@ -79,15 +98,9 @@ public final class PetrifyFog {
         if (petrify == null) {
             return;
         }
-        range = petrify.delivery().range();
-        halfAngle = Math.toRadians(petrify.delivery().coneDegrees() * HALF);
-        Vec3 glove = CastOrigin.ofLocal(mc);
-        RandomSource random = level.getRandom();
-        for (int puff = 0; puff < PUFFS_PER_TICK; puff++) {
-            PUFFS.add(PetrifyPuffs.pour(glove, player.getViewVector(1f), halfAngle,
-                    now + (double) puff / PUFFS_PER_TICK, random.nextDouble(), random.nextDouble(),
-                    random.nextFloat()));
-        }
+        // spray-abilities-render-procedurally-bound-to-their-cone: the glove pours the round cone of the delivery
+        ConeVisuals.pour(petrify.id().toString(),
+                SprayCone.ofGlove(petrify.delivery(), CastOrigin.ofLocal(mc), player.getViewVector(1f)));
     }
 
     /**
@@ -104,7 +117,7 @@ public final class PetrifyFog {
         }
         double now = mc.level.getGameTime() + mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         List<PetrifyPuffs.Puff> poured = List.copyOf(PUFFS);
-        Stream<Vec3> centers = poured.stream().map(puff -> PetrifyPuffs.positionAt(puff, now, range, halfAngle));
+        Stream<Vec3> centers = poured.stream().map(puff -> PetrifyPuffs.positionAt(puff, now));
         draws.accept(SortedDraw.nearestOf(centers, mc.gameRenderer.mainCamera().position(),
                 () -> drawPuffs(mc, frame, poured, now)));
     }
@@ -118,9 +131,9 @@ public final class PetrifyFog {
         Vec3 up = toVec3(camera.upVector());
         Vec3 view = toVec3(camera.forwardVector());
         for (PetrifyPuffs.Puff puff : poured) {
-            Vec3 center = PetrifyPuffs.positionAt(puff, now, range, halfAngle).subtract(camera.position());
-            double radius = PetrifyPuffs.radiusAt(PetrifyPuffs.distanceAt(PetrifyPuffs.ageShare(puff, now), range),
-                    halfAngle);
+            Vec3 center = PetrifyPuffs.positionAt(puff, now).subtract(camera.position());
+            double radius = PetrifyPuffs.radiusAt(PetrifyPuffs.distanceAt(PetrifyPuffs.ageShare(puff, now),
+                    puff.cone().reach()), PetrifyPuffs.narrowHalfAngle(puff.cone()));
             emitPuff(quads, new Billboard(center, left.scale(radius), up.scale(radius), view),
                     (float) PetrifyPuffs.ageShare(puff, now), puff.seed());
         }

@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.throwing.ConeShape;
+import com.mercuriusxeno.goo.throwing.StreamCone;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -34,6 +36,28 @@ class PetrifyFogTest {
     private static final double ANGLE_SLACK = 1e-6;
     /** The settled fog's widest dust stands within this share of the half angle from it. */
     private static final double WIDEST_SHARE = 0.9;
+    private static final SprayCone ROUND = new SprayCone(GLOVE, AIM, ConeShape.round(30), RANGE);
+    private static final SprayCone TURNED = new SprayCone(GLOVE, TURNED_AIM, ConeShape.round(30), RANGE);
+
+    /**
+     * A cone wider across than up and down draws a flat sheet of fog inside it
+     * (decision spray-abilities-render-procedurally-bound-to-their-cone).
+     */
+    @Test
+    void everyPuffPouredIntoAFlatConeStandsInsideItAndItsReach() {
+        SprayCone flat = new SprayCone(GLOVE, new Vec3(0.3, -0.2, 1).normalize(), new ConeShape(60, 8, false), 7);
+        for (int lean = 0; lean <= GRID; lean++) {
+            for (int around = 0; around < GRID; around++) {
+                PetrifyPuffs.Puff puff = PetrifyPuffs.pour(flat, 0, (double) lean / GRID, (double) around / GRID,
+                        (float) around / GRID);
+                for (int step = 0; step <= AGE_STEPS; step++) {
+                    Vec3 where = PetrifyPuffs.positionAt(puff, PetrifyPuffs.LIFE_TICKS * step / AGE_STEPS);
+                    assertTrue(StreamCone.contains(flat.apex(), flat.axis(), flat.reach() + REACH_SLACK,
+                            flat.shape(), where), "puff " + lean + "/" + around + " at step " + step + " leaves");
+                }
+            }
+        }
+    }
 
     private static double offAxis(Vec3 point, Vec3 origin, Vec3 axis) {
         Vec3 from = point.subtract(origin);
@@ -44,7 +68,7 @@ class PetrifyFogTest {
         List<PetrifyPuffs.Puff> puffs = new ArrayList<>();
         for (int lean = 0; lean <= GRID; lean++) {
             for (int around = 0; around < GRID; around++) {
-                puffs.add(PetrifyPuffs.pour(GLOVE, AIM, HALF_ANGLE, 0, (double) lean / GRID,
+                puffs.add(PetrifyPuffs.pour(ROUND, 0, (double) lean / GRID,
                         (double) around / GRID, (float) ((lean * GRID + around) % GRID) / GRID));
             }
         }
@@ -56,17 +80,17 @@ class PetrifyFogTest {
 
         @Test
         void dustPouredBeforeTheTurnTrailsOffTheNewAimsAxis() {
-            PetrifyPuffs.Puff before = PetrifyPuffs.pour(GLOVE, AIM, HALF_ANGLE, 0, 0, 0, 0.3f);
+            PetrifyPuffs.Puff before = PetrifyPuffs.pour(ROUND, 0, 0, 0, 0.3f);
             double later = TICK + TICK / 2;
-            Vec3 where = PetrifyPuffs.positionAt(before, later, RANGE, HALF_ANGLE);
+            Vec3 where = PetrifyPuffs.positionAt(before, later);
             assertTrue(offAxis(where, GLOVE, TURNED_AIM) > OFF_THE_AXIS,
                     "the old puff stands " + offAxis(where, GLOVE, TURNED_AIM) + " off the turned aim");
         }
 
         @Test
         void dustJustPouredStandsAtTheGlove() {
-            PetrifyPuffs.Puff poured = PetrifyPuffs.pour(GLOVE, TURNED_AIM, HALF_ANGLE, TICK, 1, 0.4, 0.7f);
-            assertEquals(0, PetrifyPuffs.positionAt(poured, TICK, RANGE, HALF_ANGLE).distanceTo(GLOVE),
+            PetrifyPuffs.Puff poured = PetrifyPuffs.pour(TURNED, TICK, 1, 0.4, 0.7f);
+            assertEquals(0, PetrifyPuffs.positionAt(poured, TICK).distanceTo(GLOVE),
                     AT_THE_GLOVE);
         }
     }
@@ -80,7 +104,7 @@ class PetrifyFogTest {
             for (PetrifyPuffs.Puff puff : settledFog()) {
                 for (int step = 0; step <= AGE_STEPS; step++) {
                     double now = PetrifyPuffs.LIFE_TICKS * step / AGE_STEPS;
-                    Vec3 where = PetrifyPuffs.positionAt(puff, now, RANGE, HALF_ANGLE);
+                    Vec3 where = PetrifyPuffs.positionAt(puff, now);
                     farthest = Math.max(farthest, where.subtract(GLOVE).dot(AIM));
                 }
             }
@@ -94,7 +118,7 @@ class PetrifyFogTest {
             for (PetrifyPuffs.Puff puff : settledFog()) {
                 for (int step = 1; step <= AGE_STEPS; step++) {
                     double now = PetrifyPuffs.LIFE_TICKS * step / AGE_STEPS;
-                    Vec3 from = PetrifyPuffs.positionAt(puff, now, RANGE, HALF_ANGLE).subtract(GLOVE).normalize();
+                    Vec3 from = PetrifyPuffs.positionAt(puff, now).subtract(GLOVE).normalize();
                     widest = Math.max(widest, Math.acos(Math.min(1, from.dot(AIM))));
                 }
             }

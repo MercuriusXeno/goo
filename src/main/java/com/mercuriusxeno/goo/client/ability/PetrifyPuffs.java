@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.throwing.StreamCone;
 import net.minecraft.world.phys.Vec3;
 
 /**
@@ -29,6 +30,7 @@ final class PetrifyPuffs {
     private static final Vec3 UP = new Vec3(0, 1, 0);
     private static final Vec3 EAST = new Vec3(1, 0, 0);
     private static final double NEARLY_UPRIGHT = 0.99;
+    private static final double HALF = 0.5;
 
     private PetrifyPuffs() {
     }
@@ -36,31 +38,44 @@ final class PetrifyPuffs {
     /**
      * One puff of dust.
      *
-     * @param glove     where the glove stood when the puff left it, in world space
-     * @param path      the puff's unit direction, inside the cone about the aim it was poured on
+     * @param cone      the cone it was poured through, the glove where it stood and the aim it held then
+     * @param path      the puff's unit direction, inside the cone's shape about the aim it was poured on
      * @param bornTicks the game time the puff left the glove, in ticks
      * @param seed      the puff's own value, 0 to 1, setting its roll and its churn
      */
-    record Puff(Vec3 glove, Vec3 path, double bornTicks, float seed) {
+    record Puff(SprayCone cone, Vec3 path, double bornTicks, float seed) {
+
+        /** @return where the glove stood when the puff left it, in world space */
+        Vec3 glove() {
+            return cone.apex();
+        }
     }
 
     /**
-     * Pours a puff from the glove along the aim, leaning out inside the cone.
+     * Pours a puff through a cone, leaning out inside its shape.
+     * decision spray-abilities-render-procedurally-bound-to-their-cone
      *
-     * @param glove     the glove, in world space
-     * @param aim       the aim's unit vector
-     * @param halfAngle the cone's half angle in radians
+     * @param cone      the cone poured through, in world space
      * @param bornTicks the game time it leaves the glove, in ticks
      * @param lean      how far out it leans, 0 on the aim to 1 at the spread's edge
      * @param around    where around the aim it leans, 0 to 1
      * @param seed      the puff's own value, 0 to 1
      * @return the puff
      */
-    static Puff pour(Vec3 glove, Vec3 aim, double halfAngle, double bornTicks, double lean, double around,
-                     float seed) {
-        double tilt = halfAngle * SPREAD_SHARE * Math.sqrt(lean);
-        Vec3 path = aim.scale(Math.cos(tilt)).add(across(aim, around * TWO_PI).scale(Math.sin(tilt)));
-        return new Puff(glove, path.normalize(), bornTicks, seed);
+    static Puff pour(SprayCone cone, double bornTicks, double lean, double around, float seed) {
+        Vec3 path = StreamCone.launchDirection(cone.axis(), cone.shape(), SPREAD_SHARE * Math.sqrt(lean), around);
+        return new Puff(cone, path, bornTicks, seed);
+    }
+
+    /**
+     * The half angle a puff's roll and size go by: the cone's narrower half width, so a flat cone draws a thin
+     * sheet of small puffs.
+     *
+     * @param cone the cone
+     * @return the half angle in radians
+     */
+    static double narrowHalfAngle(SprayCone cone) {
+        return Math.toRadians(Math.min(cone.shape().sideDegrees(), cone.shape().liftDegrees()) * HALF);
     }
 
     /**
@@ -89,20 +104,22 @@ final class PetrifyPuffs {
 
     /**
      * Where a puff stands: down its path from the glove it left, swung about
-     * the path by its roll, never out past the cone.
+     * the path by its roll, never out past the cone it was poured through.
+     * decision spray-abilities-render-procedurally-bound-to-their-cone
      *
-     * @param puff      the puff
-     * @param nowTicks  the game time, in ticks
-     * @param range     the delivery's reach
-     * @param halfAngle the cone's half angle in radians
+     * @param puff     the puff
+     * @param nowTicks the game time, in ticks
      * @return the puff's center, in world space
      */
-    static Vec3 positionAt(Puff puff, double nowTicks, double range, double halfAngle) {
-        double distance = distanceAt(ageShare(puff, nowTicks), range);
+    static Vec3 positionAt(Puff puff, double nowTicks) {
+        SprayCone cone = puff.cone();
+        double distance = distanceAt(ageShare(puff, nowTicks), cone.reach());
         double age = nowTicks - puff.bornTicks();
         double rollAngle = age * ROLL_RATE + puff.seed() * TWO_PI;
-        double swing = distance * Math.tan(halfAngle) * ROLL_SHARE * Math.sin(age * ROLL_RATE + puff.seed());
-        return puff.glove().add(puff.path().scale(distance)).add(across(puff.path(), rollAngle).scale(swing));
+        double swing = distance * Math.tan(narrowHalfAngle(cone)) * ROLL_SHARE
+                * Math.sin(age * ROLL_RATE + puff.seed());
+        Vec3 rolled = puff.glove().add(puff.path().scale(distance)).add(across(puff.path(), rollAngle).scale(swing));
+        return StreamCone.pulledInside(cone.apex(), cone.axis(), cone.reach(), cone.shape(), rolled);
     }
 
     /**
