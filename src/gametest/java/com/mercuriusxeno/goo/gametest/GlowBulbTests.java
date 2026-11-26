@@ -56,7 +56,7 @@ public final class GlowBulbTests {
         AbilityDefinition bulb = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(BULB));
         helper.assertTrue(bulb != null, "Ability registry must hold " + BULB);
         helper.setBlock(FLOOR_POS, Blocks.STONE);
-        ServerPlayer player = StackKeyTests.makeThrower(helper, GooTypes.GLOW);
+        ServerPlayer player = MockThrowers.makeThrower(helper, GooTypes.GLOW);
         KnownRecipes.teachRequires(player, bulb);
         GooThrowHandler.execute(player, new GooThrowPayload(GooTypes.id(GooTypes.GLOW), NO_ENTITY,
                 helper.absolutePos(FLOOR_POS), Direction.UP.ordinal(), false, BULB, player.getEyePosition()));

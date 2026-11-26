@@ -103,10 +103,10 @@ class PrefabHoversTest {
                      {"key": "broken", "keySeparator": null, "kind": "VALUE", "text": "\\"$missing + 1\\"",
                       "entries": [], "leading": null, "trailing": null, "closingGap": null},
                      {"key": "coral", "keySeparator": null, "kind": "VALUE",
-                      "text": "{\\"zoo\\": \\"2 $base\\", \\"jelly\\": \\"2 $base\\"}",
+                      "text": "{\\"zombie\\": \\"2 $base\\", \\"jelly\\": \\"2 $base\\"}",
                       "entries": [], "leading": null, "trailing": null, "closingGap": null},
                      {"key": "dead_coral", "keySeparator": null, "kind": "VALUE",
-                      "text": "{\\"jelly\\": \\"$coral.jelly\\", \\"nether\\": \\"$coral.zoo\\"}",
+                      "text": "{\\"jelly\\": \\"$coral.jelly\\", \\"nether\\": \\"$coral.zombie\\"}",
                       "entries": [], "leading": null, "trailing": null, "closingGap": null}],
                    "leading": null, "trailing": null, "closingGap": null}
                 ]}
@@ -122,7 +122,7 @@ class PrefabHoversTest {
                    "value": null, "error": null, "usedBy": [], "readers": []},
                   {"name": "broken", "kind": "scalar", "value": null, "error": "Unknown constant $missing",
                    "usedBy": [], "readers": []},
-                  {"name": "coral", "kind": "tree", "tree": {"zoo": "12", "jelly": "12"}, "value": null,
+                  {"name": "coral", "kind": "tree", "tree": {"zombie": "12", "jelly": "12"}, "value": null,
                    "error": null, "usedBy": [], "readers": []},
                   {"name": "dead_coral", "kind": "tree", "tree": {"jelly": "12", "nether": "12"}, "value": null,
                    "error": null, "usedBy": [], "readers": []}
@@ -200,7 +200,7 @@ class PrefabHoversTest {
          */
         @Test
         void typedPrefabReadsItsRecipeThenItsReduction() {
-            assertEquals(List.of(List.of("{jelly} : $coral's {jelly}", "{nether} : $coral's {zoo}"),
+            assertEquals(List.of(List.of("{jelly} : $coral's {jelly}", "{nether} : $coral's {zombie}"),
                     List.of("(", "{jelly} 12", "{nether} 12", ")")), read("dead_coral"));
         }
 

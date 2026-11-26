@@ -6,17 +6,17 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 /**
- * The Shriek blob's cry: on its first tick the blob shrieks like a sculk
- * shrieker and every hostile within reach is called to it at once, the
- * walk holding while the blob lasts; every later tick only counts toward
- * its lifetime, so nothing arriving after the shriek is called, and the
- * blob goes once it has lasted. The Shriek blob is
+ * The Shriek blob's cry: on its landing tick the blob shrieks like a sculk
+ * shrieker and every hostile within reach is called to the landing at once,
+ * each walk holding for the ticks the step lasts, and the step ends there,
+ * so nothing arriving after the shriek is called. The Shriek blob is
  * {@code shriek reach=16 lasts=600}.
  * decision shriek-blob-cries-once-and-calls-earshot
  * decision shriek-is-a-sculk-call-that-draws-every-mob-it-reaches
+ * decision convoke-blob-throbs-until-a-mob-arrives
  *
  * @param reach how far across the ground the shriek is heard, in blocks
- * @param lasts the ticks the blob lasts
+ * @param lasts the ticks each called mob's walk holds, counted from the shriek
  */
 public record ShriekStep(Expr reach, Expr lasts) implements Step {
 
@@ -44,10 +44,8 @@ public record ShriekStep(Expr reach, Expr lasts) implements Step {
 
     @Override
     public boolean tick(StepContext context) {
-        if (context.stepTicks() == 0) {
-            context.hostAs(ShriekHost.class).shriek(reach.evaluate(context));
-        }
-        return context.stepTicks() + 1 >= lasts.evaluateInt(context);
+        context.hostAs(ShriekHost.class).shriek(reach.evaluate(context), lasts.evaluateInt(context));
+        return true;
     }
 
     @Override

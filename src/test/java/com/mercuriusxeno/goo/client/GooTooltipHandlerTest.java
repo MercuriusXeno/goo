@@ -127,12 +127,12 @@ class GooTooltipHandlerTest {
         void gooRowsReadHighestFirstTiesByTypeKey() {
             Map<ResourceKey<GooTypeDefinition>, Integer> reversed = new LinkedHashMap<>();
             reversed.put(GooTypes.LEAF, 1);
-            reversed.put(GooTypes.ZOO, 4);
+            reversed.put(GooTypes.ZOMBIE, 4);
             reversed.put(GooTypes.BLAZE, 4);
             GooTooltipHandler.appendGooRows(elements, reversed);
 
             assertEquals(List.of(TITLE, new GooValueTooltipComponent(GooTypes.BLAZE, 4),
-                    new GooValueTooltipComponent(GooTypes.ZOO, 4), new GooValueTooltipComponent(GooTypes.LEAF, 1)),
+                    new GooValueTooltipComponent(GooTypes.ZOMBIE, 4), new GooValueTooltipComponent(GooTypes.LEAF, 1)),
                     shapes(elements));
         }
 
@@ -174,14 +174,14 @@ class GooTooltipHandlerTest {
          */
         @Test
         void gooItemRowReadsItsWholeAndItsPartAsOneMixedNumber() {
-            GooTooltipHandler.appendGooComponent(elements, GooTypes.ZOO, 21, GooFraction.of(1, 3));
+            GooTooltipHandler.appendGooComponent(elements, GooTypes.ZOMBIE, 21, GooFraction.of(1, 3));
 
             assertEquals(GooFormat.formatMixed(GooFraction.of(64, 3)), drawnAmount(elements));
         }
 
         @Test
         void gooItemRowHoldingOnlyAPartReadsThatPart() {
-            GooTooltipHandler.appendGooComponent(elements, GooTypes.ZOO, 0, GooFraction.of(1, 3));
+            GooTooltipHandler.appendGooComponent(elements, GooTypes.ZOMBIE, 0, GooFraction.of(1, 3));
 
             assertEquals(GooFormat.formatMixed(GooFraction.of(1, 3)), drawnAmount(elements));
         }

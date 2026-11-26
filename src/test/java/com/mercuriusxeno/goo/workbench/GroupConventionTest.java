@@ -78,7 +78,7 @@ class GroupConventionTest {
         List<String> eggs = List.of("minecraft:horse_spawn_egg", "minecraft:mule_spawn_egg",
                 "minecraft:camel_spawn_egg", "minecraft:donkey_spawn_egg");
         BaseValuesModel model = BaseValuesModel.parse(EMPTY_SECTIONS)
-                .withEntry("_constants", "spawn_egg", "{\"zoo\": 4}");
+                .withEntry("_constants", "spawn_egg", "{\"zombie\": 4}");
         model = GroupConvention.withGroup(model, "eggs", eggs);
         model = GroupConvention.withBase(model, "eggs", "$spawn_egg");
         model = GroupConvention.withTweak(model, "eggs", "minecraft:donkey_spawn_egg", 5, "donkey_trait",
@@ -91,11 +91,11 @@ class GroupConventionTest {
         Map<Identifier, GooValue> values = GooBaseValuesPreview.baseValues(text);
         for (String egg : eggs.subList(0, 3)) {
             GooValue value = values.get(Identifier.parse(egg));
-            assertEquals(GooFraction.of(4), value.exact(GooTypes.ZOO), egg);
+            assertEquals(GooFraction.of(4), value.exact(GooTypes.ZOMBIE), egg);
             assertEquals(GooFraction.ZERO, value.exact(GooTypes.HEX), egg);
         }
         GooValue donkey = values.get(Identifier.parse("minecraft:donkey_spawn_egg"));
-        assertEquals(GooFraction.of(20), donkey.exact(GooTypes.ZOO));
+        assertEquals(GooFraction.of(20), donkey.exact(GooTypes.ZOMBIE));
         assertEquals(GooFraction.of(5), donkey.exact(GooTypes.HEX));
     }
 
@@ -105,7 +105,7 @@ class GroupConventionTest {
     @Test
     void tweakReadsBackFromTheFile() {
         BaseValuesModel model = BaseValuesModel.parse(EMPTY_SECTIONS)
-                .withEntry("_constants", "spawn_egg", "{\"zoo\": 4}");
+                .withEntry("_constants", "spawn_egg", "{\"zombie\": 4}");
         model = GroupConvention.withGroup(model, "eggs", List.of("minecraft:mule_spawn_egg",
                 "minecraft:donkey_spawn_egg"));
         model = GroupConvention.withBase(model, "eggs", "$spawn_egg");

@@ -7,7 +7,6 @@
   "requires": ["minecraft:flint"],
   "delivery": { "kind": "arc", "range": 16 },
   "behaviors": [
-    { "type": "detonate_explosive", "power": 2.5 },
     { "type": "light_fire" }
   ]
 }

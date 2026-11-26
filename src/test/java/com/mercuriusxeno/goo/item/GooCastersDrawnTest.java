@@ -27,7 +27,7 @@ class GooCastersDrawnTest {
     private final ItemStack drawnAstral = gooStack();
     /** The astral goo the server sent after the cast drained it. */
     private final ItemStack heldAstral = gooStack();
-    private final ItemStack offHandZoo = gooStack();
+    private final ItemStack offHandZombie = gooStack();
     private MockedStatic<GooStacks> stacks;
 
     private static ItemStack gooStack() {
@@ -37,13 +37,13 @@ class GooCastersDrawnTest {
     }
 
     @BeforeEach
-    void holdAstralInTheMainHandAndZooInTheOff() {
+    void holdAstralInTheMainHandAndZombieInTheOff() {
         when(player.getMainHandItem()).thenReturn(heldAstral);
-        when(player.getOffhandItem()).thenReturn(offHandZoo);
+        when(player.getOffhandItem()).thenReturn(offHandZombie);
         stacks = mockStatic(GooStacks.class);
         stacks.when(() -> GooStacks.keyOf(drawnAstral)).thenReturn(GooTypes.ASTRAL);
         stacks.when(() -> GooStacks.keyOf(heldAstral)).thenReturn(GooTypes.ASTRAL);
-        stacks.when(() -> GooStacks.keyOf(offHandZoo)).thenReturn(GooTypes.ZOO);
+        stacks.when(() -> GooStacks.keyOf(offHandZombie)).thenReturn(GooTypes.ZOMBIE);
     }
 
     @AfterEach
@@ -69,19 +69,19 @@ class GooCastersDrawnTest {
 
     @Test
     void theOffHandsGooNeverStandsForTheMainHand() {
-        assertFalse(GooCasters.drawnInMainHand(player, offHandZoo));
+        assertFalse(GooCasters.drawnInMainHand(player, offHandZombie));
     }
 
     @Test
     void theOffHandsGooNeverStandsForTheCaster() {
-        assertFalse(GooCasters.drawnAsCaster(player, offHandZoo));
+        assertFalse(GooCasters.drawnAsCaster(player, offHandZombie));
     }
 
     @Test
     void gooOfAnotherTypeNeverStandsForTheCaster() {
-        ItemStack drawnZoo = gooStack();
-        stacks.when(() -> GooStacks.keyOf(drawnZoo)).thenReturn(GooTypes.ZOO);
+        ItemStack drawnZombie = gooStack();
+        stacks.when(() -> GooStacks.keyOf(drawnZombie)).thenReturn(GooTypes.ZOMBIE);
 
-        assertFalse(GooCasters.drawnAsCaster(player, drawnZoo));
+        assertFalse(GooCasters.drawnAsCaster(player, drawnZombie));
     }
 }

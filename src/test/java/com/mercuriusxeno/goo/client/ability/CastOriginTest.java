@@ -27,7 +27,7 @@ class CastOriginTest {
 
     @Test
     void anotherCastersCastLeavesTheLiftedBlobWhereItStands() {
-        try (SprayingClient client = SprayingClient.another(GooTypes.ZOO)) {
+        try (SprayingClient client = SprayingClient.another(GooTypes.ZOMBIE)) {
             client.at(PART_WAY);
             heldThrough(PART_WAY);
 
@@ -38,7 +38,7 @@ class CastOriginTest {
 
     @Test
     void theLocalPlayersCastLeavesTheLiftedBlobWhereItStands() {
-        try (SprayingClient client = SprayingClient.local(GooTypes.ZOO)) {
+        try (SprayingClient client = SprayingClient.local(GooTypes.ZOMBIE)) {
             client.at(PART_WAY);
             heldThrough(PART_WAY);
 
@@ -49,7 +49,7 @@ class CastOriginTest {
 
     @Test
     void aCastWithTheBlobOnThePalmLeavesTheGlove() {
-        try (SprayingClient client = SprayingClient.another(GooTypes.ZOO)) {
+        try (SprayingClient client = SprayingClient.another(GooTypes.ZOMBIE)) {
             client.at(NOW);
 
             assertEquals(GLOVE, CastOrigin.of(SprayingClient.CASTER, GLOVE, 0f));

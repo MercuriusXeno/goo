@@ -66,7 +66,7 @@ public final class FreeAimTests {
     }
 
     private static ServerPlayer thrower(GameTestHelper helper, AbilityDefinition ability) {
-        ServerPlayer player = StackKeyTests.makeThrower(helper, GooTypes.UNSTABLE);
+        ServerPlayer player = MockThrowers.makeThrower(helper, GooTypes.UNSTABLE);
         KnownRecipes.teachRequires(player, ability);
         return player;
     }

@@ -10,7 +10,7 @@ import net.minecraft.server.level.ServerLevel;
 import org.jspecify.annotations.NonNull;
 
 /**
- * Server-to-client payload: a ability block burned out, sent to the players
+ * Server-to-client payload: an ability burned out, sent to the players
  * tracking its chunk before the marker can be removed, so each goo type's
  * burnout explosion plays even for a program that finishes the tick it
  * fires (decision elemental-explosion-per-type), carrying the size the cast
