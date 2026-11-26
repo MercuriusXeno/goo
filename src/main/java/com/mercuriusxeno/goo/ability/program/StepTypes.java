@@ -122,7 +122,6 @@ public final class StepTypes {
         register(FlamesStep.TYPE);
         register(HeaterStep.TYPE);
         register(LeafSteps.HEAL.type());
-        register(LeafSteps.COURT.type());
         register(LeafSteps.POWER_PULSE.type());
         register(MetronomeStep.TYPE);
         register(RelayStep.TYPE);

@@ -196,9 +196,9 @@ public final class CrucibleTests {
     private static final int SPILLED_WHOLE = 10;
     private static final GooFraction SPILLED_PART = GooFraction.of(1, 3);
     private static final GooFraction SPILLED_EXACT = GooFraction.of(31, 3);
-    private static final String SPILL_LOST_PART = "A crucible holding 10 and 1/3 mB of zoo, broken by a player, should drop "
-            + "zoo goo items holding 31/3 mB; they hold ";
-    private static final String FRACTION_TWICE = "The dropped zoo goo items and any zoo remainder on the dropped crucible "
+    private static final String SPILL_LOST_PART = "A crucible holding 10 and 1/3 mB of zombie, broken by a player, should drop "
+            + "zombie goo items holding 31/3 mB; they hold ";
+    private static final String FRACTION_TWICE = "The dropped zombie goo items and any zombie remainder on the dropped crucible "
             + "item should hold 31/3 mB together; they hold ";
 
     /**
@@ -212,17 +212,17 @@ public final class CrucibleTests {
      */
     public static void brokenCrucibleSpillsItsFraction(GameTestHelper helper) {
         CrucibleBlockEntity crucible = placeCrucible(helper);
-        crucible.insertGoo(GooTypes.ZOO, SPILLED_WHOLE);
-        crucible.reservoirHandler().ledger().creditExact(GooTypes.ZOO, SPILLED_PART);
+        crucible.insertGoo(GooTypes.ZOMBIE, SPILLED_WHOLE);
+        crucible.reservoirHandler().ledger().creditExact(GooTypes.ZOMBIE, SPILLED_PART);
         survivalPlayerBreaks(helper);
         helper.succeedWhen(() -> {
             List<ItemStack> dropped = helper.getEntities(EntityTypes.ITEM, BE_POS, DROP_REACH).stream()
                     .map(ItemEntity::getItem).toList();
-            GooFraction spilled = dropped.stream().filter(stack -> GooTypes.ZOO.equals(GooStacks.keyOf(stack)))
+            GooFraction spilled = dropped.stream().filter(stack -> GooTypes.ZOMBIE.equals(GooStacks.keyOf(stack)))
                     .map(GooStacks::exactValueOf).reduce(GooFraction.ZERO, GooFraction::plus);
             GooFraction onCrucibleItem = dropped.stream().filter(stack -> stack.is(GooItems.CRUCIBLE.get()))
                     .map(stack -> stack.getOrDefault(GooDataComponents.REMAINDERS.get(), GooRemainders.EMPTY)
-                            .of(GooTypes.ZOO))
+                            .of(GooTypes.ZOMBIE))
                     .reduce(GooFraction.ZERO, GooFraction::plus);
             helper.assertTrue(SPILLED_EXACT.equals(spilled), SPILL_LOST_PART + spilled);
             helper.assertTrue(SPILLED_EXACT.equals(spilled.plus(onCrucibleItem)),

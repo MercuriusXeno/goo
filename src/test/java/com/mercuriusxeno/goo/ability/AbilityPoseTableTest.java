@@ -105,12 +105,9 @@ class AbilityPoseTableTest {
             Map.entry("weird_mitosis", ArmPose.SWUNG),
             Map.entry("xeno_unveil", ArmPose.HELD_UP),
             Map.entry("xeno_revert", ArmPose.RESTING),
-            Map.entry("zoo_allure", ArmPose.SWUNG),
             Map.entry("yarn_herd", ArmPose.HELD_UP),
             Map.entry("yarn_lead", ArmPose.RESTING),
-            Map.entry("yarn_stitch", ArmPose.HELD_OUT),
-            Map.entry("zoo_shape", ArmPose.RESTING),
-            Map.entry("zoo_spawn", ArmPose.RESTING));
+            Map.entry("yarn_stitch", ArmPose.HELD_OUT));
 
     static Stream<Path> shippedAbilities() {
         return AbilityJson.files().stream();

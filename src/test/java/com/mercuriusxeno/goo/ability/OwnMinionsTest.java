@@ -177,13 +177,13 @@ class OwnMinionsTest {
 
         @ParameterizedTest
         @ValueSource(strings = {"metal_dart", "void_cancel", "ender_seal", "leaf_bio",
-                "typhoon_shulk", "zoo_spawn"})
+                "typhoon_shulk"})
         void aHarmfulMobAbilityCarriesTheTag(String name) {
             assertTrue(AbilityJson.decode(name).hasTag(AbilityTags.HARMFUL), name + " should carry the harmful tag");
         }
 
         @ParameterizedTest
-        @ValueSource(strings = {"hex_charm", "zoo_allure", "zoo_shape", "yarn_lead"})
+        @ValueSource(strings = {"hex_charm", "yarn_lead"})
         void anUntaggedAbilityStaysUntagged(String name) {
             assertFalse(AbilityJson.decode(name).hasTag(AbilityTags.HARMFUL), name + " should carry no harmful tag");
         }

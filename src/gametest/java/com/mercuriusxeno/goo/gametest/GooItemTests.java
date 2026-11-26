@@ -93,13 +93,13 @@ public final class GooItemTests {
      * @param helper the gametest helper
      */
     public static void gooHoldsItsPartUnderOneMb(GameTestHelper helper) {
-        ItemStack mixed = GooStacks.createForOutput(GooTypes.ZOO, SIXTY_FOUR_THIRDS);
+        ItemStack mixed = GooStacks.createForOutput(GooTypes.ZOMBIE, SIXTY_FOUR_THIRDS);
         GooFraction mixedPart = mixed.getOrDefault(GooDataComponents.REMAINDERS.get(), GooRemainders.EMPTY)
-                .of(GooTypes.ZOO);
+                .of(GooTypes.ZOMBIE);
         helper.assertTrue(GooStacks.volumeOf(mixed) == TWENTY_ONE && ONE_THIRD.equals(mixedPart)
                         && SIXTY_FOUR_THIRDS.equals(GooStacks.exactValueOf(mixed)),
                 MIXED_NOT_HELD + GooStacks.volumeOf(mixed) + " and " + mixedPart);
-        ItemStack partOnly = GooStacks.createForOutput(GooTypes.ZOO, ONE_THIRD);
+        ItemStack partOnly = GooStacks.createForOutput(GooTypes.ZOMBIE, ONE_THIRD);
         helper.assertTrue(!partOnly.isEmpty() && GooStacks.volumeOf(partOnly) == 0
                         && ONE_THIRD.equals(GooStacks.exactValueOf(partOnly)),
                 PART_ONLY_NOT_LIVE + "empty " + partOnly.isEmpty() + ", exact " + GooStacks.exactValueOf(partOnly));
@@ -113,8 +113,8 @@ public final class GooItemTests {
      * @param helper the gametest helper
      */
     public static void gooDrawnDryKeepsItsPart(GameTestHelper helper) {
-        ItemStack goo = GooStacks.createForOutput(GooTypes.ZOO, GooFraction.of(FIVE).plus(ONE_HALF));
-        int drawn = ((GooItem) goo.getItem()).drawGoo(goo, GooTypes.ZOO, FIVE);
+        ItemStack goo = GooStacks.createForOutput(GooTypes.ZOMBIE, GooFraction.of(FIVE).plus(ONE_HALF));
+        int drawn = ((GooItem) goo.getItem()).drawGoo(goo, GooTypes.ZOMBIE, FIVE);
         helper.assertTrue(drawn == FIVE && !goo.isEmpty() && ONE_HALF.equals(GooStacks.exactValueOf(goo)),
                 DRAWN_DRY_LOST_PART + drawn + ", the stack empty " + goo.isEmpty()
                         + ", exact " + GooStacks.exactValueOf(goo));
@@ -318,7 +318,7 @@ public final class GooItemTests {
     @SuppressWarnings(REMOVAL) // vanilla marks the mock server player helper for removal and names no replacement
     public static void gooIsPickedUp(GameTestHelper helper) {
         layStoneFloor(helper);
-        ItemEntity goo = CrucibleSpawns.spawnAt(helper, GooStacks.createForOutput(GooTypes.ZOO, DROPPED_VOLUME),
+        ItemEntity goo = CrucibleSpawns.spawnAt(helper, GooStacks.createForOutput(GooTypes.ZOMBIE, DROPPED_VOLUME),
                 PICKUP_SPOT);
         goo.setNoPickUpDelay();
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
@@ -331,7 +331,7 @@ public final class GooItemTests {
         });
         helper.succeedWhen(() -> {
             boolean held = player.getInventory().getNonEquipmentItems().stream().anyMatch(stack ->
-                    GooTypes.ZOO.equals(GooStacks.keyOf(stack)) && GooStacks.volumeOf(stack) == DROPPED_VOLUME);
+                    GooTypes.ZOMBIE.equals(GooStacks.keyOf(stack)) && GooStacks.volumeOf(stack) == DROPPED_VOLUME);
             helper.assertTrue(held && goo.isRemoved(), NOT_PICKED_UP + "held " + held + ", removed "
                     + goo.isRemoved());
             helper.getLevel().getServer().getPlayerList().remove(player);
@@ -364,12 +364,12 @@ public final class GooItemTests {
      */
     public static void gooTwoBlocksApartJoins(GameTestHelper helper) {
         layStoneFloor(helper);
-        CrucibleSpawns.spawnAt(helper, GooStacks.createForOutput(GooTypes.ZOO, NEAR_VOLUME), NEAR_GOO);
-        CrucibleSpawns.spawnAt(helper, GooStacks.createForOutput(GooTypes.ZOO, FAR_VOLUME), FAR_GOO);
+        CrucibleSpawns.spawnAt(helper, GooStacks.createForOutput(GooTypes.ZOMBIE, NEAR_VOLUME), NEAR_GOO);
+        CrucibleSpawns.spawnAt(helper, GooStacks.createForOutput(GooTypes.ZOMBIE, FAR_VOLUME), FAR_GOO);
         helper.succeedWhen(() -> {
             List<Integer> volumes = helper.getLevel().getEntitiesOfClass(ItemEntity.class,
                             new AABB(helper.absolutePos(BlockPos.ZERO)).inflate(6),
-                            item -> item.isAlive() && GooTypes.ZOO.equals(GooStacks.keyOf(item.getItem())))
+                            item -> item.isAlive() && GooTypes.ZOMBIE.equals(GooStacks.keyOf(item.getItem())))
                     .stream().map(item -> GooStacks.volumeOf(item.getItem())).toList();
             helper.assertTrue(volumes.equals(List.of(NEAR_VOLUME + FAR_VOLUME)), GOO_NOT_JOINED + volumes);
         });
@@ -391,12 +391,12 @@ public final class GooItemTests {
      */
     public static void gooPartsJoinExactly(GameTestHelper helper) {
         layStoneFloor(helper);
-        CrucibleSpawns.spawnAt(helper, GooStacks.createForOutput(GooTypes.ZOO, ONE_HALF), NEAR_GOO);
-        CrucibleSpawns.spawnAt(helper, GooStacks.createForOutput(GooTypes.ZOO, TWO_THIRDS), FAR_GOO);
+        CrucibleSpawns.spawnAt(helper, GooStacks.createForOutput(GooTypes.ZOMBIE, ONE_HALF), NEAR_GOO);
+        CrucibleSpawns.spawnAt(helper, GooStacks.createForOutput(GooTypes.ZOMBIE, TWO_THIRDS), FAR_GOO);
         helper.succeedWhen(() -> {
             List<GooFraction> values = helper.getLevel().getEntitiesOfClass(ItemEntity.class,
                             new AABB(helper.absolutePos(BlockPos.ZERO)).inflate(6),
-                            item -> item.isAlive() && GooTypes.ZOO.equals(GooStacks.keyOf(item.getItem())))
+                            item -> item.isAlive() && GooTypes.ZOMBIE.equals(GooStacks.keyOf(item.getItem())))
                     .stream().map(item -> GooStacks.exactValueOf(item.getItem())).toList();
             helper.assertTrue(values.equals(List.of(SEVEN_SIXTHS)), PARTS_NOT_JOINED + values);
         });

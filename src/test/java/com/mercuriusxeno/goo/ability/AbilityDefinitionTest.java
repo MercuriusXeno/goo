@@ -67,13 +67,6 @@ class AbilityDefinitionTest {
         assertEquals(written, AbilityDefinition.previewAtMaxReach(written, explodes));
     }
 
-    @Test
-    void spawnConsumesNoItem() {
-        // ability-json-names-its-reagent
-        // spawn-hostile-shape-peaceful-from-a-slime
-        assertEquals(List.of(), AbilityJson.decode("zoo_spawn").consumes());
-    }
-
     private static AbilityDefinition requiring(String requires) {
         return AbilityJson.decodeText("made_up", "{\"gooType\": \"rock\", \"displayName\": \"made_up\","
                 + " \"cost\": 10, \"badge\": \"world\", \"behaviors\": [], \"delivery\": {\"kind\": \"arc\"},"
