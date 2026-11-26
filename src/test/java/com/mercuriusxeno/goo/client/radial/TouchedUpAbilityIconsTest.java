@@ -33,13 +33,14 @@ class TouchedUpAbilityIconsTest {
     class GlowIcons {
 
         // glow-icons-take-a-darker-yellow-edge
+        // residual-icons-draw-one-gray-block-with-the-types-goo-on-top: Wisps stands on the gray block, held by ResidualAbilityIconsTest
         private static final float LEAST_YELLOW_HUE = 35f / 360f;
         private static final float MOST_YELLOW_HUE = 60f / 360f;
         private static final float SATURATION_FLOOR = 0.2f;
         private static final float VALUE_FLOOR = 0.5f;
 
         @ParameterizedTest
-        @ValueSource(strings = {"glow_lux", "glow_laser", "glow_wisps", "glow_bulb"})
+        @ValueSource(strings = {"glow_lux", "glow_laser", "glow_bulb"})
         void everyOpaqueTexelIsYellow(String ability) throws IOException {
             BufferedImage icon = read(ability);
             for (int y = 0; y < icon.getHeight(); y++) {

@@ -29,9 +29,13 @@ public final class ClickWaveParticle extends SingleQuadParticle {
     private static final float HALF_TURN = (float) Math.PI;
     /** The axis a quad faces before it is turned. */
     private static final Vec3 QUAD_NORMAL = new Vec3(0, 0, 1);
-    /** The translucent particle layer, drawn on the pipeline that passes every depth test. */
-    private static final Layer THROUGH_BLOCKS = new Layer(true, Layer.TRANSLUCENT.textureAtlasLocation(),
-            GooRenderTypes.CLICK_WAVE_THROUGH_BLOCKS);
+    /**
+     * The translucent particle layer, drawn on the pipeline that passes every depth test, and through its OIT
+     * phases under improved transparency, where a layer with no OIT set crashes the client.
+     * decision goo-translucency-draws-through-order-independent-transparency
+     */
+    static final Layer THROUGH_BLOCKS = new Layer(true, Layer.TRANSLUCENT.textureAtlasLocation(),
+            GooRenderTypes.CLICK_WAVE_THROUGH_BLOCKS, GooRenderTypes.CLICK_WAVE_THROUGH_BLOCKS_OIT);
 
     private final Quaternionf facing;
 

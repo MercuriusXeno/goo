@@ -2,6 +2,8 @@
 #extension GL_ARB_separate_shader_objects : require
 
 #include <minecraft:globals.glsl>
+#include <minecraft:oit.glsl>
+#include <goo:see_through_glow.glsl>
 
 // Reap's swell (decision reap-breeze-harvests-and-replants): a whole sphere of
 // Growth's breeze, torn green wisps over its surface swirling as it swells out
@@ -12,7 +14,12 @@
 layout(location = 0) in vec3 surfaceDir;
 layout(location = 1) in float strength;
 
+// Under improved transparency the depth bounds and transmittance phases take the alpha alone, and the
+// accumulate phase weights the color by the transmittance in front of it
+// (decision goo-translucency-draws-through-order-independent-transparency).
+#ifndef OIT_ALPHA_ONLY
 layout(location = 0) out vec4 fragColor;
+#endif
 
 // GameTime is the fraction of a 24000-tick day.
 const float TICKS_PER_DAY = 24000.0;
@@ -65,5 +72,12 @@ void main() {
     vec3 color = mix(DEEP_GREEN, LEAF_GREEN, wisp);
     color = mix(color, BRIGHT_GREEN, wisp * wisp * 0.6);
     float glow = (0.15 + wisp * 0.85) * SURFACE_GLOW * strength;
-    fragColor = vec4(color, clamp(glow, 0.0, 1.0));
+    vec4 drawn = seeThroughGlow(vec4(color, clamp(glow, 0.0, 1.0)));
+#ifdef OIT_ALPHA_ONLY
+    executeAlphaOnlyPhase(gl_FragCoord.z, drawn.a);
+#elif defined(OIT_ACCUMULATE)
+    fragColor = sampleColorForAccumulation(drawn);
+#else
+    fragColor = drawn;
+#endif
 }

@@ -2,7 +2,7 @@
   "gooType": "glow",
   "displayName": "goo.ability.glow.wisps",
   "cost_mechanics": "goo.ability.glow.wisps.cost_mechanics",
-  "badge": "channeled",
+  "badge": "residual",
   "order": 40,
   "cost": 200,
   "cost_formula": "%s/m³",

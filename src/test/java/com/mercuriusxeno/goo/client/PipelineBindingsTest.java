@@ -4,6 +4,7 @@ import com.mojang.renderpearl.api.pipeline.BindGroupLayout;
 import com.mojang.renderpearl.api.pipeline.RenderPipeline;
 import com.mojang.renderpearl.api.pipeline.UniformType;
 import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.renderer.oit.OitPipelineSet;
 import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Test;
@@ -116,7 +117,8 @@ class PipelineBindingsTest {
         return Pattern.compile(declaration).matcher(sources).find();
     }
 
-    // Each public pipeline field, and each pipeline in a public list field, of GooRenderTypes.
+    // Each public pipeline field, each phase of a public OIT set field, and each pipeline in a public list field,
+    // of GooRenderTypes.
     static List<RenderPipeline> pipelines() {
         List<RenderPipeline> pipelines = new ArrayList<>();
         for (Field field : GooRenderTypes.class.getFields()) {
@@ -126,6 +128,8 @@ class PipelineBindingsTest {
             Object value = read(field);
             if (value instanceof RenderPipeline pipeline) {
                 pipelines.add(pipeline);
+            } else if (value instanceof OitPipelineSet oit) {
+                pipelines.addAll(List.of(oit.depthBoundsPipeline(), oit.transmittancePipeline(), oit.accumulatePipeline()));
             } else if (value instanceof List<?> list) {
                 list.stream().filter(RenderPipeline.class::isInstance).map(RenderPipeline.class::cast)
                         .forEach(pipelines::add);

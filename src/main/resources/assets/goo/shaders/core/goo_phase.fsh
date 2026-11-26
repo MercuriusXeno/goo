@@ -4,6 +4,7 @@
 #include <minecraft:light.glsl>
 #include <minecraft:fog.glsl>
 #include <minecraft:dynamictransforms.glsl>
+#include <minecraft:oit.glsl>
 
 // A phased entity's body (decision phased-things-draw-as-a-ghostly-image), drawn in place
 // of its own: the skin washed most of the way toward its grey, lit as vanilla lights an
@@ -20,7 +21,12 @@ layout(location = 4) in vec2 skinCoord;
 layout(location = 5) in vec3 skinNormal;
 layout(location = 6) in vec3 towardEye;
 
+// Under improved transparency the depth bounds and transmittance phases take the alpha alone, and the
+// accumulate phase weights the color by the transmittance in front of it
+// (decision goo-translucency-draws-through-order-independent-transparency).
+#ifndef OIT_ALPHA_ONLY
 layout(location = 0) out vec4 fragColor;
+#endif
 
 // Skin texels below this alpha are holes in the body, as vanilla's cutout reads them.
 const float SKIN_CUTOUT = 0.1;
@@ -48,6 +54,16 @@ void main() {
     vec3 body = mix(lit.rgb * lightMapColor.rgb, OUTLINE_COLOR, outline);
     float alpha = mix(ghostColor.a, 1.0, outline * OUTLINE_ALPHA);
     vec4 color = vec4(body, alpha) * ColorModulator;
+#ifdef OIT_ALPHA_ONLY
+    executeAlphaOnlyPhase(gl_FragCoord.z, color.a);
+#else
+    #ifdef OIT_ACCUMULATE
+    color = sampleColorForAccumulation(color);
+    vec4 fogColor = vec4(FogColor.rgb * color.a, FogColor.a);
+    #else
+    vec4 fogColor = FogColor;
+    #endif
     fragColor = apply_fog(color, sphericalVertexDistance, cylindricalVertexDistance,
-            FogEnvironmentalStart, FogEnvironmentalEnd, FogRenderDistanceStart, FogRenderDistanceEnd, FogColor);
+            FogEnvironmentalStart, FogEnvironmentalEnd, FogRenderDistanceStart, FogRenderDistanceEnd, fogColor);
+#endif
 }

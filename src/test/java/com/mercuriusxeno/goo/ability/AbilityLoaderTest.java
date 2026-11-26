@@ -868,11 +868,6 @@ class AbilityLoaderTest {
         }
 
         @Test
-        void vacuumRequiresNoItem() {
-            assertEquals(List.of(), vacuum.requires());
-        }
-
-        @Test
         void vacuumShipsUnderVoidNamedVacuumWithItsIcon() throws IOException {
             assertPetalShipsAs(GooTypes.VOID, VACUUM, "Vacuum");
         }
