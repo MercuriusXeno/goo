@@ -115,13 +115,14 @@ public final class GooRenderTypes {
 
     /**
      * Pulse Click's shriek rings drawn through blocks: vanilla's translucent
-     * particle pipeline passing every depth test and writing no depth, so a
+     * particle shader passing every depth test and writing no depth, so a
      * Click rippling through stone shows to the submerged player inside it
      * (decision submerged-click-ripples-through-the-ground-to-its-range).
      */
     public static final RenderPipeline CLICK_WAVE_THROUGH_BLOCKS =
-            // A particle in vanilla's main pass, through every depth test under its own decision:
+            // Drawn on the path's through-blocks route, after Sculker's dim, under their own decisions:
             // decision submerged-click-ripples-through-the-ground-to-its-range
+            // decision click-rings-are-the-exception-to-sculkers-vision
             sorted(PipelineSort.THROUGH_BLOCKS,RenderPipeline.builder(RenderPipelines.MATRICES_FOG_SNIPPET)
                     .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "click_wave_through_blocks"))
                     .withVertexShader("core/particle")
@@ -134,6 +135,16 @@ public final class GooRenderTypes {
                     .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
                     .withCull(false)
                     .build());
+
+    /** The texture Click's rings draw: vanilla's shriek ring, as its own file rather than a particle atlas sprite. */
+    public static final Identifier CLICK_RING_TEXTURE = Identifier.withDefaultNamespace("textures/particle/shriek.png");
+
+    /** Click's rings on the through-blocks pipeline, over the ring texture, the lightmap the particle shader reads bound. */
+    public static final RenderType CLICK_WAVE_TYPE = RenderType.create("goo_click_wave",
+            RenderSetup.builder(CLICK_WAVE_THROUGH_BLOCKS)
+                    .withTexture("Sampler0", CLICK_RING_TEXTURE)
+                    .useLightmap()
+                    .createRenderSetup());
 
     /**
      * The fungus glow of Sculker's shroom vision (decision sight-lengthens-shift-and-outlines-fungus):

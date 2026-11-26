@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.network.ScanWavePayload;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.client.resources.sounds.SoundInstance;
 import net.minecraft.resources.Identifier;
@@ -11,6 +12,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -55,6 +57,27 @@ class SoundWavesTest {
             due = now;
         }
         assertEquals(SoundWaves.MOST_ECHOES, sounded);
+    }
+
+    /**
+     * Each tick of the wave's travel sets one ring where the wave has reached,
+     * facing along the line from the glove to the landing.
+     * decision click-is-a-hit-scan-drawn-as-a-delayed-wave
+     */
+    @Test
+    void eachTickSetsARingWhereTheWaveHasReachedAlongItsLine() {
+        Vec3 from = new Vec3(-0.7, -58.74, 0.92);
+        Vec3 to = new Vec3(-22.72, -57.04, 23.01);
+        int ticks = 16;
+        long left = 500;
+        ScanWavePayload wave = new ScanWavePayload(from, to, ticks, ScanVisuals.SOUND_WAVE, Optional.empty());
+        List<ClickRings.Ring> expected = new ArrayList<>();
+        List<ClickRings.Ring> rings = new ArrayList<>();
+        for (int age = 0; age < ticks; age++) {
+            expected.add(new ClickRings.Ring(ScanWaveProgress.at(from, to, ticks, age), to.subtract(from), left + age));
+            rings.add(SoundWaves.ringOf(wave, age, left + age));
+        }
+        assertEquals(expected, rings);
     }
 
     @ParameterizedTest

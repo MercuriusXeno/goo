@@ -3,7 +3,6 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.client.sound.ListenerSounds;
 import com.mercuriusxeno.goo.network.ScanWavePayload;
-import com.mercuriusxeno.goo.registry.GooParticles;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
@@ -85,7 +84,7 @@ public final class SoundWaves {
     }
 
     /**
-     * Shrieks each travelling wave at the point it has reached this tick,
+     * Sets each travelling wave's ring at the point it has reached this tick,
      * trails its click there, and lets the arrived ones go.
      *
      * @param event the client tick event
@@ -102,18 +101,17 @@ public final class SoundWaves {
         }
         long now = level.getGameTime();
         for (Travelling travelling : TRAVELLING) {
-            travel(level, travelling, Math.max(0, now - travelling.start()));
+            travel(travelling, Math.max(0, now - travelling.start()), now);
         }
         // the last echo sounds before its wave goes, however far the clock jumped past the arrival
         TRAVELLING.removeIf(travelling -> now - travelling.start() >= travelling.wave().ticks());
     }
 
-    private static void travel(ClientLevel level, Travelling travelling, long age) {
+    private static void travel(Travelling travelling, long age, long now) {
         ScanWavePayload wave = travelling.wave();
-        Vec3 at = ScanWaveProgress.at(wave.from(), wave.to(), wave.ticks(), age);
-        // the shriek ring held square to the line, its spawn speed naming the line it faces along
-        Vec3 along = wave.to().subtract(wave.from());
-        level.addParticle(GooParticles.CLICK_WAVE.get(), at.x, at.y, at.z, along.x, along.y, along.z);
+        ClickRings.Ring ring = ringOf(wave, age, now);
+        ClickRings.set(ring);
+        Vec3 at = ring.at();
         int due = echoesDue(age, wave.ticks());
         if (due > travelling.echoesSounded) {
             travelling.echoesSounded = due;
@@ -124,6 +122,20 @@ public final class SoundWaves {
                         ListenerSounds.play(echoOf(sound, at, share, local.getEyePosition())));
             }
         }
+    }
+
+    /**
+     * The ring a wave sets at an age of its travel: where the wave has
+     * reached, facing along the line from the glove to the landing.
+     *
+     * @param wave the wave the server sent
+     * @param age  the ticks since the wave left the glove
+     * @param now  the client game tick the ring is set on
+     * @return the ring
+     */
+    static ClickRings.Ring ringOf(ScanWavePayload wave, long age, long now) {
+        return new ClickRings.Ring(ScanWaveProgress.at(wave.from(), wave.to(), wave.ticks(), age),
+                wave.to().subtract(wave.from()), now);
     }
 
     /**

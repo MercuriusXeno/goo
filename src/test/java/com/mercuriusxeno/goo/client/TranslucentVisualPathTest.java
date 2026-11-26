@@ -412,6 +412,27 @@ class TranslucentVisualPathTest {
                     Set.copyOf(routesOf(entry.getKey())), entry.getKey().getSimpleName())));
         }
 
+        /**
+         * Click's rings are sounds, the exception to Sculker's vision: they draw on the path through blocks, a
+         * route drawn after the sense view's dim, so the dim never darkens them. Named as a string, so the test
+         * reads the same against a tree where the rings were vanilla particles drawn before the dim.
+         * decision click-rings-are-the-exception-to-sculkers-vision
+         * decision submerged-click-ripples-through-the-ground-to-its-range
+         */
+        @Test
+        void clicksRingsDrawThroughBlocksAfterSculkersDim() {
+            List<SortRoute> afterLevel = Arrays.stream(SortRoute.values())
+                    .filter(route -> route.stage() == RenderLevelStageEvent.AfterLevel.class).toList();
+            List<SortRoute> clickRings = TranslucentVisualPath.REGISTRATIONS.stream()
+                    .filter(registration -> registration.visual().getName()
+                            .equals("com.mercuriusxeno.goo.client.ability.ClickRings"))
+                    .map(Registration::route).toList();
+            assertAll(
+                    () -> assertEquals(List.of(SortRoute.THROUGH_BLOCKS), clickRings, "Click's rings' routes"),
+                    () -> assertTrue(afterLevel.indexOf(SortRoute.SCREEN_SPACE)
+                            < afterLevel.indexOf(SortRoute.THROUGH_BLOCKS), afterLevel.toString()));
+        }
+
         @Test
         void eachSortedPartTestsDepthAgainstTheLevel() {
             List<RenderPipeline> sorted = List.of(GooRenderTypes.LINES_ADDITIVE_GLOW, GooRenderTypes.FROST_EXPLOSION,
@@ -425,12 +446,15 @@ class TranslucentVisualPathTest {
          * Scry's revealed faces show through walls (decision
          * held-sweeps-share-one-fast-shell-visual), and so do the head marks,
          * so a mark never clips into the wall it stands near (operator
-         * ruling 2026-11-18).
+         * ruling 2026-11-18), and Click's rings, rippling through the ground
+         * (decision submerged-click-ripples-through-the-ground-to-its-range).
          */
         @Test
         void theThroughBlocksPartsPassEveryDepthTest() {
             assertAll(
                     () -> assertEquals(CompareOp.ALWAYS_PASS, GooRenderTypes.SCRY_FACES.getDepthStencilState().depthTest()),
+                    () -> assertEquals(CompareOp.ALWAYS_PASS,
+                            GooRenderTypes.CLICK_WAVE_THROUGH_BLOCKS.getDepthStencilState().depthTest()),
                     () -> assertTrue(RenderPipelines.TEXT_SEE_THROUGH.getDepthStencilState() == null));
         }
     }

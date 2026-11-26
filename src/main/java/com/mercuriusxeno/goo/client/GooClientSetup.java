@@ -397,7 +397,6 @@ public final class GooClientSetup {
         event.registerSpriteSet(GooParticles.GNAT.get(), GnatParticle.Provider::new);
         registerSprayDrips(event);
         event.registerSpriteSet(GooParticles.SNOWFLAKE.get(), SnowflakeParticle.Provider::new);
-        event.registerSpriteSet(GooParticles.CLICK_WAVE.get(), ClickWaveParticle.Provider::new);
         event.registerSpriteSet(GooParticles.RESTORE_MOTE.get(), RestoreMoteParticle.Provider::new);
         event.registerSpriteSet(GooParticles.LIGHT_MOTE.get(), LightMoteParticle.Provider::new);
         event.registerSpriteSet(GooParticles.VOID_MOTE.get(), VoidMoteParticle.Provider::new);
