@@ -7,15 +7,14 @@
 #include <goo:see_through_glow.glsl>
 
 // A gate's swirl band (decision tornadic-halo-spirals-out-from-the-rim): one dense, bright band
-// straddling the rim, arching from just inside it, over the portal's view, to just outside it on the
-// wall, peaking a little off the wall right over the rim. It is packed with fine streaks that run
-// along the ring at a slight slant and turn slowly the screw way; it lies full from its inner edge,
-// flush on the face, so its lifted far side leaves no gap to the face, and fades only as it moves away
-// from the face onto the wall; its core over the rim burns toward white
-// (decision diagnose-and-correct-the-swirl-bands-depth-under-improved-transparency). It draws smooth and blended, reading the face coordinate
-// unsnapped, off the texel grid the rim and surface glow keep. frameCoord runs zero to one around the
-// rim, then zero to one across the arch from inside the rim to outside; texels carries how many
-// texels each way runs, around the arch's peak and across it.
+// arching from the oval's edge out onto the wall, peaking a little off the wall midway. It is packed
+// with fine streaks that run along the ring at a slight slant and turn slowly the screw way; it lies
+// full from its inner edge, flush on the face's edge, so the two meet from any angle, and fades only
+// as it moves away from the face onto the wall; its core burns toward white
+// (decision diagnose-and-correct-the-swirl-bands-depth-under-improved-transparency). It draws smooth
+// and blended, reading the face coordinate unsnapped, off the texel grid the rim and surface glow
+// keep. frameCoord runs zero to one around the rim, then zero to one across the arch from the edge
+// outward; texels carries how many texels each way runs, around the arch's peak and across it.
 // A hole's mouth wears the same band over the same clean rim (decisions hole-mouths-wear-the-tornadic-halo,
 // tunnel-drops-its-crisp-wiggly-outline-and-looks-like-the-portals).
 

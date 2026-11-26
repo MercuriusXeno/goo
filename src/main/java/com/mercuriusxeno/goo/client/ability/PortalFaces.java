@@ -81,18 +81,11 @@ public final class PortalFaces {
      */
     static final double BAND_SLEEVE = 1.0 / 16;
     /**
-     * How far inside the oval's edge the swirl band's line runs, in blocks:
-     * half a texel, through the middle of the rim's pixel ring, so the band's
-     * smooth line cuts the pixel staircase.
+     * How far outside the oval's edge the swirl band lands on the wall, in
+     * blocks: one texel, tuned by eye. Its inner edge lands on the oval's
+     * edge itself, so the band meets the portal's face from any angle.
+     * diagnose-and-correct-the-swirl-bands-depth-under-improved-transparency
      */
-    static final double BAND_INSET = 0.5 / 16;
-    /**
-     * How far inside its line the swirl band lands on the face, over the
-     * portal's view, in blocks: one texel, so the band runs no wider than the
-     * rim's own pixel ring, tuned by eye.
-     */
-    static final double BAND_INSIDE = 1.0 / 16;
-    /** How far outside its line the swirl band lands on the face, on the wall, in blocks: one texel, tuned by eye. */
     static final double BAND_OUTSIDE = 1.0 / 16;
     /** How many rings the swirl band's arch runs across in, from inside the rim to outside. */
     private static final int BAND_RINGS = 6;
@@ -432,7 +425,7 @@ public final class PortalFaces {
 
     /**
      * Emits the sleeve of each gate given: the half of its swirl band behind
-     * its portal's face, a ring at the band's line running the named sleeve
+     * its portal's face, a ring at the oval's edge running the named sleeve
      * depth back into the portal, which the view through the pair draws in
      * front of the partner's face.
      * tornadic-halo-spirals-out-from-the-rim
@@ -450,13 +443,12 @@ public final class PortalFaces {
     }
 
     /**
-     * Emits a gate's swirl band: before the face, an arch from the named
-     * distance inside its line to the named distance outside, rising to the
-     * named depth right over the line; or, for the sleeve, a ring at the line
-     * running back into the portal. Each quad maps zero to one around the
-     * rim, and across the arch zero to one from inside to outside, or along
-     * the sleeve a half to one from the face back, the arch's line and the
-     * sleeve's mouth meeting at a half; every vertex carries the texels
+     * Emits a gate's swirl band: before the face, an arch from the oval's
+     * edge to the named distance outside it, rising to the named depth
+     * midway; or, for the sleeve, a ring at the edge running back into the
+     * portal. Each quad maps zero to one around the rim, and across the arch
+     * zero to one from the edge outward, or along the sleeve a half to one
+     * from the face back; every vertex carries the texels
      * around the rim and across the arch at sixteen a block.
      * tornadic-halo-spirals-out-from-the-rim
      *
@@ -487,7 +479,7 @@ public final class PortalFaces {
 
     /**
      * The arch a gate's swirl band draws over: the rim's oval on the face,
-     * its half sizes across the face's two ways, the arch straddling it.
+     * its half sizes across the face's two ways, the arch rising from it.
      *
      * @param center the oval's middle on the face's plane, lifted off it
      * @param side   the face
@@ -510,11 +502,11 @@ public final class PortalFaces {
 
         /**
          * @param segment how many segments around the rim, of the named count
-         * @param share   how far across the arch from inside its line to outside, zero to one
+         * @param share   how far across the arch from the oval's edge out onto the wall, zero to one
          * @return the arch's point there
          */
         Vec3 point(int segment, double share) {
-            return around(segment, Mth.lerp(share, -BAND_INSIDE, BAND_OUTSIDE))
+            return around(segment, BAND_OUTSIDE * share)
                     .add(side.getUnitVec3().scale(BAND_DEPTH * Math.sin(Math.PI * share)));
         }
 
@@ -529,12 +521,11 @@ public final class PortalFaces {
 
         /**
          * @param segment how many segments around the rim, of the named count
-         * @param off     how far out past the band's line, in blocks
-         * @return the point on the face that far out past the line at that segment
+         * @param out     how far out past the oval's edge, in blocks
+         * @return the point on the face that far out past the edge at that segment
          */
-        private Vec3 around(int segment, double off) {
+        private Vec3 around(int segment, double out) {
             double angle = Mth.TWO_PI * segment / BAND_SEGMENTS;
-            double out = off - BAND_INSET;
             return center.add(Vec3.ZERO.with(firstAxisOf(side), (half[0] + out) * Math.cos(angle))
                     .with(secondAxisOf(side), (half[1] + out) * Math.sin(angle)));
         }
@@ -550,7 +541,7 @@ public final class PortalFaces {
             double around = Math.PI * (RAMANUJAN_THREE * (first + second) - Math.sqrt((RAMANUJAN_THREE * first
                     + second) * (first + RAMANUJAN_THREE * second)));
             return new int[] {(int) Math.round(around * TEXELS_PER_BLOCK),
-                    (int) Math.round((BAND_INSIDE + BAND_OUTSIDE) * TEXELS_PER_BLOCK)};
+                    (int) Math.round(BAND_OUTSIDE * TEXELS_PER_BLOCK)};
         }
     }
 

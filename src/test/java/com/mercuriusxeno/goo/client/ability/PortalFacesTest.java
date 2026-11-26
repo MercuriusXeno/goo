@@ -189,10 +189,13 @@ class PortalFacesTest {
         private static final float FACE_Z = -0.01F;
         /** How far a vertex may stand from where the test reckons it, float rounding only. */
         private static final float NEAR = 1.0e-4F;
-        /** The rim's 4.84 blocks around a one by two oval and the arch's two texels across, at sixteen a block. */
-        private static final int[] AROUND_BY_UP = {78, 2};
-        /** The band's line on the frame's oval: half a texel inside its edge each way. */
-        private static final double[] LINE = {0.5 - PortalFaces.BAND_INSET, 1 - PortalFaces.BAND_INSET};
+        /** The rim's 4.84 blocks around a one by two oval and the arch's one texel across, at sixteen a block. */
+        private static final int[] AROUND_BY_UP = {78, 1};
+        /** The frame's oval, the face's own edge: half its one by two blocks each way. */
+        private static final double[] FACE_EDGE = {0.5, 1};
+        /** Where the band's arch peaks: midway across it, half its width outside the face's edge. */
+        private static final double[] PEAK = {FACE_EDGE[0] + PortalFaces.BAND_OUTSIDE / 2,
+            FACE_EDGE[1] + PortalFaces.BAND_OUTSIDE / 2};
 
         /**
          * The band's sleeve, the half behind the face, is a ring at the band's
@@ -217,10 +220,38 @@ class PortalFacesTest {
             assertEquals(FACE_Z - (float) PortalFaces.BAND_SLEEVE, zs.getAllValues().stream().min(Float::compare)
                     .orElseThrow(), NEAR, "The sleeve should run the named depth back from the face");
             for (int i = 0; i < vertices; i++) {
-                assertTrue(onOval(xs.getAllValues().get(i) - 0.5F, ys.getAllValues().get(i) - 65F, LINE[0],
-                        LINE[1]), "Every vertex of the sleeve should stand on the band's line");
+                assertTrue(onOval(xs.getAllValues().get(i) - 0.5F, ys.getAllValues().get(i) - 65F, FACE_EDGE[0],
+                        FACE_EDGE[1]), "Every vertex of the sleeve should stand on the face's edge");
             }
             verify(consumer, times(vertices)).setColor(ARGB.opaque(PortalFaces.ORANGE_RGB));
+        }
+
+        /**
+         * The band's inner edge lies on the face's own edge, so the two meet
+         * from any angle, and the band lands outside it on the wall.
+         */
+        @Test
+        void aPortalsSwirlBandLandsOnTheFacesEdgeAndOutsideIt() {
+            VertexConsumer consumer = mock(VertexConsumer.class, Answers.RETURNS_SELF);
+            PoseStack.Pose pose = new PoseStack().last();
+            ArgumentCaptor<Float> xs = ArgumentCaptor.forClass(Float.class);
+            ArgumentCaptor<Float> ys = ArgumentCaptor.forClass(Float.class);
+            ArgumentCaptor<Float> zs = ArgumentCaptor.forClass(Float.class);
+
+            PortalFaces.emitSwirlBands(pose, consumer, List.of(new PortalFaces.Drawn(FRAME, PortalFaces.BLUE_RGB,
+                    false)), BLOCKS_OF);
+
+            verify(consumer, atLeastOnce()).addVertex(eq(pose), xs.capture(), ys.capture(), zs.capture());
+            for (int i = 0; i < zs.getAllValues().size(); i++) {
+                float x = xs.getAllValues().get(i) - 0.5F;
+                float y = ys.getAllValues().get(i) - 65F;
+                if (Math.abs(zs.getAllValues().get(i) - FACE_Z) < NEAR) {
+                    assertTrue(onOval(x, y, FACE_EDGE[0], FACE_EDGE[1]) || onOval(x, y,
+                            FACE_EDGE[0] + PortalFaces.BAND_OUTSIDE, FACE_EDGE[1] + PortalFaces.BAND_OUTSIDE),
+                            "A vertex on the face should land on the face's edge or the named distance outside it, "
+                                    + "lands at " + x + ", " + y);
+                }
+            }
         }
 
         @Test
@@ -253,15 +284,9 @@ class PortalFacesTest {
                 float x = xs.getAllValues().get(i);
                 float y = ys.getAllValues().get(i);
                 float z = zs.getAllValues().get(i);
-                if (Math.abs(z - FACE_Z) < NEAR) {
-                    assertTrue(onOval(x - 0.5F, y - 65F, LINE[0] - PortalFaces.BAND_INSIDE,
-                            LINE[1] - PortalFaces.BAND_INSIDE) || onOval(x - 0.5F, y - 65F,
-                            LINE[0] + PortalFaces.BAND_OUTSIDE, LINE[1] + PortalFaces.BAND_OUTSIDE),
-                            "A vertex on the face should land the named distance inside or outside the band's line, "
-                                    + "lands at " + x + ", " + y);
-                } else if (Math.abs(z - farthest) < NEAR) {
-                    assertTrue(onOval(x - 0.5F, y - 65F, LINE[0], LINE[1]), "The band's peak should stand on its line, "
-                            + "stands at " + x + ", " + y);
+                if (Math.abs(z - farthest) < NEAR) {
+                    assertTrue(onOval(x - 0.5F, y - 65F, PEAK[0], PEAK[1]), "The band's peak should stand midway "
+                            + "across it, stands at " + x + ", " + y);
                 }
             }
             verify(consumer, times(vertices)).setColor(ARGB.opaque(expectedRgb));
