@@ -11,7 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * Pure-function tests for the chain/frost placement decision matrix.
- * Validates that a standing marker is never stacked onto, displacement rules, waterlogging, and the
+ * Validates that a solid cell is never landed in, displacement rules, waterlogging, and the
  * frost-specific freeze-and-rise behavior against non-liquid/water/lava
  * candidate states.
  */
@@ -52,28 +52,20 @@ class ChainPlacementRulesTest {
         return new CandidateState(false, true, false, true, false);
     }
 
-    /**
-     * Convenience: builds a CandidateState for a standing ability block, which
-     * is neither air nor replaceable.
-     */
-    private static CandidateState standingMarker() {
-        return new CandidateState(false, false, false, false, false);
-    }
-
-    // ── A standing marker takes no second goo (decision splat-runs-the-program-no-fuse) ──
+    // ── A solid cell takes no landing (decision splat-runs-the-program-no-fuse) ──
 
     @Nested
-    class StandingMarker {
+    class SolidCell {
 
         @Test
-        void throwAtAStandingMarkerLandsBesideIt() {
-            Decision d = ChainPlacementRules.decide(standingMarker(), air(), WaterHandling.WATERLOG);
+        void throwAtASolidCellLandsBesideIt() {
+            Decision d = ChainPlacementRules.decide(solid(), air(), WaterHandling.WATERLOG);
             assertEquals(new Decision(Action.DISPLACE, 1), d);
         }
 
         @Test
-        void throwBesideAStandingMarkerOnItsFaceLandsNothing() {
-            Decision d = ChainPlacementRules.decide(solid(), standingMarker(), WaterHandling.WATERLOG);
+        void throwAtASolidCellWithASolidFaceLandsNothing() {
+            Decision d = ChainPlacementRules.decide(solid(), solid(), WaterHandling.WATERLOG);
             assertEquals(new Decision(Action.NONE, -1), d);
         }
     }
@@ -108,7 +100,7 @@ class ChainPlacementRulesTest {
         }
 
         @Test
-        void bothSolid_noMarker_returnsNone() {
+        void bothSolid_returnsNone() {
             Decision d = ChainPlacementRules.decide(solid(), solid(), WaterHandling.NONE);
             assertEquals(new Decision(Action.NONE, -1), d);
         }
@@ -145,7 +137,7 @@ class ChainPlacementRulesTest {
         }
     }
 
-    // ── Water + WATERLOG handling (ability blocks) ──────────────────────
+    // ── Water + WATERLOG handling (ability landings) ───────────────────
 
     @Nested
     class WaterWaterlog {
@@ -205,7 +197,7 @@ class ChainPlacementRulesTest {
         }
     }
 
-    // ── Water + NONE handling (effect blocks without water support) ────
+    // ── Water + NONE handling (landings that refuse water) ─────────────
 
     @Nested
     class WaterNoneHandling {

@@ -27,7 +27,6 @@ import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.Attributes;
-import net.minecraft.world.entity.animal.cow.Cow;
 import net.minecraft.world.entity.monster.cubemob.Slime;
 import net.minecraft.world.entity.projectile.arrow.Arrow;
 import net.minecraft.world.item.ItemStack;
@@ -51,7 +50,6 @@ import java.util.function.Consumer;
  */
 @RegistersGameTests
 public final class MobEffectTests {
-    private static final String ALLURE_COURTS = "allure_courts_the_struck_animal";
     private static final String FLOAT_LEVITATES_A_ZOMBIE = "float_levitates_a_zombie";
     private static final String CHARM_TURNS_ZOMBIE = "charm_turns_zombie_on_skeleton";
     private static final String CHARMED_SLIME_SPARES = "charmed_slime_spares_its_charmer";
@@ -72,7 +70,6 @@ public final class MobEffectTests {
      * @param registrar the test function registrar
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
-        GooTestFunctions.registerTest(registrar, ALLURE_COURTS, MobEffectTests::allureCourtsTheStruckAnimal);
         GooTestFunctions.registerTest(registrar, FLOAT_LEVITATES_A_ZOMBIE, MobEffectTests::floatLevitatesAZombie);
         GooTestFunctions.registerTest(registrar, CHARM_TURNS_ZOMBIE, MobEffectTests::charmTurnsZombieOnSkeleton);
         GooTestFunctions.registerTest(registrar, CHARMED_SLIME_SPARES, MobEffectTests::charmedSlimeSparesItsCharmer);
@@ -141,7 +138,6 @@ public final class MobEffectTests {
     /** The gametests' own thrown blast, today's Blast before it was drag-sized, struck at a mob. */
     private static final String ABILITY_UNSTABLE_BLAST = "goo:test_blast";
     private static final String ABILITY_HEX_CHARM = "goo:hex_charm";
-    private static final String ABILITY_ZOO_ALLURE = "goo:zoo_allure";
     private static final String ABILITY_ENDER_SEAL = "goo:ender_seal";
     /** Well above Seal's radius, so the player sets nothing off until the test walks it in. */
     private static final double PLAYER_OUT_OF_REACH_ABOVE = 20.0;
@@ -161,7 +157,6 @@ public final class MobEffectTests {
     private static final String SHOULD_BE_CURSED = "The zombie should carry the curse after the first Seal";
     private static final String SHOULD_WARP = "The cursed zombie should warp away from the player standing on it";
     private static final String SHOULD_BE_EXILED = "A second Seal should exile the cursed zombie";
-    private static final String SHOULD_BE_IN_LOVE = "A cow struck by Allure should be in love";
     /** Beside the cow, inside test_blast.json's blast of power 3. */
     private static final BlockPos BLAST_DIRT_POS = SPAWN_POS.south();
 
@@ -195,21 +190,6 @@ public final class MobEffectTests {
         helper.assertTrue(ability != null, ABILITIES_REQUIRED);
         GooEffectScheduler.applyEffect(new PendingEffect(0, helper.getLevel(), thrower, ability.gooType(),
                 mob.getId(), mob.blockPosition(), Direction.UP, abilityId));
-    }
-
-    /**
-     * Allure courts the struck animal: a grown cow hit by the blob is in love
-     * (decision allure-courts-the-struck-animal).
-     *
-     * @param helper the gametest helper
-     */
-    public static void allureCourtsTheStruckAnimal(GameTestHelper helper) {
-        Cow cow = helper.spawnWithNoFreeWill(EntityTypes.COW, SPAWN_POS);
-        helper.runAfterDelay(SETTLE_TICKS, () -> {
-            strike(helper, cow, ABILITY_ZOO_ALLURE);
-            helper.assertTrue(cow.isInLove(), SHOULD_BE_IN_LOVE);
-            helper.succeed();
-        });
     }
 
     /**

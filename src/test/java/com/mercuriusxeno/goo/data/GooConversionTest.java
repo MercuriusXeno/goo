@@ -49,12 +49,12 @@ class GooConversionTest {
         }
 
         /**
-         * Formula with divisor of 1: "zoo / 1 -> nether / 2".
+         * Formula with divisor of 1: "zombie / 1 -> nether / 2".
          */
         @Test
         void parseDivisorOfOne() {
-            GooConversion.Formula f = GooConversion.parseFormula("zoo / 1 -> nether / 2");
-            assertEquals(GooTypes.ZOO, f.sourceType());
+            GooConversion.Formula f = GooConversion.parseFormula("zombie / 1 -> nether / 2");
+            assertEquals(GooTypes.ZOMBIE, f.sourceType());
             assertEquals(1, f.sourceDivisor());
             assertEquals(GooTypes.NETHER, f.targetType());
             assertEquals(2, f.targetDivisor());
@@ -81,14 +81,14 @@ class GooConversionTest {
         @Test
         void parseAdditiveFromTreeConstant() {
             Map<String, GooValue> treeConstants = Map.of(
-                    "waxed", goo(GooTypes.ZOO, 48));
+                    "waxed", goo(GooTypes.ZOMBIE, 48));
             Map<String, String> entries = new LinkedHashMap<>();
             entries.put("waxed", "+$waxed");
             entries.put("#waxed_copper", "#copper @waxed");
 
             GooConversion.ParsedConversions parsed = GooConversion.parseBlock(entries, Map.of(), treeConstants);
             assertNotNull(parsed.additives().get("waxed"));
-            assertEquals(GooFraction.of(48), parsed.additives().get("waxed").exact(GooTypes.ZOO));
+            assertEquals(GooFraction.of(48), parsed.additives().get("waxed").exact(GooTypes.ZOMBIE));
         }
 
         /**
@@ -97,11 +97,11 @@ class GooConversionTest {
         @Test
         void additiveAppliedToItem() {
             GooValue copper = goo(GooTypes.METAL, 160);
-            GooValue waxBonus = goo(GooTypes.ZOO, 48);
+            GooValue waxBonus = goo(GooTypes.ZOMBIE, 48);
 
             GooValue result = copper.add(waxBonus, 1);
             assertEquals(GooFraction.of(160), result.exact(GooTypes.METAL));
-            assertEquals(GooFraction.of(48), result.exact(GooTypes.ZOO));
+            assertEquals(GooFraction.of(48), result.exact(GooTypes.ZOMBIE));
         }
 
         /**
@@ -110,11 +110,11 @@ class GooConversionTest {
         @Test
         void additiveWithMultiplier() {
             GooValue copper = goo(GooTypes.METAL, 160);
-            GooValue waxBonus = goo(GooTypes.ZOO, 48);
+            GooValue waxBonus = goo(GooTypes.ZOMBIE, 48);
 
             GooValue result = copper.add(waxBonus, 2);
             assertEquals(GooFraction.of(160), result.exact(GooTypes.METAL));
-            assertEquals(GooFraction.of(96), result.exact(GooTypes.ZOO));
+            assertEquals(GooFraction.of(96), result.exact(GooTypes.ZOMBIE));
         }
     }
 

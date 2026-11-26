@@ -19,7 +19,6 @@ import java.nio.file.Path;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -83,46 +82,6 @@ class AbilityBadgeTest {
     @CsvSource({"HELD", "RESIDUAL"})
     void heldAndResidualAimAPoint(AbilityBadge badge) {
         assertTrue(badge.aimsAPoint(), badge + " aims no point");
-    }
-
-    /**
-     * Grab and Gouge prepare on right click and throw on left click, so they wear held; Flames,
-     * Gust and Cold stay channeled; Goop, Slick, Molten, Host and Rime spray a goo in world and
-     * wear residual.
-     * decision held-badge-marks-abilities-that-prepare-and-throw
-     * decision residual-badge-marks-the-four-goo-sprays
-     * decision rime-wears-the-residual-badge
-     *
-     * @param ability the shipped ability's file name
-     * @param badge   the badge it wears
-     */
-    @ParameterizedTest
-    @CsvSource({"kinetic_grab, HELD", "rock_gouge, HELD", "blaze_flames, CHANNELED", "sculk_mycosis, CHANNELED", "typhoon_gust, CHANNELED",
-            "frost_cold, CHANNELED", "weird_goop, RESIDUAL", "kinetic_slick, RESIDUAL", "blaze_molten, RESIDUAL",
-            "sculk_creep, RESIDUAL", "frost_rime, RESIDUAL", "hex_leech, RESIDUAL", "typhoon_updraft, RESIDUAL",
-            "jelly_nectar, RESIDUAL", "pulse_signal, RESIDUAL", "metal_spikes, RESIDUAL",
-            "zombie_infest, RESIDUAL", "leaf_vines, RESIDUAL", "unstable_nitro, RESIDUAL",
-            "quantum_phase, RESIDUAL", "rock_mortar, RESIDUAL", "yarn_stitch, RESIDUAL", "nether_gloom, RESIDUAL"})
-    void shippedAbilityWearsItsControlBadge(String ability, AbilityBadge badge) {
-        assertEquals(badge, AbilityJson.decode(ability).badge(), ability);
-    }
-
-    /**
-     * decision residual-badge-marks-the-four-goo-sprays
-     * decision rime-wears-the-residual-badge
-     * updraft-wears-the-residual-badge
-     * operator ruling 2026-11-17: Nectar wears the residual badge
-     * every-residual-goo-ability-wears-the-residual-badge-and-takes-the-residual-icon
-     */
-    @Test
-    void residualIsWornByExactlyTheGooSprays() {
-        Set<String> wearers = AbilityJson.files().stream().map(AbilityJson::decode)
-                .filter(definition -> definition.badge() == AbilityBadge.RESIDUAL)
-                .map(definition -> definition.id().getPath()).collect(Collectors.toSet());
-        assertEquals(Set.of("weird_goop", "kinetic_slick", "blaze_molten", "sculk_creep", "frost_rime", "hex_leech",
-                "typhoon_updraft", "jelly_nectar", "pulse_signal", "metal_spikes", "zombie_infest",
-                "leaf_vines", "unstable_nitro", "quantum_phase", "rock_mortar", "yarn_stitch", "nether_gloom"),
-                wearers);
     }
 
     /** decision self-badge-becomes-instant-with-a-noita-trigger-star */

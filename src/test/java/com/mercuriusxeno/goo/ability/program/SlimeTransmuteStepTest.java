@@ -9,9 +9,10 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
- * Covers the slime transmute's draw categories, monsters for Spawn and the
- * friendly ones for Shape, and that the morph reaches the watchers before
- * the born mob does (decision spawn-hostile-shape-peaceful-from-a-slime).
+ * Covers the slime transmute's draw categories, monsters for a hostile draw
+ * as Gloom's turn takes and the friendly ones for a peaceful draw, and that
+ * the morph reaches the watchers before the born mob does (decision
+ * spawn-hostile-shape-peaceful-from-a-slime).
  */
 class SlimeTransmuteStepTest {
 
@@ -38,13 +39,12 @@ class SlimeTransmuteStepTest {
         return Arrays.stream(MobCategory.values()).filter(SlimeTransmuteStep.categoryFilter(hostile)).toList();
     }
 
+    // gloom-turns-slimes-into-random-hostiles-in-place-of-spawn
     @Test
-    void theShippedShapeDrawsTheFriendlyCategories() {
-        // the transmute stands inside the target step that picks the slime
-        SlimeTransmuteStep shape = AbilityJson.decode("zoo_shape").behaviors().stream().flatMap(Step::children)
-                .filter(SlimeTransmuteStep.class::isInstance).map(SlimeTransmuteStep.class::cast).findFirst()
-                .orElseThrow();
+    void theShippedGloomTurnDrawsOnlyMonsters() {
+        SlimeTransmuteStep turn = GloomStep.in(AbilityJson.decode("nether_gloom").behaviors()).orElseThrow()
+                .slimeTurn();
 
-        assertEquals(drawn(false), drawn(shape.hostile()));
+        assertEquals(drawn(true), drawn(turn.hostile()));
     }
 }

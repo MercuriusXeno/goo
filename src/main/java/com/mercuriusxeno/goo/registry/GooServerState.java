@@ -4,7 +4,6 @@ import com.mercuriusxeno.goo.ability.frost.GlacialFields;
 import com.mercuriusxeno.goo.ability.petrify.BlockExposures;
 import com.mercuriusxeno.goo.ability.program.MorphBirths;
 import com.mercuriusxeno.goo.ability.program.VacuumCounts;
-import com.mercuriusxeno.goo.block.ability.AbilityBlockFallScheduler;
 import com.mercuriusxeno.goo.block.ability.CreepFreeCells;
 import com.mercuriusxeno.goo.block.ability.CreepSpreaders;
 import com.mercuriusxeno.goo.block.ability.LayerFalls;
@@ -26,8 +25,8 @@ import net.minecraft.world.level.Level;
 import org.jspecify.annotations.Nullable;
 
 /**
- * What one server holds between ticks: the goo effects, marker falls and
- * spray drips in flight, and the stream holds. Each server holds its
+ * What one server holds between ticks: the goo effects and spray drips in
+ * flight, and the stream holds. Each server holds its
  * own and a server stop clears it, so nothing in flight lands against a
  * stopped server's levels (decision type-package-and-per-server-holders).
  */
@@ -39,7 +38,6 @@ public final class GooServerState {
     private final ThrownKnives thrownKnives = new ThrownKnives();
     private final MorphBirths morphBirths = new MorphBirths();
     private final BlockExposures blockExposures = new BlockExposures();
-    private final AbilityBlockFallScheduler markerFalls = new AbilityBlockFallScheduler();
     private final StreamHolds streamHolds = new StreamHolds();
     private final GlacialFields glacialFields = new GlacialFields();
     private final ScanWaves scanWaves = new ScanWaves();
@@ -118,13 +116,6 @@ public final class GooServerState {
      */
     public MorphBirths morphBirths() {
         return morphBirths;
-    }
-
-    /**
-     * @return the ability block falls in flight
-     */
-    public AbilityBlockFallScheduler markerFalls() {
-        return markerFalls;
     }
 
     /**
@@ -257,9 +248,6 @@ public final class GooServerState {
         if (gooEffects.hasPending()) {
             gooEffects.drainArrivedEffects(currentTick);
         }
-        if (markerFalls.hasPending()) {
-            markerFalls.drainArrivedFalls(currentTick);
-        }
         if (scanWaves.hasPending()) {
             scanWaves.drainArrived(currentTick);
         }
@@ -289,7 +277,6 @@ public final class GooServerState {
         palmBufferSyncs.clear();
         thrownKnives.clear();
         blockExposures.clear();
-        markerFalls.clear();
         streamHolds.clear();
         morphBirths.clear();
         glacialFields.clear();

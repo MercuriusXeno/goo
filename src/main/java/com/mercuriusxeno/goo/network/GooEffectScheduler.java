@@ -500,7 +500,7 @@ public final class GooEffectScheduler {
             Goo.LOGGER.warn(LOG_NO_ABILITY, GooTypes.id(pe.gooType));
             return;
         }
-        applyAbilityBlockEffect(pe);
+        landAbility(pe);
     }
 
     /**
@@ -509,7 +509,7 @@ public final class GooEffectScheduler {
      *
      * @param pe the pending effect with ability id set
      */
-    static void applyAbilityBlockEffect(PendingEffect pe) {
+    static void landAbility(PendingEffect pe) {
         Identifier id = Identifier.tryParse(pe.abilityId);
         if (id == null) {
             return;

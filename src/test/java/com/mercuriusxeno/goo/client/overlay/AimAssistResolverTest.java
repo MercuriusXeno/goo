@@ -42,8 +42,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * Covers the aim assist answering entities alone: a standing ability block
- * is never an aim target, so a throw at one lands beside it (decision
+ * Covers the aim assist answering entities alone: a block
+ * is never an aim target, so a throw at a solid one lands beside it (decision
  * splat-runs-the-program-no-fuse); its cone taking no mob beyond the ray's
  * reach (decision grab-reaches-telekinesis-range); and its candidates being
  * what the selected ability's steps take (decision steps-declare-the-entities-they-take), less

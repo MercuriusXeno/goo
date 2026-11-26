@@ -206,7 +206,7 @@ public final class GooEventWiring {
     }
 
     /**
-     * Lands the server's pending goo effects and marker falls on arrival.
+     * Lands the server's pending goo effects on arrival.
      *
      * @param event the post-tick event instance
      */

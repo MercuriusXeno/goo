@@ -3,6 +3,7 @@
 
 #include <minecraft:fog.glsl>
 #include <minecraft:dynamictransforms.glsl>
+#include <minecraft:oit.glsl>
 #include <minecraft:globals.glsl>
 #include <goo:mingle_noise.glsl>
 
@@ -24,7 +25,12 @@ layout(location = 5) in vec3 skinNormal;
 // (decision diagnose-and-correct-vines-and-ailment-overlay-assuming-a-square-skin).
 layout(location = 6) flat in vec2 skinTexels;
 
+// Under improved transparency the depth bounds and transmittance phases take the alpha alone, and the
+// accumulate phase weights the color by the transmittance in front of it
+// (decision goo-translucency-draws-through-order-independent-transparency).
+#ifndef OIT_ALPHA_ONLY
 layout(location = 0) out vec4 fragColor;
+#endif
 
 // Noise cells across the skin's coordinates: a handful of patches over a body.
 const float PATCH_CELLS = 6.0;
@@ -49,6 +55,17 @@ void main() {
     }
     float shade = 0.7 + 0.3 * abs(normalize(skinNormal).y);
     vec3 lit = vine.rgb * vineColor.rgb * shade * lightMapColor.rgb;
-    fragColor = apply_fog(vec4(lit, 1.0), sphericalVertexDistance, cylindricalVertexDistance,
-            FogEnvironmentalStart, FogEnvironmentalEnd, FogRenderDistanceStart, FogRenderDistanceEnd, FogColor);
+    vec4 color = vec4(lit, 1.0);
+#ifdef OIT_ALPHA_ONLY
+    executeAlphaOnlyPhase(gl_FragCoord.z, color.a);
+#else
+    #ifdef OIT_ACCUMULATE
+    color = sampleColorForAccumulation(color);
+    vec4 fogColor = vec4(FogColor.rgb * color.a, FogColor.a);
+    #else
+    vec4 fogColor = FogColor;
+    #endif
+    fragColor = apply_fog(color, sphericalVertexDistance, cylindricalVertexDistance,
+            FogEnvironmentalStart, FogEnvironmentalEnd, FogRenderDistanceStart, FogRenderDistanceEnd, fogColor);
+#endif
 }

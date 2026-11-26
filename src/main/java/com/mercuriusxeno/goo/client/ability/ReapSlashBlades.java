@@ -170,8 +170,8 @@ public final class ReapSlashBlades {
         }
         Vec3 from = frame.feetOf(shown).subtract(camera);
         ReapSlash.Band band = slash.shape().bandAt(age);
-        int front = ARGB.color(Mth.floor(OPAQUE * strength), FRONT_RGB);
-        int back = ARGB.color(Mth.floor(OPAQUE * strength * BACK_SHARE), leaf);
+        int front = frontColor(strength);
+        int back = backColor(strength, leaf);
         for (int segment = 0; segment < SEGMENTS; segment++) {
             double start = (double) segment / SEGMENTS;
             double end = (double) (segment + 1) / SEGMENTS;
@@ -180,6 +180,23 @@ public final class ReapSlashBlades {
             emit(quads, slash.place(from, plane, band.at(end, BACK)), back);
             emit(quads, slash.place(from, plane, band.at(start, BACK)), back);
         }
+    }
+
+    /**
+     * @param strength the slash's strength, zero to one
+     * @return the color its front glows at that strength
+     */
+    public static int frontColor(float strength) {
+        return ARGB.color(Mth.floor(OPAQUE * strength), FRONT_RGB);
+    }
+
+    /**
+     * @param strength the slash's strength, zero to one
+     * @param leaf     Leaf's green
+     * @return the color its back glows at that strength
+     */
+    public static int backColor(float strength, int leaf) {
+        return ARGB.color(Mth.floor(OPAQUE * strength * BACK_SHARE), leaf);
     }
 
     private static void emit(FlatQuadContext quads, Vec3 point, int color) {

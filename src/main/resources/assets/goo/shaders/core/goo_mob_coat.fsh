@@ -4,6 +4,7 @@
 #include <minecraft:light.glsl>
 #include <minecraft:fog.glsl>
 #include <minecraft:dynamictransforms.glsl>
+#include <minecraft:oit.glsl>
 #include <goo:mingle_noise.glsl>
 
 // The goo splat on a struck mob (decision shader-coat-on-every-mob-landing): the
@@ -27,7 +28,12 @@ layout(location = 6) in vec3 splatOffset;
 layout(location = 7) flat in vec2 spriteOrigin;
 layout(location = 8) flat in float splatKeep;
 
+// Under improved transparency the depth bounds and transmittance phases take the alpha alone, and the
+// accumulate phase weights the color by the transmittance in front of it
+// (decision goo-translucency-draws-through-order-independent-transparency).
+#ifndef OIT_ALPHA_ONLY
 layout(location = 0) out vec4 fragColor;
+#endif
 
 // Half the operator's half-block splat: the splat's radius in blocks.
 const float SPLAT_RADIUS = 0.25;
@@ -104,6 +110,16 @@ void main() {
     float thickness = mix(THIN_EDGE_SHADE, 1.0, 1.0 - clamp(fromHit * fromHit, 0.0, 1.0));
     vec4 litTint = minecraft_mix_light(Light0_Direction, Light1_Direction, normal, vec4(gooTint * thickness, 1.0));
     vec4 color = goo * litTint * ColorModulator * lightMapColor;
+#ifdef OIT_ALPHA_ONLY
+    executeAlphaOnlyPhase(gl_FragCoord.z, color.a);
+#else
+    #ifdef OIT_ACCUMULATE
+    color = sampleColorForAccumulation(color);
+    vec4 fogColor = vec4(FogColor.rgb * color.a, FogColor.a);
+    #else
+    vec4 fogColor = FogColor;
+    #endif
     fragColor = apply_fog(color, sphericalVertexDistance, cylindricalVertexDistance,
-            FogEnvironmentalStart, FogEnvironmentalEnd, FogRenderDistanceStart, FogRenderDistanceEnd, FogColor);
+            FogEnvironmentalStart, FogEnvironmentalEnd, FogRenderDistanceStart, FogRenderDistanceEnd, fogColor);
+#endif
 }

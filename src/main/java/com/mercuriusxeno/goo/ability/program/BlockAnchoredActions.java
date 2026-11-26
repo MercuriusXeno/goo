@@ -19,7 +19,7 @@ import java.util.function.Consumer;
 
 /**
  * The world actions a host anchored at a block shares whatever block it
- * is, such as the ability block: entity scans handing each body
+ * is, such as the prism: entity scans handing each body
  * an entity host with no thrower crediting the anchor's placer, and particle bursts spread along the
  * anchor's axis.
  */

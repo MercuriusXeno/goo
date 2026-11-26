@@ -24,18 +24,20 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * Gametest for the Shriek blob's one cry: landed on a stone floor with a
- * zombie far off in earshot, the zombie walks toward the blob, and a zombie
- * arriving just after the cry is never called; SculkCallTest holds that the
- * call passes a cow over (decisions
- * shriek-blob-cries-once-and-calls-earshot,
- * shriek-is-a-sculk-call-that-draws-every-mob-it-reaches and
- * shriek-pulls-hostiles-only). The cry reaches any mob near it, so the
- * scene stands far from every other test, its chunks held loaded while it runs.
+ * Gametests for the Shriek blob's one cry, landed on a stone floor through
+ * the real landing path: the landing cell holds air after the cry, a zombie
+ * in earshot is called and walks toward the landing while a cow beside it
+ * stays uncalled, and a zombie arriving one tick after the cry is never
+ * called (decisions shriek-blob-cries-once-and-calls-earshot,
+ * shriek-is-a-sculk-call-that-draws-every-mob-it-reaches,
+ * convoke-blob-throbs-until-a-mob-arrives and shriek-pulls-hostiles-only).
+ * The cry reaches any mob near it, so each scene stands far from every
+ * other test and from the other scene, its chunks held loaded while it runs.
  */
 @RegistersGameTests
 public final class ShriekTests {
-    private static final String SHRIEK_CALLS = "shriek_calls_the_zombie_in_earshot";
+    private static final String SHRIEK_CALLS = "shriek_calls_the_zombie_and_passes_the_cow";
+    private static final String SHRIEK_CALLS_NONE_LATER = "shriek_calls_no_zombie_arriving_after_the_cry";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -43,56 +45,80 @@ public final class ShriekTests {
      * @param registrar the test function registrar
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
-        GooTestFunctions.registerTest(registrar, SHRIEK_CALLS, ShriekTests::shriekCallsTheZombieInEarshot);
+        GooTestFunctions.registerTest(registrar, SHRIEK_CALLS, ShriekTests::shriekCallsTheZombieAndPassesTheCow);
+        GooTestFunctions.registerTest(registrar, SHRIEK_CALLS_NONE_LATER,
+                ShriekTests::shriekCallsNoZombieArrivingAfterTheCry);
     }
 
     private static final Identifier XENO_SHRIEK = Identifier.parse("goo:xeno_shriek");
-    /** How far off its own bay the scene lies on each horizontal axis, past every other test. */
+    /** How far off its own bay the first scene lies on each horizontal axis, past every other test. */
     private static final int FAR_OFF = 4096;
-    /** The floor's reach from the blob along x, past the far zombie, and its half width along z. */
-    private static final int FLOOR_LENGTH = 14;
+    /** How far along z the second scene lies from the first, past the shriek's reach. */
+    private static final int SCENE_APART = 64;
+    /** The floor's reach from the landing along x, past the mobs, and its half width along z. */
+    private static final int FLOOR_LENGTH = 12;
     private static final int FLOOR_HALF_WIDTH = 3;
-    /** The zombies' distance from the blob, well inside the shriek's reach. */
-    private static final int FAR = 10;
+    /** The mobs' distance from the landing, inside the shriek's reach. */
+    private static final int FAR = 8;
     /** Ticks a called mob is given to walk after the shriek. */
     private static final int WALK_TICKS = 80;
-    /** How much nearer the blob a called mob stands after its walk. */
+    /** How much nearer the landing a called mob stands after its walk. */
     private static final double WALKED_NEARER = 2.5;
+    /** Ticks a late zombie stands in earshot before it is read. */
+    private static final int LATE_ZOMBIE_TICKS = 5;
     private static final String SHOULD_SPAWN = "A %s should spawn";
     private static final String SHOULD_TICK = "The far chunks should tick their entities";
     private static final String ABILITY_REQUIRED = "%s must be loaded";
-    private static final String SHOULD_COME = "The zombie %d blocks out should walk nearer the blob, stood %.2f off, stands %.2f off";
-    private static final String SHOULD_CALL_THE_ZOMBIE = "The shriek should call the zombie in earshot to the blob";
+    private static final String SHOULD_LEAVE_AIR = "The Shriek landing should place no block, holds %s";
+    private static final String SHOULD_COME = "The zombie %d blocks out should walk nearer the landing, stood %.2f off, stands %.2f off";
+    private static final String SHOULD_CALL_THE_ZOMBIE = "The shriek should call the zombie in earshot to the landing";
+    private static final String SHOULD_PASS_THE_COW = "The shriek should pass the cow beside the zombie over";
+    private static final String SHOULD_NOT_CALL_LATER = "A zombie arriving after the shriek should not be called";
 
     private ShriekTests() {
     }
 
     /**
-     * A zombie ten blocks west of the blob stands in earshot as the blob
-     * lands and shrieks: the zombie is called and stands at least two and a
-     * half blocks nearer the blob eighty ticks later. The zombie spawns once the far chunk ticks its
-     * entities, since a mob added sooner stands frozen.
+     * A zombie eight blocks west of the landing and a cow beside it stand in
+     * earshot as the blob lands and shrieks: the landing cell holds air, the
+     * zombie is called and the cow is not, and eighty ticks later the zombie
+     * stands at least two and a half blocks nearer the landing. The mobs
+     * spawn once the far chunk ticks its entities, since a mob added sooner
+     * stands frozen.
      *
      * @param helper the gametest helper
      */
-    public static void shriekCallsTheZombieInEarshot(GameTestHelper helper) {
+    public static void shriekCallsTheZombieAndPassesTheCow(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
-        BlockPos floor = buildFloor(helper);
-        Vec3 blob = Vec3.atBottomCenterOf(floor.above());
-        BlockPos zombieAt = floor.above().west(FAR);
+        BlockPos floor = buildFloor(helper, 0);
+        BlockPos landing = floor.above();
+        Vec3 blob = Vec3.atBottomCenterOf(landing);
+        BlockPos zombieAt = landing.west(FAR);
         List<Mob> mobs = new ArrayList<>();
         helper.startSequence()
                 .thenWaitUntil(() -> helper.assertTrue(level.isPositionEntityTicking(zombieAt), SHOULD_TICK))
                 .thenExecute(() -> {
                     mobs.add(spawn(helper, EntityTypes.ZOMBIE, zombieAt));
+                    mobs.add(spawn(helper, EntityTypes.COW, zombieAt.north()));
                     landShriek(helper, floor);
+                })
+                .thenIdle(1)
+                .thenExecute(() -> {
+                    boolean landingAir = level.getBlockState(landing).isAir();
+                    String landingHolds = level.getBlockState(landing).toString();
+                    boolean zombieCalled = SculkCall.isCalledTo(mobs.get(0), landing);
+                    boolean cowCalled = SculkCall.isCalledTo(mobs.get(1), landing);
+                    if (!landingAir || !zombieCalled || cowCalled) {
+                        release(helper, floor, mobs);
+                    }
+                    helper.assertTrue(landingAir, String.format(SHOULD_LEAVE_AIR, landingHolds));
+                    helper.assertTrue(zombieCalled, SHOULD_CALL_THE_ZOMBIE);
+                    helper.assertFalse(cowCalled, SHOULD_PASS_THE_COW);
                 })
                 .thenIdle(WALK_TICKS)
                 .thenExecute(() -> {
-                    boolean zombieCalled = SculkCall.isCalledTo(mobs.get(0), floor.above());
                     double zombieOff = across(mobs.get(0).position(), blob);
                     release(helper, floor, mobs);
-                    helper.assertTrue(zombieCalled, SHOULD_CALL_THE_ZOMBIE);
                     helper.assertTrue(zombieOff <= FAR - WALKED_NEARER,
                             String.format(SHOULD_COME, FAR, (double) FAR, zombieOff));
                 })
@@ -100,9 +126,36 @@ public final class ShriekTests {
     }
 
     /**
+     * A zombie spawned eight blocks west of the landing one tick after the
+     * blob shrieks holds no walk to the landing a few ticks on, since the
+     * shriek calls only the mobs in earshot as it cries.
+     *
+     * @param helper the gametest helper
+     */
+    public static void shriekCallsNoZombieArrivingAfterTheCry(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos floor = buildFloor(helper, SCENE_APART);
+        BlockPos landing = floor.above();
+        BlockPos zombieAt = landing.west(FAR);
+        List<Mob> mobs = new ArrayList<>();
+        helper.startSequence()
+                .thenWaitUntil(() -> helper.assertTrue(level.isPositionEntityTicking(zombieAt), SHOULD_TICK))
+                .thenExecute(() -> landShriek(helper, floor))
+                .thenIdle(1)
+                .thenExecute(() -> mobs.add(spawn(helper, EntityTypes.ZOMBIE, zombieAt)))
+                .thenIdle(LATE_ZOMBIE_TICKS)
+                .thenExecute(() -> {
+                    boolean lateZombieCalled = SculkCall.isCalledTo(mobs.get(0), landing);
+                    release(helper, floor, mobs);
+                    helper.assertFalse(lateZombieCalled, SHOULD_NOT_CALL_LATER);
+                })
+                .thenSucceed();
+    }
+
+    /**
      * @param at   a point
-     * @param blob the blob
-     * @return how far the point stands from the blob across the ground, height left out
+     * @param blob the landing
+     * @return how far the point stands from the landing across the ground, height left out
      */
     private static double across(Vec3 at, Vec3 blob) {
         return Math.hypot(at.x - blob.x, at.z - blob.z);
@@ -118,17 +171,18 @@ public final class ShriekTests {
     }
 
     /**
-     * Lays a stone floor in a far place held loaded: long along x past both
+     * Lays a stone floor in a far place held loaded: long along x past the
      * mobs, with a barrier rim a mob cannot wander off.
      *
      * @param helper the gametest helper
+     * @param apart  how far along z this scene lies from the first
      * @return the floor block the blob lands on, the floor's middle
      */
-    private static BlockPos buildFloor(GameTestHelper helper) {
+    private static BlockPos buildFloor(GameTestHelper helper, int apart) {
         ServerLevel level = helper.getLevel();
-        BlockPos floor = helper.absolutePos(BlockPos.ZERO.above()).offset(FAR_OFF, 0, FAR_OFF);
+        BlockPos floor = helper.absolutePos(BlockPos.ZERO.above()).offset(FAR_OFF, 0, FAR_OFF + apart);
         forceChunks(level, floor, true);
-        for (BlockPos cell : floorCells(floor, 1)) {
+        for (BlockPos cell : floorCells(floor)) {
             boolean rim = Math.abs(cell.getX() - floor.getX()) == FLOOR_LENGTH + 1
                     || Math.abs(cell.getZ() - floor.getZ()) == FLOOR_HALF_WIDTH + 1;
             level.setBlockAndUpdate(cell, Blocks.STONE.defaultBlockState());
@@ -138,9 +192,9 @@ public final class ShriekTests {
         return floor;
     }
 
-    private static Iterable<BlockPos> floorCells(BlockPos floor, int rim) {
-        return BlockPos.betweenClosed(floor.offset(-FLOOR_LENGTH - rim, 0, -FLOOR_HALF_WIDTH - rim),
-                floor.offset(FLOOR_LENGTH + rim, 0, FLOOR_HALF_WIDTH + rim));
+    private static Iterable<BlockPos> floorCells(BlockPos floor) {
+        return BlockPos.betweenClosed(floor.offset(-FLOOR_LENGTH - 1, 0, -FLOOR_HALF_WIDTH - 1),
+                floor.offset(FLOOR_LENGTH + 1, 0, FLOOR_HALF_WIDTH + 1));
     }
 
     private static void forceChunks(ServerLevel level, BlockPos floor, boolean forced) {
@@ -154,7 +208,7 @@ public final class ShriekTests {
     }
 
     /**
-     * Clears the scene: the mobs, the blob, the floor and its rim, and lets the chunks unload.
+     * Clears the scene: the mobs, the floor and its rim, and lets the chunks unload.
      *
      * @param helper the gametest helper
      * @param floor  the floor block the blob landed on
@@ -163,7 +217,7 @@ public final class ShriekTests {
     private static void release(GameTestHelper helper, BlockPos floor, List<Mob> mobs) {
         ServerLevel level = helper.getLevel();
         mobs.forEach(Mob::discard);
-        for (BlockPos cell : floorCells(floor, 1)) {
+        for (BlockPos cell : floorCells(floor)) {
             for (int up = 0; up <= 2; up++) {
                 level.setBlock(cell.above(up), Blocks.AIR.defaultBlockState(), Block.UPDATE_CLIENTS);
             }
@@ -173,7 +227,7 @@ public final class ShriekTests {
 
     /**
      * Lands a xeno goo shriek blob on the top of a floor block.
-         *
+     *
      * @param helper the gametest helper
      * @param floor  the floor block's absolute position
      */
