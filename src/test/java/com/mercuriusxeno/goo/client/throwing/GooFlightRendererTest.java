@@ -105,7 +105,7 @@ class GooFlightRendererTest {
 
         @Test
         void theShellsBoxStandsInTheShapesProportions() {
-            Extents shell = drawn(c -> GooFlightRenderer.emitShell(new PoseStack().last(), c, GooTypes.ZOO, PRESSED));
+            Extents shell = drawn(c -> GooFlightRenderer.emitShell(new PoseStack().last(), c, GooTypes.ZOMBIE, PRESSED));
 
             assertEquals(GooFlightRenderer.SHELL_HW * 2 * PRESSED.width(), shell.width(), TOLERANCE);
             assertEquals(GooFlightRenderer.SHELL_HW * 2 * PRESSED.depth(), shell.depth(), TOLERANCE);
@@ -115,7 +115,7 @@ class GooFlightRendererTest {
         @Test
         void theCoresBoxKeepsTheShapesProportionsThroughItsPulse() {
             for (float time : new float[] {0f, QUARTER_PULSE}) {
-                Extents core = drawn(c -> GooFlightRenderer.emitCore(new PoseStack().last(), c, GooTypes.ZOO, time,
+                Extents core = drawn(c -> GooFlightRenderer.emitCore(new PoseStack().last(), c, GooTypes.ZOMBIE, time,
                         PRESSED));
 
                 assertEquals(PRESSED.width() / PRESSED.height(), core.width() / core.height(), TOLERANCE,
@@ -129,8 +129,8 @@ class GooFlightRendererTest {
         @Test
         void theCoreIsThreeQuartersOfItsShellAtTheMiddleOfItsPulse() {
             for (BlobShape shape : new BlobShape[] {BlobShape.CUBE, PRESSED}) {
-                Extents shell = drawn(c -> GooFlightRenderer.emitShell(new PoseStack().last(), c, GooTypes.ZOO, shape));
-                Extents core = drawn(c -> GooFlightRenderer.emitCore(new PoseStack().last(), c, GooTypes.ZOO, 0f,
+                Extents shell = drawn(c -> GooFlightRenderer.emitShell(new PoseStack().last(), c, GooTypes.ZOMBIE, shape));
+                Extents core = drawn(c -> GooFlightRenderer.emitCore(new PoseStack().last(), c, GooTypes.ZOMBIE, 0f,
                         shape));
 
                 assertEquals(0.75f * shell.width(), core.width(), TOLERANCE, "the core's width in " + shape);
@@ -142,8 +142,8 @@ class GooFlightRendererTest {
         @Test
         void theCoreStaysInsideItsShellAtThePeakOfItsPulse() {
             for (BlobShape shape : new BlobShape[] {BlobShape.CUBE, PRESSED}) {
-                Extents shell = drawn(c -> GooFlightRenderer.emitShell(new PoseStack().last(), c, GooTypes.ZOO, shape));
-                Extents peak = drawn(c -> GooFlightRenderer.emitCore(new PoseStack().last(), c, GooTypes.ZOO,
+                Extents shell = drawn(c -> GooFlightRenderer.emitShell(new PoseStack().last(), c, GooTypes.ZOMBIE, shape));
+                Extents peak = drawn(c -> GooFlightRenderer.emitCore(new PoseStack().last(), c, GooTypes.ZOMBIE,
                         QUARTER_PULSE, shape));
 
                 assertTrue(peak.width() < shell.width(), "the swollen core's width in " + shape);
@@ -156,9 +156,9 @@ class GooFlightRendererTest {
 
         @Test
         void theCoresPulseChangesItsSizeAQuarterPulseOn() {
-            Extents still = drawn(c -> GooFlightRenderer.emitCore(new PoseStack().last(), c, GooTypes.ZOO, 0f,
+            Extents still = drawn(c -> GooFlightRenderer.emitCore(new PoseStack().last(), c, GooTypes.ZOMBIE, 0f,
                     PRESSED));
-            Extents swollen = drawn(c -> GooFlightRenderer.emitCore(new PoseStack().last(), c, GooTypes.ZOO,
+            Extents swollen = drawn(c -> GooFlightRenderer.emitCore(new PoseStack().last(), c, GooTypes.ZOMBIE,
                     QUARTER_PULSE, PRESSED));
 
             assertTrue(swollen.height() > still.height(), "the core should swell a quarter pulse on, from "
@@ -169,9 +169,9 @@ class GooFlightRendererTest {
         @Test
         void theCoreDrawsAtHalfOpacityInItsSpritesOwnColorsUnderAShellAtThirtyPercent() {
             List<RecordingVertexConsumer.Vertex> core = recorded(c -> GooFlightRenderer.emitCore(new PoseStack().last(),
-                    c, GooTypes.ZOO, 0f, BlobShape.CUBE));
+                    c, GooTypes.ZOMBIE, 0f, BlobShape.CUBE));
             List<RecordingVertexConsumer.Vertex> shell = recorded(c -> GooFlightRenderer.emitShell(
-                    new PoseStack().last(), c, GooTypes.ZOO, BlobShape.CUBE));
+                    new PoseStack().last(), c, GooTypes.ZOMBIE, BlobShape.CUBE));
 
             assertTrue(shell.stream().allMatch(vertex -> ARGB.alpha(vertex.color()) == SHELL_ALPHA));
             for (RecordingVertexConsumer.Vertex vertex : core) {

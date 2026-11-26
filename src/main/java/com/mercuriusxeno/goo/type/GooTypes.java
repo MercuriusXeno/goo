@@ -106,7 +106,6 @@ public final class GooTypes {
      * decision zombie-goo-is-colored-after-zombie-flesh-and-decay-stops-being-maroon
      */
     public static final ResourceKey<GooTypeDefinition> ZOMBIE = bundled("zombie");
-    public static final ResourceKey<GooTypeDefinition> ZOO = bundled("zoo");
 
     /**
      * Whether a holder keeps goo of the type forever: infinity is never
@@ -126,7 +125,7 @@ public final class GooTypes {
     public static final List<ResourceKey<GooTypeDefinition>> BUNDLED = List.of(
             ASTRAL, BLAZE, CRYSTAL, ENDER, FROST, GLOW, HEX, INFINITY, JELLY, KINETIC, LEAF,
             METAL, NETHER, ORNATE, PULSE, QUANTUM, ROCK, SCULK, TYPHOON, UNSTABLE, VOID, WEIRD, XENO, YARN,
-            ZOMBIE, ZOO);
+            ZOMBIE);
 
 
     /**

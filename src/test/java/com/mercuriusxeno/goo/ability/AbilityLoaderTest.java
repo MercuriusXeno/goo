@@ -459,8 +459,7 @@ class AbilityLoaderTest {
             default -> 16.0;
         }));
 
-        assertTrue(named.keySet().containsAll(Set.of("weird_mitosis", "pulse_zap", "void_hole", "zoo_spawn",
-                "crystal_knives", "metal_dart")), "the walk missed the shipped inventory: " + named.keySet());
+        assertTrue(named.keySet().containsAll(Set.of("weird_mitosis", "pulse_zap", "void_hole", "crystal_knives", "metal_dart")), "the walk missed the shipped inventory: " + named.keySet());
         assertEquals(expected, named);
     }
 

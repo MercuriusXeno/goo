@@ -27,19 +27,19 @@ class LackedTypeReadsTest {
         private static final String FILE = """
                 {
                     "_constants": {"dye": {"ornate": 6}},
-                    "a": {"zoo": "3 $dye.leaf / 2 + 4"}
+                    "a": {"zombie": "3 $dye.leaf / 2 + 4"}
                 }
                 """;
 
         /**
-         * a loads zoo 4, $dye.leaf reading zero.
+         * a loads zombie 4, $dye.leaf reading zero.
          */
         @Test
         void entryReadingALackedTypeLoadsWithTheTypeReadAsZero() {
             GooBaseValuesPreview.Loaded loaded = GooBaseValuesPreview.load(FILE);
             GooValue a = loaded.baseValues().get(Identifier.withDefaultNamespace("a"));
             assertNotNull(a, String.valueOf(loaded.baseValues()));
-            assertEquals(GooFraction.of(4), a.exact(GooTypes.ZOO), String.valueOf(a));
+            assertEquals(GooFraction.of(4), a.exact(GooTypes.ZOMBIE), String.valueOf(a));
         }
 
         /**

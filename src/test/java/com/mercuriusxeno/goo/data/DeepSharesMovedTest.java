@@ -103,6 +103,8 @@ class DeepSharesMovedTest {
     void dolphinEggDropsItsOceanTraitAndGainsNone() {
         Set<String> less = new TreeSet<>(DOLPHIN_EGG_BEFORE);
         less.remove("deep");
+        // zoo-leaves-and-zombie-goo-replaces-it-as-z
+        less.remove("zoo");
         assertEquals(less, typesOf("dolphin_spawn_egg"));
     }
 
