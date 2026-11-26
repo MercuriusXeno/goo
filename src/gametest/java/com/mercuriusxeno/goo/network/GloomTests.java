@@ -16,7 +16,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobCategory;
-import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.NaturalSpawner;
@@ -134,7 +133,9 @@ public final class GloomTests {
             }
             helper.assertFalse(spawned.isEmpty(), NO_MOB);
             Mob mob = spawned.getFirst();
-            helper.assertTrue(mob instanceof Enemy && mob.blockPosition().equals(helper.absolutePos(CELL)),
+            // defect row 26: the monster spawn puts a zombie horse, no Enemy, on the cell about one draw in 140
+            helper.assertTrue(mob.getType().getCategory() == MobCategory.MONSTER
+                            && mob.blockPosition().equals(helper.absolutePos(CELL)),
                     String.format(MOB_OFF_THE_CELL, mob.getType(), helper.absolutePos(CELL), mob.blockPosition()));
             assertOneLayer(helper);
             helper.getLevel().getServer().getPlayerList().remove(caster);
