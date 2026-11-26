@@ -1,6 +1,6 @@
 {
   "type": "goo:monolith",
-  "biomes": "#goo:has_structure/lunar_landmarks",
+  "biomes": "#goo:has_structure/monolith",
   "step": "surface_structures",
   "spawn_overrides": {},
   "terrain_adaptation": "none"

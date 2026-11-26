@@ -28,7 +28,7 @@ public final class CraterFloorFilter implements PlacementFilter {
         ServerLevel level = context.getLevel().getLevel();
         Noise noise = level.getChunkSource().randomState().getOrCreateNoise(CraterField.NOISE);
         return CraterField.seeded(noise).isFloorAt(origin.getX(), origin.getZ())
-                || GiantCraterField.seeded(noise).reachesBandAt(origin.getX(), origin.getZ(), 0.0,
+                || GiantCraterField.seeded(noise, level.getChunkSource().randomState()).reachesBandAt(origin.getX(), origin.getZ(), 0.0,
                 CraterField.FLOOR_REACH, 0.0);
     }
 

@@ -1,4 +1,8 @@
 {
   "feature": "goo:crater_pools",
-  "placement": []
+  "placement": [
+    {
+      "type": "minecraft:biome"
+    }
+  ]
 }

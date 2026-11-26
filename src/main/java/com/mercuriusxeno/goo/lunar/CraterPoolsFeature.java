@@ -155,7 +155,7 @@ public final class CraterPoolsFeature implements Feature {
                                         SMALL_POOL_DEPTH))));
             }
         }
-        GiantCraterField giants = GiantCraterField.seeded(noise);
+        GiantCraterField giants = GiantCraterField.seeded(noise, randomState);
         int cellX = Math.floorDiv(minX, GiantCraterField.CELL);
         int cellZ = Math.floorDiv(minZ, GiantCraterField.CELL);
         for (int dx = -NEIGHBOUR_REACH; dx <= NEIGHBOUR_REACH; dx++) {

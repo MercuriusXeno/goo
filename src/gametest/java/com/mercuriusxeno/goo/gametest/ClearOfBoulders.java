@@ -30,7 +30,7 @@ final class ClearOfBoulders implements Predicate<BlockPos> {
      */
     static ClearOfBoulders in(ServerLevel lunar) {
         return new ClearOfBoulders(GiantCraterField.seeded(lunar.getChunkSource().randomState()
-                .getOrCreateNoise(CraterField.NOISE)));
+                .getOrCreateNoise(CraterField.NOISE), lunar.getChunkSource().randomState()));
     }
 
     @Override

@@ -1,6 +1,6 @@
 {
   "type": "goo:eldritch_nest",
-  "biomes": "#goo:has_structure/lunar_landmarks",
+  "biomes": "#goo:has_structure/eldritch_nest",
   "step": "surface_structures",
   "spawn_overrides": {
     "monster": {

@@ -30,7 +30,7 @@ public final class GiantCraterBoulders implements PlacementModifier {
     public void modify(PlacementContext context, RandomSource random, BlockPos origin, Consumer<BlockPos> output) {
         ServerLevel level = context.getLevel().getLevel();
         GiantCraterField giants = GiantCraterField.seeded(level.getChunkSource().randomState()
-                .getOrCreateNoise(CraterField.NOISE));
+                .getOrCreateNoise(CraterField.NOISE), level.getChunkSource().randomState());
         int minX = Math.floorDiv(origin.getX(), CHUNK_SIDE) * CHUNK_SIDE;
         int minZ = Math.floorDiv(origin.getZ(), CHUNK_SIDE) * CHUNK_SIDE;
         int cellX = Math.floorDiv(minX, GiantCraterField.CELL);

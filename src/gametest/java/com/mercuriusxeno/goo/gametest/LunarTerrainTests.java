@@ -92,6 +92,9 @@ public final class LunarTerrainTests {
     private static final double FLOOR_REACH = 0.5;
     /** How far from the origin a search for a crater's centre or open ground reaches, in blocks. */
     private static final int SEARCH_REACH = 160;
+    /** The low bits of a block coordinate inside its chunk. */
+    private static final int CHUNK_MASK = 15;
+    private static final String NO_BASINS = "No spot within the search lies deep in the shadowed basins";
     /** A column within a tenth of a radius of a crater's centre stands at that centre. */
     private static final double CENTRE_REACH = 0.1;
     /** The chunks one step around a test spot's own, which a vein search scans. */
@@ -287,7 +290,8 @@ public final class LunarTerrainTests {
     }
 
     /**
-     * The floor at the centre of a crater past the depth threshold in goo:lunar reads crater ice, the bottom of its
+     * The floor at the centre of a crater past the depth threshold in goo:lunar's shadowed basins, the pools' home,
+     * reads crater ice, the bottom of its
      * frozen pool, and the floor at the centre of a crater short of it, inside no deep or giant crater, reads none;
      * both are found through the seeded crater fields.
      *
@@ -297,12 +301,15 @@ public final class LunarTerrainTests {
         ServerLevel lunar = helper.getLevel().getServer().getLevel(LUNAR);
         helper.assertTrue(lunar != null, LUNAR_REQUIRED);
         CraterField craters = CraterField.seeded(lunar.getChunkSource().randomState().getOrCreateNoise(CraterField.NOISE));
-        BlockPos deep = findColumn(column -> craters.reachesBandAt(column.getX(), column.getZ(), 0.0, CENTRE_REACH,
-                CraterField.DEEP_CRATER_RADIUS));
+        BlockPos basins = LunarSurfaceBiomes.spotIn(lunar, LunarSurfaceBiomes.SHADOWED_BASINS);
+        helper.assertTrue(basins != null, NO_BASINS);
+        BlockPos deep = findColumnNear(basins, column -> craters.reachesBandAt(column.getX(), column.getZ(), 0.0,
+                CENTRE_REACH, CraterField.DEEP_CRATER_RADIUS) && poolsFreezeAt(lunar, column));
         helper.assertTrue(deep != null, String.format(NO_DEEP_CRATER, SEARCH_REACH));
         GiantCraterField giants = GiantCraterField.seeded(lunar.getChunkSource().randomState()
-                .getOrCreateNoise(CraterField.NOISE));
-        BlockPos shallow = findColumn(column -> craters.reachesBandAt(column.getX(), column.getZ(), 0.0, CENTRE_REACH)
+                .getOrCreateNoise(CraterField.NOISE), lunar.getChunkSource().randomState());
+        BlockPos shallow = findColumnNear(basins, column -> craters.reachesBandAt(column.getX(), column.getZ(), 0.0,
+                CENTRE_REACH)
                 && !craters.reachesBandAt(column.getX(), column.getZ(), 0.0, 1.0, CraterField.DEEP_CRATER_RADIUS)
                 && !giants.reachesBandAt(column.getX(), column.getZ(), 0.0, 1.0 + GiantCraterField.RIM_REACH, 0.0));
         helper.assertTrue(shallow != null, String.format(NO_SHALLOW_CRATER, SEARCH_REACH));
@@ -331,7 +338,7 @@ public final class LunarTerrainTests {
 
         static RayFree of(ServerLevel lunar) {
             Noise noise = lunar.getChunkSource().randomState().getOrCreateNoise(CraterField.NOISE);
-            return new RayFree(CraterField.seeded(noise), GiantCraterField.seeded(noise));
+            return new RayFree(CraterField.seeded(noise), GiantCraterField.seeded(noise, lunar.getChunkSource().randomState()));
         }
 
         @Override
@@ -340,9 +347,25 @@ public final class LunarTerrainTests {
         }
     }
 
+    /**
+     * Whether crater pools freeze over a column: the column and its chunk's corner, where the pools' placement reads
+     * its biome, both stand in the shadowed basins, the pools' one home.
+     * decision lunar-surface-has-maria-highlands-shadowed-basins-and-eldritch-ground
+     */
+    private static boolean poolsFreezeAt(ServerLevel lunar, BlockPos column) {
+        return LunarSurfaceBiomes.surfaceBiomeAt(lunar, column.getX(), column.getZ())
+                .is(LunarSurfaceBiomes.SHADOWED_BASINS)
+                && LunarSurfaceBiomes.surfaceBiomeAt(lunar, column.getX() & ~CHUNK_MASK, column.getZ() & ~CHUNK_MASK)
+                .is(LunarSurfaceBiomes.SHADOWED_BASINS);
+    }
+
     private static BlockPos findColumn(Predicate<BlockPos> wanted) {
-        for (int x = -SEARCH_REACH; x <= SEARCH_REACH; x++) {
-            for (int z = -SEARCH_REACH; z <= SEARCH_REACH; z++) {
+        return findColumnNear(BlockPos.ZERO, wanted);
+    }
+
+    private static BlockPos findColumnNear(BlockPos origin, Predicate<BlockPos> wanted) {
+        for (int x = origin.getX() - SEARCH_REACH; x <= origin.getX() + SEARCH_REACH; x++) {
+            for (int z = origin.getZ() - SEARCH_REACH; z <= origin.getZ() + SEARCH_REACH; z++) {
                 BlockPos column = new BlockPos(x, 0, z);
                 if (wanted.test(column)) {
                     return column;
