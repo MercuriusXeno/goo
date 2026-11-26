@@ -200,22 +200,20 @@ public final class PortalFaces {
         if (mc.player == null || mc.level == null) {
             return;
         }
-        boolean improvedTransparency = mc.gameRenderer.useImprovedTransparency();
-        Set<Part> parts = partsOn(route, improvedTransparency);
+        Set<Part> parts = partsOn(route, mc.gameRenderer.useImprovedTransparency());
         if (parts.isEmpty()) {
             return;
         }
         Vec3 camera = PortalView.drawing() ? PortalView.cameraPosition() : mc.gameRenderer.mainCamera().position();
         List<Drawn> gates = gatesIn(mc.level.dimension());
         draws.accept(SortedDraw.nearestOf(gates.stream().map(drawn -> drawn.ovalBox().getCenter()), camera,
-                () -> drawGates(frame.poseStack().last(), ImmediateBuffers.shared(), camera, gates, parts,
-                        improvedTransparency)));
+                () -> drawGates(frame.poseStack().last(), ImmediateBuffers.shared(), camera, gates, parts)));
     }
 
     private static void drawGates(PoseStack.Pose pose, ImmediateBuffers buffers, Vec3 camera,
-            List<Drawn> gates, Set<Part> parts, boolean improvedTransparency) {
+            List<Drawn> gates, Set<Part> parts) {
         if (parts.contains(Part.GLOWS)) {
-            drawHalos(pose, buffers, camera, gates, improvedTransparency);
+            drawHalos(pose, buffers, camera, gates);
         }
         if (parts.contains(Part.FACES)) {
             drawViews(pose, buffers, camera, gates);
@@ -281,8 +279,8 @@ public final class PortalFaces {
     /**
      * What of a gate the path draws on a route. Under improved transparency the face draws with the opaque faces,
      * before the OIT phase, since the OIT composite writes the depth of the nearest glow it keeps and the face, tested
-     * against that depth after it, would fail wherever the swirl band's arch stands in front of it; with improved
-     * transparency off it draws far to near after its halo and band, painting over the band's inner half.
+     * against that depth after it, would fail wherever the swirl band's arch stands in front of it, and the band then
+     * blends over the face; with improved transparency off the face draws far to near after its halo and band.
      * decision diagnose-and-correct-the-swirl-bands-depth-under-improved-transparency
      *
      * @param route                the route drawing
@@ -398,17 +396,16 @@ public final class PortalFaces {
      * @param buffers the frame's buffers
      * @param camera  the camera's position
      * @param gates   the gates the frame draws
-     * @param improvedTransparency whether the client draws translucency through order-independent transparency
      */
     private static void drawHalos(PoseStack.Pose pose, ImmediateBuffers buffers, Vec3 camera,
-            List<Drawn> gates, boolean improvedTransparency) {
+            List<Drawn> gates) {
         Optional<GatePassage.Pair> viewing = PortalView.viewing();
         List<Drawn> worn = wornIn(gates, viewing.map(GatePassage.Pair::other));
         VertexConsumer halo = buffers.getBuffer(GooRenderTypes.GOO_PORTAL_HALO_TYPE);
         emitHalos(pose, halo, worn, drawn -> drawn.drawnBox(camera));
         buffers.endBatch(GooRenderTypes.GOO_PORTAL_HALO_TYPE);
         VertexConsumer bands = buffers.getBuffer(GooRenderTypes.GOO_PORTAL_SWIRL_BAND_TYPE);
-        emitSwirlBands(pose, bands, worn, drawn -> drawn.drawnBox(camera), improvedTransparency);
+        emitSwirlBands(pose, bands, worn, drawn -> drawn.drawnBox(camera));
         emitSleeves(pose, bands, sleevedIn(gates, viewing), drawn -> drawn.drawnBox(camera));
         buffers.endBatch(GooRenderTypes.GOO_PORTAL_SWIRL_BAND_TYPE);
     }
@@ -425,27 +422,12 @@ public final class PortalFaces {
      * @param consumer the swirl band pipeline's vertex consumer
      * @param gates    the gates the frame draws
      * @param boxOf    the box each gate draws over, camera-relative
-     * @param improvedTransparency whether the client draws translucency through order-independent transparency
      */
     static void emitSwirlBands(PoseStack.Pose pose, VertexConsumer consumer, List<Drawn> gates,
-            Function<Drawn, AABB> boxOf, boolean improvedTransparency) {
-        double innerShare = archInnerShare(improvedTransparency);
+            Function<Drawn, AABB> boxOf) {
         for (Drawn drawn : gates) {
-            emitSwirlBand(pose, consumer, Arch.of(drawn, boxOf), ARGB.opaque(drawn.rgb()), false, innerShare);
+            emitSwirlBand(pose, consumer, Arch.of(drawn, boxOf), ARGB.opaque(drawn.rgb()), false);
         }
-    }
-
-    /**
-     * How far across the swirl band's arch it starts, zero at its inner edge. Under improved transparency it starts
-     * at the oval's edge: with improved transparency off the face drawn after the band paints over its inner part, and
-     * under it the face draws first, so that part would lie over the view rather than under it.
-     * decision diagnose-and-correct-the-swirl-bands-depth-under-improved-transparency
-     *
-     * @param improvedTransparency whether the client draws translucency through order-independent transparency
-     * @return the share across the arch its first ring starts at
-     */
-    static double archInnerShare(boolean improvedTransparency) {
-        return improvedTransparency ? (BAND_INSIDE + BAND_INSET) / (BAND_INSIDE + BAND_OUTSIDE) : 0;
     }
 
     /**
@@ -463,7 +445,7 @@ public final class PortalFaces {
     static void emitSleeves(PoseStack.Pose pose, VertexConsumer consumer, List<Drawn> gates,
             Function<Drawn, AABB> boxOf) {
         for (Drawn drawn : gates) {
-            emitSwirlBand(pose, consumer, Arch.of(drawn, boxOf), ARGB.opaque(drawn.rgb()), true, 0);
+            emitSwirlBand(pose, consumer, Arch.of(drawn, boxOf), ARGB.opaque(drawn.rgb()), true);
         }
     }
 
@@ -483,16 +465,15 @@ public final class PortalFaces {
      * @param arch     the arch over the gate's rim
      * @param color    the packed ARGB color
      * @param sleeve   whether to emit the sleeve rather than the arch
-     * @param innerShare how far across it its first ring starts, zero at its inner edge
      */
     private static void emitSwirlBand(PoseStack.Pose pose, VertexConsumer consumer, Arch arch, int color,
-            boolean sleeve, double innerShare) {
+            boolean sleeve) {
         int[][] corners = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
         int[] texels = arch.texels();
         for (int level = 0; level < BAND_RINGS; level++) {
             for (int segment = 0; segment < BAND_SEGMENTS; segment++) {
                 for (int[] corner : corners) {
-                    double share = Mth.lerp((double) (level + corner[1]) / BAND_RINGS, innerShare, 1);
+                    double share = (double) (level + corner[1]) / BAND_RINGS;
                     Vec3 at = sleeve ? arch.sleevePoint(segment + corner[0], share)
                             : arch.point(segment + corner[0], share);
                     consumer.addVertex(pose, (float) at.x(), (float) at.y(), (float) at.z())
