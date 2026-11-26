@@ -26,8 +26,8 @@ import java.util.Set;
 import java.util.function.Consumer;
 
 /**
- * The {@link StepHost} over a marker anchor, the ability block a lingering
- * ability stands or the prism a combo runs on: reads the placed
+ * The {@link StepHost} over a marker anchor, the prism a combo runs on:
+ * reads the placed
  * face and goo type from the block entity, and acts on
  * the server level at the marker position. Built fresh each tick from
  * what the {@link ProgramBehavior} marker callbacks
@@ -170,7 +170,7 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
     }
 
     /**
-     * The beat a prism has heard; an ability block hears none
+     * The beat a prism has heard
      * (decision metronome-prism-pulses-at-the-learned-rate).
      */
     @Override

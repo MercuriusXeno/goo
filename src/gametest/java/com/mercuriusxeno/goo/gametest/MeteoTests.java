@@ -81,7 +81,7 @@ public final class MeteoTests {
         BlockPos ground = helper.absolutePos(GROUND);
         level.setBlockAndUpdate(ground, Blocks.STONE.defaultBlockState());
         openCageRoofOver(level, ground);
-        ServerPlayer player = StackKeyTests.makeThrower(helper, GooTypes.ASTRAL);
+        ServerPlayer player = MockThrowers.makeThrower(helper, GooTypes.ASTRAL);
         KnownRecipes.teachRequires(player, meteo);
         player.getInventory().add(GooStacks.createForOutput(GooTypes.ASTRAL, meteo.cost().in(GooValueTable.EMPTY)));
         Vec3 struck = new Vec3(ground.getX(), ground.getY() + 1, ground.getZ() + 0.5);
@@ -120,7 +120,7 @@ public final class MeteoTests {
         BlockPos ground = helper.absolutePos(GROUND);
         level.setBlockAndUpdate(ground, Blocks.STONE.defaultBlockState());
         openCageRoofOver(level, ground);
-        ServerPlayer player = StackKeyTests.makeThrower(helper, GooTypes.ASTRAL);
+        ServerPlayer player = MockThrowers.makeThrower(helper, GooTypes.ASTRAL);
         KnownRecipes.teachRequires(player, meteo);
         player.getInventory().add(GooStacks.createForOutput(GooTypes.ASTRAL, meteo.cost().in(GooValueTable.EMPTY)));
         GooThrowHandler.execute(player, new GooThrowPayload(GooTypes.id(GooTypes.ASTRAL), NO_TARGET_ENTITY,
@@ -156,7 +156,7 @@ public final class MeteoTests {
         BlockPos ground = helper.absolutePos(GROUND);
         level.setBlockAndUpdate(ground, Blocks.STONE.defaultBlockState());
         openCageRoofOver(level, ground);
-        ServerPlayer player = StackKeyTests.makeThrower(helper, GooTypes.ASTRAL);
+        ServerPlayer player = MockThrowers.makeThrower(helper, GooTypes.ASTRAL);
         KnownRecipes.teachRequires(player, meteo);
         player.getInventory().add(GooStacks.createForOutput(GooTypes.ASTRAL, meteo.cost().in(GooValueTable.EMPTY)));
         PayloadKindsRecorder recorder = PayloadKindsRecorder.attachTo(player,
@@ -196,7 +196,7 @@ public final class MeteoTests {
         BlockPos ground = helper.absolutePos(GROUND);
         level.setBlockAndUpdate(ground, Blocks.STONE.defaultBlockState());
         openCageRoofOver(level, ground);
-        ServerPlayer player = StackKeyTests.makeThrower(helper, GooTypes.ASTRAL);
+        ServerPlayer player = MockThrowers.makeThrower(helper, GooTypes.ASTRAL);
         KnownRecipes.teachRequires(player, meteo);
         player.getInventory().add(GooStacks.createForOutput(GooTypes.ASTRAL, meteo.cost().in(GooValueTable.EMPTY)));
         GooThrowHandler.execute(player, new GooThrowPayload(GooTypes.id(GooTypes.ASTRAL), NO_TARGET_ENTITY,
@@ -272,7 +272,7 @@ public final class MeteoTests {
         level.setBlockAndUpdate(ground, Blocks.STONE.defaultBlockState());
         openCageRoofOver(level, ground);
         level.setBlockAndUpdate(ground.above(ROOF_HEIGHT), Blocks.STONE.defaultBlockState());
-        ServerPlayer player = StackKeyTests.makeThrower(helper, GooTypes.ASTRAL);
+        ServerPlayer player = MockThrowers.makeThrower(helper, GooTypes.ASTRAL);
         KnownRecipes.teachRequires(player, meteo);
         player.getInventory().add(GooStacks.createForOutput(GooTypes.ASTRAL, meteo.cost().in(GooValueTable.EMPTY)));
         int held = astralHeld(player);

@@ -15,7 +15,6 @@ import com.mercuriusxeno.goo.ability.program.EntityFilter;
 import com.mercuriusxeno.goo.ability.program.GhostTrailStep;
 import com.mercuriusxeno.goo.ability.program.GluttonyStep;
 import com.mercuriusxeno.goo.ability.program.HostKind;
-import com.mercuriusxeno.goo.ability.program.LingerStep;
 import com.mercuriusxeno.goo.ability.program.MoltenStep;
 import com.mercuriusxeno.goo.ability.program.PlaceBlockStep;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
@@ -283,7 +282,7 @@ class AbilityLoaderTest {
 
     private static boolean placesItsOwnThing(AbilityDefinition ability) {
         return ability.behaviors().stream().flatMap(AbilityLoaderTest::withDescendants)
-                .anyMatch(step -> step instanceof LingerStep || step instanceof PlaceBlockStep);
+                .anyMatch(PlaceBlockStep.class::isInstance);
     }
 
     private static Stream<Step> withDescendants(Step step) {

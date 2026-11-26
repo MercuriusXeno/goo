@@ -181,11 +181,10 @@ class ProgramHostLoadTest {
     }
 
     @Test
-    void aLingeringFuseLoadsForTheLandingAndItsWaitRefusesTheLandingOutsideTheLinger() {
+    void aWaitRefusesTheLandingWhichTicksOnce() {
         List<Step> body = List.of(LeafSteps.WAIT.step(Expr.literal(3)),
                 new ExplodeStep(expr("2.5"), ExplosionMode.TNT));
 
-        assertDoesNotThrow(() -> ProgramBehavior.forHost(List.of(new LingerStep(body)), HostKind.LANDING));
         ProgramLoadException refusal = assertThrows(ProgramLoadException.class,
                 () -> ProgramBehavior.forHost(body, HostKind.LANDING));
         assertTrue(refusal.getMessage().contains("wait"), refusal.getMessage());
@@ -265,9 +264,9 @@ class ProgramHostLoadTest {
 
     /** The landing is no target. */
     @Test
-    void theLandingHostProvidesItsSixteenCapabilities() {
+    void theLandingHostProvidesItsFifteenCapabilities() {
         assertEquals(Set.of(HostCapability.PLACED_FACE, HostCapability.EXPLODE, HostCapability.ENTITY_SCAN,
-                        HostCapability.PLACE_BLOCK, HostCapability.LINGER,
+                        HostCapability.PLACE_BLOCK,
                         HostCapability.FLOOR_SCAN, HostCapability.BREAK_BLOCKS,
                         HostCapability.WORMHOLE, HostCapability.PORTAL, HostCapability.HOLE, HostCapability.METEOR,
                         HostCapability.POWER_PULSE,

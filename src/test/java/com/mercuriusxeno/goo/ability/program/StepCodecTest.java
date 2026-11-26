@@ -69,7 +69,6 @@ class StepCodecTest {
                     Expr.parse("1 + random(3)").getOrThrow())),
             Map.entry("ignite", LeafSteps.IGNITE.step(Expr.literal(10))),
             Map.entry("light_fire", LeafSteps.LIGHT_FIRE.step(Unit.INSTANCE)),
-            Map.entry("detonate_explosive", LeafSteps.DETONATE_EXPLOSIVE.step(Expr.literal(2.5))),
             Map.entry("molten", new MoltenStep(Map.of(Identifier.fromNamespaceAndPath("minecraft", "lava"),
                     List.of("minecraft:obsidian")), 40, 4f, 15)),
             Map.entry("shatter", new ShatterStep(List.of(EntityFilter.LIVING), Expr.literal(1), List.of(),
@@ -94,7 +93,6 @@ class StepCodecTest {
                     "shape", new StateValue.Named("bump"),
                     "size", new StateValue.Pick(Expr.parse("stacks - 1").getOrThrow(), List.of("tiny", "large"))))),
             Map.entry("set_state", new SetStateStep(Map.of("lit", new StateValue.Named("true")))),
-            Map.entry("linger", new LingerStep(List.of(new ExplodeStep(Expr.literal(2.5), ExplosionMode.TNT)))),
             Map.entry("field_effect", new FieldEffectStep(Expr.literal(3.75),
                     List.of(EntityFilter.LIVING, EntityFilter.NOT_ITEM, EntityFilter.NOT_SNEAKING),
                     Expr.literal(10), Expr.parse("2 - sprinting").getOrThrow(), Expr.literal(2),
@@ -189,7 +187,7 @@ class StepCodecTest {
             Map.entry("hasten_regrow", new HastenRegrowStep(Expr.literal(2))),
             Map.entry("hit_or_miss", new HitOrMissStep(
                     List.of(LeafSteps.IGNITE.step(Expr.literal(5))),
-                    List.of(new LingerStep(List.of(LeafSteps.DISCARD.step(Unit.INSTANCE)))))),
+                    List.of(LeafSteps.LIGHT_FIRE.step(Unit.INSTANCE)))),
             Map.entry("charm", new CharmStep()),
             Map.entry("quantum_portal", new PortalStep()),
             Map.entry("wormhole", new WormholeStep(Expr.literal(16), Expr.literal(200))),
@@ -378,6 +376,18 @@ class StepCodecTest {
     @Test
     void unknownTypeRefuses() {
         assertTrue(decode("{\"type\": \"teleport_everyone\"}").isError());
+    }
+
+    // decision ability-marker-leaves-the-mod-whole
+    @Test
+    void aStepTypedLingerRefusesSinceNoBlockStandsItsBody() {
+        assertTrue(decode("{\"type\": \"linger\", \"steps\": [{\"type\": \"explode\", \"power\": 2.5}]}").isError());
+    }
+
+    // decision ignite-detonate-step-leaves-with-the-ability-block
+    @Test
+    void aDetonateExplosiveStepRefusesSinceIgnitesFireSetsNitroOff() {
+        assertTrue(decode("{\"type\": \"detonate_explosive\", \"power\": 2.5}").isError());
     }
 
     @Test

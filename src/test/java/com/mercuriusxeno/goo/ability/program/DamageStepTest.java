@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.ability.AbilityJson;
-import com.mercuriusxeno.goo.ability.SpikeTrapFixture;
+import com.mercuriusxeno.goo.ability.FieldEffectFixture;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
@@ -130,7 +130,7 @@ class DamageStepTest {
         return host;
     }
     private static DamageStep spikeTrapsStab() {
-        FieldEffectStep field = LingerStep.bodyOf(SpikeTrapFixture.definition().behaviors()).orElseThrow().stream()
+        FieldEffectStep field = FieldEffectFixture.definition().behaviors().stream()
                 .filter(FieldEffectStep.class::isInstance).map(FieldEffectStep.class::cast).findFirst().orElseThrow();
         return (DamageStep) field.strike().getFirst();
     }

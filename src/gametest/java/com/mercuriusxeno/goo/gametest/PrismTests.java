@@ -84,7 +84,7 @@ public final class PrismTests {
         helper.setBlock(FLOOR_POS, Blocks.STONE);
         helper.setBlock(pane, Blocks.GLASS_PANE);
         helper.setBlock(grown, GooBlocks.PRISM.get().defaultBlockState().setValue(PrismBlock.FACING, Direction.UP));
-        ServerPlayer player = StackKeyTests.makeThrower(helper, GooTypes.CRYSTAL);
+        ServerPlayer player = MockThrowers.makeThrower(helper, GooTypes.CRYSTAL);
         KnownRecipes.teachRequires(player, prism);
         int held = crystalHeld(player);
         releaseAt(helper, player, pane);
@@ -130,7 +130,7 @@ public final class PrismTests {
         AbilityDefinition prism = AbilityRegistry.of(helper.getLevel()).getAbility(CRYSTAL_PRISM);
         helper.assertTrue(prism != null, ABILITY_REQUIRED);
         helper.setBlock(FLOOR_POS, Blocks.STONE);
-        ServerPlayer player = StackKeyTests.makeThrower(helper, GooTypes.CRYSTAL);
+        ServerPlayer player = MockThrowers.makeThrower(helper, GooTypes.CRYSTAL);
         KnownRecipes.teachRequires(player, prism);
         GooThrowHandler.execute(player, new GooThrowPayload(GooTypes.id(GooTypes.CRYSTAL), NO_TARGET_ENTITY,
                 helper.absolutePos(FLOOR_POS), Direction.UP.ordinal(), false, CRYSTAL_PRISM.toString(),
@@ -164,7 +164,7 @@ public final class PrismTests {
         AbilityDefinition prism = AbilityRegistry.of(helper.getLevel()).getAbility(CRYSTAL_PRISM);
         helper.assertTrue(prism != null, ABILITY_REQUIRED);
         helper.setBlock(FLOOR_POS, Blocks.STONE);
-        ServerPlayer player = StackKeyTests.makeThrower(helper, GooTypes.CRYSTAL);
+        ServerPlayer player = MockThrowers.makeThrower(helper, GooTypes.CRYSTAL);
         KnownRecipes.teachRequires(player, prism);
 
         GooThrowHandler.execute(player, new GooThrowPayload(GooTypes.id(GooTypes.CRYSTAL), NO_TARGET_ENTITY,

@@ -234,7 +234,7 @@ public class GooParticles {
         PARTICLE_TYPES.register("click_wave", () -> new SimpleParticleType(false));
 
     /**
-     * The particle a ability block's explosion names in place of vanilla's
+     * The particle an ability's explosion names in place of vanilla's
      * explosion particles; its client provider spawns nothing, so the goo
      * type's own burnout explosion is the one seen (decision
      * elemental-explosion-per-type).

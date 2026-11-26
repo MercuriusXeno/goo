@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import com.google.gson.JsonParser;
-import com.mercuriusxeno.goo.ability.SpikeTrapFixture;
+import com.mercuriusxeno.goo.ability.FieldEffectFixture;
 import com.mojang.serialization.JsonOps;
 import net.minecraft.resources.Identifier;
 import org.jspecify.annotations.Nullable;
@@ -87,7 +87,7 @@ class FieldEffectStepTest {
     }
 
     private static List<Step> trapBody() {
-        return LingerStep.bodyOf(SpikeTrapFixture.definition().behaviors()).orElseThrow();
+        return FieldEffectFixture.definition().behaviors();
     }
 
     /** The fixture's metal field, whose timings the tests below run on rather than copy. */
@@ -353,11 +353,6 @@ class FieldEffectStepTest {
 
     private static Step soundOf(Identifier sound) {
         return new SoundStep(sound, FxAnchor.HOST, SoundKind.BLOCKS, Expr.literal(1), Expr.literal(1));
-    }
-
-    @Test
-    void aFieldEffectStandsAgainstBreaking() {
-        assertTrue(fieldEffectOf(trapBody()).standsAgainstBreaking());
     }
 
     @Test

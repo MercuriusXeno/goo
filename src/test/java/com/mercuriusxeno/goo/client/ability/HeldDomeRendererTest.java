@@ -3,7 +3,7 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityJson;
-import com.mercuriusxeno.goo.ability.SpikeTrapFixture;
+import com.mercuriusxeno.goo.ability.FieldEffectFixture;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.PipelineReads;
 import com.mercuriusxeno.goo.client.TargetResult;
@@ -42,12 +42,12 @@ class HeldDomeRendererTest {
     class ShowPredicate {
         @Test
         void spikeTrapWithAnArmedPressShowsTheDome() {
-            assertTrue(shows(SpikeTrapFixture.definition(), true));
+            assertTrue(shows(FieldEffectFixture.definition(), true));
         }
 
         @Test
         void spikeTrapWithNoPressShowsNoDome() {
-            assertFalse(shows(SpikeTrapFixture.definition(), false));
+            assertFalse(shows(FieldEffectFixture.definition(), false));
         }
 
         @ParameterizedTest

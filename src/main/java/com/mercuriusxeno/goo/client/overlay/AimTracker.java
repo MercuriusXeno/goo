@@ -32,7 +32,7 @@ import java.util.List;
 /**
  * Resolves the client's one {@link AimState} each frame and answers its
  * readers: the frame and the throw read the frame's target, the entity
- * renderer its outline, the ability block renderer whether it is aimed at
+ * renderer its outline
  * (decisions render-context-is-the-one-emitter, aim-target-follows-client-aim).
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)

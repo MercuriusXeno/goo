@@ -100,17 +100,6 @@ public final class LeafSteps {
             }).takingNone();
 
     /**
-     * Sets off the explosive ability block the landing struck as a fiery
-     * explosion; Ignite landing on an explosive marker: {@code detonate_explosive power=2.5}.
-     * ignite-fire-and-explosive-combo
-     */
-    public static final LeafStepType<Expr> DETONATE_EXPLOSIVE = StepType.of("detonate_explosive", "power", IGNITE_LANDING,
-            (power, context) -> {
-                context.hostAs(IgniteHost.class).detonateExplosive(power.evaluateFloat(context));
-                return true;
-            }).takingNone();
-
-    /**
      * Heals the host's target by an amount of health points in pulses:
      * Heal streams {@code heal amount every} over each living thing in its
      * cone and its caster every tick it is held, and each target takes the
