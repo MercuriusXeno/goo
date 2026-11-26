@@ -118,6 +118,13 @@ final class EchoQuads {
         }
     }
 
+    /**
+     * @return how many blocks' quads are kept
+     */
+    int size() {
+        return kept.size();
+    }
+
     /** Forgets every block's quads, as the held effect's end does. */
     void clear() {
         kept.clear();

@@ -24,7 +24,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class OreVeinsCaptureTest {
 
     private static final double RADIUS = 64;
-    private static final HeldSweepPace PACE = new HeldSweepPace(RADIUS);
+    /** The ore sense's pace, as DetectOreStep sets it. */
+    private static final double BLOCKS_A_SECOND = 48;
+    private static final HeldSweepPace PACE = new HeldSweepPace(RADIUS, BLOCKS_A_SECOND);
 
     @Test
     void aPulseRevealsTheCapturedVeinsOnTheCapturedTicks() {

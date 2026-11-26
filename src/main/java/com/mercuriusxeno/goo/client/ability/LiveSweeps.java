@@ -37,7 +37,8 @@ final class LiveSweeps {
     void hear(HeldSweepPayload payload, long gameTime, ToIntFunction<ResourceKey<GooTypeDefinition>> typeColor) {
         Vec3 center = payload.origin().add(0, BODY_CENTER, 0);
         HeldSweepPulse pulse = pulses.computeIfAbsent(payload.pulse(), id -> new HeldSweepPulse(fieldAt(center),
-                payload.range(), HeldSweepVisual.tint(payload.gooType(), typeColor), payload.paintsMobs(), walls));
+                payload.range(), payload.blocksATick(), HeldSweepVisual.tint(payload.gooType(), typeColor),
+                payload.paintsMobs(), walls));
         pulse.heard(payload.radius(), gameTime);
     }
 
