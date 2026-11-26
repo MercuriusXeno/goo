@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.throwing.ConeShape;
 import com.mercuriusxeno.goo.throwing.StreamCone;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
@@ -72,6 +73,64 @@ class SignalRingsTest {
             Vec3 onTheRim = new Vec3(distance, rim, 0);
             assertTrue(StreamCone.contains(Vec3.ZERO, EAST, RANGE, CONE, onTheRim.scale(0.999)));
             assertFalse(StreamCone.contains(Vec3.ZERO, EAST, RANGE, CONE, new Vec3(distance, rim * 1.01, 0)));
+        }
+    }
+
+    /**
+     * Tick's rings march through the cone they are handed: each as wide and as tall as the shape at its distance,
+     * the march ending at the reach (decision spray-abilities-render-procedurally-bound-to-their-cone).
+     */
+    @Nested
+    class BoundToTheCone {
+
+        private static final SprayCone FLAT = new SprayCone(new Vec3(2, 64, -1), new Vec3(0.3, -0.2, 1).normalize(),
+                new ConeShape(50, 12, false), 7.5);
+        private static final int SHARES = 20;
+        private static final double SPAN_SLACK = 1e-9;
+
+        private static double widthAt(double distance, double degrees) {
+            return 2 * distance * Math.tan(Math.toRadians(degrees / 2));
+        }
+
+        /** How far an outline spans one way across its section: its farthest point that way less its farthest the other. */
+        private static double span(Vec3[] outline, Vec3 way) {
+            double most = Double.NEGATIVE_INFINITY;
+            double least = Double.POSITIVE_INFINITY;
+            for (Vec3 point : outline) {
+                most = Math.max(most, point.dot(way));
+                least = Math.min(least, point.dot(way));
+            }
+            return most - least;
+        }
+
+        @Test
+        void eachRingIsAsWideAndAsTallAsTheShapeAtItsDistance() {
+            Vec3 side = StreamCone.side(FLAT.axis());
+            Vec3 lift = side.cross(FLAT.axis());
+            for (int step = 1; step < SHARES; step++) {
+                double share = (double) step / SHARES;
+                double distance = share * FLAT.reach();
+                Vec3[] outline = outlineOf(FLAT, share);
+                assertEquals(widthAt(distance, FLAT.shape().sideDegrees()), span(outline, side), SPAN_SLACK,
+                        "width at " + share);
+                assertEquals(widthAt(distance, FLAT.shape().liftDegrees()), span(outline, lift), SPAN_SLACK,
+                        "height at " + share);
+            }
+        }
+
+        @Test
+        void theMarchEndsAtTheReach() {
+            assertEquals(FLAT.reach(), distanceOf(FLAT, 1), SPAN_SLACK);
+        }
+
+        private Vec3[] outlineOf(SprayCone cone, double share) {
+            return SignalRings.tickRingAt(cone, share).outline();
+        }
+
+        private double distanceOf(SprayCone cone, double share) {
+            SignalRings.TickRing ring = SignalRings.tickRingAt(cone, share);
+            assertEquals(ring.distance(), ring.center().subtract(cone.apex()).dot(cone.axis()), SPAN_SLACK);
+            return ring.distance();
         }
     }
 

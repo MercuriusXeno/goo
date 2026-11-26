@@ -26,7 +26,8 @@ public final class ConeVisuals {
             PetrifyFog.PETRIFY_ID, PetrifyFog::pour,
             HealVisual.HEAL_ID, HealVisual::drawFogLocal,
             MiasmaVortex.DRAIN_ID, MiasmaVortex::pour,
-            GrowthBreeze.GROWTH_ID, GrowthBreeze::pour);
+            GrowthBreeze.GROWTH_ID, GrowthBreeze::pour,
+            SignalRings.TICK_ID, SignalRings::pour);
 
     private ConeVisuals() {
     }
