@@ -1,6 +1,10 @@
 package com.mercuriusxeno.goo.client.particle;
 
+import com.mercuriusxeno.goo.network.GnatSeekPayload;
 import com.mercuriusxeno.goo.network.SwarmMotes;
+import com.mercuriusxeno.goo.throwing.ConeShape;
+import com.mercuriusxeno.goo.throwing.StreamCone;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -51,6 +55,36 @@ class GnatSteeringTest {
         @Test
         void aGnatLeavesAtItsCruisingSpeed() {
             assertEquals(GnatSteering.CRUISE, GnatSteering.launch(AIM, FAN_DEGREES, 1, 0).length(), DELTA);
+        }
+    }
+
+    /**
+     * Every gnat a payload launches leaves inside the payload's shape, here wide across and thin up and down, and
+     * seeks no farther than its reach, even where the crosshair's block stands past it
+     * (decision cone-style-abilities-are-reviewed-for-consistency).
+     */
+    @Nested
+    class BoundToThePayload {
+
+        private static final ConeShape WIDE_AND_THIN = new ConeShape(70, 10, false);
+        private static final double REACH = 4;
+        private static final int TICKS = 200;
+        private static final double SLACK = 1e-9;
+
+        @Test
+        void everyGnatLeavesInsideTheShapeAndSeeksWithinTheReach() {
+            GnatSeekPayload payload = new GnatSeekPayload(7, GLOVE, AIM, WIDE_AND_THIN, REACH, GnatSeekPayload.NO_PREY,
+                    new Vec3(6, -0.5, -0.5), new Vec3(7, 0.5, 0.5));
+            RandomSource random = RandomSource.create(4715);
+            for (int tick = 0; tick < TICKS; tick++) {
+                for (GnatSteering.Launch launch : GnatSteering.launchesOf(payload, GLOVE, 6, random)) {
+                    Vec3 heading = GLOVE.add(launch.velocity().normalize());
+                    assertTrue(StreamCone.contains(GLOVE, AIM, REACH, WIDE_AND_THIN, heading),
+                            "a gnat leaves along " + launch.velocity() + ", outside the shape");
+                    assertTrue(launch.rest().distanceTo(GLOVE) <= REACH + SLACK,
+                            "a gnat seeks " + launch.rest() + ", past the reach");
+                }
+            }
         }
     }
 

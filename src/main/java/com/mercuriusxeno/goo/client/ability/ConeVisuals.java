@@ -15,22 +15,27 @@ public final class ConeVisuals {
     private static final String GUST_ID = "goo:typhoon_gust";
     private static final String VACUUM_ID = "goo:void_vacuum";
 
-    private static final Map<String, ConeVisual> VISUALS = Map.of(
-            FireStream.FLAMES_ID, cone -> {
+    private static final Map<String, ConeVisual> VISUALS = Map.ofEntries(
+            visual(FireStream.FLAMES_ID, cone -> {
                 FireStream.pour(cone);
                 HeatWaveEffect.pour(cone);
-            },
-            COLD_ID, cone -> WindLines.blowLocal(COLD_ID, cone),
-            GUST_ID, cone -> WindLines.blowLocal(GUST_ID, cone),
-            VACUUM_ID, cone -> WindLines.blowLocal(VACUUM_ID, cone),
-            PetrifyFog.PETRIFY_ID, PetrifyFog::pour,
-            HealVisual.HEAL_ID, HealVisual::drawFogLocal,
-            MiasmaVortex.DRAIN_ID, MiasmaVortex::pour,
-            GrowthBreeze.GROWTH_ID, GrowthBreeze::pour,
-            SignalRings.TICK_ID, SignalRings::pour,
-            BoreDrill.BORE_ID, BoreDrill::pour);
+            }),
+            visual(COLD_ID, cone -> WindLines.blowLocal(COLD_ID, cone)),
+            visual(GUST_ID, cone -> WindLines.blowLocal(GUST_ID, cone)),
+            visual(VACUUM_ID, cone -> WindLines.blowLocal(VACUUM_ID, cone)),
+            visual(PetrifyFog.PETRIFY_ID, PetrifyFog::pour),
+            visual(HealVisual.HEAL_ID, HealVisual::drawFogLocal),
+            visual(MiasmaVortex.DRAIN_ID, MiasmaVortex::pour),
+            visual(GrowthBreeze.GROWTH_ID, GrowthBreeze::pour),
+            visual(SignalRings.TICK_ID, SignalRings::pour),
+            visual(BoreDrill.BORE_ID, BoreDrill::pour),
+            visual(GnatSeek.DECAY_ID, GnatSeek::pour));
 
     private ConeVisuals() {
+    }
+
+    private static Map.Entry<String, ConeVisual> visual(String abilityId, ConeVisual visual) {
+        return Map.entry(abilityId, visual);
     }
 
     /**

@@ -340,6 +340,23 @@ class GooStreamHandlerTest {
     }
 
     /**
+     * Decay's swarm tells its watchers the shape and the reach of the cast that sent it
+     * (decision cone-style-abilities-are-reviewed-for-consistency).
+     */
+    @Nested
+    class SwarmPayload {
+
+        @Test
+        void theSwarmsPayloadCarriesTheShapeAndReachOfItsCast() {
+            ConeShape wideAndThin = new ConeShape(70, 12, false);
+            GnatSeekPayload payload = SwarmStrike.payloadOf(new SwarmStrike.SwarmCast(7, new Vec3(1, 65, 2),
+                    new Vec3(1, 0, 0), wideAndThin, 8.5), GnatSeekPayload.NO_PREY, new AABB(5, 64, 1, 6, 65, 2));
+            assertEquals(wideAndThin, payload.shape());
+            assertEquals(8.5, payload.reach());
+        }
+    }
+
+    /**
      * The mob cone test takes the shape it is handed: a cone wide across and thin up and down strikes a mob off to
      * the side and passes over one the same angle above the axis
      * (decision cone-style-abilities-are-reviewed-for-consistency).
