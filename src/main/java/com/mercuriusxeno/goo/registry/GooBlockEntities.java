@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.block.ability.WispBlockEntity;
+import com.mercuriusxeno.goo.block.alientech.LightBeaconBlockEntity;
 import com.mercuriusxeno.goo.block.alientech.ReflectorBlockEntity;
 import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlockEntity;
@@ -81,6 +82,11 @@ public class GooBlockEntities {
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<ReflectorBlockEntity>> REFLECTOR =
             BLOCK_ENTITIES.register("reflector",
                     () -> new BlockEntityType<>(ReflectorBlockEntity::new, GooBlocks.REFLECTOR.get()));
+
+    /** The light beacon's block entity, which its renderer draws the column for (decision bulb-one-model-max-light-beacon-combo). */
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<LightBeaconBlockEntity>> LIGHT_BEACON =
+            BLOCK_ENTITIES.register("light_beacon",
+                    () -> new BlockEntityType<>(LightBeaconBlockEntity::new, GooBlocks.LIGHT_BEACON.get()));
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<ChoralGasketBlockEntity>> CHORAL_GASKET =
             BLOCK_ENTITIES.register("choral_gasket",

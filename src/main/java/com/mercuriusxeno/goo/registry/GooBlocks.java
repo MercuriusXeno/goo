@@ -22,6 +22,7 @@ import com.mercuriusxeno.goo.block.ability.VinesCellBlock;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.block.ability.WispBlock;
 import com.mercuriusxeno.goo.block.ability.ZapPulseBlock;
+import com.mercuriusxeno.goo.block.alientech.LightBeaconBlock;
 import com.mercuriusxeno.goo.block.alientech.MetronomeBlock;
 import com.mercuriusxeno.goo.block.alientech.ReflectorBlock;
 import com.mercuriusxeno.goo.block.canister.CanisterBlock;
@@ -813,6 +814,16 @@ public class GooBlocks {
             ReflectorBlock::new, () -> BlockBehaviour.Properties.of().mapColor(MapColor.METAL)
                     .strength(REFLECTOR_HARDNESS).sound(SoundType.LANTERN).noOcclusion()
                     .pushReaction(PushReaction.POPPED));
+    /**
+     * Light Beacon: a block on a solid face giving the max light, its far-seen column leaving the side opposite that
+     * face, dropping itself so a crucible can melt it.
+     * decision bulb-one-model-max-light-beacon-combo
+     * decision utility-blocks-found-in-lunar-are-learned-and-recreated-at-will
+     */
+    public static final DeferredBlock<LightBeaconBlock> LIGHT_BEACON = BLOCKS.registerBlock("light_beacon",
+            LightBeaconBlock::new, () -> BlockBehaviour.Properties.of().mapColor(MapColor.METAL)
+                    .strength(REFLECTOR_HARDNESS).sound(SoundType.LANTERN).noOcclusion()
+                    .pushReaction(PushReaction.POPPED).lightLevel(state -> LightBeaconBlock.LIGHT));
 
     /** Molten iron's liquid block, glowing as lava does. */
     public static final DeferredBlock<LiquidBlock> MOLTEN_IRON = BLOCKS.registerBlock(GooFluids.MOLTEN_IRON_PATH,

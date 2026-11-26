@@ -53,8 +53,8 @@ import com.mercuriusxeno.goo.client.ability.TransformationRenderer;
 import com.mercuriusxeno.goo.client.ability.WindLines;
 import com.mercuriusxeno.goo.client.ability.WispGlow;
 import com.mercuriusxeno.goo.client.ability.ZapBolts;
+import com.mercuriusxeno.goo.client.ber.BeaconBeams;
 import com.mercuriusxeno.goo.client.ber.ReflectorBeams;
-import com.mercuriusxeno.goo.client.ber.style.GlowBeaconStyle;
 import com.mercuriusxeno.goo.client.ber.style.GlowColumn;
 import com.mercuriusxeno.goo.client.entity.MeteorRenderer;
 import com.mercuriusxeno.goo.client.entity.WispEchoes;
@@ -133,7 +133,7 @@ public final class TranslucentVisualPath {
             // operator ruling 2026-11-18: the glows vanilla's main pass drew before the clouds, queued by their
             // renderers; a prism's column registers before its beams, which sort at its center and draw after it.
             new Registration(GlowColumn.class, SortRoute.FAR_TO_NEAR, GlowColumn::collect),
-            new Registration(GlowBeaconStyle.class, SortRoute.FAR_TO_NEAR, GlowBeaconStyle::collect),
+            new Registration(BeaconBeams.class, SortRoute.FAR_TO_NEAR, BeaconBeams::collect),
             new Registration(ReflectorBeams.class, SortRoute.FAR_TO_NEAR, ReflectorBeams::collect),
             new Registration(MeteorRenderer.class, SortRoute.FAR_TO_NEAR, MeteorRenderer::collect),
             new Registration(GloveSpecialRenderer.class, SortRoute.FAR_TO_NEAR, GloveSpecialRenderer::collect),

@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.ber.style;
 import com.mercuriusxeno.goo.client.SortRoute;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.TranslucentVisualPathRegistrations;
+import com.mercuriusxeno.goo.client.ber.BeaconBeams;
 import com.mercuriusxeno.goo.client.ber.ReflectorBeams;
 import org.junit.jupiter.api.Test;
 import java.util.List;
@@ -25,7 +26,7 @@ class GlowColumnTest {
     void theColumnRegistersAheadOfItsBeams() {
         List<Class<?>> farToNear = TranslucentVisualPathRegistrations.visualsOn(SortRoute.FAR_TO_NEAR);
         int column = farToNear.indexOf(GlowColumn.class);
-        assertTrue(column >= 0 && column < farToNear.indexOf(GlowBeaconStyle.class)
+        assertTrue(column >= 0 && column < farToNear.indexOf(BeaconBeams.class)
                 && column < farToNear.indexOf(ReflectorBeams.class), "registered " + farToNear);
     }
 

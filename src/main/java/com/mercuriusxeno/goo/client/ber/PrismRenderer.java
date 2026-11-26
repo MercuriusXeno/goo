@@ -50,8 +50,6 @@ public class PrismRenderer implements BlockEntityRenderer<PrismBlockEntity, Pris
     private static final float HALF = 0.5f;
     /** Ticks in vanilla's beacon beam scroll cycle. */
     private static final int BEAM_CYCLE_TICKS = 40;
-    /** The camera distance past which a beam widens, in blocks, vanilla's beacon threshold. */
-    static final float BEAM_WIDEN_DISTANCE = 96f;
 
     /**
      * Creates the prism renderer.
@@ -115,7 +113,7 @@ public class PrismRenderer implements BlockEntityRenderer<PrismBlockEntity, Pris
         // bulb-one-model-max-light-beacon-combo: a beam scrolls and widens as vanilla's beacon beam does
         long gameTime = prism.getLevel() == null ? 0L : prism.getLevel().getGameTime();
         state.animationTime = Math.floorMod(gameTime, BEAM_CYCLE_TICKS) + partialTick;
-        state.beamRadiusScale = beamRadiusScale((float) cameraPos.subtract(Vec3.atCenterOf(state.blockPos)).horizontalDistance());
+        state.beamRadiusScale = BeaconBeams.radiusScale((float) cameraPos.subtract(Vec3.atCenterOf(state.blockPos)).horizontalDistance());
         state.links = prism.getLinks().stream().map(link -> Vec3.atLowerCornerOf(link.subtract(prism.getBlockPos())))
                 .toList();
         state.linkLight = prism.getLinkLight();
@@ -138,36 +136,11 @@ public class PrismRenderer implements BlockEntityRenderer<PrismBlockEntity, Pris
         }
     }
 
-    /**
-     * How much a beam widens at a camera distance: not at all within 96
-     * blocks, then in step with the distance, as vanilla's beacon beam widens.
-     *
-     * @param horizontalDistance the camera's horizontal distance from the prism, in blocks
-     * @return the factor the beam's radii take
-     */
-    static float beamRadiusScale(float horizontalDistance) {
-        return Math.max(1f, horizontalDistance / BEAM_WIDEN_DISTANCE);
-    }
-
-    /**
-     * The box a prism draws within: its cell, stretched along the face it
-     * grew from by its combo's reach, so a beam draws while its prism is off screen.
-     *
-     * @param pos    the prism's position
-     * @param facing the face the prism grew from
-     * @param reach  how far its combo draws out of the cell, in blocks
-     * @return the render bounding box
-     */
-    static AABB drawnBounds(BlockPos pos, Direction facing, int reach) {
-        return new AABB(pos).expandTowards(facing.getStepX() * reach, facing.getStepY() * reach,
-                facing.getStepZ() * reach);
-    }
-
     @Override
     public AABB getRenderBoundingBox(PrismBlockEntity prism) {
         PrismComboStyle style = PrismComboStyles.forCombo(prism.getCombo());
         int reach = style == null ? 0 : style.beamReach();
-        AABB bounds = drawnBounds(prism.getBlockPos(), prism.getBlockState().getValue(PrismBlock.FACING), reach);
+        AABB bounds = BeaconBeams.drawnBounds(prism.getBlockPos(), prism.getBlockState().getValue(PrismBlock.FACING), reach);
         // reflector-rails-carry-the-brightest-light: the box reaches every linked reflector, so its beams draw
         for (BlockPos link : prism.getLinks()) {
             bounds = bounds.minmax(new AABB(link));
