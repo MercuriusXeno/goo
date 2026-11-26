@@ -259,6 +259,8 @@ public final class GooClientSetup {
                 AbilityBlockRenderer::new);
         event.registerBlockEntityRenderer(GooBlockEntities.PRISM.get(), PrismRenderer::new);
         event.registerBlockEntityRenderer(GooBlockEntities.WISP.get(), WispRenderer::new);
+        // reflector-rails-carry-the-brightest-light: the reflector block draws its rails
+        event.registerBlockEntityRenderer(GooBlockEntities.REFLECTOR.get(), ReflectorRenderer::new);
         PrismComboStyles.register(GlowBeaconStyle.COMBO, new GlowBeaconStyle());
         PrismComboStyles.register(GlowReflectorStyle.COMBO, new GlowReflectorStyle());
         PrismComboStyles.register(HivePrismStyle.COMBO, new HivePrismStyle());

@@ -23,6 +23,7 @@ import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.block.ability.WispBlock;
 import com.mercuriusxeno.goo.block.ability.ZapPulseBlock;
 import com.mercuriusxeno.goo.block.alientech.MetronomeBlock;
+import com.mercuriusxeno.goo.block.alientech.ReflectorBlock;
 import com.mercuriusxeno.goo.block.canister.CanisterBlock;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlock;
 import com.mercuriusxeno.goo.block.gasket.ChoralGasketBlock;
@@ -800,6 +801,18 @@ public class GooBlocks {
     public static final DeferredBlock<MetronomeBlock> METRONOME = BLOCKS.registerBlock("metronome",
             MetronomeBlock::new, () -> BlockBehaviour.Properties.of().mapColor(MapColor.METAL).instabreak()
                     .sound(SoundType.METAL).pushReaction(PushReaction.POPPED));
+    /** A lantern's hardness, which the reflector breaks like. */
+    private static final float REFLECTOR_HARDNESS = 3.5F;
+    /**
+     * Reflector: a lensed cuboid held off a solid face, joined by light rails to the next reflector each open lens
+     * meets, dropping itself so a crucible can melt it.
+     * decision reflector-rails-carry-the-brightest-light
+     * decision utility-blocks-found-in-lunar-are-learned-and-recreated-at-will
+     */
+    public static final DeferredBlock<ReflectorBlock> REFLECTOR = BLOCKS.registerBlock("reflector",
+            ReflectorBlock::new, () -> BlockBehaviour.Properties.of().mapColor(MapColor.METAL)
+                    .strength(REFLECTOR_HARDNESS).sound(SoundType.LANTERN).noOcclusion()
+                    .pushReaction(PushReaction.POPPED));
 
     /** Molten iron's liquid block, glowing as lava does. */
     public static final DeferredBlock<LiquidBlock> MOLTEN_IRON = BLOCKS.registerBlock(GooFluids.MOLTEN_IRON_PATH,

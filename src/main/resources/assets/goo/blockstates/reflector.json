@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "facing=up": {"model": "goo:block/reflector"},
+    "facing=down": {"model": "goo:block/reflector", "x": 180},
+    "facing=north": {"model": "goo:block/reflector", "x": 90},
+    "facing=east": {"model": "goo:block/reflector", "x": 90, "y": 90},
+    "facing=south": {"model": "goo:block/reflector", "x": 90, "y": 180},
+    "facing=west": {"model": "goo:block/reflector", "x": 90, "y": 270}
+  }
+}

@@ -1,4 +1,4 @@
-package com.mercuriusxeno.goo.client.ber.style;
+package com.mercuriusxeno.goo.client.ber;
 
 import com.mercuriusxeno.goo.client.BeamSamples;
 import com.mercuriusxeno.goo.client.RecordingVertexConsumer;
@@ -13,15 +13,15 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * GlowReflectorStyle: one end of each link draws its beam, the beam draws
+ * ReflectorBeams: one end of each link draws its beam, the beam draws
  * brighter the more light the network carries, and each of its layers fades
- * out past both prisms' middles rather than stopping square, breathing in
+ * out past both reflectors' middles rather than stopping square, breathing in
  * alpha on top of the light share and shrinking slightly at the ease.
  * decision reflector-rails-carry-the-brightest-light
  * decision reflector-rail-blooms-out-inside-the-prism
  * decision every-glow-beam-breathes-in-brightness
  */
-class GlowReflectorStyleTest {
+class ReflectorBeamsTest {
 
     private static final int RAIL_LIGHT = 10;
     private static final float RAIL_LENGTH = 4f;
@@ -31,26 +31,26 @@ class GlowReflectorStyleTest {
     void exactlyOneEndDrawsEachBeam() {
         Vec3[] links = {new Vec3(3, 0, 0), new Vec3(0, -2, 0), new Vec3(0, 0, 7), new Vec3(-5, 4, 5)};
         for (Vec3 link : links) {
-            assertNotEquals(GlowReflectorStyle.drawsTheBeam(link), GlowReflectorStyle.drawsTheBeam(link.reverse()),
+            assertNotEquals(ReflectorBeams.drawsTheBeam(link), ReflectorBeams.drawsTheBeam(link.reverse()),
                     link.toString());
         }
     }
 
     private static List<RecordingVertexConsumer.Vertex> emitRail(float share, float breath) {
         RecordingVertexConsumer consumer = new RecordingVertexConsumer();
-        GlowReflectorStyle.emitBeam(new PoseStack().last(), consumer, RAIL_LENGTH, share, 0f, breath);
+        ReflectorBeams.emitBeam(new PoseStack().last(), consumer, RAIL_LENGTH, share, 0f, breath);
         return consumer.vertices();
     }
 
     @Test
     void theRailBreathesInAlphaOnTopOfTheLightShareAndShrinksSlightlyAtTheEase() {
-        float share = GlowReflectorStyle.lightShare(RAIL_LIGHT);
+        float share = ReflectorBeams.lightShare(RAIL_LIGHT);
         List<RecordingVertexConsumer.Vertex> peak = emitRail(share, GlowBeamMesh.breath(0));
         List<RecordingVertexConsumer.Vertex> trough =
                 emitRail(share, GlowBeamMesh.breath(GlowBeamMesh.BREATH_PERIOD_TICKS / 2));
 
         assertNotEquals(BeamSamples.alphas(peak), BeamSamples.alphas(trough), "the rail's alpha breathes");
-        float width = GlowReflectorStyle.DIMMEST_WIDTH + (1f - GlowReflectorStyle.DIMMEST_WIDTH) * share;
+        float width = ReflectorBeams.DIMMEST_WIDTH + (1f - ReflectorBeams.DIMMEST_WIDTH) * share;
         assertEquals(GlowBeamMesh.LAYERS.getLast().radius() * width, BeamSamples.widest(peak), TOLERANCE,
                 "the rail is never fatter than its own width");
         assertTrue(BeamSamples.widest(trough) < BeamSamples.widest(peak), "the rail shrinks slightly at the ease");
@@ -60,20 +60,20 @@ class GlowReflectorStyleTest {
     }
 
     @Test
-    void eachRailLayerFadesOutPastBothPrismMiddles() {
-        float share = GlowReflectorStyle.lightShare(RAIL_LIGHT);
+    void eachRailLayerFadesOutPastBothReflectorMiddles() {
+        float share = ReflectorBeams.lightShare(RAIL_LIGHT);
         List<RecordingVertexConsumer.Vertex> vertices = emitRail(share, 1f);
 
-        float width = GlowReflectorStyle.DIMMEST_WIDTH + (1f - GlowReflectorStyle.DIMMEST_WIDTH) * share;
+        float width = ReflectorBeams.DIMMEST_WIDTH + (1f - ReflectorBeams.DIMMEST_WIDTH) * share;
         for (GlowBeamMesh.Layer layer : GlowBeamMesh.LAYERS) {
             float radius = layer.radius() * width;
             List<RecordingVertexConsumer.Vertex> ofLayer = vertices.stream()
                     .filter(v -> Math.abs(Math.max(Math.abs(v.x()), Math.abs(v.z())) - radius) < TOLERANCE).toList();
             float lowest = (float) ofLayer.stream().mapToDouble(RecordingVertexConsumer.Vertex::y).min().orElseThrow();
             float highest = (float) ofLayer.stream().mapToDouble(RecordingVertexConsumer.Vertex::y).max().orElseThrow();
-            assertEquals(-layer.depth(), lowest, TOLERANCE, "the rail fades back past the drawing prism's middle");
+            assertEquals(-layer.depth(), lowest, TOLERANCE, "the rail fades back past the drawing reflector's middle");
             assertEquals(RAIL_LENGTH + layer.depth(), highest, TOLERANCE,
-                    "the rail fades on past the linked prism's middle");
+                    "the rail fades on past the linked reflector's middle");
             int sharedAlpha = Math.round(ARGB.alpha(layer.color()) * share);
             for (RecordingVertexConsumer.Vertex v : ofLayer) {
                 if (Math.abs(v.y() - lowest) < TOLERANCE || Math.abs(v.y() - highest) < TOLERANCE) {
@@ -87,8 +87,8 @@ class GlowReflectorStyleTest {
 
     @Test
     void theBeamBrightensWithTheNetworksLight() {
-        assertEquals(1f, GlowReflectorStyle.lightShare(15), 0f);
-        assertEquals(1f / 15, GlowReflectorStyle.lightShare(1), 1e-6f);
-        assertEquals(0f, GlowReflectorStyle.lightShare(0), 0f);
+        assertEquals(1f, ReflectorBeams.lightShare(15), 0f);
+        assertEquals(1f / 15, ReflectorBeams.lightShare(1), 1e-6f);
+        assertEquals(0f, ReflectorBeams.lightShare(0), 0f);
     }
 }

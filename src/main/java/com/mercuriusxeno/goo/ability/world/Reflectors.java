@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.block.ability.RailLine;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
@@ -22,10 +23,11 @@ import java.util.UUID;
 import java.util.WeakHashMap;
 
 /**
- * Glow's reflector prisms and the light rails between them. Each reflector
- * links to every other reflector in loaded chunks that stands on one of its
- * axes, never on a diagonal, with only air, or rail, on the straight line
- * between them, and the line fills with light rail.
+ * Reflectors, each a {@link LightRailEnd}, and the light rails between them.
+ * Each reflector links to every other reflector in loaded chunks that stands
+ * on one of its axes, never on a diagonal, with an open lens on each end
+ * facing the other and only air, or rail, on the straight line between them,
+ * and the line fills with light rail.
  * The reflectors linked one to the next form a network, and every rail in
  * it carries the brightest light any of its reflectors reads at its own
  * cell; a rail's own light reaches a reflector one level dimmer, so a
@@ -56,16 +58,16 @@ public final class Reflectors {
         Set<BlockPos> known = BY_LEVEL.computeIfAbsent(level, ignored -> new HashSet<>());
         known.add(self.immutable());
         known.removeIf(pos -> level.isLoaded(pos) && !isReflector(level, pos));
-        if (!(level.getBlockEntity(self) instanceof PrismBlockEntity prism)) {
+        if (!(level.getBlockEntity(self) instanceof LightRailEnd end)) {
             return;
         }
         List<BlockPos> partners = partnersOf(level, self, known);
-        clearBrokenLinks(level, self, prism.getLinks(), partners);
+        clearBrokenLinks(level, self, end.getLinks(), partners);
         Set<BlockPos> network = networkOf(level, self, known);
         int light = networkLight(level, network);
-        // rail this refresh newly lays credits the player whose goo set the refreshing reflector
+        // rail this refresh newly lays credits the player who set the refreshing reflector
         // standing-goo-thing-credits-whoever-placed-it
-        Laying laying = new Laying(light, prism.caster());
+        Laying laying = new Laying(light, end.railPlacer());
         for (BlockPos member : network) {
             lightMember(level, member, member.equals(self) ? partners : partnersOf(level, member, known), laying);
         }
@@ -95,7 +97,7 @@ public final class Reflectors {
         for (BlockPos partner : links) {
             layRail(level, RailLine.between(member, partner), laying);
         }
-        if (level.getBlockEntity(member) instanceof PrismBlockEntity linked) {
+        if (level.getBlockEntity(member) instanceof LightRailEnd linked) {
             linked.setLinks(links, laying.light());
         }
     }
@@ -110,11 +112,13 @@ public final class Reflectors {
     }
 
     private static boolean isReflector(ServerLevel level, BlockPos pos) {
-        return level.getBlockEntity(pos) instanceof PrismBlockEntity prism && prism.isReflector();
+        return level.getBlockEntity(pos) instanceof PrismBlockEntity prism ? prism.isReflector()
+                : level.getBlockEntity(pos) instanceof LightRailEnd;
     }
 
     /**
-     * The reflectors a reflector links to: every other loaded one on one of its axes with a clear line between.
+     * The reflectors a reflector links to: every other loaded one on one of its axes, open lens facing open lens,
+     * with a clear line between, which makes it the next reflector each open lens meets.
      *
      * @param level the server level
      * @param from  the reflector
@@ -124,11 +128,39 @@ public final class Reflectors {
     private static List<BlockPos> partnersOf(ServerLevel level, BlockPos from, Set<BlockPos> known) {
         List<BlockPos> partners = new ArrayList<>();
         for (BlockPos other : known) {
-            if (onOneAxis(from, other) && level.isLoaded(other) && isClear(level, RailLine.between(from, other))) {
+            if (onOneAxis(from, other) && level.isLoaded(other) && lensesFace(level, from, other)
+                    && isClear(level, RailLine.between(from, other))) {
                 partners.add(other);
             }
         }
         return partners;
+    }
+
+    /**
+     * Whether two reflectors on one axis each hold an open lens toward the other.
+     * decision reflector-rails-carry-the-brightest-light
+     *
+     * @param level the server level
+     * @param from  the one reflector
+     * @param to    the other, on one of its axes
+     * @return true when both lenses between them are open
+     */
+    private static boolean lensesFace(ServerLevel level, BlockPos from, BlockPos to) {
+        Direction ahead = toward(from, to);
+        return level.getBlockEntity(from) instanceof LightRailEnd near && near.lensOpen(ahead)
+                && level.getBlockEntity(to) instanceof LightRailEnd far && far.lensOpen(ahead.getOpposite());
+    }
+
+    /**
+     * The side of one cell another on one of its axes lies toward.
+     *
+     * @param from the one cell
+     * @param to   the other, differing from it along exactly one axis
+     * @return the side facing it
+     */
+    static Direction toward(BlockPos from, BlockPos to) {
+        BlockPos offset = to.subtract(from);
+        return Direction.getApproximateNearest(offset.getX(), offset.getY(), offset.getZ());
     }
 
     /**

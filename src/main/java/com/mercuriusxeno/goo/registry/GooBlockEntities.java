@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.block.ability.WispBlockEntity;
+import com.mercuriusxeno.goo.block.alientech.ReflectorBlockEntity;
 import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlockEntity;
 import com.mercuriusxeno.goo.block.gasket.ChoralGasketBlockEntity;
@@ -75,6 +76,11 @@ public class GooBlockEntities {
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<DimensionDoorBlockEntity>> DIMENSION_DOOR =
             BLOCK_ENTITIES.register("dimension_door",
                     () -> new BlockEntityType<>(DimensionDoorBlockEntity::new, GooBlocks.DIMENSION_DOOR.get()));
+
+    /** A reflector's links and light (decision reflector-rails-carry-the-brightest-light). */
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<ReflectorBlockEntity>> REFLECTOR =
+            BLOCK_ENTITIES.register("reflector",
+                    () -> new BlockEntityType<>(ReflectorBlockEntity::new, GooBlocks.REFLECTOR.get()));
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<ChoralGasketBlockEntity>> CHORAL_GASKET =
             BLOCK_ENTITIES.register("choral_gasket",

@@ -193,7 +193,7 @@ class TranslucentVisualPathTest {
     @Test
     void theMainPassGlowsDrawFarToNearOnThePath() {
         List<String> glows = List.of("ber.style.GlowColumn", "ber.style.GlowBeaconStyle",
-                "ber.style.GlowReflectorStyle", "entity.MeteorRenderer", "ability.ReapSwells",
+                "ber.ReflectorBeams", "entity.MeteorRenderer", "ability.ReapSwells",
                 "ability.GhostTrailRenderer");
         assertAll(glows.stream().map(glow -> () -> assertEquals(List.of(SortRoute.FAR_TO_NEAR),
                 TranslucentVisualPath.REGISTRATIONS.stream()

@@ -10,6 +10,7 @@ import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.pulse.RedstoneBeat;
+import com.mercuriusxeno.goo.ability.world.LightRailEnd;
 import com.mercuriusxeno.goo.block.BlockEntitySync;
 import com.mercuriusxeno.goo.block.GooSyncedBlockEntity;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
@@ -36,7 +37,7 @@ import java.util.UUID;
  * renders by its combo. A prism holds one combo; a second is refused.
  * decision prism-hosts-the-combos
  */
-public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnchor {
+public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnchor, LightRailEnd {
 
     /** The combo a plain prism holds: none. */
     public static final String NO_COMBO = "";
@@ -302,6 +303,22 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
     }
 
     /**
+     * A reflector prism holds a lens open on every side.
+     *
+     * @param toward the side
+     * @return true once its combo made it a reflector
+     */
+    @Override
+    public boolean lensOpen(Direction toward) {
+        return reflector;
+    }
+
+    @Override
+    public @Nullable UUID railPlacer() {
+        return caster;
+    }
+
+    /**
      * Records the reflectors this one links to and the light its network
      * carries, syncing the prism when either changed so its renderer draws
      * the beams.
@@ -309,6 +326,7 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
      * @param partners the reflectors linked by rail
      * @param light    the network's light
      */
+    @Override
     public void setLinks(List<BlockPos> partners, int light) {
         if (!links.equals(partners) || linkLight != light) {
             links = List.copyOf(partners);
@@ -320,6 +338,7 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
     /**
      * @return the reflectors this one links to by light rail
      */
+    @Override
     public List<BlockPos> getLinks() {
         return links;
     }

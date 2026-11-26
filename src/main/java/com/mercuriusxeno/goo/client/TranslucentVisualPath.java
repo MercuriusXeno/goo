@@ -53,9 +53,9 @@ import com.mercuriusxeno.goo.client.ability.TransformationRenderer;
 import com.mercuriusxeno.goo.client.ability.WindLines;
 import com.mercuriusxeno.goo.client.ability.WispGlow;
 import com.mercuriusxeno.goo.client.ability.ZapBolts;
+import com.mercuriusxeno.goo.client.ber.ReflectorBeams;
 import com.mercuriusxeno.goo.client.ber.style.GlowBeaconStyle;
 import com.mercuriusxeno.goo.client.ber.style.GlowColumn;
-import com.mercuriusxeno.goo.client.ber.style.GlowReflectorStyle;
 import com.mercuriusxeno.goo.client.entity.MeteorRenderer;
 import com.mercuriusxeno.goo.client.entity.WispEchoes;
 import com.mercuriusxeno.goo.client.hole.HoleMouths;
@@ -134,7 +134,7 @@ public final class TranslucentVisualPath {
             // renderers; a prism's column registers before its beams, which sort at its center and draw after it.
             new Registration(GlowColumn.class, SortRoute.FAR_TO_NEAR, GlowColumn::collect),
             new Registration(GlowBeaconStyle.class, SortRoute.FAR_TO_NEAR, GlowBeaconStyle::collect),
-            new Registration(GlowReflectorStyle.class, SortRoute.FAR_TO_NEAR, GlowReflectorStyle::collect),
+            new Registration(ReflectorBeams.class, SortRoute.FAR_TO_NEAR, ReflectorBeams::collect),
             new Registration(MeteorRenderer.class, SortRoute.FAR_TO_NEAR, MeteorRenderer::collect),
             new Registration(GloveSpecialRenderer.class, SortRoute.FAR_TO_NEAR, GloveSpecialRenderer::collect),
             new Registration(ReapSwells.class, SortRoute.FAR_TO_NEAR, ReapSwells::collect),
