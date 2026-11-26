@@ -208,6 +208,7 @@ public final class TranslucentVisualPath {
             new Registration(LunarTripView.class, SortRoute.THROUGH_BLOCKS, LunarTripView::collect),
             new Registration(BoreDrill.class, SortRoute.FAR_TO_NEAR, BoreDrill::collect,
                     Drawing.IN_THE_OIT_PHASE),
+            new Registration(PortalFaces.class, SortRoute.ON_OPAQUE_FACES, PortalFaces::collectFaces),
             new Registration(PortalFaces.class, SortRoute.FAR_TO_NEAR, PortalFaces::collect,
                     Drawing.IN_THE_OIT_PHASE),
             new Registration(PortalView.class, SortRoute.SKY, PortalView::collectSky),

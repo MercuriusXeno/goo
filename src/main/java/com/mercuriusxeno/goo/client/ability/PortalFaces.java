@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.ability.quantum.Portal;
 import com.mercuriusxeno.goo.ability.quantum.PortalColor;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.ImmediateBuffers;
+import com.mercuriusxeno.goo.client.SortRoute;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -20,8 +21,10 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -167,28 +170,57 @@ public final class PortalFaces {
      * Hands the shared path the gates once the world has drawn, in the
      * frame's pass and in a view's own, as one draw sorted by the nearest
      * gate's face: halos, then views, then idle swirls, the draw keeping
-     * that order within itself.
+     * that order within itself. Under improved transparency the views and
+     * idle swirls draw with the opaque faces instead (collectFaces).
      * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
+     * decision diagnose-and-correct-the-swirl-bands-depth-under-improved-transparency
      *
      * @param frame the frame being drawn
      * @param draws where the gates' draw goes
      */
     public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
+        collectOn(SortRoute.FAR_TO_NEAR, frame, draws);
+    }
+
+    /**
+     * Hands the shared path the gates' faces with the opaque faces, in the
+     * frame's pass and in a view's own: under improved transparency alone,
+     * views then idle swirls, ahead of the OIT phase.
+     * decision diagnose-and-correct-the-swirl-bands-depth-under-improved-transparency
+     *
+     * @param frame the frame being drawn
+     * @param draws where the gates' draw goes
+     */
+    public static void collectFaces(LevelFrame frame, Consumer<SortedDraw> draws) {
+        collectOn(SortRoute.ON_OPAQUE_FACES, frame, draws);
+    }
+
+    private static void collectOn(SortRoute route, LevelFrame frame, Consumer<SortedDraw> draws) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null) {
+            return;
+        }
+        boolean improvedTransparency = mc.gameRenderer.useImprovedTransparency();
+        Set<Part> parts = partsOn(route, improvedTransparency);
+        if (parts.isEmpty()) {
             return;
         }
         Vec3 camera = PortalView.drawing() ? PortalView.cameraPosition() : mc.gameRenderer.mainCamera().position();
         List<Drawn> gates = gatesIn(mc.level.dimension());
         draws.accept(SortedDraw.nearestOf(gates.stream().map(drawn -> drawn.ovalBox().getCenter()), camera,
-                () -> drawGates(frame.poseStack().last(), ImmediateBuffers.shared(), camera, gates)));
+                () -> drawGates(frame.poseStack().last(), ImmediateBuffers.shared(), camera, gates, parts,
+                        improvedTransparency)));
     }
 
     private static void drawGates(PoseStack.Pose pose, ImmediateBuffers buffers, Vec3 camera,
-            List<Drawn> gates) {
-        drawHalos(pose, buffers, camera, gates);
-        drawViews(pose, buffers, camera, gates);
-        drawIdle(pose, buffers, camera, gates);
+            List<Drawn> gates, Set<Part> parts, boolean improvedTransparency) {
+        if (parts.contains(Part.GLOWS)) {
+            drawHalos(pose, buffers, camera, gates, improvedTransparency);
+        }
+        if (parts.contains(Part.FACES)) {
+            drawViews(pose, buffers, camera, gates);
+            drawIdle(pose, buffers, camera, gates);
+        }
     }
 
     /**
@@ -236,6 +268,33 @@ public final class PortalFaces {
                 buffers.endBatch(type);
             });
         }
+    }
+
+    /** What of a gate the path draws on a route. */
+    enum Part {
+        /** Its halo and swirl band. */
+        GLOWS,
+        /** Its face: the view through it, or its idle swirl. */
+        FACES
+    }
+
+    /**
+     * What of a gate the path draws on a route. Under improved transparency the face draws with the opaque faces,
+     * before the OIT phase, since the OIT composite writes the depth of the nearest glow it keeps and the face, tested
+     * against that depth after it, would fail wherever the swirl band's arch stands in front of it; with improved
+     * transparency off it draws far to near after its halo and band, painting over the band's inner half.
+     * decision diagnose-and-correct-the-swirl-bands-depth-under-improved-transparency
+     *
+     * @param route                the route drawing
+     * @param improvedTransparency whether the client draws translucency through order-independent transparency
+     * @return the parts it draws there
+     */
+    static Set<Part> partsOn(SortRoute route, boolean improvedTransparency) {
+        if (route == SortRoute.FAR_TO_NEAR) {
+            return improvedTransparency ? EnumSet.of(Part.GLOWS) : EnumSet.allOf(Part.class);
+        }
+        return route == SortRoute.ON_OPAQUE_FACES && improvedTransparency ? EnumSet.of(Part.FACES)
+                : EnumSet.noneOf(Part.class);
     }
 
     /**
@@ -339,16 +398,17 @@ public final class PortalFaces {
      * @param buffers the frame's buffers
      * @param camera  the camera's position
      * @param gates   the gates the frame draws
+     * @param improvedTransparency whether the client draws translucency through order-independent transparency
      */
     private static void drawHalos(PoseStack.Pose pose, ImmediateBuffers buffers, Vec3 camera,
-            List<Drawn> gates) {
+            List<Drawn> gates, boolean improvedTransparency) {
         Optional<GatePassage.Pair> viewing = PortalView.viewing();
         List<Drawn> worn = wornIn(gates, viewing.map(GatePassage.Pair::other));
         VertexConsumer halo = buffers.getBuffer(GooRenderTypes.GOO_PORTAL_HALO_TYPE);
         emitHalos(pose, halo, worn, drawn -> drawn.drawnBox(camera));
         buffers.endBatch(GooRenderTypes.GOO_PORTAL_HALO_TYPE);
         VertexConsumer bands = buffers.getBuffer(GooRenderTypes.GOO_PORTAL_SWIRL_BAND_TYPE);
-        emitSwirlBands(pose, bands, worn, drawn -> drawn.drawnBox(camera));
+        emitSwirlBands(pose, bands, worn, drawn -> drawn.drawnBox(camera), improvedTransparency);
         emitSleeves(pose, bands, sleevedIn(gates, viewing), drawn -> drawn.drawnBox(camera));
         buffers.endBatch(GooRenderTypes.GOO_PORTAL_SWIRL_BAND_TYPE);
     }
@@ -365,12 +425,27 @@ public final class PortalFaces {
      * @param consumer the swirl band pipeline's vertex consumer
      * @param gates    the gates the frame draws
      * @param boxOf    the box each gate draws over, camera-relative
+     * @param improvedTransparency whether the client draws translucency through order-independent transparency
      */
     static void emitSwirlBands(PoseStack.Pose pose, VertexConsumer consumer, List<Drawn> gates,
-            Function<Drawn, AABB> boxOf) {
+            Function<Drawn, AABB> boxOf, boolean improvedTransparency) {
+        double innerShare = archInnerShare(improvedTransparency);
         for (Drawn drawn : gates) {
-            emitSwirlBand(pose, consumer, Arch.of(drawn, boxOf), ARGB.opaque(drawn.rgb()), false);
+            emitSwirlBand(pose, consumer, Arch.of(drawn, boxOf), ARGB.opaque(drawn.rgb()), false, innerShare);
         }
+    }
+
+    /**
+     * How far across the swirl band's arch it starts, zero at its inner edge. Under improved transparency it starts
+     * at the oval's edge: with improved transparency off the face drawn after the band paints over its inner part, and
+     * under it the face draws first, so that part would lie over the view rather than under it.
+     * decision diagnose-and-correct-the-swirl-bands-depth-under-improved-transparency
+     *
+     * @param improvedTransparency whether the client draws translucency through order-independent transparency
+     * @return the share across the arch its first ring starts at
+     */
+    static double archInnerShare(boolean improvedTransparency) {
+        return improvedTransparency ? (BAND_INSIDE + BAND_INSET) / (BAND_INSIDE + BAND_OUTSIDE) : 0;
     }
 
     /**
@@ -388,7 +463,7 @@ public final class PortalFaces {
     static void emitSleeves(PoseStack.Pose pose, VertexConsumer consumer, List<Drawn> gates,
             Function<Drawn, AABB> boxOf) {
         for (Drawn drawn : gates) {
-            emitSwirlBand(pose, consumer, Arch.of(drawn, boxOf), ARGB.opaque(drawn.rgb()), true);
+            emitSwirlBand(pose, consumer, Arch.of(drawn, boxOf), ARGB.opaque(drawn.rgb()), true, 0);
         }
     }
 
@@ -408,15 +483,16 @@ public final class PortalFaces {
      * @param arch     the arch over the gate's rim
      * @param color    the packed ARGB color
      * @param sleeve   whether to emit the sleeve rather than the arch
+     * @param innerShare how far across it its first ring starts, zero at its inner edge
      */
     private static void emitSwirlBand(PoseStack.Pose pose, VertexConsumer consumer, Arch arch, int color,
-            boolean sleeve) {
+            boolean sleeve, double innerShare) {
         int[][] corners = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
         int[] texels = arch.texels();
         for (int level = 0; level < BAND_RINGS; level++) {
             for (int segment = 0; segment < BAND_SEGMENTS; segment++) {
                 for (int[] corner : corners) {
-                    double share = (double) (level + corner[1]) / BAND_RINGS;
+                    double share = Mth.lerp((double) (level + corner[1]) / BAND_RINGS, innerShare, 1);
                     Vec3 at = sleeve ? arch.sleevePoint(segment + corner[0], share)
                             : arch.point(segment + corner[0], share);
                     consumer.addVertex(pose, (float) at.x(), (float) at.y(), (float) at.z())

@@ -1750,8 +1750,10 @@ public final class GooRenderTypes {
      * the view through lies flush with the frame. Depth tested and written, as
      * the face stands in the world.
      */
-    // Under improved transparency this stays on its parity path: writes its own depth.
+    // Under improved transparency this stays on its parity path: writes its own depth. It draws with the opaque faces,
+    // before the OIT phase, since the OIT composite writes the swirl band's depth over the face.
     // decision goo-translucency-draws-through-order-independent-transparency
+    // decision diagnose-and-correct-the-swirl-bands-depth-under-improved-transparency
     public static final RenderPipeline GOO_PORTAL_VIEW = sorted(PipelineSort.ON_THE_PATH, RenderPipeline.builder(
                     GooPipelineSnippets.MATRICES_PROJECTION_SNIPPET, RenderPipelines.GLOBALS_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "goo_portal_view"))
@@ -1809,8 +1811,10 @@ public final class GooRenderTypes {
      * blended over the wall, depth tested and written as the face stands in
      * the world.
      */
-    // Under improved transparency this stays on its parity path: writes its own depth.
+    // Under improved transparency this stays on its parity path: writes its own depth. It draws with the opaque faces,
+    // before the OIT phase, since the OIT composite writes the swirl band's depth over the face.
     // decision goo-translucency-draws-through-order-independent-transparency
+    // decision diagnose-and-correct-the-swirl-bands-depth-under-improved-transparency
     public static final RenderPipeline GOO_PORTAL_IDLE = sorted(PipelineSort.ON_THE_PATH, RenderPipeline.builder(
                     GooPipelineSnippets.MATRICES_PROJECTION_SNIPPET, RenderPipelines.GLOBALS_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "goo_portal_idle"))

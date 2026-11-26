@@ -439,7 +439,7 @@ class TranslucentVisualPathTest {
         @Test
         void eachRegistersUnderItsRoutes() {
             Map<Class<?>, Set<SortRoute>> routes = new LinkedHashMap<>();
-            routes.put(PortalFaces.class, Set.of(SortRoute.FAR_TO_NEAR));
+            routes.put(PortalFaces.class, Set.of(SortRoute.ON_OPAQUE_FACES, SortRoute.FAR_TO_NEAR));
             routes.put(PortalView.class, Set.of(SortRoute.SKY));
             routes.put(HoleMouths.class, Set.of(SortRoute.FAR_TO_NEAR));
             routes.put(HolePits.class, Set.of(SortRoute.OPAQUE_SHAPE));

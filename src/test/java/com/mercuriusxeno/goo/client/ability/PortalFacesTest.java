@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.ability.quantum.PortalColor;
 import com.mercuriusxeno.goo.ability.quantum.Gate;
 import com.mercuriusxeno.goo.ability.quantum.GatePassage;
 import com.mercuriusxeno.goo.ability.quantum.Portal;
+import com.mercuriusxeno.goo.client.SortRoute;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.core.BlockPos;
@@ -18,7 +19,9 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Answers;
 import org.mockito.ArgumentCaptor;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Function;
+import java.util.stream.IntStream;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -238,7 +241,8 @@ class PortalFacesTest {
             ArgumentCaptor<Float> ys = ArgumentCaptor.forClass(Float.class);
             ArgumentCaptor<Float> zs = ArgumentCaptor.forClass(Float.class);
 
-            PortalFaces.emitSwirlBands(pose, consumer, List.of(new PortalFaces.Drawn(FRAME, rgb, false)), BLOCKS_OF);
+            PortalFaces.emitSwirlBands(pose, consumer, List.of(new PortalFaces.Drawn(FRAME, rgb, false)), BLOCKS_OF,
+                    false);
 
             verify(consumer, atLeastOnce()).addVertex(eq(pose), xs.capture(), ys.capture(), zs.capture());
             int vertices = zs.getAllValues().size();
@@ -264,6 +268,56 @@ class PortalFacesTest {
             }
             verify(consumer, times(vertices)).setColor(ARGB.opaque(expectedRgb));
             verify(consumer, times(vertices)).setUv2(AROUND_BY_UP[0], AROUND_BY_UP[1]);
+        }
+
+        /**
+         * Under improved transparency the band's arch starts at the oval's edge, so no part of it stands over the
+         * portal's view, where with improved transparency off the view paints over it; the composite would write
+         * that part's depth over the view (decision diagnose-and-correct-the-swirl-bands-depth-under-improved-transparency).
+         */
+        @Test
+        void underImprovedTransparencyTheBandsArchStandsOverNoneOfTheOval() {
+            VertexConsumer consumer = mock(VertexConsumer.class, Answers.RETURNS_SELF);
+            PoseStack.Pose pose = new PoseStack().last();
+            ArgumentCaptor<Float> xs = ArgumentCaptor.forClass(Float.class);
+            ArgumentCaptor<Float> ys = ArgumentCaptor.forClass(Float.class);
+            ArgumentCaptor<Float> zs = ArgumentCaptor.forClass(Float.class);
+
+            PortalFaces.emitSwirlBands(pose, consumer, List.of(new PortalFaces.Drawn(FRAME, PortalFaces.BLUE_RGB,
+                    false)), BLOCKS_OF, true);
+
+            verify(consumer, atLeastOnce()).addVertex(eq(pose), xs.capture(), ys.capture(), zs.capture());
+            double innermost = IntStream.range(0, xs.getAllValues().size())
+                    .mapToDouble(i -> Math.hypot((xs.getAllValues().get(i) - 0.5F) / 0.5,
+                            (ys.getAllValues().get(i) - 65F) / 1.0))
+                    .min().orElseThrow();
+            assertEquals(1.0, innermost, 1.0e-3, "The band's arch should start on the oval's edge, starts at "
+                    + innermost + " of its radius");
+        }
+    }
+
+    /**
+     * Under improved transparency a gate's face, its view or idle swirl, draws with the opaque faces before the OIT
+     * phase, so the composite's depth lands after it; with improved transparency off it draws after its halo and band
+     * as before (decision diagnose-and-correct-the-swirl-bands-depth-under-improved-transparency).
+     */
+    @Nested
+    class ByImprovedTransparency {
+
+        @Test
+        void underImprovedTransparencyTheFacesDrawWithTheOpaqueFacesAndTheGlowsFarToNear() {
+            assertEquals(Set.of(PortalFaces.Part.FACES),
+                    PortalFaces.partsOn(SortRoute.ON_OPAQUE_FACES, true));
+            assertEquals(Set.of(PortalFaces.Part.GLOWS),
+                    PortalFaces.partsOn(SortRoute.FAR_TO_NEAR, true));
+        }
+
+        @Test
+        void withImprovedTransparencyOffEveryPartDrawsFarToNear() {
+            assertEquals(Set.of(),
+                    PortalFaces.partsOn(SortRoute.ON_OPAQUE_FACES, false));
+            assertEquals(Set.of(PortalFaces.Part.GLOWS, PortalFaces.Part.FACES),
+                    PortalFaces.partsOn(SortRoute.FAR_TO_NEAR, false));
         }
     }
 
@@ -400,7 +454,7 @@ class PortalFacesTest {
                 Function<PortalFaces.Drawn, AABB> boxOf) {
             VertexConsumer consumer = mock(VertexConsumer.class, Answers.RETURNS_SELF);
             PortalFaces.emitHalos(pose, consumer, List.of(drawn), boxOf);
-            PortalFaces.emitSwirlBands(pose, consumer, List.of(drawn), boxOf);
+            PortalFaces.emitSwirlBands(pose, consumer, List.of(drawn), boxOf, false);
             PortalFaces.emitSleeves(pose, consumer, List.of(drawn), boxOf);
             return org.mockito.Mockito.mockingDetails(consumer).getInvocations().stream()
                     .map(call -> call.getMethod().getName() + java.util.Arrays.toString(call.getArguments()))
