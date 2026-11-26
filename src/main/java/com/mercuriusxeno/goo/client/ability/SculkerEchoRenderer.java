@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 /**
  * Draws what Sculker's echoes lit and what its shroom vision shows: each block an
@@ -102,9 +103,10 @@ public final class SculkerEchoRenderer {
         long now = mc.level.getGameTime();
         float presence = SculkerVision.presence();
         Set<Block> fungus = FungusBlocks.of(GooValues.of(mc.level));
-        Map<BlockPos, Float> lit = ShroomVision.drawn(litInView(echoes.bySection(), view,
-                new Sight(player.position(), now, SculkerSenses.sightReach(), presence)),
-                inView(ShroomVision.nearby(mc, now, fungus), view), state -> fungus.contains(state.getBlock()), presence);
+        Sight sight = new Sight(player.position(), now, SculkerSenses.sightReach(), presence);
+        Map<BlockPos, Float> lit = drawnThisFrame(echoes, view, sight,
+                new ShroomVision.LevelShroomWorld(mc.level, fungus), player.getEyePosition(),
+                state -> fungus.contains(state.getBlock()));
         ProfilerFiller profiler = Profiler.get();
         profiler.incrementCounter(REMEMBERED_COUNTER, echoes.remembered().size());
         profiler.incrementCounter(DRAWN_COUNTER, lit.size());
@@ -116,7 +118,31 @@ public final class SculkerEchoRenderer {
         RenderType echo = GooRenderTypes.fungusXray(mc.getAtlasManager().getAtlasOrThrow(AtlasIds.BLOCKS).location());
         drawLit(new LevelEchoWorld(mc), SculkerSenses.echoQuads(), poseStack, buffers.getBuffer(echo),
                 camera, lit);
-        buffers.endBatch(echo);
+        SculkerEchoSections.profiled(SculkerEchoSections.BATCH_END, () -> buffers.endBatch(echo));
+    }
+
+    /**
+     * The blocks one frame's sense view draws and how strongly: each lit face
+     * in view at its echo's strength, beside each shroom network block nearby
+     * in view at the vision's presence.
+     * decision diagnose-and-correct-the-lag-on-four-sense-abilities
+     *
+     * @param echoes    what the echoes lit
+     * @param view      the camera's view
+     * @param sight     where and when the echoes are seen from
+     * @param shrooms   the world the shroom vision reads
+     * @param eye       the local player's eyes, the shroom vision's center
+     * @param inNetwork whether a block belongs to the shroom network
+     * @return each block drawn and its strength
+     */
+    static Map<BlockPos, Float> drawnThisFrame(SculkerEchoes echoes, EchoView view, Sight sight,
+                                               ShroomVision.ShroomWorld shrooms, Vec3 eye,
+                                               Predicate<BlockState> inNetwork) {
+        Map<BlockPos, Float> lit = SculkerEchoSections.profiled(SculkerEchoSections.IN_VIEW,
+                () -> litInView(echoes.bySection(), view, sight));
+        Map<BlockPos, BlockState> nearby = ShroomVision.nearby(shrooms, eye, sight.now());
+        return SculkerEchoSections.profiled(SculkerEchoSections.SHROOM_MERGE,
+                () -> ShroomVision.drawn(lit, inView(nearby, view), inNetwork, sight.presence()));
     }
 
     /**
@@ -219,9 +245,11 @@ public final class SculkerEchoRenderer {
     static Map<BlockPos, Float> litInView(Map<Long, Map<BlockPos, SculkerEchoes.Lit>> sections, EchoView view,
                                           Sight sight) {
         Map<BlockPos, Float> lit = new HashMap<>();
+        int weighed = 0;
         for (Map.Entry<Long, Map<BlockPos, SculkerEchoes.Lit>> section : sections.entrySet()) {
             Sighting seen = view.section(section.getKey());
             if (seen != Sighting.OUT) {
+                weighed += section.getValue().size();
                 section.getValue().forEach((block, lighting) -> {
                     if (seen == Sighting.WHOLLY || view.holds(block)) {
                         float strength = SculkerEchoes.strength(block, lighting, sight.standing(), sight.now(),
@@ -233,6 +261,7 @@ public final class SculkerEchoRenderer {
                 });
             }
         }
+        SculkerEchoSections.count(SculkerEchoSections.IN_VIEW_WEIGHED_COUNTER, weighed);
         return lit;
     }
 
@@ -303,8 +332,13 @@ public final class SculkerEchoRenderer {
      */
     static void drawLit(EchoWorld world, EchoQuads quads, PoseStack poseStack, VertexConsumer consumer, Vec3 camera,
                         Map<BlockPos, Float> lit) {
-        Brush brush = new Brush(poseStack, consumer, camera, FungusXray.instance(0));
-        lit.forEach((pos, strength) -> drawLitSides(brush, quads.at(world, pos), pos, strength));
+        SculkerEchoSections.profiled(SculkerEchoSections.SUBMIT, () -> {
+            Brush brush = new Brush(poseStack, consumer, camera, FungusXray.instance(0));
+            int[] submitted = new int[1];
+            lit.forEach((pos, strength) -> submitted[0] += drawLitSides(brush, quads.at(world, pos), pos, strength));
+            SculkerEchoSections.count(SculkerEchoSections.QUADS_SUBMITTED_COUNTER, submitted[0]);
+            SculkerEchoSections.count(SculkerEchoSections.MODELS_COLLECTED_COUNTER, quads.takeCollected());
+        });
     }
 
     /**
@@ -315,10 +349,11 @@ public final class SculkerEchoRenderer {
      * @param quads    the block's quads, kept from the frame they were collected
      * @param pos      the block
      * @param strength how strongly it draws, zero to one
+     * @return the quads it submitted
      */
-    private static void drawLitSides(Brush brush, List<BakedQuad> quads, BlockPos pos, float strength) {
+    private static int drawLitSides(Brush brush, List<BakedQuad> quads, BlockPos pos, float strength) {
         if (quads.isEmpty()) {
-            return;
+            return 0;
         }
         PoseStack poseStack = brush.poseStack();
         Vec3 camera = brush.camera();
@@ -329,6 +364,7 @@ public final class SculkerEchoRenderer {
             brush.consumer().putBakedQuad(poseStack.last(), quad, brush.look());
         }
         poseStack.popPose();
+        return quads.size();
     }
 
     /**

@@ -15,16 +15,13 @@ import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart;
 import net.minecraft.client.resources.model.geometry.BakedQuad;
-import net.minecraft.client.resources.model.sprite.Material;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
-import org.jspecify.annotations.Nullable;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -329,31 +326,6 @@ final class HeldSweepHold {
         @Override
         public boolean passesSound(BlockPos pos) {
             return HeldSweepWorld.isAir(pos);
-        }
-    }
-
-    /** A whole block's model part: one quad on each side, none unculled, each side's list held as a model holds it. */
-    private record CubePart(List<BakedQuad> side) implements BlockStateModelPart {
-
-        @Override
-        public List<BakedQuad> getQuads(@Nullable Direction direction) {
-            return direction == null ? List.of() : side;
-        }
-
-        @Override
-        @Deprecated
-        public boolean useAmbientOcclusion() {
-            return false;
-        }
-
-        @Override
-        public Material.Baked particleMaterial() {
-            throw new UnsupportedOperationException("a counted part draws no particle");
-        }
-
-        @Override
-        public int materialFlags() {
-            return 0;
         }
     }
 }

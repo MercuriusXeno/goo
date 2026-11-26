@@ -67,6 +67,7 @@ public final class SculkerSenses {
             SculkerSenses::passesSoundInLevel);
     /** Joins each sound heard to the vibration the server forwards for it, so it rings once at its rank. */
     private static final SculkerNoises NOISES = new SculkerNoises(SculkerSoundRanks.shipped(), SculkerSenses::ring);
+    private static final SculkerEchoTick ECHO_TICK = new SculkerEchoTick(NOISES, ECHOES, ECHO_CELLS, ECHO_QUADS);
     /** Each mob heard making a sound, by entity id. */
     private static final Map<Integer, Heard> HEARD = new HashMap<>();
 
@@ -170,20 +171,16 @@ public final class SculkerSenses {
         LocalPlayer player = mc.player;
         ClientLevel level = mc.level;
         if (player == null || level == null || !SculkerSwim.holdsSculker(player)) {
-            ECHOES.clear();
-            ECHO_QUADS.clear();
-            ECHO_CELLS.clear();
-            NOISES.clear();
+            ECHO_TICK.clear();
             HEARD.clear();
             return;
         }
         ProfilerFiller profiler = Profiler.get();
         profiler.push(ECHO_TICK_SECTION);
         long now = level.getGameTime();
-        NOISES.advance(now);
-        ECHOES.advanceEchoing(now, ECHO_CELLS::echoesOff);
-        ECHO_QUADS.keepWithin(ECHOES.remembered().keySet());
-        HEARD.entrySet().removeIf(heard -> level.getEntity(heard.getKey()) == null || now >= heard.getValue().fadedAt());
+        ECHO_TICK.advance(now);
+        SculkerEchoSections.profiled(SculkerEchoSections.HEARD_SWEEP, () -> HEARD.entrySet()
+                .removeIf(heard -> level.getEntity(heard.getKey()) == null || now >= heard.getValue().fadedAt()));
         profiler.pop();
     }
 
@@ -244,6 +241,10 @@ public final class SculkerSenses {
             return;
         }
         ECHOES.hear(at, heardAt, rank);
+        SculkerEchoSections.profiled(SculkerEchoSections.SOUND_OWNERS, () -> outlineOwners(mc, at, heardAt, rank));
+    }
+
+    private static void outlineOwners(Minecraft mc, Vec3 at, long heardAt, int rank) {
         List<Entity> mobs = mc.level.getEntities(mc.player, new AABB(at, at).inflate(SOUND_OWNER_REACH),
                 LivingEntity.class::isInstance);
         int ticks = SculkerEchoes.outlineTicksFor(rank);
@@ -313,9 +314,12 @@ public final class SculkerSenses {
      * @param pos the block that changed
      */
     public static void blockChanged(BlockPos pos) {
-        ECHO_QUADS.forgetAround(pos);
-        ECHO_CELLS.forgetAround(pos);
-        ECHOES.uncover(pos, SculkerSenses::lightsUpInLevel, SculkerSenses::passesSoundInLevel);
+        SculkerEchoSections.profiled(SculkerEchoSections.BLOCK_CHANGED, () -> {
+            ECHO_QUADS.forgetAround(pos);
+            ECHO_CELLS.forgetAround(pos);
+            ShroomVision.blockChanged(pos);
+            ECHOES.uncover(pos, SculkerSenses::lightsUpInLevel, SculkerSenses::passesSoundInLevel);
+        });
     }
 
     private static boolean lightsUpInLevel(BlockPos pos) {
@@ -348,8 +352,11 @@ public final class SculkerSenses {
 
     private static void forgetChunk(ChunkEvent event) {
         if (event.getLevel().isClientSide()) {
-            ECHO_QUADS.forgetChunk(event.getChunk().getPos().x(), event.getChunk().getPos().z());
-            ECHO_CELLS.clear();
+            SculkerEchoSections.profiled(SculkerEchoSections.CHUNK_FORGET, () -> {
+                ECHO_QUADS.forgetChunk(event.getChunk().getPos().x(), event.getChunk().getPos().z());
+                ShroomVision.chunkChanged(event.getChunk().getPos().x(), event.getChunk().getPos().z());
+                ECHO_CELLS.clear();
+            });
         }
     }
 }
