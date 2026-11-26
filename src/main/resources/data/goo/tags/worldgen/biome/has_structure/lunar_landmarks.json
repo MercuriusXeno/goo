@@ -1,5 +1,8 @@
 {
   "values": [
-    "goo:lunar"
+    "goo:lunar_maria",
+    "goo:lunar_highlands",
+    "goo:lunar_shadowed_basins",
+    "goo:lunar_eldritch_ground"
   ]
 }

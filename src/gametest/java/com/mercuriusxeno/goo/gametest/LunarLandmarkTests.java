@@ -82,10 +82,8 @@ public final class LunarLandmarkTests {
     private static final String NEST_HOLLOW = "The nest at %s should stand sculk over a hollow of %d blocks over a sculk "
             + "floor, reads %s over %d blocks of air over %s";
     private static final String NEST_OUTSPAWNS = "The nest's spawn overrides should weigh goo:eldritch_monstrosity over "
-            + "the lunar biome's %d, weigh %d";
+            + "eldritch ground's %d, weigh %d";
 
-    private static final ResourceKey<Biome> LUNAR_BIOME = ResourceKey.create(Registries.BIOME,
-            Identifier.fromNamespaceAndPath(Goo.MODID, "lunar"));
     private static final ResourceKey<Structure> METEORITE = ResourceKey.create(Registries.STRUCTURE,
             Identifier.fromNamespaceAndPath(Goo.MODID, "meteorite"));
     private static final ResourceKey<StructureSet> METEORITES = ResourceKey.create(Registries.STRUCTURE_SET,
@@ -100,7 +98,7 @@ public final class LunarLandmarkTests {
     private static final String LUMP_HOLDS = "The meteorite's lump at %s should hold meteoric iron and impact glass, "
             + "holds iron %s and glass %s";
     private static final String ON_BASALT = "The meteorite's lump at %s should sit on a basalt floor at y %d, sits on %s";
-    private static final String SET_PLACES = "The %s structure set should place %s in goo:lunar's biome";
+    private static final String SET_PLACES = "The %s structure set should place %s in one of goo:lunar's surface biomes";
 
     private LunarLandmarkTests() {
     }
@@ -171,7 +169,8 @@ public final class LunarLandmarkTests {
         BlockState floor = lunar.getBlockState(column.atY(y));
         helper.assertTrue(roof.is(Blocks.SCULK) && hollow >= LEAST_HOLLOW && floor.is(Blocks.SCULK),
                 String.format(NEST_HOLLOW, column.atY(top), LEAST_HOLLOW, roof, hollow, floor));
-        int biomeWeight = monstrosityWeight(lunar.registryAccess().lookupOrThrow(Registries.BIOME).getOrThrow(LUNAR_BIOME)
+        int biomeWeight = monstrosityWeight(lunar.registryAccess().lookupOrThrow(Registries.BIOME).getOrThrow(
+                LunarSurfaceBiomes.ELDRITCH_GROUND)
                 .value().getAttributes().applyModifier(EnvironmentAttributes.NATURAL_MOB_SPAWNS, MobSpawnSettings.EMPTY)
                 .getMobsToSpawn(MobCategory.MONSTER));
         StructureSpawnOverride overrides = lunar.registryAccess().lookupOrThrow(Registries.STRUCTURE).getOrThrow(NEST)
@@ -292,7 +291,7 @@ public final class LunarLandmarkTests {
         return lunar;
     }
 
-    /** Asserts a structure set names a structure whose biomes hold goo:lunar. */
+    /** Asserts a structure set names a structure whose biomes hold one of goo:lunar's surface biomes. */
     static void assertSetPlacesInLunar(GameTestHelper helper, ServerLevel lunar, ResourceKey<StructureSet> set,
             ResourceKey<Structure> structure) {
         StructureSet placed = lunar.registryAccess().lookupOrThrow(Registries.STRUCTURE_SET).getOrThrow(set).value();
@@ -302,6 +301,6 @@ public final class LunarLandmarkTests {
     }
 
     private static boolean biomesHoldLunar(HolderSet<Biome> biomes) {
-        return biomes.stream().anyMatch(biome -> biome.is(LUNAR_BIOME));
+        return biomes.stream().anyMatch(biome -> LunarSurfaceBiomes.ALL.stream().anyMatch(biome::is));
     }
 }

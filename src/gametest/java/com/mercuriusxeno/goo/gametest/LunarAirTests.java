@@ -14,6 +14,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.portal.TeleportTransition;
@@ -45,7 +46,8 @@ public final class LunarAirTests {
     private static final int WATER_BREATHING_TICKS = 600;
 
     private static final String LUNAR_REQUIRED = "The server should hold goo:lunar";
-    private static final String DRAINS = "A player in lunar should lose %d air over %d ticks, %d to %d";
+    private static final String DRAINS = "A player in lunar's %s should lose %d air over %d ticks, %d to %d";
+    private static final String NO_SPOT = "No spot within the search lies deep in %s";
     private static final String DROWNS = "A player out of air in lunar should take drowning damage, health %s to %s";
     private static final String HELD = "Water breathing should hold a player's air in lunar, %d to %d";
     private static final String REFILLS = "A player outside lunar should refill %d air a tick, %d to %d";
@@ -79,7 +81,9 @@ public final class LunarAirTests {
     }
 
     /**
-     * In goo:lunar a survival player's air drains one a tick, drowning damage lands when it runs out, water
+     * In each of goo:lunar's four surface biomes a survival player's air drains one a tick
+     * (decision lunar-surface-has-maria-highlands-shadowed-basins-and-eldritch-ground), drowning damage lands when it
+     * runs out, water
      * breathing holds it, and a player in the overworld refills four a tick.
      *
      * @param helper the gametest helper
@@ -89,15 +93,19 @@ public final class LunarAirTests {
         ServerLevel lunar = overworld.getServer().getLevel(LUNAR);
         helper.assertTrue(lunar != null, LUNAR_REQUIRED);
         ServerPlayer player = SurvivalPlayers.placeIn(helper);
-        lunar.getChunk(0, 0);
-        Vec3 openGround = new Vec3(0.5, lunar.getHeight(Heightmap.Types.MOTION_BLOCKING, 0, 0) + 1, 0.5);
-        travel(player, new TeleportTransition(lunar, openGround, Vec3.ZERO, 0F, 0F, TeleportTransition.DO_NOTHING));
-
-        int full = player.getMaxAirSupply();
-        player.setAirSupply(full);
-        tick(player, TICKS);
-        helper.assertTrue(player.getAirSupply() == full - TICKS * AIR_TAKEN_A_TICK,
-                String.format(DRAINS, TICKS * AIR_TAKEN_A_TICK, TICKS, full, player.getAirSupply()));
+        for (ResourceKey<Biome> biome : LunarSurfaceBiomes.ALL) {
+            BlockPos spot = LunarSurfaceBiomes.spotIn(lunar, biome);
+            helper.assertTrue(spot != null, String.format(NO_SPOT, biome.identifier()));
+            lunar.getChunk(spot.getX() >> 4, spot.getZ() >> 4);
+            Vec3 openGround = new Vec3(spot.getX() + 0.5,
+                    lunar.getHeight(Heightmap.Types.MOTION_BLOCKING, spot.getX(), spot.getZ()) + 1, spot.getZ() + 0.5);
+            travel(player, new TeleportTransition(lunar, openGround, Vec3.ZERO, 0F, 0F, TeleportTransition.DO_NOTHING));
+            int full = player.getMaxAirSupply();
+            player.setAirSupply(full);
+            tick(player, TICKS);
+            helper.assertTrue(player.getAirSupply() == full - TICKS * AIR_TAKEN_A_TICK, String.format(DRAINS,
+                    biome.identifier(), TICKS * AIR_TAKEN_A_TICK, TICKS, full, player.getAirSupply()));
+        }
 
         player.setAirSupply(LAST_BREATH);
         float before = player.getHealth();

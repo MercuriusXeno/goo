@@ -59,12 +59,84 @@
           "type": "minecraft:multi_noise",
           "biomes": [
             {
-              "biome": "goo:lunar",
+              "biome": "goo:lunar_maria",
               "parameters": {
-                "temperature": 0.0,
+                "temperature": [
+                  -2.0,
+                  0.45
+                ],
                 "humidity": 0.0,
-                "continentalness": 0.0,
-                "erosion": 0.0,
+                "continentalness": [
+                  0.0,
+                  2.0
+                ],
+                "erosion": [
+                  -2.0,
+                  2.0
+                ],
+                "weirdness": 0.0,
+                "depth": 0.0,
+                "offset": 0.0
+              }
+            },
+            {
+              "biome": "goo:lunar_highlands",
+              "parameters": {
+                "temperature": [
+                  -2.0,
+                  0.45
+                ],
+                "humidity": 0.0,
+                "continentalness": [
+                  -2.0,
+                  0.0
+                ],
+                "erosion": [
+                  -0.2,
+                  2.0
+                ],
+                "weirdness": 0.0,
+                "depth": 0.0,
+                "offset": 0.0
+              }
+            },
+            {
+              "biome": "goo:lunar_shadowed_basins",
+              "parameters": {
+                "temperature": [
+                  -2.0,
+                  0.45
+                ],
+                "humidity": 0.0,
+                "continentalness": [
+                  -2.0,
+                  0.0
+                ],
+                "erosion": [
+                  -2.0,
+                  -0.2
+                ],
+                "weirdness": 0.0,
+                "depth": 0.0,
+                "offset": 0.0
+              }
+            },
+            {
+              "biome": "goo:lunar_eldritch_ground",
+              "parameters": {
+                "temperature": [
+                  0.45,
+                  2.0
+                ],
+                "humidity": 0.0,
+                "continentalness": [
+                  -2.0,
+                  2.0
+                ],
+                "erosion": [
+                  -2.0,
+                  2.0
+                ],
                 "weirdness": 0.0,
                 "depth": 0.0,
                 "offset": 0.0
@@ -73,10 +145,19 @@
             {
               "biome": "goo:lunar_warrens",
               "parameters": {
-                "temperature": 0.0,
+                "temperature": [
+                  -2.0,
+                  2.0
+                ],
                 "humidity": 0.0,
-                "continentalness": 0.0,
-                "erosion": 0.0,
+                "continentalness": [
+                  -2.0,
+                  2.0
+                ],
+                "erosion": [
+                  -2.0,
+                  2.0
+                ],
                 "weirdness": 0.0,
                 "depth": 1.0,
                 "offset": 0.0

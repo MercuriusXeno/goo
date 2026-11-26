@@ -58,10 +58,10 @@ public final class LunarTerrainTests {
 
     private static final String LUNAR_REQUIRED = "The server should hold goo:lunar";
     private static final String OWN_NOISE = "goo:lunar should generate from goo:lunar's noise settings, generates from %s";
-    private static final String SURFACE = "%s should read regolith, or a crater ray's anorthosite, at the surface y %d, "
+    private static final String SURFACE = "%s should read the ground its biome lays, or a crater ray's anorthosite, at the surface y %d, "
             + "reads %s";
     private static final String BELOW_REGOLITH = "%s should read anorthosite, basalt or a crater's breccia or impact glass "
-            + "under its regolith at y %d, reads %s";
+            + "under the ground its biome lays at y %d, reads %s";
     private static final String STRATUM = "%s should read %s at y %d, reads %s";
     private static final String NO_SEA_COLUMN = "No column within %d blocks of %s reads open sea";
     private static final String METEORIC_IRON_IN_ANORTHOSITE =
@@ -120,7 +120,8 @@ public final class LunarTerrainTests {
     }
 
     /**
-     * Each test spot's column in goo:lunar reads regolith at its surface (or a crater ray's anorthosite), anorthosite
+     * Each test spot's column in goo:lunar reads the ground its biome lays at its surface (or a crater ray's
+     * anorthosite) (decision lunar-biomes-add-block-types-to-the-ground), anorthosite
      * or basalt beneath (or the breccia and impact glass a crater lays there); and the nearest column through the
      * open sea, found through the seeded sea cavern, reads bedrock at the world's floor, iron core over it to the sea
      * floor, molten iron from there up to the sea's level, and open air for 24 blocks over the sea.
@@ -145,10 +146,10 @@ public final class LunarTerrainTests {
         lunar.getChunk(spot.getX() >> 4, spot.getZ() >> 4);
         int surfaceY = lunar.getHeight(Heightmap.Types.WORLD_SURFACE, spot.getX(), spot.getZ()) - 1;
         BlockState surface = lunar.getBlockState(spot.atY(surfaceY));
-        helper.assertTrue(surface.is(GooBlocks.REGOLITH.get()) || surface.is(GooBlocks.ANORTHOSITE.get()),
-                String.format(SURFACE, spot, surfaceY, surface));
+        helper.assertTrue(LunarSurfaceBiomes.isGroundOf(lunar.getBiome(spot.atY(surfaceY)), surface)
+                || surface.is(GooBlocks.ANORTHOSITE.get()), String.format(SURFACE, spot, surfaceY, surface));
         int y = surfaceY;
-        while (y > MOLTEN_IRON_TOP_Y && lunar.getBlockState(spot.atY(y)).is(GooBlocks.REGOLITH.get())) {
+        while (y > MOLTEN_IRON_TOP_Y && LunarSurfaceBiomes.isLaidGround(lunar.getBlockState(spot.atY(y)))) {
             y--;
         }
         BlockState beneath = lunar.getBlockState(spot.atY(y));

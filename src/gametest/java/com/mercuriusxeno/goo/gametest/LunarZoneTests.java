@@ -11,9 +11,11 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.BlockItemTags;
 import net.minecraft.tags.BlockTags;
+import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.AmethystClusterBlock;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -56,6 +58,7 @@ public final class LunarZoneTests {
     private static final int SOLID_SURFACE_CLEARANCE = 12;
 
     private static final String LUNAR_REQUIRED = "The server should hold goo:lunar";
+    private static final String NO_SPOT = "No spot within the search lies deep in %s";
     private static final String NO_SOLID_COLUMN = "No column within %d blocks of the origin runs solid through the "
             + "shallow zone";
     private static final String NO_CAVE = "No column within %d blocks of the origin holds a rubble cave";
@@ -208,7 +211,7 @@ public final class LunarZoneTests {
     }
 
     /**
-     * Counts goo:native_iron over a square of chunks in goo:lunar, band by band: the shallow zone holds some, under a
+     * Counts goo:native_iron over a square of chunks around a spot deep in each of goo:lunar's four surface biomes, band by band: the shallow zone holds some, under a
      * ceiling per chunk, and every band under it holds none.
      * decision native-iron-lodes-are-worth-whole-iron-blocks
      *
@@ -217,12 +220,22 @@ public final class LunarZoneTests {
     public static void lunarRubbleCavesHoldNativeIronLodes(GameTestHelper helper) {
         ServerLevel lunar = helper.getLevel().getServer().getLevel(Lunar.LEVEL);
         helper.assertTrue(lunar != null, LUNAR_REQUIRED);
+        for (ResourceKey<Biome> biome : LunarSurfaceBiomes.ALL) {
+            BlockPos spot = LunarSurfaceBiomes.spotIn(lunar, biome);
+            helper.assertTrue(spot != null, String.format(NO_SPOT, biome.identifier()));
+            assertNativeIronLodesAround(helper, lunar, spot.getX() >> 4, spot.getZ() >> 4);
+        }
+        helper.succeed();
+    }
+
+    /** Counts native iron band by band over the square of chunks around a centre chunk. */
+    private static void assertNativeIronLodesAround(GameTestHelper helper, ServerLevel lunar, int centerX, int centerZ) {
         int shallow = 0;
         int below = 0;
         BlockPos firstBelow = null;
         BlockPos.MutableBlockPos at = new BlockPos.MutableBlockPos();
-        for (int chunkX = -DEPOSIT_CHUNK_REACH; chunkX < DEPOSIT_CHUNK_REACH; chunkX++) {
-            for (int chunkZ = -DEPOSIT_CHUNK_REACH; chunkZ < DEPOSIT_CHUNK_REACH; chunkZ++) {
+        for (int chunkX = centerX - DEPOSIT_CHUNK_REACH; chunkX < centerX + DEPOSIT_CHUNK_REACH; chunkX++) {
+            for (int chunkZ = centerZ - DEPOSIT_CHUNK_REACH; chunkZ < centerZ + DEPOSIT_CHUNK_REACH; chunkZ++) {
                 lunar.getChunk(chunkX, chunkZ);
                 for (int x = chunkX * 16; x < chunkX * 16 + 16; x++) {
                     for (int z = chunkZ * 16; z < chunkZ * 16 + 16; z++) {
@@ -246,11 +259,10 @@ public final class LunarZoneTests {
         helper.assertTrue(shallow >= 1 && shallow <= ceiling,
                 String.format(NATIVE_IRON_IN_SHALLOW_BAND, chunks, ceiling, shallow));
         helper.assertTrue(below == 0, String.format(NO_NATIVE_IRON_BELOW, chunks, below, firstBelow));
-        helper.succeed();
     }
 
     /**
-     * Counts goo:astral_crystal over a square of chunks in goo:lunar, from the warrens up through the shallow zone:
+     * Counts goo:astral_crystal over a square of chunks around a spot deep in each of goo:lunar's four surface biomes, from the warrens up through the shallow zone:
      * the middle zone holds some, under a ceiling per chunk, each growing from the rock its facing turns away from,
      * and the shallow zone and the warrens hold none.
      * decision astral-crystal-is-lunars-scarce-rich-block
@@ -260,12 +272,22 @@ public final class LunarZoneTests {
     public static void lunarMiddleCavernsGrowAstralCrystal(GameTestHelper helper) {
         ServerLevel lunar = helper.getLevel().getServer().getLevel(Lunar.LEVEL);
         helper.assertTrue(lunar != null, LUNAR_REQUIRED);
+        for (ResourceKey<Biome> biome : LunarSurfaceBiomes.ALL) {
+            BlockPos spot = LunarSurfaceBiomes.spotIn(lunar, biome);
+            helper.assertTrue(spot != null, String.format(NO_SPOT, biome.identifier()));
+            assertAstralCrystalAround(helper, lunar, spot.getX() >> 4, spot.getZ() >> 4);
+        }
+        helper.succeed();
+    }
+
+    /** Counts astral crystal band by band over the square of chunks around a centre chunk. */
+    private static void assertAstralCrystalAround(GameTestHelper helper, ServerLevel lunar, int centerX, int centerZ) {
         int middle = 0;
         int outside = 0;
         BlockPos firstOutside = null;
         BlockPos.MutableBlockPos at = new BlockPos.MutableBlockPos();
-        for (int chunkX = -DEPOSIT_CHUNK_REACH; chunkX < DEPOSIT_CHUNK_REACH; chunkX++) {
-            for (int chunkZ = -DEPOSIT_CHUNK_REACH; chunkZ < DEPOSIT_CHUNK_REACH; chunkZ++) {
+        for (int chunkX = centerX - DEPOSIT_CHUNK_REACH; chunkX < centerX + DEPOSIT_CHUNK_REACH; chunkX++) {
+            for (int chunkZ = centerZ - DEPOSIT_CHUNK_REACH; chunkZ < centerZ + DEPOSIT_CHUNK_REACH; chunkZ++) {
                 lunar.getChunk(chunkX, chunkZ);
                 for (int x = chunkX * 16; x < chunkX * 16 + 16; x++) {
                     for (int z = chunkZ * 16; z < chunkZ * 16 + 16; z++) {
@@ -291,7 +313,6 @@ public final class LunarZoneTests {
         helper.assertTrue(middle >= 1 && middle <= ceiling,
                 String.format(ASTRAL_CRYSTAL_IN_MIDDLE_BAND, chunks, ceiling, middle));
         helper.assertTrue(outside == 0, String.format(NO_ASTRAL_CRYSTAL_OUTSIDE, chunks, outside, firstOutside));
-        helper.succeed();
     }
 
     /**
@@ -352,7 +373,7 @@ public final class LunarZoneTests {
     }
 
     /**
-     * Counts goo:native_iron in the shallow zone over a square of chunks in goo:lunar, and how much of it touches the
+     * Counts goo:native_iron in the shallow zone over a square of chunks around a spot deep in each of goo:lunar's four surface biomes, and how much of it touches the
      * air of a rubble cave: most of it does, at least one block for every other chunk, so a player in the caves finds
      * the lodes rather than breccia alone.
      * decision each-lunar-zone-holds-its-own-deposit-richer-by-depth
@@ -363,11 +384,21 @@ public final class LunarZoneTests {
     public static void lunarRubbleCaveLodesShowInTheCaves(GameTestHelper helper) {
         ServerLevel lunar = helper.getLevel().getServer().getLevel(Lunar.LEVEL);
         helper.assertTrue(lunar != null, LUNAR_REQUIRED);
+        for (ResourceKey<Biome> biome : LunarSurfaceBiomes.ALL) {
+            BlockPos spot = LunarSurfaceBiomes.spotIn(lunar, biome);
+            helper.assertTrue(spot != null, String.format(NO_SPOT, biome.identifier()));
+            assertLodesShowAround(helper, lunar, spot.getX() >> 4, spot.getZ() >> 4);
+        }
+        helper.succeed();
+    }
+
+    /** Counts the native iron showing in rubble cave air over the square of chunks around a centre chunk. */
+    private static void assertLodesShowAround(GameTestHelper helper, ServerLevel lunar, int centerX, int centerZ) {
         int total = 0;
         int showing = 0;
         BlockPos.MutableBlockPos at = new BlockPos.MutableBlockPos();
-        for (int chunkX = -DEPOSIT_CHUNK_REACH; chunkX < DEPOSIT_CHUNK_REACH; chunkX++) {
-            for (int chunkZ = -DEPOSIT_CHUNK_REACH; chunkZ < DEPOSIT_CHUNK_REACH; chunkZ++) {
+        for (int chunkX = centerX - DEPOSIT_CHUNK_REACH; chunkX < centerX + DEPOSIT_CHUNK_REACH; chunkX++) {
+            for (int chunkZ = centerZ - DEPOSIT_CHUNK_REACH; chunkZ < centerZ + DEPOSIT_CHUNK_REACH; chunkZ++) {
                 lunar.getChunk(chunkX, chunkZ);
                 for (int x = chunkX * 16; x < chunkX * 16 + 16; x++) {
                     for (int z = chunkZ * 16; z < chunkZ * 16 + 16; z++) {
@@ -386,7 +417,6 @@ public final class LunarZoneTests {
         int floor = chunks / 2;
         helper.assertTrue(showing * 2 >= total && showing >= floor,
                 String.format(LODES_SHOW, chunks, floor, showing, total));
-        helper.succeed();
     }
 
     private static boolean touchesAir(ServerLevel lunar, BlockPos pos) {
