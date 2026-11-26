@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.client.throwing;
 
-import com.mercuriusxeno.goo.ability.AbilityArea;
 import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.AbilityTags;
 import com.mercuriusxeno.goo.ability.BuildGrowth;
@@ -166,10 +165,10 @@ public final class GloveThrowSender {
                             .targeting(outlinedEntityId())));
         }
         // every-ability-casts-from-the-lifted-palm-blob: the server's cone keeps the glove, the drawn effect leaves the blob
-        HealVisual.drawFog(player, abilityId, selectedArea(abilityId), drawnFrom);
-        // spray-abilities-render-procedurally-bound-to-their-cone: the glove's wind blows through its delivery's cone
-        WindLines.blow(player, abilityId, SprayCone.ofGlove(selectedDelivery(abilityId), drawnFrom,
-                player.getLookAngle()));
+        // spray-abilities-render-procedurally-bound-to-their-cone: the glove's fog and wind fill its delivery's cone
+        SprayCone cone = SprayCone.ofGlove(selectedDelivery(abilityId), drawnFrom, player.getLookAngle());
+        HealVisual.drawFog(player, abilityId, cone);
+        WindLines.blow(player, abilityId, cone);
         ReserveVisual.drawDrain(player, abilityId);
         loopStreamSound(player, abilityId);
         return true;
@@ -792,18 +791,6 @@ public final class GloveThrowSender {
     public static Delivery selectedDelivery(@Nullable String abilityId) {
         ClientAbility ability = abilityId == null ? null : AbilitySyncHandler.findAbility(abilityId);
         return ability == null ? Delivery.ARC : ability.delivery();
-    }
-
-    /**
-     * The area of the selected ability, the shape the glove draws while right
-     * click is held (decision right-click-held-previews-release-throws).
-     *
-     * @param abilityId the selected ability id string
-     * @return the area, NONE where the client holds no synced copy
-     */
-    public static AbilityArea selectedArea(@Nullable String abilityId) {
-        ClientAbility ability = abilityId == null ? null : AbilitySyncHandler.findAbility(abilityId);
-        return ability == null ? AbilityArea.NONE : ability.area();
     }
 
     /**

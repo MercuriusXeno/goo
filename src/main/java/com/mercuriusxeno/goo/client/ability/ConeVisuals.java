@@ -23,7 +23,8 @@ public final class ConeVisuals {
             COLD_ID, cone -> WindLines.blowLocal(COLD_ID, cone),
             GUST_ID, cone -> WindLines.blowLocal(GUST_ID, cone),
             VACUUM_ID, cone -> WindLines.blowLocal(VACUUM_ID, cone),
-            PetrifyFog.PETRIFY_ID, PetrifyFog::pour);
+            PetrifyFog.PETRIFY_ID, PetrifyFog::pour,
+            HealVisual.HEAL_ID, HealVisual::drawFogLocal);
 
     private ConeVisuals() {
     }
