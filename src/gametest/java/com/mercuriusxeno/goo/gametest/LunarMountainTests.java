@@ -34,7 +34,7 @@ public final class LunarMountainTests {
     /** The sampled grid's spacing in blocks. */
     private static final int SAMPLE_STEP = 16;
     /** The least rise a range's peak makes over the lowest basin floor, in blocks. */
-    private static final int LEAST_RISE = 80;
+    private static final int LEAST_RISE = 40;
     /** How deep under a peak's surface its stone is read, past the regolith skin. */
     private static final int REGOLITH_SEARCH_DEPTH = 12;
 

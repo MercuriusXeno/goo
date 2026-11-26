@@ -50,6 +50,8 @@ public record DetectOreStep(TagKey<Block> tag, ResourceKey<GooTypeDefinition> go
         implements HeldSweepStep, TakesNoEntity {
 
     private static final String NAME = "detect_ore";
+    /** Blocks the ore sense's front travels each second. */
+    private static final double BLOCKS_A_SECOND = 48;
 
     /** Codec for the step's params. */
     public static final MapCodec<DetectOreStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
@@ -67,9 +69,13 @@ public record DetectOreStep(TagKey<Block> tag, ResourceKey<GooTypeDefinition> go
         return TYPE;
     }
 
+    /**
+     * Glimmer's and Magnet's fronts keep 48 blocks a second while Scry's slows.
+     * decision scry-ring-crosses-its-reach-in-two-seconds
+     */
     @Override
     public HeldSweepPace pace() {
-        return new HeldSweepPace(radius);
+        return new HeldSweepPace(radius, BLOCKS_A_SECOND);
     }
 
     @Override
@@ -136,7 +142,8 @@ public record DetectOreStep(TagKey<Block> tag, ResourceKey<GooTypeDefinition> go
         List<OreVeins.Vein> veins = HeldSweepSections.profiled(HeldSweepSections.ORE_WALK,
                 () -> OreVeins.firstReachedIn(BlockPos.containing(origin), pace.radiusAt(pulseTick - 1),
                         pace.radiusAt(pulseTick), radius, ores));
-        return new OreRevealPayload(veins, life);
+        // decision ore-glow-takes-the-casting-goos-color
+        return new OreRevealPayload(veins, life, goo);
     }
 
     /**

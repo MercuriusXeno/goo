@@ -23,6 +23,7 @@ import net.minecraft.world.level.levelgen.synth.NormalNoise;
  * near the zone's top and bottom so they stay inside it.
  * decision lunar-underground-changes-by-depth-down-to-a-molten-iron-sea
  * decision middle-caverns-are-bare-rock-with-no-ice-or-glass
+ * decision moon-is-288-tall-half-of-today
  *
  * @param shape the noise swelling the caverns
  */
@@ -41,9 +42,9 @@ public record CrystalCaverns(Noise shape) implements DensitySampler {
     /** How far the threshold climbs at the zone's edges, closing the caverns there. */
     static final double EDGE_CLOSE = 0.8;
     /** The blocks inside each of the zone's edges over which the caverns close. */
-    static final double EDGE_MARGIN = 14.0;
+    static final double EDGE_MARGIN = 7.0;
     /** The noise reads heights stretched by this, so caverns spread wider than they stand tall. */
-    static final double VERTICAL_STRETCH = 2.0;
+    static final double VERTICAL_STRETCH = 4.0;
     /** How fast the density climbs from a cavern's air to its rock across the noise's threshold. */
     static final double WALL_SHARPNESS = 8.0;
     private static final double OPEN = -1.0;

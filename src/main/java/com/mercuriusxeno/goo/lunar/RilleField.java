@@ -22,6 +22,7 @@ import net.minecraft.world.level.levelgen.synth.NormalNoise;
  * long steep-walled channels like dry riverbeds, following the zero line of their own noise, cut only where the maria
  * noise reads basin.
  * decision lunar-surface-gains-giant-craters-mountains-rilles-and-boulder-fields
+ * decision moon-is-288-tall-half-of-today
  *
  * @param line  the noise whose zero line a rille follows
  * @param maria the noise reading basin above zero
@@ -41,7 +42,7 @@ public record RilleField(Noise line, Noise maria) implements DensitySampler {
             Identifier.fromNamespaceAndPath(Goo.MODID, "lunar_maria"));
 
     /** How deep a rille cuts on its line, in blocks. */
-    static final double DEPTH = 10.0;
+    static final double DEPTH = 5.0;
     /** How far the line noise strays from zero before the channel's walls reach the ground. */
     static final double HALF_WIDTH = 0.04;
     /** The maria reading past which a rille cuts its full depth; it fades in from the basin's edge at zero. */

@@ -24,10 +24,11 @@ import org.jspecify.annotations.NonNull;
  * @param origin     where the pulse began
  * @param radius     the front's radius in blocks
  * @param range      the radius the front reaches
+ * @param blocksATick the blocks the front travels each tick, which the client carries it on by
  * @param gooType    the goo type whose colors tint the front and the walls
  * @param paintsMobs whether the front outlines the mobs it crosses, as Scry's does
  */
-public record HeldSweepPayload(int pulse, Vec3 origin, float radius, float range,
+public record HeldSweepPayload(int pulse, Vec3 origin, float radius, float range, float blocksATick,
                                ResourceKey<GooTypeDefinition> gooType, boolean paintsMobs)
         implements CustomPacketPayload {
 
@@ -51,6 +52,7 @@ public record HeldSweepPayload(int pulse, Vec3 origin, float radius, float range
         buf.writeDouble(payload.origin.z);
         buf.writeFloat(payload.radius);
         buf.writeFloat(payload.range);
+        buf.writeFloat(payload.blocksATick);
         GooTypes.KEY_STREAM_CODEC.encode(buf, payload.gooType);
         buf.writeBoolean(payload.paintsMobs);
     }
@@ -60,7 +62,8 @@ public record HeldSweepPayload(int pulse, Vec3 origin, float radius, float range
         Vec3 origin = new Vec3(buf.readDouble(), buf.readDouble(), buf.readDouble());
         float radius = buf.readFloat();
         float range = buf.readFloat();
+        float blocksATick = buf.readFloat();
         ResourceKey<GooTypeDefinition> gooType = GooTypes.KEY_STREAM_CODEC.decode(buf);
-        return new HeldSweepPayload(pulse, origin, radius, range, gooType, buf.readBoolean());
+        return new HeldSweepPayload(pulse, origin, radius, range, blocksATick, gooType, buf.readBoolean());
     }
 }

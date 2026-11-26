@@ -81,6 +81,8 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.renderpearl.api.commands.RenderPass;
 import net.minecraft.client.renderer.state.level.LevelRenderState;
+import net.minecraft.util.profiling.Profiler;
+import net.minecraft.util.profiling.ProfilerFiller;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -198,6 +200,16 @@ public final class TranslucentVisualPath {
             new Registration(PlexerHudRenderer.class, SortRoute.FAR_TO_NEAR, PlexerHudRenderer::collect),
             new Registration(VatHudRenderer.class, SortRoute.FAR_TO_NEAR, VatHudRenderer::collect));
 
+    /**
+     * The profiler sections the path gathers each route's draws under, each
+     * draw's sort key computed as its visual hands it over, and orders them
+     * under, and the counter of the draws it orders.
+     * decision diagnose-and-correct-the-lag-on-four-sense-abilities
+     */
+    public static final String PATH_COLLECT_SECTION = "goo_translucent_path_collect";
+    public static final String PATH_SORT_SECTION = "goo_translucent_path_sort";
+    public static final String PATH_SORTED_COUNTER = "goo_translucent_path_sorted";
+
     /** The camera of the level pass submitting its entities now, null outside one. */
     private static @Nullable Vec3 submittingCamera;
 
@@ -302,20 +314,39 @@ public final class TranslucentVisualPath {
         modelViewStack.pushMatrix();
         modelViewStack.set(modelView);
         for (SortRoute route : routes) {
-            farToNear(drawsOf(route, frame)).forEach(draw -> draw.draw().run());
+            orderedDraws(sourcesOf(route), frame).forEach(draw -> draw.draw().run());
         }
         ImmediateBuffers.shared().endBatch();
         modelViewStack.popMatrix();
     }
 
-    private static List<SortedDraw> drawsOf(SortRoute route, LevelFrame frame) {
+    private static List<TranslucentVisual> sourcesOf(SortRoute route) {
+        return REGISTRATIONS.stream().filter(registration -> registration.route() == route)
+                .map(Registration::source).toList();
+    }
+
+    /**
+     * One route's draws this frame in the order they draw: each visual's
+     * draws gathered, each carrying the sort key its visual computed, then
+     * ordered farthest first.
+     * decision diagnose-and-correct-the-lag-on-four-sense-abilities
+     *
+     * @param sources the visuals registered on the route, in registered order
+     * @param frame   the frame being drawn
+     * @return the draws, farthest first
+     */
+    static List<SortedDraw> orderedDraws(List<? extends TranslucentVisual> sources, LevelFrame frame) {
+        ProfilerFiller profiler = Profiler.get();
+        profiler.push(PATH_COLLECT_SECTION);
         List<SortedDraw> draws = new ArrayList<>();
-        for (Registration registration : REGISTRATIONS) {
-            if (registration.route() == route) {
-                registration.source().collect(frame, draws::add);
-            }
+        for (TranslucentVisual source : sources) {
+            source.collect(frame, draws::add);
         }
-        return draws;
+        profiler.popPush(PATH_SORT_SECTION);
+        List<SortedDraw> ordered = farToNear(draws);
+        profiler.pop();
+        profiler.incrementCounter(PATH_SORTED_COUNTER, draws.size());
+        return ordered;
     }
 
     /**

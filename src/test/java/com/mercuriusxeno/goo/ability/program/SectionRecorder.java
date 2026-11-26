@@ -13,7 +13,7 @@ import java.util.function.Supplier;
 
 /**
  * A profiler that records every section pushed and the time spent in each,
- * read off a clock it is handed: a unit test hands it a stopped clock and
+ * and every counter's total, the time read off a clock it is handed: a unit test hands it a stopped clock and
  * reads the sections alone, the timing run hands it the nanosecond clock.
  * decision diagnose-and-correct-the-lag-on-four-sense-abilities
  */
@@ -24,6 +24,7 @@ public final class SectionRecorder implements ProfilerFiller {
     private final Deque<String> open = new ArrayDeque<>();
     private final Deque<Long> openedAt = new ArrayDeque<>();
     private final Map<String, Long> spent = new LinkedHashMap<>();
+    private final Map<String, Long> counted = new LinkedHashMap<>();
 
     /**
      * @param clock the clock each section's time is read from, in nanoseconds
@@ -52,10 +53,16 @@ public final class SectionRecorder implements ProfilerFiller {
         return Map.copyOf(spent);
     }
 
-    /** Forgets every section recorded, so a timed run starts from nothing. */
+    /** @return each counter's total, by name */
+    public Map<String, Long> counted() {
+        return Map.copyOf(counted);
+    }
+
+    /** Forgets every section and counter recorded, so a timed run starts from nothing. */
     public void reset() {
         pushed.clear();
         spent.clear();
+        counted.clear();
     }
 
     @Override
@@ -106,11 +113,11 @@ public final class SectionRecorder implements ProfilerFiller {
 
     @Override
     public void incrementCounter(String name, int count) {
-        // a counter is no section
+        counted.merge(name, (long) count, Long::sum);
     }
 
     @Override
     public void incrementCounter(Supplier<String> name, int count) {
-        // a counter is no section
+        incrementCounter(name.get(), count);
     }
 }

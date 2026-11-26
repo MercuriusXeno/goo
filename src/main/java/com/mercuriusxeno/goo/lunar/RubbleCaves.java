@@ -22,6 +22,7 @@ import net.minecraft.world.level.levelgen.synth.NormalNoise;
  * footprint noise reads high, tallest at their hearts and pinching shut at their edges, over floors of broken
  * rubble the rubble noise heaves up and down, all through the zone's breccia.
  * decision lunar-underground-changes-by-depth-down-to-a-molten-iron-sea
+ * decision moon-is-288-tall-half-of-today
  *
  * @param footprint the noise spreading the caves where it reads past its threshold
  * @param rubble    the noise heaving the caves' floors
@@ -42,11 +43,11 @@ public record RubbleCaves(Noise footprint, Noise rubble) implements DensitySampl
     /** A cave spreads where the footprint noise reads past this. */
     static final double FOOTPRINT_THRESHOLD = 0.2;
     /** A cave's floor sits near the zone's middle, heaved this far either way by its rubble. */
-    static final int FLOOR_BASE_Y = (LunarDepths.CAVERN_ZONE_TOP_Y + LunarDepths.SHALLOW_ZONE_TOP_Y) / 2 - 4;
-    static final double RUBBLE_HEAVE = 2.0;
+    static final int FLOOR_BASE_Y = (LunarDepths.CAVERN_ZONE_TOP_Y + LunarDepths.SHALLOW_ZONE_TOP_Y) / 2 - 2;
+    static final double RUBBLE_HEAVE = 1.0;
     /** A cave's height at its edge, and how much taller it stands at its heart: low and wide. */
-    static final double EDGE_HEIGHT = 2.0;
-    static final double HEART_RISE = 5.0;
+    static final double EDGE_HEIGHT = 1.0;
+    static final double HEART_RISE = 2.5;
     private static final double OPEN = -1.0;
     private static final double SOLID = 1.0;
 

@@ -52,7 +52,7 @@ public final class LunarTerrainTests {
     /** A walk down from the surface stops at the top of the shallow zone, past every surface skin. */
     private static final int MOLTEN_IRON_TOP_Y = LunarDepths.SHALLOW_ZONE_TOP_Y;
     /** The open air standing over the sea, at the least, in blocks. */
-    private static final int AIR_OVER_THE_SEA = 24;
+    private static final int AIR_OVER_THE_SEA = 12;
     /** How far from a test spot a search for a sea column reaches, in blocks. */
     private static final int SEA_SEARCH_REACH = 96;
 
@@ -98,7 +98,7 @@ public final class LunarTerrainTests {
     private static final int CHUNK_REACH = 1;
     private static final int CHUNK_SIDE = 16;
     /** The tallest the ground stands, which a vein search reads up to. */
-    private static final int GROUND_TOP_Y = 200;
+    private static final int GROUND_TOP_Y = 100;
 
     private LunarTerrainTests() {
     }

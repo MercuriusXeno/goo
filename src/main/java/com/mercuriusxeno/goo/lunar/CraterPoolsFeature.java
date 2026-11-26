@@ -26,6 +26,7 @@ import java.util.Map;
  * ground lies under a level just over that floor, up to that flat level, as frozen water collects in low ground. The
  * shoreline follows the ground's own contour, so the ice never climbs a central peak or a terraced wall.
  * decision lunar-ground-gains-meteoric-iron-impact-glass-breccia-and-crater-ice
+ * decision moon-is-288-tall-half-of-today
  */
 public final class CraterPoolsFeature implements Feature {
 
@@ -33,15 +34,15 @@ public final class CraterPoolsFeature implements Feature {
     public static final MapCodec<CraterPoolsFeature> CODEC = MapCodec.unit(CraterPoolsFeature::new);
 
     /** A small deep crater's pool stands this far over its floor, and a giant crater's this far. */
-    static final int SMALL_POOL_DEPTH = 2;
-    static final int GIANT_POOL_DEPTH = 3;
+    static final int SMALL_POOL_DEPTH = 1;
+    static final int GIANT_POOL_DEPTH = 2;
     /** A small crater's floor is read at its centre and this far out, in radii; a giant crater's at this reach. */
     static final double SMALL_FLOOR_SAMPLE_REACH = 0.1;
     static final double GIANT_FLOOR_SAMPLE_REACH = 0.3;
     /** How many points round the floor are read, past the centre. */
     static final int FLOOR_SAMPLES = 8;
     /** A column whose ground lies further under the floor than this is a hole a tube or cave opened, and stays dry. */
-    static final int HOLE_DEPTH = 3;
+    static final int HOLE_DEPTH = 1;
     private static final int CHUNK_SIDE = 16;
     /** A chunk reads the giant craters of its own cell and the cells one step round it. */
     private static final int NEIGHBOUR_REACH = 1;
