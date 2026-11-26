@@ -39,7 +39,7 @@ import java.util.function.Consumer;
  */
 public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
         implements PlacedFaceHost, TickingHost, ExplodeHost, EntityScanHost, PlaceBlockHost,
-        FieldEffectHost, StateWriteHost, LevelHost, ShriekHost, PowerEmitHost,
+        FieldEffectHost, StateWriteHost, LevelHost, PowerEmitHost,
         BeatHost, RelayHost, FrostHost, GreeningHost {
 
     private static final String ERR_UNKNOWN_BLOCK = "No block is registered as ";
@@ -191,15 +191,6 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
     @Override
     public void playSound(SoundCue cue) {
         SoundPlays.play(level, Vec3.atCenterOf(pos), cue);
-    }
-
-    /**
-     * Shrieks from the marker's cell, where called mobs walk to.
-     * decision shriek-blob-cries-once-and-calls-earshot
-     */
-    @Override
-    public void shriek(double reach) {
-        SculkCall.shriek(level, pos, reach);
     }
 
 

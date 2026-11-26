@@ -254,11 +254,11 @@ class ProgramHostLoadTest {
 
     /** The marker ticks and holds a placed face, and is no target. */
     @Test
-    void theMarkerHostProvidesItsFourteenCapabilities() {
+    void theMarkerHostProvidesItsThirteenCapabilities() {
         assertEquals(Set.of(HostCapability.PLACED_FACE, HostCapability.TICKING, HostCapability.EXPLODE,
                         HostCapability.ENTITY_SCAN, HostCapability.PLACE_BLOCK, HostCapability.FIELD_EFFECT,
                         HostCapability.STATE_WRITE,
-                        HostCapability.LEVEL, HostCapability.SHRIEK, HostCapability.GREENING,
+                        HostCapability.LEVEL, HostCapability.GREENING,
                         HostCapability.EMIT_POWER, HostCapability.BEAT, HostCapability.RELAY, HostCapability.FROST),
                 HostKind.MARKER.capabilities());
     }
@@ -271,7 +271,7 @@ class ProgramHostLoadTest {
                         HostCapability.FLOOR_SCAN, HostCapability.BREAK_BLOCKS,
                         HostCapability.WORMHOLE, HostCapability.PORTAL, HostCapability.HOLE, HostCapability.METEOR,
                         HostCapability.POWER_PULSE,
-                        HostCapability.FROST, HostCapability.SPAWN_MOB, HostCapability.IGNITE),
+                        HostCapability.FROST, HostCapability.SPAWN_MOB, HostCapability.IGNITE, HostCapability.SHRIEK),
                 HostKind.LANDING.capabilities());
     }
 

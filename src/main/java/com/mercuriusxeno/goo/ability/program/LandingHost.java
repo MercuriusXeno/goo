@@ -60,7 +60,7 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
                           @Nullable UUID caster)
         implements PlacedFaceHost, ExplodeHost, AnchoredWorldHost, PlaceBlockHost, LingerHost, BlockBreakHost,
         FloorScanHost, PowerPulseHost, MobSpawnHost, FrostHost, MeteorHost,
-        WormholeHost, PortalHost, IgniteHost, HoleHost {
+        WormholeHost, PortalHost, IgniteHost, HoleHost, ShriekHost {
 
     private static final String ERR_UNKNOWN_BLOCK = "No block is registered as ";
 
@@ -181,6 +181,16 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
         ServerPlayer player = caster == null ? null : level.getServer().getPlayerList().getPlayer(caster);
         GooExplosion.detonate(level, anchor(), power, new GooExplosion.Cut(reach, gathers), mode, look.shown(),
                 player);
+    }
+
+    /**
+     * Shrieks from the landing cell the tick the blob splats, where called
+     * mobs walk to; no block stands there.
+     * decision shriek-blob-cries-once-and-calls-earshot
+     */
+    @Override
+    public void shriek(double reach, int lasts) {
+        SculkCall.shriek(level, cell, reach, lasts);
     }
 
     @Override

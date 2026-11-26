@@ -85,7 +85,7 @@ class AbilityLoaderTest {
     /** The one durative that starts silent (decision rally-drops-its-sound-and-gets-its-sprite). */
     private static final Identifier SILENT_DURATIVE = Identifier.fromNamespaceAndPath(Goo.MODID, "yarn_lead");
     /** The proving example of a world ability that stays after its blob lands. */
-    private static final String LINGERING = "xeno_shriek";
+    private static final String LINGERING = "glow_bulb";
     /** The ability whose program ends the tick it lands. */
     private static final String BLAST = "unstable_blast";
 

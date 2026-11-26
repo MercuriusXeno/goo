@@ -55,7 +55,7 @@ class AbilityImpactTest {
     }
 
     /**
-     * Shriek's trap lingers and never explodes, so its burnout plays at the landing.
+     * Shriek's trap shrieks on its landing and never explodes, so its burnout plays at the landing.
      */
     @Test
     void aLingeringFieldNeverExplodesLater() {

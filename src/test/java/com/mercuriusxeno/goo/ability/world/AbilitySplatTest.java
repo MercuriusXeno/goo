@@ -53,7 +53,7 @@ class AbilitySplatTest {
     }
 
     /**
-     * Shriek's trap lingers and never explodes, so its burnout plays at the splat.
+     * Shriek's trap shrieks on its landing and never explodes, so its burnout plays at the splat.
      */
     @Test
     void aLingeringCloudThatNeverExplodesAnnouncesItsBurnoutBeforeItsProgramRuns() {

@@ -437,8 +437,8 @@ public final class GooItemTests {
     /**
      * A player holding a glove, with xeno goo and metal goo made through
      * GooStacks to each ability's live cost, throws each at its own stone
-     * wall; each throw spends that goo and lands a ability block of that type
-     * beside its wall.
+     * wall; each throw spends that goo, and the metal trap lands an ability
+     * block of its type beside its wall, where Shriek stands none.
      *
      * @param helper the gametest helper
      */
@@ -461,7 +461,7 @@ public final class GooItemTests {
 
     /**
      * A mock player holding the thrower throws a xeno and a metal goo, each
-     * holding its ability's live cost, each at its own stone wall, then leaves the level once the markers are
+     * holding its ability's live cost, each at its own stone wall, then leaves the level once the marker is
      * read, so a later thrower's tracking broadcast never reaches its mock
      * connection, which never negotiated the mod's channels.
      *
@@ -492,7 +492,6 @@ public final class GooItemTests {
         helper.assertTrue(metal.isEmpty(), GOO_NOT_SPENT + GooTypes.id(GooTypes.METAL));
 
         helper.runAfterDelay(ARRIVAL_TICKS, () -> {
-            assertMarker(helper, XENO_WALL.relative(THROW_FACE), GooTypes.XENO);
             assertMarker(helper, METAL_WALL.relative(THROW_FACE), GooTypes.METAL);
             helper.getLevel().getServer().getPlayerList().remove(player);
             helper.succeed();

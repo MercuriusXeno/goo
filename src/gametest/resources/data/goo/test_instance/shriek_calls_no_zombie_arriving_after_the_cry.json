@@ -1,6 +1,6 @@
 {
   "type": "minecraft:function",
-  "function": "goo:shriek_calls_the_zombie_in_earshot",
+  "function": "goo:shriek_calls_no_zombie_arriving_after_the_cry",
   "environment": "minecraft:default",
   "structure": "goo:test_bay",
   "max_ticks": 400,
