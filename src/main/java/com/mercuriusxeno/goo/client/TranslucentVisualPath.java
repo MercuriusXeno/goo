@@ -9,6 +9,7 @@ import com.mercuriusxeno.goo.client.ability.BeatRings;
 import com.mercuriusxeno.goo.client.ability.BlockMingleRenderer;
 import com.mercuriusxeno.goo.client.ability.BoreDrill;
 import com.mercuriusxeno.goo.client.ability.ChainBurnoutRenderer;
+import com.mercuriusxeno.goo.client.ability.ClickRings;
 import com.mercuriusxeno.goo.client.ability.CrystalShatterVisual;
 import com.mercuriusxeno.goo.client.ability.FireStream;
 import com.mercuriusxeno.goo.client.ability.FloatPlatform;
@@ -186,6 +187,8 @@ public final class TranslucentVisualPath {
             new Registration(LevelCursor.class, SortRoute.FAR_TO_NEAR, LevelCursor::collect,
                     Drawing.IN_THE_OIT_PHASE),
             new Registration(HeadMarks.class, SortRoute.THROUGH_BLOCKS, HeadMarks::collect),
+            // click-rings-are-the-exception-to-sculkers-vision: through blocks, after the sense view's dim
+            new Registration(ClickRings.class, SortRoute.THROUGH_BLOCKS, ClickRings::collect),
             new Registration(AfterimageRenderer.class, SortRoute.FAR_TO_NEAR, AfterimageRenderer::collect),
             new Registration(BlockMingleRenderer.class, SortRoute.ON_OPAQUE_FACES, BlockMingleRenderer::collectCoat),
             new Registration(BlockMingleRenderer.class, SortRoute.FAR_TO_NEAR, BlockMingleRenderer::collect,

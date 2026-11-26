@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.program.ScanVisualStep;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
+import com.mercuriusxeno.goo.gametest.PacketRecorder;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
@@ -33,6 +34,7 @@ import net.minecraft.world.level.block.state.properties.SculkSensorPhase;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import org.jspecify.annotations.Nullable;
+import java.util.List;
 import java.util.function.Consumer;
 
 /**
@@ -60,6 +62,44 @@ public final class ClickTests {
         GooTestFunctions.registerTest(registrar, CLICK_COSTS_UNDER_SCULKER, ClickTests::clickCostsOneMbOfPulseUnderSculker);
         GooTestFunctions.registerTest(registrar, CLICK_RIPPLES_FROM_STONE, ClickTests::clickRipplesFromInsideStone);
         GooTestFunctions.registerTest(registrar, CLICK_TRAIL_IS_REGISTERED, ClickTests::clickTrailIsARegisteredSound);
+        GooTestFunctions.registerTest(registrar, CLICK_SENDS_ITS_WAVE, ClickTests::clickSendsItsCasterOneSoundWave);
+    }
+
+    private static final String CLICK_SENDS_ITS_WAVE = "click_sends_its_caster_one_sound_wave";
+    /** The visual Click's wave names, which the client's ScanVisuals draws as the travelling rings. */
+    private static final String SOUND_WAVE = "sound_wave";
+    /** How far east of the eye the open-air click aims, inside Click's range. */
+    private static final double AIMED_EAST = 10;
+    /** How far a drawn wave's ends may stand from where they belong, float rounding only. */
+    private static final double ON_THE_POINT = 1e-6;
+    private static final String SHOULD_SEND_ONE_WAVE = "A Click cast should send its caster one sound_wave from the "
+            + "glove %s to the landing %s, it sent %s";
+
+    /**
+     * A player clicks at a point in open air ten blocks east: the caster's own
+     * client is sent one wave naming the sound_wave visual, from the glove hand
+     * to the landing stood back off the aimed point, which the client draws as
+     * its travelling rings.
+     * click-cast-is-diagnosed-and-draws-its-travel-waves-again
+     *
+     * @param helper the gametest helper
+     */
+    public static void clickSendsItsCasterOneSoundWave(GameTestHelper helper) {
+        ServerPlayer player = SelfDeliveryTests.invoker(helper, GooTypes.PULSE);
+        player.setYRot(FACING_EAST);
+        player.setXRot(0);
+        PacketRecorder seen = PacketRecorder.attachClaiming(player, ScanWavePayload.class);
+        Vec3 eye = player.getEyePosition();
+        Vec3 aimed = eye.add(AIMED_EAST, 0, 0);
+        clickAt(player, aimed);
+        List<ScanWavePayload> waves = seen.payloadsOf(ScanWavePayload.class);
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        Vec3 landing = aimed.subtract(GooScanHandler.STAND_OFF, 0, 0);
+        boolean oneWave = waves.size() == 1 && SOUND_WAVE.equals(waves.getFirst().visual())
+                && waves.getFirst().from().distanceTo(eye) < ON_THE_POINT
+                && waves.getFirst().to().distanceTo(landing) < ON_THE_POINT;
+        helper.assertTrue(oneWave, String.format(SHOULD_SEND_ONE_WAVE, eye, landing, waves));
+        helper.succeed();
     }
 
     private static final String CLICK_TRAIL_IS_REGISTERED = "click_trail_is_a_registered_sound";

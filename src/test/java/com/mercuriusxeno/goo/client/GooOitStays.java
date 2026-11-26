@@ -20,6 +20,7 @@ final class GooOitStays {
 
     /** Each staying pipeline's reason. */
     static final Map<String, String> REASONS = Map.ofEntries(
+            entry("click_wave_through_blocks", THROUGH_BLOCKS),
             entry("crystal_explosion_through_blocks", THROUGH_BLOCKS),
             entry("dowsing_glow", THROUGH_BLOCKS),
             entry("dowsing_ore", THROUGH_BLOCKS),

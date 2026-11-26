@@ -147,14 +147,16 @@ public final class GooRenderTypes {
             .build());
 
     /**
-     * Pulse Click's shriek rings drawn through blocks: vanilla's translucent
-     * particle pipeline passing every depth test and writing no depth, so a
+     * Pulse Click's rings drawn through blocks: vanilla's translucent
+     * particle shader passing every depth test and writing no depth, so a
      * Click rippling through stone shows to the submerged player inside it
      * (decision submerged-click-ripples-through-the-ground-to-its-range).
      */
+    // Under improved transparency this stays on its parity path: drawn through blocks under a standing decision.
     public static final RenderPipeline CLICK_WAVE_THROUGH_BLOCKS =
-            // A particle in vanilla's main pass, through every depth test under its own decision:
+            // Drawn on the path's through-blocks route, after Sculker's dim, under their own decisions:
             // decision submerged-click-ripples-through-the-ground-to-its-range
+            // decision click-rings-are-the-exception-to-sculkers-vision
             sorted(PipelineSort.THROUGH_BLOCKS,RenderPipeline.builder(RenderPipelines.MATRICES_FOG_SNIPPET)
                     .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "click_wave_through_blocks"))
                     .withVertexShader("core/particle")
@@ -169,13 +171,19 @@ public final class GooRenderTypes {
                     .build());
 
     /**
-     * Click's shriek rings' OIT phases, through every depth test as their parity pipeline is, for the particle
-     * layer that draws in 26.3's OIT phase under improved transparency.
-     * decision submerged-click-ripples-through-the-ground-to-its-range
-     * decision goo-translucency-draws-through-order-independent-transparency
+     * The texture Click's rings draw: goo's own grey ring, the shape of the shriek ring, so the pulse red the
+     * rings are tinted shows whole.
+     * decision click-draws-in-pulse-red-not-the-shrieker-visual
      */
-    public static final OitPipelineSet CLICK_WAVE_THROUGH_BLOCKS_OIT =
-            oitSetBuilderOf(CLICK_WAVE_THROUGH_BLOCKS).withoutDepthTest().build();
+    public static final Identifier CLICK_RING_TEXTURE =
+            Identifier.fromNamespaceAndPath(NAMESPACE, "textures/particle/click_ring.png");
+
+    /** Click's rings on the through-blocks pipeline, over the ring texture, the lightmap the particle shader reads bound. */
+    public static final RenderType CLICK_WAVE_TYPE = RenderType.create("goo_click_wave",
+            RenderSetup.builder(CLICK_WAVE_THROUGH_BLOCKS)
+                    .withTexture("Sampler0", CLICK_RING_TEXTURE)
+                    .useLightmap()
+                    .createRenderSetup());
 
     /**
      * The fungus glow of Sculker's shroom vision (decision sight-lengthens-shift-and-outlines-fungus):
@@ -2174,7 +2182,7 @@ public final class GooRenderTypes {
      * @param event the event instance
      */
     private static void registerSubmittedOitSets(RegisterRenderPipelinesEvent event) {
-        List.of(CLICK_WAVE_THROUGH_BLOCKS_OIT, GLOW_SHELL_OIT, GLOW_COLUMN_OIT, GLOW_BEAM_OIT,
+        List.of(GLOW_SHELL_OIT, GLOW_COLUMN_OIT, GLOW_BEAM_OIT,
                 LINES_ADDITIVE_GLOW_OIT, GROWTH_BREEZE_OIT, GOO_GHOST_OIT, PETRIFY_FOG_OIT, REAP_SWELL_OIT,
                 FROST_EXPLOSION_OIT, ROCK_EXPLOSION_OIT, PORTABLE_HOLE_MOUTH_OIT, GOO_PORTAL_HALO_OIT,
                 GOO_PORTAL_SWIRL_BAND_OIT, BLOCK_MINGLE_TRANSLUCENT_OIT, MIASMA_VORTEX_OIT, BORE_DRILL_OIT,

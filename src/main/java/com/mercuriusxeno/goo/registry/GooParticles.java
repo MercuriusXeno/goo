@@ -227,13 +227,6 @@ public class GooParticles {
         PARTICLE_TYPES.register("snowflake", () -> new SimpleParticleType(false));
 
     /**
-     * A ring of Pulse Click's sound wave, the shriek held square to its line
-     * (decision click-is-a-hit-scan-drawn-as-a-delayed-wave).
-     */
-    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> CLICK_WAVE =
-        PARTICLE_TYPES.register("click_wave", () -> new SimpleParticleType(false));
-
-    /**
      * The particle an ability's explosion names in place of vanilla's
      * explosion particles; its client provider spawns nothing, so the goo
      * type's own burnout explosion is the one seen (decision
