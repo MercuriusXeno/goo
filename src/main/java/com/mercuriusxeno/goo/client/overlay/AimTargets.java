@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
 import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.client.ability.PartnerView;
 import com.mercuriusxeno.goo.client.throwing.TargetingHint;
+import com.mercuriusxeno.goo.throwing.AimReach;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.entity.Entity;
@@ -26,6 +27,7 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
@@ -46,29 +48,88 @@ final class AimTargets {
     private static final double GRANNY_ARC_THRESHOLD = 0.85;
     /** How far before a gate's face the near leg's clip ends, clear of the gate's own blocks. */
     private static final double BEFORE_THE_FACE = 0.01;
+    /** How far in along the look each drop of a sliding ground highlight steps, in blocks. */
+    private static final double SLIDE_STEP = 0.25;
 
     private AimTargets() {
     }
 
     /**
-     * The aim ray: where it starts and where it ends at range.
+     * The aim ray: where it starts, where it ends, and the measure a target
+     * along it must pass to light, the distance from the eye within the range.
+     * decision diagnose-and-correct-the-indicator-disagreeing-with-the-cast
      *
-     * @param origin the ray's start, the camera as the frame draws it
-     * @param reach  the ray's end at range
+     * @param origin       the ray's start, the camera as the frame draws it
+     * @param reach        the ray's end, far enough to meet every point within range of the eye
+     * @param measuredFrom where the measure starts: the caster's eye, or the partner's point on a leg past a gate
+     * @param rangeLeft    the range left to the measure from there, in blocks
      */
-    record AimRay(Vec3 origin, Vec3 reach) {
+    record AimRay(Vec3 origin, Vec3 reach, Vec3 measuredFrom, double rangeLeft) {
 
         /**
-         * The ray from an origin along a look, out to range.
+         * The ray from an origin standing at the eye along a look, out to range.
          * decision grab-reaches-telekinesis-range: a grab marks no mob beyond what it lifts
          *
-         * @param origin the ray's start
+         * @param origin the ray's start, the eye
          * @param look   the unit look vector
          * @param range  how far the ray reaches, the selected ability's reach (GloveAim.aimRange)
          * @return the ray
          */
         static AimRay along(Vec3 origin, Vec3 look, double range) {
-            return new AimRay(origin, origin.add(look.scale(range)));
+            return fromCamera(origin, look, origin, range);
+        }
+
+        /**
+         * The ray between two points, measured from its start out to its end.
+         *
+         * @param from the ray's start
+         * @param to   the ray's end
+         * @return the ray
+         */
+        static AimRay between(Vec3 from, Vec3 to) {
+            return new AimRay(from, to, from, from.distanceTo(to));
+        }
+
+        /**
+         * The ray from the camera along its look, its range read from the eye:
+         * it runs the range plus the camera's distance from the eye, so it
+         * meets every point within range of the eye, and a point it meets
+         * lights only within that range.
+         * decision aim-ray-starts-at-the-camera
+         * decision diagnose-and-correct-the-indicator-disagreeing-with-the-cast
+         *
+         * @param camera the camera, the ray's start
+         * @param look   the camera's unit look vector
+         * @param eye    the caster's eye, where the measure starts
+         * @param range  the selected ability's range (GloveAim.aimRange)
+         * @return the ray
+         */
+        static AimRay fromCamera(Vec3 camera, Vec3 look, Vec3 eye, double range) {
+            return new AimRay(camera, camera.add(look.scale(range + camera.distanceTo(eye))), eye, range);
+        }
+
+        /**
+         * Whether a point along the ray lights: within the range left of where the measure starts.
+         *
+         * @param point the aimed point
+         * @return true where the indicator lights it
+         */
+        boolean reaches(Vec3 point) {
+            return AimReach.lights(measuredFrom, point, rangeLeft);
+        }
+
+        /**
+         * The leg this ray carries on along out of a linked gate's partner,
+         * measured on from the partner's point with the range the near leg left,
+         * as the server measures a release through a gate.
+         * aim-and-shots-carry-through-linked-gates
+         *
+         * @param crossing where this ray passes the gate
+         * @return the far leg
+         */
+        AimRay pastGate(GateRay.Crossing crossing) {
+            return new AimRay(crossing.farFrom(), crossing.farTo(), crossing.partnerPoint(),
+                    rangeLeft - measuredFrom.distanceTo(crossing.facePoint()));
         }
     }
 
@@ -109,13 +170,12 @@ final class AimTargets {
         Optional<GateRay.Crossing> crossing = GateRay.first(GatePassage.clientPairs(), player.level().dimension(),
                 ray.origin(), ray.reach());
         if (crossing.isPresent()) {
-            Optional<AimState.Resolution> through = throughGate(player, seed, hint, behaviors, ray.origin(),
-                    crossing.get());
+            Optional<AimState.Resolution> through = throughGate(player, seed, hint, behaviors, ray, crossing.get());
             if (through.isPresent()) {
                 return through.get();
             }
         }
-        return resolveFor(hint, sourcesAlong(player, player.level(), ray.origin(), ray.reach(), seed, behaviors));
+        return resolveFor(hint, sourcesAlong(player, player.level(), ray, seed, behaviors));
     }
 
     /**
@@ -130,21 +190,23 @@ final class AimTargets {
      * @param seed      the previous frame's aim-assist hit
      * @param hint      the targeting mode
      * @param behaviors the selected ability's steps
-     * @param origin    the ray's start, the camera
+     * @param ray       the aim ray from the camera
      * @param crossing  where the ray passes the gate
      * @return the far-side resolution, empty where the near side stops the aim first
      */
     private static Optional<AimState.Resolution> throughGate(Player player, AimAssistResolver.@Nullable AimHit seed,
-            TargetingHint hint, List<Step> behaviors, Vec3 origin, GateRay.Crossing crossing) {
+            TargetingHint hint, List<Step> behaviors, AimRay ray, GateRay.Crossing crossing) {
         Vec3 beforeFace = crossing.facePoint().add(crossing.near().face().getUnitVec3().scale(BEFORE_THE_FACE));
-        boolean blockedNear = clipBlocks(player.level(), player, origin, beforeFace).getType() == HitResult.Type.BLOCK;
-        boolean mobNear = hint != TargetingHint.BLOCK && AimAssistResolver.findClosestAimHit(player, origin,
-                beforeFace, seed, behaviors) instanceof AimAssistResolver.AimHit.EntityHit;
+        AimRay nearLeg = new AimRay(ray.origin(), beforeFace, ray.measuredFrom(), ray.rangeLeft());
+        boolean blockedNear = clipBlocks(player.level(), player, ray.origin(), beforeFace).getType()
+                == HitResult.Type.BLOCK;
+        boolean mobNear = hint != TargetingHint.BLOCK && AimAssistResolver.findClosestAimHit(player, nearLeg,
+                seed, behaviors) instanceof AimAssistResolver.AimHit.EntityHit;
         if (blockedNear || mobNear) {
             return Optional.empty();
         }
         AimState.Resolution far = resolveFor(hint, sourcesAlong(player, blocksAround(player, crossing.far()),
-                crossing.farFrom(), crossing.farTo(), seed, behaviors));
+                ray.pastGate(crossing), seed, behaviors));
         return Optional.of(new AimState.Resolution(
                 far.target().through(new TargetResult.Passage(crossing.near(), crossing.facePoint())), far.hit()));
     }
@@ -170,20 +232,23 @@ final class AimTargets {
      *
      * @param player    the local player
      * @param blocks    the blocks the leg clips against
-     * @param from      the leg's start
-     * @param to        the leg's end
+     * @param leg       the leg's ray and the measure its targets pass
      * @param seed      the previous frame's aim-assist hit
      * @param behaviors the selected ability's steps
      * @return the leg's sources
      */
-    private static AimSources sourcesAlong(Player player, BlockGetter blocks, Vec3 from, Vec3 to,
+    private static AimSources sourcesAlong(Player player, BlockGetter blocks, AimRay leg,
             AimAssistResolver.@Nullable AimHit seed, List<Step> behaviors) {
-        AimRay leg = new AimRay(from, to);
         BlockClip clip = (start, end) -> clipBlocks(blocks, player, start, end);
         return new AimSources() {
             @Override
             public AimAssistResolver.@Nullable AimHit entityHit() {
-                return AimAssistResolver.findClosestAimHit(player, from, to, seed, behaviors);
+                return AimAssistResolver.findClosestAimHit(player, leg, seed, behaviors);
+            }
+
+            @Override
+            public boolean reaches(Vec3 point) {
+                return leg.reaches(point);
             }
 
             @Override
@@ -198,7 +263,7 @@ final class AimTargets {
 
             @Override
             public Vec3 entityPoint(Entity entity) {
-                return pointOnEntity(entity.getBoundingBox(), from, to);
+                return pointOnEntity(entity.getBoundingBox(), leg.origin(), leg.reach());
             }
         };
     }
@@ -238,6 +303,14 @@ final class AimTargets {
          * @return the hit, or null when no entity is near the ray
          */
         AimAssistResolver.@Nullable AimHit entityHit();
+
+        /**
+         * Whether an aimed point lies within range of the eye, by the measure the server's range gate reads.
+         *
+         * @param point the aimed point
+         * @return true where the indicator may light it
+         */
+        boolean reaches(Vec3 point);
 
         /**
          * The block face the ray meets, projected to the ground on a miss.
@@ -297,7 +370,11 @@ final class AimTargets {
     private static AimState.Resolution lockOnOr(AimSources sources, Supplier<TargetResult> fallback) {
         AimAssistResolver.AimHit hit = sources.entityHit();
         if (hit instanceof AimAssistResolver.AimHit.EntityHit eh) {
-            return new AimState.Resolution(TargetResult.entity(eh.entity(), sources.entityPoint(eh.entity())), hit);
+            Vec3 point = sources.entityPoint(eh.entity());
+            // diagnose-and-correct-the-indicator-disagreeing-with-the-cast: a mob past range of the eye locks no aim
+            if (sources.reaches(point)) {
+                return new AimState.Resolution(TargetResult.entity(eh.entity(), point), hit);
+            }
         }
         return new AimState.Resolution(fallback.get(), null);
     }
@@ -333,44 +410,98 @@ final class AimTargets {
 
     /**
      * Clips against blocks and returns a block or granny-arc target.
-     * On a miss, projects to max range along the look vector so the
-     * arc always renders toward the aimed direction.
+     * On a miss, drops to the farthest ground under the look within range,
+     * so a level look still lights a face that casts.
      *
-     * @param level  the current level, whose height bounds a miss's cast to the ground
+     * @param level  the current level, whose height bounds a miss's drop to the ground
      * @param blocks the blocks the ray clips against
      * @param ray    the aim ray
      * @param clip   the block clip
-     * @return the resolved block target, or max-range projection on miss
+     * @return the resolved block target, or NONE where nothing under the look is in range
      */
     private static TargetResult resolveBlockTarget(Level level, BlockGetter blocks, AimRay ray, BlockClip clip) {
-        BlockHitResult hit = clip.clip(ray.origin(), ray.reach());
-        if (hit.getType() != HitResult.Type.BLOCK) {
-            return projectToGround(level, blocks, ray.reach());
-        }
-        return classifyBlockHit(blocks, hit);
+        BlockClip drop = (from, to) -> blocks.clip(new ClipContext(from, to, ClipContext.Block.OUTLINE,
+                ClipContext.Fluid.SOURCE_ONLY, CollisionContext.empty()));
+        return blockTargetAlong(ray, clip, hit -> classifyBlockHit(blocks, hit),
+                new Ground(drop, level.getMaxY(), level.getMinY()));
     }
 
     /**
-     * Raycasts down from the max-range endpoint to find the ground.
-     * If the endpoint is above max build height (looking upward), starts
-     * the downward cast from build height at the same XZ.
+     * The ground a straight drop meets, within the level's height.
      *
-     * @param level  the current level, whose height bounds the cast
-     * @param blocks the blocks the cast clips against
-     * @param reach  the max-range endpoint along the look vector
-     * @return a block target on the ground, or NONE if no ground found
+     * @param clip    the clip a drop runs, against block outlines and fluid sources
+     * @param ceiling the level's top, where a drop from above it starts
+     * @param floor   the level's bottom, where a drop ends at the latest
      */
-    private static TargetResult projectToGround(Level level, BlockGetter blocks, Vec3 reach) {
-        double topY = Math.min(reach.y, level.getMaxY());
-        Vec3 top = new Vec3(reach.x, topY, reach.z);
-        Vec3 bottom = new Vec3(reach.x, level.getMinY(), reach.z);
-        BlockHitResult ground = blocks.clip(new ClipContext(
-                top, bottom, ClipContext.Block.OUTLINE,
-                ClipContext.Fluid.SOURCE_ONLY, CollisionContext.empty()));
-        if (ground.getType() != HitResult.Type.BLOCK) {
-            return TargetResult.NONE;
+    record Ground(BlockClip clip, double ceiling, double floor) {
+
+        /**
+         * The top face a drop straight down from a point meets, no lower than the given height.
+         *
+         * @param point  the point the drop falls from
+         * @param lowest the lowest the drop reaches, above the level's floor
+         * @return a block target on the ground's top face, or NONE where the drop meets none
+         */
+        TargetResult under(Vec3 point, double lowest) {
+            double top = Math.min(point.y, ceiling);
+            double bottom = Math.max(floor, lowest);
+            if (top <= bottom) {
+                return TargetResult.NONE;
+            }
+            BlockHitResult ground = clip.clip(new Vec3(point.x, top, point.z), new Vec3(point.x, bottom, point.z));
+            return ground.getType() == HitResult.Type.BLOCK
+                    ? TargetResult.block(ground.getBlockPos(), Direction.UP, ground.getLocation()) : TargetResult.NONE;
         }
-        return TargetResult.block(ground.getBlockPos(), Direction.UP, ground.getLocation());
+    }
+
+    /**
+     * The block face a ray lights: the face it meets within range of the eye,
+     * else the farthest ground under the look within that range.
+     * decision diagnose-and-correct-the-indicator-disagreeing-with-the-cast
+     * decision dropped-ground-highlight-lights-only-within-range
+     *
+     * @param ray    the aim ray
+     * @param clip   the block clip
+     * @param faceOf the target a met face reads as
+     * @param ground the ground a miss drops to
+     * @return the block target, or NONE where it lies beyond range of the eye
+     */
+    static TargetResult blockTargetAlong(AimRay ray, BlockClip clip, Function<BlockHitResult, TargetResult> faceOf,
+                                         Ground ground) {
+        BlockHitResult hit = clip.clip(ray.origin(), ray.reach());
+        boolean met = hit.getType() == HitResult.Type.BLOCK;
+        if (met) {
+            TargetResult face = faceOf.apply(hit);
+            Vec3 point = face.point();
+            if (point != null && ray.reaches(point)) {
+                return face;
+            }
+        }
+        return groundSlidingIn(ray, ground, met ? hit.getLocation() : ray.reach());
+    }
+
+    /**
+     * The farthest ground under the look within range of the eye: the drop
+     * from each point along the look, sliding in from where the look stopped
+     * toward its start, lights the first ground it meets within range.
+     * decision dropped-ground-highlight-lights-only-within-range
+     *
+     * @param ray     the aim ray
+     * @param ground  the ground a drop meets
+     * @param stopped where the look stopped, a face past range or the ray's end
+     * @return the ground's top face, or NONE where no ground under the look is in range
+     */
+    private static TargetResult groundSlidingIn(AimRay ray, Ground ground, Vec3 stopped) {
+        Vec3 look = ray.reach().subtract(ray.origin()).normalize();
+        double lowest = ray.measuredFrom().y - ray.rangeLeft();
+        for (double along = ray.origin().distanceTo(stopped); along >= 0; along -= SLIDE_STEP) {
+            TargetResult dropped = ground.under(ray.origin().add(look.scale(along)), lowest);
+            Vec3 point = dropped.point();
+            if (point != null && ray.reaches(point)) {
+                return dropped;
+            }
+        }
+        return TargetResult.NONE;
     }
 
     /**

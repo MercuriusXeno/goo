@@ -81,6 +81,8 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.renderpearl.api.commands.RenderPass;
 import net.minecraft.client.renderer.state.level.LevelRenderState;
+import net.minecraft.util.profiling.Profiler;
+import net.minecraft.util.profiling.ProfilerFiller;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -247,6 +249,16 @@ public final class TranslucentVisualPath {
     /** The far-to-near draws the current level pass's OIT phase draws, held for its AfterLevel. */
     private static final OitDrawReplay OIT_REPLAY = new OitDrawReplay();
 
+    /**
+     * The profiler sections the path gathers each route's draws under, each
+     * draw's sort key computed as its visual hands it over, and orders them
+     * under, and the counter of the draws it orders.
+     * decision diagnose-and-correct-the-lag-on-four-sense-abilities
+     */
+    public static final String PATH_COLLECT_SECTION = "goo_translucent_path_collect";
+    public static final String PATH_SORT_SECTION = "goo_translucent_path_sort";
+    public static final String PATH_SORTED_COUNTER = "goo_translucent_path_sorted";
+
     /** The camera of the level pass submitting its entities now, null outside one. */
     private static @Nullable Vec3 submittingCamera;
 
@@ -312,8 +324,8 @@ public final class TranslucentVisualPath {
     @SubscribeEvent
     public static void onOitTranslucent(RenderLevelStageEvent.OitTranslucent event) {
         LevelFrame frame = new LevelFrame(event.getModelViewMatrix(), new PoseStack(), event.getLevelRenderState());
-        List<SortedDraw> draws = OIT_REPLAY.atOitStage(event.getOitStage(), () -> farToNear(
-                drawsOf(SortRoute.FAR_TO_NEAR, frame, Drawing.IN_THE_OIT_PHASE)));
+        List<SortedDraw> draws = OIT_REPLAY.atOitStage(event.getOitStage(), () -> orderedDraws(
+                sourcesOf(SortRoute.FAR_TO_NEAR, Drawing.IN_THE_OIT_PHASE), frame));
         Matrix4fStack modelViewStack = RenderSystem.getModelViewStack();
         modelViewStack.pushMatrix();
         modelViewStack.set(event.getModelViewMatrix());
@@ -387,7 +399,7 @@ public final class TranslucentVisualPath {
         modelViewStack.pushMatrix();
         modelViewStack.set(modelView);
         for (SortRoute route : routes) {
-            farToNear(route == SortRoute.FAR_TO_NEAR ? farToNearDrawsOf(frame) : drawsOf(route, frame, null))
+            (route == SortRoute.FAR_TO_NEAR ? farToNearDrawsOf(frame) : orderedDraws(sourcesOf(route, null), frame))
                     .forEach(draw -> draw.draw().run());
         }
         ImmediateBuffers.shared().endBatch();
@@ -399,27 +411,56 @@ public final class TranslucentVisualPath {
     private static List<SortedDraw> farToNearDrawsOf(LevelFrame frame) {
         List<SortedDraw> held = OIT_REPLAY.takeHeld();
         if (held == null) {
-            return drawsOf(SortRoute.FAR_TO_NEAR, frame, null);
+            return orderedDraws(sourcesOf(SortRoute.FAR_TO_NEAR, null), frame);
         }
-        List<SortedDraw> draws = new ArrayList<>(drawsOf(SortRoute.FAR_TO_NEAR, frame, Drawing.ITS_OWN_PASSES));
-        held.forEach(draw -> draws.add(new SortedDraw(draw.cameraDistanceSquared(), () -> {
+        List<SortedDraw> replayed = held.stream().map(draw -> new SortedDraw(draw.cameraDistanceSquared(), () -> {
             ImmediateBuffers.shared().endBatch();
             OitDrawPhase.during(OitDrawPhase.AFTER_THE_OIT_PHASE, () -> {
                 draw.draw().run();
                 ImmediateBuffers.shared().endBatch();
             });
-        })));
-        return draws;
+        })).toList();
+        return orderedDraws(sourcesOf(SortRoute.FAR_TO_NEAR, Drawing.ITS_OWN_PASSES), frame, replayed);
     }
 
-    private static List<SortedDraw> drawsOf(SortRoute route, LevelFrame frame, @Nullable Drawing drawing) {
-        List<SortedDraw> draws = new ArrayList<>();
-        for (Registration registration : REGISTRATIONS) {
-            if (registration.route() == route && (drawing == null || registration.drawing() == drawing)) {
-                registration.source().collect(frame, draws::add);
-            }
+    private static List<TranslucentVisual> sourcesOf(SortRoute route, @Nullable Drawing drawing) {
+        return REGISTRATIONS.stream().filter(registration -> registration.route() == route
+                && (drawing == null || registration.drawing() == drawing)).map(Registration::source).toList();
+    }
+
+    /**
+     * One route's draws this frame in the order they draw: each visual's
+     * draws gathered, each carrying the sort key its visual computed, then
+     * ordered farthest first.
+     * decision diagnose-and-correct-the-lag-on-four-sense-abilities
+     *
+     * @param sources the visuals registered on the route, in registered order
+     * @param frame   the frame being drawn
+     * @return the draws, farthest first
+     */
+    static List<SortedDraw> orderedDraws(List<? extends TranslucentVisual> sources, LevelFrame frame) {
+        return orderedDraws(sources, frame, List.of());
+    }
+
+    /**
+     * @param sources the visuals registered on the route, in registered order
+     * @param frame   the frame being drawn
+     * @param joined  draws ordered among the visuals' own, such as the OIT phase's held draws replaying
+     * @return the draws, farthest first
+     */
+    private static List<SortedDraw> orderedDraws(List<? extends TranslucentVisual> sources, LevelFrame frame,
+            List<SortedDraw> joined) {
+        ProfilerFiller profiler = Profiler.get();
+        profiler.push(PATH_COLLECT_SECTION);
+        List<SortedDraw> draws = new ArrayList<>(joined);
+        for (TranslucentVisual source : sources) {
+            source.collect(frame, draws::add);
         }
-        return draws;
+        profiler.popPush(PATH_SORT_SECTION);
+        List<SortedDraw> ordered = farToNear(draws);
+        profiler.pop();
+        profiler.incrementCounter(PATH_SORTED_COUNTER, draws.size());
+        return ordered;
     }
 
     /**

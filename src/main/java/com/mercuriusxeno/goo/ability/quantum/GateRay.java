@@ -34,6 +34,16 @@ public final class GateRay {
      * @param farTo     where the ray ends past the partner, its remaining reach on
      */
     public record Crossing(Gate near, Gate far, Vec3 facePoint, Vec3 farFrom, Vec3 farTo) {
+
+        /**
+         * The partner's point matching the face point, the one a hop through
+         * this pair names (hopThrough), where a measure through the gate carries on from.
+         *
+         * @return the matching point on the partner's face
+         */
+        public Vec3 partnerPoint() {
+            return PortalTransform.between(near, far).point(facePoint);
+        }
     }
 
     /**

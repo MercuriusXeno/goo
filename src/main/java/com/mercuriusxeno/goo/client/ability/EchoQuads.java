@@ -27,6 +27,7 @@ final class EchoQuads {
     private static final Direction[] SIDES = Direction.values();
 
     private final Map<BlockPos, List<BakedQuad>> kept = new HashMap<>();
+    private int collectedSinceTaken;
 
     /**
      * The quads a lit block draws, collected the first time it is asked.
@@ -40,8 +41,22 @@ final class EchoQuads {
         if (quads == null) {
             quads = collected(world, pos);
             kept.put(pos.immutable(), quads);
+            collectedSinceTaken++;
         }
         return quads;
+    }
+
+    /**
+     * The blocks whose quads were collected since the last ask, not kept
+     * from an earlier frame, for the profiler's counter.
+     * decision diagnose-and-correct-the-lag-on-four-sense-abilities
+     *
+     * @return how many, counting from nothing again
+     */
+    int takeCollected() {
+        int taken = collectedSinceTaken;
+        collectedSinceTaken = 0;
+        return taken;
     }
 
     private static List<BakedQuad> collected(SculkerEchoRenderer.EchoWorld world, BlockPos pos) {
@@ -101,6 +116,13 @@ final class EchoQuads {
         if (kept.size() > remembered.size() + SLACK) {
             kept.keySet().retainAll(remembered);
         }
+    }
+
+    /**
+     * @return how many blocks' quads are kept
+     */
+    int size() {
+        return kept.size();
     }
 
     /** Forgets every block's quads, as the held effect's end does. */

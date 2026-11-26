@@ -8,7 +8,7 @@ import java.util.function.Consumer;
 
 /**
  * A held step that sweeps: Scry, Glimmer and Magnet each send overlapping
- * pulses at the one shared pace, one payload for each live pulse each tick,
+ * pulses, each at its step's own pace, one payload for each live pulse each tick,
  * which the caster's client draws through the one held-sweep visual.
  * decision held-sweeps-share-one-fast-shell-visual
  */
@@ -48,7 +48,7 @@ public interface HeldSweepStep extends Step {
     default HeldSweepPayload sweepOf(HeldSweepPulses.Pulse pulse, long gameTime) {
         HeldSweepPace pace = pace();
         return new HeldSweepPayload(pulse.id(), pulse.origin(), (float) pace.radiusAt(pulse.ageAt(gameTime)),
-                (float) pace.range(), goo(), paintsMobs());
+                (float) pace.range(), (float) pace.blocksATick(), goo(), paintsMobs());
     }
 
     /**
