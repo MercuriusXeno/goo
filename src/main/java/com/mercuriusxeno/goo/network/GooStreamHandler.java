@@ -458,8 +458,8 @@ public final class GooStreamHandler {
             SwarmStrike.send(player, apex, aim, delivery, struck, crosshair);
             return SwarmStrike.reached(player, apex, struck, held);
         }
-        sprayParticles(player, apex, aim, delivery,
-                crosshairSpeed(delivery.range(), apex.distanceTo(crosshair.getLocation())));
+        sprayParticles(player, apex, aim, delivery, new SprayedCone(gloveShapeOf(delivery),
+                crosshairReach(delivery.range(), apex.distanceTo(crosshair.getLocation()))));
         return struck;
     }
 
@@ -988,12 +988,23 @@ public final class GooStreamHandler {
      * @param player   the spraying player
      * @param apex     the cone's apex
      * @param axis     the cone's axis
-     * @param delivery the stream delivery
-     * @param speed    each mote's launch speed along its heading, blocks per tick
+     * @param delivery the stream delivery, whose particle the motes are
+     * @param cone     the cone the motes fly through and how far off they rest
      */
-    static void sprayParticles(ServerPlayer player, Vec3 apex, Vec3 axis, Delivery delivery, double speed) {
+    static void sprayParticles(ServerPlayer player, Vec3 apex, Vec3 axis, Delivery delivery, SprayedCone cone) {
         delivery.particle().ifPresent(particle -> EntityVisuals.sendToWatchers(player, motesOf(player.getId(), apex,
-                axis, particle, delivery, speed, exitSpeedOf(player, delivery))));
+                axis, particle, cone, exitSpeedOf(player, delivery))));
+    }
+
+    /**
+     * The cone a stream's motes fly through, its shape and reach together, so a mote launches inside the shape and
+     * rests at the reach.
+     * decision cone-style-abilities-are-reviewed-for-consistency
+     *
+     * @param shape the cone's widths across and up and down
+     * @param reach how far off the motes rest, in blocks
+     */
+    public record SprayedCone(ConeShape shape, double reach) {
     }
 
     /**
@@ -1077,20 +1088,20 @@ public final class GooStreamHandler {
     /**
      * The payload that launches a tick's drawn motes off the arc about an axis.
      *
-     * @param casterId the caster's entity id
-     * @param apex     the cone's apex
-     * @param axis     the cone's axis
-     * @param particle the mote's particle
-     * @param delivery the stream delivery
-     * @param speed    each mote's launch speed along its heading, blocks per tick
+     * decision cone-style-abilities-are-reviewed-for-consistency: the motes fly the cone's shape and rest at its reach
+     *
+     * @param casterId  the caster's entity id
+     * @param apex      the cone's apex
+     * @param axis      the cone's axis
+     * @param particle  the mote's particle
+     * @param cone      the cone the motes fly through and how far off they rest
      * @param exitSpeed a drawn drip's exit speed, blocks per tick
      * @return the payload
      */
-    static StreamMotesPayload motesOf(int casterId, Vec3 apex, Vec3 axis, Identifier particle, Delivery delivery,
-                                      double speed, double exitSpeed) {
-        return new StreamMotesPayload(casterId, apex, axis, particle, ConeShape.round(delivery.coneDegrees()), speed,
-                exitSpeed,
-                false, 0, NO_DRIPS, apex, 0);
+    public static StreamMotesPayload motesOf(int casterId, Vec3 apex, Vec3 axis, Identifier particle,
+                                             SprayedCone cone, double exitSpeed) {
+        return new StreamMotesPayload(casterId, apex, axis, particle, cone.shape(), restingSpeed(cone.reach()),
+                exitSpeed, false, 0, NO_DRIPS, apex, 0);
     }
 
     /**
@@ -1157,16 +1168,15 @@ public final class GooStreamHandler {
     }
 
     /**
-     * The launch speed of a mote: it rests as far off as the
-     * crosshair lands, or at the stream's range past it
+     * How far off a mote rests: as far off as the crosshair lands, or at the stream's range past it
      * (decision mycosis-spore-stream-buds-and-poisons).
      *
      * @param range             the stream's reach in blocks
      * @param crosshairDistance the distance from the glove to where the crosshair lands
-     * @return the launch speed, blocks per tick
+     * @return the distance the mote rests at, in blocks
      */
-    static double crosshairSpeed(double range, double crosshairDistance) {
-        return restingSpeed(Math.min(range, crosshairDistance));
+    static double crosshairReach(double range, double crosshairDistance) {
+        return Math.min(range, crosshairDistance);
     }
 
     /**

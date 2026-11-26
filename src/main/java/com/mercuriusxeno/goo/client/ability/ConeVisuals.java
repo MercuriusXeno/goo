@@ -29,7 +29,8 @@ public final class ConeVisuals {
             visual(GrowthBreeze.GROWTH_ID, GrowthBreeze::pour),
             visual(SignalRings.TICK_ID, SignalRings::pour),
             visual(BoreDrill.BORE_ID, BoreDrill::pour),
-            visual(GnatSeek.DECAY_ID, GnatSeek::pour));
+            visual(GnatSeek.DECAY_ID, GnatSeek::pour),
+            visual(StreamMotes.MYCOSIS_ID, StreamMotes::pour));
 
     private ConeVisuals() {
     }

@@ -13,6 +13,7 @@ import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import com.mercuriusxeno.goo.throwing.ConvergingCone;
 import com.mercuriusxeno.goo.throwing.DripArc;
+import com.mercuriusxeno.goo.throwing.StreamCone;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
@@ -83,6 +84,8 @@ class GooStreamHandlerTest {
         private static final double RANGE = 8;
         private static final CoatRay.ConeShare AXIS = new CoatRay.ConeShare(0, 0);
         private static final double TOLERANCE = 1e-9;
+        private static final int SHARES = 12;
+        private static final double JUST_INSIDE = 0.999;
 
         private void assertNear(Vec3 expected, Vec3 actual) {
             assertEquals(expected.x, actual.x, TOLERANCE, "x");
@@ -102,13 +105,37 @@ class GooStreamHandlerTest {
 
         private void assertCrosshairLaunch(double crosshairDistance, double restsAt) {
             Vec3 axis = new Vec3(0.6, 0, 0.8);
-            StreamMotesPayload spores = new StreamMotesPayload(1, GLOVE, axis, SPORE, ConeShape.round(0),
-                    GooStreamHandler.crosshairSpeed(RANGE, crosshairDistance), Delivery.NO_THROW_SPEED, false, 0, 0,
-                    GLOVE, 0);
+            StreamMotesPayload spores = GooStreamHandler.motesOf(1, GLOVE, axis, SPORE,
+                    new GooStreamHandler.SprayedCone(ConeShape.round(0),
+                            GooStreamHandler.crosshairReach(RANGE, crosshairDistance)), Delivery.NO_THROW_SPEED);
 
             Vec3 launch = GooStreamHandler.moteLaunch(spores, AXIS);
 
             assertNear(axis.scale(restsAt * 0.1), launch);
+        }
+
+        /**
+         * A spore of a cast through a cone wide across and thin up and down launches inside that shape and its
+         * flight ends at the cast's reach (decision cone-style-abilities-are-reviewed-for-consistency).
+         */
+        @Test
+        void aSporeLaunchesInsideItsCastsShapeAndRestsAtItsReach() {
+            Vec3 axis = new Vec3(0.6, 0, 0.8);
+            ConeShape wideAndThin = new ConeShape(70, 10, false);
+            double reach = 5.5;
+            StreamMotesPayload spores = GooStreamHandler.motesOf(1, GLOVE, axis, SPORE,
+                    new GooStreamHandler.SprayedCone(wideAndThin, reach), Delivery.NO_THROW_SPEED);
+            for (int tilt = 0; tilt <= SHARES; tilt++) {
+                for (int turn = 0; turn < SHARES; turn++) {
+                    // just inside the rim, where rounding decides membership
+                    Vec3 launch = GooStreamHandler.moteLaunch(spores,
+                            new CoatRay.ConeShare(JUST_INSIDE * tilt / SHARES, (double) turn / SHARES));
+                    assertTrue(StreamCone.contains(GLOVE, axis, reach, wideAndThin, GLOVE.add(launch.normalize())),
+                            "a spore launches along " + launch + ", outside the shape");
+                    assertEquals(reach, launch.length() / GooStreamHandler.restingSpeed(1), TOLERANCE,
+                            "a spore's flight ends off the reach");
+                }
+            }
         }
     }
     /**

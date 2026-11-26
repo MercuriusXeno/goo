@@ -10,6 +10,7 @@ import com.mercuriusxeno.goo.ability.program.RayStep;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.registry.GooServerState;
+import com.mercuriusxeno.goo.throwing.ConeShape;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
@@ -165,9 +166,8 @@ final class StreamPrismCharge {
                                      AbilityDefinition ability, int hold) {
         BlockPos pos = prism.getBlockPos();
         // the operator's ruling: the prism is the gnats' homing target until it converts fully
-        GooStreamHandler.sprayParticles(player, apex, moteAxis(apex, pos),
-                ability.delivery().withCone(ability.delivery().range(), 0),
-                GooStreamHandler.restingSpeed(apex.distanceTo(Vec3.atCenterOf(pos))));
+        GooStreamHandler.sprayParticles(player, apex, moteAxis(apex, pos), ability.delivery(),
+                new GooStreamHandler.SprayedCone(ConeShape.round(0), apex.distanceTo(Vec3.atCenterOf(pos))));
         warm(player.level(), prism, ability, hold);
     }
 
