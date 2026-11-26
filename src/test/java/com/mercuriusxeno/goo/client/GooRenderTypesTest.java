@@ -263,7 +263,7 @@ class GooRenderTypesTest {
     /**
      * Every goo pipeline that blends in the level either draws through a registered OIT set of its own or stays on
      * its parity path with a reason; an immediately drawn pipeline counts by its stays entry, never by a set it does
-     * not use, and the glow shell's set adds its light under OIT_ADDITIVE.
+     * not use, and the glow shell's set draws with coverage under no OIT_ADDITIVE define.
      * decision goo-translucency-draws-through-order-independent-transparency
      */
     @Test
