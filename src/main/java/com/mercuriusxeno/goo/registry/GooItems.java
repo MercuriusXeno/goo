@@ -82,6 +82,9 @@ public class GooItems {
     public static final DeferredItem<BlockItem> BRECCIA = ITEMS.registerSimpleBlockItem("breccia", GooBlocks.BRECCIA);
     public static final DeferredItem<BlockItem> CRATER_ICE = ITEMS.registerSimpleBlockItem("crater_ice",
             GooBlocks.CRATER_ICE);
+    // --- Alien tech (decision all-utilities-are-redesigned-as-alien-tech-blocks) ---
+    public static final DeferredItem<BlockItem> METRONOME = ITEMS.registerSimpleBlockItem("metronome",
+            GooBlocks.METRONOME);
     public static final DeferredItem<BucketItem> MOLTEN_IRON_BUCKET = ITEMS.registerItem("molten_iron_bucket",
             props -> new BucketItem(GooFluids.MOLTEN_IRON_SOURCE.get(), props.craftRemainder(Items.BUCKET).stacksTo(1)));
     /**

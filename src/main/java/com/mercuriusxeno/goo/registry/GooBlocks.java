@@ -22,6 +22,7 @@ import com.mercuriusxeno.goo.block.ability.VinesCellBlock;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.block.ability.WispBlock;
 import com.mercuriusxeno.goo.block.ability.ZapPulseBlock;
+import com.mercuriusxeno.goo.block.alientech.MetronomeBlock;
 import com.mercuriusxeno.goo.block.canister.CanisterBlock;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlock;
 import com.mercuriusxeno.goo.block.gasket.ChoralGasketBlock;
@@ -788,6 +789,17 @@ public class GooBlocks {
      */
     public static final DeferredBlock<IceBlock> CRATER_ICE = BLOCKS.registerBlock("crater_ice", IceBlock::new,
             () -> BlockBehaviour.Properties.ofFullCopy(Blocks.ICE));
+
+    // --- Alien tech (decision all-utilities-are-redesigned-as-alien-tech-blocks) ---
+    /**
+     * Metronome: a plate like a repeater pulsing out its front at the cadence dialed on it, broken as fast as a
+     * repeater and dropping itself so a crucible can melt it.
+     * decision metronome-prism-pulses-at-the-learned-rate
+     * decision utility-blocks-found-in-lunar-are-learned-and-recreated-at-will
+     */
+    public static final DeferredBlock<MetronomeBlock> METRONOME = BLOCKS.registerBlock("metronome",
+            MetronomeBlock::new, () -> BlockBehaviour.Properties.of().mapColor(MapColor.METAL).instabreak()
+                    .sound(SoundType.METAL).pushReaction(PushReaction.POPPED));
 
     /** Molten iron's liquid block, glowing as lava does. */
     public static final DeferredBlock<LiquidBlock> MOLTEN_IRON = BLOCKS.registerBlock(GooFluids.MOLTEN_IRON_PATH,
