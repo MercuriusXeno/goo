@@ -17,6 +17,8 @@ public final class StreamCone {
     private static final double FULL_TURN = 2 * Math.PI;
     /** Blocks from the apex a point stands at the apex, too near for its angle off the axis to mean anything. */
     private static final double AT_THE_APEX = 1e-6;
+    /** A turn leaning this little one way never reaches a band's edge that way. */
+    private static final double NONE_THAT_WAY = 1e-9;
 
     private StreamCone() {
     }
@@ -65,7 +67,8 @@ public final class StreamCone {
 
     /**
      * A point pulled inside a cone of a shape: its angle off the axis held to the shape's width at its turn, and its
-     * distance from the apex to the reach; a point inside stands where it is.
+     * distance from the apex to the reach; a point inside stands where it is, and a point pulled passes
+     * {@link #contains}.
      * decision spray-abilities-render-procedurally-bound-to-their-cone
      *
      * @param apex  the cone's apex
@@ -81,7 +84,8 @@ public final class StreamCone {
         }
         Vec3 offset = point.subtract(apex);
         Section section = sectionOf(axis, offset);
-        return apex.add(section.heldInside(shape).scale(Math.min(offset.length(), reach)));
+        // a hair short of the reach, as the rim, so rounding leaves the pulled point inside
+        return apex.add(section.heldInside(shape).scale(Math.min(offset.length(), reach * Section.RIM_SLACK)));
     }
 
     private static Section sectionOf(Vec3 axis, Vec3 offset) {
@@ -191,6 +195,34 @@ public final class StreamCone {
         double tilt = Math.toRadians(shape.degreesAt(turn) * HALF) * tiltShare;
         Vec3 off = side.scale(Math.cos(turn)).add(lift.scale(Math.sin(turn)));
         return forward.scale(Math.cos(tilt)).add(off.scale(Math.sin(tilt))).normalize();
+    }
+
+    /**
+     * The direction on a cone's rim at a turn about its axis: for a cone the shape's half width at that turn, for a
+     * band the edge of its rectangle that way, so a section drawn through the rim directions outlines the shape
+     * {@link #contains} tests.
+     * decision spray-abilities-render-procedurally-bound-to-their-cone
+     *
+     * @param axis      the cone's axis, any length
+     * @param shape     the cone's widths across and up and down
+     * @param turnShare how far about the axis, zero to one for a full turn, zero across to the side
+     * @return the unit direction
+     */
+    public static Vec3 rimDirection(Vec3 axis, ConeShape shape, double turnShare) {
+        if (!shape.band()) {
+            return launchDirection(axis, shape, 1, turnShare);
+        }
+        Vec3 forward = axis.normalize();
+        Vec3 side = side(forward);
+        Vec3 lift = side.cross(forward);
+        double turn = FULL_TURN * turnShare;
+        double across = Math.cos(turn);
+        double upDown = Math.sin(turn);
+        double sideTan = Math.tan(Math.toRadians(shape.sideDegrees() * HALF));
+        double liftTan = Math.tan(Math.toRadians(shape.liftDegrees() * HALF));
+        double out = Math.min(sideTan / Math.max(Math.abs(across), NONE_THAT_WAY),
+                liftTan / Math.max(Math.abs(upDown), NONE_THAT_WAY));
+        return forward.add(side.scale(across * out)).add(lift.scale(upDown * out)).normalize();
     }
 
     /**
