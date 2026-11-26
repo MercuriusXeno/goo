@@ -46,12 +46,15 @@ class ResidualAbilityIconsTest {
     // operator pick 2026-11-19: Gloom takes draft C2, a small eclipse over a pool with rising strands
     // operator pick 2026-11-18: Dowsing takes draft E, a skinny amethyst sliver floating over hanging astral goo
     // dowsing-icon-is-a-dowsing-rod
+    // residual-icon-marks-are-picked-from-drafts-in-an-artifact: Wisps takes the draft the operator picked
     /** The icons drawing the residual style; a later residual joins by its icon's name. */
     static final List<String> RESIDUAL_ICONS = List.of("weird_goop", "kinetic_slick", "blaze_molten", "sculk_creep",
             "crystal_shatter", "hex_leech", "typhoon_updraft", "jelly_nectar", "pulse_signal",
             "metal_spikes", "zombie_infest", "leaf_vines", "unstable_nitro", "quantum_phase", "rock_mortar",
-            "yarn_stitch", "nether_gloom", "astral_dowsing");
+            "yarn_stitch", "nether_gloom", "astral_dowsing", "glow_wisps");
 
+    private static final String GOOP = "weird_goop";
+    private static final String WISPS = "glow_wisps";
     private static final String SHATTER = "crystal_shatter";
     private static final String NITRO = "unstable_nitro";
     private static final String STITCH = "yarn_stitch";
@@ -91,6 +94,27 @@ class ResidualAbilityIconsTest {
         assertEquals(SIDE, icon.getHeight(), ability + " height");
     }
 
+    /**
+     * Each residual icon stands on Goop's gray block: the block's bottom two
+     * rows, under whatever goo drips down its face, hold Goop's texels.
+     * residual-icons-draw-one-gray-block-with-the-types-goo-on-top
+     */
+    @ParameterizedTest
+    @FieldSource("RESIDUAL_ICONS")
+    void itStandsOnTheSharedBlocksBottomRows(String ability) throws IOException {
+        BufferedImage goop = read(GOOP);
+        BufferedImage icon = read(ability);
+        List<String> strays = new ArrayList<>();
+        for (int y = BLOCK_BOTTOM - 1; y <= BLOCK_BOTTOM; y++) {
+            for (int x = BLOCK_LEFT; x <= BLOCK_RIGHT; x++) {
+                if (icon.getRGB(x, y) != goop.getRGB(x, y)) {
+                    strays.add("(" + x + "," + y + ")");
+                }
+            }
+        }
+        assertTrue(strays.isEmpty(), ability + " leaves Goop's block at " + String.join(" ", strays));
+    }
+
     // every-icon-its-own-drawing
     @Test
     void noResidualIconCopiesAnotherOutsideTheBlock() throws IOException {
@@ -119,7 +143,7 @@ class ResidualAbilityIconsTest {
      * dowsing-icon-is-a-dowsing-rod
      */
     @ParameterizedTest
-    @ValueSource(strings = {NITRO, GLOOM, DOWSING})
+    @ValueSource(strings = {NITRO, GLOOM, DOWSING, WISPS})
     void itsGooTakesAShapeNoOtherResidualIconsGooTakes(String ability) throws IOException {
         String own = gooMask(ability, false);
         List<String> copies = new ArrayList<>();
