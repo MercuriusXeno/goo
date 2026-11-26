@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.client.sound.FadingLoops;
 import com.mercuriusxeno.goo.network.HeaterFlamePayload;
+import com.mercuriusxeno.goo.throwing.ConeShape;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
@@ -141,7 +142,7 @@ public final class HeaterFlames {
      * @return the field, camera relative
      */
     static FireField fieldOf(Heater heater, FireStream.JetSpan span, FireField.@Nullable Wall wall, Vec3 camera) {
-        return FireStream.fieldFrom(heater.tip(), heater.axis(), FireStream.FLAMES_RANGE,
-                FireStream.FLAMES_CONE_DEGREES, span, wall, camera);
+        return FireStream.fieldOf(new SprayCone(heater.tip(), heater.axis(),
+                ConeShape.round(FireStream.FLAMES_CONE_DEGREES), FireStream.FLAMES_RANGE), span, wall, camera);
     }
 }

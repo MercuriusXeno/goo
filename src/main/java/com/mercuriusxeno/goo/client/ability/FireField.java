@@ -11,8 +11,9 @@ import java.nio.ByteOrder;
  * on the world's 16-texel grid: separate licks of flame and small embers
  * poured down the cone from the spout, out to the reach, which a block the
  * look meets cuts short at its face. Packs the field's uniform block and
- * bounds the box the shader marches inside.
+ * bounds the box the shader marches inside, sized by the cone's two widths.
  * flames-draws-as-particle-style-fire
+ * decision spray-abilities-render-procedurally-bound-to-their-cone
  */
 final class FireField {
 
@@ -21,8 +22,11 @@ final class FireField {
     /** How far past the cone's radius the box reaches, so the licks wander and climb inside it. */
     private static final double BOX_WIDENING = 1.6;
     private static final double BOX_MARGIN = 0.6;
-    /** Blocks the licks climb for each block they travel; covers fire_field.fsh's rise. */
-    private static final double CLIMB_PER_BLOCK = 0.2;
+    /**
+     * How far the box rises for each block out, as a share of the cone's up and down radius there; covers
+     * fire_field.fsh's climb.
+     */
+    private static final double CLIMB_SHARE = 1.14;
     /** Points along the cone the box is fitted around. */
     private static final int BOX_SAMPLES = 8;
     /** The camera's world position is carried modulo this, so the voxel grid holds to the world's at float precision. */
@@ -38,7 +42,8 @@ final class FireField {
     private final Vec3 apex;
     private final Vec3 axis;
     private final Vec3 side;
-    private final double tan;
+    private final double sideTan;
+    private final double liftTan;
     private final double reach;
     private final double front;
     private final double tail;
@@ -47,12 +52,13 @@ final class FireField {
     /**
      * The jet's frame at the spout, camera relative.
      *
-     * @param apex the spout
-     * @param axis the unit vector the fire pours along
-     * @param side the unit direction across it to its side
-     * @param tan  the tangent of half the cone's angle
+     * @param apex    the spout
+     * @param axis    the unit vector the fire pours along
+     * @param side    the unit direction across it to its side
+     * @param sideTan the tangent of half the cone's width across
+     * @param liftTan the tangent of half the cone's width up and down
      */
-    record Jet(Vec3 apex, Vec3 axis, Vec3 side, double tan) {
+    record Jet(Vec3 apex, Vec3 axis, Vec3 side, double sideTan, double liftTan) {
     }
 
     /**
@@ -82,7 +88,8 @@ final class FireField {
         this.apex = jet.apex();
         this.axis = jet.axis();
         this.side = jet.side();
-        this.tan = jet.tan();
+        this.sideTan = jet.sideTan();
+        this.liftTan = jet.liftTan();
         this.wall = wall != null && wall.distance() < range ? wall : null;
         this.reach = this.wall == null ? range : this.wall.distance();
         this.front = Math.min(span.front(), reach);
@@ -110,9 +117,14 @@ final class FireField {
         return axis;
     }
 
-    /** @return the tangent of half the cone's angle */
-    double tan() {
-        return tan;
+    /** @return the tangent of half the cone's width across */
+    double sideTan() {
+        return sideTan;
+    }
+
+    /** @return the tangent of half the cone's width up and down */
+    double liftTan() {
+        return liftTan;
     }
 
     /** @return blocks from the spout the fire reaches: the range, or the face the look meets */
@@ -135,12 +147,13 @@ final class FireField {
     Vec3[] box() {
         double[] low = {Double.MAX_VALUE, Double.MAX_VALUE, Double.MAX_VALUE};
         double[] high = {-Double.MAX_VALUE, -Double.MAX_VALUE, -Double.MAX_VALUE};
+        double widestTan = Math.max(sideTan, liftTan);
         for (int sample = 0; sample <= BOX_SAMPLES; sample++) {
             double distance = reach * sample / BOX_SAMPLES;
-            double reachOut = distance * tan * BOX_WIDENING + BOX_MARGIN;
+            double reachOut = distance * widestTan * BOX_WIDENING + BOX_MARGIN;
             Vec3 center = apex.add(axis.scale(distance));
             double[] at = {center.x, center.y, center.z};
-            double[] climb = {0, distance * CLIMB_PER_BLOCK, 0};
+            double[] climb = {0, distance * liftTan * CLIMB_SHARE, 0};
             for (int index = 0; index < at.length; index++) {
                 low[index] = Math.min(low[index], at[index] - reachOut);
                 high[index] = Math.max(high[index], at[index] + reachOut + climb[index]);
@@ -165,13 +178,13 @@ final class FireField {
     void pack(ByteBuffer out, Vec3 camera, boolean zeroToOne) {
         ByteBuffer rows = out.order(ByteOrder.nativeOrder());
         Vec3[] box = box();
-        row(rows, apex, tan);
+        row(rows, apex, sideTan);
         row(rows, axis, reach);
         row(rows, side, tail);
         row(rows, wall == null ? WORLD_UP : wall.normal(), front);
         row(rows, wall == null ? apex : wall.at(), wall == null ? NONE : wall.distance());
         row(rows, box[0], zeroToOne ? 1 : 0);
-        row(rows, box[1], 0);
+        row(rows, box[1], liftTan);
         row(rows, new Vec3(gridOf(camera.x), gridOf(camera.y), gridOf(camera.z)), 0);
     }
 
