@@ -13,7 +13,7 @@
           "invert": {
             "type": "minecraft:y_above",
             "anchor": {
-              "absolute": -255
+              "absolute": -127
             },
             "surface_depth_multiplier": 0,
             "add_stone_depth": false
@@ -58,7 +58,7 @@
           "invert": {
             "type": "minecraft:y_above",
             "anchor": {
-              "absolute": -128
+              "absolute": -64
             },
             "surface_depth_multiplier": 0,
             "add_stone_depth": false
@@ -173,7 +173,7 @@
             "invert": {
               "type": "minecraft:y_above",
               "anchor": {
-                "absolute": 40
+                "absolute": 20
               },
               "surface_depth_multiplier": 0,
               "add_stone_depth": false
@@ -190,7 +190,7 @@
         "if_true": {
           "type": "minecraft:y_above",
           "anchor": {
-            "absolute": -128
+            "absolute": -64
           },
           "surface_depth_multiplier": 0,
           "add_stone_depth": false
@@ -202,7 +202,7 @@
             "invert": {
               "type": "minecraft:y_above",
               "anchor": {
-                "absolute": -64
+                "absolute": -32
               },
               "surface_depth_multiplier": 0,
               "add_stone_depth": false
@@ -264,15 +264,15 @@
     ]
   },
   "noise": {
-    "height": 576,
-    "min_y": -256
+    "height": 288,
+    "min_y": -128
   },
   "noise_router": {
     "chunk_surface_level": {
       "type": "minecraft:find_top_surface",
       "density": "goo:lunar/terrain",
-      "upper_bound": 320,
-      "lower_bound": -256,
+      "upper_bound": 160,
+      "lower_bound": -128,
       "cell_height": 8
     },
     "continents": 0.0,
@@ -281,16 +281,16 @@
       "left": {
         "type": "minecraft:gradient",
         "axis": "y",
-        "from_coordinate": -128,
-        "to_coordinate": -120,
+        "from_coordinate": -64,
+        "to_coordinate": -60,
         "from_value": 0.0,
         "to_value": 1.0
       },
       "right": {
         "type": "minecraft:gradient",
         "axis": "y",
-        "from_coordinate": -72,
-        "to_coordinate": -64,
+        "from_coordinate": -36,
+        "to_coordinate": -32,
         "from_value": 1.0,
         "to_value": 0.0
       }
@@ -345,6 +345,6 @@
     "temperature": 0.0,
     "vegetation": 0.0
   },
-  "sea_level": -256,
+  "sea_level": -128,
   "spawn_target": []
 }

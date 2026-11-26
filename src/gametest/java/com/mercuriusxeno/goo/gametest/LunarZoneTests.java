@@ -53,7 +53,7 @@ public final class LunarZoneTests {
     private static final int STRETCH_REACH = 256;
     private static final int SAMPLE_STEP = 4;
     /** A solid column's surface stands this far over the shallow zone, so no crater or rille reaches the zone. */
-    private static final int SOLID_SURFACE_CLEARANCE = 24;
+    private static final int SOLID_SURFACE_CLEARANCE = 12;
 
     private static final String LUNAR_REQUIRED = "The server should hold goo:lunar";
     private static final String NO_SOLID_COLUMN = "No column within %d blocks of the origin runs solid through the "

@@ -301,7 +301,7 @@
   "goo.ability.nether.invert.description": "Turns your gravity over: you fall up and walk on the ceiling. It ends the moment the sky is open above you, and you fall back down.",
   "goo.ability.zombie.infest": "Infest",
   "goo.ability.zombie.infest.cost_mechanics": "Costs %s per block of Infest laid, a fifteenth of it per layer.",
-  "goo.ability.zombie.infest.description": "Held stream sprays Infest, a festering zombie goo that gnaws away the blocks it lies on and bites whatever stands in it, healing the undead; each gnaw and bite may wear away a layer.",
+  "goo.ability.zombie.infest.description": "Held stream sprays Infest, a festering zombie goo that gnaws away the blocks it lies on and bites whatever stands in it, healing the undead; each gnaw and each bite costs it a layer.",
   "goo.ability.nether.tartarus": "Tartarus",
   "goo.ability.nether.tartarus.description": "Channel to summon a gate that takes you to the nether, onto the nearest safe ground.",
   "goo.ability.nether.tartarus.no_safe_floor": "Tartarus finds no safe ground there.",

@@ -116,7 +116,7 @@ public final class LunarSpawnTests {
         int middleY = (LunarDepths.SEA_ZONE_TOP_Y + LunarDepths.WARREN_ZONE_TOP_Y) / 2;
         for (int x = -WARREN_SEARCH_REACH; x <= WARREN_SEARCH_REACH; x++) {
             for (int z = -WARREN_SEARCH_REACH; z <= WARREN_SEARCH_REACH; z++) {
-                for (int y = middleY - 16; y < middleY + 16; y++) {
+                for (int y = middleY - 8; y < middleY + 8; y++) {
                     if (warrens.isOpenAt(x, y, z) && !warrens.isOpenAt(x, y - 1, z)) {
                         BlockPos floor = new BlockPos(x, y, z);
                         lunar.getChunk(x >> 4, z >> 4);

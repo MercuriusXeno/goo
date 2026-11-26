@@ -6,9 +6,13 @@ import com.mojang.renderpearl.api.pipeline.DepthStencilState;
 import com.mojang.renderpearl.api.pipeline.RenderPipeline;
 import com.mojang.renderpearl.api.pipeline.ShaderType;
 import com.mojang.renderpearl.api.pipeline.UniformType;
+import net.minecraft.client.renderer.oit.OitPipelineSet;
+import net.minecraft.client.renderer.rendertype.RenderSetup;
+import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.resources.Identifier;
 import net.neoforged.neoforge.client.stencil.StencilTest;
 import org.jspecify.annotations.Nullable;
+import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Optional;
 
@@ -75,5 +79,26 @@ public final class PipelineReads {
         return BindGroupLayout.flattenUniforms(layouts).stream()
                 .filter(uniform -> uniform.type() == UniformType.COMBINED_IMAGE_SAMPLER)
                 .map(BindGroupLayout.UniformDescription::name).toList();
+    }
+
+    /**
+     * Reads the set a render type's setup attached through RenderSetup.setOitPipelines, which the type keeps
+     * private and answers only through a prepare that needs the GPU.
+     * decision goo-translucency-draws-through-order-independent-transparency
+     *
+     * @param renderType the render type
+     * @return the OIT pipeline set its setup carries, or null where it carries none
+     */
+    public static @Nullable OitPipelineSet oitPipelines(RenderType renderType) {
+        try {
+            Field setupField = RenderType.class.getDeclaredField("state");
+            setupField.setAccessible(true);
+            Object setup = setupField.get(renderType);
+            Field oitField = RenderSetup.class.getDeclaredField("oitPipelineSet");
+            oitField.setAccessible(true);
+            return (OitPipelineSet) oitField.get(setup);
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException("RenderType no longer keeps its OIT set where 26.3 kept it", e);
+        }
     }
 }

@@ -32,6 +32,8 @@ import java.util.Map;
 public class StatueRenderer implements BlockEntityRenderer<StatueBlockEntity, StatueRenderState> {
 
     private static final double BLOCK_CENTER = 0.5;
+    /** The id every stand-in carries: client-only and negative, so no real entity's id matches it. */
+    private static final int STAND_IN_ID = -1;
 
     /** The stand-in mob of each type, baby and adult apart. */
     private final Map<StandIn, LivingEntity> standIns = new HashMap<>();
@@ -99,6 +101,10 @@ public class StatueRenderer implements BlockEntityRenderer<StatueBlockEntity, St
         if (!(key.type().create(level, EntitySpawnReason.LOAD) instanceof LivingEntity living)) {
             return null;
         }
+        // A stand-in never joins the level, which assigns an entity its id, and 26.3 throws on an unassigned id the
+        // frame's glowing check reads; a negative id is none a real entity holds, so no mark ever lands on it
+        // (defect row 10).
+        living.setId(STAND_IN_ID);
         if (living instanceof Mob mob) {
             mob.setBaby(key.baby());
         }

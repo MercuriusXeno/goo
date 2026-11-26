@@ -1,24 +1,73 @@
 # Goo
 
-A Minecraft mod for NeoForge 26.1. Melt items down into typed goo, store it, move it around, and throw it at things.
+A Minecraft "alchemy" (taxonomy) mod with a lot of goo-fueled magic.
 
-## What it does
+Goo is Equivalent Exchange (which I made) and Thaumcraft mixed in a blender and then left in the sun too long.
 
-Most items have a goo breakdown, derived from base values through their recipes, across 25 types: Astral, Blaze, Crystal, Ender, Frost, Glow, Hex, Infinity, Jelly, Kinetic, Leaf, Metal, Nether, Ornate, Pulse, Quantum, Rock, Sculk, Typhoon, Unstable, Void, Weird, Xeno, Yarn, and Zombie.
+You melt things in crucibles, which learns their composition, and then you plex (in a plexer) the goo in canister(s) back into an item, using a crafter-like machine.
 
-Light a **Crucible** with flint and steel, then drop or toss items in to melt them into goo. Store goo in **Canisters**, up to nine to a block; in **Hubs**, which route goo into eight canisters; and in **Vats**, which grow with the Void goo they hold. Link **Choral Gaskets** in pairs with a **Choral Tuner** to pipe goo between machines at any distance.
+The goo can be sprayed in the world to do residual stuff, and it is used as a fuel for different abilities.
 
-Mix goo in a **Reactor**, and reconstitute items in a **Plexer**: set the target item, fit canisters of the right goo to its top, and pulse it with redstone.
+## Goo types
 
-Each goo type has its own **abilities**, up to six per type. Hold a **Goo Glove**, press G to pick a type and ability from the radial, and right-click to throw, beam, stream or self-cast it. Abilities unlock as you learn certain items.
+*Astral* - Star stuff and divining.
+*Blaze* - Things that are hot.
+*Crystal* - Gems and glass.
+*Durable* - Things that are tough/hard.
+*Ender* - The End and Ender stuff.
+*Frost* - Cold stuff.
+*Glow* - Stuff that glows.
+*Hex* - Soul stuff and enchanting.
+*Infinity* - Nothing has it, it's special.
+*Jelly* - Food stuff.
+*Kinetic* - Specific motion related stuff.
+*Leaf* - Plant stuff.
+*Metal* - You can guess.
+*Nether* - Things related to the nether.
+*Ornate* - Dye and rich stuff like gold and emerald.
+*Pulse* - Redstone things.
+*Quantum* - Dimensional shenanigans stuff.
+*Rock* - Most of the world is this. Dirt, stone, etc.
+*Sculk* - Shrooms and, more obviously, sculk. Crimson. Warped.
+*Typhoon* - Stuff to do with air and wind mainly.
+*Unstable* - Explosive stuff.
+*Void* - Anti-stuff, sort of doesn't exist, but does.
+*Weird* - Slime stuff, very specifically.
+*Xeno* - Eldritch/monster stuff, another esoteric goo.
+*Yarn* - Animal stuff, like string and wool and leather.
+*Zombie* - Undead stuff.
 
-## Building
+# Melt items
 
-Requires JDK 25.
+Use crucibles to melt items. You can melt your first few items by sparking it with a flint and steel, but it's easier if you get some blaze goo and leave it in there. Blaze and unstable will both melt items. Unstable melts more than one item, and it melts them really fast.
 
-```bash
-./gradlew build
-```
+# Store goo
+
+You put goo in canisters but it's also an item. It's easier to carry a lot of goo if you put them in a container. Vats hold a lot. Canisters hold less but you can put them places a Vat can't go. There is no limit to the types a single canister can hold, but you can label a container to make it only accept that type, if you want.
+
+# Choral Gaskets
+
+Using choral to make gaskets lets containers transfer their liquids to each other across distances. You need a choral tuning fork to link one container's top to the bottom of another, and the bottom gasket will send to the other one's top gasket.
+
+# Reactions
+
+Residual goo is reactive. Some goo types mix with others to create different goo. Some goo types just do stuff when they mix. Some goo types mix with things that aren't goo and do stuff. Unstable goo reacts with everything, if you count explosions. Try mixing goo with goo to see what happens. Try mixing Ender goo with water!
+
+# Reactor
+
+A block that uses canisters to carry out the reactions in a stable way. You feed it goo from canisters to combine goo types and get their combination in an output canister.
+
+# "Plexer"
+
+A multiplexer, it takes different goo and turns it back into items when you pulse it with redstone, like a crafter. You can use the slots on the top to put canisters, also like a crafter, instead of items. A plexer can make anything you've melted at least once.
+
+# Glove
+
+A glove is handy (ugh sorry) for throwing goo and using goomancy, which is a fancy way of saying goo can do magic stuff. Goo is like elemental fuel, so you can use it to extract cool powers from it. You don't need a glove to do this: you can use goo just by holding it, but a glove lets you pull the goo from other sources, like canisters and vats.
+
+# Sprayer
+
+A special tool that overlaps with some of the things you can do with goo by hand, but specifically: some goo powers are residual (you spray goo in the world) or some kind of channeled spraying thing (like flames or mist). Sprayers do *only these things*, but they do them *really really well*. You can increase the flow rate or change the shape of the spray, for whatever reason. Different nozzles have different ranges and coverage. You can also make sprayers flow faster than you could otherwise.
 
 ## Authors
 
@@ -27,19 +76,3 @@ MercuriusXeno and gabb.png.
 ## License
 
 Goo is All Rights Reserved. Copyright (c) 2026 MercuriusXeno. See [LICENSE](LICENSE).
-
-### Third-party
-
-The shipped mod jar bundles none of the dependencies below: NeoForge is provided by the loader at runtime, and every other entry is used only to test or analyze the build.
-
-| Dependency | Version | Used for | License |
-| --- | --- | --- | --- |
-| NeoForge | 26.1.0.1-beta | Mod loader, provided at runtime | LGPL-2.1 |
-| JUnit Jupiter | 5.11.4 | Tests | EPL-2.0 |
-| JUnit Platform Launcher | 1.13.4 | Tests | EPL-2.0 |
-| Mockito (mockito-core, mockito-junit-jupiter) | 5.23.0 | Tests | MIT |
-| Instancio (instancio-junit) | 5.4.0 | Tests | Apache-2.0 |
-| ArchUnit (archunit-junit5) | 1.4.1 | Tests; bundles ASM under BSD-3-Clause | Apache-2.0 |
-| sb-contrib | 7.6.8 | SpotBugs plugin, static analysis | LGPL-2.1 |
-| Find Security Bugs (findsecbugs-plugin) | 1.13.0 | SpotBugs plugin, static analysis | LGPL |
-

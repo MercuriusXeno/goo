@@ -7,9 +7,10 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 /**
  * Client-side handler for the ore veins a held sweep of Glimmer or Magnet
- * reached: each shows through walls for its life.
+ * reached: each shows through walls for its life, in the casting goo type's color.
  * decision held-sweeps-share-one-fast-shell-visual
  * decision glitter-sphere-icons-gem-ore-groups
+ * decision ore-glow-takes-the-casting-goos-color
  */
 public final class OreRevealHandler {
 
@@ -25,7 +26,8 @@ public final class OreRevealHandler {
         context.enqueueWork(() -> {
             Minecraft mc = Minecraft.getInstance();
             if (mc.level != null) {
-                OreSightings.CLIENT.reveal(mc.level.getGameTime(), payload.veins(), payload.life());
+                OreSightings.CLIENT.reveal(mc.level.getGameTime(), payload.veins(), payload.life(),
+                        payload.gooType());
             }
         });
     }

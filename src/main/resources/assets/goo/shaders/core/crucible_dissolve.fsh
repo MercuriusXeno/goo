@@ -3,6 +3,7 @@
 
 #include <minecraft:fog.glsl>
 #include <minecraft:dynamictransforms.glsl>
+#include <minecraft:oit.glsl>
 #include <minecraft:globals.glsl>
 #include <goo:mingle_noise.glsl>
 
@@ -30,7 +31,12 @@ layout(location = 7) flat in float glowShare;
 layout(location = 8) flat in float glowLayer;
 layout(location = 9) flat in float dissolveSeed;
 
+// Under improved transparency the depth bounds and transmittance phases take the alpha alone, and the
+// accumulate phase weights the color by the transmittance in front of it
+// (decision goo-translucency-draws-through-order-independent-transparency).
+#ifndef OIT_ALPHA_ONLY
 layout(location = 0) out vec4 fragColor;
+#endif
 
 // Noise cells per item pixel: a cell spans four of a 16-pixel item's pixels,
 // so a melting patch is several pixels across however small the crucible
@@ -84,5 +90,13 @@ void main() {
     vec3 lit = mix(color.rgb * color.a, glowColor * GLOW_STRENGTH, edge);
     float alpha = mix(color.a, 1.0, edge);
 
+#ifdef OIT_ALPHA_ONLY
+    executeAlphaOnlyPhase(gl_FragCoord.z, alpha);
+#elif defined(OIT_ACCUMULATE)
+    // The accumulate phase weights a straight color by its alpha itself, so the premultiplied blend is undone first.
+    vec4 accumulated = sampleColorForAccumulation(vec4(lit / alpha, alpha));
+    fragColor = apply_fog(accumulated, sphericalVertexDistance, cylindricalVertexDistance, FogEnvironmentalStart, FogEnvironmentalEnd, FogRenderDistanceStart, FogRenderDistanceEnd, vec4(FogColor.rgb * accumulated.a, FogColor.a));
+#else
     fragColor = apply_fog(vec4(lit, alpha), sphericalVertexDistance, cylindricalVertexDistance, FogEnvironmentalStart, FogEnvironmentalEnd, FogRenderDistanceStart, FogRenderDistanceEnd, FogColor);
+#endif
 }

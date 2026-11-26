@@ -187,6 +187,11 @@ class AimStateTest {
         }
 
         @Override
+        public boolean reaches(Vec3 point) {
+            return true;
+        }
+
+        @Override
         public TargetResult blockTarget() {
             return TargetResult.NONE;
         }

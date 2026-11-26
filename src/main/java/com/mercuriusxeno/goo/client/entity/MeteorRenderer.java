@@ -92,7 +92,7 @@ public class MeteorRenderer extends EntityRenderer<Meteor, MeteorRenderer.Meteor
         poseStack.translate(0, ROCK_SIZE * HALF, 0);
         Vec3 rock = new Vec3(state.x, state.y + ROCK_SIZE * HALF, state.z).add(state.pathOffset);
         QUEUED.queue(poseStack.last().copy(), rock, GooRenderTypes.GLOW_SHELL_TYPE, (pose, buffer) ->
-                ColorSphere.emit(pose, buffer, Vec3.ZERO, HALO_RADIUS, ARGB.color(HALO_ALPHA, HALO_RGB)));
+                ColorSphere.emit(pose, buffer, Vec3.ZERO, HALO_RADIUS, haloColor()));
         poseStack.rotate(Axis.XP.rotationDegrees(state.ageInTicks * TUMBLE_X));
         poseStack.rotate(Axis.ZP.rotationDegrees(state.ageInTicks * TUMBLE_Z));
         poseStack.scale(ROCK_SIZE, ROCK_SIZE, ROCK_SIZE);
@@ -114,6 +114,13 @@ public class MeteorRenderer extends EntityRenderer<Meteor, MeteorRenderer.Meteor
      */
     public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
         QUEUED.drain(frame, draws);
+    }
+
+    /**
+     * @return the color the fire halo around the rock glows
+     */
+    public static int haloColor() {
+        return ARGB.color(HALO_ALPHA, HALO_RGB);
     }
 
     /**

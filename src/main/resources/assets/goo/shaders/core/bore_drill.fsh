@@ -4,6 +4,7 @@
 #include <minecraft:dynamictransforms.glsl>
 #include <minecraft:projection.glsl>
 #include <minecraft:globals.glsl>
+#include <minecraft:oit.glsl>
 
 // Bore's vortex (decisions bore-shows-a-big-drill-from-the-glove, bore-breaks-what-is-in-the-vortex): a
 // vortex of earth magic held out in front of the player, marched as Drain's vortex is (decision
@@ -35,7 +36,12 @@ uniform sampler2D BoreDrillDepthSampler;
 
 layout(location = 0) in vec3 rayPoint;
 
+// Under improved transparency the depth bounds and transmittance phases take the alpha alone, and the
+// accumulate phase weights the color by the transmittance in front of it
+// (decision goo-translucency-draws-through-order-independent-transparency).
+#ifndef OIT_ALPHA_ONLY
 layout(location = 0) out vec4 fragColor;
+#endif
 
 // GameTime runs from zero to one over a day of 24000 ticks; this many seconds make one day.
 const float SECONDS_PER_DAY = 1200.0;
@@ -265,5 +271,12 @@ void main() {
     if (gathered.a <= 0.0) {
         discard;
     }
-    fragColor = vec4(gathered.rgb / gathered.a, min(gathered.a, MOST_COVER));
+    vec4 drawn = vec4(gathered.rgb / gathered.a, min(gathered.a, MOST_COVER));
+#ifdef OIT_ALPHA_ONLY
+    executeAlphaOnlyPhase(gl_FragCoord.z, drawn.a);
+#elif defined(OIT_ACCUMULATE)
+    fragColor = sampleColorForAccumulation(drawn);
+#else
+    fragColor = drawn;
+#endif
 }

@@ -29,7 +29,7 @@ public final class LunarLavaTubeTests {
     /** The fill stays within this many blocks of the tube's axis, so it follows the tube and nothing past it. */
     private static final int FILL_REACH = 48;
     /** The fill reaches the sea cavern once it stands under the lowest the cavern's roof falls. */
-    private static final int CAVERN_Y = LunarDepths.SEA_ZONE_TOP_Y - 16;
+    private static final int CAVERN_Y = LunarDepths.SEA_ZONE_TOP_Y - 8;
 
     private static final String LUNAR_REQUIRED = "The server should hold goo:lunar";
     private static final String NO_TUBE = "No lava tube within %d cells of the origin opens on the surface";

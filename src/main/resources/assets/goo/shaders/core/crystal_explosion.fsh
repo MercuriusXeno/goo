@@ -1,6 +1,8 @@
 #version 330
 #extension GL_ARB_separate_shader_objects : require
 
+#include <minecraft:oit.glsl>
+
 // Crystal goo's burnout explosion (decision elemental-explosion-per-type): a
 // prism burst. The glass shell is cut into voronoi facets whose edges split
 // light into a thin rainbow band about 77E9FF, with bright cyan glints;
@@ -14,7 +16,12 @@ layout(location = 3) in float progress;
 layout(location = 4) in float opacity;
 layout(location = 5) in float shattered;
 
+// Under improved transparency the depth bounds and transmittance phases take the alpha alone, and the
+// accumulate phase weights the color by the transmittance in front of it
+// (decision goo-translucency-draws-through-order-independent-transparency).
+#ifndef OIT_ALPHA_ONLY
 layout(location = 0) out vec4 fragColor;
+#endif
 
 const vec3 GLASS_COLOR = vec3(0.467, 0.914, 1.0);
 const vec3 GLINT_COLOR = vec3(0.85, 1.0, 1.0);
@@ -76,5 +83,12 @@ void main() {
     color = mix(color, GLINT_COLOR, glint);
 
     float alpha = GLASS_OPACITY + EDGE_OPACITY * edge + glint * 0.5;
-    fragColor = vec4(color, clamp(alpha, 0.0, 1.0) * opacity);
+    vec4 drawn = vec4(color, clamp(alpha, 0.0, 1.0) * opacity);
+#ifdef OIT_ALPHA_ONLY
+    executeAlphaOnlyPhase(gl_FragCoord.z, drawn.a);
+#elif defined(OIT_ACCUMULATE)
+    fragColor = sampleColorForAccumulation(drawn);
+#else
+    fragColor = drawn;
+#endif
 }

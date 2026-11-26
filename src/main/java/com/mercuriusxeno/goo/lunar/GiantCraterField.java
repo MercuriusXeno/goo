@@ -24,6 +24,7 @@ import java.util.Optional;
  * than {@link CraterField}'s, each holding one giant crater or none, rolled from the same seeded crater noise on rolls
  * of their own.
  * decision lunar-surface-gains-giant-craters-mountains-rilles-and-boulder-fields
+ * decision moon-is-288-tall-half-of-today
  *
  * @param noise the seeded noise each cell's rolls read
  */
@@ -41,10 +42,10 @@ public record GiantCraterField(Noise noise) implements DensitySampler {
     static final double MIN_RADIUS = 110.0;
     static final double RADIUS_SPREAD = 130.0;
     /** The floor sinks this share of the radius; large craters run shallow for their width. */
-    static final double DEPTH_PER_RADIUS = 0.15;
-    static final double RIM_PER_RADIUS = 0.06;
+    static final double DEPTH_PER_RADIUS = 0.075;
+    static final double RIM_PER_RADIUS = 0.03;
     /** The central peak rises this share of the radius over the floor, short of the rim. */
-    static final double PEAK_PER_RADIUS = 0.13;
+    static final double PEAK_PER_RADIUS = 0.065;
     /** The central peak's foot, in radii from the centre. */
     static final double PEAK_REACH = 0.15;
     /** The flat floor runs out to here, in radii, where the terraced wall begins. */

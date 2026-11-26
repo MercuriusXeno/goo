@@ -2,11 +2,10 @@
   "gooType": "crystal",
   "displayName": "goo.ability.crystal.shatter",
   "cost_mechanics": "goo.ability.crystal.shatter.cost_mechanics",
-  "badge": "channeled",
+  "badge": "residual",
   "order": 0,
   "cost": 1000,
   "cost_formula": "%s/m³",
-  "requires": ["minecraft:glass", "minecraft:sand"],
   "delivery": {
     "kind": "stream",
     "drains_on_placement": true,

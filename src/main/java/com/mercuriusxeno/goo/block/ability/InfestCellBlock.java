@@ -26,9 +26,9 @@ import java.util.Optional;
  * under it and the block behind each side it coats a stage along the block
  * map Infest's step names, Decay's, and bites each living thing standing in
  * it for the step's magic damage, healing an undead one by it instead, as
- * Decay's bite does. Each block stage gnawed and each bite landed rolls the
- * step's chance to take a layer; a cell losing its last layer is gone, and a
- * block the map leaves alone costs nothing. The cell spares the player who
+ * Decay's bite does. Each block stage gnawed and each bite landed costs the
+ * cell a layer; a cell losing its last layer is gone, and a block the map
+ * leaves alone costs nothing. The cell spares the player who
  * placed it, as Decay spares its caster, and credits that player for what
  * its bite kills. The client draws Decay's gnats drifting over it.
  * infest-is-nethers-goo-the-decay-effect-localized-around-the-goo
@@ -81,8 +81,9 @@ public class InfestCellBlock extends VolumeCellBlock {
     }
 
     /**
-     * Gnaws what the cell lies on, bites what stands in it, and stands the
-     * cell lower by the layers its rolls took, gone where they took them all.
+     * Gnaws what the cell lies on and bites what stands in it in full, then
+     * stands the cell a layer lower for each block stage gnawed and each bite
+     * landed, gone where they total its layers or more.
      * infest-has-a-chance-to-deplete-as-it-gnaws-and-bites
      *
      * @param level  the server level
@@ -90,19 +91,13 @@ public class InfestCellBlock extends VolumeCellBlock {
      * @param infest Infest's step
      */
     private void gnawAndBite(ServerLevel level, BlockPos pos, InfestStep infest) {
-        int rolls = gnaw(level, pos, level.getBlockState(pos), infest) + bite(level, pos, infest);
+        int costs = gnaw(level, pos, level.getBlockState(pos), infest) + bite(level, pos, infest);
         BlockState after = level.getBlockState(pos);
-        if (rolls == 0 || !after.is(this)) {
+        if (costs == 0 || !after.is(this)) {
             return;
         }
-        int layers = after.getValue(LAYERS);
-        int left = LayerDeplete.layersAfterRolls(layers, rolls, level.getRandom()::nextDouble,
-                infest.depleteChance());
-        if (left == 0) {
-            level.setBlock(pos, Blocks.AIR.defaultBlockState(), UPDATE_ALL);
-        } else if (left != layers) {
-            level.setBlock(pos, after.setValue(LAYERS, left), UPDATE_ALL);
-        }
+        int left = LayerDeplete.layersAfterCosts(after.getValue(LAYERS), costs);
+        level.setBlock(pos, left == 0 ? Blocks.AIR.defaultBlockState() : after.setValue(LAYERS, left), UPDATE_ALL);
     }
 
     /**

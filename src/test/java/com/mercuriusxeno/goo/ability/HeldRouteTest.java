@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.ability;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -47,6 +48,22 @@ class HeldRouteTest {
     @Test
     void selfWearingTheSelfBadgeRunsOnCommand() {
         assertFalse(HeldRoute.runsWhileHeld(SELF, AbilityBadge.SELF));
+    }
+
+    /**
+     * The shipped Scry is cast once on a press, wearing the instant badge
+     * over a self delivery that charges nothing per held tick.
+     * decision scry-is-instant-and-no-longer-channeled
+     */
+    @Test
+    void theShippedScryIsAnInstantSelfAbilityRunOnCommand() {
+        AbilityDefinition scry = AbilityJson.decode("astral_scry");
+
+        assertEquals(AbilityBadge.SELF, scry.badge(), "the instant badge");
+        assertEquals(DeliveryKind.SELF, scry.delivery().kind());
+        assertFalse(scry.delivery().charges(), "a press charges nothing per held tick");
+        assertFalse(HeldRoute.channelsOnSelf(scry.delivery(), scry.badge()), "no channel on the player");
+        assertFalse(HeldRoute.runsWhileHeld(scry.delivery(), scry.badge()), "nothing runs while held");
     }
 
     @Test
