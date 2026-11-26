@@ -9,8 +9,10 @@
 // A gate's swirl band (decision tornadic-halo-spirals-out-from-the-rim): one dense, bright band
 // straddling the rim, arching from just inside it, over the portal's view, to just outside it on the
 // wall, peaking a little off the wall right over the rim. It is packed with fine streaks that run
-// along the ring at a slight slant and turn slowly the screw way; its edges feather softly and its
-// core over the rim burns toward white. It draws smooth and blended, reading the face coordinate
+// along the ring at a slight slant and turn slowly the screw way; it lies full from its inner edge,
+// flush on the face, so its lifted far side leaves no gap to the face, and fades only as it moves away
+// from the face onto the wall; its core over the rim burns toward white
+// (decision diagnose-and-correct-the-swirl-bands-depth-under-improved-transparency). It draws smooth and blended, reading the face coordinate
 // unsnapped, off the texel grid the rim and surface glow keep. frameCoord runs zero to one around the
 // rim, then zero to one across the arch from inside the rim to outside; texels carries how many
 // texels each way runs, around the arch's peak and across it.
@@ -46,8 +48,6 @@ const float BAND_GLOW = 0.35;
 const float BAND_STREAK_GLOW = 0.65;
 // How far the brightest streaks at the core burn toward white.
 const float BAND_HOT = 0.6;
-// How far in from the band's inner edge its glow feathers up to full, as a share of its width.
-const float BAND_FEATHER = 0.35;
 // How quickly the band thins to a ghost from the rim outward onto the wall, higher sooner, so its
 // exterior reads immaterial rather than as a crisp edge. Tuned by eye.
 const float BAND_GHOST = 2.5;
@@ -86,7 +86,7 @@ void main() {
             + 0.35 * streakNoise(at * 2.0, BAND_STREAKS_AROUND * 2.0);
     streaks = streaks * streaks;
     float outward = clamp((across - 0.5) * 2.0, 0.0, 1.0);
-    float feather = smoothstep(0.0, BAND_FEATHER, across) * pow(1.0 - outward, BAND_GHOST);
+    float feather = pow(1.0 - outward, BAND_GHOST);
     float core = exp(-pow((across - 0.5) / BAND_CORE, 2.0));
     float glow = feather * (BAND_GLOW + BAND_STREAK_GLOW * streaks);
     vec3 color = mix(frameColor.rgb, vec3(1.0), BAND_HOT * core * streaks);
