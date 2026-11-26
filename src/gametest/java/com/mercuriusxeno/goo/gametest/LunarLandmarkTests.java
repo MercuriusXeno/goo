@@ -244,7 +244,7 @@ public final class LunarLandmarkTests {
      * Generates a structure at a spot in goo:lunar as the place command does, placing it in every chunk its box
      * reaches, and answers its start.
      */
-    private static StructureStart generate(ServerLevel lunar, ResourceKey<Structure> structure, BlockPos spot) {
+    static StructureStart generate(ServerLevel lunar, ResourceKey<Structure> structure, BlockPos spot) {
         Holder.Reference<Structure> holder = lunar.registryAccess().lookupOrThrow(Registries.STRUCTURE)
                 .getOrThrow(structure);
         ChunkGenerator generator = lunar.getChunkSource().getGenerator();
