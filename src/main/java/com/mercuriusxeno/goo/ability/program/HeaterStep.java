@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.block.ability.PrismBlock;
 import com.mercuriusxeno.goo.block.ability.PrismColumn;
 import com.mercuriusxeno.goo.network.EntityVisuals;
 import com.mercuriusxeno.goo.network.HeaterFlamePayload;
+import com.mercuriusxeno.goo.throwing.ConeShape;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
@@ -124,7 +125,8 @@ public record HeaterStep(double radius, Expr damage, int every, int burnSeconds,
     private void burnSprayed(MarkerHost host, Vec3 tip, Vec3 axis, float amount) {
         ServerLevel level = host.level();
         List<Mob> inReach = level.getEntitiesOfClass(Mob.class, new AABB(tip, tip).inflate(radius), Mob::isAlive);
-        List<FlameRays.Ray> rays = FlameRays.spray(tip, axis, cone, radius, level.getRandom(), FlameRays.clipIn(level));
+        List<FlameRays.Ray> rays = FlameRays.spray(tip, axis, ConeShape.round(cone), radius, level.getRandom(),
+                FlameRays.clipIn(level));
         ServerPlayer placer = host.placer();
         for (Mob mob : FlameRays.crossed(rays, inReach, Mob::getBoundingBox)) {
             FlamesStep.burn(level, mob, amount, burnSeconds, placer);

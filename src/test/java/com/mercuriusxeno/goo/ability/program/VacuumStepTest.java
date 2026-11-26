@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.throwing.ConeShape;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.google.gson.JsonElement;
@@ -489,9 +490,22 @@ class VacuumStepTest {
             assertEquals(List.of(near, middle, far), reached(Set.of(far, near, middle), Set.of()));
         }
 
+        /**
+         * A cone wide across and thin up and down reaches a residual off to the side and leaves one the same angle
+         * above the axis (decision cone-style-abilities-are-reviewed-for-consistency).
+         */
+        @Test
+        void aWideThinConeReachesAResidualOffToTheSideAndLeavesOneAsFarAbove() {
+            // five ahead and two off the axis, about 22 degrees: inside the 30 either side, outside the 4 up
+            BlockPos offToTheSide = new BlockPos(5, 2, 2);
+            BlockPos asFarAbove = new BlockPos(5, 4, 0);
+            assertEquals(List.of(offToTheSide), VacuumStep.residualsInCone(EYE, LOOK_EAST, new ConeShape(60, 8, false),
+                    Set.of(offToTheSide, asFarAbove)::contains, pos -> true));
+        }
+
         private static List<BlockPos> reached(Set<BlockPos> residuals, Set<BlockPos> solid) {
             Predicate<BlockPos> passable = pos -> !solid.contains(pos);
-            return VacuumStep.residualsInCone(EYE, LOOK_EAST, CONE, residuals::contains, passable);
+            return VacuumStep.residualsInCone(EYE, LOOK_EAST, ConeShape.round(CONE), residuals::contains, passable);
         }
     }
 }

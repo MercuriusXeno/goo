@@ -43,7 +43,7 @@ public record BreakBlocksStep(TagKey<Block> tag) implements TakesNoEntity {
     public boolean tick(StepContext context) {
         ChannelHost host = context.hostAs(ChannelHost.class);
         host.channelAim().ifPresent(aim -> {
-            for (BlockPos pos : CalcifyStep.blocksInCone(host.eye(), aim.aimPoint(), aim.coneDegrees())) {
+            for (BlockPos pos : CalcifyStep.blocksInCone(host.eye(), aim.aimPoint(), aim.shape())) {
                 if (host.blockIn(pos, tag)) {
                     host.breakBlock(pos);
                 }

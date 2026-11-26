@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.ability.kinetic.GrabEvents;
+import com.mercuriusxeno.goo.throwing.ConeShape;
 import com.mercuriusxeno.goo.throwing.StreamCone;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
@@ -73,7 +74,7 @@ public record VacuumPullStep(double itemAcceleration, double itemTopSpeed, doubl
         host.channelAim().ifPresent(aim -> {
             Vec3 eye = host.eye();
             Vec3 look = aim.aimPoint().subtract(eye);
-            for (Entity entity : inCone(host, player, eye, look, aim.coneDegrees())) {
+            for (Entity entity : inCone(host, player, eye, look, aim.shape())) {
                 if (entity instanceof ItemEntity item) {
                     pullItem(item, eye);
                 } else if (drags(entity)) {
@@ -84,11 +85,24 @@ public record VacuumPullStep(double itemAcceleration, double itemTopSpeed, doubl
         return true;
     }
 
-    private static List<Entity> inCone(ChannelHost host, ServerPlayer player, Vec3 eye, Vec3 look,
-                                       double coneDegrees) {
-        double range = look.length();
-        return host.level().getEntities(player, new AABB(eye, eye).inflate(range),
-                entity -> StreamCone.contains(eye, look, range, coneDegrees, entity.getBoundingBox().getCenter()));
+    private static List<Entity> inCone(ChannelHost host, ServerPlayer player, Vec3 eye, Vec3 look, ConeShape shape) {
+        return host.level().getEntities(player, new AABB(eye, eye).inflate(look.length()),
+                entity -> pulls(eye, look, shape, entity.getBoundingBox()));
+    }
+
+    /**
+     * Whether the pull takes a thing: its box stands inside the cone, by the one test every coned stream's scan
+     * reads.
+     * decision cone-style-abilities-are-reviewed-for-consistency
+     *
+     * @param eye   the cone's apex
+     * @param look  the cone's axis, as long as the reach
+     * @param shape the cone's widths across and up and down
+     * @param box   the thing's box
+     * @return true where the pull takes it
+     */
+    static boolean pulls(Vec3 eye, Vec3 look, ConeShape shape, AABB box) {
+        return StreamCone.containsTheMiddleOf(eye, look, look.length(), shape, box);
     }
 
     private void drag(Mob mob, ServerPlayer player) {

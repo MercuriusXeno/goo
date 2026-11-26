@@ -50,7 +50,7 @@ public record TendFungiStep() implements TakesNoEntity {
         ChannelHost host = context.hostAs(ChannelHost.class);
         host.channelAim().ifPresent(aim -> {
             ServerLevel level = host.level();
-            for (BlockPos pos : CalcifyStep.blocksInCone(host.eye(), aim.aimPoint(), aim.coneDegrees())) {
+            for (BlockPos pos : CalcifyStep.blocksInCone(host.eye(), aim.aimPoint(), aim.shape())) {
                 tendFungus(level, pos);
             }
         });

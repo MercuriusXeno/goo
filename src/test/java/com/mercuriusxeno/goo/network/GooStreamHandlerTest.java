@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -329,12 +330,42 @@ class GooStreamHandlerTest {
 
         @Test
         void theSwarmReachesAMobAboutThirtyFourDegreesOffTheAim() {
-            assertTrue(GooStreamHandler.inCone(EYE, LOOK, decay, mobAt(new Vec3(3, 0, 2))));
+            assertTrue(GooStreamHandler.inCone(EYE, LOOK, GooStreamHandler.gloveShapeOf(decay), decay.livingReach(), mobAt(new Vec3(3, 0, 2))));
         }
 
         @Test
         void theSwarmReachesAMobSevenBlocksOutPastWhereItPaints() {
-            assertTrue(GooStreamHandler.inCone(EYE, LOOK, decay, mobAt(new Vec3(7, 0, 0))));
+            assertTrue(GooStreamHandler.inCone(EYE, LOOK, GooStreamHandler.gloveShapeOf(decay), decay.livingReach(), mobAt(new Vec3(7, 0, 0))));
+        }
+    }
+
+    /**
+     * The mob cone test takes the shape it is handed: a cone wide across and thin up and down strikes a mob off to
+     * the side and passes over one the same angle above the axis
+     * (decision cone-style-abilities-are-reviewed-for-consistency).
+     */
+    @Nested
+    class ShapedCone {
+
+        private static final Vec3 EYE = Vec3.ZERO;
+        private static final Vec3 LOOK = new Vec3(1, 0, 0);
+        private static final ConeShape WIDE_AND_THIN = new ConeShape(60, 8, false);
+        private static final double REACH = 8;
+        private static final double HALF_A_MOB = 0.3;
+        /** Five blocks out and two off the axis, about 22 degrees: inside the 30 either side, outside the 4 up. */
+        private static final Vec3 OFF_TO_THE_SIDE = new Vec3(5, 0, 2);
+        private static final Vec3 AS_FAR_ABOVE = new Vec3(5, 2, 0);
+
+        private Mob mobAt(Vec3 middle) {
+            Mob mob = mock(Mob.class);
+            when(mob.getBoundingBox()).thenReturn(new AABB(middle, middle).inflate(HALF_A_MOB));
+            return mob;
+        }
+
+        @Test
+        void aMobOffToTheSideIsStruckAndOneAsFarAboveIsPassedOver() {
+            assertTrue(GooStreamHandler.inCone(EYE, LOOK, WIDE_AND_THIN, REACH, mobAt(OFF_TO_THE_SIDE)));
+            assertFalse(GooStreamHandler.inCone(EYE, LOOK, WIDE_AND_THIN, REACH, mobAt(AS_FAR_ABOVE)));
         }
     }
 

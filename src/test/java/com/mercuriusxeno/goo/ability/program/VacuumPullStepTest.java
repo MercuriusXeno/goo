@@ -1,9 +1,11 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.ability.AbilityJson;
+import com.mercuriusxeno.goo.throwing.ConeShape;
 import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -150,6 +152,31 @@ class VacuumPullStepTest {
             Vec3 step = VacuumPullStep.dragStep(new Vec3(5, 4, 0), PLAYER, PACE, STOP);
 
             assertEquals(0, step.y, CLOSE);
+        }
+    }
+
+    /**
+     * The pull reads the shared cone test with the shape it is handed: a cone wide across and thin up and down
+     * takes an item off to the side and leaves one the same angle above the axis
+     * (decision cone-style-abilities-are-reviewed-for-consistency).
+     */
+    @Nested
+    class Cone {
+
+        private static final Vec3 EYE = new Vec3(0, 1.62, 0);
+        private static final Vec3 LOOK = new Vec3(9, 0, 0);
+        private static final ConeShape WIDE_AND_THIN = new ConeShape(60, 8, false);
+        private static final double HALF_AN_ITEM = 0.125;
+
+        private static AABB itemAt(Vec3 middle) {
+            return new AABB(middle, middle).inflate(HALF_AN_ITEM);
+        }
+
+        @Test
+        void anItemOffToTheSideIsPulledAndOneAsFarAboveIsLeft() {
+            // five ahead and two off the axis, about 22 degrees: inside the 30 either side, outside the 4 up
+            assertTrue(VacuumPullStep.pulls(EYE, LOOK, WIDE_AND_THIN, itemAt(EYE.add(5, 0, 2))));
+            assertFalse(VacuumPullStep.pulls(EYE, LOOK, WIDE_AND_THIN, itemAt(EYE.add(5, 2, 0))));
         }
     }
 

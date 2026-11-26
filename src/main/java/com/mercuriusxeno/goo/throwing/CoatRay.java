@@ -186,7 +186,23 @@ public final class CoatRay {
      * @return just inside the first block the ray meets, or the point at the range where it meets none
      */
     public static Vec3 end(BlockClip clip, Vec3 eye, Vec3 look, double coneDegrees, double range, ConeShare share) {
-        Vec3 direction = StreamCone.launchDirection(look, coneDegrees, share.tilt(), share.turn());
+        return end(clip, eye, look, ConeShape.round(coneDegrees), range, share);
+    }
+
+    /**
+     * Where the ray for a share of a cone of a shape stops.
+     * decision cone-style-abilities-are-reviewed-for-consistency
+     *
+     * @param clip  the blocks the ray meets
+     * @param eye   the ray's start
+     * @param look  the cone's axis, any length
+     * @param shape the cone's widths across and up and down
+     * @param range the stream's reach in blocks
+     * @param share the ray's place in the cone
+     * @return just inside the first block the ray meets, or the point at the range where it meets none
+     */
+    public static Vec3 end(BlockClip clip, Vec3 eye, Vec3 look, ConeShape shape, double range, ConeShare share) {
+        Vec3 direction = StreamCone.launchDirection(look, shape, share.tilt(), share.turn());
         Vec3 reach = eye.add(direction.scale(range));
         return clip.firstHit(eye, reach).map(hit -> hit.point().add(direction.scale(INTO_THE_BLOCK))).orElse(reach);
     }

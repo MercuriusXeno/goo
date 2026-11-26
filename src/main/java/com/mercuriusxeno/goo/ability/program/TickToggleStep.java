@@ -45,7 +45,7 @@ public record TickToggleStep(Expr every) implements TakesNoEntity {
         host.channelAim()
                 .filter(aim -> togglesOn(aim.held(), Math.round(every.evaluateFloat(context))))
                 .ifPresent(aim -> host.toggleEachDevice(
-                        AimedCells.along(host.eye(), aim.aimPoint(), aim.coneDegrees())));
+                        AimedCells.along(host.eye(), aim.aimPoint(), aim.shape())));
         return true;
     }
 

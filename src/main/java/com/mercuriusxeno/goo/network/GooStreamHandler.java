@@ -794,7 +794,7 @@ public final class GooStreamHandler {
         }
         ServerLevel level = player.level();
         SprayPrograms.runOnFloors(level, FloorReach.struckInCone(level, player, apex, axis, delivery.range(),
-                delivery.coneDegrees(), FLOOR_RAYS_PER_TICK, level.getRandom()), apex, ability);
+                gloveShapeOf(delivery), FLOOR_RAYS_PER_TICK, level.getRandom()), apex, ability);
     }
 
     /**
@@ -817,7 +817,7 @@ public final class GooStreamHandler {
             return;
         }
         ServerPlayer player = cast.player();
-        ChannelAim aim = new ChannelAim(reachEnd, null, delivery.coneDegrees(), held, reaching);
+        ChannelAim aim = new ChannelAim(reachEnd, null, gloveShapeOf(delivery), held, reaching);
         runSteps(PlayerHost.channeling(player.level(), player, aim, placementPrice(player, ability, cast.spray().paysFrom())),
                 HostKind.PLAYER, blockSteps, cast);
     }
@@ -880,38 +880,50 @@ public final class GooStreamHandler {
      * rewind-fills-while-held: the glove's cone runs parallel to the look a hand's width aside, so a
      * narrow cone alone misses the mob under the crosshair
      *
-     * @param level    the server level
-     * @param player   the streaming player
-     * @param apex     the cone's apex at the glove
-     * @param axis     the cone's axis
-     * @param delivery the stream delivery
+     * @param level  the server level
+     * @param player the streaming player
+     * @param apex   the cone's apex at the glove
+     * @param axis   the cone's axis
+     * @param shape  the cone's widths across and up and down
+     * @param reach  how far the stream reaches the living
      * @return the entities the stream reaches
      */
     static List<LivingEntity> livingInCone(ServerLevel level, ServerPlayer player, Vec3 apex, Vec3 axis,
-                                           Delivery delivery) {
+                                           ConeShape shape, double reach) {
         Vec3 eye = player.getEyePosition();
-        double living = delivery.livingReach();
-        AABB reach = new AABB(apex, apex).inflate(living).minmax(new AABB(eye, eye).inflate(living));
-        return level.getEntitiesOfClass(LivingEntity.class, reach, entity -> entity != player && entity.isAlive()
-                && (inCone(apex, axis, delivery, entity) || inCone(eye, axis, delivery, entity)));
+        AABB around = new AABB(apex, apex).inflate(reach).minmax(new AABB(eye, eye).inflate(reach));
+        return level.getEntitiesOfClass(LivingEntity.class, around, entity -> entity != player && entity.isAlive()
+                && (inCone(apex, axis, shape, reach, entity) || inCone(eye, axis, shape, reach, entity)));
     }
 
     /**
      * Whether a living entity stands inside the stream's cone cast from an
      * apex, out to how far the stream reaches the living, or crosses the
      * cone's axis within that reach.
+     * decision cone-style-abilities-are-reviewed-for-consistency: the cone is the shape handed, by the shared test
      *
-     * @param apex     the cone's apex
-     * @param axis     the cone's axis
-     * @param delivery the stream delivery
-     * @param living   the candidate
+     * @param apex   the cone's apex
+     * @param axis   the cone's axis
+     * @param shape  the cone's widths across and up and down
+     * @param reach  how far the stream reaches the living
+     * @param living the candidate
      * @return true when the stream reaches the entity from the apex
      */
-    static boolean inCone(Vec3 apex, Vec3 axis, Delivery delivery, LivingEntity living) {
-        // decay-gnats-degrade-each-block-once: a stream may seek the living past the blocks it works
-        double reach = delivery.livingReach();
-        return StreamCone.contains(apex, axis, reach, delivery.coneDegrees(), living.getBoundingBox().getCenter())
+    static boolean inCone(Vec3 apex, Vec3 axis, ConeShape shape, double reach, LivingEntity living) {
+        return StreamCone.containsTheMiddleOf(apex, axis, reach, shape, living.getBoundingBox())
                 || living.getBoundingBox().clip(apex, apex.add(axis.normalize().scale(reach))).isPresent();
+    }
+
+    /**
+     * The cone the glove's stream strikes through: the round cone of its delivery's angle, so each coned stream
+     * strikes from the glove what it struck before, a nozzle's shape coming in its place.
+     * decision cone-style-abilities-are-reviewed-for-consistency
+     *
+     * @param delivery the stream's delivery
+     * @return the cone's shape
+     */
+    static ConeShape gloveShapeOf(Delivery delivery) {
+        return ConeShape.round(delivery.coneDegrees());
     }
 
     /**
@@ -931,7 +943,9 @@ public final class GooStreamHandler {
      */
     private static List<LivingEntity> runPasses(CastOn cast, Vec3 apex, Vec3 axis, AbilityDefinition ability,
                                                 Delivery delivery, int held) {
-        List<LivingEntity> inCone = livingInCone(cast.level(), cast.player(), apex, axis, delivery);
+        // decay-gnats-degrade-each-block-once: a stream may seek the living past the blocks it works
+        List<LivingEntity> inCone = livingInCone(cast.level(), cast.player(), apex, axis, gloveShapeOf(delivery),
+                delivery.livingReach());
         // decay-gnats-degrade-each-block-once: a mob in the cone takes the swarm, else the blocks do;
         // the operator's ruling: blocks already painted keep stepping while the swarm bites
         boolean mobFirst = ability.hasTag(AbilityTags.MOB_FIRST);

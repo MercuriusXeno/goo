@@ -1,9 +1,11 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.throwing.ConeShape;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -23,6 +25,10 @@ class FlameRaysTest {
     private static final Vec3 APEX = new Vec3(0, 1, 0);
     private static final Vec3 EAST = new Vec3(1, 0, 0);
     private static final double CONE_DEGREES = 20;
+    private static final ConeShape ROUND = ConeShape.round(CONE_DEGREES);
+    private static final long SEED = 4723;
+    /** Burns enough that the spray all but surely crosses a mob anywhere in the cone. */
+    private static final int BURNS = 40;
     private static final double RANGE = 6;
     /** A zombie-sized box: 0.6 wide, 1.95 tall. */
     private static final double HALF_WIDTH = 0.3;
@@ -33,7 +39,7 @@ class FlameRaysTest {
     @Test
     void aMobOnARaysLineWithinTheRangeBurns() {
         AABB onTheLine = mobCenteredAt(APEX.add(EAST.scale(4)));
-        List<FlameRays.Ray> rays = FlameRays.spray(APEX, EAST, CONE_DEGREES, RANGE, alongTheAxis(), OPEN_AIR);
+        List<FlameRays.Ray> rays = FlameRays.spray(APEX, EAST, ROUND, RANGE, alongTheAxis(), OPEN_AIR);
         assertEquals(List.of(onTheLine), FlameRays.crossed(rays, List.of(onTheLine), BOX_OF));
     }
 
@@ -41,7 +47,7 @@ class FlameRaysTest {
     void aMobBesideTheConeDoesNotBurn() {
         // 3 blocks out and 1.5 to the side: its nearest edge sits about 22 degrees off the axis, the cone's rim 10.
         AABB beside = mobCenteredAt(APEX.add(EAST.scale(3)).add(0, 0, 1.5));
-        List<FlameRays.Ray> rays = FlameRays.spray(APEX, EAST, CONE_DEGREES, RANGE, atTheRim(0), OPEN_AIR);
+        List<FlameRays.Ray> rays = FlameRays.spray(APEX, EAST, ROUND, RANGE, atTheRim(0), OPEN_AIR);
         assertTrue(FlameRays.crossed(rays, List.of(beside), BOX_OF).isEmpty());
     }
 
@@ -49,7 +55,7 @@ class FlameRaysTest {
     void twoMobsOnOneLineBothBurn() {
         AABB near = mobCenteredAt(APEX.add(EAST.scale(2)));
         AABB far = mobCenteredAt(APEX.add(EAST.scale(4.5)));
-        List<FlameRays.Ray> rays = FlameRays.spray(APEX, EAST, CONE_DEGREES, RANGE, alongTheAxis(), OPEN_AIR);
+        List<FlameRays.Ray> rays = FlameRays.spray(APEX, EAST, ROUND, RANGE, alongTheAxis(), OPEN_AIR);
         assertEquals(List.of(near, far), FlameRays.crossed(rays, List.of(near, far), BOX_OF));
     }
 
@@ -58,15 +64,33 @@ class FlameRaysTest {
         AABB before = mobCenteredAt(APEX.add(EAST.scale(1.5)));
         AABB past = mobCenteredAt(APEX.add(EAST.scale(4.5)));
         FlameRays.BlockClip wallAtThree = (from, to) -> from.add(to.subtract(from).normalize().scale(3));
-        List<FlameRays.Ray> rays = FlameRays.spray(APEX, EAST, CONE_DEGREES, RANGE, alongTheAxis(), wallAtThree);
+        List<FlameRays.Ray> rays = FlameRays.spray(APEX, EAST, ROUND, RANGE, alongTheAxis(), wallAtThree);
         assertEquals(List.of(before), FlameRays.crossed(rays, List.of(before, past), BOX_OF));
     }
 
     @Test
     void aMobPastTheRangeDoesNotBurn() {
         AABB beyond = mobCenteredAt(APEX.add(EAST.scale(RANGE + 1)));
-        List<FlameRays.Ray> rays = FlameRays.spray(APEX, EAST, CONE_DEGREES, RANGE, alongTheAxis(), OPEN_AIR);
+        List<FlameRays.Ray> rays = FlameRays.spray(APEX, EAST, ROUND, RANGE, alongTheAxis(), OPEN_AIR);
         assertTrue(FlameRays.crossed(rays, List.of(beyond), BOX_OF).isEmpty());
+    }
+
+    /**
+     * A cone wide across and thin up and down burns a mob off to the side and none the same angle above the axis
+     * (decision cone-style-abilities-are-reviewed-for-consistency).
+     */
+    @Test
+    void aWideThinConeBurnsAMobOffToTheSideAndNoneAsFarAbove() {
+        ConeShape wideAndThin = new ConeShape(60, 8, false);
+        // five blocks out and two off the axis, about 22 degrees: inside the 30 either side, outside the 4 up
+        AABB offToTheSide = mobCenteredAt(APEX.add(5, 0, 2));
+        AABB asFarAbove = mobCenteredAt(APEX.add(5, 2 + HEIGHT / 2, 0));
+        RandomSource random = RandomSource.create(SEED);
+        List<FlameRays.Ray> rays = new ArrayList<>();
+        for (int burn = 0; burn < BURNS; burn++) {
+            rays.addAll(FlameRays.spray(APEX, EAST, wideAndThin, 8, random, OPEN_AIR));
+        }
+        assertEquals(List.of(offToTheSide), FlameRays.crossed(rays, List.of(offToTheSide, asFarAbove), BOX_OF));
     }
 
     private static AABB mobCenteredAt(Vec3 middle) {

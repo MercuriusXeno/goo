@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.throwing;
 
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 /**
@@ -63,6 +64,22 @@ public final class StreamCone {
             return true;
         }
         return distance <= reach && sectionOf(axis, offset).fits(shape);
+    }
+
+    /**
+     * Whether a thing's box stands inside a cone of a shape: its middle inside the shape and the reach, the one test
+     * every coned stream's scan of the living and the loose reads.
+     * decision cone-style-abilities-are-reviewed-for-consistency
+     *
+     * @param apex  the cone's apex
+     * @param axis  the cone's axis, any length
+     * @param reach the cone's reach in blocks
+     * @param shape the cone's widths across and up and down
+     * @param box   the thing's box
+     * @return true where its middle stands inside
+     */
+    public static boolean containsTheMiddleOf(Vec3 apex, Vec3 axis, double reach, ConeShape shape, AABB box) {
+        return contains(apex, axis, reach, shape, box.getCenter());
     }
 
     /**
