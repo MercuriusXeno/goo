@@ -17,8 +17,8 @@ import java.nio.ByteOrder;
  */
 final class MiasmaVortexPass {
 
-    /** The uniform block's bytes: six std140 vec4 rows; must match {@code MiasmaVortex} in miasma_vortex.fsh. */
-    static final int BYTES = 96;
+    /** The uniform block's bytes: seven std140 vec4 rows; must match {@code MiasmaVortex} in miasma_vortex.fsh. */
+    static final int BYTES = 112;
     /** Blocks the box stands past the cone, so no fragment of it is clipped at a face. */
     private static final double BOX_MARGIN = 0.25;
     private static final float CHANNEL = 255f;
@@ -55,7 +55,9 @@ final class MiasmaVortexPass {
     }
 
     /**
-     * Packs the vortex's uniform block, six std140 vec4 rows.
+     * Packs the vortex's uniform block, seven std140 vec4 rows: the section's two directions each carry the half
+     * width of the shape along it, so the shader tests the cone as StreamCone.contains does.
+     * decision spray-abilities-render-procedurally-bound-to-their-cone
      *
      * @param out       where the bytes go, at its position
      * @param vortex    the vortex, camera relative
@@ -66,12 +68,13 @@ final class MiasmaVortexPass {
     private static void pack(ByteBuffer out, VortexCone vortex, Colors colors, VortexPresence.Shown shown,
                              boolean zeroToOne) {
         ByteBuffer rows = out.order(ByteOrder.nativeOrder());
-        MarchedBoxPass.row(rows, vortex.apex(), vortex.tan());
+        MarchedBoxPass.row(rows, vortex.apex(), vortex.halfSideAngle());
         MarchedBoxPass.row(rows, vortex.axis(), vortex.length());
-        MarchedBoxPass.row(rows, FireField.sideOf(vortex.axis()), zeroToOne ? 1 : 0);
+        MarchedBoxPass.row(rows, vortex.side(), zeroToOne ? 1 : 0);
         MarchedBoxPass.row(rows, rgbOf(colors.body()), 0);
         MarchedBoxPass.row(rows, rgbOf(colors.streak()), 0);
-        MarchedBoxPass.row(rows, new Vec3(shown.presence(), shown.formed(), 0), 0);
+        MarchedBoxPass.row(rows, new Vec3(shown.presence(), shown.formed(), vortex.shape().band() ? 1 : 0), 0);
+        MarchedBoxPass.row(rows, vortex.lift(), vortex.halfLiftAngle());
     }
 
     private static Vec3 rgbOf(int rgb) {

@@ -22,9 +22,10 @@ import java.util.function.Consumer;
 /**
  * Drain's cast look: while right click holds a stream naming
  * {@link MiasmaVortexStep}, a filled, turning, rifled vortex of miasma fills
- * the cone the stream strikes, from the glove hand along the player's whole
- * look, redrawn every frame so it turns with the look, spawning nothing.
+ * the cone the stream pours through, the glove's from the hand along the
+ * player's whole look, redrawn every frame so it turns with the look, spawning nothing.
  * drain-casts-a-filled-tornadic-miasma-vortex-along-the-look
+ * decision spray-abilities-render-procedurally-bound-to-their-cone
  */
 public final class MiasmaVortex {
 
@@ -32,16 +33,32 @@ public final class MiasmaVortex {
     /** Hex's wheel and bright colors, worn while the client holds no definition of the selected goo. */
     private static final MiasmaVortexPass.Colors HEX = new MiasmaVortexPass.Colors(0x5B4BA0, 0x8373C8);
     private static final VortexPresence PRESENCE = new VortexPresence();
-    /** The ability last held, drawn on while its vortex thins away after the hold ends. */
-    private static @Nullable ClientAbility lastHeld;
+
+    /** The ability the vortex is registered under in {@link ConeVisuals}. */
+    static final String DRAIN_ID = "goo:hex_drain";
+
+    /** The cone poured through this frame, the glove's or a nozzle's, taken by the frame's draw. */
+    private static @Nullable SprayCone poured;
+    /** The cone last poured through, drawn on while its vortex thins away after the pour ends. */
+    private static @Nullable SprayCone lastPoured;
     private static MiasmaVortexPass.Colors lastColors = HEX;
 
     private MiasmaVortex() {
     }
 
     /**
-     * Hands the shared path the vortex while it is held, and on while it thins
-     * away after the hold ends, sorted by the middle of its cone.
+     * Pours the vortex through a cone this frame, the glove's or a nozzle's.
+     * decision spray-abilities-render-procedurally-bound-to-their-cone
+     *
+     * @param cone the cone poured through, in world space
+     */
+    static void pour(SprayCone cone) {
+        poured = cone;
+    }
+
+    /**
+     * Hands the shared path the vortex while it is poured, and on while it thins
+     * away after the pour ends, sorted by the middle of its cone.
      * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
      *
      * @param frame the frame being drawn
@@ -53,22 +70,41 @@ public final class MiasmaVortex {
         if (player == null) {
             return;
         }
-        ClientAbility held = heldVortex(player);
-        if (held != null) {
-            lastHeld = held;
-            lastColors = colorsOf(GloveAim.selectedGooType(player));
-        }
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        VortexPresence.Shown shown = PRESENCE.update(held != null, player.level().getGameTime() + partialTick);
-        ClientAbility drawn = lastHeld;
+        pourTheGlovesVortex(mc, player, partialTick);
+        SprayCone cone = poured;
+        poured = null;
+        if (cone != null) {
+            lastPoured = cone;
+        }
+        VortexPresence.Shown shown = PRESENCE.update(cone != null, player.level().getGameTime() + partialTick);
+        SprayCone drawn = lastPoured;
         if (drawn == null || shown.presence() <= 0) {
             return;
         }
         Camera camera = mc.gameRenderer.mainCamera();
-        Vec3 hand = CastOrigin.ofLocal(mc).subtract(camera.position());
-        VortexCone vortex = VortexCone.along(hand, player.getViewVector(partialTick), drawn.delivery().range(),
-                drawn.delivery().coneDegrees());
+        VortexCone vortex = VortexCone.along(drawn.apex().subtract(camera.position()), drawn.axis(), drawn.reach(),
+                drawn.shape());
         draws.accept(sortedDrawOf(vortex, lastColors, shown, frame.modelView()));
+    }
+
+    /**
+     * Pours the glove's vortex while right click holds it: the round cone of its delivery, from the hand along the
+     * look this frame.
+     * decision spray-abilities-render-procedurally-bound-to-their-cone
+     *
+     * @param mc          the client
+     * @param player      the local player
+     * @param partialTick the frame's partial tick
+     */
+    private static void pourTheGlovesVortex(Minecraft mc, LocalPlayer player, float partialTick) {
+        ClientAbility held = heldVortex(player);
+        if (held == null) {
+            return;
+        }
+        lastColors = colorsOf(GloveAim.selectedGooType(player));
+        ConeVisuals.pour(held.id().toString(), SprayCone.ofGlove(held.delivery(), CastOrigin.ofLocal(mc),
+                player.getViewVector(partialTick)));
     }
 
     private static SortedDraw sortedDrawOf(VortexCone vortex, MiasmaVortexPass.Colors colors,

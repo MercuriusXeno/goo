@@ -24,7 +24,8 @@ public final class ConeVisuals {
             GUST_ID, cone -> WindLines.blowLocal(GUST_ID, cone),
             VACUUM_ID, cone -> WindLines.blowLocal(VACUUM_ID, cone),
             PetrifyFog.PETRIFY_ID, PetrifyFog::pour,
-            HealVisual.HEAL_ID, HealVisual::drawFogLocal);
+            HealVisual.HEAL_ID, HealVisual::drawFogLocal,
+            MiasmaVortex.DRAIN_ID, MiasmaVortex::pour);
 
     private ConeVisuals() {
     }
