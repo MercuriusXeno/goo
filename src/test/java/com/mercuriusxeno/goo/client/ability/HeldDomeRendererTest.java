@@ -41,12 +41,12 @@ class HeldDomeRendererTest {
     @Nested
     class ShowPredicate {
         @Test
-        void spikeTrapWithAnArmedPressShowsTheDome() {
+        void aFieldEffectWithAnArmedPressShowsTheDome() {
             assertTrue(shows(FieldEffectFixture.definition(), true));
         }
 
         @Test
-        void spikeTrapWithNoPressShowsNoDome() {
+        void aFieldEffectWithNoPressShowsNoDome() {
             assertFalse(shows(FieldEffectFixture.definition(), false));
         }
 

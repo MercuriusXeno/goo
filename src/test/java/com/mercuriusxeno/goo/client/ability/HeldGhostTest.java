@@ -32,7 +32,7 @@ class HeldGhostTest {
     }
 
     @Test
-    void theSpikeTrapRingsOutwardToItsDome() {
+    void theFieldEffectRingsOutwardToItsDome() {
         HeldGhost ghost = ghostOf(MetalExplosionVisual.INSTANCE, FieldEffectFixture.definition());
         assertEquals((float) FieldEffectFixture.definition().area().size(), ghost.domeRadius(), TOLERANCE);
         assertEquals(ghost.domeRadius(), ghost.ringRadius(), TOLERANCE);

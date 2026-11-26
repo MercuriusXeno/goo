@@ -31,12 +31,12 @@ class DamageStepTest {
     private static final int IMMUNE_AFTER_A_VANILLA_HURT = 20;
 
     /**
-     * The spike trap's stab deals goo:stalagmite, which no fall tag holds, so a fall-immune chicken takes it.
+     * The field effect fixture's stab deals goo:stalagmite, which no fall tag holds, so a fall-immune chicken takes it.
      */
     // decision urchin-rests-bristled-and-spears
     @Test
-    void spikeTrapsStabDealsGooStalagmiteDamage() {
-        assertEquals(Optional.of(GOO_STALAGMITE), DamageStep.gooTypeOf(spikeTrapsStab().source()).map(ResourceKey::identifier));
+    void theFieldFixturesStabDealsGooStalagmiteDamage() {
+        assertEquals(Optional.of(GOO_STALAGMITE), DamageStep.gooTypeOf(fieldFixturesStab().source()).map(ResourceKey::identifier));
     }
 
     /**
@@ -129,7 +129,7 @@ class DamageStepTest {
         when(host.target()).thenReturn(target);
         return host;
     }
-    private static DamageStep spikeTrapsStab() {
+    private static DamageStep fieldFixturesStab() {
         FieldEffectStep field = FieldEffectFixture.definition().behaviors().stream()
                 .filter(FieldEffectStep.class::isInstance).map(FieldEffectStep.class::cast).findFirst().orElseThrow();
         return (DamageStep) field.strike().getFirst();

@@ -37,7 +37,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * The metal spike trap fixture's program, decoded from its JSON,
+ * The field effect fixture's program, decoded from its JSON,
  * compose the field-effect-with-controller sub-chain. Each strike body's
  * damage acts on the entity itself, which no unit test can build, so the
  * body here swaps its damage for a probe sound at the target and each
