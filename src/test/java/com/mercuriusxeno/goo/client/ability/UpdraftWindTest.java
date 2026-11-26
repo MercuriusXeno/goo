@@ -60,12 +60,12 @@ class UpdraftWindTest {
 
     @Test
     void aRisingLineLeavesTheFloorInsideTheWidthAndRisesTheColumnsHeight() {
-        WindLines.Gust gust = WindLines.riseGust(BASE, 1, 8, 1, -1);
+        SprayCone gust = WindLines.riseGust(BASE, 1, 8, 1, -1);
 
-        assertEquals(BASE.x + WindLines.RISE_INSET, gust.origin().x, EPSILON);
-        assertEquals(BASE.z - WindLines.RISE_INSET, gust.origin().z, EPSILON);
-        assertEquals(BASE.y, gust.origin().y, EPSILON);
+        assertEquals(BASE.x + WindLines.RISE_INSET, gust.apex().x, EPSILON);
+        assertEquals(BASE.z - WindLines.RISE_INSET, gust.apex().z, EPSILON);
+        assertEquals(BASE.y, gust.apex().y, EPSILON);
         assertEquals(new Vec3(0, 1, 0), gust.axis());
-        assertEquals(8, gust.range(), EPSILON);
+        assertEquals(8, gust.reach(), EPSILON);
     }
 }

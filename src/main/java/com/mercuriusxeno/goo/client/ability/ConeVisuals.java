@@ -11,11 +11,18 @@ import java.util.Map;
  */
 public final class ConeVisuals {
 
+    private static final String COLD_ID = "goo:frost_cold";
+    private static final String GUST_ID = "goo:typhoon_gust";
+    private static final String VACUUM_ID = "goo:void_vacuum";
+
     private static final Map<String, ConeVisual> VISUALS = Map.of(
             FireStream.FLAMES_ID, cone -> {
                 FireStream.pour(cone);
                 HeatWaveEffect.pour(cone);
-            });
+            },
+            COLD_ID, cone -> WindLines.blowLocal(COLD_ID, cone),
+            GUST_ID, cone -> WindLines.blowLocal(GUST_ID, cone),
+            VACUUM_ID, cone -> WindLines.blowLocal(VACUUM_ID, cone));
 
     private ConeVisuals() {
     }

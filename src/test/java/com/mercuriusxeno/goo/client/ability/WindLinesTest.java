@@ -3,6 +3,8 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.program.WindStep;
 import com.mercuriusxeno.goo.client.LineContext;
+import com.mercuriusxeno.goo.throwing.ConeShape;
+import com.mercuriusxeno.goo.throwing.StreamCone;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -37,6 +39,63 @@ class WindLinesTest {
     private static final double STRAIGHT = 6;
     private static final WindLines.Sway SWAYING = new WindLines.Sway(UP.scale(WindLines.SWAY),
             SOUTH.scale(WindLines.SWAY), 0.3, 1.1, 0.2, 0.15);
+
+    /**
+     * Every line and mote the wind blows stays inside the cone it is handed, a cone wider across than up and down as
+     * a round one (decision spray-abilities-render-procedurally-bound-to-their-cone).
+     */
+    @Nested
+    class BoundToTheCone {
+
+        private static final int DRAWS = 300;
+        private final SprayCone flat = new SprayCone(new Vec3(2, 64, -3), new Vec3(1, -0.3, 0.4).normalize(),
+                new ConeShape(50, 8, false), 7);
+
+        private boolean inside(Vec3 point) {
+            return StreamCone.contains(flat.apex(), flat.axis(), flat.reach() + EPSILON, flat.shape(), point);
+        }
+
+        @Test
+        void everyColdAndGustLineStartsAndEndsInsideTheConeAndItsReach() {
+            for (String ability : new String[] {"frost_cold", "typhoon_gust"}) {
+                WindStep wind = Inward.windOf(ability);
+                RandomSource random = RandomSource.create(4711L);
+                for (int draw = 0; draw < DRAWS; draw++) {
+                    WindLines.Line line = WindLines.lineIn(flat, random, wind, 0L);
+                    for (double age = 0; age <= WindLines.lifeOf(line); age++) {
+                        Vec3 at = WindLines.pathPoint(line, age);
+                        assertTrue(inside(at), ability + " line " + draw + " at age " + age + " stands outside: " + at);
+                    }
+                }
+            }
+        }
+
+        @Test
+        void everyVacuumLineStartsInsideTheConeAndRunsTowardTheApex() {
+            WindStep wind = Inward.windOf("void_vacuum");
+            RandomSource random = RandomSource.create(4712L);
+            for (int draw = 0; draw < DRAWS; draw++) {
+                WindLines.Line line = WindLines.lineIn(flat, random, wind, 0L);
+                Vec3 start = WindLines.pathPoint(line, 0);
+                Vec3 end = WindLines.pathPoint(line, WindLines.arrivalTicks(line));
+                assertTrue(inside(start), "line " + draw + " starts outside: " + start);
+                assertTrue(end.distanceTo(flat.apex()) < start.distanceTo(flat.apex()),
+                        "line " + draw + " should end nearer the apex than it starts");
+                for (double age = -WindLines.TAIL_TICKS; age <= WindLines.lifeOf(line); age++) {
+                    assertTrue(inside(WindLines.pathPoint(line, age)), "line " + draw + " leaves at age " + age);
+                }
+            }
+        }
+
+        @Test
+        void everyVoidMoteStartsInsideTheConeAndItsReach() {
+            RandomSource random = RandomSource.create(4713L);
+            for (int draw = 0; draw < DRAWS; draw++) {
+                Vec3 start = WindLines.moteStart(flat, random);
+                assertTrue(inside(start), "mote " + draw + " starts outside: " + start);
+            }
+        }
+    }
 
     /**
      * operator ruling: "the cold spray from the blob has the same problem that the decay and mycosis sprays had"
@@ -281,14 +340,14 @@ class WindLinesTest {
         void aVoidMoteStartsAtARandomPointInsideTheStreamsCone() {
             Vec3 blob = new Vec3(2, 64, -3);
             Vec3 look = new Vec3(1, -0.3, 0.4).normalize();
-            WindLines.Gust gust = new WindLines.Gust(blob, look, 8, 40);
+            SprayCone gust = new SprayCone(blob, look, ConeShape.round(40), 8);
             RandomSource random = RandomSource.create(1168L);
-            double halfAngle = Math.toRadians(gust.coneDegrees() / 2);
+            double halfAngle = Math.toRadians(gust.shape().sideDegrees() / 2);
             Set<Vec3> drawn = new HashSet<>();
             for (int draw = 0; draw < 200; draw++) {
                 Vec3 start = WindLines.moteStart(gust, random);
                 Vec3 out = start.subtract(blob);
-                assertTrue(out.length() > 0 && out.length() <= gust.range() + EPSILON,
+                assertTrue(out.length() > 0 && out.length() <= gust.reach() + EPSILON,
                         "mote " + draw + " starts " + out.length() + " blocks out");
                 assertTrue(Math.acos(Math.clamp(out.normalize().dot(look), -1, 1)) <= halfAngle + EPSILON,
                         "mote " + draw + " starts outside the cone's half angle");
@@ -309,7 +368,7 @@ class WindLinesTest {
                     gray, false, 0L, true, colors);
         }
 
-        private static WindStep windOf(String ability) {
+        static WindStep windOf(String ability) {
             return AbilityJson.decode(ability).behaviors().stream().filter(WindStep.class::isInstance)
                     .map(WindStep.class::cast).findFirst().orElseThrow();
         }

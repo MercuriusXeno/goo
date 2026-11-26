@@ -25,6 +25,7 @@ import com.mercuriusxeno.goo.client.ability.ChargeMotes;
 import com.mercuriusxeno.goo.client.ability.HealVisual;
 import com.mercuriusxeno.goo.client.ability.LiftedPalmBlob;
 import com.mercuriusxeno.goo.client.ability.ReserveVisual;
+import com.mercuriusxeno.goo.client.ability.SprayCone;
 import com.mercuriusxeno.goo.client.ability.WindLines;
 import com.mercuriusxeno.goo.client.hud.DurativeWash;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
@@ -166,7 +167,9 @@ public final class GloveThrowSender {
         }
         // every-ability-casts-from-the-lifted-palm-blob: the server's cone keeps the glove, the drawn effect leaves the blob
         HealVisual.drawFog(player, abilityId, selectedArea(abilityId), drawnFrom);
-        WindLines.blow(player, abilityId, selectedArea(abilityId), drawnFrom);
+        // spray-abilities-render-procedurally-bound-to-their-cone: the glove's wind blows through its delivery's cone
+        WindLines.blow(player, abilityId, SprayCone.ofGlove(selectedDelivery(abilityId), drawnFrom,
+                player.getLookAngle()));
         ReserveVisual.drawDrain(player, abilityId);
         loopStreamSound(player, abilityId);
         return true;

@@ -15,6 +15,8 @@ public final class StreamCone {
     private static final Vec3 EAST = new Vec3(1, 0, 0);
     private static final double NEARLY_VERTICAL = 0.99;
     private static final double FULL_TURN = 2 * Math.PI;
+    /** Blocks from the apex a point stands at the apex, too near for its angle off the axis to mean anything. */
+    private static final double AT_THE_APEX = 1e-6;
 
     private StreamCone() {
     }
@@ -38,6 +40,105 @@ public final class StreamCone {
         }
         double along = offset.dot(axis.normalize());
         return along > 0 && along >= distance * Math.cos(Math.toRadians(coneDegrees * HALF));
+    }
+
+    /**
+     * Whether a point stands inside a cone of a shape: the apex itself, or a point within the reach whose angle off
+     * the axis stays inside the shape's widths at its turn about the axis, as {@link #launchDirection} spreads them.
+     * decision cone-style-abilities-are-reviewed-for-consistency
+     *
+     * @param apex  the cone's apex
+     * @param axis  the cone's axis, any length
+     * @param reach the cone's reach in blocks
+     * @param shape the cone's widths across and up and down
+     * @param point the point tested
+     * @return true for a point inside the cone
+     */
+    public static boolean contains(Vec3 apex, Vec3 axis, double reach, ConeShape shape, Vec3 point) {
+        Vec3 offset = point.subtract(apex);
+        double distance = offset.length();
+        if (distance < AT_THE_APEX) {
+            return true;
+        }
+        return distance <= reach && sectionOf(axis, offset).fits(shape);
+    }
+
+    /**
+     * A point pulled inside a cone of a shape: its angle off the axis held to the shape's width at its turn, and its
+     * distance from the apex to the reach; a point inside stands where it is.
+     * decision spray-abilities-render-procedurally-bound-to-their-cone
+     *
+     * @param apex  the cone's apex
+     * @param axis  the cone's axis, any length
+     * @param reach the cone's reach in blocks
+     * @param shape the cone's widths across and up and down
+     * @param point the point pulled inside
+     * @return the point, inside the cone
+     */
+    public static Vec3 pulledInside(Vec3 apex, Vec3 axis, double reach, ConeShape shape, Vec3 point) {
+        if (contains(apex, axis, reach, shape, point)) {
+            return point;
+        }
+        Vec3 offset = point.subtract(apex);
+        Section section = sectionOf(axis, offset);
+        return apex.add(section.heldInside(shape).scale(Math.min(offset.length(), reach)));
+    }
+
+    private static Section sectionOf(Vec3 axis, Vec3 offset) {
+        Vec3 forward = axis.normalize();
+        Vec3 side = side(forward);
+        Vec3 lift = side.cross(forward);
+        return new Section(forward, side, lift, offset.dot(forward), offset.dot(side), offset.dot(lift));
+    }
+
+    /**
+     * A point's place about a cone's axis.
+     *
+     * @param forward the cone's unit axis
+     * @param side    the unit direction across
+     * @param lift    the unit direction up and down
+     * @param along   blocks along the axis
+     * @param across  blocks across
+     * @param upDown  blocks up and down
+     */
+    private record Section(Vec3 forward, Vec3 side, Vec3 lift, double along, double across, double upDown) {
+
+        /** Slack under the rim a pulled point is held to, so a point on the rim reads inside. */
+        private static final double RIM_SLACK = 1 - 1e-9;
+
+        boolean fits(ConeShape shape) {
+            if (shape.band()) {
+                return along > 0 && Math.abs(Math.atan2(across, along)) <= halfOf(shape.sideDegrees())
+                        && Math.abs(Math.atan2(upDown, along)) <= halfOf(shape.liftDegrees());
+            }
+            return offAxis() <= halfOf(shape.degreesAt(turn()));
+        }
+
+        Vec3 heldInside(ConeShape shape) {
+            if (shape.band()) {
+                double sideways = Math.clamp(Math.atan2(across, Math.abs(along)), -halfOf(shape.sideDegrees()),
+                        halfOf(shape.sideDegrees())) * RIM_SLACK;
+                double lifted = Math.clamp(Math.atan2(upDown, Math.abs(along)), -halfOf(shape.liftDegrees()),
+                        halfOf(shape.liftDegrees())) * RIM_SLACK;
+                return forward.add(side.scale(Math.tan(sideways))).add(lift.scale(Math.tan(lifted))).normalize();
+            }
+            double turn = turn();
+            double tilt = Math.min(offAxis(), halfOf(shape.degreesAt(turn))) * RIM_SLACK;
+            Vec3 off = side.scale(Math.cos(turn)).add(lift.scale(Math.sin(turn)));
+            return forward.scale(Math.cos(tilt)).add(off.scale(Math.sin(tilt))).normalize();
+        }
+
+        private double offAxis() {
+            return Math.atan2(Math.hypot(across, upDown), along);
+        }
+
+        private double turn() {
+            return Math.atan2(upDown, across);
+        }
+
+        private static double halfOf(double degrees) {
+            return Math.toRadians(degrees * HALF);
+        }
     }
 
     /**
