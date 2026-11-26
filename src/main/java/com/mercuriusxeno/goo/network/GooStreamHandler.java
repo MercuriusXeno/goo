@@ -83,8 +83,9 @@ import java.util.stream.Stream;
  * (decision flatten-disc-cursor-breaks-above-the-plane). A stream whose
  * program needs the channel runs a block pass instead of striking entities:
  * its programs run on the player, aimed at the end of its reach along the
- * look, Bore's reach being its caster's block reach
- * (decisions bore-vortex-with-a-worldspace-shake, bore-reaches-as-far-as-your-block-reach).
+ * look, Bore's reach being its own range, three blocks, whatever its caster's block reach, since
+ * rock_bore.json sets no reaches_block_reach (decision bore-vortex-with-a-worldspace-shake; operator ruling
+ * 2026-11-14, replacing decision bore-reaches-as-far-as-your-block-reach).
  */
 public final class GooStreamHandler {
 
@@ -375,7 +376,7 @@ public final class GooStreamHandler {
     private static void strikeCone(ServerPlayer player, Vec3 origin, AbilityDefinition ability, int held,
                                    HeldSpray spray) {
         ServerLevel level = player.level();
-        // bore-reaches-as-far-as-your-block-reach
+        // a stream setting reaches_block_reach reaches its caster's block reach; Bore sets none, so keeps its range
         Delivery delivery = ability.delivery().reachingTo(player.blockInteractionRange());
         Vec3 apex = coneApex(player, origin);
         Vec3 axis = player.getLookAngle();

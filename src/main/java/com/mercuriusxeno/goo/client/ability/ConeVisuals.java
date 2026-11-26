@@ -27,7 +27,8 @@ public final class ConeVisuals {
             HealVisual.HEAL_ID, HealVisual::drawFogLocal,
             MiasmaVortex.DRAIN_ID, MiasmaVortex::pour,
             GrowthBreeze.GROWTH_ID, GrowthBreeze::pour,
-            SignalRings.TICK_ID, SignalRings::pour);
+            SignalRings.TICK_ID, SignalRings::pour,
+            BoreDrill.BORE_ID, BoreDrill::pour);
 
     private ConeVisuals() {
     }

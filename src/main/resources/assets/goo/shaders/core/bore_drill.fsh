@@ -27,8 +27,10 @@ layout(std140) uniform BoreDrill {
     vec4 ApexRadius;  // where the vortex is held, camera relative, and its radius there
     vec4 AxisLength;  // the unit axis from where it is held to the far end, and its length
     vec4 SideDepth;   // a unit direction square to the axis, and whether depth runs 0 to 1
-    vec4 Shown;       // how much of the vortex shows in x, 0 to 1, as it builds up and disperses; its radius
-                      // at its far end in w
+    vec4 Shown;       // how much of the vortex shows in x, 0 to 1, as it builds up and disperses; how many
+                      // times its round width the section stands across in y and up and down in z, the cone
+                      // it is handed against Bore's own (decision
+                      // spray-abilities-render-procedurally-bound-to-their-cone); its radius at its far end in w
 };
 
 uniform sampler2D BoreDrillDepthSampler;
@@ -150,7 +152,7 @@ float sceneDistance(vec3 eye, mat4 viewToWorld) {
 // Where the ray enters and leaves the ball holding the whole vortex, as distances along it.
 vec2 throughBall(vec3 eye, vec3 dir) {
     vec3 middle = ApexRadius.xyz + AxisLength.xyz * (0.5 * AxisLength.w);
-    float radius = length(vec2(0.5 * AxisLength.w, max(ApexRadius.w, Shown.w))) + 0.1;
+    float radius = length(vec2(0.5 * AxisLength.w, max(ApexRadius.w, Shown.w) * max(Shown.y, Shown.z))) + 0.1;
     vec3 offset = eye - middle;
     float b = dot(offset, dir);
     float c = dot(offset, offset) - radius * radius;
@@ -181,13 +183,14 @@ vec3 dustAt(vec3 point, float seconds) {
         return vec3(0.0);
     }
     vec3 radial = offset - along * AxisLength.xyz;
-    float share = length(radial) / radiusAt(along);
+    vec3 lift = cross(AxisLength.xyz, SideDepth.xyz);
+    // the section stretched across and up and down by the cone's shape, a unit disc at the rim
+    vec2 section = vec2(dot(radial, SideDepth.xyz) / Shown.y, dot(radial, lift) / Shown.z) / radiusAt(along);
+    float share = length(section);
     if (share >= 1.0) {
         return vec3(0.0);
     }
-    vec3 lift = cross(AxisLength.xyz, SideDepth.xyz);
-    float theta = atan(dot(radial, lift), dot(radial, SideDepth.xyz));
-    vec2 section = vec2(dot(radial, SideDepth.xyz), dot(radial, lift)) / radiusAt(along);
+    float theta = atan(section.y, section.x);
     float ripple = noise(vec3(section * RIPPLE_CELLS, along * RIPPLE_CELLS - seconds / RIPPLE_SECONDS) + 64.0);
 
     // two phases half a flow apart, each fading in as it starts over and out as it ends, so no restart shows
