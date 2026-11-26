@@ -8,6 +8,7 @@ import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.renderpearl.api.buffers.GpuBuffer;
 import com.mojang.renderpearl.api.device.GpuDevice;
+import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
 import net.minecraft.client.renderer.Sheets;
 import net.minecraft.client.renderer.StagedVertexBuffer;
 import net.minecraft.client.renderer.rendertype.PreparedRenderType;
@@ -15,6 +16,7 @@ import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.resources.model.ModelBakery;
 import org.jspecify.annotations.Nullable;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -41,6 +43,9 @@ public final class ImmediateBuffers implements RenderTypeBuffers {
     private static final String VERTEX_LABEL = "Goo immediate vertices";
     private static final String INDEX_LABEL = "Goo immediate indices";
     private static final String DRAW_LABEL = "Goo immediate draw with ";
+
+    /** The largest index count an OIT stage's draw asked of each sequential index buffer. */
+    private static final Map<PrimitiveTopology, Integer> OIT_INDEX_COUNTS = new EnumMap<>(PrimitiveTopology.class);
 
     private static @Nullable ImmediateBuffers shared;
     private static @Nullable ImmediateBuffers crumbling;
@@ -155,44 +160,79 @@ public final class ImmediateBuffers implements RenderTypeBuffers {
         }
     }
 
+    /**
+     * Requests the index counts the OIT stages' draws asked of each sequential index buffer, so vanilla grows each
+     * before the stages' open passes stand, where NeoForge has a stage's buffers grown.
+     * decision goo-translucency-draws-through-order-independent-transparency
+     */
+    public static void requestOitIndexCounts() {
+        OIT_INDEX_COUNTS.forEach((topology, count) -> RenderSystem.getSequentialBuffer(topology)
+                .requestIndexCount(count));
+    }
+
+    /**
+     * Notes the index count a draw in an OIT stage asks of a sequential index buffer, so the next frame grows
+     * that buffer before the stages' open passes stand.
+     * decision goo-translucency-draws-through-order-independent-transparency
+     *
+     * @param topology   the draw's primitive topology
+     * @param indexCount the index count it asks
+     */
+    public static void noteOitIndexCount(PrimitiveTopology topology, int indexCount) {
+        OIT_INDEX_COUNTS.merge(topology, indexCount, Math::max);
+    }
+
     // The buffers close straight after the draw; the device destroys each once the frame holding it is done.
+    // The type prepares before any pass of its own opens, since its first prepare may upload its textures, and the
+    // phase the path stands in picks its pipeline before anything uploads, so a batch the phase skips costs nothing.
     private static void draw(RenderType type, MeshData mesh) {
+        PreparedRenderType prepared = RenderTypePreparation.prepared(type, StagePass.current() != null);
+        OitDrawPhase phase = OitDrawPhase.current();
+        if (prepared == null
+                || OitDrawPhase.pipelineFor(phase, prepared.pipeline(), prepared.oitPipelineSet()) == null) {
+            mesh.close();
+            return;
+        }
         GpuDevice device = RenderSystem.getDevice();
         MeshData.DrawState state = mesh.drawState();
         try (mesh; GpuBuffer vertices = device.createBuffer(() -> VERTEX_LABEL, GpuBuffer.USAGE_VERTEX,
                 mesh.vertexBuffer())) {
             if (mesh.indexBuffer() == null) {
+                if (phase.stage() != null) {
+                    noteOitIndexCount(state.primitiveTopology(), state.indexCount());
+                }
                 RenderSystem.AutoStorageIndexBuffer sequential = RenderSystem.getSequentialBuffer(
                         state.primitiveTopology());
                 GpuBuffer indices = sequential.getBuffer(state.indexCount());
-                drawIn(type, new StagedVertexBuffer.ExecuteInfo(vertices, indices, sequential.type(), 0, 0,
-                        state.indexCount(), state.primitiveTopology()));
+                drawIn(type, prepared, phase, new StagedVertexBuffer.ExecuteInfo(vertices, indices, sequential.type(),
+                        0, 0, state.indexCount(), state.primitiveTopology()));
             } else {
-                drawIndexed(device, type, vertices, mesh, state);
+                drawIndexed(device, type, prepared, phase, vertices, mesh, state);
             }
         }
     }
 
-    private static void drawIndexed(GpuDevice device, RenderType type, GpuBuffer vertices, MeshData mesh,
-                                    MeshData.DrawState state) {
+    private static void drawIndexed(GpuDevice device, RenderType type, PreparedRenderType prepared,
+                                    OitDrawPhase phase, GpuBuffer vertices, MeshData mesh, MeshData.DrawState state) {
         try (GpuBuffer indices = device.createBuffer(() -> INDEX_LABEL, GpuBuffer.USAGE_INDEX,
                 mesh.indexBuffer())) {
-            drawIn(type, new StagedVertexBuffer.ExecuteInfo(vertices, indices, state.indexType(), 0, 0,
-                    state.indexCount(), state.primitiveTopology()));
+            drawIn(type, prepared, phase, new StagedVertexBuffer.ExecuteInfo(vertices, indices, state.indexType(),
+                    0, 0, state.indexCount(), state.primitiveTopology()));
         }
     }
 
-    // The render type's own target where it names one, else the main target, through the stage's pass if it holds one.
-    // The type prepares before any pass of its own opens, since its first prepare may upload its textures.
-    private static void drawIn(RenderType type, StagedVertexBuffer.ExecuteInfo info) {
-        PreparedRenderType prepared = RenderTypePreparation.prepared(type, StagePass.current() != null);
-        if (prepared == null) {
-            return;
-        }
+    // The render type's own target where it names one, else the main target, through the stage's pass if it holds one;
+    // inside an OIT stage, through the type's OIT pipeline for that stage.
+    private static void drawIn(RenderType type, PreparedRenderType prepared, OitDrawPhase phase,
+                               StagedVertexBuffer.ExecuteInfo info) {
         RenderTarget own = DrawTarget.ownTargetOf(type);
         Supplier<String> label = () -> DRAW_LABEL + type;
         try (StagePass pass = own == null ? StagePass.onMain(label) : StagePass.onTarget(label, own)) {
-            prepared.drawFromBuffer(info, pass.pass());
+            if (phase.stage() != null) {
+                prepared.drawFromBufferOit(info, phase.stage(), pass.pass());
+            } else {
+                prepared.drawFromBuffer(info, pass.pass());
+            }
         }
     }
 }

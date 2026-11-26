@@ -1,6 +1,8 @@
 #version 330
 #extension GL_ARB_separate_shader_objects : require
 
+#include <minecraft:oit.glsl>
+
 // Rock goo's burnout explosion (decision elemental-explosion-per-type): a
 // dust shock disc. Billowing dust in C2A868 with EAD090 highlights drifts
 // outward, thinning at the edge and over time, and a thin bright sonic
@@ -11,7 +13,12 @@ layout(location = 0) in float progress;
 layout(location = 1) in vec2 discPos;
 layout(location = 2) in float opacity;
 
+// Under improved transparency the depth bounds and transmittance phases take the alpha alone, and the
+// accumulate phase weights the color by the transmittance in front of it
+// (decision goo-translucency-draws-through-order-independent-transparency).
+#ifndef OIT_ALPHA_ONLY
 layout(location = 0) out vec4 fragColor;
+#endif
 
 const vec3 DUST_COLOR = vec3(0.761, 0.659, 0.408);
 const vec3 HIGHLIGHT_COLOR = vec3(0.918, 0.816, 0.565);
@@ -67,5 +74,12 @@ void main() {
     color = mix(color, SONIC_COLOR, band);
     alpha = max(alpha, band);
 
-    fragColor = vec4(color, clamp(alpha, 0.0, 1.0) * opacity);
+    vec4 drawn = vec4(color, clamp(alpha, 0.0, 1.0) * opacity);
+#ifdef OIT_ALPHA_ONLY
+    executeAlphaOnlyPhase(gl_FragCoord.z, drawn.a);
+#elif defined(OIT_ACCUMULATE)
+    fragColor = sampleColorForAccumulation(drawn);
+#else
+    fragColor = drawn;
+#endif
 }

@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.ability.quantum.Portal;
 import com.mercuriusxeno.goo.ability.quantum.PortalColor;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.ImmediateBuffers;
+import com.mercuriusxeno.goo.client.SortRoute;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -20,8 +21,10 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -78,18 +81,11 @@ public final class PortalFaces {
      */
     static final double BAND_SLEEVE = 1.0 / 16;
     /**
-     * How far inside the oval's edge the swirl band's line runs, in blocks:
-     * half a texel, through the middle of the rim's pixel ring, so the band's
-     * smooth line cuts the pixel staircase.
+     * How far outside the oval's edge the swirl band lands on the wall, in
+     * blocks: one texel, tuned by eye. Its inner edge lands on the oval's
+     * edge itself, so the band meets the portal's face from any angle.
+     * diagnose-and-correct-the-swirl-bands-depth-under-improved-transparency
      */
-    static final double BAND_INSET = 0.5 / 16;
-    /**
-     * How far inside its line the swirl band lands on the face, over the
-     * portal's view, in blocks: one texel, so the band runs no wider than the
-     * rim's own pixel ring, tuned by eye.
-     */
-    static final double BAND_INSIDE = 1.0 / 16;
-    /** How far outside its line the swirl band lands on the face, on the wall, in blocks: one texel, tuned by eye. */
     static final double BAND_OUTSIDE = 1.0 / 16;
     /** How many rings the swirl band's arch runs across in, from inside the rim to outside. */
     private static final int BAND_RINGS = 6;
@@ -167,28 +163,55 @@ public final class PortalFaces {
      * Hands the shared path the gates once the world has drawn, in the
      * frame's pass and in a view's own, as one draw sorted by the nearest
      * gate's face: halos, then views, then idle swirls, the draw keeping
-     * that order within itself.
+     * that order within itself. Under improved transparency the views and
+     * idle swirls draw with the opaque faces instead (collectFaces).
      * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
+     * decision diagnose-and-correct-the-swirl-bands-depth-under-improved-transparency
      *
      * @param frame the frame being drawn
      * @param draws where the gates' draw goes
      */
     public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
+        collectOn(SortRoute.FAR_TO_NEAR, frame, draws);
+    }
+
+    /**
+     * Hands the shared path the gates' faces with the opaque faces, in the
+     * frame's pass and in a view's own: under improved transparency alone,
+     * views then idle swirls, ahead of the OIT phase.
+     * decision diagnose-and-correct-the-swirl-bands-depth-under-improved-transparency
+     *
+     * @param frame the frame being drawn
+     * @param draws where the gates' draw goes
+     */
+    public static void collectFaces(LevelFrame frame, Consumer<SortedDraw> draws) {
+        collectOn(SortRoute.ON_OPAQUE_FACES, frame, draws);
+    }
+
+    private static void collectOn(SortRoute route, LevelFrame frame, Consumer<SortedDraw> draws) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null) {
+            return;
+        }
+        Set<Part> parts = partsOn(route, mc.gameRenderer.useImprovedTransparency());
+        if (parts.isEmpty()) {
             return;
         }
         Vec3 camera = PortalView.drawing() ? PortalView.cameraPosition() : mc.gameRenderer.mainCamera().position();
         List<Drawn> gates = gatesIn(mc.level.dimension());
         draws.accept(SortedDraw.nearestOf(gates.stream().map(drawn -> drawn.ovalBox().getCenter()), camera,
-                () -> drawGates(frame.poseStack().last(), ImmediateBuffers.shared(), camera, gates)));
+                () -> drawGates(frame.poseStack().last(), ImmediateBuffers.shared(), camera, gates, parts)));
     }
 
     private static void drawGates(PoseStack.Pose pose, ImmediateBuffers buffers, Vec3 camera,
-            List<Drawn> gates) {
-        drawHalos(pose, buffers, camera, gates);
-        drawViews(pose, buffers, camera, gates);
-        drawIdle(pose, buffers, camera, gates);
+            List<Drawn> gates, Set<Part> parts) {
+        if (parts.contains(Part.GLOWS)) {
+            drawHalos(pose, buffers, camera, gates);
+        }
+        if (parts.contains(Part.FACES)) {
+            drawViews(pose, buffers, camera, gates);
+            drawIdle(pose, buffers, camera, gates);
+        }
     }
 
     /**
@@ -236,6 +259,33 @@ public final class PortalFaces {
                 buffers.endBatch(type);
             });
         }
+    }
+
+    /** What of a gate the path draws on a route. */
+    enum Part {
+        /** Its halo and swirl band. */
+        GLOWS,
+        /** Its face: the view through it, or its idle swirl. */
+        FACES
+    }
+
+    /**
+     * What of a gate the path draws on a route. Under improved transparency the face draws with the opaque faces,
+     * before the OIT phase, since the OIT composite writes the depth of the nearest glow it keeps and the face, tested
+     * against that depth after it, would fail wherever the swirl band's arch stands in front of it, and the band then
+     * blends over the face; with improved transparency off the face draws far to near after its halo and band.
+     * decision diagnose-and-correct-the-swirl-bands-depth-under-improved-transparency
+     *
+     * @param route                the route drawing
+     * @param improvedTransparency whether the client draws translucency through order-independent transparency
+     * @return the parts it draws there
+     */
+    static Set<Part> partsOn(SortRoute route, boolean improvedTransparency) {
+        if (route == SortRoute.FAR_TO_NEAR) {
+            return improvedTransparency ? EnumSet.of(Part.GLOWS) : EnumSet.allOf(Part.class);
+        }
+        return route == SortRoute.ON_OPAQUE_FACES && improvedTransparency ? EnumSet.of(Part.FACES)
+                : EnumSet.noneOf(Part.class);
     }
 
     /**
@@ -375,7 +425,7 @@ public final class PortalFaces {
 
     /**
      * Emits the sleeve of each gate given: the half of its swirl band behind
-     * its portal's face, a ring at the band's line running the named sleeve
+     * its portal's face, a ring at the oval's edge running the named sleeve
      * depth back into the portal, which the view through the pair draws in
      * front of the partner's face.
      * tornadic-halo-spirals-out-from-the-rim
@@ -393,13 +443,12 @@ public final class PortalFaces {
     }
 
     /**
-     * Emits a gate's swirl band: before the face, an arch from the named
-     * distance inside its line to the named distance outside, rising to the
-     * named depth right over the line; or, for the sleeve, a ring at the line
-     * running back into the portal. Each quad maps zero to one around the
-     * rim, and across the arch zero to one from inside to outside, or along
-     * the sleeve a half to one from the face back, the arch's line and the
-     * sleeve's mouth meeting at a half; every vertex carries the texels
+     * Emits a gate's swirl band: before the face, an arch from the oval's
+     * edge to the named distance outside it, rising to the named depth
+     * midway; or, for the sleeve, a ring at the edge running back into the
+     * portal. Each quad maps zero to one around the rim, and across the arch
+     * zero to one from the edge outward, or along the sleeve a half to one
+     * from the face back; every vertex carries the texels
      * around the rim and across the arch at sixteen a block.
      * tornadic-halo-spirals-out-from-the-rim
      *
@@ -430,7 +479,7 @@ public final class PortalFaces {
 
     /**
      * The arch a gate's swirl band draws over: the rim's oval on the face,
-     * its half sizes across the face's two ways, the arch straddling it.
+     * its half sizes across the face's two ways, the arch rising from it.
      *
      * @param center the oval's middle on the face's plane, lifted off it
      * @param side   the face
@@ -453,11 +502,11 @@ public final class PortalFaces {
 
         /**
          * @param segment how many segments around the rim, of the named count
-         * @param share   how far across the arch from inside its line to outside, zero to one
+         * @param share   how far across the arch from the oval's edge out onto the wall, zero to one
          * @return the arch's point there
          */
         Vec3 point(int segment, double share) {
-            return around(segment, Mth.lerp(share, -BAND_INSIDE, BAND_OUTSIDE))
+            return around(segment, BAND_OUTSIDE * share)
                     .add(side.getUnitVec3().scale(BAND_DEPTH * Math.sin(Math.PI * share)));
         }
 
@@ -472,12 +521,11 @@ public final class PortalFaces {
 
         /**
          * @param segment how many segments around the rim, of the named count
-         * @param off     how far out past the band's line, in blocks
-         * @return the point on the face that far out past the line at that segment
+         * @param out     how far out past the oval's edge, in blocks
+         * @return the point on the face that far out past the edge at that segment
          */
-        private Vec3 around(int segment, double off) {
+        private Vec3 around(int segment, double out) {
             double angle = Mth.TWO_PI * segment / BAND_SEGMENTS;
-            double out = off - BAND_INSET;
             return center.add(Vec3.ZERO.with(firstAxisOf(side), (half[0] + out) * Math.cos(angle))
                     .with(secondAxisOf(side), (half[1] + out) * Math.sin(angle)));
         }
@@ -493,7 +541,7 @@ public final class PortalFaces {
             double around = Math.PI * (RAMANUJAN_THREE * (first + second) - Math.sqrt((RAMANUJAN_THREE * first
                     + second) * (first + RAMANUJAN_THREE * second)));
             return new int[] {(int) Math.round(around * TEXELS_PER_BLOCK),
-                    (int) Math.round((BAND_INSIDE + BAND_OUTSIDE) * TEXELS_PER_BLOCK)};
+                    (int) Math.round(BAND_OUTSIDE * TEXELS_PER_BLOCK)};
         }
     }
 

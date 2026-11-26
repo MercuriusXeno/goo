@@ -69,10 +69,13 @@ public class SprayerSpecialRenderer implements SpecialModelRenderer<CanisterSpec
         if (data == null) {
             return;
         }
-        parts.body(data);
+        // Goo first: under improved transparency the GUI's item atlas sorts no quad, so a body submitted first
+        // would write its depth in front of the goo and hide it (defect row 7).
+        // decision goo-translucency-draws-through-order-independent-transparency
         if (data.fill() > 0f) {
             parts.fluid(data, sidewaysFluidBounds(data.fill()));
         }
+        parts.body(data);
     }
 
     /**

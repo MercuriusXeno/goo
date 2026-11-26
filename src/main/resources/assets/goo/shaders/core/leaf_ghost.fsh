@@ -2,6 +2,8 @@
 #extension GL_ARB_separate_shader_objects : require
 
 #include <minecraft:globals.glsl>
+#include <minecraft:oit.glsl>
+#include <goo:see_through_glow.glsl>
 
 // Leaf's held ghost, Bloom's sphere (decision bloom-places-buds-by-biome-and-surface):
 // a soft glowing green-gold haze filling the sphere Bloom covers, a green fog
@@ -12,7 +14,12 @@
 layout(location = 0) in vec3 surfaceDir;
 layout(location = 1) in float opacity;
 
+// Under improved transparency the depth bounds and transmittance phases take the alpha alone, and the
+// accumulate phase weights the color by the transmittance in front of it
+// (decision goo-translucency-draws-through-order-independent-transparency).
+#ifndef OIT_ALPHA_ONLY
 layout(location = 0) out vec4 fragColor;
+#endif
 
 // GameTime is the fraction of a 24000-tick day.
 const float TICKS_PER_DAY = 24000.0;
@@ -96,5 +103,12 @@ void main() {
     float haze = 0.12 + 0.18 * ground;
     vec3 color = HAZE_GREEN * haze + SWIRL_GREEN * wisps * 0.35 + POLLEN_GOLD * pollen * (0.6 + 0.6 * ground);
     float alpha = haze + wisps * 0.3 + pollen * 0.8;
-    fragColor = vec4(color / max(alpha, 0.001), clamp(alpha, 0.0, 1.0) * opacity);
+    vec4 drawn = seeThroughGlow(vec4(color / max(alpha, 0.001), clamp(alpha, 0.0, 1.0) * opacity));
+#ifdef OIT_ALPHA_ONLY
+    executeAlphaOnlyPhase(gl_FragCoord.z, drawn.a);
+#elif defined(OIT_ACCUMULATE)
+    fragColor = sampleColorForAccumulation(drawn);
+#else
+    fragColor = drawn;
+#endif
 }

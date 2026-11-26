@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.LineContext;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
@@ -8,7 +9,6 @@ import com.mercuriusxeno.goo.registry.GooAttachments;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.rendertype.RenderType;
-import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.phys.Vec3;
@@ -174,7 +174,7 @@ public final class PneumaWind {
         Vec3 eye = CameraEye.of(mc, player, partialTick).eye();
         Vec3 camera = mc.gameRenderer.mainCamera().position();
         ImmediateBuffers buffers = ImmediateBuffers.shared();
-        RenderType type = RenderTypes.linesTranslucent();
+        RenderType type = GooRenderTypes.TRANSLUCENT_LINES;
         LineContext lines = new LineContext(frame.poseStack().last(), buffers.getBuffer(type));
         for (Mote mote : LIVE) {
             drawMote(lines, camera, eye, mote, now + partialTick - mote.startTick());

@@ -23,7 +23,7 @@ final class MiasmaVortexPass {
     private static final double BOX_MARGIN = 0.25;
     private static final float CHANNEL = 255f;
     private static final MarchedBoxPass PASS = new MarchedBoxPass("Goo miasma vortex", GooRenderTypes.MIASMA_VORTEX,
-            GooRenderTypes.MIASMA_VORTEX_BLOCK, GooRenderTypes.MIASMA_DEPTH_SAMPLER, BYTES);
+            GooRenderTypes.MIASMA_VORTEX_OIT, GooRenderTypes.MIASMA_VORTEX_BLOCK, GooRenderTypes.MIASMA_DEPTH_SAMPLER, BYTES);
 
     /** The block's bytes, kept across frames so a frame allocates no direct memory of its own. */
     private static final ByteBuffer BLOCK = ByteBuffer.allocateDirect(BYTES);

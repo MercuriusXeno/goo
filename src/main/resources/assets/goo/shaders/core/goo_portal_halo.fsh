@@ -3,6 +3,8 @@
 
 #include <minecraft:globals.glsl>
 #include <goo:portal_texels.glsl>
+#include <minecraft:oit.glsl>
+#include <goo:see_through_glow.glsl>
 
 // A gate's halo (decision portal-halo-glows-additively-onto-the-wall): its color glowing onto the
 // wall around the oval, fading outward to nothing, drawn on sixteen texels a block like the rim.
@@ -18,7 +20,12 @@ layout(location = 0) in vec2 frameCoord;
 layout(location = 1) flat in vec2 texels;
 layout(location = 2) in vec4 frameColor;
 
+// Under improved transparency the depth bounds and transmittance phases take the alpha alone, and the
+// accumulate phase weights the color by the transmittance in front of it
+// (decision goo-translucency-draws-through-order-independent-transparency).
+#ifndef OIT_ALPHA_ONLY
 layout(location = 0) out vec4 fragColor;
+#endif
 
 // How far the quad reaches past the oval's blocks each way, in texels: PortalFaces.HALO_MARGIN, half
 // a block, counted at sixteen texels a block.
@@ -82,5 +89,12 @@ void main() {
     float reach = min(HALO_REACH_TEXELS * tongue + ripple, HALO_REACH_LIMIT);
     float fade = max(1.0 - beyond / max(reach, 1.0), 0.0);
     float breakup = mix(1.0 - HALO_INNER_BREAK, 1.0, tongues(angle * HALO_INNER_FINENESS));
-    fragColor = vec4(frameColor.rgb, HALO_STRENGTH * fade * fade * breakup);
+    vec4 drawn = seeThroughGlow(vec4(frameColor.rgb, HALO_STRENGTH * fade * fade * breakup));
+#ifdef OIT_ALPHA_ONLY
+    executeAlphaOnlyPhase(gl_FragCoord.z, drawn.a);
+#elif defined(OIT_ACCUMULATE)
+    fragColor = sampleColorForAccumulation(drawn);
+#else
+    fragColor = drawn;
+#endif
 }

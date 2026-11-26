@@ -2,6 +2,8 @@ package com.mercuriusxeno.goo.client.model;
 
 import com.mercuriusxeno.goo.client.CuboidBounds;
 import com.mercuriusxeno.goo.client.GooSubmitter;
+import com.mercuriusxeno.goo.client.TypeBand;
+import com.mercuriusxeno.goo.client.TypeBands;
 import com.mercuriusxeno.goo.item.ContainerCapacity;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.item.VatBlockItem;
@@ -16,6 +18,7 @@ import net.minecraft.world.item.ItemStack;
 import org.joml.Vector3f;
 import org.joml.Vector3fc;
 import org.jspecify.annotations.Nullable;
+import java.util.List;
 import java.util.function.Consumer;
 
 /**
@@ -125,13 +128,24 @@ public class VatSpecialRenderer implements SpecialModelRenderer<VatSpecialRender
      */
     @Override
     public @Nullable VatData extractArgument(ItemStack stack) {
-        GooContents contents = VatBlockItem.getGooContents(stack);
+        return dataOf(VatBlockItem.getGooContents(stack));
+    }
+
+    /**
+     * The render data of a vat item's contents: a band per goo type by volume, so the item mingles every type it
+     * holds as the placed vat does.
+     * decision one-pass-blends-every-type
+     *
+     * @param contents the goo the vat holds
+     * @return the render data, or null for an empty vat
+     */
+    static @Nullable VatData dataOf(GooContents contents) {
         if (contents.isEmpty()) {
             return null;
         }
         int capacity = contents.capacityOver(ContainerCapacity.VAT_BASE);
         float fill = Math.min(1f, (float) contents.totalVolume() / capacity);
-        return new VatData(contents.largestType(), fill);
+        return new VatData(contents.largestType(), fill, TypeBands.over(contents));
     }
 
     /**
@@ -152,14 +166,66 @@ public class VatSpecialRenderer implements SpecialModelRenderer<VatSpecialRender
                        PoseStack poseStack, SubmitNodeCollector nodeCollector,
                        int packedLight, int packedOverlay, boolean hasFoil, int outlineColor) {
         poseStack.pushPose();
+        submitParts(data, new VatParts() {
+            @Override
+            public void goo(VatData filled) {
+                submitGoo(poseStack, nodeCollector, filled);
+            }
 
-        submitShell(poseStack, nodeCollector, packedLight);
+            @Override
+            public void shell() {
+                submitShell(poseStack, nodeCollector, packedLight);
+            }
+        });
+        poseStack.popPose();
+    }
 
+    /**
+     * Submits a vat item's parts goo first: under improved transparency the GUI's item atlas sorts no quad, so
+     * glass submitted first would write its depth in front of the goo and hide it (defect row 7).
+     * decision goo-translucency-draws-through-order-independent-transparency
+     *
+     * @param data  the extracted render data, or null for an empty vat
+     * @param parts submits each part
+     */
+    static void submitParts(@Nullable VatData data, VatParts parts) {
         if (data != null && data.gooType() != null && data.fill() > 0f) {
+            parts.goo(data);
+        }
+        parts.shell();
+    }
+
+    /**
+     * Submits a vat item's goo: one mingled surface over its bands where it holds several types, as the canister
+     * item draws its own, else its one type.
+     * decision one-pass-blends-every-type
+     *
+     * @param poseStack     the pose stack for rendering
+     * @param nodeCollector the render node collector
+     * @param data          the render data, holding some fill
+     */
+    private static void submitGoo(PoseStack poseStack, SubmitNodeCollector nodeCollector, VatData data) {
+        if (data.bands().size() > 1) {
+            CuboidBounds b = computeFluidBounds(data.fill());
+            GooSubmitter.bandedSurfaces(poseStack, nodeCollector)
+                    .submit(data.bands(), ctx -> FluidFaceEmitter.emitSpriteRelativeFaces(ctx, b));
+        } else if (data.gooType() != null) {
             submitFluid(poseStack, nodeCollector, data.gooType(), data.fill());
         }
+    }
 
-        poseStack.popPose();
+    /** The parts a vat item submits, apart so a test reads the order they draw in. */
+    interface VatParts {
+
+        /**
+         * Submits the vat's goo.
+         *
+         * @param data the render data, holding some fill
+         */
+        void goo(VatData data);
+
+        /** Submits the vat's glass shell, caps and base. */
+        void shell();
     }
 
     /**
@@ -179,8 +245,9 @@ public class VatSpecialRenderer implements SpecialModelRenderer<VatSpecialRender
      *
      * @param gooType the dominant goo type, or null if empty
      * @param fill    the fill fraction [0, 1]
+     * @param bands   one band per goo type the vat holds, by volume
      */
-    public record VatData(@Nullable ResourceKey<GooTypeDefinition> gooType, float fill) {
+    public record VatData(@Nullable ResourceKey<GooTypeDefinition> gooType, float fill, List<TypeBand> bands) {
     }
 
     /**
