@@ -62,7 +62,7 @@ public final class BareHandCastTests {
     /** Inside the fixation, when a hold Lunar took stands fixed. */
     private static final int INSIDE_THE_FIXATION = 20;
     /** Where in lunar the stranded caster stands, high over its ground. */
-    private static final Vec3 STRANDED_AT = new Vec3(0.5, 160, 0.5);
+    private static final Vec3 STRANDED_AT = new Vec3(0.5, 80, 0.5);
 
     private static final String ABILITY_REQUIRED = "goo:astral_lunar must be loaded";
     private static final String LUNAR_REQUIRED = "The server should hold goo:lunar";
