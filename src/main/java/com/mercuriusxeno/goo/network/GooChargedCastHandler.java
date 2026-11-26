@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.ability.ThrowRange;
 import com.mercuriusxeno.goo.ability.world.AbilityImpact;
 import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
+import com.mercuriusxeno.goo.throwing.AimReach;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
@@ -60,9 +61,11 @@ public final class GooChargedCastHandler {
 
     /**
      * Whether a charged cast's target stands within its ability's range of
-     * where the caster's eye stood as the charge began.
+     * where the caster's eye stood as the charge began, with the slack every
+     * release gate gives the caster's movement.
      * decision each-ability-names-its-range-and-the-shared-throw-range-retires
      * decision what-starts-in-range-resolves-out-of-range
+     * decision diagnose-and-correct-the-indicator-disagreeing-with-the-cast
      *
      * @param eyeAtRelease the caster's eye as the release arrives
      * @param eyeAsRooted  the caster's eye as the charge rooted, empty for a charge that rooted nowhere
@@ -72,6 +75,6 @@ public final class GooChargedCastHandler {
      */
     public static boolean reaches(Vec3 eyeAtRelease, Optional<Vec3> eyeAsRooted, Vec3 target,
                                   AbilityDefinition ability) {
-        return eyeAsRooted.orElse(eyeAtRelease).distanceTo(target) <= ThrowRange.of(ability);
+        return AimReach.takes(eyeAsRooted.orElse(eyeAtRelease).distanceTo(target), ThrowRange.of(ability));
     }
 }

@@ -859,7 +859,7 @@ public final class GloveThrowSender {
      * @param origin    the aim line start, where the flight leaves from
      * @return the payload, or null for no target
      */
-    private static @Nullable GooThrowPayload targetToPayload(TargetResult target,
+    static @Nullable GooThrowPayload targetToPayload(TargetResult target,
             ResourceKey<GooTypeDefinition> gooType, String abilityId, Vec3 origin) {
         if (target instanceof TargetResult.None) {
             return null;

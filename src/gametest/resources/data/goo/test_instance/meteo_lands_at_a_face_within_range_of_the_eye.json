@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:meteo_lands_at_a_face_within_range_of_the_eye",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 100,
+  "setup_ticks": 0,
+  "required": true
+}

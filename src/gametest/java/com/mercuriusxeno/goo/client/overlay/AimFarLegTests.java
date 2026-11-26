@@ -81,8 +81,9 @@ public final class AimFarLegTests {
         Vec3 stand = helper.absoluteVec(STAND_FAR);
         player.setPos(stand.x, stand.y, stand.z);
         Pig pig = helper.spawn(EntityTypes.PIG, PIG_POS);
-        AimAssistResolver.AimHit hit = AimAssistResolver.findClosestAimHit(player, helper.absoluteVec(LEG_FROM),
-                helper.absoluteVec(LEG_TO), null, grab.behaviors());
+        AimAssistResolver.AimHit hit = AimAssistResolver.findClosestAimHit(player,
+                AimTargets.AimRay.between(helper.absoluteVec(LEG_FROM), helper.absoluteVec(LEG_TO)), null,
+                grab.behaviors());
         helper.assertTrue(hit instanceof AimAssistResolver.AimHit.EntityHit entityHit && entityHit.entity() == pig,
                 "The far leg should pick the pig on it, picked " + hit);
         helper.getLevel().getServer().getPlayerList().remove(player);
