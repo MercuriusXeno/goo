@@ -88,7 +88,7 @@ class GloveThrowSenderTest {
 
         @Test
         void aThrowLetGoWhileTheBlobStandsLiftedStartsAtTheCastOrigin() {
-            try (SprayingClient client = SprayingClient.local(GooTypes.ZOO)) {
+            try (SprayingClient client = SprayingClient.local(GooTypes.ZOMBIE)) {
                 client.at(RELEASED);
                 for (long tick = RELEASED - PalmBlobHop.LIFT_TICKS; tick < RELEASED; tick++) {
                     LiftedPalmBlob.held(SprayingClient.CASTER, SprayingClient.SENT_GLOVE, tick);

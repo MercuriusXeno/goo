@@ -454,7 +454,7 @@ class SlimeCoreQuadsTest {
             List<BakedQuad> quads = coreOf(LayersAround.alone(15));
             Set<Direction> faces = quads.stream().map(BakedQuad::direction)
                     .collect(Collectors.toCollection(() -> EnumSet.noneOf(Direction.class)));
-            List<BlockTintSource> tints = VolumeCellTint.sources(GooTypes.ZOO, type -> HIGHLIGHT);
+            List<BlockTintSource> tints = VolumeCellTint.sources(GooTypes.ZOMBIE, type -> HIGHLIGHT);
 
             assertEquals(EnumSet.allOf(Direction.class), faces);
             for (BakedQuad quad : quads) {

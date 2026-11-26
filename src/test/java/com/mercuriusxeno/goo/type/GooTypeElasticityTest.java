@@ -36,7 +36,7 @@ class GooTypeElasticityTest {
 
     @Test
     void anElasticityPastOneIsACodecError() throws IOException {
-        JsonObject json = shipped(GooTypes.ZOO);
+        JsonObject json = shipped(GooTypes.ZOMBIE);
         json.addProperty(ELASTICITY, 1.5f);
 
         assertTrue(GooTypeDefinition.CODEC.parse(JsonOps.INSTANCE, json).isError(),
