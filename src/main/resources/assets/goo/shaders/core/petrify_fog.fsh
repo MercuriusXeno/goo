@@ -2,6 +2,7 @@
 #extension GL_ARB_separate_shader_objects : require
 
 #include <minecraft:globals.glsl>
+#include <minecraft:oit.glsl>
 
 // Petrify's fog (decisions petrify-fog-is-billowing-roiling-dust,
 // petrify-stone-encasement-and-calcify-map): one puff of a medusa's gaze
@@ -14,7 +15,12 @@ layout(location = 0) in float age;
 layout(location = 1) in vec2 corner;
 layout(location = 2) flat in float seed;
 
+// Under improved transparency the depth bounds and transmittance phases take the alpha alone, and the
+// accumulate phase weights the color by the transmittance in front of it
+// (decision goo-translucency-draws-through-order-independent-transparency).
+#ifndef OIT_ALPHA_ONLY
 layout(location = 0) out vec4 fragColor;
+#endif
 
 const float TAU = 6.2831853;
 // GameTime runs from zero to one over a day of 24000 ticks; this many seconds make one day.
@@ -78,5 +84,12 @@ void main() {
     float alpha = body * (0.35 + 0.65 * dust) * life * PUFF_OPACITY;
     vec3 color = mix(MIASMA_COLOR, DUST_COLOR, smoothstep(0.25, 0.75, dust)) * mix(0.8, 1.05, dust);
 
-    fragColor = vec4(color, clamp(alpha, 0.0, 1.0));
+    vec4 drawn = vec4(color, clamp(alpha, 0.0, 1.0));
+#ifdef OIT_ALPHA_ONLY
+    executeAlphaOnlyPhase(gl_FragCoord.z, drawn.a);
+#elif defined(OIT_ACCUMULATE)
+    fragColor = sampleColorForAccumulation(drawn);
+#else
+    fragColor = drawn;
+#endif
 }

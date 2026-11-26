@@ -5,6 +5,7 @@
 #include <minecraft:dynamictransforms.glsl>
 #include <minecraft:globals.glsl>
 #include <goo:mingle_noise.glsl>
+#include <minecraft:oit.glsl>
 
 // The vanilla entity fragment shader under EMISSIVE and NO_OVERLAY, blending
 // every goo type a surface holds in one pass (decision one-pass-blends-every-type):
@@ -15,14 +16,21 @@
 uniform sampler2D Sampler0;
 uniform sampler2D MingleTable;
 
+// Under improved transparency the depth bounds and transmittance phases take the blend's alpha
+// alone, and the accumulate phase weights its color by the transmittance in front of it
+// (decision goo-translucency-draws-through-order-independent-transparency).
+#ifndef OIT_ALPHA_ONLY
 layout(location = 0) in float sphericalVertexDistance;
 layout(location = 1) in float cylindricalVertexDistance;
+#endif
 layout(location = 2) in vec4 vertexColor;
 layout(location = 3) in vec2 texCoord0;
 layout(location = 4) in vec3 mingleWorldPos;
 layout(location = 5) flat in ivec2 mingleRows;
 
+#ifndef OIT_ALPHA_ONLY
 layout(location = 0) out vec4 fragColor;
+#endif
 
 // Must match MingleTable: the column of each field in a row.
 const int SPRITE_U0 = 0;
@@ -78,5 +86,16 @@ void main() {
         discard;
     }
 
-    fragColor = apply_fog(vec4(premultiplied / alpha, alpha), sphericalVertexDistance, cylindricalVertexDistance, FogEnvironmentalStart, FogEnvironmentalEnd, FogRenderDistanceStart, FogRenderDistanceEnd, FogColor);
+#ifdef OIT_ALPHA_ONLY
+    executeAlphaOnlyPhase(gl_FragCoord.z, alpha);
+#else
+    vec4 color = vec4(premultiplied / alpha, alpha);
+    #ifdef OIT_ACCUMULATE
+    color = sampleColorForAccumulation(color);
+    vec4 fogColor = vec4(FogColor.rgb * color.a, FogColor.a);
+    #else
+    vec4 fogColor = FogColor;
+    #endif
+    fragColor = apply_fog(color, sphericalVertexDistance, cylindricalVertexDistance, FogEnvironmentalStart, FogEnvironmentalEnd, FogRenderDistanceStart, FogRenderDistanceEnd, fogColor);
+#endif
 }

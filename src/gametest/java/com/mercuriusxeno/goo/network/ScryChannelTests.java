@@ -6,11 +6,11 @@ import com.mercuriusxeno.goo.ability.program.HeldSweepPulses;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
+import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooItems;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
@@ -26,17 +26,20 @@ import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
 
 /**
- * Gametest for Scry's sweep through the real channel path: a mock player
- * holding astral goo casts the astral scry probe, whose sweep runs a damage
- * step where astral's Scry runs its glisten, and the front reaches a zombie
- * standing behind a stone wall the player cannot see through, striking it
- * once as it crosses.
+ * Gametest for Scry cast through the real cast path, one ring a press: a
+ * mock player holding astral goo casts the astral scry probe once, whose
+ * ring runs a damage step where astral's Scry runs its glisten, and the
+ * front travels on with no key held to a zombie standing behind a stone
+ * wall the player cannot see through, striking it once as it crosses; and
+ * Scry pressed once a second for a minute holds its live pulses level.
  * decision scry-sphere-reveals-faces-and-glistens-mobs
  * decision scry-ships-on-astral
+ * decision scry-is-instant-and-no-longer-channeled
  */
 @RegistersGameTests
 public final class ScryChannelTests {
     private static final String SCRY_GLISTENS_THE_HIDDEN_ZOMBIE = "scry_glistens_the_hidden_zombie";
+    private static final String SCRY_HELD_A_MINUTE_HOLDS_ITS_PULSES_LEVEL = "scry_held_a_minute_holds_its_pulses_level";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -49,27 +52,25 @@ public final class ScryChannelTests {
                 ScryChannelTests::scryHeldAMinuteHoldsItsPulsesLevel);
     }
 
-    private static final String SCRY_HELD_A_MINUTE_HOLDS_ITS_PULSES_LEVEL = "scry_held_a_minute_holds_its_pulses_level";
     private static final int SECOND = 20;
-    private static final int TEN_SECONDS = 200;
-    private static final int LAST_SECOND = 1_200;
-    /** The hold lets go on the tick a pulse leaves, so a front still travels as it ends. */
-    private static final int A_MINUTE = 1_201;
-    /** Enough astral goo to pay Scry each second of a minute's hold and some over. */
+    private static final int FIVE_SECONDS = 100;
+    /** The last tick of the minute, on the same beat of the presses as {@link #FIVE_SECONDS}. */
+    private static final int A_MINUTE = 1_200;
+    /** Enough astral goo to pay Scry each second of a minute and some over. */
     private static final int MINUTE_OF_GOO = 70;
-    /** Ticks past the hold's end by which Scry's last front, ninety-six blocks out in forty ticks, has landed. */
+    /** Ticks past a press by which its front, out to its reach in forty ticks, has landed. */
     private static final int LANDED_AFTER = 45;
-    /** Astral Scry itself, whose child step lays only the astral overlay, so a minute's hold harms no other test's mob. */
+    /** Astral Scry itself, whose child step lays only the astral overlay, so a minute of it harms no other test's mob. */
     private static final Identifier ASTRAL_SCRY = Identifier.fromNamespaceAndPath("goo", "astral_scry");
     private static final String SCRY_REQUIRED = "Ability registry must hold astral scry";
-    private static final String HELD_LEVEL = "A minute's hold should hold no more pulses than at ten seconds: %s then, %s now";
-    private static final String STILL_HELD = "The hold should still be sending pulses at a minute";
-    private static final String NONE_AFTER = "No pulse should stand for the caster once the hold ended and its fronts landed: %s";
+    private static final String HELD_LEVEL = "A minute of presses should hold as many pulses as five seconds did: %s then, %s now";
+    private static final String STILL_PRESSED = "The presses should still be sending pulses at a minute";
+    private static final String NONE_AFTER = "No pulse should stand for the caster once its last front landed: %s";
 
     /**
-     * A mock player holds Astral Scry for a minute: the server holds no
-     * more live pulses for it at the minute than at ten seconds, and none
-     * once the hold has ended and its last front has reached its range.
+     * A mock player presses Astral Scry once a second for a minute: the
+     * server holds as many live pulses for it at the minute as at five
+     * seconds, and none once the last front has reached its range.
      * decision diagnose-and-correct-scry-lag-building-over-a-long-cast
      *
      * @param helper the gametest helper
@@ -79,31 +80,22 @@ public final class ScryChannelTests {
         helper.assertTrue(scry != null, SCRY_REQUIRED);
         ServerPlayer player = scryer(helper, MINUTE_OF_GOO);
         KnownRecipes.teachRequires(player, scry);
-        GooStreamPayload tick = new GooStreamPayload(GooTypes.id(GooTypes.ASTRAL), ASTRAL_SCRY.toString(),
-                player.getEyePosition(), player.getEyePosition(), helper.absolutePos(STAND_POS.below()),
-                Direction.UP.get3DDataValue());
-        // the most pulses the server holds for the caster over the tenth second and over the last
-        int[] most = new int[2];
-        for (int held = 1; held <= A_MINUTE; held++) {
-            int heldTick = held;
-            helper.runAfterDelay(held, () -> {
-                GooStreamHandler.streamTick(player, tick);
-                int live = HeldSweepPulses.SERVER.liveFor(player.getUUID());
-                if (heldTick > TEN_SECONDS - SECOND && heldTick <= TEN_SECONDS) {
-                    most[0] = Math.max(most[0], live);
-                } else if (heldTick > LAST_SECOND - SECOND && heldTick <= LAST_SECOND) {
-                    most[1] = Math.max(most[1], live);
-                }
-            });
+        // the pulses the server holds for the caster at five seconds and at the minute
+        int[] live = new int[2];
+        for (int press = 1; press <= A_MINUTE; press += SECOND) {
+            helper.runAfterDelay(press, () -> SelfDeliveryTests.invoke(player, GooTypes.ASTRAL, ASTRAL_SCRY));
         }
-        helper.runAfterDelay(LAST_SECOND + 1, () -> {
-            helper.assertTrue(most[1] > 0, STILL_HELD);
-            helper.assertTrue(most[1] <= most[0], String.format(HELD_LEVEL, most[0], most[1]));
+        int lastPress = 1 + (A_MINUTE - 1) / SECOND * SECOND;
+        helper.runAfterDelay(FIVE_SECONDS, () -> live[0] = HeldSweepPulses.SERVER.liveFor(player.getUUID()));
+        helper.runAfterDelay(A_MINUTE, () -> live[1] = HeldSweepPulses.SERVER.liveFor(player.getUUID()));
+        helper.runAfterDelay(A_MINUTE + 1, () -> {
+            helper.assertTrue(live[1] > 0, STILL_PRESSED);
+            helper.assertTrue(live[1] == live[0], String.format(HELD_LEVEL, live[0], live[1]));
         });
-        helper.runAfterDelay(A_MINUTE + LANDED_AFTER, () -> {
-            int afterTheHold = HeldSweepPulses.SERVER.liveFor(player.getUUID());
+        helper.runAfterDelay(lastPress + LANDED_AFTER, () -> {
+            int afterTheLast = HeldSweepPulses.SERVER.liveFor(player.getUUID());
             helper.getLevel().getServer().getPlayerList().remove(player);
-            helper.assertTrue(afterTheHold == 0, String.format(NONE_AFTER, afterTheHold));
+            helper.assertTrue(afterTheLast == 0, String.format(NONE_AFTER, afterTheLast));
             helper.succeed();
         });
     }
@@ -115,13 +107,9 @@ public final class ScryChannelTests {
     private static final int WALL_HEIGHT = 3;
     private static final int BAY_WIDTH = 7;
     private static final BlockPos ZOMBIE_POS = new BlockPos(5, 1, 3);
-    /**
-     * The probe's pulse eases out to its eight block reach, kept inside the
-     * bay so it strikes no other test's player: ten ticks carry it past the
-     * zombie four blocks off, inside its first pulse.
-     */
-    private static final int HOLD_TICKS = 10;
     private static final int HELD_GOO = 2;
+    /** The probe's cost, as astral_scry_probe.json sets it, in mB. */
+    private static final int PROBE_COST = 1_000;
     private static final float PROBE_DAMAGE = 3f;
     private static final float TOLERANCE = 0.01f;
     private static final String TEST_PACK = "gootest";
@@ -129,14 +117,18 @@ public final class ScryChannelTests {
     private static final String ABILITY_REQUIRED = "Ability registry must hold the scry probe";
     private static final String NOT_SEEN = "The wall should hide the zombie from the player";
     private static final String STRUCK_ONCE = "The front should strike the hidden zombie once, for %s, it lost %s";
+    private static final String PAID_ONCE = "The press should pay the probe's cost once, %s mB, it paid %s";
 
     private ScryChannelTests() {
     }
 
     /**
-     * A mock player holds the scry probe for ten ticks with a stone wall
-     * between it and a zombie four blocks off: the zombie, unseen, loses the
-     * probe's damage once, as the front crosses it and never again.
+     * A mock player casts the scry probe once and lets go, with a stone wall
+     * between it and a zombie four blocks off. The probe's ring crosses its
+     * eight block reach in two seconds, kept inside the bay so it strikes no
+     * other test's player, passing the zombie on its twentieth tick: once the
+     * ring has landed the zombie, unseen, has lost the probe's damage once,
+     * and the player has paid the probe's cost once.
      *
      * @param helper the gametest helper
      */
@@ -154,18 +146,23 @@ public final class ScryChannelTests {
         ServerPlayer player = scryer(helper);
         KnownRecipes.teachRequires(player, probe);
         helper.assertFalse(player.hasLineOfSight(zombie), NOT_SEEN);
-        GooStreamPayload tick = new GooStreamPayload(GooTypes.id(GooTypes.ASTRAL), SCRY_PROBE.toString(),
-                player.getEyePosition(), player.getEyePosition(), helper.absolutePos(STAND_POS.below()),
-                Direction.UP.get3DDataValue());
-        for (int held = 1; held <= HOLD_TICKS; held++) {
-            helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(player, tick));
-        }
-        helper.runAfterDelay(HOLD_TICKS + 1, () -> {
+        int[] heldBefore = new int[1];
+        helper.runAfterDelay(1, () -> {
+            heldBefore[0] = held(player);
+            SelfDeliveryTests.invoke(player, GooTypes.ASTRAL, SCRY_PROBE);
+        });
+        helper.runAfterDelay(1 + LANDED_AFTER, () -> {
+            int paid = heldBefore[0] - held(player);
             helper.getLevel().getServer().getPlayerList().remove(player);
             float lost = startHealth - zombie.getHealth();
             helper.assertTrue(Math.abs(lost - PROBE_DAMAGE) < TOLERANCE, String.format(STRUCK_ONCE, PROBE_DAMAGE, lost));
+            helper.assertTrue(paid == PROBE_COST, String.format(PAID_ONCE, PROBE_COST, paid));
             helper.succeed();
         });
+    }
+
+    private static int held(ServerPlayer player) {
+        return GooSourceScanner.aggregateAvailable(player).getOrDefault(GooTypes.ASTRAL, 0);
     }
 
     private static ServerPlayer scryer(GameTestHelper helper) {

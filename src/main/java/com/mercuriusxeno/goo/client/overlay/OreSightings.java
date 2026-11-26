@@ -1,7 +1,9 @@
 package com.mercuriusxeno.goo.client.overlay;
 
 import com.mercuriusxeno.goo.ability.crystal.OreVeins;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.BlockPos;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 import java.util.List;
@@ -10,8 +12,10 @@ import java.util.List;
  * The gem ore veins Glimmer has revealed on this client: each vein's blocks
  * show through walls from the tick the sphere's front reaches it to the end
  * of its life, fading in and fading away at its end, and a vein a later
- * hold finds again keeps showing rather than blinking out.
+ * hold finds again keeps showing rather than blinking out, each vein in the
+ * color of the goo type whose sweep last revealed it.
  * decision glitter-sphere-icons-gem-ore-groups
+ * decision ore-glow-takes-the-casting-goos-color
  */
 public final class OreSightings {
 
@@ -33,8 +37,9 @@ public final class OreSightings {
      * @param vein     the vein
      * @param appearAt the game time it shows from
      * @param endAt    the game time it is gone by
+     * @param gooType  the goo type whose sweep last revealed it
      */
-    record Seen(OreVeins.Vein vein, double appearAt, double endAt) {
+    record Seen(OreVeins.Vein vein, double appearAt, double endAt, ResourceKey<GooTypeDefinition> gooType) {
 
         /**
          * How fully the vein shows at a moment: nothing before it shows and
@@ -53,10 +58,11 @@ public final class OreSightings {
     /**
      * One ore block to draw through walls.
      *
-     * @param pos   the block
-     * @param shown how fully it shows, in [0, 1]
+     * @param pos     the block
+     * @param shown   how fully it shows, in [0, 1]
+     * @param gooType the goo type whose sweep last revealed its vein, whose color it glows in
      */
-    public record Sighting(BlockPos pos, float shown) {
+    public record Sighting(BlockPos pos, float shown, ResourceKey<GooTypeDefinition> gooType) {
     }
 
     private final List<Seen> seen = new ArrayList<>();
@@ -66,13 +72,15 @@ public final class OreSightings {
 
     /**
      * Takes the veins the front has just reached: each shows from now for
-     * its life; a vein already showing keeps showing until then.
+     * its life; a vein already showing keeps showing until then, and takes
+     * the type of this reveal.
      *
-     * @param now   the game time the front reached them
-     * @param veins the veins the front reached
-     * @param life  the ticks each shows once revealed
+     * @param now     the game time the front reached them
+     * @param veins   the veins the front reached
+     * @param life    the ticks each shows once revealed
+     * @param gooType the goo type whose sweep reached them
      */
-    public void reveal(long now, List<OreVeins.Vein> veins, int life) {
+    public void reveal(long now, List<OreVeins.Vein> veins, int life, ResourceKey<GooTypeDefinition> gooType) {
         for (OreVeins.Vein vein : veins) {
             double appearAt = now;
             int earlier = sightingOf(vein, now);
@@ -80,7 +88,7 @@ public final class OreSightings {
                 appearAt = Math.min(appearAt, seen.get(earlier).appearAt());
                 seen.remove(earlier);
             }
-            seen.add(new Seen(vein, appearAt, now + life));
+            seen.add(new Seen(vein, appearAt, now + life, gooType));
         }
     }
 
@@ -107,7 +115,7 @@ public final class OreSightings {
         for (Seen entry : seen) {
             float shown = entry.shownAt(now);
             if (shown > 0f) {
-                entry.vein().blocks().forEach(pos -> showing.add(new Sighting(pos, shown)));
+                entry.vein().blocks().forEach(pos -> showing.add(new Sighting(pos, shown, entry.gooType())));
             }
         }
         return showing;

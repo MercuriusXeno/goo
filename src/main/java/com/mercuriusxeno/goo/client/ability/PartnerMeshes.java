@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.client.ImmediateBuffers;
+import com.mercuriusxeno.goo.client.OitDrawPhase;
 import com.mercuriusxeno.goo.client.StagePass;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
@@ -15,6 +17,7 @@ import com.mojang.renderpearl.api.pipeline.RenderPipeline;
 import com.mojang.renderpearl.api.textures.AddressMode;
 import com.mojang.renderpearl.api.textures.FilterMode;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
 import net.minecraft.client.renderer.chunk.VisibilitySet;
 import net.minecraft.core.BlockPos;
@@ -173,7 +176,15 @@ public final class PartnerMeshes {
             return;
         }
         Minecraft mc = Minecraft.getInstance();
-        RenderPipeline pipeline = SectionMeshes.pipelineOf(layer);
+        OitDrawPhase phase = OitDrawPhase.current();
+        RenderPipeline pipeline = OitDrawPhase.pipelineFor(phase, SectionMeshes.pipelineOf(layer),
+                layer == ChunkSectionLayer.TRANSLUCENT ? RenderPipelines.OIT_TRANSLUCENT_BLOCK : null);
+        if (pipeline == null) {
+            return;
+        }
+        if (phase.stage() != null) {
+            ImmediateBuffers.noteOitIndexCount(mesh.drawState().primitiveTopology(), mesh.drawState().indexCount());
+        }
         BlockPos origin = built.section().origin();
         Matrix4f modelView = new Matrix4f(view).translate((float) (origin.getX() - camera.x()),
                 (float) (origin.getY() - camera.y()), (float) (origin.getZ() - camera.z()));

@@ -6,23 +6,24 @@ package com.mercuriusxeno.goo.lunar;
  * cavern. Each zone runs from the top of the zone under it to its own top. Lunar's noise settings and surface rule
  * name the same numbers.
  * decision lunar-underground-changes-by-depth-down-to-a-molten-iron-sea
+ * decision moon-is-288-tall-half-of-today
  */
 public final class LunarDepths {
 
     /** The world's floor, where bedrock lies. */
-    public static final int WORLD_FLOOR_Y = -256;
-    /** The world's height in blocks from its floor, the surface standing where it stood. */
-    public static final int WORLD_HEIGHT = 576;
+    public static final int WORLD_FLOOR_Y = -128;
+    /** The world's height in blocks from its floor, half of what lunar first stood. */
+    public static final int WORLD_HEIGHT = 288;
     /** The top of the shallow zone, the rubble caves' band under the surface. */
-    public static final int SHALLOW_ZONE_TOP_Y = 40;
+    public static final int SHALLOW_ZONE_TOP_Y = 20;
     /** The top of the middle zone, the bare rock caverns' band. */
     public static final int CAVERN_ZONE_TOP_Y = 0;
     /** The top of the warren zone, the eldritch warrens' band. */
-    public static final int WARREN_ZONE_TOP_Y = -64;
+    public static final int WARREN_ZONE_TOP_Y = -32;
     /** The top of the sea zone, the highest the sea cavern's roof reaches. */
-    public static final int SEA_ZONE_TOP_Y = -128;
+    public static final int SEA_ZONE_TOP_Y = -64;
     /** The molten iron sea's level: molten iron stands below it and open air over it. */
-    public static final int SEA_LEVEL_Y = -176;
+    public static final int SEA_LEVEL_Y = -88;
 
     private LunarDepths() {
     }

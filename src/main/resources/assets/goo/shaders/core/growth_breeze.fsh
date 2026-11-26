@@ -2,6 +2,8 @@
 #extension GL_ARB_separate_shader_objects : require
 
 #include <minecraft:globals.glsl>
+#include <minecraft:oit.glsl>
+#include <goo:see_through_glow.glsl>
 
 // Growth's breeze (decision growth-breeze-ticks-plants): ragged wisps of
 // glowing leaf green, torn and warped like wind, fill each cross-section of
@@ -17,7 +19,11 @@
 layout(location = 0) in float along;
 layout(location = 1) in vec2 discPos;
 
+// Under improved transparency the breeze draws in the OIT phase as a see-through layer, its color retuned toward its
+// added glow (decision additive-glows-draw-as-translucent-layers-in-the-oit-phase).
+#ifndef OIT_ALPHA_ONLY
 layout(location = 0) out vec4 fragColor;
+#endif
 
 // GameTime is the fraction of a 24000-tick day.
 const float TICKS_PER_DAY = 24000.0;
@@ -102,5 +108,12 @@ void main() {
     vec3 color = mix(DEEP_GREEN, LEAF_GREEN, wisp);
     color = mix(color, BRIGHT_GREEN, clamp(ripple, 0.0, 1.0));
 
-    fragColor = vec4(color, clamp(glow, 0.0, 1.0));
+    vec4 breeze = seeThroughGlow(vec4(color, clamp(glow, 0.0, 1.0)));
+#ifdef OIT_ALPHA_ONLY
+    executeAlphaOnlyPhase(gl_FragCoord.z, breeze.a);
+#elif defined(OIT_ACCUMULATE)
+    fragColor = sampleColorForAccumulation(breeze);
+#else
+    fragColor = breeze;
+#endif
 }

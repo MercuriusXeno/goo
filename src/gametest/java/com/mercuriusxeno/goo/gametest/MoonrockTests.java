@@ -26,7 +26,7 @@ public final class MoonrockTests {
     private static final double SAME = 1e-9;
     /** A hotbar slot past the selected one, where an unheld stone rides. */
     private static final int UNHELD_SLOT = 5;
-    private static final Vec3 HIGH_OVER_LUNAR = new Vec3(0.5, 300, 0.5);
+    private static final Vec3 HIGH_OVER_LUNAR = new Vec3(0.5, 150, 0.5);
 
     private static final String LUNAR_REQUIRED = "The server should hold goo:lunar";
     private static final String WRONG_GRAVITY = "A player with Moonrock %s should fall under %s of its gravity,"

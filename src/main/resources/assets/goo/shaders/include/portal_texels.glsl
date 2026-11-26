@@ -20,9 +20,9 @@ float portalTexelsInside(vec2 across, vec2 texels, float edge) {
     return (edge - out_) / length(across / out_ * 2.0 / texels);
 }
 
-// How many texels inside the oval's edge the swirl band's line runs: PortalFaces.BAND_INSET, half a
-// texel. The rim paints only outside it, so the band's line visibly cuts the rim
-// (decision vortex-mouth-cuts-the-pixel-rim).
+// How many texels inside the oval's edge the rim's cut runs: half a texel. The rim paints only outside
+// it, along the face's outer half texel, just inside the swirl band, whose inner edge lands on the
+// oval's edge (decision vortex-mouth-cuts-the-pixel-rim).
 const float PORTAL_RIM_LINE = 0.5;
 // How many texels out from the line the rim reaches at most.
 const float PORTAL_RIM_WIDTH = 1.5;

@@ -33,7 +33,7 @@ public final class GravityBounceTests {
     /** Where each dimension's site stands, far from every other test's ground and high over any terrain. */
     private static final int SITE_X = 2184;
     private static final int SITE_Z = 8;
-    private static final int SITE_Y = 180;
+    private static final int SITE_Y = 90;
     /** The chunks each way of the site that stand loaded before its own chunk's entities tick. */
     private static final int ENTITY_TICKING_REACH = 2;
     /** How far east of the pad the plain jumper stands on stone. */

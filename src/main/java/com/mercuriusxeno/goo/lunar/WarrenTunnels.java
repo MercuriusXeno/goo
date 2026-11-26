@@ -23,6 +23,7 @@ import net.minecraft.world.level.levelgen.synth.NormalNoise;
  * along the curves where two three dimensional noises both read near zero, as vanilla's noodle caves run, narrowing
  * shut as they near the zone's top and bottom. Lunar's surface rule lines their floors and roofs with sculk.
  * decision lunar-underground-changes-by-depth-down-to-a-molten-iron-sea
+ * decision moon-is-288-tall-half-of-today
  *
  * @param first  the first noise whose zero surface the tunnels follow
  * @param second the second noise whose zero surface crosses the first's
@@ -42,7 +43,7 @@ public record WarrenTunnels(Noise first, Noise second) implements DensitySampler
     /** How far from zero both noises may read inside a tunnel, deep in the zone: about three blocks across. */
     static final double HALF_WIDTH = 0.07;
     /** The blocks inside each of the zone's edges over which the tunnels narrow shut. */
-    static final double EDGE_MARGIN = 8.0;
+    static final double EDGE_MARGIN = 4.0;
     private static final double OPEN = -1.0;
     private static final double SOLID = 1.0;
 

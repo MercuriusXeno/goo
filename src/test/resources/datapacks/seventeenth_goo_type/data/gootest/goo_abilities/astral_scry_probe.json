@@ -1,10 +1,10 @@
 {
   "gooType": "goo:astral",
   "displayName": "goo.ability.gootest.astral_scry_probe",
-  "badge": "channeled",
+  "badge": "instant",
   "order": 90,
   "cost": 1000,
-  "delivery": { "kind": "self", "ticks_per_charge": 20 },
+  "delivery": { "kind": "self" },
   "behaviors": [
     {
       "type": "scry",
