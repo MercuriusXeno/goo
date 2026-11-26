@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.block.ability.WispBlockEntity;
 import com.mercuriusxeno.goo.block.alientech.LightBeaconBlockEntity;
+import com.mercuriusxeno.goo.block.alientech.OculusBlockEntity;
 import com.mercuriusxeno.goo.block.alientech.ReflectorBlockEntity;
 import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlockEntity;
@@ -87,6 +88,11 @@ public class GooBlockEntities {
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<LightBeaconBlockEntity>> LIGHT_BEACON =
             BLOCK_ENTITIES.register("light_beacon",
                     () -> new BlockEntityType<>(LightBeaconBlockEntity::new, GooBlocks.LIGHT_BEACON.get()));
+
+    /** The oculus's block entity, which lists it as a Blink node (decision oculus-prism-becomes-a-hovering-eye). */
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<OculusBlockEntity>> OCULUS =
+            BLOCK_ENTITIES.register("oculus",
+                    () -> new BlockEntityType<>(OculusBlockEntity::new, GooBlocks.OCULUS.get()));
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<ChoralGasketBlockEntity>> CHORAL_GASKET =
             BLOCK_ENTITIES.register("choral_gasket",

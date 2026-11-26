@@ -76,7 +76,8 @@ public final class SelfDeliveryTests {
     }
 
 
-    private static final BlockPos STAND_POS = new BlockPos(1, 1, 3);
+    /** Where the mock invoker stands in the bay. */
+    static final BlockPos STAND_POS = new BlockPos(1, 1, 3);
     private static final int NO_ENTITY = -1;
     /** Two thousand mB, two casts' worth. */
     private static final int HELD_GOO = 2;

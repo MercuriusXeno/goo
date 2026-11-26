@@ -11,7 +11,6 @@ import com.mercuriusxeno.goo.client.ability.BlockTransforms;
 import com.mercuriusxeno.goo.client.ability.TransformationRenderer;
 import com.mercuriusxeno.goo.client.ability.Transformations;
 import com.mercuriusxeno.goo.client.ber.style.HeaterPrismStyle;
-import com.mercuriusxeno.goo.client.ber.style.OculusLids;
 import com.mercuriusxeno.goo.client.ber.style.OculusStyle;
 import com.mercuriusxeno.goo.client.ber.style.PrismComboStyle;
 import com.mercuriusxeno.goo.client.ber.style.PrismComboStyles;

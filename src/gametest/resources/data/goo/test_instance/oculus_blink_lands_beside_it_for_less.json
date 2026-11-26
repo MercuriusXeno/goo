@@ -1,9 +1,9 @@
 {
   "type": "minecraft:function",
-  "function": "goo:blink_at_a_bare_prism_makes_an_oculus",
+  "function": "goo:oculus_blink_lands_beside_it_for_less",
   "environment": "minecraft:default",
   "structure": "goo:test_bay",
-  "max_ticks": 20,
+  "max_ticks": 100,
   "setup_ticks": 0,
   "required": true
 }

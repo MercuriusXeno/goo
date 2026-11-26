@@ -263,6 +263,8 @@ public final class GooClientSetup {
         event.registerBlockEntityRenderer(GooBlockEntities.REFLECTOR.get(), ReflectorRenderer::new);
         // bulb-one-model-max-light-beacon-combo: the light beacon draws its far-seen column
         event.registerBlockEntityRenderer(GooBlockEntities.LIGHT_BEACON.get(), LightBeaconRenderer::new);
+        // oculus-prism-becomes-a-hovering-eye: the oculus block draws its hovering eye
+        event.registerBlockEntityRenderer(GooBlockEntities.OCULUS.get(), OculusRenderer::new);
         PrismComboStyles.register(GlowBeaconStyle.COMBO, new GlowBeaconStyle());
         PrismComboStyles.register(GlowReflectorStyle.COMBO, new GlowReflectorStyle());
         PrismComboStyles.register(HivePrismStyle.COMBO, new HivePrismStyle());

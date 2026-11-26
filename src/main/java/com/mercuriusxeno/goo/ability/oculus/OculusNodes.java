@@ -1,16 +1,14 @@
 package com.mercuriusxeno.goo.ability.oculus;
 
-import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.phys.Vec3;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
 /**
- * Finds the oculus a blink snaps to: among the oculus prisms within the node
+ * Finds the oculus a blink snaps to: among the placed oculus blocks within the node
  * range of the blinker's eye and inside the cone around their look, the one
  * nearest the look's line by angle. The server's teleport and the client's
  * cursor both ask here, so the cursor shows the node the blink takes.
@@ -85,16 +83,6 @@ public final class OculusNodes {
      */
     public static List<BlockPos> oculiNear(Level level, Vec3 eye, double range) {
         return OculusRegistry.in(level).stream().filter(cell -> eyeOf(cell).distanceTo(eye) <= range).toList();
-    }
-
-    /**
-     * Whether a block entity is a prism holding the oculus combo.
-     *
-     * @param blockEntity the block entity
-     * @return true for an oculus
-     */
-    static boolean isOculus(BlockEntity blockEntity) {
-        return blockEntity instanceof PrismBlockEntity prism && OCULUS.equals(prism.getCombo());
     }
 
     /**

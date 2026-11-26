@@ -1,4 +1,4 @@
-package com.mercuriusxeno.goo.client.ber.style;
+package com.mercuriusxeno.goo.client.ber;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;

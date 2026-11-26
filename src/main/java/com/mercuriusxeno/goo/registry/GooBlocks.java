@@ -24,6 +24,7 @@ import com.mercuriusxeno.goo.block.ability.WispBlock;
 import com.mercuriusxeno.goo.block.ability.ZapPulseBlock;
 import com.mercuriusxeno.goo.block.alientech.LightBeaconBlock;
 import com.mercuriusxeno.goo.block.alientech.MetronomeBlock;
+import com.mercuriusxeno.goo.block.alientech.OculusBlock;
 import com.mercuriusxeno.goo.block.alientech.ReflectorBlock;
 import com.mercuriusxeno.goo.block.canister.CanisterBlock;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlock;
@@ -824,6 +825,16 @@ public class GooBlocks {
             LightBeaconBlock::new, () -> BlockBehaviour.Properties.of().mapColor(MapColor.METAL)
                     .strength(REFLECTOR_HARDNESS).sound(SoundType.LANTERN).noOcclusion()
                     .pushReaction(PushReaction.POPPED).lightLevel(state -> LightBeaconBlock.LIGHT));
+    /**
+     * Oculus: a base on a solid face with an ender eye hovering off it, the stable node Blink snaps to, dropping
+     * itself so a crucible can melt it.
+     * decision oculus-prism-becomes-a-hovering-eye
+     * decision utility-blocks-found-in-lunar-are-learned-and-recreated-at-will
+     */
+    public static final DeferredBlock<OculusBlock> OCULUS = BLOCKS.registerBlock("oculus",
+            OculusBlock::new, () -> BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_PURPLE)
+                    .strength(REFLECTOR_HARDNESS).sound(SoundType.LANTERN).noOcclusion()
+                    .pushReaction(PushReaction.POPPED));
 
     /** Molten iron's liquid block, glowing as lava does. */
     public static final DeferredBlock<LiquidBlock> MOLTEN_IRON = BLOCKS.registerBlock(GooFluids.MOLTEN_IRON_PATH,

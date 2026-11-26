@@ -4,8 +4,6 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.PrismCombos;
 import com.mercuriusxeno.goo.ability.nether.HiveSwarm;
-import com.mercuriusxeno.goo.ability.oculus.OculusNodes;
-import com.mercuriusxeno.goo.ability.oculus.OculusRegistry;
 import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.Step;
@@ -201,7 +199,6 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
         combo = comboId;
         this.caster = caster;
         comboSince = server.getGameTime();
-        listOculus();
         behavior = ProgramBehavior.forHost(steps, HostKind.MARKER);
         behavior.onSplat(server, worldPosition, this);
         settle();
@@ -385,49 +382,6 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
     }
 
     @Override
-    public void onLoad() {
-        super.onLoad();
-        listOculus();
-    }
-
-    @Override
-    public void setRemoved() {
-        super.setRemoved();
-        unlistOculus();
-    }
-
-    @Override
-    public void onChunkUnloaded() {
-        super.onChunkUnloaded();
-        unlistOculus();
-    }
-
-    /**
-     * Keeps the level's list of oculi in step with this prism: listed while
-     * it holds the oculus combo, so Blink finds it from any distance.
-     * decision oculus-prism-becomes-a-hovering-eye
-     */
-    private void listOculus() {
-        if (level == null) {
-            return;
-        }
-        if (OculusNodes.OCULUS.equals(combo)) {
-            OculusRegistry.add(level, worldPosition);
-        } else {
-            OculusRegistry.remove(level, worldPosition);
-        }
-    }
-
-    /**
-     * Takes this prism off the level's list of oculi as it goes.
-     */
-    private void unlistOculus() {
-        if (level != null) {
-            OculusRegistry.remove(level, worldPosition);
-        }
-    }
-
-    @Override
     protected void loadAdditional(@NonNull ValueInput input) {
         super.loadAdditional(input);
         ResourceKey<GooTypeDefinition> loaded = GooTypes.byId(input.getStringOr(TAG_GOO_TYPE, GooTypes.id(gooType)));
@@ -438,7 +392,6 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
         linkLight = input.getIntOr(TAG_LINK_LIGHT, 0);
         comboSince = input.getLongOr(TAG_COMBO_SINCE, 0L);
         caster = input.read(TAG_CASTER, UUIDUtil.CODEC).orElse(null);
-        listOculus();
         programState.load(input);
         beat = new RedstoneBeat(input.getLongOr(TAG_PREVIOUS_EDGE, RedstoneBeat.NEVER),
                 input.getLongOr(TAG_LAST_EDGE, RedstoneBeat.NEVER), input.getBooleanOr(TAG_HEARD, false));

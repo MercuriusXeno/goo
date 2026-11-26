@@ -89,6 +89,7 @@ public class GooItems {
             GooBlocks.REFLECTOR);
     public static final DeferredItem<BlockItem> LIGHT_BEACON = ITEMS.registerSimpleBlockItem("light_beacon",
             GooBlocks.LIGHT_BEACON);
+    public static final DeferredItem<BlockItem> OCULUS = ITEMS.registerSimpleBlockItem("oculus", GooBlocks.OCULUS);
     public static final DeferredItem<BucketItem> MOLTEN_IRON_BUCKET = ITEMS.registerItem("molten_iron_bucket",
             props -> new BucketItem(GooFluids.MOLTEN_IRON_SOURCE.get(), props.craftRemainder(Items.BUCKET).stacksTo(1)));
     /**
