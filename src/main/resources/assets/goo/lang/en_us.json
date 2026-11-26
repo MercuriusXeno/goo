@@ -125,7 +125,6 @@
   "item.goo.choral_tuner": "Choral Tuner",
   "goo.tuner.naming_header": "Canister Label:",
 
-  "block.goo.ability_block": "Ability Block",
   "block.goo.frost_field": "Frost Field",
   "block.goo.magicked_ice": "Magicked Ice",
   "block.goo.rime_ice": "Rime Ice",
@@ -387,7 +386,7 @@
   "goo.ability.xeno.unveil": "Unveil",
   "goo.ability.xeno.unveil.description": "Makes you eldritch: you see things out of phase, and they see you.",
   "goo.ability.xeno.shriek": "Shriek",
-  "goo.ability.xeno.shriek.description": "A blob that shrieks like a sculk shrieker and calls every hostile mob in earshot to it while it lasts; other mobs pay it no mind.",
+  "goo.ability.xeno.shriek.description": "A blob that shrieks like a sculk shrieker and calls every hostile mob in earshot to where it landed; other mobs pay it no mind.",
   "goo.ability.yarn.herd": "Herd",
   "goo.ability.yarn.herd.description": "Senses every creature around you through walls with its health, and peaceful ones follow you.",
   "goo.ability.yarn.lead": "Lead",

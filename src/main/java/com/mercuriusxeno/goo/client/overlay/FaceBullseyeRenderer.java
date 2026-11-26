@@ -31,7 +31,7 @@ public final class FaceBullseyeRenderer {
 
     /**
      * The face a target's bullseye marks: a block target's struck face, and
-     * none for a ability block, glow crystal or entity, which keep their own
+     * none for a glow crystal or entity, which keep their own
      * highlight.
      *
      * @param target the aim target

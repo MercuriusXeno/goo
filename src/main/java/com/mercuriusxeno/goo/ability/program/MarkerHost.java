@@ -26,8 +26,8 @@ import java.util.Set;
 import java.util.function.Consumer;
 
 /**
- * The {@link StepHost} over a marker anchor, the ability block a lingering
- * ability stands or the prism a combo runs on: reads the placed
+ * The {@link StepHost} over a marker anchor, the prism a combo runs on:
+ * reads the placed
  * face and goo type from the block entity, and acts on
  * the server level at the marker position. Built fresh each tick from
  * what the {@link ProgramBehavior} marker callbacks
@@ -39,7 +39,7 @@ import java.util.function.Consumer;
  */
 public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
         implements PlacedFaceHost, TickingHost, ExplodeHost, EntityScanHost, PlaceBlockHost,
-        FieldEffectHost, StateWriteHost, LevelHost, ShriekHost, PowerEmitHost,
+        FieldEffectHost, StateWriteHost, LevelHost, PowerEmitHost,
         BeatHost, RelayHost, FrostHost, GreeningHost {
 
     private static final String ERR_UNKNOWN_BLOCK = "No block is registered as ";
@@ -170,7 +170,7 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
     }
 
     /**
-     * The beat a prism has heard; an ability block hears none
+     * The beat a prism has heard
      * (decision metronome-prism-pulses-at-the-learned-rate).
      */
     @Override
@@ -191,15 +191,6 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
     @Override
     public void playSound(SoundCue cue) {
         SoundPlays.play(level, Vec3.atCenterOf(pos), cue);
-    }
-
-    /**
-     * Shrieks from the marker's cell, where called mobs walk to.
-     * decision shriek-blob-cries-once-and-calls-earshot
-     */
-    @Override
-    public void shriek(double reach) {
-        SculkCall.shriek(level, pos, reach);
     }
 
 

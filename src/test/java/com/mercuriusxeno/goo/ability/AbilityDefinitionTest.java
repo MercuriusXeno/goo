@@ -5,7 +5,6 @@ import com.mercuriusxeno.goo.ability.program.ExplodeStep;
 import com.mercuriusxeno.goo.ability.program.ExplosionMarch;
 import com.mercuriusxeno.goo.ability.program.ExplosionMode;
 import com.mercuriusxeno.goo.ability.program.Expr;
-import com.mercuriusxeno.goo.ability.program.LingerStep;
 import com.mercuriusxeno.goo.ability.program.SelectionShape;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.data.GooBaseValuesPreview;
@@ -311,21 +310,21 @@ class AbilityDefinitionTest {
 
         @Test
         void mobThrowOverAFieldStepDrawsNoArea() {
-            List<Step> field = SpikeTrapFixture.definition().behaviors();
+            List<Step> field = FieldEffectFixture.definition().behaviors();
             assertEquals(AbilityArea.NONE,
                     AbilityDefinition.heldArea(AbilityArea.NONE, Delivery.ARC, AbilityBadge.MOB, field));
         }
 
         @Test
         void beamOverAFieldStepDrawsNoArea() {
-            List<Step> field = SpikeTrapFixture.definition().behaviors();
+            List<Step> field = FieldEffectFixture.definition().behaviors();
             assertEquals(AbilityArea.NONE,
                     AbilityDefinition.heldArea(AbilityArea.NONE, Delivery.BEAM, AbilityBadge.WORLD, field));
         }
 
         @Test
         void freeThrowOverAFieldStepDrawsItsSphere() {
-            List<Step> field = SpikeTrapFixture.definition().behaviors();
+            List<Step> field = FieldEffectFixture.definition().behaviors();
             assertEquals(AbilityArea.Shape.SPHERE,
                     AbilityDefinition.heldArea(AbilityArea.NONE, Delivery.ARC, AbilityBadge.FREE, field).shape());
         }

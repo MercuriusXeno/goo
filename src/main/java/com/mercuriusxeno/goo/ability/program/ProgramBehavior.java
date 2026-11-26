@@ -236,7 +236,7 @@ public final class ProgramBehavior {
      * splat-runs-the-program-no-fuse).
      *
      * @param level the server level
-     * @param pos   the ability block position
+     * @param pos   the marker position
      * @param be    the owning marker
      */
     public void onSplat(ServerLevel level, BlockPos pos, MarkerAnchor be) {
@@ -247,7 +247,7 @@ public final class ProgramBehavior {
      * One marker tick while {@link #isActive()} is true.
      *
      * @param level the server level
-     * @param pos   the ability block position
+     * @param pos   the marker position
      * @param be    the owning marker
      */
     public void serverTick(ServerLevel level, BlockPos pos, MarkerAnchor be) {
@@ -262,16 +262,6 @@ public final class ProgramBehavior {
      */
     public boolean isActive() {
         return stepIndex < steps.size();
-    }
-
-    /**
-     * Returns true if the marker stands against a punch while its program
-     * runs, which the running step decides.
-     *
-     * @return true when breaking the marker is refused
-     */
-    public boolean standsAgainstBreaking() {
-        return isActive() && steps.get(stepIndex).standsAgainstBreaking();
     }
 
     /**

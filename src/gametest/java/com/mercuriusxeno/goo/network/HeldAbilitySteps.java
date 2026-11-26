@@ -30,7 +30,7 @@ public final class HeldAbilitySteps {
      * the given fields, by the ability's definition encoded, those steps'
      * fields rewritten and the definition decoded again. A step is reached
      * wherever it stands: in the ability's behaviors or its on_blocks, or in
-     * the steps another step holds, as a linger's body or a branch's then.
+     * the steps another step holds, as a branch's then.
      *
      * @param shipped  the shipped abilities
      * @param ability  the ability whose steps are rewritten

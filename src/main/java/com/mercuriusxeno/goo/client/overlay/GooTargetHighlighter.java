@@ -36,7 +36,7 @@ import java.util.function.Consumer;
 
 /**
  * Draws the glove's aim each frame from the frame's {@link AimTracker}: a
- * goo-colored outline and face ripple on the targeted block or ability block
+ * goo-colored outline and face ripple on the targeted block
  * with the opaque blocks, with no fill over the block, and the held ghost once
  * the level is drawn. The entity outline rides the render state modifier
  * AimTracker registers (decision render-context-is-the-one-emitter).
@@ -77,7 +77,7 @@ public final class GooTargetHighlighter {
     }
 
     /**
-     * Hands the shared path the targeted block's or ability block's outline,
+     * Hands the shared path the targeted block's outline,
      * water cube and bullseye rings, which lie on the block's faces, so they
      * sort by nothing. In a view through a gate it hands the marks of a
      * target the aim reached through that gate, seen from the view's camera,

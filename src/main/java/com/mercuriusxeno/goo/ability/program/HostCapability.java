@@ -45,11 +45,6 @@ public enum HostCapability {
      */
     FIELD_EFFECT(FieldEffectHost.class),
     /**
-     * A landing where the ability can stand its own block, which runs the
-     * steps handed to it (decision lingering-abilities-place-their-own-thing).
-     */
-    LINGER(LingerHost.class),
-    /**
      * A one-tick host anchored at a point, which can run steps on each open
      * floor around it (decision colonize-blob-grows-the-network).
      */
@@ -160,8 +155,8 @@ public enum HostCapability {
      */
     RAISE_GROUND(RaiseGroundHost.class),
     /**
-     * A landing that lights a fire in its cell and sets off the explosive
-     * ability block it struck (decision ignite-fire-and-explosive-combo).
+     * A landing that lights a fire in its cell (decision
+     * ignite-fire-and-explosive-combo).
      */
     IGNITE(IgniteHost.class),
     /**

@@ -24,8 +24,7 @@ import java.util.function.Predicate;
  * Target resolution with two-pass aim assist (exact raytrace + cone scan)
  * and sticky retention to prevent flicker at cone edges.
  *
- * <p>Handles the entities the selected ability's steps take; a standing ability block is never an aim
- * target, so a throw at one lands beside it (decision
+ * <p>Handles the entities the selected ability's steps take (decision
  * splat-runs-the-program-no-fuse).
  */
 final class AimAssistResolver {
@@ -351,7 +350,7 @@ final class AimAssistResolver {
     /**
      * Line-of-sight to an arbitrary AABB. If {@code selfBlock} is non-null,
      * rays that terminate inside that block position are treated as clear
-     * (prevents a ability block's own voxel from occluding its own LOS).
+     * (prevents a target block's own voxel from occluding its own LOS).
      *
      * @param level     the current level
      * @param player    the interacting player
@@ -424,7 +423,7 @@ final class AimAssistResolver {
 
     /**
      * Sealed aim-hit kind produced by the resolver. Packs either a living
-     * entity or a ability block block position so the caller can dispatch
+     * entity or a block position so the caller can dispatch
      * render and throw-payload paths differently.
      */
     sealed interface AimHit {

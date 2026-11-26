@@ -9,8 +9,6 @@ import com.mercuriusxeno.goo.ability.HeldEffectName;
 import com.mercuriusxeno.goo.ability.StandingDimension;
 import com.mercuriusxeno.goo.ability.nether.HiveSwarm;
 import com.mercuriusxeno.goo.ability.oculus.OculusNodes;
-import com.mercuriusxeno.goo.ability.program.Step;
-import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.block.ability.CellBinding;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.client.ability.AbilityPoses;
@@ -156,7 +154,6 @@ public final class GooClientSetup {
 
     static {
         ISidedProxy.INSTANCE[0] = new ClientProxy();
-        AbilityBlockEntity.installClientSteps(GooClientSetup::syncedSteps);
         GooTypes.readConnectionOrderFrom(GooClientSetup::connectionTypeOrder);
         // lunar-reads-as-terran-while-you-are-on-the-moon: a held effect shows its ability's face where the player stands
         StandingDimension.readFrom(ClientDimension::standingIn);
@@ -183,17 +180,6 @@ public final class GooClientSetup {
                 .min(Comparator.comparingInt(ClientAbility::order));
     }
 
-    /**
-     * Answers a marker's steps from the abilities the server synced
-     * (decision diagnose-then-fix-marker-server-gate).
-     *
-     * @param abilityId the ability resource id string
-     * @return the synced ability's steps, or null when none synced under that id
-     */
-    private static @Nullable List<Step> syncedSteps(String abilityId) {
-        ClientAbility ability = AbilitySyncHandler.findAbility(abilityId);
-        return ability != null ? ability.behaviors() : null;
-    }
 
     private GooClientSetup() {
     }
@@ -255,8 +241,6 @@ public final class GooClientSetup {
      * @param event the renderer registration event
      */
     private static void registerEffectRenderers(EntityRenderersEvent.RegisterRenderers event) {
-        event.registerBlockEntityRenderer(GooBlockEntities.ABILITY_BLOCK.get(),
-                AbilityBlockRenderer::new);
         event.registerBlockEntityRenderer(GooBlockEntities.PRISM.get(), PrismRenderer::new);
         event.registerBlockEntityRenderer(GooBlockEntities.WISP.get(), WispRenderer::new);
         PrismComboStyles.register(GlowBeaconStyle.COMBO, new GlowBeaconStyle());

@@ -2,14 +2,9 @@ package com.mercuriusxeno.goo.item;
 
 import com.mercuriusxeno.goo.ISidedProxy;
 import com.mercuriusxeno.goo.ability.GloveSelection;
-import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
-import com.mercuriusxeno.goo.item.PlayerUtils;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
-import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.EquipmentSlotGroup;
@@ -19,7 +14,6 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.ItemAttributeModifiers;
-import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
@@ -33,11 +27,6 @@ import org.jspecify.annotations.Nullable;
  * decision durative-self-abilities-wash-over-the-view-in-place-of-eating
  */
 public class GooGloveItem extends Item {
-
-    /** Recollect pickup sound volume. */
-    private static final float PICKUP_VOLUME = 0.5f;
-    /** Recollect pickup sound pitch. */
-    private static final float PICKUP_PITCH = 1.2f;
 
     /**
      * The glove tiers, each spelling the attack damage its main-hand melee
@@ -116,50 +105,6 @@ public class GooGloveItem extends Item {
      */
     public GloveTier tier() {
         return tier;
-    }
-
-    /**
-     * Shift+right-click on a ability block recollects goo. Returns the
-     * goo to the player's inventory and removes the marker.
-     *
-     * @param context the use-on-block context
-     * @return SUCCESS if recollected, PASS otherwise
-     */
-    @Override
-    public @NonNull InteractionResult useOn(@NonNull UseOnContext context) {
-        Player player = context.getPlayer();
-        if (player == null || !player.isShiftKeyDown()) { return InteractionResult.PASS; }
-        Level level = context.getLevel();
-        BlockPos pos = context.getClickedPos();
-        if (!(level.getBlockEntity(pos) instanceof AbilityBlockEntity be)) {
-            return InteractionResult.PASS;
-        }
-        if (!level.isClientSide()) {
-            recollectGoo(level, pos, be, player);
-        }
-        return InteractionResult.SUCCESS;
-    }
-
-    /**
-     * Gives the player goo worth the charges the marker's trap still holds,
-     * nothing for a spent trap and a whole throw's worth for a marker with no
-     * trap, and removes the block.
-     * recollect-returns-charges-left
-     * @param level the world the marker exists in
-     * @param pos the marker block position
-     * @param be the ability block block entity holding goo data
-     * @param player the player receiving the recollected goo
-     */
-    private static void recollectGoo(Level level, BlockPos pos,
-            AbilityBlockEntity be, Player player) {
-        ResourceKey<GooTypeDefinition> type = be.getGooType();
-        int worth = be.getFieldEffect().worthLeft(GooStacks.THOUSAND);
-        if (worth > 0) {
-            PlayerUtils.addOrDrop(player, GooStacks.createForOutput(type, worth));
-        }
-        level.removeBlock(pos, false);
-        level.playSound(null, pos, SoundEvents.ITEM_PICKUP, SoundSource.PLAYERS,
-                PICKUP_VOLUME, PICKUP_PITCH);
     }
 
     /**

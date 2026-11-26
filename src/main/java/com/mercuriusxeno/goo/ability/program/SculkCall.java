@@ -17,9 +17,10 @@ import net.minecraft.world.phys.Vec3;
  * A Shriek blob's sculk call in a level: the blob shrieks once like a sculk
  * shrieker, its shriek sound and its rising column of shriek particles, and
  * every living hostile mob within reach across the ground and a few layers
- * up or down takes a walk to the blob ahead of every other move it would
- * make, which holds while the blob stands; every other mob is passed over
- * untouched, and no mob takes any effect.
+ * up or down takes a walk to the blob's landing ahead of every other move it
+ * would make, which holds for the ticks the shriek lasts with no block
+ * standing there; every other mob is passed over untouched, and no mob takes
+ * any effect.
  * decision shriek-blob-cries-once-and-calls-earshot
  * decision shriek-is-a-sculk-call-that-draws-every-mob-it-reaches
  * decision shriek-pulls-hostiles-only
@@ -51,13 +52,15 @@ public final class SculkCall {
 
     /**
      * Shrieks from the blob: plays the sculk shrieker's shriek, raises its
-     * column of shriek particles, and calls every living hostile within reach.
+     * column of shriek particles, and calls every living hostile within reach
+     * for the ticks the shriek lasts.
      *
      * @param level    the level
      * @param blobCell the blob's cell, where called mobs walk to
      * @param reach    how far across the ground the shriek is heard, in blocks
+     * @param lasts    the ticks each called mob's walk holds, counted from the shriek
      */
-    public static void shriek(ServerLevel level, BlockPos blobCell, double reach) {
+    public static void shriek(ServerLevel level, BlockPos blobCell, double reach, int lasts) {
         Vec3 blob = Vec3.atBottomCenterOf(blobCell);
         level.playSound(null, blob.x, blob.y, blob.z, SHRIEK, SoundSource.BLOCKS,
                 SHRIEK_VOLUME, SHRIEK_PITCH);
@@ -66,9 +69,10 @@ public final class SculkCall {
                     blob.z, 1, 0, 0, 0, 0);
         }
         AABB earshot = new AABB(blob, blob).inflate(reach, VERTICAL_REACH, reach);
+        long shriekTick = level.getGameTime();
         for (Mob mob : level.getEntitiesOfClass(Mob.class, earshot, mob -> mob.isAlive() && calls(mob))) {
             if (inEarshot(mob.position(), blob, reach)) {
-                call(mob, blobCell);
+                call(mob, blobCell, shriekTick, lasts);
             }
         }
     }
@@ -87,21 +91,25 @@ public final class SculkCall {
     }
 
     /**
-     * Gives a mob its walk to the blob, unless it already walks to it,
-     * dropping first every walk it holds to a blob that has gone.
+     * Gives a mob its walk to the blob, holding for the ticks the shriek
+     * lasts from its tick, dropping first every walk whose time ran out and
+     * any earlier walk to the same blob, so a second shriek there holds the
+     * mob from its own tick.
      *
-     * @param mob      the mob the shriek called
-     * @param blobCell the blob's cell
+     * @param mob        the mob the shriek called
+     * @param blobCell   the blob's cell
+     * @param shriekTick the game tick the shriek rang out on
+     * @param lasts      the ticks the walk holds, counted from the shriek
      */
-    static void call(Mob mob, BlockPos blobCell) {
-        mob.goalSelector.removeAllGoals(goal -> goal instanceof SculkCallGoal walk && !walk.blobStands());
-        if (!isCalledTo(mob, blobCell)) {
-            mob.goalSelector.addGoal(WALK_PRIORITY, new SculkCallGoal(mob, blobCell));
-        }
+    static void call(Mob mob, BlockPos blobCell, long shriekTick, int lasts) {
+        mob.goalSelector.removeAllGoals(goal -> goal instanceof SculkCallGoal walk
+                && (!walk.holds() || walk.leadsTo(blobCell)));
+        mob.goalSelector.addGoal(WALK_PRIORITY, new SculkCallGoal(mob, blobCell, shriekTick, lasts));
     }
 
     /**
-     * Whether a mob holds a walk to a blob, the walk the shriek gives the mobs it calls.
+     * Whether a mob holds a walk to a blob whose time has not run out, the
+     * walk the shriek gives the mobs it calls.
      *
      * @param mob      the mob
      * @param blobCell the blob's cell
@@ -109,7 +117,7 @@ public final class SculkCall {
      */
     public static boolean isCalledTo(Mob mob, BlockPos blobCell) {
         return mob.goalSelector.getAvailableGoals().stream().map(WrappedGoal::getGoal)
-                .anyMatch(goal -> goal instanceof SculkCallGoal walk && walk.leadsTo(blobCell));
+                .anyMatch(goal -> goal instanceof SculkCallGoal walk && walk.leadsTo(blobCell) && walk.holds());
     }
 
     /**
