@@ -121,7 +121,7 @@ class GloveSpecialRendererTest {
     void thePalmBlobSubmitsItsCoreOnTheGooTypeAheadOfItsShell() {
         List<RenderType> types = new ArrayList<>();
         List<String> drawn = new ArrayList<>();
-        try (SprayingClient client = SprayingClient.another(GooTypes.ZOO);
+        try (SprayingClient client = SprayingClient.another(GooTypes.ZOMBIE);
              MockedStatic<GloveBodyModels> models = bodiless();
              MockedStatic<GooFlightRenderer> flight = mockStatic(GooFlightRenderer.class)) {
             flight.when(() -> GooFlightRenderer.emitCore(any(), any(), any(), anyFloat(), any()))
@@ -139,7 +139,7 @@ class GloveSpecialRendererTest {
                 return null;
             }).when(collector).submitCustomGeometry(any(), any(), any());
 
-            new GloveSpecialRenderer().submit(new GloveSpecialRenderer.GloveData(null, GooTypes.ZOO, 0f, 1f, false,
+            new GloveSpecialRenderer().submit(new GloveSpecialRenderer.GloveData(null, GooTypes.ZOMBIE, 0f, 1f, false,
                     false), new PoseStack(), collector, 0, 0, false, 0);
         }
 
@@ -174,7 +174,7 @@ class GloveSpecialRendererTest {
 
     @Test
     void aGloveWhoseHoldersSprayRunsGivesThePalmNoBlobToDraw() {
-        try (SprayingClient client = SprayingClient.another(GooTypes.ZOO);
+        try (SprayingClient client = SprayingClient.another(GooTypes.ZOMBIE);
              MockedStatic<GloveUseTracker> tracker = mockStatic(GloveUseTracker.class)) {
             tracker.when(GloveUseTracker::isSelectedTypeAvailable).thenReturn(true);
             client.at(SPRAYED);
@@ -188,7 +188,7 @@ class GloveSpecialRendererTest {
 
     @Test
     void aGloveWhoseHoldersBlobIsStillSettlingGivesThePalmNoBlobToDraw() {
-        try (SprayingClient client = SprayingClient.another(GooTypes.ZOO);
+        try (SprayingClient client = SprayingClient.another(GooTypes.ZOMBIE);
              MockedStatic<GloveUseTracker> tracker = mockStatic(GloveUseTracker.class)) {
             tracker.when(GloveUseTracker::isSelectedTypeAvailable).thenReturn(true);
             client.at(SETTLED - 1);
@@ -202,7 +202,7 @@ class GloveSpecialRendererTest {
 
     @Test
     void aGloveWhoseHoldersBlobHasSettledCarriesThePalmBlobAtRestSize() {
-        try (SprayingClient client = SprayingClient.another(GooTypes.ZOO);
+        try (SprayingClient client = SprayingClient.another(GooTypes.ZOMBIE);
              MockedStatic<GloveUseTracker> tracker = mockStatic(GloveUseTracker.class)) {
             tracker.when(GloveUseTracker::isSelectedTypeAvailable).thenReturn(true);
             client.at(SETTLED);
@@ -212,14 +212,14 @@ class GloveSpecialRendererTest {
 
             assertFalse(data.palmLifted(), "the palm should draw its blob again once the settling blob arrives");
             assertFalse(data.heldInView(), "another player's glove is not the one held before the eyes");
-            assertEquals(GooTypes.ZOO, data.selectedType());
+            assertEquals(GooTypes.ZOMBIE, data.selectedType());
             assertEquals(1f, data.blobScale(), "the palm blob should be at rest size");
         }
     }
 
     @Test
     void theLocalFirstPersonPlayersGloveIsHeldInView() {
-        try (SprayingClient client = SprayingClient.local(GooTypes.ZOO);
+        try (SprayingClient client = SprayingClient.local(GooTypes.ZOMBIE);
              MockedStatic<GloveUseTracker> tracker = mockStatic(GloveUseTracker.class)) {
             tracker.when(GloveUseTracker::isSelectedTypeAvailable).thenReturn(true);
             client.at(SPRAYED);
@@ -231,13 +231,13 @@ class GloveSpecialRendererTest {
 
     @Test
     void aLiftAtItsFirstTickDrawsTheCoreInTheHandsPassWhereThePalmBlobDraws() {
-        try (SprayingClient client = SprayingClient.local(GooTypes.ZOO);
+        try (SprayingClient client = SprayingClient.local(GooTypes.ZOMBIE);
              MockedStatic<GloveBodyModels> models = bodiless()) {
             client.at(SPRAYED);
             LiftedPalmBlob.held(SprayingClient.CASTER, SprayingClient.SENT_GLOVE, SPRAYED);
 
-            Vec3 lifted = coreDrawnAt(new GloveSpecialRenderer.GloveData(null, GooTypes.ZOO, 0f, 1f, true, true));
-            Vec3 resting = coreDrawnAt(new GloveSpecialRenderer.GloveData(null, GooTypes.ZOO, 0f, 1f, false, true));
+            Vec3 lifted = coreDrawnAt(new GloveSpecialRenderer.GloveData(null, GooTypes.ZOMBIE, 0f, 1f, true, true));
+            Vec3 resting = coreDrawnAt(new GloveSpecialRenderer.GloveData(null, GooTypes.ZOMBIE, 0f, 1f, false, true));
 
             assertEquals(0, lifted.distanceTo(resting), WITHIN, "the lift should begin as the palm blob itself, "
                     + "drawn at " + lifted + " where the palm blob draws at " + resting);
@@ -246,7 +246,7 @@ class GloveSpecialRendererTest {
 
     @Test
     void aLiftAtTheEasesEndDrawsTheCoreInTheHandsPassStraightAboveWhereThePalmBlobRests() {
-        try (SprayingClient client = SprayingClient.local(GooTypes.ZOO);
+        try (SprayingClient client = SprayingClient.local(GooTypes.ZOMBIE);
              MockedStatic<GloveBodyModels> models = bodiless()) {
             long eased = SPRAYED + PalmBlobHop.LIFT_TICKS;
             client.at(eased);
@@ -254,8 +254,8 @@ class GloveSpecialRendererTest {
                 LiftedPalmBlob.held(SprayingClient.CASTER, SprayingClient.SENT_GLOVE, tick);
             }
 
-            Vec3 lifted = coreDrawnAt(new GloveSpecialRenderer.GloveData(null, GooTypes.ZOO, 0f, 1f, true, true));
-            Vec3 resting = coreDrawnAt(new GloveSpecialRenderer.GloveData(null, GooTypes.ZOO, 0f, 1f, false, true));
+            Vec3 lifted = coreDrawnAt(new GloveSpecialRenderer.GloveData(null, GooTypes.ZOMBIE, 0f, 1f, true, true));
+            Vec3 resting = coreDrawnAt(new GloveSpecialRenderer.GloveData(null, GooTypes.ZOMBIE, 0f, 1f, false, true));
 
             Vec3 off = lifted.subtract(resting);
             Vec3 up = client.viewUp();
@@ -308,11 +308,11 @@ class GloveSpecialRendererTest {
         void theRestingBlobStandsOnThePalmInTheGlovesModelWhileASwingPlays() {
             FirstPersonSwing.recordSwing(BEFORE_THE_SWING, new Matrix4f(BEFORE_THE_SWING).mul(vanillaSwing(MID_SWING)));
             Quaternionf handTurn = new Quaternionf().rotationXYZ(1.2f, 0.4f, -0.3f);
-            try (SprayingClient client = SprayingClient.local(GooTypes.ZOO);
+            try (SprayingClient client = SprayingClient.local(GooTypes.ZOMBIE);
                  MockedStatic<GloveBodyModels> models = bodiless()) {
                 client.at(SPRAYED);
 
-                Quaternionf drawn = coreTurnDrawnAt(new GloveSpecialRenderer.GloveData(null, GooTypes.ZOO, 0f, 1f,
+                Quaternionf drawn = coreTurnDrawnAt(new GloveSpecialRenderer.GloveData(null, GooTypes.ZOMBIE, 0f, 1f,
                         false, true), handTurn);
 
                 assertEquals(0, degreesBetween(drawn, new Quaternionf(handTurn).mul(
@@ -443,7 +443,7 @@ class GloveSpecialRendererTest {
          * units, drawn through the one palm draw every view of the glove takes.
          */
         private static Box shellDrawnAt(float blobScale) {
-            try (SprayingClient client = SprayingClient.another(GooTypes.ZOO);
+            try (SprayingClient client = SprayingClient.another(GooTypes.ZOMBIE);
                  MockedStatic<GloveBodyModels> models = bodiless();
                  MockedStatic<GooRenderUtil> util = mockStatic(GooRenderUtil.class, CALLS_REAL_METHODS);
                  MockedStatic<ClientGooTypes> colors = mockStatic(ClientGooTypes.class)) {
@@ -458,7 +458,7 @@ class GloveSpecialRendererTest {
                     return null;
                 }).when(collector).submitCustomGeometry(any(), any(), any());
 
-                new GloveSpecialRenderer().submit(new GloveSpecialRenderer.GloveData(null, GooTypes.ZOO, 0f,
+                new GloveSpecialRenderer().submit(new GloveSpecialRenderer.GloveData(null, GooTypes.ZOMBIE, 0f,
                         blobScale, false, false), new PoseStack(), collector, 0, 0, false, 0);
 
                 return Box.of(shell.vertices());

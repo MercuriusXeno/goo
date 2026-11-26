@@ -5,8 +5,10 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.GooHitCredit;
 import com.mercuriusxeno.goo.ability.LoadedAbilityCost;
+import com.mercuriusxeno.goo.ability.nether.GloomEvents;
 import com.mercuriusxeno.goo.ability.program.BlockCooking;
 import com.mercuriusxeno.goo.ability.program.ChannelHost;
+import com.mercuriusxeno.goo.ability.program.GloomStep;
 import com.mercuriusxeno.goo.ability.program.LeechGooStep;
 import com.mercuriusxeno.goo.ability.program.MoltenStep;
 import com.mercuriusxeno.goo.ability.program.ShatterStep;
@@ -2082,6 +2084,7 @@ public class VolumeCellBlock extends Block {
         catchIn(level, entity);
         entangle(level, pos, state, entity);
         tangle(level, pos, state, entity);
+        turnSlime(level, pos, state, entity);
         super.stepOn(level, pos, state, entity);
     }
 
@@ -2103,7 +2106,26 @@ public class VolumeCellBlock extends Block {
         catchIn(level, entity);
         entangle(level, pos, state, entity);
         tangle(level, pos, state, entity);
+        turnSlime(level, pos, state, entity);
         super.entityInside(state, level, pos, entity, effects, pastEdges);
+    }
+
+    /**
+     * Runs a darkening cell on a slime in it or standing on it, by its
+     * laying ability's gloom step: the slime becomes a random hostile mob
+     * where the cell holds the turn's layers.
+     * gloom-turns-slimes-into-random-hostiles-in-place-of-spawn
+     *
+     * @param level  the level the cell stands in
+     * @param pos    the cell
+     * @param state  the cell's state
+     * @param entity the entity in or on the cell
+     */
+    private void turnSlime(Level level, BlockPos pos, BlockState state, Entity entity) {
+        if (surface().darkens() && level instanceof ServerLevel server) {
+            GloomStep.in(layingProgram(server)).ifPresent(gloom -> GloomEvents.touch(server, entity, pos, state,
+                    gloom));
+        }
     }
 
     /**

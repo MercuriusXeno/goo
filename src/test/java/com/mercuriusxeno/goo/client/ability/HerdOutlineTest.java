@@ -26,7 +26,7 @@ class HerdOutlineTest {
     private static int yarnHighlight;
 
     @BeforeAll
-    static void readZoosHighlight() throws IOException {
+    static void readYarnsHighlight() throws IOException {
         try (InputStream in = HerdOutlineTest.class.getResourceAsStream(YARN_TYPE)) {
             assertNotNull(in, YARN_TYPE + " is missing");
             try (Reader reader = new InputStreamReader(in, StandardCharsets.UTF_8)) {
@@ -37,7 +37,7 @@ class HerdOutlineTest {
     }
 
     @Test
-    void outlineIsZoosColor() {
+    void outlineIsYarnsColor() {
         assertEquals(ARGB.opaque(yarnHighlight), HerdOutline.color(yarnHighlight, 0f, 1f));
         int dimmest = HerdOutline.color(yarnHighlight, PulsingOutline.PULSE_PERIOD / 2f, 1f);
         assertEquals(OPAQUE, ARGB.alpha(dimmest));

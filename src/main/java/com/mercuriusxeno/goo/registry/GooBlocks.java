@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.block.ability.AbilityBlock;
 import com.mercuriusxeno.goo.block.ability.CellBinding;
 import com.mercuriusxeno.goo.block.ability.CreepCellBlock;
 import com.mercuriusxeno.goo.block.ability.FungalBudBlock;
@@ -80,17 +79,6 @@ public class GooBlocks {
     /** The light the dimension door gives, enough to find it in the dark. */
     private static final int DOOR_GLOW = 10;
 
-    /**
-     * Ability block: short-lived block a world ability runs its program from.
-     */
-    public static final DeferredBlock<AbilityBlock> ABILITY_BLOCK = BLOCKS.registerBlock(
-            "ability_block", AbilityBlock::new,
-            () -> BlockBehaviour.Properties.of()
-                    .noCollision()
-                    .instabreak()
-                    .noLootTable()
-                    .noOcclusion()
-                    .pushReaction(net.minecraft.world.level.material.PushReaction.POPPED));
 
     /**
      * Exorite bars: iron bars retextured to exorite and obsidian tier, hardness
@@ -105,7 +93,7 @@ public class GooBlocks {
 
     // --- Machine blocks ---
     /**
-     * Glow crystal: permanent light source a glow ability block places.
+     * Glow crystal: permanent light source a glow ability places.
      */
     /**
      * A wisp of light Wisps leaves in dark air: lit, replaceable, without

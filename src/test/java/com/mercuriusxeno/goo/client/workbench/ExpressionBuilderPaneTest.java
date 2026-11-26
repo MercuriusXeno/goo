@@ -2075,7 +2075,7 @@ class ExpressionBuilderPaneTest {
         void aReferentHoldingSculkAndNetherLacksEveryOtherType() {
             assertEquals(Set.of("astral", "blaze", "crystal", "ender", "frost", "glow", "hex", "infinity",
                     "jelly", "kinetic", "leaf", "metal", "ornate", "pulse", "quantum", "rock", "typhoon", "unstable",
-                    "void", "weird", "xeno", "yarn", "zombie", "zoo"),
+                    "void", "weird", "xeno", "yarn", "zombie"),
                     ExpressionBuilderPane.typesLackedBy(Set.of("sculk", "nether")));
         }
 

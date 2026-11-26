@@ -190,7 +190,6 @@ class ConventionTest {
                 .or(simpleName("CrucibleInteraction"))
                 .or(simpleName("CrucibleDrops"))
                 .or(simpleName("VatGasketOps"))
-                .or(simpleName("AbilityBlockEntity"))
                 .or(simpleName("ICanisterHolder"))
                 .or(simpleName("SlottedCanisterData"))
                 .or(simpleName("CanisterSlot"))

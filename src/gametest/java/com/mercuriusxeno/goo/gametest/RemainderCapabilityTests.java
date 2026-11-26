@@ -85,10 +85,10 @@ public final class RemainderCapabilityTests {
     private static final String POURED_PART_ALONE_STAYS_WHERE_REFUSED = "poured_part_alone_stays_where_refused";
     private static final GooFraction TWO_THIRDS = GooFraction.of(2, 3);
     private static final int PART_ALONE_SLOT_WHOLE = 2;
-    private static final String PART_ALONE_LOST = "A 1/3 mB zoo stack poured into a canister slot holding 2 mB of zoo "
+    private static final String PART_ALONE_LOST = "A 1/3 mB zombie stack poured into a canister slot holding 2 mB of zombie "
             + "with a 2/3 remainder should leave it 3 mB with no remainder and the stack empty; the slot holds %s "
             + "with %s, the stack empty %s at %s";
-    private static final String PART_ALONE_TAKEN = "A 1/3 mB zoo stack poured at a slot holding no canister should "
+    private static final String PART_ALONE_TAKEN = "A 1/3 mB zombie stack poured at a slot holding no canister should "
             + "stay 1/3 mB; it reads ";
 
     private static final String POURED_GOO_HANDS_ITS_FRACTION = "poured_goo_hands_its_fraction";
@@ -112,19 +112,19 @@ public final class RemainderCapabilityTests {
         helper.setBlock(STORE_POS, GooBlocks.CANISTER.get());
         CanisterBlockEntity canister = helper.getBlockEntity(STORE_POS, CanisterBlockEntity.class);
         canister.insertCanister(FIRST_SLOT, new ItemStack(GooItems.CANISTER.get()), false);
-        blockLedger(helper, STORE_POS, FIRST_SLOT).creditExact(GooTypes.ZOO, HALF);
-        ItemStack goo = GooStacks.createForOutput(GooTypes.ZOO, POURED);
+        blockLedger(helper, STORE_POS, FIRST_SLOT).creditExact(GooTypes.ZOMBIE, HALF);
+        ItemStack goo = GooStacks.createForOutput(GooTypes.ZOMBIE, POURED);
         GooInsert.pour(goo, helper.makeMockPlayer(GameType.SURVIVAL), canister.gooSinkFor(FIRST_SLOT));
-        int held = CanisterItem.getFluidContent(canister.containerState().getCanister(FIRST_SLOT)).volumeOf(GooTypes.ZOO);
-        GooFraction remainder = blockLedger(helper, STORE_POS, FIRST_SLOT).remainders().of(GooTypes.ZOO);
+        int held = CanisterItem.getFluidContent(canister.containerState().getCanister(FIRST_SLOT)).volumeOf(GooTypes.ZOMBIE);
+        GooFraction remainder = blockLedger(helper, STORE_POS, FIRST_SLOT).remainders().of(GooTypes.ZOMBIE);
         helper.assertTrue(held == POURED_INTO && SIXTH.equals(remainder) && goo.isEmpty(),
                 String.format(POUR_LOST, held, remainder, goo.isEmpty(), GooStacks.exactValueOf(goo)));
         helper.succeed();
     }
 
     /**
-     * A goo stack holding only 1/3 mB of zoo, poured through the sink the canister block
-     * hands GooInsert into a slot holding 2 mB of zoo with a 2/3 remainder, leaves the slot
+     * A goo stack holding only 1/3 mB of zombie, poured through the sink the canister block
+     * hands GooInsert into a slot holding 2 mB of zombie with a 2/3 remainder, leaves the slot
      * holding 3 mB with no remainder and the stack consumed.
      * decision goo-item-carries-its-exact-value-as-a-mixed-remainder
      *
@@ -132,12 +132,12 @@ public final class RemainderCapabilityTests {
      */
     public static void pouredPartAloneReachesTheCanister(GameTestHelper helper) {
         CanisterBlockEntity canister = placeCanisterHolding(helper);
-        canister.gooSinkFor(FIRST_SLOT).accept(GooTypes.ZOO, PART_ALONE_SLOT_WHOLE);
-        blockLedger(helper, STORE_POS, FIRST_SLOT).creditExact(GooTypes.ZOO, TWO_THIRDS);
-        ItemStack goo = GooStacks.createForOutput(GooTypes.ZOO, THIRD);
+        canister.gooSinkFor(FIRST_SLOT).accept(GooTypes.ZOMBIE, PART_ALONE_SLOT_WHOLE);
+        blockLedger(helper, STORE_POS, FIRST_SLOT).creditExact(GooTypes.ZOMBIE, TWO_THIRDS);
+        ItemStack goo = GooStacks.createForOutput(GooTypes.ZOMBIE, THIRD);
         GooInsert.pour(goo, helper.makeMockPlayer(GameType.SURVIVAL), canister.gooSinkFor(FIRST_SLOT));
-        int held = CanisterItem.getFluidContent(canister.containerState().getCanister(FIRST_SLOT)).volumeOf(GooTypes.ZOO);
-        GooFraction remainder = blockLedger(helper, STORE_POS, FIRST_SLOT).remainders().of(GooTypes.ZOO);
+        int held = CanisterItem.getFluidContent(canister.containerState().getCanister(FIRST_SLOT)).volumeOf(GooTypes.ZOMBIE);
+        GooFraction remainder = blockLedger(helper, STORE_POS, FIRST_SLOT).remainders().of(GooTypes.ZOMBIE);
         helper.assertTrue(held == PART_ALONE_SLOT_WHOLE + 1 && remainder.isZero() && goo.isEmpty(),
                 String.format(PART_ALONE_LOST, held, remainder, goo.isEmpty(), GooStacks.exactValueOf(goo)));
         helper.succeed();
@@ -153,7 +153,7 @@ public final class RemainderCapabilityTests {
     public static void pouredPartAloneStaysWhereRefused(GameTestHelper helper) {
         helper.setBlock(STORE_POS, GooBlocks.CANISTER.get());
         CanisterBlockEntity canister = helper.getBlockEntity(STORE_POS, CanisterBlockEntity.class);
-        ItemStack goo = GooStacks.createForOutput(GooTypes.ZOO, THIRD);
+        ItemStack goo = GooStacks.createForOutput(GooTypes.ZOMBIE, THIRD);
         GooInsert.pour(goo, helper.makeMockPlayer(GameType.SURVIVAL), canister.gooSinkFor(FIRST_SLOT));
         helper.assertTrue(THIRD.equals(GooStacks.exactValueOf(goo)),
                 PART_ALONE_TAKEN + GooStacks.exactValueOf(goo));

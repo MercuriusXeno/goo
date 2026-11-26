@@ -738,7 +738,7 @@ public final class PortalTests {
 
     private static final String THROW_LANDS_THROUGH_A_LINKED_PAIR = "portal_throw_lands_through_a_linked_pair";
     private static final Identifier CRYSTAL_PRISM = Identifier.fromNamespaceAndPath("goo", "crystal_prism");
-    /** The thousands of mB of crystal goo a prism thrower carries, as StackKeyTests' thrower does. */
+    /** The thousands of mB of crystal goo a prism thrower carries, as MockThrowers' thrower does. */
     private static final int PRISM_GOO = 10;
     /** How far south of the far partner the floor the throw lands on stands. */
     private static final int PAST_THE_PARTNER = 3;

@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.ability.AbilityJson;
-import com.mercuriusxeno.goo.ability.SpikeTrapFixture;
+import com.mercuriusxeno.goo.ability.FieldEffectFixture;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
@@ -31,12 +31,12 @@ class DamageStepTest {
     private static final int IMMUNE_AFTER_A_VANILLA_HURT = 20;
 
     /**
-     * The spike trap's stab deals goo:stalagmite, which no fall tag holds, so a fall-immune chicken takes it.
+     * The field effect fixture's stab deals goo:stalagmite, which no fall tag holds, so a fall-immune chicken takes it.
      */
     // decision urchin-rests-bristled-and-spears
     @Test
-    void spikeTrapsStabDealsGooStalagmiteDamage() {
-        assertEquals(Optional.of(GOO_STALAGMITE), DamageStep.gooTypeOf(spikeTrapsStab().source()).map(ResourceKey::identifier));
+    void theFieldFixturesStabDealsGooStalagmiteDamage() {
+        assertEquals(Optional.of(GOO_STALAGMITE), DamageStep.gooTypeOf(fieldFixturesStab().source()).map(ResourceKey::identifier));
     }
 
     /**
@@ -129,8 +129,8 @@ class DamageStepTest {
         when(host.target()).thenReturn(target);
         return host;
     }
-    private static DamageStep spikeTrapsStab() {
-        FieldEffectStep field = LingerStep.bodyOf(SpikeTrapFixture.definition().behaviors()).orElseThrow().stream()
+    private static DamageStep fieldFixturesStab() {
+        FieldEffectStep field = FieldEffectFixture.definition().behaviors().stream()
                 .filter(FieldEffectStep.class::isInstance).map(FieldEffectStep.class::cast).findFirst().orElseThrow();
         return (DamageStep) field.strike().getFirst();
     }

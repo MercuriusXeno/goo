@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.block.ability.WispBlockEntity;
 import com.mercuriusxeno.goo.block.alientech.LightBeaconBlockEntity;
@@ -57,10 +56,6 @@ public class GooBlockEntities {
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<CanisterBlockEntity>> CANISTER =
             BLOCK_ENTITIES.register("canister",
                     () -> new BlockEntityType<>(CanisterBlockEntity::new, GooBlocks.CANISTER.get()));
-
-    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<AbilityBlockEntity>> ABILITY_BLOCK =
-            BLOCK_ENTITIES.register("ability_block",
-                    () -> new BlockEntityType<>(AbilityBlockEntity::new, GooBlocks.ABILITY_BLOCK.get()));
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<StatueBlockEntity>> STATUE =
             BLOCK_ENTITIES.register("statue",

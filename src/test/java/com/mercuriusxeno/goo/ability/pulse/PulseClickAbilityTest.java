@@ -24,7 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Pulse's Click loads from pulse_click.json as a scan in pulse goo, unlocked by the sculk sensor and ordered after
+ * Pulse's Click loads from pulse_click.json as a scan in pulse goo, ordered after
  * Pulse's three abilities, whose landing runs a vibrate step and then a sound at the host, and en_us names it
  * with a description; no deep_click ships
  * (decisions click-moves-to-pulse-and-costs-pulse-goo, click-is-a-hit-scan-drawn-as-a-delayed-wave,
@@ -43,11 +43,6 @@ class PulseClickAbilityTest {
                 .toList();
         assertEquals(List.of(GooTypes.PULSE, false),
                 List.of(click.gooType(), shipped.contains(Identifier.fromNamespaceAndPath("goo", "deep_click"))));
-    }
-
-    @Test
-    void unlocksWithTheSculkSensor() {
-        assertEquals(List.of(Identifier.withDefaultNamespace("sculk_sensor")), click.requires());
     }
 
     @Test

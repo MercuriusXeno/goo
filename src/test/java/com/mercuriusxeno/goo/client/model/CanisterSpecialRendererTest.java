@@ -46,6 +46,32 @@ class CanisterSpecialRendererTest {
         goo.close();
     }
 
+    /**
+     * The canister item submits its goo before its body and gaskets, since the GUI's item atlas sorts no quad under
+     * improved transparency and the body, drawn first, would hide the goo behind the depth it writes (defect row 7).
+     * decision goo-translucency-draws-through-order-independent-transparency
+     */
+    @Test
+    void aFilledCanisterSubmitsItsGooBeforeItsShell() {
+        CanisterSpecialRenderer.GooData data = CanisterSpecialRenderer.dataOf(
+                CanisterFluidContent.of(goo.resource(GooTypes.ROCK), ROCK_VOLUME), CAPACITY, true, true);
+        List<String> order = new ArrayList<>();
+
+        CanisterSpecialRenderer.submitParts(data, new CanisterSpecialRenderer.CanisterParts() {
+            @Override
+            public void goo(CanisterSpecialRenderer.GooData filled) {
+                order.add("goo");
+            }
+
+            @Override
+            public void shell(CanisterSpecialRenderer.GooData capped) {
+                order.add("shell");
+            }
+        });
+
+        assertEquals(List.of("goo", "shell"), order);
+    }
+
     @Test
     void aTwoTypeCanisterCarriesTheVatsBandsForBothTypes() {
         CanisterFluidContent content = CanisterFluidContent.of(goo.resource(GooTypes.ROCK), ROCK_VOLUME)

@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.registry;
 
-import com.mercuriusxeno.goo.block.ability.AbilityBlockFallScheduler;
 import com.mercuriusxeno.goo.network.GooEffectScheduler;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
@@ -20,13 +19,10 @@ class GooServerStateTest {
     private static void fill(GooServerState state) {
         state.gooEffects().enqueue(new GooEffectScheduler.PendingEffect(
                 1, null, null, GooTypes.ROCK, -1, POS, Direction.UP, ""));
-        state.markerFalls().enqueue(new AbilityBlockFallScheduler.PendingFall(
-                1, null, POS, null, null));
     }
 
     private static boolean holdsNothing(GooServerState state) {
-        return !state.gooEffects().hasPending()
-                && !state.markerFalls().hasPending();
+        return !state.gooEffects().hasPending();
     }
 
     @Test
@@ -35,7 +31,6 @@ class GooServerStateTest {
         fill(state);
 
         assertTrue(state.gooEffects().hasPending());
-        assertTrue(state.markerFalls().hasPending());
     }
 
     @Test

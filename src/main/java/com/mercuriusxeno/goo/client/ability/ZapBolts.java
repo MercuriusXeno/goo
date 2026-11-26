@@ -42,7 +42,7 @@ public final class ZapBolts {
     private static final int FORK_SEGMENTS = 3;
     /** How far a fork swings out to the side of the bolt, in blocks. */
     private static final double FORK_SWING = 0.45;
-    private static final int GLOW_RGB = 0xE0301E;
+    static final int GLOW_RGB = 0xE0301E;
     private static final int CORE_RGB = 0xFFB0A0;
     private static final float PEAK_ALPHA = 255f;
     private static final float GLOW_WIDTH_SCALE = 3f;

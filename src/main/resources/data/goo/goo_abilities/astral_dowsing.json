@@ -2,7 +2,7 @@
   "gooType": "astral",
   "displayName": "goo.ability.astral.dowsing",
   "cost_mechanics": "goo.ability.astral.dowsing.cost_mechanics",
-  "badge": "channeled",
+  "badge": "residual",
   "order": 0,
   "cost": 15,
   "cost_formula": "%s/m³",

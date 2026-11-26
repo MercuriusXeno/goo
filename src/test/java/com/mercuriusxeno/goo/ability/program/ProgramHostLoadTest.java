@@ -181,11 +181,10 @@ class ProgramHostLoadTest {
     }
 
     @Test
-    void aLingeringFuseLoadsForTheLandingAndItsWaitRefusesTheLandingOutsideTheLinger() {
+    void aWaitRefusesTheLandingWhichTicksOnce() {
         List<Step> body = List.of(LeafSteps.WAIT.step(Expr.literal(3)),
                 new ExplodeStep(expr("2.5"), ExplosionMode.TNT));
 
-        assertDoesNotThrow(() -> ProgramBehavior.forHost(List.of(new LingerStep(body)), HostKind.LANDING));
         ProgramLoadException refusal = assertThrows(ProgramLoadException.class,
                 () -> ProgramBehavior.forHost(body, HostKind.LANDING));
         assertTrue(refusal.getMessage().contains("wait"), refusal.getMessage());
@@ -254,24 +253,24 @@ class ProgramHostLoadTest {
 
     /** The marker ticks and holds a placed face, and is no target. */
     @Test
-    void theMarkerHostProvidesItsFourteenCapabilities() {
+    void theMarkerHostProvidesItsThirteenCapabilities() {
         assertEquals(Set.of(HostCapability.PLACED_FACE, HostCapability.TICKING, HostCapability.EXPLODE,
                         HostCapability.ENTITY_SCAN, HostCapability.PLACE_BLOCK, HostCapability.FIELD_EFFECT,
                         HostCapability.STATE_WRITE,
-                        HostCapability.LEVEL, HostCapability.SHRIEK, HostCapability.GREENING,
+                        HostCapability.LEVEL, HostCapability.GREENING,
                         HostCapability.EMIT_POWER, HostCapability.BEAT, HostCapability.RELAY, HostCapability.FROST),
                 HostKind.MARKER.capabilities());
     }
 
     /** The landing is no target. */
     @Test
-    void theLandingHostProvidesItsSixteenCapabilities() {
+    void theLandingHostProvidesItsFifteenCapabilities() {
         assertEquals(Set.of(HostCapability.PLACED_FACE, HostCapability.EXPLODE, HostCapability.ENTITY_SCAN,
-                        HostCapability.PLACE_BLOCK, HostCapability.LINGER,
+                        HostCapability.PLACE_BLOCK,
                         HostCapability.FLOOR_SCAN, HostCapability.BREAK_BLOCKS,
                         HostCapability.WORMHOLE, HostCapability.PORTAL, HostCapability.HOLE, HostCapability.METEOR,
                         HostCapability.POWER_PULSE,
-                        HostCapability.FROST, HostCapability.SPAWN_MOB, HostCapability.IGNITE),
+                        HostCapability.FROST, HostCapability.SPAWN_MOB, HostCapability.IGNITE, HostCapability.SHRIEK),
                 HostKind.LANDING.capabilities());
     }
 

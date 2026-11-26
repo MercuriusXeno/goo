@@ -12,8 +12,7 @@ import java.util.stream.Stream;
  * the hit steps run on it, and on a landing that missed every mob the miss
  * steps run there, within the same tick; a host that is neither runs
  * nothing. Each branch is held at load to the host it runs on alone, so one
- * program serves both. Leaf Vines roots the mob it hits and, missing,
- * lingers as a trap rooting the first mob to walk in.
+ * program serves both.
  * vines-unpack-root-and-thorn
  *
  * @param hit  the steps run on the struck mob
@@ -51,7 +50,7 @@ public record HitOrMissStep(List<Step> hit, List<Step> miss) implements Step {
         StepHost host = context.host();
         if (host instanceof TargetHost) {
             new ProgramBehavior(hit).tick(host);
-        } else if (host instanceof LingerHost) {
+        } else if (host.kind() == HostKind.LANDING) {
             new ProgramBehavior(miss).tick(host);
         }
         return true;
@@ -79,7 +78,7 @@ public record HitOrMissStep(List<Step> hit, List<Step> miss) implements Step {
 
     /**
      * The branch a host kind runs: the hit steps where it holds a target,
-     * the miss steps where it can stand the ability's block, none otherwise.
+     * the miss steps on a blob's landing, none otherwise.
      *
      * @param host the host kind
      * @return the steps that run on it
@@ -88,6 +87,6 @@ public record HitOrMissStep(List<Step> hit, List<Step> miss) implements Step {
         if (host.capabilities().contains(HostCapability.TARGET)) {
             return hit;
         }
-        return host.capabilities().contains(HostCapability.LINGER) ? miss : List.of();
+        return host == HostKind.LANDING ? miss : List.of();
     }
 }

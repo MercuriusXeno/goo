@@ -566,7 +566,7 @@ class ValuationsTest {
         JsonObject poppy = solvedFrom("""
                 {"_constants": {}, "_groups": {}, "_restricted": [], "_conversions": {}, "_post_conversions": {},
                  "bowl": {"leaf": 1}, "brown_mushroom": {"sculk": 2},
-                 "suspicious_stew": {"leaf": 1, "sculk": 2, "zoo": 5}}
+                 "suspicious_stew": {"leaf": 1, "sculk": 2, "zombie": 5}}
                 """, shapedRecipe("minecraft:suspicious_stew_from_poppy", "minecraft:suspicious_stew", 1,
                 List.of("BMP"), Map.of("B", "minecraft:bowl", "M", "minecraft:brown_mushroom", "P", "minecraft:poppy")),
                 "minecraft:poppy");
