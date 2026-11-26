@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import net.minecraft.util.ARGB;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.AfterEach;
@@ -30,6 +31,21 @@ class ClickRingsTest {
         assertAll(corners.stream().map(corner -> () -> assertAll(
                 () -> assertEquals(0, corner.dot(unit), EPSILON, corner.toString()),
                 () -> assertEquals(size * Math.sqrt(2), corner.length(), EPSILON, corner.toString()))));
+    }
+
+    /**
+     * Each ring is tinted the red Zap's bolt glow and Tick's beat rings
+     * draw in, whatever its fade.
+     * decision click-draws-in-pulse-red-not-the-shrieker-visual
+     */
+    @Test
+    void eachRingIsTintedPulseRed() {
+        int pulseRed = 0xE0301E;
+        assertAll(
+                () -> assertEquals(pulseRed, ZapBolts.GLOW_RGB),
+                () -> assertEquals(pulseRed, BeatRings.RING_RGB),
+                () -> assertEquals(pulseRed, ARGB.color(0, ClickRings.ringColor(0f))),
+                () -> assertEquals(pulseRed, ARGB.color(0, ClickRings.ringColor(0.5f))));
     }
 
     @Test

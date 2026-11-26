@@ -22,8 +22,8 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Pulse Click's sound wave, as the operator ruled it: the sculk shrieker's
- * shriek rings, held square to the line rather than flat and rising, travelling
+ * Pulse Click's sound wave, as the operator ruled it: pulse red rings, held
+ * square to the line, travelling
  * the straight line from the glove to the landing over
  * the server's delay, arriving on the tick the click sounds there, with the
  * click itself trailing it in a fading reverb all the way to the target,

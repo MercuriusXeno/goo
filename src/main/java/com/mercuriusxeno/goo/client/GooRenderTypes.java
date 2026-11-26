@@ -114,7 +114,7 @@ public final class GooRenderTypes {
             .build());
 
     /**
-     * Pulse Click's shriek rings drawn through blocks: vanilla's translucent
+     * Pulse Click's rings drawn through blocks: vanilla's translucent
      * particle shader passing every depth test and writing no depth, so a
      * Click rippling through stone shows to the submerged player inside it
      * (decision submerged-click-ripples-through-the-ground-to-its-range).
@@ -136,8 +136,13 @@ public final class GooRenderTypes {
                     .withCull(false)
                     .build());
 
-    /** The texture Click's rings draw: vanilla's shriek ring, as its own file rather than a particle atlas sprite. */
-    public static final Identifier CLICK_RING_TEXTURE = Identifier.withDefaultNamespace("textures/particle/shriek.png");
+    /**
+     * The texture Click's rings draw: goo's own grey ring, the shape of the shriek ring, so the pulse red the
+     * rings are tinted shows whole.
+     * decision click-draws-in-pulse-red-not-the-shrieker-visual
+     */
+    public static final Identifier CLICK_RING_TEXTURE =
+            Identifier.fromNamespaceAndPath(NAMESPACE, "textures/particle/click_ring.png");
 
     /** Click's rings on the through-blocks pipeline, over the ring texture, the lightmap the particle shader reads bound. */
     public static final RenderType CLICK_WAVE_TYPE = RenderType.create("goo_click_wave",

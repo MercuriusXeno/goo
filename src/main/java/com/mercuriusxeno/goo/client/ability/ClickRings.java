@@ -17,13 +17,15 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * The rings of Pulse Click's sound wave: one set each client tick of the
- * wave's travel where the wave has reached, each held square to the line from
- * the glove to the landing, swelling a little and fading out where it was set.
+ * The rings of Pulse Click's sound wave, drawn in pulse red: one set each
+ * client tick of the wave's travel where the wave has reached, each held
+ * square to the line from the glove to the landing, swelling a little and
+ * fading out where it was set.
  * The rings draw on the path through blocks, after Sculker's dim, so the dim
  * never darkens them: they are sounds, the exception to Sculker's vision, and
  * fullbright, so a ring rippling through stone shows at its own brightness.
  * decision click-is-a-hit-scan-drawn-as-a-delayed-wave
+ * decision click-draws-in-pulse-red-not-the-shrieker-visual
  * decision click-rings-are-the-exception-to-sculkers-vision
  * decision submerged-click-ripples-through-the-ground-to-its-range
  */
@@ -34,6 +36,12 @@ public final class ClickRings {
     private static final float START_SIZE = 0.35f;
     private static final float SWELL = 0.35f;
     private static final float HALF_TURN = (float) Math.PI;
+    /**
+     * The pulse red each ring is tinted, the red of Zap's bolt glow and Tick's beat rings.
+     * decision click-draws-in-pulse-red-not-the-shrieker-visual
+     */
+    private static final int RING_RGB = 0xE0301E;
+    private static final float OPAQUE = 255f;
     /** The corners of a quad before it is turned and sized, in the order the quad draws them. */
     private static final List<Corner> CORNERS = List.of(new Corner(1, -1, 1, 1), new Corner(1, 1, 1, 0),
             new Corner(-1, 1, 0, 0), new Corner(-1, -1, 0, 1));
@@ -119,6 +127,17 @@ public final class ClickRings {
     }
 
     /**
+     * The color a ring draws in at a share of its life: pulse red, fading
+     * from opaque as it is set to nothing as it leaves.
+     *
+     * @param share the share of the ring's life, 0 as it is set
+     * @return the ring's color, ARGB
+     */
+    static int ringColor(float share) {
+        return ARGB.color(Math.round(OPAQUE * (1f - share)), RING_RGB);
+    }
+
+    /**
      * Hands the shared path every standing ring, sorted by the nearest one.
      * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
      *
@@ -149,7 +168,7 @@ public final class ClickRings {
         for (Ring ring : standing) {
             float share = Math.min(1f, (now - ring.setTick() + partialTick) / LIFETIME_TICKS);
             float size = START_SIZE + SWELL * share;
-            int color = ARGB.colorFromFloat(1f - share, 1f, 1f, 1f);
+            int color = ringColor(share);
             Vector3f center = ring.at().subtract(camera).toVector3f();
             Quaternionf facing = facingAlong(ring.along());
             // drawn from both sides, so the ring shows whichever way it is seen from

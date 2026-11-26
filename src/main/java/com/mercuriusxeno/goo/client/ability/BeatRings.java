@@ -31,7 +31,7 @@ public final class BeatRings {
     /** The second ring trails the first by this share of the lifetime. */
     private static final double TRAIL_SHARE = 0.3;
     private static final int SEGMENTS = 32;
-    private static final int RING_RGB = 0xE0301E;
+    static final int RING_RGB = 0xE0301E;
     private static final float PEAK_ALPHA = 230f;
     private static final float WIDTH_SCALE = 2f;
     /** How far the rings stand off the face, so they sit on the prism rather than in the block. */
