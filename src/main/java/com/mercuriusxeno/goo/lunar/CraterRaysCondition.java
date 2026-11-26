@@ -33,7 +33,7 @@ public record CraterRaysCondition(ResourceKey<NormalNoise> noise)
     @Override
     public ConditionEvaluator compile(MaterialRuleContext context) {
         Noise craterNoise = context.randomState.getOrCreateNoise(noise);
-        CraterField craters = CraterField.seeded(craterNoise);
+        CraterField craters = CraterField.seeded(craterNoise, context.randomState);
         GiantCraterField giants = GiantCraterField.seeded(craterNoise, context.randomState);
         return new ColumnTest(context, (x, z) -> craters.isOnRayAt(x, z) || giants.isOnRayAt(x, z));
     }

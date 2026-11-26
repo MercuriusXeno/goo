@@ -222,7 +222,8 @@
                   "type": "minecraft:add",
                   "left": {
                     "type": "goo:craters",
-                    "noise": "goo:lunar_craters"
+                    "noise": "goo:lunar_craters",
+                    "maria": "goo:lunar_maria"
                   },
                   "right": {
                     "type": "minecraft:add",

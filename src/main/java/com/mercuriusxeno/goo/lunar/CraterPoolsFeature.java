@@ -186,7 +186,7 @@ public final class CraterPoolsFeature implements Feature {
     private static List<Pool> poolsNear(ChunkGenerator generator, ServerLevel server, RandomState randomState,
             Noise noise, int minX, int minZ) {
         List<Pool> pools = new ArrayList<>();
-        CraterField craters = CraterField.seeded(noise);
+        CraterField craters = CraterField.seeded(noise, randomState);
         int smallReach = (int) Math.ceil(CraterField.MIN_RADIUS + CraterField.RADIUS_SPREAD);
         for (int cellX = Math.floorDiv(minX - smallReach, CraterField.CELL);
                 cellX <= Math.floorDiv(minX + CHUNK_SIDE + smallReach, CraterField.CELL); cellX++) {

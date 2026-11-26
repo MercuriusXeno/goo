@@ -60,7 +60,7 @@ public final class LunarRilleTests {
         RandomState randomState = lunar.getChunkSource().randomState();
         RilleField rilles = RilleField.seeded(randomState.getOrCreateNoise(RilleField.LINE_NOISE),
                 randomState.getOrCreateNoise(RilleField.MARIA_NOISE));
-        CraterField craters = CraterField.seeded(randomState.getOrCreateNoise(CraterField.NOISE));
+        CraterField craters = CraterField.seeded(randomState.getOrCreateNoise(CraterField.NOISE), randomState);
         BlockPos[] rille = findRille(rilles, craters);
         helper.assertTrue(rille != null, String.format(NO_RILLE, SEARCH_REACH));
         ChunkGenerator generator = lunar.getChunkSource().getGenerator();

@@ -112,7 +112,7 @@ public final class LunarBoulderAndRayTests {
     public static void lunarRaysExposeAnorthosite(GameTestHelper helper) {
         ServerLevel lunar = helper.getLevel().getServer().getLevel(Lunar.LEVEL);
         RandomState randomState = lunar.getChunkSource().randomState();
-        CraterField craters = CraterField.seeded(randomState.getOrCreateNoise(CraterField.NOISE));
+        CraterField craters = CraterField.seeded(randomState.getOrCreateNoise(CraterField.NOISE), randomState);
         GiantCraterField giants = GiantCraterField.seeded(randomState.getOrCreateNoise(CraterField.NOISE), randomState);
         BlockPos[] columns = findRayColumns(craters, giants, ClearOfBoulders.in(lunar));
         helper.assertTrue(columns != null, String.format(NO_RAYED_CRATER, CELL_REACH));

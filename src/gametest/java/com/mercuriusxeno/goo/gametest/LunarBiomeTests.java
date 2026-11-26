@@ -226,7 +226,7 @@ public final class LunarBiomeTests {
     /** Passes a column no crater, crater rim, ray, thrown boulder or lava tube reaches. */
     private static Predicate<BlockPos> clearGround(ServerLevel lunar) {
         RandomState randomState = lunar.getChunkSource().randomState();
-        CraterField craters = CraterField.seeded(randomState.getOrCreateNoise(CraterField.NOISE));
+        CraterField craters = CraterField.seeded(randomState.getOrCreateNoise(CraterField.NOISE), randomState);
         GiantCraterField giants = GiantCraterField.seeded(randomState.getOrCreateNoise(CraterField.NOISE), randomState);
         LavaTubes tubes = LavaTubes.seeded(randomState.getOrCreateNoise(LavaTubes.NOISE));
         ClearOfBoulders clearOfBoulders = ClearOfBoulders.in(lunar);

@@ -9,6 +9,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.Interval;
 import net.minecraft.util.Mth;
+import net.minecraft.world.level.levelgen.RandomState;
 import net.minecraft.world.level.levelgen.densityfunction.DensityBuffer;
 import net.minecraft.world.level.levelgen.densityfunction.DensityFunction;
 import net.minecraft.world.level.levelgen.densityfunction.DensitySampler;
@@ -23,17 +24,24 @@ import java.util.Optional;
  * The craters pocking lunar's surface, as the height in blocks they add to the ground at a column: a bowl sunk
  * below the ground, ringed by a raised rim that falls back to the ground outside it. The ground is cut into square
  * cells, each holding one crater or none, its place and size rolled from the world's seeded noise, so every world
- * draws its own craters and a column reads the same craters on every call.
+ * draws its own craters and a column reads the same craters on every call. A cell holds its crater by the crater
+ * field mask over it, so craters gather into fields with bare plains between, and few fall in maria.
  * decision lunar-generates-from-its-own-noise-and-surface-rules
  * decision moon-is-288-tall-half-of-today
+ * decision lunar-features-cluster-with-bare-ground-between
  *
  * @param noise the seeded noise each cell's rolls read
+ * @param maria the seeded maria noise, reading maria above zero
  */
-public record CraterField(Noise noise) implements DensitySampler {
+public record CraterField(Noise noise, Noise maria) implements DensitySampler {
 
-    /** The data codec of the {@code goo:craters} density function type, naming the noise its rolls read. */
+    /**
+     * The data codec of the {@code goo:craters} density function type, naming the noise its rolls read and the maria
+     * noise its fields thin in.
+     */
     public static final MapCodec<Definition> DATA_CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
-            NormalNoise.CODEC.fieldOf("noise").forGetter(Definition::noise)
+            NormalNoise.CODEC.fieldOf("noise").forGetter(Definition::noise),
+            NormalNoise.CODEC.fieldOf("maria").forGetter(Definition::maria)
     ).apply(instance, Definition::new));
     /** The noise lunar's {@code goo:craters} density function rolls its cells from. */
     public static final ResourceKey<NormalNoise> NOISE = ResourceKey.create(Registries.NOISE,
@@ -42,8 +50,8 @@ public record CraterField(Noise noise) implements DensitySampler {
     /** A cell's side in blocks; a crater's farthest reach stays under it, so a column reads its own cell's
      * neighbours alone. */
     public static final int CELL = 40;
-    /** The share of cells holding a crater. */
-    static final double CRATER_CHANCE = 0.55;
+    /** The share of cells holding a crater deep in a crater field. */
+    static final double CRATER_CHANCE = 0.75;
     static final double MIN_RADIUS = 5.0;
     /** The radius a cell adds over the least, at its largest; squared rolls make small craters common. */
     static final double RADIUS_SPREAD = 17.0;
@@ -85,6 +93,8 @@ public record CraterField(Noise noise) implements DensitySampler {
     private static final double FRESH_BOWL_POWER = 2.0;
 
     private static final int PRESENCE = 0;
+    /** A cell's crater field is read at the cell's middle. */
+    private static final double CELL_MIDDLE = 0.5;
     private static final int OFFSET_X = 1;
     private static final int OFFSET_Z = 2;
     private static final int SIZE = 3;
@@ -128,6 +138,46 @@ public record CraterField(Noise noise) implements DensitySampler {
          * @return the roll, in [0, 1)
          */
         double roll(int cellX, int cellZ, int roll);
+
+        /**
+         * The share of its crater chance a cell keeps, by the crater field over it; all of it where no field reads.
+         *
+         * @param cellX the cell's x
+         * @param cellZ the cell's z
+         * @return the share, in [0, 1]
+         */
+        default double fieldShare(int cellX, int cellZ) {
+            return 1.0;
+        }
+    }
+
+    /**
+     * Whether a cell holds its crater: its presence roll falls under the crater chance its field leaves it.
+     *
+     * @param cellX the cell's x
+     * @param cellZ the cell's z
+     * @param rolls each cell's rolls
+     * @return true where the cell holds a crater
+     */
+    static boolean holdsCrater(int cellX, int cellZ, CellRolls rolls) {
+        return rolls.roll(cellX, cellZ, PRESENCE) < CRATER_CHANCE * rolls.fieldShare(cellX, cellZ);
+    }
+
+    /** This field's rolls, each cell's crater chance thinned by the crater field mask over its centre. */
+    private CellRolls rolls() {
+        return new CellRolls() {
+            @Override
+            public double roll(int cellX, int cellZ, int roll) {
+                return rollFrom(noise, cellX, cellZ, roll);
+            }
+
+            @Override
+            public double fieldShare(int cellX, int cellZ) {
+                double x = (cellX + CELL_MIDDLE) * CELL;
+                double z = (cellZ + CELL_MIDDLE) * CELL;
+                return FieldMasks.craterFieldShare(noise, maria.get(x, 0.0, z), x, z);
+            }
+        };
     }
 
     @Override
@@ -141,11 +191,7 @@ public record CraterField(Noise noise) implements DensitySampler {
     }
 
     private double densityAt(int blockX, int blockY, int blockZ) {
-        return heightAt(blockX, blockZ, this::roll);
-    }
-
-    private double roll(int cellX, int cellZ, int roll) {
-        return rollFrom(noise, cellX, cellZ, roll);
+        return heightAt(blockX, blockZ, rolls());
     }
 
     /**
@@ -203,7 +249,7 @@ public record CraterField(Noise noise) implements DensitySampler {
      * @return the crater, or empty
      */
     static Optional<Crater> craterIn(int cellX, int cellZ, CellRolls rolls) {
-        if (rolls.roll(cellX, cellZ, PRESENCE) >= CRATER_CHANCE) {
+        if (!holdsCrater(cellX, cellZ, rolls)) {
             return Optional.empty();
         }
         return Optional.of(rollCrater(cellX, cellZ, rolls, (cellX + rolls.roll(cellX, cellZ, OFFSET_X)) * CELL,
@@ -215,7 +261,7 @@ public record CraterField(Noise noise) implements DensitySampler {
      * reach it.
      */
     private static Optional<Crater> craterReaching(int x, int z, int cellX, int cellZ, CellRolls rolls) {
-        if (rolls.roll(cellX, cellZ, PRESENCE) >= CRATER_CHANCE) {
+        if (!holdsCrater(cellX, cellZ, rolls)) {
             return Optional.empty();
         }
         double centerX = (cellX + rolls.roll(cellX, cellZ, OFFSET_X)) * CELL;
@@ -334,7 +380,7 @@ public record CraterField(Noise noise) implements DensitySampler {
     }
 
     private static boolean isOnRayOfCell(int x, int z, int cellX, int cellZ, CellRolls rolls) {
-        if (rolls.roll(cellX, cellZ, PRESENCE) >= CRATER_CHANCE) {
+        if (!holdsCrater(cellX, cellZ, rolls)) {
             return false;
         }
         double radius = radius(cellX, cellZ, rolls);
@@ -425,7 +471,7 @@ public record CraterField(Noise noise) implements DensitySampler {
      * @return the crater, or empty
      */
     public Optional<Crater> craterInCell(int cellX, int cellZ) {
-        return craterIn(cellX, cellZ, this::roll);
+        return craterIn(cellX, cellZ, rolls());
     }
 
     /**
@@ -436,17 +482,19 @@ public record CraterField(Noise noise) implements DensitySampler {
      * @return true on a large crater's ray
      */
     public boolean isOnRayAt(int x, int z) {
-        return isOnRay(x, z, this::roll);
+        return isOnRay(x, z, rolls());
     }
 
     /**
-     * The crater field a world's seeded crater noise draws, as its random state wires {@link #NOISE}.
+     * The crater field a world's seeded crater noise draws, its fields thinning in the maria the world's random
+     * state seeds.
      *
-     * @param noise the seeded crater noise
+     * @param noise       the seeded crater noise
+     * @param randomState the world's random state
      * @return the field that noise draws
      */
-    public static CraterField seeded(Noise noise) {
-        return new CraterField(noise);
+    public static CraterField seeded(Noise noise, RandomState randomState) {
+        return new CraterField(noise, randomState.getOrCreateNoise(RilleField.MARIA_NOISE));
     }
 
     /**
@@ -459,7 +507,7 @@ public record CraterField(Noise noise) implements DensitySampler {
      * @return true where a crater's reach at the column falls in the band
      */
     public boolean reachesBandAt(int x, int z, double minReach, double maxReach) {
-        return reachesBand(x, z, this::roll, minReach, maxReach);
+        return reachesBand(x, z, rolls(), minReach, maxReach);
     }
 
     /**
@@ -473,7 +521,7 @@ public record CraterField(Noise noise) implements DensitySampler {
      * @return true where a crater that large reaches the column within the band
      */
     public boolean reachesBandAt(int x, int z, double minReach, double maxReach, double minRadius) {
-        return reachesBand(x, z, this::roll, minReach, maxReach, minRadius);
+        return reachesBand(x, z, rolls(), minReach, maxReach, minRadius);
     }
 
     /**
@@ -484,7 +532,7 @@ public record CraterField(Noise noise) implements DensitySampler {
      * @return true on a crater floor
      */
     public boolean isFloorAt(int x, int z) {
-        return isFloor(x, z, this::roll);
+        return isFloor(x, z, rolls());
     }
 
     /**
@@ -495,7 +543,7 @@ public record CraterField(Noise noise) implements DensitySampler {
      * @return true on ground no crater reaches
      */
     public boolean isOpenGroundAt(int x, int z) {
-        return isOpenGround(x, z, this::roll);
+        return isOpenGround(x, z, rolls());
     }
 
     /**
@@ -536,12 +584,13 @@ public record CraterField(Noise noise) implements DensitySampler {
      * random state seeds them.
      *
      * @param noise the noise each cell's rolls read
+     * @param maria the maria noise each cell's crater field thins in
      */
-    public record Definition(Holder<NormalNoise> noise) implements DensityFunction {
+    public record Definition(Holder<NormalNoise> noise, Holder<NormalNoise> maria) implements DensityFunction {
 
         @Override
         public DensitySampler compileSampler(DensityFunction.CompileContext context) {
-            return new CraterField(context.createNoiseSampler(noise));
+            return new CraterField(context.createNoiseSampler(noise), context.createNoiseSampler(maria));
         }
 
         @Override

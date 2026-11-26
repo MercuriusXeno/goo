@@ -69,7 +69,7 @@ public final class LunarPoolTests {
         BlockPos basins = LunarSurfaceBiomes.spotIn(lunar, LunarSurfaceBiomes.SHADOWED_BASINS);
         helper.assertTrue(basins != null, NO_BASINS);
         CraterField craters = CraterField.seeded(lunar.getChunkSource().randomState()
-                .getOrCreateNoise(CraterField.NOISE));
+                .getOrCreateNoise(CraterField.NOISE), lunar.getChunkSource().randomState());
         List<Pool> pools = new ArrayList<>();
         int baseX = Math.floorDiv(basins.getX(), CraterField.CELL);
         int baseZ = Math.floorDiv(basins.getZ(), CraterField.CELL);
