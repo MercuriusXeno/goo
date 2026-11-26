@@ -5,7 +5,6 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.shapes.Shapes;
@@ -44,8 +43,8 @@ public class OculusBlock extends FaceMountedBlock {
      * @param properties the block properties
      */
     public OculusBlock(Properties properties) {
-        super(properties, Shapes.or(Block.boxZ(BASE_WIDTH, CELL - BASE_HEIGHT, CELL),
-                Block.boxZ(EYE_WIDTH, CELL - (float) EYE_LIFT - EYE_HALF_WIDTH,
+        super(properties, Shapes.or(boxZ(BASE_WIDTH, CELL - BASE_HEIGHT, CELL),
+                boxZ(EYE_WIDTH, CELL - (float) EYE_LIFT - EYE_HALF_WIDTH,
                         CELL - (float) EYE_LIFT + EYE_HALF_WIDTH)));
     }
 

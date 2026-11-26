@@ -26,6 +26,7 @@ import com.mercuriusxeno.goo.block.alientech.LightBeaconBlock;
 import com.mercuriusxeno.goo.block.alientech.MetronomeBlock;
 import com.mercuriusxeno.goo.block.alientech.OculusBlock;
 import com.mercuriusxeno.goo.block.alientech.ReflectorBlock;
+import com.mercuriusxeno.goo.block.alientech.RelayBlock;
 import com.mercuriusxeno.goo.block.canister.CanisterBlock;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlock;
 import com.mercuriusxeno.goo.block.gasket.ChoralGasketBlock;
@@ -831,6 +832,16 @@ public class GooBlocks {
      * decision oculus-prism-becomes-a-hovering-eye
      * decision utility-blocks-found-in-lunar-are-learned-and-recreated-at-will
      */
+    /**
+     * Relay: a block on a solid face carrying the strongest redstone signal reaching any relay in its linked network,
+     * the reflector's twin in mechanism alone, dropping itself so a crucible can melt it.
+     * decision relay-prism-carries-the-signal-through-air
+     * decision utility-blocks-found-in-lunar-are-learned-and-recreated-at-will
+     */
+    public static final DeferredBlock<RelayBlock> RELAY = BLOCKS.registerBlock("relay",
+            RelayBlock::new, () -> BlockBehaviour.Properties.of().mapColor(MapColor.FIRE)
+                    .strength(REFLECTOR_HARDNESS).sound(SoundType.METAL).noOcclusion()
+                    .pushReaction(PushReaction.POPPED));
     public static final DeferredBlock<OculusBlock> OCULUS = BLOCKS.registerBlock("oculus",
             OculusBlock::new, () -> BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_PURPLE)
                     .strength(REFLECTOR_HARDNESS).sound(SoundType.LANTERN).noOcclusion()

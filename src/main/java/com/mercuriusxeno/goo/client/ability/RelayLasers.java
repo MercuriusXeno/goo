@@ -2,8 +2,8 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.pulse.RelayNetwork;
-import com.mercuriusxeno.goo.block.ability.PrismBlock;
 import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
+import com.mercuriusxeno.goo.block.alientech.RelayBlockEntity;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.LineContext;
@@ -16,6 +16,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.status.ChunkStatus;
 import net.minecraft.world.phys.Vec3;
@@ -28,7 +29,7 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * The relay link's mark: a thin red laser between every two relay prisms
+ * The relay link's mark: a thin red laser between every two relays
  * that link through air, dim while idle and bright while a signal crosses it.
  * The client finds the relays near the player every few ticks and draws each
  * link every frame.
@@ -106,8 +107,7 @@ public final class RelayLasers {
 
     private static void drawLink(ClientLevel level, LineContext lines, BlockPos from, BlockPos to, Vec3 camera,
                                  float width) {
-        if (!RelayNetwork.inLinkReach(from, to) || !RelayNetwork.cellsBetween(from, to).stream()
-                .allMatch(cell -> level.getBlockState(cell).isAir())) {
+        if (!RelayNetwork.inLinkReach(from, to) || !RelayNetwork.links(level, from, to)) {
             return;
         }
         int alpha = carrying(level, from) || carrying(level, to) ? CARRYING_ALPHA : IDLE_ALPHA;
@@ -116,7 +116,7 @@ public final class RelayLasers {
     }
 
     private static boolean carrying(ClientLevel level, BlockPos relay) {
-        return level.getBlockState(relay).getOptionalValue(PrismBlock.POWER).orElse(0) > 0
+        return level.getBlockState(relay).getOptionalValue(BlockStateProperties.POWER).orElse(0) > 0
                 || level.hasNeighborSignal(relay);
     }
 
@@ -136,8 +136,9 @@ public final class RelayLasers {
 
     private static void addRelaysIn(LevelChunk chunk, List<BlockPos> found) {
         for (BlockEntity entity : chunk.getBlockEntities().values()) {
-            if (entity instanceof PrismBlockEntity prism && PulsePrismStyle.RELAY_COMBO.equals(prism.getCombo())) {
-                found.add(prism.getBlockPos());
+            if (entity instanceof RelayBlockEntity
+                    || entity instanceof PrismBlockEntity prism && PulsePrismStyle.RELAY_COMBO.equals(prism.getCombo())) {
+                found.add(entity.getBlockPos());
             }
         }
     }

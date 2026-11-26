@@ -1,10 +1,15 @@
 package com.mercuriusxeno.goo.ability.pulse;
 
 import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
+import com.mercuriusxeno.goo.block.alientech.FaceMountedBlock;
+import com.mercuriusxeno.goo.block.alientech.RelayBlockEntity;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.SectionPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayDeque;
@@ -15,10 +20,9 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * The links between relay prisms: a relay links to every other relay in
- * range along one of the three axes, with only air between their centers;
- * each relay gives the strongest
- * redstone signal reaching any relay it links to.
+ * The links between relays, relay blocks and the relay prisms a world may still hold: a relay links to every other
+ * relay in range along one of the three axes, with only air between their centers and neither attached by the side
+ * facing the other; each relay gives the strongest redstone signal reaching any relay it links to.
  * relay-prism-carries-the-signal-through-air
  */
 public final class RelayNetwork {
@@ -38,8 +42,7 @@ public final class RelayNetwork {
     }
 
     /**
-     * The signal a relay gives this tick: the strongest signal reaching any
-     * other relay it links to, marking the relay as one so the others find it.
+     * The signal a relay prism gives this tick, marking the prism as a relay so the others find it.
      *
      * @param level the server level
      * @param pos   the relay's position
@@ -48,6 +51,17 @@ public final class RelayNetwork {
      */
     public static int carriedTo(ServerLevel level, BlockPos pos, PrismBlockEntity relay) {
         relay.markRelaying();
+        return carriedTo(level, pos);
+    }
+
+    /**
+     * The signal a relay gives this tick: the strongest signal reaching any other relay of its network.
+     *
+     * @param level the server level
+     * @param pos   the relay's position
+     * @return the power the relay gives, 0 to 15
+     */
+    public static int carriedTo(ServerLevel level, BlockPos pos) {
         int carried = 0;
         for (BlockPos other : networkOf(level, pos)) {
             if (!other.equals(pos)) {
@@ -75,7 +89,7 @@ public final class RelayNetwork {
         while (!toWalk.isEmpty() && network.size() < MAX_NETWORK) {
             BlockPos current = toWalk.poll();
             relaysNear(level, current).stream()
-                    .filter(other -> !network.contains(other) && linksThroughAir(level, current, other))
+                    .filter(other -> !network.contains(other) && links(level, current, other))
                     .filter(network::add)
                     .forEach(toWalk::add);
         }
@@ -108,10 +122,20 @@ public final class RelayNetwork {
 
     private static void addRelaysIn(LevelChunk chunk, BlockPos pos, List<BlockPos> relays) {
         for (BlockEntity entity : chunk.getBlockEntities().values()) {
-            if (entity instanceof PrismBlockEntity prism && prism.relays() && inLinkReach(pos, prism.getBlockPos())) {
-                relays.add(prism.getBlockPos());
+            if (isRelay(entity) && inLinkReach(pos, entity.getBlockPos())) {
+                relays.add(entity.getBlockPos());
             }
         }
+    }
+
+    /**
+     * Whether a block entity is a relay: a relay block, or a prism whose combo made it one.
+     *
+     * @param entity the block entity
+     * @return true for a relay
+     */
+    public static boolean isRelay(BlockEntity entity) {
+        return entity instanceof RelayBlockEntity || entity instanceof PrismBlockEntity prism && prism.relays();
     }
 
     /**
@@ -132,8 +156,31 @@ public final class RelayNetwork {
         return axesApart == 1 && dx + dy + dz <= RANGE;
     }
 
-    static boolean linksThroughAir(ServerLevel level, BlockPos from, BlockPos to) {
-        return cellsBetween(from, to).stream().allMatch(cell -> level.getBlockState(cell).isAir());
+    /**
+     * Whether two relays in reach link: only air between them, and neither attached by the side facing the other.
+     * The server's network and the client's drawn links both ask here.
+     *
+     * @param level the level
+     * @param from  one relay
+     * @param to    the other, in link reach
+     * @return true when a link joins them
+     */
+    public static boolean links(BlockGetter level, BlockPos from, BlockPos to) {
+        Direction ahead = Direction.getApproximateNearest(to.getX() - from.getX(), to.getY() - from.getY(),
+                to.getZ() - from.getZ());
+        return sideOpen(level.getBlockState(from), ahead) && sideOpen(level.getBlockState(to), ahead.getOpposite())
+                && cellsBetween(from, to).stream().allMatch(cell -> level.getBlockState(cell).isAir());
+    }
+
+    /**
+     * Whether a link may leave a relay by a side: every side but the one a face-mounted relay attaches by.
+     *
+     * @param state the relay's state
+     * @param side  the side
+     * @return true where a link may leave
+     */
+    static boolean sideOpen(BlockState state, Direction side) {
+        return !(state.getBlock() instanceof FaceMountedBlock) || FaceMountedBlock.attachedSide(state) != side;
     }
 
     /**

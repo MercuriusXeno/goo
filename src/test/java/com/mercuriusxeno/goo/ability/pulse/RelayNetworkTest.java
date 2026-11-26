@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.ability.pulse;
 
+import com.mercuriusxeno.goo.block.alientech.FaceMountedBlock;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.state.BlockState;
 import org.junit.jupiter.api.Test;
@@ -82,6 +84,20 @@ class RelayNetworkTest {
                 call.<BlockPos>getArgument(0).equals(new BlockPos(2, 0, 0)) ? stone : air);
 
         assertEquals(List.of(true, false),
-                List.of(RelayNetwork.linksThroughAir(clear, from, to), RelayNetwork.linksThroughAir(blocked, from, to)));
+                List.of(RelayNetwork.links(clear, from, to), RelayNetwork.links(blocked, from, to)));
+    }
+
+    /**
+     * A floor relay, attached by its bottom, links nothing through that side, and links on through its top.
+     * relay-prism-carries-the-signal-through-air
+     */
+    @Test
+    void noLinkLeavesTheSideARelayAttachesBy() {
+        BlockState floorRelay = mock(BlockState.class);
+        when(floorRelay.getBlock()).thenReturn(mock(FaceMountedBlock.class));
+        when(floorRelay.getValue(FaceMountedBlock.FACING)).thenReturn(Direction.UP);
+
+        assertEquals(List.of(false, true),
+                List.of(RelayNetwork.sideOpen(floorRelay, Direction.DOWN), RelayNetwork.sideOpen(floorRelay, Direction.UP)));
     }
 }

@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.block.alientech;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.shapes.Shapes;
@@ -30,8 +29,8 @@ public class LightBeaconBlock extends FaceMountedBlock {
      * @param properties the block properties
      */
     public LightBeaconBlock(Properties properties) {
-        super(properties, Shapes.or(Block.boxZ(PILLAR_WIDTH, PILLAR_TOP, CELL),
-                Block.boxZ(TIP_WIDTH, TIP_TOP, PILLAR_TOP)));
+        super(properties, Shapes.or(boxZ(PILLAR_WIDTH, PILLAR_TOP, CELL),
+                boxZ(TIP_WIDTH, TIP_TOP, PILLAR_TOP)));
     }
 
     @Override

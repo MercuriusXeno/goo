@@ -6,7 +6,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityTicker;
 import net.minecraft.world.level.block.entity.BlockEntityType;
@@ -39,7 +38,7 @@ public class ReflectorBlock extends FaceMountedBlock {
      * @param properties the block properties
      */
     public ReflectorBlock(Properties properties) {
-        super(properties, Shapes.or(Block.boxZ(CUBOID, CUBOID_FAR, CUBOID_NEAR), Block.boxZ(NECK, CUBOID_NEAR, CELL)));
+        super(properties, Shapes.or(boxZ(CUBOID, CUBOID_FAR, CUBOID_NEAR), boxZ(NECK, CUBOID_NEAR, CELL)));
     }
 
     /**

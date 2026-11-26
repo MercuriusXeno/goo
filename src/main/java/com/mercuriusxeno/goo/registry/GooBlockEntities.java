@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.block.ability.WispBlockEntity;
 import com.mercuriusxeno.goo.block.alientech.LightBeaconBlockEntity;
 import com.mercuriusxeno.goo.block.alientech.OculusBlockEntity;
 import com.mercuriusxeno.goo.block.alientech.ReflectorBlockEntity;
+import com.mercuriusxeno.goo.block.alientech.RelayBlockEntity;
 import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlockEntity;
 import com.mercuriusxeno.goo.block.gasket.ChoralGasketBlockEntity;
@@ -93,6 +94,11 @@ public class GooBlockEntities {
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<OculusBlockEntity>> OCULUS =
             BLOCK_ENTITIES.register("oculus",
                     () -> new BlockEntityType<>(OculusBlockEntity::new, GooBlocks.OCULUS.get()));
+
+    /** The relay's block entity, which carries its network's signal (decision relay-prism-carries-the-signal-through-air). */
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<RelayBlockEntity>> RELAY =
+            BLOCK_ENTITIES.register("relay",
+                    () -> new BlockEntityType<>(RelayBlockEntity::new, GooBlocks.RELAY.get()));
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<ChoralGasketBlockEntity>> CHORAL_GASKET =
             BLOCK_ENTITIES.register("choral_gasket",

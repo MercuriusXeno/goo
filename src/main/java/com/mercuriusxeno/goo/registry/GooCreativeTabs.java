@@ -60,6 +60,7 @@ public class GooCreativeTabs {
                 output.accept(GooItems.REFLECTOR.get());
                 output.accept(GooItems.LIGHT_BEACON.get());
                 output.accept(GooItems.OCULUS.get());
+                output.accept(GooItems.RELAY.get());
                 output.accept(GooItems.MOLTEN_IRON_BUCKET.get());
                 output.accept(GooItems.MOONROCK.get());
                 // Equipment
