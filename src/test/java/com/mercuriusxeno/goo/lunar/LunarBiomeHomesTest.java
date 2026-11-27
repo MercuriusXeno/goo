@@ -1,15 +1,17 @@
 package com.mercuriusxeno.goo.lunar;
 
-import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.mojang.datafixers.util.Pair;
+import net.minecraft.world.level.biome.Climate;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -20,8 +22,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Each of lunar's landforms and landmarks has its home biome: the nest and the monolith in eldritch ground alone; the
  * ruin, the boulder fields and the crater ice pools in the shadowed basins alone; the meteorite everywhere but
- * eldritch ground; and the rilles in maria alone, since the rille cuts only where the maria noise reads above zero and
- * the dimension places maria, and maria alone, there. Read from the shipped data on the classpath.
+ * eldritch ground; and the rilles in maria alone: every climate reading a rille cuts at, the biome source resolves to
+ * maria. Read from the shipped data on the classpath.
  * decision lunar-surface-has-maria-highlands-shadowed-basins-and-eldritch-ground
  * decision meteorites-fall-on-every-lunar-biome-but-eldritch-ground
  */
@@ -33,9 +35,13 @@ class LunarBiomeHomesTest {
     private static final String BASINS = "goo:lunar_shadowed_basins";
     private static final String ELDRITCH = "goo:lunar_eldritch_ground";
     private static final List<String> LUNAR_BIOMES = List.of(MARIA, HIGHLANDS, BASINS, ELDRITCH, "goo:lunar_warrens");
-    private static final double TOLERANCE = 1e-9;
-    /** A maria reading on ground outside the maria, where a rille's line would otherwise cut its full depth. */
-    private static final double OUTSIDE_THE_MARIA = -0.01;
+    /** The climate readings sampled: maria and eldritch across their spans, a step apart, and three basins readings. */
+    private static final double MARIA_FROM = -0.5;
+    private static final double MARIA_TO = 1.0;
+    private static final double ELDRITCH_FROM = -1.0;
+    private static final double ELDRITCH_TO = 1.5;
+    private static final double READING_STEP = 0.025;
+    private static final double[] BASINS_READINGS = {-0.5, 0.0, 0.5};
 
     private static JsonObject resourceJson(String path) throws IOException {
         try (InputStream stream = LunarBiomeHomesTest.class.getResourceAsStream(path)) {
@@ -100,29 +106,51 @@ class LunarBiomeHomesTest {
                 "the meteorite should generate in maria, highlands and shadowed basins");
     }
 
+    /**
+     * Resolves the biome the dimension's biome source places at climate readings where a rille cuts, the way the
+     * source resolves it: through {@link Climate.ParameterList#findValue}, the nearest parameter point, not the range
+     * bounds. Every reading a rille cuts at resolves to maria.
+     */
     @Test
     void theRillesCutInMariaAlone() throws IOException {
-        assertEquals(0.0, RilleField.profile(0.0, OUTSIDE_THE_MARIA), TOLERANCE);
-        for (JsonElement entry : resourceJson(DATA + "dimension/lunar.json").getAsJsonObject("generator")
-                .getAsJsonObject("biome_source").getAsJsonArray("biomes")) {
-            String biome = entry.getAsJsonObject().get("biome").getAsString();
-            JsonElement continentalness = entry.getAsJsonObject().getAsJsonObject("parameters").get("continentalness");
-            if (MARIA.equals(biome)) {
-                assertEquals(0.0, lowerBound(continentalness), TOLERANCE,
-                        "maria should hold every column the maria noise reads above zero");
-            } else if (!"goo:lunar_warrens".equals(biome)) {
-                assertTrue(upperBound(continentalness) <= 0.0, biome + " should hold no column the maria noise "
-                        + "reads above zero, reaches " + upperBound(continentalness));
+        Climate.ParameterList<String> biomes = biomeSource();
+        int cuts = 0;
+        for (double m = MARIA_FROM; m <= MARIA_TO; m += READING_STEP) {
+            for (double e = ELDRITCH_FROM; e <= ELDRITCH_TO; e += READING_STEP) {
+                for (double basins : BASINS_READINGS) {
+                    if (RilleField.profile(0.0, m, e) == 0.0) {
+                        continue;
+                    }
+                    cuts++;
+                    String biome = biomes.findValue(Climate.target((float) e, 0.0F, (float) m, (float) basins, 0.0F,
+                            0.0F));
+                    assertEquals(MARIA, biome, "a rille cuts at maria " + m + ", eldritch " + e + ", basins "
+                            + basins + ", where the biome source places " + biome);
+                }
             }
         }
+        assertTrue(cuts > 0, "no sampled reading cuts a rille");
     }
 
-    private static double lowerBound(JsonElement range) {
-        return range.isJsonArray() ? range.getAsJsonArray().get(0).getAsDouble() : range.getAsDouble();
+    /** The dimension's biome source, its five entries read from lunar.json into the parameter list it resolves by. */
+    private static Climate.ParameterList<String> biomeSource() throws IOException {
+        List<Pair<Climate.ParameterPoint, String>> entries = new ArrayList<>();
+        for (JsonElement entry : resourceJson(DATA + "dimension/lunar.json").getAsJsonObject("generator")
+                .getAsJsonObject("biome_source").getAsJsonArray("biomes")) {
+            JsonObject parameters = entry.getAsJsonObject().getAsJsonObject("parameters");
+            entries.add(Pair.of(Climate.parameters(parameter(parameters, "temperature"),
+                    parameter(parameters, "humidity"), parameter(parameters, "continentalness"),
+                    parameter(parameters, "erosion"), parameter(parameters, "depth"), parameter(parameters, "weirdness"),
+                    parameters.get("offset").getAsFloat()), entry.getAsJsonObject().get("biome").getAsString()));
+        }
+        return new Climate.ParameterList<>(entries);
     }
 
-    private static double upperBound(JsonElement range) {
-        JsonArray bounds = range.isJsonArray() ? range.getAsJsonArray() : null;
-        return bounds == null ? range.getAsDouble() : bounds.get(1).getAsDouble();
+    private static Climate.Parameter parameter(JsonObject parameters, String name) {
+        JsonElement range = parameters.get(name);
+        return range.isJsonArray()
+                ? Climate.Parameter.span(range.getAsJsonArray().get(0).getAsFloat(),
+                        range.getAsJsonArray().get(1).getAsFloat())
+                : Climate.Parameter.point(range.getAsFloat());
     }
 }

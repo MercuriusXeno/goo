@@ -369,17 +369,29 @@
       {
         "type": "minecraft:condition",
         "if_true": {
-          "type": "minecraft:noise_threshold",
-          "noise": "goo:lunar_maria",
-          "min_threshold": 0.0,
-          "max_threshold": 1000.0
+          "type": "minecraft:not",
+          "invert": {
+            "type": "minecraft:biome",
+            "biome_is": [
+              "goo:lunar_eldritch_ground"
+            ]
+          }
         },
         "then_run": {
-          "type": "minecraft:block",
-          "result_state": {
-            "id": "minecraft:basalt",
-            "properties": {
-              "axis": "y"
+          "type": "minecraft:condition",
+          "if_true": {
+            "type": "minecraft:noise_threshold",
+            "noise": "goo:lunar_maria",
+            "min_threshold": 0.0,
+            "max_threshold": 1000.0
+          },
+          "then_run": {
+            "type": "minecraft:block",
+            "result_state": {
+              "id": "minecraft:basalt",
+              "properties": {
+                "axis": "y"
+              }
             }
           }
         }
