@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.client.LineContext;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
+import com.mercuriusxeno.goo.client.particle.SnowflakeParticle;
 import com.mercuriusxeno.goo.client.particle.VoidMoteParticle;
 import com.mercuriusxeno.goo.registry.GooParticles;
 import com.mercuriusxeno.goo.throwing.ConeShape;
@@ -875,12 +876,28 @@ public final class WindLines {
         RandomSource random = mc.level.getRandom();
         for (Line line : live) {
             if (line.snowflakes() && random.nextFloat() < SNOWFLAKES_PER_LINE_TICK) {
-                double age = now - line.startTick();
-                Vec3 at = pathPoint(line, age);
-                Vec3 along = at.subtract(pathPoint(line, age - 1));
-                mc.level.addParticle(GooParticles.SNOWFLAKE.get(), at.x, at.y, at.z, along.x, along.y, along.z);
+                SnowflakeParticle.Flight drop = snowflakeDropOf(line, now - line.startTick());
+                Vec3 at = drop.at();
+                Vec3 along = drop.velocity();
+                if (mc.particleEngine.createParticle(GooParticles.SNOWFLAKE.get(), at.x, at.y, at.z, along.x,
+                        along.y, along.z) instanceof SnowflakeParticle flake) {
+                    // decision spray-abilities-render-procedurally-bound-to-their-cone: the flake drifts inside the cone
+                    flake.keepInside(line.cone());
+                }
             }
         }
+    }
+
+    /**
+     * Where a snowflake a line drops leaves from and how fast: at the line's head, carried at that tick's travel.
+     *
+     * @param line the line dropping it
+     * @param age  ticks since the line left the glove
+     * @return the flake's first flight
+     */
+    static SnowflakeParticle.Flight snowflakeDropOf(Line line, double age) {
+        Vec3 at = pathPoint(line, age);
+        return new SnowflakeParticle.Flight(at, at.subtract(pathPoint(line, age - 1)));
     }
 
     /**

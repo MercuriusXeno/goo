@@ -1,5 +1,7 @@
 package com.mercuriusxeno.goo.client.particle;
 
+import com.mercuriusxeno.goo.client.ability.SprayCone;
+import com.mercuriusxeno.goo.throwing.StreamCone;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.particle.ParticleProvider;
 import net.minecraft.client.particle.SingleQuadParticle;
@@ -7,6 +9,7 @@ import net.minecraft.client.particle.SpriteSet;
 import net.minecraft.core.particles.SimpleParticleType;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -30,8 +33,22 @@ public final class SnowflakeParticle extends SingleQuadParticle {
     private static final float HALF = 0.5f;
     private static final float BLUE_TINT = 0.94f;
 
+    /** The most ticks a flake lives. */
+    public static final int LONGEST_LIFE = BASE_LIFETIME + LIFETIME_VARIANCE - 1;
+
     private final float flutterPhase;
     private final float spin;
+    /** The cone the flake keeps inside, or null for a flake free to drift anywhere. */
+    private @Nullable SprayCone bound;
+
+    /**
+     * Where a flake stands and how fast it flies.
+     *
+     * @param at       its position in the world
+     * @param velocity its motion a tick
+     */
+    public record Flight(Vec3 at, Vec3 velocity) {
+    }
 
     private SnowflakeParticle(ClientLevel level, double x, double y, double z, double vx, double vy, double vz,
                               SpriteSet sprites) {
@@ -52,15 +69,63 @@ public final class SnowflakeParticle extends SingleQuadParticle {
         this.spin = (random.nextFloat() - HALF) * SPIN_RANGE;
     }
 
+    /**
+     * Keeps the flake inside a cone for the rest of its life.
+     * decision spray-abilities-render-procedurally-bound-to-their-cone
+     *
+     * @param cone the cone it keeps inside, or null to let it drift anywhere
+     */
+    public void keepInside(@Nullable SprayCone cone) {
+        this.bound = cone;
+    }
+
+    /**
+     * How far a flake's flutter swings at an age: side to side, from its own phase.
+     *
+     * @param phase where its swing starts, in radians
+     * @param age   ticks it has lived
+     * @return the swing, -1 to 1
+     */
+    public static float swingAt(float phase, int age) {
+        return Mth.sin(phase + age * FLUTTER_RATE);
+    }
+
+    /**
+     * A flake's flight one tick on: its flutter nudges it, it moves, and the wind's friction slows it.
+     *
+     * @param flight where it stands and how fast it flies
+     * @param swing  its flutter's swing this tick
+     * @param bound  the cone it keeps inside, or null for none
+     * @return its flight a tick later
+     */
+    public static Flight flown(Flight flight, float swing, @Nullable SprayCone bound) {
+        Vec3 velocity = flight.velocity().add(swing * FLUTTER, 0, -swing * FLUTTER);
+        Vec3 at = flight.at().add(velocity);
+        if (bound != null) {
+            // decision spray-abilities-render-procedurally-bound-to-their-cone: a drift past the rim or the reach keeps to it
+            at = StreamCone.pulledInside(bound.apex(), bound.axis(), bound.reach(), bound.shape(), at);
+        }
+        return new Flight(at, velocity.scale(WIND_FRICTION));
+    }
+
     /** Flutters, turns and fades the flake over its life. */
     @Override
     public void tick() {
-        float swing = Mth.sin(flutterPhase + age * FLUTTER_RATE);
-        this.xd += swing * FLUTTER;
-        this.zd -= swing * FLUTTER;
+        this.xo = this.x;
+        this.yo = this.y;
+        this.zo = this.z;
+        if (this.age++ >= this.lifetime) {
+            this.remove();
+            return;
+        }
+        Flight flight = flown(new Flight(new Vec3(x, y, z), new Vec3(xd, yd, zd)), swingAt(flutterPhase, age - 1),
+                bound);
+        this.setPos(flight.at().x, flight.at().y, flight.at().z);
+        this.xd = flight.velocity().x;
+        this.yd = flight.velocity().y;
+        this.zd = flight.velocity().z;
         this.oRoll = this.roll;
         this.roll += spin;
-        super.tick();
         this.alpha = 1f - (float) this.age / this.lifetime;
     }
 

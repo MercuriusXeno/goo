@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.program.WindStep;
 import com.mercuriusxeno.goo.client.LineContext;
+import com.mercuriusxeno.goo.client.particle.SnowflakeParticle;
 import com.mercuriusxeno.goo.throwing.ConeShape;
 import com.mercuriusxeno.goo.throwing.StreamCone;
 import java.util.HashSet;
@@ -48,6 +49,7 @@ class WindLinesTest {
     class BoundToTheCone {
 
         private static final int DRAWS = 300;
+        private static final int FLAKE_DRAWS = 60;
         private final SprayCone flat = new SprayCone(new Vec3(2, 64, -3), new Vec3(1, -0.3, 0.4).normalize(),
                 new ConeShape(50, 8, false), 7);
 
@@ -65,6 +67,24 @@ class WindLinesTest {
                     for (double age = 0; age <= WindLines.lifeOf(line); age++) {
                         Vec3 at = WindLines.pathPoint(line, age);
                         assertTrue(inside(at), ability + " line " + draw + " at age " + age + " stands outside: " + at);
+                    }
+                }
+            }
+        }
+
+        @Test
+        void everySnowflakeAColdLineDropsFliesItsWholeLifeInsideTheConeAndItsReach() {
+            WindStep wind = Inward.windOf("frost_cold");
+            RandomSource random = RandomSource.create(4714L);
+            for (int draw = 0; draw < FLAKE_DRAWS; draw++) {
+                WindLines.Line line = WindLines.lineIn(flat, random, wind, 0L);
+                float phase = random.nextFloat() * (float) (2 * Math.PI);
+                for (int dropped = 0; dropped < WindLines.LIFE_TICKS; dropped++) {
+                    SnowflakeParticle.Flight flight = WindLines.snowflakeDropOf(line, dropped);
+                    for (int age = 0; age < SnowflakeParticle.LONGEST_LIFE; age++) {
+                        flight = SnowflakeParticle.flown(flight, SnowflakeParticle.swingAt(phase, age), line.cone());
+                        assertTrue(inside(flight.at()), "the flake line " + draw + " dropped at age " + dropped
+                                + " stands outside at its age " + age + ": " + flight.at());
                     }
                 }
             }
