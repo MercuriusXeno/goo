@@ -11,6 +11,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -40,6 +41,14 @@ public final class LunarWarrenTests {
             + "alien structure family members, hold %s";
     private static final String RUINS_ABOVE_WARRENS = "The bands over the warrens across %d chunks should hold no "
             + "alien structure block, hold %d, the first at %s";
+    private static final String LUNAR_WARRENS_GROW_VOLATILE_CRYSTAL_CLUSTERS =
+            "lunar_warrens_grow_volatile_crystal_clusters";
+    private static final String NO_CRYSTAL_IN_WARRENS = "The warrens over %d chunks should hold volatile crystal, "
+            + "hold none";
+    private static final String NO_CRYSTAL_CLUSTER = "The warrens over %d chunks should hold a volatile crystal "
+            + "touching another, hold %d crystals and none touch";
+    private static final String CRYSTAL_ABOVE_WARRENS = "The bands over the warrens across %d chunks should hold no "
+            + "volatile crystal, hold %d, the first at %s";
     private static final String MARKER_BESIDE_MARKER = "The monolith marker at %s should stand alone, touches another "
             + "at %s";
 
@@ -55,6 +64,38 @@ public final class LunarWarrenTests {
         GooTestFunctions.registerTest(registrar, LUNAR_WARRENS_STAND_MONOLITH_MARKERS_ALONE,
                 LunarWarrenTests::lunarWarrensStandMonolithMarkersAlone);
         GooTestFunctions.registerTest(registrar, LUNAR_WARRENS_HOLD_ALIEN_RUINS, LunarWarrenTests::lunarWarrensHoldAlienRuins);
+        GooTestFunctions.registerTest(registrar, LUNAR_WARRENS_GROW_VOLATILE_CRYSTAL_CLUSTERS,
+                LunarWarrenTests::lunarWarrensGrowVolatileCrystalClusters);
+    }
+
+    /**
+     * Scans a square of chunks in goo:lunar from its floor to its top for goo:volatile_crystal: the warrens' band holds
+     * some, at least one touching another as a cluster does, and the bands over the warrens hold none.
+     * decision volatile-crystals-are-rich-in-crystal-and-unstable
+     *
+     * @param helper the gametest helper
+     */
+    public static void lunarWarrensGrowVolatileCrystalClusters(GameTestHelper helper) {
+        ServerLevel lunar = helper.getLevel().getServer().getLevel(Lunar.LEVEL);
+        helper.assertTrue(lunar != null, LUNAR_REQUIRED);
+        Block crystal = GooBlocks.VOLATILE_CRYSTAL.get();
+        List<BlockPos> inWarrens = new ArrayList<>();
+        List<BlockPos> above = new ArrayList<>();
+        for (BlockPos found : scanFor(lunar, crystal)) {
+            if (inWarrens(found.getY())) {
+                inWarrens.add(found);
+            } else if (found.getY() >= LunarDepths.WARREN_ZONE_TOP_Y) {
+                above.add(found);
+            }
+        }
+        int chunks = 4 * CHUNK_REACH * CHUNK_REACH;
+        boolean clustered = inWarrens.stream().anyMatch(at -> Arrays.stream(Direction.values())
+                .anyMatch(side -> lunar.getBlockState(at.relative(side)).is(crystal)));
+        helper.assertTrue(!inWarrens.isEmpty(), String.format(NO_CRYSTAL_IN_WARRENS, chunks));
+        helper.assertTrue(clustered, String.format(NO_CRYSTAL_CLUSTER, chunks, inWarrens.size()));
+        helper.assertTrue(above.isEmpty(), String.format(CRYSTAL_ABOVE_WARRENS, chunks, above.size(),
+                above.isEmpty() ? null : above.getFirst()));
+        helper.succeed();
     }
 
     /**

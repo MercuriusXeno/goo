@@ -40,6 +40,7 @@ import com.mercuriusxeno.goo.block.zone.DimensionDoorBlock;
 import com.mercuriusxeno.goo.fluid.GooFluidBlock;
 import com.mercuriusxeno.goo.fluid.MoltenIronBlock;
 import com.mercuriusxeno.goo.lunar.MonolithMarkerBlock;
+import com.mercuriusxeno.goo.lunar.VolatileCrystalBlock;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.ColorRGBA;
 import net.minecraft.world.level.BlockGetter;
@@ -791,6 +792,22 @@ public class GooBlocks {
      */
     public static final DeferredBlock<AlienMaterialBlock> ALIEN_TILE = BLOCKS.registerBlock("alien_tile",
             AlienMaterialBlock::new, GooBlocks::alienStructureProperties);
+
+    /** A volatile crystal's height and width in pixels, and the faint light its unstable core gives. */
+    private static final float VOLATILE_CRYSTAL_HEIGHT = 7.0F;
+    private static final float VOLATILE_CRYSTAL_WIDTH = 10.0F;
+    private static final int VOLATILE_CRYSTAL_LIGHT = 4;
+
+    /**
+     * Volatile crystal: a crystal growing in clusters from the warrens' rock, rich in crystal and unstable, which
+     * shatters and explodes when a redstone signal reaches it and drops whole when mined quiet.
+     * decision volatile-crystals-are-rich-in-crystal-and-unstable
+     */
+    public static final DeferredBlock<VolatileCrystalBlock> VOLATILE_CRYSTAL = BLOCKS.registerBlock("volatile_crystal",
+            properties -> new VolatileCrystalBlock(VOLATILE_CRYSTAL_HEIGHT, VOLATILE_CRYSTAL_WIDTH, properties),
+            () -> BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_LIGHT_GREEN).forceSolidOn().noOcclusion()
+                    .sound(SoundType.AMETHYST_CLUSTER).strength(1.5F).lightLevel(state -> VOLATILE_CRYSTAL_LIGHT)
+                    .pushReaction(PushReaction.POPPED));
 
     /**
      * Impact glass: lunar's regolith melted where meteorites struck, dark glass that holds back light as tinted

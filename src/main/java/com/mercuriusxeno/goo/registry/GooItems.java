@@ -87,6 +87,8 @@ public class GooItems {
             GooBlocks.ALIEN_GLYPH);
     public static final DeferredItem<BlockItem> ALIEN_TILE = ITEMS.registerSimpleBlockItem("alien_tile",
             GooBlocks.ALIEN_TILE);
+    public static final DeferredItem<BlockItem> VOLATILE_CRYSTAL = ITEMS.registerSimpleBlockItem("volatile_crystal",
+            GooBlocks.VOLATILE_CRYSTAL);
     public static final DeferredItem<BlockItem> IMPACT_GLASS = ITEMS.registerSimpleBlockItem("impact_glass",
             GooBlocks.IMPACT_GLASS);
     public static final DeferredItem<BlockItem> BRECCIA = ITEMS.registerSimpleBlockItem("breccia", GooBlocks.BRECCIA);

@@ -98,7 +98,18 @@ class LunarPaletteTest {
                     new PaletteColor(0x33353d, "alien facet edge"),
                     new PaletteColor(0x101115, "alien facet edge"),
                     new PaletteColor(0x3a3d45, "alien joint and cut edge"),
-                    new PaletteColor(0x0b0c0f, "alien joint and cut"))).toList();
+                    new PaletteColor(0x0b0c0f, "alien joint and cut"),
+                    new PaletteColor(0x0c3a0a, "volatile_crystal"),
+                    new PaletteColor(0x1d7a14, "volatile_crystal"),
+                    new PaletteColor(0x30b81e, "volatile_crystal"),
+                    new PaletteColor(0x6cf03a, "volatile_crystal"),
+                    new PaletteColor(0xd8ffb0, "volatile_crystal"),
+                    new PaletteColor(0x269919, "volatile_crystal pulse"),
+                    new PaletteColor(0x34db19, "volatile_crystal pulse"),
+                    new PaletteColor(0x39ff14, "volatile_crystal pulse"),
+                    new PaletteColor(0x60ff2c, "volatile_crystal pulse"),
+                    new PaletteColor(0x88ff44, "volatile_crystal pulse"),
+                    new PaletteColor(0xb0ff7a, "volatile_crystal pulse"))).toList();
 
     /**
      * A ground block's sprites: its own and the variants its blockstate picks among per block, sharing one border band.
@@ -126,10 +137,13 @@ class LunarPaletteTest {
             "crater_ice").flatMap(block -> variantsOf(block).stream()), variantsOf("native_iron", 6).stream()).toList();
 
     /**
-     * Astral crystal's growths, each an animated strip of its frames, drawn as cutouts over clear space.
+     * Astral crystal's growths and volatile crystal, each an animated strip of its frames, drawn as cutouts over clear
+     * space.
      * decision astral-crystal-is-lunars-scarce-rich-block
+     * decision volatile-crystals-are-rich-in-crystal-and-unstable
      */
-    static final List<String> CUTOUT_SPRITES = variantsOf("astral_crystal");
+    static final List<String> CUTOUT_SPRITES = Stream.concat(variantsOf("astral_crystal").stream(),
+            Stream.of("volatile_crystal")).toList();
 
     /**
      * The warrens' alien blocks, black stone from the palette's near-blacks carrying runes in xeno's own violets.

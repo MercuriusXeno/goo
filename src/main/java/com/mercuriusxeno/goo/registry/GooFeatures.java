@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.lunar.BoulderFeature;
 import com.mercuriusxeno.goo.lunar.CraterPoolsFeature;
 import com.mercuriusxeno.goo.lunar.MonolithMarkerFeature;
 import com.mercuriusxeno.goo.lunar.NativeIronLodeFeature;
+import com.mercuriusxeno.goo.lunar.VolatileCrystalClusterFeature;
 import com.mercuriusxeno.goo.lunar.WarrenRuinFeature;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.registries.Registries;
@@ -65,6 +66,14 @@ public final class GooFeatures {
      */
     public static final DeferredHolder<MapCodec<? extends Feature>, MapCodec<WarrenRuinFeature>> WARREN_RUIN =
             FEATURES.register("warren_ruin", () -> WarrenRuinFeature.CODEC);
+
+    /**
+     * {@code goo:volatile_crystal_cluster}, a small volatile crystal structure creeping along a warren tunnel's rock.
+     * decision volatile-crystals-are-rich-in-crystal-and-unstable
+     */
+    public static final DeferredHolder<MapCodec<? extends Feature>, MapCodec<VolatileCrystalClusterFeature>>
+            VOLATILE_CRYSTAL_CLUSTER = FEATURES.register("volatile_crystal_cluster",
+                    () -> VolatileCrystalClusterFeature.CODEC);
 
     private GooFeatures() {
     }
