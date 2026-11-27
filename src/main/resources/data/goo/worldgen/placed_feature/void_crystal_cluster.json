@@ -1,0 +1,20 @@
+{
+  "feature": "goo:void_crystal_cluster",
+  "placement": [
+    {
+      "type": "goo:dark_side_count",
+      "light_side": 0,
+      "dark_side": 4
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "minecraft:heightmap",
+      "heightmap": "WORLD_SURFACE_WG"
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}
