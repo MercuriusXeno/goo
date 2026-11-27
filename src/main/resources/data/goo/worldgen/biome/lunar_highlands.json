@@ -47,7 +47,9 @@
       "goo:astral_crystal_cluster"
     ],
     [],
-    [],
+    [
+      "goo:air_geysers"
+    ],
     [],
     []
   ],

@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.lunar.AirGeyserFeature;
 import com.mercuriusxeno.goo.lunar.AstralCrystalClusterFeature;
 import com.mercuriusxeno.goo.lunar.BoulderFeature;
 import com.mercuriusxeno.goo.lunar.CraterPoolsFeature;
@@ -49,6 +50,13 @@ public final class GooFeatures {
      */
     public static final DeferredHolder<MapCodec<? extends Feature>, MapCodec<NativeIronLodeFeature>> NATIVE_IRON_LODE =
             FEATURES.register("native_iron_lode", () -> NativeIronLodeFeature.CODEC);
+
+    /**
+     * {@code goo:air_geyser}, a hole in lunar's ground holding Updraft goo, with trace Updraft around it.
+     * decision air-geysers-of-updraft-goo-dot-lunar
+     */
+    public static final DeferredHolder<MapCodec<? extends Feature>, MapCodec<AirGeyserFeature>> AIR_GEYSER =
+            FEATURES.register("air_geyser", () -> AirGeyserFeature.CODEC);
 
     private GooFeatures() {
     }

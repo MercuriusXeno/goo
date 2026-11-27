@@ -49,7 +49,9 @@
       "goo:astral_crystal_cluster"
     ],
     [],
-    [],
+    [
+      "goo:air_geysers"
+    ],
     [],
     [
       "goo:crater_pools"

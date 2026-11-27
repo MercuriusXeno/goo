@@ -1,0 +1,33 @@
+{
+  "type": "goo:air_geyser",
+  "lining": {
+    "type": "minecraft:weighted",
+    "entries": [
+      {
+        "data": "goo:anorthosite",
+        "weight": 1
+      }
+    ]
+  },
+  "radius": {
+    "type": "minecraft:uniform",
+    "min_inclusive": 1,
+    "max_inclusive": 2
+  },
+  "depth": {
+    "type": "minecraft:uniform",
+    "min_inclusive": 1,
+    "max_inclusive": 2
+  },
+  "traces": {
+    "type": "minecraft:uniform",
+    "min_inclusive": 3,
+    "max_inclusive": 6
+  },
+  "trace_reach": 6,
+  "trace_layers": {
+    "type": "minecraft:uniform",
+    "min_inclusive": 1,
+    "max_inclusive": 2
+  }
+}
