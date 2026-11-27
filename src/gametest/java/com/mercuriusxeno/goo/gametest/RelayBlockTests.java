@@ -34,6 +34,7 @@ public final class RelayBlockTests {
     private static final String RELAY_REGISTERS_AND_DROPS = "relay_registers_and_drops";
     private static final String RELAYS_CARRY_THE_SIGNAL = "relays_carry_the_signal_at_its_strength";
     private static final String SOLID_BLOCK_ENDS_THE_LINK = "relay_solid_block_ends_the_link";
+    private static final String GOES_DARK_ONCE_CUT = "relays_go_dark_once_the_feed_is_cut";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -44,6 +45,7 @@ public final class RelayBlockTests {
         GooTestFunctions.registerTest(registrar, RELAY_REGISTERS_AND_DROPS, RelayBlockTests::registersAndDrops);
         GooTestFunctions.registerTest(registrar, RELAYS_CARRY_THE_SIGNAL, RelayBlockTests::carryTheSignal);
         GooTestFunctions.registerTest(registrar, SOLID_BLOCK_ENDS_THE_LINK, RelayBlockTests::solidBlockEndsTheLink);
+        GooTestFunctions.registerTest(registrar, GOES_DARK_ONCE_CUT, RelayBlockTests::goDarkOnceTheFeedIsCut);
     }
 
     private static final BlockPos NEAR = new BlockPos(1, 1, 2);
@@ -63,6 +65,8 @@ public final class RelayBlockTests {
     private static final String RESTRICTED = "goo:relay should be neither restricted nor denied from melting";
     private static final String NOT_CARRIED = "The dust beside the far relay should carry the fed strength %d, it carries %d";
     private static final String UNDER_FULL = "The feed should reach the near relay under full strength, it carries %d";
+    private static final String STILL_LIT = "Once the feed is cut the pair should go dark: far dust %d, near relay %d, "
+            + "far relay %d";
     private static final String CARRIED_ACROSS = "No signal should cross stone between relays, the far dust carries %d";
 
     private RelayBlockTests() {
@@ -121,6 +125,30 @@ public final class RelayBlockTests {
             int carried = power(helper, OUT_BESIDE);
             helper.assertTrue(carried == 0, String.format(CARRIED_ACROSS, carried));
             helper.succeed();
+        });
+    }
+
+    /**
+     * The pair carries its feed, then the redstone block feeding it goes: within a bounded wait the dust beside the
+     * far relay reads 0 and both relays give no signal, rather than holding each other on through the dust each powers.
+     *
+     * @param helper the gametest helper
+     */
+    public static void goDarkOnceTheFeedIsCut(GameTestHelper helper) {
+        standPair(helper);
+        boolean[] cut = {false};
+        helper.succeedWhen(() -> {
+            if (!cut[0]) {
+                int fed = power(helper, FEED_BESIDE);
+                helper.assertTrue(fed > 0 && power(helper, OUT_BESIDE) == fed, String.format(NOT_CARRIED, fed,
+                        power(helper, OUT_BESIDE)));
+                helper.setBlock(SOURCE, Blocks.AIR);
+                cut[0] = true;
+            }
+            int near = helper.getBlockState(NEAR).getValue(RelayBlock.POWER);
+            int far = helper.getBlockState(FAR).getValue(RelayBlock.POWER);
+            helper.assertTrue(power(helper, OUT_BESIDE) == 0 && near == 0 && far == 0,
+                    String.format(STILL_LIT, power(helper, OUT_BESIDE), near, far));
         });
     }
 

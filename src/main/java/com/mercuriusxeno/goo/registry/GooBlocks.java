@@ -799,12 +799,6 @@ public class GooBlocks {
                     .strength(REFLECTOR_HARDNESS).sound(SoundType.LANTERN).noOcclusion()
                     .pushReaction(PushReaction.POPPED).lightLevel(state -> LightBeaconBlock.LIGHT));
     /**
-     * Oculus: a base on a solid face with an ender eye hovering off it, the stable node Blink snaps to, dropping
-     * itself so a crucible can melt it.
-     * decision oculus-prism-becomes-a-hovering-eye
-     * decision utility-blocks-found-in-lunar-are-learned-and-recreated-at-will
-     */
-    /**
      * Relay: a block on a solid face carrying the strongest redstone signal reaching any relay in its linked network,
      * the reflector's twin in mechanism alone, dropping itself so a crucible can melt it.
      * decision relay-prism-carries-the-signal-through-air
@@ -814,6 +808,12 @@ public class GooBlocks {
             RelayBlock::new, () -> BlockBehaviour.Properties.of().mapColor(MapColor.FIRE)
                     .strength(REFLECTOR_HARDNESS).sound(SoundType.METAL).noOcclusion()
                     .pushReaction(PushReaction.POPPED));
+    /**
+     * Oculus: a base on a solid face with an ender eye hovering off it, the stable node Blink snaps to, dropping
+     * itself so a crucible can melt it.
+     * decision oculus-prism-becomes-a-hovering-eye
+     * decision utility-blocks-found-in-lunar-are-learned-and-recreated-at-will
+     */
     public static final DeferredBlock<OculusBlock> OCULUS = BLOCKS.registerBlock("oculus",
             OculusBlock::new, () -> BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_PURPLE)
                     .strength(REFLECTOR_HARDNESS).sound(SoundType.LANTERN).noOcclusion()

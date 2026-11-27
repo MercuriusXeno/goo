@@ -1,14 +1,18 @@
 package com.mercuriusxeno.goo.ability.pulse;
 
 import com.mercuriusxeno.goo.block.alientech.FaceMountedBlock;
+import com.mercuriusxeno.goo.block.alientech.RelayBlock;
 import com.mercuriusxeno.goo.block.alientech.RelayBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.SectionPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.RedstoneWireBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayDeque;
@@ -51,10 +55,45 @@ public final class RelayNetwork {
         int carried = 0;
         for (BlockPos other : networkOf(level, pos)) {
             if (!other.equals(pos)) {
-                carried = Math.max(carried, level.getBestNeighborSignal(other));
+                carried = Math.max(carried, entering(level, other));
             }
         }
         return carried;
+    }
+
+    /**
+     * The strongest signal entering a relay from outside its network: every neighbor's signal toward it, save a
+     * neighboring relay's and the signal of dust no stronger than the relay's own, which the relay may be powering
+     * itself. Counting those let a linked pair hold itself on through the dust each powered once its feed was cut.
+     * relay-prism-carries-the-signal-through-air
+     *
+     * @param level the server level
+     * @param relay the relay's position
+     * @return the signal entering it, 0 to 15
+     */
+    static int entering(ServerLevel level, BlockPos relay) {
+        int ownSignal = level.getBlockState(relay).getOptionalValue(BlockStateProperties.POWER).orElse(0);
+        int entering = 0;
+        for (Direction side : Direction.values()) {
+            BlockPos from = relay.relative(side);
+            if (!echoes(level.getBlockState(from), ownSignal)) {
+                entering = Math.max(entering, level.getSignal(from, side));
+            }
+        }
+        return entering;
+    }
+
+    /**
+     * Whether a neighbor's signal may be the relay network's own coming back: another relay, or dust no stronger
+     * than the signal the relay gives.
+     *
+     * @param neighbor  the neighbor's state
+     * @param ownSignal the signal the relay gives
+     * @return true where the neighbor's signal is not counted as entering
+     */
+    static boolean echoes(BlockState neighbor, int ownSignal) {
+        return neighbor.getBlock() instanceof RelayBlock
+                || neighbor.is(Blocks.REDSTONE_WIRE) && neighbor.getValue(RedstoneWireBlock.POWER) <= ownSignal;
     }
 
     /**
