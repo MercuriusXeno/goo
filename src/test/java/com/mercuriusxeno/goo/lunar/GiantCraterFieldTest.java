@@ -3,12 +3,15 @@ package com.mercuriusxeno.goo.lunar;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * A giant lunar crater sinks a broad floor under the ground, raises a central peak over that floor, steps its inner
- * wall up in terraces to a raised rim, and leaves the ground past its rim's fall untouched.
+ * wall up in terraces to a raised rim, and leaves the ground past its rim's fall untouched; and it reads its
+ * biome at its centre, rare in maria, old and worn in the highlands, fresh in the shadowed basins.
  * decision lunar-surface-gains-giant-craters-mountains-rilles-and-boulder-fields
+ * decision lunar-surface-has-maria-highlands-shadowed-basins-and-eldritch-ground
  */
 class GiantCraterFieldTest {
 
@@ -63,6 +66,39 @@ class GiantCraterFieldTest {
         private static double terraceReach(int terrace, double across) {
             double wall = 1.0 - GiantCraterField.FLOOR_REACH;
             return GiantCraterField.FLOOR_REACH + wall * (terrace + across) / GiantCraterField.TERRACES;
+        }
+    }
+
+    @Nested
+    class ByItsBiome {
+
+        private static final double IN_MARIA = 0.3;
+        private static final double OUTSIDE_MARIA = -0.3;
+        private static final double IN_HIGHLANDS = -0.4;
+        private static final double IN_BASINS = 0.6;
+        /** A presence roll a crater centred outside maria keeps and one centred in maria loses. */
+        private static final double MIDDLING_PRESENCE = GiantCraterField.CRATER_CHANCE * 0.5;
+
+        @Test
+        void aCraterCentredInMariaIsRarerThanOneOutside() {
+            assertTrue(GiantCraterField.holdsCrater(MIDDLING_PRESENCE, OUTSIDE_MARIA));
+            assertFalse(GiantCraterField.holdsCrater(MIDDLING_PRESENCE, IN_MARIA));
+        }
+
+        @Test
+        void aCraterInTheHighlandsIsWornWhateverItsRoll() {
+            assertFalse(GiantCraterField.isFresh(0.0, OUTSIDE_MARIA, IN_HIGHLANDS));
+        }
+
+        @Test
+        void aCraterInTheShadowedBasinsIsFreshWhateverItsRoll() {
+            assertTrue(GiantCraterField.isFresh(0.999, OUTSIDE_MARIA, IN_BASINS));
+        }
+
+        @Test
+        void aCraterInMariaIsFreshAsItsRollFalls() {
+            assertTrue(GiantCraterField.isFresh(0.0, IN_MARIA, IN_HIGHLANDS));
+            assertFalse(GiantCraterField.isFresh(0.999, IN_MARIA, IN_BASINS));
         }
     }
 }

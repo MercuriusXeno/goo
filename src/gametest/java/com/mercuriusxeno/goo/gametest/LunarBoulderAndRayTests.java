@@ -7,13 +7,11 @@ import com.mercuriusxeno.goo.lunar.GiantCraterField;
 import com.mercuriusxeno.goo.lunar.Lunar;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Holder;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
@@ -35,8 +33,6 @@ public final class LunarBoulderAndRayTests {
     private static final String BOULDER_STANDS_ON_THE_REGOLITH = "boulder_stands_on_the_regolith";
     private static final String LUNAR_RAYS_EXPOSE_ANORTHOSITE = "lunar_rays_expose_anorthosite";
 
-    private static final ResourceKey<Biome> LUNAR_BIOME = ResourceKey.create(Registries.BIOME,
-            Identifier.fromNamespaceAndPath(Goo.MODID, "lunar"));
     private static final ResourceKey<PlacedFeature> BOULDER_FIELD = ResourceKey.create(Registries.PLACED_FEATURE,
             Identifier.fromNamespaceAndPath(Goo.MODID, "boulder_field"));
     private static final ResourceKey<Feature> BOULDER = ResourceKey.create(
@@ -53,15 +49,15 @@ public final class LunarBoulderAndRayTests {
     private static final double RAY_SEARCH_TO = 2.2;
     private static final double RAY_SEARCH_STEP = 0.01;
 
-    private static final String BIOME_NAMES_BOULDERS = "goo:lunar's features should name goo:boulder_field";
+    private static final String BIOME_NAMES_BOULDERS = "A lunar surface biome's features should name goo:boulder_field";
     private static final String BOULDER_STANDS = "The boulder placed at %s should stand anorthosite, basalt or breccia "
             + "over the regolith, reads %s";
     private static final String NO_RAYED_CRATER = "No fresh giant crater within %d cells of the origin has a flecked ray "
             + "column and a between column clear of every other crater";
     private static final String RAY_READS_ANORTHOSITE = "The ray column %s should read anorthosite at its surface y %d, "
             + "reads %s";
-    private static final String BETWEEN_READS_REGOLITH = "The column %s between two rays should read regolith at its "
-            + "surface y %d, reads %s";
+    private static final String BETWEEN_READS_ITS_GROUND = "The column %s between two rays should read the ground its "
+            + "biome lays at its surface y %d, reads %s";
 
     private LunarBoulderAndRayTests() {
     }
@@ -79,16 +75,16 @@ public final class LunarBoulderAndRayTests {
     }
 
     /**
-     * goo:lunar's biome names the boulder field among its features, and the boulder feature placed on a flat
+     * A lunar surface biome names the boulder field among its features, and the boulder feature placed on a flat
      * regolith floor leaves anorthosite, basalt or breccia standing over it.
      *
      * @param helper the gametest helper
      */
     public static void boulderStandsOnTheRegolith(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
-        Holder<Biome> lunar = level.registryAccess().lookupOrThrow(Registries.BIOME).getOrThrow(LUNAR_BIOME);
-        boolean namesBoulders = lunar.value().getGenerationSettings().features().stream()
-                .anyMatch(step -> step.stream().anyMatch(feature -> feature.is(BOULDER_FIELD)));
+        boolean namesBoulders = LunarSurfaceBiomes.ALL.stream().map(key -> level.registryAccess()
+                .lookupOrThrow(Registries.BIOME).getOrThrow(key)).anyMatch(biome -> biome.value().getGenerationSettings()
+                .features().stream().anyMatch(step -> step.stream().anyMatch(feature -> feature.is(BOULDER_FIELD))));
         helper.assertTrue(namesBoulders, BIOME_NAMES_BOULDERS);
         for (int x = 0; x <= FLOOR_EDGE; x++) {
             for (int z = 0; z <= FLOOR_EDGE; z++) {
@@ -108,15 +104,16 @@ public final class LunarBoulderAndRayTests {
      * Finds a giant crater in goo:lunar through the seeded giant crater field, with a column on one of its rays and a
      * column midway between two, both past its rim and clear of every other crater, every other ray and every thrown
      * boulder; the ray
-     * column reads anorthosite at its surface and the between column reads regolith.
+     * column reads anorthosite at its surface and the between column reads the ground its biome lays.
+     * decision lunar-biomes-add-block-types-to-the-ground
      *
      * @param helper the gametest helper
      */
     public static void lunarRaysExposeAnorthosite(GameTestHelper helper) {
         ServerLevel lunar = helper.getLevel().getServer().getLevel(Lunar.LEVEL);
         RandomState randomState = lunar.getChunkSource().randomState();
-        CraterField craters = CraterField.seeded(randomState.getOrCreateNoise(CraterField.NOISE));
-        GiantCraterField giants = GiantCraterField.seeded(randomState.getOrCreateNoise(CraterField.NOISE));
+        CraterField craters = CraterField.seeded(randomState.getOrCreateNoise(CraterField.NOISE), randomState);
+        GiantCraterField giants = GiantCraterField.seeded(randomState.getOrCreateNoise(CraterField.NOISE), randomState);
         BlockPos[] columns = findRayColumns(craters, giants, ClearOfBoulders.in(lunar));
         helper.assertTrue(columns != null, String.format(NO_RAYED_CRATER, CELL_REACH));
         BlockPos ray = surface(lunar, columns[0]);
@@ -125,8 +122,8 @@ public final class LunarBoulderAndRayTests {
                 String.format(RAY_READS_ANORTHOSITE, columns[0], ray.getY(), rayState));
         BlockPos between = surface(lunar, columns[1]);
         BlockState betweenState = lunar.getBlockState(between);
-        helper.assertTrue(betweenState.is(GooBlocks.REGOLITH.get()),
-                String.format(BETWEEN_READS_REGOLITH, columns[1], between.getY(), betweenState));
+        helper.assertTrue(LunarSurfaceBiomes.isGroundOf(lunar.getBiome(between), betweenState),
+                String.format(BETWEEN_READS_ITS_GROUND, columns[1], between.getY(), betweenState));
         helper.succeed();
     }
 

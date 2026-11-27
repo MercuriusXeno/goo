@@ -33,10 +33,12 @@ import com.mercuriusxeno.goo.block.zone.DimensionDoorBlock;
 import com.mercuriusxeno.goo.fluid.GooFluidBlock;
 import com.mercuriusxeno.goo.fluid.MoltenIronBlock;
 import net.minecraft.core.BlockPos;
+import net.minecraft.util.ColorRGBA;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.AmethystClusterBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.ColoredFallingBlock;
 import net.minecraft.world.level.block.IceBlock;
 import net.minecraft.world.level.block.IronBarsBlock;
 import net.minecraft.world.level.block.LiquidBlock;
@@ -711,8 +713,15 @@ public class GooBlocks {
             () -> BlockBehaviour.Properties.of().mapColor(MapColor.QUARTZ).requiresCorrectToolForDrops()
                     .strength(STONE_HARDNESS, STONE_RESISTANCE).sound(SoundType.STONE));
 
-    /** Regolith: lunar's grey glass dust over the stone. */
-    public static final DeferredBlock<Block> REGOLITH = BLOCKS.registerSimpleBlock("regolith",
+    /** The grey of the dust regolith sheds as it hangs over air, its map color's grey. */
+    private static final int REGOLITH_DUST_COLOR = 0x999999;
+
+    /**
+     * Regolith: lunar's grey glass dust over the stone, falling as sand does.
+     * decision regolith-falls-like-sand-and-generates-on-solid-ground
+     */
+    public static final DeferredBlock<ColoredFallingBlock> REGOLITH = BLOCKS.registerBlock("regolith",
+            properties -> new ColoredFallingBlock(new ColorRGBA(REGOLITH_DUST_COLOR), properties),
             () -> BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_LIGHT_GRAY).strength(SAND_HARDNESS)
                     .sound(SoundType.SAND));
 
