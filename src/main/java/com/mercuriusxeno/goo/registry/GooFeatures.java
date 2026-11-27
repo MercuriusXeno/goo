@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.lunar.AstralCrystalClusterFeature;
 import com.mercuriusxeno.goo.lunar.BoulderFeature;
 import com.mercuriusxeno.goo.lunar.CraterPoolsFeature;
+import com.mercuriusxeno.goo.lunar.MonolithMarkerFeature;
 import com.mercuriusxeno.goo.lunar.NativeIronLodeFeature;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.registries.Registries;
@@ -49,6 +50,13 @@ public final class GooFeatures {
      */
     public static final DeferredHolder<MapCodec<? extends Feature>, MapCodec<NativeIronLodeFeature>> NATIVE_IRON_LODE =
             FEATURES.register("native_iron_lode", () -> NativeIronLodeFeature.CODEC);
+
+    /**
+     * {@code goo:monolith_marker}, one monolith marker standing alone on a warren tunnel's floor.
+     * decision warrens-hold-xeno-rich-alien-blocks
+     */
+    public static final DeferredHolder<MapCodec<? extends Feature>, MapCodec<MonolithMarkerFeature>> MONOLITH_MARKER =
+            FEATURES.register("monolith_marker", () -> MonolithMarkerFeature.CODEC);
 
     private GooFeatures() {
     }

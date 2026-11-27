@@ -45,7 +45,9 @@
       "goo:meteoric_iron_nuggets",
       "goo:ore_lunar_ancient_debris"
     ],
-    [],
+    [
+      "goo:monolith_marker"
+    ],
     [],
     [],
     []

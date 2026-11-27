@@ -36,6 +36,7 @@ import com.mercuriusxeno.goo.block.vat.VatBlock;
 import com.mercuriusxeno.goo.block.zone.DimensionDoorBlock;
 import com.mercuriusxeno.goo.fluid.GooFluidBlock;
 import com.mercuriusxeno.goo.fluid.MoltenIronBlock;
+import com.mercuriusxeno.goo.lunar.MonolithMarkerBlock;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.ColorRGBA;
 import net.minecraft.world.level.BlockGetter;
@@ -746,6 +747,16 @@ public class GooBlocks {
             () -> BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_BLUE).forceSolidOn().noOcclusion()
                     .sound(SoundType.AMETHYST_CLUSTER).strength(1.5F).lightLevel(state -> ASTRAL_CRYSTAL_LIGHT)
                     .pushReaction(PushReaction.POPPED));
+
+    /**
+     * Monolith marker: a short black standing stone found alone on the warrens' tunnel floors, rich in xeno, mined
+     * like stone.
+     * decision warrens-hold-xeno-rich-alien-blocks
+     */
+    public static final DeferredBlock<MonolithMarkerBlock> MONOLITH_MARKER = BLOCKS.registerBlock("monolith_marker",
+            MonolithMarkerBlock::new, () -> BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_BLACK)
+                    .requiresCorrectToolForDrops().strength(STONE_HARDNESS, STONE_RESISTANCE).sound(SoundType.STONE)
+                    .noOcclusion());
 
     /**
      * Impact glass: lunar's regolith melted where meteorites struck, dark glass that holds back light as tinted

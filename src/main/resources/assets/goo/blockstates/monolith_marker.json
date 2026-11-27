@@ -1,0 +1,6 @@
+{
+  "variants": {
+    "axis=x": { "model": "goo:block/monolith_marker" },
+    "axis=z": { "model": "goo:block/monolith_marker", "y": 90 }
+  }
+}

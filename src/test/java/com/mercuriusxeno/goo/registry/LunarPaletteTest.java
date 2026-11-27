@@ -74,7 +74,12 @@ class LunarPaletteTest {
                     new PaletteColor(0xa9bcef, "astral_crystal"),
                     new PaletteColor(0xb8a860, "astral_crystal twinkle"),
                     new PaletteColor(0xf0e090, "astral_crystal twinkle"),
-                    new PaletteColor(0xfff4b0, "astral_crystal twinkle"))).toList();
+                    new PaletteColor(0xfff4b0, "astral_crystal twinkle"),
+                    new PaletteColor(0x2e2766, "monolith_marker rune shade"),
+                    new PaletteColor(0x6a5acd, "monolith_marker rune"),
+                    new PaletteColor(0x7969dc, "monolith_marker rune"),
+                    new PaletteColor(0x8878eb, "monolith_marker rune"),
+                    new PaletteColor(0x9282f5, "monolith_marker rune"))).toList();
 
     /**
      * A ground block's sprites: its own and the variants its blockstate picks among per block, sharing one border band.
@@ -107,9 +112,16 @@ class LunarPaletteTest {
      */
     static final List<String> CUTOUT_SPRITES = variantsOf("astral_crystal");
 
+    /**
+     * The warrens' alien blocks, black stone from the palette's near-blacks carrying runes in xeno's own violets.
+     * decision warrens-hold-xeno-rich-alien-blocks
+     */
+    static final List<String> WARREN_SPRITES = List.of("monolith_marker");
+
     /** The sprites under assets/goo/textures/block/ held to the palette: every lunar block's variants. */
     static final List<String> LUNAR_SPRITES = Stream.of(GROUND_SPRITES.stream(), Stream.of("iron_core"),
-            LANDFORM_SPRITES.stream(), CUTOUT_SPRITES.stream()).flatMap(sprites -> sprites).toList();
+            LANDFORM_SPRITES.stream(), CUTOUT_SPRITES.stream(), WARREN_SPRITES.stream())
+            .flatMap(sprites -> sprites).toList();
 
     /** Impact glass and crater ice draw translucent, so their pixels are held to the palette by color alone. */
     static final List<String> TRANSLUCENT_SPRITES = Stream.of("impact_glass", "crater_ice")
