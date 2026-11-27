@@ -106,21 +106,6 @@ public final class AbilityRegistry {
     }
 
     /**
-     * The ability a goo of this type runs when it lands on a prism: the type's
-     * prism-badged ability, lowest by order.
-     * decision prism-hosts-the-combos
-     *
-     * @param type the goo type
-     * @return the prism ability, or null when the type has no prism combo
-     */
-    public @Nullable AbilityDefinition prismAbilityFor(ResourceKey<GooTypeDefinition> type) {
-        return getAbilitiesForType(type).stream()
-                .filter(def -> def.badge() == AbilityBadge.PRISM)
-                .min(Comparator.comparingInt(AbilityDefinition::order))
-                .orElse(null);
-    }
-
-    /**
      * The type's residual: its ability wearing the residual badge, lowest by order, which the sprayer sprays.
      * decision spray-item-sprays-residuals-beside-the-glove
      *

@@ -28,8 +28,6 @@ class LaserStrikeTest {
     private static final double END_ROD_SPEED = 0.12;
     private static final Vec3 SLANTED_AXIS = new Vec3(0.6, -0.5, 0.8).normalize();
     private static final Vec3 SOURCE = new Vec3(0.5, 66.0, -4.0);
-    private static final Vec3 PRISM = new Vec3(17.5, 70.5, 11.5);
-    private static final Vec3 REFRACTED_END = new Vec3(25.0, 64.9, 18.0);
 
     private static List<LaserMotes.Mote> scatterOver(LaserStrike.Surface surface) {
         RandomSource random = RandomSource.create(SEED);
@@ -153,21 +151,6 @@ class LaserStrikeTest {
             assertEquals(1, surfaces.size());
             Vec3 towardSource = SOURCE.subtract(struck).normalize();
             assertEquals(0, surfaces.getFirst().normal().distanceTo(towardSource), TOLERANCE);
-        }
-
-        @Test
-        void aRefractedBeamScattersAtItsOwnEndBackTowardThePrism() {
-            List<LaserStrike.Surface> surfaces = LaserStrike.surfacesStruck(
-                    LaserStrike.refractedEndProbes(PRISM, REFRACTED_END, RADIUS), PRISM);
-            assertEquals(1, surfaces.size());
-            List<LaserMotes.Mote> motes = scatterOver(surfaces.getFirst());
-            assertFalse(motes.isEmpty(), "the refracted beam's mob scatters motes");
-            for (LaserMotes.Mote mote : motes) {
-                assertTrue(mote.at().distanceTo(REFRACTED_END) <= RADIUS * Math.sqrt(2) + FLOAT_TOLERANCE,
-                        "mote spawns away from the refracted end: " + mote.at());
-                assertTrue(mote.velocity().dot(PRISM.subtract(REFRACTED_END)) > 0,
-                        "mote scatters away from the prism: " + mote.velocity());
-            }
         }
     }
 }

@@ -1,8 +1,6 @@
 package com.mercuriusxeno.goo.ability;
 
 import com.google.gson.JsonParser;
-import com.mercuriusxeno.goo.ability.program.EntityFilter;
-import com.mercuriusxeno.goo.ability.program.FieldEffectStep;
 import org.junit.jupiter.api.Test;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -10,7 +8,6 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.TreeSet;
@@ -19,8 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
- * zombie_decay.json and its icon, read from the classpath as the loader reads them: the hive its hold makes of a
- * prism strikes living mobs alone (decision hive-prism-pillar-eats-the-living), and the icon wears zombie goo's
+ * zombie_decay.json's icon, read from the classpath as the loader reads it: the icon wears zombie goo's
  * colors (decision zombie-goo-is-colored-after-zombie-flesh-and-decay-stops-being-maroon).
  */
 class ZombieDecayJsonTest {
@@ -29,17 +25,6 @@ class ZombieDecayJsonTest {
     private static final String FLUID_TYPES = "/data/goo/goo_fluid_types.json";
     private static final int OPAQUE_ALPHA = 255;
     private static final int RGB_MASK = 0xFFFFFF;
-
-    private final AbilityDefinition definition = AbilityJson.decode("zombie_decay");
-
-    /**
-     * The hive's field keeps living mobs still alive, the operator's ruling of mobs only.
-     */
-    @Test
-    void theHiveStrikesLivingMobsAlone() {
-        FieldEffectStep hive = (FieldEffectStep) definition.onPrism().getFirst();
-        assertEquals(List.of(EntityFilter.LIVING, EntityFilter.ALIVE, EntityFilter.MOB), hive.where());
-    }
 
     /**
      * Every pixel the Decay icon draws is a stop of zombie goo's palette, green and meat brown

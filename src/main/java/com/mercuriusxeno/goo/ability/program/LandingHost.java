@@ -7,10 +7,7 @@ import com.mercuriusxeno.goo.ability.quantum.PortalColor;
 import com.mercuriusxeno.goo.ability.quantum.PortalPairs;
 import com.mercuriusxeno.goo.ability.quantum.PortalShots;
 import com.mercuriusxeno.goo.ability.quantum.Wormhole;
-import com.mercuriusxeno.goo.block.ability.PrismBlock;
 import com.mercuriusxeno.goo.entity.Meteor;
-import com.mercuriusxeno.goo.network.BlockVisuals;
-import com.mercuriusxeno.goo.network.TransformationPayload;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -198,12 +195,6 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face,
         Block found = BuiltInRegistries.BLOCK.getOptional(block)
                 .orElseThrow(() -> new IllegalArgumentException(ERR_UNKNOWN_BLOCK + block));
         List<Property.Value<?>> values = StatePropertyWriter.resolve(found.getStateDefinition(), state, block);
-        if (found instanceof PrismBlock) {
-            // prism-blob-becomes-a-milky-quartz-crystal: announced before the block, so the client
-            // holds the transformation when the prism's renderer first draws it
-            BlockVisuals.sendToWatchers(level, cell, TransformationPayload.intoBlock(gooType, anchor,
-                    Vec3.atCenterOf(cell), cell, SlimeTransmuteStep.DEFAULT_MORPH_TICKS));
-        }
         level.setBlock(cell, StatePropertyWriter.write(found.defaultBlockState(), values), Block.UPDATE_ALL);
     }
 

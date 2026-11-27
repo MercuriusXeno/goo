@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.registry;
 
-import com.mercuriusxeno.goo.ability.frost.GlacialFields;
 import com.mercuriusxeno.goo.ability.petrify.BlockExposures;
 import com.mercuriusxeno.goo.ability.program.MorphBirths;
 import com.mercuriusxeno.goo.ability.program.VacuumCounts;
@@ -39,7 +38,6 @@ public final class GooServerState {
     private final MorphBirths morphBirths = new MorphBirths();
     private final BlockExposures blockExposures = new BlockExposures();
     private final StreamHolds streamHolds = new StreamHolds();
-    private final GlacialFields glacialFields = new GlacialFields();
     private final ScanWaves scanWaves = new ScanWaves();
     private final DripFlights dripFlights = new DripFlights();
     private final MoltenHeats moltenHeats = new MoltenHeats();
@@ -126,15 +124,6 @@ public final class GooServerState {
      */
     public BlockExposures blockExposures() {
         return blockExposures;
-    }
-
-    /**
-     * The glacial prisms standing on the server (decision glacial-prism-holds-the-area-frozen).
-     *
-     * @return the glacial fields
-     */
-    public GlacialFields glacialFields() {
-        return glacialFields;
     }
 
     /**
@@ -279,7 +268,6 @@ public final class GooServerState {
         blockExposures.clear();
         streamHolds.clear();
         morphBirths.clear();
-        glacialFields.clear();
         scanWaves.clear();
         dripFlights.clear();
         layerFalls.clear();

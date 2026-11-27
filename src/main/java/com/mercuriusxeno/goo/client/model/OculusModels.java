@@ -10,8 +10,8 @@ import net.neoforged.neoforge.client.model.standalone.SimpleUnbakedStandaloneMod
 import net.neoforged.neoforge.client.model.standalone.StandaloneModelKey;
 
 /**
- * The oculus's eye and lid models, baked standalone for the oculus prism's
- * style. Both stand in until the operator's own models replace the files.
+ * The oculus's eye and lid models, baked standalone for the oculus block's
+ * renderer. Both stand in until the operator's own models replace the files.
  * Decision oculus-prism-becomes-a-hovering-eye.
  */
 public final class OculusModels {

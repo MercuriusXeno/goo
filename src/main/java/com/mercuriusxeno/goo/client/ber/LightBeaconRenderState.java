@@ -1,0 +1,20 @@
+package com.mercuriusxeno.goo.client.ber;
+
+import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
+import net.minecraft.core.Direction;
+
+/**
+ * Render state snapshot for a light beacon: the side its column leaves by, the column's clock and its widening.
+ * decision bulb-one-model-max-light-beacon-combo
+ */
+public class LightBeaconRenderState extends BlockEntityRenderState {
+
+    /** The side the column leaves by, away from the face the beacon attaches by. */
+    public Direction facing = Direction.UP;
+
+    /** The column's spin, scroll and breath clock, in ticks. */
+    public float animationTime;
+
+    /** The factor the column's radii take at the camera's distance. */
+    public float radiusScale = 1f;
+}

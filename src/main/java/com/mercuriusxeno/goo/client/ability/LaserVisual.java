@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.program.RayStep;
-import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.TargetResult;
@@ -18,12 +17,10 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.blockentity.BeaconRenderer;
-import net.minecraft.core.BlockPos;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
@@ -32,7 +29,6 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
-import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -43,16 +39,10 @@ import java.util.function.Consumer;
 /**
  * Laser's ray as every client tracking the caster sees it: glow's beam of
  * light ({@link GlowBeamMesh}) from just below the caster's eye to where the
- * ray struck, and on from a prism it struck to each mob the prism refracted
- * it toward. A ray shows while its caster holds it and for a tick after the
- * last one the server sent. A ray a prism refracts runs into the prism's
- * middle and its refracted beams leave from there, out of a soft core of
- * light ({@link GlowCore}). Each client tick the segments last drawn shed
- * light motes rising out of the beam ({@link LaserMotes}) and scattering
- * off each surface it struck ({@link LaserStrike}).
- * decision sunbeam-splits-at-the-prism-with-a-glisten
- * decision diagnose-and-correct-the-sunbeam-prism-depth
- * decision reflector-rail-blooms-out-inside-the-prism
+ * ray struck. A ray shows while its caster holds it and for a tick after the
+ * last one the server sent. Each client tick the ray last drawn sheds light
+ * motes rising out of the beam ({@link LaserMotes}) and scattering off the
+ * surface it struck ({@link LaserStrike}).
  * decision every-glow-beam-breathes-in-brightness
  * decision sunbeam-sheds-motes-rising-from-the-beam
  * decision sunbeam-motes-scatter-away-from-struck-surfaces
@@ -77,11 +67,11 @@ public final class LaserVisual {
 
     private static final Map<Integer, Ray> RAYS = new HashMap<>();
     /**
-     * Each showing ray as the last frame drew it: the client tick sheds and
-     * scatters motes from these, so the rate follows the tick and not the
-     * frame rate.
+     * Each showing ray as the last frame drew it, hand to end, world space:
+     * the client tick sheds and scatters motes from these, so the rate
+     * follows the tick and not the frame rate.
      */
-    private static final Map<Integer, DrawnRay> DRAWN = new HashMap<>();
+    private static final Map<Integer, LaserMotes.Segment> DRAWN = new HashMap<>();
 
     private LaserVisual() {
     }
@@ -97,8 +87,7 @@ public final class LaserVisual {
             Minecraft mc = Minecraft.getInstance();
             if (mc.level != null) {
                 boolean starting = !RAYS.containsKey(payload.casterId());
-                RAYS.put(payload.casterId(), new Ray(payload.end(), payload.refracted(), payload.range(),
-                        mc.level.getGameTime()));
+                RAYS.put(payload.casterId(), new Ray(payload.end(), payload.range(), mc.level.getGameTime()));
                 Entity caster = mc.level.getEntity(payload.casterId());
                 if (starting && caster != null) {
                     mc.getSoundManager().play(new LaserHum(caster, caster == mc.player));
@@ -137,15 +126,12 @@ public final class LaserVisual {
         VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.glowBeam(BeaconRenderer.BEAM_LOCATION));
         BeamPhase phase = new BeamPhase(Mth.frac(-(now + partialTick) * SCROLL_PER_TICK),
                 GlowBeamMesh.breath(now + (double) partialTick));
-        List<Vec3> cores = drawRays(mc, level, poseStack, consumer, partialTick, phase);
+        drawRays(mc, level, poseStack, consumer, partialTick, phase);
         buffers.endBatch(GooRenderTypes.glowBeam(BeaconRenderer.BEAM_LOCATION));
-        drawCores(poseStack, buffers, cores);
     }
 
     /**
-     * Draws every ray still showing, each run into the core of a prism that
-     * refracts it.
-     * decision diagnose-and-correct-the-sunbeam-prism-depth
+     * Draws every ray still showing, from the caster's hand to where it ends.
      *
      * @param mc          the client
      * @param level       the level
@@ -153,50 +139,24 @@ public final class LaserVisual {
      * @param consumer    the beam's vertex consumer
      * @param partialTick the frame's partial tick
      * @param phase       the beam's scroll and breath this frame
-     * @return each core's middle, camera-relative
      */
-    private static List<Vec3> drawRays(Minecraft mc, ClientLevel level, PoseStack poseStack, VertexConsumer consumer,
-                                       float partialTick, BeamPhase phase) {
+    private static void drawRays(Minecraft mc, ClientLevel level, PoseStack poseStack, VertexConsumer consumer,
+                                 float partialTick, BeamPhase phase) {
         Vec3 camera = mc.gameRenderer.mainCamera().position();
-        List<Vec3> cores = new ArrayList<>();
         DRAWN.clear();
         for (Map.Entry<Integer, Ray> entry : RAYS.entrySet()) {
             Entity caster = Objects.requireNonNull(level.getEntity(entry.getKey()));
             Vec3 hand = CastOrigin.of(caster.getId(), GloveHand.of(mc, caster, partialTick), partialTick);
-            DrawnEnd struck = drawnEnd(mc, caster, entry.getValue(), partialTick);
-            Vec3 gathered = LaserRayEnd.gathersAt(hand, struck.point(), pos -> refractsAt(level, pos));
-            if (!gathered.equals(struck.point())) {
-                cores.add(gathered.subtract(camera));
-            }
-            DRAWN.put(entry.getKey(),
-                    new DrawnRay(segmentsOf(hand, gathered, entry.getValue()), !gathered.equals(struck.point())));
-            drawRay(poseStack, consumer, new DrawnEnd(gathered.subtract(camera), struck.inPrism()),
-                    hand.subtract(camera), entry.getValue(), camera, phase);
+            Vec3 end = drawnEnd(mc, caster, entry.getValue(), partialTick);
+            DRAWN.put(entry.getKey(), new LaserMotes.Segment(hand, end));
+            drawSegment(poseStack, consumer, hand.subtract(camera), end.subtract(camera), phase.scroll(),
+                    phase.breath());
         }
-        return cores;
-    }
-
-    /**
-     * A ray's drawn segments, world space: the hand to where it gathers, then
-     * that point to each refracted end.
-     *
-     * @param hand     where the ray leaves the caster
-     * @param gathered where the ray ends, in a refracting prism's core or on what it struck
-     * @param ray      the ray
-     * @return each segment
-     */
-    private static List<LaserMotes.Segment> segmentsOf(Vec3 hand, Vec3 gathered, Ray ray) {
-        List<LaserMotes.Segment> segments = new ArrayList<>();
-        segments.add(new LaserMotes.Segment(hand, gathered));
-        for (Vec3 refracted : ray.refracted()) {
-            segments.add(new LaserMotes.Segment(gathered, refracted));
-        }
-        return segments;
     }
 
     /**
      * Sheds this tick's light motes out of every ray the last frame drew, and
-     * scatters more off each surface it struck.
+     * scatters more off the surface each struck.
      * decision sunbeam-motes-scatter-away-from-struck-surfaces
      *
      * @param event the event instance
@@ -212,20 +172,20 @@ public final class LaserVisual {
     }
 
     /**
-     * Sheds one ray's motes along its beam and scatters more off each surface it struck.
+     * Sheds one ray's motes along its beam and scatters more off the surface it struck.
      *
      * @param level    the level
      * @param casterId the caster's entity id
      * @param drawn    the ray as the last frame drew it
      */
-    private static void shedAndScatter(ClientLevel level, int casterId, DrawnRay drawn) {
+    private static void shedAndScatter(ClientLevel level, int casterId, LaserMotes.Segment drawn) {
         RandomSource random = level.getRandom();
-        spawnMotes(level, LaserMotes.shedAlong(drawn.segments(), DRAWN_RADIUS, random));
+        spawnMotes(level, LaserMotes.shedAlong(List.of(drawn), DRAWN_RADIUS, random));
         Entity caster = level.getEntity(casterId);
         if (caster == null) {
             return;
         }
-        for (LaserStrike.Surface surface : surfacesStruck(caster, drawn)) {
+        for (LaserStrike.Surface surface : LaserStrike.surfacesStruck(probeTheEnd(caster, drawn), drawn.from())) {
             spawnMotes(level, LaserStrike.scatterOff(surface, random));
         }
     }
@@ -235,30 +195,6 @@ public final class LaserVisual {
             level.addParticle(GooParticles.LIGHT_MOTE.get(), mote.at().x, mote.at().y, mote.at().z,
                     mote.velocity().x, mote.velocity().y, mote.velocity().z);
         }
-    }
-
-    /**
-     * The surfaces a drawn ray struck: where the main ray ends on a block or
-     * mob, and each refracted beam's mob. A ray gathered into a refracting
-     * prism strikes nothing there, and one that misses finds nothing.
-     *
-     * @param caster the casting entity, never struck
-     * @param drawn  the ray as the last frame drew it
-     * @return each struck surface
-     */
-    private static List<LaserStrike.Surface> surfacesStruck(Entity caster, DrawnRay drawn) {
-        List<LaserStrike.Surface> surfaces = new ArrayList<>();
-        List<LaserMotes.Segment> segments = drawn.segments();
-        LaserMotes.Segment main = segments.getFirst();
-        if (!drawn.gathersInPrism()) {
-            surfaces.addAll(LaserStrike.surfacesStruck(probeTheEnd(caster, main), main.from()));
-        }
-        for (LaserMotes.Segment refracted : segments.subList(1, segments.size())) {
-            surfaces.addAll(LaserStrike.surfacesStruck(
-                    LaserStrike.refractedEndProbes(refracted.from(), refracted.to(), DRAWN_RADIUS),
-                    refracted.from()));
-        }
-        return surfaces;
     }
 
     /**
@@ -291,38 +227,6 @@ public final class LaserVisual {
     }
 
     /**
-     * Whether a prism that refracts a ray stands at a position: one holding a combo.
-     *
-     * @param level the level
-     * @param pos   the position
-     * @return true for a refracting prism
-     */
-    private static boolean refractsAt(ClientLevel level, BlockPos pos) {
-        return level.getBlockEntity(pos) instanceof PrismBlockEntity prism && prism.hasCombo();
-    }
-
-    /**
-     * Draws the core of light at each prism a ray runs into, after the rays.
-     *
-     * @param poseStack the pose stack
-     * @param buffers   the buffer source
-     * @param cores     each core's middle, camera-relative
-     */
-    private static void drawCores(PoseStack poseStack, ImmediateBuffers buffers, List<Vec3> cores) {
-        if (cores.isEmpty()) {
-            return;
-        }
-        VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.GLOW_SHELL_TYPE);
-        for (Vec3 core : cores) {
-            poseStack.pushPose();
-            poseStack.translate(core.x, core.y, core.z);
-            GlowCore.emit(poseStack.last(), consumer, 1f, 1f);
-            poseStack.popPose();
-        }
-        buffers.endBatch(GooRenderTypes.GLOW_SHELL_TYPE);
-    }
-
-    /**
      * Whether a caster's ray still shows: one arrived within the linger.
      *
      * @param casterId the caster's entity id
@@ -343,24 +247,20 @@ public final class LaserVisual {
      * @param caster      the casting entity
      * @param ray         the caster's latest ray from the server
      * @param partialTick the frame's partial tick
-     * @return the world point the ray ends at, and whether it ends in a prism
+     * @return the world point the ray ends at
      */
-    private static DrawnEnd drawnEnd(Minecraft mc, Entity caster, Ray ray, float partialTick) {
+    private static Vec3 drawnEnd(Minecraft mc, Entity caster, Ray ray, float partialTick) {
         double now = caster.level().getGameTime() + (double) partialTick;
-        Level level = caster.level();
         if (caster != mc.player || !(caster instanceof Player player)) {
-            HitResult struck = burnWhereTheServerStruck(caster, ray, partialTick, now);
-            return new DrawnEnd(ray.end(), LaserRayEnd.endsInPrism(struck, level::getBlockEntity));
+            burnWhereTheServerStruck(caster, ray, partialTick, now);
+            return ray.end();
         }
-        HitResult[] cast = new HitResult[1];
-        Vec3 end = LaserRayEnd.drawnEnd(ray.end(), ownAim(player, partialTick), ray.range(), (eye, reach) -> {
-            HitResult hit = RayStep.castFrom(level, caster, eye, reach, living -> true);
+        return LaserRayEnd.drawnEnd(ray.end(), ownAim(player, partialTick), ray.range(), (eye, reach) -> {
+            HitResult hit = RayStep.castFrom(caster.level(), caster, eye, reach, living -> true);
             // sunbeam-leaves-a-glowing-scorch-that-trails-and-fades
             LaserScorch.burn(caster.getId(), hit, now);
-            cast[0] = hit;
             return hit.getLocation();
         });
-        return new DrawnEnd(end, LaserRayEnd.endsInPrism(cast[0], level::getBlockEntity));
     }
 
     /**
@@ -373,19 +273,16 @@ public final class LaserVisual {
      * @param ray         the caster's latest ray from the server
      * @param partialTick the frame's partial tick
      * @param now         the game time, in ticks, with the frame's partial tick
-     * @return what the sight line struck, null where the end sits on the eye
      */
-    private static @Nullable HitResult burnWhereTheServerStruck(Entity caster, Ray ray, float partialTick,
-                                                                double now) {
+    private static void burnWhereTheServerStruck(Entity caster, Ray ray, float partialTick, double now) {
         Vec3 eye = caster.getEyePosition(partialTick);
         Vec3 toEnd = ray.end().subtract(eye);
         if (toEnd.lengthSqr() < SHORTEST_SEGMENT) {
-            return null;
+            return;
         }
         Vec3 pastTheEnd = ray.end().add(toEnd.normalize().scale(PROBE_PAST_THE_END));
-        HitResult hit = RayStep.castFrom(caster.level(), caster, eye, pastTheEnd, living -> true);
-        LaserScorch.burn(caster.getId(), hit, now);
-        return hit;
+        LaserScorch.burn(caster.getId(), RayStep.castFrom(caster.level(), caster, eye, pastTheEnd, living -> true),
+                now);
     }
 
     /**
@@ -405,46 +302,20 @@ public final class LaserVisual {
     }
 
     /**
-     * Draws one caster's ray: from the caster to where it ends, blooming out
-     * there when it ends in a prism, and on to each mob a prism refracted it
-     * toward, those stretches ending flat at the mob.
-     * decision reflector-rail-blooms-out-inside-the-prism
+     * Draws one straight stretch of the beam between two camera-relative
+     * points, each layer stopping flat at its end, its alpha scaled by the
+     * beam's breath and its width slimmed by it.
+     * decision every-glow-beam-breathes-in-brightness
      *
      * @param poseStack the pose stack
      * @param consumer  the vertex consumer
-     * @param end       where the ray ends, camera-relative, and whether it ends in a prism
-     * @param from      where the ray leaves the caster, camera-relative
-     * @param ray       the ray
-     * @param camera    the camera's position
-     * @param phase     the beam's scroll and breath this frame
-     */
-    private static void drawRay(PoseStack poseStack, VertexConsumer consumer, DrawnEnd end, Vec3 from, Ray ray,
-                                Vec3 camera, BeamPhase phase) {
-        drawSegment(poseStack, consumer, from, end.point(), phase.scroll(), end.inPrism(), phase.breath());
-        for (Vec3 refracted : ray.refracted()) {
-            drawSegment(poseStack, consumer, end.point(), refracted.subtract(camera), phase.scroll(), false,
-                    phase.breath());
-        }
-    }
-
-    /**
-     * Draws one straight stretch of the beam between two camera-relative
-     * points, each layer fading out past the end of a stretch ending in a
-     * prism and stopping flat at the end of any other, its alpha scaled by
-     * the beam's breath and its width slimmed by it.
-     * decision reflector-rail-blooms-out-inside-the-prism
-     * decision every-glow-beam-breathes-in-brightness
-     *
-     * @param poseStack   the pose stack
-     * @param consumer    the vertex consumer
-     * @param from        where the stretch starts, camera-relative
-     * @param to          where it ends, camera-relative
-     * @param scroll      the texture's scroll offset
-     * @param endsInPrism whether the stretch ends in a prism
-     * @param breath      the share of alpha and width {@link GlowBeamMesh#breath} answered
+     * @param from      where the stretch starts, camera-relative
+     * @param to        where it ends, camera-relative
+     * @param scroll    the texture's scroll offset
+     * @param breath    the share of alpha and width {@link GlowBeamMesh#breath} answered
      */
     static void drawSegment(PoseStack poseStack, VertexConsumer consumer, Vec3 from, Vec3 to, float scroll,
-                            boolean endsInPrism, float breath) {
+                            float breath) {
         Vec3 along = to.subtract(from);
         double length = along.length();
         if (length < SHORTEST_SEGMENT) {
@@ -456,12 +327,7 @@ public final class LaserVisual {
         for (GlowBeamMesh.Layer layer : GlowBeamMesh.LAYERS) {
             float radius = layer.radius() * RAY_WIDTH * breath;
             int color = GlowBeamMesh.breathed(layer.color(), breath);
-            if (endsInPrism) {
-                GlowBeamMesh.emitFadingLayer(poseStack.last(), consumer, radius, color, scroll, (float) length,
-                        layer.depth());
-            } else {
-                GlowBeamMesh.emitLayer(poseStack.last(), consumer, radius, color, scroll, (float) length);
-            }
+            GlowBeamMesh.emitLayer(poseStack.last(), consumer, radius, color, scroll, (float) length);
         }
         poseStack.popPose();
     }
@@ -470,20 +336,10 @@ public final class LaserVisual {
      * One caster's latest ray.
      *
      * @param end       where it struck
-     * @param refracted where each refracted beam ends
      * @param range     how far the ray reaches, in blocks
      * @param arrivedAt the game time it arrived
      */
-    record Ray(Vec3 end, List<Vec3> refracted, double range, long arrivedAt) {
-    }
-
-    /**
-     * One caster's ray as the last frame drew it.
-     *
-     * @param segments       the hand to where it gathers, then on to each refracted end, world space
-     * @param gathersInPrism whether the main ray runs into a refracting prism's core
-     */
-    record DrawnRay(List<LaserMotes.Segment> segments, boolean gathersInPrism) {
+    record Ray(Vec3 end, double range, long arrivedAt) {
     }
 
     /**
@@ -493,14 +349,5 @@ public final class LaserVisual {
      * @param breath the share of alpha and width {@link GlowBeamMesh#breath} answered
      */
     private record BeamPhase(float scroll, float breath) {
-    }
-
-    /**
-     * Where a ray ends this frame.
-     *
-     * @param point   the point it ends at
-     * @param inPrism whether it ends in a prism
-     */
-    private record DrawnEnd(Vec3 point, boolean inPrism) {
     }
 }

@@ -22,9 +22,9 @@ class HeldGhostTest {
         return visual.ghost(definition.area(), definition.behaviors());
     }
 
-    /** prismatic-voronoi-code-stays-and-is-unplugged-from-shatter: the unplugged prism dome still ghosts a field */
+    /** prismatic-voronoi-code-stays-and-is-unplugged-from-shatter: the unplugged voronoi dome still ghosts a field */
     @Test
-    void thePrismDomeRingsOutwardToAFieldsDome() {
+    void theVoronoiDomeRingsOutwardToAFieldsDome() {
         HeldGhost ghost = ghostOf(CrystalExplosionVisual.INSTANCE, FieldEffectFixture.definition());
         float synced = (float) FieldEffectFixture.definition().area().size();
         assertEquals(synced, ghost.domeRadius(), TOLERANCE);

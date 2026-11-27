@@ -11,8 +11,5 @@
   "behaviors": [
     { "type": "flames", "damage": 4, "every": 2, "burn_seconds": 5, "cook_ticks": 40, "burns": "goo:flames_burns" }
   ],
-  "on_prism": [
-    { "type": "heater", "radius": 6, "damage": 4, "every": 2, "burn_seconds": 5, "cone": 20 }
-  ],
   "tags": ["stream"]
 }

@@ -50,7 +50,6 @@ import java.util.stream.Stream;
  *                    and an arc throw at the world or the crosshair writing none draws its program's reach
  * @param indicator   when the ability's indicator shows, while held or whenever selected
  * @param consumes    the items a throw takes from the thrower's inventory, one of each, beside its goo cost
- * @param onPrism     the steps a landing on a prism runs in place of the type's prism ability, empty for none
  * @param onBlocks    the steps a stream or a spore burst runs on each floor it reaches, empty for none
  * @param upkeep      what a held durative effect pays each tick it stands, priced as the cost is, zero for
  *                    every other ability (decision self-effects-trickle-until-ended)
@@ -89,7 +88,6 @@ public record AbilityDefinition(
         AbilityArea area,
         IndicatorShowing indicator,
         List<Identifier> consumes,
-        List<Step> onPrism,
         List<Step> onBlocks,
         AbilityPrice upkeep,
         Optional<SoundCue> downSound,
@@ -129,7 +127,6 @@ public record AbilityDefinition(
      * @param area          the area the glove draws while right click is held
      * @param indicator     when the ability's indicator shows
      * @param consumes      the items a throw takes, one of each
-     * @param onPrism       the steps a landing on a prism runs, empty for none
      * @param onBlocks      the steps a stream or a spore burst runs on each floor it reaches
      * @param upkeep        the mB a held durative effect pays each tick it stands
      * @param downSound     the cue a held effect plays when it ends, empty for the shared cue
@@ -141,12 +138,12 @@ public record AbilityDefinition(
     public AbilityDefinition(Identifier id, ResourceKey<GooTypeDefinition> gooType, String displayName, String icon,
                              int order, int cost, Delivery delivery, List<Step> behaviors, List<String> tags,
                              AbilityBadge badge, List<Identifier> requires, AbilityArea area,
-                             IndicatorShowing indicator, List<Identifier> consumes, List<Step> onPrism,
+                             IndicatorShowing indicator, List<Identifier> consumes,
                              List<Step> onBlocks, int upkeep, Optional<SoundCue> downSound,
                              DistancePrice distancePrice, ArmPose pose, String description,
                              Optional<String> costMechanics) {
         this(id, gooType, displayName, icon, order, AbilityPrice.flat(cost), delivery, behaviors, tags, badge,
-                requires, area, indicator, consumes, onPrism, onBlocks, AbilityPrice.flat(upkeep), downSound,
+                requires, area, indicator, consumes, onBlocks, AbilityPrice.flat(upkeep), downSound,
                 distancePrice, pose, description, costMechanics, Optional.empty(), Optional.empty());
     }
 
@@ -177,7 +174,6 @@ public record AbilityDefinition(
      * @param area          the area the glove draws while right click is held
      * @param indicator     when the ability's indicator shows
      * @param consumes      the items a throw takes, one of each
-     * @param onPrism       the steps a landing on a prism runs, empty for none
      * @param onBlocks      the steps a stream or a spore burst runs on each floor it reaches
      * @param upkeep        the mB a held durative effect pays each tick it stands
      * @param downSound     the cue a held effect plays when it ends, empty for the shared cue
@@ -188,11 +184,11 @@ public record AbilityDefinition(
     public AbilityDefinition(Identifier id, ResourceKey<GooTypeDefinition> gooType, String displayName, String icon,
                              int order, int cost, Delivery delivery, List<Step> behaviors, List<String> tags,
                              AbilityBadge badge, List<Identifier> requires, AbilityArea area,
-                             IndicatorShowing indicator, List<Identifier> consumes, List<Step> onPrism,
+                             IndicatorShowing indicator, List<Identifier> consumes,
                              List<Step> onBlocks, int upkeep, Optional<SoundCue> downSound,
                              DistancePrice distancePrice, ArmPose pose, String description) {
         this(id, gooType, displayName, icon, order, cost, delivery, behaviors, tags, badge, requires, area,
-                indicator, consumes, onPrism, onBlocks, upkeep, downSound, distancePrice, pose, description,
+                indicator, consumes, onBlocks, upkeep, downSound, distancePrice, pose, description,
                 Optional.empty());
     }
 
@@ -214,7 +210,6 @@ public record AbilityDefinition(
      * @param area          the area the glove draws while right click is held
      * @param indicator     when the ability's indicator shows
      * @param consumes      the items a throw takes, one of each
-     * @param onPrism       the steps a landing on a prism runs, empty for none
      * @param onBlocks      the steps a stream or a spore burst runs on each floor it reaches
      * @param upkeep        the mB a held durative effect pays each tick it stands
      * @param downSound     the cue a held effect plays when it ends, empty for the shared cue
@@ -224,11 +219,11 @@ public record AbilityDefinition(
     public AbilityDefinition(Identifier id, ResourceKey<GooTypeDefinition> gooType, String displayName, String icon,
                              int order, int cost, Delivery delivery, List<Step> behaviors, List<String> tags,
                              AbilityBadge badge, List<Identifier> requires, AbilityArea area,
-                             IndicatorShowing indicator, List<Identifier> consumes, List<Step> onPrism,
+                             IndicatorShowing indicator, List<Identifier> consumes,
                              List<Step> onBlocks, int upkeep, Optional<SoundCue> downSound,
                              DistancePrice distancePrice, ArmPose pose) {
         this(id, gooType, displayName, icon, order, cost, delivery, behaviors, tags, badge, requires, area,
-                indicator, consumes, onPrism, onBlocks, upkeep, downSound, distancePrice, pose,
+                indicator, consumes, onBlocks, upkeep, downSound, distancePrice, pose,
                 defaultDescription(displayName));
     }
 
@@ -250,7 +245,6 @@ public record AbilityDefinition(
      * @param area          the area the glove draws while right click is held
      * @param indicator     when the ability's indicator shows
      * @param consumes      the items a throw takes, one of each
-     * @param onPrism       the steps a landing on a prism runs, empty for none
      * @param onBlocks      the steps a stream or a spore burst runs on each floor it reaches
      * @param upkeep        the mB a held durative effect pays each tick it stands
      * @param downSound     the cue a held effect plays when it ends, empty for the shared cue
@@ -259,11 +253,11 @@ public record AbilityDefinition(
     public AbilityDefinition(Identifier id, ResourceKey<GooTypeDefinition> gooType, String displayName, String icon,
                              int order, int cost, Delivery delivery, List<Step> behaviors, List<String> tags,
                              AbilityBadge badge, List<Identifier> requires, AbilityArea area,
-                             IndicatorShowing indicator, List<Identifier> consumes, List<Step> onPrism,
+                             IndicatorShowing indicator, List<Identifier> consumes,
                              List<Step> onBlocks, int upkeep, Optional<SoundCue> downSound,
                              DistancePrice distancePrice) {
         this(id, gooType, displayName, icon, order, cost, delivery, behaviors, tags, badge, requires, area,
-                indicator, consumes, onPrism, onBlocks, upkeep, downSound, distancePrice,
+                indicator, consumes, onBlocks, upkeep, downSound, distancePrice,
                 ArmPose.defaultFor(delivery.kind()));
     }
 
@@ -284,7 +278,6 @@ public record AbilityDefinition(
      * @param area        the area the glove draws while right click is held
      * @param indicator   when the ability's indicator shows
      * @param consumes    the items a throw takes, one of each
-     * @param onPrism     the steps a landing on a prism runs, empty for none
      * @param onBlocks    the steps a stream or a spore burst runs on each floor it reaches
      * @param upkeep      the mB a held durative effect pays each tick it stands
      * @param downSound   the cue a held effect plays when it ends, empty for the shared cue
@@ -292,37 +285,10 @@ public record AbilityDefinition(
     public AbilityDefinition(Identifier id, ResourceKey<GooTypeDefinition> gooType, String displayName, String icon,
                              int order, int cost, Delivery delivery, List<Step> behaviors, List<String> tags,
                              AbilityBadge badge, List<Identifier> requires, AbilityArea area,
-                             IndicatorShowing indicator, List<Identifier> consumes, List<Step> onPrism,
+                             IndicatorShowing indicator, List<Identifier> consumes,
                              List<Step> onBlocks, int upkeep, Optional<SoundCue> downSound) {
         this(id, gooType, displayName, icon, order, cost, delivery, behaviors, tags, badge, requires, area,
-                indicator, consumes, onPrism, onBlocks, upkeep, downSound, DistancePrice.NONE);
-    }
-
-    /**
-     * An ability paying no upkeep, every ability but a held durative effect.
-     *
-     * @param id          the datapack resource identifier
-     * @param gooType     the goo type this ability belongs to
-     * @param displayName the translation key for the ability name
-     * @param icon        the texture path for the radial menu icon
-     * @param order       sort order within the type's ability list
-     * @param cost        the mB a throw costs
-     * @param delivery    how the ability leaves the glove
-     * @param behaviors   the step trees the ability runs
-     * @param tags        categorical tags
-     * @param badge       the target kind the radial marks on the icon
-     * @param requires    the items a player must know before the ability is theirs
-     * @param area        the area the glove draws while right click is held
-     * @param indicator   when the ability's indicator shows
-     * @param consumes    the items a throw takes, one of each
-     * @param onPrism     the steps a landing on a prism runs, empty for none
-     */
-    public AbilityDefinition(Identifier id, ResourceKey<GooTypeDefinition> gooType, String displayName, String icon,
-                             int order, int cost, Delivery delivery, List<Step> behaviors, List<String> tags,
-                             AbilityBadge badge, List<Identifier> requires, AbilityArea area,
-                             IndicatorShowing indicator, List<Identifier> consumes, List<Step> onPrism) {
-        this(id, gooType, displayName, icon, order, cost, delivery, behaviors, tags, badge, requires, area,
-                indicator, consumes, onPrism, List.of(), NO_UPKEEP, Optional.empty());
+                indicator, consumes, onBlocks, upkeep, downSound, DistancePrice.NONE);
     }
 
     /**
@@ -342,21 +308,20 @@ public record AbilityDefinition(
      * @param area        the area the glove draws while right click is held
      * @param indicator   when the ability's indicator shows
      * @param consumes    the items a throw takes, one of each
-     * @param onPrism     the steps a landing on a prism runs, empty for none
      * @param upkeep      the mB a held durative effect pays each tick it stands
      * @param downSound   the cue a held effect plays when it ends, empty for the shared cue
      */
     public AbilityDefinition(Identifier id, ResourceKey<GooTypeDefinition> gooType, String displayName, String icon,
                              int order, int cost, Delivery delivery, List<Step> behaviors, List<String> tags,
                              AbilityBadge badge, List<Identifier> requires, AbilityArea area,
-                             IndicatorShowing indicator, List<Identifier> consumes, List<Step> onPrism, int upkeep,
+                             IndicatorShowing indicator, List<Identifier> consumes, int upkeep,
                              Optional<SoundCue> downSound) {
         this(id, gooType, displayName, icon, order, cost, delivery, behaviors, tags, badge, requires, area,
-                indicator, consumes, onPrism, List.of(), upkeep, downSound);
+                indicator, consumes, List.of(), upkeep, downSound);
     }
 
     /**
-     * An ability with no prism reaction of its own.
+     * An ability paying no upkeep, every ability but a held durative effect.
      *
      * @param id          the datapack resource identifier
      * @param gooType     the goo type this ability belongs to
@@ -378,7 +343,7 @@ public record AbilityDefinition(
                              AbilityBadge badge, List<Identifier> requires, AbilityArea area,
                              IndicatorShowing indicator, List<Identifier> consumes) {
         this(id, gooType, displayName, icon, order, cost, delivery, behaviors, tags, badge, requires, area,
-                indicator, consumes, List.of());
+                indicator, consumes, NO_UPKEEP, Optional.empty());
     }
 
     /**
@@ -467,7 +432,6 @@ public record AbilityDefinition(
     private static final String FIELD_AREA = "area";
     private static final String FIELD_INDICATOR = "indicator";
     private static final String FIELD_CONSUMES = "consumes";
-    private static final String FIELD_ON_PRISM = "on_prism";
     private static final String FIELD_POSE = "pose";
     private static final String FIELD_ON_BLOCKS = "on_blocks";
     private static final String FIELD_UPKEEP = "upkeep";
@@ -481,9 +445,6 @@ public record AbilityDefinition(
     private static final Expr NO_UPKEEP_WRITTEN = Expr.literal(NO_UPKEEP);
     private static final String FIELD_COST_MECHANICS = "cost_mechanics";
     private static final String FIELD_COST_FORMULA = "cost_formula";
-    private static final String RESIDUAL_REACTS_TO_PRISMS =
-            "%s wears the residual badge and names " + FIELD_ON_PRISM
-                    + "; a residual ability carries no prism reaction";
     private static final String RESIDUAL_REQUIRES_AN_ITEM =
             "%s wears the residual badge and names " + FIELD_REQUIRES
                     + "; a residual is a goo type's resting behavior and sits behind no recipe";
@@ -520,21 +481,6 @@ public record AbilityDefinition(
      */
     private record HeldTraits(Expr upkeep, Optional<SoundCue> downSound) {
     }
-
-    /**
-     * The step lists an ability runs beside its program, read as one group so
-     * the definition codec stays within its field limit.
-     *
-     * @param onPrism  the steps a landing on a prism runs
-     * @param onBlocks the steps a stream or a spore burst runs on each floor it reaches
-     */
-    private record Reactions(List<Step> onPrism, List<Step> onBlocks) {
-    }
-
-    private static final MapCodec<Reactions> REACTIONS_CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
-            StepTypes.LIST_CODEC.optionalFieldOf(FIELD_ON_PRISM, List.of()).forGetter(Reactions::onPrism),
-            StepTypes.LIST_CODEC.optionalFieldOf(FIELD_ON_BLOCKS, List.of()).forGetter(Reactions::onBlocks)
-    ).apply(inst, Reactions::new));
 
     /**
      * What a throw costs, read as one slot so the definition codec stays within
@@ -614,7 +560,6 @@ public record AbilityDefinition(
     public static Codec<AbilityDefinition> codecFor(Identifier id) {
         return fileCodec(id).validate(AbilityDefinition::formulatedDynamicPrice)
                 .validate(AbilityDefinition::unambiguousPrices)
-                .validate(AbilityDefinition::residualWithoutPrismReaction)
                 .validate(AbilityDefinition::residualWithoutRequiredItem);
     }
 
@@ -637,34 +582,20 @@ public record AbilityDefinition(
                         .forGetter(AbilityDefinition::indicator),
                 // ability-json-names-its-reagent
                 ITEM_IDS_CODEC.optionalFieldOf(FIELD_CONSUMES, List.of()).forGetter(AbilityDefinition::consumes),
-                // prism-hosts-the-combos, mycosis-spore-stream-buds-and-poisons
-                REACTIONS_CODEC.forGetter(def -> new Reactions(def.onPrism(), def.onBlocks())),
+                // mycosis-spore-stream-buds-and-poisons
+                StepTypes.LIST_CODEC.optionalFieldOf(FIELD_ON_BLOCKS, List.of()).forGetter(AbilityDefinition::onBlocks),
                 // self-effects-trickle-until-ended, held-effects-sound-up-and-down
                 HELD_TRAITS_CODEC.forGetter(def -> new HeldTraits(def.upkeep().amount(), def.downSound())),
                 // ability-json-names-its-arm-pose
                 ArmPose.CODEC.optionalFieldOf(FIELD_POSE).forGetter(def -> Optional.of(def.pose()))
-        ).apply(inst, (heading, price, delivery, steps, tags, badge, requires, area, shows, consumes, reactions,
+        ).apply(inst, (heading, price, delivery, steps, tags, badge, requires, area, shows, consumes, onBlocks,
                        held, pose) -> new AbilityDefinition(id, heading.gooType(), heading.displayName(),
                         heading.icon(), heading.order(), AbilityPrice.of(price.cost(), heading.gooType()), delivery,
-                        steps, tags, badge, requires, area, shows, consumes, reactions.onPrism(),
-                        reactions.onBlocks(), AbilityPrice.of(held.upkeep(), heading.gooType()), held.downSound(),
+                        steps, tags, badge, requires, area, shows, consumes,
+                        onBlocks, AbilityPrice.of(held.upkeep(), heading.gooType()), held.downSound(),
                         price.distancePrice(), pose.orElseGet(() -> ArmPose.defaultFor(delivery.kind())),
                         heading.descriptionKey(), price.costMechanics(), price.costFormula(),
                         heading.dimensionFace())));
-    }
-
-    /**
-     * Refuses an ability wearing the residual badge that names a prism
-     * reaction, as an unknown badge word is refused at load.
-     * no-residual-ability-carries-a-prism-reaction
-     *
-     * @param definition the ability as the JSON wrote it
-     * @return the ability, or an error naming the ability, the badge and the field
-     */
-    private static DataResult<AbilityDefinition> residualWithoutPrismReaction(AbilityDefinition definition) {
-        return definition.badge() == AbilityBadge.RESIDUAL && !definition.onPrism().isEmpty()
-                ? DataResult.error(() -> String.format(RESIDUAL_REACTS_TO_PRISMS, definition.id()))
-                : DataResult.success(definition);
     }
 
     /**
@@ -689,7 +620,7 @@ public record AbilityDefinition(
      * @return the ability, or an error naming the name
      */
     private static DataResult<AbilityDefinition> unambiguousPrices(AbilityDefinition definition) {
-        List<Step> program = Stream.of(definition.behaviors(), definition.onPrism(), definition.onBlocks())
+        List<Step> program = Stream.of(definition.behaviors(), definition.onBlocks())
                 .flatMap(List::stream).toList();
         return ProgramBehavior.priceRefusal(definition.cost().amount(), program)
                 .or(() -> ProgramBehavior.priceRefusal(definition.upkeep().amount(), program))

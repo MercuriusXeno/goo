@@ -11,7 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Held Flames and a heater prism both draw through the fire shader pass's
+ * Held Flames draws through the fire shader pass's
  * field, its licks and embers poured down the cone from the spout to the
  * reach, cut off at the face the look meets (decision
  * flames-draws-as-particle-style-fire).
@@ -31,13 +31,6 @@ class FireFieldTest {
     void heldFlamesDrawsThroughTheFireFieldFromTheGloveAtItsDeliveryReachAndCone() {
         Delivery delivery = new Delivery(DeliveryKind.STREAM, 0, RANGE, CONE_DEGREES, 0, false, Optional.empty(), 0);
         FireField field = FireStream.fieldOf(delivery, HAND, AXIS, FULL, null, CAMERA);
-        assertSpout(field, HAND.subtract(CAMERA), RANGE);
-    }
-
-    @Test
-    void aHeaterDrawsFlamesOwnFireFieldFromItsTipAtItsTarget() {
-        FireField field = HeaterFlames.fieldOf(new HeaterFlames.Heater(HAND, AXIS, 0, 0, Double.NaN), FULL, null,
-                CAMERA);
         assertSpout(field, HAND.subtract(CAMERA), RANGE);
     }
 

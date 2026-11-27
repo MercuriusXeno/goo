@@ -13,8 +13,7 @@ import java.util.List;
 import java.util.function.Function;
 
 /**
- * The fire the server burns with, for held Flames and the heater prism
- * alike: each burn casts a spray of rays at random angles inside the cone,
+ * The fire the server burns with for held Flames: each burn casts a spray of rays at random angles inside the cone,
  * each the range long and ending at the first block it meets, and burns
  * every living thing whose hitbox a ray's line crosses. A ray passes through
  * the mobs on its line; nothing burns past the block.

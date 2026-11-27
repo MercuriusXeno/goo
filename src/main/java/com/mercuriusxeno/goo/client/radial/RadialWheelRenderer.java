@@ -106,23 +106,12 @@ final class RadialWheelRenderer {
     private static final int SLASH_THICKNESS = 2;
     private static final int HALF = 2;
     /**
-     * How many pixels of the prism badge's bottom-left corner its partner
-     * covers each way, so the two read as a fanned pair and each stays hoverable.
-     * decision prism-badge-sits-behind-and-above-barely-overlapping
-     */
-    private static final int PRISM_BADGE_OVERLAP = 2;
-    /** How far right of, and above, its partner the prism badge fans. */
-    private static final int PRISM_BADGE_FAN = BADGE_SIZE - PRISM_BADGE_OVERLAP;
-    /** How wide a cluster wearing the prism badge stands, the fan reaching past the own badge. */
-    private static final int PRISM_CLUSTER_WIDTH = CLUSTER_WIDTH + PRISM_BADGE_FAN;
-    /**
      * How far past the petal's outer radius a closed petal's cluster centers:
-     * the reach from the widest cluster's center to its far corner, plus a
-     * pixel, so no pixel of the icon or a badge lies inside the petal; the
-     * fanned prism badge reaches the icon slot's top and no higher.
+     * the reach from the cluster's center to its far corner, plus a pixel, so
+     * no pixel of the icon or its badge lies inside the petal.
      * decision icons-slide-in-from-behind-the-tip
      */
-    static final double ENTRY_REACH = Math.hypot(PRISM_CLUSTER_WIDTH - PRISM_CLUSTER_WIDTH / HALF,
+    static final double ENTRY_REACH = Math.hypot(CLUSTER_WIDTH - CLUSTER_WIDTH / HALF,
             ICON_SLOT_SIZE / HALF) + 1;
 
     private static final String TYPE_ICON_PREFIX = "textures/goo/type/";
@@ -687,7 +676,6 @@ final class RadialWheelRenderer {
      * order {@link #clusterAround} lists them, the own badge last; each is
      * cut at the petal's border so only the part under its face shows.
      * badge-marks-the-target-kind
-     * decision on-prism-reaction-wears-the-prism-badge
      * decision icons-slide-in-from-behind-the-tip
      * decision badges-halve-and-sit-up-right-and-closer
      * decision abilities-replace-the-hovered-type
@@ -701,7 +689,7 @@ final class RadialWheelRenderer {
      */
     private static List<BadgeIcon> blitAbilityIcon(GuiGraphicsExtractor graphics, Frame frame,
                                                    RadialWheel.PetalArc petal, ClientAbility ability, int color) {
-        IconCluster cluster = clusterAround(contentCenter(frame, petal), ability.badge(), ability.reactsToPrisms());
+        IconCluster cluster = clusterAround(contentCenter(frame, petal), ability.badge());
         PetalMask.Petal shape = petal.shape();
         PetalPainter.paintSprite(graphics, frame, shape, frame.look().sprite(resolveAbilityIcon(ability, ClientDimension.standingIn())),
                 cluster.iconCenter(), ABILITY_ICON_SIZE, color);
@@ -736,36 +724,24 @@ final class RadialWheelRenderer {
     /**
      * Lays an ability's icon and badges out as one cluster centered on a
      * point: the icon on the left, the own badge {@link #ICON_MARGIN} plus
-     * {@link #BADGE_GAP} right of it beside the icon's middle, and the prism
-     * badge, where the ability carries an on_prism reaction, fanned up
-     * and right of the own badge and drawn first, so the own badge stands in
-     * front covering only the prism triangle's bottom-left corner. Nothing
+     * {@link #BADGE_GAP} right of it beside the icon's middle. Nothing
      * overlaps the icon.
      * decision abilities-replace-the-hovered-type
      * decision badges-halve-and-sit-up-right-and-closer
-     * decision on-prism-reaction-wears-the-prism-badge
-     * decision prism-badge-sits-behind-and-above-barely-overlapping
      * decision hovering-a-badge-names-its-kind
      *
-     * @param center     the point the cluster centers on
-     * @param own        the ability's own badge
-     * @param wearsPrism whether the ability carries an on_prism reaction
+     * @param center the point the cluster centers on
+     * @param own    the ability's own badge
      * @return the cluster
      */
-    static IconCluster clusterAround(int[] center, AbilityBadge own, boolean wearsPrism) {
-        int iconLeft = center[0] - (wearsPrism ? PRISM_CLUSTER_WIDTH : CLUSTER_WIDTH) / HALF;
+    static IconCluster clusterAround(int[] center, AbilityBadge own) {
+        int iconLeft = center[0] - CLUSTER_WIDTH / HALF;
         int top = center[1] - ICON_SLOT_SIZE / HALF;
         ItemRect ownSquare = new ItemRect(iconLeft + ABILITY_ICON_SIZE + ICON_MARGIN + BADGE_GAP, top + BADGE_DROP,
                 BADGE_SIZE);
         BadgeIcon ownBadge = new BadgeIcon(own, ownSquare, List.of());
         ItemRect iconSquare = new ItemRect(iconLeft, top + ICON_MARGIN, ABILITY_ICON_SIZE);
-        if (!wearsPrism) {
-            return new IconCluster(iconSquare, List.of(ownBadge));
-        }
-        ItemRect prismSquare = new ItemRect(ownSquare.left() + PRISM_BADGE_FAN, ownSquare.top() - PRISM_BADGE_FAN,
-                BADGE_SIZE);
-        return new IconCluster(iconSquare,
-                List.of(new BadgeIcon(AbilityBadge.PRISM, prismSquare, List.of(ownSquare)), ownBadge));
+        return new IconCluster(iconSquare, List.of(ownBadge));
     }
 
     /**

@@ -13,10 +13,10 @@ import net.minecraft.util.ARGB;
 import java.util.List;
 
 /**
- * Crystal goo's burnout explosion, kept unplugged so its prismatic voronoi
+ * Crystal goo's burnout explosion, kept unplugged so its rainbow voronoi
  * shell stays in the mod: no ability draws it (decision
  * prismatic-voronoi-code-stays-and-is-unplugged-from-shatter). The design
- * the operator settled (decision elemental-explosion-per-type) is a prism
+ * the operator settled (decision elemental-explosion-per-type) is a glass
  * burst: a glassy sphere grows from the marker to its reach over 10 ticks
  * on an ease-out. Its fragment shader
  * ({@code crystal_explosion.fsh}) cuts it into sharp voronoi facets, each

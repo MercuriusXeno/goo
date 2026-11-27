@@ -11,8 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * The motes a Laser ray sheds each client tick spawn inside the drawn beam
- * and rise gently out of it, off the main ray and every refracted beam alike
- * (decision sunbeam-sheds-motes-rising-from-the-beam).
+ * and rise gently out of it (decision sunbeam-sheds-motes-rising-from-the-beam).
  */
 class LaserMotesTest {
 
@@ -22,9 +21,8 @@ class LaserMotesTest {
     private static final double TOLERANCE = 1.0e-9;
     private static final double END_ROD_SPEED = 0.12;
     private static final Vec3 HAND = new Vec3(0.5, 64.2, -3.0);
-    private static final Vec3 PRISM = new Vec3(17.0, 70.0, 11.0);
+    private static final Vec3 STRUCK = new Vec3(17.0, 70.0, 11.0);
     private static final Vec3 FIRST_MOB = new Vec3(30.0, 64.0, 20.0);
-    private static final Vec3 SECOND_MOB = new Vec3(5.0, 66.0, 25.0);
 
     private static List<LaserMotes.Mote> shedOver(List<LaserMotes.Segment> segments) {
         RandomSource random = RandomSource.create(SEED);
@@ -50,23 +48,11 @@ class LaserMotesTest {
 
         @Test
         void everyMoteSpawnsBetweenTheEndsWithinTheBeamRadius() {
-            LaserMotes.Segment segment = new LaserMotes.Segment(HAND, PRISM);
+            LaserMotes.Segment segment = new LaserMotes.Segment(HAND, STRUCK);
             List<LaserMotes.Mote> motes = shedOver(List.of(segment));
             assertFalse(motes.isEmpty(), "a long segment sheds motes");
             for (LaserMotes.Mote mote : motes) {
                 assertTrue(liesInside(segment, mote.at()), "mote at " + mote.at() + " left the beam");
-            }
-        }
-
-        @Test
-        void aRefractedRayShedsFromTheMainRayAndEachRefractedBeam() {
-            List<LaserMotes.Segment> segments = List.of(new LaserMotes.Segment(HAND, PRISM),
-                    new LaserMotes.Segment(PRISM, FIRST_MOB), new LaserMotes.Segment(PRISM, SECOND_MOB));
-            List<LaserMotes.Mote> motes = shedOver(segments);
-            for (LaserMotes.Segment segment : segments) {
-                assertTrue(motes.stream().anyMatch(mote -> liesInside(segment, mote.at())
-                                && mote.at().distanceTo(PRISM) > RADIUS * 2),
-                        "no mote shed along " + segment);
             }
         }
     }

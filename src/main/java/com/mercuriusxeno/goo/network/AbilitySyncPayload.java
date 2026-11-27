@@ -41,9 +41,7 @@ import java.util.Optional;
  * (decision ability-json-names-its-reagent), and the upkeep a held self +
  * held effect pays each tick (decision self-effects-trickle-until-ended),
  * and what a blink adds for its trip, so the HUD shows the live cost
- * (decision blink-lands-safely-costed-by-distance), and the on_prism
- * reaction, so the wheel badges a prism effect
- * (decision on-prism-reaction-wears-the-prism-badge), and the arm pose the
+ * (decision blink-lands-safely-costed-by-distance), and the arm pose the
  * glove arm takes in place of the swing, so every client draws it
  * (decision ability-json-names-its-arm-pose).
  *
@@ -95,7 +93,7 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
                         def.displayName(), def.icon(), def.order(), def.tags(),
                         def.behaviors(), def.cost(),
                         def.delivery(), def.badge(), def.requires(), def.area(), def.indicator(),
-                        def.consumes(), def.upkeep(), def.distancePrice(), def.onPrism(), def.pose(),
+                        def.consumes(), def.upkeep(), def.distancePrice(), def.pose(),
                         def.description(), def.costMechanics(), def.costFormula(),
                         def.dimensionFace()))
                 .toList();
@@ -126,7 +124,6 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
     }
 
     private static void encodeTail(FriendlyByteBuf buf, Entry e) {
-        STEPS_CODEC.encode(buf, e.onPrism);
         ArmPose.STREAM_CODEC.encode(buf, e.pose);
         buf.writeUtf(e.description);
         buf.writeOptional(e.costMechanics, FriendlyByteBuf::writeUtf);
@@ -159,7 +156,7 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
                 AbilityBadge.STREAM_CODEC.decode(buf), ITEMS_CODEC.decode(buf),
                 AbilityArea.STREAM_CODEC.decode(buf), IndicatorShowing.STREAM_CODEC.decode(buf),
                 ITEMS_CODEC.decode(buf), priceOf(buf.readUtf(), gooTypeId), DistancePrice.STREAM_CODEC.decode(buf),
-                STEPS_CODEC.decode(buf), ArmPose.STREAM_CODEC.decode(buf), buf.readUtf(),
+                ArmPose.STREAM_CODEC.decode(buf), buf.readUtf(),
                 buf.readOptional(FriendlyByteBuf::readUtf), buf.readOptional(FriendlyByteBuf::readUtf),
                 buf.readOptional(DimensionFace.STREAM_CODEC::decode));
     }
@@ -213,8 +210,6 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
      * @param consumes    the items a throw takes, one of each, beside its goo cost
      * @param upkeep      what a held durative effect pays each tick it stands
      * @param distancePrice what a blink adds to the cost for its trip
-     * @param onPrism     the steps a landing on a prism runs, empty for none, which the wheel
-     *                    marks with the prism badge (decision on-prism-reaction-wears-the-prism-badge)
      * @param pose        the arm pose the glove arm takes in place of the swing
      * @param description the translation key for what the ability does
      *                    (decision ability-json-carries-a-description)
@@ -230,7 +225,7 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
                         List<Step> behaviors, AbilityPrice cost, Delivery delivery, AbilityBadge badge,
                         List<Identifier> requires, AbilityArea area, IndicatorShowing indicator,
                         List<Identifier> consumes, AbilityPrice upkeep, DistancePrice distancePrice,
-                        List<Step> onPrism, ArmPose pose, String description, Optional<String> costMechanics,
+                        ArmPose pose, String description, Optional<String> costMechanics,
                         Optional<String> costFormula,
                         Optional<DimensionFace> dimensionFace) {
 
@@ -253,7 +248,6 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
          * @param consumes      the items a throw takes, one of each
          * @param upkeep        what a held durative effect pays each tick it stands
          * @param distancePrice what a blink adds to the cost for its trip
-         * @param onPrism       the steps a landing on a prism runs, empty for none
          * @param pose          the arm pose the glove arm takes in place of the swing
          * @param description   the translation key for what the ability does
          * @param costMechanics the format key explaining how a zero-cost ability charges, empty for none
@@ -263,10 +257,10 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
                      List<String> tags, List<Step> behaviors, AbilityPrice cost, Delivery delivery,
                      AbilityBadge badge, List<Identifier> requires, AbilityArea area, IndicatorShowing indicator,
                      List<Identifier> consumes, AbilityPrice upkeep, DistancePrice distancePrice,
-                     List<Step> onPrism, ArmPose pose, String description, Optional<String> costMechanics,
+                     ArmPose pose, String description, Optional<String> costMechanics,
                      Optional<String> costFormula) {
             this(abilityId, gooTypeId, displayName, icon, order, tags, behaviors, cost, delivery, badge, requires,
-                    area, indicator, consumes, upkeep, distancePrice, onPrism, pose, description, costMechanics,
+                    area, indicator, consumes, upkeep, distancePrice, pose, description, costMechanics,
                     costFormula, Optional.empty());
         }
 
@@ -289,7 +283,6 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
          * @param consumes      the items a throw takes, one of each
          * @param upkeep        the mB a held durative effect pays each tick it stands
          * @param distancePrice what a blink adds to the cost for its trip
-         * @param onPrism       the steps a landing on a prism runs, empty for none
          * @param pose          the arm pose the glove arm takes in place of the swing
          * @param description   the translation key for what the ability does
          * @param costMechanics the format key explaining how a zero-cost ability charges, empty for none
@@ -297,10 +290,10 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
         public Entry(String abilityId, String gooTypeId, String displayName, String icon, int order,
                      List<String> tags, List<Step> behaviors, int cost, Delivery delivery, AbilityBadge badge,
                      List<Identifier> requires, AbilityArea area, IndicatorShowing indicator,
-                     List<Identifier> consumes, int upkeep, DistancePrice distancePrice, List<Step> onPrism,
+                     List<Identifier> consumes, int upkeep, DistancePrice distancePrice,
                      ArmPose pose, String description, Optional<String> costMechanics) {
             this(abilityId, gooTypeId, displayName, icon, order, tags, behaviors, AbilityPrice.flat(cost), delivery,
-                    badge, requires, area, indicator, consumes, AbilityPrice.flat(upkeep), distancePrice, onPrism,
+                    badge, requires, area, indicator, consumes, AbilityPrice.flat(upkeep), distancePrice,
                     pose, description, costMechanics, Optional.empty());
         }
 
@@ -323,17 +316,16 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
          * @param consumes      the items a throw takes, one of each
          * @param upkeep        the mB a held durative effect pays each tick it stands
          * @param distancePrice what a blink adds to the cost for its trip
-         * @param onPrism       the steps a landing on a prism runs, empty for none
          * @param pose          the arm pose the glove arm takes in place of the swing
          * @param description   the translation key for what the ability does
          */
         public Entry(String abilityId, String gooTypeId, String displayName, String icon, int order,
                      List<String> tags, List<Step> behaviors, int cost, Delivery delivery, AbilityBadge badge,
                      List<Identifier> requires, AbilityArea area, IndicatorShowing indicator,
-                     List<Identifier> consumes, int upkeep, DistancePrice distancePrice, List<Step> onPrism,
+                     List<Identifier> consumes, int upkeep, DistancePrice distancePrice,
                      ArmPose pose, String description) {
             this(abilityId, gooTypeId, displayName, icon, order, tags, behaviors, cost, delivery, badge, requires,
-                    area, indicator, consumes, upkeep, distancePrice, onPrism, pose, description, Optional.empty());
+                    area, indicator, consumes, upkeep, distancePrice, pose, description, Optional.empty());
         }
 
         /**
@@ -355,50 +347,20 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
          * @param consumes      the items a throw takes, one of each
          * @param upkeep        the mB a held durative effect pays each tick it stands
          * @param distancePrice what a blink adds to the cost for its trip
-         * @param onPrism       the steps a landing on a prism runs, empty for none
          * @param pose          the arm pose the glove arm takes in place of the swing
          */
         public Entry(String abilityId, String gooTypeId, String displayName, String icon, int order,
                      List<String> tags, List<Step> behaviors, int cost, Delivery delivery, AbilityBadge badge,
                      List<Identifier> requires, AbilityArea area, IndicatorShowing indicator,
-                     List<Identifier> consumes, int upkeep, DistancePrice distancePrice, List<Step> onPrism,
+                     List<Identifier> consumes, int upkeep, DistancePrice distancePrice,
                      ArmPose pose) {
             this(abilityId, gooTypeId, displayName, icon, order, tags, behaviors, cost, delivery, badge, requires,
-                    area, indicator, consumes, upkeep, distancePrice, onPrism, pose,
+                    area, indicator, consumes, upkeep, distancePrice, pose,
                     AbilityDefinition.defaultDescription(displayName));
         }
 
         /**
          * An entry naming no arm pose, which takes its delivery kind's default.
-         *
-         * @param abilityId     the ability resource id string
-         * @param gooTypeId     the goo type id string
-         * @param displayName   the translation key
-         * @param icon          the icon texture path override
-         * @param order         the sort order within the type
-         * @param tags          categorical tags
-         * @param behaviors     the ability's step program
-         * @param cost          the mB a throw costs
-         * @param delivery      how the ability leaves the glove
-         * @param badge         the target kind the radial marks on the icon
-         * @param requires      the items a player must know before the radial offers it
-         * @param area          the area the glove draws while right click is held
-         * @param indicator     when the ability's indicator shows
-         * @param consumes      the items a throw takes, one of each
-         * @param upkeep        the mB a held durative effect pays each tick it stands
-         * @param distancePrice what a blink adds to the cost for its trip
-         * @param onPrism       the steps a landing on a prism runs, empty for none
-         */
-        public Entry(String abilityId, String gooTypeId, String displayName, String icon, int order,
-                     List<String> tags, List<Step> behaviors, int cost, Delivery delivery, AbilityBadge badge,
-                     List<Identifier> requires, AbilityArea area, IndicatorShowing indicator,
-                     List<Identifier> consumes, int upkeep, DistancePrice distancePrice, List<Step> onPrism) {
-            this(abilityId, gooTypeId, displayName, icon, order, tags, behaviors, cost, delivery, badge, requires,
-                    area, indicator, consumes, upkeep, distancePrice, onPrism, ArmPose.defaultFor(delivery.kind()));
-        }
-
-        /**
-         * An entry reacting to no prism itself.
          *
          * @param abilityId     the ability resource id string
          * @param gooTypeId     the goo type id string
@@ -422,7 +384,7 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
                      List<Identifier> requires, AbilityArea area, IndicatorShowing indicator,
                      List<Identifier> consumes, int upkeep, DistancePrice distancePrice) {
             this(abilityId, gooTypeId, displayName, icon, order, tags, behaviors, cost, delivery, badge, requires,
-                    area, indicator, consumes, upkeep, distancePrice, List.of());
+                    area, indicator, consumes, upkeep, distancePrice, ArmPose.defaultFor(delivery.kind()));
         }
 
         /**

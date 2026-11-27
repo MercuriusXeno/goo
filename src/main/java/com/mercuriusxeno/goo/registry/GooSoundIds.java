@@ -17,7 +17,7 @@ public final class GooSoundIds {
     public static final Identifier ABILITY_DOWN = Identifier.fromNamespaceAndPath(Goo.MODID, "effects.ability_down");
 
     /**
-     * Decay's and Hive's gnat buzz: one bee loop clip, so every play sounds
+     * Decay's gnat buzz: one bee loop clip, so every play sounds
      * alike where the bee's own event picks among five
      * (decision decay-gnats-degrade-each-block-once).
      */

@@ -9,8 +9,8 @@ import java.util.Set;
 import java.util.WeakHashMap;
 
 /**
- * The oculi standing in each loaded level, kept by the oculus prisms
- * themselves as they load, take the combo and unload, so Blink finds every
+ * The oculi standing in each loaded level, kept by the oculus blocks
+ * themselves as they load, go and unload, so Blink finds every
  * oculus it can lock to however far off without searching the chunks in
  * between. The client's levels and the server's each keep their own.
  * Decision oculus-prism-becomes-a-hovering-eye.

@@ -12,9 +12,6 @@ import com.mercuriusxeno.goo.client.throwing.GloveAim;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.level.ClipContext;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
@@ -43,7 +40,7 @@ public final class FireStream {
     /** A pinned jet's loop: held this many ticks, then released until the loop's end. */
     static final double PINNED_HELD_TICKS = 40;
     static final double PINNED_LOOP_TICKS = 60;
-    /** blaze_flames.json's reach and cone, for a pinned jet when no Flames is synced, and for a heater prism. */
+    /** blaze_flames.json's reach and cone, for a pinned jet when no Flames is synced. */
     static final double FLAMES_RANGE = 6;
     static final double FLAMES_CONE_DEGREES = 20;
     private static final String FLAMES_ID = "goo:blaze_flames";
@@ -99,8 +96,8 @@ public final class FireStream {
     }
 
     /**
-     * Hands the shared path the held fire, the pinned one and every
-     * heater's, sorted by the local player, whose hand the held fire leaves.
+     * Hands the shared path the held fire and the pinned one, sorted by the
+     * local player, whose hand the held fire leaves.
      * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
      *
      * @param frame the frame being drawn
@@ -118,13 +115,6 @@ public final class FireStream {
         List<FireField> fields = new ArrayList<>();
         addBurning(fields, heldField(player, now, partialTick, camera));
         addBurning(fields, pinnedField(now, camera));
-        for (HeaterFlames.Heater heater : HeaterFlames.burning()) {
-            JetSpan span = HeaterFlames.spanOf(heater, now, FLAMES_RANGE);
-            if (span != null) {
-                Wall wall = wallAlong(player.level(), player, heater.tip(), heater.axis(), FLAMES_RANGE);
-                addBurning(fields, HeaterFlames.fieldOf(heater, span, wall, camera));
-            }
-        }
         if (!fields.isEmpty()) {
             draws.accept(new SortedDraw(player.getEyePosition(partialTick).distanceToSqr(camera),
                     () -> FirePass.draw(fields, camera, frame.modelView())));
@@ -296,23 +286,6 @@ public final class FireStream {
         }
         Vec3 toHit = hit.getLocation().subtract(hand);
         return new Aim(toHit.normalize(), new Wall(toHit.length(), hit.getLocation(), hit.getDirection()));
-    }
-
-    /**
-     * Where a line from a spout meets a block within the reach.
-     *
-     * @param level  the level the line is traced in
-     * @param viewer the entity the trace ignores
-     * @param spout  where the line starts
-     * @param axis   its unit vector
-     * @param range  its reach
-     * @return the wall, in world coordinates, or null in open air
-     */
-    static @Nullable Wall wallAlong(Level level, Entity viewer, Vec3 spout, Vec3 axis, double range) {
-        BlockHitResult hit = level.clip(new ClipContext(spout, spout.add(axis.scale(range)),
-                ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, viewer));
-        return hit.getType() == HitResult.Type.BLOCK
-                ? new Wall(hit.getLocation().distanceTo(spout), hit.getLocation(), hit.getDirection()) : null;
     }
 
     /**

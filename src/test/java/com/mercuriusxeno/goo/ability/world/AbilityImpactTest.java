@@ -1,21 +1,15 @@
 package com.mercuriusxeno.goo.ability.world;
 
-import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityJson;
-import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /**
- * AbilityImpact's landing rules: where a landing's program anchors, which
- * landings turn into their own block, and which
- * prisms a landing ticks rather than lands in.
+ * AbilityImpact's landing rules: where a landing's program anchors, and
+ * which landings turn into their own block.
  */
 class AbilityImpactTest {
 
@@ -43,24 +37,5 @@ class AbilityImpactTest {
     @Test
     void ignitesBlobTurnsIntoItsFire() {
         assertTrue(AbilityImpact.lightsItsFire(AbilityJson.decode("blaze_ignite")));
-    }
-
-    /**
-     * Zap, which carries the relay as its on_prism reaction, still ticks a
-     * prism already holding a combo as a redstone device rather than growing
-     * a second combo in it, and lands in a bare prism.
-     * zap-ticks-the-device-and-stuns
-     * thrown-hosts-absorb-their-prism-combos
-     */
-    @Test
-    void zapTicksAComboPrismAndLandsInABareOne() {
-        AbilityDefinition zap = AbilityJson.decode("pulse_zap");
-        PrismBlockEntity combined = mock(PrismBlockEntity.class);
-        when(combined.hasCombo()).thenReturn(true);
-        PrismBlockEntity bare = mock(PrismBlockEntity.class);
-
-        assertFalse(zap.onPrism().isEmpty(), "pulse_zap's on_prism relay");
-        assertTrue(AbilityImpact.ticksAComboPrism(combined, zap));
-        assertFalse(AbilityImpact.ticksAComboPrism(bare, zap));
     }
 }

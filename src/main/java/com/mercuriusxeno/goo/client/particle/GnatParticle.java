@@ -20,7 +20,7 @@ import java.util.function.Supplier;
  */
 public final class GnatParticle extends GloveMote {
 
-    /** The share of its speed a gnat keeps each tick; a hive's launch is sized by it. */
+    /** The share of its speed a gnat keeps each tick. */
     public static final float SWARM_FRICTION = 0.9f;
     /** The widest a gnat's velocity swerves each tick on each axis, half of it either way. */
     private static final double DART_SPAN = 0.03;

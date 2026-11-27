@@ -149,7 +149,7 @@ public final class GooStreamHandler {
         if (held == 0) {
             return;
         }
-        runHeldTick(player, payload, gooType, ability, held);
+        runHeldTick(player, payload, ability, held);
         // every-ability-casts-from-the-lifted-palm-blob: each held tick the server runs keeps the blob lifted
         PalmBlobChargePayload.sendLift(player);
         // mycosis-spore-stream-buds-and-poisons
@@ -213,22 +213,20 @@ public final class GooStreamHandler {
     }
 
     /**
-     * Runs a paid tick of a held ability: a channel runs on the player, a
-     * stream converting a prism charges it, and any other stream strikes its cone.
+     * Runs a paid tick of a held ability: a channel runs on the player, and
+     * a stream strikes its cone.
      *
      * @param player  the holding player
      * @param payload the held tick
-     * @param gooType the ability's goo type
      * @param ability the held ability
      * @param held    the hold's tick count, 1 on its first tick
      */
-    private static void runHeldTick(ServerPlayer player, GooStreamPayload payload,
-                                    ResourceKey<GooTypeDefinition> gooType, AbilityDefinition ability, int held) {
+    private static void runHeldTick(ServerPlayer player, GooStreamPayload payload, AbilityDefinition ability,
+                                    int held) {
         if (HeldRoute.channelsOnSelf(ability.delivery(), ability.badge())) {
             channelOnPlayer(player, new ChannelAim(payload.aimPoint(), payload.plane(), 0, held, true,
                     payload.targetEntityId()), ability);
-            StreamPrismCharge.chargeByRay(player, payload.aimPoint(), gooType, ability);
-        } else if (!StreamPrismCharge.charges(player, payload.origin(), gooType, ability)) {
+        } else {
             strikeCone(player, payload.origin(), ability, held, HeldSpray.GLOVE);
         }
     }

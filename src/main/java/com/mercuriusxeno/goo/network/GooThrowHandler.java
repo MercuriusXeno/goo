@@ -17,8 +17,6 @@ import com.mercuriusxeno.goo.ability.quantum.Gate;
 import com.mercuriusxeno.goo.ability.quantum.GatePassage;
 import com.mercuriusxeno.goo.ability.quantum.GateRay;
 import com.mercuriusxeno.goo.ability.typhoon.ShulkerSpew;
-import com.mercuriusxeno.goo.block.ability.FaceSupport;
-import com.mercuriusxeno.goo.block.ability.PrismBlock;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.entity.RollingGoo;
@@ -219,8 +217,7 @@ public final class GooThrowHandler {
     }
 
     /**
-     * Whether the release's target refuses it: a face a step or a prism
-     * cannot take, the thrower's own minion, or a mob a step refuses for
+     * Whether the release's target refuses it: a face a step cannot take, the thrower's own minion, or a mob a step refuses for
      * the thrower.
      *
      * @param player  the throwing player
@@ -230,8 +227,7 @@ public final class GooThrowHandler {
      */
     private static boolean refusesTarget(ServerPlayer player, GooThrowPayload payload, AbilityDefinition ability) {
         return refusedAtFace(player, payload, ability)
-                || aimsAnOwnMinion(player, payload, ability) || aimsAMobItsStepsRefuse(player, payload, ability)
-                || growsNoPrismThere(player.level(), payload, ability);
+                || aimsAnOwnMinion(player, payload, ability) || aimsAMobItsStepsRefuse(player, payload, ability);
     }
 
     /**
@@ -249,23 +245,6 @@ public final class GooThrowHandler {
                                                   AbilityDefinition ability) {
         Entity target = payload.targetEntityId() < 0 ? null : player.level().getEntity(payload.targetEntityId());
         return target != null && Step.refusedByAny(ability.behaviors(), player, target);
-    }
-
-    /**
-     * Whether a release growing a prism aims a face no prism grows from, a
-     * prism's, a pane's or a fence's, which is refused whole before anything
-     * is paid, so nothing forms there to break at the next neighbour change.
-     * decision prism-cast-at-a-wrong-face-is-refused-and-pays-nothing
-     *
-     * @param level   the level cast in
-     * @param payload the release: the aimed block and face
-     * @param ability the released ability
-     * @return true when the release is refused
-     */
-    static boolean growsNoPrismThere(ServerLevel level, GooThrowPayload payload, AbilityDefinition ability) {
-        Direction face = directionFromOrdinal(payload.targetFace());
-        return PrismBlock.grownBy(ability.behaviors()) && (payload.targetEntityId() >= 0 || face == null
-                || !FaceSupport.growsFrom(level, payload.targetPos(), face));
     }
 
     /**
