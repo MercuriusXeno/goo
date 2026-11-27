@@ -3,8 +3,6 @@ package com.mercuriusxeno.goo.client.overlay;
 import com.mercuriusxeno.goo.ability.BuildFootprint;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.quantum.Gate;
-import com.mercuriusxeno.goo.block.ability.FaceSupport;
-import com.mercuriusxeno.goo.block.ability.PrismBlock;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.TargetResult;
@@ -96,7 +94,7 @@ public final class GooTargetHighlighter {
             return;
         }
         TargetResult target = AimTracker.currentTarget();
-        AimIndicator indicator = indicatorFor(target, GloveAim.selectedAbilityId(mc.player));
+        AimIndicator indicator = indicatorFor(GloveAim.selectedAbilityId(mc.player));
         HighlightFrame highlight = new HighlightFrame(frame.poseStack(), ImmediateBuffers.shared(),
                 view ? PortalView.camera() : mc.gameRenderer.mainCamera(), mc, selectedType);
         draws.accept(new SortedDraw(0, () -> {
@@ -148,8 +146,8 @@ public final class GooTargetHighlighter {
      * resolved this frame: each layer's over-blocks pass and its rings, or a
      * Build's footprint (decision spire-rips-walls-and-platforms), sorted by
      * the aimed point. It draws once the level
-     * is drawn, so a prism's crystal, a translucent feature writing depth,
-     * draws under the ghost standing in front of it rather than over it.
+     * is drawn, so a translucent feature writing depth draws under the ghost
+     * standing in front of it rather than over it.
      * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
      * decision held-visual-ghosts-the-landing-in-two-passes
      *
@@ -236,24 +234,16 @@ public final class GooTargetHighlighter {
     }
 
     /**
-     * The mark the selected ability draws on the aim target: its badge's,
-     * dropped for an ability growing a prism where the aimed face grows none.
-     * decision prism-highlight-draws-only-on-a-face-a-prism-grows-from
+     * The mark the selected ability draws on the aim target: its badge's.
      *
-     * @param target    the aim target
      * @param abilityId the selected ability id
      * @return the mark
      */
-    private static AimIndicator indicatorFor(TargetResult target, @Nullable String abilityId) {
+    private static AimIndicator indicatorFor(@Nullable String abilityId) {
         ClientAbility ability = abilityId == null ? null : AbilitySyncHandler.findAbility(abilityId);
         // dart-forms-on-right-click-and-throws-on-left-click: a held javelin marks the mob it aims at
-        AimIndicator badged = AimIndicator.of(ability == null ? null
+        return AimIndicator.of(ability == null ? null
                 : ability.badge().aimsAs(ability.delivery().kind()), AimTracker.grabHoldsAMob());
-        boolean growsAPrism = ability != null && PrismBlock.grownBy(ability.behaviors());
-        Level level = Minecraft.getInstance().level;
-        boolean growable = target instanceof TargetResult.BlockTarget bt && level != null
-                && FaceSupport.growsFrom(level, bt.pos(), bt.face());
-        return AimIndicator.onFace(badged, growsAPrism, growable);
     }
 
     /**

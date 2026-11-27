@@ -1,20 +1,16 @@
 package com.mercuriusxeno.goo.gametest;
 
-import com.mercuriusxeno.goo.ability.AbilityDefinition;
-import com.mercuriusxeno.goo.ability.AbilityRegistry;
-import com.mercuriusxeno.goo.ability.PrismCombos;
 import com.mercuriusxeno.goo.ability.hex.Charmed;
 import com.mercuriusxeno.goo.ability.yarn.Led;
 import com.mercuriusxeno.goo.block.ability.CellPlacers;
-import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.block.ability.RailLine;
 import com.mercuriusxeno.goo.block.ability.WispsSmite;
+import com.mercuriusxeno.goo.block.alientech.ReflectorBlock;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooBlocks;
-import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
-import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.damagesource.DamageSource;
@@ -29,15 +25,15 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
-import org.jspecify.annotations.Nullable;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.Consumer;
 
 /**
- * Gametests for the hits a standing goo block deals: a light rail a player's Laser reflectors laid burns an undead
+ * Gametests for the hits a standing goo block deals: a light rail between reflectors a player placed burns an undead
  * naming that player as magic, a rail no player laid names no one, the rail's credited hit leaves that player's
  * lead and charm standing, and a Wisps or Rime cell a player placed names that player on its holy or freeze hit.
  * standing-goo-thing-credits-whoever-placed-it
@@ -52,11 +48,8 @@ public final class StandingBlockCreditTests {
     private static final String WISPS_NAMES_ITS_PLACER = "standing_credit_wisps_cell_names_its_placer";
     private static final String RIME_NAMES_ITS_PLACER = "standing_credit_rime_cell_names_its_placer";
 
-    /** Laser, whose on_prism reaction is the reflector. */
-    private static final String REFLECTOR = "goo:glow_laser";
-    private static final String NOT_A_REFLECTOR = "The prism should take the reflector combo";
-    private static final BlockPos NEAR_PRISM = new BlockPos(0, 1, 0);
-    private static final BlockPos FAR_PRISM = new BlockPos(5, 1, 0);
+    private static final BlockPos NEAR_REFLECTOR = new BlockPos(0, 1, 0);
+    private static final BlockPos FAR_REFLECTOR = new BlockPos(5, 1, 0);
     private static final BlockPos CELL = new BlockPos(3, 1, 3);
     /** Blocks above the bay the player hangs, clear of the rail and the cells. */
     private static final int PLAYER_HEIGHT = 12;
@@ -89,8 +82,7 @@ public final class StandingBlockCreditTests {
     }
 
     /**
-     * Two prisms a mock player's goo converted into reflectors lay a rail that burns a zombie in it as magic
-     * naming that player.
+     * Two reflectors a mock player placed lay a rail that burns a zombie in it as magic naming that player.
      *
      * @param helper the gametest helper
      */
@@ -98,7 +90,7 @@ public final class StandingBlockCreditTests {
         ServerPlayer player = playerOverhead(helper);
         List<BlockPos> floorCells = railFloorCells();
         Mob zombie = undeadIn(helper, EntityTypes.ZOMBIE, floorCells.getFirst());
-        layRail(helper, player.getUUID());
+        layRail(helper, player);
         succeedWhenNamed(helper, zombie, "rail", player, DamageTypes.MAGIC);
     }
 
@@ -120,7 +112,7 @@ public final class StandingBlockCreditTests {
     }
 
     /**
-     * A rail a mock player's reflectors laid burns a zombie that player led and a husk that player charmed,
+     * A rail between reflectors a mock player placed burns a zombie that player led and a husk that player charmed,
      * and the lead and the charm still stand once each has been burned.
      *
      * @param helper the gametest helper
@@ -132,7 +124,7 @@ public final class StandingBlockCreditTests {
         zombie.setData(GooAttachments.LED, new Led(player.getUUID(), LEAD_DAMAGE));
         Mob husk = undeadIn(helper, EntityTypes.HUSK, floorCells.getLast());
         husk.setData(GooAttachments.CHARMED, new Charmed(player.getUUID()));
-        layRail(helper, player.getUUID());
+        layRail(helper, player);
         helper.succeedWhen(() -> {
             struck(helper, zombie, "led zombie");
             struck(helper, husk, "charmed husk");
@@ -181,20 +173,25 @@ public final class StandingBlockCreditTests {
     }
 
     private static List<BlockPos> railFloorCells() {
-        return RailLine.between(NEAR_PRISM, FAR_PRISM).stream().filter(cell -> cell.getY() == NEAR_PRISM.getY())
+        return RailLine.between(NEAR_REFLECTOR, FAR_REFLECTOR).stream()
+                .filter(cell -> cell.getY() == NEAR_REFLECTOR.getY())
                 .toList();
     }
 
-    private static void layRail(GameTestHelper helper, @Nullable UUID player) {
-        for (BlockPos prism : List.of(NEAR_PRISM, FAR_PRISM)) {
-            helper.setBlock(prism.below(), Blocks.STONE);
-            helper.setBlock(prism, GooBlocks.PRISM.get());
-        }
-        AbilityDefinition laser = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(REFLECTOR));
-        helper.assertTrue(laser != null, NOT_A_REFLECTOR);
-        for (BlockPos prism : List.of(NEAR_PRISM, FAR_PRISM)) {
-            helper.assertTrue(helper.getBlockEntity(prism, PrismBlockEntity.class)
-                    .runCombo(GooTypes.GLOW, REFLECTOR, PrismCombos.comboSteps(laser), player), NOT_A_REFLECTOR);
+    /**
+     * Stands two reflectors on stone, open lens to open lens, each placed by the player, so the rail they lay
+     * credits that player.
+     *
+     * @param helper the gametest helper
+     * @param player the player who places both reflectors
+     */
+    private static void layRail(GameTestHelper helper, ServerPlayer player) {
+        ReflectorBlock reflector = GooBlocks.REFLECTOR.get();
+        for (BlockPos at : List.of(NEAR_REFLECTOR, FAR_REFLECTOR)) {
+            helper.setBlock(at.below(), Blocks.STONE);
+            BlockState standing = reflector.defaultBlockState().setValue(ReflectorBlock.FACING, Direction.UP);
+            helper.setBlock(at, standing);
+            reflector.setPlacedBy(helper.getLevel(), helper.absolutePos(at), standing, player, ItemStack.EMPTY);
         }
     }
 

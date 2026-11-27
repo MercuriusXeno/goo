@@ -65,7 +65,6 @@ public final class GooRenderTypes {
     private static final String ALPHA_CUTOUT_DEFINE = "ALPHA_CUTOUT";
     private static final String NO_OVERLAY_DEFINE = "NO_OVERLAY";
     private static final String NO_CARDINAL_LIGHTING_DEFINE = "NO_CARDINAL_LIGHTING";
-    private static final String PER_FACE_LIGHTING_DEFINE = "PER_FACE_LIGHTING";
     /** The vertex and fragment shader pair the goo fluid surface draws through, on every path. */
     private static final Identifier GOO_FLUID_SURFACE_SHADER =
             Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_fluid_surface");
@@ -669,7 +668,7 @@ public final class GooRenderTypes {
     public static final RenderType METAL_EXPLOSION_THROUGH_BLOCKS_TYPE = burnoutType(METAL_EXPLOSION_THROUGH_BLOCKS);
 
     /**
-     * Crystal goo's burnout explosion pipeline: the prism burst, alpha
+     * Crystal goo's burnout explosion pipeline: the glass burst, alpha
      * blended, through {@code crystal_explosion.vsh / .fsh}.
      */
     public static final RenderPipeline CRYSTAL_EXPLOSION = sorted(PipelineSort.ON_THE_PATH, burnoutPipeline("crystal_explosion",
@@ -713,7 +712,7 @@ public final class GooRenderTypes {
     public static final RenderType GLOW_EXPLOSION_TYPE = burnoutType(GLOW_EXPLOSION, GLOW_EXPLOSION_OIT);
 
     /**
-     * Bulb's prism beacon (decision bulb-one-model-max-light-beacon-combo):
+     * The light beacon's beam (decision bulb-one-model-max-light-beacon-combo):
      * vanilla's beacon beam shader blended additively, depth tested with depth
      * write off and both faces drawn, so its layers stack into a bloom.
      */
@@ -731,43 +730,6 @@ public final class GooRenderTypes {
      * decision additive-glows-draw-as-translucent-layers-in-the-oit-phase
      */
     public static final OitPipelineSet GLOW_BEAM_OIT = oitSetOf(GLOW_BEAM);
-
-    /**
-     * A glow prism's column and halo (decision diagnose-and-correct-the-sunbeam-prism-depth):
-     * vanilla's translucent entity draw with depth write off, so the beams
-     * drawn after it, Laser's ray among them, show in front of the column
-     * rather than fail the depth it would write.
-     */
-    public static final RenderPipeline GLOW_COLUMN = sorted(PipelineSort.ON_THE_PATH, RenderPipelines.ENTITY_TRANSLUCENT.toBuilder()
-            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "glow_column"))
-            .withDepthStencilState(new DepthStencilState(DepthStencilState.DEFAULT.depthTest(), false))
-            .build());
-
-    /**
-     * A glow prism's column's OIT phases: vanilla's translucent entity set, as vanilla builds it for
-     * entityTranslucent, since no OIT phase writes depth. The column draws in the OIT phase beside the Laser's core
-     * at a struck prism, which wraps it; left at AfterLevel it failed the depth the OIT composite writes from the
-     * core's outer layer, and vanished.
-     * decision goo-translucency-draws-through-order-independent-transparency
-     * decision additive-glows-draw-as-translucent-layers-in-the-oit-phase
-     */
-    public static final OitPipelineSet GLOW_COLUMN_OIT = OitPipelineSet.builder(
-                    Identifier.fromNamespaceAndPath(NAMESPACE, "glow_column"),
-                    RenderPipeline.builder(RenderPipelines.OIT_ENTITY_SNIPPET).withCull(false))
-            .withAccumulateModifier(accumulate -> accumulate.withShaderDefine(PER_FACE_LIGHTING_DEFINE)
-                    .withBindGroupLayout(BindGroupLayouts.SAMPLER1)
-                    .withBindGroupLayout(BindGroupLayouts.SAMPLER2))
-            .build();
-
-    /** The glow column render type, on the block atlas. */
-    public static final RenderType GLOW_COLUMN_TYPE = RenderType.create("goo_glow_column",
-            RenderSetup.builder(GLOW_COLUMN)
-                    .setOitPipelines(GLOW_COLUMN_OIT)
-                    .withTexture("Sampler0", Identifier.withDefaultNamespace("textures/atlas/blocks.png"))
-                    .useLightmap()
-                    .useOverlay()
-                    .sortOnUpload()
-                    .createRenderSetup());
 
     /**
      * A portal's halo: its color glowing onto the wall around its oval, fading
@@ -1612,23 +1574,6 @@ public final class GooRenderTypes {
     public static final RenderPipeline LEAF_GHOST_THROUGH_BLOCKS = sorted(PipelineSort.ON_THE_PATH, throughBlocksPipeline("leaf_ghost",
             BlendFunction.LIGHTNING));
 
-    /**
-     * Reap's swell, a whole sphere of Growth's breeze swelling out to Reap's
-     * radius, drawn through {@code reap_swell.vsh / .fsh}.
-     * reap-breeze-harvests-and-replants
-     */
-    public static final RenderPipeline REAP_SWELL = sorted(PipelineSort.ON_THE_PATH, burnoutPipeline("reap_swell", BlendFunction.LIGHTNING));
-
-    /** The reap swell render type. */
-    /**
-     * Reap's swell's OIT phases, drawing it as a see-through layer with coverage, its shader retuning it toward the glow it adds with improved transparency off.
-     * decision goo-translucency-draws-through-order-independent-transparency
-     * decision additive-glows-draw-as-translucent-layers-in-the-oit-phase
-     */
-    public static final OitPipelineSet REAP_SWELL_OIT = oitSetOf(REAP_SWELL);
-
-    public static final RenderType REAP_SWELL_TYPE = burnoutType(REAP_SWELL, REAP_SWELL_OIT);
-
     /** The leaf ghost's through-blocks render type. */
     public static final RenderType LEAF_GHOST_THROUGH_BLOCKS_TYPE = burnoutType(LEAF_GHOST_THROUGH_BLOCKS);
 
@@ -2182,8 +2127,8 @@ public final class GooRenderTypes {
      * @param event the event instance
      */
     private static void registerSubmittedOitSets(RegisterRenderPipelinesEvent event) {
-        List.of(GLOW_SHELL_OIT, GLOW_COLUMN_OIT, GLOW_BEAM_OIT,
-                LINES_ADDITIVE_GLOW_OIT, GROWTH_BREEZE_OIT, GOO_GHOST_OIT, PETRIFY_FOG_OIT, REAP_SWELL_OIT,
+        List.of(GLOW_SHELL_OIT, GLOW_BEAM_OIT,
+                LINES_ADDITIVE_GLOW_OIT, GROWTH_BREEZE_OIT, GOO_GHOST_OIT, PETRIFY_FOG_OIT,
                 FROST_EXPLOSION_OIT, ROCK_EXPLOSION_OIT, PORTABLE_HOLE_MOUTH_OIT, GOO_PORTAL_HALO_OIT,
                 GOO_PORTAL_SWIRL_BAND_OIT, BLOCK_MINGLE_TRANSLUCENT_OIT, MIASMA_VORTEX_OIT, BORE_DRILL_OIT,
                 CRYSTAL_EXPLOSION_OIT, METAL_EXPLOSION_OIT, GLOW_EXPLOSION_OIT, UNSTABLE_EXPLOSION_OIT, LEAF_GHOST_OIT,
@@ -2213,7 +2158,6 @@ public final class GooRenderTypes {
         event.registerPipeline(GOO_PORTAL_SWIRL_BAND);
         event.registerPipeline(MIASMA_VORTEX);
         event.registerPipeline(GLOW_BEAM);
-        event.registerPipeline(GLOW_COLUMN);
         event.registerPipeline(LASER_SCORCH);
         event.registerPipeline(LASER_SCORCH_GLOW);
         event.registerPipeline(GLOW_SHELL);
@@ -2259,7 +2203,6 @@ public final class GooRenderTypes {
         event.registerPipeline(GROWTH_BREEZE);
         event.registerPipeline(LEAF_GHOST);
         event.registerPipeline(LEAF_GHOST_THROUGH_BLOCKS);
-        event.registerPipeline(REAP_SWELL);
     }
 
     /**

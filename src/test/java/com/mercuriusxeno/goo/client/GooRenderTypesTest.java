@@ -169,22 +169,6 @@ class GooRenderTypesTest {
     }
 
     /**
-     * A glow prism's column depth tests and writes no depth, so a beam drawn
-     * after it, Laser's ray among them, shows in front of it.
-     * decision diagnose-and-correct-the-sunbeam-prism-depth
-     */
-    @Test
-    void theGlowColumnTestsDepthAndWritesNone() {
-        assertEquals(new DepthStencilState(CompareOp.GREATER_THAN_OR_EQUAL, false),
-                GooRenderTypes.GLOW_COLUMN.getDepthStencilState());
-    }
-
-    @Test
-    void theGlowColumnTypeDrawsOnTheGlowColumnPipeline() {
-        assertEquals(GooRenderTypes.GLOW_COLUMN, GooRenderTypes.GLOW_COLUMN_TYPE.pipeline());
-    }
-
-    /**
      * The goo fluid surface draws through 26.3's order-independent transparency under improved transparency: its
      * render type carries a registered OIT set whose three phases run the fluid surface's own shaders with every
      * sampler they read, and its fragment shader takes the OIT stages from minecraft:oit.glsl; with transparency
@@ -304,8 +288,7 @@ class GooRenderTypesTest {
     @Test
     void theBeamBoltAndWindPipelinesDrawInTheOitPhase() throws IOException {
         assertDrawInTheOitPhase(List.of(GooRenderTypes.GLOW_BEAM, GooRenderTypes.LINES_ADDITIVE_GLOW,
-                        GooRenderTypes.GROWTH_BREEZE, GooRenderTypes.CRYSTAL_SHARD, GooRenderTypes.GLOW_SHELL,
-                        GooRenderTypes.GLOW_COLUMN),
+                        GooRenderTypes.GROWTH_BREEZE, GooRenderTypes.CRYSTAL_SHARD, GooRenderTypes.GLOW_SHELL),
                 List.of(GooRenderTypes.GLOW_BEAM, GooRenderTypes.LINES_ADDITIVE_GLOW, GooRenderTypes.GROWTH_BREEZE,
                         GooRenderTypes.GLOW_SHELL));
         assertEquals(GooOitStays.WRITES_DEPTH, GooOitStays.REASONS.get("fire_field"));
@@ -320,9 +303,9 @@ class GooRenderTypesTest {
     @Test
     void theRingMarkerGhostAndGroundPipelinesDrawInTheOitPhase() throws IOException {
         assertDrawInTheOitPhase(List.of(GooRenderTypes.GOO_GHOST, GooRenderTypes.PETRIFY_FOG,
-                        GooRenderTypes.REAP_SWELL, GooRenderTypes.FROST_EXPLOSION, GooRenderTypes.ROCK_EXPLOSION,
+                        GooRenderTypes.FROST_EXPLOSION, GooRenderTypes.ROCK_EXPLOSION,
                         GooRenderTypes.LINES_ADDITIVE_GLOW, GooRenderTypes.CRYSTAL_SHARD, GooRenderTypes.GLOW_SHELL),
-                List.of(GooRenderTypes.REAP_SWELL, GooRenderTypes.LINES_ADDITIVE_GLOW, GooRenderTypes.GLOW_SHELL));
+                List.of(GooRenderTypes.LINES_ADDITIVE_GLOW, GooRenderTypes.GLOW_SHELL));
     }
 
     /**

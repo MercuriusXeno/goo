@@ -39,8 +39,8 @@ import java.util.stream.Stream;
  * @param invulnerableTicks the immunity ticks the hit leaves, when set; none otherwise
  * @param iFrames           whether the hit respects the target's i-frames, landing only as vanilla lets a hit land
  *                          and leaving vanilla's immunity behind, rather than clearing it on both sides
- * @param healsUndead       whether an undead target is healed by the amount instead, as Decay's bite and Hive's
- *                          strike heal it; a hit respecting i-frames heals no faster than it would land, and a
+ * @param healsUndead       whether an undead target is healed by the amount instead, as Decay's bite heals
+ *                          it; a hit respecting i-frames heals no faster than it would land, and a
  *                          living caster the hit reaches takes nothing
  */
 public record DamageStep(Expr amount, DamageKind source, boolean knockback,

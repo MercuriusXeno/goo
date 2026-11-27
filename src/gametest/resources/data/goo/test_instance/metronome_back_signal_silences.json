@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:metronome_back_signal_silences",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 300,
+  "setup_ticks": 0,
+  "required": true
+}

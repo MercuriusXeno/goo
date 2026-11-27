@@ -7,8 +7,8 @@ import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.LevelReader;
 
 /**
- * The support rule a block attached to a face shares, the glow crystal and
- * the prism alike: it stands while the block behind it offers a sturdy face,
+ * The support rule a block attached to a face follows, as the glow crystal
+ * does: it stands while the block behind it offers a sturdy face,
  * and breaks once that support is gone, as a torch breaks.
  */
 public final class FaceSupport {
@@ -18,16 +18,14 @@ public final class FaceSupport {
 
     /**
      * Whether an attached block can grow from an aimed face: the aimed block
-     * offers it a sturdy face, the one rule the prism survives by, which the
-     * aim's highlight and the cast read alike.
-     * decision prism-highlight-draws-only-on-a-face-a-prism-grows-from
+     * offers it a sturdy face.
      *
      * @param level the level
      * @param aimed the aimed block
      * @param face  the aimed face
      * @return true for a sturdy face
      */
-    public static boolean growsFrom(BlockGetter level, BlockPos aimed, Direction face) {
+    static boolean growsFrom(BlockGetter level, BlockPos aimed, Direction face) {
         return level.getBlockState(aimed).isFaceSturdy(level, aimed, face);
     }
 

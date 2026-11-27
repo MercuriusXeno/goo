@@ -1,10 +1,5 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.EntityHitResult;
-import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -14,20 +9,13 @@ import java.util.ArrayList;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /**
  * The local caster's laser ray, drawn frame by frame against a wall while
  * the server's rays arrive once a tick a round trip late, holds still under
  * a steady look and moves by a bounded step under a turning one
- * (decision diagnose-and-correct-the-sunbeam-jitter); a ray striking a
- * prism that refracts it runs into the prism's middle, where its core is
- * (decision diagnose-and-correct-the-sunbeam-prism-depth); a ray whose hit
- * is a block holding a prism ends in that prism
- * (decision reflector-rail-blooms-out-inside-the-prism).
+ * (decision diagnose-and-correct-the-sunbeam-jitter).
  */
 class LaserRayEndTest {
 
@@ -103,58 +91,6 @@ class LaserRayEndTest {
             Vec3 drawn = LaserRayEnd.drawnEnd(Vec3.ZERO, ownAimFrom(eyeHeight), RANGE, FlatWall::stop);
 
             assertEquals(FlatWall.metAlong(origin, LOOK).y, drawn.y, 1e-6);
-        }
-    }
-
-    /** A prism in the wall's cell straight ahead, the ray striking its near face. */
-    private static final BlockPos PRISM = new BlockPos(0, 64, 20);
-
-    @Test
-    void aRayStrikingARefractingPrismGathersAtItsMiddle() {
-        Vec3 struck = new Vec3(0.5, 64.5, WALL_Z + 0.25);
-        assertEquals(Vec3.atCenterOf(PRISM), LaserRayEnd.gathersAt(EYE.add(0.5, 0.5, 0), struck, PRISM::equals));
-    }
-
-    @Test
-    void aRayStrikingAnythingElseGathersWhereItStruck() {
-        Vec3 struck = new Vec3(0.5, 64.5, WALL_Z);
-        assertEquals(struck, LaserRayEnd.gathersAt(EYE.add(0.5, 0.5, 0), struck, pos -> false));
-    }
-
-    @Nested
-    class EndsInPrism {
-
-        private final BlockHitResult blockHit = mock(BlockHitResult.class);
-
-        EndsInPrism() {
-            when(blockHit.getType()).thenReturn(HitResult.Type.BLOCK);
-            when(blockHit.getBlockPos()).thenReturn(PRISM);
-        }
-
-        @Test
-        void aBlockHitOnAPrismEndsInAPrism() {
-            PrismBlockEntity prism = mock(PrismBlockEntity.class);
-            assertTrue(LaserRayEnd.endsInPrism(blockHit, pos -> PRISM.equals(pos) ? prism : null));
-        }
-
-        @Test
-        void aBlockHitOnAnyOtherBlockEndsNowhereSpecial() {
-            assertFalse(LaserRayEnd.endsInPrism(blockHit, pos -> null));
-        }
-
-        @Test
-        void anEntityHitEndsNowhereSpecial() {
-            EntityHitResult entityHit = mock(EntityHitResult.class);
-            when(entityHit.getType()).thenReturn(HitResult.Type.ENTITY);
-            PrismBlockEntity prism = mock(PrismBlockEntity.class);
-            assertFalse(LaserRayEnd.endsInPrism(entityHit, pos -> prism));
-        }
-
-        @Test
-        void aMissEndsNowhereSpecial() {
-            when(blockHit.getType()).thenReturn(HitResult.Type.MISS);
-            PrismBlockEntity prism = mock(PrismBlockEntity.class);
-            assertFalse(LaserRayEnd.endsInPrism(blockHit, pos -> prism));
         }
     }
 

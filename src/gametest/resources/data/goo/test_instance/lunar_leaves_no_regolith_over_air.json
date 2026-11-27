@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:lunar_leaves_no_regolith_over_air",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 600,
+  "setup_ticks": 0,
+  "required": true
+}

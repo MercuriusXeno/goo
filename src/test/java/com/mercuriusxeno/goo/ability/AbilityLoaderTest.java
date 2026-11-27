@@ -308,15 +308,15 @@ class AbilityLoaderTest {
     }
 
     /**
-     * Crystal's Prism and Glimmer take no item cost (operator ruling
-     * 2026-10-10), and an ability naming no reagent consumes nothing
+     * Crystal's Glimmer takes no item cost (operator ruling 2026-10-10), and
+     * an ability naming no reagent consumes nothing
      * (decisions ability-json-names-its-reagent, glitter-sphere-icons-gem-ore-groups).
      */
     @Test
-    void prismAndGlimmerConsumeNothing() {
+    void glimmerAndShatterConsumeNothing() {
         Map<Identifier, AbilityDefinition> scanned = shippedById();
 
-        for (String path : List.of("crystal_prism", "crystal_glimmer", "crystal_shatter")) {
+        for (String path : List.of("crystal_glimmer", "crystal_shatter")) {
             assertEquals(List.of(), scanned.get(Identifier.fromNamespaceAndPath(Goo.MODID, path)).consumes(), path);
         }
     }
@@ -740,8 +740,7 @@ class AbilityLoaderTest {
 
             Set<String> seventeenth = held.abilityRegistry().getAbilitiesForType(SEVENTEENTH).stream()
                     .map(def -> def.id().getPath()).collect(Collectors.toSet());
-            assertEquals(Set.of("seventeenth_probe", "seventeenth_bulb_probe", "seventeenth_prism_probe",
-                    "seventeenth_late_prism_probe"), seventeenth);
+            assertEquals(Set.of("seventeenth_probe"), seventeenth);
             assertNull(held.abilityRegistry().durativeAbilityFor(SEVENTEENTH));
         }
 

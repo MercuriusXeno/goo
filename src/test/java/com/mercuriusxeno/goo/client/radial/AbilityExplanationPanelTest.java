@@ -55,7 +55,7 @@ class AbilityExplanationPanelTest {
     private static ClientAbility explaining(Optional<String> costMechanics) {
         return new ClientAbility(Identifier.fromNamespaceAndPath("gootest", "word"), NAME, "", 0, List.of(),
                 List.of(), 0, Delivery.ARC, AbilityBadge.WORLD, List.of(), AbilityArea.NONE, IndicatorShowing.HELD,
-                List.of(), AbilityDefinition.NO_UPKEEP, DistancePrice.NONE, List.of(),
+                List.of(), AbilityDefinition.NO_UPKEEP, DistancePrice.NONE,
                 ArmPose.defaultFor(DeliveryKind.ARC), DESCRIPTION, costMechanics);
     }
 

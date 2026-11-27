@@ -2,22 +2,17 @@ package com.mercuriusxeno.goo.ability.world;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
-import com.mercuriusxeno.goo.ability.AbilityRegistry;
-import com.mercuriusxeno.goo.ability.PrismCombos;
 import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.LandingHost;
 import com.mercuriusxeno.goo.ability.program.LeafSteps;
 import com.mercuriusxeno.goo.ability.program.MeteorStep;
-import com.mercuriusxeno.goo.ability.program.PlaceBlockStep;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
-import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.network.ChainBurnoutPayload;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.phys.Vec3;
@@ -32,14 +27,10 @@ import java.util.UUID;
  * own; its program leaves its effect, and an ability that stays in the world
  * places its own thing (decisions splat-runs-the-program-no-fuse,
  * lingering-abilities-place-their-own-thing).
- * A goo landing on a prism lands in the prism instead, running its combo
- * (decision prism-hosts-the-combos).
  */
 public final class AbilityImpact {
 
     private static final String LOG_PROGRAM_REFUSED = "Ability {} program refused for the landing host: {}";
-    private static final String LOG_COMBO_REFUSED = "Prism combo {} program refused for the marker host: {}";
-    private static final Identifier PRISM = Identifier.fromNamespaceAndPath(Goo.MODID, "prism");
 
     private AbilityImpact() {
     }
@@ -95,8 +86,8 @@ public final class AbilityImpact {
     }
 
     /**
-     * Lands an ability on a block for the player whose goo it was, whom a
-     * prism's combo records as its caster
+     * Lands an ability on a block for the player whose goo it was, whom its
+     * landing records as its caster
      * (decision quantum-anchors-link-two-points).
      *
      * @param level   the server level
@@ -111,10 +102,6 @@ public final class AbilityImpact {
     public static void land(ServerLevel level, BlockPos pos, ResourceKey<GooTypeDefinition> type,
                             Direction face, AbilityDefinition ability, @Nullable Vec3 point, double size,
                             @Nullable UUID caster) {
-        if (level.getBlockEntity(pos) instanceof PrismBlockEntity prism && !ticksAComboPrism(prism, ability)) {
-            landOnPrism(level, prism, type, ability, caster);
-            return;
-        }
         Optional<LandingSpot> spot = landingSpot(level, pos, face, point);
         if (spot.isEmpty()) {
             return;
@@ -151,62 +138,6 @@ public final class AbilityImpact {
     private static Optional<LandingSpot> landingSpot(ServerLevel level, BlockPos pos, Direction face,
                                                      @Nullable Vec3 point) {
         return point == null ? LandingSpot.resolve(level, pos, face) : LandingSpot.resolve(level, pos, face, point);
-    }
-
-    /**
-     * Whether a landing ticks a prism already holding a combo as it would any
-     * block, rather than landing in it: Zap's pulse stands beside the prism
-     * as a moment of power, which a Metronome hears as a signal, so two Zaps
-     * set its timer.
-     * zap-ticks-the-device-and-stuns
-     * metronome-prism-pulses-at-the-learned-rate
-     *
-     * @param prism   the struck prism
-     * @param ability the landing ability
-     * @return true when the prism holds a combo and the ability ticks redstone devices
-     */
-    static boolean ticksAComboPrism(PrismBlockEntity prism, AbilityDefinition ability) {
-        return prism.hasCombo() && ability.behaviors().stream()
-                .anyMatch(step -> step.type() == LeafSteps.POWER_PULSE.type());
-    }
-
-    /**
-     * Lands a goo in a prism: the landing ability's own prism reaction, or its
-     * type's prism ability, runs as the prism's combo on a marker host at the
-     * prism. A type with neither leaves the prism as it is, and a prism
-     * already holding a combo refuses a second.
-     * decision prism-hosts-the-combos
-     *
-     * @param level   the server level
-     * @param prism   the struck prism
-     * @param type    the goo type thrown
-     * @param ability the ability the goo names
-     * @param caster  the player whose goo landed, or null for none
-     */
-    private static void landOnPrism(ServerLevel level, PrismBlockEntity prism, ResourceKey<GooTypeDefinition> type,
-                                    AbilityDefinition ability, @Nullable UUID caster) {
-        AbilityDefinition source = PrismCombos.comboSource(ability, AbilityRegistry.of(level).prismAbilityFor(type));
-        if (source == null || prism.hasCombo()) {
-            return;
-        }
-        try {
-            prism.runCombo(type, source.id().toString(), PrismCombos.comboSteps(source), caster);
-        } catch (ProgramLoadException e) {
-            Goo.LOGGER.error(LOG_COMBO_REFUSED, source.id(), e.getMessage());
-        }
-    }
-
-    /**
-     * Whether an ability's blob turns into the prism its program places, the
-     * morph into the column standing in for a burnout.
-     * decision prism-is-one-pointed-quartz-column
-     *
-     * @param ability the landing ability
-     * @return true when a top-level step places the prism
-     */
-    static boolean turnsIntoAPrism(AbilityDefinition ability) {
-        return ability.behaviors().stream().anyMatch(step -> step instanceof PlaceBlockStep place
-                && PRISM.equals(place.block()));
     }
 
     /**
@@ -249,7 +180,7 @@ public final class AbilityImpact {
 
         @Override
         public boolean turnsIntoItsBlock() {
-            return AbilityImpact.turnsIntoAPrism(ability) || AbilityImpact.lightsItsFire(ability)
+            return AbilityImpact.lightsItsFire(ability)
                     || AbilityImpact.callsAMeteor(ability);
         }
 

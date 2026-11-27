@@ -284,7 +284,8 @@ class AbilityDefinitionTest {
 
         @Test
         void throwWithNoRadiusDrawsNoArea() {
-            assertEquals(AbilityArea.NONE, AbilityJson.decode("crystal_prism").area());
+            assertEquals(AbilityArea.NONE,
+                    AbilityDefinition.heldArea(AbilityArea.NONE, Delivery.ARC, AbilityBadge.WORLD, List.of()));
         }
 
         private static boolean isInstantAreaThrow(Path file) {

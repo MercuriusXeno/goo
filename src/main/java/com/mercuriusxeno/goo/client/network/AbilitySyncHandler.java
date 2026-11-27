@@ -116,8 +116,6 @@ public final class AbilitySyncHandler {
      *                    (decision self-effects-trickle-until-ended)
      * @param distancePrice what a blink adds to the cost for its trip
      *                    (decision blink-lands-safely-costed-by-distance)
-     * @param onPrism     the steps a landing on a prism runs, empty for none
-     *                    (decision on-prism-reaction-wears-the-prism-badge)
      * @param pose        the arm pose the glove arm takes in place of the swing
      *                    (decision ability-json-names-its-arm-pose)
      * @param description the translation key for what the ability does, which the radial's panel shows
@@ -134,7 +132,7 @@ public final class AbilitySyncHandler {
                                 List<Step> behaviors, AbilityPrice costPrice, Delivery delivery,
                                 AbilityBadge badge, List<Identifier> requires, AbilityArea area,
                                 IndicatorShowing indicator, List<Identifier> consumes, AbilityPrice upkeepPrice,
-                                DistancePrice distancePrice, List<Step> onPrism, ArmPose pose, String description,
+                                DistancePrice distancePrice, ArmPose pose, String description,
                                 Optional<String> costMechanics, Optional<String> costFormula, Optional<DimensionFace> dimensionFace) {
 
         /**
@@ -155,7 +153,6 @@ public final class AbilitySyncHandler {
          * @param consumes      the items a throw takes, one of each
          * @param upkeepPrice   what a held durative effect pays each tick it stands
          * @param distancePrice what a blink adds to the cost for its trip
-         * @param onPrism       the steps a landing on a prism runs, empty for none
          * @param pose          the arm pose the glove arm takes in place of the swing
          * @param description   the translation key for what the ability does
          * @param costMechanics the format key explaining how a zero-cost ability charges, empty for none
@@ -165,10 +162,10 @@ public final class AbilitySyncHandler {
                              List<Step> behaviors, AbilityPrice costPrice, Delivery delivery, AbilityBadge badge,
                              List<Identifier> requires, AbilityArea area, IndicatorShowing indicator,
                              List<Identifier> consumes, AbilityPrice upkeepPrice, DistancePrice distancePrice,
-                             List<Step> onPrism, ArmPose pose, String description, Optional<String> costMechanics,
+                             ArmPose pose, String description, Optional<String> costMechanics,
                              Optional<String> costFormula) {
             this(id, displayName, icon, order, tags, behaviors, costPrice, delivery, badge, requires, area,
-                    indicator, consumes, upkeepPrice, distancePrice, onPrism, pose, description, costMechanics,
+                    indicator, consumes, upkeepPrice, distancePrice, pose, description, costMechanics,
                     costFormula, Optional.empty());
         }
 
@@ -201,7 +198,6 @@ public final class AbilitySyncHandler {
          * @param consumes      the items a throw takes, one of each
          * @param upkeep        the mB a held durative effect pays each tick it stands
          * @param distancePrice what a blink adds to the cost for its trip
-         * @param onPrism       the steps a landing on a prism runs, empty for none
          * @param pose          the arm pose the glove arm takes in place of the swing
          * @param description   the translation key for what the ability does
          * @param costMechanics the format key explaining how a zero-cost ability charges, empty for none
@@ -211,10 +207,10 @@ public final class AbilitySyncHandler {
                              List<Step> behaviors, int cost, Delivery delivery, AbilityBadge badge,
                              List<Identifier> requires, AbilityArea area, IndicatorShowing indicator,
                              List<Identifier> consumes, int upkeep, DistancePrice distancePrice,
-                             List<Step> onPrism, ArmPose pose, String description, Optional<String> costMechanics,
+                             ArmPose pose, String description, Optional<String> costMechanics,
                              Optional<String> costFormula) {
             this(id, displayName, icon, order, tags, behaviors, AbilityPrice.flat(cost), delivery, badge, requires,
-                    area, indicator, consumes, AbilityPrice.flat(upkeep), distancePrice, onPrism, pose, description,
+                    area, indicator, consumes, AbilityPrice.flat(upkeep), distancePrice, pose, description,
                     costMechanics, costFormula);
         }
 
@@ -236,7 +232,6 @@ public final class AbilitySyncHandler {
          * @param consumes      the items a throw takes, one of each
          * @param upkeep        the mB a held durative effect pays each tick it stands
          * @param distancePrice what a blink adds to the cost for its trip
-         * @param onPrism       the steps a landing on a prism runs, empty for none
          * @param pose          the arm pose the glove arm takes in place of the swing
          * @param description   the translation key for what the ability does
          * @param costMechanics the format key explaining how a zero-cost ability charges, empty for none
@@ -245,9 +240,9 @@ public final class AbilitySyncHandler {
                              List<Step> behaviors, int cost, Delivery delivery, AbilityBadge badge,
                              List<Identifier> requires, AbilityArea area, IndicatorShowing indicator,
                              List<Identifier> consumes, int upkeep, DistancePrice distancePrice,
-                             List<Step> onPrism, ArmPose pose, String description, Optional<String> costMechanics) {
+                             ArmPose pose, String description, Optional<String> costMechanics) {
             this(id, displayName, icon, order, tags, behaviors, cost, delivery, badge, requires, area, indicator,
-                    consumes, upkeep, distancePrice, onPrism, pose, description, costMechanics, Optional.empty());
+                    consumes, upkeep, distancePrice, pose, description, costMechanics, Optional.empty());
         }
 
         private static final int TICKS_PER_SECOND = 20;
@@ -273,7 +268,6 @@ public final class AbilitySyncHandler {
          * @param consumes      the items a throw takes, one of each
          * @param upkeep        the mB a held durative effect pays each tick it stands
          * @param distancePrice what a blink adds to the cost for its trip
-         * @param onPrism       the steps a landing on a prism runs, empty for none
          * @param pose          the arm pose the glove arm takes in place of the swing
          * @param description   the translation key for what the ability does
          */
@@ -281,9 +275,9 @@ public final class AbilitySyncHandler {
                              List<Step> behaviors, int cost, Delivery delivery, AbilityBadge badge,
                              List<Identifier> requires, AbilityArea area, IndicatorShowing indicator,
                              List<Identifier> consumes, int upkeep, DistancePrice distancePrice,
-                             List<Step> onPrism, ArmPose pose, String description) {
+                             ArmPose pose, String description) {
             this(id, displayName, icon, order, tags, behaviors, cost, delivery, badge, requires, area, indicator,
-                    consumes, upkeep, distancePrice, onPrism, pose, description, Optional.empty());
+                    consumes, upkeep, distancePrice, pose, description, Optional.empty());
         }
 
         /**
@@ -304,49 +298,19 @@ public final class AbilitySyncHandler {
          * @param consumes      the items a throw takes, one of each
          * @param upkeep        the mB a held durative effect pays each tick it stands
          * @param distancePrice what a blink adds to the cost for its trip
-         * @param onPrism       the steps a landing on a prism runs, empty for none
          * @param pose          the arm pose the glove arm takes in place of the swing
          */
         public ClientAbility(Identifier id, String displayName, String icon, int order, List<String> tags,
                              List<Step> behaviors, int cost, Delivery delivery, AbilityBadge badge,
                              List<Identifier> requires, AbilityArea area, IndicatorShowing indicator,
                              List<Identifier> consumes, int upkeep, DistancePrice distancePrice,
-                             List<Step> onPrism, ArmPose pose) {
+                             ArmPose pose) {
             this(id, displayName, icon, order, tags, behaviors, cost, delivery, badge, requires, area, indicator,
-                    consumes, upkeep, distancePrice, onPrism, pose, AbilityDefinition.defaultDescription(displayName));
+                    consumes, upkeep, distancePrice, pose, AbilityDefinition.defaultDescription(displayName));
         }
 
         /**
          * A client ability naming no arm pose, which takes its delivery kind's default.
-         *
-         * @param id            the ability resource identifier
-         * @param displayName   the translation key
-         * @param icon          the icon texture path override
-         * @param order         the sort order
-         * @param tags          categorical tags
-         * @param behaviors     the ability's step program
-         * @param cost          the mB a throw costs
-         * @param delivery      how the ability leaves the glove
-         * @param badge         the target kind the radial marks on the icon
-         * @param requires      the items the player must know before its radial petal unlocks
-         * @param area          the area the glove draws while right click is held
-         * @param indicator     when the ability's indicator shows
-         * @param consumes      the items a throw takes, one of each
-         * @param upkeep        the mB a held durative effect pays each tick it stands
-         * @param distancePrice what a blink adds to the cost for its trip
-         * @param onPrism       the steps a landing on a prism runs, empty for none
-         */
-        public ClientAbility(Identifier id, String displayName, String icon, int order, List<String> tags,
-                             List<Step> behaviors, int cost, Delivery delivery, AbilityBadge badge,
-                             List<Identifier> requires, AbilityArea area, IndicatorShowing indicator,
-                             List<Identifier> consumes, int upkeep, DistancePrice distancePrice,
-                             List<Step> onPrism) {
-            this(id, displayName, icon, order, tags, behaviors, cost, delivery, badge, requires, area, indicator,
-                    consumes, upkeep, distancePrice, onPrism, ArmPose.defaultFor(delivery.kind()));
-        }
-
-        /**
-         * A client ability reacting to no prism itself.
          *
          * @param id            the ability resource identifier
          * @param displayName   the translation key
@@ -369,7 +333,7 @@ public final class AbilitySyncHandler {
                              List<Identifier> requires, AbilityArea area, IndicatorShowing indicator,
                              List<Identifier> consumes, int upkeep, DistancePrice distancePrice) {
             this(id, displayName, icon, order, tags, behaviors, cost, delivery, badge, requires, area, indicator,
-                    consumes, upkeep, distancePrice, List.of());
+                    consumes, upkeep, distancePrice, ArmPose.defaultFor(delivery.kind()));
         }
 
         /**
@@ -498,7 +462,7 @@ public final class AbilitySyncHandler {
             return new ClientAbility(Identifier.tryParse(entry.abilityId()), entry.displayName(), entry.icon(),
                     entry.order(), entry.tags(), entry.behaviors(),
                     entry.cost(), entry.delivery(), entry.badge(), entry.requires(), entry.area(),
-                    entry.indicator(), entry.consumes(), entry.upkeep(), entry.distancePrice(), entry.onPrism(),
+                    entry.indicator(), entry.consumes(), entry.upkeep(), entry.distancePrice(),
                     entry.pose(), entry.description(), entry.costMechanics(), entry.costFormula(),
                     entry.dimensionFace());
         }
@@ -511,29 +475,6 @@ public final class AbilitySyncHandler {
          */
         public Identifier iconTexture() {
             return AbilityIconTexture.of(id, icon);
-        }
-
-        /**
-         * Whether the ability carries an on_prism reaction of its own, which
-         * the wheel marks with the prism badge beside its own.
-         * on-prism-reaction-wears-the-prism-badge
-         *
-         * @return true when a landing on a prism runs the ability's own reaction
-         */
-        public boolean reactsToPrisms() {
-            return !onPrism.isEmpty();
-        }
-
-        /**
-         * The program this ability runs as a prism's combo, as the server's
-         * PrismCombos.comboSteps reads it: a prism ability's own behaviors,
-         * or another ability's on_prism reaction.
-         * thrown-hosts-absorb-their-prism-combos
-         *
-         * @return the combo's program
-         */
-        public List<Step> comboSteps() {
-            return badge == AbilityBadge.PRISM ? behaviors : onPrism;
         }
 
         /**

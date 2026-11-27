@@ -34,8 +34,7 @@ class ClickRingsTest {
     }
 
     /**
-     * Each ring is tinted the red Zap's bolt glow and Tick's beat rings
-     * draw in, whatever its fade.
+     * Each ring is tinted the red Zap's bolt glow draws in, whatever its fade.
      * decision click-draws-in-pulse-red-not-the-shrieker-visual
      */
     @Test
@@ -43,7 +42,6 @@ class ClickRingsTest {
         int pulseRed = 0xE0301E;
         assertAll(
                 () -> assertEquals(pulseRed, ZapBolts.GLOW_RGB),
-                () -> assertEquals(pulseRed, BeatRings.RING_RGB),
                 () -> assertEquals(pulseRed, ARGB.color(0, ClickRings.ringColor(0f))),
                 () -> assertEquals(pulseRed, ARGB.color(0, ClickRings.ringColor(0.5f))));
     }

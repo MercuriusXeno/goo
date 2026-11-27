@@ -12,10 +12,8 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * LaserVisual's stretch of beam: one ending in a prism runs on past its end
- * and fades to nothing there, one ending anywhere else stops flat at its end,
- * and every stretch breathes in alpha and shrinks slightly at the ease.
- * decision reflector-rail-blooms-out-inside-the-prism
+ * LaserVisual's stretch of beam: it stops flat at its end, and it breathes
+ * in alpha and shrinks slightly at the ease.
  * decision every-glow-beam-breathes-in-brightness
  */
 class LaserVisualTest {
@@ -25,21 +23,17 @@ class LaserVisualTest {
     private static final Vec3 TO = new Vec3(0, LENGTH, 0);
     private static final float TOLERANCE = 1e-4f;
 
-    private static List<RecordingVertexConsumer.Vertex> drawSegment(boolean endsInPrism) {
-        return drawSegment(endsInPrism, 1f);
-    }
-
-    private static List<RecordingVertexConsumer.Vertex> drawSegment(boolean endsInPrism, float breath) {
+    private static List<RecordingVertexConsumer.Vertex> drawSegment(float breath) {
         RecordingVertexConsumer consumer = new RecordingVertexConsumer();
-        LaserVisual.drawSegment(new PoseStack(), consumer, FROM, TO, 0f, endsInPrism, breath);
+        LaserVisual.drawSegment(new PoseStack(), consumer, FROM, TO, 0f, breath);
         return consumer.vertices();
     }
 
     @Test
     void theRayBreathesInAlphaAndShrinksSlightlyAtTheEase() {
-        List<RecordingVertexConsumer.Vertex> peak = drawSegment(false, GlowBeamMesh.breath(0));
+        List<RecordingVertexConsumer.Vertex> peak = drawSegment(GlowBeamMesh.breath(0));
         List<RecordingVertexConsumer.Vertex> trough =
-                drawSegment(false, GlowBeamMesh.breath(GlowBeamMesh.BREATH_PERIOD_TICKS / 2));
+                drawSegment(GlowBeamMesh.breath(GlowBeamMesh.BREATH_PERIOD_TICKS / 2));
 
         assertNotEquals(BeamSamples.alphas(peak), BeamSamples.alphas(trough), "the ray's alpha breathes");
         assertEquals(GlowBeamMesh.LAYERS.getLast().radius() * LaserVisual.RAY_WIDTH, BeamSamples.widest(peak),
@@ -52,18 +46,8 @@ class LaserVisualTest {
     }
 
     @Test
-    void aStretchEndingInAPrismFadesOutPastItsEnd() {
-        List<RecordingVertexConsumer.Vertex> vertices = drawSegment(true);
-        float highest = highestY(vertices);
-
-        assertTrue(highest > LENGTH + TOLERANCE, "the prism stretch reaches past its end, highest " + highest);
-        vertices.stream().filter(v -> Math.abs(v.y() - highest) < TOLERANCE)
-                .forEach(v -> assertEquals(0, ARGB.alpha(v.color()), "the far ring fades to nothing"));
-    }
-
-    @Test
-    void aStretchEndingAnywhereElseStopsFlatAtItsEnd() {
-        List<RecordingVertexConsumer.Vertex> vertices = drawSegment(false);
+    void theStretchStopsFlatAtItsEnd() {
+        List<RecordingVertexConsumer.Vertex> vertices = drawSegment(1f);
         float highest = highestY(vertices);
 
         assertEquals(LENGTH, highest, TOLERANCE);

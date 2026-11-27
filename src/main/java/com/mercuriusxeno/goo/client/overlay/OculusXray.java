@@ -3,12 +3,13 @@ package com.mercuriusxeno.goo.client.overlay;
 import com.mercuriusxeno.goo.ability.oculus.OculusNodes;
 import com.mercuriusxeno.goo.ability.program.BlinkLanding;
 import com.mercuriusxeno.goo.ability.program.TeleportStep;
-import com.mercuriusxeno.goo.block.ability.PrismBlock;
+import com.mercuriusxeno.goo.block.alientech.FaceMountedBlock;
+import com.mercuriusxeno.goo.block.alientech.OculusBlock;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
-import com.mercuriusxeno.goo.client.ber.style.OculusStyle;
+import com.mercuriusxeno.goo.client.ber.OculusEye;
 import com.mercuriusxeno.goo.client.model.OculusModels;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
@@ -186,8 +187,9 @@ public final class OculusXray {
     private static void drawEye(Minecraft mc, PoseStack poseStack, VertexConsumer consumer, Vec3 camera,
                                 BlockPos pos, QuadInstance instance, float swell) {
         BlockState state = mc.level.getBlockState(pos);
-        Direction facing = state.hasProperty(PrismBlock.FACING) ? state.getValue(PrismBlock.FACING) : Direction.UP;
-        Vec3 eye = Vec3.atLowerCornerOf(pos).add(OculusStyle.eyeInCell(facing));
+        Direction facing = state.hasProperty(FaceMountedBlock.FACING) ? state.getValue(FaceMountedBlock.FACING)
+                : Direction.UP;
+        Vec3 eye = Vec3.atLowerCornerOf(pos).add(OculusEye.eyeInCell(facing, OculusBlock.EYE_LIFT));
         float yaw = (float) Math.toDegrees(Math.atan2(camera.x - eye.x, camera.z - eye.z));
         poseStack.pushPose();
         poseStack.translate(eye.x - camera.x, eye.y - camera.y, eye.z - camera.z);

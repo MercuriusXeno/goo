@@ -323,7 +323,6 @@ public final class BlockTransforms {
 
     /**
      * The exposure a block stands at, as a block drawing itself reads it.
-     * channeled-hosts-convert-prisms-over-the-hold
      *
      * @param pos the block
      * @return its exposure, or empty for a block nothing is exposing

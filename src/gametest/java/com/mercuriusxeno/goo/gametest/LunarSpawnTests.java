@@ -45,6 +45,7 @@ public final class LunarSpawnTests {
 
     private static final String LUNAR_REQUIRED = "The server should hold goo:lunar";
     private static final String ON_LUNAR = "A monstrosity should spawn on lunar's surface at %s";
+    private static final String NO_SPOT = "No spot within the search lies deep in %s";
     private static final String NOT_ABOVE_THE_DEEP = "A monstrosity should not spawn in the overworld above the deep at %s";
 
     private LunarSpawnTests() {
@@ -63,8 +64,9 @@ public final class LunarSpawnTests {
     }
 
     /**
-     * The monstrosity's spawn rule admits a spot on lunar's dark-side surface, under the open sky at that spot's
-     * midnight, and refuses the test bay's floor.
+     * The monstrosity's spawn rule admits a spot on lunar's dark-side surface and a spot deep in each of lunar's four
+     * surface biomes, each under the open sky at that spot's midnight, and refuses the test bay's floor.
+     * decision lunar-surface-has-maria-highlands-shadowed-basins-and-eldritch-ground
      * decision dark-side-is-an-endless-night-of-eldritch-rich-in-void-and-xeno
      * decision sun-follows-the-phase-and-lights-the-far-side-too
      *
@@ -74,9 +76,22 @@ public final class LunarSpawnTests {
         ServerLevel overworld = helper.getLevel();
         ServerLevel lunar = overworld.getServer().getLevel(Lunar.LEVEL);
         helper.assertTrue(lunar != null, LUNAR_REQUIRED);
-        lunar.getChunk(SectionPos.blockToSectionCoord(DARK_SIDE_X), 0);
-        BlockPos surface = new BlockPos(DARK_SIDE_X, lunar.getHeight(Heightmap.Types.MOTION_BLOCKING, DARK_SIDE_X, 0),
-                0);
+        assertAdmittedAtMidnight(helper, lunar, new BlockPos(DARK_SIDE_X, 0, 0));
+        for (ResourceKey<Biome> biome : LunarSurfaceBiomes.ALL) {
+            BlockPos spot = LunarSurfaceBiomes.spotIn(lunar, biome);
+            helper.assertTrue(spot != null, String.format(NO_SPOT, biome.identifier()));
+            assertAdmittedAtMidnight(helper, lunar, spot);
+        }
+        BlockPos bay = helper.absolutePos(BAY_FLOOR);
+        helper.assertFalse(EldritchMonstrosity.checkSpawnRules(GooEntities.ELDRITCH_MONSTROSITY.get(), overworld,
+                EntitySpawnReason.NATURAL, bay, overworld.getRandom()), String.format(NOT_ABOVE_THE_DEEP, bay));
+        helper.succeed();
+    }
+
+    /** The monstrosity's spawn rule admits a column's surface under the open sky at that column's midnight. */
+    private static void assertAdmittedAtMidnight(GameTestHelper helper, ServerLevel lunar, BlockPos column) {
+        lunar.getChunk(SectionPos.blockToSectionCoord(column.getX()), SectionPos.blockToSectionCoord(column.getZ()));
+        BlockPos surface = column.atY(lunar.getHeight(Heightmap.Types.MOTION_BLOCKING, column.getX(), column.getZ()));
         long pinnedAt = lunar.getOverworldClockTime();
         LunarSunlightTests.pinOverworldClock(lunar,
                 LunarSunlightTests.clockWhenTheSunStandsAt(surface, LunarSunlightTests.UNDERFOOT));
@@ -84,10 +99,6 @@ public final class LunarSpawnTests {
                 EntitySpawnReason.NATURAL, surface, lunar.getRandom());
         LunarSunlightTests.pinOverworldClock(lunar, pinnedAt);
         helper.assertTrue(admitted, String.format(ON_LUNAR, surface));
-        BlockPos bay = helper.absolutePos(BAY_FLOOR);
-        helper.assertFalse(EldritchMonstrosity.checkSpawnRules(GooEntities.ELDRITCH_MONSTROSITY.get(), overworld,
-                EntitySpawnReason.NATURAL, bay, overworld.getRandom()), String.format(NOT_ABOVE_THE_DEEP, bay));
-        helper.succeed();
     }
 
     /**

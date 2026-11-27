@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:metronome_gap_switch_steps_the_cadence",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 300,
+  "setup_ticks": 0,
+  "required": true
+}

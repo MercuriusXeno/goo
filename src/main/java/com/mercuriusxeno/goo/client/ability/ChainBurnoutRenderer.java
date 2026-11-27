@@ -10,10 +10,9 @@ import java.util.function.Consumer;
 
 /**
  * Draws every live burnout explosion through the visual its goo type names,
- * once the level is drawn, after a prism's crystal, a translucent feature
- * writing depth, so the additive layers blend over the world and over the
- * crystal behind an explosion rather than the crystal drawing over an
- * explosion standing in front of it (decision elemental-explosion-per-type).
+ * once the level is drawn, after any translucent feature writing depth, so
+ * the additive layers blend over the world and over what stands behind an
+ * explosion rather than it drawing over an explosion standing in front of it (decision elemental-explosion-per-type).
  */
 public final class ChainBurnoutRenderer {
 

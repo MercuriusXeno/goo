@@ -3,7 +3,6 @@ package com.mercuriusxeno.goo.lunar;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import java.io.IOException;
@@ -16,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * The dark side is rich in eldritch: the monstrosity spawns under the open sky by night alone, on either half of the
  * moon, and the dark side spawns it in larger groups by the factor the dark_side_eldritch data map names for lunar's
- * biome.
+ * surface biomes.
  * decision dark-side-is-an-endless-night-of-eldritch-rich-in-void-and-xeno
  * decision sun-follows-the-phase-and-lights-the-far-side-too
  */
@@ -26,8 +25,6 @@ class LunarEldritchTest {
     private static final double LIGHT_SIDE_X = 0;
     private static final boolean UNDER_THE_SKY = true;
     private static final String DATA_MAP = "/data/goo/data_maps/worldgen/biome/dark_side_eldritch.json";
-    private static final String LUNAR_BIOME = "goo:lunar";
-    private static final String LUNAR_BIOME_FILE = "/data/goo/worldgen/biome/lunar.json";
 
     private static JsonObject resourceJson(String path) throws IOException {
         try (InputStream stream = LunarEldritchTest.class.getResourceAsStream(path)) {
@@ -67,12 +64,14 @@ class LunarEldritchTest {
     @Nested
     class TheVolume {
 
-        @Test
-        void theDarkSideSpawnsLargerGroupsThanTheLightSideByTheDatasFactor() throws IOException {
-            int factor = resourceJson(DATA_MAP).getAsJsonObject("values").getAsJsonObject(LUNAR_BIOME)
-                    .get(LunarEldritch.GROUP_FACTOR_FIELD).getAsInt();
-            int lightSideMax = BiomeSpawnJson.maxCount(BiomeSpawnJson.monsterSpawners(resourceJson(LUNAR_BIOME_FILE))
-                    .get(0).getAsJsonObject());
+        @ParameterizedTest
+        @ValueSource(strings = {"lunar_maria", "lunar_highlands", "lunar_shadowed_basins", "lunar_eldritch_ground"})
+        void theDarkSideSpawnsLargerGroupsThanTheLightSideByTheDatasFactor(String biome) throws IOException {
+            JsonObject factorEntry = resourceJson(DATA_MAP).getAsJsonObject("values").getAsJsonObject("goo:" + biome);
+            assertNotNull(factorEntry, "the dark_side_eldritch data map names no factor for goo:" + biome);
+            int factor = factorEntry.get(LunarEldritch.GROUP_FACTOR_FIELD).getAsInt();
+            int lightSideMax = BiomeSpawnJson.maxCount(BiomeSpawnJson.monsterSpawners(
+                    resourceJson("/data/goo/worldgen/biome/" + biome + ".json")).get(0).getAsJsonObject());
             int darkSide = LunarEldritch.volumeAt(DARK_SIDE_X, lightSideMax, factor);
             int lightSide = LunarEldritch.volumeAt(LIGHT_SIDE_X, lightSideMax, factor);
             assertTrue(darkSide > lightSide, "the dark side spawns up to " + darkSide + ", the light side "

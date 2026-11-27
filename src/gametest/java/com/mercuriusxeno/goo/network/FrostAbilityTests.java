@@ -2,11 +2,8 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
-import com.mercuriusxeno.goo.ability.frost.FrostCurve;
-import com.mercuriusxeno.goo.ability.frost.FrozenEvents;
 import com.mercuriusxeno.goo.ability.program.FreezeBlocksStep;
 import com.mercuriusxeno.goo.ability.program.NovaStep;
-import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mercuriusxeno.goo.entity.RollingGoo;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
@@ -15,12 +12,10 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooBlocks;
-import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityTypes;
@@ -32,7 +27,6 @@ import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.LiquidBlock;
-import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -44,8 +38,7 @@ import java.util.function.Consumer;
  * Gametests for the frost abilities: each lands a frost ability the way the
  * glove would and reads the frozen gauges and the world it leaves.
  * Decisions nova-ring-grows-with-the-hold,
- * cold-streams-wind-lines-and-snowflakes, orb-carries-a-swirling-nova,
- * glacial-prism-holds-the-area-frozen.
+ * cold-streams-wind-lines-and-snowflakes, orb-carries-a-swirling-nova.
  */
 @RegistersGameTests
 public final class FrostAbilityTests {
@@ -58,8 +51,6 @@ public final class FrostAbilityTests {
     private static final String ORB_FREEZES_PATH = "orb_freezes_path_and_pool";
     private static final String ORB_ENDS_ON_A_MOB = "orb_ends_on_a_mob";
     private static final String ORB_ENDS_AT_ITS_RANGE = "orb_ends_at_its_range";
-    private static final String GLACIAL_HOLDS_THE_GAUGE = "glacial_holds_the_gauge";
-    private static final String GLACIAL_SURVIVES_A_RELOAD = "glacial_survives_a_reload";
     private static final String FROZEN_WITCH_DRINKS_NO_POTION = "frozen_witch_drinks_no_potion";
     private static final String FROZEN_WITCH_FALLS_AND_THAWS = "frozen_witch_falls_and_thaws";
 
@@ -82,8 +73,6 @@ public final class FrostAbilityTests {
         GooTestFunctions.registerTest(registrar, ORB_FREEZES_PATH, FrostAbilityTests::orbFreezesPathAndPool);
         GooTestFunctions.registerTest(registrar, ORB_ENDS_ON_A_MOB, FrostAbilityTests::orbEndsOnAMob);
         GooTestFunctions.registerTest(registrar, ORB_ENDS_AT_ITS_RANGE, FrostAbilityTests::orbEndsAtItsRange);
-        GooTestFunctions.registerTest(registrar, GLACIAL_HOLDS_THE_GAUGE, FrostAbilityTests::glacialHoldsTheGauge);
-        GooTestFunctions.registerTest(registrar, GLACIAL_SURVIVES_A_RELOAD, FrostAbilityTests::glacialSurvivesAReload);
         GooTestFunctions.registerTest(registrar, FROZEN_WITCH_DRINKS_NO_POTION, FrostAbilityTests::frozenWitchDrinksNoPotion);
         GooTestFunctions.registerTest(registrar, FROZEN_WITCH_FALLS_AND_THAWS, FrostAbilityTests::frozenWitchFallsAndThaws);
     }
@@ -181,35 +170,6 @@ public final class FrostAbilityTests {
     private static final String SHOULD_STILL_ROLL = "The Orb should still be rolling short of its range";
     private static final String SHOULD_END_AT_RANGE_FROM =
             "The Orb should end once it has rolled its range; it stands %s from its start, entity ticking %s";
-    /** A prism in the bay's corner, a zombie beside it and its twin in the far corner past Glacial's reach. */
-    private static final BlockPos GLACIAL_PRISM_POS = new BlockPos(0, 1, 0);
-    private static final BlockPos GLACIAL_INSIDE_POS = new BlockPos(1, 1, 1);
-    private static final BlockPos GLACIAL_OUTSIDE_POS = new BlockPos(5, 1, 5);
-    /** Still water in the floor two blocks from the prism, inside Glacial's reach. */
-    private static final BlockPos GLACIAL_WATER_POS = new BlockPos(2, 0, 0);
-    /** Cold, whose on_prism reaction is the glacial (decision channeled-hosts-convert-prisms-over-the-hold). */
-    private static final Identifier COLD = Identifier.parse("goo:frost_cold");
-    private static final String GLACIAL_COMBO = COLD.toString();
-    /** Three blocks south of the glacial prism, where the player holds Cold on it. */
-    private static final BlockPos GLACIAL_STAND_POS = new BlockPos(0, 1, 3);
-    /** Half a zombie's gauge, thawing a hundredth a tick with no hold, gone in fifty ticks outside the field. */
-    private static final float HALF_A_ZOMBIE = 10f;
-    private static final FrostCurve FAST_THAW = new FrostCurve(0, 0.01f, 0.5f);
-    private static final int GLACIAL_HOLD_TICKS = 200;
-    /** Ticks past a reload, well past a lapsed field's two, by which a running prism has renewed it. */
-    private static final int RELOAD_SETTLE_TICKS = 10;
-    private static final String SHOULD_BE_GLACIAL = "Cold held on the prism should make it glacial, stands %s";
-    private static final String SHOULD_HOLD_INSIDE = "The zombie inside the glacial field should hold its gauge, stands %s";
-    private static final String SHOULD_RUN_AFTER_RELOAD =
-            "A glacial prism loaded from its save should still run its combo, holds %s, program %s";
-    private static final String SHOULD_ICE_INSIDE = "Water inside the glacial field should stand as magicked ice";
-    /**
-     * Still molten iron in a stone basin inside Glacial's reach: water poured on the bay's open floor spreads to it
-     * within ten ticks, and water cools molten iron to iron core on its own.
-     */
-    private static final BlockPos GLACIAL_MOLTEN_IRON_POS = new BlockPos(1, 0, 2);
-    private static final String SHOULD_IRON_CORE_INSIDE = "Molten iron inside the glacial field should cool to iron core";
-    private static final String SHOULD_THAW_OUTSIDE = "The zombie past the glacial field should thaw, stands %s";
     private static final String ABILITY_REQUIRED = "Ability registry must hold frost_nova";
     private static final String SHOULD_FREEZE = "A full Nova should freeze the %s zombie, stands %s";
     private static final String SHOULD_HURT = "Nova's ring should hurt the %s zombie it crosses";
@@ -517,78 +477,6 @@ public final class FrostAbilityTests {
         AABB bay = new AABB(Vec3.atLowerCornerOf(helper.absolutePos(BlockPos.ZERO)),
                 Vec3.atLowerCornerOf(helper.absolutePos(BAY_FAR_CORNER)));
         return helper.getLevel().getEntitiesOfClass(RollingGoo.class, bay.inflate(1)).isEmpty();
-    }
-
-    /**
-     * Cold held on a prism for its hold makes it glacial: over 200 ticks a half frozen
-     * zombie beside it holds its gauge and the water beside it stands as
-     * magicked ice, while its twin past the field thaws out.
-     *
-     * @param helper the gametest helper
-     */
-    public static void glacialHoldsTheGauge(GameTestHelper helper) {
-        helper.setBlock(GLACIAL_PRISM_POS.below(), Blocks.STONE);
-        helper.setBlock(GLACIAL_PRISM_POS, GooBlocks.PRISM.get());
-        helper.setBlock(GLACIAL_WATER_POS, Blocks.WATER);
-        basin(helper, GLACIAL_MOLTEN_IRON_POS, GooBlocks.MOLTEN_IRON.get());
-        Mob inside = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, GLACIAL_INSIDE_POS);
-        Mob outside = helper.spawnWithNoFreeWill(EntityTypes.ZOMBIE, GLACIAL_OUTSIDE_POS);
-        float[] held = new float[1];
-        int converted = PrismChanneler.hold(helper, COLD) + 1;
-        ServerPlayer holder = PrismChanneler.holdOn(helper, GooTypes.FROST, COLD, GLACIAL_PRISM_POS,
-                GLACIAL_STAND_POS, converted - 1);
-        helper.runAfterDelay(converted, () -> {
-            helper.getLevel().getServer().getPlayerList().remove(holder);
-            String combo = helper.getBlockEntity(GLACIAL_PRISM_POS, PrismBlockEntity.class).getCombo();
-            helper.assertTrue(GLACIAL_COMBO.equals(combo), String.format(SHOULD_BE_GLACIAL, combo));
-            FrozenEvents.freeze(inside, HALF_A_ZOMBIE, FAST_THAW);
-            FrozenEvents.freeze(outside, HALF_A_ZOMBIE, FAST_THAW);
-            held[0] = inside.getData(GooAttachments.FROZEN).gauge();
-        });
-        helper.runAfterDelay(converted + GLACIAL_HOLD_TICKS, () -> {
-            float insideGauge = inside.getData(GooAttachments.FROZEN).gauge();
-            float outsideGauge = outside.getData(GooAttachments.FROZEN).gauge();
-            helper.assertTrue(insideGauge == held[0], String.format(SHOULD_HOLD_INSIDE, insideGauge));
-            helper.assertTrue(outsideGauge == 0f, String.format(SHOULD_THAW_OUTSIDE, outsideGauge));
-            helper.assertTrue(helper.getBlockState(GLACIAL_WATER_POS).is(GooBlocks.MAGICKED_ICE.get()), SHOULD_ICE_INSIDE);
-            helper.assertTrue(helper.getBlockState(GLACIAL_MOLTEN_IRON_POS).is(GooBlocks.IRON_CORE.get()),
-                    SHOULD_IRON_CORE_INSIDE);
-            helper.succeed();
-        });
-    }
-
-    /**
-     * A glacial prism saved and loaded back the way a chunk loads it, its
-     * block entity read before it has a level, keeps running its combo: its
-     * field still holds the ground frozen and its program still ticks.
-     *
-     * @param helper the gametest helper
-     */
-    public static void glacialSurvivesAReload(GameTestHelper helper) {
-        helper.setBlock(GLACIAL_PRISM_POS.below(), Blocks.STONE);
-        helper.setBlock(GLACIAL_PRISM_POS, GooBlocks.PRISM.get());
-        BlockPos prismAt = helper.absolutePos(GLACIAL_PRISM_POS);
-        int converted = PrismChanneler.hold(helper, COLD) + 1;
-        ServerPlayer holder = PrismChanneler.holdOn(helper, GooTypes.FROST, COLD, GLACIAL_PRISM_POS,
-                GLACIAL_STAND_POS, converted - 1);
-        helper.runAfterDelay(converted, () -> {
-            helper.getLevel().getServer().getPlayerList().remove(holder);
-            PrismBlockEntity before = helper.getBlockEntity(GLACIAL_PRISM_POS, PrismBlockEntity.class);
-            CompoundTag saved = before.saveWithFullMetadata(helper.getLevel().registryAccess());
-            BlockState state = helper.getLevel().getBlockState(prismAt);
-            BlockEntity reloaded = BlockEntity.loadStatic(prismAt, state, saved, helper.getLevel().registryAccess());
-            helper.assertTrue(reloaded != null, "the prism should load back from its save");
-            helper.getLevel().setBlockEntity(reloaded);
-        });
-        helper.runAfterDelay(converted + RELOAD_SETTLE_TICKS, () -> {
-            PrismBlockEntity after = helper.getBlockEntity(GLACIAL_PRISM_POS, PrismBlockEntity.class);
-            boolean holds = GooServerState.of(helper.getLevel().getServer()).glacialFields().holds(
-                    helper.getLevel().dimension(), Vec3.atCenterOf(helper.absolutePos(GLACIAL_INSIDE_POS)),
-                    helper.getLevel().getGameTime());
-            helper.assertTrue(holds && after.getBehavior() != null,
-                    String.format(SHOULD_RUN_AFTER_RELOAD, holds, after.getBehavior()));
-            helper.succeed();
-        });
     }
 
     /**

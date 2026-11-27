@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:metronome_registers_and_drops",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 300,
+  "setup_ticks": 0,
+  "required": true
+}

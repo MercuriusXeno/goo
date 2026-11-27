@@ -50,9 +50,10 @@ class CraterFieldTest {
         private static final int CENTER = CraterField.CELL / 2;
         private static final double CENTERED_RADIUS = CraterField.MIN_RADIUS + 0.25 * CraterField.RADIUS_SPREAD;
 
+        /** The centred crater rolls half wear, so its bowl sinks short of a fresh one's by half the wear's loss. */
         @Test
         void aColumnAtACraterCenterReadsTheBowlFloor() {
-            assertEquals(CraterField.profile(0.0, CENTERED_RADIUS),
+            assertEquals(-CENTERED_RADIUS * CraterField.DEPTH_PER_RADIUS * (1.0 - CraterField.WEAR_DEPTH_LOSS * 0.5),
                     CraterField.heightAt(CENTER, CENTER, Field::rollOneCenteredCrater), TOLERANCE);
         }
 

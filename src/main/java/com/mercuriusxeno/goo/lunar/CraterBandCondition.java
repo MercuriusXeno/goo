@@ -42,8 +42,8 @@ public record CraterBandCondition(ResourceKey<NormalNoise> noise, double minReac
     @Override
     public ConditionEvaluator compile(MaterialRuleContext context) {
         Noise craterNoise = context.randomState.getOrCreateNoise(noise);
-        CraterField craters = CraterField.seeded(craterNoise);
-        GiantCraterField giants = GiantCraterField.seeded(craterNoise);
+        CraterField craters = CraterField.seeded(craterNoise, context.randomState);
+        GiantCraterField giants = GiantCraterField.seeded(craterNoise, context.randomState);
         return new ColumnTest(context, (x, z) -> craters.reachesBandAt(x, z, minReach, maxReach, minRadius)
                 || giants.reachesBandAt(x, z, minReach, maxReach, minRadius));
     }

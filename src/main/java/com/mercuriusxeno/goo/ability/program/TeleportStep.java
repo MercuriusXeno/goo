@@ -131,9 +131,9 @@ public record TeleportStep(TeleportMode mode, Expr range, Expr nodeRange, Expr n
     }
 
     /**
-     * Where this step's blink puts an entity: nowhere, spent into the bare
-     * prism the look ends on in range; beside the oculus the look snaps to
-     * where it finds one; else where the blink lands.
+     * Where this step's blink puts an entity: beside the placed oculus the look
+     * snaps to where it finds one, else where the blink lands; a blink makes no
+     * oculus.
      * Decision oculus-prism-becomes-a-hovering-eye.
      * Decision blink-at-a-prism-spends-into-an-oculus.
      *
@@ -145,12 +145,6 @@ public record TeleportStep(TeleportMode mode, Expr range, Expr nodeRange, Expr n
      */
     public Optional<BlinkLanding> landing(Entity blinker, Vec3 feet, Vec3 look, double reach) {
         Vec3 eye = feet.add(0, blinker.getEyeHeight(), 0);
-        // blink-at-a-prism-spends-into-an-oculus: a look ending on a bare prism spends the blink into it
-        Optional<BlinkLanding> converting = BlinkResolver.conversion(new LevelBlinkSpace(blinker.level(), blinker),
-                feet, eye, look, reach);
-        if (converting.isPresent()) {
-            return converting;
-        }
         double snapRange = nodeRange.evaluate(Variables.NONE);
         Optional<BlinkLanding> snapped = snapRange <= 0 ? Optional.empty()
                 : OculusNodes.onLook(blinker.level(), eye, look, snapRange,

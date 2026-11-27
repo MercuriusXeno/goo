@@ -79,31 +79,31 @@ class TransformationsTest {
     @Nested
     class IntoABlock {
 
-        private static final BlockPos PRISM_AT = new BlockPos(3, 64, 0);
+        private static final BlockPos BLOCK_AT = new BlockPos(3, 64, 0);
 
-        private Transformations.Transformation prismOf() {
-            return new Transformations.Transformation(GooTypes.CRYSTAL, STRUCK, Vec3.atCenterOf(PRISM_AT), -1,
-                    PRISM_AT, START, TICKS);
+        private Transformations.Transformation blockOf() {
+            return new Transformations.Transformation(GooTypes.CRYSTAL, STRUCK, Vec3.atCenterOf(BLOCK_AT), -1,
+                    BLOCK_AT, START, TICKS);
         }
 
         @Test
         void theMorphRunsTheWholeTransformationWithNoHop() {
             for (float share : new float[] {0f, HOP_SHARE / 2f, 1f}) {
-                assertEquals(0f, prismOf().blobScale(at(share)), EPSILON);
+                assertEquals(0f, blockOf().blobScale(at(share)), EPSILON);
             }
-            assertTrue(prismOf().modelScale(at(HOP_SHARE / 2f)) > 0f, "the morph waits on a hop");
-            assertEquals(0.5f, prismOf().modelScale(at(0.5f)), EPSILON);
-            assertEquals(1f, prismOf().modelScale(at(1f)), EPSILON);
+            assertTrue(blockOf().modelScale(at(HOP_SHARE / 2f)) > 0f, "the morph waits on a hop");
+            assertEquals(0.5f, blockOf().modelScale(at(0.5f)), EPSILON);
+            assertEquals(1f, blockOf().modelScale(at(1f)), EPSILON);
         }
 
         @Test
         void theBlocksRendererFindsTheTransformationIntoItsCell() {
             Transformations transformations = new Transformations();
-            transformations.add(GooTypes.CRYSTAL, STRUCK, Vec3.atCenterOf(PRISM_AT), -1, PRISM_AT, START, TICKS);
-            Transformations.Transformation found = transformations.intoBlockAt(PRISM_AT, at(0.5f));
-            assertEquals(PRISM_AT, found == null ? null : found.targetBlock());
-            assertEquals(null, transformations.intoBlockAt(PRISM_AT.above(), at(0.5f)));
-            assertEquals(null, transformations.intoBlockAt(PRISM_AT, START + TICKS));
+            transformations.add(GooTypes.CRYSTAL, STRUCK, Vec3.atCenterOf(BLOCK_AT), -1, BLOCK_AT, START, TICKS);
+            Transformations.Transformation found = transformations.intoBlockAt(BLOCK_AT, at(0.5f));
+            assertEquals(BLOCK_AT, found == null ? null : found.targetBlock());
+            assertEquals(null, transformations.intoBlockAt(BLOCK_AT.above(), at(0.5f)));
+            assertEquals(null, transformations.intoBlockAt(BLOCK_AT, START + TICKS));
         }
     }
 
@@ -143,13 +143,13 @@ class TransformationsTest {
         @Test
         void aBlockDrawsAtTheTransformationsScaleWhileItPlaysAndNoEntityDoes() {
             Transformations transformations = new Transformations();
-            BlockPos prism = new BlockPos(3, 64, -2);
-            transformations.add(GooTypes.CRYSTAL, STRUCK, CLONE_AT, -1, prism, START, TICKS);
+            BlockPos block = new BlockPos(3, 64, -2);
+            transformations.add(GooTypes.CRYSTAL, STRUCK, CLONE_AT, -1, block, START, TICKS);
 
-            assertEquals(0f, transformations.modelScaleAt(prism, START), EPSILON);
-            assertEquals(0.5f, transformations.modelScaleAt(prism, at(0.5f)), EPSILON);
-            assertEquals(1f, transformations.modelScaleAt(prism.above(), START), EPSILON);
-            assertEquals(1f, transformations.modelScaleAt(prism, START + TICKS), EPSILON);
+            assertEquals(0f, transformations.modelScaleAt(block, START), EPSILON);
+            assertEquals(0.5f, transformations.modelScaleAt(block, at(0.5f)), EPSILON);
+            assertEquals(1f, transformations.modelScaleAt(block.above(), START), EPSILON);
+            assertEquals(1f, transformations.modelScaleAt(block, START + TICKS), EPSILON);
             assertEquals(1f, transformations.modelScaleOf(-1, false, START), EPSILON);
         }
 

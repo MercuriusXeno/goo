@@ -59,8 +59,9 @@ public final class LunarRilleTests {
         helper.assertTrue(lunar != null, LUNAR_REQUIRED);
         RandomState randomState = lunar.getChunkSource().randomState();
         RilleField rilles = RilleField.seeded(randomState.getOrCreateNoise(RilleField.LINE_NOISE),
-                randomState.getOrCreateNoise(RilleField.MARIA_NOISE));
-        CraterField craters = CraterField.seeded(randomState.getOrCreateNoise(CraterField.NOISE));
+                randomState.getOrCreateNoise(RilleField.MARIA_NOISE),
+                randomState.getOrCreateNoise(RilleField.ELDRITCH_NOISE));
+        CraterField craters = CraterField.seeded(randomState.getOrCreateNoise(CraterField.NOISE), randomState);
         BlockPos[] rille = findRille(rilles, craters);
         helper.assertTrue(rille != null, String.format(NO_RILLE, SEARCH_REACH));
         ChunkGenerator generator = lunar.getChunkSource().getGenerator();
