@@ -32,7 +32,7 @@ public final class GiantCraterBoulders implements PlacementModifier {
     @Override
     public void modify(PlacementContext context, RandomSource random, BlockPos origin, Consumer<BlockPos> output) {
         ServerLevel level = context.getLevel().getLevel();
-        Noise craterNoise = level.getChunkSource().randomState().getOrCreateNoise(CraterField.NOISE);
+        Noise craterNoise = level.getChunkSource().randomState().getOrCreateNoise(LunarRolls.CRATER_NOISE);
         GiantCraterField giants = GiantCraterField.seeded(craterNoise, level.getChunkSource().randomState());
         int minX = Math.floorDiv(origin.getX(), CHUNK_SIDE) * CHUNK_SIDE;
         int minZ = Math.floorDiv(origin.getZ(), CHUNK_SIDE) * CHUNK_SIDE;
@@ -40,10 +40,10 @@ public final class GiantCraterBoulders implements PlacementModifier {
         int cellZ = Math.floorDiv(minZ, GiantCraterField.CELL);
         for (int dx = -NEIGHBOUR_REACH; dx <= NEIGHBOUR_REACH; dx++) {
             for (int dz = -NEIGHBOUR_REACH; dz <= NEIGHBOUR_REACH; dz++) {
-                giants.craterInCell(cellX + dx, cellZ + dz).ifPresent(crater -> crater.boulderSpots().stream()
+                giants.craterInCell(cellX + dx, cellZ + dz).boulderSpots().stream()
                         .filter(spot -> spot.getX() >= minX && spot.getX() < minX + CHUNK_SIDE
                                 && spot.getZ() >= minZ && spot.getZ() < minZ + CHUNK_SIDE)
-                        .forEach(spot -> output.accept(spot.atY(origin.getY()))));
+                        .forEach(spot -> output.accept(spot.atY(origin.getY())));
             }
         }
         FieldMasks.boulderFieldSpots(craterNoise, Math.floorDiv(minX, CHUNK_SIDE), Math.floorDiv(minZ, CHUNK_SIDE))

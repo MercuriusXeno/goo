@@ -1,9 +1,9 @@
 package com.mercuriusxeno.goo.gametest;
 
-import com.mercuriusxeno.goo.lunar.CraterField;
 import com.mercuriusxeno.goo.lunar.GiantCraterField;
 import com.mercuriusxeno.goo.lunar.LavaTubes;
 import com.mercuriusxeno.goo.lunar.Lunar;
+import com.mercuriusxeno.goo.lunar.LunarRolls;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -223,16 +223,15 @@ public final class LunarBiomeTests {
         return true;
     }
 
-    /** Passes a column no crater, crater rim, ray, thrown boulder or lava tube reaches. */
+    /** Passes a column no giant crater, crater rim, ray, thrown boulder or lava tube reaches. */
     private static Predicate<BlockPos> clearGround(ServerLevel lunar) {
         RandomState randomState = lunar.getChunkSource().randomState();
-        CraterField craters = CraterField.seeded(randomState.getOrCreateNoise(CraterField.NOISE), randomState);
-        GiantCraterField giants = GiantCraterField.seeded(randomState.getOrCreateNoise(CraterField.NOISE), randomState);
+        GiantCraterField giants = GiantCraterField.seeded(randomState.getOrCreateNoise(LunarRolls.CRATER_NOISE),
+                randomState);
         LavaTubes tubes = LavaTubes.seeded(randomState.getOrCreateNoise(LavaTubes.NOISE));
         ClearOfBoulders clearOfBoulders = ClearOfBoulders.in(lunar);
-        return column -> craters.isOpenGroundAt(column.getX(), column.getZ())
-                && !craters.isOnRayAt(column.getX(), column.getZ()) && !giants.isOnRayAt(column.getX(), column.getZ())
-                && !giants.reachesBandAt(column.getX(), column.getZ(), 0.0, 1.0 + GiantCraterField.RIM_REACH, 0.0)
+        return column -> giants.isOpenGroundAt(column.getX(), column.getZ())
+                && !giants.isOnRayAt(column.getX(), column.getZ())
                 && !tubes.crossesColumnAt(column.getX(), column.getZ()) && clearOfBoulders.test(column);
     }
 

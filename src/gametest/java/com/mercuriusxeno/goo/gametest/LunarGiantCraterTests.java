@@ -1,8 +1,8 @@
 package com.mercuriusxeno.goo.gametest;
 
-import com.mercuriusxeno.goo.lunar.CraterField;
 import com.mercuriusxeno.goo.lunar.GiantCraterField;
 import com.mercuriusxeno.goo.lunar.Lunar;
+import com.mercuriusxeno.goo.lunar.LunarRolls;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -14,7 +14,6 @@ import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.RandomState;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.function.Consumer;
@@ -84,7 +83,7 @@ public final class LunarGiantCraterTests {
         ServerLevel lunar = helper.getLevel().getServer().getLevel(Lunar.LEVEL);
         helper.assertTrue(lunar != null, LUNAR_REQUIRED);
         RandomState randomState = lunar.getChunkSource().randomState();
-        GiantCraterField giants = GiantCraterField.seeded(randomState.getOrCreateNoise(CraterField.NOISE), randomState);
+        GiantCraterField giants = GiantCraterField.seeded(randomState.getOrCreateNoise(LunarRolls.CRATER_NOISE), randomState);
         GiantCraterField.Crater crater = findCraterInABasin(giants, lunar);
         helper.assertTrue(crater != null, String.format(NO_GIANT_CRATER, CELL_REACH));
         BlockPos centre = BlockPos.containing(crater.centerX(), 0.0, crater.centerZ());
@@ -157,7 +156,7 @@ public final class LunarGiantCraterTests {
 
     private static GiantCraterField.Crater craterInABasin(GameTestHelper helper, ServerLevel lunar) {
         RandomState randomState = lunar.getChunkSource().randomState();
-        GiantCraterField giants = GiantCraterField.seeded(randomState.getOrCreateNoise(CraterField.NOISE), randomState);
+        GiantCraterField giants = GiantCraterField.seeded(randomState.getOrCreateNoise(LunarRolls.CRATER_NOISE), randomState);
         GiantCraterField.Crater crater = findCraterInABasin(giants, lunar);
         helper.assertTrue(crater != null, String.format(NO_GIANT_CRATER, CELL_REACH));
         return crater;
@@ -171,9 +170,9 @@ public final class LunarGiantCraterTests {
     private static GiantCraterField.Crater findCraterInABasin(GiantCraterField giants, ServerLevel lunar) {
         for (int cellX = -CELL_REACH; cellX <= CELL_REACH; cellX++) {
             for (int cellZ = -CELL_REACH; cellZ <= CELL_REACH; cellZ++) {
-                Optional<GiantCraterField.Crater> crater = giants.craterInCell(cellX, cellZ);
-                if (crater.isPresent() && liesInABasin(crater.get(), lunar)) {
-                    return crater.get();
+                GiantCraterField.Crater crater = giants.craterInCell(cellX, cellZ);
+                if (liesInABasin(crater, lunar)) {
+                    return crater;
                 }
             }
         }

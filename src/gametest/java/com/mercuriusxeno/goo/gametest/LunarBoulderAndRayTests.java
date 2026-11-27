@@ -1,10 +1,10 @@
 package com.mercuriusxeno.goo.gametest;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.lunar.CraterField;
 import com.mercuriusxeno.goo.lunar.EjectaRays;
 import com.mercuriusxeno.goo.lunar.GiantCraterField;
 import com.mercuriusxeno.goo.lunar.Lunar;
+import com.mercuriusxeno.goo.lunar.LunarRolls;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
@@ -20,12 +20,11 @@ import net.minecraft.world.level.levelgen.feature.Feature;
 import net.minecraft.world.level.levelgen.placement.PlacedFeature;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.List;
-import java.util.Optional;
 import java.util.function.Consumer;
 
 /**
  * Gametests for the details breaking up lunar's regolith: boulders of anorthosite, basalt or breccia stand on its
- * surface, and ejecta rays expose anorthosite through the regolith out from the large craters.
+ * surface, and ejecta rays expose anorthosite through the regolith out from the giant craters.
  * decision lunar-surface-gains-giant-craters-mountains-rilles-and-boulder-fields
  */
 @RegistersGameTests
@@ -112,9 +111,9 @@ public final class LunarBoulderAndRayTests {
     public static void lunarRaysExposeAnorthosite(GameTestHelper helper) {
         ServerLevel lunar = helper.getLevel().getServer().getLevel(Lunar.LEVEL);
         RandomState randomState = lunar.getChunkSource().randomState();
-        CraterField craters = CraterField.seeded(randomState.getOrCreateNoise(CraterField.NOISE), randomState);
-        GiantCraterField giants = GiantCraterField.seeded(randomState.getOrCreateNoise(CraterField.NOISE), randomState);
-        BlockPos[] columns = findRayColumns(craters, giants, ClearOfBoulders.in(lunar));
+        GiantCraterField giants = GiantCraterField.seeded(randomState.getOrCreateNoise(LunarRolls.CRATER_NOISE),
+                randomState);
+        BlockPos[] columns = findRayColumns(giants, ClearOfBoulders.in(lunar));
         helper.assertTrue(columns != null, String.format(NO_RAYED_CRATER, CELL_REACH));
         BlockPos ray = surface(lunar, columns[0]);
         BlockState rayState = lunar.getBlockState(ray);
@@ -133,15 +132,14 @@ public final class LunarBoulderAndRayTests {
     }
 
     /** A column on a ray and a column between two rays of one giant crater, or null where the search finds none. */
-    private static BlockPos[] findRayColumns(CraterField craters, GiantCraterField giants,
-            ClearOfBoulders clearOfBoulders) {
+    private static BlockPos[] findRayColumns(GiantCraterField giants, ClearOfBoulders clearOfBoulders) {
         for (int cellX = -CELL_REACH; cellX <= CELL_REACH; cellX++) {
             for (int cellZ = -CELL_REACH; cellZ <= CELL_REACH; cellZ++) {
-                Optional<GiantCraterField.Crater> crater = giants.craterInCell(cellX, cellZ);
-                if (crater.isEmpty() || !crater.get().fresh()) {
+                GiantCraterField.Crater crater = giants.craterInCell(cellX, cellZ);
+                if (!crater.fresh()) {
                     continue;
                 }
-                BlockPos[] columns = rayColumns(craters, giants, clearOfBoulders, crater.get());
+                BlockPos[] columns = rayColumns(giants, clearOfBoulders, crater);
                 if (columns != null) {
                     return columns;
                 }
@@ -154,20 +152,19 @@ public final class LunarBoulderAndRayTests {
      * A flecked column out along a fresh crater's first ray and a column midway between that ray and the next, both
      * clear of every other crater and every thrown boulder, the between column on no ray; or null.
      */
-    private static BlockPos[] rayColumns(CraterField craters, GiantCraterField giants, ClearOfBoulders clearOfBoulders,
+    private static BlockPos[] rayColumns(GiantCraterField giants, ClearOfBoulders clearOfBoulders,
             GiantCraterField.Crater crater) {
         List<Double> angles = crater.rays().stream().map(EjectaRays.Ray::angle).sorted().toList();
         double first = angles.get(0);
         double between = (first + angles.get(1)) / 2.0;
         BlockPos betweenColumn = columnAt(crater, between, BETWEEN_REACH);
-        if (!clearOfOtherCraters(craters, giants, betweenColumn) || !clearOfBoulders.test(betweenColumn)
-                || craters.isOnRayAt(betweenColumn.getX(), betweenColumn.getZ())
+        if (!giants.isOpenGroundAt(betweenColumn.getX(), betweenColumn.getZ()) || !clearOfBoulders.test(betweenColumn)
                 || giants.isOnRayAt(betweenColumn.getX(), betweenColumn.getZ())) {
             return null;
         }
         for (double reach = RAY_SEARCH_FROM; reach < RAY_SEARCH_TO; reach += RAY_SEARCH_STEP) {
             BlockPos onRay = columnAt(crater, first, reach);
-            if (giants.isOnRayAt(onRay.getX(), onRay.getZ()) && clearOfOtherCraters(craters, giants, onRay)
+            if (giants.isOnRayAt(onRay.getX(), onRay.getZ()) && giants.isOpenGroundAt(onRay.getX(), onRay.getZ())
                     && clearOfBoulders.test(onRay)) {
                 return new BlockPos[] {onRay, betweenColumn};
             }
@@ -179,10 +176,5 @@ public final class LunarBoulderAndRayTests {
         double distance = crater.radius() * reach;
         return BlockPos.containing(crater.centerX() + Math.cos(angle) * distance, 0.0,
                 crater.centerZ() + Math.sin(angle) * distance);
-    }
-
-    private static boolean clearOfOtherCraters(CraterField craters, GiantCraterField giants, BlockPos column) {
-        return craters.isOpenGroundAt(column.getX(), column.getZ())
-                && !giants.reachesBandAt(column.getX(), column.getZ(), 0.0, 1.0 + GiantCraterField.RIM_REACH, 0.0);
     }
 }
