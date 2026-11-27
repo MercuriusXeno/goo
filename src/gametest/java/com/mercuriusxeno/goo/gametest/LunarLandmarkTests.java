@@ -113,6 +113,17 @@ public final class LunarLandmarkTests {
             Identifier.fromNamespaceAndPath(Goo.MODID, "chests/lunar_nest"));
     private static final String NEST_CACHE = "The nest at %s should hold a container on its floor at its centre reading "
             + "%s, holds %s";
+    private static final String MONOLITH_GROWS_ASTRAL_CRYSTAL_AND_POOLS_ASTRAL_GOO =
+            "monolith_grows_astral_crystal_and_pools_astral_goo";
+    /** The prize's monolith generates here, apart from the standing test's. */
+    private static final BlockPos PRIZE_SPOT = new BlockPos(1400, 0, 1400);
+    /** The slab's lowest course is read this far either side of its centre. */
+    private static final int SLAB_SCAN_REACH = 3;
+    /** Astral goo is sought this far from the slab's centre, in blocks, across and up and down. */
+    private static final int POOL_REACH = 5;
+    private static final String CRYSTAL_AT_BASE = "The monolith at %s should grow astral crystal beside its lowest "
+            + "course at y %d, grows none";
+    private static final String GOO_BESIDE = "The monolith at %s should pool astral goo within %d blocks, pools none";
     private static final String LODE_ENCLOSED = "The meteorite's native iron at %s should be enclosed, touches air at %s";
 
     private LunarLandmarkTests() {
@@ -133,6 +144,43 @@ public final class LunarLandmarkTests {
         GooTestFunctions.registerTest(registrar, METEORITE_HOLDS_A_NATIVE_IRON_LODE,
                 LunarLandmarkTests::meteoriteHoldsANativeIronLode);
         GooTestFunctions.registerTest(registrar, NEST_HOLDS_A_GUARDED_CACHE, LunarLandmarkTests::nestHoldsAGuardedCache);
+        GooTestFunctions.registerTest(registrar, MONOLITH_GROWS_ASTRAL_CRYSTAL_AND_POOLS_ASTRAL_GOO,
+                LunarLandmarkTests::monolithGrowsAstralCrystalAndPoolsAstralGoo);
+    }
+
+    /**
+     * The monolith generated at a spot in goo:lunar grows astral crystal beside its slab's lowest course, and pools
+     * astral world goo on the ground within a few blocks of it.
+     * decision each-lunar-landmark-holds-its-own-prize
+     *
+     * @param helper the gametest helper
+     */
+    public static void monolithGrowsAstralCrystalAndPoolsAstralGoo(GameTestHelper helper) {
+        ServerLevel lunar = place(helper, MONOLITH, PRIZE_SPOT);
+        ChunkPos chunk = ChunkPos.containing(PRIZE_SPOT);
+        BlockPos column = new BlockPos(chunk.getMiddleBlockX(), 0, chunk.getMiddleBlockZ());
+        int base = lunar.getHeight(Heightmap.Types.WORLD_SURFACE, column.getX(), column.getZ()) - 1;
+        while (lunar.getBlockState(column.atY(base - 1)).is(GooBlocks.IMPACT_GLASS.get())) {
+            base--;
+        }
+        BlockPos center = column.atY(base);
+        boolean crystal = false;
+        for (BlockPos at : BlockPos.betweenClosed(center.offset(-SLAB_SCAN_REACH, 0, -SLAB_SCAN_REACH),
+                center.offset(SLAB_SCAN_REACH, 0, SLAB_SCAN_REACH))) {
+            if (lunar.getBlockState(at).is(GooBlocks.IMPACT_GLASS.get())) {
+                for (Direction side : Direction.Plane.HORIZONTAL) {
+                    crystal |= lunar.getBlockState(at.relative(side)).is(GooBlocks.ASTRAL_CRYSTAL.get());
+                }
+            }
+        }
+        helper.assertTrue(crystal, String.format(CRYSTAL_AT_BASE, column, base));
+        boolean goo = false;
+        for (BlockPos at : BlockPos.betweenClosed(center.offset(-POOL_REACH, -POOL_REACH, -POOL_REACH),
+                center.offset(POOL_REACH, POOL_REACH, POOL_REACH))) {
+            goo |= lunar.getBlockState(at).is(GooBlocks.ASTRAL_DOWSING.get());
+        }
+        helper.assertTrue(goo, String.format(GOO_BESIDE, column, POOL_REACH));
+        helper.succeed();
     }
 
     /**
