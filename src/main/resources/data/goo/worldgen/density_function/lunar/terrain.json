@@ -221,24 +221,16 @@
                 "right": {
                   "type": "minecraft:add",
                   "left": {
-                    "type": "goo:craters",
-                    "noise": "goo:lunar_craters",
-                    "maria": "goo:lunar_maria"
+                    "type": "goo:rilles",
+                    "line": "goo:lunar_rilles",
+                    "maria": "goo:lunar_maria",
+                    "eldritch": "goo:lunar_eldritch_ground"
                   },
                   "right": {
-                    "type": "minecraft:add",
-                    "left": {
-                      "type": "goo:rilles",
-                      "line": "goo:lunar_rilles",
-                      "maria": "goo:lunar_maria",
-                      "eldritch": "goo:lunar_eldritch_ground"
-                    },
-                    "right": {
-                      "type": "goo:giant_craters",
-                      "noise": "goo:lunar_craters",
-                      "maria": "goo:lunar_maria",
-                      "basins": "goo:lunar_basins"
-                    }
+                    "type": "goo:giant_craters",
+                    "noise": "goo:lunar_craters",
+                    "maria": "goo:lunar_maria",
+                    "basins": "goo:lunar_basins"
                   }
                 }
               }

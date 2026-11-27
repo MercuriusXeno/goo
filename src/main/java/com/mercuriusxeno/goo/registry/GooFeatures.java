@@ -30,7 +30,7 @@ public final class GooFeatures {
             () -> BoulderFeature.CODEC);
 
     /**
-     * {@code goo:crater_pools}, the frozen pools in the low ground of lunar's deep and giant crater floors.
+     * {@code goo:crater_pools}, the frozen pools in the lows of lunar's shadowed basins and its giant crater floors.
      * decision lunar-ground-gains-meteoric-iron-impact-glass-breccia-and-crater-ice
      */
     public static final DeferredHolder<MapCodec<? extends Feature>, MapCodec<CraterPoolsFeature>> CRATER_POOLS = FEATURES.register("crater_pools",

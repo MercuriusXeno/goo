@@ -768,8 +768,8 @@ public class GooBlocks {
                     .strength(STONE_HARDNESS, STONE_RESISTANCE).sound(SoundType.TUFF));
 
     /**
-     * Crater ice: the ice lying in the floors of lunar's deepest craters, its only water; it melts and breaks to water
-     * as vanilla ice does.
+     * Crater ice: the ice lying in the lows of lunar's shadowed basins and the floors of its giant craters there, its
+     * only water; it melts and breaks to water as vanilla ice does.
      * decision lunar-ground-gains-meteoric-iron-impact-glass-breccia-and-crater-ice
      */
     public static final DeferredBlock<IceBlock> CRATER_ICE = BLOCKS.registerBlock("crater_ice", IceBlock::new,

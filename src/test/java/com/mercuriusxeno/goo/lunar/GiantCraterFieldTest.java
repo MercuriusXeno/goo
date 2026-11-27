@@ -2,14 +2,16 @@ package com.mercuriusxeno.goo.lunar;
 
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import java.util.ArrayList;
+import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * A giant lunar crater sinks a broad floor under the ground, raises a central peak over that floor, steps its inner
- * wall up in terraces to a raised rim, and leaves the ground past its rim's fall untouched; and it reads its
- * biome at its centre, rare in maria, old and worn in the highlands, fresh in the shadowed basins.
+ * wall up in terraces to a raised rim, and leaves the ground past its rim's fall untouched; it reads its biome at its
+ * centre, old and worn in the highlands, fresh in the shadowed basins; and giant craters stand far apart.
  * decision lunar-surface-gains-giant-craters-mountains-rilles-and-boulder-fields
  * decision lunar-surface-has-maria-highlands-shadowed-basins-and-eldritch-ground
  */
@@ -69,6 +71,47 @@ class GiantCraterFieldTest {
         }
     }
 
+    /**
+     * Giant craters stand far apart: enumerated across a wide area for a fixed seed, every crater's nearest neighbour
+     * lies about 1,000 to 2,000 blocks away.
+     * decision craters-are-rare-giant-landmarks-only
+     */
+    @Nested
+    class Spacing {
+
+        /** The sampled area runs this many blocks on a side. */
+        private static final int AREA = 16_384;
+        private static final double NEAREST_LEAST = 1000.0;
+        private static final double NEAREST_MOST = 2000.0;
+
+        @Test
+        void neighbouringGiantCratersStandAThousandToTwoThousandBlocksApart() {
+            GiantCraterField giants = new GiantCraterField(LunarTestNoises.crater(), LunarTestNoises.maria(),
+                    LunarTestNoises.basins());
+            int lastCell = Math.floorDiv(AREA, GiantCraterField.CELL) + 1;
+            List<GiantCraterField.Crater> craters = new ArrayList<>();
+            for (int cellX = -1; cellX <= lastCell; cellX++) {
+                for (int cellZ = -1; cellZ <= lastCell; cellZ++) {
+                    craters.add(giants.craterInCell(cellX, cellZ));
+                }
+            }
+            int measured = 0;
+            for (GiantCraterField.Crater crater : craters) {
+                if (crater.centerX() < 0.0 || crater.centerX() >= AREA || crater.centerZ() < 0.0
+                        || crater.centerZ() >= AREA) {
+                    continue;
+                }
+                double nearest = craters.stream().filter(other -> other != crater)
+                        .mapToDouble(other -> Math.hypot(other.centerX() - crater.centerX(),
+                                other.centerZ() - crater.centerZ())).min().orElse(Double.MAX_VALUE);
+                measured++;
+                assertTrue(nearest >= NEAREST_LEAST && nearest <= NEAREST_MOST, "the giant crater at "
+                        + crater.centerX() + ", " + crater.centerZ() + " stands " + nearest + " blocks from its nearest");
+            }
+            assertTrue(measured > 1, "the area holds " + measured + " giant craters");
+        }
+    }
+
     @Nested
     class ByItsBiome {
 
@@ -76,15 +119,6 @@ class GiantCraterFieldTest {
         private static final double OUTSIDE_MARIA = -0.3;
         private static final double IN_HIGHLANDS = -0.4;
         private static final double IN_BASINS = 0.6;
-        /** A presence roll a crater centred outside maria keeps and one centred in maria loses. */
-        private static final double MIDDLING_PRESENCE = GiantCraterField.CRATER_CHANCE * 0.5;
-
-        @Test
-        void aCraterCentredInMariaIsRarerThanOneOutside() {
-            assertTrue(GiantCraterField.holdsCrater(MIDDLING_PRESENCE, OUTSIDE_MARIA));
-            assertFalse(GiantCraterField.holdsCrater(MIDDLING_PRESENCE, IN_MARIA));
-        }
-
         @Test
         void aCraterInTheHighlandsIsWornWhateverItsRoll() {
             assertFalse(GiantCraterField.isFresh(0.0, OUTSIDE_MARIA, IN_HIGHLANDS));

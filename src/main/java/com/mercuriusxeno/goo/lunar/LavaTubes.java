@@ -140,7 +140,7 @@ public record LavaTubes(Noise noise) implements DensitySampler {
      * @param rolls each cell's rolls
      * @return the tube, or empty
      */
-    static Optional<Tube> tubeIn(int cellX, int cellZ, CraterField.CellRolls rolls) {
+    static Optional<Tube> tubeIn(int cellX, int cellZ, LunarRolls.CellRolls rolls) {
         if (rolls.roll(cellX, cellZ, PRESENCE) >= TUBE_CHANCE) {
             return Optional.empty();
         }
@@ -184,7 +184,7 @@ public record LavaTubes(Noise noise) implements DensitySampler {
     }
 
     private double roll(int cellX, int cellZ, int roll) {
-        return CraterField.rollFrom(noise, cellX, cellZ, roll);
+        return LunarRolls.rollFrom(noise, cellX, cellZ, roll);
     }
 
     /**

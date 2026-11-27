@@ -1,7 +1,8 @@
 package com.mercuriusxeno.goo.gametest;
 
-import com.mercuriusxeno.goo.lunar.CraterField;
+import com.mercuriusxeno.goo.lunar.GiantCraterField;
 import com.mercuriusxeno.goo.lunar.Lunar;
+import com.mercuriusxeno.goo.lunar.LunarRolls;
 import com.mercuriusxeno.goo.lunar.RilleField;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -61,8 +62,9 @@ public final class LunarRilleTests {
         RilleField rilles = RilleField.seeded(randomState.getOrCreateNoise(RilleField.LINE_NOISE),
                 randomState.getOrCreateNoise(RilleField.MARIA_NOISE),
                 randomState.getOrCreateNoise(RilleField.ELDRITCH_NOISE));
-        CraterField craters = CraterField.seeded(randomState.getOrCreateNoise(CraterField.NOISE), randomState);
-        BlockPos[] rille = findRille(rilles, craters);
+        GiantCraterField giants = GiantCraterField.seeded(randomState.getOrCreateNoise(LunarRolls.CRATER_NOISE),
+                randomState);
+        BlockPos[] rille = findRille(rilles, giants);
         helper.assertTrue(rille != null, String.format(NO_RILLE, SEARCH_REACH));
         ChunkGenerator generator = lunar.getChunkSource().getGenerator();
         int lineY = surfaceY(generator, lunar, randomState, rille[0]);
@@ -78,16 +80,16 @@ public final class LunarRilleTests {
     }
 
     /** A line column and its two banks, or null where the search finds none. */
-    private static BlockPos[] findRille(RilleField rilles, CraterField craters) {
+    private static BlockPos[] findRille(RilleField rilles, GiantCraterField giants) {
         for (int x = -SEARCH_REACH; x <= SEARCH_REACH; x += SEARCH_STEP) {
             for (int z = -SEARCH_REACH; z <= SEARCH_REACH; z += SEARCH_STEP) {
-                if (!rilles.isOnLineAt(x, z) || !craters.isOpenGroundAt(x, z)) {
+                if (!rilles.isOnLineAt(x, z) || !giants.isOpenGroundAt(x, z)) {
                     continue;
                 }
                 BlockPos line = new BlockPos(x, 0, z);
                 for (Direction across : new Direction[] {Direction.EAST, Direction.SOUTH}) {
-                    BlockPos first = bank(rilles, craters, line, across);
-                    BlockPos second = bank(rilles, craters, line, across.getOpposite());
+                    BlockPos first = bank(rilles, giants, line, across);
+                    BlockPos second = bank(rilles, giants, line, across.getOpposite());
                     if (first != null && second != null) {
                         return new BlockPos[] {line, first, second};
                     }
@@ -97,11 +99,11 @@ public final class LunarRilleTests {
         return null;
     }
 
-    private static BlockPos bank(RilleField rilles, CraterField craters, BlockPos line, Direction across) {
+    private static BlockPos bank(RilleField rilles, GiantCraterField giants, BlockPos line, Direction across) {
         for (int step = 1; step <= BANK_REACH; step++) {
             BlockPos column = line.relative(across, step);
             if (rilles.cutAt(column.getX(), column.getZ()) == 0.0) {
-                return craters.isOpenGroundAt(column.getX(), column.getZ()) ? column : null;
+                return giants.isOpenGroundAt(column.getX(), column.getZ()) ? column : null;
             }
         }
         return null;

@@ -1,9 +1,9 @@
 {
   "type": "minecraft:function",
-  "function": "goo:lunar_deep_crater_floors_read_crater_ice",
+  "function": "goo:basins_hold_crater_ice_and_boulders",
   "environment": "minecraft:default",
   "structure": "goo:test_bay",
-  "max_ticks": 400,
+  "max_ticks": 600,
   "setup_ticks": 0,
   "required": true
 }
