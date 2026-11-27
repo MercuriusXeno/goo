@@ -2,11 +2,14 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.crystal.OreVeins;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.NonNull;
 import java.util.ArrayList;
@@ -15,14 +18,17 @@ import java.util.List;
 /**
  * Server-to-caster payload: the ore veins a held sweep's front, Glimmer's
  * or Magnet's, first reached on one tick, each shown through walls from now
- * for its life.
+ * for its life, glowing in the color of the goo type that cast the sweep.
  * decision held-sweeps-share-one-fast-shell-visual
  * decision glitter-sphere-icons-gem-ore-groups
+ * decision ore-glow-takes-the-casting-goos-color
  *
- * @param veins the veins first reached on the tick
- * @param life  the ticks each vein shows through walls once revealed
+ * @param veins   the veins first reached on the tick
+ * @param life    the ticks each vein shows through walls once revealed
+ * @param gooType the goo type that cast the sweep, whose color the veins glow in
  */
-public record OreRevealPayload(List<OreVeins.Vein> veins, int life) implements CustomPacketPayload {
+public record OreRevealPayload(List<OreVeins.Vein> veins, int life, ResourceKey<GooTypeDefinition> gooType)
+        implements CustomPacketPayload {
 
     /** Payload type ID for registration. */
     public static final Type<OreRevealPayload> TYPE =
@@ -48,6 +54,7 @@ public record OreRevealPayload(List<OreVeins.Vein> veins, int life) implements C
             vein.blocks().forEach(block -> buf.writeLong(block.asLong()));
         }
         buf.writeVarInt(payload.life);
+        GooTypes.KEY_STREAM_CODEC.encode(buf, payload.gooType);
     }
 
     private static OreRevealPayload decode(FriendlyByteBuf buf) {
@@ -63,6 +70,7 @@ public record OreRevealPayload(List<OreVeins.Vein> veins, int life) implements C
             }
             veins.add(new OreVeins.Vein(ore, centroid, blocks));
         }
-        return new OreRevealPayload(veins, buf.readVarInt());
+        int life = buf.readVarInt();
+        return new OreRevealPayload(veins, life, GooTypes.KEY_STREAM_CODEC.decode(buf));
     }
 }

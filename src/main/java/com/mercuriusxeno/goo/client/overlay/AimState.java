@@ -9,8 +9,8 @@ import java.util.function.Predicate;
 
 /**
  * The glove's aim as one frame resolved it, read by everything that needs
- * it until the next frame: the frame's highlight, the throw, the
- * entity outline and the ability block's targeted look. One resolve per frame
+ * it until the next frame: the frame's highlight, the throw and the
+ * entity outline. One resolve per frame
  * means one sticky seed, the hit that resolve found (decisions
  * render-context-is-the-one-emitter, aim-target-follows-client-aim).
  * {@link AimTracker} updates it.

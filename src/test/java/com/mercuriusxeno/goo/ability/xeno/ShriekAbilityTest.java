@@ -12,15 +12,15 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Xeno's sculk call ships under the name Shriek: xeno_shriek.json, thrown from
  * xeno goo and shown as goo.ability.xeno.shriek, a world ability whose blob
- * lingers running a shriek step, its icon at xeno_shriek.png; no deep_shriek
+ * runs one shriek step on its landing, its icon at xeno_shriek.png; no deep_shriek
  * ships (decisions shriek-moves-to-xeno,
  * shriek-is-a-sculk-call-that-draws-every-mob-it-reaches).
  */
@@ -43,19 +43,14 @@ class ShriekAbilityTest {
         assertEquals("world", shriek.get("badge").getAsString());
     }
 
+    // decision shriek-blob-cries-once-and-calls-earshot
     @Test
-    void lingersRunningAShriekStep() throws IOException {
-        boolean runsShriek = false;
+    void runsAShriekStepOnItsLanding() throws IOException {
+        List<String> landingSteps = new ArrayList<>();
         for (JsonElement behavior : shriek().getAsJsonArray("behaviors")) {
-            JsonObject linger = behavior.getAsJsonObject();
-            if (!"linger".equals(linger.get("type").getAsString())) {
-                continue;
-            }
-            for (JsonElement step : linger.getAsJsonArray("steps")) {
-                runsShriek |= "shriek".equals(step.getAsJsonObject().get("type").getAsString());
-            }
+            landingSteps.add(behavior.getAsJsonObject().get("type").getAsString());
         }
-        assertTrue(runsShriek, "xeno_shriek.json should linger running a shriek step");
+        assertEquals(List.of("shriek"), landingSteps);
     }
 
     @Test

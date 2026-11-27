@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
-import com.mercuriusxeno.goo.ability.SpikeTrapFixture;
+import com.mercuriusxeno.goo.ability.FieldEffectFixture;
 import com.mercuriusxeno.goo.ability.ChargeSize;
 import com.mercuriusxeno.goo.item.GooFormat;
 import org.junit.jupiter.api.Test;
@@ -25,16 +25,16 @@ class HeldGhostTest {
     /** prismatic-voronoi-code-stays-and-is-unplugged-from-shatter: the unplugged prism dome still ghosts a field */
     @Test
     void thePrismDomeRingsOutwardToAFieldsDome() {
-        HeldGhost ghost = ghostOf(CrystalExplosionVisual.INSTANCE, SpikeTrapFixture.definition());
-        float synced = (float) SpikeTrapFixture.definition().area().size();
+        HeldGhost ghost = ghostOf(CrystalExplosionVisual.INSTANCE, FieldEffectFixture.definition());
+        float synced = (float) FieldEffectFixture.definition().area().size();
         assertEquals(synced, ghost.domeRadius(), TOLERANCE);
         assertEquals(ghost.domeRadius(), ghost.ringRadius(), TOLERANCE);
     }
 
     @Test
-    void theSpikeTrapRingsOutwardToItsDome() {
-        HeldGhost ghost = ghostOf(MetalExplosionVisual.INSTANCE, SpikeTrapFixture.definition());
-        assertEquals((float) SpikeTrapFixture.definition().area().size(), ghost.domeRadius(), TOLERANCE);
+    void theFieldEffectRingsOutwardToItsDome() {
+        HeldGhost ghost = ghostOf(MetalExplosionVisual.INSTANCE, FieldEffectFixture.definition());
+        assertEquals((float) FieldEffectFixture.definition().area().size(), ghost.domeRadius(), TOLERANCE);
         assertEquals(ghost.domeRadius(), ghost.ringRadius(), TOLERANCE);
     }
 
@@ -50,7 +50,7 @@ class HeldGhostTest {
 
     @Test
     void anUnstableGhostRingsOutwardToItsDome() {
-        HeldGhost ghost = ghostOf(UnstableExplosionVisual.INSTANCE, SpikeTrapFixture.definition());
+        HeldGhost ghost = ghostOf(UnstableExplosionVisual.INSTANCE, FieldEffectFixture.definition());
         assertEquals(ghost.domeRadius(), ghost.ringRadius(), TOLERANCE);
     }
 }

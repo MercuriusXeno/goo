@@ -9,6 +9,7 @@ import com.mercuriusxeno.goo.client.ability.CastOrigin;
 import com.mercuriusxeno.goo.client.ability.LiftedPalmBlob;
 import com.mercuriusxeno.goo.client.ability.PalmBlobHop;
 import com.mercuriusxeno.goo.client.ability.SprayingClient;
+import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mercuriusxeno.goo.item.GooFormat;
@@ -29,6 +30,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -88,7 +90,7 @@ class GloveThrowSenderTest {
 
         @Test
         void aThrowLetGoWhileTheBlobStandsLiftedStartsAtTheCastOrigin() {
-            try (SprayingClient client = SprayingClient.local(GooTypes.ZOO)) {
+            try (SprayingClient client = SprayingClient.local(GooTypes.ZOMBIE)) {
                 client.at(RELEASED);
                 for (long tick = RELEASED - PalmBlobHop.LIFT_TICKS; tick < RELEASED; tick++) {
                     LiftedPalmBlob.held(SprayingClient.CASTER, SprayingClient.SENT_GLOVE, tick);
@@ -231,6 +233,15 @@ class GloveThrowSenderTest {
         void aLeadThrowAtAnUnledMobTheCasterCannotAffordIsWithheld() {
             assertFalse(sendsHolding(Led.NONE, NO_YARN_HELD));
         }
+    }
+
+    /**
+     * An aim that resolved no target, a look with no ground in range under it,
+     * sends no release (decision dropped-ground-highlight-lights-only-within-range).
+     */
+    @Test
+    void anAimResolvingNoTargetSendsNoRelease() {
+        assertNull(GloveThrowSender.targetToPayload(TargetResult.NONE, GooTypes.ASTRAL, "goo:astral_meteo", Vec3.ZERO));
     }
 
     @Test

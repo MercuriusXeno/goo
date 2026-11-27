@@ -31,12 +31,28 @@ public final class ScryReveal {
      * @return the sides of the block open to air
      */
     public static List<Direction> exposedFaces(Predicate<BlockPos> isAir, BlockPos pos) {
+        return exposedFaces(isAir.negate(), isAir, pos);
+    }
+
+    /**
+     * The sides of a block a front lights, by the sculker echo's rules: none
+     * for a block that does not light, else each side whose neighbor the
+     * front passes through.
+     * decision scry-shows-surfaces-as-the-sculker-echo-does
+     *
+     * @param lightsUp    whether a block lights
+     * @param passesSound whether the front passes through a block
+     * @param pos         the block
+     * @return the sides of the block open to the front
+     */
+    public static List<Direction> exposedFaces(Predicate<BlockPos> lightsUp, Predicate<BlockPos> passesSound,
+                                               BlockPos pos) {
         List<Direction> exposed = new ArrayList<>();
-        if (isAir.test(pos)) {
+        if (!lightsUp.test(pos)) {
             return exposed;
         }
         for (Direction side : Direction.values()) {
-            if (isAir.test(pos.relative(side))) {
+            if (passesSound.test(pos.relative(side))) {
                 exposed.add(side);
             }
         }

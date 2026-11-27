@@ -26,6 +26,7 @@ import com.mercuriusxeno.goo.item.GooCasters;
 import com.mercuriusxeno.goo.item.ReagentScanner;
 import com.mercuriusxeno.goo.lunar.LunarGravity;
 import com.mercuriusxeno.goo.registry.GooServerState;
+import com.mercuriusxeno.goo.throwing.AimReach;
 import com.mercuriusxeno.goo.throwing.GateArc;
 import com.mercuriusxeno.goo.throwing.ThrowArc;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -38,6 +39,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jspecify.annotations.Nullable;
@@ -142,8 +144,7 @@ public final class GooThrowHandler {
         if (ability.delivery().kind() == DeliveryKind.SELF) {
             GooSelfHandler.release(player, gooType, ability, payload.heldTicks());
         } else if (ability.delivery().sizesByCharge()) {
-            payload.aimed().ifPresent(aimed -> GooChargedCastHandler.cast(player, gooType, ability, aimed,
-                    payload.heldTicks()));
+            payload.aimed().ifPresent(aimed -> GooChargedCastHandler.cast(player, gooType, ability, payload, aimed));
         }
     }
 
@@ -498,7 +499,7 @@ public final class GooThrowHandler {
             // aim-and-shots-carry-through-linked-gates: a point through a gate is reached or refused, never capped
             double length = throughDistance(eye, hop.get(), payload.targetPoint());
             GooFraction cost = resolveThrowCost(player, payload, gooType);
-            if (length > range || !validateSupply(player, gooType, cost)) {
+            if (!AimReach.takes(length, range) || !validateSupply(player, gooType, cost)) {
                 return;
             }
             depleteAndThrow(player, payload, gooType, length * length, cost);
@@ -550,15 +551,36 @@ public final class GooThrowHandler {
     }
 
     /**
-     * Whether a release's target stands within its ability's range.
+     * Whether a release's aimed point stands within its ability's range of
+     * the eye, the measure the client's indicator lights by, the point held
+     * onto the target the release names.
      * decision each-ability-names-its-range-and-the-shared-throw-range-retires
+     * decision diagnose-and-correct-the-indicator-disagreeing-with-the-cast
      *
-     * @param distanceSquared the squared distance to the target
-     * @param range           the ability's range in blocks
-     * @return true for a target in range
+     * @param eye     the caster's eye
+     * @param target  the named target's box, the block's cell or the mob's bounding box
+     * @param claimed the point the release claims it aimed
+     * @param range   the ability's range in blocks
+     * @return true for a release the server takes
      */
-    static boolean withinRange(double distanceSquared, double range) {
-        return distanceSquared <= range * range;
+    public static boolean takesAim(Vec3 eye, AABB target, Vec3 claimed, double range) {
+        return AimReach.takes(aimedLength(eye, Optional.empty(), target, claimed), range);
+    }
+
+    /**
+     * How far a release's aimed point lies from the eye, through the gate it
+     * passed where it names one, the point held onto the target it names.
+     * decision diagnose-and-correct-the-indicator-disagreeing-with-the-cast
+     *
+     * @param eye     the caster's eye
+     * @param hop     the gate the release passed, empty on the near side
+     * @param target  the named target's box
+     * @param claimed the point the release claims it aimed
+     * @return the length in blocks
+     */
+    static double aimedLength(Vec3 eye, Optional<GateArc.Hop> hop, AABB target, Vec3 claimed) {
+        Vec3 aimed = AimReach.onTarget(target, claimed);
+        return hop.map(passed -> AimReach.lengthThrough(eye, passed, aimed)).orElseGet(() -> eye.distanceTo(aimed));
     }
 
     /**
@@ -676,7 +698,8 @@ public final class GooThrowHandler {
         return gooType;
     }
 
-    /** Validates target is within the ability's range, logging rejection if not.
+    /** Validates the aimed point is within the ability's range of the eye, logging rejection if not.
+     * decision diagnose-and-correct-the-indicator-disagreeing-with-the-cast
      *
      * @param player  the throwing player
      * @param payload the throw payload data
@@ -684,10 +707,27 @@ public final class GooThrowHandler {
      * @return true if in range
      */
     private static boolean validateRange(ServerPlayer player, GooThrowPayload payload, double range) {
-        double distSq = targetDistanceSquared(player, payload, range);
-        if (withinRange(distSq, range)) { return true; }
-        if (Goo.LOGGER.isDebugEnabled()) { Goo.LOGGER.debug(LOG_OUT_OF_RANGE, Math.sqrt(distSq)); }
+        Optional<AABB> target = targetBox(player, payload);
+        Optional<GateArc.Hop> hop = hopOf(player, payload, range);
+        if (target.isEmpty() || payload.gate().isPresent() && hop.isEmpty()) { return false; }
+        double length = aimedLength(player.getEyePosition(), hop, target.get(), payload.targetPoint());
+        if (AimReach.takes(length, range)) { return true; }
+        if (Goo.LOGGER.isDebugEnabled()) { Goo.LOGGER.debug(LOG_OUT_OF_RANGE, length); }
         return false;
+    }
+
+    /**
+     * The box of the target a release names: the mob's bounding box, or the aimed block's cell.
+     *
+     * @param player  the releasing player
+     * @param payload the release
+     * @return the box, empty for a mob the server holds no entity of
+     */
+    private static Optional<AABB> targetBox(ServerPlayer player, GooThrowPayload payload) {
+        if (payload.targetEntityId() < 0) {
+            return Optional.of(new AABB(payload.targetPos()));
+        }
+        return Optional.ofNullable(player.level().getEntity(payload.targetEntityId())).map(Entity::getBoundingBox);
     }
 
     /** Validates the player has enough goo, logging rejection if not.
@@ -877,7 +917,7 @@ public final class GooThrowHandler {
     static Optional<GateArc.Hop> admittedHop(List<GatePassage.Pair> pairs, Gate gate, Vec3 facePoint, Vec3 eye,
                                              double range) {
         boolean onTheFace = Math.abs(gate.out(facePoint)) <= FACE_SLACK && gate.within(facePoint);
-        boolean seenFromTheEye = gate.out(eye) > 0 && eye.distanceTo(facePoint) <= range;
+        boolean seenFromTheEye = gate.out(eye) > 0 && AimReach.takes(eye.distanceTo(facePoint), range);
         return onTheFace && seenFromTheEye ? GateRay.hopThrough(pairs, gate, facePoint) : Optional.empty();
     }
 

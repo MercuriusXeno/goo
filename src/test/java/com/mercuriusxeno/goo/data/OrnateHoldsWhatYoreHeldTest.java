@@ -21,7 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
  * drops where ornate already stood beside it, item by item and type by type. The values before are
  * base_values.json as it stood at 25fb0499b, with shroom and deep moved to standing types as thread
  * sculk-goo-replaces-shroom-and-deep moved them, kept as a fixture. The fixture predates Opulent's rename to Ornate,
- * so its opulent terms read as ornate.
+ * so its opulent terms read as ornate, and predates zoo leaving, so its zoo terms load as nothing.
  * decision yore-leaves-and-rewind-moves-to-xeno-as-revert
  * decision opulent-is-renamed-ornate
  */
@@ -34,10 +34,23 @@ class OrnateHoldsWhatYoreHeldTest {
     private static final String ORNATE = "ornate";
     private static final String YORE_TARGET = "-> yore";
     private static final String ORNATE_TARGET = "-> ornate";
+    /**
+     * Dead coral's nether read coral's zoo, and zoo left the mod; the shipped file writes each amount out, so the
+     * fixture's reads do the same. Its other zoo terms load as nothing, as a type the game holds no longer does.
+     * decision zoo-leaves-and-zombie-goo-replaces-it-as-z
+     */
+    private static final Map<String, String> CORAL_ZOO_WRITTEN_OUT = Map.of(
+            "\"$coral.zoo\"", "\"2 $base\"",
+            "\"$coral_fan.zoo\"", "\"$base\"",
+            "\"$coral_block.zoo\"", "\"3 $base\"");
 
     @Test
     void everyItemHoldsWhatTheOldValuesHoldWithYoreMoved() throws IOException {
-        JsonElement before = JsonParser.parseString(read(BEFORE).replace(OPULENT, ORNATE));
+        String beforeText = read(BEFORE).replace(OPULENT, ORNATE);
+        for (Map.Entry<String, String> coralRead : CORAL_ZOO_WRITTEN_OUT.entrySet()) {
+            beforeText = beforeText.replace(coralRead.getKey(), coralRead.getValue());
+        }
+        JsonElement before = JsonParser.parseString(beforeText);
         Map<Identifier, GooValue> expected = GooBaseValuesPreview.load(yoreMoved(before).toString()).baseValues();
         Map<Identifier, GooValue> shipped = GooBaseValuesPreview.load(read(SHIPPED)).baseValues();
 

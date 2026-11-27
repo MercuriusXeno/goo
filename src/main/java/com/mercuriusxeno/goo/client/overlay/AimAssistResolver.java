@@ -24,8 +24,7 @@ import java.util.function.Predicate;
  * Target resolution with two-pass aim assist (exact raytrace + cone scan)
  * and sticky retention to prevent flicker at cone edges.
  *
- * <p>Handles the entities the selected ability's steps take; a standing ability block is never an aim
- * target, so a throw at one lands beside it (decision
+ * <p>Handles the entities the selected ability's steps take (decision
  * splat-runs-the-program-no-fuse).
  */
 final class AimAssistResolver {
@@ -92,32 +91,33 @@ final class AimAssistResolver {
      *       cone, keep it.</li>
      * </ol>
      * <p>
-     * All passes require line-of-sight.
+     * All passes require line-of-sight, and every pass takes a candidate only
+     * where its aimed point, where the ray clips it or its center, lies
+     * within range of the eye (decision
+     * diagnose-and-correct-the-indicator-disagreeing-with-the-cast).
      *
-     * @param player   the interacting player
-     * @param from     the ray start (eye position)
-     * @param to       the ray end (eye + look * range)
+     * @param player    the interacting player
+     * @param ray       the aim ray, from the camera, and the measure its candidates pass
      * @param previous  the previous frame's hit, or null
      * @param behaviors the selected ability's steps, which name what may be hit
      * @return the best hit, or null if none in range/cone
      */
-    static @Nullable AimHit findClosestAimHit(Player player, Vec3 from, Vec3 to,
+    static @Nullable AimHit findClosestAimHit(Player player, AimTargets.AimRay ray,
                                               @Nullable AimHit previous, List<Step> behaviors) {
-        Vec3 lookDir = to.subtract(from).normalize();
+        Vec3 from = ray.origin();
+        Vec3 to = ray.reach();
         double coneDegrees = pickConeDegrees(behaviors);
         List<Entity> entities = gatherCandidates(player, from, to, behaviors, coneDegrees);
         List<AimHit> candidates = asHits(entities);
-        AimHit exact = findExactHit(candidates, player, from, to);
+        AimHit exact = findExactHit(candidates, player, ray);
         if (exact != null) {
             return exact;
         }
 
-        double range = from.distanceTo(to);
         Predicate<AimHit> inSight = candidate -> isInSight(candidate, player, from);
-        AimHit bestCone = findBestConeHit(candidates, from, lookDir, range, Math.cos(Math.toRadians(coneDegrees)),
-                inSight);
+        AimHit bestCone = findBestConeHit(candidates, ray, Math.cos(Math.toRadians(coneDegrees)), inSight);
         double stickyCos = Math.cos(Math.toRadians(coneDegrees + STICKY_PAST_THE_CONE));
-        AimHit sticky = retainSticky(candidates, from, lookDir, bestCone, previous, range, stickyCos, inSight);
+        AimHit sticky = retainSticky(candidates, ray, bestCone, previous, stickyCos, inSight);
         return (sticky != null) ? sticky : bestCone;
     }
 
@@ -234,16 +234,16 @@ final class AimAssistResolver {
      *
      * @param candidates the candidates in tie-break order
      * @param player     the aiming player
-     * @param from       ray start
-     * @param to         ray end
+     * @param ray        the aim ray
      * @return the closest exact hit, or null
      */
-    private static @Nullable AimHit findExactHit(List<AimHit> candidates, Player player, Vec3 from, Vec3 to) {
+    private static @Nullable AimHit findExactHit(List<AimHit> candidates, Player player, AimTargets.AimRay ray) {
+        Vec3 from = ray.origin();
         double bestDist = Double.MAX_VALUE;
         AimHit best = null;
         for (AimHit candidate : candidates) {
-            Optional<Vec3> clip = candidate.pickBox().clip(from, to);
-            if (clip.isEmpty()) {
+            Optional<Vec3> clip = candidate.pickBox().clip(from, ray.reach());
+            if (clip.isEmpty() || !ray.reaches(clip.get())) {
                 continue;
             }
             double dist = from.distanceToSqr(clip.get());
@@ -259,19 +259,17 @@ final class AimAssistResolver {
      * Finds the candidate closest to the crosshair inside the pick cone.
      *
      * @param candidates the candidates in tie-break order
-     * @param from       ray start
-     * @param lookDir    normalized look direction
-     * @param range      how far the ray reaches
+     * @param ray        the aim ray
      * @param coneCos    the cosine of the pick cone's half-angle
      * @param inSight    whether the player sees a candidate
      * @return the cone-pass winner, or null if nothing clears the cone
      */
-    static @Nullable AimHit findBestConeHit(List<AimHit> candidates, Vec3 from, Vec3 lookDir, double range,
+    static @Nullable AimHit findBestConeHit(List<AimHit> candidates, AimTargets.AimRay ray,
                                             double coneCos, Predicate<AimHit> inSight) {
         double bestCos = coneCos;
         AimHit best = null;
         for (AimHit candidate : candidates) {
-            double cos = coneCosine(candidate, from, lookDir, coneCos, range, inSight);
+            double cos = coneCosine(candidate, ray, coneCos, inSight);
             if (cos > bestCos) {
                 bestCos = cos;
                 best = candidate;
@@ -285,54 +283,52 @@ final class AimAssistResolver {
      * wider sticky cone, to prevent flicker at the cone's edge.
      *
      * @param candidates the candidates this frame
-     * @param from       ray start
-     * @param lookDir    normalized look direction
+     * @param ray        the aim ray
      * @param bestCone   the cone-pass winner this frame
      * @param previous   the previous hit, or null
-     * @param range      how far the ray reaches
      * @param stickyCos  the cosine of the sticky cone's half-angle
      * @param inSight    whether the player sees a candidate
      * @return the previous hit if it is retained, or null
      */
-    private static @Nullable AimHit retainSticky(List<AimHit> candidates, Vec3 from, Vec3 lookDir,
-                                                 @Nullable AimHit bestCone, @Nullable AimHit previous, double range,
+    private static @Nullable AimHit retainSticky(List<AimHit> candidates, AimTargets.AimRay ray,
+                                                 @Nullable AimHit bestCone, @Nullable AimHit previous,
                                                  double stickyCos, Predicate<AimHit> inSight) {
         if (previous == null || previous.equals(bestCone)
                 || !previous.isAlive() || !candidates.contains(previous)) {
             return null;
         }
-        return coneCosine(previous, from, lookDir, stickyCos, range, inSight) > stickyCos ? previous : null;
+        return coneCosine(previous, ray, stickyCos, inSight) > stickyCos ? previous : null;
     }
 
     /**
      * The cosine between the look direction and the candidate's center when
-     * the candidate is in range, inside the given cone and in sight.
+     * the candidate's center lies within range of the eye, inside the given
+     * cone and in sight.
      *
      * @param candidate the candidate
-     * @param from      ray start
-     * @param lookDir   normalized look direction
+     * @param ray       the aim ray
      * @param coneCos   the cosine of the cone's half-angle
-     * @param range     how far the ray reaches
      * @param inSight   whether the player sees a candidate
      * @return the cosine, or NO_CONE_ANGLE when out of range, outside the cone or occluded
      */
-    private static double coneCosine(AimHit candidate, Vec3 from, Vec3 lookDir, double coneCos, double range,
+    private static double coneCosine(AimHit candidate, AimTargets.AimRay ray, double coneCos,
                                      Predicate<AimHit> inSight) {
-        Vec3 toTarget = candidate.box().getCenter().subtract(from);
-        if (!inReach(toTarget.length(), range)) {
+        Vec3 center = candidate.box().getCenter();
+        if (!inReach(ray.measuredFrom().distanceTo(center), ray.rangeLeft())) {
             return NO_CONE_ANGLE;
         }
-        double cos = lookDir.dot(toTarget.normalize());
+        Vec3 lookDir = ray.reach().subtract(ray.origin()).normalize();
+        double cos = lookDir.dot(center.subtract(ray.origin()).normalize());
         return cos > coneCos && inSight.test(candidate) ? cos : NO_CONE_ANGLE;
     }
 
     /**
-     * Whether a candidate's center stands within the ray's reach, past the
-     * eye's own box: the cone marks no mob beyond where the ray ends, so a
+     * Whether a candidate's center stands within range of the eye, past the
+     * eye's own box: the cone marks no mob beyond range, so a
      * grab marks none it cannot lift (decision grab-reaches-telekinesis-range).
      *
      * @param distance the distance from the eye to the candidate's center
-     * @param range    how far the ray reaches
+     * @param range    the range left to the measure
      * @return true where the cone may take the candidate
      */
     static boolean inReach(double distance, double range) {
@@ -354,7 +350,7 @@ final class AimAssistResolver {
     /**
      * Line-of-sight to an arbitrary AABB. If {@code selfBlock} is non-null,
      * rays that terminate inside that block position are treated as clear
-     * (prevents a ability block's own voxel from occluding its own LOS).
+     * (prevents a target block's own voxel from occluding its own LOS).
      *
      * @param level     the current level
      * @param player    the interacting player
@@ -427,7 +423,7 @@ final class AimAssistResolver {
 
     /**
      * Sealed aim-hit kind produced by the resolver. Packs either a living
-     * entity or a ability block block position so the caller can dispatch
+     * entity or a block position so the caller can dispatch
      * render and throw-payload paths differently.
      */
     sealed interface AimHit {

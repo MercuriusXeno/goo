@@ -23,6 +23,7 @@ final class EchoCells {
     private final Predicate<BlockPos> lights;
     private final Predicate<BlockPos> passesSound;
     private final Long2BooleanOpenHashMap answered = new Long2BooleanOpenHashMap();
+    private int reads;
 
     /**
      * @param lights      whether a block lights where an echo reaches it
@@ -45,6 +46,7 @@ final class EchoCells {
         if (answered.size() >= MOST_CELLS) {
             answered.clear();
         }
+        reads++;
         boolean echoes = lights.test(cell) && besideOpenSpace(cell);
         answered.put(key, echoes);
         return echoes;
@@ -69,6 +71,19 @@ final class EchoCells {
         for (Direction side : SIDES) {
             answered.remove(changed.relative(side).asLong());
         }
+    }
+
+    /**
+     * The cells whose answer was read from the world since the last ask, not
+     * kept from an earlier ring, for the profiler's counter.
+     * decision diagnose-and-correct-the-lag-on-four-sense-abilities
+     *
+     * @return how many, counting from nothing again
+     */
+    int takeReads() {
+        int taken = reads;
+        reads = 0;
+        return taken;
     }
 
     /** Forgets every answer, as a chunk loading or unloading or the held effect's end does. */

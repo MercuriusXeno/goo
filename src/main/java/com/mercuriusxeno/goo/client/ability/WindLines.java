@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.WindStep;
+import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.LineContext;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
@@ -13,7 +14,6 @@ import com.mercuriusxeno.goo.throwing.ConeShape;
 import com.mercuriusxeno.goo.throwing.StreamCone;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.rendertype.RenderType;
-import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.resources.sounds.AbstractTickableSoundInstance;
 import net.minecraft.client.resources.sounds.SoundInstance;
 import net.minecraft.sounds.SoundEvents;
@@ -813,7 +813,7 @@ public final class WindLines {
     private static void drawLines(Minecraft mc, LevelFrame frame, List<Line> live, LinesAt at) {
         Vec3 blob = CastOrigin.ofLocal(mc);
         ImmediateBuffers buffers = ImmediateBuffers.shared();
-        RenderType type = RenderTypes.linesTranslucent();
+        RenderType type = GooRenderTypes.TRANSLUCENT_LINES;
         LineContext lines = new LineContext(frame.poseStack().last(), buffers.getBuffer(type));
         for (Line line : live) {
             double age = at.gameTime() - line.startTick();

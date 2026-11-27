@@ -42,7 +42,7 @@ class GooTypesTest {
     private static final List<String> BUNDLED_IDS = List.of(
             "astral", "blaze", "crystal", "ender", "frost", "glow", "hex", "infinity", "jelly", "kinetic", "leaf",
             "metal", "nether", "ornate", "pulse", "quantum", "rock", "sculk", "typhoon", "unstable", "void", "weird", "xeno", "yarn",
-            "zombie", "zoo");
+            "zombie");
     private static final String TYPE_DIR = "data/goo/goo/goo_type";
     private static final String JSON_SUFFIX = ".json";
     private static final String ZOMBIE = "zombie";
@@ -85,6 +85,7 @@ class GooTypesTest {
     /**
      * The type definitions the jar ships are the bundled set, one JSON each.
      * decision yore-leaves-and-rewind-moves-to-xeno-as-revert
+     * decision zoo-leaves-and-zombie-goo-replaces-it-as-z
      */
     @Test
     void shippedTypeDefinitionsAreTheBundledSet() throws IOException, URISyntaxException {

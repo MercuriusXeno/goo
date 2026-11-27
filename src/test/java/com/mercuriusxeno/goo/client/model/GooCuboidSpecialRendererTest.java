@@ -50,7 +50,7 @@ class GooCuboidSpecialRendererTest {
     @Test
     void aGooStacksCoreStaysStillAtThreeQuartersOfItsShell() {
         assertStillAtThreeQuarters(collector -> new GooCuboidSpecialRenderer().submit(
-                GooCuboidSpecialRenderer.GooCuboid.ofVolume(GooTypes.ZOO, 1), new PoseStack(), collector, 0, 0,
+                GooCuboidSpecialRenderer.GooCuboid.ofVolume(GooTypes.ZOMBIE, 1), new PoseStack(), collector, 0, 0,
                 false, 0));
     }
 
@@ -61,7 +61,7 @@ class GooCuboidSpecialRendererTest {
              MockedStatic<GooFlightRenderer> flight = mockStatic(GooFlightRenderer.class)) {
             client.when(Minecraft::getInstance).thenReturn(mock(Minecraft.class));
 
-            new GooCuboidSpecialRenderer().submit(GooCuboidSpecialRenderer.GooCuboid.ofVolume(GooTypes.ZOO, 1),
+            new GooCuboidSpecialRenderer().submit(GooCuboidSpecialRenderer.GooCuboid.ofVolume(GooTypes.ZOMBIE, 1),
                     new PoseStack(), collector, 0, 0, false, 0);
 
             ArgumentCaptor<RenderType> types = ArgumentCaptor.forClass(RenderType.class);
@@ -74,10 +74,10 @@ class GooCuboidSpecialRendererTest {
             PoseStack.Pose pose = new PoseStack().last();
             VertexConsumer consumer = mock(VertexConsumer.class);
             geometry.getAllValues().getFirst().render(pose, consumer);
-            flight.verify(() -> GooFlightRenderer.emitStillCore(any(), any(), eq(GooTypes.ZOO), any()));
+            flight.verify(() -> GooFlightRenderer.emitStillCore(any(), any(), eq(GooTypes.ZOMBIE), any()));
             flight.verify(() -> GooFlightRenderer.emitShell(any(), any(), any(), any()), never());
             geometry.getAllValues().getLast().render(pose, consumer);
-            flight.verify(() -> GooFlightRenderer.emitShell(any(), any(), eq(GooTypes.ZOO), any()));
+            flight.verify(() -> GooFlightRenderer.emitShell(any(), any(), eq(GooTypes.ZOMBIE), any()));
         }
     }
 
@@ -89,7 +89,7 @@ class GooCuboidSpecialRendererTest {
              MockedStatic<GooFlightRenderer> flight = mockStatic(GooFlightRenderer.class)) {
             client.when(Minecraft::getInstance).thenReturn(mock(Minecraft.class));
 
-            new GooCuboidSpecialRenderer().submit(GooCuboidSpecialRenderer.GooCuboid.ofVolume(GooTypes.ZOO, volume),
+            new GooCuboidSpecialRenderer().submit(GooCuboidSpecialRenderer.GooCuboid.ofVolume(GooTypes.ZOMBIE, volume),
                     new PoseStack(), collector, 0, 0, false, 0);
 
             ArgumentCaptor<SubmitNodeCollector.CustomGeometryRenderer> geometry =

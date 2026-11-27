@@ -7,8 +7,8 @@
 // A gate's face showing the view through it (decision portals-link-by-looking-through-portal-vision):
 // an oval filling the face, inside it the partner side rendered from the camera mirrored through
 // the pair, sampled at this fragment's own screen point so what lies beyond shows flush and sharp,
-// as though right there; a rim of the gate's color paints the texels by the oval's edge, cut by the
-// swirl band's line so it paints only outside it (decision vortex-mouth-cuts-the-pixel-rim).
+// as though right there; a rim of the gate's color paints the texels by the oval's edge, cut half a
+// texel inside it so it paints only the outer half texel (decision vortex-mouth-cuts-the-pixel-rim).
 // The oval's edge and the rim draw on sixteen texels a block, stepping texel by texel, the rim
 // measured in texels so it runs unbroken all round; the view through stays at full resolution
 // (decision portals-and-wormhole-draw-sixteen-texels-a-block).

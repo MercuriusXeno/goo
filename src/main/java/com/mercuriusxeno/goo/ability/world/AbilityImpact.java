@@ -4,16 +4,13 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.PrismCombos;
-import com.mercuriusxeno.goo.ability.program.ExplodeStep;
 import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.LandingHost;
 import com.mercuriusxeno.goo.ability.program.LeafSteps;
-import com.mercuriusxeno.goo.ability.program.LingerStep;
 import com.mercuriusxeno.goo.ability.program.MeteorStep;
 import com.mercuriusxeno.goo.ability.program.PlaceBlockStep;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
-import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.network.ChainBurnoutPayload;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -27,15 +24,14 @@ import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.stream.Stream;
 
 /**
  * What an ability goo does when it lands on a block: it lands in the cell
  * {@link LandingSpot} decides, announces its burnout, and runs its program
  * on that landing the tick it splats. The landing places no block of its
- * own; a program ending that tick leaves only its effect, and one that
- * lingers stands its own block through its linger step (decisions
- * splat-runs-the-program-no-fuse, lingering-abilities-place-their-own-thing).
+ * own; its program leaves its effect, and an ability that stays in the world
+ * places its own thing (decisions splat-runs-the-program-no-fuse,
+ * lingering-abilities-place-their-own-thing).
  * A goo landing on a prism lands in the prism instead, running its combo
  * (decision prism-hosts-the-combos).
  */
@@ -124,7 +120,7 @@ public final class AbilityImpact {
             return;
         }
         BlockPos cell = spot.get().cell();
-        LandingHost host = new LandingHost(level, cell, spot.get().face(), spot.get().waterlogged(), type,
+        LandingHost host = new LandingHost(level, cell, spot.get().face(), type,
                 ability.id().toString(), anchor(cell, point), size, caster);
         AbilitySplat.resolve(new Landing(host, ability));
     }
@@ -201,23 +197,6 @@ public final class AbilityImpact {
     }
 
     /**
-     * Whether an ability's program stands its own block that explodes after
-     * the splat, so its burnout plays when that block explodes rather than as
-     * the blob lands. A lingering program that never explodes, Shatter's cloud,
-     * plays its burnout at the landing.
-     * decision elemental-explosion-per-type
-     * decision diagnose-then-restore-the-razor-dome
-     *
-     * @param ability the landing ability
-     * @return true when a top-level linger step's body explodes
-     */
-    static boolean explodesLater(AbilityDefinition ability) {
-        return ability.behaviors().stream().filter(LingerStep.class::isInstance)
-                .flatMap(AbilityImpact::withDescendants)
-                .anyMatch(ExplodeStep.class::isInstance);
-    }
-
-    /**
      * Whether an ability's blob turns into the prism its program places, the
      * morph into the column standing in for a burnout.
      * decision prism-is-one-pointed-quartz-column
@@ -254,10 +233,6 @@ public final class AbilityImpact {
         return ability.behaviors().stream().anyMatch(MeteorStep.class::isInstance);
     }
 
-    private static Stream<Step> withDescendants(Step step) {
-        return Stream.concat(Stream.of(step), step.children().flatMap(AbilityImpact::withDescendants));
-    }
-
     /**
      * A blob's world actions as it lands.
      *
@@ -270,11 +245,6 @@ public final class AbilityImpact {
         public void announceBurnout() {
             new ChainBurnoutPayload(host.cell(), host.face().ordinal(), GooTypes.id(host.gooType()),
                     host.abilityId(), host.size()).sendToTracking(host.level());
-        }
-
-        @Override
-        public boolean explodesLater() {
-            return AbilityImpact.explodesLater(ability);
         }
 
         @Override

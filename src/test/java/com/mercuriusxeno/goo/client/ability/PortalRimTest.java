@@ -10,8 +10,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * The portal's pixel rim is cut by the swirl band's line: it paints only
- * outside that line, no farther than a texel and a half out, stepping texel
+ * The portal's pixel rim is cut half a texel inside the oval's edge: it
+ * paints only outside that cut, no farther than a texel and a half out, stepping texel
  * by texel, strongest by the line (decision vortex-mouth-cuts-the-pixel-rim).
  * The rim draws in portal_texels.glsl, read here through the classpath; the
  * strength checks mirror its portalTexelRim arithmetic on its own named
@@ -20,14 +20,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class PortalRimTest {
 
     private static final String PORTAL_TEXELS = "/assets/goo/shaders/include/portal_texels.glsl";
-    private static final double TEXELS_PER_BLOCK = 16;
+    private static final double HALF_A_TEXEL = 0.5;
     /** How far apart two numbers may stand and still read as one, float rounding only. */
     private static final double NEAR = 1.0e-6;
 
     @Test
-    void theRimIsCutOnTheSwirlBandsLine() throws IOException {
-        assertEquals(PortalFaces.BAND_INSET * TEXELS_PER_BLOCK, constant("PORTAL_RIM_LINE"), NEAR,
-                "The rim's cut should run on the swirl band's line, PortalFaces.BAND_INSET in texels");
+    void theRimIsCutHalfATexelInsideTheOvalsEdge() throws IOException {
+        assertEquals(HALF_A_TEXEL, constant("PORTAL_RIM_LINE"), NEAR,
+                "The rim's cut should run half a texel inside the oval's edge");
     }
 
     @Test

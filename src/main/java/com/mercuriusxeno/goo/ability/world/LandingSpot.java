@@ -21,8 +21,7 @@ import java.util.function.Function;
  * The cell a blob landing on a block lands in, decided through
  * {@link ChainPlacementRules} and placing nothing: a replaceable or watery
  * struck block takes the landing in place, lava refuses it, a solid or
- * standing block passes it to the cell on the struck face, so a throw at a
- * standing ability block lands beside it (decisions
+ * standing block passes it to the cell on the struck face (decisions
  * ability-path-uses-placement-rules, splat-runs-the-program-no-fuse).
  * The face is the struck block's side the cell stands on, so the struck
  * block reads one step back across it from the cell even where the blob
@@ -30,10 +29,9 @@ import java.util.function.Function;
  * zap-powers-anything-a-signal-runs
  *
  * @param cell        the cell the blob lands in
- * @param waterlogged whether the cell holds water a standing block keeps
  * @param face        the struck block's side the cell stands on
  */
-public record LandingSpot(BlockPos cell, boolean waterlogged, Direction face) {
+public record LandingSpot(BlockPos cell, Direction face) {
 
     /**
      * Decides where a blob striking a block face lands.
@@ -107,8 +105,7 @@ public record LandingSpot(BlockPos cell, boolean waterlogged, Direction face) {
                 WaterHandling.WATERLOG);
         BlockPos cell = decision.candidateIndex() == 0 ? hit : adjacent;
         return switch (decision.action()) {
-            case DISPLACE -> Optional.of(new LandingSpot(cell, false, side));
-            case WATERLOG -> Optional.of(new LandingSpot(cell, true, side));
+            case DISPLACE, WATERLOG -> Optional.of(new LandingSpot(cell, side));
             case FREEZE_AND_RISE, NONE -> Optional.empty();
         };
     }

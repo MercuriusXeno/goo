@@ -62,16 +62,16 @@ public final class BareHandCastTests {
     /** Inside the fixation, when a hold Lunar took stands fixed. */
     private static final int INSIDE_THE_FIXATION = 20;
     /** Where in lunar the stranded caster stands, high over its ground. */
-    private static final Vec3 STRANDED_AT = new Vec3(0.5, 160, 0.5);
+    private static final Vec3 STRANDED_AT = new Vec3(0.5, 80, 0.5);
 
     private static final String ABILITY_REQUIRED = "goo:astral_lunar must be loaded";
     private static final String LUNAR_REQUIRED = "The server should hold goo:lunar";
     private static final String SHOULD_RUN = "A gloveless hold of the held raw goo's type should run Lunar, stands in %s";
     private static final String SHOULD_PAY = "The held raw goo should drop from %d mB by Lunar's %d mB, holds %d";
     private static final String OTHER_TYPE_REFUSED =
-            "A gloveless hold of astral while holding raw zoo goo should run nothing";
+            "A gloveless hold of astral while holding raw zombie goo should run nothing";
     private static final String EMPTY_HAND_REFUSED = "A hold holding neither glove nor raw goo should run nothing";
-    private static final String NOTHING_SPENT = "A refused hold should spend nothing: astral %d of %d, zoo %d of %d";
+    private static final String NOTHING_SPENT = "A refused hold should spend nothing: astral %d of %d, zombie %d of %d";
     private static final String SELECTED = "The bare hand's selection should name %s once selected, names %s";
     private static final String SELECTION_RAN = "The hold the selection names, Lunar, should run";
     private static final String HOME = "Lunar should carry the gloveless caster from lunar to %s, stands in %s";
@@ -117,7 +117,7 @@ public final class BareHandCastTests {
     }
 
     /**
-     * A gloveless player holding raw zoo goo, with raw astral goo elsewhere in the inventory, is refused a hold of
+     * A gloveless player holding raw zombie goo, with raw astral goo elsewhere in the inventory, is refused a hold of
      * Lunar; so is a player whose hands hold nothing, the same astral goo carried. Neither hold stands a fixation or
      * spends any goo.
      *
@@ -125,8 +125,8 @@ public final class BareHandCastTests {
      */
     public static void bareHandRefusesAnotherTypeAndAnEmptyHand(GameTestHelper helper) {
         ServerPlayer caster = gloveless(helper);
-        ItemStack heldZoo = GooStacks.createForOutput(GooTypes.ZOO, HELD_MB);
-        caster.setItemInHand(InteractionHand.MAIN_HAND, heldZoo);
+        ItemStack heldZombie = GooStacks.createForOutput(GooTypes.ZOMBIE, HELD_MB);
+        caster.setItemInHand(InteractionHand.MAIN_HAND, heldZombie);
         caster.getInventory().add(GooStacks.createForOutput(GooTypes.ASTRAL, HELD_MB));
         face(caster, moonFrom(caster));
         boolean[] ran = new boolean[2];
@@ -139,12 +139,12 @@ public final class BareHandCastTests {
         helper.runAfterDelay(2 * INSIDE_THE_FIXATION + 1, () -> {
             ran[1] = caster.getData(GooAttachments.LUNAR_FIXATION).stands();
             int astral = carried(caster, GooTypes.ASTRAL);
-            int zoo = GooItem.getVolume(heldZoo);
+            int zombie = GooItem.getVolume(heldZombie);
             helper.getLevel().getServer().getPlayerList().remove(caster);
             helper.assertFalse(ran[0], OTHER_TYPE_REFUSED);
             helper.assertFalse(ran[1], EMPTY_HAND_REFUSED);
-            helper.assertTrue(astral == HELD_MB && zoo == HELD_MB,
-                    String.format(NOTHING_SPENT, astral, HELD_MB, zoo, HELD_MB));
+            helper.assertTrue(astral == HELD_MB && zombie == HELD_MB,
+                    String.format(NOTHING_SPENT, astral, HELD_MB, zombie, HELD_MB));
             helper.succeed();
         });
     }

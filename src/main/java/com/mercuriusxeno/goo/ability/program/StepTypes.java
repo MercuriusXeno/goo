@@ -76,7 +76,6 @@ public final class StepTypes {
         register(DropItemStep.TYPE);
         register(LeafSteps.IGNITE.type());
         register(LeafSteps.LIGHT_FIRE.type());
-        register(LeafSteps.DETONATE_EXPLOSIVE.type());
         register(MoltenStep.TYPE);
         register(ShatterStep.TYPE);
         register(CreepStep.TYPE);
@@ -92,7 +91,6 @@ public final class StepTypes {
         register(PlaceBlockStep.TYPE);
         register(SetStateStep.TYPE);
         register(FieldEffectStep.TYPE);
-        register(LingerStep.TYPE);
         register(CounterStep.TYPE);
         register(BranchStep.TYPE);
         register(LeafSteps.DISCARD.type());
@@ -124,7 +122,6 @@ public final class StepTypes {
         register(FlamesStep.TYPE);
         register(HeaterStep.TYPE);
         register(LeafSteps.HEAL.type());
-        register(LeafSteps.COURT.type());
         register(LeafSteps.POWER_PULSE.type());
         register(MetronomeStep.TYPE);
         register(RelayStep.TYPE);

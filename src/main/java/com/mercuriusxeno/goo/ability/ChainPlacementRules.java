@@ -1,16 +1,16 @@
 package com.mercuriusxeno.goo.ability;
 
 /**
- * Pure-function placement decision for ability-block and frost-field world
+ * Pure-function placement decision for ability-landing and frost-field world
  * effects. Given the state of the two candidate positions (the hit block and
- * the face-adjacent block) and how the effect block reacts to water, returns
+ * the face-adjacent block) and how the landing reacts to water, returns
  * the action to take.
  *
  * <p>For each candidate in order, the hit block first: water handling,
  * lava skip, or displace into air / non-fluid replaceable. Anything liquid
  * other than through explicit water handling is never displaced, and a
- * standing marker is never stacked onto, so a second throw lands beside it
- * (decision splat-runs-the-program-no-fuse).</p>
+ * solid or non-replaceable cell is never landed in, so a throw at one lands
+ * beside it (decision splat-runs-the-program-no-fuse).</p>
  *
  * <p>This class is Minecraft-free so the decision matrix can be unit-tested
  * without bootstrapping a level. Translation between real
@@ -21,25 +21,25 @@ public final class ChainPlacementRules {
 
     private static final Decision NONE_DECISION = new Decision(Action.NONE, -1);
 
-    /** How an effect block reacts when a candidate position contains water. */
+    /** How a landing reacts when a candidate position contains water. */
     public enum WaterHandling {
-        /** Block implements SimpleWaterloggedBlock: place waterlogged at the candidate. */
+        /** The landing takes a watery cell as it stands, the water kept. */
         WATERLOG,
         /** Frost field special: freeze the water to ice, then place the field at candidate.above(). */
         FREEZE_AND_RISE,
-        /** Block has no water support: water causes the candidate to fall through. */
+        /** The landing refuses water: water causes the candidate to fall through. */
         NONE
     }
 
     /** Action the runtime should take for the decided candidate. */
     public enum Action {
-        /** Place a fresh marker, displacing whatever was there. */
+        /** Land in the candidate, displacing whatever was there. */
         DISPLACE,
-        /** Place a fresh marker with WATERLOGGED=true; preserves the water fluid. */
+        /** Land in the candidate's water, keeping the water fluid. */
         WATERLOG,
-        /** Freeze the candidate water to ice, then place the marker at candidate.above(). */
+        /** Freeze the candidate water to ice, then land at candidate.above(). */
         FREEZE_AND_RISE,
-        /** Nothing can be placed. */
+        /** Nothing can land. */
         NONE
     }
 

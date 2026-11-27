@@ -105,14 +105,14 @@ class LiftedPalmBlobTest {
 
         @Test
         void theLocalCastersBlobStandsAtTheSourceInItsViewInTheGlovesType() {
-            try (SprayingClient client = SprayingClient.local(GooTypes.ZOO)) {
+            try (SprayingClient client = SprayingClient.local(GooTypes.ZOMBIE)) {
                 client.at(EASED);
                 sprayEveryTickThroughTheEase();
 
                 LiftedPalmBlob.Blob blob = LiftedPalmBlob.blobOf(SprayingClient.CASTER, 0f).orElseThrow();
 
                 assertNear(SpraySource.of(SprayingClient.CASTER, SprayingClient.SENT_GLOVE, 0f), blob.place());
-                assertEquals(GooTypes.ZOO, blob.type());
+                assertEquals(GooTypes.ZOMBIE, blob.type());
             }
         }
 
@@ -205,7 +205,7 @@ class LiftedPalmBlobTest {
         @ParameterizedTest
         @ValueSource(floats = {70f, 110f})
         void theFullyLiftedBlobStandsStraightAboveTheRestingPalm(float fov) {
-            try (SprayingClient client = SprayingClient.local(GooTypes.ZOO)) {
+            try (SprayingClient client = SprayingClient.local(GooTypes.ZOMBIE)) {
                 client.viewedAt(fov);
 
                 Vec3 place = liftedUnder(client, NO_BOB, BEFORE_THE_SWING);
@@ -216,7 +216,7 @@ class LiftedPalmBlobTest {
 
         @Test
         void theFullyLiftedBlobHoldsOnePlaceInTheViewUnderEveryBob() {
-            try (SprayingClient client = SprayingClient.local(GooTypes.ZOO)) {
+            try (SprayingClient client = SprayingClient.local(GooTypes.ZOMBIE)) {
                 Vec3 still = liftedUnder(client, NO_BOB, BEFORE_THE_SWING);
                 Vec3 walking = liftedUnder(client, walkingBob(), BEFORE_THE_SWING);
 
@@ -227,7 +227,7 @@ class LiftedPalmBlobTest {
 
         @Test
         void theFullyLiftedBlobHoldsOnePlaceInTheViewThroughASwing() {
-            try (SprayingClient client = SprayingClient.local(GooTypes.ZOO)) {
+            try (SprayingClient client = SprayingClient.local(GooTypes.ZOMBIE)) {
                 Vec3 unswung = liftedUnder(client, NO_BOB, BEFORE_THE_SWING);
                 FirstPersonSwing.recordSwing(client.gloveDrawnUnder(NO_BOB, BEFORE_THE_SWING),
                         client.gloveDrawnUnder(NO_BOB, new Matrix4f(BEFORE_THE_SWING).mul(THE_SWING)));
@@ -259,7 +259,7 @@ class LiftedPalmBlobTest {
 
         @Test
         void theLocalFirstPersonCastersBlobDrawsInTheHandsPassRatherThanTheLevel() {
-            try (SprayingClient client = SprayingClient.local(GooTypes.ZOO)) {
+            try (SprayingClient client = SprayingClient.local(GooTypes.ZOMBIE)) {
                 assertFalse(LiftedPalmBlob.drawsInTheLevel(SprayingClient.CASTER),
                         "the hand's pass should draw the local first-person blob, over the glove");
             }
@@ -267,7 +267,7 @@ class LiftedPalmBlobTest {
 
         @Test
         void anotherPlayersBlobDrawsInTheLevel() {
-            try (SprayingClient client = SprayingClient.another(GooTypes.ZOO)) {
+            try (SprayingClient client = SprayingClient.another(GooTypes.ZOMBIE)) {
                 assertTrue(LiftedPalmBlob.drawsInTheLevel(SprayingClient.CASTER));
             }
         }
@@ -351,7 +351,7 @@ class LiftedPalmBlobTest {
 
         @Test
         void aStreamTickNowRunsTheSprayAndDrawsTheLiftedBlob() {
-            try (SprayingClient client = SprayingClient.another(GooTypes.ZOO)) {
+            try (SprayingClient client = SprayingClient.another(GooTypes.ZOMBIE)) {
                 client.at(NOW);
                 LiftedPalmBlob.held(SprayingClient.CASTER, SprayingClient.SENT_GLOVE, NOW);
 
@@ -363,7 +363,7 @@ class LiftedPalmBlobTest {
 
         @Test
         void aLastStreamTickOlderThanTheStreamsGapAndTheSettleEndsTheSprayAndDrawsNoLiftedBlob() {
-            try (SprayingClient client = SprayingClient.another(GooTypes.ZOO)) {
+            try (SprayingClient client = SprayingClient.another(GooTypes.ZOMBIE)) {
                 long ended = (long) Math.ceil(settledAt(NOW));
                 client.at(ended);
                 LiftedPalmBlob.held(SprayingClient.CASTER, SprayingClient.SENT_GLOVE, NOW);
@@ -593,7 +593,7 @@ class LiftedPalmBlobTest {
         HAND {
             @Override
             BlobShape drawnAt(long now, long lastStreamTick) {
-                try (SprayingClient client = SprayingClient.local(GooTypes.ZOO)) {
+                try (SprayingClient client = SprayingClient.local(GooTypes.ZOMBIE)) {
                     sprayThrough(client, now, lastStreamTick);
                     return LiftedPalmBlob.liftHeldInView().orElseThrow().shape();
                 }
@@ -602,7 +602,7 @@ class LiftedPalmBlobTest {
         LEVEL {
             @Override
             BlobShape drawnAt(long now, long lastStreamTick) {
-                try (SprayingClient client = SprayingClient.another(GooTypes.ZOO)) {
+                try (SprayingClient client = SprayingClient.another(GooTypes.ZOMBIE)) {
                     sprayThrough(client, now, lastStreamTick);
                     return LiftedPalmBlob.blobOf(SprayingClient.CASTER, 0f).orElseThrow().shape();
                 }
@@ -759,7 +759,7 @@ class LiftedPalmBlobTest {
         @Test
         void aSprayPressedAgainOffThePalmTurnsTheBlobRoundWhereItStandsWithNoHop() {
             long pressedAgain = (long) partWayDown(EASED);
-            try (SprayingClient client = SprayingClient.another(GooTypes.ZOO)) {
+            try (SprayingClient client = SprayingClient.another(GooTypes.ZOMBIE)) {
                 for (long tick = NOW; tick <= EASED; tick++) {
                     LiftedPalmBlob.held(SprayingClient.CASTER, SprayingClient.SENT_GLOVE, tick);
                 }

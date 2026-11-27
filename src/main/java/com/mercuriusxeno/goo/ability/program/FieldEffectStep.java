@@ -354,9 +354,4 @@ public record FieldEffectStep(Expr radius, List<EntityFilter> where, Expr cooldo
         return Stream.concat(strike.stream().map(child -> new HostedStep(child, HostKind.ENTITY)),
                 Stream.of(teardown, expand, ambient).flatMap(List::stream).map(child -> new HostedStep(child, host)));
     }
-
-    @Override
-    public boolean standsAgainstBreaking() {
-        return true;
-    }
 }

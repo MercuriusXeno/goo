@@ -22,7 +22,7 @@ final class BoreDrillPass {
     /** Blocks the box stands past the vortex, so no fragment of its ragged rim is clipped at a face. */
     private static final double BOX_MARGIN = 0.25;
     private static final MarchedBoxPass PASS = new MarchedBoxPass("Goo bore drill", GooRenderTypes.BORE_DRILL,
-            GooRenderTypes.BORE_DRILL_BLOCK, GooRenderTypes.BORE_DRILL_DEPTH_SAMPLER, BYTES);
+            GooRenderTypes.BORE_DRILL_OIT, GooRenderTypes.BORE_DRILL_BLOCK, GooRenderTypes.BORE_DRILL_DEPTH_SAMPLER, BYTES);
 
     /** The block's bytes, kept across frames so a frame allocates no direct memory of its own. */
     private static final ByteBuffer BLOCK = ByteBuffer.allocateDirect(BYTES);

@@ -92,7 +92,7 @@ class GooItemEntityRendererTest {
     void aDroppedGooItemSubmitsItsCoreOnTheGooTypeAheadOfItsShell() {
         GooItemEntityRenderer renderer = new GooItemEntityRenderer(context());
         GooItemEntityRenderer.GooItemRenderState state = renderer.createRenderState();
-        state.gooType = GooTypes.ZOO;
+        state.gooType = GooTypes.ZOMBIE;
         state.gooSize = SIZE;
         SubmitNodeCollector collector = mock(SubmitNodeCollector.class);
         try (MockedStatic<Minecraft> client = mockStatic(Minecraft.class);
@@ -119,7 +119,7 @@ class GooItemEntityRendererTest {
     void aDroppedGooItemsCoreStaysStillAtThreeQuartersOfItsShell() {
         GooItemEntityRenderer renderer = new GooItemEntityRenderer(context());
         GooItemEntityRenderer.GooItemRenderState state = renderer.createRenderState();
-        state.gooType = GooTypes.ZOO;
+        state.gooType = GooTypes.ZOMBIE;
         state.gooSize = SIZE;
         assertStillAtThreeQuarters(collector -> renderer.submit(state, new PoseStack(), collector,
                 new CameraRenderState()));
@@ -179,7 +179,7 @@ class GooItemEntityRendererTest {
     void aDroppedGooItemCastsNoShadow() {
         GooItemEntityRenderer renderer = new GooItemEntityRenderer(context());
         GooItemEntityRenderer.GooItemRenderState state = renderer.createRenderState();
-        state.gooType = GooTypes.ZOO;
+        state.gooType = GooTypes.ZOMBIE;
         state.gooSize = SIZE;
 
         assertEquals(0f, renderer.getShadowRadius(state), "a dropped goo item should cast no entity shadow");
@@ -211,7 +211,7 @@ class GooItemEntityRendererTest {
         state.ageInTicks = age;
         state.bobOffset = bobOffset;
         state.shouldBob = true;
-        state.gooType = GooTypes.ZOO;
+        state.gooType = GooTypes.ZOMBIE;
         state.gooSize = SIZE;
         SubmitNodeCollector collector = mock(SubmitNodeCollector.class);
         List<PoseStack.Pose> poses = new ArrayList<>();

@@ -5,12 +5,14 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.entity.ai.goal.GoalSelector;
+import net.minecraft.world.level.Level;
 import org.junit.jupiter.api.Test;
 import java.lang.reflect.Field;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * The shriek calls a hostile mob and passes every other mob over: a monster
@@ -24,6 +26,8 @@ class SculkCallTest {
 
     private static final BlockPos BLOB = new BlockPos(3, 64, -7);
     private static final int SHRIEKER_COLUMN = 10;
+    private static final long SHRIEK_TICK = 12_000;
+    private static final int LASTS = 600;
 
     @Test
     void callsAZombie() {
@@ -56,8 +60,11 @@ class SculkCallTest {
         Field goals = Mob.class.getDeclaredField("goalSelector");
         goals.setAccessible(true);
         goals.set(mob, new GoalSelector());
+        Level level = mock(Level.class);
+        when(level.getGameTime()).thenReturn(SHRIEK_TICK);
+        when(mob.level()).thenReturn(level);
 
-        SculkCall.call(mob, BLOB);
+        SculkCall.call(mob, BLOB, SHRIEK_TICK, LASTS);
 
         assertTrue(SculkCall.isCalledTo(mob, BLOB));
     }

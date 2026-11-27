@@ -489,7 +489,7 @@ class StreamMotesTest {
              MockedStatic<GooCasters> casters = mockStatic(GooCasters.class, CALLS_REAL_METHODS);
              MockedStatic<GooGloveItem> gloves = mockStatic(GooGloveItem.class)) {
             mc.when(Minecraft::getInstance).thenReturn(minecraft);
-            gloves.when(() -> GooGloveItem.getSelectedType(any())).thenReturn(GooTypes.ZOO);
+            gloves.when(() -> GooGloveItem.getSelectedType(any())).thenReturn(GooTypes.ZOMBIE);
             particles.when(() -> SimpleParticles.resolve(any())).thenReturn(Optional.of(mock(SimpleParticleType.class)));
             rays.when(() -> CoatRay.clipping(any())).thenReturn((CoatRay.BlockClip) (from, to) -> Optional.empty());
             arcs.when(() -> DripArc.launchOnto(any(), any(), anyDouble(), anyDouble())).thenAnswer(call -> {

@@ -56,8 +56,7 @@
               {"when": "goo:item/weird_goo_tiny", "model": {"type": "minecraft:model", "model": "goo:item/weird_goo_tiny"}},
               {"when": "goo:item/xeno_goo_tiny", "model": {"type": "minecraft:model", "model": "goo:item/xeno_goo_tiny"}},
               {"when": "goo:item/yarn_goo_tiny", "model": {"type": "minecraft:model", "model": "goo:item/yarn_goo_tiny"}},
-              {"when": "goo:item/zombie_goo_tiny", "model": {"type": "minecraft:model", "model": "goo:item/zombie_goo_tiny"}},
-              {"when": "goo:item/zoo_goo_tiny", "model": {"type": "minecraft:model", "model": "goo:item/zoo_goo_tiny"}}
+              {"when": "goo:item/zombie_goo_tiny", "model": {"type": "minecraft:model", "model": "goo:item/zombie_goo_tiny"}}
           ],
           "fallback": {"type": "minecraft:model", "model": "goo:item/goo_tiny", "tints": [{"type": "goo:goo_type"}]}
         },
@@ -93,8 +92,7 @@
               {"when": "goo:item/weird_goo_small", "model": {"type": "minecraft:model", "model": "goo:item/weird_goo_small"}},
               {"when": "goo:item/xeno_goo_small", "model": {"type": "minecraft:model", "model": "goo:item/xeno_goo_small"}},
               {"when": "goo:item/yarn_goo_small", "model": {"type": "minecraft:model", "model": "goo:item/yarn_goo_small"}},
-              {"when": "goo:item/zombie_goo_small", "model": {"type": "minecraft:model", "model": "goo:item/zombie_goo_small"}},
-              {"when": "goo:item/zoo_goo_small", "model": {"type": "minecraft:model", "model": "goo:item/zoo_goo_small"}}
+              {"when": "goo:item/zombie_goo_small", "model": {"type": "minecraft:model", "model": "goo:item/zombie_goo_small"}}
           ],
           "fallback": {"type": "minecraft:model", "model": "goo:item/goo_small", "tints": [{"type": "goo:goo_type"}]}
         }
@@ -130,8 +128,7 @@
               {"when": "goo:item/weird_goo_base", "model": {"type": "minecraft:model", "model": "goo:item/weird_goo"}},
               {"when": "goo:item/xeno_goo_base", "model": {"type": "minecraft:model", "model": "goo:item/xeno_goo"}},
               {"when": "goo:item/yarn_goo_base", "model": {"type": "minecraft:model", "model": "goo:item/yarn_goo"}},
-              {"when": "goo:item/zombie_goo_base", "model": {"type": "minecraft:model", "model": "goo:item/zombie_goo"}},
-              {"when": "goo:item/zoo_goo_base", "model": {"type": "minecraft:model", "model": "goo:item/zoo_goo"}}
+              {"when": "goo:item/zombie_goo_base", "model": {"type": "minecraft:model", "model": "goo:item/zombie_goo"}}
           ],
           "fallback": {"type": "minecraft:model", "model": "goo:item/goo", "tints": [{"type": "goo:goo_type"}]}
         }
@@ -167,8 +164,7 @@
               {"when": "goo:item/weird_goo_large", "model": {"type": "minecraft:model", "model": "goo:item/weird_goo_large"}},
               {"when": "goo:item/xeno_goo_large", "model": {"type": "minecraft:model", "model": "goo:item/xeno_goo_large"}},
               {"when": "goo:item/yarn_goo_large", "model": {"type": "minecraft:model", "model": "goo:item/yarn_goo_large"}},
-              {"when": "goo:item/zombie_goo_large", "model": {"type": "minecraft:model", "model": "goo:item/zombie_goo_large"}},
-              {"when": "goo:item/zoo_goo_large", "model": {"type": "minecraft:model", "model": "goo:item/zoo_goo_large"}}
+              {"when": "goo:item/zombie_goo_large", "model": {"type": "minecraft:model", "model": "goo:item/zombie_goo_large"}}
           ],
           "fallback": {"type": "minecraft:model", "model": "goo:item/goo_large", "tints": [{"type": "goo:goo_type"}]}
         }

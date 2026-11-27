@@ -7,12 +7,7 @@
   "requires": ["minecraft:sculk_shrieker"],
   "delivery": { "kind": "arc", "range": 16 },
   "behaviors": [
-    {
-      "type": "linger",
-      "steps": [
-        { "type": "shriek", "reach": 16, "lasts": 600 }
-      ]
-    }
+    { "type": "shriek", "reach": 16, "lasts": 600 }
   ],
   "tags": ["trap"]
 }

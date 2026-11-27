@@ -101,16 +101,6 @@ public interface Step {
     }
 
     /**
-     * Answers whether the marker stands against a punch while this step
-     * runs, as a field effect's trap does.
-     *
-     * @return true when breaking the marker is refused
-     */
-    default boolean standsAgainstBreaking() {
-        return false;
-    }
-
-    /**
      * Answers whether the step can act on its host now; a self ability runs
      * and drains only when every step admits, so Transmit aimed at no
      * connected mycelium costs nothing (decision transmit-reaches-only-connected-mycelial-blocks-you-touch).

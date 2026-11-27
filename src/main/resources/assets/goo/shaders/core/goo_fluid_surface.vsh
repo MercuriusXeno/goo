@@ -17,8 +17,12 @@ layout(location = 3) in ivec2 UV1;
 layout(location = 4) in ivec2 UV2;
 layout(location = 5) in vec3 Normal;
 
+// The OIT depth bounds and transmittance phases write alpha alone, so they skip the fog
+// (decision goo-translucency-draws-through-order-independent-transparency).
+#ifndef OIT_ALPHA_ONLY
 layout(location = 0) out float sphericalVertexDistance;
 layout(location = 1) out float cylindricalVertexDistance;
+#endif
 layout(location = 2) out vec4 vertexColor;
 layout(location = 3) out vec2 texCoord0;
 layout(location = 4) out vec3 mingleWorldPos;
@@ -54,8 +58,10 @@ void main() {
 
     gl_Position = ProjMat * ModelViewMat * vec4(lifted, 1.0);
 
+#ifndef OIT_ALPHA_ONLY
     sphericalVertexDistance = fog_spherical_distance(lifted);
     cylindricalVertexDistance = fog_cylindrical_distance(lifted);
+#endif
     vertexColor = Color;
     texCoord0 = UV0;
     // The mingle reads the unrippled position, so a patch keeps its type at

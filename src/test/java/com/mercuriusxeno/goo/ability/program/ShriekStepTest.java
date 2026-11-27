@@ -1,14 +1,13 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 /**
- * The Shriek blob shrieks on its first tick, calling every hostile in reach
- * then, and the step ends once its lifetime has passed
+ * The Shriek blob shrieks on its landing tick, calling every hostile in
+ * reach then for the ticks the step lasts, and the step ends on that tick
  * (decision shriek-blob-cries-once-and-calls-earshot).
  */
 class ShriekStepTest {
@@ -18,16 +17,14 @@ class ShriekStepTest {
     private static final ShriekStep STEP = new ShriekStep(Expr.literal(REACH), Expr.literal(LASTS));
 
     @Test
-    void theFirstTickShrieksAcrossTheReach() {
+    void theLandingTickShrieksAcrossTheReachForTheStepsLasts() {
         ShriekHost host = mock(ShriekHost.class);
         STEP.tick(new StepContext(host, 0, 0));
-        verify(host).shriek(REACH);
+        verify(host).shriek(REACH, LASTS);
     }
 
     @Test
-    void theStepEndsOnceItsLifetimeHasPassed() {
-        ShriekHost host = mock(ShriekHost.class);
-        assertFalse(STEP.tick(new StepContext(host, LASTS - 2, LASTS - 2)));
-        assertTrue(STEP.tick(new StepContext(host, LASTS - 1, LASTS - 1)));
+    void theStepEndsOnTheLandingTick() {
+        assertTrue(STEP.tick(new StepContext(mock(ShriekHost.class), 0, 0)));
     }
 }
