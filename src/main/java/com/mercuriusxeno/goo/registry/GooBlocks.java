@@ -40,6 +40,7 @@ import com.mercuriusxeno.goo.block.zone.DimensionDoorBlock;
 import com.mercuriusxeno.goo.fluid.GooFluidBlock;
 import com.mercuriusxeno.goo.fluid.MoltenIronBlock;
 import com.mercuriusxeno.goo.lunar.MonolithMarkerBlock;
+import com.mercuriusxeno.goo.lunar.ResonatorBlock;
 import com.mercuriusxeno.goo.lunar.VolatileCrystalBlock;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.ColorRGBA;
@@ -55,6 +56,7 @@ import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.TintedGlassBlock;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.SculkSensorPhase;
 import net.minecraft.world.level.material.MapColor;
 import net.minecraft.world.level.material.PushReaction;
 import net.neoforged.neoforge.registries.DeferredBlock;
@@ -808,6 +810,20 @@ public class GooBlocks {
             () -> BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_LIGHT_GREEN).forceSolidOn().noOcclusion()
                     .sound(SoundType.AMETHYST_CLUSTER).strength(1.5F).lightLevel(state -> VOLATILE_CRYSTAL_LIGHT)
                     .pushReaction(PushReaction.POPPED));
+
+    /** The light a resonator's lit tip gives while it carries an echo. */
+    private static final int RESONATOR_ACTIVE_LIGHT = 6;
+
+    /**
+     * Resonator: alien tech in a simple entityless block that hears a vibration and echoes it from where it stands,
+     * a sound relay, rich in pulse.
+     * decision resonator-echoes-a-vibration-as-a-sound-relay
+     */
+    public static final DeferredBlock<ResonatorBlock> RESONATOR = BLOCKS.registerBlock("resonator",
+            ResonatorBlock::new, () -> BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_CYAN)
+                    .strength(STONE_HARDNESS, STONE_RESISTANCE).sound(SoundType.SCULK_SENSOR).noOcclusion()
+                    .lightLevel(state -> state.getValue(ResonatorBlock.PHASE) == SculkSensorPhase.ACTIVE
+                            ? RESONATOR_ACTIVE_LIGHT : 0));
 
     /**
      * Impact glass: lunar's regolith melted where meteorites struck, dark glass that holds back light as tinted

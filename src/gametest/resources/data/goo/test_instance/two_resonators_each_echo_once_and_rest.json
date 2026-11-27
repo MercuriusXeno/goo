@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:two_resonators_each_echo_once_and_rest",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 260,
+  "setup_ticks": 0,
+  "required": true
+}

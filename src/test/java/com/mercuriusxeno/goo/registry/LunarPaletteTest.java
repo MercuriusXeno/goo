@@ -109,7 +109,13 @@ class LunarPaletteTest {
                     new PaletteColor(0x39ff14, "volatile_crystal pulse"),
                     new PaletteColor(0x60ff2c, "volatile_crystal pulse"),
                     new PaletteColor(0x88ff44, "volatile_crystal pulse"),
-                    new PaletteColor(0xb0ff7a, "volatile_crystal pulse"))).toList();
+                    new PaletteColor(0xb0ff7a, "volatile_crystal pulse"),
+                    new PaletteColor(0x0a3a3d, "resonator teal"),
+                    new PaletteColor(0x0d6f73, "resonator teal"),
+                    new PaletteColor(0x1aa6ad, "resonator teal"),
+                    new PaletteColor(0x29dfeb, "resonator lit teal"),
+                    new PaletteColor(0x7ff6ff, "resonator lit teal"),
+                    new PaletteColor(0xd8fdff, "resonator lit teal"))).toList();
 
     /**
      * A ground block's sprites: its own and the variants its blockstate picks among per block, sharing one border band.
@@ -149,8 +155,9 @@ class LunarPaletteTest {
      * The warrens' alien blocks, black stone from the palette's near-blacks carrying runes in xeno's own violets.
      * decision warrens-hold-xeno-rich-alien-blocks
      */
-    static final List<String> WARREN_SPRITES = Stream.concat(Stream.of("monolith_marker"), alienStructureSprites())
-            .toList();
+    static final List<String> WARREN_SPRITES = Stream.of(Stream.of("monolith_marker"), alienStructureSprites(),
+            Stream.of("resonator_ring", "resonator_ring_active", "resonator_tip", "resonator_tip_active"))
+            .flatMap(sprites -> sprites).toList();
 
     /**
      * The alien structure family's sprites: stone, tile and every glyph in each refined material, and each pillar's

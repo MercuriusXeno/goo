@@ -1,0 +1,13 @@
+{
+  "variants": {
+    "sculk_sensor_phase=inactive": {
+      "model": "goo:block/resonator"
+    },
+    "sculk_sensor_phase=active": {
+      "model": "goo:block/resonator_active"
+    },
+    "sculk_sensor_phase=cooldown": {
+      "model": "goo:block/resonator"
+    }
+  }
+}
