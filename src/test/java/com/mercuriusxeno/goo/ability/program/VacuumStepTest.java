@@ -108,8 +108,6 @@ class VacuumStepTest {
 
             assertEquals(SHIPPED_RANGE, shipped.delivery().range());
             assertEquals(CONE, shipped.delivery().coneDegrees());
-            assertEquals(SHIPPED_RANGE, shipped.area().size());
-            assertEquals(CONE, shipped.area().angle());
         }
 
     }

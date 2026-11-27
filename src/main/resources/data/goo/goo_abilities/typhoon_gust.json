@@ -11,7 +11,6 @@
     "cone": 30,
     "ticks_per_charge": 20
   },
-  "area": { "shape": "cone", "size": 6.0, "angle": 30.0 },
   "behaviors": [
     { "type": "wind" },
     { "type": "push", "strength": 1.2 }
