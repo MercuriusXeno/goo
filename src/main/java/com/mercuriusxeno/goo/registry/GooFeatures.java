@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.lunar.BoulderFeature;
 import com.mercuriusxeno.goo.lunar.CraterPoolsFeature;
 import com.mercuriusxeno.goo.lunar.MonolithMarkerFeature;
 import com.mercuriusxeno.goo.lunar.NativeIronLodeFeature;
+import com.mercuriusxeno.goo.lunar.WarrenRuinFeature;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.level.levelgen.feature.Feature;
@@ -57,6 +58,13 @@ public final class GooFeatures {
      */
     public static final DeferredHolder<MapCodec<? extends Feature>, MapCodec<MonolithMarkerFeature>> MONOLITH_MARKER =
             FEATURES.register("monolith_marker", () -> MonolithMarkerFeature.CODEC);
+
+    /**
+     * {@code goo:warren_ruin}, one of the warrens' little mini structures built from the alien structure family.
+     * decision warrens-hold-xeno-rich-alien-blocks
+     */
+    public static final DeferredHolder<MapCodec<? extends Feature>, MapCodec<WarrenRuinFeature>> WARREN_RUIN =
+            FEATURES.register("warren_ruin", () -> WarrenRuinFeature.CODEC);
 
     private GooFeatures() {
     }

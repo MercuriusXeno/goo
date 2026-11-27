@@ -1,0 +1,13 @@
+{
+  "variants": {
+    "material=glazed": {
+      "model": "goo:block/alien_tile_glazed"
+    },
+    "material=iridescent": {
+      "model": "goo:block/alien_tile_iridescent"
+    },
+    "material=faceted": {
+      "model": "goo:block/alien_tile_faceted"
+    }
+  }
+}

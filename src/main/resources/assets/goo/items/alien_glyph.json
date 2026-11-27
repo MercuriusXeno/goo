@@ -1,0 +1,118 @@
+{
+  "model": {
+    "type": "minecraft:select",
+    "property": "minecraft:block_state",
+    "block_state_property": "material",
+    "cases": [
+      {
+        "when": "glazed",
+        "model": {
+          "type": "minecraft:select",
+          "property": "minecraft:block_state",
+          "block_state_property": "mark",
+          "cases": [
+            {
+              "when": "eye",
+              "model": {
+                "type": "minecraft:model",
+                "model": "goo:block/alien_glyph_glazed_eye"
+              }
+            },
+            {
+              "when": "maze",
+              "model": {
+                "type": "minecraft:model",
+                "model": "goo:block/alien_glyph_glazed_maze"
+              }
+            },
+            {
+              "when": "ring",
+              "model": {
+                "type": "minecraft:model",
+                "model": "goo:block/alien_glyph_glazed_ring"
+              }
+            }
+          ],
+          "fallback": {
+            "type": "minecraft:model",
+            "model": "goo:block/alien_glyph_glazed_eye"
+          }
+        }
+      },
+      {
+        "when": "iridescent",
+        "model": {
+          "type": "minecraft:select",
+          "property": "minecraft:block_state",
+          "block_state_property": "mark",
+          "cases": [
+            {
+              "when": "eye",
+              "model": {
+                "type": "minecraft:model",
+                "model": "goo:block/alien_glyph_iridescent_eye"
+              }
+            },
+            {
+              "when": "maze",
+              "model": {
+                "type": "minecraft:model",
+                "model": "goo:block/alien_glyph_iridescent_maze"
+              }
+            },
+            {
+              "when": "ring",
+              "model": {
+                "type": "minecraft:model",
+                "model": "goo:block/alien_glyph_iridescent_ring"
+              }
+            }
+          ],
+          "fallback": {
+            "type": "minecraft:model",
+            "model": "goo:block/alien_glyph_iridescent_eye"
+          }
+        }
+      },
+      {
+        "when": "faceted",
+        "model": {
+          "type": "minecraft:select",
+          "property": "minecraft:block_state",
+          "block_state_property": "mark",
+          "cases": [
+            {
+              "when": "eye",
+              "model": {
+                "type": "minecraft:model",
+                "model": "goo:block/alien_glyph_faceted_eye"
+              }
+            },
+            {
+              "when": "maze",
+              "model": {
+                "type": "minecraft:model",
+                "model": "goo:block/alien_glyph_faceted_maze"
+              }
+            },
+            {
+              "when": "ring",
+              "model": {
+                "type": "minecraft:model",
+                "model": "goo:block/alien_glyph_faceted_ring"
+              }
+            }
+          ],
+          "fallback": {
+            "type": "minecraft:model",
+            "model": "goo:block/alien_glyph_faceted_eye"
+          }
+        }
+      }
+    ],
+    "fallback": {
+      "type": "minecraft:model",
+      "model": "goo:block/alien_glyph_glazed_eye"
+    }
+  }
+}

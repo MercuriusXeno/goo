@@ -79,7 +79,26 @@ class LunarPaletteTest {
                     new PaletteColor(0x6a5acd, "monolith_marker rune"),
                     new PaletteColor(0x7969dc, "monolith_marker rune"),
                     new PaletteColor(0x8878eb, "monolith_marker rune"),
-                    new PaletteColor(0x9282f5, "monolith_marker rune"))).toList();
+                    new PaletteColor(0x9282f5, "monolith_marker rune"),
+                    new PaletteColor(0x0e0d14, "alien glaze"),
+                    new PaletteColor(0x15131f, "alien glaze"),
+                    new PaletteColor(0x1d1a2b, "alien glaze"),
+                    new PaletteColor(0x272338, "alien glaze"),
+                    new PaletteColor(0x353047, "alien glaze"),
+                    new PaletteColor(0x15192a, "alien iridescent alloy"),
+                    new PaletteColor(0x1c1a30, "alien iridescent alloy"),
+                    new PaletteColor(0x201b35, "alien iridescent alloy"),
+                    new PaletteColor(0x1a2230, "alien iridescent alloy"),
+                    new PaletteColor(0x152628, "alien iridescent alloy"),
+                    new PaletteColor(0x16212d, "alien iridescent alloy"),
+                    new PaletteColor(0x16171c, "alien facets"),
+                    new PaletteColor(0x1b1c22, "alien facets"),
+                    new PaletteColor(0x202229, "alien facets"),
+                    new PaletteColor(0x262830, "alien facets"),
+                    new PaletteColor(0x33353d, "alien facet edge"),
+                    new PaletteColor(0x101115, "alien facet edge"),
+                    new PaletteColor(0x3a3d45, "alien joint and cut edge"),
+                    new PaletteColor(0x0b0c0f, "alien joint and cut"))).toList();
 
     /**
      * A ground block's sprites: its own and the variants its blockstate picks among per block, sharing one border band.
@@ -116,7 +135,23 @@ class LunarPaletteTest {
      * The warrens' alien blocks, black stone from the palette's near-blacks carrying runes in xeno's own violets.
      * decision warrens-hold-xeno-rich-alien-blocks
      */
-    static final List<String> WARREN_SPRITES = List.of("monolith_marker");
+    static final List<String> WARREN_SPRITES = Stream.concat(Stream.of("monolith_marker"), alienStructureSprites())
+            .toList();
+
+    /**
+     * The alien structure family's sprites: stone, tile and every glyph in each refined material, and each pillar's
+     * side and end.
+     * decision warrens-hold-xeno-rich-alien-blocks
+     */
+    private static Stream<String> alienStructureSprites() {
+        List<String> materials = List.of("glazed", "iridescent", "faceted");
+        Stream<String> cut = materials.stream().flatMap(material -> Stream.concat(
+                Stream.of("alien_stone_" + material, "alien_tile_" + material),
+                Stream.of("eye", "maze", "ring").map(mark -> "alien_glyph_" + material + "_" + mark)));
+        Stream<String> pillars = Stream.of("fluted", "banded", "runed")
+                .flatMap(style -> Stream.of("alien_pillar_" + style, "alien_pillar_" + style + "_top"));
+        return Stream.concat(cut, pillars);
+    }
 
     /** The sprites under assets/goo/textures/block/ held to the palette: every lunar block's variants. */
     static final List<String> LUNAR_SPRITES = Stream.of(GROUND_SPRITES.stream(), Stream.of("iron_core"),

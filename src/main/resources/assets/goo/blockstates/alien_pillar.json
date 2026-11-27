@@ -1,0 +1,40 @@
+{
+  "variants": {
+    "axis=x,style=fluted": {
+      "model": "goo:block/alien_pillar_fluted",
+      "x": 90,
+      "y": 90
+    },
+    "axis=y,style=fluted": {
+      "model": "goo:block/alien_pillar_fluted"
+    },
+    "axis=z,style=fluted": {
+      "model": "goo:block/alien_pillar_fluted",
+      "x": 90
+    },
+    "axis=x,style=banded": {
+      "model": "goo:block/alien_pillar_banded",
+      "x": 90,
+      "y": 90
+    },
+    "axis=y,style=banded": {
+      "model": "goo:block/alien_pillar_banded"
+    },
+    "axis=z,style=banded": {
+      "model": "goo:block/alien_pillar_banded",
+      "x": 90
+    },
+    "axis=x,style=runed": {
+      "model": "goo:block/alien_pillar_runed",
+      "x": 90,
+      "y": 90
+    },
+    "axis=y,style=runed": {
+      "model": "goo:block/alien_pillar_runed"
+    },
+    "axis=z,style=runed": {
+      "model": "goo:block/alien_pillar_runed",
+      "x": 90
+    }
+  }
+}

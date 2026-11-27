@@ -1,17 +1,27 @@
 package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.block.alienstructure.AlienGlyphBlock;
+import com.mercuriusxeno.goo.block.alienstructure.AlienMaterial;
+import com.mercuriusxeno.goo.block.alienstructure.AlienMaterialBlock;
+import com.mercuriusxeno.goo.block.alienstructure.AlienPillarBlock;
+import com.mercuriusxeno.goo.block.alienstructure.GlyphMark;
+import com.mercuriusxeno.goo.block.alienstructure.PillarStyle;
 import com.mercuriusxeno.goo.fluid.GooBucketItem;
 import com.mercuriusxeno.goo.item.GooItem;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.Holder;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.CreativeModeTabs;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.BlockItemStateProperties;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import java.util.Comparator;
@@ -54,6 +64,7 @@ public class GooCreativeTabs {
                 output.accept(GooItems.NATIVE_IRON.get());
                 output.accept(GooItems.ASTRAL_CRYSTAL.get());
                 output.accept(GooItems.MONOLITH_MARKER.get());
+                acceptAlienStructureLooks(output);
                 output.accept(GooItems.IMPACT_GLASS.get());
                 output.accept(GooItems.BRECCIA.get());
                 output.accept(GooItems.CRATER_ICE.get());
@@ -77,6 +88,40 @@ public class GooCreativeTabs {
             })
             .build()
         );
+
+    /**
+     * Offers every look of the alien structure family as its own stack, each carrying the block state it places:
+     * stone in each material, each pillar style, each glyph on each material, and tile in each material.
+     * decision warrens-hold-xeno-rich-alien-blocks
+     *
+     * @param output the tab's item sink
+     */
+    private static void acceptAlienStructureLooks(CreativeModeTab.Output output) {
+        for (AlienMaterial material : AlienMaterial.values()) {
+            output.accept(withState(GooItems.ALIEN_STONE.get(),
+                    BlockItemStateProperties.EMPTY.with(AlienMaterialBlock.MATERIAL, material)));
+        }
+        for (PillarStyle style : PillarStyle.values()) {
+            output.accept(withState(GooItems.ALIEN_PILLAR.get(),
+                    BlockItemStateProperties.EMPTY.with(AlienPillarBlock.STYLE, style)));
+        }
+        for (AlienMaterial material : AlienMaterial.values()) {
+            for (GlyphMark mark : GlyphMark.values()) {
+                output.accept(withState(GooItems.ALIEN_GLYPH.get(), BlockItemStateProperties.EMPTY
+                        .with(AlienMaterialBlock.MATERIAL, material).with(AlienGlyphBlock.MARK, mark)));
+            }
+        }
+        for (AlienMaterial material : AlienMaterial.values()) {
+            output.accept(withState(GooItems.ALIEN_TILE.get(),
+                    BlockItemStateProperties.EMPTY.with(AlienMaterialBlock.MATERIAL, material)));
+        }
+    }
+
+    private static ItemStack withState(Item item, BlockItemStateProperties state) {
+        ItemStack stack = new ItemStack(item);
+        stack.set(DataComponents.BLOCK_STATE, state);
+        return stack;
+    }
 
     /**
      * Offers one type's 1-goo, 1K-goo and 1M-gooStacks, a bucket and a goo label.

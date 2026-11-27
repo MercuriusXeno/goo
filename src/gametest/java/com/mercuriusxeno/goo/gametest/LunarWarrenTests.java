@@ -11,7 +11,9 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Consumer;
 
 /**
@@ -33,6 +35,11 @@ public final class LunarWarrenTests {
             + "monolith marker, stand %d, the first at %s";
     private static final String MARKER_OFF_THE_FLOOR = "The monolith marker at %s should stand on a solid block under "
             + "air, stands on %s under %s";
+    private static final String LUNAR_WARRENS_HOLD_ALIEN_RUINS = "lunar_warrens_hold_alien_ruins";
+    private static final String TOO_FEW_MEMBERS_IN_WARRENS = "The warrens over %d chunks should hold at least two "
+            + "alien structure family members, hold %s";
+    private static final String RUINS_ABOVE_WARRENS = "The bands over the warrens across %d chunks should hold no "
+            + "alien structure block, hold %d, the first at %s";
     private static final String MARKER_BESIDE_MARKER = "The monolith marker at %s should stand alone, touches another "
             + "at %s";
 
@@ -47,6 +54,36 @@ public final class LunarWarrenTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, LUNAR_WARRENS_STAND_MONOLITH_MARKERS_ALONE,
                 LunarWarrenTests::lunarWarrensStandMonolithMarkersAlone);
+        GooTestFunctions.registerTest(registrar, LUNAR_WARRENS_HOLD_ALIEN_RUINS, LunarWarrenTests::lunarWarrensHoldAlienRuins);
+    }
+
+    /**
+     * Scans a square of chunks in goo:lunar from its floor to its top for the alien structure family: the warrens' band
+     * holds at least two different members, laid by its mini structures, and the bands over the warrens hold none.
+     *
+     * @param helper the gametest helper
+     */
+    public static void lunarWarrensHoldAlienRuins(GameTestHelper helper) {
+        ServerLevel lunar = helper.getLevel().getServer().getLevel(Lunar.LEVEL);
+        helper.assertTrue(lunar != null, LUNAR_REQUIRED);
+        List<Block> family = List.of(GooBlocks.ALIEN_STONE.get(), GooBlocks.ALIEN_PILLAR.get(),
+                GooBlocks.ALIEN_GLYPH.get(), GooBlocks.ALIEN_TILE.get());
+        Set<Block> inWarrens = new HashSet<>();
+        List<BlockPos> above = new ArrayList<>();
+        for (Block member : family) {
+            for (BlockPos found : scanFor(lunar, member)) {
+                if (inWarrens(found.getY())) {
+                    inWarrens.add(member);
+                } else if (found.getY() >= LunarDepths.WARREN_ZONE_TOP_Y) {
+                    above.add(found);
+                }
+            }
+        }
+        int chunks = 4 * CHUNK_REACH * CHUNK_REACH;
+        helper.assertTrue(inWarrens.size() >= 2, String.format(TOO_FEW_MEMBERS_IN_WARRENS, chunks, inWarrens));
+        helper.assertTrue(above.isEmpty(), String.format(RUINS_ABOVE_WARRENS, chunks, above.size(),
+                above.isEmpty() ? null : above.getFirst()));
+        helper.succeed();
     }
 
     /**

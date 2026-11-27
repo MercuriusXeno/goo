@@ -20,6 +20,9 @@ import com.mercuriusxeno.goo.block.ability.VinesCellBlock;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.block.ability.WispBlock;
 import com.mercuriusxeno.goo.block.ability.ZapPulseBlock;
+import com.mercuriusxeno.goo.block.alienstructure.AlienGlyphBlock;
+import com.mercuriusxeno.goo.block.alienstructure.AlienMaterialBlock;
+import com.mercuriusxeno.goo.block.alienstructure.AlienPillarBlock;
 import com.mercuriusxeno.goo.block.alientech.LightBeaconBlock;
 import com.mercuriusxeno.goo.block.alientech.MetronomeBlock;
 import com.mercuriusxeno.goo.block.alientech.OculusBlock;
@@ -759,6 +762,37 @@ public class GooBlocks {
                     .noOcclusion());
 
     /**
+     * Alien stone: the plain block of the ancient alien structure family, the refined material the warrens' mini
+     * structures and the eldritch ground's buildings are built from, rich in xeno, mined like stone; its material is
+     * a block state.
+     * decision warrens-hold-xeno-rich-alien-blocks
+     */
+    public static final DeferredBlock<AlienMaterialBlock> ALIEN_STONE = BLOCKS.registerBlock("alien_stone",
+            AlienMaterialBlock::new, GooBlocks::alienStructureProperties);
+
+    /**
+     * Alien pillar: the alien structure family's column, standing along the axis it is placed on, its carving a block
+     * state.
+     * decision warrens-hold-xeno-rich-alien-blocks
+     */
+    public static final DeferredBlock<AlienPillarBlock> ALIEN_PILLAR = BLOCKS.registerBlock("alien_pillar",
+            AlienPillarBlock::new, GooBlocks::alienStructureProperties);
+
+    /**
+     * Alien glyph: the alien structure family's block etched with a glyph, its glyph and its material block states.
+     * decision warrens-hold-xeno-rich-alien-blocks
+     */
+    public static final DeferredBlock<AlienGlyphBlock> ALIEN_GLYPH = BLOCKS.registerBlock("alien_glyph",
+            AlienGlyphBlock::new, GooBlocks::alienStructureProperties);
+
+    /**
+     * Alien tile: the alien structure family's floor tile, its material a block state.
+     * decision warrens-hold-xeno-rich-alien-blocks
+     */
+    public static final DeferredBlock<AlienMaterialBlock> ALIEN_TILE = BLOCKS.registerBlock("alien_tile",
+            AlienMaterialBlock::new, GooBlocks::alienStructureProperties);
+
+    /**
      * Impact glass: lunar's regolith melted where meteorites struck, dark glass that holds back light as tinted
      * glass does, mined like glass.
      * decision lunar-ground-gains-meteoric-iron-impact-glass-breccia-and-crater-ice
@@ -863,5 +897,15 @@ public class GooBlocks {
      */
     private static boolean never(BlockState state, BlockGetter level, BlockPos pos) {
         return false;
+    }
+
+    /**
+     * The properties every alien structure family member shares: a black material, mined like stone with a pickaxe.
+     *
+     * @return the properties
+     */
+    private static BlockBehaviour.Properties alienStructureProperties() {
+        return BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_BLACK).requiresCorrectToolForDrops()
+                .strength(STONE_HARDNESS, STONE_RESISTANCE).sound(SoundType.DEEPSLATE);
     }
 }

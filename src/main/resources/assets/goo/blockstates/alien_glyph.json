@@ -1,0 +1,31 @@
+{
+  "variants": {
+    "mark=eye,material=glazed": {
+      "model": "goo:block/alien_glyph_glazed_eye"
+    },
+    "mark=maze,material=glazed": {
+      "model": "goo:block/alien_glyph_glazed_maze"
+    },
+    "mark=ring,material=glazed": {
+      "model": "goo:block/alien_glyph_glazed_ring"
+    },
+    "mark=eye,material=iridescent": {
+      "model": "goo:block/alien_glyph_iridescent_eye"
+    },
+    "mark=maze,material=iridescent": {
+      "model": "goo:block/alien_glyph_iridescent_maze"
+    },
+    "mark=ring,material=iridescent": {
+      "model": "goo:block/alien_glyph_iridescent_ring"
+    },
+    "mark=eye,material=faceted": {
+      "model": "goo:block/alien_glyph_faceted_eye"
+    },
+    "mark=maze,material=faceted": {
+      "model": "goo:block/alien_glyph_faceted_maze"
+    },
+    "mark=ring,material=faceted": {
+      "model": "goo:block/alien_glyph_faceted_ring"
+    }
+  }
+}

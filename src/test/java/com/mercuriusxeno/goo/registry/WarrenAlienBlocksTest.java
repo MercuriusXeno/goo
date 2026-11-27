@@ -10,9 +10,12 @@ import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.FieldSource;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -71,6 +74,34 @@ class WarrenAlienBlocksTest {
         assertNotNull(value, "base_values.json values no goo:" + block);
         assertTrue(value.exact(GooTypes.XENO).compareTo(lunar.exact(GooTypes.XENO)) > 0,
                 "goo:" + block + " " + value + " carries no more xeno than $lunar " + lunar);
+    }
+
+    /**
+     * The alien structure family, the blocks the warrens' mini structures and the eldritch ground's buildings are built
+     * from: at least four members, each its own block and item, dropping itself and richer in xeno than $lunar.
+     */
+    @Nested
+    class AlienStructureFamily {
+
+        /** The family's members, plain, pillar, glyph and tile. */
+        static final List<String> MEMBERS = List.of("alien_stone", "alien_pillar", "alien_glyph", "alien_tile");
+
+        @Test
+        void theFamilyHoldsAtLeastFourMembers() {
+            assertTrue(MEMBERS.size() >= 4 && Set.copyOf(MEMBERS).size() == MEMBERS.size(), String.valueOf(MEMBERS));
+        }
+
+        @ParameterizedTest
+        @FieldSource("MEMBERS")
+        void eachMemberRegistersAsABlockAndAnItemThatDropsItself(String member) throws IOException {
+            assertRegistersAndDropsItself(member);
+        }
+
+        @ParameterizedTest
+        @FieldSource("MEMBERS")
+        void eachMemberCarriesMoreXenoThanLunar(String member) throws IOException {
+            assertRicherInXenoThanLunar(member);
+        }
     }
 
     @Nested

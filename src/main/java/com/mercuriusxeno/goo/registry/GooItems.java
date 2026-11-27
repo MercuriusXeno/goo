@@ -79,6 +79,14 @@ public class GooItems {
             GooBlocks.ASTRAL_CRYSTAL);
     public static final DeferredItem<BlockItem> MONOLITH_MARKER = ITEMS.registerSimpleBlockItem("monolith_marker",
             GooBlocks.MONOLITH_MARKER);
+    public static final DeferredItem<BlockItem> ALIEN_STONE = ITEMS.registerSimpleBlockItem("alien_stone",
+            GooBlocks.ALIEN_STONE);
+    public static final DeferredItem<BlockItem> ALIEN_PILLAR = ITEMS.registerSimpleBlockItem("alien_pillar",
+            GooBlocks.ALIEN_PILLAR);
+    public static final DeferredItem<BlockItem> ALIEN_GLYPH = ITEMS.registerSimpleBlockItem("alien_glyph",
+            GooBlocks.ALIEN_GLYPH);
+    public static final DeferredItem<BlockItem> ALIEN_TILE = ITEMS.registerSimpleBlockItem("alien_tile",
+            GooBlocks.ALIEN_TILE);
     public static final DeferredItem<BlockItem> IMPACT_GLASS = ITEMS.registerSimpleBlockItem("impact_glass",
             GooBlocks.IMPACT_GLASS);
     public static final DeferredItem<BlockItem> BRECCIA = ITEMS.registerSimpleBlockItem("breccia", GooBlocks.BRECCIA);

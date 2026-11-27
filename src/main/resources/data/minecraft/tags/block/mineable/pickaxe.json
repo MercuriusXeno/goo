@@ -8,6 +8,10 @@
     "goo:native_iron",
     "goo:astral_crystal",
     "goo:monolith_marker",
+    "goo:alien_stone",
+    "goo:alien_pillar",
+    "goo:alien_glyph",
+    "goo:alien_tile",
     "goo:breccia"
   ]
 }
