@@ -8,6 +8,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.ArrayList;
@@ -49,6 +50,14 @@ public final class LunarWarrenTests {
             + "touching another, hold %d crystals and none touch";
     private static final String CRYSTAL_ABOVE_WARRENS = "The bands over the warrens across %d chunks should hold no "
             + "volatile crystal, hold %d, the first at %s";
+    private static final String LUNAR_WARRENS_HOME_SCULK_SENSORS_AND_CATALYSTS =
+            "lunar_warrens_home_sculk_sensors_and_catalysts";
+    private static final String SHRIEKERS_ON_LUNAR = "Lunar over %d chunks should hold no sculk shrieker, holds %d, "
+            + "the first at %s";
+    private static final String GROWTH_NOT_HOMED = "The warrens over %d chunks should hold a %s with sculk under or "
+            + "beside it; lunar holds %d and none is";
+    private static final String GROWTH_ABOVE_WARRENS = "The bands over the warrens across %d chunks should hold no %s, "
+            + "hold %d, the first at %s";
     private static final String MARKER_BESIDE_MARKER = "The monolith marker at %s should stand alone, touches another "
             + "at %s";
 
@@ -66,6 +75,39 @@ public final class LunarWarrenTests {
         GooTestFunctions.registerTest(registrar, LUNAR_WARRENS_HOLD_ALIEN_RUINS, LunarWarrenTests::lunarWarrensHoldAlienRuins);
         GooTestFunctions.registerTest(registrar, LUNAR_WARRENS_GROW_VOLATILE_CRYSTAL_CLUSTERS,
                 LunarWarrenTests::lunarWarrensGrowVolatileCrystalClusters);
+        GooTestFunctions.registerTest(registrar, LUNAR_WARRENS_HOME_SCULK_SENSORS_AND_CATALYSTS,
+                LunarWarrenTests::lunarWarrensHomeSculkSensorsAndCatalysts);
+    }
+
+    /**
+     * Scans a square of chunks in goo:lunar from its floor to its top: the warrens' band holds a sculk sensor and a
+     * sculk catalyst, each with sculk under or beside it; no band holds a sculk shrieker; and no band over the warrens
+     * holds a sensor or a catalyst.
+     * decision warren-sculk-homes-sensors-and-catalysts-and-grows-in-lunar-rock
+     *
+     * @param helper the gametest helper
+     */
+    public static void lunarWarrensHomeSculkSensorsAndCatalysts(GameTestHelper helper) {
+        ServerLevel lunar = helper.getLevel().getServer().getLevel(Lunar.LEVEL);
+        helper.assertTrue(lunar != null, LUNAR_REQUIRED);
+        int chunks = 4 * CHUNK_REACH * CHUNK_REACH;
+        List<BlockPos> shriekers = scanFor(lunar, Blocks.SCULK_SHRIEKER);
+        helper.assertTrue(shriekers.isEmpty(), String.format(SHRIEKERS_ON_LUNAR, chunks, shriekers.size(),
+                shriekers.isEmpty() ? null : shriekers.getFirst()));
+        for (Block growth : List.of(Blocks.SCULK_SENSOR, Blocks.SCULK_CATALYST)) {
+            List<BlockPos> found = scanFor(lunar, growth);
+            List<BlockPos> above = found.stream().filter(at -> at.getY() >= LunarDepths.WARREN_ZONE_TOP_Y).toList();
+            boolean homed = found.stream().anyMatch(at -> inWarrens(at.getY()) && touchesSculk(lunar, at));
+            helper.assertTrue(homed, String.format(GROWTH_NOT_HOMED, chunks, growth, found.size()));
+            helper.assertTrue(above.isEmpty(), String.format(GROWTH_ABOVE_WARRENS, chunks, growth, above.size(),
+                    above.isEmpty() ? null : above.getFirst()));
+        }
+        helper.succeed();
+    }
+
+    private static boolean touchesSculk(ServerLevel lunar, BlockPos at) {
+        return Arrays.stream(Direction.values()).anyMatch(side -> lunar.getBlockState(at.relative(side))
+                .is(Blocks.SCULK));
     }
 
     /**

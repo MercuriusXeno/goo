@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.lunar.MonolithMarkerFeature;
 import com.mercuriusxeno.goo.lunar.NativeIronLodeFeature;
 import com.mercuriusxeno.goo.lunar.VolatileCrystalClusterFeature;
 import com.mercuriusxeno.goo.lunar.WarrenRuinFeature;
+import com.mercuriusxeno.goo.lunar.WarrenSculkPatchFeature;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.level.levelgen.feature.Feature;
@@ -74,6 +75,14 @@ public final class GooFeatures {
     public static final DeferredHolder<MapCodec<? extends Feature>, MapCodec<VolatileCrystalClusterFeature>>
             VOLATILE_CRYSTAL_CLUSTER = FEATURES.register("volatile_crystal_cluster",
                     () -> VolatileCrystalClusterFeature.CODEC);
+
+    /**
+     * {@code goo:warren_sculk_patch}, a deep dark sculk patch in the warrens growing sensors and catalysts, no
+     * shriekers.
+     * decision warren-sculk-homes-sensors-and-catalysts-and-grows-in-lunar-rock
+     */
+    public static final DeferredHolder<MapCodec<? extends Feature>, MapCodec<WarrenSculkPatchFeature>>
+            WARREN_SCULK_PATCH = FEATURES.register("warren_sculk_patch", () -> WarrenSculkPatchFeature.CODEC);
 
     private GooFeatures() {
     }
