@@ -12,23 +12,18 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * No two lunar features share a shape: two neighbouring craters differ in radius, in the outline their rims trace
- * round the circle and in wear, and two boulders from different positions differ in size and silhouette; one crater
- * cell or one boulder position always draws the same shape. The rolls are a pure hash standing in for the world's
+ * No two lunar features share a shape: two neighbouring giant craters differ in radius, two neighbouring basin pools
+ * differ in reach, and two boulders from different positions differ in size and silhouette; one crater cell or one
+ * boulder position always draws the same shape. The rolls are a pure hash standing in for the world's
  * seeded noise.
  * decision no-two-lunar-features-look-alike
  */
 class LunarFeatureShapesTest {
 
-    /** Two craters' radii differ past this many blocks. */
+    /** Two craters' radii, or two pools' reaches, differ past this many blocks. */
     private static final double RADIUS_TOLERANCE = 0.25;
-    /** Two rims' outlines, each read as its radius over its mean round the circle, differ past this share somewhere. */
-    private static final double OUTLINE_TOLERANCE = 0.01;
-    /** Two craters' wear differs past this. */
-    private static final double WEAR_TOLERANCE = 0.02;
     /** Two boulders' radii differ past this many blocks. */
     private static final double BOULDER_SIZE_TOLERANCE = 0.1;
-    private static final int OUTLINE_SAMPLES = 16;
     private static final long WORLD_SEED = 1_234_567L;
 
     /** A pure hash of a cell and a roll onto [0, 1), standing in for the seeded noise's rolls. */
@@ -40,66 +35,59 @@ class LunarFeatureShapesTest {
         return (hash >>> 11) * 0x1.0p-53;
     }
 
-    /** The first pair of east-west neighbouring cells along a row that both hold a crater. */
-    private static CraterField.Crater[] neighbouringCraters() {
-        for (int cellX = 0; cellX < 1000; cellX++) {
-            Optional<CraterField.Crater> west = CraterField.craterIn(cellX, 0, LunarFeatureShapesTest::hashRoll);
-            Optional<CraterField.Crater> east = CraterField.craterIn(cellX + 1, 0, LunarFeatureShapesTest::hashRoll);
-            if (west.isPresent() && east.isPresent()) {
-                return new CraterField.Crater[] {west.get(), east.get()};
-            }
-        }
-        return null;
-    }
-
-    private static double outlineGap(CraterField.Crater first, CraterField.Crater second) {
-        double widest = 0.0;
-        for (int sample = 0; sample < OUTLINE_SAMPLES; sample++) {
-            double angle = 2.0 * Math.PI * sample / OUTLINE_SAMPLES;
-            widest = Math.max(widest, Math.abs(first.rimRadiusAt(angle) / first.radius()
-                    - second.rimRadiusAt(angle) / second.radius()));
-        }
-        return widest;
-    }
+    /** Biome noises a crater centred outside maria and the basins reads. */
+    private static final CentreGround HIGHLANDS = new FixedGround(-0.3, -0.4);
 
     @Nested
     class Craters {
 
         @Test
-        void neighbouringCratersDifferInRadiusOutlineAndWear() {
-            CraterField.Crater[] pair = neighbouringCraters();
-            assertNotNull(pair, "no two neighbouring cells hold a crater");
-            assertTrue(Math.abs(pair[0].radius() - pair[1].radius()) > RADIUS_TOLERANCE,
-                    "radii " + pair[0].radius() + " and " + pair[1].radius());
-            assertTrue(outlineGap(pair[0], pair[1]) > OUTLINE_TOLERANCE, "outlines differ by "
-                    + outlineGap(pair[0], pair[1]));
-            assertTrue(Math.abs(pair[0].wear() - pair[1].wear()) > WEAR_TOLERANCE,
-                    "wear " + pair[0].wear() + " and " + pair[1].wear());
+        void neighbouringGiantCratersDifferInRadius() {
+            GiantCraterField.Crater west = GiantCraterField.craterIn(0, 0, LunarFeatureShapesTest::hashRoll, HIGHLANDS);
+            GiantCraterField.Crater east = GiantCraterField.craterIn(1, 0, LunarFeatureShapesTest::hashRoll, HIGHLANDS);
+            assertTrue(Math.abs(west.radius() - east.radius()) > RADIUS_TOLERANCE,
+                    "radii " + west.radius() + " and " + east.radius());
         }
 
         @Test
-        void aCratersRimSwellsAndPinchesRoundItsCircle() {
-            CraterField.Crater crater = neighbouringCraters()[0];
-            double least = Double.MAX_VALUE;
-            double most = 0.0;
-            for (int sample = 0; sample < OUTLINE_SAMPLES; sample++) {
-                double rim = crater.rimRadiusAt(2.0 * Math.PI * sample / OUTLINE_SAMPLES);
-                least = Math.min(least, rim);
-                most = Math.max(most, rim);
+        void oneCellAlwaysDrawsOneGiantCrater() {
+            assertEquals(GiantCraterField.craterIn(3, 5, LunarFeatureShapesTest::hashRoll, HIGHLANDS),
+                    GiantCraterField.craterIn(3, 5, LunarFeatureShapesTest::hashRoll, HIGHLANDS));
+        }
+    }
+
+    @Nested
+    class BasinPoolSites {
+
+        /** The first pair of east-west neighbouring cells along a row that both hold a pool site on the basin floor. */
+        private BasinPools.Site[] neighbouringSites() {
+            for (int cellX = 0; cellX < 1000; cellX++) {
+                Optional<BasinPools.Site> west = BasinPools.siteIn(cellX, 0, LunarFeatureShapesTest::hashRoll,
+                        (x, z) -> 1.0);
+                Optional<BasinPools.Site> east = BasinPools.siteIn(cellX + 1, 0, LunarFeatureShapesTest::hashRoll,
+                        (x, z) -> 1.0);
+                if (west.isPresent() && east.isPresent()) {
+                    return new BasinPools.Site[] {west.get(), east.get()};
+                }
             }
-            assertTrue(most - least > crater.radius() * OUTLINE_TOLERANCE, "rim runs " + least + " to " + most);
+            return null;
         }
 
         @Test
-        void oneCellAlwaysDrawsOneCrater() {
-            assertEquals(CraterField.craterIn(3, 5, LunarFeatureShapesTest::hashRoll),
-                    CraterField.craterIn(3, 5, LunarFeatureShapesTest::hashRoll));
+        void neighbouringPoolsDifferInReach() {
+            BasinPools.Site[] pair = neighbouringSites();
+            assertNotNull(pair, "no two neighbouring cells hold a pool site");
+            assertTrue(Math.abs(pair[0].reach() - pair[1].reach()) > RADIUS_TOLERANCE,
+                    "reaches " + pair[0].reach() + " and " + pair[1].reach());
         }
 
         @Test
-        void aWornCraterSinksLessThanAFreshOne() {
-            double radius = 10.0;
-            assertTrue(CraterField.profile(0.0, radius, 0.9, 1.0) > CraterField.profile(0.0, radius, 0.0, 1.0));
+        void aSiteOffTheBasinFloorHoldsNoPool() {
+            BasinPools.Site[] pair = neighbouringSites();
+            assertNotNull(pair, "no two neighbouring cells hold a pool site");
+            int cellX = Math.floorDiv((int) pair[0].centerX(), BasinPools.CELL);
+            assertTrue(BasinPools.siteIn(cellX, 0, LunarFeatureShapesTest::hashRoll,
+                    (x, z) -> BasinPools.BASIN_LOW_FLOOR - 0.01).isEmpty());
         }
     }
 

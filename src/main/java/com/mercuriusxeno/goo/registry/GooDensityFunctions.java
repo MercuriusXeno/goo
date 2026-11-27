@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.lunar.CraterField;
 import com.mercuriusxeno.goo.lunar.CrystalCaverns;
 import com.mercuriusxeno.goo.lunar.GiantCraterField;
 import com.mercuriusxeno.goo.lunar.LavaTubes;
@@ -25,13 +24,6 @@ public final class GooDensityFunctions {
      */
     public static final DeferredRegister<MapCodec<? extends DensityFunction>> DENSITY_FUNCTION_TYPES =
             DeferredRegister.create(Registries.DENSITY_FUNCTION_TYPE, Goo.MODID);
-
-    /**
-     * {@code goo:craters}, the craters lunar's noise settings sink into its surface.
-     * decision lunar-generates-from-its-own-noise-and-surface-rules
-     */
-    public static final DeferredHolder<MapCodec<? extends DensityFunction>, MapCodec<CraterField.Definition>> CRATERS =
-            DENSITY_FUNCTION_TYPES.register("craters", () -> CraterField.DATA_CODEC);
 
     /**
      * {@code goo:rilles}, the channels lunar's noise settings cut through its basins.

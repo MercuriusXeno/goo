@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:nest_holds_a_guarded_cache",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 400,
+  "setup_ticks": 0,
+  "required": true
+}

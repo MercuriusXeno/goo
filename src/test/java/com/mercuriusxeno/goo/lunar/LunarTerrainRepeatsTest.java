@@ -96,7 +96,6 @@ class LunarTerrainRepeatsTest {
         Noise craters = lunarNoise("lunar_craters");
         Noise maria = lunarNoise("lunar_maria");
         return Stream.of(
-                new Field("craters", new CraterField(craters, maria)),
                 new Field("giant craters", new GiantCraterField(craters, maria, lunarNoise("lunar_basins")),
                         GIANT_CRATER_REACH_PAST, GIANT_CRATER_STEP),
                 new Field("rilles", new RilleField(lunarNoise("lunar_rilles"), maria,

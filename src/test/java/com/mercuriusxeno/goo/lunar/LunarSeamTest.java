@@ -50,13 +50,14 @@ class LunarSeamTest {
 
         @Test
         void aCellPastTheEastEdgeRollsAsTheCellInFromTheWestEdge() {
-            assertEquals(-SEAM / CraterField.CELL, LunarSeam.wrapCell(SEAM / CraterField.CELL, CraterField.CELL));
+            assertEquals(-SEAM / GiantCraterField.CELL,
+                    LunarSeam.wrapCell(SEAM / GiantCraterField.CELL, GiantCraterField.CELL));
         }
 
         @Test
         void aCellInsideTheMoonRollsAsItself() {
-            assertEquals(SEAM / CraterField.CELL - 1,
-                    LunarSeam.wrapCell(SEAM / CraterField.CELL - 1, CraterField.CELL));
+            assertEquals(SEAM / GiantCraterField.CELL - 1,
+                    LunarSeam.wrapCell(SEAM / GiantCraterField.CELL - 1, GiantCraterField.CELL));
         }
 
         @Test

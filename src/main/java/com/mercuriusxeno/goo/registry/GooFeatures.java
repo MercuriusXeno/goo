@@ -1,9 +1,9 @@
 package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.lunar.AstralCrystalClusterFeature;
 import com.mercuriusxeno.goo.lunar.BoulderFeature;
 import com.mercuriusxeno.goo.lunar.CraterPoolsFeature;
+import com.mercuriusxeno.goo.lunar.CrystalClusters;
 import com.mercuriusxeno.goo.lunar.NativeIronLodeFeature;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.registries.Registries;
@@ -30,7 +30,7 @@ public final class GooFeatures {
             () -> BoulderFeature.CODEC);
 
     /**
-     * {@code goo:crater_pools}, the frozen pools in the low ground of lunar's deep and giant crater floors.
+     * {@code goo:crater_pools}, the frozen pools in the lows of lunar's shadowed basins and its giant crater floors.
      * decision lunar-ground-gains-meteoric-iron-impact-glass-breccia-and-crater-ice
      */
     public static final DeferredHolder<MapCodec<? extends Feature>, MapCodec<CraterPoolsFeature>> CRATER_POOLS = FEATURES.register("crater_pools",
@@ -40,8 +40,15 @@ public final class GooFeatures {
      * {@code goo:astral_crystal_cluster}, a small cluster of astral crystal on the rock of lunar's middle caverns.
      * decision astral-crystal-is-lunars-scarce-rich-block
      */
-    public static final DeferredHolder<MapCodec<? extends Feature>, MapCodec<AstralCrystalClusterFeature>> ASTRAL_CRYSTAL_CLUSTER =
-            FEATURES.register("astral_crystal_cluster", () -> AstralCrystalClusterFeature.CODEC);
+    public static final DeferredHolder<MapCodec<? extends Feature>, MapCodec<CrystalClusters>> ASTRAL_CRYSTAL_CLUSTER =
+            FEATURES.register("astral_crystal_cluster", CrystalClusters.ASTRAL::codec);
+
+    /**
+     * {@code goo:void_crystal_cluster}, a small cluster of void crystal on the dark side's surface.
+     * decision void-crystals-spawn-on-the-moon
+     */
+    public static final DeferredHolder<MapCodec<? extends Feature>, MapCodec<CrystalClusters>> VOID_CRYSTAL_CLUSTER =
+            FEATURES.register("void_crystal_cluster", CrystalClusters.VOID::codec);
 
     /**
      * {@code goo:native_iron_lode}, a native iron lode set into the face of a rubble cave.

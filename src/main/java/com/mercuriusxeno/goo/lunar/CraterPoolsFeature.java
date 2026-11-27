@@ -28,14 +28,15 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * The frozen pools in the floors of lunar's deep and giant craters in the shadowed basins: each such crater's floor
- * height is read from the generator's own ground at points across its floor, and crater ice fills every column inside
- * its rim crest whose ground lies under a level just over that floor, up to that flat level, as frozen water collects
- * in low ground. The level never stands over the lowest ground just past the crest, so wherever the pool's edge meets
- * the crest it meets ground, and a hole a tube or cave opened in the floor is capped with ice rather than left open:
- * the shoreline follows the ground's own contour, never a circle cut, and the ice never climbs a central peak or a
- * terraced wall.
+ * The frozen pools of lunar's shadowed basins, in the basins' lows at the sites {@link BasinPools} rolls and in the
+ * floors of the giant craters centred in the basins: each pool's floor height is read from the generator's own ground
+ * at points round its centre, and crater ice fills every column inside its edge whose ground lies under a level just
+ * over that floor, up to that flat level, as frozen water collects in low ground. The level never stands over the
+ * lowest ground just past the edge, so wherever the pool's edge meets it the pool meets ground, and a hole a tube or
+ * cave opened in the floor is capped with ice rather than left open: the shoreline follows the ground's own contour,
+ * never a circle cut, and the ice never climbs a central peak or a terraced wall.
  * decision lunar-ground-gains-meteoric-iron-impact-glass-breccia-and-crater-ice
+ * decision craters-are-rare-giant-landmarks-only
  * decision moon-is-288-tall-half-of-today
  * decision no-two-lunar-features-look-alike
  * decision lunar-surface-has-maria-highlands-shadowed-basins-and-eldritch-ground
@@ -45,19 +46,18 @@ public final class CraterPoolsFeature implements Feature {
     /** The feature type's codec, which reads no settings. */
     public static final MapCodec<CraterPoolsFeature> CODEC = MapCodec.unit(CraterPoolsFeature::new);
 
-    /** A small deep crater's pool stands this far over its floor, and a giant crater's this far. */
-    static final int SMALL_POOL_DEPTH = 1;
+    /** A basin low's pool stands this far over its floor, and a giant crater's this far. */
+    static final int BASIN_POOL_DEPTH = 1;
     static final int GIANT_POOL_DEPTH = 2;
-    /** A small crater's floor is read at its centre and this far out, in radii; a giant crater's at this reach. */
-    static final double SMALL_FLOOR_SAMPLE_REACH = 0.1;
-    static final double GIANT_FLOOR_SAMPLE_REACH = 0.3;
+    /** A pool's floor is read this far out from its centre, in its reach or its crater's radii. */
+    static final double FLOOR_SAMPLE_REACH = 0.3;
     /** How many points round the floor are read, past the centre. */
     static final int FLOOR_SAMPLES = 8;
     /** A column whose ground lies further under the floor than this is a hole a tube or cave opened, capped this deep. */
     static final int HOLE_DEPTH = 1;
     /** The crest's ring is read from the crest out this far, past any column a pool's edge column borders. */
     private static final double CREST_RING_WIDTH = 1.5;
-    /** A pool's crater reads its biome at this height, over the warrens' band. */
+    /** A pool's centre reads its biome at this height, over the warrens' band. */
     private static final int SURFACE_PROBE_Y = 64;
     /** The pools' one home. */
     private static final ResourceKey<Biome> SHADOWED_BASINS = ResourceKey.create(Registries.BIOME,
@@ -68,7 +68,7 @@ public final class CraterPoolsFeature implements Feature {
     private static final double FULL_TURN = 2.0 * Math.PI;
     private static final int POOL_CACHE_SIZE = 256;
     private static final int PLACE_FLAGS = Block.UPDATE_CLIENTS;
-    /** Each crater's pool level, kept by the noise it was rolled from and its cell, once read. */
+    /** Each pool's level, kept by the noise its site was rolled from, its field and its cell, once read. */
     private static final Map<PoolKey, Integer> POOL_LEVELS = Collections.synchronizedMap(
             new LinkedHashMap<>(POOL_CACHE_SIZE, 0.75F, true) {
                 @Override
@@ -77,11 +77,17 @@ public final class CraterPoolsFeature implements Feature {
                 }
             });
 
-    /** A crater's pool, keyed by the crater noise it was rolled from, its scale and its cell. */
-    private record PoolKey(Noise noise, boolean giant, int cellX, int cellZ) {
+    /** Which field a pool's site comes from, each cutting the ground into cells of its own. */
+    private enum PoolScale {
+        BASIN_LOW,
+        GIANT_CRATER
     }
 
-    /** One crater with a pool: its centre, its radius and its pool's flat level. */
+    /** A pool, keyed by the crater noise its site was rolled from, the field it comes from and its cell. */
+    private record PoolKey(Noise noise, PoolScale scale, int cellX, int cellZ) {
+    }
+
+    /** One pool: its centre, how far its edge reaches and its flat level. */
     private record Pool(double centerX, double centerZ, double radius, int level) {
     }
 
@@ -112,7 +118,7 @@ public final class CraterPoolsFeature implements Feature {
     public boolean place(WorldGenLevel level, ChunkGenerator chunkGenerator, RandomSource random, BlockPos origin) {
         ServerLevel server = level.getLevel();
         RandomState randomState = server.getChunkSource().randomState();
-        Noise noise = randomState.getOrCreateNoise(CraterField.NOISE);
+        Noise noise = randomState.getOrCreateNoise(LunarRolls.CRATER_NOISE);
         int minX = Math.floorDiv(origin.getX(), CHUNK_SIDE) * CHUNK_SIDE;
         int minZ = Math.floorDiv(origin.getZ(), CHUNK_SIDE) * CHUNK_SIDE;
         List<Pool> pools = poolsNear(chunkGenerator, server, randomState, noise, minX, minZ);
@@ -168,12 +174,12 @@ public final class CraterPoolsFeature implements Feature {
     }
 
     /**
-     * Whether a crater's centre stands in the shadowed basins, the pools' one home.
+     * Whether a pool's centre stands in the shadowed basins, the pools' one home.
      *
      * @param generator   the level's chunk generator, whose biome source places the biomes
      * @param randomState the level's random state, seeding the climate the biome source reads
-     * @param centerX     the crater's centre x
-     * @param centerZ     the crater's centre z
+     * @param centerX     the pool's centre x
+     * @param centerZ     the pool's centre z
      * @return true where the centre stands in the shadowed basins
      */
     private static boolean centredInBasins(ChunkGenerator generator, RandomState randomState, double centerX,
@@ -186,22 +192,55 @@ public final class CraterPoolsFeature implements Feature {
     private static List<Pool> poolsNear(ChunkGenerator generator, ServerLevel server, RandomState randomState,
             Noise noise, int minX, int minZ) {
         List<Pool> pools = new ArrayList<>();
-        CraterField craters = CraterField.seeded(noise, randomState);
-        int smallReach = (int) Math.ceil(CraterField.MIN_RADIUS + CraterField.RADIUS_SPREAD);
-        for (int cellX = Math.floorDiv(minX - smallReach, CraterField.CELL);
-                cellX <= Math.floorDiv(minX + CHUNK_SIDE + smallReach, CraterField.CELL); cellX++) {
-            for (int cellZ = Math.floorDiv(minZ - smallReach, CraterField.CELL);
-                    cellZ <= Math.floorDiv(minZ + CHUNK_SIDE + smallReach, CraterField.CELL); cellZ++) {
+        addBasinPools(pools, generator, server, randomState, noise, minX, minZ);
+        addGiantCraterPools(pools, generator, server, randomState, noise, minX, minZ);
+        return pools;
+    }
+
+    /**
+     * Adds the pools in the basin lows a chunk overlaps; a site's pool stays inside its cell, so the chunk reads the
+     * cells it overlaps alone.
+     *
+     * @param pools       the pools found so far, which this adds to
+     * @param generator   the level's chunk generator
+     * @param server      the level
+     * @param randomState the level's random state
+     * @param noise       the seeded crater noise the sites roll from
+     * @param minX        the chunk's least x
+     * @param minZ        the chunk's least z
+     */
+    private static void addBasinPools(List<Pool> pools, ChunkGenerator generator, ServerLevel server,
+            RandomState randomState, Noise noise, int minX, int minZ) {
+        BasinPools sites = BasinPools.seeded(noise, randomState);
+        for (int cellX = Math.floorDiv(minX, BasinPools.CELL);
+                cellX <= Math.floorDiv(minX + CHUNK_SIDE - 1, BasinPools.CELL); cellX++) {
+            for (int cellZ = Math.floorDiv(minZ, BasinPools.CELL);
+                    cellZ <= Math.floorDiv(minZ + CHUNK_SIDE - 1, BasinPools.CELL); cellZ++) {
                 int cx = cellX;
                 int cz = cellZ;
-                craters.craterInCell(cx, cz).filter(crater -> crater.radius() >= CraterField.DEEP_CRATER_RADIUS)
-                        .filter(crater -> centredInBasins(generator, randomState, crater.centerX(), crater.centerZ()))
-                        .ifPresent(crater -> pools.add(new Pool(crater.centerX(), crater.centerZ(), crater.radius(),
-                                poolLevel(new PoolKey(noise, false, cx, cz), generator, server, randomState,
-                                        crater.centerX(), crater.centerZ(), crater.radius(),
-                                        crater.radius() * SMALL_FLOOR_SAMPLE_REACH, SMALL_POOL_DEPTH))));
+                sites.siteInCell(cx, cz)
+                        .filter(site -> centredInBasins(generator, randomState, site.centerX(), site.centerZ()))
+                        .ifPresent(site -> pools.add(new Pool(site.centerX(), site.centerZ(), site.reach(),
+                                poolLevel(new PoolKey(noise, PoolScale.BASIN_LOW, cx, cz), generator, server,
+                                        randomState, site.centerX(), site.centerZ(), site.reach(),
+                                        site.reach() * FLOOR_SAMPLE_REACH, BASIN_POOL_DEPTH))));
             }
         }
+    }
+
+    /**
+     * Adds the pools in the floors of the giant craters centred in the basins of a chunk's cell and those round it.
+     *
+     * @param pools       the pools found so far, which this adds to
+     * @param generator   the level's chunk generator
+     * @param server      the level
+     * @param randomState the level's random state
+     * @param noise       the seeded crater noise the craters roll from
+     * @param minX        the chunk's least x
+     * @param minZ        the chunk's least z
+     */
+    private static void addGiantCraterPools(List<Pool> pools, ChunkGenerator generator, ServerLevel server,
+            RandomState randomState, Noise noise, int minX, int minZ) {
         GiantCraterField giants = GiantCraterField.seeded(noise, randomState);
         int cellX = Math.floorDiv(minX, GiantCraterField.CELL);
         int cellZ = Math.floorDiv(minZ, GiantCraterField.CELL);
@@ -209,28 +248,28 @@ public final class CraterPoolsFeature implements Feature {
             for (int dz = -NEIGHBOUR_REACH; dz <= NEIGHBOUR_REACH; dz++) {
                 int cx = cellX + dx;
                 int cz = cellZ + dz;
-                giants.craterInCell(cx, cz)
-                        .filter(crater -> centredInBasins(generator, randomState, crater.centerX(), crater.centerZ()))
-                        .ifPresent(crater -> pools.add(new Pool(crater.centerX(), crater.centerZ(), crater.radius(),
-                                poolLevel(new PoolKey(noise, true, cx, cz), generator, server, randomState,
-                                        crater.centerX(), crater.centerZ(), crater.radius(),
-                                        crater.radius() * GIANT_FLOOR_SAMPLE_REACH, GIANT_POOL_DEPTH))));
+                GiantCraterField.Crater crater = giants.craterInCell(cx, cz);
+                if (centredInBasins(generator, randomState, crater.centerX(), crater.centerZ())) {
+                    pools.add(new Pool(crater.centerX(), crater.centerZ(), crater.radius(),
+                            poolLevel(new PoolKey(noise, PoolScale.GIANT_CRATER, cx, cz), generator, server,
+                                    randomState, crater.centerX(), crater.centerZ(), crater.radius(),
+                                    crater.radius() * FLOOR_SAMPLE_REACH, GIANT_POOL_DEPTH)));
+                }
             }
         }
-        return pools;
     }
 
     /**
-     * A crater's pool level: the median of the generator's ground across its floor ring, plus the pool's depth, but
-     * never over the lowest ground in the ring just past its rim crest, read once per crater and kept.
+     * A pool's level: the median of the generator's ground across its floor ring, plus the pool's depth, but never
+     * over the lowest ground in the ring just past its edge, a crater's rim crest, read once per pool and kept.
      *
-     * @param key         the crater's key in the kept levels
+     * @param key         the pool's key in the kept levels
      * @param generator   the level's chunk generator
      * @param server      the level
      * @param randomState the level's random state
-     * @param centerX     the crater's centre x
-     * @param centerZ     the crater's centre z
-     * @param crest       the crater's rim crest radius, inside which its pool lies
+     * @param centerX     the pool's centre x
+     * @param centerZ     the pool's centre z
+     * @param crest       the pool's edge radius, inside which it lies
      * @param sampleReach how far from the centre the floor is read, in blocks
      * @param poolDepth   how far the pool stands over the floor
      * @return the pool's level
@@ -256,15 +295,15 @@ public final class CraterPoolsFeature implements Feature {
     }
 
     /**
-     * The lowest ground among the columns from a crater's rim crest out to the ring's width past it: every column a
+     * The lowest ground among the columns from a pool's edge out to the ring's width past it: every column a
      * pool's edge column can border outside the crest.
      *
      * @param generator   the level's chunk generator
      * @param server      the level
      * @param randomState the level's random state
-     * @param centerX     the crater's centre x
-     * @param centerZ     the crater's centre z
-     * @param crest       the crater's rim crest radius
+     * @param centerX     the pool's centre x
+     * @param centerZ     the pool's centre z
+     * @param crest       the pool's edge radius
      * @return the lowest ground's height
      */
     private static int lowestCrestGround(ChunkGenerator generator, ServerLevel server, RandomState randomState,
