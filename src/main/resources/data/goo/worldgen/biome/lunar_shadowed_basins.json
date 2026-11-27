@@ -50,7 +50,9 @@
     ],
     [],
     [],
-    [],
+    [
+      "goo:void_crystal_cluster"
+    ],
     [
       "goo:crater_pools"
     ]

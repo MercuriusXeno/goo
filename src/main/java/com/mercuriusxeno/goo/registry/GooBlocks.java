@@ -748,7 +748,18 @@ public class GooBlocks {
                     .pushReaction(PushReaction.POPPED));
 
     /**
-     * Impact glass: lunar's regolith melted where meteorites struck, dark glass that holds back light as tinted
+     * Void crystal: the moon's source of void, growing in clusters on the dark side's surface, shaped, lit and mined
+     * as astral crystal is.
+     * decision void-crystals-spawn-on-the-moon
+     */
+    public static final DeferredBlock<AmethystClusterBlock> VOID_CRYSTAL = BLOCKS.registerBlock("void_crystal",
+            properties -> new AmethystClusterBlock(ASTRAL_CRYSTAL_HEIGHT, ASTRAL_CRYSTAL_WIDTH, properties),
+            () -> BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_PURPLE).forceSolidOn().noOcclusion()
+                    .sound(SoundType.AMETHYST_CLUSTER).strength(1.5F).lightLevel(state -> ASTRAL_CRYSTAL_LIGHT)
+                    .pushReaction(PushReaction.POPPED));
+
+    /**
+     * Impact glass:lunar's regolith melted where meteorites struck, dark glass that holds back light as tinted
      * glass does, mined like glass.
      * decision lunar-ground-gains-meteoric-iron-impact-glass-breccia-and-crater-ice
      */
