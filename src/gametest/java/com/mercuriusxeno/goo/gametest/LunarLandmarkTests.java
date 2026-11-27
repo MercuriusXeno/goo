@@ -106,6 +106,13 @@ public final class LunarLandmarkTests {
     private static final int LODE_SCAN_REACH = 4;
     private static final String LODE_AT_HEART = "The meteorite's lump spanning y %d to %d at %s should hold native iron "
             + "at its centre, holds %s";
+    private static final String NEST_HOLDS_A_GUARDED_CACHE = "nest_holds_a_guarded_cache";
+    /** The cache's nest generates here, apart from the gathering test's. */
+    private static final BlockPos CACHE_SPOT = new BlockPos(1400, 0, 1200);
+    private static final ResourceKey<LootTable> NEST_LOOT = ResourceKey.create(Registries.LOOT_TABLE,
+            Identifier.fromNamespaceAndPath(Goo.MODID, "chests/lunar_nest"));
+    private static final String NEST_CACHE = "The nest at %s should hold a container on its floor at its centre reading "
+            + "%s, holds %s";
     private static final String LODE_ENCLOSED = "The meteorite's native iron at %s should be enclosed, touches air at %s";
 
     private LunarLandmarkTests() {
@@ -125,6 +132,31 @@ public final class LunarLandmarkTests {
         GooTestFunctions.registerTest(registrar, RUIN_LIES_HALF_BURIED, LunarLandmarkTests::ruinLiesHalfBuried);
         GooTestFunctions.registerTest(registrar, METEORITE_HOLDS_A_NATIVE_IRON_LODE,
                 LunarLandmarkTests::meteoriteHoldsANativeIronLode);
+        GooTestFunctions.registerTest(registrar, NEST_HOLDS_A_GUARDED_CACHE, LunarLandmarkTests::nestHoldsAGuardedCache);
+    }
+
+    /**
+     * The eldritch nest generated at a spot in goo:lunar holds, on the floor of its hollow down its chunk's centre
+     * column, one container reading the lunar nest loot table.
+     * decision each-lunar-landmark-holds-its-own-prize
+     *
+     * @param helper the gametest helper
+     */
+    public static void nestHoldsAGuardedCache(GameTestHelper helper) {
+        ServerLevel lunar = place(helper, NEST, CACHE_SPOT);
+        ChunkPos chunk = ChunkPos.containing(CACHE_SPOT);
+        BlockPos column = new BlockPos(chunk.getMiddleBlockX(), 0, chunk.getMiddleBlockZ());
+        int top = lunar.getHeight(Heightmap.Types.WORLD_SURFACE, column.getX(), column.getZ()) - 1;
+        int y = top - 1;
+        while (lunar.getBlockState(column.atY(y)).isAir()) {
+            y--;
+        }
+        String cacheLoot = lunar.getBlockEntity(column.atY(y)) instanceof RandomizableContainerBlockEntity cache
+                && cache.getLootTable() != null ? cache.getLootTable().identifier().toString()
+                : lunar.getBlockState(column.atY(y)).toString();
+        helper.assertTrue(cacheLoot.equals(NEST_LOOT.identifier().toString()),
+                String.format(NEST_CACHE, column.atY(y), NEST_LOOT.identifier(), cacheLoot));
+        helper.succeed();
     }
 
     /**
@@ -192,7 +224,7 @@ public final class LunarLandmarkTests {
 
     /**
      * The eldritch nest generated at a spot in goo:lunar leaves, down its chunk's centre column, a sculk roof over a
-     * hollow over a sculk floor; its spawn overrides weigh the monstrosity over the lunar biome's spawner; and its
+     * hollow, its cache standing in it, over a sculk floor; its spawn overrides weigh the monstrosity over the lunar biome's spawner; and its
      * structure set places it in goo:lunar's biome.
      *
      * @param helper the gametest helper
@@ -204,7 +236,7 @@ public final class LunarLandmarkTests {
         int top = lunar.getHeight(Heightmap.Types.WORLD_SURFACE, column.getX(), column.getZ()) - 1;
         BlockState roof = lunar.getBlockState(column.atY(top));
         int y = top - 1;
-        while (lunar.getBlockState(column.atY(y)).isAir()) {
+        while (lunar.getBlockState(column.atY(y)).isAir() || lunar.getBlockState(column.atY(y)).is(Blocks.CHEST)) {
             y--;
         }
         int hollow = top - 1 - y;

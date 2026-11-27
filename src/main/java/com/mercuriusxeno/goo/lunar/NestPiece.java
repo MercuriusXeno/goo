@@ -1,8 +1,12 @@
 package com.mercuriusxeno.goo.lunar;
 
+import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.registry.GooStructures;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.StructureManager;
@@ -11,12 +15,15 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.levelgen.structure.BoundingBox;
+import net.minecraft.world.level.storage.loot.LootTable;
 
 /**
  * The one piece of an eldritch nest, a lair where the eldritch gather: a hollow mound of sculk growth rising from the
  * ground, its shell sculk, its floor sculk, its hollow cleared of whatever ground it swallowed, and a low doorway cut
- * through its east wall.
+ * through its east wall. A cache stands on the hollow's floor at its centre, a chest of xeno goo, echo shards and
+ * netherite scrap, guarded by the eldritch the nest's spawns gather around it.
  * decision lunar-holds-meteorites-eldritch-nests-monoliths-and-ruins
+ * decision each-lunar-landmark-holds-its-own-prize
  */
 public final class NestPiece extends LandmarkPiece {
 
@@ -28,6 +35,9 @@ public final class NestPiece extends LandmarkPiece {
     static final int DOOR_HEIGHT = 3;
     /** How deep the sculk floor and footing run under the ground. */
     static final int FOOTING_DEPTH = 2;
+    /** The loot table the cache at the nest's centre rolls. */
+    public static final ResourceKey<LootTable> CACHE_LOOT = ResourceKey.create(Registries.LOOT_TABLE,
+            Identifier.fromNamespaceAndPath(Goo.MODID, "chests/lunar_nest"));
 
     /**
      * A nest piece centred on a column.
@@ -93,5 +103,6 @@ public final class NestPiece extends LandmarkPiece {
                 }
             }
         }
+        createChest(level, chunkBox, random, new BlockPos(centerX, groundY + 1, centerZ), CACHE_LOOT, null);
     }
 }
