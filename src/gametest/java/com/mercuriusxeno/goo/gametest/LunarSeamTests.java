@@ -15,18 +15,68 @@ import net.minecraft.world.level.levelgen.Noises;
 import net.minecraft.world.level.levelgen.RandomState;
 import net.minecraft.world.level.levelgen.synth.Noise;
 import net.neoforged.neoforge.registries.RegisterEvent;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.protocol.BundlePacket;
+import net.minecraft.network.protocol.game.ClientboundLevelChunkPacketData;
+import net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.TicketType;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.Vec3;
+import org.jspecify.annotations.Nullable;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Set;
 import java.util.function.Consumer;
+import io.netty.channel.embedded.EmbeddedChannel;
 
 /**
  * Gametests for lunar's seam on the live server: the terrain lunar generates, its biomes and its surface rule's noise
  * read the same just past +7,500,000 as just past -7,500,000 on x and z, through the random state the server seeds
- * lunar with, while the overworld's noise repeats nowhere.
+ * lunar with, while the overworld's noise repeats nowhere; a player by the seam is sent the other side's own chunk
+ * for a chunk past it, and a block placed past the seam lands on the other side.
  * decision moon-wraps-at-its-border-like-the-zone
  */
 @RegistersGameTests
 public final class LunarSeamTests {
 
     private static final String LUNAR_TERRAIN_REPEATS_ACROSS_THE_SEAM = "lunar_terrain_repeats_across_the_seam";
+    private static final String LUNAR_VIEW_PAST_THE_SEAM_IS_THE_OTHER_SIDE = "lunar_view_past_the_seam_is_the_other_side";
+    private static final String LUNAR_BLOCK_PLACED_ACROSS_THE_SEAM_LANDS_ON_THE_OTHER_SIDE =
+            "lunar_block_placed_across_the_seam_lands_on_the_other_side";
+    private static final int CHUNK_SHIFT = 4;
+    private static final int SEAM_CHUNK = 7_500_000 >> CHUNK_SHIFT;
+    /** A chunk a step past the east seam, and the chunk a step in from the west seam it wraps to. */
+    private static final ChunkPos PAST_THE_EAST_SEAM = new ChunkPos(SEAM_CHUNK + 1, 2);
+    private static final ChunkPos IN_FROM_THE_WEST_SEAM = new ChunkPos(-SEAM_CHUNK + 1, 2);
+    /** Where a block is placed in the chunk in from the west seam, high in the open sky. */
+    private static final BlockPos PLACED_IN_FROM_THE_WEST_SEAM = new BlockPos(-7_500_000 + 16 + 5, 200, 32 + 9);
+    private static final double HALF_BLOCK = 0.5;
+    /** The most chunk batches a client may owe acknowledgements for, and the most chunks a tick it may ask for. */
+    private static final int UNACKNOWLEDGED_BATCHES = 10;
+    private static final float CHUNKS_PER_TICK = 64.0F;
+    /** A chunk is sent only once it ticks, so the test holds it ticking and sends once it is. */
+    private static final int TICKING_RADIUS = 2;
+    private static final String SENT_NO_CHUNK = "The server should send a player standing by the seam the chunk %s,"
+            + " sends none";
+    private static final String NOT_READY = "The chunk %s past the seam should stand ready to send";
+    private static final String SENT_OWN_CHUNK = "The chunk sent for %s should hold the blocks of %s, the block placed"
+            + " at %s included, holds others";
+    private static final String PLACED_ON_THE_OTHER_SIDE = "A block placed at %s from %s should stand at %s on the"
+            + " other side, reads %s there";
+    private static final String NOT_PLACED_PAST_THE_SEAM = "A block placed at %s should land on the other side, not"
+            + " past the seam, reads %s past it";
     private static final int SEAM = 7_500_000;
     private static final int[] PAST_THE_SEAM = {0, 1, 7, 40, 333, 641, 1_919};
     private static final int[] ACROSS = {0, 2_345, -SEAM + 3};
@@ -51,6 +101,121 @@ public final class LunarSeamTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, LUNAR_TERRAIN_REPEATS_ACROSS_THE_SEAM,
                 LunarSeamTests::lunarTerrainRepeatsAcrossTheSeam);
+        GooTestFunctions.registerTest(registrar, LUNAR_VIEW_PAST_THE_SEAM_IS_THE_OTHER_SIDE,
+                LunarSeamTests::lunarViewPastTheSeamIsTheOtherSide);
+        GooTestFunctions.registerTest(registrar, LUNAR_BLOCK_PLACED_ACROSS_THE_SEAM_LANDS_ON_THE_OTHER_SIDE,
+                LunarSeamTests::lunarBlockPlacedAcrossTheSeamLandsOnTheOtherSide);
+    }
+
+    /**
+     * A player standing by the east seam is sent, for a chunk a step past it, the chunk a step in from the west seam,
+     * a block placed there included, labelled where they see it.
+     *
+     * @param helper the gametest helper
+     */
+    public static void lunarViewPastTheSeamIsTheOtherSide(GameTestHelper helper) {
+        ServerLevel lunar = helper.getLevel().getServer().getLevel(Lunar.LEVEL);
+        helper.assertTrue(lunar != null, LUNAR_REQUIRED);
+        LevelChunk otherSide = lunar.getChunk(IN_FROM_THE_WEST_SEAM.x(), IN_FROM_THE_WEST_SEAM.z());
+        lunar.setBlock(PLACED_IN_FROM_THE_WEST_SEAM, Blocks.DIAMOND_BLOCK.defaultBlockState(), Block.UPDATE_ALL);
+        for (int dx = -TICKING_RADIUS; dx <= TICKING_RADIUS; dx++) {
+            for (int dz = -TICKING_RADIUS; dz <= TICKING_RADIUS; dz++) {
+                lunar.getChunk(PAST_THE_EAST_SEAM.x() + dx, PAST_THE_EAST_SEAM.z() + dz);
+            }
+        }
+        lunar.getChunkSource().addTicketWithRadius(TicketType.PORTAL, PAST_THE_EAST_SEAM, TICKING_RADIUS);
+        ServerPlayer player = standingIn(helper, lunar, new Vec3(SEAM - 10.5, 180.0, 40.5));
+        helper.succeedWhen(() -> {
+            helper.assertTrue(lunar.getChunkSource().chunkMap.getChunkToSend(PAST_THE_EAST_SEAM.pack()) != null,
+                    String.format(NOT_READY, PAST_THE_EAST_SEAM));
+            LevelChunk seen = lunar.getChunk(PAST_THE_EAST_SEAM.x(), PAST_THE_EAST_SEAM.z());
+            EmbeddedChannel channel = (EmbeddedChannel) player.connection.getConnection().channel();
+            player.connection.getConnection().flushChannel();
+            drain(channel);
+            acknowledgeEveryBatch(player);
+            player.connection.chunkSender.markChunkPendingToSend(seen);
+            player.connection.chunkSender.sendNextChunks(player);
+            player.connection.getConnection().flushChannel();
+            ClientboundLevelChunkWithLightPacket sent = sentChunk(channel, PAST_THE_EAST_SEAM);
+            helper.assertTrue(sent != null, String.format(SENT_NO_CHUNK, PAST_THE_EAST_SEAM));
+            boolean holdsTheOtherSide = Arrays.equals(blocksOf(sent.chunkData()),
+                    blocksOf(new ClientboundLevelChunkPacketData(otherSide)));
+            helper.assertTrue(holdsTheOtherSide, String.format(SENT_OWN_CHUNK, PAST_THE_EAST_SEAM,
+                    IN_FROM_THE_WEST_SEAM, PLACED_IN_FROM_THE_WEST_SEAM));
+            helper.getLevel().getServer().getPlayerList().remove(player);
+        });
+    }
+
+    /**
+     * A block a player standing at x 7,499,999 places at x 7,500,002 stands at x -7,499,998, on the real chunk at the
+     * other edge, and not past the seam.
+     *
+     * @param helper the gametest helper
+     */
+    public static void lunarBlockPlacedAcrossTheSeamLandsOnTheOtherSide(GameTestHelper helper) {
+        ServerLevel lunar = helper.getLevel().getServer().getLevel(Lunar.LEVEL);
+        helper.assertTrue(lunar != null, LUNAR_REQUIRED);
+        int otherSideX = -SEAM + 2;
+        int ground = lunar.getChunk(otherSideX >> CHUNK_SHIFT, 0).getHeight(Heightmap.Types.MOTION_BLOCKING,
+                otherSideX, 0);
+        lunar.getChunk((SEAM + 2) >> CHUNK_SHIFT, 0);
+        BlockPos target = new BlockPos(SEAM + 2, ground + 1, 0);
+        BlockPos landing = new BlockPos(otherSideX, ground + 1, 0);
+        Vec3 stand = new Vec3(SEAM - 0.5, ground + 1.0, 0.5);
+        ServerPlayer player = standingIn(helper, lunar, stand);
+        player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.DIAMOND_BLOCK));
+        BlockHitResult onTheGround = new BlockHitResult(Vec3.atCenterOf(target.below()).add(0.0, HALF_BLOCK, 0.0),
+                Direction.UP, target.below(), false);
+        player.gameMode.useItemOn(player, lunar, player.getMainHandItem(), InteractionHand.MAIN_HAND, onTheGround);
+        BlockState landed = lunar.getChunk(landing.getX() >> CHUNK_SHIFT, 0).getBlockState(landing);
+        BlockState pastTheSeam = lunar.getChunk(target.getX() >> CHUNK_SHIFT, 0).getBlockState(target);
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        helper.assertTrue(landed.is(Blocks.DIAMOND_BLOCK),
+                String.format(PLACED_ON_THE_OTHER_SIDE, target, stand, landing, landed));
+        helper.assertFalse(pastTheSeam.is(Blocks.DIAMOND_BLOCK),
+                String.format(NOT_PLACED_PAST_THE_SEAM, target, pastTheSeam));
+        helper.succeed();
+    }
+
+    private static ServerPlayer standingIn(GameTestHelper helper, ServerLevel lunar, Vec3 stand) {
+        ServerPlayer player = SurvivalPlayers.placeIn(helper);
+        player.teleportTo(lunar, stand.x, stand.y, stand.z, Set.of(), 0.0F, 0.0F, false);
+        return player;
+    }
+
+    /** A mock player's client acknowledges no chunk batch, so the test acknowledges every one a client could owe. */
+    private static void acknowledgeEveryBatch(ServerPlayer player) {
+        for (int batch = 0; batch < UNACKNOWLEDGED_BATCHES; batch++) {
+            player.connection.chunkSender.onChunkBatchReceivedByClient(CHUNKS_PER_TICK);
+        }
+    }
+
+    private static void drain(EmbeddedChannel channel) {
+        Object sent = channel.readOutbound();
+        while (sent != null) {
+            sent = channel.readOutbound();
+        }
+    }
+
+    /** The server holds its writes back while it ticks, so the test flushes them before it reads what was sent. */
+    private static @Nullable ClientboundLevelChunkWithLightPacket sentChunk(EmbeddedChannel channel, ChunkPos pos) {
+        for (Object sent = channel.readOutbound(); sent != null; sent = channel.readOutbound()) {
+            Iterable<?> packets = sent instanceof BundlePacket<?> bundle ? bundle.subPackets() : List.of(sent);
+            for (Object packet : packets) {
+                if (packet instanceof ClientboundLevelChunkWithLightPacket chunk && chunk.x() == pos.x()
+                        && chunk.z() == pos.z()) {
+                    return chunk;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static byte[] blocksOf(ClientboundLevelChunkPacketData data) {
+        FriendlyByteBuf buffer = data.getReadBuffer();
+        byte[] bytes = new byte[buffer.readableBytes()];
+        buffer.readBytes(bytes);
+        return bytes;
     }
 
     /**

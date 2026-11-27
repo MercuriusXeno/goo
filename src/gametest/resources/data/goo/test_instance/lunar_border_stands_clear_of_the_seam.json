@@ -1,6 +1,6 @@
 {
   "type": "minecraft:function",
-  "function": "goo:lunar_border_stands_at_seven_and_a_half_million",
+  "function": "goo:lunar_border_stands_clear_of_the_seam",
   "environment": "minecraft:default",
   "structure": "goo:test_bay",
   "max_ticks": 100,

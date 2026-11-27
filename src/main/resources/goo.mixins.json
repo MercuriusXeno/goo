@@ -8,6 +8,7 @@
   "mixins": [
     "BlockStateGatePassageMixin",
     "ChunkGeneratorLunarSeamMixin",
+    "ChunkHolderLunarMirrorMixin",
     "ChunkMapLunarRandomStateMixin",
     "ContainerShiftClickMergeMixin",
     "EntityCellLiftMixin",
@@ -26,6 +27,7 @@
     "EntitySlimeCoatUnderfootMixin",
     "FoodPropertiesGluttonyMixin",
     "InventoryPickupMergeMixin",
+    "LevelLunarSeamMixin",
     "LevelLunarSunlightMixin",
     "ItemEntityFleckMotionMixin",
     "LivingEntityHeldFallsMixin",
@@ -41,6 +43,7 @@
     "PlayerInvertMixin",
     "PlayerSculkerMixin",
     "PlayerSculkerSilenceMixin",
+    "PlayerChunkSenderLunarMirrorMixin",
     "PlayerGluttonyEatMixin",
     "RandomStateLunarRepeatsMixin",
     "GooQuickCraftMixin",

@@ -8,43 +8,41 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.level.LevelEvent;
 
 /**
- * Lunar's world border, its own as every level's is: centred on 0, 0 and {@link Lunar#BORDER_HALF_WIDTH} each way on
- * x and z. A level keeps its border in its own saved data, so lunar's is stood where the level loads, in a new world
- * and in one saved before the border, while the overworld's and every other level's stay as they are. A border still
- * at vanilla's default takes lunar's; one a command moved keeps where it was moved.
- * decision moon-is-a-quarter-the-overworld-bordered-at-seven-and-a-half-million
+ * Lunar's world border stands clear of the seam, at vanilla's default, since the crossing carries bodies across the
+ * seam in place of a wall there. A level keeps its border in its own saved data, so a lunar level saved with the old
+ * border, centred on 0, 0 and {@link #OLD_SIZE} across, takes vanilla's default as it loads; a border a command moved
+ * keeps where it was moved.
+ * decision moon-wraps-at-its-border-like-the-zone
  */
 @EventBusSubscriber(modid = Goo.MODID)
 public final class LunarBorder {
 
-    /** The border's width across. */
-    static final double SIZE = 2.0 * Lunar.BORDER_HALF_WIDTH;
+    /** The width the old border stood across, the seam to the seam. */
+    static final double OLD_SIZE = LunarSeam.PERIOD;
 
     private LunarBorder() {
     }
 
     /**
-     * Stands lunar's border as its level loads.
+     * Takes lunar's old border down as its level loads.
      *
      * @param event the level load event
      */
     @SubscribeEvent
     public static void onLevelLoad(LevelEvent.Load event) {
         if (event.getLevel() instanceof ServerLevel level && level.dimension() == Lunar.LEVEL) {
-            standBorder(level.getWorldBorder());
+            takeDownOldBorder(level.getWorldBorder());
         }
     }
 
     /**
-     * Centres a border still at vanilla's default on 0, 0 and sizes it to lunar's width.
+     * Returns a border standing where lunar's old one stood to vanilla's default.
      *
      * @param border the border
      */
-    static void standBorder(WorldBorder border) {
-        if (border.getSize() != WorldBorder.Settings.DEFAULT.size()) {
-            return;
+    static void takeDownOldBorder(WorldBorder border) {
+        if (border.getSize() == OLD_SIZE && border.getCenterX() == 0.0 && border.getCenterZ() == 0.0) {
+            border.setSize(WorldBorder.Settings.DEFAULT.size());
         }
-        border.setCenter(0.0, 0.0);
-        border.setSize(SIZE);
     }
 }

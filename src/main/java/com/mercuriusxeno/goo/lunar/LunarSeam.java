@@ -1,7 +1,9 @@
 package com.mercuriusxeno.goo.lunar;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.levelgen.structure.BoundingBox;
+import java.util.List;
 
 /**
  * Where the moon meets itself: lunar repeats every {@link #PERIOD} blocks on x and z, so a coordinate past one edge
@@ -59,6 +61,53 @@ public final class LunarSeam {
         int cells = PERIOD / cellSide;
         int halfCells = cells / HALVES;
         return Math.floorMod(cell + halfCells, cells) - halfCells;
+    }
+
+    /**
+     * A block as the moon reads it: a block past the seam is the block the same distance in from the other edge.
+     *
+     * @param pos a block
+     * @return the same block inside the moon's span, the block itself where it lies inside
+     */
+    public static BlockPos reach(BlockPos pos) {
+        int x = wrap(pos.getX());
+        int z = wrap(pos.getZ());
+        return x == pos.getX() && z == pos.getZ() ? pos : new BlockPos(x, pos.getY(), z);
+    }
+
+    /**
+     * A chunk as the moon reads it: a chunk past the seam is the chunk the same distance in from the other edge.
+     *
+     * @param chunk a chunk
+     * @return the same chunk inside the moon's span
+     */
+    public static ChunkPos wrap(ChunkPos chunk) {
+        return new ChunkPos(wrapCell(chunk.x(), CHUNK_SIDE), wrapCell(chunk.z(), CHUNK_SIDE));
+    }
+
+    /**
+     * Whether a chunk lies past the seam, so a player seeing it sees the chunk it wraps to.
+     *
+     * @param chunk a chunk
+     * @return true past the seam on x or on z
+     */
+    public static boolean pastTheSeam(ChunkPos chunk) {
+        return !wrap(chunk).equals(chunk);
+    }
+
+    /**
+     * The chunks past the seam a chunk inside shows as: one way around on x, on z, and on both, each the way that
+     * lands nearest the seam.
+     *
+     * @param chunk a chunk inside the moon's span
+     * @return the three chunks past the seam that wrap to it
+     */
+    public static List<ChunkPos> mirrorsOf(ChunkPos chunk) {
+        int chunksAround = PERIOD / CHUNK_SIDE;
+        int mirrorX = chunk.x() + (chunk.x() < 0 ? chunksAround : -chunksAround);
+        int mirrorZ = chunk.z() + (chunk.z() < 0 ? chunksAround : -chunksAround);
+        return List.of(new ChunkPos(mirrorX, chunk.z()), new ChunkPos(chunk.x(), mirrorZ),
+                new ChunkPos(mirrorX, mirrorZ));
     }
 
     /**
