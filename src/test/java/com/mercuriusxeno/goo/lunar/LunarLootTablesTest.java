@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -103,6 +104,40 @@ class LunarLootTablesTest {
             Set<String> items = itemsOf(entriesOf(table(NEST)));
             assertTrue(items.containsAll(Set.of("goo:xeno", "minecraft:echo_shard", "minecraft:netherite_scrap")),
                     NEST + " should roll xeno goo, echo shards and netherite scrap, rolls " + items);
+        }
+    }
+
+    /** The ruin's chests. */
+    @Nested
+    class RuinChests {
+        private static final String RUIN = "/data/goo/loot_table/chests/lunar_ruin.json";
+        private static final String MOONROCK = "goo:moonrock";
+
+        @Test
+        void chestsRollAstralCrystalAncientDebrisAndMoonrock() throws IOException {
+            Set<String> items = itemsOf(entriesOf(table(RUIN)));
+            assertTrue(items.containsAll(Set.of("goo:astral_crystal", "minecraft:ancient_debris", MOONROCK)),
+                    RUIN + " should roll astral crystal, ancient debris and Moonrock, rolls " + items);
+        }
+
+        @Test
+        void chestsRollNoOpulenceAndNoMundaneLunarBlock() throws IOException {
+            Set<String> items = itemsOf(entriesOf(table(RUIN)));
+            List<String> barred = items.stream().filter(item -> item.contains("diamond") || item.contains("gold")
+                    || Set.of("goo:meteoric_iron", "goo:impact_glass", "goo:crater_ice", "goo:breccia")
+                            .contains(item)).toList();
+            assertEquals(List.of(), barred, RUIN + " should roll no diamond, gold or mundane lunar block");
+        }
+
+        @Test
+        void moonrockIsTheRarestEntry() throws IOException {
+            List<Entry> entries = entriesOf(table(RUIN));
+            Map<String, Double> chances = chancesOf(entries);
+            Double moonrock = chances.get(MOONROCK);
+            assertNotNull(moonrock, RUIN + " should roll Moonrock, rolls " + chances);
+            assertTrue(chances.entrySet().stream().filter(chance -> !MOONROCK.equals(chance.getKey()))
+                    .allMatch(chance -> chance.getValue() > moonrock),
+                    RUIN + " should roll Moonrock under every other entry, rolls " + chances);
         }
     }
 }
