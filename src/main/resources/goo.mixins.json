@@ -7,6 +7,8 @@
   "compatibilityLevel": "JAVA_21",
   "mixins": [
     "BlockStateGatePassageMixin",
+    "ChunkGeneratorLunarSeamMixin",
+    "ChunkMapLunarRandomStateMixin",
     "ContainerShiftClickMergeMixin",
     "EntityCellLiftMixin",
     "EntityHunkRiderLiftMixin",
@@ -40,6 +42,7 @@
     "PlayerSculkerMixin",
     "PlayerSculkerSilenceMixin",
     "PlayerGluttonyEatMixin",
+    "RandomStateLunarRepeatsMixin",
     "GooQuickCraftMixin",
     "ReloadableServerResourcesGooMixin",
     "ServerGamePacketListenerInvertMixin",

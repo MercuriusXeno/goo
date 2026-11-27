@@ -58,8 +58,12 @@ public record GiantCraterField(Noise noise, Noise maria, Noise basins) implement
     /** A giant crater centred in maria keeps this share of the crater chance, so maria holds few. */
     static final double MARIA_CRATER_SHARE = 0.25;
 
-    /** A cell's side in blocks; a giant crater's farthest reach stays under it. */
-    public static final int CELL = 640;
+    /**
+     * A cell's side in blocks; a giant crater's farthest reach stays under it, and it divides the moon's way around,
+     * so the seam falls on a cell's edge.
+     * decision moon-wraps-at-its-border-like-the-zone
+     */
+    public static final int CELL = 625;
     /** The share of cells holding a giant crater. */
     static final double CRATER_CHANCE = 0.35;
     static final double MIN_RADIUS = 110.0;
@@ -441,7 +445,7 @@ public record GiantCraterField(Noise noise, Noise maria, Noise basins) implement
     }
 
     private double roll(int cellX, int cellZ, int roll) {
-        return CraterField.rollFrom(noise, cellX, cellZ, roll);
+        return CraterField.rollFrom(noise, CELL, cellX, cellZ, roll);
     }
 
     @Override

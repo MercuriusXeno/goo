@@ -42,14 +42,15 @@ public final class Lunar {
 
     /**
      * Whether a lunar x stands on the dark side, every x past the light side either way, where the blue planet never
-     * shows.
+     * shows; an x past the seam reads as the x it wraps to.
      * decision dark-side-is-the-half-of-the-moon-past-the-light-side
+     * decision moon-wraps-at-its-border-like-the-zone
      *
      * @param x the x, in blocks
      * @return true past the light side
      */
     public static boolean isDarkSide(double x) {
-        return Math.abs(x) > LIGHT_SIDE_HALF_WIDTH;
+        return Math.abs(LunarSeam.wrap(x)) > LIGHT_SIDE_HALF_WIDTH;
     }
 
     /**
