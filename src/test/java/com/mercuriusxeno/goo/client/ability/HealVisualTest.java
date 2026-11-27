@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.ability;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.mercuriusxeno.goo.client.particle.VitalFogParticle;
 import com.mercuriusxeno.goo.throwing.ConeShape;
 import com.mercuriusxeno.goo.throwing.StreamCone;
 import net.minecraft.util.RandomSource;
@@ -41,6 +42,27 @@ class HealVisualTest {
             for (Vec3 puff : HealVisual.fogPuffs(flat, random, tick)) {
                 assertTrue(StreamCone.contains(flat.apex(), flat.axis(), flat.reach(), flat.shape(), puff),
                         "a puff at tick " + tick + " stands outside at " + puff);
+            }
+        }
+    }
+
+    /**
+     * Every puff drawn into a cone wider across than up and down stays inside it and its reach its whole life,
+     * drifting out along the aim (decision spray-abilities-render-procedurally-bound-to-their-cone).
+     */
+    @Test
+    void everyFogPuffDriftsItsWholeLifeInsideAFlatConeAndItsReach() {
+        SprayCone flat = new SprayCone(APEX, new Vec3(0.3, -0.2, 1).normalize(), new ConeShape(60, 8, false), 7);
+        RandomSource random = RandomSource.create(SEED);
+        for (int tick = 0; tick < TICKS; tick++) {
+            for (Vec3 puff : HealVisual.fogPuffs(flat, random, tick)) {
+                Vec3 drift = HealVisual.fogDrift(flat, puff);
+                for (int age = 0; age <= VitalFogParticle.LONGEST_LIFE; age++) {
+                    Vec3 at = VitalFogParticle.driftedTo(puff, drift, age);
+                    assertTrue(StreamCone.contains(flat.apex(), flat.axis(), flat.reach(), flat.shape(), at),
+                            "a puff spawned at tick " + tick + " at " + puff + " stands outside at its age " + age
+                                    + ": " + at);
+                }
             }
         }
     }

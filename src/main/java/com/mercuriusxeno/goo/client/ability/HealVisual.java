@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.ability.program.LeafStep;
 import com.mercuriusxeno.goo.ability.program.LeafSteps;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
+import com.mercuriusxeno.goo.client.particle.VitalFogParticle;
 import com.mercuriusxeno.goo.client.particle.VitalMoteParticle;
 import com.mercuriusxeno.goo.network.StreamHealedPayload;
 import com.mercuriusxeno.goo.registry.GooParticles;
@@ -44,6 +45,8 @@ public final class HealVisual {
     static final double ROLL_PER_TICK = 0.35;
     /** Speed a fog puff drifts out along the aim, in blocks per tick. */
     private static final double FOG_DRIFT = 0.04;
+    /** The share of the room before the reach a puff's drift may cover, so rounding leaves it inside. */
+    private static final double ROOM_SLACK = 0.999;
     /** Goo motes homing onto each healed thing per healed tick. */
     static final int MOTES_PER_HEAL = 1;
     /** Stars per healed tick on each healed thing. */
@@ -130,10 +133,32 @@ public final class HealVisual {
         if (!heals(abilityId)) {
             return;
         }
-        Vec3 drift = cone.axis().normalize().scale(FOG_DRIFT);
         for (Vec3 at : fogPuffs(cone, player.getRandom(), player.level().getGameTime())) {
+            Vec3 drift = fogDrift(cone, at);
             player.level().addParticle(GooParticles.VITAL_FOG.get(), at.x, at.y, at.z, drift.x, drift.y, drift.z);
         }
+    }
+
+    /**
+     * The speed a fog puff drifts out along the aim at: FOG_DRIFT, slowed where the reach stands nearer than the
+     * puff's whole drift would carry it, so it settles short of the reach. A drift along the axis leans the puff no
+     * further off it, so the puff keeps inside the shape as it goes.
+     * decision spray-abilities-render-procedurally-bound-to-their-cone
+     *
+     * @param cone the cone the fog fills
+     * @param at   where the puff spawns, inside the cone
+     * @return its launch speed a tick
+     */
+    static Vec3 fogDrift(SprayCone cone, Vec3 at) {
+        Vec3 axis = cone.axis().normalize();
+        Vec3 out = at.subtract(cone.apex());
+        double along = out.dot(axis);
+        // how far along the axis the puff may go before it meets the reach
+        double room = Math.max(0, Math.sqrt(Math.max(0, along * along - out.lengthSqr()
+                + cone.reach() * cone.reach())) - along);
+        // a drift's whole run is its speed over one less the friction, held a hair inside the room
+        double speed = Math.min(FOG_DRIFT, room * (1 - VitalFogParticle.FRICTION) * ROOM_SLACK);
+        return axis.scale(speed);
     }
 
     /**
