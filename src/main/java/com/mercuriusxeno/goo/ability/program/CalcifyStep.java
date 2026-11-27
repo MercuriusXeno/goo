@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.ability.program;
 import com.mercuriusxeno.goo.ability.blockmap.BlockMap;
 import com.mercuriusxeno.goo.ability.blockmap.BlockMaps;
 import com.mercuriusxeno.goo.network.HoldMarks;
+import com.mercuriusxeno.goo.throwing.ConeShape;
 import com.mercuriusxeno.goo.throwing.StreamCone;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
@@ -77,7 +78,7 @@ public record CalcifyStep(Identifier map, int ticks) implements TakesNoEntity {
      */
     static void calcifyCone(ChannelHost host, ChannelAim aim, Function<Block, Optional<Block>> steps, float rate) {
         HoldMarks marks = host.holdMarks();
-        for (BlockPos pos : blocksInCone(host.eye(), aim.aimPoint(), aim.coneDegrees())) {
+        for (BlockPos pos : blocksInCone(host.eye(), aim.aimPoint(), aim.shape())) {
             Optional<Block> next = nextRung(host, steps, marks, pos);
             if (next.isPresent() && host.exposeBlock(pos, next.get().defaultBlockState(), rate) >= 1f) {
                 host.transformBlock(pos, next.get().defaultBlockState());
@@ -123,12 +124,14 @@ public record CalcifyStep(Identifier map, int ticks) implements TakesNoEntity {
     /**
      * The blocks whose centers stand inside a cone, nearest the apex first.
      *
-     * @param apex        the cone's apex
-     * @param reachPoint  the end of the cone's axis, its reach along the look
-     * @param coneDegrees the cone, apex to rim, in degrees
+     * decision cone-style-abilities-are-reviewed-for-consistency
+     *
+     * @param apex       the cone's apex
+     * @param reachPoint the end of the cone's axis, its reach along the look
+     * @param shape      the cone's widths across and up and down
      * @return the blocks inside the cone
      */
-    static List<BlockPos> blocksInCone(Vec3 apex, Vec3 reachPoint, double coneDegrees) {
+    static List<BlockPos> blocksInCone(Vec3 apex, Vec3 reachPoint, ConeShape shape) {
         Vec3 line = reachPoint.subtract(apex);
         double range = line.length();
         List<BlockPos> inside = new ArrayList<>();
@@ -139,7 +142,7 @@ public record CalcifyStep(Identifier map, int ticks) implements TakesNoEntity {
         BlockPos from = BlockPos.containing(apex.subtract(range, range, range));
         BlockPos to = BlockPos.containing(apex.add(range, range, range));
         for (BlockPos pos : BlockPos.betweenClosed(from, to)) {
-            if (StreamCone.contains(apex, axis, range, coneDegrees, Vec3.atCenterOf(pos))) {
+            if (StreamCone.contains(apex, axis, range, shape, Vec3.atCenterOf(pos))) {
                 inside.add(pos.immutable());
             }
         }

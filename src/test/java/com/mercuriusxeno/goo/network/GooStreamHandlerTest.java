@@ -13,6 +13,7 @@ import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import com.mercuriusxeno.goo.throwing.ConvergingCone;
 import com.mercuriusxeno.goo.throwing.DripArc;
+import com.mercuriusxeno.goo.throwing.StreamCone;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
@@ -26,6 +27,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -82,6 +84,8 @@ class GooStreamHandlerTest {
         private static final double RANGE = 8;
         private static final CoatRay.ConeShare AXIS = new CoatRay.ConeShare(0, 0);
         private static final double TOLERANCE = 1e-9;
+        private static final int SHARES = 12;
+        private static final double JUST_INSIDE = 0.999;
 
         private void assertNear(Vec3 expected, Vec3 actual) {
             assertEquals(expected.x, actual.x, TOLERANCE, "x");
@@ -101,13 +105,37 @@ class GooStreamHandlerTest {
 
         private void assertCrosshairLaunch(double crosshairDistance, double restsAt) {
             Vec3 axis = new Vec3(0.6, 0, 0.8);
-            StreamMotesPayload spores = new StreamMotesPayload(1, GLOVE, axis, SPORE, ConeShape.round(0),
-                    GooStreamHandler.crosshairSpeed(RANGE, crosshairDistance), Delivery.NO_THROW_SPEED, false, 0, 0,
-                    GLOVE, 0);
+            StreamMotesPayload spores = GooStreamHandler.motesOf(1, GLOVE, axis, SPORE,
+                    new GooStreamHandler.SprayedCone(ConeShape.round(0),
+                            GooStreamHandler.crosshairReach(RANGE, crosshairDistance)), Delivery.NO_THROW_SPEED);
 
             Vec3 launch = GooStreamHandler.moteLaunch(spores, AXIS);
 
             assertNear(axis.scale(restsAt * 0.1), launch);
+        }
+
+        /**
+         * A spore of a cast through a cone wide across and thin up and down launches inside that shape and its
+         * flight ends at the cast's reach (decision cone-style-abilities-are-reviewed-for-consistency).
+         */
+        @Test
+        void aSporeLaunchesInsideItsCastsShapeAndRestsAtItsReach() {
+            Vec3 axis = new Vec3(0.6, 0, 0.8);
+            ConeShape wideAndThin = new ConeShape(70, 10, false);
+            double reach = 5.5;
+            StreamMotesPayload spores = GooStreamHandler.motesOf(1, GLOVE, axis, SPORE,
+                    new GooStreamHandler.SprayedCone(wideAndThin, reach), Delivery.NO_THROW_SPEED);
+            for (int tilt = 0; tilt <= SHARES; tilt++) {
+                for (int turn = 0; turn < SHARES; turn++) {
+                    // just inside the rim, where rounding decides membership
+                    Vec3 launch = GooStreamHandler.moteLaunch(spores,
+                            new CoatRay.ConeShare(JUST_INSIDE * tilt / SHARES, (double) turn / SHARES));
+                    assertTrue(StreamCone.contains(GLOVE, axis, reach, wideAndThin, GLOVE.add(launch.normalize())),
+                            "a spore launches along " + launch + ", outside the shape");
+                    assertEquals(reach, launch.length() / GooStreamHandler.restingSpeed(1), TOLERANCE,
+                            "a spore's flight ends off the reach");
+                }
+            }
         }
     }
     /**
@@ -329,12 +357,59 @@ class GooStreamHandlerTest {
 
         @Test
         void theSwarmReachesAMobAboutThirtyFourDegreesOffTheAim() {
-            assertTrue(GooStreamHandler.inCone(EYE, LOOK, decay, mobAt(new Vec3(3, 0, 2))));
+            assertTrue(GooStreamHandler.inCone(EYE, LOOK, GooStreamHandler.gloveShapeOf(decay), decay.livingReach(), mobAt(new Vec3(3, 0, 2))));
         }
 
         @Test
         void theSwarmReachesAMobSevenBlocksOutPastWhereItPaints() {
-            assertTrue(GooStreamHandler.inCone(EYE, LOOK, decay, mobAt(new Vec3(7, 0, 0))));
+            assertTrue(GooStreamHandler.inCone(EYE, LOOK, GooStreamHandler.gloveShapeOf(decay), decay.livingReach(), mobAt(new Vec3(7, 0, 0))));
+        }
+    }
+
+    /**
+     * Decay's swarm tells its watchers the shape and the reach of the cast that sent it
+     * (decision cone-style-abilities-are-reviewed-for-consistency).
+     */
+    @Nested
+    class SwarmPayload {
+
+        @Test
+        void theSwarmsPayloadCarriesTheShapeAndReachOfItsCast() {
+            ConeShape wideAndThin = new ConeShape(70, 12, false);
+            GnatSeekPayload payload = SwarmStrike.payloadOf(new SwarmStrike.SwarmCast(7, new Vec3(1, 65, 2),
+                    new Vec3(1, 0, 0), wideAndThin, 8.5), GnatSeekPayload.NO_PREY, new AABB(5, 64, 1, 6, 65, 2));
+            assertEquals(wideAndThin, payload.shape());
+            assertEquals(8.5, payload.reach());
+        }
+    }
+
+    /**
+     * The mob cone test takes the shape it is handed: a cone wide across and thin up and down strikes a mob off to
+     * the side and passes over one the same angle above the axis
+     * (decision cone-style-abilities-are-reviewed-for-consistency).
+     */
+    @Nested
+    class ShapedCone {
+
+        private static final Vec3 EYE = Vec3.ZERO;
+        private static final Vec3 LOOK = new Vec3(1, 0, 0);
+        private static final ConeShape WIDE_AND_THIN = new ConeShape(60, 8, false);
+        private static final double REACH = 8;
+        private static final double HALF_A_MOB = 0.3;
+        /** Five blocks out and two off the axis, about 22 degrees: inside the 30 either side, outside the 4 up. */
+        private static final Vec3 OFF_TO_THE_SIDE = new Vec3(5, 0, 2);
+        private static final Vec3 AS_FAR_ABOVE = new Vec3(5, 2, 0);
+
+        private Mob mobAt(Vec3 middle) {
+            Mob mob = mock(Mob.class);
+            when(mob.getBoundingBox()).thenReturn(new AABB(middle, middle).inflate(HALF_A_MOB));
+            return mob;
+        }
+
+        @Test
+        void aMobOffToTheSideIsStruckAndOneAsFarAboveIsPassedOver() {
+            assertTrue(GooStreamHandler.inCone(EYE, LOOK, WIDE_AND_THIN, REACH, mobAt(OFF_TO_THE_SIDE)));
+            assertFalse(GooStreamHandler.inCone(EYE, LOOK, WIDE_AND_THIN, REACH, mobAt(AS_FAR_ABOVE)));
         }
     }
 

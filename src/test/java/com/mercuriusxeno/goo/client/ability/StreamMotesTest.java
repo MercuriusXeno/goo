@@ -15,6 +15,7 @@ import com.mercuriusxeno.goo.network.StreamMotesPayload;
 import com.mercuriusxeno.goo.throwing.CoatRay;
 import com.mercuriusxeno.goo.throwing.ConeShape;
 import com.mercuriusxeno.goo.throwing.DripArc;
+import com.mercuriusxeno.goo.throwing.StreamCone;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.client.Camera;
 import net.minecraft.client.CameraType;
@@ -384,6 +385,35 @@ class StreamMotesTest {
                             + blob + " on its first tick, left from " + left);
                 }
             });
+        }
+    }
+
+    /**
+     * The client launches every spore of a cast through a cone wide across and thin up and down inside that shape,
+     * at the speed that rests it at the cast's reach
+     * (decision cone-style-abilities-are-reviewed-for-consistency).
+     */
+    @Test
+    void everySporeOfAShapedCastLaunchesInsideItsShapeToRestAtItsReach() {
+        Caster caster = moving(Vec3.ZERO);
+        ConeShape wideAndThin = new ConeShape(70, 10, false);
+        double reach = 5.5;
+        StreamMotesPayload tick = GooStreamHandler.motesOf(CASTER, sourceOf(caster, -1), SPRAY_AXIS,
+                Identifier.fromNamespaceAndPath("goo", "spore"), new GooStreamHandler.SprayedCone(wideAndThin, reach),
+                Delivery.NO_THROW_SPEED);
+        Minecraft minecraft = clientDrawing(new ArrayList<>(), caster, true, new double[] {0});
+        whileDrawing(minecraft, new ArrayList<>(), () -> StreamMotes.handle(tick, runningAtOnce()));
+        ArgumentCaptor<Double> x = ArgumentCaptor.forClass(Double.class);
+        ArgumentCaptor<Double> y = ArgumentCaptor.forClass(Double.class);
+        ArgumentCaptor<Double> z = ArgumentCaptor.forClass(Double.class);
+        verify(minecraft.particleEngine, atLeastOnce()).createParticle(any(), anyDouble(), anyDouble(), anyDouble(),
+                x.capture(), y.capture(), z.capture());
+        for (int i = 0; i < x.getAllValues().size(); i++) {
+            Vec3 launch = new Vec3(x.getAllValues().get(i), y.getAllValues().get(i), z.getAllValues().get(i));
+            assertTrue(StreamCone.contains(Vec3.ZERO, SPRAY_AXIS, reach, wideAndThin, launch.normalize()),
+                    "a spore launches along " + launch + ", outside the shape");
+            assertEquals(reach, launch.length() / GooStreamHandler.restingSpeed(1), 1e-9,
+                    "a spore's flight ends off the reach");
         }
     }
 

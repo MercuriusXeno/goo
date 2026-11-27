@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.program.FlamesStep;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
@@ -10,6 +9,7 @@ import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.throwing.GloveAim;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
+import com.mercuriusxeno.goo.throwing.ConeShape;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.phys.BlockHitResult;
@@ -43,13 +43,18 @@ public final class FireStream {
     /** blaze_flames.json's reach and cone, for a pinned jet when no Flames is synced. */
     static final double FLAMES_RANGE = 6;
     static final double FLAMES_CONE_DEGREES = 20;
-    private static final String FLAMES_ID = "goo:blaze_flames";
+    /** The ability the fire is registered under in {@link ConeVisuals}. */
+    static final String FLAMES_ID = "goo:blaze_flames";
     private static final double HALF = 0.5;
 
     /** The game time the current hold began, or NaN while no hold runs. */
     private static double heldSince = Double.NaN;
     /** The game time the last hold ended, or NaN while a hold runs or nothing burns. */
     private static double releasedAt = Double.NaN;
+    /** The cone Flames poured through this frame, taken by the frame's draw, or null once the pour stops. */
+    private static @Nullable SprayCone poured;
+    /** The cone the held fire last poured through, which it burns away down after the pour stops. */
+    private static @Nullable SprayCone burning;
     /** The jet {@code /goodebug flames} pinned, or null. */
     private static @Nullable PinnedJet pinned;
 
@@ -57,17 +62,23 @@ public final class FireStream {
     }
 
     /**
-     * A jet pinned in the world, in world coordinates, and the game time its loop began.
+     * A jet pinned in the world and the game time its loop began.
      *
-     * @param hand     the glove's world position
-     * @param axis     the jet's unit vector
-     * @param range    the stream's reach
-     * @param cone     the stream's cone, in degrees
+     * @param cone     the cone it pours through, in world coordinates
      * @param wall     where the jet meets a block, the hit point in world coordinates, or null
      * @param pinnedAt the game time the loop began
      */
-    private record PinnedJet(Vec3 hand, Vec3 axis, double range, double cone, @Nullable Wall wall,
-                             double pinnedAt) {
+    private record PinnedJet(SprayCone cone, @Nullable Wall wall, double pinnedAt) {
+    }
+
+    /**
+     * Hands the held fire the cone Flames pours through this frame, the glove's or a nozzle's.
+     * decision spray-abilities-render-procedurally-bound-to-their-cone
+     *
+     * @param cone the cone poured through
+     */
+    static void pour(SprayCone cone) {
+        poured = cone;
     }
 
     /**
@@ -86,7 +97,8 @@ public final class FireStream {
         double cone = flames == null ? FLAMES_CONE_DEGREES : flames.delivery().coneDegrees();
         Vec3 hand = CastOrigin.ofLocal(mc);
         Aim aim = aimAtCrosshair(player, hand, 1f, range);
-        pinned = new PinnedJet(hand, aim.axis(), range, cone, aim.wall(), player.level().getGameTime());
+        pinned = new PinnedJet(new SprayCone(hand, aim.axis(), ConeShape.round(cone), range), aim.wall(),
+                player.level().getGameTime());
         return true;
     }
 
@@ -112,6 +124,7 @@ public final class FireStream {
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         double now = player.level().getGameTime() + partialTick;
         Vec3 camera = mc.gameRenderer.mainCamera().position();
+        pourTheGlovesFlames(player, partialTick);
         List<FireField> fields = new ArrayList<>();
         addBurning(fields, heldField(player, now, partialTick, camera));
         addBurning(fields, pinnedField(now, camera));
@@ -128,57 +141,60 @@ public final class FireStream {
     }
 
     /**
-     * The field held Flames burns: from the glove, down its aim, at its
-     * delivery's reach and cone, cut off at the face the look meets.
+     * The glove's held Flames: while right click holds it, the glove pours the round cone of its delivery from the
+     * cast origin toward what the crosshair points at, through Flames' visual in {@link ConeVisuals}.
+     * decision spray-abilities-render-procedurally-bound-to-their-cone
      *
-     * @param delivery Flames' delivery
-     * @param hand     the glove's world position
-     * @param axis     the aim's unit vector from the glove
-     * @param span     the burning stretch
-     * @param wall     where the look meets a block, in world coordinates, or null
-     * @param camera   the camera's world position
-     * @return the field, camera relative
+     * @param player      the local player
+     * @param partialTick the frame's partial tick
      */
-    static FireField fieldOf(Delivery delivery, Vec3 hand, Vec3 axis, JetSpan span, @Nullable Wall wall,
-                             Vec3 camera) {
-        return fieldFrom(hand, axis, delivery.range(), delivery.coneDegrees(), span, wall, camera);
+    private static void pourTheGlovesFlames(LocalPlayer player, float partialTick) {
+        ClientAbility flames = selectedFlames(player);
+        if (flames == null || !GloveUseTracker.runsHeld(player)) {
+            return;
+        }
+        Vec3 hand = CastOrigin.ofLocal(Minecraft.getInstance());
+        Aim aim = aimAtCrosshair(player, hand, partialTick, flames.delivery().range());
+        ConeVisuals.pour(flames.id().toString(), SprayCone.ofGlove(flames.delivery(), hand, aim.axis()));
     }
 
     /**
-     * A field from a spout in world coordinates, made camera relative.
+     * The field a fire burns through a cone: from its apex, down its axis, its licks spread by the cone's two
+     * widths out to its reach, cut off at the face the look meets.
+     * decision spray-abilities-render-procedurally-bound-to-their-cone
      *
-     * @param spout  where the fire pours from
-     * @param axis   the unit vector it pours along
-     * @param range  its reach in open air
-     * @param cone   its cone, in degrees
+     * @param cone   the cone the fire pours through, in world coordinates
      * @param span   the burning stretch
-     * @param wall   where its line meets a block, in world coordinates, or null
+     * @param wall   where the look meets a block, in world coordinates, or null
      * @param camera the camera's world position
-     * @return the field
+     * @return the field, camera relative
      */
-    static FireField fieldFrom(Vec3 spout, Vec3 axis, double range, double cone, JetSpan span, @Nullable Wall wall,
-                               Vec3 camera) {
-        Jet jet = new Jet(spout.subtract(camera), axis, FireField.sideOf(axis),
-                Math.tan(Math.toRadians(cone * HALF)));
+    static FireField fieldOf(SprayCone cone, JetSpan span, @Nullable Wall wall, Vec3 camera) {
+        Jet jet = new Jet(cone.apex().subtract(camera), cone.axis(), FireField.sideOf(cone.axis()),
+                halfTan(cone.shape().sideDegrees()), halfTan(cone.shape().liftDegrees()));
         Wall relative = wall == null ? null : new Wall(wall.distance(), wall.at().subtract(camera), wall.face());
-        return new FireField(jet, span, range, relative);
+        return new FireField(jet, span, cone.reach(), relative);
+    }
+
+    private static double halfTan(double degrees) {
+        return Math.tan(Math.toRadians(degrees * HALF));
     }
 
     private static @Nullable FireField heldField(LocalPlayer player, double now, float partialTick, Vec3 camera) {
-        ClientAbility flames = selectedFlames(player);
-        if (flames == null) {
-            heldSince = Double.NaN;
-            releasedAt = Double.NaN;
+        SprayCone cone = poured;
+        poured = null;
+        if (cone != null) {
+            burning = cone;
+        }
+        SprayCone fire = burning;
+        JetSpan span = fire == null ? null : trackHold(cone != null, now, fire.reach());
+        if (fire == null || span == null) {
+            burning = null;
             return null;
         }
-        double range = flames.delivery().range();
-        JetSpan span = trackHold(GloveUseTracker.runsHeld(player), now, range);
-        if (span == null) {
-            return null;
-        }
-        Vec3 hand = CastOrigin.ofLocal(Minecraft.getInstance());
-        Aim aim = aimAtCrosshair(player, hand, partialTick, range);
-        return fieldOf(flames.delivery(), hand, aim.axis(), span, aim.wall(), camera);
+        Wall wall = aimAlong(CameraEye.of(Minecraft.getInstance(), player, partialTick), fire.apex(), fire.reach(),
+                CameraEye.blocksSeenBy(player)).wall();
+        return fieldOf(fire, span, wall, camera);
     }
 
     private static @Nullable FireField pinnedField(double now, Vec3 camera) {
@@ -188,8 +204,7 @@ public final class FireStream {
         }
         double intoLoop = (now - jet.pinnedAt()) % PINNED_LOOP_TICKS;
         double released = intoLoop < PINNED_HELD_TICKS ? Double.NaN : intoLoop - PINNED_HELD_TICKS;
-        return fieldFrom(jet.hand(), jet.axis(), jet.range(), jet.cone(), jetSpan(intoLoop, released, jet.range()),
-                jet.wall(), camera);
+        return fieldOf(jet.cone(), jetSpan(intoLoop, released, jet.cone().reach()), jet.wall(), camera);
     }
 
     /**

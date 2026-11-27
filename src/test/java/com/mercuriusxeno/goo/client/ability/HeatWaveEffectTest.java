@@ -1,17 +1,18 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.throwing.ConeShape;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 
 /**
  * Flames' heat wave eases toward full heat while Flames runs and away
- * after, and runs only while right click holds Flames
- * (decisions broil-heat-wave-ring-cooks-ahead, flames-absorbs-broil-and-cooks-blocks).
+ * after, its shimmer at the reach of the cone Flames pours through
+ * (decisions broil-heat-wave-ring-cooks-ahead, flames-absorbs-broil-and-cooks-blocks,
+ * spray-abilities-render-procedurally-bound-to-their-cone).
  */
 class HeatWaveEffectTest {
 
@@ -29,7 +30,8 @@ class HeatWaveEffectTest {
 
         private static Vec3 reachPointFrom(double eyeHeight) {
             CameraEye.Sight sight = new CameraEye.Sight(new Vec3(0, 64 + eyeHeight, 0), LOOK);
-            return HeatWaveEffect.reachAlong(sight, 20, FlatWall::clip, (from, to) -> null);
+            SprayCone cone = new SprayCone(new Vec3(0.3, 64, 0.4), LOOK, ConeShape.round(20), 20);
+            return HeatWaveEffect.reachAlong(sight, cone, FlatWall::clip, (from, to) -> null);
         }
 
         @Test
@@ -46,6 +48,23 @@ class HeatWaveEffectTest {
         }
     }
 
+    /**
+     * The shimmer sits at the reach of the cone the effect is handed
+     * (decision spray-abilities-render-procedurally-bound-to-their-cone).
+     */
+    @ParameterizedTest
+    @ValueSource(doubles = {4, 9})
+    void inOpenAirTheShimmerSitsAtTheReachItIsHanded(double reach) {
+        Vec3 eye = new Vec3(0, 65.62, 0);
+        Vec3 look = new Vec3(0, -0.3, -1).normalize();
+        SprayCone cone = new SprayCone(new Vec3(0.3, 65.2, -0.4), look, ConeShape.round(20), reach);
+
+        Vec3 shimmer = HeatWaveEffect.reachAlong(new CameraEye.Sight(eye, look), cone, FlatWall::clip,
+                (from, to) -> null);
+
+        assertEquals(reach, shimmer.distanceTo(eye), 1e-9);
+    }
+
     @Test
     void aRunningFlameWarmsTheWaveByAShareEachTick() {
         assertEquals(HeatWaveEffect.EASE_PER_TICK, HeatWaveEffect.easedHeat(0f, true, 1f), EPSILON);
@@ -59,10 +78,5 @@ class HeatWaveEffectTest {
     @Test
     void aLongFrameReachesItsTargetWithoutOvershooting() {
         assertEquals(1f, HeatWaveEffect.easedHeat(0f, true, 100f), EPSILON);
-    }
-
-    @Test
-    void noSelectedAbilityRunsNoWave() {
-        assertFalse(HeatWaveEffect.holdsFlames(null, true));
     }
 }

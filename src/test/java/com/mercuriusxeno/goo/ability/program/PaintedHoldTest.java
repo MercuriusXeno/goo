@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.throwing.ConeShape;
 import com.mercuriusxeno.goo.network.HoldMarks;
 import com.mercuriusxeno.goo.throwing.CoatRay;
 import net.minecraft.core.BlockPos;
@@ -134,8 +135,8 @@ class PaintedHoldTest {
         @Test
         void everyRayEndsWhereItsShareOfTheFanEnds() {
             Vec3 look = new Vec3(0, -0.2, 1).normalize();
-            List<Vec3> directions = PaintedHold.rayDirections(look, CONE);
-            List<Vec3> coatEnds = PaintedHold.rayEnds(FLOOR, EYE, look.scale(RANGE), CONE);
+            List<Vec3> directions = PaintedHold.rayDirections(look, ConeShape.round(CONE));
+            List<Vec3> coatEnds = PaintedHold.rayEnds(FLOOR, EYE, look.scale(RANGE), ConeShape.round(CONE));
             List<CoatRay.ConeShare> shares = PaintedHold.rayShares();
             assertEquals(directions.size(), coatEnds.size());
             assertEquals(directions.size(), shares.size());

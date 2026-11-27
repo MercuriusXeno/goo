@@ -60,6 +60,12 @@ public final class SignalRings {
     /** The Zap waves in flight, each one volley of rings. */
     private static final List<Burst> BURSTS = new CopyOnWriteArrayList<>();
 
+    /** The ability Tick's rings are registered under in {@link ConeVisuals}. */
+    static final String TICK_ID = "goo:pulse_tick";
+
+    /** The cone Tick's rings march through this frame, the glove's or a nozzle's, taken by the frame's draw. */
+    private static @Nullable SprayCone poured;
+
     private SignalRings() {
     }
 
@@ -115,32 +121,57 @@ public final class SignalRings {
     public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
-        ClientAbility signal = player == null ? null : runningSignal(player);
-        if (signal == null && BURSTS.isEmpty() || mc.level == null) {
+        if (player != null) {
+            pourTheGlovesRings(mc, player);
+        }
+        SprayCone stream = poured;
+        poured = null;
+        if (stream == null && BURSTS.isEmpty() || mc.level == null) {
             return;
         }
         double now = System.nanoTime() / NANOS_PER_SECOND;
         BURSTS.removeIf(burst -> volleyEnded(now - burst.bornSeconds()));
-        Ray stream = signal == null ? null : streamRay(mc, player, signal);
         List<Burst> bursts = List.copyOf(BURSTS);
         Vec3 camera = mc.gameRenderer.mainCamera().position();
-        Stream<Vec3> hands = Stream.concat(Stream.ofNullable(stream), bursts.stream().map(Burst::ray)).map(Ray::hand);
+        Stream<Vec3> hands = Stream.concat(Stream.ofNullable(stream).map(SprayCone::apex),
+                bursts.stream().map(burst -> burst.ray().hand()));
         draws.accept(SortedDraw.nearestOf(hands, camera, () -> drawSignal(mc, frame, stream, bursts, camera, now)));
     }
 
-    private static Ray streamRay(Minecraft mc, LocalPlayer player, ClientAbility signal) {
-        float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        return new Ray(CastOrigin.ofLocal(mc), player.getViewVector(partialTick),
-                signal.delivery().range(), signal.delivery().coneDegrees(), shapeOf(signal));
+    /**
+     * Pours Tick's rings through a cone this frame, the glove's or a nozzle's.
+     * decision spray-abilities-render-procedurally-bound-to-their-cone
+     *
+     * @param cone the cone poured through, in world space
+     */
+    static void pour(SprayCone cone) {
+        poured = cone;
     }
 
-    private static void drawSignal(Minecraft mc, LevelFrame frame, @Nullable Ray stream, List<Burst> bursts,
+    /**
+     * Pours the glove's rings while right click holds Tick: the round cone of its delivery, from the hand along the
+     * look this frame.
+     * decision spray-abilities-render-procedurally-bound-to-their-cone
+     *
+     * @param mc     the client
+     * @param player the local player
+     */
+    private static void pourTheGlovesRings(Minecraft mc, LocalPlayer player) {
+        ClientAbility signal = runningSignal(player);
+        if (signal != null) {
+            float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
+            ConeVisuals.pour(signal.id().toString(), SprayCone.ofGlove(signal.delivery(), CastOrigin.ofLocal(mc),
+                    player.getViewVector(partialTick)));
+        }
+    }
+
+    private static void drawSignal(Minecraft mc, LevelFrame frame, @Nullable SprayCone stream, List<Burst> bursts,
                                    Vec3 camera, double now) {
         ImmediateBuffers buffers = ImmediateBuffers.shared();
         LineContext lines = new LineContext(frame.poseStack().last(), buffers.getBuffer(GooRenderTypes.LINES_GLOW));
         float width = mc.getWindow().getAppropriateLineWidth() * WIDTH_SCALE;
         if (stream != null) {
-            drawRings(lines, stream, camera, width, now);
+            drawTickRings(lines, stream, camera, width, now);
         }
         for (Burst burst : bursts) {
             drawVolley(lines, burst.ray(), camera, width, now - burst.bornSeconds());
@@ -202,10 +233,55 @@ public final class SignalRings {
     private record Ray(Vec3 hand, Vec3 axis, double range, double coneDegrees, RingShape shape) {
     }
 
-    private static void drawRings(LineContext lines, Ray ray, Vec3 camera, float width, double seconds) {
+    private static void drawTickRings(LineContext lines, SprayCone cone, Vec3 camera, float width, double seconds) {
         for (int ring = 0; ring < RINGS; ring++) {
-            drawRing(lines, ray, camera, width, flightShare(seconds, ring));
+            double share = flightShare(seconds, ring);
+            int alpha = Math.round(PEAK_ALPHA * opacity(share));
+            if (alpha > 0) {
+                lines.emitPolyline(camera, tickRingAt(cone, share).outline(), ARGB.color(alpha, RING_RGB), width);
+            }
         }
+    }
+
+    /**
+     * One of Tick's rings: a rectangle square to the cone's axis, its sides standing at the shape's half widths
+     * across and up and down at its distance.
+     *
+     * @param center     the ring's center, on the axis
+     * @param axis       the cone's unit axis
+     * @param distance   the ring's distance from the apex along the axis
+     * @param halfWidth  half its width across
+     * @param halfHeight half its height up and down
+     */
+    record TickRing(Vec3 center, Vec3 axis, double distance, double halfWidth, double halfHeight) {
+
+        /** @return the ring's corners, the first repeated last to close it */
+        Vec3[] outline() {
+            Vec3 side = StreamCone.side(axis);
+            Vec3 lift = side.cross(axis);
+            Vec3 across = side.scale(halfWidth);
+            Vec3 upDown = lift.scale(halfHeight);
+            Vec3 corner = center.add(across).add(upDown);
+            return new Vec3[] {corner, center.subtract(across).add(upDown), center.subtract(across).subtract(upDown),
+                center.add(across).subtract(upDown), corner};
+        }
+    }
+
+    /**
+     * Where Tick's ring stands a share of its flight out through a cone: that share of the reach along the axis, as
+     * wide and as tall as the cone's shape there, so the march ends at the reach.
+     * decision spray-abilities-render-procedurally-bound-to-their-cone
+     *
+     * @param cone  the cone the rings march through
+     * @param share the share of the flight, 0 at the apex to 1 at the reach
+     * @return the ring
+     */
+    static TickRing tickRingAt(SprayCone cone, double share) {
+        Vec3 axis = cone.axis().normalize();
+        double distance = share * cone.reach();
+        return new TickRing(cone.apex().add(axis.scale(distance)), axis, distance,
+                distance * Math.tan(Math.toRadians(cone.shape().sideDegrees() * HALF)),
+                distance * Math.tan(Math.toRadians(cone.shape().liftDegrees() * HALF)));
     }
 
     private static void drawRing(LineContext lines, Ray ray, Vec3 camera, float width, double share) {

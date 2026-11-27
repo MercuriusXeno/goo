@@ -18,15 +18,19 @@
 // hand when the hold starts and breaks up when it ends. Each fragment marches its ray front to back through
 // the cone, stopping at whatever the world drew there, so it lies over floor, wall and sky alike and stands
 // in front of a mob inside it. TRANSLUCENT blend, capped so a mob inside stays visible.
+// The cone is the one it is handed (decision spray-abilities-render-procedurally-bound-to-their-cone): its
+// section takes the shape's widths across and up and down, tested as StreamCone.contains tests a point, so a
+// flat shape draws a flattened vortex.
 
-// Must match MiasmaVortexPass.pack: six std140 rows.
+// Must match MiasmaVortexPass.pack: seven std140 rows.
 layout(std140) uniform MiasmaVortex {
-    vec4 ApexTan;     // the glove hand, camera relative, and the tangent of half the cone's angle
-    vec4 AxisLength;  // the unit look, and blocks the cone reaches along it
-    vec4 SideDepth;   // a unit direction square to the look, and whether depth runs 0 to 1
-    vec4 BodyColor;   // the goo's wheel color, the clumps'
-    vec4 StreakColor; // the goo's bright color, the streaks' and the glow's
-    vec4 Shown;       // how thick it shows, and how far out from the hand it has formed, as shares
+    vec4 ApexSideHalf; // the hand or nozzle, camera relative, and half the shape's width across, in radians
+    vec4 AxisLength;   // the unit look, and blocks the cone reaches along it
+    vec4 SideDepth;    // the unit direction across the section, and whether depth runs 0 to 1
+    vec4 BodyColor;    // the goo's wheel color, the clumps'
+    vec4 StreakColor;  // the goo's bright color, the streaks' and the glow's
+    vec4 Shown;        // how thick it shows, how far out from the hand it has formed, as shares, and 1 for a band
+    vec4 LiftHalf;     // the unit direction up and down the section, and half the shape's width that way, in radians
 };
 
 uniform sampler2D MiasmaDepthSampler;
@@ -157,7 +161,7 @@ float sceneDistance(vec3 eye, mat4 viewToWorld) {
 
 // Where the ray enters and leaves the ball around the apex holding the whole cone, as distances along it.
 vec2 throughBall(vec3 eye, vec3 dir, float radius) {
-    vec3 offset = eye - ApexTan.xyz;
+    vec3 offset = eye - ApexSideHalf.xyz;
     float b = dot(offset, dir);
     float c = dot(offset, offset) - radius * radius;
     float h = b * b - c;
@@ -168,7 +172,27 @@ vec2 throughBall(vec3 eye, vec3 dir, float radius) {
     return vec2(-b - h, -b + h);
 }
 
-// A point of the cone in its own terms: blocks along the axis, the share of the radius out, and the angle.
+// How far out a point stands in the cone's section, as a share of the rim there, 1 on it: for a band the
+// wider of its angles across and up and down, each over its half width; for a cone its angle off the axis
+// over the half width at its turn about the axis, the ellipse ConeShape.degreesAt draws between the two.
+float rimShare(float along, float across, float upDown) {
+    float sideHalf = ApexSideHalf.w;
+    float liftHalf = LiftHalf.w;
+    if (Shown.z > 0.5) {
+        return max(abs(atan(across, along)) / sideHalf, abs(atan(upDown, along)) / liftHalf);
+    }
+    float offAxis = atan(length(vec2(across, upDown)), along);
+    if (offAxis <= 1e-6) {
+        return 0.0;
+    }
+    float turn = atan(upDown, across);
+    float acrossPart = liftHalf * cos(turn);
+    float upDownPart = sideHalf * sin(turn);
+    float halfAtTurn = sideHalf * liftHalf / max(sqrt(acrossPart * acrossPart + upDownPart * upDownPart), 1e-6);
+    return offAxis / halfAtTurn;
+}
+
+// A point of the cone in its own terms: blocks along the axis, the share of the rim out, and the angle.
 struct ConePoint {
     float along;
     float share;
@@ -197,20 +221,22 @@ vec2 phaseAt(ConePoint at, float carried, float seed, float ripple) {
 
 // The miasma at a point: its density, how much of it is clump core, and how much is streak.
 vec3 miasmaAt(vec3 point, float seconds) {
-    vec3 offset = point - ApexTan.xyz;
+    vec3 offset = point - ApexSideHalf.xyz;
     float along = dot(offset, AxisLength.xyz);
     float reachLength = AxisLength.w;
     if (along <= 0.0 || along > reachLength) {
         return vec3(0.0);
     }
     vec3 radial = offset - along * AxisLength.xyz;
-    float share = length(radial) / (along * ApexTan.w);
+    float across = dot(radial, SideDepth.xyz);
+    float upDown = dot(radial, LiftHalf.xyz);
+    float share = rimShare(along, across, upDown);
     if (share > 1.0) {
         return vec3(0.0);
     }
-    vec3 lift = cross(AxisLength.xyz, SideDepth.xyz);
-    ConePoint at = ConePoint(along, share, atan(dot(radial, lift), dot(radial, SideDepth.xyz)));
-    vec2 section = vec2(dot(radial, SideDepth.xyz), dot(radial, lift)) / max(along * ApexTan.w, 0.05);
+    ConePoint at = ConePoint(along, share, atan(upDown, across));
+    // the noise's section is squashed to the shape, so a flat vortex's clumps flatten with it
+    vec2 section = vec2(across / max(along * tan(ApexSideHalf.w), 0.05), upDown / max(along * tan(LiftHalf.w), 0.05));
     float ripple = plainNoise(vec3(section * RIPPLE_CELLS, along * RIPPLE_CELLS - seconds / RIPPLE_SECONDS));
 
     // two phases half a flow apart, each fading in as it starts over and out as it ends, so no restart shows
@@ -251,7 +277,9 @@ void main() {
     mat4 viewToWorld = inverse(ModelViewMat);
     vec3 eye = (viewToWorld * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
     vec3 dir = normalize(rayPoint - eye);
-    float ballRadius = AxisLength.w * sqrt(1.0 + ApexTan.w * ApexTan.w);
+    float sideTan = tan(ApexSideHalf.w);
+    float liftTan = tan(LiftHalf.w);
+    float ballRadius = AxisLength.w * sqrt(1.0 + sideTan * sideTan + liftTan * liftTan);
     vec2 span = throughBall(eye, dir, ballRadius);
     float near = max(span.x, 0.0);
     float far = min(span.y, sceneDistance(eye, viewToWorld));
@@ -272,9 +300,10 @@ void main() {
         if (miasma.x <= 0.0) {
             continue;
         }
-        vec3 offset = point - ApexTan.xyz;
+        vec3 offset = point - ApexSideHalf.xyz;
         float along = dot(offset, AxisLength.xyz);
-        float share = length(offset - along * AxisLength.xyz) / max(along * ApexTan.w, 1e-3);
+        vec3 radial = offset - along * AxisLength.xyz;
+        float share = rimShare(max(along, 1e-3), dot(radial, SideDepth.xyz), dot(radial, LiftHalf.xyz));
         float reach = along / AxisLength.w;
         vec3 clumpColor = body * mix(EDGE_SHADE, CORE_SHADE, miasma.y);
         float lit = AXIS_GLOW * (1.0 - share) * (1.0 - share) + HAND_GLOW * (1.0 - reach) * (1.0 - reach);

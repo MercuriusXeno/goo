@@ -42,6 +42,68 @@ class VortexConeTest {
         }
     }
 
+    /**
+     * A cone wider across than up and down draws a flattened vortex out to the reach it is handed
+     * (decision spray-abilities-render-procedurally-bound-to-their-cone).
+     */
+    @Nested
+    class FlatShape {
+
+        private static final Vec3 LOOK = new Vec3(0.3, -0.2, 1).normalize();
+        private static final ConeShape FLAT = new ConeShape(60, 10, false);
+        private static final double REACH = 7.5;
+        /** Just short of the far end, where rounding decides whether the end itself is inside. */
+        private static final double NEAR_THE_END = REACH - 1e-6;
+        private static final double FAR_OUT = 20;
+        private static final int HALVINGS = 60;
+        private static final double MEASURED = 1e-6;
+
+        private VortexCone vortex() {
+            return VortexCone.along(HAND, LOOK, REACH, FLAT);
+        }
+
+        /** How far out from the axis the vortex holds a point, a distance along it, one way across its section. */
+        private double extent(VortexCone vortex, double distance, Vec3 way) {
+            Vec3 center = HAND.add(LOOK.scale(distance));
+            double inside = 0;
+            double outside = FAR_OUT;
+            for (int halving = 0; halving < HALVINGS; halving++) {
+                double middle = (inside + outside) / 2;
+                if (vortex.bounds(center.add(way.scale(middle)))) {
+                    inside = middle;
+                } else {
+                    outside = middle;
+                }
+            }
+            return inside;
+        }
+
+        private static double widthAt(double distance, double degrees) {
+            return 2 * distance * Math.tan(Math.toRadians(degrees / 2));
+        }
+
+        @Test
+        void itsLengthIsTheReach() {
+            assertEquals(REACH, vortex().length(), TOLERANCE);
+            assertTrue(vortex().bounds(HAND.add(LOOK.scale(NEAR_THE_END))));
+            assertFalse(vortex().bounds(HAND.add(LOOK.scale(REACH + MEASURED))));
+        }
+
+        @Test
+        void itsFarEndIsAsWideAndAsHighAsTheShapeThere() {
+            Vec3 side = StreamCone.side(LOOK);
+            Vec3 lift = side.cross(LOOK);
+            VortexCone vortex = vortex();
+            assertAll(
+                    () -> assertEquals(widthAt(NEAR_THE_END, FLAT.sideDegrees()),
+                            extent(vortex, NEAR_THE_END, side) + extent(vortex, NEAR_THE_END, side.reverse()),
+                            MEASURED, "width across"),
+                    () -> assertEquals(widthAt(NEAR_THE_END, FLAT.liftDegrees()),
+                            extent(vortex, NEAR_THE_END, lift) + extent(vortex, NEAR_THE_END, lift.reverse()),
+                            MEASURED, "height"));
+        }
+    }
+
     @Nested
     class Axis {
 
@@ -53,7 +115,7 @@ class VortexConeTest {
         @Test
         void aLookPitchedDownTiltsTheVortexWithIt() {
             Vec3 look = Vec3.directionFromRotation(LOOK_DOWN_PITCH, YAW).normalize();
-            VortexCone vortex = VortexCone.along(HAND, look, range, coneDegrees);
+            VortexCone vortex = VortexCone.along(HAND, look, range, ConeShape.round(coneDegrees));
             assertAll(
                     () -> assertEquals(HAND, vortex.apex()),
                     () -> assertEquals(look.x, vortex.axis().x, TOLERANCE),
@@ -75,7 +137,7 @@ class VortexConeTest {
         private static final double PAST_THE_RIM = 1.1;
 
         private VortexCone vortex() {
-            return VortexCone.along(HAND, LOOK, range, coneDegrees);
+            return VortexCone.along(HAND, LOOK, range, ConeShape.round(coneDegrees));
         }
 
         @Test
@@ -88,7 +150,7 @@ class VortexConeTest {
             double tan = Math.tan(Math.toRadians(coneDegrees / 2));
             for (int sample = 0; sample <= SAMPLES; sample++) {
                 double distance = range * sample / SAMPLES;
-                assertEquals(distance * tan, vortex().radiusAt(distance), TOLERANCE, "at " + distance);
+                assertEquals(distance * tan, vortex().widestRadiusAt(distance), TOLERANCE, "at " + distance);
             }
         }
 

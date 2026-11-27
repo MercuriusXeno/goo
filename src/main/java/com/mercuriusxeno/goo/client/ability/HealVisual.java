@@ -1,13 +1,14 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.ability.AbilityArea;
 import com.mercuriusxeno.goo.ability.program.LeafStep;
 import com.mercuriusxeno.goo.ability.program.LeafSteps;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
+import com.mercuriusxeno.goo.client.particle.VitalFogParticle;
 import com.mercuriusxeno.goo.client.particle.VitalMoteParticle;
 import com.mercuriusxeno.goo.network.StreamHealedPayload;
 import com.mercuriusxeno.goo.registry.GooParticles;
+import com.mercuriusxeno.goo.throwing.StreamCone;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.util.RandomSource;
@@ -17,6 +18,8 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
@@ -42,6 +45,8 @@ public final class HealVisual {
     static final double ROLL_PER_TICK = 0.35;
     /** Speed a fog puff drifts out along the aim, in blocks per tick. */
     private static final double FOG_DRIFT = 0.04;
+    /** The share of the room before the reach a puff's drift may cover, so rounding leaves it inside. */
+    private static final double ROOM_SLACK = 0.999;
     /** Goo motes homing onto each healed thing per healed tick. */
     static final int MOTES_PER_HEAL = 1;
     /** Stars per healed tick on each healed thing. */
@@ -58,36 +63,49 @@ public final class HealVisual {
     private static final double MOTE_BOW = 0.5;
     private static final double TWO_PI = 2 * Math.PI;
     private static final double HALF = 0.5;
-    /** An axis this close to straight up or down takes the world's x as its side. */
-    private static final double NEAR_VERTICAL = 0.99;
+
+    /** The ability the fog is registered under in {@link ConeVisuals}. */
+    static final String HEAL_ID = "goo:jelly_heal";
 
     private HealVisual() {
     }
 
     /**
-     * A point inside the fog cone. The cone opens from the apex along the
-     * axis; its rim radius at each distance swells and shrinks by the
-     * undulation, a wave rolling out from the glove over time.
+     * A point inside the fog cone: out from the apex a share of the reach, leaning off the axis by a share of the
+     * shape's half width there, which the undulation, a wave rolling out from the glove over time, swells and
+     * shrinks; the swell never leans it past the cone's rim.
+     * decision spray-abilities-render-procedurally-bound-to-their-cone
      *
-     * @param apex        the glove the cone opens from
-     * @param axis        the aim, a unit vector
-     * @param range       the cone's length in blocks
-     * @param coneDegrees the cone's full angle, rim to rim
-     * @param along       the share of the length the point sits at, zero to one
-     * @param radial      the share of the rim radius the point sits at, zero to one
-     * @param theta       the angle around the axis, in radians
-     * @param time        the game time, in ticks
+     * @param cone   the cone the fog fills
+     * @param along  the share of the reach the point sits at, zero to one
+     * @param radial the share of the half width the point leans out by, zero to one
+     * @param around where around the axis it leans, zero to one for a full turn
+     * @param time   the game time, in ticks
      * @return the point
      */
-    static Vec3 fogPoint(Vec3 apex, Vec3 axis, double range, double coneDegrees, double along, double radial,
-                         double theta, double time) {
-        double distance = along * range;
-        double rim = distance * Math.tan(Math.toRadians(coneDegrees * HALF));
-        double radius = rim * radial * undulation(along, time);
-        Vec3 side = sideOf(axis);
-        Vec3 up = axis.cross(side).normalize();
-        return apex.add(axis.scale(distance)).add(side.scale(radius * Math.cos(theta)))
-                .add(up.scale(radius * Math.sin(theta)));
+    static Vec3 fogPoint(SprayCone cone, double along, double radial, double around, double time) {
+        double lean = Math.min(1, radial * undulation(along, time));
+        Vec3 path = StreamCone.launchDirection(cone.axis(), cone.shape(), lean, around);
+        Vec3 point = cone.apex().add(path.scale(along * cone.reach()));
+        return StreamCone.pulledInside(cone.apex(), cone.axis(), cone.reach(), cone.shape(), point);
+    }
+
+    /**
+     * The fog puffs a held tick spawns into a cone, spread evenly over its widening volume.
+     *
+     * @param cone   the cone the fog fills
+     * @param random the random source
+     * @param time   the game time, in ticks
+     * @return each puff's point
+     */
+    static List<Vec3> fogPuffs(SprayCone cone, RandomSource random, double time) {
+        List<Vec3> puffs = new ArrayList<>(FOG_PER_TICK);
+        for (int puff = 0; puff < FOG_PER_TICK; puff++) {
+            // a square root spreads the puffs evenly over the cone's widening volume
+            puffs.add(fogPoint(cone, Math.sqrt(random.nextDouble()), Math.sqrt(random.nextDouble()),
+                    random.nextDouble(), time));
+        }
+        return puffs;
     }
 
     /**
@@ -102,33 +120,57 @@ public final class HealVisual {
         return 1 + UNDULATION * Math.sin(TWO_PI * WAVES_ALONG * along - ROLL_PER_TICK * time);
     }
 
-    private static Vec3 sideOf(Vec3 axis) {
-        Vec3 reference = Math.abs(axis.y) > NEAR_VERTICAL ? new Vec3(1, 0, 0) : new Vec3(0, 1, 0);
-        return axis.cross(reference).normalize();
-    }
-
     /**
-     * Fills this held tick's share of the fog cone for the local player's
-     * stream when its ability heals.
+     * Fills this held tick's share of the fog cone a player's stream pours through, the glove's or a nozzle's,
+     * when its ability heals.
+     * decision spray-abilities-render-procedurally-bound-to-their-cone
      *
      * @param player    the streaming player
      * @param abilityId the streamed ability
-     * @param area      the ability's area, whose size and angle the fog fills
-     * @param apex      the glove hand the stream leaves from
+     * @param cone      the cone the fog fills
      */
-    public static void drawFog(Player player, String abilityId, AbilityArea area, Vec3 apex) {
-        if (!heals(abilityId) || area.shape() != AbilityArea.Shape.CONE) {
+    public static void drawFog(Player player, String abilityId, SprayCone cone) {
+        if (!heals(abilityId)) {
             return;
         }
-        RandomSource random = player.getRandom();
-        Vec3 axis = player.getLookAngle();
-        double time = player.level().getGameTime();
-        for (int puff = 0; puff < FOG_PER_TICK; puff++) {
-            // a square root spreads the puffs evenly over the cone's widening volume
-            Vec3 at = fogPoint(apex, axis, area.size(), area.angle(), Math.sqrt(random.nextDouble()),
-                    Math.sqrt(random.nextDouble()), random.nextDouble() * TWO_PI, time);
-            Vec3 drift = axis.scale(FOG_DRIFT);
+        for (Vec3 at : fogPuffs(cone, player.getRandom(), player.level().getGameTime())) {
+            Vec3 drift = fogDrift(cone, at);
             player.level().addParticle(GooParticles.VITAL_FOG.get(), at.x, at.y, at.z, drift.x, drift.y, drift.z);
+        }
+    }
+
+    /**
+     * The speed a fog puff drifts out along the aim at: FOG_DRIFT, slowed where the reach stands nearer than the
+     * puff's whole drift would carry it, so it settles short of the reach. A drift along the axis leans the puff no
+     * further off it, so the puff keeps inside the shape as it goes.
+     * decision spray-abilities-render-procedurally-bound-to-their-cone
+     *
+     * @param cone the cone the fog fills
+     * @param at   where the puff spawns, inside the cone
+     * @return its launch speed a tick
+     */
+    static Vec3 fogDrift(SprayCone cone, Vec3 at) {
+        Vec3 axis = cone.axis().normalize();
+        Vec3 out = at.subtract(cone.apex());
+        double along = out.dot(axis);
+        // how far along the axis the puff may go before it meets the reach
+        double room = Math.max(0, Math.sqrt(Math.max(0, along * along - out.lengthSqr()
+                + cone.reach() * cone.reach())) - along);
+        // a drift's whole run is its speed over one less the friction, held a hair inside the room
+        double speed = Math.min(FOG_DRIFT, room * (1 - VitalFogParticle.FRICTION) * ROOM_SLACK);
+        return axis.scale(speed);
+    }
+
+    /**
+     * Fills this held tick's share of Heal's fog for the local player through a cone, the glove's or a nozzle's.
+     * decision spray-abilities-render-procedurally-bound-to-their-cone
+     *
+     * @param cone the cone the fog fills
+     */
+    static void drawFogLocal(SprayCone cone) {
+        Player player = Minecraft.getInstance().player;
+        if (player != null) {
+            drawFog(player, HEAL_ID, cone);
         }
     }
 

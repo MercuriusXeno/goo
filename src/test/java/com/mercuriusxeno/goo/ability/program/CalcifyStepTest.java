@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.throwing.ConeShape;
 import com.mercuriusxeno.goo.network.HoldMarks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Block;
@@ -29,14 +30,14 @@ class CalcifyStepTest {
 
     @Test
     void blocksOnTheAxisAreInsideNearestFirst() {
-        List<BlockPos> inside = CalcifyStep.blocksInCone(APEX, REACH, CONE);
+        List<BlockPos> inside = CalcifyStep.blocksInCone(APEX, REACH, ConeShape.round(CONE));
         assertTrue(inside.contains(new BlockPos(3, 0, 0)));
         assertTrue(inside.indexOf(new BlockPos(1, 0, 0)) < inside.indexOf(new BlockPos(5, 0, 0)));
     }
 
     @Test
     void blocksOffTheConeOrPastTheReachAreOutside() {
-        List<BlockPos> inside = CalcifyStep.blocksInCone(APEX, REACH, CONE);
+        List<BlockPos> inside = CalcifyStep.blocksInCone(APEX, REACH, ConeShape.round(CONE));
         assertFalse(inside.contains(new BlockPos(3, 3, 0)));
         assertFalse(inside.contains(new BlockPos(7, 0, 0)));
         assertFalse(inside.contains(new BlockPos(-2, 0, 0)));
@@ -44,7 +45,7 @@ class CalcifyStepTest {
 
     @Test
     void aConeWithNoReachHoldsNothing() {
-        assertEquals(List.of(), CalcifyStep.blocksInCone(APEX, APEX, CONE));
+        assertEquals(List.of(), CalcifyStep.blocksInCone(APEX, APEX, ConeShape.round(CONE)));
     }
 
     /**

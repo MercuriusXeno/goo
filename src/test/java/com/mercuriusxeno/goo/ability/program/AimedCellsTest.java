@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.throwing.ConeShape;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
@@ -27,7 +28,7 @@ class AimedCellsTest {
     @Test
     void theAimedCellIsReachedWhereverTheAimCrossesIt() {
         Vec3 reach = EYE.add(CORNER_OF_A_FAR_CELL.subtract(EYE).normalize().scale(8));
-        assertTrue(AimedCells.along(EYE, reach, CONE).contains(FAR_CELL));
+        assertTrue(AimedCells.along(EYE, reach, ConeShape.round(CONE)).contains(FAR_CELL));
     }
 
     @Test

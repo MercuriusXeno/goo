@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
+import com.mercuriusxeno.goo.throwing.ConeShape;
 import com.mercuriusxeno.goo.throwing.StreamCone;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
@@ -89,7 +90,7 @@ public record VacuumStep(int nearLayerTicks, int farLayerTicks, int countMemoryT
      */
     private void drainReached(ChannelHost host, ChannelAim aim, Vec3 eye) {
         double reach = aim.aimPoint().distanceTo(eye);
-        List<BlockPos> inCone = residualsInCone(eye, aim.aimPoint().subtract(eye), aim.coneDegrees(),
+        List<BlockPos> inCone = residualsInCone(eye, aim.aimPoint().subtract(eye), aim.shape(),
                 pos -> worldGoo(host.stateAt(pos)), pos -> passable(host, pos));
         for (BlockPos cell : inCone) {
             double distance = middleOf(cell).distanceTo(eye);
@@ -156,14 +157,16 @@ public record VacuumStep(int nearLayerTicks, int farLayerTicks, int countMemoryT
      * stands within the reach and the cone's angle of the look, and whose line
      * from the eye crosses only passable cells or other residuals.
      *
-     * @param eye         the cone's apex
-     * @param look        the cone's axis, as long as the reach
-     * @param coneDegrees the cone's apex angle in degrees
-     * @param residual    whether a cell holds a slime residual
-     * @param passable    whether a line passes through a cell holding no residual
+     * decision cone-style-abilities-are-reviewed-for-consistency
+     *
+     * @param eye      the cone's apex
+     * @param look     the cone's axis, as long as the reach
+     * @param shape    the cone's widths across and up and down
+     * @param residual whether a cell holds a slime residual
+     * @param passable whether a line passes through a cell holding no residual
      * @return the reached cells, nearest the eye first
      */
-    static List<BlockPos> residualsInCone(Vec3 eye, Vec3 look, double coneDegrees, Predicate<BlockPos> residual,
+    static List<BlockPos> residualsInCone(Vec3 eye, Vec3 look, ConeShape shape, Predicate<BlockPos> residual,
                                           Predicate<BlockPos> passable) {
         double range = look.length();
         int reach = (int) Math.ceil(range);
@@ -171,7 +174,7 @@ public record VacuumStep(int nearLayerTicks, int farLayerTicks, int countMemoryT
         List<BlockPos> reached = new ArrayList<>();
         for (BlockPos pos : BlockPos.betweenClosed(center.offset(-reach, -reach, -reach),
                 center.offset(reach, reach, reach))) {
-            if (residual.test(pos) && StreamCone.contains(eye, look, range, coneDegrees, middleOf(pos))
+            if (residual.test(pos) && StreamCone.contains(eye, look, range, shape, middleOf(pos))
                     && seenPast(eye, pos, cell -> residual.test(cell) || passable.test(cell))) {
                 reached.add(pos.immutable());
             }

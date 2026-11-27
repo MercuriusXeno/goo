@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.client.FlatQuadContext;
+import com.mercuriusxeno.goo.throwing.StreamCone;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.phys.Vec3;
 import java.util.function.DoubleUnaryOperator;
@@ -37,6 +38,87 @@ final class ConeSections {
      */
     record Volume(Vec3 apex, Vec3 axis, float yaw, double near, double range, int sections,
                   DoubleUnaryOperator radiusAt) {
+    }
+
+    /**
+     * A volume cut from the cone a spray pours through: each section's rim runs through the cone's rim directions,
+     * so it takes the shape's widths across and up and down, and is held inside the cone's reach.
+     * decision spray-abilities-render-procedurally-bound-to-their-cone
+     *
+     * @param cone     the cone, camera relative
+     * @param near     where the first section stands past the apex
+     * @param sections how many sections stack along it
+     */
+    record Shaped(SprayCone cone, double near, int sections) {
+    }
+
+    /** Where a vertex of a shaped volume goes, and the color it carries. */
+    @FunctionalInterface
+    interface VertexSink {
+        /**
+         * Takes one vertex.
+         *
+         * @param at    the vertex, camera relative
+         * @param color its packed color
+         */
+        void take(Vec3 at, int color);
+    }
+
+    /**
+     * Emits every section of a shaped volume.
+     *
+     * @param quads  the quad emitter
+     * @param volume the volume
+     */
+    static void emit(FlatQuadContext quads, Shaped volume) {
+        Vec3 axis = volume.cone().axis().normalize();
+        eachVertex(volume, (at, color) -> vertex(quads, at, axis, color));
+    }
+
+    /**
+     * Hands every vertex of a shaped volume to a sink, four a segment of each section: its center, the rim at the
+     * segment's two ends, and its center again.
+     *
+     * @param volume the volume
+     * @param sink   where each vertex goes
+     */
+    static void eachVertex(Shaped volume, VertexSink sink) {
+        SprayCone cone = volume.cone();
+        Vec3 axis = cone.axis().normalize();
+        for (int section = 0; section < volume.sections(); section++) {
+            double distance = sectionDistance(section, volume.near(), cone.reach(), volume.sections());
+            Vec3 center = cone.apex().add(axis.scale(distance));
+            float along = (float) (distance / cone.reach());
+            int middle = sectionColor(along, 0, 0);
+            for (int segment = 0; segment < SEGMENTS; segment++) {
+                sink.take(center, middle);
+                takeRim(sink, cone, distance, (double) segment / SEGMENTS, along);
+                takeRim(sink, cone, distance, (double) (segment + 1) / SEGMENTS, along);
+                sink.take(center, middle);
+            }
+        }
+    }
+
+    private static void takeRim(VertexSink sink, SprayCone cone, double distance, double turnShare, float along) {
+        double turn = TWO_PI * turnShare;
+        sink.take(rimPoint(cone, distance, turnShare), sectionColor(along, (float) Math.cos(turn),
+                (float) Math.sin(turn)));
+    }
+
+    /**
+     * Where a section's rim stands at a turn about the axis: along the cone's rim direction that way, out to the
+     * section's plane, held inside the cone's reach.
+     *
+     * @param cone      the cone
+     * @param distance  the section's distance along the axis
+     * @param turnShare how far about the axis, zero to one for a full turn
+     * @return the rim point
+     */
+    static Vec3 rimPoint(SprayCone cone, double distance, double turnShare) {
+        Vec3 axis = cone.axis().normalize();
+        Vec3 rim = StreamCone.rimDirection(axis, cone.shape(), turnShare);
+        Vec3 point = cone.apex().add(rim.scale(distance / rim.dot(axis)));
+        return StreamCone.pulledInside(cone.apex(), axis, cone.reach(), cone.shape(), point);
     }
 
     /**

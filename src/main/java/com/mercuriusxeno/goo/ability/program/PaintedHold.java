@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.network.HoldMarks;
 import com.mercuriusxeno.goo.throwing.CoatRay;
+import com.mercuriusxeno.goo.throwing.ConeShape;
 import com.mercuriusxeno.goo.throwing.StreamCone;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.ClipContext;
@@ -63,7 +64,7 @@ final class PaintedHold {
         if (look.length() == 0) {
             return cells;
         }
-        for (Vec3 end : rayEnds(CoatRay.clipping(host.level()), eye, look, aim.coneDegrees())) {
+        for (Vec3 end : rayEnds(CoatRay.clipping(host.level()), eye, look, aim.shape())) {
             cells.addAll(cellsAlong(eye, end));
         }
         return cells;
@@ -73,15 +74,15 @@ final class PaintedHold {
      * Where each of the stream's rays stops, on its share of the cone's fan.
      * decay-gnats-degrade-each-block-once
      *
-     * @param clip        the blocks the rays meet
-     * @param eye         the rays' start
-     * @param look        the cone's axis, as long as the stream's reach
-     * @param coneDegrees the cone's apex angle in degrees
+     * @param clip  the blocks the rays meet
+     * @param eye   the rays' start
+     * @param look  the cone's axis, as long as the stream's reach
+     * @param shape the cone's widths across and up and down
      * @return each ray's end, in the order {@link #rayShares()} names them
      */
-    static List<Vec3> rayEnds(CoatRay.BlockClip clip, Vec3 eye, Vec3 look, double coneDegrees) {
+    static List<Vec3> rayEnds(CoatRay.BlockClip clip, Vec3 eye, Vec3 look, ConeShape shape) {
         double range = look.length();
-        return rayShares().stream().map(share -> CoatRay.end(clip, eye, look, coneDegrees, range, share)).toList();
+        return rayShares().stream().map(share -> CoatRay.end(clip, eye, look, shape, range, share)).toList();
     }
 
     /**
@@ -111,13 +112,13 @@ final class PaintedHold {
      * The directions the stream's rays leave the eye in: the axis, then
      * rings of rays out to the cone's rim.
      *
-     * @param axis        the cone's axis, any length
-     * @param coneDegrees the cone's apex angle in degrees
+     * @param axis  the cone's axis, any length
+     * @param shape the cone's widths across and up and down
      * @return the unit directions, the axis first
      */
-    static List<Vec3> rayDirections(Vec3 axis, double coneDegrees) {
+    static List<Vec3> rayDirections(Vec3 axis, ConeShape shape) {
         return rayShares().stream()
-                .map(share -> StreamCone.launchDirection(axis, coneDegrees, share.tilt(), share.turn())).toList();
+                .map(share -> StreamCone.launchDirection(axis, shape, share.tilt(), share.turn())).toList();
     }
 
     /**
