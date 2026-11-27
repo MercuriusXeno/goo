@@ -140,4 +140,25 @@ class LunarLootTablesTest {
                     RUIN + " should roll Moonrock under every other entry, rolls " + chances);
         }
     }
+
+    /** The eldritch monstrosity's drops. */
+    @Nested
+    class MonstrosityDrops {
+        private static final String MONSTROSITY = "/data/goo/loot_table/entities/eldritch_monstrosity.json";
+
+        @Test
+        void monstrosityDropsExoriteIngredientsXenoInfinityAndMoonrock() throws IOException {
+            Set<String> items = itemsOf(entriesOf(table(MONSTROSITY)));
+            assertTrue(items.containsAll(Set.of("minecraft:echo_shard", "minecraft:netherite_scrap", "goo:xeno",
+                    "goo:infinity", "goo:moonrock")), MONSTROSITY + " should drop echo shards, netherite scrap, xeno "
+                    + "goo, infinity goo and Moonrock, drops " + items);
+        }
+
+        @Test
+        void infinityAndMoonrockAreTheTwoRarest() throws IOException {
+            List<Entry> entries = entriesOf(table(MONSTROSITY));
+            assertEquals(Set.of("goo:infinity", "goo:moonrock"), Set.copyOf(rarest(entries, 2)),
+                    MONSTROSITY + " should drop infinity goo and Moonrock rarest, drops " + chancesOf(entries));
+        }
+    }
 }
