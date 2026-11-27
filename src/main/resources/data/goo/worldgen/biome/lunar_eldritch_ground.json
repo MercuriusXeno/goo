@@ -48,7 +48,9 @@
     ],
     [],
     [],
-    [],
+    [
+      "goo:void_crystal_cluster"
+    ],
     []
   ],
   "has_precipitation": false,
