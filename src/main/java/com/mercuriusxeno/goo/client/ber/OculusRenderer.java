@@ -43,10 +43,22 @@ public class OculusRenderer implements BlockEntityRenderer<OculusBlockEntity, Oc
         state.gameTime = oculus.getLevel() == null ? 0f : oculus.getLevel().getGameTime() + partialTick;
         Vec3 eye = Vec3.atLowerCornerOf(oculus.getBlockPos()).add(OculusEye.eyeInCell(state.facing,
                 OculusBlock.EYE_LIFT));
-        state.yawToCamera = PrismRenderer.yawToward(eye, cameraPos);
+        state.yawToCamera = yawToward(eye, cameraPos);
         Vec3 forward = new Vec3(Minecraft.getInstance().gameRenderer.mainCamera().forwardVector());
         state.lidClosure = OculusLids.closure(oculus.getBlockPos(), OculusLids.lookedAt(cameraPos, forward, eye),
                 state.gameTime);
+    }
+
+    /**
+     * The yaw that turns a model at a point toward the camera, about the
+     * vertical: 0 faces south, as a model's front does.
+     *
+     * @param from      the model's centre
+     * @param cameraPos the camera
+     * @return the yaw in degrees
+     */
+    static float yawToward(Vec3 from, Vec3 cameraPos) {
+        return (float) Math.toDegrees(Math.atan2(cameraPos.x - from.x, cameraPos.z - from.z));
     }
 
     @Override

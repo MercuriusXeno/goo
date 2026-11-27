@@ -12,7 +12,6 @@ import com.mercuriusxeno.goo.block.ability.MoltenCellBlock;
 import com.mercuriusxeno.goo.block.ability.MortarCellBlock;
 import com.mercuriusxeno.goo.block.ability.NectarCellBlock;
 import com.mercuriusxeno.goo.block.ability.NitroCellBlock;
-import com.mercuriusxeno.goo.block.ability.PrismBlock;
 import com.mercuriusxeno.goo.block.ability.RimeCellBlock;
 import com.mercuriusxeno.goo.block.ability.SignalCellBlock;
 import com.mercuriusxeno.goo.block.ability.SpikesCellBlock;
@@ -66,7 +65,6 @@ public class GooBlocks {
     /** Obsidian's blast resistance. */
     private static final float EXORITE_BARS_BLAST_RESISTANCE = 1200.0F;
     /** An amethyst cluster's hardness. */
-    private static final float PRISM_HARDNESS = 1.5F;
     /** Cobblestone's hardness and blast resistance, which a statue mines like. */
     private static final float COBBLESTONE_HARDNESS = 2.0F;
     private static final float COBBLESTONE_RESISTANCE = 6.0F;
@@ -111,7 +109,7 @@ public class GooBlocks {
                     .pushReaction(net.minecraft.world.level.material.PushReaction.POPPED)
                     .lightLevel(WispBlock::lightLevel));
     /**
-     * One cell of the light rail between linked reflector prisms: lit,
+     * One cell of the light rail between linked reflectors: lit,
      * replaceable, shapeless and without collision, burning the undead that
      * cross it (decision reflector-rails-carry-the-brightest-light).
      */
@@ -568,10 +566,6 @@ public class GooBlocks {
                     .noLootTable()
                     .pushReaction(PushReaction.POPPED));
     /**
-     * Prism: the milky quartz crystal Crystal's Prism grows, the host every
-     * prism combo grows on (decision prism-blob-becomes-a-milky-quartz-crystal).
-     */
-    /**
      * Statue: a petrified mob, mined like cobblestone for cobblestone and the
      * mob's experience (decision petrify-stone-encasement-and-calcify-map).
      */
@@ -583,16 +577,6 @@ public class GooBlocks {
                     .strength(COBBLESTONE_HARDNESS, COBBLESTONE_RESISTANCE)
                     .noOcclusion()
                     .sound(SoundType.STONE));
-    public static final DeferredBlock<PrismBlock> PRISM = BLOCKS.registerBlock(
-            "prism", PrismBlock::new,
-            () -> BlockBehaviour.Properties.of()
-                    .mapColor(MapColor.QUARTZ)
-                    .strength(PRISM_HARDNESS)
-                    .noLootTable()
-                    .noOcclusion()
-                    .sound(SoundType.AMETHYST_CLUSTER)
-                    .pushReaction(net.minecraft.world.level.material.PushReaction.POPPED)
-                    .lightLevel(PrismBlock::lightLevel));
     /**
      * Voidstone: the unbreakable block at the center of each Zone room,
      * the one block there nothing can take away (decision

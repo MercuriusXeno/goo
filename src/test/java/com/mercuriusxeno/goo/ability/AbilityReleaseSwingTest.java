@@ -23,7 +23,6 @@ class AbilityReleaseSwingTest {
     private static final Map<String, ArmPoseKind> THROWS_NO_BLOB = Map.ofEntries(
             Map.entry("unstable_blast", ArmPoseKind.NONE),
             Map.entry("astral_meteo", ArmPoseKind.NONE),
-            Map.entry("crystal_prism", ArmPoseKind.NONE),
             Map.entry("void_hole", ArmPoseKind.NONE),
             Map.entry("pulse_click", ArmPoseKind.NONE),
             Map.entry("rock_build", ArmPoseKind.NONE),

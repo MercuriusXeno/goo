@@ -2,9 +2,7 @@ package com.mercuriusxeno.goo.ability.frost;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.registry.GooAttachments;
-import com.mercuriusxeno.goo.registry.GooServerState;
 import net.minecraft.resources.Identifier;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
@@ -47,7 +45,7 @@ public final class FrozenEvents {
             return;
         }
         Frozen before = mob.getData(GooAttachments.FROZEN);
-        Frozen after = heldByGlacial(mob) ? before : before.thawed(mob.level().getGameTime());
+        Frozen after = before.thawed(mob.level().getGameTime());
         if (after != before) {
             settle(mob, before, after);
         }
@@ -66,18 +64,6 @@ public final class FrozenEvents {
             Vec3 motion = mob.getDeltaMovement();
             mob.setDeltaMovement(0, Math.min(0, motion.y), 0);
         }
-    }
-
-    /**
-     * Whether a standing glacial prism holds the mob's gauge from thawing
-     * (decision glacial-prism-holds-the-area-frozen).
-     *
-     * @param mob the frozen mob
-     * @return true inside a glacial prism's field
-     */
-    private static boolean heldByGlacial(Mob mob) {
-        return mob.level() instanceof ServerLevel level && GooServerState.of(level.getServer()).glacialFields()
-                .holds(level.dimension(), mob.position(), level.getGameTime());
     }
 
     /**

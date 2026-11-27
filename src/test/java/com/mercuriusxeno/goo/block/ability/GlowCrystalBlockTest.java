@@ -7,6 +7,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.world.phys.AABB;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EnumSource;
 import java.io.IOException;
 import java.io.InputStream;
@@ -19,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 /**
  * GlowCrystalBlock: the bulb sits on the face it landed on, its hitbox
  * hugging the support's face rather than the far side of its cell, and its
- * blockstate turns the model the way the prism's does, so the model hugs
+ * blockstate turns the model's up toward each facing, so the model hugs
  * that face too (operator UAT 2026-10-10: on a wall the bulb sat on the
  * far side of its cell).
  * decision bulb-one-model-max-light-beacon-combo
@@ -66,15 +67,13 @@ class GlowCrystalBlockTest {
         assertEquals(MAX_LIGHT, GlowCrystalBlock.LIGHT_LEVEL);
     }
 
-    @Test
-    void theBlockstateTurnsTheModelAsThePrismsDoes() throws IOException {
+    @ParameterizedTest
+    @CsvSource({"up, 0, 0", "down, 180, 0", "north, 90, 0", "south, 90, 180", "east, 90, 90", "west, 90, 270"})
+    void theBlockstateTurnsTheModelsUpTowardEachFacing(String facing, int x, int y) throws IOException {
         JsonObject bulb = variants("glow_crystal.json");
-        JsonObject prism = variants("prism.json");
-        for (Direction facing : Direction.values()) {
-            String key = "facing=" + facing.getSerializedName();
-            assertEquals(rotation(prism, key, "x"), rotation(bulb, key, "x"), key + " x");
-            assertEquals(rotation(prism, key, "y"), rotation(bulb, key, "y"), key + " y");
-        }
+        String key = "facing=" + facing;
+        assertEquals(x, rotation(bulb, key, "x"), key + " x");
+        assertEquals(y, rotation(bulb, key, "y"), key + " y");
     }
 
     private static int rotation(JsonObject variants, String key, String axis) {

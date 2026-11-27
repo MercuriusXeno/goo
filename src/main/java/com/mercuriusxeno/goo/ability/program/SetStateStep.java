@@ -10,9 +10,8 @@ import java.util.stream.Stream;
 
 /**
  * Sets properties on the host's own block, keeping the block and its block
- * entity, and finishes. Glow's Bulb lights the prism it lands on with
- * {@code set_state state={lit: true}}.
- * decision bulb-one-model-max-light-beacon-combo
+ * entity, and finishes, as {@code set_state state={lit: true}} lights a
+ * block standing a lit property.
  *
  * @param state each state property, by name, to the value that resolves it
  */

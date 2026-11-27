@@ -2,14 +2,11 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
-import com.mercuriusxeno.goo.ability.PrismCombos;
-import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.gametest.PacketRecorder;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import com.mercuriusxeno.goo.item.GooStacks;
-import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooItems;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
@@ -28,6 +25,7 @@ import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.List;
@@ -36,18 +34,15 @@ import java.util.function.Consumer;
 /**
  * Gametests for glow's Laser through the real channel path: a mock player
  * holds the ray for one tick, its first tick landing a hit. Struck directly,
- * a zombie loses health and burns; aimed at a prism, the ray refracts to
- * three zombies around it, each taking a share of the hit
- * (decision sunbeam-splits-at-the-prism-with-a-glisten). The impact's burst
- * fires where the ray lands, its sound on hits (decision sunbeam-lands-with-impact-and-aim).
+ * a zombie loses health and burns; aimed at a block, the one ray strikes the
+ * block and spares the mobs beside it (decision prism-leaves-the-mod). The
+ * impact's burst fires where the ray lands, its sound on hits (decision
+ * sunbeam-lands-with-impact-and-aim).
  */
 @RegistersGameTests
 public final class LaserChannelTests {
-    private static final String LASER_REFRACTS_TO_THREE = "laser_refracts_to_three";
     private static final String LASER_BURNS_THE_UNDEAD_IT_STRIKES = "laser_burns_the_undead_it_strikes";
     private static final String LASER_IMPACT_FIRES_AT_THE_HIT = "laser_impact_fires_at_the_hit";
-    private static final String LASER_CONVERTS_A_BARE_PRISM = "laser_converts_a_bare_prism";
-    private static final String LASER_WARMS_A_BARE_PRISM_AS_IT_CHARGES = "laser_warms_a_bare_prism_as_it_charges";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -55,20 +50,53 @@ public final class LaserChannelTests {
      * @param registrar the test function registrar
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
-        GooTestFunctions.registerTest(registrar, LASER_REFRACTS_TO_THREE, LaserChannelTests::laserRefractsToThree);
         GooTestFunctions.registerTest(registrar, LASER_BURNS_THE_UNDEAD_IT_STRIKES, LaserChannelTests::laserBurnsTheUndeadItStrikes);
         GooTestFunctions.registerTest(registrar, LASER_IMPACT_FIRES_AT_THE_HIT, LaserChannelTests::laserImpactFiresAtTheHit);
-        GooTestFunctions.registerTest(registrar, LASER_CONVERTS_A_BARE_PRISM, LaserChannelTests::laserConvertsABarePrism);
-        GooTestFunctions.registerTest(registrar, LASER_WARMS_A_BARE_PRISM_AS_IT_CHARGES,
-                LaserChannelTests::laserWarmsABarePrismAsItCharges);
+        GooTestFunctions.registerTest(registrar, SUNBEAM_STRIKES_ONE_TARGET_AND_SPARES_THE_REST,
+                LaserChannelTests::sunbeamStrikesOneTargetAndSparesTheRest);
+    }
+
+    private static final String SUNBEAM_STRIKES_ONE_TARGET_AND_SPARES_THE_REST =
+            "sunbeam_strikes_one_target_and_spares_the_rest";
+    /** Two cells beside the struck block, in clear sight of it and off the ray's line. */
+    private static final List<BlockPos> BESIDE_THE_STRUCK_BLOCK = List.of(new BlockPos(4, 1, 1),
+            new BlockPos(4, 1, 5));
+    private static final String SPARED_STRUCK = "Zombie %d stands off the ray and should take no hit, it lost %s";
+    private static final String BLOCK_UNSTRUCK = "The ray should land on the aimed block, its impact sounded %d times";
+
+    /**
+     * A mock player holds Sunbeam at a stone block with two zombies standing
+     * beside it in clear sight, off the ray: the ray lands on the block, its
+     * impact sounding there on the hit, and neither zombie loses health, since
+     * the one ray strikes only what lies along the aim.
+     * decision prism-leaves-the-mod
+     *
+     * @param helper the gametest helper
+     */
+    public static void sunbeamStrikesOneTargetAndSparesTheRest(GameTestHelper helper) {
+        helper.setBlock(STRUCK_POS.below(), Blocks.STONE);
+        helper.setBlock(STRUCK_POS, Blocks.STONE);
+        List<Zombie> zombies = BESIDE_THE_STRUCK_BLOCK.stream().map(pos -> helmeted(helper, pos)).toList();
+        List<Float> before = zombies.stream().map(Zombie::getHealth).toList();
+        ServerPlayer player = holdAt(helper, Vec3.atCenterOf(helper.absolutePos(STRUCK_POS)));
+        PacketRecorder recorder = PacketRecorder.attachTo(player);
+        AABB block = new AABB(helper.absolutePos(STRUCK_POS)).inflate(SOUND_GRID + TOLERANCE);
+        helper.runAfterDelay(2, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            long struck = recorder.sentOf(ClientboundSoundPacket.class).stream().filter(packet ->
+                    packet.getSound().is(SoundEvents.BEACON_POWER_SELECT.location())
+                            && block.contains(packet.getX(), packet.getY(), packet.getZ())).count();
+            helper.assertTrue(struck == 1, String.format(BLOCK_UNSTRUCK, struck));
+            for (int i = 0; i < zombies.size(); i++) {
+                float lost = before.get(i) - zombies.get(i).getHealth();
+                helper.assertTrue(lost == 0, String.format(SPARED_STRUCK, i, lost));
+            }
+            helper.succeed();
+        });
     }
 
 
     private static final BlockPos STAND_POS = new BlockPos(1, 1, 3);
-    private static final BlockPos PRISM_POS = new BlockPos(4, 1, 3);
-    /** Three cells around the prism, each inside test_bay's 6 by 6 by 6 bounds, where no neighbouring test reaches. */
-    private static final List<BlockPos> AROUND_THE_PRISM = List.of(new BlockPos(4, 1, 1), new BlockPos(4, 1, 5),
-            new BlockPos(5, 1, 3));
     private static final BlockPos STRUCK_POS = new BlockPos(4, 1, 3);
     /** A block level with the standing player's eye, east of where the player stands. */
     private static final BlockPos WALL_POS = new BlockPos(4, 2, 3);
@@ -81,42 +109,10 @@ public final class LaserChannelTests {
     private static final int HELD_GOO = 2;
     private static final Identifier LASER = Identifier.parse("goo:glow_laser");
     private static final String ABILITY_REQUIRED = "Ability registry must hold glow_laser";
-    private static final String UNTOUCHED = "Refracted zombie %d should take a share of the hit, it lost %s";
     private static final String WHOLE_HIT = "The struck zombie should lose health to the hit, it lost %s";
     private static final String NOT_BURNING = "The struck zombie is undead and should burn";
-    /** Zap, whose relay is the combo the refracting prism holds. */
-    private static final Identifier RELAY_HOST = Identifier.parse("goo:pulse_zap");
-    private static final String RELAY_REQUIRED = "The prism should take Zap's relay combo";
-    private static final String NOT_CONVERTED = "A full Laser hold should make the prism a reflector, held '%s'";
 
     private LaserChannelTests() {
-    }
-
-    /**
-     * A mock player holds Laser at a prism with three zombies in clear
-     * line around it: each zombie loses a share of the hit.
-     *
-     * @param helper the gametest helper
-     */
-    public static void laserRefractsToThree(GameTestHelper helper) {
-        helper.setBlock(PRISM_POS.below(), Blocks.STONE);
-        helper.setBlock(PRISM_POS, GooBlocks.PRISM.get());
-        // channeled-hosts-convert-prisms-over-the-hold: only a prism holding a combo refracts Laser
-        PrismBlockEntity prism = helper.getBlockEntity(PRISM_POS, PrismBlockEntity.class);
-        AbilityDefinition zap = AbilityRegistry.of(helper.getLevel()).getAbility(RELAY_HOST);
-        helper.assertTrue(zap != null && prism.runCombo(GooTypes.PULSE, RELAY_HOST.toString(),
-                PrismCombos.comboSteps(zap)), RELAY_REQUIRED);
-        List<Zombie> zombies = AROUND_THE_PRISM.stream().map(pos -> helmeted(helper, pos)).toList();
-        List<Float> before = zombies.stream().map(Zombie::getHealth).toList();
-        ServerPlayer player = holdAt(helper, Vec3.atCenterOf(helper.absolutePos(PRISM_POS)));
-        helper.runAfterDelay(2, () -> {
-            helper.getLevel().getServer().getPlayerList().remove(player);
-            for (int i = 0; i < zombies.size(); i++) {
-                float lost = before.get(i) - zombies.get(i).getHealth();
-                helper.assertTrue(lost > 0, String.format(UNTOUCHED, i, lost));
-            }
-            helper.succeed();
-        });
     }
 
     /**
@@ -225,63 +221,6 @@ public final class LaserChannelTests {
                 player.getEyePosition(), aim, helper.absolutePos(STAND_POS.below()), Direction.UP.get3DDataValue());
         helper.runAfterDelay(1, () -> GooStreamHandler.streamTick(player, tick));
         return player;
-    }
-
-    /**
-     * A mock player holds Laser on a bare prism for one charge's ticks: the
-     * prism converts into the reflector combo, Laser's on_prism reaction.
-     * channeled-hosts-convert-prisms-over-the-hold
-     *
-     * @param helper the gametest helper
-     */
-    public static void laserConvertsABarePrism(GameTestHelper helper) {
-        helper.setBlock(PRISM_POS.below(), Blocks.STONE);
-        helper.setBlock(PRISM_POS, GooBlocks.PRISM.get());
-        ServerPlayer player = standWithGlove(helper, STAND_POS);
-        int hold = AbilityRegistry.of(helper.getLevel()).getAbility(LASER).delivery().ticksPerCharge();
-        GooStreamPayload tick = new GooStreamPayload(GooTypes.id(GooTypes.GLOW), LASER.toString(),
-                player.getEyePosition(), Vec3.atCenterOf(helper.absolutePos(PRISM_POS)),
-                helper.absolutePos(STAND_POS.below()), Direction.UP.get3DDataValue());
-        for (int held = 1; held <= hold; held++) {
-            helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(player, tick));
-        }
-        helper.runAfterDelay(hold + 1, () -> {
-            helper.getLevel().getServer().getPlayerList().remove(player);
-            String combo = helper.getBlockEntity(PRISM_POS, PrismBlockEntity.class).getCombo();
-            helper.assertTrue(LASER.toString().equals(combo), String.format(NOT_CONVERTED, combo));
-            helper.succeed();
-        });
-    }
-
-    private static final String NOT_WARMING = "Half a charge of Laser should warm the bare prism toward its combo, "
-            + "its share stood at %s";
-
-    /**
-     * A mock player holds Laser on a bare prism for half a charge: the
-     * prism warms toward the reflector it is becoming, its exposure share
-     * rising with the charge, so the conversion shows rather than jumps.
-     * prism-conversion-creeps-over-the-hold
-     *
-     * @param helper the gametest helper
-     */
-    public static void laserWarmsABarePrismAsItCharges(GameTestHelper helper) {
-        helper.setBlock(PRISM_POS.below(), Blocks.STONE);
-        helper.setBlock(PRISM_POS, GooBlocks.PRISM.get());
-        ServerPlayer player = standWithGlove(helper, STAND_POS);
-        int half = AbilityRegistry.of(helper.getLevel()).getAbility(LASER).delivery().ticksPerCharge() / 2;
-        GooStreamPayload tick = new GooStreamPayload(GooTypes.id(GooTypes.GLOW), LASER.toString(),
-                player.getEyePosition(), Vec3.atCenterOf(helper.absolutePos(PRISM_POS)),
-                helper.absolutePos(STAND_POS.below()), Direction.UP.get3DDataValue());
-        for (int held = 1; held <= half; held++) {
-            helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(player, tick));
-        }
-        helper.runAfterDelay(half + 1, () -> {
-            helper.getLevel().getServer().getPlayerList().remove(player);
-            float share = com.mercuriusxeno.goo.registry.GooServerState.of(helper.getLevel().getServer())
-                    .blockExposures().shareAt(helper.getLevel(), helper.absolutePos(PRISM_POS));
-            helper.assertTrue(share > 0f, String.format(NOT_WARMING, share));
-            helper.succeed();
-        });
     }
 
     /**

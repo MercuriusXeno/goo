@@ -4,7 +4,7 @@
 #include <minecraft:oit.glsl>
 
 // Crystal goo's burnout explosion (decision elemental-explosion-per-type): a
-// prism burst. The glass shell is cut into voronoi facets whose edges split
+// glass burst. The glass shell is cut into voronoi facets whose edges split
 // light into a thin rainbow band about 77E9FF, with bright cyan glints;
 // as it shatters, facets drop out one by one by their cell's hash.
 // TRANSLUCENT blend.
@@ -77,8 +77,8 @@ void main() {
     float edge = 1.0 - smoothstep(0.0, EDGE_WIDTH, gap);
 
     float facing = abs(dot(normalize(viewNormal), normalize(-viewPos)));
-    vec3 prism = rainbow(gap * RAINBOW_SPREAD + facing + progress);
-    vec3 color = mix(GLASS_COLOR, prism, edge * 0.7);
+    vec3 spectrum = rainbow(gap * RAINBOW_SPREAD + facing + progress);
+    vec3 color = mix(GLASS_COLOR, spectrum, edge * 0.7);
     float glint = step(0.93, hash3(cell + vec3(floor(progress * 8.0))).x) * (1.0 - facing);
     color = mix(color, GLINT_COLOR, glint);
 

@@ -5,7 +5,9 @@ import com.mercuriusxeno.goo.client.RecordingVertexConsumer;
 import com.mercuriusxeno.goo.client.ability.GlowBeamMesh;
 import com.mojang.blaze3d.vertex.PoseStack;
 import java.util.List;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.world.phys.AABB;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -15,8 +17,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * BeaconBeams: the light beacon's column leaves the block's center along the facing the block holds, up from a
- * floor and away from a wall, and its layers breathe in alpha and shrink slightly at the ease, never past their own
- * width.
+ * floor and away from a wall, its layers breathe in alpha and shrink slightly at the ease, never past their own
+ * width, and the box it draws within and its widening with the camera's distance follow its reach.
  * decision bulb-one-model-max-light-beacon-combo
  * decision every-glow-beam-breathes-in-brightness
  */
@@ -25,6 +27,8 @@ class BeaconBeamsTest {
     private static final float RADIUS_SCALE = 1.5f;
     private static final float TOLERANCE = 1e-4f;
     private static final Vector3f CENTER = new Vector3f(0.5f, 0.5f, 0.5f);
+    private static final BlockPos BEACON = new BlockPos(10, 64, -3);
+    private static final int REACH = 2048;
 
     /** Where a point along the column, at a height up its +y, lands in the cell for a facing. */
     private static Vector3f alongColumn(Direction facing, float height) {
@@ -70,5 +74,35 @@ class BeaconBeamsTest {
         assertEquals(GlowBeamMesh.LAYERS.getLast().radius() * RADIUS_SCALE, BeamSamples.widest(peak), TOLERANCE,
                 "the beacon is never fatter than its own width");
         assertTrue(BeamSamples.widest(trough) < BeamSamples.widest(peak), "the beacon shrinks slightly at the ease");
+    }
+
+    @Nested
+    class TheBeamsReach {
+
+        @Test
+        void aBeamOfNoReachDrawsWithinItsCell() {
+            assertEquals(new AABB(BEACON), BeaconBeams.drawnBounds(BEACON, Direction.UP, 0));
+        }
+
+        @Test
+        void beamBoundsStretchUpFromAFloorBeacon() {
+            assertEquals(new AABB(10, 64, -3, 11, 65 + REACH, -2), BeaconBeams.drawnBounds(BEACON, Direction.UP, REACH));
+        }
+
+        @Test
+        void beamBoundsStretchAlongAWallBeaconsFace() {
+            assertEquals(new AABB(10 - REACH, 64, -3, 11, 65, -2),
+                    BeaconBeams.drawnBounds(BEACON, Direction.WEST, REACH));
+        }
+
+        @Test
+        void beamKeepsItsWidthWithinTheWidenDistance() {
+            assertEquals(1f, BeaconBeams.radiusScale(BeaconBeams.BEAM_WIDEN_DISTANCE / 2), TOLERANCE);
+        }
+
+        @Test
+        void beamWidensInStepWithDistancePastIt() {
+            assertEquals(3f, BeaconBeams.radiusScale(BeaconBeams.BEAM_WIDEN_DISTANCE * 3), TOLERANCE);
+        }
     }
 }

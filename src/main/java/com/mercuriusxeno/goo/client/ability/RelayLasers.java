@@ -2,14 +2,12 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.pulse.RelayNetwork;
-import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.block.alientech.RelayBlockEntity;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.LineContext;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
-import com.mercuriusxeno.goo.client.ber.style.PulsePrismStyle;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
@@ -136,8 +134,7 @@ public final class RelayLasers {
 
     private static void addRelaysIn(LevelChunk chunk, List<BlockPos> found) {
         for (BlockEntity entity : chunk.getBlockEntities().values()) {
-            if (entity instanceof RelayBlockEntity
-                    || entity instanceof PrismBlockEntity prism && PulsePrismStyle.RELAY_COMBO.equals(prism.getCombo())) {
+            if (entity instanceof RelayBlockEntity) {
                 found.add(entity.getBlockPos());
             }
         }

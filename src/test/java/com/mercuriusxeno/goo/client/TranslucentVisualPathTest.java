@@ -4,7 +4,6 @@ import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.TranslucentVisualPath.Registration;
 import com.mercuriusxeno.goo.client.ability.AfterimageRenderer;
 import com.mercuriusxeno.goo.client.ability.AirbornWind;
-import com.mercuriusxeno.goo.client.ability.BeatRings;
 import com.mercuriusxeno.goo.client.ability.BlockMingleRenderer;
 import com.mercuriusxeno.goo.client.ability.BoreDrill;
 import com.mercuriusxeno.goo.client.ability.ChainBurnoutRenderer;
@@ -72,7 +71,6 @@ import com.mojang.renderpearl.api.pipeline.CompareOp;
 import com.mojang.renderpearl.api.pipeline.RenderPipeline;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.neoforge.client.event.RegisterRenderPipelinesEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -135,8 +133,8 @@ class TranslucentVisualPathTest {
      */
     @Test
     void theGlowShellsImmediateDrawsDrawInTheOitPhase() {
-        List<Class<?>> glowShells = List.of(LaserVisual.class, ReapSlashBlades.class, WispGlow.class,
-                com.mercuriusxeno.goo.client.ber.style.GlowReflectorStyle.class,
+        List<Class<?>> glowShells = List.of(ReapSlashBlades.class, WispGlow.class,
+                com.mercuriusxeno.goo.client.ber.ReflectorBeams.class,
                 com.mercuriusxeno.goo.client.entity.MeteorRenderer.class, HeldSweepVisual.class,
                 com.mercuriusxeno.goo.client.model.GloveSpecialRenderer.class);
         com.tngtech.archunit.core.domain.JavaClasses imported = new com.tngtech.archunit.core.importer
@@ -167,9 +165,8 @@ class TranslucentVisualPathTest {
         List<Class<?>> moved = List.of(LaserVisual.class, RelayLasers.class, ZapBolts.class, ReapSlashBlades.class,
                 GlassKnives.class, HoveringKnives.class, HeldJavelins.class, WindLines.class, AirbornWind.class,
                 PneumaWind.class, GrowthBreeze.class, WispEchoes.class, WispGlow.class,
-                com.mercuriusxeno.goo.client.ber.style.GlowColumn.class,
-                com.mercuriusxeno.goo.client.ber.style.GlowBeaconStyle.class,
-                com.mercuriusxeno.goo.client.ber.style.GlowReflectorStyle.class);
+                com.mercuriusxeno.goo.client.ber.BeaconBeams.class,
+                com.mercuriusxeno.goo.client.ber.ReflectorBeams.class);
         assertAll(Stream.concat(moved.stream().map(visual -> () -> assertTrue(TranslucentVisualPath.REGISTRATIONS
                                 .stream().anyMatch(registration -> registration.visual() == visual
                                         && registration.drawing() == TranslucentVisualPath.Drawing.IN_THE_OIT_PHASE),
@@ -189,8 +186,7 @@ class TranslucentVisualPathTest {
     void theRingMarkerGhostAndGroundVisualsDrawInTheOitPhase() {
         List<Class<?>> moved = List.of(com.mercuriusxeno.goo.client.entity.MeteorRenderer.class,
                 com.mercuriusxeno.goo.client.model.GloveSpecialRenderer.class,
-                com.mercuriusxeno.goo.client.ability.ReapSwells.class,
-                com.mercuriusxeno.goo.client.ability.GhostTrailRenderer.class, BeatRings.class, NovaRings.class,
+                com.mercuriusxeno.goo.client.ability.GhostTrailRenderer.class, NovaRings.class,
                 NovaChargeGhost.class, SignalRings.class, PetrifyFog.class, FloatPlatform.class,
                 CrystalShatterVisual.class, HeldSweepVisual.class, LevelCursor.class);
         assertAll(moved.stream().map(visual -> () -> assertTrue(TranslucentVisualPath.REGISTRATIONS.stream()
@@ -244,28 +240,6 @@ class TranslucentVisualPathTest {
                                 .noneMatch(registration -> registration.visual() == visual
                                         && registration.drawing() == TranslucentVisualPath.Drawing.IN_THE_OIT_PHASE),
                         visual.getSimpleName() + " stays where it draws"))));
-    }
-
-    /**
-     * A glow prism's column draws in the OIT phase beside the Laser's core at a struck prism, which wraps it: the OIT
-     * composite writes the nearest translucent depth, the core's outer layer, into the level's depth, so a column
-     * left at AfterLevel failed its depth test inside the core and vanished.
-     * decision goo-translucency-draws-through-order-independent-transparency
-     * decision additive-glows-draw-as-translucent-layers-in-the-oit-phase
-     */
-    @Test
-    void aGlowPrismsColumnSortsWithTheLasersCoreInTheOitPhase() {
-        RegisterRenderPipelinesEvent event = org.mockito.Mockito.mock(RegisterRenderPipelinesEvent.class);
-        GooRenderTypes.registerPipelines(event);
-        net.minecraft.client.renderer.oit.OitPipelineSet column =
-                PipelineReads.oitPipelines(GooRenderTypes.GLOW_COLUMN_TYPE);
-        assertAll(
-                () -> assertTrue(column != null, "GLOW_COLUMN_TYPE carries no OIT set"),
-                () -> org.mockito.Mockito.verify(event).registerOitPipelineSet(column),
-                () -> assertTrue(TranslucentVisualPath.REGISTRATIONS.stream().anyMatch(registration ->
-                        registration.visual() == com.mercuriusxeno.goo.client.ber.style.GlowColumn.class
-                                && registration.drawing() == TranslucentVisualPath.Drawing.IN_THE_OIT_PHASE),
-                        "GlowColumn draws through ImmediateBuffers alone"));
     }
 
     /**
@@ -340,8 +314,8 @@ class TranslucentVisualPathTest {
      */
     @Test
     void theMainPassGlowsDrawFarToNearOnThePath() {
-        List<String> glows = List.of("ber.style.GlowColumn", "ber.BeaconBeams",
-                "ber.ReflectorBeams", "entity.MeteorRenderer", "ability.ReapSwells",
+        List<String> glows = List.of("ber.BeaconBeams",
+                "ber.ReflectorBeams", "entity.MeteorRenderer",
                 "ability.GhostTrailRenderer");
         assertAll(glows.stream().map(glow -> () -> assertEquals(List.of(SortRoute.FAR_TO_NEAR),
                 TranslucentVisualPath.REGISTRATIONS.stream()
@@ -392,12 +366,12 @@ class TranslucentVisualPathTest {
         /**
          * The held ghost's through-blocks pass draws before its over-blocks
          * pass, as it did inside one draw (decision held-visual-ghosts-the-landing-in-two-passes),
-         * and the explosions and the ghost draw once a prism's crystal, a
-         * translucent feature writing depth, stands, so it draws under an
-         * explosion standing in front of it: the level is drawn by AfterLevel.
+         * and the explosions and the ghost draw once a translucent feature
+         * writing depth stands, so it draws under an explosion standing in
+         * front of it: the level is drawn by AfterLevel.
          */
         @Test
-        void theHeldGhostDrawsThroughThenOverAfterThePrismsDepth() {
+        void theHeldGhostDrawsThroughThenOverAfterTheLevelsDepth() {
             List<SortRoute> afterLevel = Arrays.stream(SortRoute.values())
                     .filter(route -> route.stage() == RenderLevelStageEvent.AfterLevel.class).toList();
             assertAll(
@@ -543,7 +517,6 @@ class TranslucentVisualPathTest {
         @Test
         void eachRegistersUnderItsRoutes() {
             Map<Class<?>, List<SortRoute>> routes = new LinkedHashMap<>();
-            routes.put(BeatRings.class, List.of(SortRoute.FAR_TO_NEAR));
             routes.put(NovaRings.class, List.of(SortRoute.FAR_TO_NEAR));
             routes.put(NovaChargeGhost.class, List.of(SortRoute.FAR_TO_NEAR));
             routes.put(SignalRings.class, List.of(SortRoute.FAR_TO_NEAR));

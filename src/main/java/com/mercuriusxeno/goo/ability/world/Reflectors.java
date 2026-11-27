@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.ability.world;
 
 import com.mercuriusxeno.goo.block.ability.CellPlacers;
 import com.mercuriusxeno.goo.block.ability.LightRailBlock;
-import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.block.ability.RailLine;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import net.minecraft.core.BlockPos;
@@ -112,8 +111,7 @@ public final class Reflectors {
     }
 
     private static boolean isReflector(ServerLevel level, BlockPos pos) {
-        return level.getBlockEntity(pos) instanceof PrismBlockEntity prism ? prism.isReflector()
-                : level.getBlockEntity(pos) instanceof LightRailEnd;
+        return level.getBlockEntity(pos) instanceof LightRailEnd;
     }
 
     /**

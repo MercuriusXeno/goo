@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 
 /**
  * AbilitySplat announces a landing's burnout before its program runs, so
@@ -50,18 +49,13 @@ class AbilitySplatTest {
     }
 
     /**
-     * Prism's blob morphs into the column it places, so no burst plays at its splat.
-     * decision prism-is-one-pointed-quartz-column
+     * Ignite's blob turns into the fire it lights, so no burst plays at its splat.
+     * idea ignite-plays-no-burnout
      */
     @Test
-    void aBlobTurningIntoThePrismRunsWithNoBurnoutAtTheSplat() {
-        RecordingSplat splat = new RecordingSplat(AbilityImpact.turnsIntoAPrism(AbilityJson.decode("crystal_prism")));
+    void aBlobTurningIntoItsBlockRunsWithNoBurnoutAtTheSplat() {
+        RecordingSplat splat = new RecordingSplat(AbilityImpact.lightsItsFire(AbilityJson.decode("blaze_ignite")));
         AbilitySplat.resolve(splat);
         assertEquals(List.of(RUN), splat.calls());
-    }
-
-    @Test
-    void anotherCrystalLandingStillTurnsIntoNoPrism() {
-        assertFalse(AbilityImpact.turnsIntoAPrism(AbilityJson.decode("crystal_knives")));
     }
 }

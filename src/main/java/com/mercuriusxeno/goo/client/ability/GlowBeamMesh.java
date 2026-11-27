@@ -11,7 +11,7 @@ import org.joml.Vector3f;
 import java.util.List;
 
 /**
- * Glow's beam of light, shared by Bulb's prism beacon, Reflector's rails and Laser's ray: a
+ * Glow's beam of light, shared by the light beacon, Reflector's rails and Laser's ray: a
  * thin near-white core inside wider, fainter glow-yellow shells, each a
  * square tube blended additively so the layers stack into a bloom and stay
  * see-through.
@@ -24,9 +24,9 @@ public final class GlowBeamMesh {
      * last; slimmed and dimmed after UAT found them too bright and too thick
      * (operator ruling 2026-10-09), then made smaller with the layers drawn
      * tighter together (operator ruling 2026-11-08). Each fades out past a
-     * prism-bound end by a depth, the core deepest, every depth under half a
-     * block so the bloom stays inside the prism's block whether the beam stops
-     * on its face or runs into its middle, as a reflector rail does.
+     * reflector-bound end by a depth, the core deepest, every depth under half
+     * a block so the bloom stays inside the reflector's block as a rail runs
+     * into its middle.
      * decision reflector-rail-blooms-out-inside-the-prism
      */
     public static final List<Layer> LAYERS = List.of(
@@ -186,7 +186,7 @@ public final class GlowBeamMesh {
      *
      * @param radius the layer's half-width in blocks before any widening
      * @param color  the layer's packed ARGB color, its alpha how strongly it adds
-     * @param depth  how far past a prism-bound end the layer fades out, in blocks
+     * @param depth  how far past a reflector-bound end the layer fades out, in blocks
      */
     public record Layer(float radius, int color, float depth) {
 

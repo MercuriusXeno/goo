@@ -7,7 +7,7 @@ import net.minecraft.util.ARGB;
 import java.util.List;
 
 /**
- * The core of light a glow beam emanates from inside its prism: nested cubes
+ * The core of light a glow beam emanates from inside its reflector: nested cubes
  * added onto the world, a near-white middle brighter and wider than the
  * beam's own core, each shell out wider and fainter and every one larger than
  * the beam, so the light gathers where the beam starts rather than ending in

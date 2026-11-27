@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.ability.pulse;
 
-import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.block.alientech.FaceMountedBlock;
 import com.mercuriusxeno.goo.block.alientech.RelayBlockEntity;
 import net.minecraft.core.BlockPos;
@@ -20,7 +19,7 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * The links between relays, relay blocks and the relay prisms a world may still hold: a relay links to every other
+ * The links between relay blocks: a relay links to every other
  * relay in range along one of the three axes, with only air between their centers and neither attached by the side
  * facing the other; each relay gives the strongest redstone signal reaching any relay it links to.
  * relay-prism-carries-the-signal-through-air
@@ -39,19 +38,6 @@ public final class RelayNetwork {
     private static final int MAX_NETWORK = 64;
 
     private RelayNetwork() {
-    }
-
-    /**
-     * The signal a relay prism gives this tick, marking the prism as a relay so the others find it.
-     *
-     * @param level the server level
-     * @param pos   the relay's position
-     * @param relay the relay's prism
-     * @return the power the relay gives, 0 to 15
-     */
-    public static int carriedTo(ServerLevel level, BlockPos pos, PrismBlockEntity relay) {
-        relay.markRelaying();
-        return carriedTo(level, pos);
     }
 
     /**
@@ -129,13 +115,13 @@ public final class RelayNetwork {
     }
 
     /**
-     * Whether a block entity is a relay: a relay block, or a prism whose combo made it one.
+     * Whether a block entity is a relay: a relay block.
      *
      * @param entity the block entity
      * @return true for a relay
      */
     public static boolean isRelay(BlockEntity entity) {
-        return entity instanceof RelayBlockEntity || entity instanceof PrismBlockEntity prism && prism.relays();
+        return entity instanceof RelayBlockEntity;
     }
 
     /**

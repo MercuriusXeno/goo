@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.block.ability.WispBlockEntity;
 import com.mercuriusxeno.goo.block.alientech.LightBeaconBlockEntity;
 import com.mercuriusxeno.goo.block.alientech.OculusBlockEntity;
@@ -60,10 +59,6 @@ public class GooBlockEntities {
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<StatueBlockEntity>> STATUE =
             BLOCK_ENTITIES.register("statue",
                     () -> new BlockEntityType<>(StatueBlockEntity::new, GooBlocks.STATUE.get()));
-
-    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<PrismBlockEntity>> PRISM =
-            BLOCK_ENTITIES.register("prism",
-                    () -> new BlockEntityType<>(PrismBlockEntity::new, GooBlocks.PRISM.get()));
 
     /** The wisp's block entity, which its renderer draws (decision radiant-wisps-where-light-is-low). */
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<WispBlockEntity>> WISP =

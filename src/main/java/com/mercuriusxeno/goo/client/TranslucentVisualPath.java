@@ -5,7 +5,6 @@ import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.ability.AfterimageRenderer;
 import com.mercuriusxeno.goo.client.ability.AirbornWind;
-import com.mercuriusxeno.goo.client.ability.BeatRings;
 import com.mercuriusxeno.goo.client.ability.BlockMingleRenderer;
 import com.mercuriusxeno.goo.client.ability.BoreDrill;
 import com.mercuriusxeno.goo.client.ability.ChainBurnoutRenderer;
@@ -39,7 +38,6 @@ import com.mercuriusxeno.goo.client.ability.PortalFaces;
 import com.mercuriusxeno.goo.client.ability.PortalView;
 import com.mercuriusxeno.goo.client.ability.QuantumBlobDarts;
 import com.mercuriusxeno.goo.client.ability.ReapSlashBlades;
-import com.mercuriusxeno.goo.client.ability.ReapSwells;
 import com.mercuriusxeno.goo.client.ability.RelayLasers;
 import com.mercuriusxeno.goo.client.ability.RollingGooRenderer;
 import com.mercuriusxeno.goo.client.ability.SculkerEchoRenderer;
@@ -56,7 +54,6 @@ import com.mercuriusxeno.goo.client.ability.WispGlow;
 import com.mercuriusxeno.goo.client.ability.ZapBolts;
 import com.mercuriusxeno.goo.client.ber.BeaconBeams;
 import com.mercuriusxeno.goo.client.ber.ReflectorBeams;
-import com.mercuriusxeno.goo.client.ber.style.GlowColumn;
 import com.mercuriusxeno.goo.client.entity.MeteorRenderer;
 import com.mercuriusxeno.goo.client.entity.WispEchoes;
 import com.mercuriusxeno.goo.client.hole.HoleMouths;
@@ -147,9 +144,7 @@ public final class TranslucentVisualPath {
             new Registration(WispGlow.class, SortRoute.FAR_TO_NEAR, WispGlow::collect,
                     Drawing.IN_THE_OIT_PHASE),
             // operator ruling 2026-11-18: the glows vanilla's main pass drew before the clouds, queued by their
-            // renderers; a prism's column registers before its beams, which sort at its center and draw after it.
-            new Registration(GlowColumn.class, SortRoute.FAR_TO_NEAR, GlowColumn::collect,
-                    Drawing.IN_THE_OIT_PHASE),
+            // renderers.
             new Registration(BeaconBeams.class, SortRoute.FAR_TO_NEAR, BeaconBeams::collect,
                     Drawing.IN_THE_OIT_PHASE),
             new Registration(ReflectorBeams.class, SortRoute.FAR_TO_NEAR, ReflectorBeams::collect,
@@ -158,14 +153,10 @@ public final class TranslucentVisualPath {
                     Drawing.IN_THE_OIT_PHASE),
             new Registration(GloveSpecialRenderer.class, SortRoute.FAR_TO_NEAR, GloveSpecialRenderer::collect,
                     Drawing.IN_THE_OIT_PHASE),
-            new Registration(ReapSwells.class, SortRoute.FAR_TO_NEAR, ReapSwells::collect,
-                    Drawing.IN_THE_OIT_PHASE),
             new Registration(GhostTrailRenderer.class, SortRoute.FAR_TO_NEAR, GhostTrailRenderer::collect,
                     Drawing.IN_THE_OIT_PHASE),
             new Registration(SpikesBristle.class, SortRoute.OPAQUE_SHAPE, SpikesBristle::collect),
             new Registration(SpikesRise.class, SortRoute.OPAQUE_SHAPE, SpikesRise::collect),
-            new Registration(BeatRings.class, SortRoute.FAR_TO_NEAR, BeatRings::collect,
-                    Drawing.IN_THE_OIT_PHASE),
             new Registration(NovaRings.class, SortRoute.FAR_TO_NEAR, NovaRings::collect,
                     Drawing.IN_THE_OIT_PHASE),
             new Registration(NovaChargeGhost.class, SortRoute.FAR_TO_NEAR, NovaChargeGhost::collect,

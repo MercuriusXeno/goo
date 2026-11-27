@@ -60,21 +60,6 @@ final class LaserStrike {
     }
 
     /**
-     * The probes a refracted beam strikes its mob with: the server ends each
-     * refracted beam on its mob's body, so the nine probes land on the mob
-     * around that end.
-     *
-     * @param prism  the prism core the refracted beam leaves
-     * @param end    the refracted beam's end on its mob
-     * @param radius the beam's drawn radius, in blocks
-     * @return the nine probes, each on the mob
-     */
-    static List<Probe> refractedEndProbes(Vec3 prism, Vec3 end, double radius) {
-        return probeOffsets(end.subtract(prism), radius).stream().map(offset -> Probe.onMob(end.add(offset)))
-                .toList();
-    }
-
-    /**
      * The distinct surfaces a beam's probes struck: one per block face they
      * met, and one for a mob, which faces back toward the beam's source.
      *

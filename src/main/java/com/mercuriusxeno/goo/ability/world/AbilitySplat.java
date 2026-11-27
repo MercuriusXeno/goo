@@ -6,8 +6,8 @@ package com.mercuriusxeno.goo.ability.world;
  * first, then the ability's program runs its first tick on the landing,
  * with no fuse between (decisions elemental-explosion-per-type,
  * splat-runs-the-program-no-fuse). A blob that turns into its own block,
- * Prism's, fires none: its morph into the block is its landing (decision
- * prism-is-one-pointed-quartz-column).
+ * Ignite's fire, fires none: its block is its landing (idea
+ * ignite-plays-no-burnout).
  */
 interface AbilitySplat {
 
