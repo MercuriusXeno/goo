@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.ThrowRange;
 import com.mercuriusxeno.goo.ability.quantum.Gate;
 import com.mercuriusxeno.goo.ability.quantum.GatePassage;
+import com.mercuriusxeno.goo.client.ability.BlobRest;
 import com.mercuriusxeno.goo.item.ReagentScanner;
 import com.mercuriusxeno.goo.throwing.AimReach;
 import com.mercuriusxeno.goo.throwing.GateArc;
@@ -277,6 +278,79 @@ class GooThrowHandlerTest {
 
     private static double square(double value) {
         return value * value;
+    }
+
+    /**
+     * An orb leaving the lifted blob off the eye rolls at what the look
+     * intersects (decision ability-goes-where-the-look-intersects).
+     */
+    @Nested
+    class OrbHeading {
+
+        private static final double ON_THE_LINE = 0.05;
+        private static final Vec3 LOOK_NORTH = new Vec3(0, 0, -1);
+        private static final Vec3 HALF_A_BLOCK_RIGHT = EYE.add(0.5, 0, 0);
+        private static final double WALL_OUT = 10;
+        private static final double REST_WALL_OUT = 8;
+        private static final float NORTH_YAW = 180f;
+
+        @Test
+        void anOrbStartedBesideTheEyeHeadsAtTheBlockTheLookHits() {
+            Vec3 hit = EYE.add(LOOK_NORTH.scale(WALL_OUT));
+            Vec3 heading = GooThrowHandler.rollHeading(HALF_A_BLOCK_RIGHT, EYE, LOOK_NORTH, rangeOf("frost_orb"),
+                    OrbHeading::wallTenBlocksNorth);
+            assertTrue(offLine(hit, HALF_A_BLOCK_RIGHT, heading) < ON_THE_LINE,
+                    "The orb's path should pass within a twentieth of a block of the look's hit point, passed "
+                            + offLine(hit, HALF_A_BLOCK_RIGHT, heading) + " off it");
+        }
+
+        @Test
+        void anOrbStartedBesideTheEyeHeadsAtTheLooksPointAtItsRangeInOpenAir() {
+            double range = rangeOf("frost_orb");
+            Vec3 far = EYE.add(LOOK_NORTH.scale(range));
+            Vec3 heading = GooThrowHandler.rollHeading(HALF_A_BLOCK_RIGHT, EYE, LOOK_NORTH, range,
+                    (from, to) -> to);
+            assertTrue(offLine(far, HALF_A_BLOCK_RIGHT, heading) < ON_THE_LINE,
+                    "The orb's path should pass within a twentieth of a block of the look's point at its range, "
+                            + "passed " + offLine(far, HALF_A_BLOCK_RIGHT, heading) + " off it");
+        }
+
+        /**
+         * From the blob's rest above the hand the orb still heads at the block the look hits
+         * (decision no-ability-floats-its-blob-to-the-center-line).
+         */
+        @Test
+        void anOrbStartedAtTheBlobsRestAboveTheHandHeadsAtTheBlockTheLookHits() {
+            Vec3 look = Vec3.directionFromRotation(0f, NORTH_YAW);
+            Vec3 rest = BlobRest.inView(EYE, 0f, NORTH_YAW, true, BlobRest.Rest.ABOVE_THE_HAND);
+            double range = rangeOf("frost_orb");
+            Vec3 hit = wallEightBlocksNorth(EYE, EYE.add(look.scale(range)));
+            Vec3 heading = GooThrowHandler.rollHeading(rest, EYE, look, range, OrbHeading::wallEightBlocksNorth);
+            assertTrue(offLine(hit, rest, heading) < ON_THE_LINE,
+                    "The orb's path from the blob's rest should pass within a twentieth of a block of the look's "
+                            + "hit point, passed " + offLine(hit, rest, heading) + " off it");
+        }
+
+        private static Vec3 wallEightBlocksNorth(Vec3 from, Vec3 to) {
+            double wallZ = EYE.z - REST_WALL_OUT;
+            if (to.z > wallZ || from.z <= wallZ) {
+                return to;
+            }
+            return from.lerp(to, (from.z - wallZ) / (from.z - to.z));
+        }
+
+        private static Vec3 wallTenBlocksNorth(Vec3 from, Vec3 to) {
+            double wallZ = EYE.z - WALL_OUT;
+            if (to.z > wallZ || from.z <= wallZ) {
+                return to;
+            }
+            return from.lerp(to, (from.z - wallZ) / (from.z - to.z));
+        }
+
+        private static double offLine(Vec3 point, Vec3 origin, Vec3 heading) {
+            Vec3 offset = point.subtract(origin);
+            return offset.subtract(heading.scale(offset.dot(heading))).length();
+        }
     }
 
     private static Vec3 out(double blocks) {

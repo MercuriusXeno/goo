@@ -55,6 +55,25 @@ public record VortexCone(Vec3 apex, Vec3 axis, double length, ConeShape shape) {
     }
 
     /**
+     * The vortex of a stream held from the lifted blob, its axis aimed at the
+     * point the look intersects inside the stream's reach, or the look's
+     * point at the reach's end where the look meets nothing.
+     *
+     * @param blob        where the vortex opens, the lifted blob
+     * @param eye         the caster's eye
+     * @param look        the caster's look, any length
+     * @param range       the delivery's range in blocks
+     * @param coneDegrees the delivery's cone angle, rim to rim, in degrees
+     * @param clip        what the look can meet
+     * @return the vortex
+     */
+    public static VortexCone aimed(Vec3 blob, Vec3 eye, Vec3 look, double range, double coneDegrees,
+                                   LookAim.LookClip clip) {
+        // ability-goes-where-the-look-intersects
+        return along(blob, LookAim.heading(blob, eye, look, range, clip), range, ConeShape.round(coneDegrees));
+    }
+
+    /**
      * The vortex's widest reach off its axis a distance out along it: the wider half width for a cone, the
      * corner for a band.
      *

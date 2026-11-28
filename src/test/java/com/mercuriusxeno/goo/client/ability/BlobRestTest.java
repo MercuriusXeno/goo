@@ -1,17 +1,16 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.client.throwing.GooFlightRenderer;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
+import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Where the lifted palm blob rests: on the center line below the crosshair,
- * clear of it, 0.7 ahead of the eye and 0.15 below the look, for an ability
- * tagged centered, and for every other ability but Bore at the spray source
- * Goop and Slick drip from, above the hand.
- * centered-abilities-float-the-blob-below-the-crosshair
+ * Where the lifted palm blob rests: by the glove for Bore, over the palm for
+ * Knives and Dart, and for every other ability at the spray source Goop and
+ * Slick drip from, above the hand; no ability's blob floats to the center line.
+ * decision no-ability-floats-its-blob-to-the-center-line
  * palm-blob-lifts-as-the-spray-source
  */
 class BlobRestTest {
@@ -22,43 +21,36 @@ class BlobRestTest {
     /** Vec3.directionFromRotation reads Mth.sin's lookup table, which strays this far. */
     private static final double SINE_TABLE = 1e-3;
     private static final float QUARTER_TURN = 90f;
-    /** How far ahead of the eye the centered blob rests, along the look. */
-    private static final double CENTER_AHEAD = 0.7;
-    /** How far below the look the centered blob rests. */
-    private static final double CENTER_BELOW = 0.15;
-    /** The lifted blob's greatest half height in the world, which the crosshair must clear. */
-    private static final double LIFTED_HALF_HEIGHT = GooFlightRenderer.SHELL_HW
-            * LiftedPalmBlob.FLIGHT_SIZE_OF_PALM_REST * LiftedPalmBlob.LIFTED_GREATEST;
-
-    private static Vec3 right() {
-        return Vec3.directionFromRotation(0f, YAW + QUARTER_TURN);
-    }
 
     private static Vec3 up() {
         return Vec3.directionFromRotation(PITCH - QUARTER_TURN, YAW);
     }
 
-    private static Vec3 ahead() {
-        return Vec3.directionFromRotation(PITCH, YAW);
-    }
-
+    // decision no-ability-floats-its-blob-to-the-center-line
     @Test
-    void aCenteredAbilitysBlobRestsOnTheCenterLineAheadOfTheEyeAndBelowTheLook() {
-        for (boolean gloveRight : new boolean[] {true, false}) {
-            Vec3 rest = BlobRest.inView(EYE, PITCH, YAW, gloveRight, BlobRest.Rest.CENTER_LINE).subtract(EYE);
-
-            assertEquals(0, rest.dot(right()), SINE_TABLE, "the centered blob should stand on the center line");
-            assertEquals(CENTER_AHEAD, rest.dot(ahead()), SINE_TABLE, "the centered blob should stand 0.7 ahead");
-            assertEquals(-CENTER_BELOW, rest.dot(up()), SINE_TABLE, "the centered blob should stand 0.15 below");
+    void theSevenOnceCenteredAbilitiesRestAboveTheHand() {
+        for (String name : SyncedAbilities.ONCE_CENTERED) {
+            assertEquals(BlobRest.Rest.ABOVE_THE_HAND, BlobRest.Rest.of(SyncedAbilities.of(name)), name);
         }
     }
 
+    // decision no-ability-floats-its-blob-to-the-center-line
     @Test
-    void aCenteredAbilitysBlobSettlesBelowTheCrosshairClearOfIt() {
-        Vec3 rest = BlobRest.inView(EYE, PITCH, YAW, true, BlobRest.Rest.CENTER_LINE).subtract(EYE);
+    void aBlobRestsByTheGloveOverThePalmOrAboveTheHand() {
+        assertEquals(List.of(BlobRest.Rest.BY_THE_GLOVE, BlobRest.Rest.OVER_THE_PALM, BlobRest.Rest.ABOVE_THE_HAND),
+                List.of(BlobRest.Rest.values()));
+    }
 
-        assertTrue(rest.dot(up()) + LIFTED_HALF_HEIGHT < 0, "the centered blob's top, " + rest.dot(up())
-                + " plus " + LIFTED_HALF_HEIGHT + " off the look, should stand below the crosshair");
+    // decision no-ability-floats-its-blob-to-the-center-line
+    @Test
+    void theSevenOnceCenteredAbilitiesRestAtTheSpraySourceAboveEitherHand() {
+        for (String name : SyncedAbilities.ONCE_CENTERED) {
+            BlobRest.Rest rest = BlobRest.Rest.of(SyncedAbilities.of(name));
+            for (boolean gloveRight : new boolean[] {true, false}) {
+                assertEquals(SpraySource.inView(EYE, PITCH, YAW, gloveRight),
+                        BlobRest.inView(EYE, PITCH, YAW, gloveRight, rest), name + ", glove right " + gloveRight);
+            }
+        }
     }
 
     @Test
