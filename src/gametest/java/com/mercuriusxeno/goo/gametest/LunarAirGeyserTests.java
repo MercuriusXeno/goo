@@ -38,8 +38,7 @@ public final class LunarAirGeyserTests {
 
     /** Where each test lays its ground, apart from each other and from lunar's other sites, high over any terrain. */
     private static final int KEEPS_SITE_X = 2120;
-    // 2184 is GravityBounceTests' site, whose lunar pig bounced into this ground (defect row 47)
-    private static final int REFILLS_SITE_X = 2312;
+    private static final int REFILLS_SITE_X = 2184;
     private static final int SITE_Z = 8;
     private static final int SITE_UNDER_THE_TOP = 32;
     /** The ground the test lays reaches this far each way of the geyser, this deep under its top. */
