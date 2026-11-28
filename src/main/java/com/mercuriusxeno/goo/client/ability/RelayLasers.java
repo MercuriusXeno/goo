@@ -50,7 +50,15 @@ public final class RelayLasers {
     /** The relays one link joins. */
     private static final int RELAYS_IN_A_LINK = 2;
     private static final int LASER_RGB = 0xFF2A1A;
-    private static final float WIDTH_SCALE = 2f;
+    /** The beam's thickness in the world, in blocks: half a pixel. */
+    static final double BEAM_THICKNESS = 1.0 / 32;
+    /** The thinnest the beam draws on screen, in pixels, so it never vanishes far off. */
+    static final double THINNEST_PIXELS = 1;
+    /** The nearest the beam's width is figured from, in blocks, so it never balloons at the camera. */
+    private static final double NEAREST_DISTANCE = 0.5;
+    /** The longest segment a link draws in, in blocks, so its width follows the distance along it. */
+    private static final double SEGMENT_BLOCKS = 1;
+    private static final double HALF = 0.5;
     /** How far a lit tip's glow reaches from the cell center, in blocks: its 4 pixel head and half a pixel of glow. */
     static final double TIP_GLOW_REACH = 2.5 / 16;
 
@@ -99,22 +107,56 @@ public final class RelayLasers {
     private static void drawLinks(Minecraft mc, LevelFrame frame, List<BlockPos> standing, Vec3 camera) {
         ImmediateBuffers buffers = ImmediateBuffers.shared();
         LineContext lines = new LineContext(frame.poseStack().last(), buffers.getBuffer(GooRenderTypes.LINES_ADDED_GLOW));
-        float width = mc.getWindow().getAppropriateLineWidth() * WIDTH_SCALE;
+        double pixelsPerBlockAtOne = mc.getWindow().getHeight() * HALF
+                / Math.tan(Math.toRadians(mc.options.fov().get()) * HALF);
         for (int i = 0; i < standing.size(); i++) {
             for (int j = i + 1; j < standing.size(); j++) {
-                drawLink(mc.level, lines, standing.get(i), standing.get(j), camera, width);
+                drawLink(mc.level, lines, standing.get(i), standing.get(j), camera, pixelsPerBlockAtOne);
             }
         }
         buffers.endBatch(GooRenderTypes.LINES_ADDED_GLOW);
     }
 
+    /**
+     * Draws a link in short segments, each as wide on screen as the beam's thickness in the world reads at that
+     * segment's distance, so the beam thins as it runs away rather than holding one width on screen.
+     * operator ruling 2026-11-28: the beam thins with distance rather than reading thicker far off
+     *
+     * @param level               the client level
+     * @param lines               where the lines go
+     * @param from                one relay
+     * @param to                  the other
+     * @param camera              the camera's position
+     * @param pixelsPerBlockAtOne the screen pixels a block spans a block from the camera
+     */
     private static void drawLink(ClientLevel level, LineContext lines, BlockPos from, BlockPos to, Vec3 camera,
-                                 float width) {
+                                 double pixelsPerBlockAtOne) {
         if (!RelayNetwork.inLinkReach(from, to) || !RelayNetwork.links(level, from, to)) {
             return;
         }
-        lines.emitPolyline(camera, linkLine(from, to), laserColor(carrying(level, from) || carrying(level, to)),
-                width);
+        int color = laserColor(carrying(level, from) || carrying(level, to));
+        Vec3[] ends = linkLine(from, to);
+        Vec3 along = ends[1].subtract(ends[0]);
+        int segments = Math.max(1, (int) Math.ceil(along.length() / SEGMENT_BLOCKS));
+        for (int i = 0; i < segments; i++) {
+            Vec3 start = ends[0].add(along.scale((double) i / segments));
+            Vec3 end = ends[0].add(along.scale((double) (i + 1) / segments));
+            float width = lineWidthAt(start.add(end).scale(HALF).distanceTo(camera), pixelsPerBlockAtOne);
+            lines.emitPolyline(camera, new Vec3[] {start, end}, color, width);
+        }
+    }
+
+    /**
+     * How wide on screen, in pixels, the beam draws at a distance: its thickness in the world seen from there, never
+     * thinner than a pixel.
+     *
+     * @param distance            the camera's distance from the beam, in blocks
+     * @param pixelsPerBlockAtOne the screen pixels a block spans a block from the camera
+     * @return the line width in pixels
+     */
+    static float lineWidthAt(double distance, double pixelsPerBlockAtOne) {
+        return (float) Math.max(THINNEST_PIXELS,
+                BEAM_THICKNESS * pixelsPerBlockAtOne / Math.max(distance, NEAREST_DISTANCE));
     }
 
     /**

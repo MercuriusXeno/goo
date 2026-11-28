@@ -5,6 +5,7 @@ import net.minecraft.util.ARGB;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -33,6 +34,16 @@ class RelayLasersTest {
         Vec3 glowEdge = new Vec3(0, 0, RelayLasers.TIP_GLOW_REACH);
         assertArrayEquals(new Vec3[] {Vec3.atCenterOf(from).add(glowEdge), Vec3.atCenterOf(to).subtract(glowEdge)},
                 RelayLasers.linkLine(from, to));
+    }
+
+    /** operator ruling 2026-11-28: the beam thins with distance rather than reading thicker far off */
+    @Test
+    void theBeamThinsWithDistanceToAPixel() {
+        double pixelsPerBlockAtOne = 700;
+        float near = RelayLasers.lineWidthAt(4, pixelsPerBlockAtOne);
+        float twiceAsFar = RelayLasers.lineWidthAt(8, pixelsPerBlockAtOne);
+        assertEquals(near / 2, twiceAsFar, 1e-4f);
+        assertEquals(RelayLasers.THINNEST_PIXELS, RelayLasers.lineWidthAt(1000, pixelsPerBlockAtOne), 1e-4f);
     }
 
     /** The light an additive line adds: its alpha times the sum of its channels. */
