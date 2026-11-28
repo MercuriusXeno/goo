@@ -1,8 +1,8 @@
 {
   "ambientocclusion": false,
   "textures": {
-    "particle": "minecraft:block/redstone_torch",
-    "torch": "minecraft:block/redstone_torch"
+    "particle": "goo:block/metronome_switch_on",
+    "torch": "goo:block/metronome_switch_on"
   },
   "elements": [
     {
