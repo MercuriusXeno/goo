@@ -7,7 +7,12 @@ import com.mercuriusxeno.goo.lunar.CraterPoolsFeature;
 import com.mercuriusxeno.goo.lunar.CrystalClusters;
 import com.mercuriusxeno.goo.lunar.DepositGooPocketFeature;
 import com.mercuriusxeno.goo.lunar.GooPocketFeature;
+import com.mercuriusxeno.goo.lunar.MonolithMarkerFeature;
 import com.mercuriusxeno.goo.lunar.NativeIronLodeFeature;
+import com.mercuriusxeno.goo.lunar.VolatileCrystalClusterFeature;
+import com.mercuriusxeno.goo.lunar.WarrenMechanismFeature;
+import com.mercuriusxeno.goo.lunar.WarrenRuinFeature;
+import com.mercuriusxeno.goo.lunar.WarrenSculkPatchFeature;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.level.levelgen.feature.Feature;
@@ -59,6 +64,44 @@ public final class GooFeatures {
      */
     public static final DeferredHolder<MapCodec<? extends Feature>, MapCodec<NativeIronLodeFeature>> NATIVE_IRON_LODE =
             FEATURES.register("native_iron_lode", () -> NativeIronLodeFeature.CODEC);
+
+    /**
+     * {@code goo:monolith_marker}, one monolith marker standing alone on a warren tunnel's floor.
+     * decision warrens-hold-xeno-rich-alien-blocks
+     */
+    public static final DeferredHolder<MapCodec<? extends Feature>, MapCodec<MonolithMarkerFeature>> MONOLITH_MARKER =
+            FEATURES.register("monolith_marker", () -> MonolithMarkerFeature.CODEC);
+
+    /**
+     * {@code goo:warren_ruin}, one of the warrens' little mini structures built from the alien structure family.
+     * decision warrens-hold-xeno-rich-alien-blocks
+     */
+    public static final DeferredHolder<MapCodec<? extends Feature>, MapCodec<WarrenRuinFeature>> WARREN_RUIN =
+            FEATURES.register("warren_ruin", () -> WarrenRuinFeature.CODEC);
+
+    /**
+     * {@code goo:volatile_crystal_cluster}, a small volatile crystal structure creeping along a warren tunnel's rock.
+     * decision volatile-crystals-are-rich-in-crystal-and-unstable
+     */
+    public static final DeferredHolder<MapCodec<? extends Feature>, MapCodec<VolatileCrystalClusterFeature>>
+            VOLATILE_CRYSTAL_CLUSTER = FEATURES.register("volatile_crystal_cluster",
+                    () -> VolatileCrystalClusterFeature.CODEC);
+
+    /**
+     * {@code goo:warren_mechanism}, one of the warrens' armed sculk mechanisms: a sculk sensor wired through a wireless
+     * emitter to volatile crystals, sometimes with a resonator.
+     * decision sculk-sensors-wire-to-pulse-emitter-crystals-that-set-off-volatile-crystals
+     */
+    public static final DeferredHolder<MapCodec<? extends Feature>, MapCodec<WarrenMechanismFeature>>
+            WARREN_MECHANISM = FEATURES.register("warren_mechanism", () -> WarrenMechanismFeature.CODEC);
+
+    /**
+     * {@code goo:warren_sculk_patch}, a deep dark sculk patch in the warrens growing sensors and catalysts, no
+     * shriekers.
+     * decision warren-sculk-homes-sensors-and-catalysts-and-grows-in-lunar-rock
+     */
+    public static final DeferredHolder<MapCodec<? extends Feature>, MapCodec<WarrenSculkPatchFeature>>
+            WARREN_SCULK_PATCH = FEATURES.register("warren_sculk_patch", () -> WarrenSculkPatchFeature.CODEC);
 
     /**
      * {@code goo:air_geyser}, a hole in lunar's ground holding Updraft goo, with trace Updraft around it.

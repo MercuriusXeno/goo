@@ -46,6 +46,8 @@
     "minecraft:warped_shelf",
     "goo:plexer",
     "goo:reactor",
-    "goo:unstable_nitro"
+    "goo:unstable_nitro",
+    "goo:volatile_crystal",
+    "goo:wireless_emitter"
   ]
 }

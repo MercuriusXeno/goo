@@ -45,7 +45,13 @@
       "goo:meteoric_iron_nuggets",
       "goo:ore_lunar_ancient_debris"
     ],
-    [],
+    [
+      "goo:warren_sculk_patch",
+      "goo:warren_ruin",
+      "goo:volatile_crystal_cluster",
+      "goo:warren_mechanism",
+      "goo:monolith_marker"
+    ],
     [
       "goo:deposit_goo_pockets"
     ],
