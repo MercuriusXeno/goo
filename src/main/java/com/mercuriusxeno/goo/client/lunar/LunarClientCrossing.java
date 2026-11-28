@@ -66,6 +66,7 @@ public final class LunarClientCrossing {
             List<ChunkPos> moved = moveHeldChunks(level, shift);
             moveEntitiesInView(level, shift);
             LunarClientMeshes.expect(shift, moved, level);
+            LunarClientMeshes.jumpTheView(shift);
             context.reply(LunarCrossingMovedPayload.of(shift, moved));
         } catch (RuntimeException failure) {
             Goo.LOGGER.warn(MOVE_FAILED, failure);
