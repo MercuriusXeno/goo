@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:level_gathers_loose_mortar_onto_its_pile",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 60,
+  "setup_ticks": 0,
+  "required": true
+}

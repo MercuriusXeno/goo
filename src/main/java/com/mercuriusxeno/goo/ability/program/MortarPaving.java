@@ -15,17 +15,20 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.IntPredicate;
 
 /**
  * Level's disc dragged under Mortar: the disc scoops the Mortar on its far
  * side into its carry rather than breaking it, and each gap on its near side
  * takes a stone block for a layer. While the hold lasts the carry is no block,
  * nine piles of layers riding the 3x3 over the disc, which the client draws;
- * when the hold ends it is set down as Mortar where it rides. The disc
- * carries a 3x3 of piles of fifteen at most.
+ * when the hold ends it is set down as Mortar where it rides. Each layer
+ * scooped climbs onto the closest pile with room, and the disc carries a 3x3
+ * of piles of fifteen at most.
  * level-dragged-under-rock-goo-carries-it-and-deposits-stone-under-the-disc
  * level-scoops-up-to-three-by-three-piles-of-fifteen-layers
  * carried-mortar-stops-being-a-block-on-the-level-plane
+ * level-gathers-loose-mortar-into-the-closest-empty-slot
  * layer-of-rock-goo-is-a-stone-block
  */
 public final class MortarPaving {
@@ -34,8 +37,8 @@ public final class MortarPaving {
     private static final int CARRY_DEPTH = 3;
     /** The piles the disc carries: a 3x3. */
     public static final int PILES = 9;
-    /** The most layers the disc carries: a 3x3 of piles of fifteen. */
-    private static final int MOST_CARRIED = PILES * VolumeCellBlock.MAX_LAYERS;
+    /** The pile a search answers where no pile qualifies. */
+    static final int NO_PILE = -1;
 
     private MortarPaving() {
     }
@@ -66,37 +69,124 @@ public final class MortarPaving {
     /**
      * What the disc scoops from the Mortar over it.
      *
+     * @param piles    the carry's nine piles once the scoop climbs onto them, in pile order
      * @param pickedUp each pile the disc takes layers from, with the layers taken
      * @param leftOut  each pile left holding layers, with the layers it keeps
      */
-    public record Scoop(Map<BlockPos, Integer> pickedUp, Map<BlockPos, Integer> leftOut) {
+    public record Scoop(List<Integer> piles, Map<BlockPos, Integer> pickedUp, Map<BlockPos, Integer> leftOut) {
     }
 
     /**
-     * Scoops the Mortar over the disc in turn until the disc carries a 3x3 of
-     * piles of fifteen, taking only part of the pile that fills it; the rest
-     * stays where it lies, to be come back for.
+     * Gathers the loose Mortar over the disc: each layer scooped, cell by cell,
+     * climbs onto the closest of the nine piles holding fewer than fifteen,
+     * so a pile already carrying layers takes the climb like an empty one.
+     * Once all nine hold fifteen, the 3x3 of piles of fifteen the disc carries
+     * at most, the scoop takes nothing more and the rest stays where it lies,
+     * to be come back for.
+     * level-gathers-loose-mortar-into-the-closest-empty-slot
      * level-scoops-up-to-three-by-three-piles-of-fifteen-layers
      *
-     * @param piles     the piles over the disc, each with its layers, the first scooped first
-     * @param carriedIn the layers the disc already carries
-     * @return the layers picked up and the layers left out
+     * @param carried   the carry's nine piles' layers, in pile order
+     * @param pileCells the cells the nine piles ride in, in pile order
+     * @param loose     the loose Mortar over the disc, each cell with its layers, the first scooped first
+     * @return the carry's piles after, the layers picked up and the layers left out
      */
-    public static Scoop scoop(Map<BlockPos, Integer> piles, int carriedIn) {
+    public static Scoop scoop(List<Integer> carried, List<BlockPos> pileCells, Map<BlockPos, Integer> loose) {
+        List<Integer> piles = new ArrayList<>(carried);
         Map<BlockPos, Integer> pickedUp = new LinkedHashMap<>();
         Map<BlockPos, Integer> leftOut = new LinkedHashMap<>();
-        int room = Math.max(0, MOST_CARRIED - carriedIn);
-        for (Map.Entry<BlockPos, Integer> pile : piles.entrySet()) {
-            int taken = Math.min(pile.getValue(), room);
-            room -= taken;
-            if (taken > 0) {
-                pickedUp.put(pile.getKey(), taken);
+        for (Map.Entry<BlockPos, Integer> cell : loose.entrySet()) {
+            int taken = 0;
+            int pile = closestWithRoom(piles, pileCells, cell.getKey());
+            while (taken < cell.getValue() && pile != NO_PILE) {
+                piles.set(pile, piles.get(pile) + 1);
+                taken++;
+                pile = closestWithRoom(piles, pileCells, cell.getKey());
             }
-            if (pile.getValue() > taken) {
-                leftOut.put(pile.getKey(), pile.getValue() - taken);
+            if (taken > 0) {
+                pickedUp.put(cell.getKey(), taken);
+            }
+            if (cell.getValue() > taken) {
+                leftOut.put(cell.getKey(), cell.getValue() - taken);
             }
         }
-        return new Scoop(pickedUp, leftOut);
+        return new Scoop(List.copyOf(piles), pickedUp, leftOut);
+    }
+
+    /**
+     * The pile a layer scooped from a cell climbs onto: the one with room whose
+     * column lies nearest the cell, ties going to the pile nearer the middle,
+     * then to the pile first in the ring's order.
+     * level-gathers-loose-mortar-into-the-closest-empty-slot
+     *
+     * @param piles     the nine piles' layers, in pile order
+     * @param pileCells the cells the nine piles ride in, in pile order, the middle first
+     * @param from      the cell the layer comes from
+     * @return the pile's index, or NO_PILE where every pile holds fifteen
+     */
+    static int closestWithRoom(List<Integer> piles, List<BlockPos> pileCells, BlockPos from) {
+        return closest(piles, pileCells, from, layers -> layers < VolumeCellBlock.MAX_LAYERS);
+    }
+
+    /**
+     * The pile nearest a cell among those a test keeps, ties going to the pile
+     * nearer the middle, then to the pile first in the ring's order.
+     *
+     * @param piles     the nine piles' layers, in pile order
+     * @param pileCells the cells the nine piles ride in, in pile order, the middle first
+     * @param from      the cell
+     * @param keeps     whether a pile of so many layers qualifies
+     * @return the pile's index, or NO_PILE where no pile qualifies
+     */
+    private static int closest(List<Integer> piles, List<BlockPos> pileCells, BlockPos from, IntPredicate keeps) {
+        int closest = NO_PILE;
+        for (int pile = 0; pile < piles.size(); pile++) {
+            if (keeps.test(piles.get(pile)) && (closest == NO_PILE || nearer(pileCells, from, pile, closest))) {
+                closest = pile;
+            }
+        }
+        return closest;
+    }
+
+    /**
+     * Whether one pile stands nearer a cell than another, the nearer the
+     * middle winning a tie; a pile later in pile order wins no tie both share.
+     *
+     * @param pileCells the cells the nine piles ride in, the middle first
+     * @param from      the cell
+     * @param pile      the pile weighed
+     * @param against   the pile it is weighed against, earlier in pile order
+     * @return true where the pile weighed stands nearer
+     */
+    private static boolean nearer(List<BlockPos> pileCells, BlockPos from, int pile, int against) {
+        double toPile = from.distSqr(pileCells.get(pile));
+        double toAgainst = from.distSqr(pileCells.get(against));
+        if (toPile != toAgainst) {
+            return toPile < toAgainst;
+        }
+        BlockPos middle = pileCells.getFirst();
+        return middle.distSqr(pileCells.get(pile)) < middle.distSqr(pileCells.get(against));
+    }
+
+    /**
+     * Spends a layer of the carry on each gap paved, from the non-empty pile
+     * nearest the gap, the nearer the middle winning a tie.
+     * layer-of-rock-goo-is-a-stone-block
+     *
+     * @param piles     the nine piles' layers, in pile order
+     * @param pileCells the cells the nine piles ride in, in pile order
+     * @param paved     the gaps paved
+     * @return the piles once the paving is paid
+     */
+    static List<Integer> spend(List<Integer> piles, List<BlockPos> pileCells, List<BlockPos> paved) {
+        List<Integer> left = new ArrayList<>(piles);
+        for (BlockPos gap : paved) {
+            int nearest = closest(left, pileCells, gap, layers -> layers > 0);
+            if (nearest != NO_PILE) {
+                left.set(nearest, left.get(nearest) - 1);
+            }
+        }
+        return List.copyOf(left);
     }
 
     /**
@@ -121,25 +211,6 @@ public final class MortarPaving {
     }
 
     /**
-     * A carry's layers as its nine piles, filled as cells are laid: the middle
-     * pile first, then the ring, each whole before the next.
-     * carried-mortar-stops-being-a-block-on-the-level-plane
-     *
-     * @param layers the layers carried
-     * @return the nine piles' layers, in pile order
-     */
-    static List<Integer> pilesOf(int layers) {
-        List<Integer> piles = new ArrayList<>(PILES);
-        int left = layers;
-        for (int pile = 0; pile < PILES; pile++) {
-            int held = Math.clamp(left, 0, VolumeCellBlock.MAX_LAYERS);
-            piles.add(held);
-            left -= held;
-        }
-        return piles;
-    }
-
-    /**
      * Scoops the Mortar over the disc where the cursor rests into the hold's
      * carry, paves the gaps under the disc from the carry, and lets the carry
      * ride over the disc as its nine piles, no block standing for it.
@@ -156,14 +227,15 @@ public final class MortarPaving {
             return;
         }
         MortarCarry carry = host.holdMarks().mortarCarry();
-        Map<BlockPos, Integer> piles = mortarIn(host, overDisc(plane, aimed).stream().filter(host::reaches).toList());
-        Scoop scoop = scoop(piles, carry.layers());
+        List<BlockPos> pileCells = pileCells(plane, aimed);
+        Map<BlockPos, Integer> loose = mortarIn(host, overDisc(plane, aimed).stream().filter(host::reaches).toList());
+        Scoop scoop = scoop(carry.piles(), pileCells, loose);
         scoop.pickedUp().keySet().forEach(pos -> takeScooped(host, pos, scoop.leftOut().getOrDefault(pos, 0)));
         List<BlockPos> gaps = middleFirst(plane.layer(aimed, 0), plane.face().getAxis()).stream()
                 .filter(pos -> host.reaches(pos) && isGap(host.stateAt(pos))).toList();
-        Deposit deposit = deposit(gaps, carry.layers() + layersIn(scoop.pickedUp()));
+        Deposit deposit = deposit(gaps, layersIn(scoop.piles()));
         deposit.paved().forEach(pos -> host.transformBlock(pos, Blocks.STONE.defaultBlockState()));
-        carry.ride(host, plane, aimed, pilesOf(deposit.layersLeft()));
+        carry.ride(host, plane, aimed, spend(scoop.piles(), pileCells, deposit.paved()));
     }
 
     /**
@@ -211,8 +283,8 @@ public final class MortarPaving {
         }
     }
 
-    private static int layersIn(Map<BlockPos, Integer> cells) {
-        return cells.values().stream().mapToInt(Integer::intValue).sum();
+    private static int layersIn(Collection<Integer> piles) {
+        return piles.stream().mapToInt(Integer::intValue).sum();
     }
 
     /**

@@ -1,8 +1,11 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -12,9 +15,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Covers what Level's disc does with the Mortar it carries: each gap under the
  * disc takes a stone block for a layer, and the layers left lie back over the
- * disc in whole cells of fifteen; the disc scoops no more than nine piles of fifteen.
+ * disc in whole cells of fifteen; the disc scoops no more than nine piles of
+ * fifteen, each scooped layer climbing onto the closest pile with room.
  * level-dragged-under-rock-goo-carries-it-and-deposits-stone-under-the-disc
  * level-scoops-up-to-three-by-three-piles-of-fifteen-layers
+ * level-gathers-loose-mortar-into-the-closest-empty-slot
  * layer-of-rock-goo-is-a-stone-block
  */
 class MortarPavingTest {
@@ -53,18 +58,35 @@ class MortarPavingTest {
         private static final int MOST_CARRIED = 135;
         private static final int PILES_CARRIED = 9;
         private static final int PILES_LEFT = 16;
-        private static final int CARRIED_IN = 130;
         private static final int ROOM_LEFT = 5;
+        private static final int TWELVE = 12;
+        private static final int FOUR = 4;
+        /** The disc's middle, the 3x3 of pile columns standing at x and z 1 to 3 just over it. */
+        private static final BlockPos DISC = new BlockPos(2, -1, 2);
+        private static final ChannelAim.FacePlane PLANE = new ChannelAim.FacePlane(DISC, Direction.UP);
+        private static final List<BlockPos> PILE_CELLS = MortarPaving.pileCells(PLANE, DISC);
+        private static final int MIDDLE_PILE = 0;
+        /** The corner pile the ring reaches first, at the ring's lowest x and z. */
+        private static final int FIRST_CORNER_PILE = 1;
+        /** The first edge pile in the ring's order, the nearest piles to the middle after it. */
+        private static final int FIRST_EDGE_PILE = 2;
+        private static final int LAST_PILE = 8;
+
+        private static List<Integer> carry(int pile, int layers) {
+            List<Integer> piles = new ArrayList<>(Collections.nCopies(PILES_CARRIED, 0));
+            piles.set(pile, layers);
+            return piles;
+        }
 
         @Test
         void aFiveByFiveOfFullCellsGivesUpNinePilesOfFifteen() {
-            Map<BlockPos, Integer> piles = new LinkedHashMap<>();
+            Map<BlockPos, Integer> loose = new LinkedHashMap<>();
             for (int x = 0; x < GRID; x++) {
                 for (int z = 0; z < GRID; z++) {
-                    piles.put(new BlockPos(x, 0, z), FULL);
+                    loose.put(new BlockPos(x, 0, z), FULL);
                 }
             }
-            MortarPaving.Scoop scoop = MortarPaving.scoop(piles, 0);
+            MortarPaving.Scoop scoop = MortarPaving.scoop(carry(MIDDLE_PILE, 0), PILE_CELLS, loose);
             assertEquals(MOST_CARRIED, scoop.pickedUp().values().stream().mapToInt(Integer::intValue).sum());
             assertEquals(PILES_CARRIED, scoop.pickedUp().size());
             assertEquals(PILES_LEFT, scoop.leftOut().size());
@@ -73,9 +95,46 @@ class MortarPavingTest {
 
         @Test
         void aNearlyFullCarryTakesOnlyThePartOfAPileItHasRoomFor() {
-            MortarPaving.Scoop scoop = MortarPaving.scoop(Map.of(FIRST, FULL), CARRIED_IN);
+            List<Integer> nearlyFull = new ArrayList<>(Collections.nCopies(PILES_CARRIED, FULL));
+            nearlyFull.set(LAST_PILE, FULL - ROOM_LEFT);
+            MortarPaving.Scoop scoop = MortarPaving.scoop(nearlyFull, PILE_CELLS, Map.of(FIRST, FULL));
             assertEquals(Map.of(FIRST, ROOM_LEFT), scoop.pickedUp());
             assertEquals(Map.of(FIRST, FULL - ROOM_LEFT), scoop.leftOut());
+        }
+
+        @Test
+        void aTwelveLayerCornerPileUnderALooseLayerClimbsToThirteen() {
+            BlockPos inTheCornerColumn = PILE_CELLS.get(FIRST_CORNER_PILE);
+            MortarPaving.Scoop scoop = MortarPaving.scoop(carry(FIRST_CORNER_PILE, TWELVE), PILE_CELLS,
+                    Map.of(inTheCornerColumn, 1));
+            assertEquals(TWELVE + 1, scoop.piles().get(FIRST_CORNER_PILE));
+            assertEquals(0, scoop.piles().get(MIDDLE_PILE));
+            assertEquals(Map.of(inTheCornerColumn, 1), scoop.pickedUp());
+            assertEquals(Map.of(), scoop.leftOut());
+        }
+
+        @Test
+        void aLooseLayerOverACornerColumnClimbsOntoTheCornerPile() {
+            MortarPaving.Scoop scoop = MortarPaving.scoop(carry(MIDDLE_PILE, 0), PILE_CELLS,
+                    Map.of(PILE_CELLS.get(FIRST_CORNER_PILE), 1));
+            assertEquals(carry(FIRST_CORNER_PILE, 1), scoop.piles());
+        }
+
+        @Test
+        void aLooseLayerOverAFullMiddleClimbsOntoTheFirstNearestRingPile() {
+            MortarPaving.Scoop scoop = MortarPaving.scoop(carry(MIDDLE_PILE, FULL), PILE_CELLS,
+                    Map.of(PILE_CELLS.get(MIDDLE_PILE), 1));
+            List<Integer> expected = carry(MIDDLE_PILE, FULL);
+            expected.set(FIRST_EDGE_PILE, 1);
+            assertEquals(expected, scoop.piles());
+        }
+
+        @Test
+        void aFullCarryLeavesLooseMortarWhereItLies() {
+            MortarPaving.Scoop scoop = MortarPaving.scoop(Collections.nCopies(PILES_CARRIED, FULL), PILE_CELLS,
+                    Map.of(FIRST, FOUR));
+            assertEquals(Map.of(), scoop.pickedUp());
+            assertEquals(Map.of(FIRST, FOUR), scoop.leftOut());
         }
     }
 

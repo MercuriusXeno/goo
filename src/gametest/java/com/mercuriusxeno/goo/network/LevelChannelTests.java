@@ -61,7 +61,21 @@ public final class LevelChannelTests {
                 LevelChannelTests::levelUnderMortarBridgesAGapWithStone);
         GooTestFunctions.registerTest(registrar, LEVEL_CARRIES_MORTAR_AS_NO_BLOCK_UNTIL_LET_GO,
                 LevelChannelTests::levelCarriesMortarAsNoBlockUntilLetGo);
+        GooTestFunctions.registerTest(registrar, LEVEL_GATHERS_LOOSE_MORTAR_ONTO_ITS_PILE,
+                LevelChannelTests::levelGathersLooseMortarOntoItsPile);
     }
+
+    private static final String LEVEL_GATHERS_LOOSE_MORTAR_ONTO_ITS_PILE = "level_gathers_loose_mortar_onto_its_pile";
+    /** The 12 layer cell, under the corner column at the lowest x and z of the disc's first rest. */
+    private static final BlockPos TWELVE_LAYER_CELL = new BlockPos(0, 1, 2);
+    /** The 1 layer cell, outside the first disc, under the same corner column of the disc's last rest. */
+    private static final BlockPos ONE_LAYER_CELL = new BlockPos(3, 1, 2);
+    /** The floor blocks the gathering drag's cursor rests on: each disc's middle, a block in from the corner cell. */
+    private static final List<BlockPos> GATHERING_DRAG = List.of(TWELVE_LAYER_CELL.below().offset(1, 0, 1),
+            ONE_LAYER_CELL.below().offset(1, 0, 1));
+    private static final int TWELVE_LAYERS = 12;
+    private static final String SHOULD_GATHER_ONE_PILE = "One Mortar cell of 13 layers should stand over the corner"
+            + " column, the bay holds %s";
 
     private static final String LEVEL_CARRIES_MORTAR_AS_NO_BLOCK_UNTIL_LET_GO =
             "level_carries_mortar_as_no_block_until_let_go";
@@ -312,6 +326,51 @@ public final class LevelChannelTests {
                     String.format(SHOULD_SET_IT_DOWN, carriedAtLastTick[0], setDown));
             mortarIn(helper, cell -> !lastDisc.contains(cell)).keySet().stream().findFirst()
                     .ifPresent(cell -> helper.fail(String.format(SHOULD_STAND_ONLY_OVER_THE_LAST_DISC, cell)));
+            helper.getLevel().getServer().getPlayerList().remove(player);
+        });
+    }
+
+    /**
+     * A mock player holds Level with a 12 layer Mortar cell under a corner
+     * column of the disc and moves the cursor on until a 1 layer cell beyond
+     * the first disc lies under that same corner column, over a floor with no
+     * gap: once the hold lapses, one Mortar cell of 13 layers stands over that
+     * corner column and no other Mortar stands
+     * (decision level-gathers-loose-mortar-into-the-closest-empty-slot).
+     *
+     * @param helper the gametest helper
+     */
+    public static void levelGathersLooseMortarOntoItsPile(GameTestHelper helper) {
+        AbilityDefinition levelAbility = AbilityRegistry.of(helper.getLevel()).getAbility(ROCK_LEVEL);
+        helper.assertTrue(levelAbility != null, ABILITY_REQUIRED);
+        layStoneFloor(helper);
+        helper.setBlock(TWELVE_LAYER_CELL, GooBlocks.ROCK_MORTAR.get().defaultBlockState()
+                .setValue(VolumeCellBlock.LAYERS, TWELVE_LAYERS));
+        helper.setBlock(ONE_LAYER_CELL, GooBlocks.ROCK_MORTAR.get().defaultBlockState()
+                .setValue(VolumeCellBlock.LAYERS, 1));
+        // the 13 layer cell set down pours into open neighbours a tick on, which a poll a tick late would miss
+        for (Direction side : Direction.Plane.HORIZONTAL) {
+            helper.setBlock(ONE_LAYER_CELL.relative(side), Blocks.OBSIDIAN);
+        }
+        ServerPlayer player = leveler(helper, PAVER_STAND);
+        KnownRecipes.teachRequires(player, levelAbility);
+        int held = 0;
+        for (BlockPos rest : GATHERING_DRAG) {
+            GooStreamPayload tick = new GooStreamPayload(GooTypes.id(GooTypes.ROCK), ROCK_LEVEL.toString(),
+                    player.getEyePosition(), topFace(helper, rest), helper.absolutePos(GATHERING_DRAG.getFirst()),
+                    Direction.UP.get3DDataValue());
+            for (int step = 0; step < TICKS_PER_DRAG_STEP; step++) {
+                held++;
+                helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(player, tick));
+            }
+        }
+        boolean[] dragged = {false};
+        helper.runAfterDelay(held + 1, () -> dragged[0] = true);
+        helper.succeedWhen(() -> {
+            helper.assertTrue(dragged[0] && carryOf(helper, player).layers() == 0, "The hold should lapse");
+            Map<BlockPos, Integer> standing = mortarIn(helper, cell -> true);
+            helper.assertTrue(standing.equals(Map.of(ONE_LAYER_CELL, TWELVE_LAYERS + 1)),
+                    String.format(SHOULD_GATHER_ONE_PILE, standing));
             helper.getLevel().getServer().getPlayerList().remove(player);
         });
     }
