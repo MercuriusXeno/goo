@@ -32,6 +32,11 @@ import java.util.stream.Stream;
  * body overlaps the cells the eye line crosses out to the cross section and
  * that every where filter keeps, so a mob in the tunnel takes Bore's damage
  * and one behind the stopping block takes none (decision bore-vortex-with-a-worldspace-shake).
+ * The drill passes through Mortar's goo; while the eye line crosses a Mortar
+ * cell it swells into the giga drill ({@link GigaDrill}), breaking what that
+ * wider cross section intersects and draining the cell's network from its
+ * edges inward, and falls back to its own drill once the goo is spent or left.
+ * decision boring-through-rock-goo-gives-a-giga-drill-that-drains-it
  * decision bore-breaks-what-the-drill-cross-section-intersects
  * decision bore-drill-dimensions-drive-the-visuals-and-the-break
  * decision bore-breaks-the-block-at-the-point-and-its-surroundings
@@ -44,11 +49,13 @@ import java.util.stream.Stream;
  * @param pace        how fast the picked blocks progress toward broken, and how many times slower the blocks behind
  * @param shape       the drill cone, set once: its width, length, angle and length past the crosshair's plane;
  *                    the drawn drill and the break both read it
- * @param where       the filters an entity in the tunnel must pass to be struck
+ * @param giga        the giga drill the cone swells into while the eye line passes through Mortar, and how fast
+ *                    it drains the Mortar network
+ * @param where      the filters an entity in the tunnel must pass to be struck
  * @param strike      the steps run on each struck entity; empty strikes nothing
  */
-public record BoreStep(TagKey<Block> breaks, BreakPace pace, BoreDrillShape shape, List<EntityFilter> where,
-                       List<Step> strike) implements Step {
+public record BoreStep(TagKey<Block> breaks, BreakPace pace, BoreDrillShape shape, GigaDrill giga,
+                       List<EntityFilter> where, List<Step> strike) implements Step {
 
     private static final String NAME = "bore";
     private static final String FIELD_BREAKS = "breaks";
@@ -66,6 +73,8 @@ public record BoreStep(TagKey<Block> breaks, BreakPace pace, BoreDrillShape shap
             BreakPace.CODEC.forGetter(BoreStep::pace),
             // bore-drill-dimensions-drive-the-visuals-and-the-break
             BoreDrillShape.CODEC.forGetter(BoreStep::shape),
+            // boring-through-rock-goo-gives-a-giga-drill-that-drains-it
+            GigaDrill.CODEC.forGetter(BoreStep::giga),
             EntityFilter.CODEC.listOf().optionalFieldOf(FIELD_WHERE, List.of()).forGetter(BoreStep::where),
             Codec.lazyInitialized(() -> StepTypes.LIST_CODEC).optionalFieldOf(FIELD_STRIKE, List.of())
                     .forGetter(BoreStep::strike)
@@ -98,6 +107,20 @@ public record BoreStep(TagKey<Block> breaks, BreakPace pace, BoreDrillShape shap
         this(breaks, pace, BoreDrillShape.SHIPPED, where, strike);
     }
 
+    /**
+     * A bore with rock_bore.json's giga drill.
+     *
+     * @param breaks the block tag naming the blocks bore may break
+     * @param pace   how fast the picked blocks progress toward broken
+     * @param shape  the drill cone
+     * @param where  the filters an entity in the tunnel must pass to be struck
+     * @param strike the steps run on each struck entity
+     */
+    public BoreStep(TagKey<Block> breaks, BreakPace pace, BoreDrillShape shape, List<EntityFilter> where,
+                    List<Step> strike) {
+        this(breaks, pace, shape, GigaDrill.SHIPPED, where, strike);
+    }
+
     @Override
     public StepType<BoreStep> type() {
         return TYPE;
@@ -107,9 +130,15 @@ public record BoreStep(TagKey<Block> breaks, BreakPace pace, BoreDrillShape shap
     public boolean tick(StepContext context) {
         ChannelHost host = context.hostAs(ChannelHost.class);
         Predicate<BlockPos> breakable = pos -> host.blockIn(pos, breaks);
+        // boring-through-rock-goo-gives-a-giga-drill-that-drains-it: the drill passes through Mortar's goo
+        Predicate<BlockPos> passable = pos -> host.airAt(pos) || host.mortarLayersAt(pos) > 0;
         host.channelAim().ifPresent(aim -> {
-            BorePick pick = BorePick.of(host.eye(), shape, host.gloveOnTheRight(), aim, host::airAt, breakable);
+            BorePick own = BorePick.of(host.eye(), shape, host.gloveOnTheRight(), aim, passable, breakable);
+            Optional<BlockPos> bored = own.tunnel().stream().filter(pos -> host.mortarLayersAt(pos) > 0).findFirst();
+            BorePick pick = bored.isEmpty() ? own
+                    : BorePick.of(host.eye(), giga.swell(shape), host.gloveOnTheRight(), aim, passable, breakable);
             host.gradualBreak().progress(pace.ratesByGroup(List.of(pick.blocks())), host, true);
+            bored.ifPresent(cell -> host.drainMortarFrom(cell, giga.ticksPerLayer()));
             strikeIn(host, pick.tunnel());
         });
         return true;

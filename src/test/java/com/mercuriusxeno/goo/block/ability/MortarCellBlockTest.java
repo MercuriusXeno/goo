@@ -1,8 +1,12 @@
 package com.mercuriusxeno.goo.block.ability;
 
 import net.minecraft.core.BlockPos;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -43,5 +47,33 @@ class MortarCellBlockTest {
     @Test
     void aBlockHoldingNoMortarHasNoNetwork() {
         assertEquals(Set.of(), MortarCellBlock.networkFrom(START, pos -> false, NO_LIMIT));
+    }
+
+    /**
+     * The giga drill drains a network from its edges inward, the bored cell last.
+     * boring-through-rock-goo-gives-a-giga-drill-that-drains-it
+     */
+    @Nested
+    class DrainOrder {
+
+        @Test
+        void aLineBoredAtOneEndDrainsFromTheFarEndToTheBoredCell() {
+            List<BlockPos> line = List.of(START, START.east(), START.east(2));
+            Set<BlockPos> network = new HashSet<>(line);
+            List<BlockPos> drained = new ArrayList<>();
+
+            for (int spent = 0; spent < line.size(); spent++) {
+                BlockPos next = MortarCellBlock.nextToDrain(network, START).orElseThrow();
+                drained.add(next);
+                network.remove(next);
+            }
+
+            assertEquals(List.of(START.east(2), START.east(), START), drained);
+        }
+
+        @Test
+        void aSpentNetworkHasNothingToDrain() {
+            assertEquals(Optional.empty(), MortarCellBlock.nextToDrain(Set.of(), START));
+        }
     }
 }

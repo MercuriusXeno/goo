@@ -1,5 +1,7 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.block.ability.CellReach;
+import com.mercuriusxeno.goo.block.ability.MortarCellBlock;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.network.BlockTransformPayload;
 import com.mercuriusxeno.goo.registry.GooServerState;
@@ -48,6 +50,8 @@ public interface BlockBreakHost extends StepHost, BlockFinishHost {
     float BREAK_VOLUME_SHARE = 0.5f;
     /** The highest breaker id a block's cracks travel under, below every entity's id. */
     int HIGHEST_CRACKER_ID = -1;
+    /** The most cells of a Mortar network a drain reads, its farthest the network's edge. */
+    int MORTAR_NETWORK_REACH = 64;
 
     /**
      * The entity breaking the blocks, which their loot and break event credit.
@@ -77,6 +81,32 @@ public interface BlockBreakHost extends StepHost, BlockFinishHost {
      */
     default boolean airAt(BlockPos pos) {
         return level().getBlockState(pos).isAir();
+    }
+
+    /**
+     * The layers of Mortar a position holds.
+     *
+     * @param pos the position
+     * @return the layers, 0 where it holds no Mortar
+     */
+    default int mortarLayersAt(BlockPos pos) {
+        return MortarCellBlock.layersAt(level(), pos);
+    }
+
+    /**
+     * On a tick a drain's cadence falls on, takes a layer from the Mortar
+     * network joined to a bored cell, from its edges inward, the bored cell last.
+     * boring-through-rock-goo-gives-a-giga-drill-that-drains-it
+     *
+     * @param bored         the Mortar cell the drill passes through
+     * @param ticksPerLayer the ticks between layers drained
+     */
+    default void drainMortarFrom(BlockPos bored, int ticksPerLayer) {
+        ServerLevel level = level();
+        if (CellReach.actsAt(level.getGameTime(), ticksPerLayer)) {
+            MortarCellBlock.nextToDrain(MortarCellBlock.networkAt(level, bored, MORTAR_NETWORK_REACH), bored)
+                    .ifPresent(cell -> MortarCellBlock.drainALayer(level, cell));
+        }
     }
 
     /**

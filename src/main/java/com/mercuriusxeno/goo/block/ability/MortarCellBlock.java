@@ -131,6 +131,37 @@ public class MortarCellBlock extends VolumeCellBlock {
     }
 
     /**
+     * The cell of a network a giga drill drains next: the one farthest from
+     * the bored cell through the network's faces, so the network drains from
+     * its edges inward and the bored cell last.
+     * boring-through-rock-goo-gives-a-giga-drill-that-drains-it
+     *
+     * @param network the cells of the network still holding Mortar
+     * @param bored   the cell the drill passes through
+     * @return the cell to drain, empty where the network is spent
+     */
+    public static Optional<BlockPos> nextToDrain(Set<BlockPos> network, BlockPos bored) {
+        Set<BlockPos> nearestFirst = networkFrom(bored, network::contains, network.size());
+        return nearestFirst.stream().reduce((nearer, farther) -> farther);
+    }
+
+    /**
+     * Takes one layer off a Mortar cell, giving no goo back, the cell gone
+     * where it held its last.
+     * boring-through-rock-goo-gives-a-giga-drill-that-drains-it
+     *
+     * @param level the server level
+     * @param pos   the cell
+     */
+    public static void drainALayer(ServerLevel level, BlockPos pos) {
+        BlockState state = level.getBlockState(pos);
+        if (state.getBlock() instanceof MortarCellBlock) {
+            int left = layersAfterCosts(layersOf(state), 1, 0);
+            level.setBlock(pos, left == 0 ? Blocks.AIR.defaultBlockState() : state.setValue(LAYERS, left), UPDATE_ALL);
+        }
+    }
+
+    /**
      * The layers a cell holds after what it spent: one for each block it
      * hardened and one for each second a mob stood in it.
      * mortar-has-a-chance-to-deplete-as-it-petrifies-and-hardens

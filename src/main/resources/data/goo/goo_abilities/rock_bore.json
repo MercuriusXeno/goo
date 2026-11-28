@@ -10,6 +10,7 @@
   "behaviors": [
     {
       "type": "bore", "breaks": "goo:bore_breakable", "break_ticks": 2, "slowdown": 2, "drill_width": 1, "drill_length": 2, "drill_angle": 22.5, "past_length": 1,
+      "giga_drill_width": 4, "giga_drill_length": 6, "giga_ticks_per_layer": 2,
       "where": ["vulnerable"],
       "strike": [
         { "type": "damage", "amount": 2, "source": "attack", "knockback": false, "invulnerable_ticks": 10 }
