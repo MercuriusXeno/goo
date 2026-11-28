@@ -3,8 +3,8 @@ package com.mercuriusxeno.goo.block.alientech;
 import net.minecraft.core.Direction;
 
 /**
- * The two parts set on a metronome's plate, each right-clicked where it sits: the gap switch on the back half, toward
- * the input, and the button on the front half, toward the output.
+ * The two parts set on a metronome's plate, each right-clicked where it sits: the button on the back half, toward the
+ * input, and the gap switch on the front half, toward the output (operator ruling 2026-11-28).
  * decision metronome-prism-pulses-at-the-learned-rate
  */
 public enum MetronomePart {
@@ -16,11 +16,11 @@ public enum MetronomePart {
     /** The plate's center along either horizontal axis, in block units. */
     private static final double CENTER = 0.5;
     /**
-     * Where the button's half ends toward the back, in blocks from the center: a pixel short of it, between the
-     * button's back face two pixels in front of the center and the switch torch's front face on it, so a click on the
-     * torch's front face presses no button (operator ruling 2026-11-28).
+     * Where the button's half starts toward the back, in blocks from the center: a pixel past it, between the switch
+     * torch's back face on the center and the button's front face two pixels behind it, so a click on the torch's
+     * back face presses no button. The button stands at the input end, the back (operator rulings 2026-11-28).
      */
-    private static final double BUTTON_HALF_ENDS = -1.0 / 16;
+    private static final double BUTTON_HALF_STARTS = 1.0 / 16;
 
     /**
      * Answers the part a click on the plate lands on.
@@ -28,10 +28,10 @@ public enum MetronomePart {
      * @param back   the plate's back, the side its input reads, as its FACING holds it
      * @param localX the click's x inside the block, from 0 to 1
      * @param localZ the click's z inside the block, from 0 to 1
-     * @return the gap switch for a click on the back half, the button for one on the front half
+     * @return the button for a click on the back half, the gap switch for one on the front half
      */
     public static MetronomePart at(Direction back, double localX, double localZ) {
         double towardBack = (localX - CENTER) * back.getStepX() + (localZ - CENTER) * back.getStepZ();
-        return towardBack > BUTTON_HALF_ENDS ? GAP_SWITCH : BUTTON;
+        return towardBack > BUTTON_HALF_STARTS ? BUTTON : GAP_SWITCH;
     }
 }

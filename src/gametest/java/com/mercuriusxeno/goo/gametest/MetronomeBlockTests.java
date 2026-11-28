@@ -123,7 +123,7 @@ public final class MetronomeBlockTests {
         standPlate(helper);
         List<Integer> onsets = watchFront(helper, 1, WINDOW * CADENCES.length);
         for (int step = 1; step < CADENCES.length; step++) {
-            helper.runAfterDelay((long) WINDOW * step, () -> click(helper, BACK));
+            helper.runAfterDelay((long) WINDOW * step, () -> click(helper, BACK.getOpposite()));
         }
         helper.runAfterDelay(WINDOW * CADENCES.length + 1, () -> {
             for (int window = 0; window < CADENCES.length; window++) {
@@ -162,7 +162,7 @@ public final class MetronomeBlockTests {
      */
     public static void buttonInverts(GameTestHelper helper) {
         standPlate(helper);
-        helper.runAfterDelay(1, () -> click(helper, BACK.getOpposite()));
+        helper.runAfterDelay(1, () -> click(helper, BACK));
         int unpoweredEnd = SETTLE + SILENT_WATCH;
         int end = unpoweredEnd + WINDOW;
         List<Integer> powered = watchPowered(helper, SETTLE, unpoweredEnd);
@@ -189,8 +189,8 @@ public final class MetronomeBlockTests {
     }
 
     /**
-     * Right-clicks the plate's top in the half lying toward {@code half}: the back half holds the gap switch, the
-     * front half the button.
+     * Right-clicks the plate's top in the half lying toward {@code half}: the back half holds the button, the front
+     * half the gap switch.
      */
     private static void click(GameTestHelper helper, Direction half) {
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
