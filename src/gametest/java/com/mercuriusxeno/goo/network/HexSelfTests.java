@@ -218,8 +218,9 @@ public final class HexSelfTests {
             helper.getLevel().getServer().getPlayerList().remove(player);
             helper.assertTrue(afterFirst[0] < full && husk.getHealth() == afterFirst[0],
                     String.format(SHOULD_TAKE_ONCE, full, afterFirst[0], husk.getHealth()));
+            // neighbouring Drain bays sit in earshot, so only the plays at this husk count
             List<ClientboundSoundPacket> escapes = HeardSounds.of(heard, SOUL_ESCAPE);
-            helper.assertTrue(escapes.size() == 1 && HeardSounds.at(heard, SOUL_ESCAPE, centreAtStrike[0]) == 1,
+            helper.assertTrue(HeardSounds.at(heard, SOUL_ESCAPE, centreAtStrike[0]) == 1,
                     String.format(SHOULD_ESCAPE_ONCE, centreAtStrike[0], HeardSounds.describe(escapes)));
             helper.succeed();
         });
