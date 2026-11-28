@@ -18,11 +18,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Covers the gain goo's client hands a sound's channel: Drain's wind loop
- * plays as loud as Bore's whir, its soul_escape hit plays about twice as
- * loud as it did at 613cd1118 with no take clipping, every other sound
- * keeps vanilla's clamp, and the sliders still turn Drain's two down. The
- * loudness cases read vanilla's recordings from the asset cache the build's
- * downloadAssets task fills, and Bore's from goo's resources.
+ * plays about 6 dB under its soul_escape hit, the hit keeps its a46598f59
+ * level, about twice as loud as it modeled at 613cd1118 with no take
+ * clipping, every other sound keeps vanilla's clamp, and the sliders still
+ * turn Drain's two down. The loudness cases read vanilla's recordings from
+ * the asset cache the build's downloadAssets task fills.
  * drain-lifts-its-chosen-sounds-past-the-volume-cap
  */
 class LiftedSoundGainTest {
@@ -35,18 +35,19 @@ class LiftedSoundGainTest {
     private static final float HALF = 0.5f;
 
     /**
-     * Drain's wind lands within 1.5 dB of Bore's whir, goo:effects.earth_rumble
-     * at the 0.35 rock_bore.json names.
-     * drain-plays-its-wind-as-loud-as-bore-whir
+     * Drain's wind plays about 6 dB under its hit at a mob 3 blocks off, by
+     * the wind's mono RMS against the mean over the hit's takes.
+     * drain-wind-plays-6-db-under-its-hit
      */
     @Nested
-    class WindAsLoudAsBoresWhir {
+    class WindUnderItsHit {
 
-        private static final float WHIR_VOLUME = 0.35f;
-        private static final double WITHIN_DECIBELS = 1.5;
+        private static final double LEAST_MARGIN = 4.5;
+        private static final double MOST_MARGIN = 7.5;
+        private static final float MOB_DISTANCE = 3f;
 
         @Test
-        void drainsWindLoopPlaysAsLoudAsBoresWhir() throws IOException {
+        void drainsHitPlaysAboutSixDecibelsOverItsWind() throws IOException {
             VanillaRecordings recordings = VanillaRecordings.fromBuild();
             float held = drain().delivery().sound().orElseThrow().volume();
             double wind = 0;
@@ -56,14 +57,41 @@ class LiftedSoundGainTest {
                 wind += recordings.loudnessOf(take).rmsDecibels() + decibels(gain);
             }
             wind /= windTakes.size();
-            double whir = 0;
-            List<VanillaRecordings.Take> whirTakes = VanillaRecordings.gooTakesOf(GooSoundIds.EARTH_RUMBLE.getPath());
-            for (VanillaRecordings.Take take : whirTakes) {
-                whir += VanillaRecordings.gooLoudnessOf(take).rmsDecibels() + decibels(WHIR_VOLUME * take.entryVolume());
+            float leech = leechVolume();
+            double hit = 0;
+            List<VanillaRecordings.Take> hitTakes = recordings.takesOf(SOUL_ESCAPE.getPath());
+            for (VanillaRecordings.Take take : hitTakes) {
+                hit += recordings.loudnessOf(take).rmsDecibels()
+                        + decibels(hitGainOf(take, leech) * fallOff(MOB_DISTANCE, attenuationOf(take, leech)));
             }
-            whir /= whirTakes.size();
-            assertEquals(whir, wind, WITHIN_DECIBELS, "Drain's wind plays at " + wind + " dBFS RMS against Bore's"
-                    + " whir at " + whir);
+            hit /= hitTakes.size();
+            double margin = hit - wind;
+            assertTrue(margin >= LEAST_MARGIN && margin <= MOST_MARGIN, "Drain's hit plays at " + hit + " dBFS RMS"
+                    + " at 3 blocks against its wind at " + wind + ", " + margin + " dB over, outside "
+                    + LEAST_MARGIN + " to " + MOST_MARGIN);
+        }
+    }
+
+    /**
+     * The hit keeps the lift, leech volume and attenuation distance it played
+     * with at a46598f59.
+     * drain-wind-plays-6-db-under-its-hit
+     */
+    @Nested
+    class HitKeepsItsLevel {
+
+        private static final float LIFT_AT_A46598F59 = 5.69f;
+        private static final float LEECH_VOLUME_AT_A46598F59 = 8.0f;
+        private static final float ATTENUATION_AT_A46598F59 = 24f;
+
+        @Test
+        void drainsHitKeepsItsLiftVolumeAndFallOff() throws IOException {
+            assertEquals(LIFT_AT_A46598F59, LiftedSoundGain.liftOf(SOUL_ESCAPE), TOLERANCE);
+            float leech = leechVolume();
+            assertEquals(LEECH_VOLUME_AT_A46598F59, leech, TOLERANCE);
+            for (VanillaRecordings.Take take : VanillaRecordings.fromBuild().takesOf(SOUL_ESCAPE.getPath())) {
+                assertEquals(ATTENUATION_AT_A46598F59, attenuationOf(take, leech), TOLERANCE, take.name());
+            }
         }
     }
 
@@ -98,7 +126,7 @@ class LiftedSoundGainTest {
                 double rms = recordings.loudnessOf(take).rmsDecibels();
                 then += rms + decibels(LEECH_VOLUME_AT_613CD1118 * take.entryVolume() * LIFT_AT_613CD1118
                         * fallOff(MOB_DISTANCE, ATTENUATION_AT_613CD1118));
-                now += rms + decibels(gainOf(take, leech) * fallOff(MOB_DISTANCE, attenuationOf(take, leech)));
+                now += rms + decibels(hitGainOf(take, leech) * fallOff(MOB_DISTANCE, attenuationOf(take, leech)));
             }
             double rise = (now - then) / takes.size();
             assertTrue(rise >= LEAST_RISE && rise <= MOST_RISE, "Drain's hit rises " + rise + " dB at 3 blocks over"
@@ -111,23 +139,9 @@ class LiftedSoundGainTest {
             float leech = leechVolume();
             for (VanillaRecordings.Take take : recordings.takesOf(SOUL_ESCAPE.getPath())) {
                 double peak = recordings.loudnessOf(take).peakDecibels()
-                        + decibels(gainOf(take, leech) * fallOff(NEAREST_DISTANCE, attenuationOf(take, leech)));
+                        + decibels(hitGainOf(take, leech) * fallOff(NEAREST_DISTANCE, attenuationOf(take, leech)));
                 assertTrue(peak < 0, take.name() + " peaks at " + peak + " dBFS at 1 block");
             }
-        }
-
-        private float gainOf(VanillaRecordings.Take take, float leech) {
-            return LiftedSoundGain.gainFor(SOUL_ESCAPE, leech * take.entryVolume(), 1f, 1f);
-        }
-
-        /** The distance a take falls off over at a volume, as vanilla's Sound.getAttenuationDistance widens it. */
-        private float attenuationOf(VanillaRecordings.Take take, float leech) {
-            return Math.max(leech * take.entryVolume(), 1f) * take.attenuationDistance();
-        }
-
-        /** Minecraft's linear fall-off at a distance. */
-        private float fallOff(float distance, float attenuation) {
-            return 1f - distance / attenuation;
         }
     }
 
@@ -159,6 +173,20 @@ class LiftedSoundGainTest {
                 assertEquals(0f, LiftedSoundGain.gainFor(sound, 1f, 0f, 1f), TOLERANCE, sound.toString());
             }
         }
+    }
+
+    private static float hitGainOf(VanillaRecordings.Take take, float leech) {
+        return LiftedSoundGain.gainFor(SOUL_ESCAPE, leech * take.entryVolume(), 1f, 1f);
+    }
+
+    /** The distance a take falls off over at a volume, as vanilla's Sound.getAttenuationDistance widens it. */
+    private static float attenuationOf(VanillaRecordings.Take take, float leech) {
+        return Math.max(leech * take.entryVolume(), 1f) * take.attenuationDistance();
+    }
+
+    /** Minecraft's linear fall-off at a distance. */
+    private static float fallOff(float distance, float attenuation) {
+        return 1f - distance / attenuation;
     }
 
     private static double decibels(double gain) {

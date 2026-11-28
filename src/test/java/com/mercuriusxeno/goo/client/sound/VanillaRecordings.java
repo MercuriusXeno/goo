@@ -9,7 +9,6 @@ import org.lwjgl.system.MemoryUtil;
 import org.lwjgl.system.libc.LibCStdlib;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
@@ -22,10 +21,10 @@ import java.util.List;
 import java.util.Properties;
 
 /**
- * Sound recordings and the sounds.json entries that play them: vanilla's
+ * Vanilla's sound recordings and the sounds.json entries that play them,
  * from the asset cache, found through the asset index the build's
- * downloadAssets task names, and goo's from the classpath. Each take's
- * loudness reads as its mono RMS and peak in dBFS.
+ * downloadAssets task names. Each take's loudness reads as its mono RMS and
+ * peak in dBFS.
  * drain-lifts-its-chosen-sounds-past-the-volume-cap
  */
 final class VanillaRecordings {
@@ -33,8 +32,6 @@ final class VanillaRecordings {
     /** The system property the build sets to the file naming the asset cache. */
     private static final String ASSETS_PROPERTY = "goo.minecraftAssets";
     private static final String SOUNDS_JSON = "minecraft/sounds.json";
-    private static final String GOO_SOUNDS_JSON = "assets/goo/sounds.json";
-    private static final String GOO_PREFIX = "goo:";
     private static final float FULL_SCALE = 32768f;
     private static final float DEFAULT_ENTRY_VOLUME = 1f;
     /** The attenuation distance a sounds.json entry naming none plays with. */
@@ -115,33 +112,6 @@ final class VanillaRecordings {
         return loudnessOf(Files.readAllBytes(objectPath("minecraft/sounds/" + take.name() + ".ogg")), take.name());
     }
 
-    /**
-     * The takes goo's sounds.json lists for one of goo's sound events.
-     *
-     * @param event the event's path, such as {@code effects.earth_rumble}
-     * @return its takes
-     * @throws IOException where goo's sounds.json cannot be read
-     */
-    static List<Take> gooTakesOf(String event) throws IOException {
-        try (Reader reader = new InputStreamReader(resource(GOO_SOUNDS_JSON), StandardCharsets.UTF_8)) {
-            return takesIn(JsonParser.parseReader(reader).getAsJsonObject(), event);
-        }
-    }
-
-    /**
-     * One of goo's takes' loudness, its recording read from the classpath.
-     *
-     * @param take the take, its name namespaced {@code goo:}
-     * @return its loudness
-     * @throws IOException where the recording cannot be read or decoded
-     */
-    static Loudness gooLoudnessOf(Take take) throws IOException {
-        String path = "assets/goo/sounds/" + take.name().substring(GOO_PREFIX.length()) + ".ogg";
-        try (InputStream in = resource(path)) {
-            return loudnessOf(in.readAllBytes(), take.name());
-        }
-    }
-
     private static List<Take> takesIn(JsonObject soundsJson, String event) {
         List<Take> takes = new ArrayList<>();
         for (JsonElement entry : soundsJson.getAsJsonObject(event).getAsJsonArray("sounds")) {
@@ -192,14 +162,6 @@ final class VanillaRecordings {
             peak = Math.max(peak, Math.abs(mono));
         }
         return new Loudness(10 * Math.log10(sumOfSquares / frames), 20 * Math.log10(peak));
-    }
-
-    private static InputStream resource(String path) throws IOException {
-        InputStream in = VanillaRecordings.class.getClassLoader().getResourceAsStream(path);
-        if (in == null) {
-            throw new IOException("the classpath holds no " + path);
-        }
-        return in;
     }
 
     private Path objectPath(String asset) throws IOException {
