@@ -36,9 +36,12 @@ public final class LunarAirGeyserTests {
     private static final ResourceKey<Feature> AIR_GEYSER = ResourceKey.create(Registries.FEATURE,
             Identifier.fromNamespaceAndPath(Goo.MODID, "air_geyser"));
 
-    /** Where each test lays its ground, apart from each other and from lunar's other sites, high over any terrain. */
+    /**
+     * Where each test lays its ground, apart from each other and from lunar's other sites, high over any terrain:
+     * GravityBounceTests holds 2184, where a lunar pig bounces over 30 blocks above its pad.
+     */
     private static final int KEEPS_SITE_X = 2120;
-    private static final int REFILLS_SITE_X = 2184;
+    private static final int REFILLS_SITE_X = 2312;
     private static final int SITE_Z = 8;
     private static final int SITE_UNDER_THE_TOP = 32;
     /** The ground the test lays reaches this far each way of the geyser, this deep under its top. */
