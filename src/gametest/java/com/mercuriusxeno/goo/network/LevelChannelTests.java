@@ -2,8 +2,16 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.program.MortarCarry;
+import com.mercuriusxeno.goo.block.ability.MortarCellBlock;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.registry.GooBlocks;
+import com.mercuriusxeno.goo.registry.GooServerState;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Predicate;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooItems;
@@ -51,7 +59,27 @@ public final class LevelChannelTests {
                 LevelChannelTests::levelClearsTheOuterLayerFirst);
         GooTestFunctions.registerTest(registrar, LEVEL_UNDER_MORTAR_BRIDGES_A_GAP_WITH_STONE,
                 LevelChannelTests::levelUnderMortarBridgesAGapWithStone);
+        GooTestFunctions.registerTest(registrar, LEVEL_CARRIES_MORTAR_AS_NO_BLOCK_UNTIL_LET_GO,
+                LevelChannelTests::levelCarriesMortarAsNoBlockUntilLetGo);
     }
+
+    private static final String LEVEL_CARRIES_MORTAR_AS_NO_BLOCK_UNTIL_LET_GO =
+            "level_carries_mortar_as_no_block_until_let_go";
+    /** The full Mortar cells the carry test lays on the floor, both under the disc's first rest. */
+    private static final List<BlockPos> CARRIED_CELLS = List.of(new BlockPos(1, 1, 3), new BlockPos(1, 1, 4));
+    /** The floor gaps the carry test's drag passes over. */
+    private static final List<BlockPos> CARRY_GAPS = List.of(new BlockPos(3, 0, 3), new BlockPos(4, 0, 2));
+    /** The four floor blocks the carry test's cursor rests on in turn. */
+    private static final List<BlockPos> CARRY_DRAG = List.of(new BlockPos(1, 0, 3), new BlockPos(2, 0, 3),
+            new BlockPos(3, 0, 3), new BlockPos(4, 0, 3));
+    /** How far over the plane the carry reaches, as deep as Level's swath. */
+    private static final int CARRY_DEPTH = 3;
+    private static final String SHOULD_STAND_NO_MORTAR = "No Mortar block should stand while the hold carries it, %s at %s";
+    private static final String SHOULD_KEEP_EVERY_LAYER =
+            "The carry, %d layers, and the stone paved, %d blocks, should make the %d layers scooped";
+    private static final String SHOULD_SET_IT_DOWN = "The Mortar set down over the last disc should hold the %d layers"
+            + " carried, it holds %d";
+    private static final String SHOULD_STAND_ONLY_OVER_THE_LAST_DISC = "No Mortar should stand off the last disc, %s does";
 
     private static final String LEVEL_UNDER_MORTAR_BRIDGES_A_GAP_WITH_STONE = "level_under_mortar_bridges_a_gap_with_stone";
     /** Where the paving test's player stands, off the disc's path. */
@@ -203,11 +231,7 @@ public final class LevelChannelTests {
     public static void levelUnderMortarBridgesAGapWithStone(GameTestHelper helper) {
         AbilityDefinition levelAbility = AbilityRegistry.of(helper.getLevel()).getAbility(ROCK_LEVEL);
         helper.assertTrue(levelAbility != null, ABILITY_REQUIRED);
-        for (int x = 0; x <= FLOOR_EDGE; x++) {
-            for (int z = 0; z <= FLOOR_EDGE; z++) {
-                helper.setBlock(new BlockPos(x, 0, z), Blocks.STONE);
-            }
-        }
+        layStoneFloor(helper);
         helper.setBlock(FLOOR_GAP, Blocks.AIR);
         helper.setBlock(PAVING_START.above(), GooBlocks.ROCK_MORTAR.get().defaultBlockState()
                 .setValue(VolumeCellBlock.LAYERS, VolumeCellBlock.MAX_LAYERS));
@@ -235,6 +259,107 @@ public final class LevelChannelTests {
             helper.assertItemEntityNotPresent(GooItems.GOO.get(), PAVING_START, ITEM_SEARCH_RADIUS);
             helper.getLevel().getServer().getPlayerList().remove(player);
         });
+    }
+
+    /**
+     * A mock player holds Level under two full Mortar cells and drags the
+     * cursor across four floor blocks over two gaps: on every held tick no
+     * Mortar block stands anywhere in the bay, and the layers the hold carries
+     * and the stone it paved make the thirty it scooped; once the hold lapses,
+     * the Mortar over the last disc holds every carried layer and none stands
+     * elsewhere (decision carried-mortar-stops-being-a-block-on-the-level-plane).
+     *
+     * @param helper the gametest helper
+     */
+    public static void levelCarriesMortarAsNoBlockUntilLetGo(GameTestHelper helper) {
+        AbilityDefinition levelAbility = AbilityRegistry.of(helper.getLevel()).getAbility(ROCK_LEVEL);
+        helper.assertTrue(levelAbility != null, ABILITY_REQUIRED);
+        layStoneFloor(helper);
+        CARRY_GAPS.forEach(gap -> helper.setBlock(gap, Blocks.AIR));
+        CARRIED_CELLS.forEach(cell -> helper.setBlock(cell, GooBlocks.ROCK_MORTAR.get().defaultBlockState()
+                .setValue(VolumeCellBlock.LAYERS, VolumeCellBlock.MAX_LAYERS)));
+        int scooped = CARRIED_CELLS.size() * VolumeCellBlock.MAX_LAYERS;
+        ServerPlayer player = leveler(helper, PAVER_STAND);
+        KnownRecipes.teachRequires(player, levelAbility);
+        int held = 0;
+        int[] carriedAtLastTick = {0};
+        for (BlockPos rest : CARRY_DRAG) {
+            GooStreamPayload tick = new GooStreamPayload(GooTypes.id(GooTypes.ROCK), ROCK_LEVEL.toString(),
+                    player.getEyePosition(), topFace(helper, rest), helper.absolutePos(CARRY_DRAG.getFirst()),
+                    Direction.UP.get3DDataValue());
+            for (int step = 0; step < TICKS_PER_DRAG_STEP; step++) {
+                held++;
+                helper.runAfterDelay(held, () -> {
+                    GooStreamHandler.streamTick(player, tick);
+                    mortarIn(helper, cell -> true).keySet().stream().findFirst().ifPresent(cell -> helper.fail(
+                            String.format(SHOULD_STAND_NO_MORTAR, helper.getBlockState(cell), cell)));
+                    int carried = carryOf(helper, player).layers();
+                    int paved = (int) CARRY_GAPS.stream().filter(gap -> helper.getBlockState(gap).is(Blocks.STONE))
+                            .count();
+                    helper.assertTrue(carried + paved == scooped,
+                            String.format(SHOULD_KEEP_EVERY_LAYER, carried, paved, scooped));
+                    carriedAtLastTick[0] = carried;
+                });
+            }
+        }
+        boolean[] dragged = {false};
+        helper.runAfterDelay(held + 1, () -> dragged[0] = true);
+        Set<BlockPos> lastDisc = overDisc(CARRY_DRAG.getLast());
+        helper.succeedWhen(() -> {
+            helper.assertTrue(dragged[0] && carryOf(helper, player).layers() == 0, "The hold should lapse");
+            int setDown = mortarIn(helper, lastDisc::contains).values().stream().mapToInt(Integer::intValue).sum();
+            helper.assertTrue(setDown == carriedAtLastTick[0],
+                    String.format(SHOULD_SET_IT_DOWN, carriedAtLastTick[0], setDown));
+            mortarIn(helper, cell -> !lastDisc.contains(cell)).keySet().stream().findFirst()
+                    .ifPresent(cell -> helper.fail(String.format(SHOULD_STAND_ONLY_OVER_THE_LAST_DISC, cell)));
+            helper.getLevel().getServer().getPlayerList().remove(player);
+        });
+    }
+
+    private static void layStoneFloor(GameTestHelper helper) {
+        for (int x = 0; x <= FLOOR_EDGE; x++) {
+            for (int z = 0; z <= FLOOR_EDGE; z++) {
+                helper.setBlock(new BlockPos(x, 0, z), Blocks.STONE);
+            }
+        }
+    }
+
+    private static MortarCarry carryOf(GameTestHelper helper, ServerPlayer player) {
+        return GooServerState.of(helper.getLevel().getServer()).streamHolds().marks(player.getUUID()).mortarCarry();
+    }
+
+    /**
+     * The Mortar standing over the bay's floor, each cell with its layers.
+     *
+     * @param helper the gametest helper
+     * @param within which cells, relative to the bay, to read
+     * @return the cells holding Mortar, relative to the bay, each with its layers
+     */
+    private static Map<BlockPos, Integer> mortarIn(GameTestHelper helper, Predicate<BlockPos> within) {
+        Map<BlockPos, Integer> mortar = new LinkedHashMap<>();
+        for (int x = 0; x <= FLOOR_EDGE; x++) {
+            for (int y = 0; y <= CARRY_DEPTH; y++) {
+                for (int z = 0; z <= FLOOR_EDGE; z++) {
+                    BlockPos cell = new BlockPos(x, y, z);
+                    if (within.test(cell) && helper.getBlockState(cell).is(GooBlocks.ROCK_MORTAR.get())) {
+                        mortar.put(cell, MortarCellBlock.layersAt(helper.getLevel(), helper.absolutePos(cell)));
+                    }
+                }
+            }
+        }
+        return mortar;
+    }
+
+    private static Set<BlockPos> overDisc(BlockPos rest) {
+        Set<BlockPos> cells = new HashSet<>();
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dy = 1; dy <= CARRY_DEPTH; dy++) {
+                for (int dz = -1; dz <= 1; dz++) {
+                    cells.add(rest.offset(dx, dy, dz));
+                }
+            }
+        }
+        return cells;
     }
 
     private static Vec3 topFace(GameTestHelper helper, BlockPos relative) {

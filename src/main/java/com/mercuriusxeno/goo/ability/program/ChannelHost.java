@@ -157,9 +157,11 @@ public interface ChannelHost extends BlockBreakHost {
     void toggleEachDevice(List<BlockPos> cells);
 
     /**
-     * Carries the Mortar over Level's disc with the cursor, paving the gaps
-     * under the disc with stone as it goes.
+     * Scoops the Mortar over Level's disc into the hold's carry, which rides
+     * with the cursor as no block, paving the gaps under the disc with stone
+     * as it goes.
      * level-dragged-under-rock-goo-carries-it-and-deposits-stone-under-the-disc
+     * carried-mortar-stops-being-a-block-on-the-level-plane
      *
      * @param aim   the hold's aim this tick
      * @param aimed the block the cursor rests on

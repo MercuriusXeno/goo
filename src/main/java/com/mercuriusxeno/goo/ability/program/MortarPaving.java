@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.block.ability.MortarCellBlock;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
-import com.mercuriusxeno.goo.network.HoldMarks;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -11,30 +10,32 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 /**
- * Level's disc dragged under Mortar: the disc lifts the Mortar on its far
- * side rather than breaking it, each gap on its near side takes a stone block
- * for a layer, and the layers left lie back over the disc where the cursor
- * rests now, so the goo travels with the cursor and stands where it was let go.
- * The disc carries a 3x3 of piles of fifteen at most.
+ * Level's disc dragged under Mortar: the disc scoops the Mortar on its far
+ * side into its carry rather than breaking it, and each gap on its near side
+ * takes a stone block for a layer. While the hold lasts the carry is no block,
+ * nine piles of layers riding the 3x3 over the disc, which the client draws;
+ * when the hold ends it is set down as Mortar where it rides. The disc
+ * carries a 3x3 of piles of fifteen at most.
  * level-dragged-under-rock-goo-carries-it-and-deposits-stone-under-the-disc
  * level-scoops-up-to-three-by-three-piles-of-fifteen-layers
+ * carried-mortar-stops-being-a-block-on-the-level-plane
  * layer-of-rock-goo-is-a-stone-block
  */
 public final class MortarPaving {
 
-    /** How many layers out from the face the disc carries Mortar, as deep as Level's swath reaches. */
+    /** How many layers out from the face the disc reaches Mortar, as deep as Level's swath reaches. */
     private static final int CARRY_DEPTH = 3;
-    /** The most piles the disc carries: a 3x3. */
-    private static final int MOST_PILES = 9;
+    /** The piles the disc carries: a 3x3. */
+    public static final int PILES = 9;
     /** The most layers the disc carries: a 3x3 of piles of fifteen. */
-    private static final int MOST_CARRIED = MOST_PILES * VolumeCellBlock.MAX_LAYERS;
+    private static final int MOST_CARRIED = PILES * VolumeCellBlock.MAX_LAYERS;
 
     private MortarPaving() {
     }
@@ -120,10 +121,30 @@ public final class MortarPaving {
     }
 
     /**
-     * Carries the Mortar a hold has lifted and the Mortar over the disc where
-     * the cursor rests: paves the gaps under the disc, then lays the layers
-     * left over the disc, and remembers where they lie for the next tick.
+     * A carry's layers as its nine piles, filled as cells are laid: the middle
+     * pile first, then the ring, each whole before the next.
+     * carried-mortar-stops-being-a-block-on-the-level-plane
+     *
+     * @param layers the layers carried
+     * @return the nine piles' layers, in pile order
+     */
+    static List<Integer> pilesOf(int layers) {
+        List<Integer> piles = new ArrayList<>(PILES);
+        int left = layers;
+        for (int pile = 0; pile < PILES; pile++) {
+            int held = Math.clamp(left, 0, VolumeCellBlock.MAX_LAYERS);
+            piles.add(held);
+            left -= held;
+        }
+        return piles;
+    }
+
+    /**
+     * Scoops the Mortar over the disc where the cursor rests into the hold's
+     * carry, paves the gaps under the disc from the carry, and lets the carry
+     * ride over the disc as its nine piles, no block standing for it.
      * level-dragged-under-rock-goo-carries-it-and-deposits-stone-under-the-disc
+     * carried-mortar-stops-being-a-block-on-the-level-plane
      *
      * @param host  the channel host
      * @param aim   the hold's aim this tick
@@ -134,60 +155,60 @@ public final class MortarPaving {
         if (plane == null) {
             return;
         }
-        HoldMarks marks = host.holdMarks();
-        List<BlockPos> overDisc = overDisc(plane, aimed);
-        Lift lift = lift(host, marks.carriedMortar(), overDisc);
-        if (lift.layers() == 0) {
-            marks.carryMortarAt(List.of());
-            return;
-        }
+        MortarCarry carry = host.holdMarks().mortarCarry();
+        Map<BlockPos, Integer> piles = mortarIn(host, overDisc(plane, aimed).stream().filter(host::reaches).toList());
+        Scoop scoop = scoop(piles, carry.layers());
+        scoop.pickedUp().keySet().forEach(pos -> takeScooped(host, pos, scoop.leftOut().getOrDefault(pos, 0)));
         List<BlockPos> gaps = middleFirst(plane.layer(aimed, 0), plane.face().getAxis()).stream()
                 .filter(pos -> host.reaches(pos) && isGap(host.stateAt(pos))).toList();
-        Deposit deposit = deposit(gaps, lift.layers());
-        Map<BlockPos, Integer> laid = lay(slots(host, overDisc, lift.emptied()), deposit.layersLeft());
-        lift.emptied().stream().filter(pos -> !laid.containsKey(pos))
-                .forEach(pos -> host.level().setBlock(pos, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL));
-        lift.keeps().forEach((pos, layers) -> layMortar(host, pos, layers));
+        Deposit deposit = deposit(gaps, carry.layers() + layersIn(scoop.pickedUp()));
         deposit.paved().forEach(pos -> host.transformBlock(pos, Blocks.STONE.defaultBlockState()));
-        laid.forEach((pos, layers) -> layMortar(host, pos, layers));
-        marks.carryMortarAt(laid.keySet());
+        carry.ride(host, plane, aimed, pilesOf(deposit.layersLeft()));
     }
 
     /**
-     * What the disc lifts this tick.
+     * Takes a scooped cell's layers off it: the cell goes where the scoop took
+     * every layer, and keeps what the scoop left otherwise.
      *
-     * @param emptied the cells the lift takes every layer of
-     * @param keeps   each pile the lift takes part of, with the layers it keeps
-     * @param layers  the layers lifted
+     * @param host the channel host
+     * @param pos  the cell
+     * @param kept the layers the scoop left in it
      */
-    private record Lift(Set<BlockPos> emptied, Map<BlockPos, Integer> keeps, int layers) {
+    private static void takeScooped(ChannelHost host, BlockPos pos, int kept) {
+        if (kept > 0) {
+            layMortar(host, pos, kept);
+        } else {
+            host.level().setBlock(pos, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
+        }
     }
 
     /**
-     * Lifts the hold's carry, wherever it lies now, and scoops the piles over
-     * the disc in reach on top of it, as far as the carry has room.
-     * level-scoops-up-to-three-by-three-piles-of-fifteen-layers
+     * Sets a carry down as Mortar where it rides: each pile into the open
+     * cells of its own column over the disc, the one touching the face first,
+     * then any open cell over the disc, crediting the channeling player.
+     * carried-mortar-stops-being-a-block-on-the-level-plane
      *
-     * @param host     the channel host
-     * @param carried  the cells the hold laid its carry in last tick
-     * @param overDisc the cells over the disc
-     * @return the lift
+     * @param host   the channel host the hold last ran through
+     * @param plane  the face the hold began on
+     * @param middle the disc's middle where the carry last rode
+     * @param piles  the nine piles' layers
      */
-    private static Lift lift(ChannelHost host, Set<BlockPos> carried, List<BlockPos> overDisc) {
-        Map<BlockPos, Integer> carriedIn = mortarIn(host, carried);
-        Map<BlockPos, Integer> piles = mortarIn(host, overDisc.stream()
-                .filter(pos -> host.reaches(pos) && !carriedIn.containsKey(pos)).toList());
-        Scoop scoop = scoop(piles, layersIn(carriedIn));
-        Set<BlockPos> emptied = new LinkedHashSet<>(carriedIn.keySet());
-        Map<BlockPos, Integer> keeps = new LinkedHashMap<>();
-        scoop.pickedUp().keySet().forEach(pos -> {
-            if (scoop.leftOut().containsKey(pos)) {
-                keeps.put(pos, scoop.leftOut().get(pos));
-            } else {
-                emptied.add(pos);
+    static void setDown(ChannelHost host, ChannelAim.FacePlane plane, BlockPos middle, List<Integer> piles) {
+        List<BlockPos> columns = pileCells(plane, middle);
+        List<BlockPos> openOverDisc = overDisc(plane, middle).stream().filter(host::airAt).toList();
+        Set<BlockPos> taken = new HashSet<>();
+        for (int pile = 0; pile < piles.size(); pile++) {
+            List<BlockPos> slots = new ArrayList<>();
+            for (int out = 1; out <= CARRY_DEPTH; out++) {
+                slots.add(plane.layer(columns.get(pile), out));
             }
-        });
-        return new Lift(emptied, keeps, layersIn(carriedIn) + layersIn(scoop.pickedUp()));
+            slots.retainAll(openOverDisc);
+            openOverDisc.stream().filter(pos -> !slots.contains(pos)).forEach(slots::add);
+            slots.removeAll(taken);
+            Map<BlockPos, Integer> laid = lay(slots, piles.get(pile));
+            laid.forEach((pos, layers) -> layMortar(host, pos, layers));
+            taken.addAll(laid.keySet());
+        }
     }
 
     private static int layersIn(Map<BlockPos, Integer> cells) {
@@ -195,7 +216,20 @@ public final class MortarPaving {
     }
 
     /**
-     * The cells over the disc the carry reaches, the layer touching the face
+     * The cells the carry's nine piles ride in: the 3x3 just out from the
+     * face in line with the disc's middle, the middle first, then its ring.
+     * carried-mortar-stops-being-a-block-on-the-level-plane
+     *
+     * @param plane  the face the hold began on
+     * @param middle the block the cursor rests on
+     * @return the nine cells, in pile order
+     */
+    public static List<BlockPos> pileCells(ChannelAim.FacePlane plane, BlockPos middle) {
+        return middleFirst(plane.cellOutFrom(middle), plane.face().getAxis());
+    }
+
+    /**
+     * The cells over the disc the scoop reaches, the layer touching the face
      * first, each layer's middle before its ring.
      *
      * @param plane the face the hold began on
@@ -226,8 +260,7 @@ public final class MortarPaving {
     }
 
     /**
-     * The Mortar standing in some cells, each cell holding it with its layers;
-     * the hold's carry, wherever it lies now, or the piles over the disc.
+     * The Mortar standing in some cells, each cell holding it with its layers.
      *
      * @param host  the channel host
      * @param cells the cells read
@@ -242,27 +275,6 @@ public final class MortarPaving {
             }
         }
         return mortar;
-    }
-
-    /**
-     * The cells the carry may lie in: those over the disc standing open or
-     * emptied by the lift, then any emptied cell off the disc, so a carry with
-     * no room over the disc stays where it lay.
-     *
-     * @param host     the channel host
-     * @param overDisc the cells over the disc
-     * @param emptied  the cells the lift empties
-     * @return the slots, the first filled first
-     */
-    private static List<BlockPos> slots(ChannelHost host, List<BlockPos> overDisc, Set<BlockPos> emptied) {
-        List<BlockPos> slots = new ArrayList<>();
-        for (BlockPos pos : overDisc) {
-            if (emptied.contains(pos) || host.airAt(pos)) {
-                slots.add(pos);
-            }
-        }
-        emptied.stream().filter(pos -> !slots.contains(pos)).forEach(slots::add);
-        return slots;
     }
 
     /**
