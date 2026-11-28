@@ -313,7 +313,7 @@ class GooTypeDefinitionTest {
      * starts from nether's physical values.
      * cohesion-is-the-step-the-goo-holds
      * blaze-goo-is-adhesion-four-and-cohesion-five
-     * signal-goo-sends-a-redstone-signal-equal-to-its-layers
+     * pulse-goo-network-signals-at-its-highest-layer
      * astral-goo-hangs-and-is-loose
      * operator ruling 2026-11-17: nether's cohesion is soft
      */
@@ -360,7 +360,7 @@ class GooTypeDefinitionTest {
      * Every bundled type names an adhesion rung: kinetic slips, weird, jelly, nether, zombie and leaf cling,
      * glow, blaze, pulse, rock and astral hang, and every other type holds tops.
      * adhesion-is-a-ladder-of-holds
-     * signal-goo-sends-a-redstone-signal-equal-to-its-layers
+     * pulse-goo-network-signals-at-its-highest-layer
      * nectar-is-the-sticky-goo-you-climb-that-nerfs-jumping-and-speed
      * vines-goo-on-walls-places-goologged-vines-and-depletes
      * blaze-goo-is-adhesion-four-and-cohesion-five

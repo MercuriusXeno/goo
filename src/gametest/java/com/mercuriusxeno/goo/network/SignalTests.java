@@ -27,7 +27,7 @@ import java.util.function.Consumer;
  * fill it to 15, and a redstone lamp set in the wall beside the cell lights
  * when the cell is laid and stays lit while the cell stands.
  * extend-is-dropped-for-signal-an-in-world-pulse-goo
- * signal-goo-sends-a-redstone-signal-equal-to-its-layers
+ * pulse-goo-network-signals-at-its-highest-layer
  */
 @RegistersGameTests
 public final class SignalTests {
@@ -64,6 +64,21 @@ public final class SignalTests {
     private static final String CELL_WRONG = "The cell over the floor should hold %d layers of Signal, stands %s";
     private static final String SIGNAL_WRONG = "A Signal cell of %d layers should send a signal of %d, the wall reads %d";
     private static final String LAMP_UNLIT = "The lamp beside a Signal cell should be lit, stands %s";
+    private static final String SIGNAL_NETWORK_SIGNALS_AT_ITS_HIGHEST_LAYER = "signal_network_signals_at_its_highest_layer";
+    private static final String SIGNAL_NETWORK_FOLLOWS_ITS_HIGHEST_LAYER = "signal_network_follows_its_highest_layer";
+    /** The joined line's cells, west to east: its highest cell, its middle and its edge, each beside the next. */
+    private static final BlockPos LINE_HIGHEST = new BlockPos(1, 1, 2);
+    private static final BlockPos LINE_MIDDLE = LINE_HIGHEST.east();
+    private static final BlockPos LINE_EDGE = LINE_MIDDLE.east();
+    /** The lamp beside the line's edge cell, east of it. */
+    private static final BlockPos LINE_LAMP = LINE_EDGE.east();
+    private static final int LINE_MIDDLE_LAYERS = 3;
+    private static final int LINE_EDGE_LAYERS = 1;
+    /** The layers the line's highest cell is dropped to. */
+    private static final int LOWERED_LAYERS = 6;
+    private static final String NETWORK_SIGNAL_WRONG = "The Signal cell at %s should give its network's highest"
+            + " layer count, %d, gives %d";
+    private static final String LAMP_SIGNAL_WRONG = "The lamp beside the network's edge should read %d, reads %d";
 
     private SignalTests() {
     }
@@ -81,13 +96,89 @@ public final class SignalTests {
                 SignalTests::signalHoldsItsLayersOnOpenGround);
         GooTestFunctions.registerTest(registrar, SIGNAL_DRIP_UNDER_A_CEILING_CLINGS_TO_IT,
                 SignalTests::signalDripUnderACeilingClingsToIt);
+        GooTestFunctions.registerTest(registrar, SIGNAL_NETWORK_SIGNALS_AT_ITS_HIGHEST_LAYER,
+                SignalTests::signalNetworkSignalsAtItsHighestLayer);
+        GooTestFunctions.registerTest(registrar, SIGNAL_NETWORK_FOLLOWS_ITS_HIGHEST_LAYER,
+                SignalTests::signalNetworkFollowsItsHighestLayer);
+    }
+
+    /**
+     * A line of three joined Signal cells of 15, 3 and 1 layers gives a 15
+     * strength signal from every cell, the 1-layer cell at the far edge
+     * included, and the redstone lamp beside that edge cell lights on it.
+     * pulse-goo-network-signals-at-its-highest-layer
+     *
+     * @param helper the gametest helper
+     */
+    public static void signalNetworkSignalsAtItsHighestLayer(GameTestHelper helper) {
+        layLine(helper);
+        helper.startSequence()
+                .thenExecuteAfter(1, () -> {
+                    assertLineGives(helper, List.of(LINE_HIGHEST, LINE_MIDDLE, LINE_EDGE), VolumeCellBlock.MAX_LAYERS);
+                    assertLampLitAt(helper, LINE_LAMP);
+                    int lampReads = helper.getLevel().getBestNeighborSignal(helper.absolutePos(LINE_LAMP));
+                    helper.assertTrue(lampReads == VolumeCellBlock.MAX_LAYERS,
+                            String.format(LAMP_SIGNAL_WRONG, VolumeCellBlock.MAX_LAYERS, lampReads));
+                })
+                .thenSucceed();
+    }
+
+    /**
+     * The line's 15-layer cell dropped to 6 makes every cell of the line
+     * give 6 on the next tick; the middle cell removed splits the line, and
+     * the 6-layer cell gives 6 while the 1-layer cell, alone, gives 1. The
+     * checks run inside the pour's wait, before any cell pours a layer.
+     * pulse-goo-network-signals-at-its-highest-layer
+     *
+     * @param helper the gametest helper
+     */
+    public static void signalNetworkFollowsItsHighestLayer(GameTestHelper helper) {
+        layLine(helper);
+        helper.startSequence()
+                .thenExecuteAfter(1, () -> helper.setBlock(LINE_HIGHEST,
+                        helper.getBlockState(LINE_HIGHEST).setValue(VolumeCellBlock.LAYERS, LOWERED_LAYERS)))
+                .thenExecuteAfter(1, () -> {
+                    assertLineGives(helper, List.of(LINE_HIGHEST, LINE_MIDDLE, LINE_EDGE), LOWERED_LAYERS);
+                    helper.setBlock(LINE_MIDDLE, Blocks.AIR);
+                    assertLineGives(helper, List.of(LINE_HIGHEST), LOWERED_LAYERS);
+                    assertLineGives(helper, List.of(LINE_EDGE), LINE_EDGE_LAYERS);
+                })
+                .thenSucceed();
+    }
+
+    /**
+     * Lays the line on a stone floor walled on every side but the lamp's:
+     * a redstone lamp east of the edge, then the cells of 15, 3 and 1 layers
+     * west to east, each set by its state.
+     */
+    private static void layLine(GameTestHelper helper) {
+        for (int x = 0; x <= LINE_LAMP.getX() + 1; x++) {
+            for (int z = LINE_HIGHEST.getZ() - 1; z <= LINE_HIGHEST.getZ() + 1; z++) {
+                boolean lane = z == LINE_HIGHEST.getZ() && x > 0 && x <= LINE_LAMP.getX();
+                helper.setBlock(new BlockPos(x, 0, z), Blocks.STONE);
+                helper.setBlock(new BlockPos(x, 1, z), lane ? Blocks.AIR : Blocks.STONE);
+                helper.setBlock(new BlockPos(x, 2, z), Blocks.AIR);
+            }
+        }
+        helper.setBlock(LINE_LAMP, Blocks.REDSTONE_LAMP);
+        BlockState signal = GooBlocks.PULSE_SIGNAL.get().defaultBlockState();
+        helper.setBlock(LINE_HIGHEST, signal.setValue(VolumeCellBlock.LAYERS, VolumeCellBlock.MAX_LAYERS));
+        helper.setBlock(LINE_MIDDLE, signal.setValue(VolumeCellBlock.LAYERS, LINE_MIDDLE_LAYERS));
+        helper.setBlock(LINE_EDGE, signal.setValue(VolumeCellBlock.LAYERS, LINE_EDGE_LAYERS));
+    }
+
+    private static void assertLineGives(GameTestHelper helper, List<BlockPos> cells, int strength) {
+        for (BlockPos cell : cells) {
+            int gives = helper.getLevel().getSignal(helper.absolutePos(cell), Direction.EAST);
+            helper.assertTrue(gives == strength, String.format(NETWORK_SIGNAL_WRONG, cell, strength, gives));
+        }
     }
 
     /**
      * One Signal drip striking the floor of a sealed room lays a Signal cell
      * of one layer, and the stone wall beside it reads a redstone signal of 1
      * from its neighbours; fourteen more fill the cell, and the wall reads 15.
-     * signal-goo-sends-a-redstone-signal-equal-to-its-layers
+     * pulse-goo-network-signals-at-its-highest-layer
      *
      * @param helper the gametest helper
      */
@@ -109,7 +200,7 @@ public final class SignalTests {
      * A redstone lamp set in the wall beside the floor's cell lights once
      * Signal drips lay a cell there, and forty ticks on the lamp is still
      * lit and the cell still holds the layers it was laid with.
-     * signal-goo-sends-a-redstone-signal-equal-to-its-layers
+     * pulse-goo-network-signals-at-its-highest-layer
      *
      * @param helper the gametest helper
      */
@@ -135,7 +226,7 @@ public final class SignalTests {
      * and sixty ticks on the cell still holds all fifteen and its four side
      * cells hold none: pulse's goo is firm, so the layers a player lays are
      * the signal the cell sends.
-     * signal-goo-sends-a-redstone-signal-equal-to-its-layers
+     * pulse-goo-network-signals-at-its-highest-layer
      * cohesion-is-the-step-the-goo-holds
      *
      * @param helper the gametest helper
@@ -159,7 +250,7 @@ public final class SignalTests {
      * One Signal drip striking the underside of a stone block hung in open
      * air leaves a Signal cell under it, attached to that ceiling, and sixty
      * ticks on the cell still hangs there: pulse's adhesion holds an underside.
-     * signal-goo-sends-a-redstone-signal-equal-to-its-layers
+     * pulse-goo-network-signals-at-its-highest-layer
      * adhesion-is-a-ladder-of-holds
      *
      * @param helper the gametest helper
@@ -201,7 +292,11 @@ public final class SignalTests {
     }
 
     private static void assertLampLit(GameTestHelper helper) {
-        BlockState lamp = helper.getBlockState(BESIDE_THE_CELL);
+        assertLampLitAt(helper, BESIDE_THE_CELL);
+    }
+
+    private static void assertLampLitAt(GameTestHelper helper, BlockPos at) {
+        BlockState lamp = helper.getBlockState(at);
         helper.assertTrue(lamp.is(Blocks.REDSTONE_LAMP) && lamp.getValue(RedstoneLampBlock.LIT),
                 String.format(LAMP_UNLIT, lamp));
     }
