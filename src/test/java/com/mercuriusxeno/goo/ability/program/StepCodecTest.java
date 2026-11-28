@@ -210,7 +210,9 @@ class StepCodecTest {
                     Expr.literal(0.4), Expr.literal(0.5), Expr.literal(1.2), Expr.literal(0.05))),
             Map.entry("pneuma", new PneumaStep(Expr.literal(30), Expr.literal(300), Expr.literal(60))),
             Map.entry("leech", new LeechStep(Expr.literal(0.5),
-                    List.of(new DamageStep(Expr.literal(2), DamageKind.ATTACK))))
+                    List.of(new DamageStep(Expr.literal(2), DamageKind.ATTACK)),
+                    List.of(new SoundStep(Identifier.parse("minecraft:particle.soul_escape"), FxAnchor.TARGET,
+                            SoundKind.PLAYERS, Expr.literal(0.7), Expr.literal(1)))))
     );
 
     private static Step roundTrip(Step step) {

@@ -7,7 +7,9 @@ import com.mercuriusxeno.goo.ability.hex.RandomEnchantment;
 import com.mercuriusxeno.goo.ability.yarn.Led;
 import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.HeardSounds;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
+import com.mercuriusxeno.goo.gametest.PacketRecorder;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import com.mercuriusxeno.goo.gametest.SurvivalPlayers;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
@@ -19,6 +21,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.network.protocol.game.ClientboundSoundPacket;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
@@ -50,6 +53,7 @@ public final class HexSelfTests {
     private static final String DRAIN_HEALS_THE_CASTER = "drain_heals_the_caster";
     private static final String DRAIN_SPARES_LED = "drain_spares_the_casters_led_cow";
     private static final String DRAIN_SPARES_CHARMED = "drain_spares_the_casters_charmed_mob";
+    private static final String DRAIN_LEECH_SOULS_ESCAPE = "drain_plays_soul_escape_at_each_mob_it_leeches";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -62,6 +66,8 @@ public final class HexSelfTests {
         GooTestFunctions.registerTest(registrar, DRAIN_HEALS_THE_CASTER, HexSelfTests::drainHealsTheCaster);
         GooTestFunctions.registerTest(registrar, DRAIN_SPARES_LED, HexSelfTests::drainSparesLedCow);
         GooTestFunctions.registerTest(registrar, DRAIN_SPARES_CHARMED, HexSelfTests::drainSparesCharmedMob);
+        GooTestFunctions.registerTest(registrar, DRAIN_LEECH_SOULS_ESCAPE,
+                HexSelfTests::drainPlaysSoulEscapeAtEachMobItLeeches);
     }
 
 
@@ -97,6 +103,12 @@ public final class HexSelfTests {
     private static final String SHOULD_SPARE_OWN = "Drain should leave the caster's own %s at %.2f, stands at %.2f";
     private static final String SHOULD_DRAIN_UNOWNED = "Drain should take health from the unowned zombie, %.2f of %.2f";
     private static final float LEAD_DAMAGE = 6f;
+    private static final Identifier SOUL_ESCAPE = Identifier.parse("minecraft:particle.soul_escape");
+    private static final double BODY_CENTRE = 0.5;
+    private static final String SHOULD_TAKE_ONCE = "The husk should lose health on the first held tick and none on"
+            + " the second, still invulnerable: %.2f full, %.2f after one, %.2f after two";
+    private static final String SHOULD_ESCAPE_ONCE = "Drain should play soul_escape once at the husk it leeched, %s,"
+            + " sent %s";
 
     private HexSelfTests() {
     }
@@ -175,6 +187,40 @@ public final class HexSelfTests {
                     String.format(SHOULD_SPARE_OWN, kind, ownFull, own.getHealth()));
             helper.assertTrue(unowned.getHealth() < unownedFull,
                     String.format(SHOULD_DRAIN_UNOWNED, unowned.getHealth(), unownedFull));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Drain held two ticks over a husk takes health on the first tick and
+     * plays soul_escape once at the husk, and on the second, the husk still
+     * invulnerable from the first strike, takes none and plays it not at all
+     * (decision drain-plays-a-steady-draining-loop-at-your-ears).
+     *
+     * @param helper the gametest helper
+     */
+    public static void drainPlaysSoulEscapeAtEachMobItLeeches(GameTestHelper helper) {
+        // a husk, since a zombie catches fire in the bay's daylight and the burn reads as a drain
+        Mob husk = helper.spawnWithNoFreeWill(EntityTypes.HUSK, NEAR_ZOMBIE_POS);
+        float full = husk.getHealth();
+        ServerPlayer player = drainer(helper);
+        PacketRecorder heard = PacketRecorder.attachTo(player);
+        GooStreamPayload tick = drainTick(player);
+        float[] afterFirst = new float[1];
+        Vec3[] centreAtStrike = new Vec3[1];
+        helper.runAfterDelay(1, () -> {
+            centreAtStrike[0] = new Vec3(husk.getX(), husk.getY(BODY_CENTRE), husk.getZ());
+            GooStreamHandler.streamTick(player, tick);
+            afterFirst[0] = husk.getHealth();
+        });
+        helper.runAfterDelay(2, () -> GooStreamHandler.streamTick(player, tick));
+        helper.runAfterDelay(3, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            helper.assertTrue(afterFirst[0] < full && husk.getHealth() == afterFirst[0],
+                    String.format(SHOULD_TAKE_ONCE, full, afterFirst[0], husk.getHealth()));
+            List<ClientboundSoundPacket> escapes = HeardSounds.of(heard, SOUL_ESCAPE);
+            helper.assertTrue(escapes.size() == 1 && HeardSounds.at(heard, SOUL_ESCAPE, centreAtStrike[0]) == 1,
+                    String.format(SHOULD_ESCAPE_ONCE, centreAtStrike[0], HeardSounds.describe(escapes)));
             helper.succeed();
         });
     }

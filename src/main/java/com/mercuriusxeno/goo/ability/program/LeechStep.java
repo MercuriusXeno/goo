@@ -16,17 +16,21 @@ import java.util.stream.Stream;
  * fraction of the health the strike took, the life flowing from the target
  * to the caster as hex wisps, and finishes. Drain streams
  * {@code leech fraction=0.5 strike=[damage amount=2 source=attack]} over
- * every mob in its cone.
+ * every mob in its cone. Where the strike took health, its on-leech steps
+ * run on the target, as Drain plays soul_escape at each mob it leeches.
  * drain-field-heals-with-the-lifetap-visuals
+ * drain-plays-a-steady-draining-loop-at-your-ears
  *
  * @param fraction the share of the health taken that heals the caster, evaluated when the step runs
  * @param strike   the steps that hurt the target, instant ones
+ * @param onLeech  the steps run on the target each time the strike took health, instant ones
  */
-public record LeechStep(Expr fraction, List<Step> strike) implements Step {
+public record LeechStep(Expr fraction, List<Step> strike, List<Step> onLeech) implements Step {
 
     private static final String NAME = "leech";
     private static final String FIELD_FRACTION = "fraction";
     private static final String FIELD_STRIKE = "strike";
+    private static final String FIELD_ON_LEECH = "on_leech";
 
     /**
      * Codec for the step's params. The list codec is read lazily because
@@ -34,13 +38,25 @@ public record LeechStep(Expr fraction, List<Step> strike) implements Step {
      */
     public static final MapCodec<LeechStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
             Expr.CODEC.fieldOf(FIELD_FRACTION).forGetter(LeechStep::fraction),
-            Codec.lazyInitialized(() -> StepTypes.LIST_CODEC).fieldOf(FIELD_STRIKE).forGetter(LeechStep::strike)
+            Codec.lazyInitialized(() -> StepTypes.LIST_CODEC).fieldOf(FIELD_STRIKE).forGetter(LeechStep::strike),
+            Codec.lazyInitialized(() -> StepTypes.LIST_CODEC).optionalFieldOf(FIELD_ON_LEECH, List.of())
+                    .forGetter(LeechStep::onLeech)
     ).apply(inst, LeechStep::new));
 
     /**
      * The registered type.
      */
     public static final StepType<LeechStep> TYPE = new StepType<>(NAME, CODEC);
+
+    /**
+     * A leech running nothing beyond its heal where the strike took health.
+     *
+     * @param fraction the share of the health taken that heals the caster
+     * @param strike   the steps that hurt the target
+     */
+    public LeechStep(Expr fraction, List<Step> strike) {
+        this(fraction, strike, List.of());
+    }
 
     @Override
     public StepType<LeechStep> type() {
@@ -66,6 +82,9 @@ public record LeechStep(Expr fraction, List<Step> strike) implements Step {
         float before = target.getHealth();
         new ProgramBehavior(strike).tick(context.host());
         float heal = healOf(before, Math.max(0f, target.getHealth()), fraction.evaluateFloat(context));
+        if (heal > 0f) {
+            new ProgramBehavior(onLeech).tick(context.host());
+        }
         if (heal > 0f && host.thrower() instanceof LivingEntity caster && caster != target) {
             caster.heal(heal);
             EntityVisuals.sendToWatchers(target, new LeechPayload(target.getId(), caster.getId(), heal, false));
@@ -75,7 +94,7 @@ public record LeechStep(Expr fraction, List<Step> strike) implements Step {
 
     @Override
     public Stream<Step> children() {
-        return strike.stream();
+        return Stream.concat(strike.stream(), onLeech.stream());
     }
 
     @Override

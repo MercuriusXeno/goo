@@ -82,6 +82,26 @@ class StreamSoundTest {
     }
 
     /**
+     * While Drain is held it loops the Soul Sand Valley wind at the holder's
+     * ears (decision drain-plays-a-steady-draining-loop-at-your-ears).
+     */
+    @Nested
+    class DrainWind {
+
+        private static final Identifier SOUL_SAND_VALLEY_LOOP =
+                Identifier.withDefaultNamespace("ambient.soul_sand_valley.loop");
+
+        @Test
+        void drainLoopsTheSoulSandValleyWindAtFullVolume() {
+            Optional<StreamSound> sound = AbilityJson.decode("hex_drain").delivery().sound();
+            assertTrue(sound.isPresent(), "hex_drain should name a stream sound");
+            assertEquals(SOUL_SAND_VALLEY_LOOP, sound.get().sound());
+            assertTrue(sound.get().loop(), "Drain's wind should loop at the holder's ears");
+            assertEquals(1f, sound.get().volume(), EPSILON);
+        }
+    }
+
+    /**
      * While Bore runs it loops Build's earth rumble as it is, at the holder's
      * ears, and the plays the server sends nearby players never stack on
      * themselves (decision bore-loops-spires-earth-rumble).
