@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:level_carry_sets_down_when_vacuum_takes_the_hold",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 60,
+  "setup_ticks": 0,
+  "required": true
+}

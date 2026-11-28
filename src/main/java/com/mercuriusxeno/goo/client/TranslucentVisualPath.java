@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.client.ability.AfterimageRenderer;
 import com.mercuriusxeno.goo.client.ability.AirbornWind;
 import com.mercuriusxeno.goo.client.ability.BlockMingleRenderer;
 import com.mercuriusxeno.goo.client.ability.BoreDrill;
+import com.mercuriusxeno.goo.client.ability.CarriedMortarRenderer;
 import com.mercuriusxeno.goo.client.ability.ChainBurnoutRenderer;
 import com.mercuriusxeno.goo.client.ability.ClickRings;
 import com.mercuriusxeno.goo.client.ability.CrystalShatterVisual;
@@ -186,6 +187,9 @@ public final class TranslucentVisualPath {
             new Registration(AfterimageRenderer.class, SortRoute.FAR_TO_NEAR, AfterimageRenderer::collect),
             new Registration(BlockMingleRenderer.class, SortRoute.ON_OPAQUE_FACES, BlockMingleRenderer::collectCoat),
             new Registration(BlockMingleRenderer.class, SortRoute.FAR_TO_NEAR, BlockMingleRenderer::collect,
+                    Drawing.IN_THE_OIT_PHASE),
+            new Registration(CarriedMortarRenderer.class, SortRoute.OPAQUE_SHAPE, CarriedMortarRenderer::collectSolid),
+            new Registration(CarriedMortarRenderer.class, SortRoute.FAR_TO_NEAR, CarriedMortarRenderer::collect,
                     Drawing.IN_THE_OIT_PHASE),
             new Registration(LiftedPalmBlob.class, SortRoute.FAR_TO_NEAR, LiftedPalmBlob::collect,
                     Drawing.IN_THE_OIT_PHASE),

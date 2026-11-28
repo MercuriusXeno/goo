@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:level_fills_a_mortar_hole_under_a_full_carry",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 60,
+  "setup_ticks": 0,
+  "required": true
+}

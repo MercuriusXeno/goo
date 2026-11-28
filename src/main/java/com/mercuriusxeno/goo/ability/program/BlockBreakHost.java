@@ -238,9 +238,11 @@ public interface BlockBreakHost extends StepHost, BlockFinishHost {
 
     /**
      * Breaks a block, dropping its loot as a pickaxe harvests it, with no
-     * break particles or break sound: Bore's particles spit only from where
-     * its vortex meets the block, and its rumble is its sound.
+     * break particles or break sound, so a caller plays whichever of them it
+     * wants: Bore plays the block's break sound alone, its particles spitting
+     * from where its vortex meets the block.
      * decision bore-shows-a-big-drill-from-the-glove
+     * decision each-block-bore-breaks-plays-its-own-break-sound
      *
      * @param pos the block
      */
