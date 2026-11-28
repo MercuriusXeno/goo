@@ -45,16 +45,21 @@ public final class LunarRolls {
     }
 
     /**
-     * Rolls one value in [0, 1) for a cell from a seeded noise, each cell and roll reading the noise apart.
+     * Rolls one value in [0, 1) for a cell from a seeded noise, each cell and roll reading the noise apart. A cell
+     * past the seam rolls as the cell the same distance in from the other edge, so a feature reaching across the seam
+     * is the feature standing on the other side.
+     * decision moon-wraps-at-its-border-like-the-zone
      *
-     * @param noise the seeded noise
-     * @param cellX the cell's x
-     * @param cellZ the cell's z
-     * @param roll  which of the cell's rolls
+     * @param noise    the seeded noise
+     * @param cellSide the side of the cells rolled, in blocks, a divisor of the moon's way around
+     * @param cellX    the cell's x
+     * @param cellZ    the cell's z
+     * @param roll     which of the cell's rolls
      * @return the roll, in [0, 1)
      */
-    static double rollFrom(Noise noise, int cellX, int cellZ, int roll) {
-        double value = noise.get(cellX * CELL_STRIDE + roll * ROLL_STRIDE, roll, cellZ * CELL_STRIDE);
+    static double rollFrom(Noise noise, int cellSide, int cellX, int cellZ, int roll) {
+        double value = noise.get(LunarSeam.wrapCell(cellX, cellSide) * CELL_STRIDE + roll * ROLL_STRIDE, roll,
+                LunarSeam.wrapCell(cellZ, cellSide) * CELL_STRIDE);
         return Mth.frac(value * ROLL_SPREAD);
     }
 }

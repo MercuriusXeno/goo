@@ -91,7 +91,7 @@ public record BasinPools(Noise noise, Noise basins) {
      * @return the site, or empty
      */
     public Optional<Site> siteInCell(int cellX, int cellZ) {
-        return siteIn(cellX, cellZ, (x, z, roll) -> LunarRolls.rollFrom(noise, x, z, roll),
+        return siteIn(cellX, cellZ, (x, z, roll) -> LunarRolls.rollFrom(noise, CELL, x, z, roll),
                 (x, z) -> basins.get(x, 0.0, z));
     }
 

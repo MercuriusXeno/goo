@@ -184,7 +184,7 @@ public record LavaTubes(Noise noise) implements DensitySampler {
     }
 
     private double roll(int cellX, int cellZ, int roll) {
-        return LunarRolls.rollFrom(noise, cellX, cellZ, roll);
+        return LunarRolls.rollFrom(noise, CELL, cellX, cellZ, roll);
     }
 
     /**
