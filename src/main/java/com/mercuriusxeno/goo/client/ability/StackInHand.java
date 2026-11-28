@@ -43,6 +43,7 @@ public final class StackInHand {
         poseStack.last().normal().set(new Matrix3f(toHand).invert().transpose());
         HoveringKnives.submitInHand(poseStack, collector, player, partial, camera.position());
         HeldJavelins.submitInHand(poseStack, collector, player, partial, camera.position());
+        HeldBlades.submitInHand(poseStack, collector, player, partial, camera.position());
         poseStack.popPose();
     }
 }

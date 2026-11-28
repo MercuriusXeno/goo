@@ -1,0 +1,14 @@
+{
+  "gooType": "osseous",
+  "displayName": "goo.ability.osseous.blade",
+  "cost_mechanics": "goo.ability.osseous.blade.cost_mechanics",
+  "cost_formula": "50/strike",
+  "badge": "held",
+  "order": 30,
+  "requires": ["minecraft:bone_block", "minecraft:iron_sword"],
+  "delivery": { "kind": "self", "charge": { "max_ticks": 20 } },
+  "behaviors": [
+    { "type": "blade", "damage": 7.0, "drain": 50 }
+  ],
+  "tags": ["self"]
+}

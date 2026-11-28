@@ -670,14 +670,19 @@ public final class GooThrowHandler {
 
     /**
      * Validates the player's caster casts the type, logging rejection if not:
-     * a glove casts any type, raw goo held bare handed only its own.
+     * a glove casts any type, raw goo held bare handed only its own, and a hand holding Blade's shotel casts
+     * nothing, the press dissolving the shotel.
      * decision raw-goo-items-work-bare-handed-for-the-held-type
+     * decision blade-forms-a-bone-shotel-in-hand
      *
      * @param player  the casting player
      * @param gooType the cast's goo type
      * @return true where the cast may go ahead
      */
     static boolean validateCaster(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType) {
+        if (BoneBladeEvents.refusesCast(player)) {
+            return false;
+        }
         if (GooCasters.castsType(player, gooType)) { return true; }
         if (Goo.LOGGER.isDebugEnabled()) {
             Goo.LOGGER.debug(LOG_NO_CASTER, player.getName().getString(), GooTypes.id(gooType));

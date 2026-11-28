@@ -106,6 +106,7 @@ public final class StepTypes {
         register(WispsStep.TYPE);
         register(SpikesStep.TYPE);
         register(SpursStep.TYPE);
+        register(BladeStep.TYPE);
         register(ScryStep.TYPE);
         register(RayStep.TYPE);
         register(UndeadStep.TYPE);

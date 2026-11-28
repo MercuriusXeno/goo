@@ -12,6 +12,7 @@ import com.mercuriusxeno.goo.client.ability.GlassKnives;
 import com.mercuriusxeno.goo.client.ability.GnatSeek;
 import com.mercuriusxeno.goo.client.ability.GrudgeRings;
 import com.mercuriusxeno.goo.client.ability.HealVisual;
+import com.mercuriusxeno.goo.client.ability.HeldBlades;
 import com.mercuriusxeno.goo.client.ability.HeldJavelins;
 import com.mercuriusxeno.goo.client.ability.HeldSweepVisual;
 import com.mercuriusxeno.goo.client.ability.HoveringKnives;
@@ -39,6 +40,7 @@ import com.mercuriusxeno.goo.network.BlastShardsPayload;
 import com.mercuriusxeno.goo.network.BlockAfterimagePayload;
 import com.mercuriusxeno.goo.network.BlockExposurePayload;
 import com.mercuriusxeno.goo.network.BlockTransformPayload;
+import com.mercuriusxeno.goo.network.BoneBladePayload;
 import com.mercuriusxeno.goo.network.ChainBurnoutPayload;
 import com.mercuriusxeno.goo.network.ConjuredDoorPayload;
 import com.mercuriusxeno.goo.network.FallingDripPayload;
@@ -191,6 +193,8 @@ public final class GooClientNetworking {
         event.register(GlassKnifePayload.TYPE, GlassKnives::onPayload);
         // dart-stacks-three-javelins-one-per-ten-ticks: a stack of javelins draws no knives
         event.register(PalmBufferPayload.TYPE, ClientPalmBuffers::onPayload);
+        // blade-forms-a-bone-shotel-in-hand
+        event.register(BoneBladePayload.TYPE, HeldBlades::onPayload);
         event.register(StackFormedPayload.TYPE, (payload, context) -> {
             if (payload.javelins()) {
                 HeldJavelins.onPayload(payload, context);

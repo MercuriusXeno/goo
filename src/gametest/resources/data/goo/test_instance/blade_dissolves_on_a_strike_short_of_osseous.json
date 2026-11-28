@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:blade_dissolves_on_a_strike_short_of_osseous",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 40,
+  "setup_ticks": 0,
+  "required": true
+}

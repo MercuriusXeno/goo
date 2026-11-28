@@ -116,6 +116,7 @@ class StepCodecTest {
             Map.entry("afterimage", new AfterimageStep(GooTypes.HEX, Expr.literal(20))),
             Map.entry("ghost_trail", new GhostTrailStep(GooTypes.ENDER, Expr.literal(30))),
             Map.entry("heart_overlay", new HeartOverlayStep(HeartKind.KINDLE)),
+            Map.entry("blade", new BladeStep(7f, 50)),
             Map.entry("spore_host", new SporeHostStep(Identifier.parse("goo:sculk_mycosis"), Expr.literal(3),
                     Expr.literal(600))),
             Map.entry("floors", new FloorsStep(Expr.literal(2), List.of())),
