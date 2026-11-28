@@ -15,11 +15,11 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 class TextureMcmetaWriterTest {
 
     private static final String SHIPPED_FLUID_MCMETA = "/assets/goo/textures/fluid/astral_fluid.png.mcmeta";
-    private static final int ASTRAL_FRAMETIME = 4;
 
     @Test
     void fluidSidecarMatchesTheShippedPingPongSidecar() throws IOException {
-        assertEquals(shipped(SHIPPED_FLUID_MCMETA), TextureMcmetaWriter.fluidMcmeta(ASTRAL_FRAMETIME).strip());
+        int astralFrametime = DarkGooResources.fluidType("astral").frametime();
+        assertEquals(shipped(SHIPPED_FLUID_MCMETA), TextureMcmetaWriter.fluidMcmeta(astralFrametime).strip());
     }
 
     private static String shipped(String path) throws IOException {
