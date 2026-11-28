@@ -64,14 +64,28 @@ class GloveThrowSenderTest {
 
         @Test
         void aSprayTickSendsTheBlobAsItsOrigin() {
-            assertEquals(blob, GloveThrowSender.heldTickOrigin(AbilityJson.decode("weird_goop").delivery(), blob,
-                    glove), "a held Goop tick should send the blob its drips leave");
+            assertEquals(blob, heldTickOriginOf("weird_goop"), "a held Goop tick should send the blob its drips leave");
         }
 
         @Test
         void aHeldTickThrowingNoDripsSendsTheGlove() {
-            assertEquals(glove, GloveThrowSender.heldTickOrigin(AbilityJson.decode("zombie_decay").delivery(), blob,
-                    glove), "a held Decay tick should send the glove its cone opens from");
+            assertEquals(glove, heldTickOriginOf("zombie_decay"),
+                    "a held Decay tick should send the glove its cone opens from");
+        }
+
+        /**
+         * Drain's server cone opens where its vortex is drawn opening, the blob
+         * (decision ability-goes-where-the-look-intersects).
+         */
+        @Test
+        void aHeldDrainTickSendsTheBlobItsVortexOpensFrom() {
+            assertEquals(blob, heldTickOriginOf("hex_drain"),
+                    "a held Drain tick should send the blob its drawn vortex opens from");
+        }
+
+        private Vec3 heldTickOriginOf(String name) {
+            AbilityDefinition ability = AbilityJson.decode(name);
+            return GloveThrowSender.heldTickOrigin(ability.delivery(), ability.behaviors(), blob, glove);
         }
     }
 

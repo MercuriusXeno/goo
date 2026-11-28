@@ -1,5 +1,11 @@
 package com.mercuriusxeno.goo.throwing;
 
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.projectile.ProjectileUtil;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
 
 /**
@@ -33,6 +39,25 @@ public final class LookAim {
     }
 
     private LookAim() {
+    }
+
+    /**
+     * What a caster's look meets: the first block outline, fluids passed
+     * through, or a living thing standing before it, the caster ignored, so
+     * the server and the client aim at the same point.
+     *
+     * @param caster the entity whose look is traced
+     * @return the clip
+     */
+    public static LookClip blocksAndLivingSeenBy(Entity caster) {
+        return (from, to) -> {
+            Vec3 stop = caster.level().clip(new ClipContext(from, to, ClipContext.Block.OUTLINE,
+                    ClipContext.Fluid.NONE, caster)).getLocation();
+            AABB swept = new AABB(from, stop).inflate(1);
+            EntityHitResult living = ProjectileUtil.getEntityHitResult(caster, from, stop, swept,
+                    candidate -> candidate instanceof LivingEntity alive && alive.isAlive(), from.distanceToSqr(stop));
+            return living == null ? stop : living.getLocation();
+        };
     }
 
     /**

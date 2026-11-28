@@ -64,6 +64,54 @@ class VortexConeTest {
         }
     }
 
+    /**
+     * A vortex opening from the lifted blob beside the eye points at what the
+     * look intersects (decision ability-goes-where-the-look-intersects).
+     */
+    @Nested
+    class AimFromTheBlob {
+
+        private static final Vec3 EYE = new Vec3(10.5, 65.62, -3.25);
+        private static final Vec3 LOOK_NORTH = new Vec3(0, 0, -1);
+        private static final Vec3 HALF_A_BLOCK_RIGHT = EYE.add(0.5, 0, 0);
+        private static final double ON_THE_AXIS = 0.05;
+        /** Inside Drain's reach, so the look meets the wall. */
+        private static final double WALL_OUT = 3;
+
+        @Test
+        void aVortexBesideTheEyePointsAtTheBlockTheLookHits() {
+            Vec3 hit = EYE.add(LOOK_NORTH.scale(WALL_OUT));
+            VortexCone vortex = VortexCone.aimed(HALF_A_BLOCK_RIGHT, EYE, LOOK_NORTH, range, coneDegrees,
+                    AimFromTheBlob::wallNorth);
+            assertTrue(offAxis(hit, vortex) < ON_THE_AXIS,
+                    "The vortex's axis should pass within a twentieth of a block of the look's hit point, passed "
+                            + offAxis(hit, vortex) + " off it");
+        }
+
+        @Test
+        void aVortexBesideTheEyePointsAtTheLooksPointAtDrainsReachInOpenAir() {
+            Vec3 far = EYE.add(LOOK_NORTH.scale(range));
+            VortexCone vortex = VortexCone.aimed(HALF_A_BLOCK_RIGHT, EYE, LOOK_NORTH, range, coneDegrees,
+                    (from, to) -> to);
+            assertTrue(offAxis(far, vortex) < ON_THE_AXIS,
+                    "The vortex's axis should pass within a twentieth of a block of the look's point at Drain's "
+                            + "reach, passed " + offAxis(far, vortex) + " off it");
+        }
+
+        private static Vec3 wallNorth(Vec3 from, Vec3 to) {
+            double wallZ = EYE.z - WALL_OUT;
+            if (to.z > wallZ || from.z <= wallZ) {
+                return to;
+            }
+            return from.lerp(to, (from.z - wallZ) / (from.z - to.z));
+        }
+
+        private static double offAxis(Vec3 point, VortexCone vortex) {
+            Vec3 offset = point.subtract(vortex.apex());
+            return offset.subtract(vortex.axis().scale(offset.dot(vortex.axis()))).length();
+        }
+    }
+
     @Nested
     class Span {
 

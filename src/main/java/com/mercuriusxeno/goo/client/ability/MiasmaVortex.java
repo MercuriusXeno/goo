@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.throwing.GloveAim;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
+import com.mercuriusxeno.goo.throwing.LookAim;
 import com.mercuriusxeno.goo.throwing.VortexCone;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.client.Camera;
@@ -22,9 +23,10 @@ import java.util.function.Consumer;
 /**
  * Drain's cast look: while right click holds a stream naming
  * {@link MiasmaVortexStep}, a filled, turning, rifled vortex of miasma fills
- * the cone the stream strikes, from the glove hand along the player's whole
- * look, redrawn every frame so it turns with the look, spawning nothing.
+ * the cone the stream strikes, from the lifted blob at what the player's
+ * look intersects, redrawn every frame so it turns with the look, spawning nothing.
  * drain-casts-a-filled-tornadic-miasma-vortex-along-the-look
+ * ability-goes-where-the-look-intersects
  */
 public final class MiasmaVortex {
 
@@ -65,8 +67,11 @@ public final class MiasmaVortex {
             return;
         }
         Camera camera = mc.gameRenderer.mainCamera();
-        Vec3 hand = CastOrigin.ofLocal(mc).subtract(camera.position());
-        VortexCone vortex = VortexCone.along(hand, player.getViewVector(partialTick), drawn.delivery().range(),
+        // ability-goes-where-the-look-intersects
+        VortexCone aimed = VortexCone.aimed(CastOrigin.ofLocal(mc), player.getEyePosition(partialTick),
+                player.getViewVector(partialTick), drawn.delivery().range(), drawn.delivery().coneDegrees(),
+                LookAim.blocksAndLivingSeenBy(player));
+        VortexCone vortex = VortexCone.along(aimed.apex().subtract(camera.position()), aimed.axis(), aimed.length(),
                 drawn.delivery().coneDegrees());
         draws.accept(sortedDrawOf(vortex, lastColors, shown, frame.modelView()));
     }
@@ -88,7 +93,7 @@ public final class MiasmaVortex {
         String abilityId = GloveAim.selectedAbilityId(player);
         ClientAbility ability = abilityId == null ? null : AbilitySyncHandler.findAbility(abilityId);
         boolean swirls = ability != null
-                && ability.behaviors().stream().anyMatch(MiasmaVortexStep.class::isInstance);
+                && MiasmaVortexStep.drawnIn(ability.behaviors());
         return swirls && GloveUseTracker.runsHeld(player) ? ability : null;
     }
 

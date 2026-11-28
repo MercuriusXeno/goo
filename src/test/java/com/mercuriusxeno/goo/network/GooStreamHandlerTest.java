@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.network;
 
+import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.program.CalcifyStep;
@@ -13,6 +14,7 @@ import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import com.mercuriusxeno.goo.throwing.ConvergingCone;
 import com.mercuriusxeno.goo.throwing.DripArc;
+import com.mercuriusxeno.goo.throwing.VortexCone;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
@@ -25,6 +27,7 @@ import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -306,6 +309,52 @@ class GooStreamHandlerTest {
             List<LivingEntity> inTheCone = List.of(near, aligned);
 
             assertEquals(List.of(aligned), GooStreamHandler.mostAlignedMob(inTheCone, EYE, LOOK));
+        }
+    }
+
+    /**
+     * Drain's server cone strikes along the line its vortex is drawn along, from the blob at what the look hits
+     * (decision ability-goes-where-the-look-intersects).
+     */
+    @Nested
+    class DrainStrikesWhatItsVortexDraws {
+
+        private static final Vec3 EYE = new Vec3(10.5, 65.62, -3.25);
+        private static final Vec3 LOOK_NORTH = new Vec3(0, 0, -1);
+        private static final Vec3 BLOB = EYE.add(0.5, 0, 0);
+        private static final double WALL_OUT = 3;
+        private static final double MATCH = 0.05;
+        private static final double HALF_A_MOB = 0.3;
+        private static final double UNSCALED = 1;
+        private final AbilityDefinition drain = AbilityJson.decode("hex_drain");
+
+        @Test
+        void theServerConeStartsAndRunsWhereTheDrawnVortexDoesAndStrikesTheMobOnTheLook() {
+            Delivery delivery = drain.delivery();
+            GooStreamHandler.StrikeLine struck = GooStreamHandler.strikeLineOf(drain, BLOB, EYE, LOOK_NORTH, UNSCALED,
+                    delivery, DrainStrikesWhatItsVortexDraws::wallNorth);
+            VortexCone drawn = VortexCone.aimed(BLOB, EYE, LOOK_NORTH, delivery.range(), delivery.coneDegrees(),
+                    DrainStrikesWhatItsVortexDraws::wallNorth);
+            Mob onTheLook = mock(Mob.class);
+            when(onTheLook.getBoundingBox()).thenReturn(new AABB(EYE.add(LOOK_NORTH.scale(WALL_OUT)),
+                    EYE.add(LOOK_NORTH.scale(WALL_OUT))).inflate(HALF_A_MOB));
+            assertAll(
+                    () -> assertTrue(struck.apex().distanceTo(drawn.apex()) < MATCH,
+                            "the server cone should open where the vortex is drawn opening, stood "
+                                    + struck.apex().distanceTo(drawn.apex()) + " off it"),
+                    () -> assertTrue(struck.axis().distanceTo(drawn.axis()) < MATCH,
+                            "the server cone should run along the drawn vortex's axis, ran " + struck.axis()
+                                    + " against " + drawn.axis()),
+                    () -> assertTrue(GooStreamHandler.inCone(struck.apex(), struck.axis(), delivery, onTheLook),
+                            "the mob on the look 3 blocks out should be struck"));
+        }
+
+        private static Vec3 wallNorth(Vec3 from, Vec3 to) {
+            double wallZ = EYE.z - WALL_OUT;
+            if (to.z > wallZ || from.z <= wallZ) {
+                return to;
+            }
+            return from.lerp(to, (from.z - wallZ) / (from.z - to.z));
         }
     }
 

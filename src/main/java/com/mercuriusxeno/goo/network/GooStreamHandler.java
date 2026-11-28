@@ -19,6 +19,7 @@ import com.mercuriusxeno.goo.ability.program.FloorReach;
 import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.LeafStep;
 import com.mercuriusxeno.goo.ability.program.LeafSteps;
+import com.mercuriusxeno.goo.ability.program.MiasmaVortexStep;
 import com.mercuriusxeno.goo.ability.program.PlacementPrice;
 import com.mercuriusxeno.goo.ability.program.PlayerHost;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
@@ -47,8 +48,10 @@ import com.mercuriusxeno.goo.throwing.CoatRay;
 import com.mercuriusxeno.goo.throwing.ConeShape;
 import com.mercuriusxeno.goo.throwing.ConvergingCone;
 import com.mercuriusxeno.goo.throwing.DripArc;
+import com.mercuriusxeno.goo.throwing.LookAim;
 import com.mercuriusxeno.goo.throwing.StreamCone;
 import com.mercuriusxeno.goo.throwing.ThrowArc;
+import com.mercuriusxeno.goo.throwing.VortexCone;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
@@ -246,6 +249,41 @@ public final class GooStreamHandler {
     }
 
     /**
+     * Where a stream's cone opens and the way it runs.
+     *
+     * @param apex the cone's apex
+     * @param axis the cone's unit axis
+     */
+    record StrikeLine(Vec3 apex, Vec3 axis) {
+    }
+
+    /**
+     * The line a stream's cone strikes along: from the origin the client
+     * sent, kept within reach, along the look, or, for a stream drawing the
+     * vortex, along the drawn vortex's axis at what the look intersects, so
+     * the server drains what the vortex is drawn reaching.
+     *
+     * @param ability  the stream ability
+     * @param origin   where the client sent the cast leaving
+     * @param eye      the caster's eye
+     * @param look     the caster's unit look
+     * @param scale    the caster's scale, which widens the hand's reach
+     * @param delivery the stream's delivery as it reaches for the caster this tick
+     * @param clip     what the look can meet
+     * @return the strike line
+     */
+    static StrikeLine strikeLineOf(AbilityDefinition ability, Vec3 origin, Vec3 eye, Vec3 look, double scale,
+                                   Delivery delivery, LookAim.LookClip clip) {
+        Vec3 apex = ThrowArc.clampToReach(eye, origin, ThrowArc.HAND_REACH * scale);
+        if (!MiasmaVortexStep.drawnIn(ability.behaviors())) {
+            return new StrikeLine(apex, look);
+        }
+        // ability-goes-where-the-look-intersects
+        return new StrikeLine(apex, VortexCone.aimed(apex, eye, look, delivery.range(), delivery.coneDegrees(), clip)
+                .axis());
+    }
+
+    /**
      * Plays one beat of the held ability's sound at the player, its pitch
      * strayed a little: everyone near hears it at the holder's eye, and the
      * holder hears it at the listener, or, for a looped sound, hears their
@@ -377,8 +415,10 @@ public final class GooStreamHandler {
         ServerLevel level = player.level();
         // bore-reaches-as-far-as-your-block-reach
         Delivery delivery = ability.delivery().reachingTo(player.blockInteractionRange());
-        Vec3 apex = coneApex(player, origin);
-        Vec3 axis = player.getLookAngle();
+        StrikeLine line = strikeLineOf(ability, origin, player.getEyePosition(), player.getLookAngle(),
+                player.getScale(), delivery, LookAim.blocksAndLivingSeenBy(player));
+        Vec3 apex = line.apex();
+        Vec3 axis = line.axis();
         CastOn cast = new CastOn(level, player, ability.id(), spray);
         List<Step> entitySteps = channelSteps(ability.behaviors(), false);
         TickHeals heals = new TickHeals(new ArrayList<>(), new ArrayList<>());
