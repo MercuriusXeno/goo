@@ -1,0 +1,7 @@
+{
+  "parent": "goo:block/monolith_marker",
+  "textures": {
+    "marker": "goo:block/monolith_marker_polished_glass",
+    "particle": "goo:block/monolith_marker_polished_glass"
+  }
+}

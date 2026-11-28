@@ -10,9 +10,11 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
+import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.NonNull;
+import java.util.List;
 
 /**
  * A monolith marker: a short black standing stone in the warrens, the surface monolith's slab shrunk to one block, a
@@ -24,6 +26,10 @@ public final class MonolithMarkerBlock extends Block {
 
     /** The horizontal axis the slab's width runs along. */
     public static final EnumProperty<Direction.Axis> AXIS = BlockStateProperties.HORIZONTAL_AXIS;
+    /** The look the slab stands in. */
+    public static final EnumProperty<MarkerLook> LOOK = EnumProperty.create(MarkerLook.STATE, MarkerLook.class);
+    /** The state properties a marker holds. */
+    public static final List<Property<?>> STATE_PROPERTIES = List.of(AXIS, LOOK);
 
     /** The slab's width runs from this pixel to its mirror, and its thickness likewise, out of sixteen. */
     private static final double WIDTH_FROM = 4.0;
@@ -41,7 +47,8 @@ public final class MonolithMarkerBlock extends Block {
      */
     public MonolithMarkerBlock(Properties properties) {
         super(properties);
-        registerDefaultState(stateDefinition.any().setValue(AXIS, Direction.Axis.X));
+        registerDefaultState(stateDefinition.any().setValue(AXIS, Direction.Axis.X)
+                .setValue(LOOK, MarkerLook.XENO_RUNES));
     }
 
     @Override
@@ -65,6 +72,6 @@ public final class MonolithMarkerBlock extends Block {
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.@NonNull Builder<Block, BlockState> builder) {
-        builder.add(AXIS);
+        builder.add(STATE_PROPERTIES.toArray(Property<?>[]::new));
     }
 }

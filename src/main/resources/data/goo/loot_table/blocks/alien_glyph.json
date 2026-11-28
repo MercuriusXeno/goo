@@ -12,8 +12,7 @@
               "function": "minecraft:copy_state",
               "block": "goo:alien_glyph",
               "properties": [
-                "material",
-                "mark"
+                "material"
               ]
             }
           ]

@@ -19,10 +19,31 @@
         }
       },
       {
-        "when": "faceted",
+        "when": "polished_glass",
         "model": {
           "type": "minecraft:model",
-          "model": "goo:block/alien_tile_faceted"
+          "model": "goo:block/alien_tile_polished_glass"
+        }
+      },
+      {
+        "when": "xeno_runes",
+        "model": {
+          "type": "minecraft:model",
+          "model": "goo:block/alien_tile_xeno_runes"
+        }
+      },
+      {
+        "when": "xeno_seam",
+        "model": {
+          "type": "minecraft:model",
+          "model": "goo:block/alien_tile_xeno_seam"
+        }
+      },
+      {
+        "when": "framed_panels",
+        "model": {
+          "type": "minecraft:model",
+          "model": "goo:block/alien_tile_framed_panels"
         }
       }
     ],

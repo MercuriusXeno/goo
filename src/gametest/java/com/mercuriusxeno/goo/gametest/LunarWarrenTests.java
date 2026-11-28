@@ -1,6 +1,10 @@
 package com.mercuriusxeno.goo.gametest;
 
+import com.mercuriusxeno.goo.block.alienstructure.AlienMaterial;
+import com.mercuriusxeno.goo.block.alienstructure.AlienMaterialBlock;
 import com.mercuriusxeno.goo.lunar.Lunar;
+import com.mercuriusxeno.goo.lunar.MarkerLook;
+import com.mercuriusxeno.goo.lunar.MonolithMarkerBlock;
 import com.mercuriusxeno.goo.lunar.LunarDepths;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import net.minecraft.core.BlockPos;
@@ -13,6 +17,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -58,6 +63,14 @@ public final class LunarWarrenTests {
             + "beside it; lunar holds %d and none is";
     private static final String GROWTH_ABOVE_WARRENS = "The bands over the warrens across %d chunks should hold no %s, "
             + "hold %d, the first at %s";
+    private static final String LUNAR_WARRENS_LAY_MARKER_DRAFT_FAMILIES = "lunar_warrens_lay_marker_draft_families";
+    /** The materials grown from the monolith marker drafts. */
+    private static final Set<AlienMaterial> MARKER_DRAFT_MATERIALS = EnumSet.complementOf(EnumSet.of(
+            AlienMaterial.GLAZED, AlienMaterial.IRIDESCENT));
+    private static final String TOO_FEW_DRAFT_MATERIALS = "The warrens over %d chunks should lay at least two "
+            + "marker-draft materials, lay %s";
+    private static final String NO_OTHER_MARKER_LOOK = "The warrens over %d chunks should stand a monolith marker in "
+            + "a look other than xeno runes, stand none";
     private static final String MARKER_BESIDE_MARKER = "The monolith marker at %s should stand alone, touches another "
             + "at %s";
 
@@ -77,6 +90,37 @@ public final class LunarWarrenTests {
                 LunarWarrenTests::lunarWarrensGrowVolatileCrystalClusters);
         GooTestFunctions.registerTest(registrar, LUNAR_WARRENS_HOME_SCULK_SENSORS_AND_CATALYSTS,
                 LunarWarrenTests::lunarWarrensHomeSculkSensorsAndCatalysts);
+        GooTestFunctions.registerTest(registrar, LUNAR_WARRENS_LAY_MARKER_DRAFT_FAMILIES,
+                LunarWarrenTests::lunarWarrensLayMarkerDraftFamilies);
+    }
+
+    /**
+     * Scans a square of chunks in goo:lunar for alien structure blocks and monolith markers, reading each one's look:
+     * the warrens' band holds blocks of at least two of the marker-draft materials, and a marker standing in a look
+     * other than xeno runes.
+     * decision black-runic-material-families-grow-from-the-marker-drafts
+     *
+     * @param helper the gametest helper
+     */
+    public static void lunarWarrensLayMarkerDraftFamilies(GameTestHelper helper) {
+        ServerLevel lunar = helper.getLevel().getServer().getLevel(Lunar.LEVEL);
+        helper.assertTrue(lunar != null, LUNAR_REQUIRED);
+        Set<AlienMaterial> draftMaterials = new HashSet<>();
+        for (Block member : List.of(GooBlocks.ALIEN_STONE.get(), GooBlocks.ALIEN_PILLAR.get(),
+                GooBlocks.ALIEN_GLYPH.get(), GooBlocks.ALIEN_TILE.get())) {
+            for (BlockPos at : scanFor(lunar, member)) {
+                AlienMaterial material = lunar.getBlockState(at).getValue(AlienMaterialBlock.MATERIAL);
+                if (inWarrens(at.getY()) && MARKER_DRAFT_MATERIALS.contains(material)) {
+                    draftMaterials.add(material);
+                }
+            }
+        }
+        boolean otherLook = scanFor(lunar, GooBlocks.MONOLITH_MARKER.get()).stream().anyMatch(at -> inWarrens(at.getY())
+                && lunar.getBlockState(at).getValue(MonolithMarkerBlock.LOOK) != MarkerLook.XENO_RUNES);
+        int chunks = 4 * CHUNK_REACH * CHUNK_REACH;
+        helper.assertTrue(draftMaterials.size() >= 2, String.format(TOO_FEW_DRAFT_MATERIALS, chunks, draftMaterials));
+        helper.assertTrue(otherLook, String.format(NO_OTHER_MARKER_LOOK, chunks));
+        helper.succeed();
     }
 
     /**

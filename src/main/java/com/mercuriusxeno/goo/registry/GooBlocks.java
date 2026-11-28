@@ -20,7 +20,6 @@ import com.mercuriusxeno.goo.block.ability.VinesCellBlock;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.block.ability.WispBlock;
 import com.mercuriusxeno.goo.block.ability.ZapPulseBlock;
-import com.mercuriusxeno.goo.block.alienstructure.AlienGlyphBlock;
 import com.mercuriusxeno.goo.block.alienstructure.AlienMaterialBlock;
 import com.mercuriusxeno.goo.block.alienstructure.AlienPillarBlock;
 import com.mercuriusxeno.goo.block.alientech.LightBeaconBlock;
@@ -782,11 +781,11 @@ public class GooBlocks {
             AlienPillarBlock::new, GooBlocks::alienStructureProperties);
 
     /**
-     * Alien glyph: the alien structure family's block etched with a glyph, its glyph and its material block states.
+     * Alien glyph: the alien structure family's rune block, each material bearing its own rune, the material a block state.
      * decision warrens-hold-xeno-rich-alien-blocks
      */
-    public static final DeferredBlock<AlienGlyphBlock> ALIEN_GLYPH = BLOCKS.registerBlock("alien_glyph",
-            AlienGlyphBlock::new, GooBlocks::alienStructureProperties);
+    public static final DeferredBlock<AlienMaterialBlock> ALIEN_GLYPH = BLOCKS.registerBlock("alien_glyph",
+            AlienMaterialBlock::new, GooBlocks::alienStructureProperties);
 
     /**
      * Alien tile: the alien structure family's floor tile, its material a block state.

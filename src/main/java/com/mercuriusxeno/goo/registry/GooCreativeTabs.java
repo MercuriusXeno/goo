@@ -1,15 +1,11 @@
 package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.block.alienstructure.AlienGlyphBlock;
-import com.mercuriusxeno.goo.block.alienstructure.AlienMaterial;
-import com.mercuriusxeno.goo.block.alienstructure.AlienMaterialBlock;
-import com.mercuriusxeno.goo.block.alienstructure.AlienPillarBlock;
-import com.mercuriusxeno.goo.block.alienstructure.GlyphMark;
-import com.mercuriusxeno.goo.block.alienstructure.PillarStyle;
+import com.mercuriusxeno.goo.block.alienstructure.AlienLooks;
 import com.mercuriusxeno.goo.fluid.GooBucketItem;
 import com.mercuriusxeno.goo.item.GooItem;
 import com.mercuriusxeno.goo.item.GooStacks;
+import com.mercuriusxeno.goo.lunar.MarkerLook;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.Holder;
@@ -25,6 +21,7 @@ import net.minecraft.world.item.component.BlockItemStateProperties;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import java.util.Comparator;
+import java.util.Map;
 
 /**
  * Creative mode tab registration. Shows machines, intermediates, and for
@@ -63,7 +60,7 @@ public class GooCreativeTabs {
                 output.accept(GooItems.METEORIC_IRON.get());
                 output.accept(GooItems.NATIVE_IRON.get());
                 output.accept(GooItems.ASTRAL_CRYSTAL.get());
-                output.accept(GooItems.MONOLITH_MARKER.get());
+                MarkerLook.looks().forEach(look -> output.accept(withState(GooItems.MONOLITH_MARKER.get(), look)));
                 acceptAlienStructureLooks(output);
                 output.accept(GooItems.VOLATILE_CRYSTAL.get());
                 output.accept(GooItems.RESONATOR.get());
@@ -99,29 +96,15 @@ public class GooCreativeTabs {
      * @param output the tab's item sink
      */
     private static void acceptAlienStructureLooks(CreativeModeTab.Output output) {
-        for (AlienMaterial material : AlienMaterial.values()) {
-            output.accept(withState(GooItems.ALIEN_STONE.get(),
-                    BlockItemStateProperties.EMPTY.with(AlienMaterialBlock.MATERIAL, material)));
-        }
-        for (PillarStyle style : PillarStyle.values()) {
-            output.accept(withState(GooItems.ALIEN_PILLAR.get(),
-                    BlockItemStateProperties.EMPTY.with(AlienPillarBlock.STYLE, style)));
-        }
-        for (AlienMaterial material : AlienMaterial.values()) {
-            for (GlyphMark mark : GlyphMark.values()) {
-                output.accept(withState(GooItems.ALIEN_GLYPH.get(), BlockItemStateProperties.EMPTY
-                        .with(AlienMaterialBlock.MATERIAL, material).with(AlienGlyphBlock.MARK, mark)));
-            }
-        }
-        for (AlienMaterial material : AlienMaterial.values()) {
-            output.accept(withState(GooItems.ALIEN_TILE.get(),
-                    BlockItemStateProperties.EMPTY.with(AlienMaterialBlock.MATERIAL, material)));
-        }
+        AlienLooks.materialLooks().forEach(look -> output.accept(withState(GooItems.ALIEN_STONE.get(), look)));
+        AlienLooks.pillarLooks().forEach(look -> output.accept(withState(GooItems.ALIEN_PILLAR.get(), look)));
+        AlienLooks.glyphLooks().forEach(look -> output.accept(withState(GooItems.ALIEN_GLYPH.get(), look)));
+        AlienLooks.materialLooks().forEach(look -> output.accept(withState(GooItems.ALIEN_TILE.get(), look)));
     }
 
-    private static ItemStack withState(Item item, BlockItemStateProperties state) {
+    private static ItemStack withState(Item item, Map<String, String> look) {
         ItemStack stack = new ItemStack(item);
-        stack.set(DataComponents.BLOCK_STATE, state);
+        stack.set(DataComponents.BLOCK_STATE, new BlockItemStateProperties(look));
         return stack;
     }
 

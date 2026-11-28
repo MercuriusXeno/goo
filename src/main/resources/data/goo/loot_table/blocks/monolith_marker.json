@@ -6,7 +6,16 @@
       "entries": [
         {
           "name": "goo:monolith_marker",
-          "type": "minecraft:item"
+          "type": "minecraft:item",
+          "functions": [
+            {
+              "function": "minecraft:copy_state",
+              "block": "goo:monolith_marker",
+              "properties": [
+                "look"
+              ]
+            }
+          ]
         }
       ],
       "condition": {

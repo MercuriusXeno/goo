@@ -4,7 +4,9 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
+import net.minecraft.world.level.block.state.properties.Property;
 import org.jspecify.annotations.NonNull;
+import java.util.List;
 
 /**
  * An alien structure block whose look is the material it is cut from, held as a block state so one block carries
@@ -14,7 +16,10 @@ import org.jspecify.annotations.NonNull;
 public class AlienMaterialBlock extends Block {
 
     /** The material the block is cut from. */
-    public static final EnumProperty<AlienMaterial> MATERIAL = EnumProperty.create("material", AlienMaterial.class);
+    public static final EnumProperty<AlienMaterial> MATERIAL = EnumProperty.create(AlienLooks.MATERIAL,
+            AlienMaterial.class);
+    /** The state properties alien stone and alien tile hold. */
+    public static final List<Property<?>> STATE_PROPERTIES = List.of(MATERIAL);
 
     /**
      * Creates the block, cut from the glaze.
@@ -28,6 +33,6 @@ public class AlienMaterialBlock extends Block {
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.@NonNull Builder<Block, BlockState> builder) {
-        builder.add(MATERIAL);
+        builder.add(STATE_PROPERTIES.toArray(Property<?>[]::new));
     }
 }

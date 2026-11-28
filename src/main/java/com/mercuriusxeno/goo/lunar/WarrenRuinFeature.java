@@ -1,11 +1,8 @@
 package com.mercuriusxeno.goo.lunar;
 
-import com.mercuriusxeno.goo.block.alienstructure.AlienGlyphBlock;
-import com.mercuriusxeno.goo.block.alienstructure.AlienMaterial;
 import com.mercuriusxeno.goo.block.alienstructure.AlienMaterialBlock;
 import com.mercuriusxeno.goo.block.alienstructure.AlienPillarBlock;
-import com.mercuriusxeno.goo.block.alienstructure.GlyphMark;
-import com.mercuriusxeno.goo.block.alienstructure.PillarStyle;
+import com.mercuriusxeno.goo.lunar.RuinLook.LaidBlock;
 import com.mercuriusxeno.goo.lunar.WarrenRuinShapes.Part;
 import com.mercuriusxeno.goo.lunar.WarrenRuinShapes.Placement;
 import com.mercuriusxeno.goo.lunar.WarrenRuinShapes.Shape;
@@ -24,7 +21,7 @@ import net.minecraft.world.level.levelgen.feature.Feature;
 
 /**
  * One of the warrens' little mini structures: a ruin shape drawn from {@link WarrenRuinShapes}, turned a random
- * quarter turn or none, cut from one alien material with its pillars in one style and each glyph drawn at random, laid
+ * quarter turn or none, cut from its materials with its pillars in one style, each glyph bearing its material's rune, laid
  * around an open spot on a warren tunnel's floor, where it cuts into the tunnel's rock as buried
  * remains do. A shape reaching outside the warrens' band is not laid. No block of a ruin covers a monolith marker or
  * stands on one, so every marker keeps open air over it, and a ruin's own marker stands only under open air.
@@ -56,25 +53,14 @@ public final class WarrenRuinFeature implements Feature {
         if (!fitsInWarrens(shape, spot.getY())) {
             return false;
         }
-        RuinLook look = new RuinLook(pick(AlienMaterial.values(), random), pick(PillarStyle.values(), random),
-                pick(Rotation.values(), random));
-        for (Placement placement : shape.blocks()) {
-            BlockPos at = spot.offset(offsetOf(placement, look.rotation()));
-            if (mayLay(level, at, placement.part())) {
-                level.setBlock(at, stateOf(placement.part(), look, random), PLACE_FLAGS);
+        RuinLook look = RuinLook.pick(random);
+        for (LaidBlock laid : look.lay(shape)) {
+            BlockPos at = spot.offset(offsetOf(laid.placement(), look.rotation()));
+            if (mayLay(level, at, laid.placement().part())) {
+                level.setBlock(at, stateOf(laid, look.rotation(), random), PLACE_FLAGS);
             }
         }
         return true;
-    }
-
-    /**
-     * What one ruin is cut from: one material and one pillar style for the whole ruin, and how it is turned.
-     *
-     * @param material the material its stone, glyphs and tiles are cut from
-     * @param style    the style its pillars are carved in
-     * @param rotation how it is turned about its spot
-     */
-    private record RuinLook(AlienMaterial material, PillarStyle style, Rotation rotation) {
     }
 
     /**
@@ -86,10 +72,6 @@ public final class WarrenRuinFeature implements Feature {
      */
     static BlockPos offsetOf(Placement placement, Rotation rotation) {
         return new BlockPos(placement.dx(), placement.dy(), placement.dz()).rotate(rotation);
-    }
-
-    private static <T> T pick(T[] values, RandomSource random) {
-        return values[random.nextInt(values.length)];
     }
 
     /**
@@ -113,21 +95,30 @@ public final class WarrenRuinFeature implements Feature {
         return clearOfMarkers && level.getBlockState(at.above()).isAir() && !WarrenFloors.touchesAMarker(level, at);
     }
 
-    private static BlockState stateOf(Part part, RuinLook look, RandomSource random) {
-        BlockState pillar = GooBlocks.ALIEN_PILLAR.get().defaultBlockState().setValue(AlienPillarBlock.STYLE,
-                look.style());
-        return switch (part) {
+    private static BlockState stateOf(LaidBlock laid, Rotation rotation, RandomSource random) {
+        return switch (laid.placement().part()) {
             case PLAIN -> GooBlocks.ALIEN_STONE.get().defaultBlockState()
-                    .setValue(AlienMaterialBlock.MATERIAL, look.material());
-            case PILLAR -> pillar.setValue(RotatedPillarBlock.AXIS, Direction.Axis.Y);
-            case PILLAR_LYING -> pillar.setValue(RotatedPillarBlock.AXIS,
-                    look.rotation().rotate(Direction.EAST).getAxis());
+                    .setValue(AlienMaterialBlock.MATERIAL, laid.material());
+            case PILLAR -> pillarOf(laid, Direction.Axis.Y);
+            case PILLAR_LYING -> pillarOf(laid, rotation.rotate(Direction.EAST).getAxis());
             case GLYPH -> GooBlocks.ALIEN_GLYPH.get().defaultBlockState()
-                    .setValue(AlienMaterialBlock.MATERIAL, look.material())
-                    .setValue(AlienGlyphBlock.MARK, pick(GlyphMark.values(), random));
+                    .setValue(AlienMaterialBlock.MATERIAL, laid.material());
             case TILE -> GooBlocks.ALIEN_TILE.get().defaultBlockState()
-                    .setValue(AlienMaterialBlock.MATERIAL, look.material());
+                    .setValue(AlienMaterialBlock.MATERIAL, laid.material());
             case MARKER -> MonolithMarkerFeature.markerTurned(random);
         };
+    }
+
+    /**
+     * A pillar in its part's material and the ruin's style, built only for a pillar part, since the marker a ruin lays
+     * is cut from no material.
+     *
+     * @param laid the laid pillar block
+     * @param axis the axis the pillar runs along
+     * @return the pillar's state
+     */
+    private static BlockState pillarOf(LaidBlock laid, Direction.Axis axis) {
+        return GooBlocks.ALIEN_PILLAR.get().defaultBlockState().setValue(AlienPillarBlock.STYLE, laid.style())
+                .setValue(AlienMaterialBlock.MATERIAL, laid.material()).setValue(RotatedPillarBlock.AXIS, axis);
     }
 }

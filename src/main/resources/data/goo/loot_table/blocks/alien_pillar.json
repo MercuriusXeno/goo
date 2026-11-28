@@ -12,6 +12,7 @@
               "function": "minecraft:copy_state",
               "block": "goo:alien_pillar",
               "properties": [
+                "material",
                 "style"
               ]
             }

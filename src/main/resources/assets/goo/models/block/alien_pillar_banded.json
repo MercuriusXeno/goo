@@ -1,7 +1,0 @@
-{
-  "parent": "minecraft:block/cube_column",
-  "textures": {
-    "side": "goo:block/alien_pillar_banded",
-    "end": "goo:block/alien_pillar_banded_top"
-  }
-}

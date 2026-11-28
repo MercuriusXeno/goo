@@ -1,31 +1,27 @@
 {
   "variants": {
-    "mark=eye,material=glazed": {
-      "model": "goo:block/alien_glyph_glazed_eye"
+    "material=glazed": {
+      "model": "goo:block/alien_glyph_glazed"
     },
-    "mark=maze,material=glazed": {
-      "model": "goo:block/alien_glyph_glazed_maze"
+    "material=iridescent": {
+      "model": "goo:block/alien_glyph_iridescent"
     },
-    "mark=ring,material=glazed": {
-      "model": "goo:block/alien_glyph_glazed_ring"
+    "material=polished_glass": {
+      "model": "goo:block/alien_glyph_polished_glass"
     },
-    "mark=eye,material=iridescent": {
-      "model": "goo:block/alien_glyph_iridescent_eye"
+    "material=xeno_runes": [
+      {
+        "model": "goo:block/alien_glyph_xeno_runes_gate"
+      },
+      {
+        "model": "goo:block/alien_glyph_xeno_runes_fork"
+      }
+    ],
+    "material=xeno_seam": {
+      "model": "goo:block/alien_glyph_xeno_seam"
     },
-    "mark=maze,material=iridescent": {
-      "model": "goo:block/alien_glyph_iridescent_maze"
-    },
-    "mark=ring,material=iridescent": {
-      "model": "goo:block/alien_glyph_iridescent_ring"
-    },
-    "mark=eye,material=faceted": {
-      "model": "goo:block/alien_glyph_faceted_eye"
-    },
-    "mark=maze,material=faceted": {
-      "model": "goo:block/alien_glyph_faceted_maze"
-    },
-    "mark=ring,material=faceted": {
-      "model": "goo:block/alien_glyph_faceted_ring"
+    "material=framed_panels": {
+      "model": "goo:block/alien_glyph_framed_panels"
     }
   }
 }

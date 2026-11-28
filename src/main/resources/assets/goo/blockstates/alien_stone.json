@@ -6,8 +6,22 @@
     "material=iridescent": {
       "model": "goo:block/alien_stone_iridescent"
     },
-    "material=faceted": {
-      "model": "goo:block/alien_stone_faceted"
+    "material=polished_glass": {
+      "model": "goo:block/alien_stone_polished_glass"
+    },
+    "material=xeno_runes": [
+      {
+        "model": "goo:block/alien_stone_xeno_runes_angular"
+      },
+      {
+        "model": "goo:block/alien_stone_xeno_runes_diagonal"
+      }
+    ],
+    "material=xeno_seam": {
+      "model": "goo:block/alien_stone_xeno_seam"
+    },
+    "material=framed_panels": {
+      "model": "goo:block/alien_stone_framed_panels"
     }
   }
 }

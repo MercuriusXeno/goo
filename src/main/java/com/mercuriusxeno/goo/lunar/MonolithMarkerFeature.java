@@ -45,13 +45,15 @@ public final class MonolithMarkerFeature implements Feature {
     }
 
     /**
-     * A monolith marker turned along a random horizontal axis.
+     * A monolith marker turned along a random horizontal axis, standing in one look picked for it alone.
      *
      * @param random the feature's random
      * @return the marker's state
      */
     static BlockState markerTurned(RandomSource random) {
         Direction.Axis axis = random.nextBoolean() ? Direction.Axis.X : Direction.Axis.Z;
-        return GooBlocks.MONOLITH_MARKER.get().defaultBlockState().setValue(MonolithMarkerBlock.AXIS, axis);
+        MarkerLook look = MarkerLook.values()[random.nextInt(MarkerLook.values().length)];
+        return GooBlocks.MONOLITH_MARKER.get().defaultBlockState().setValue(MonolithMarkerBlock.AXIS, axis)
+                .setValue(MonolithMarkerBlock.LOOK, look);
     }
 }
