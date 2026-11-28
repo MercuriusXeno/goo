@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:level_under_mortar_bridges_a_gap_with_stone",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 60,
+  "setup_ticks": 0,
+  "required": true
+}
