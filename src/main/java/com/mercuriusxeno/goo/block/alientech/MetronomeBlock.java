@@ -17,6 +17,8 @@ import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
@@ -47,6 +49,25 @@ public class MetronomeBlock extends DiodeBlock {
         super(properties);
         registerDefaultState(stateDefinition.any().setValue(FACING, Direction.NORTH).setValue(CADENCE, 1)
                 .setValue(INVERTED, false).setValue(POWERED, false));
+    }
+
+    /**
+     * The shape its model draws, the switch torch and the button standing on the plate, which a look lands on.
+     * operator ruling 2026-11-28: the model is what a click hits
+     */
+    @Override
+    protected @NonNull VoxelShape getShape(@NonNull BlockState state, @NonNull BlockGetter level,
+                                           @NonNull BlockPos pos, @NonNull CollisionContext context) {
+        return MetronomeShape.of(state.getValue(FACING), state.getValue(CADENCE), state.getValue(INVERTED));
+    }
+
+    /**
+     * The plate alone, which a walker stands on, as a repeater's is.
+     */
+    @Override
+    protected @NonNull VoxelShape getCollisionShape(@NonNull BlockState state, @NonNull BlockGetter level,
+                                                    @NonNull BlockPos pos, @NonNull CollisionContext context) {
+        return super.getShape(state, level, pos, context);
     }
 
     /**
