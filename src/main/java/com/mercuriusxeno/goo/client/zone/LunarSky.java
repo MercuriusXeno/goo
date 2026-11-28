@@ -33,9 +33,12 @@ public final class LunarSky {
     /** The share of vanilla's moon sprite's width its disc spans: eight of its thirty-two texels. */
     public static final double MOON_DISC_SHARE = 8.0 / 32.0;
     /**
-     * The blue planet's half width at the sky's distance, four of vanilla's moon discs wide; its disc fills its quad,
-     * so its 32 texels span the sky units vanilla's moon's 32 texels do.
+     * The blue planet's half width at the sky's distance, four of vanilla's moon discs wide. Its disc fills its
+     * 32-texel sprite, so a planet texel spans the sky units a moon texel spans: the moon's 8-texel disc is one moon
+     * wide (MOON_DISC_SHARE of the quad VANILLA_MOON_HALF_WIDTH gives), the planet's 32-texel disc four moons wide.
      * decision blue-star-is-a-planet-four-moons-wide-drawn-in-phases
+     * decision planet-face-is-eight-hand-drawn-phase-sprites
+     * decision overworld-phases-are-32x32-at-the-moons-lod-ratio
      */
     public static final float PLANET_HALF_SIZE = (float) (LunarSight.PLANET_DISC_HALF_TANGENT
             * PocketStarSkyRenderer.SKY_DISTANCE);

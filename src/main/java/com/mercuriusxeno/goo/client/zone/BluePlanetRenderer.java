@@ -26,10 +26,13 @@ import org.jspecify.annotations.Nullable;
  * Draws the blue planet's disc: the hand-drawn sprite of its phase on a quad laid as vanilla's sky lays its moon
  * sprite, through the pipeline its caller names. Lunar's sky and the Lunar trip home draw the one planet through it,
  * each through a pipeline laying the sprite's opaque texels over what lies behind, so the disc that swells is the
- * disc the sky showed and its unlit face hides the sun behind it.
+ * disc the sky showed and its unlit face hides the sun behind it. The sprite's 32 texels span the disc four moons
+ * wide, so a planet texel spans the sky units a moon texel spans, the moon's 8-texel disc spanning one moon
+ * (LunarSky.MOON_DISC_SHARE over LunarSky.VANILLA_MOON_HALF_WIDTH).
  * decision blue-star-is-a-planet-four-moons-wide-drawn-in-phases
  * decision blue-star-takes-the-moons-place-with-the-opposite-phase
  * decision planet-face-is-eight-hand-drawn-phase-sprites
+ * decision overworld-phases-are-32x32-at-the-moons-lod-ratio
  */
 public final class BluePlanetRenderer {
 
