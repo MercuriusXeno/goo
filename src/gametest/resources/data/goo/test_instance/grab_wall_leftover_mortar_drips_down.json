@@ -1,6 +1,6 @@
 {
   "type": "minecraft:function",
-  "function": "goo:gouge_lifts_a_hunk_of_stone",
+  "function": "goo:grab_wall_leftover_mortar_drips_down",
   "environment": "minecraft:default",
   "structure": "goo:test_bay",
   "max_ticks": 120,
