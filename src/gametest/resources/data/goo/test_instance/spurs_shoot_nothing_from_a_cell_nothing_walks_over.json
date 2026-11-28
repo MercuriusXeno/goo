@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:spurs_shoot_nothing_from_a_cell_nothing_walks_over",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 100,
+  "setup_ticks": 0,
+  "required": true
+}

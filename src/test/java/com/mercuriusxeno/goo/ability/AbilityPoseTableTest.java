@@ -67,6 +67,7 @@ class AbilityPoseTableTest {
             Map.entry("metal_dart", ArmPose.SWUNG),
             Map.entry("metal_magnet", ArmPose.HELD_UP),
             Map.entry("metal_spikes", ArmPose.HELD_OUT),
+            Map.entry("osseous_spurs", ArmPose.HELD_OUT),
             Map.entry("zombie_decay", ArmPose.HELD_OUT),
             Map.entry("nether_gloom", ArmPose.HELD_OUT),
             Map.entry("nether_grudge", ArmPose.HELD_UP),

@@ -15,6 +15,7 @@ import com.mercuriusxeno.goo.block.ability.NitroCellBlock;
 import com.mercuriusxeno.goo.block.ability.RimeCellBlock;
 import com.mercuriusxeno.goo.block.ability.SignalCellBlock;
 import com.mercuriusxeno.goo.block.ability.SpikesCellBlock;
+import com.mercuriusxeno.goo.block.ability.SpursCellBlock;
 import com.mercuriusxeno.goo.block.ability.UpdraftCellBlock;
 import com.mercuriusxeno.goo.block.ability.VinesCellBlock;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
@@ -458,6 +459,25 @@ public class GooBlocks {
             () -> BlockBehaviour.Properties.of()
                     .mapColor(MapColor.METAL)
                     .friction(CellBinding.SPIKES.surface().friction())
+                    .sound(SoundType.SLIME_BLOCK)
+                    .instabreak()
+                    .noOcclusion()
+                    .replaceable()
+                    .noLootTable()
+                    .pushReaction(PushReaction.POPPED));
+    /**
+     * Spurs: the volume cell bound to Osseous's goo, the bone ivory goo Spurs
+     * sprays onto a block's top, one to fifteen layers, ordinary ground
+     * underfoot that shoots bone spikes at what walks on it and sounds as goo
+     * does, dropping the osseous goo its layers cost through
+     * VolumeCellBlock.getDrops, no loot table
+     * (decision spurs-shoots-bone-spikes-at-walkers).
+     */
+    public static final DeferredBlock<SpursCellBlock> OSSEOUS_SPURS = BLOCKS.registerBlock(
+            "osseous_spurs", properties -> new SpursCellBlock(properties, CellBinding.SPURS),
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.SAND)
+                    .friction(CellBinding.SPURS.surface().friction())
                     .sound(SoundType.SLIME_BLOCK)
                     .instabreak()
                     .noOcclusion()

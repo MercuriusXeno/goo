@@ -11,6 +11,7 @@ import com.mercuriusxeno.goo.block.ability.NectarFights;
 import com.mercuriusxeno.goo.block.ability.NitroFuses;
 import com.mercuriusxeno.goo.block.ability.PourPlans;
 import com.mercuriusxeno.goo.block.ability.WispClaims;
+import com.mercuriusxeno.goo.network.BoneSpikes;
 import com.mercuriusxeno.goo.network.DripFlights;
 import com.mercuriusxeno.goo.network.GooEffectScheduler;
 import com.mercuriusxeno.goo.network.KnifeHolds;
@@ -35,6 +36,7 @@ public final class GooServerState {
     private final KnifeHolds knifeHolds = new KnifeHolds();
     private final PalmBufferSyncs palmBufferSyncs = new PalmBufferSyncs();
     private final ThrownKnives thrownKnives = new ThrownKnives();
+    private final BoneSpikes boneSpikes = new BoneSpikes();
     private final MorphBirths morphBirths = new MorphBirths();
     private final BlockExposures blockExposures = new BlockExposures();
     private final StreamHolds streamHolds = new StreamHolds();
@@ -104,6 +106,13 @@ public final class GooServerState {
      */
     public ThrownKnives thrownKnives() {
         return thrownKnives;
+    }
+
+    /**
+     * @return the bone spikes Spurs cells shot, in flight
+     */
+    public BoneSpikes boneSpikes() {
+        return boneSpikes;
     }
 
     /**
@@ -255,6 +264,7 @@ public final class GooServerState {
         knifeHolds.tick(currentTick);
         palmBufferSyncs.syncEvery(server, knifeHolds, currentTick);
         thrownKnives.tick(currentTick);
+        boneSpikes.tick();
     }
 
     /**
@@ -265,6 +275,7 @@ public final class GooServerState {
         knifeHolds.clear();
         palmBufferSyncs.clear();
         thrownKnives.clear();
+        boneSpikes.clear();
         blockExposures.clear();
         streamHolds.clear();
         morphBirths.clear();

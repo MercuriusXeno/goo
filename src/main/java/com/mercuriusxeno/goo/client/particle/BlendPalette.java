@@ -111,6 +111,13 @@ public record BlendPalette(float lightRed, float lightGreen, float lightBlue,
     public static final BlendPalette SPIKES_METAL_SILVERS = new BlendPalette(
             0xE8 / 255f, 0xE8 / 255f, 0xE8 / 255f, 0xC0 / 255f, 0xC0 / 255f, 0xC0 / 255f);
     /**
+     * Spurs' spray drips, from osseous's bright ivory, F7F1E1, to its wheel
+     * bone, D9CBA8, the two the osseous goo type's definition names.
+     * spurs-shoots-bone-spikes-at-walkers
+     */
+    public static final BlendPalette SPURS_OSSEOUS_IVORIES = new BlendPalette(
+            0xF7 / 255f, 0xF1 / 255f, 0xE1 / 255f, 0xD9 / 255f, 0xCB / 255f, 0xA8 / 255f);
+    /**
      * Vines' spray drips, from leaf's bright green, A6F078, to its wheel
      * green, 7EC850, the two the leaf goo type's definition names.
      * vines-is-sprayed-slime-that-entangles-what-tries-to-cross

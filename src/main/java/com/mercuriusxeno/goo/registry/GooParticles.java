@@ -146,6 +146,15 @@ public class GooParticles {
         PARTICLE_TYPES.register("spikes_spray_drip", () -> new SimpleParticleType(false));
 
     /**
+     * Spurs' spray drip: the mod's blocky goo drip in osseous's bone ivories,
+     * flying its arc until it strikes a block's top, where it splats and the
+     * Spurs goo lands.
+     * spurs-shoots-bone-spikes-at-walkers
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> SPURS_SPRAY_DRIP =
+        PARTICLE_TYPES.register("spurs_spray_drip", () -> new SimpleParticleType(false));
+
+    /**
      * Infest's spray drip: the mod's blocky goo drip in zombie's greens and meat browns,
      * flying its arc until it strikes a block's top, where it splats and the
      * Infest goo lands.
