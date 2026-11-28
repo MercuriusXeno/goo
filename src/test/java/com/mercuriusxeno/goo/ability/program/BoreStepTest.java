@@ -7,6 +7,7 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -17,19 +18,21 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.withSettings;
 
 /**
  * Bore's step drills the breakable blocks at its point, where the eye line
@@ -54,6 +57,10 @@ class BoreStepTest {
     private static final BreakPace PACE = new BreakPace(5, 1.5);
     private static final int HELD_TICKS = 60;
     private static final Predicate<BlockPos> EYE_ROW = pos -> pos.getX() >= 1 && pos.getY() == 2 && pos.getZ() == 0;
+    /** The state every breakable block stands as until broken. */
+    private static final BlockState STONE = mock(BlockState.class, withSettings().stubOnly());
+    /** The state a cell reads once nothing stands in it. */
+    private static final BlockState AIR = mock(BlockState.class, withSettings().stubOnly());
 
     /**
      * A host aiming down the cone given, whose blocks are breakable where the
@@ -70,6 +77,7 @@ class BoreStepTest {
         when(host.eye()).thenReturn(EYE);
         when(host.gradualBreak()).thenReturn(gradualBreak);
         when(host.blockIn(any(), any())).thenAnswer(call -> standing.test(call.getArgument(0)));
+        when(host.stateAt(any())).thenAnswer(call -> standing.test(call.getArgument(0)) ? STONE : AIR);
         when(host.airAt(any())).thenAnswer(call -> {
             BlockPos pos = call.getArgument(0);
             return !standing.test(pos) && !solid.contains(pos);
@@ -131,6 +139,58 @@ class BoreStepTest {
             }
         }
 
+    }
+
+    /**
+     * Each block Bore breaks plays its own break sound at its cell, read from
+     * the state that stood there before the break, and throws no break
+     * particles (decisions each-block-bore-breaks-plays-its-own-break-sound,
+     * bore-shows-a-big-drill-from-the-glove).
+     */
+    @Nested
+    class TheBreakSound {
+
+        /** An eye where four blocks meet, so the pick holds four. */
+        private static final Vec3 AT_A_CORNER = new Vec3(0.5, 2.0, 0.0);
+        private static final Predicate<BlockPos> WALL = pos -> pos.getX() >= 1;
+
+        @Test
+        void theTickABlockBreaksItPlaysTheBreakSoundOfTheStateThatStoodThere() {
+            ChannelHost host = hostWith(EYE_ROW, Set.of());
+            BoreStep bore = new BoreStep(BREAKABLE, PACE);
+
+            for (int held = 1; held < PACE.breakTicks(); held++) {
+                run(host, bore);
+            }
+            verify(host, never()).playBreakSound(any(), any());
+
+            run(host, bore);
+            verify(host).playBreakSound(FIRST_ON_LINE, STONE);
+            verify(host, times(1)).playBreakSound(any(), any());
+        }
+
+        @Test
+        void aPickOfSeveralPlaysOneBreakSoundPerBlockBrokenAndNoBreakParticles() {
+            ChannelHost host = hostWith(WALL, Set.of());
+            when(host.eye()).thenReturn(AT_A_CORNER);
+            when(host.channelAim()).thenReturn(Optional.of(
+                    new ChannelAim(AT_A_CORNER.add(4, 0, 0), null, CONE_DEGREES)));
+            BoreStep bore = new BoreStep(BREAKABLE, PACE);
+
+            for (int held = 0; held < HELD_TICKS; held++) {
+                run(host, bore);
+            }
+
+            ArgumentCaptor<BlockPos> brokenAt = ArgumentCaptor.forClass(BlockPos.class);
+            verify(host, atLeast(4)).breakBlockQuietly(brokenAt.capture());
+            for (BlockPos broken : Set.copyOf(brokenAt.getAllValues())) {
+                verify(host).playBreakSound(broken, STONE);
+            }
+            verify(host, times(brokenAt.getAllValues().size())).playBreakSound(any(), any());
+            verify(host, never()).breakBlock(any());
+            verify(host, never()).throwDebris(any());
+            verify(host, never()).scatterBreakParticles(any(), any(), anyInt(), anyDouble());
+        }
     }
 
     @Nested
@@ -298,7 +358,7 @@ class BoreStepTest {
             run(host, new BoreStep(BREAKABLE, PACE));
             @SuppressWarnings("unchecked")
             ArgumentCaptor<Map<BlockPos, Double>> rates = ArgumentCaptor.forClass(Map.class);
-            verify(gradualBreak).progress(rates.capture(), any(), eq(true));
+            verify(gradualBreak).progress(rates.capture(), any(), any(Consumer.class));
             assertEquals(Set.of(FIRST_ON_LINE), rates.getValue().keySet());
         }
 
@@ -319,7 +379,7 @@ class BoreStepTest {
             run(host, new BoreStep(BREAKABLE, PACE));
 
             ArgumentCaptor<Map<BlockPos, Double>> rates = ArgumentCaptor.forClass(Map.class);
-            verify(gradualBreak).progress(rates.capture(), any(), eq(true));
+            verify(gradualBreak).progress(rates.capture(), any(), any(Consumer.class));
             for (BlockPos picked : List.of(new BlockPos(1, 1, -1), new BlockPos(1, 1, 0), new BlockPos(1, 2, -1),
                     new BlockPos(1, 2, 0))) {
                 assertEquals(1.0 / PACE.breakTicks(), rates.getValue().get(picked), SLACK, "at " + picked);
