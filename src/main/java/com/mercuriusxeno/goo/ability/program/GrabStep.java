@@ -53,10 +53,11 @@ import java.util.stream.Stream;
  * decision grab-holds-slightly-closer-in-open-space
  * decision grab-cone-picks-more-aggressively-than-other-goo-types
  *
- * A press taking no entity, aimed at ground painted with Mortar, lifts that
- * ground out as one hunk (MortarLift) and holds it as it holds a body.
+ * A press taking no entity, aimed at blocks painted with Mortar, pulls those
+ * blocks out of the face it coats as one hunk (MortarLift) and holds it as it
+ * holds a body.
  * decision grab-lifts-what-contiguous-rock-goo-paints-as-one-unit
- * decision grab-lift-of-rock-goo-is-always-vertical
+ * decision grab-lift-of-mortar-pulls-out-of-the-coated-face
  *
  * @param range        how far the look reaches for an entity to lift, in blocks, which Remote doubles while it holds
  * @param holdDistance how far from the eye the held entity hangs where the look meets no block
@@ -424,13 +425,14 @@ public record GrabStep(double range, double holdDistance, double throwSpeed, dou
     }
 
     /**
-     * Lifts the ground under the Mortar the look strikes within reach, out of
-     * the world as one hunk: a hidden interaction, which nothing tells of.
+     * Lifts the blocks behind the Mortar the look strikes within reach, out
+     * of the face it coats as one hunk: a hidden interaction, which nothing
+     * tells of.
      * decision grab-lifts-what-contiguous-rock-goo-paints-as-one-unit
-     * decision grab-lift-of-rock-goo-is-always-vertical
+     * decision grab-lift-of-mortar-pulls-out-of-the-coated-face
      *
      * @param player the channeling player
-     * @return the lifted hunk, or null where the look strikes no Mortar lying on ground the lift takes
+     * @return the lifted hunk, or null where the look strikes no Mortar coating blocks the lift takes
      */
     private @Nullable BlockHunk liftPaintedGround(ServerPlayer player) {
         ServerLevel level = player.level();
@@ -438,7 +440,7 @@ public record GrabStep(double range, double holdDistance, double throwSpeed, dou
         BlockHitResult hit = level.clip(new ClipContext(eye,
                 eye.add(player.getLookAngle().scale(reachWith(Remote.entityReachLaid(player)))),
                 ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, player));
-        BlockPos grabbed = hit.getType() == HitResult.Type.BLOCK
+        MortarLift.Grabbed grabbed = hit.getType() == HitResult.Type.BLOCK
                 ? MortarLift.grabbedCell(hit, cell -> MortarLift.coatIn(level, cell)) : null;
         return grabbed == null ? null : MortarLift.lift(level, grabbed);
     }
