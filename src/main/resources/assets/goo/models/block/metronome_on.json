@@ -3,7 +3,7 @@
   "textures": {
     "particle": "goo:block/metronome_top_on",
     "top": "goo:block/metronome_top_on",
-    "slab": "minecraft:block/smooth_stone"
+    "side": "goo:block/metronome_side"
   },
   "elements": [
     {
@@ -25,7 +25,7 @@
             16,
             16
           ],
-          "texture": "#slab",
+          "texture": "#side",
           "cullface": "down"
         },
         "up": {
@@ -44,7 +44,8 @@
             16,
             16
           ],
-          "texture": "#slab"
+          "texture": "#side",
+          "cullface": "north"
         },
         "south": {
           "uv": [
@@ -53,7 +54,8 @@
             16,
             16
           ],
-          "texture": "#slab"
+          "texture": "#side",
+          "cullface": "south"
         },
         "east": {
           "uv": [
@@ -62,7 +64,8 @@
             16,
             16
           ],
-          "texture": "#slab"
+          "texture": "#side",
+          "cullface": "east"
         },
         "west": {
           "uv": [
@@ -71,7 +74,8 @@
             16,
             16
           ],
-          "texture": "#slab"
+          "texture": "#side",
+          "cullface": "west"
         }
       }
     }
