@@ -40,10 +40,13 @@ public final class RelayLasers {
     static final int SCAN_EVERY_TICKS = 10;
     /** Chunks out from the player's chunk a scan reaches. */
     private static final int SCAN_CHUNKS = 3;
-    /** The laser's alpha while no signal crosses it. */
-    static final int IDLE_ALPHA = 90;
+    /**
+     * The laser's alpha while no signal crosses it: a faint trace, so a carrying link reads apart at a glance.
+     * decision diagnose-and-correct-relay-ignoring-torch-and-metronome
+     */
+    private static final int IDLE_ALPHA = 30;
     /** The laser's alpha while a signal crosses it. */
-    static final int CARRYING_ALPHA = 235;
+    private static final int CARRYING_ALPHA = 255;
     /** The relays one link joins. */
     private static final int RELAYS_IN_A_LINK = 2;
     private static final int LASER_RGB = 0xFF2A1A;
@@ -108,9 +111,18 @@ public final class RelayLasers {
         if (!RelayNetwork.inLinkReach(from, to) || !RelayNetwork.links(level, from, to)) {
             return;
         }
-        int alpha = carrying(level, from) || carrying(level, to) ? CARRYING_ALPHA : IDLE_ALPHA;
         lines.emitPolyline(camera, new Vec3[] {Vec3.atCenterOf(from), Vec3.atCenterOf(to)},
-                ARGB.color(alpha, LASER_RGB), width);
+                laserColor(carrying(level, from) || carrying(level, to)), width);
+    }
+
+    /**
+     * The color a link draws in, faint while idle and bright while a signal crosses it.
+     *
+     * @param carrying whether a signal crosses the link
+     * @return the link's ARGB color
+     */
+    static int laserColor(boolean carrying) {
+        return ARGB.color(carrying ? CARRYING_ALPHA : IDLE_ALPHA, LASER_RGB);
     }
 
     private static boolean carrying(ClientLevel level, BlockPos relay) {
