@@ -1,0 +1,34 @@
+{
+  "variants": {
+    "material=glazed": {
+      "model": "goo:block/alien_tile_glazed"
+    },
+    "material=iridescent": {
+      "model": "goo:block/alien_tile_iridescent"
+    },
+    "material=polished_glass": {
+      "model": "goo:block/alien_tile_polished_glass"
+    },
+    "material=xeno_runes": {
+      "model": "goo:block/alien_tile_xeno_runes"
+    },
+    "material=xeno_seam": {
+      "model": "goo:block/alien_tile_xeno_seam"
+    },
+    "material=framed_panels": {
+      "model": "goo:block/alien_tile_framed_panels"
+    },
+    "material=smooth": {
+      "model": "goo:block/alien_tile_smooth"
+    },
+    "material=chiseled": {
+      "model": "goo:block/alien_tile_chiseled"
+    },
+    "material=inlaid": {
+      "model": "goo:block/alien_tile_inlaid"
+    },
+    "material=hex_cells": {
+      "model": "goo:block/alien_tile_hex_cells"
+    }
+  }
+}

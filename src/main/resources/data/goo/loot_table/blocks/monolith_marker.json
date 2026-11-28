@@ -1,0 +1,28 @@
+{
+  "pools": [
+    {
+      "rolls": 1,
+      "bonus_rolls": 0,
+      "entries": [
+        {
+          "name": "goo:monolith_marker",
+          "type": "minecraft:item",
+          "functions": [
+            {
+              "function": "minecraft:copy_state",
+              "block": "goo:monolith_marker",
+              "properties": [
+                "look"
+              ]
+            }
+          ]
+        }
+      ],
+      "condition": {
+        "type": "minecraft:survives_explosion"
+      }
+    }
+  ],
+  "random_sequence": "goo:blocks/monolith_marker",
+  "type": "minecraft:block"
+}

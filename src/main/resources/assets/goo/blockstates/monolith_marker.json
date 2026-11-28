@@ -1,0 +1,25 @@
+{
+  "variants": {
+    "axis=x,look=xeno_runes": {
+      "model": "goo:block/monolith_marker"
+    },
+    "axis=z,look=xeno_runes": {
+      "model": "goo:block/monolith_marker",
+      "y": 90
+    },
+    "axis=x,look=polished_glass": {
+      "model": "goo:block/monolith_marker_polished_glass"
+    },
+    "axis=z,look=polished_glass": {
+      "model": "goo:block/monolith_marker_polished_glass",
+      "y": 90
+    },
+    "axis=x,look=xeno_seam": {
+      "model": "goo:block/monolith_marker_xeno_seam"
+    },
+    "axis=z,look=xeno_seam": {
+      "model": "goo:block/monolith_marker_xeno_seam",
+      "y": 90
+    }
+  }
+}

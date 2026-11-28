@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:volatile_crystal_explodes_on_a_signal_and_drops_whole_when_quiet",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 100,
+  "setup_ticks": 0,
+  "required": true
+}

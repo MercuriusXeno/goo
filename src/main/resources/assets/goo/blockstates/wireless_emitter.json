@@ -1,0 +1,52 @@
+{
+  "variants": {
+    "power=0": {
+      "model": "goo:block/wireless_emitter"
+    },
+    "power=1": {
+      "model": "goo:block/wireless_emitter_active"
+    },
+    "power=2": {
+      "model": "goo:block/wireless_emitter_active"
+    },
+    "power=3": {
+      "model": "goo:block/wireless_emitter_active"
+    },
+    "power=4": {
+      "model": "goo:block/wireless_emitter_active"
+    },
+    "power=5": {
+      "model": "goo:block/wireless_emitter_active"
+    },
+    "power=6": {
+      "model": "goo:block/wireless_emitter_active"
+    },
+    "power=7": {
+      "model": "goo:block/wireless_emitter_active"
+    },
+    "power=8": {
+      "model": "goo:block/wireless_emitter_active"
+    },
+    "power=9": {
+      "model": "goo:block/wireless_emitter_active"
+    },
+    "power=10": {
+      "model": "goo:block/wireless_emitter_active"
+    },
+    "power=11": {
+      "model": "goo:block/wireless_emitter_active"
+    },
+    "power=12": {
+      "model": "goo:block/wireless_emitter_active"
+    },
+    "power=13": {
+      "model": "goo:block/wireless_emitter_active"
+    },
+    "power=14": {
+      "model": "goo:block/wireless_emitter_active"
+    },
+    "power=15": {
+      "model": "goo:block/wireless_emitter_active"
+    }
+  }
+}

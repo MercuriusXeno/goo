@@ -51,7 +51,6 @@ class ShortAbilityNamesTest {
                 Arguments.of("goo.ability.jelly.heal", "Heal"),
                 Arguments.of("goo.ability.pulse.tick", "Tick"),
                 Arguments.of("goo.ability.kinetic.remote", "Remote"),
-                Arguments.of("goo.ability.rock.gouge", "Gouge"),
                 Arguments.of("goo.ability.rock.level", "Level"),
                 Arguments.of("goo.ability.sculk.transmit", "Transmit"));
     }

@@ -86,7 +86,6 @@ class AbilityPoseTableTest {
             Map.entry("rock_petrify", ArmPose.HELD_OUT),
             Map.entry("rock_build", ArmPose.RESTING),
             Map.entry("rock_stoneskin", ArmPose.HELD_UP),
-            Map.entry("rock_gouge", ArmPose.HELD_OUT),
             Map.entry("sculk_transmit", ArmPose.HELD_OUT),
             Map.entry("sculk_mycosis", ArmPose.HELD_OUT),
             Map.entry("typhoon_float", ArmPose.HELD_UP),
