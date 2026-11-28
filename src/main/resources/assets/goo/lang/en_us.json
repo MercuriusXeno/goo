@@ -200,6 +200,8 @@
   "goo.ability.crystal.glimmer.description": "Hold to detect nearby gemstone ores.",
   "goo.ability.osseous.chitin": "Chitin",
   "goo.ability.osseous.chitin.description": "Bone plating on your hearts absorbs damage before it reaches your life.",
+  "goo.ability.osseous.spear": "Spear",
+  "goo.ability.osseous.spear.description": "Hold to form barbed bone javelins over your hand, then left click to throw them, farther and lighter than darts.",
   "goo.ability.osseous.spurs": "Spurs",
   "goo.ability.osseous.spurs.cost_mechanics": "Costs %s per block of Spurs laid, a fifteenth of it per layer.",
   "goo.ability.osseous.spurs.description": "Held stream sprays Spurs, a bone goo that shoots spikes at whatever walks over it.",

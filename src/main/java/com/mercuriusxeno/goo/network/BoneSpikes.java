@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.network;
 
+import com.mercuriusxeno.goo.ability.TravelForm;
 import com.mercuriusxeno.goo.ability.crystal.ThrownKnife;
 import com.mercuriusxeno.goo.ability.program.EntityHost;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
@@ -62,7 +63,7 @@ public final class BoneSpikes {
                        Vec3 velocity) {
         flying.add(new Flight(level, placer, strike, start, velocity, 0));
         EntityVisuals.sendToWatchersOf(level, start, new GlassKnifePayload(placerId(placer), start, velocity,
-                GooTypes.id(GooTypes.OSSEOUS), Optional.empty()));
+                GooTypes.id(GooTypes.OSSEOUS), TravelForm.SPEAR, Optional.empty()));
     }
 
     /**

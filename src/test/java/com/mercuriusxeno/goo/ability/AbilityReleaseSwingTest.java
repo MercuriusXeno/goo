@@ -37,7 +37,7 @@ class AbilityReleaseSwingTest {
     /** Each shipped arc ability that throws a blob from the hand, by file name. */
     private static final Set<String> THROWS_A_BLOB = Set.of(
             "blaze_ignite", "xeno_shriek", "ender_seal",
-            "frost_orb", "leaf_bio", "leaf_bloom", "metal_dart",
+            "frost_orb", "leaf_bio", "leaf_bloom", "metal_dart", "osseous_spear",
             "quantum_tunnel",
             "void_cancel", "weird_mitosis");
 

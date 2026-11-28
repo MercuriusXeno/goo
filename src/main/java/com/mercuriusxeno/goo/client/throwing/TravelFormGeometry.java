@@ -13,11 +13,12 @@ import java.util.TreeSet;
  * A travel form's geometry, pointed along a unit direction and grown by the
  * morph: a body of one piece, a shaft from the tail to the base of a pointed
  * front cone, closed at the tail, and flat fins growing out of the body's
- * surface at the tail, each drawn on both its faces. The goo's sprite lies on
+ * surface at the tail, and barbs hooked back along the point, each drawn on both its faces. The goo's sprite lies on
  * every face at one sprite a block, each face cut at the block marks along the
  * body so the sprite never wraps within a face, and so stretches nowhere.
  * The flight and the javelin in the hand both draw through {@link #emit}.
  * decision dart-flutes-draw-as-fins
+ * decision spear-is-a-barbed-javelin-in-the-dart-family
  */
 public final class TravelFormGeometry {
 
@@ -94,6 +95,67 @@ public final class TravelFormGeometry {
             emitFin(ctx, new Fin(fin.tipLead(), fin.tipTrail(), fin.rootTrail(), fin.rootLead()), body, dir,
                     normal.negate(new Vector3f()), uv);
         }
+        emitBarbs(ctx, form.barbs(), body, dir, basis, morphFrac, uv);
+    }
+
+    /**
+     * The barbs along a travel form's point, ring by ring from the point back,
+     * each ring's barbs spaced evenly around the body.
+     * decision spear-is-a-barbed-javelin-in-the-dart-family
+     *
+     * @param form      the travel form
+     * @param dir       the unit direction the form points along
+     * @param morphFrac how far the form has grown, 0 to 1
+     * @return the barbs, each a fin whose tip's two corners meet
+     */
+    static List<Fin> barbs(TravelForm form, Vector3f dir, float morphFrac) {
+        TravelForm.Barbs shape = form.barbs();
+        Body body = Body.of(form, morphFrac);
+        float[] basis = ConeGeometry.computeBasis(dir.x, dir.y, dir.z);
+        List<Fin> barbs = new ArrayList<>(shape.count() * shape.rings());
+        for (int ring = 0; ring < shape.rings(); ring++) {
+            for (int i = 0; i < shape.count(); i++) {
+                barbs.add(barbAlong(shape, body, dir, radialAt(basis, i, shape.count()), ring, morphFrac));
+            }
+        }
+        return barbs;
+    }
+
+    // Each barb drawn on both its faces, as the fins are.
+    private static void emitBarbs(RenderContext ctx, TravelForm.Barbs shape, Body body, Vector3f dir, float[] basis,
+                                  float morphFrac, GooRenderUtil.UvRect uv) {
+        for (int ring = 0; ring < shape.rings(); ring++) {
+            for (int i = 0; i < shape.count(); i++) {
+                Vector3f radial = radialAt(basis, i, shape.count());
+                Vector3f normal = new Vector3f(dir).cross(radial);
+                Fin barb = barbAlong(shape, body, dir, radial, ring, morphFrac);
+                emitFin(ctx, barb, body, dir, normal, uv);
+                emitFin(ctx, new Fin(barb.tipLead(), barb.tipTrail(), barb.rootTrail(), barb.rootLead()), body, dir,
+                        normal.negate(new Vector3f()), uv);
+            }
+        }
+    }
+
+    /**
+     * One barb in the plane the body's axis and a radial direction span: its
+     * root along the body's surface, its tip a point behind the root's rear end.
+     *
+     * @param shape     the barbs' whole size
+     * @param body      the body at this morph
+     * @param dir       the unit body direction
+     * @param radial    the unit direction the barb stands out along
+     * @param ring      the ring the barb stands in, 0 nearest the point
+     * @param morphFrac how far the form has grown, 0 to 1
+     * @return the barb, a fin whose tip's two corners meet
+     */
+    private static Fin barbAlong(TravelForm.Barbs shape, Body body, Vector3f dir, Vector3f radial, int ring,
+                                 float morphFrac) {
+        float lead = (shape.firstAt() - ring * shape.ringSpacing()) * morphFrac;
+        float trail = lead - shape.rootChord() * morphFrac;
+        float tip = trail - shape.back() * morphFrac;
+        Vector3f point = pointAt(dir, radial, tip, body.radiusAt(tip) + shape.span() * morphFrac);
+        return new Fin(pointAt(dir, radial, lead, body.radiusAt(lead)),
+                pointAt(dir, radial, trail, body.radiusAt(trail)), point, new Vector3f(point));
     }
 
     /**

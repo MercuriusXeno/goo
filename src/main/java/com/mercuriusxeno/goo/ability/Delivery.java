@@ -659,23 +659,24 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
     }
 
     /**
-     * Whether the hold forms Knives' knives: an arc whose charge stacks, in no dart form.
+     * Whether the hold forms Knives' knives: an arc whose charge stacks, in the blob form.
      * decision knives-charge-one-per-three-ticks-up-to-ten
      *
      * @return true for a held throw stacking knives
      */
     public boolean formsKnives() {
-        return kind == DeliveryKind.ARC && charge.stacks() && form != TravelForm.DART;
+        return kind == DeliveryKind.ARC && charge.stacks() && !form.morphs();
     }
 
     /**
-     * Whether the hold stacks Dart's javelins: a charge that stacks, in the dart form.
+     * Whether the hold stacks javelins, Dart's or Spear's: a charge that stacks, in a form that morphs.
      * decision dart-stacks-three-javelins-one-per-ten-ticks
+     * decision spear-is-a-barbed-javelin-in-the-dart-family
      *
      * @return true for a held throw stacking javelins
      */
     public boolean stacksJavelins() {
-        return charge.stacks() && form == TravelForm.DART;
+        return charge.stacks() && form.morphs();
     }
 
     /**

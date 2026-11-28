@@ -87,7 +87,9 @@ class GlassKnivesTest {
         java.util.Optional<com.mercuriusxeno.goo.ability.program.SoundCue> cue =
                 com.mercuriusxeno.goo.ability.AbilityJson.decode(ability).delivery().formSounds().thrown();
         java.util.List<com.mercuriusxeno.goo.ability.program.SoundCue> played = new java.util.ArrayList<>();
-        GlassKnives.launched(new GlassKnifePayload(7, Vec3.ZERO, AHEAD, javelinType, cue), 0, played::add);
+        com.mercuriusxeno.goo.ability.TravelForm form = com.mercuriusxeno.goo.ability.AbilityJson.decode(ability)
+                .delivery().form();
+        GlassKnives.launched(new GlassKnifePayload(7, Vec3.ZERO, AHEAD, javelinType, form, cue), 0, played::add);
         return played;
     }
 
@@ -112,7 +114,7 @@ class GlassKnivesTest {
     void aThrowNamingNoSoundPlaysNone() {
         java.util.List<com.mercuriusxeno.goo.ability.program.SoundCue> played = new java.util.ArrayList<>();
         GlassKnives.launched(new GlassKnifePayload(7, Vec3.ZERO, AHEAD, GlassKnifePayload.GLASS,
-                java.util.Optional.empty()), 0, played::add);
+                com.mercuriusxeno.goo.ability.TravelForm.BLOB, java.util.Optional.empty()), 0, played::add);
         assertTrue(played.isEmpty());
     }
 }
