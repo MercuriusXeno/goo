@@ -17,4 +17,7 @@ public class LightBeaconRenderState extends BlockEntityRenderState {
 
     /** The factor the column's radii take at the camera's distance. */
     public float radiusScale = 1f;
+
+    /** How far the column draws from the beacon's center, to the first block that stops it. */
+    public float columnLength = BeaconBeams.BEAM_REACH;
 }

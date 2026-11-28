@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.ber;
 
+import com.mercuriusxeno.goo.block.alientech.LightBeaconColumn;
 import com.mercuriusxeno.goo.client.GlowQueue;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
@@ -12,6 +13,7 @@ import net.minecraft.client.renderer.blockentity.BeaconRenderer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.Mth;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import java.util.function.Consumer;
@@ -49,6 +51,21 @@ public final class BeaconBeams {
     }
 
     /**
+     * How long a beacon's column draws, in blocks from the beacon's center: to the face of the first block that stops
+     * it, or its whole reach through open air.
+     * decision beacon-column-into-a-reflector-counts-as-max-light
+     *
+     * @param level  the level
+     * @param beacon the beacon's position
+     * @param facing the side the column leaves by
+     * @return the column's length
+     */
+    public static float columnLength(Level level, BlockPos beacon, Direction facing) {
+        BlockPos stop = LightBeaconColumn.stoppedAt(level, beacon, facing, BEAM_REACH);
+        return stop == null ? BEAM_REACH : stop.distManhattan(beacon) - HALF;
+    }
+
+    /**
      * The box a beam draws within: its cell, stretched along the facing by the beam's reach, so the beam draws while
      * its block is off screen.
      *
@@ -70,9 +87,10 @@ public final class BeaconBeams {
      * @param facing        the side the column leaves by
      * @param animationTime the column's spin, scroll and breath clock, in ticks
      * @param radiusScale   the factor the column's radii take, widening it with the camera's distance
+     * @param length        how far the column draws from the beacon's center, in blocks
      */
     public static void queue(PoseStack poseStack, Vec3 center, Direction facing, float animationTime,
-                             float radiusScale) {
+                             float radiusScale, float length) {
         poseStack.pushPose();
         standAtFoot(poseStack, facing);
         poseStack.rotate(Axis.YP.rotationDegrees(animationTime * SPIN_DEGREES_PER_TICK));
@@ -81,7 +99,7 @@ public final class BeaconBeams {
         QUEUED.queue(poseStack.last().copy(), center, GooRenderTypes.glowBeam(BeaconRenderer.BEAM_LOCATION),
                 (pose, buffer) -> {
                     for (GlowBeamMesh.Layer layer : GlowBeamMesh.LAYERS) {
-                        emitBeaconLayer(pose, buffer, layer, radiusScale, scroll, breath);
+                        emitBeaconLayer(pose, buffer, layer, radiusScale, scroll, breath, length);
                     }
                 });
         poseStack.popPose();
@@ -122,10 +140,11 @@ public final class BeaconBeams {
      * @param radiusScale the factor the layer's radius takes
      * @param scroll      the texture's scroll offset in [0, 1)
      * @param breath      the share of alpha and width {@link GlowBeamMesh#breath} answered
+     * @param length      how far the layer draws from the beacon's center, in blocks
      */
     static void emitBeaconLayer(PoseStack.Pose pose, VertexConsumer buffer, GlowBeamMesh.Layer layer,
-                                float radiusScale, float scroll, float breath) {
+                                float radiusScale, float scroll, float breath, float length) {
         GlowBeamMesh.emitLayer(pose, buffer, layer.radius() * radiusScale * breath,
-                GlowBeamMesh.breathed(layer.color(), breath), scroll, BEAM_REACH);
+                GlowBeamMesh.breathed(layer.color(), breath), scroll, length);
     }
 }

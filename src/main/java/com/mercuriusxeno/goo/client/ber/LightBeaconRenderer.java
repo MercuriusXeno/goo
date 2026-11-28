@@ -44,13 +44,15 @@ public class LightBeaconRenderer implements BlockEntityRenderer<LightBeaconBlock
         state.animationTime = (beacon.getLevel() == null ? 0L : beacon.getLevel().getGameTime()) + partialTick;
         state.radiusScale = BeaconBeams.radiusScale(
                 (float) cameraPos.subtract(Vec3.atCenterOf(state.blockPos)).horizontalDistance());
+        state.columnLength = beacon.getLevel() == null ? BeaconBeams.BEAM_REACH
+                : BeaconBeams.columnLength(beacon.getLevel(), state.blockPos, state.facing);
     }
 
     @Override
     public void submit(LightBeaconRenderState state, PoseStack poseStack, SubmitNodeCollector nodeCollector,
                        CameraRenderState cameraState) {
         BeaconBeams.queue(poseStack, Vec3.atCenterOf(state.blockPos), state.facing, state.animationTime,
-                state.radiusScale);
+                state.radiusScale, state.columnLength);
     }
 
     @Override
