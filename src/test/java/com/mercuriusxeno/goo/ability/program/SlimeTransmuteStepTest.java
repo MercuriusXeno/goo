@@ -10,7 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * Covers the slime transmute's draw categories, monsters for a hostile draw
- * as Gloom's turn takes and the friendly ones for a peaceful draw, and that
+ * as Ooze's turn takes and the friendly ones for a peaceful draw, and that
  * the morph reaches the watchers before the born mob does (decision
  * spawn-hostile-shape-peaceful-from-a-slime).
  */
@@ -39,10 +39,10 @@ class SlimeTransmuteStepTest {
         return Arrays.stream(MobCategory.values()).filter(SlimeTransmuteStep.categoryFilter(hostile)).toList();
     }
 
-    // gloom-turns-slimes-into-random-hostiles-in-place-of-spawn
+    // ooze-is-xenos-world-goo-that-turns-slimes-into-random-hostiles
     @Test
-    void theShippedGloomTurnDrawsOnlyMonsters() {
-        SlimeTransmuteStep turn = GloomStep.in(AbilityJson.decode("nether_gloom").behaviors()).orElseThrow()
+    void theShippedOozeTurnDrawsOnlyMonsters() {
+        SlimeTransmuteStep turn = OozeStep.in(AbilityJson.decode("xeno_ooze").behaviors()).orElseThrow()
                 .slimeTurn();
 
         assertEquals(drawn(true), drawn(turn.hostile()));

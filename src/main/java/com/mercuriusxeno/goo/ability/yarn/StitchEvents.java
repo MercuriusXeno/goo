@@ -70,7 +70,7 @@ public final class StitchEvents {
 
     /**
      * Turns a slime on a Stitch cell into the passive mob the table rolls for
-     * the cell's layers, through the slime transmutation Gloom runs, and
+     * the cell's layers, through the slime transmutation Ooze runs, and
      * leaves the cell its layers less the mob's, or air where none are left.
      * stitch-is-yarns-residual-that-turns-slimes-into-passive-mobs
      *
