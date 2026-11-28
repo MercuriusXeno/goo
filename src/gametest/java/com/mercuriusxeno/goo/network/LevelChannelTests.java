@@ -24,8 +24,14 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.PlayLevelSoundEvent;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 import java.util.List;
@@ -70,6 +76,31 @@ public final class LevelChannelTests {
                 LevelChannelTests::levelFillsAMortarHoleUnderAFullCarry);
         GooTestFunctions.registerTest(registrar, LEVEL_FILLS_A_ONE_LAYER_MORTAR_HOLE,
                 LevelChannelTests::levelFillsAOneLayerMortarHole);
+        GooTestFunctions.registerTest(registrar, LEVEL_PAVING_SOUNDS_ONCE_A_TICK,
+                LevelChannelTests::levelPavingSoundsOnceATick);
+    }
+
+    private static final String LEVEL_PAVING_SOUNDS_ONCE_A_TICK = "level_paving_sounds_once_a_tick";
+    /** The floor block the sounding test's cursor rests on, the disc's middle. */
+    private static final BlockPos SOUNDING_REST = new BlockPos(3, 0, 3);
+    /** The 1 layer Mortar hole under the sounding disc's ring. */
+    private static final BlockPos SOUNDING_HOLE = SOUNDING_REST.west();
+    /** The two air gaps under the sounding disc's ring. */
+    private static final List<BlockPos> SOUNDING_GAPS = List.of(SOUNDING_REST.north(), SOUNDING_REST.east());
+    private static final int SIX_LAYERS = 6;
+    /** How far a heard sound may stand from the spot it should play at, a float's rounding. */
+    private static final double SPOT_TOLERANCE = 1e-3;
+    private static final String SHOULD_SOUND_ONCE = "The tick should play one %s place sound at %s, it played %s";
+    private static final String SHOULD_SOUND_NOTHING = "A tick laying nothing should play no place sound, it played %s";
+
+    /**
+     * A place sound the sounding test heard in its bay.
+     *
+     * @param at     where it played
+     * @param sound  what played
+     * @param source the source it played through
+     */
+    private record HeardSound(Vec3 at, SoundEvent sound, SoundSource source) {
     }
 
     private static final String LEVEL_FILLS_A_MORTAR_HOLE_AND_GATHERS_THE_REST =
@@ -465,6 +496,70 @@ public final class LevelChannelTests {
             assertCarries(helper, player, THREE_LAYERS);
             assertNoMortarOver(helper, MORTAR_HOLE);
         });
+    }
+
+    /**
+     * A mock player holds Level over a floor with two air gaps and a 1 layer
+     * Mortar hole under the disc and a 6 layer Mortar cell over it: the first
+     * held tick plays one stone place sound at the middle of the three stones
+     * it laid, the next held tick, laying nothing, plays no place sound, and
+     * the tick the hold lapses plays one Mortar place sound at the middle of
+     * the cells set down
+     * (decision level-paving-and-mortar-set-down-play-one-place-sound-a-tick).
+     *
+     * @param helper the gametest helper
+     */
+    public static void levelPavingSoundsOnceATick(GameTestHelper helper) {
+        ServerPlayer player = holeFiller(helper);
+        layMortar(helper, SOUNDING_HOLE, 1);
+        SOUNDING_GAPS.forEach(gap -> helper.setBlock(gap, Blocks.AIR));
+        layMortar(helper, SOUNDING_REST.above(), SIX_LAYERS);
+        SoundEvent stonePlace = SoundType.STONE.getPlaceSound();
+        SoundEvent mortarPlace = GooBlocks.ROCK_MORTAR.get().defaultBlockState()
+                .getSoundType(helper.getLevel(), helper.absolutePos(SOUNDING_REST.above()), null).getPlaceSound();
+        List<HeardSound> heard = new ArrayList<>();
+        AABB bay = helper.getBounds();
+        Consumer<PlayLevelSoundEvent.AtPosition> listener = event -> {
+            SoundEvent sound = event.getSound().value();
+            if (event.getLevel() == helper.getLevel() && bay.contains(event.getPosition())
+                    && (sound == stonePlace || sound == mortarPlace)) {
+                heard.add(new HeardSound(event.getPosition(), sound, event.getSource()));
+            }
+        };
+        NeoForge.EVENT_BUS.addListener(listener);
+        GooStreamPayload tick = levelTick(helper, player, SOUNDING_REST, SOUNDING_REST);
+        Vec3 stonesMiddle = middleOf(helper, List.of(SOUNDING_HOLE, SOUNDING_GAPS.get(0), SOUNDING_GAPS.get(1)));
+        helper.runAfterDelay(1, () -> {
+            heard.clear();
+            GooStreamHandler.streamTick(player, tick);
+            assertHeardOnce(helper, heard, stonePlace, stonesMiddle);
+            heard.clear();
+        });
+        boolean[] heldTwice = {false};
+        helper.runAfterDelay(2, () -> {
+            GooStreamHandler.streamTick(player, tick);
+            helper.assertTrue(heard.isEmpty(), String.format(SHOULD_SOUND_NOTHING, heard));
+            heldTwice[0] = true;
+        });
+        Vec3 setDownMiddle = middleOf(helper, List.of(SOUNDING_REST.above()));
+        helper.succeedWhen(() -> {
+            helper.assertTrue(heldTwice[0] && carryOf(helper, player).layers() == 0, "The hold should lapse");
+            assertHeardOnce(helper, heard, mortarPlace, setDownMiddle);
+            NeoForge.EVENT_BUS.unregister(listener);
+            helper.getLevel().getServer().getPlayerList().remove(player);
+        });
+    }
+
+    private static Vec3 middleOf(GameTestHelper helper, List<BlockPos> cells) {
+        return cells.stream().map(cell -> Vec3.atCenterOf(helper.absolutePos(cell)))
+                .reduce(Vec3.ZERO, Vec3::add).scale(1.0 / cells.size());
+    }
+
+    private static void assertHeardOnce(GameTestHelper helper, List<HeardSound> heard, SoundEvent sound, Vec3 at) {
+        boolean once = heard.size() == 1 && heard.getFirst().sound() == sound
+                && heard.getFirst().source() == SoundSource.BLOCKS
+                && heard.getFirst().at().distanceTo(at) < SPOT_TOLERANCE;
+        helper.assertTrue(once, String.format(SHOULD_SOUND_ONCE, sound.location(), at, heard));
     }
 
     private static ServerPlayer holeFiller(GameTestHelper helper) {

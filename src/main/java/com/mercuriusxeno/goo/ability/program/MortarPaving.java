@@ -5,15 +5,19 @@ import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.IntPredicate;
 
@@ -24,8 +28,10 @@ import java.util.function.IntPredicate;
  * nine piles of layers riding the 3x3 over the disc, which the client draws;
  * when the hold ends it is set down as Mortar where it rides. Each layer
  * scooped climbs onto the closest pile with room, and the disc carries a 3x3
- * of piles of fifteen at most.
+ * of piles of fifteen at most. Each tick that lays stone, and each set-down,
+ * plays one place sound at the middle of what it laid.
  * level-dragged-under-rock-goo-carries-it-and-deposits-stone-under-the-disc
+ * level-paving-and-mortar-set-down-play-one-place-sound-a-tick
  * level-scoops-up-to-three-by-three-piles-of-fifteen-layers
  * carried-mortar-stops-being-a-block-on-the-level-plane
  * level-gathers-loose-mortar-into-the-closest-empty-slot
@@ -190,6 +196,40 @@ public final class MortarPaving {
     }
 
     /**
+     * The one spot a placement sound plays at for the blocks laid in one call:
+     * the middle of them, the average of their centers.
+     * level-paving-and-mortar-set-down-play-one-place-sound-a-tick
+     *
+     * @param laid the blocks laid
+     * @return the spot, empty where no block was laid
+     */
+    static Optional<Vec3> soundSpot(Collection<BlockPos> laid) {
+        if (laid.isEmpty()) {
+            return Optional.empty();
+        }
+        Vec3 sum = laid.stream().map(Vec3::atCenterOf).reduce(Vec3.ZERO, Vec3::add);
+        return Optional.of(sum.scale(1.0 / laid.size()));
+    }
+
+    /**
+     * Plays one place sound for the blocks laid in one call, at the middle of
+     * them, in the sound a block of the state laid makes; a call laying
+     * nothing plays nothing.
+     * level-paving-and-mortar-set-down-play-one-place-sound-a-tick
+     *
+     * @param host  the channel host
+     * @param laid  the blocks laid
+     * @param state the state laid, whose sound type plays
+     */
+    private static void soundPlaced(ChannelHost host, Collection<BlockPos> laid, BlockState state) {
+        soundSpot(laid).ifPresent(spot -> {
+            SoundType type = state.getSoundType(host.level(), BlockPos.containing(spot), null);
+            host.level().playSound(null, spot.x, spot.y, spot.z, type.getPlaceSound(), SoundSource.BLOCKS,
+                    type.getVolume(), type.getPitch());
+        });
+    }
+
+    /**
      * Lays a carry's layers into cells in turn, each filled whole before the next.
      *
      * @param slots  the cells the carry may lie in, the first filled first
@@ -226,7 +266,7 @@ public final class MortarPaving {
         if (plane == null) {
             return;
         }
-        fillMortarHoles(host, plane, aimed);
+        List<BlockPos> stoneLaid = new ArrayList<>(fillMortarHoles(host, plane, aimed));
         MortarCarry carry = host.holdMarks().mortarCarry();
         List<BlockPos> pileCells = pileCells(plane, aimed);
         Map<BlockPos, Integer> loose = mortarIn(host, overDisc(plane, aimed).stream().filter(host::reaches).toList());
@@ -236,6 +276,9 @@ public final class MortarPaving {
                 .filter(pos -> host.reaches(pos) && isGap(host.stateAt(pos))).toList();
         Deposit deposit = deposit(gaps, layersIn(scoop.piles()));
         deposit.paved().forEach(pos -> host.transformBlock(pos, Blocks.STONE.defaultBlockState()));
+        stoneLaid.addAll(deposit.paved());
+        // level-paving-and-mortar-set-down-play-one-place-sound-a-tick
+        soundPlaced(host, stoneLaid, Blocks.STONE.defaultBlockState());
         carry.ride(host, plane, aimed, spend(scoop.piles(), pileCells, deposit.paved()));
     }
 
@@ -251,21 +294,25 @@ public final class MortarPaving {
      * @param host  the channel host
      * @param plane the face the hold began on
      * @param aimed the block the cursor rests on
+     * @return the holes turned to stone
      */
-    private static void fillMortarHoles(ChannelHost host, ChannelAim.FacePlane plane, BlockPos aimed) {
+    private static List<BlockPos> fillMortarHoles(ChannelHost host, ChannelAim.FacePlane plane, BlockPos aimed) {
         List<BlockPos> row = middleFirst(plane.layer(aimed, 0), plane.face().getAxis()).stream()
                 .filter(host::reaches).toList();
+        List<BlockPos> filled = new ArrayList<>();
         mortarIn(host, row).forEach((hole, layers) -> {
             BlockPos above = plane.layer(hole, 1);
             int raised = layers - 1;
             if (takesRaised(host.stateAt(above), raised)) {
                 // the stone lands first, so the raised Mortar lies on it rather than falling back into the hole
                 host.transformBlock(hole, Blocks.STONE.defaultBlockState());
+                filled.add(hole);
                 if (raised > 0) {
                     layMortar(host, above, MortarCellBlock.layersOf(host.stateAt(above)) + raised);
                 }
             }
         });
+        return filled;
     }
 
     /**
@@ -325,6 +372,8 @@ public final class MortarPaving {
             laid.forEach((pos, layers) -> layMortar(host, pos, layers));
             taken.addAll(laid.keySet());
         }
+        // level-paving-and-mortar-set-down-play-one-place-sound-a-tick
+        soundPlaced(host, taken, GooBlocks.ROCK_MORTAR.get().defaultBlockState());
     }
 
     private static int layersIn(Collection<Integer> piles) {

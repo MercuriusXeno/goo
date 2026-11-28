@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.ability.program;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
@@ -9,6 +10,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -135,6 +137,28 @@ class MortarPavingTest {
                     Map.of(FIRST, FOUR));
             assertEquals(Map.of(), scoop.pickedUp());
             assertEquals(Map.of(FIRST, FOUR), scoop.leftOut());
+        }
+    }
+
+    @Nested
+    class SoundSpot {
+
+        private static final double CENTER = 0.5;
+
+        @Test
+        void threeBlocksInARowSoundAtTheMiddleBlocksCenter() {
+            assertEquals(Optional.of(new Vec3(SECOND.getX() + CENTER, CENTER, CENTER)),
+                    MortarPaving.soundSpot(List.of(FIRST, SECOND, THIRD)));
+        }
+
+        @Test
+        void oneBlockSoundsAtItsOwnCenter() {
+            assertEquals(Optional.of(Vec3.atCenterOf(THIRD)), MortarPaving.soundSpot(List.of(THIRD)));
+        }
+
+        @Test
+        void noBlocksLaidSoundNowhere() {
+            assertEquals(Optional.empty(), MortarPaving.soundSpot(List.of()));
         }
     }
 

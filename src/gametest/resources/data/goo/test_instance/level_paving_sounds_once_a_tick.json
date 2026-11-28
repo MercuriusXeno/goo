@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:level_paving_sounds_once_a_tick",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 60,
+  "setup_ticks": 0,
+  "required": true
+}
