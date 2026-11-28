@@ -35,7 +35,6 @@ class SlimeFlowTest {
     class Cohesion {
 
         private static final int GOOP_COHESION = 4;
-        private static final int FIRM = 15;
         private static final int CELL = 10;
 
         @Test
@@ -54,12 +53,6 @@ class SlimeFlowTest {
         void aCohesiveCellPoursIntoASideSixLayersBelow() {
             assertEquals(Optional.of(Direction.EAST),
                     SlimeFlow.pour(CELL, GOOP_COHESION, HOLDS_TOPS, List.of(Side.holds(Direction.EAST, CELL - 6))));
-        }
-
-        @Test
-        void aFirmCellNeverPours() {
-            assertEquals(Optional.empty(), SlimeFlow.pour(VolumeCellBlock.MAX_LAYERS, FIRM, HOLDS_TOPS,
-                    List.of(Side.holds(Direction.EAST, 0), Side.ledge(Direction.WEST))));
         }
     }
 

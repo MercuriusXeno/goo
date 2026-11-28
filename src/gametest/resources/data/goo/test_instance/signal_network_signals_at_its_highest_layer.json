@@ -1,9 +1,9 @@
 {
   "type": "minecraft:function",
-  "function": "goo:signal_holds_its_layers_on_open_ground",
+  "function": "goo:signal_network_signals_at_its_highest_layer",
   "environment": "minecraft:default",
   "structure": "goo:test_bay",
-  "max_ticks": 120,
+  "max_ticks": 40,
   "setup_ticks": 0,
   "required": true
 }

@@ -10,11 +10,12 @@ import java.util.stream.Stream;
 /**
  * Pulse's Signal block step: pulse goo lands where each of the stream's
  * drips strikes, one layer for each drip, through the volume cell's one
- * landing, as Goop lays its slime. The cell it lays sends a redstone signal
- * equal to its layers, and that is all it does, so the step names nothing:
+ * landing, as Goop lays its slime. The cell it lays sends its network's
+ * highest layer count as a redstone signal, and that is all it does, so the
+ * step names nothing:
  * {@code signal}.
  * extend-is-dropped-for-signal-an-in-world-pulse-goo
- * signal-goo-sends-a-redstone-signal-equal-to-its-layers
+ * pulse-goo-network-signals-at-its-highest-layer
  * drip-creates-a-volume-cell-immediately
  * drip-on-a-standing-cell-increases-it
  */
