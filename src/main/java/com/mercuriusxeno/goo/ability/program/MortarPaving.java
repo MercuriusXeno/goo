@@ -226,6 +226,7 @@ public final class MortarPaving {
         if (plane == null) {
             return;
         }
+        fillMortarHoles(host, plane, aimed);
         MortarCarry carry = host.holdMarks().mortarCarry();
         List<BlockPos> pileCells = pileCells(plane, aimed);
         Map<BlockPos, Integer> loose = mortarIn(host, overDisc(plane, aimed).stream().filter(host::reaches).toList());
@@ -236,6 +237,49 @@ public final class MortarPaving {
         Deposit deposit = deposit(gaps, layersIn(scoop.piles()));
         deposit.paved().forEach(pos -> host.transformBlock(pos, Blocks.STONE.defaultBlockState()));
         carry.ride(host, plane, aimed, spend(scoop.piles(), pileCells, deposit.paved()));
+    }
+
+    /**
+     * Fills each hole holding Mortar in the row under the disc, whatever the
+     * carry holds: the hole turns to stone, its own Mortar paying the one
+     * layer, and the rest of that Mortar rises into the cell one out from it,
+     * joining any Mortar there, for the scoop to gather. A hole whose cell one
+     * out can take no raised layers stays as it is.
+     * level-passing-over-mortar-below-picks-it-up
+     * layer-of-rock-goo-is-a-stone-block
+     *
+     * @param host  the channel host
+     * @param plane the face the hold began on
+     * @param aimed the block the cursor rests on
+     */
+    private static void fillMortarHoles(ChannelHost host, ChannelAim.FacePlane plane, BlockPos aimed) {
+        List<BlockPos> row = middleFirst(plane.layer(aimed, 0), plane.face().getAxis()).stream()
+                .filter(host::reaches).toList();
+        mortarIn(host, row).forEach((hole, layers) -> {
+            BlockPos above = plane.layer(hole, 1);
+            int raised = layers - 1;
+            if (takesRaised(host.stateAt(above), raised)) {
+                // the stone lands first, so the raised Mortar lies on it rather than falling back into the hole
+                host.transformBlock(hole, Blocks.STONE.defaultBlockState());
+                if (raised > 0) {
+                    layMortar(host, above, MortarCellBlock.layersOf(host.stateAt(above)) + raised);
+                }
+            }
+        });
+    }
+
+    /**
+     * Whether the cell one out from a Mortar hole can take the layers the
+     * hole raises: air, or Mortar with room for them.
+     * level-passing-over-mortar-below-picks-it-up
+     *
+     * @param above  the block standing one out from the hole
+     * @param raised the layers the hole raises
+     * @return true where the hole may fill
+     */
+    static boolean takesRaised(BlockState above, int raised) {
+        return above.isAir() || above.getBlock() instanceof MortarCellBlock
+                && MortarCellBlock.layersOf(above) + raised <= VolumeCellBlock.MAX_LAYERS;
     }
 
     /**

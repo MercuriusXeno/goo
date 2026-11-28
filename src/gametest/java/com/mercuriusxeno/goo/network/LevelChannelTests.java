@@ -25,6 +25,7 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 import java.util.List;
@@ -63,7 +64,33 @@ public final class LevelChannelTests {
                 LevelChannelTests::levelCarriesMortarAsNoBlockUntilLetGo);
         GooTestFunctions.registerTest(registrar, LEVEL_GATHERS_LOOSE_MORTAR_ONTO_ITS_PILE,
                 LevelChannelTests::levelGathersLooseMortarOntoItsPile);
+        GooTestFunctions.registerTest(registrar, LEVEL_FILLS_A_MORTAR_HOLE_AND_GATHERS_THE_REST,
+                LevelChannelTests::levelFillsAMortarHoleAndGathersTheRest);
+        GooTestFunctions.registerTest(registrar, LEVEL_FILLS_A_MORTAR_HOLE_UNDER_A_FULL_CARRY,
+                LevelChannelTests::levelFillsAMortarHoleUnderAFullCarry);
+        GooTestFunctions.registerTest(registrar, LEVEL_FILLS_A_ONE_LAYER_MORTAR_HOLE,
+                LevelChannelTests::levelFillsAOneLayerMortarHole);
     }
+
+    private static final String LEVEL_FILLS_A_MORTAR_HOLE_AND_GATHERS_THE_REST =
+            "level_fills_a_mortar_hole_and_gathers_the_rest";
+    private static final String LEVEL_FILLS_A_MORTAR_HOLE_UNDER_A_FULL_CARRY =
+            "level_fills_a_mortar_hole_under_a_full_carry";
+    private static final String LEVEL_FILLS_A_ONE_LAYER_MORTAR_HOLE = "level_fills_a_one_layer_mortar_hole";
+    /** The floor block holding the Mortar hole, the disc's middle when the disc reaches it. */
+    private static final BlockPos MORTAR_HOLE = new BlockPos(4, 0, 4);
+    /** Where the hole tests' player stands, off every disc they hold. */
+    private static final BlockPos HOLE_FILLER_STAND = new BlockPos(3, 1, 1);
+    /** The floor block the full carry test's first rest scoops over, nine full cells over its 3x3. */
+    private static final BlockPos FILLING_REST = new BlockPos(1, 0, 4);
+    private static final int HOLE_LAYERS = 5;
+    private static final int THREE_LAYERS = 3;
+    /** The held ticks a test's first rest scoops for before the disc moves over the hole. */
+    private static final int FILLING_TICKS = 3;
+    private static final int FULL_CARRY = 135;
+    private static final String SHOULD_FILL_THE_HOLE = "The Mortar hole should read stone, %s stands there";
+    private static final String SHOULD_CARRY = "The hold should carry %d layers, it carries %d";
+    private static final String SHOULD_RAISE_THE_REST = "The cell over the hole should hold Mortar of %d layers, %s stands";
 
     private static final String LEVEL_GATHERS_LOOSE_MORTAR_ONTO_ITS_PILE = "level_gathers_loose_mortar_onto_its_pile";
     /** The 12 layer cell, under the corner column at the lowest x and z of the disc's first rest. */
@@ -373,6 +400,140 @@ public final class LevelChannelTests {
                     String.format(SHOULD_GATHER_ONE_PILE, standing));
             helper.getLevel().getServer().getPlayerList().remove(player);
         });
+    }
+
+    /**
+     * A mock player with an empty carry holds Level for one tick over a floor
+     * with no air gap and one 5 layer Mortar cell in the floor row under the
+     * disc's middle: the hole reads stone, the carry holds the other 4 layers,
+     * and no Mortar block stands over the disc
+     * (decision level-passing-over-mortar-below-picks-it-up).
+     *
+     * @param helper the gametest helper
+     */
+    public static void levelFillsAMortarHoleAndGathersTheRest(GameTestHelper helper) {
+        ServerPlayer player = holeFiller(helper);
+        layMortar(helper, MORTAR_HOLE, HOLE_LAYERS);
+        holdOverHoleThen(helper, player, List.of(), () -> {
+            assertHoleFilled(helper);
+            assertCarries(helper, player, HOLE_LAYERS - 1);
+            assertNoMortarOver(helper, MORTAR_HOLE);
+        });
+    }
+
+    /**
+     * A mock player scoops nine full Mortar cells into a carry of 135 layers,
+     * then holds Level for one tick over a 5 layer Mortar cell in the floor row
+     * under the disc's middle: the hole reads stone, the 4 layers it raised
+     * stand as Mortar on the new stone, and the carry still holds 135
+     * (decision level-passing-over-mortar-below-picks-it-up).
+     *
+     * @param helper the gametest helper
+     */
+    public static void levelFillsAMortarHoleUnderAFullCarry(GameTestHelper helper) {
+        ServerPlayer player = holeFiller(helper);
+        layMortar(helper, MORTAR_HOLE, HOLE_LAYERS);
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                layMortar(helper, FILLING_REST.offset(dx, 1, dz), VolumeCellBlock.MAX_LAYERS);
+            }
+        }
+        holdOverHoleThen(helper, player, List.of(FILLING_REST), () -> {
+            assertHoleFilled(helper);
+            BlockState raised = helper.getBlockState(MORTAR_HOLE.above());
+            helper.assertTrue(raised.is(GooBlocks.ROCK_MORTAR.get())
+                            && raised.getValue(VolumeCellBlock.LAYERS) == HOLE_LAYERS - 1,
+                    String.format(SHOULD_RAISE_THE_REST, HOLE_LAYERS - 1, raised));
+            assertCarries(helper, player, FULL_CARRY);
+        });
+    }
+
+    /**
+     * A mock player carrying 3 layers holds Level for one tick over a 1 layer
+     * Mortar cell in the floor row under the disc: the hole reads stone, the
+     * carry still holds 3, and no Mortar block stands over the disc
+     * (decision level-passing-over-mortar-below-picks-it-up).
+     *
+     * @param helper the gametest helper
+     */
+    public static void levelFillsAOneLayerMortarHole(GameTestHelper helper) {
+        ServerPlayer player = holeFiller(helper);
+        layMortar(helper, MORTAR_HOLE, 1);
+        layMortar(helper, FILLING_REST.above(), THREE_LAYERS);
+        holdOverHoleThen(helper, player, List.of(FILLING_REST), () -> {
+            assertHoleFilled(helper);
+            assertCarries(helper, player, THREE_LAYERS);
+            assertNoMortarOver(helper, MORTAR_HOLE);
+        });
+    }
+
+    private static ServerPlayer holeFiller(GameTestHelper helper) {
+        AbilityDefinition levelAbility = AbilityRegistry.of(helper.getLevel()).getAbility(ROCK_LEVEL);
+        helper.assertTrue(levelAbility != null, ABILITY_REQUIRED);
+        layStoneFloor(helper);
+        ServerPlayer player = leveler(helper, HOLE_FILLER_STAND);
+        KnownRecipes.teachRequires(player, levelAbility);
+        return player;
+    }
+
+    private static void layMortar(GameTestHelper helper, BlockPos cell, int layers) {
+        helper.setBlock(cell, GooBlocks.ROCK_MORTAR.get().defaultBlockState().setValue(VolumeCellBlock.LAYERS, layers));
+    }
+
+    /**
+     * Holds Level at each rest before the hole for a few ticks, then over the
+     * hole for one held tick, checks what that tick left, and lets the hold
+     * lapse before the test passes.
+     *
+     * @param helper the gametest helper
+     * @param player the holding player
+     * @param before the floor blocks the cursor rests on first
+     * @param check  the checks the tick over the hole answers
+     */
+    private static void holdOverHoleThen(GameTestHelper helper, ServerPlayer player, List<BlockPos> before,
+                                         Runnable check) {
+        BlockPos planeBlock = before.isEmpty() ? MORTAR_HOLE : before.getFirst();
+        int held = 0;
+        for (BlockPos rest : before) {
+            GooStreamPayload tick = levelTick(helper, player, rest, planeBlock);
+            for (int step = 0; step < FILLING_TICKS; step++) {
+                held++;
+                helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(player, tick));
+            }
+        }
+        GooStreamPayload overHole = levelTick(helper, player, MORTAR_HOLE, planeBlock);
+        boolean[] checked = {false};
+        helper.runAfterDelay(held + 1, () -> {
+            GooStreamHandler.streamTick(player, overHole);
+            check.run();
+            checked[0] = true;
+        });
+        helper.succeedWhen(() -> {
+            helper.assertTrue(checked[0] && carryOf(helper, player).layers() == 0, "The hold should lapse");
+            helper.getLevel().getServer().getPlayerList().remove(player);
+        });
+    }
+
+    private static GooStreamPayload levelTick(GameTestHelper helper, ServerPlayer player, BlockPos rest,
+                                              BlockPos planeBlock) {
+        return new GooStreamPayload(GooTypes.id(GooTypes.ROCK), ROCK_LEVEL.toString(), player.getEyePosition(),
+                topFace(helper, rest), helper.absolutePos(planeBlock), Direction.UP.get3DDataValue());
+    }
+
+    private static void assertHoleFilled(GameTestHelper helper) {
+        helper.assertTrue(helper.getBlockState(MORTAR_HOLE).is(Blocks.STONE),
+                String.format(SHOULD_FILL_THE_HOLE, helper.getBlockState(MORTAR_HOLE)));
+    }
+
+    private static void assertCarries(GameTestHelper helper, ServerPlayer player, int layers) {
+        int carried = carryOf(helper, player).layers();
+        helper.assertTrue(carried == layers, String.format(SHOULD_CARRY, layers, carried));
+    }
+
+    private static void assertNoMortarOver(GameTestHelper helper, BlockPos rest) {
+        Set<BlockPos> disc = overDisc(rest);
+        mortarIn(helper, disc::contains).keySet().stream().findFirst().ifPresent(cell -> helper.fail(
+                String.format(SHOULD_STAND_NO_MORTAR, helper.getBlockState(cell), cell)));
     }
 
     private static void layStoneFloor(GameTestHelper helper) {
