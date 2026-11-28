@@ -148,6 +148,13 @@ class LunarTripTest {
         /** A fixation's direction the planet stood along as the trip home began: well up in the west. */
         private static final Vec3 FIXATION_DIRECTION = LunarSight.moonDirection(40F);
         private static final double QUAD_TOLERANCE = 1e-5;
+        private static final int PROGRESS_STEPS = 20;
+        private static final double RATIO_TOLERANCE = 1e-9;
+        private static final int FIXATION_TICKS = 100;
+        /** A moment of the hold before its end, by which the planet covers the widest view. */
+        private static final float BEFORE_THE_END = 0.9F;
+        /** Vanilla's near plane's distance from the camera. */
+        private static final float VANILLA_NEAR_PLANE = 0.05F;
 
         /**
          * The planet the trip swells stands as solid as the one the sky drew: its unlit face, opaque black, hides what
@@ -177,6 +184,55 @@ class LunarTripTest {
         @Test
         void bluePlanetSwellsAcrossTheFixation() {
             assertTrue(rises(progress -> LunarTrip.planetHalfTangent((float) progress)));
+        }
+
+        /**
+         * decision home-swell-feels-as-far-as-the-moon-pull
+         */
+        @Test
+        void bluePlanetGrowsByTheMoonsFactorAtEveryMoment() {
+            for (int step = 0; step <= PROGRESS_STEPS; step++) {
+                float progress = (float) step / PROGRESS_STEPS;
+                double planetGrowth = LunarTrip.planetHalfTangent(progress) / LunarTrip.planetHalfTangent(0F);
+                double moonGrowth = LunarTrip.moonHalfTangent(progress) / LunarTrip.moonHalfTangent(0F);
+                assertEquals(moonGrowth, planetGrowth, RATIO_TOLERANCE, "at " + progress + " the planet grew "
+                        + planetGrowth + " times, the moon " + moonGrowth);
+            }
+        }
+
+        /**
+         * decision home-swell-feels-as-far-as-the-moon-pull
+         */
+        @Test
+        void bluePlanetGrowsFromTheFirstTickOnEveryTick() {
+            for (int tick = 1; tick <= FIXATION_TICKS; tick++) {
+                double before = LunarTrip.planetHalfTangent((float) (tick - 1) / FIXATION_TICKS);
+                double now = LunarTrip.planetHalfTangent((float) tick / FIXATION_TICKS);
+                assertTrue(now > before, "at tick " + tick + " the planet's half width " + now
+                        + " should stand above tick " + (tick - 1) + "'s " + before);
+            }
+        }
+
+        /**
+         * decision home-swell-feels-as-far-as-the-moon-pull
+         */
+        @Test
+        void bluePlanetCoversTheWidestViewBeforeTheHoldEnds() {
+            assertTrue(LunarTrip.planetHalfTangent(BEFORE_THE_END) >= LunarTrip.WIDEST_VIEW_HALF_TANGENT,
+                    "at " + BEFORE_THE_END + " the planet's half width " + LunarTrip.planetHalfTangent(BEFORE_THE_END)
+                            + " should reach the widest view's half diagonal " + LunarTrip.WIDEST_VIEW_HALF_TANGENT);
+        }
+
+        /**
+         * decision home-swell-feels-as-far-as-the-moon-pull
+         */
+        @Test
+        void theFullySwollenPlanetDrawsInFrontOfTheNearPlane() {
+            List<Vector3f> corners = LunarTripBodies.planetCorners(FIXATION_DIRECTION, LunarTrip.planetHalfTangent(1F));
+            for (Vector3f corner : corners) {
+                assertTrue(corner.length() > VANILLA_NEAR_PLANE, "corner " + corner + " stands "
+                        + corner.length() + " from the camera, inside vanilla's near plane " + VANILLA_NEAR_PLANE);
+            }
         }
 
         /**
@@ -260,6 +316,8 @@ class LunarTripTest {
 
     @Nested
     class MoonSize {
+        private static final double PINNED = 1e-12;
+
         @Test
         void moonStandsAtVanillasSizeAtTheStart() {
             assertEquals(LunarTrip.RESTING_MOON_HALF_TANGENT, LunarTrip.moonHalfTangent(0F), EXACT);
@@ -275,6 +333,22 @@ class LunarTripTest {
         @Test
         void moonSwellsAcrossTheFixation() {
             assertTrue(rises(progress -> LunarTrip.moonHalfTangent((float) progress)));
+        }
+
+        /**
+         * The moon pull stands as it stood before the trip home's swell took the moon's factor: its half width's
+         * tangent at five moments of the hold, computed on the branch's base.
+         * decision home-swell-feels-as-far-as-the-moon-pull
+         */
+        @Test
+        void moonPullStandsAsItStoodBeforeTheHomeSwellChanged() {
+            float[] moments = {0F, 0.25F, 0.5F, 0.75F, 1F};
+            double[] before = {0.05000000074505806, 0.07846944971689726, 0.16630996616728563, 0.642850649815684,
+                4.531854658724893};
+            for (int moment = 0; moment < moments.length; moment++) {
+                assertEquals(before[moment], LunarTrip.moonHalfTangent(moments[moment]), PINNED,
+                        "at " + moments[moment]);
+            }
         }
     }
 
