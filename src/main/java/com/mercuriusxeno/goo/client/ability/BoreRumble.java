@@ -92,7 +92,26 @@ public final class BoreRumble {
         Delivery reaching = bore.delivery().reachingTo(player.blockInteractionRange());
         ChannelAim aim = new ChannelAim(eye.add(player.getViewVector(1f).scale(reaching.range())), null,
                 reaching.coneDegrees());
-        return BoreStep.progressing(eye, step.shape(), GooCasters.casterOnTheRight(player), aim,
-                cell -> level.getBlockState(cell).isAir(), cell -> level.getBlockState(cell).is(step.breaks()));
+        return progressingAlong(eye, step, GooCasters.casterOnTheRight(player), aim,
+                BoreDrill.SightBlocks.in(level, step));
+    }
+
+    /**
+     * The blocks a bore is breaking along an eye line, picked by the drill in
+     * force as the server picks them.
+     * decision only-the-blocks-about-to-break-shake-briefly-and-gently
+     *
+     * @param eye        the eye the line runs from
+     * @param step       the bore step
+     * @param gloveRight whether the glove is in the right hand
+     * @param aim        the stream's aim
+     * @param blocks     the blocks along the line
+     * @return the blocks, nearest first
+     */
+    static List<BlockPos> progressingAlong(Vec3 eye, BoreStep step, boolean gloveRight, ChannelAim aim,
+                                           BoreDrill.SightBlocks blocks) {
+        BoreStep.DrillInForce drill = BoreStep.drillInForce(eye, step.shape(), step.giga(), gloveRight, aim,
+                blocks.air(), blocks.mortarLayers(), blocks.breakable());
+        return BoreStep.progressing(eye, drill.shape(), gloveRight, aim, drill.passable(), blocks.breakable());
     }
 }

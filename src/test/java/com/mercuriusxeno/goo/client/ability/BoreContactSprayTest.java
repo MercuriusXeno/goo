@@ -93,4 +93,19 @@ class BoreContactSprayTest {
     void itSpewsEightParticlesATick() {
         assertEquals(8, BoreContactSpray.SPITS_PER_TICK);
     }
+
+    /**
+     * Through Mortar the spray spreads round the giga drill's cross section
+     * (decision bore-drill-dimensions-drive-the-visuals-and-the-break).
+     */
+    @Test
+    void throughMortarItSpreadsRoundTheGigaDrillsCrossSection() {
+        List<Vec3> spread = BoreContactSpray.spreadAlong(MortarSight.SIGHT, MortarSight.REACH, MortarSight.BORE,
+                MortarSight.GLOVE_RIGHT, MortarSight.blocks(true));
+        List<Vec3> own = BoreContactSpray.spreadOf(BoreDrillShape.SHIPPED, MortarSight.LOOK, MortarSight.GLOVE_RIGHT);
+
+        assertEquals(BoreContactSpray.spreadOf(MortarSight.GIGA, MortarSight.LOOK, MortarSight.GLOVE_RIGHT), spread);
+        assertTrue(spread.getFirst().length() > own.getFirst().length(),
+                "the spread reaches " + spread.getFirst().length() + ", no wider than " + own.getFirst().length());
+    }
 }

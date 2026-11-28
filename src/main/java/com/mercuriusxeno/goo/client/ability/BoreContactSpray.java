@@ -93,6 +93,23 @@ public final class BoreContactSpray {
     }
 
     /**
+     * Where a tick's particles spew from along a sight: round the cross
+     * section of the drill in force, the giga drill's while the sight crosses Mortar.
+     * decision bore-drill-dimensions-drive-the-visuals-and-the-break
+     *
+     * @param sight      the sight the bore aims along
+     * @param reach      the bore's reach along the sight
+     * @param step       the bore step
+     * @param gloveRight whether the glove is in the right hand
+     * @param blocks     the blocks along the sight
+     * @return the rim offsets, from the cross section's center
+     */
+    static List<Vec3> spreadAlong(CameraEye.Sight sight, double reach, BoreStep step, boolean gloveRight,
+                                  BoreDrill.SightBlocks blocks) {
+        return spreadOf(BoreDrill.drillAlong(sight, reach, step, gloveRight, blocks).shape(), sight.look(), gloveRight);
+    }
+
+    /**
      * Spits the tick's particles while the local player's bore runs and its
      * line of sight meets a breakable block within reach.
      *
@@ -134,7 +151,7 @@ public final class BoreContactSpray {
         BlockState state = level.getBlockState(landing.get().block());
         Vec3 towardHolder = sight.look().reverse();
         RandomSource random = level.getRandom();
-        for (Vec3 rimOffset : spreadOf(step.shape(), sight.look(), gloveRight)) {
+        for (Vec3 rimOffset : spreadAlong(sight, reach, step, gloveRight, BoreDrill.SightBlocks.in(level, step))) {
             Vec3 at = spewOrigin(landing.get().at(), towardHolder, rimOffset);
             double speed = 1 + SPEED_VARY * signed(random);
             Vec3 velocity = spewVelocity(towardHolder, rimOffset, random.nextDouble()).scale(speed);

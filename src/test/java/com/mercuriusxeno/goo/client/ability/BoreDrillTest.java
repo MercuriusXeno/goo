@@ -218,4 +218,38 @@ class BoreDrillTest {
             assertEquals(radiusAtThePlane(heldOn(far, SHIPPED), far), radiusAtThePlane(nearDrill, near), 1e-6);
         }
     }
+
+    /**
+     * Through Mortar the drawn drill is the giga drill the server bores with, landing on the stone past the Mortar
+     * (decisions boring-through-rock-goo-gives-a-giga-drill-that-drains-it,
+     * bore-drill-dimensions-drive-the-visuals-and-the-break).
+     */
+    @Nested
+    class ThroughMortar {
+
+        private static final float FACING_EAST = -90f;
+
+        private Vec3 pointOf(BoreDrill.DrillAim aim) {
+            return BoreDrill.pointOf(MortarSight.SIGHT, MortarSight.REACH, aim.shape(), aim.gloveRight(), aim.air(),
+                    aim.breakable());
+        }
+
+        @Test
+        void throughMortarTheDrillAimsTheGigaDrillAtTheStonePastIt() {
+            BoreDrill.DrillAim aim = BoreDrill.aimAlong(MortarSight.SIGHT, MortarSight.REACH, MortarSight.BORE,
+                    FACING_EAST, MortarSight.GLOVE_RIGHT, MortarSight.blocks(true));
+
+            assertEquals(MortarSight.GIGA, aim.shape());
+            assertEquals(MortarSight.FIRST_STONE.getX(), pointOf(aim).x, 1e-6);
+        }
+
+        @Test
+        void withNoMortarTheDrillAimsBoresOwnDrillAtTheFirstStone() {
+            BoreDrill.DrillAim aim = BoreDrill.aimAlong(MortarSight.SIGHT, MortarSight.REACH, MortarSight.BORE,
+                    FACING_EAST, MortarSight.GLOVE_RIGHT, MortarSight.blocks(false));
+
+            assertEquals(BoreDrillShape.SHIPPED, aim.shape());
+            assertEquals(MortarSight.FIRST_STONE.getX(), pointOf(aim).x, 1e-6);
+        }
+    }
 }

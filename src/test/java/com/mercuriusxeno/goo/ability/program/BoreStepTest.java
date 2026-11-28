@@ -417,4 +417,39 @@ class BoreStepTest {
             assertEquals(Set.of(new BlockPos(1, 2, 0), new BlockPos(2, 2, 0), aimed), Set.copyOf(struck.getValue()));
         }
     }
+
+    /**
+     * The drill in force swells to the giga drill only while the eye line
+     * crosses a Mortar cell holding layers.
+     * decision boring-through-rock-goo-gives-a-giga-drill-that-drains-it
+     * decision bore-drill-dimensions-drive-the-visuals-and-the-break
+     */
+    @Nested
+    class TheDrillInForce {
+
+        private static final ChannelAim AIM = new ChannelAim(REACH_END, null, CONE_DEGREES);
+        private static final Predicate<BlockPos> WALL = pos -> pos.getX() >= 2 && pos.getX() <= 3
+                && Math.abs(pos.getY() - 2) <= 2 && Math.abs(pos.getZ()) <= 2;
+
+        private BoreDrillShape drillFor(boolean mortarStands, int layers) {
+            Predicate<BlockPos> air = pos -> !WALL.test(pos) && !(mortarStands && pos.equals(FIRST_ON_LINE));
+            return BoreStep.drillInForce(EYE, BoreDrillShape.SHIPPED, GigaDrill.SHIPPED, true, AIM, air,
+                    pos -> mortarStands && pos.equals(FIRST_ON_LINE) ? layers : 0, WALL).shape();
+        }
+
+        @Test
+        void anEyeLineThroughMortarHoldingLayersSwellsToTheGigaDrill() {
+            assertEquals(GigaDrill.SHIPPED.swell(BoreDrillShape.SHIPPED), drillFor(true, 9));
+        }
+
+        @Test
+        void anEyeLineThroughAMortarCellHoldingNoLayersKeepsBoresOwnDrill() {
+            assertEquals(BoreDrillShape.SHIPPED, drillFor(true, 0));
+        }
+
+        @Test
+        void anEyeLineThroughNoMortarKeepsBoresOwnDrill() {
+            assertEquals(BoreDrillShape.SHIPPED, drillFor(false, 0));
+        }
+    }
 }

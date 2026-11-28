@@ -4,6 +4,8 @@ import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.program.BoreDrillShape;
 import com.mercuriusxeno.goo.ability.program.BorePoint;
 import com.mercuriusxeno.goo.ability.program.BoreStep;
+import com.mercuriusxeno.goo.ability.program.ChannelAim;
+import com.mercuriusxeno.goo.block.ability.MortarCellBlock;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
@@ -21,6 +23,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
+import java.util.function.ToIntFunction;
 
 /**
  * Bore's drill: while right click holds a bore stream, a vortex of earth
@@ -188,6 +191,66 @@ public final class BoreDrill {
      */
     record DrillAim(BoreDrillShape shape, float yaw, boolean gloveRight, Predicate<BlockPos> air,
                     Predicate<BlockPos> breakable) {
+    }
+
+    /**
+     * What the blocks along a bore's sight hold, as the drill in force reads them.
+     *
+     * @param air          whether a cell holds air
+     * @param mortarLayers the layers of Mortar a cell holds
+     * @param breakable    whether a cell holds a block the bore breaks
+     */
+    record SightBlocks(Predicate<BlockPos> air, ToIntFunction<BlockPos> mortarLayers, Predicate<BlockPos> breakable) {
+
+        /**
+         * The blocks of a level as a bore reads them.
+         *
+         * @param level the client level
+         * @param bore  the bore, whose tag names what it breaks
+         * @return the blocks
+         */
+        static SightBlocks in(Level level, BoreStep bore) {
+            return new SightBlocks(airIn(level), cell -> MortarCellBlock.layersAt(level, cell),
+                    breakableIn(level, bore));
+        }
+    }
+
+    /**
+     * The drill in force along a sight: the giga drill while the sight
+     * crosses Mortar, Bore's own otherwise, as the server's break reads it.
+     * decision boring-through-rock-goo-gives-a-giga-drill-that-drains-it
+     * decision bore-drill-dimensions-drive-the-visuals-and-the-break
+     *
+     * @param sight      the sight the bore aims along
+     * @param reach      the bore's reach along the sight
+     * @param bore       the bore step
+     * @param gloveRight whether the glove is in the right hand
+     * @param blocks     the blocks along the sight
+     * @return the drill in force
+     */
+    static BoreStep.DrillInForce drillAlong(CameraEye.Sight sight, double reach, BoreStep bore, boolean gloveRight,
+                                            SightBlocks blocks) {
+        ChannelAim aim = new ChannelAim(sight.eye().add(sight.look().scale(reach)), null, 0);
+        return BoreStep.drillInForce(sight.eye(), bore.shape(), bore.giga(), gloveRight, aim, blocks.air(),
+                blocks.mortarLayers(), blocks.breakable());
+    }
+
+    /**
+     * The drill's aim along a sight: the drill in force, its passable cells
+     * and the blocks it breaks.
+     *
+     * @param sight      the sight the bore aims along
+     * @param reach      the bore's reach along the sight
+     * @param bore       the bore step
+     * @param yaw        the look's yaw in degrees
+     * @param gloveRight whether the glove is in the right hand
+     * @param blocks     the blocks along the sight
+     * @return the aim
+     */
+    static DrillAim aimAlong(CameraEye.Sight sight, double reach, BoreStep bore, float yaw, boolean gloveRight,
+                             SightBlocks blocks) {
+        BoreStep.DrillInForce drill = drillAlong(sight, reach, bore, gloveRight, blocks);
+        return new DrillAim(drill.shape(), yaw, gloveRight, drill.passable(), blocks.breakable());
     }
 
     /**
@@ -362,9 +425,9 @@ public final class BoreDrill {
 
     private static Drill drillOf(Minecraft mc, LocalPlayer player, PouredBore bore, float partialTick, boolean held) {
         BoreStep step = bore.step();
-        Drill full = drillThrough(bore.cone(), bore.ownDegrees(), CameraEye.of(mc, player, partialTick),
-                new DrillAim(step.shape(), player.getViewYRot(partialTick), GooCasters.casterOnTheRight(player),
-                        airIn(mc.level), breakableIn(mc.level, step)));
+        CameraEye.Sight sight = CameraEye.of(mc, player, partialTick);
+        Drill full = drillThrough(bore.cone(), bore.ownDegrees(), sight, aimAlong(sight, bore.cone().reach(), step,
+                player.getViewYRot(partialTick), GooCasters.casterOnTheRight(player), SightBlocks.in(mc.level, step)));
         double share = held ? emergedShare(GloveUseTracker.channelTicks() + partialTick) : 1;
         return full.emerged(share).about(mc.gameRenderer.mainCamera().position());
     }
@@ -383,24 +446,6 @@ public final class BoreDrill {
     }
 
     /**
-     * Where the drill's point stands in a level along the crosshair's sight,
-     * {@link CameraEye#of}'s, the camera itself in first person. The ground
-     * shake runs Bore's zone along the same sight, so it shakes the blocks at
-     * the point.
-     * decision diagnose-and-correct-eye-aimed-visuals-jumping-on-sneak
-     *
-     * @param level      the client level
-     * @param sight      the crosshair's sight
-     * @param bore       the bore, whose tag names what it breaks and whose drill sizes the tube
-     * @param gloveRight whether the glove is in the right hand
-     * @param reach      the bore's reach
-     * @return the point, in world space
-     */
-    static Vec3 pointAhead(Level level, CameraEye.Sight sight, BoreStep bore, boolean gloveRight, double reach) {
-        return pointOf(sight, reach, bore.shape(), gloveRight, airIn(level), breakableIn(level, bore));
-    }
-
-    /**
      * The breakable block a bore's cross section lands on in a level along a sight.
      *
      * @param level      the client level
@@ -412,8 +457,10 @@ public final class BoreDrill {
      */
     static Optional<BorePoint> landingAhead(Level level, CameraEye.Sight sight, BoreStep bore, boolean gloveRight,
                                             double reach) {
-        return BoreStep.pointOf(sight.eye(), sight.eye().add(sight.look().scale(reach)), bore.shape(), gloveRight,
-                airIn(level), breakableIn(level, bore));
+        SightBlocks blocks = SightBlocks.in(level, bore);
+        BoreStep.DrillInForce drill = drillAlong(sight, reach, bore, gloveRight, blocks);
+        return BoreStep.pointOf(sight.eye(), sight.eye().add(sight.look().scale(reach)), drill.shape(), gloveRight,
+                drill.passable(), blocks.breakable());
     }
 
     private static Predicate<BlockPos> airIn(Level level) {

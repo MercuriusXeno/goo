@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
+import java.util.function.ToIntFunction;
 import java.util.stream.Stream;
 
 /**
@@ -130,18 +131,55 @@ public record BoreStep(TagKey<Block> breaks, BreakPace pace, BoreDrillShape shap
     public boolean tick(StepContext context) {
         ChannelHost host = context.hostAs(ChannelHost.class);
         Predicate<BlockPos> breakable = pos -> host.blockIn(pos, breaks);
-        // boring-through-rock-goo-gives-a-giga-drill-that-drains-it: the drill passes through Mortar's goo
-        Predicate<BlockPos> passable = pos -> host.airAt(pos) || host.mortarLayersAt(pos) > 0;
         host.channelAim().ifPresent(aim -> {
-            BorePick own = BorePick.of(host.eye(), shape, host.gloveOnTheRight(), aim, passable, breakable);
-            Optional<BlockPos> bored = own.tunnel().stream().filter(pos -> host.mortarLayersAt(pos) > 0).findFirst();
-            BorePick pick = bored.isEmpty() ? own
-                    : BorePick.of(host.eye(), giga.swell(shape), host.gloveOnTheRight(), aim, passable, breakable);
+            DrillInForce drill = drillInForce(host.eye(), shape, giga, host.gloveOnTheRight(), aim, host::airAt,
+                    host::mortarLayersAt, breakable);
+            BorePick pick = BorePick.of(host.eye(), drill.shape(), host.gloveOnTheRight(), aim, drill.passable(),
+                    breakable);
             host.gradualBreak().progress(pace.ratesByGroup(List.of(pick.blocks())), host, true);
-            bored.ifPresent(cell -> host.drainMortarFrom(cell, giga.ticksPerLayer()));
+            drill.bored().ifPresent(cell -> host.drainMortarFrom(cell, giga.ticksPerLayer()));
             strikeIn(host, pick.tunnel());
         });
         return true;
+    }
+
+    /**
+     * The drill in force along an eye line, read alike by the server's break
+     * and the client's drawn drill, shake, spray and blob.
+     * decision boring-through-rock-goo-gives-a-giga-drill-that-drains-it
+     * decision bore-drill-dimensions-drive-the-visuals-and-the-break
+     *
+     * @param shape    the drill cone in force: the giga drill's while the eye line crosses Mortar, Bore's own otherwise
+     * @param passable whether a cell lets the drill through: air, or a Mortar cell holding layers
+     * @param bored    the first Mortar cell the eye line crosses, empty where it crosses none
+     */
+    public record DrillInForce(BoreDrillShape shape, Predicate<BlockPos> passable, Optional<BlockPos> bored) {
+    }
+
+    /**
+     * The drill in force along an eye line: the giga drill swollen from Bore's
+     * own while its own pick's tunnel crosses a Mortar cell holding layers,
+     * Bore's own drill otherwise.
+     * decision boring-through-rock-goo-gives-a-giga-drill-that-drains-it
+     * decision bore-drill-dimensions-drive-the-visuals-and-the-break
+     *
+     * @param eye          the eye the line runs from
+     * @param own          Bore's own drill cone
+     * @param giga         the giga drill it swells into
+     * @param gloveRight   whether the glove is in the right hand
+     * @param aim          the stream's aim: its reach along the look
+     * @param air          whether a cell holds air
+     * @param mortarLayers the layers of Mortar a cell holds
+     * @param breakable    whether a cell holds a block in the tag
+     * @return the drill in force
+     */
+    public static DrillInForce drillInForce(Vec3 eye, BoreDrillShape own, GigaDrill giga, boolean gloveRight,
+                                            ChannelAim aim, Predicate<BlockPos> air,
+                                            ToIntFunction<BlockPos> mortarLayers, Predicate<BlockPos> breakable) {
+        Predicate<BlockPos> passable = pos -> air.test(pos) || mortarLayers.applyAsInt(pos) > 0;
+        Optional<BlockPos> bored = BorePick.of(eye, own, gloveRight, aim, passable, breakable).tunnel().stream()
+                .filter(pos -> mortarLayers.applyAsInt(pos) > 0).findFirst();
+        return new DrillInForce(bored.isPresent() ? giga.swell(own) : own, passable, bored);
     }
 
     /**

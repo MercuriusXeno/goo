@@ -151,8 +151,29 @@ public final class BoreBlobPlace {
         }
         ClientAbility ability = BlobRest.selectedAbility(caster);
         double reach = ability == null ? 0 : ability.delivery().reachingTo(caster.blockInteractionRange()).range();
-        Vec3 point = BoreDrill.pointAhead(mc.level, sight, bore, GooCasters.casterOnTheRight(caster), reach);
-        return placeFor(sight.eye(), sight.look(), point, rest, bore.shape());
+        return placeAlong(sight, reach, bore, GooCasters.casterOnTheRight(caster), rest,
+                BoreDrill.SightBlocks.in(mc.level, bore));
+    }
+
+    /**
+     * Where the blob is bound along a sight: held at the angle and length of
+     * the drill in force, the giga drill's while the sight crosses Mortar,
+     * off its cross section's center.
+     * decision bore-drill-dimensions-drive-the-visuals-and-the-break
+     *
+     * @param sight      the sight the bore aims along
+     * @param reach      the bore's reach along the sight
+     * @param bore       the bore step
+     * @param gloveRight whether the glove is in the right hand
+     * @param rest       the blob's lifted rest by the glove
+     * @param blocks     the blocks along the sight
+     * @return the place
+     */
+    static Vec3 placeAlong(CameraEye.Sight sight, double reach, BoreStep bore, boolean gloveRight, Vec3 rest,
+                           BoreDrill.SightBlocks blocks) {
+        BoreStep.DrillInForce drill = BoreDrill.drillAlong(sight, reach, bore, gloveRight, blocks);
+        Vec3 point = BoreDrill.pointOf(sight, reach, drill.shape(), gloveRight, drill.passable(), blocks.breakable());
+        return placeFor(sight.eye(), sight.look(), point, rest, drill.shape());
     }
 
     /**

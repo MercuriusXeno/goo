@@ -222,4 +222,20 @@ class BoreBlobPlaceTest {
             assertEquals(0, eased.distanceTo(bound), 0.01);
         }
     }
+
+    /**
+     * Through Mortar the blob is placed off the giga drill
+     * (decision bore-drill-dimensions-drive-the-visuals-and-the-break).
+     */
+    @Test
+    void throughMortarTheBlobIsPlacedOffTheGigaDrill() {
+        Vec3 rest = MortarSight.EYE.add(0.4, -0.3, 0.5);
+        Vec3 point = BoreDrill.pointOf(MortarSight.SIGHT, MortarSight.REACH, MortarSight.GIGA,
+                MortarSight.GLOVE_RIGHT, MortarSight.passable(), MortarSight.breakable());
+
+        Vec3 placed = BoreBlobPlace.placeAlong(MortarSight.SIGHT, MortarSight.REACH, MortarSight.BORE,
+                MortarSight.GLOVE_RIGHT, rest, MortarSight.blocks(true));
+
+        assertEquals(BoreBlobPlace.placeFor(MortarSight.EYE, MortarSight.LOOK, point, rest, MortarSight.GIGA), placed);
+    }
 }
