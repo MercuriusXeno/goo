@@ -58,6 +58,13 @@ public final class GooTypes {
     public static final ResourceKey<GooTypeDefinition> ASTRAL = bundled("astral");
     public static final ResourceKey<GooTypeDefinition> BLAZE = bundled("blaze");
     public static final ResourceKey<GooTypeDefinition> CRYSTAL = bundled("crystal");
+    /**
+     * The goo of things that have toughness, in netherite gunmetal.
+     * decision dye-takes-the-letter-d
+     * decision durable-is-found-in-things-that-have-toughness
+     * decision durable-is-netherite-gunmetal
+     */
+    public static final ResourceKey<GooTypeDefinition> DURABLE = bundled("durable");
     public static final ResourceKey<GooTypeDefinition> ENDER = bundled("ender");
     public static final ResourceKey<GooTypeDefinition> FROST = bundled("frost");
     public static final ResourceKey<GooTypeDefinition> GLOW = bundled("glow");
@@ -123,7 +130,7 @@ public final class GooTypes {
      * Every type the mod ships as JSON, in constant order.
      */
     public static final List<ResourceKey<GooTypeDefinition>> BUNDLED = List.of(
-            ASTRAL, BLAZE, CRYSTAL, ENDER, FROST, GLOW, HEX, INFINITY, JELLY, KINETIC, LEAF,
+            ASTRAL, BLAZE, CRYSTAL, DURABLE, ENDER, FROST, GLOW, HEX, INFINITY, JELLY, KINETIC, LEAF,
             METAL, NETHER, ORNATE, PULSE, QUANTUM, ROCK, SCULK, TYPHOON, UNSTABLE, VOID, WEIRD, XENO, YARN,
             ZOMBIE);
 

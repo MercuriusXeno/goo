@@ -40,12 +40,13 @@ class GooTypesTest {
     private static final ResourceKey<GooTypeDefinition> SEVENTEENTH = ResourceKey.create(
             GooTypes.REGISTRY, Identifier.fromNamespaceAndPath("gootest", "seventeenth"));
     private static final List<String> BUNDLED_IDS = List.of(
-            "astral", "blaze", "crystal", "ender", "frost", "glow", "hex", "infinity", "jelly", "kinetic", "leaf",
+            "astral", "blaze", "crystal", "durable", "ender", "frost", "glow", "hex", "infinity", "jelly", "kinetic", "leaf",
             "metal", "nether", "ornate", "pulse", "quantum", "rock", "sculk", "typhoon", "unstable", "void", "weird", "xeno", "yarn",
             "zombie");
     private static final String TYPE_DIR = "data/goo/goo/goo_type";
     private static final String JSON_SUFFIX = ".json";
     private static final String ZOMBIE = "zombie";
+    private static final String DURABLE = "durable";
     private static final String TYPE_JSON = "/data/goo/goo/goo_type/%s.json";
     private static final String TEXTURES = "textures";
     private static final String TEXTURE_PNG = "/assets/%s/textures/%s.png";
@@ -53,12 +54,18 @@ class GooTypesTest {
     private static final String EN_US = "/assets/goo/lang/en_us.json";
 
     /**
-     * No bundled type's id starts with d: Deep is dropped and the letter is free for a type yet to be designed.
-     * decision sculker-moves-to-sculk
+     * Durable takes D: it is the one bundled type whose id starts with d, and its JSON names cohesion runny and
+     * adhesion hangs, the rungs Coat wraps a block with.
+     * decision dye-takes-the-letter-d
+     * decision durable-goo-is-a-protective-coating-that-blocks-damage
      */
     @Test
-    void noBundledTypeStartsWithD() {
-        assertEquals(List.of(), GooTypes.BUNDLED.stream().map(GooTypes::id).filter(id -> id.startsWith("d")).toList());
+    void durableTakesD() throws IOException {
+        assertEquals(List.of(DURABLE),
+                GooTypes.BUNDLED.stream().map(GooTypes::id).filter(id -> id.startsWith("d")).toList());
+        JsonObject durable = readJson(TYPE_JSON.formatted(DURABLE)).getAsJsonObject();
+        assertEquals("runny", durable.get("cohesion").getAsString());
+        assertEquals("hangs", durable.get("adhesion").getAsString());
     }
 
     /**

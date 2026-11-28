@@ -1,0 +1,26 @@
+{
+  "light_level": 0,
+  "saturation_fill": 0.5,
+  "wheel": "3A3230",
+  "bright": "9C7C50",
+  "highlight": "5A4A3E",
+  "edge": "6E5A48",
+  "density": 2500,
+  "viscosity": 2000,
+  "elasticity": 0.15,
+  "cohesion": "runny",
+  "adhesion": "hangs",
+  "temperature": 300,
+  "extinguishes": false,
+  "levity": 0.7,
+  "base_flight_time": 3,
+  "map_color": "terracotta_black",
+  "textures": {
+    "goo_tiny": "goo:item/durable_goo_tiny",
+    "goo_small": "goo:item/durable_goo_small",
+    "goo_base": "goo:item/durable_goo_base",
+    "goo_large": "goo:item/durable_goo_large",
+    "fluid_still": "goo:fluid/durable_fluid",
+    "fluid_flowing": "goo:fluid/durable_fluid"
+  }
+}

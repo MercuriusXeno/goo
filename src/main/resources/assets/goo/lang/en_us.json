@@ -87,6 +87,7 @@
   "goo.type.astral": "Astral",
   "goo.type.blaze": "Blaze",
   "goo.type.crystal": "Crystal",
+  "goo.type.durable": "Durable",
   "goo.type.ender": "Ender",
   "goo.type.frost": "Frost",
   "goo.type.glow": "Glow",
@@ -112,6 +113,7 @@
   "goo.type.untyped": "Untyped",
 
   "effect.goo.astral_held": "Starlight",
+  "effect.goo.durable_held": "Toughness",
   "effect.goo.frost_held": "Frostbite",
   "effect.goo.hex_held": "Hexed",
   "effect.goo.infinity_held": "Infinity",

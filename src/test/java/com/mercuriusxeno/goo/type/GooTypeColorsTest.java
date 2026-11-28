@@ -60,6 +60,25 @@ class GooTypeColorsTest {
         assertTrue(distance >= 90f, "kinetic's wheel sits " + distance + " degrees from jelly's");
     }
 
+    /**
+     * Durable's wheel is a dark warm charcoal, every channel under 0x60 with red at or above blue, and its bright
+     * is a dull bronze, red above green above blue.
+     * durable-is-netherite-gunmetal
+     */
+    @Test
+    void durableWearsNetheriteGunmetal() throws IOException {
+        int wheel = Integer.parseInt(channel("durable", "wheel"), 16);
+        int[] wheelRgb = {wheel >> 16 & 0xFF, wheel >> 8 & 0xFF, wheel & 0xFF};
+        assertTrue(Math.max(wheelRgb[0], Math.max(wheelRgb[1], wheelRgb[2])) < 0x60,
+                () -> "durable's wheel is not dark: " + Integer.toHexString(wheel));
+        assertTrue(wheelRgb[0] >= wheelRgb[2], () -> "durable's wheel is not warm: " + Integer.toHexString(wheel));
+        int bright = Integer.parseInt(channel("durable", "bright"), 16);
+        int red = bright >> 16 & 0xFF;
+        int green = bright >> 8 & 0xFF;
+        int blue = bright & 0xFF;
+        assertTrue(red > green && green > blue, () -> "durable's bright is not bronze: " + Integer.toHexString(bright));
+    }
+
     @Test
     void xenoWearsQuantumsFormerPurples() throws IOException {
         // xeno-takes-quantums-purple

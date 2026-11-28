@@ -80,6 +80,30 @@
     ]
   },
   {
+    "id": "durable",
+    "seed": 41013,
+    "genParams": {
+      "viscosity": 1.2,
+      "decayRate": 0.06,
+      "ignitionChance": 0.008,
+      "ignitionStrength": 1.5,
+      "potHeatRate": 0.015,
+      "potInfluence": 0.75,
+      "neighborhoodReach": 1
+    },
+    "frametime": 2,
+    "shadowHue": 0.08,
+    "palette": [
+      { "position": 0.0, "color": "#141011" },
+      { "position": 0.2, "color": "#241C1C" },
+      { "position": 0.4, "color": "#3A3230" },
+      { "position": 0.55, "color": "#4E423A" },
+      { "position": 0.7, "color": "#6A5644" },
+      { "position": 0.85, "color": "#84684A" },
+      { "position": 1.0, "color": "#9C7C50" }
+    ]
+  },
+  {
     "id": "ender",
     "seed": 40974,
     "genParams": {

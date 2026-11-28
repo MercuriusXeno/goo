@@ -23,7 +23,7 @@ class GooTypeIconsTest {
      */
     @Test
     void eachTypeDrawsFromItsOwnTexture() {
-        assertEquals(25, GooTypes.BUNDLED.size());
+        assertEquals(26, GooTypes.BUNDLED.size());
         for (String type : GooTypes.BUNDLED.stream().map(GooTypes::id).toList()) {
             assertEquals(Identifier.fromNamespaceAndPath("goo", "textures/goo/type/" + type + ".png"),
                     GooTypeIcons.texture(type));

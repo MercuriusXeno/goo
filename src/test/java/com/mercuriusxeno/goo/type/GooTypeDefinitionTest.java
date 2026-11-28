@@ -297,7 +297,7 @@ class GooTypeDefinitionTest {
 
     /**
      * Every bundled type flies with base 3; glow, typhoon and metal carry
-     * their own levity and the rest carry 1.0.
+     * their own levity, durable starts from metal's, and the rest carry 1.0.
      */
     @ParameterizedTest
     @MethodSource("bundledKeys")
@@ -358,8 +358,9 @@ class GooTypeDefinitionTest {
 
     /**
      * Every bundled type names an adhesion rung: kinetic slips, weird, jelly, nether, zombie and leaf cling,
-     * glow, blaze, pulse, rock and astral hang, and every other type holds tops.
+     * glow, blaze, pulse, rock, astral and durable hang, and every other type holds tops.
      * adhesion-is-a-ladder-of-holds
+     * durable-goo-is-a-protective-coating-that-blocks-damage
      * signal-goo-sends-a-redstone-signal-equal-to-its-layers
      * nectar-is-the-sticky-goo-you-climb-that-nerfs-jumping-and-speed
      * vines-goo-on-walls-places-goologged-vines-and-depletes
@@ -376,7 +377,8 @@ class GooTypeDefinitionTest {
                 Map.entry(GooTypes.JELLY, JELLY_ADHESION), Map.entry(GooTypes.PULSE, PULSE_ADHESION),
                 Map.entry(GooTypes.NETHER, NETHER_ADHESION), Map.entry(GooTypes.LEAF, LEAF_ADHESION),
                 Map.entry(GooTypes.YARN, LEAF_ADHESION), Map.entry(GooTypes.ZOMBIE, NETHER_ADHESION),
-                Map.entry(GooTypes.ROCK, ROCK_ADHESION), Map.entry(GooTypes.ASTRAL, ASTRAL_ADHESION));
+                Map.entry(GooTypes.ROCK, ROCK_ADHESION), Map.entry(GooTypes.ASTRAL, ASTRAL_ADHESION),
+                Map.entry(GooTypes.DURABLE, Adhesion.HANGS));
         Adhesion expected = stated.getOrDefault(key, COMMON_ADHESION);
         assertEquals(expected, decodeBundled(key).adhesion(), key::toString);
     }
@@ -422,7 +424,7 @@ class GooTypeDefinitionTest {
         if (key == GooTypes.TYPHOON) {
             return TYPHOON_LEVITY;
         }
-        if (key == GooTypes.METAL) {
+        if (key == GooTypes.METAL || key == GooTypes.DURABLE) {
             return METAL_LEVITY;
         }
         return COMMON_LEVITY;
