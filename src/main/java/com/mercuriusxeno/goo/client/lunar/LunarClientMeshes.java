@@ -1,18 +1,28 @@
 package com.mercuriusxeno.goo.client.lunar;
 
+import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.lunar.Lunar;
 import com.mercuriusxeno.goo.lunar.LunarCrossingShift;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.ViewArea;
 import net.minecraft.client.renderer.chunk.CompiledSectionMesh;
 import net.minecraft.client.renderer.chunk.SectionMesh;
 import net.minecraft.client.renderer.chunk.SectionRenderDispatcher;
 import net.minecraft.core.SectionPos;
+import net.minecraft.world.level.ChunkPos;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.client.event.ClientTickEvent;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongSet;
 
 /**
  * The meshes the client already built, kept through a crossing of lunar's seam. Vanilla stores each render section by
@@ -23,23 +33,85 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
  * shift leaves without a mesh builds one as vanilla builds any.
  * decision moon-wraps-at-its-border-like-the-zone
  */
+@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class LunarClientMeshes {
 
     /** How far, in sections, the camera may stray from the crossing's own jump and still count as making it. */
     private static final int CAMERA_SLACK = 2;
+    /**
+     * Client ticks the moved sections keep their meshes through the light's move, well past the one level update
+     * that applies it.
+     */
+    private static final int LIGHT_MOVE_TICKS = 10;
     private static final Long2ObjectMap<SectionMesh> LIFTED = new Long2ObjectOpenHashMap<>();
+    /** The moved chunks' sections, which keep the meshes they were built with while their light moves under them. */
+    private static final LongSet KEPT = new LongOpenHashSet();
+    /** The sections that took a lifted mesh. */
+    private static final LongSet FILLED = new LongOpenHashSet();
     private static @Nullable LunarCrossingShift expected;
+    private static int lightMoveTicksLeft;
 
     private LunarClientMeshes() {
     }
 
     /**
-     * Readies the meshes to move with the camera's next jump by the crossing's shift.
+     * Readies the meshes to move with the camera's next jump by the crossing's shift, and holds the moved chunks'
+     * sections clear of rebuilding while their light moves: a mesh carries the light it was built with, so a rebuild
+     * before the moved light lands would draw the section dark.
      *
      * @param shift the crossing's shift
+     * @param moved where each moved chunk now stands
+     * @param level the level the chunks stand in
      */
-    public static void expect(LunarCrossingShift shift) {
+    public static void expect(LunarCrossingShift shift, Collection<ChunkPos> moved, ClientLevel level) {
         expected = shift;
+        KEPT.clear();
+        FILLED.clear();
+        for (ChunkPos pos : moved) {
+            for (int sectionY = level.getMinSectionY(); sectionY <= level.getMaxSectionY(); sectionY++) {
+                KEPT.add(SectionPos.asLong(pos.x(), sectionY, pos.z()));
+            }
+        }
+        lightMoveTicksLeft = LIGHT_MOVE_TICKS;
+    }
+
+    /**
+     * Whether a section keeps its mesh through the light's move, so marking it dirty waits.
+     *
+     * @param sectionX the section's x
+     * @param sectionY the section's y
+     * @param sectionZ the section's z
+     * @return whether the section keeps its mesh
+     */
+    public static boolean keepsItsMesh(int sectionX, int sectionY, int sectionZ) {
+        return !KEPT.isEmpty() && KEPT.contains(SectionPos.asLong(sectionX, sectionY, sectionZ));
+    }
+
+    /**
+     * Counts down the light's move once a client tick.
+     *
+     * @param event the client tick event
+     */
+    @SubscribeEvent
+    public static void onClientTick(ClientTickEvent.Post event) {
+        tickTheLightMove();
+    }
+
+    /**
+     * Ends the light's move: a kept section that took no lifted mesh, because the renderer's hook is missing or it had
+     * none, is marked dirty then, so it builds one as vanilla's sections do.
+     */
+    static void tickTheLightMove() {
+        if (lightMoveTicksLeft <= 0 || --lightMoveTicksLeft > 0) {
+            return;
+        }
+        LongSet unbuilt = new LongOpenHashSet(KEPT);
+        unbuilt.removeAll(FILLED);
+        KEPT.clear();
+        FILLED.clear();
+        Minecraft minecraft = Minecraft.getInstance();
+        unbuilt.forEach(node -> minecraft.levelExtractor.setSectionDirty(SectionPos.x(node), SectionPos.y(node),
+                SectionPos.z(node)));
     }
 
     /**
@@ -78,6 +150,7 @@ public final class LunarClientMeshes {
             SectionMesh mesh = LIFTED.remove(section.getSectionNode());
             if (mesh != null) {
                 section.sectionMesh.set(mesh);
+                FILLED.add(section.getSectionNode());
             } else {
                 unfilled.add(section);
             }

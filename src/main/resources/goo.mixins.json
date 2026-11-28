@@ -84,6 +84,7 @@
     "GuiPhasedHeartsMixin",
     "PlayerModelAbilityPoseMixin",
     "LevelExtractorGateViewMixin",
+    "LevelExtractorLunarCrossingMixin",
     "EntityScryOutlineColorMixin",
     "MinecraftScryOutlineMixin",
     "MouseHandlerLunarHoldMixin",
