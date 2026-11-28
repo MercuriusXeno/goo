@@ -13,8 +13,10 @@ import com.llamalad7.mixinextras.sugar.Local;
 /**
  * Lifts the gain vanilla's sound engine clamps to one for a sound recorded
  * too quietly to be heard under that clamp, wherever the engine reads a
- * playing sound's gain: as it starts the sound and each tick after. The
- * lift multiplies vanilla's clamped gain, so the sliders still scale it.
+ * playing sound's gain: as it starts the sound, in NeoForge's
+ * playWithoutEvent, which holds the body of vanilla's play, and each tick
+ * after, which a one-shot sound never reaches. The lift multiplies vanilla's
+ * clamped gain, so the sliders still scale it.
  * drain-lifts-its-chosen-sounds-past-the-volume-cap
  */
 @Mixin(SoundEngine.class)
@@ -32,9 +34,10 @@ public abstract class SoundEngineLiftedGainMixin {
      */
     @WrapOperation(method = {
         "calculateVolume(Lnet/minecraft/client/resources/sounds/SoundInstance;)F",
-        "play(Lnet/minecraft/client/resources/sounds/SoundInstance;)Lnet/minecraft/client/sounds/SoundEngine$PlayResult;"
+        "playWithoutEvent(Lnet/minecraft/client/resources/sounds/SoundInstance;)Lnet/minecraft/client/sounds/SoundEngine$PlayResult;"
     }, at = @At(value = "INVOKE",
-            target = "Lnet/minecraft/client/sounds/SoundEngine;calculateVolume(FLnet/minecraft/sounds/SoundSource;)F"))
+            target = "Lnet/minecraft/client/sounds/SoundEngine;calculateVolume(FLnet/minecraft/sounds/SoundSource;)F"),
+            require = 2)
     private float goo$liftsTheQuietSounds(SoundEngine self, float volume, SoundSource source,
                                           Operation<Float> original, @Local(argsOnly = true) SoundInstance instance) {
         return LiftedSoundGain.lifted(instance.getIdentifier(), original.call(self, volume, source));
