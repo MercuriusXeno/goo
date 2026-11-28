@@ -25,9 +25,10 @@ public final class Lunar {
      */
     public static final int LIGHT_SIDE_HALF_WIDTH = 3_750_000;
     /**
-     * Half the moon's world border's width, in blocks: the border runs from minus this to plus this on x and z, a
-     * quarter of the overworld's plus and minus 30 million.
+     * Half the moon's width, in blocks: the moon runs from minus this to plus this on x and z, a quarter of the
+     * overworld's plus and minus 30 million, and meets itself at the seam there.
      * decision moon-is-a-quarter-the-overworld-bordered-at-seven-and-a-half-million
+     * decision moon-wraps-at-its-border-like-the-zone
      */
     public static final int BORDER_HALF_WIDTH = 7_500_000;
     /**
@@ -42,14 +43,15 @@ public final class Lunar {
 
     /**
      * Whether a lunar x stands on the dark side, every x past the light side either way, where the blue planet never
-     * shows.
+     * shows; an x past the seam reads as the x it wraps to.
      * decision dark-side-is-the-half-of-the-moon-past-the-light-side
+     * decision moon-wraps-at-its-border-like-the-zone
      *
      * @param x the x, in blocks
      * @return true past the light side
      */
     public static boolean isDarkSide(double x) {
-        return Math.abs(x) > LIGHT_SIDE_HALF_WIDTH;
+        return Math.abs(LunarSeam.wrap(x)) > LIGHT_SIDE_HALF_WIDTH;
     }
 
     /**

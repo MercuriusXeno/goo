@@ -139,6 +139,28 @@ public final class GlowBeamMesh {
         emitFadingLayer(pose, buffer, radius, color, scroll, length, depth);
     }
 
+    /**
+     * Emits one layer in segments, its alpha scaled at each ring by a share: a tube from its origin through each stop,
+     * the layer's alpha times the stop's share at each, so the tube fades along its length as the shares fall.
+     *
+     * @param pose   the pose, its +y along the beam
+     * @param buffer the vertex consumer
+     * @param radius the tube's half-width in blocks
+     * @param color  the layer's packed ARGB color
+     * @param scroll the texture's scroll offset in [0, 1)
+     * @param stops  the distances along the beam each ring stands at, in blocks, rising from 0
+     * @param shares the share of its alpha the layer keeps at each stop, from 0 to 1
+     */
+    public static void emitLayerShaded(PoseStack.Pose pose, VertexConsumer buffer, float radius, int color,
+                                       float scroll, float[] stops, float[] shares) {
+        for (int i = 1; i < stops.length; i++) {
+            if (shares[i - 1] > 0f || shares[i] > 0f) {
+                emitFaces(pose, buffer, radius, ring(stops[i - 1], breathed(color, shares[i - 1]), scroll),
+                        ring(stops[i], breathed(color, shares[i]), scroll));
+            }
+        }
+    }
+
     private static Ring ring(float y, int color, float scroll) {
         return new Ring(y, color, scroll + y / BLOCKS_PER_TILE);
     }

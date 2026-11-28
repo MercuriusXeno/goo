@@ -123,7 +123,7 @@ public final class LunarSpawnTests {
     }
 
     /** The first open warren block standing on solid ground, mid-band, near the origin. */
-    private static BlockPos findWarrenFloor(ServerLevel lunar, WarrenTunnels warrens) {
+    static BlockPos findWarrenFloor(ServerLevel lunar, WarrenTunnels warrens) {
         int middleY = (LunarDepths.SEA_ZONE_TOP_Y + LunarDepths.WARREN_ZONE_TOP_Y) / 2;
         for (int x = -WARREN_SEARCH_REACH; x <= WARREN_SEARCH_REACH; x++) {
             for (int z = -WARREN_SEARCH_REACH; z <= WARREN_SEARCH_REACH; z++) {

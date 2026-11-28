@@ -20,15 +20,16 @@ import net.minecraft.world.level.levelgen.synth.Noise;
 import net.minecraft.world.level.levelgen.synth.NormalNoise;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 /**
- * The giant craters lunar holds rarely, hundreds of blocks wide, as the height in blocks they add to the ground at a
- * column: a broad floor sunk below the ground with a central peak rising from it, an inner wall stepping up in
- * terraces to a raised rim, and the rim falling back to the ground outside. The ground is cut into cells far larger
- * than {@link CraterField}'s, each holding one giant crater or none, rolled from the same seeded crater noise on rolls
- * of their own. Each crater reads the biome noises at its centre: one falling in maria is rare there, one in the
- * highlands is old and worn, throwing no rays, and one in the shadowed basins is a fresh impact.
+ * The giant craters standing far apart on lunar's ground, hundreds of blocks wide, as the height in blocks they add to
+ * the ground at a column: a broad floor sunk below the ground with a central peak rising from it, an inner wall
+ * stepping up in terraces to a raised rim, and the rim falling back to the ground outside. The ground is cut into
+ * square cells, each holding one giant crater near its middle, rolled from the world's seeded crater noise, so
+ * neighbouring craters stand about 1,000 to 2,000 blocks apart as landmarks to travel to. Each crater reads the biome
+ * noises at its centre: one in the highlands is old and worn, throwing no rays, one in the shadowed basins is a fresh
+ * impact, and one in maria is fresh as its roll falls.
+ * decision craters-are-rare-giant-landmarks-only
  * decision lunar-surface-gains-giant-craters-mountains-rilles-and-boulder-fields
  * decision moon-is-288-tall-half-of-today
  * decision lunar-surface-has-maria-highlands-shadowed-basins-and-eldritch-ground
@@ -55,13 +56,18 @@ public record GiantCraterField(Noise noise, Noise maria, Noise basins) implement
             Identifier.fromNamespaceAndPath(Goo.MODID, "lunar_basins"));
     /** The basins reading from which the biome source places the shadowed basins over the highlands. */
     static final double BASINS_FLOOR = 0.25;
-    /** A giant crater centred in maria keeps this share of the crater chance, so maria holds few. */
-    static final double MARIA_CRATER_SHARE = 0.25;
 
-    /** A cell's side in blocks; a giant crater's farthest reach stays under it. */
-    public static final int CELL = 640;
-    /** The share of cells holding a giant crater. */
-    static final double CRATER_CHANCE = 0.35;
+    /**
+     * A cell's side in blocks, and how far a crater's centre strays from its cell's middle along each axis: the
+     * nearest two centres stand at least a cell less twice the stray apart, 1,100 blocks, and every crater's nearest
+     * stands within a cell and twice the stray along one axis and twice the stray across it, under 1,950 blocks.
+     * The cell divides the moon's way around, so the seam falls on a cell's edge.
+     * decision craters-are-rare-giant-landmarks-only
+     * decision moon-wraps-at-its-border-like-the-zone
+     */
+    public static final int CELL = 1500;
+    static final double CENTRE_STRAY = 200.0;
+    private static final double CENTRE_STRAY_SPAN = CENTRE_STRAY + CENTRE_STRAY;
     static final double MIN_RADIUS = 110.0;
     static final double RADIUS_SPREAD = 130.0;
     /** The floor sinks this share of the radius; large craters run shallow for their width. */
@@ -80,8 +86,7 @@ public record GiantCraterField(Noise noise, Noise maria, Noise basins) implement
     /** The rim falls back to the ground at 1.4 radii. */
     public static final double RIM_REACH = 0.4;
 
-    /** Giant craters roll on indices clear of CraterField's, so the two scales read unrelated values. */
-    private static final int PRESENCE = 8;
+    /** Giant craters roll on indices clear of every other feature reading the crater noise. */
     private static final int OFFSET_X = 9;
     private static final int OFFSET_Z = 10;
     private static final int SIZE = 11;
@@ -113,23 +118,11 @@ public record GiantCraterField(Noise noise, Noise maria, Noise basins) implement
     /** A crater thrown boulders' farthest reach, in radii, past which no chunk reads them. */
     static final double BOULDER_REACH = RAY_BOULDER_REACH + RAY_BOULDER_SPREAD;
     private static final double MAX_RADIUS = MIN_RADIUS + RADIUS_SPREAD;
+    private static final double CELL_MIDDLE = 0.5;
     private static final int NEIGHBOUR_REACH = 1;
     private static final double FULL_TURN = 2.0 * Math.PI;
     /** Nine cells' giant craters at their deepest and their highest bound the field. */
     private static final int NEIGHBOURHOOD = 9;
-
-    /**
-     * Whether a cell holds its giant crater: a crater centred in maria keeps a share of the chance a crater centred
-     * anywhere else holds.
-     *
-     * @param presenceRoll  the cell's presence roll, in [0, 1)
-     * @param mariaAtCentre the maria noise at the crater's centre
-     * @return true where the cell holds its crater
-     */
-    static boolean holdsCrater(double presenceRoll, double mariaAtCentre) {
-        double chance = mariaAtCentre > 0.0 ? CRATER_CHANCE * MARIA_CRATER_SHARE : CRATER_CHANCE;
-        return presenceRoll < chance;
-    }
 
     /**
      * Whether a giant crater is fresh, throwing its rays: in maria as its roll falls, in the highlands never, the
@@ -221,40 +214,34 @@ public record GiantCraterField(Noise noise, Noise maria, Noise basins) implement
     }
 
     /**
-     * The giant crater a cell holds, if it holds one.
+     * The giant crater a cell holds; every cell holds one.
      *
-     * @param cellX the cell's x
-     * @param cellZ the cell's z
-     * @param rolls each cell's rolls
-     * @return the crater, or empty
+     * @param cellX  the cell's x
+     * @param cellZ  the cell's z
+     * @param rolls  each cell's rolls
+     * @param ground the biome noises its centre reads
+     * @return the crater
      */
-    static Optional<Crater> craterIn(int cellX, int cellZ, CraterField.CellRolls rolls, CentreGround ground) {
+    static Crater craterIn(int cellX, int cellZ, LunarRolls.CellRolls rolls, CentreGround ground) {
         return craterIn(cellX, cellZ, rolls, ground, false);
     }
 
-    private static Optional<Crater> craterIn(int cellX, int cellZ, CraterField.CellRolls rolls, CentreGround ground,
+    private static Crater craterIn(int cellX, int cellZ, LunarRolls.CellRolls rolls, CentreGround ground,
             boolean withBoulders) {
-        double presence = rolls.roll(cellX, cellZ, PRESENCE);
-        if (presence >= CRATER_CHANCE) {
-            return Optional.empty();
-        }
-        double centerX = (cellX + rolls.roll(cellX, cellZ, OFFSET_X)) * CELL;
-        double centerZ = (cellZ + rolls.roll(cellX, cellZ, OFFSET_Z)) * CELL;
-        double mariaAtCentre = ground.mariaAt(centerX, centerZ);
-        if (!holdsCrater(presence, mariaAtCentre)) {
-            return Optional.empty();
-        }
+        double centerX = centre(cellX, rolls.roll(cellX, cellZ, OFFSET_X));
+        double centerZ = centre(cellZ, rolls.roll(cellX, cellZ, OFFSET_Z));
         double radius = radius(cellX, cellZ, rolls);
-        boolean fresh = isFresh(rolls.roll(cellX, cellZ, FRESH), mariaAtCentre, ground.basinsAt(centerX, centerZ));
+        boolean fresh = isFresh(rolls.roll(cellX, cellZ, FRESH), ground.mariaAt(centerX, centerZ),
+                ground.basinsAt(centerX, centerZ));
         if (!withBoulders) {
-            return Optional.of(new Crater(centerX, centerZ, radius, fresh, List.of(), List.of()));
+            return new Crater(centerX, centerZ, radius, fresh, List.of(), List.of());
         }
         List<EjectaRays.Ray> rays = rays(cellX, cellZ, rolls);
-        return Optional.of(new Crater(centerX, centerZ, radius, fresh, rays,
-                boulderSpots(cellX, cellZ, rolls, centerX, centerZ, radius, rays)));
+        return new Crater(centerX, centerZ, radius, fresh, rays,
+                boulderSpots(cellX, cellZ, rolls, centerX, centerZ, radius, rays));
     }
 
-    private static List<EjectaRays.Ray> rays(int cellX, int cellZ, CraterField.CellRolls rolls) {
+    private static List<EjectaRays.Ray> rays(int cellX, int cellZ, LunarRolls.CellRolls rolls) {
         return EjectaRays.rays(rolls.roll(cellX, cellZ, RAY_COUNT), rolls.roll(cellX, cellZ, RAY_PHASE) * FULL_TURN,
                 ray -> rolls.roll(cellX, cellZ, RAY_ROLLS + ray));
     }
@@ -264,7 +251,7 @@ public record GiantCraterField(Noise noise, Noise maria, Noise basins) implement
      * 1.15 and 2 radii, the odd ones on its rim between the crest and a third of a radius past it.
      * decision lunar-surface-gains-giant-craters-mountains-rilles-and-boulder-fields
      */
-    private static List<BlockPos> boulderSpots(int cellX, int cellZ, CraterField.CellRolls rolls, double centerX,
+    private static List<BlockPos> boulderSpots(int cellX, int cellZ, LunarRolls.CellRolls rolls, double centerX,
             double centerZ, double radius, List<EjectaRays.Ray> rays) {
         int count = MIN_BOULDERS + (int) (rolls.roll(cellX, cellZ, BOULDER_COUNT) * BOULDER_SPREAD);
         List<BlockPos> spots = new ArrayList<>(count);
@@ -292,20 +279,38 @@ public record GiantCraterField(Noise noise, Noise maria, Noise basins) implement
      * @param ground the biome noises each crater's centre reads
      * @return the height the giant craters add
      */
-    static double heightAt(int x, int z, CraterField.CellRolls rolls, CentreGround ground) {
+    static double heightAt(int x, int z, LunarRolls.CellRolls rolls, CentreGround ground) {
         int cellX = Math.floorDiv(x, CELL);
         int cellZ = Math.floorDiv(z, CELL);
         double height = 0.0;
         for (int dx = -NEIGHBOUR_REACH; dx <= NEIGHBOUR_REACH; dx++) {
             for (int dz = -NEIGHBOUR_REACH; dz <= NEIGHBOUR_REACH; dz++) {
-                height += craterIn(cellX + dx, cellZ + dz, rolls, ground)
-                        .map(crater -> profile(crater.reach(x, z), crater.radius())).orElse(0.0);
+                height += heightOfCell(x, z, cellX + dx, cellZ + dz, rolls);
             }
         }
         return height;
     }
 
-    private static double radius(int cellX, int cellZ, CraterField.CellRolls rolls) {
+    /** The height one cell's crater adds to a column, read from its centre and radius alone. */
+    private static double heightOfCell(int x, int z, int cellX, int cellZ, LunarRolls.CellRolls rolls) {
+        double centerX = centre(cellX, rolls.roll(cellX, cellZ, OFFSET_X));
+        double centerZ = centre(cellZ, rolls.roll(cellX, cellZ, OFFSET_Z));
+        double radius = radius(cellX, cellZ, rolls);
+        return profile(Math.hypot(x - centerX, z - centerZ) / radius, radius);
+    }
+
+    /**
+     * A crater's centre along one axis: its cell's middle, strayed up to {@link #CENTRE_STRAY} either way by a roll.
+     *
+     * @param cell  the cell's index along the axis
+     * @param stray the cell's stray roll for the axis, in [0, 1)
+     * @return the centre's coordinate on the axis
+     */
+    private static double centre(int cell, double stray) {
+        return (cell + CELL_MIDDLE) * CELL + stray * CENTRE_STRAY_SPAN - CENTRE_STRAY;
+    }
+
+    private static double radius(int cellX, int cellZ, LunarRolls.CellRolls rolls) {
         return MIN_RADIUS + rolls.roll(cellX, cellZ, SIZE) * RADIUS_SPREAD;
     }
 
@@ -321,7 +326,7 @@ public record GiantCraterField(Noise noise, Noise maria, Noise basins) implement
      * @param ground    the biome noises each crater's centre reads
      * @return true where a giant crater that large reaches the column within the band
      */
-    static boolean reachesBand(int x, int z, CraterField.CellRolls rolls, double minReach, double maxReach,
+    static boolean reachesBand(int x, int z, LunarRolls.CellRolls rolls, double minReach, double maxReach,
             double minRadius, CentreGround ground) {
         for (Crater crater : cratersNear(x, z, rolls, ground)) {
             double reach = crater.reach(x, z);
@@ -342,7 +347,7 @@ public record GiantCraterField(Noise noise, Noise maria, Noise basins) implement
      * @param ground the biome noises each crater's centre reads
      * @return true on a giant crater's ray
      */
-    static boolean isOnRay(int x, int z, CraterField.CellRolls rolls, CentreGround ground) {
+    static boolean isOnRay(int x, int z, LunarRolls.CellRolls rolls, CentreGround ground) {
         int cellX = Math.floorDiv(x, CELL);
         int cellZ = Math.floorDiv(z, CELL);
         for (int dx = -NEIGHBOUR_REACH; dx <= NEIGHBOUR_REACH; dx++) {
@@ -355,27 +360,24 @@ public record GiantCraterField(Noise noise, Noise maria, Noise basins) implement
         return false;
     }
 
-    private static boolean isOnRayOfCell(int x, int z, int cellX, int cellZ, CraterField.CellRolls rolls,
+    private static boolean isOnRayOfCell(int x, int z, int cellX, int cellZ, LunarRolls.CellRolls rolls,
             CentreGround ground) {
-        Optional<Crater> crater = craterIn(cellX, cellZ, rolls, ground);
-        if (crater.isEmpty()) {
+        Crater crater = craterIn(cellX, cellZ, rolls, ground);
+        double reach = crater.reach(x, z);
+        if (reach < 1.0 || reach >= EjectaRays.REACH || !crater.fresh()) {
             return false;
         }
-        double reach = crater.get().reach(x, z);
-        if (reach < 1.0 || reach >= EjectaRays.REACH || !crater.get().fresh()) {
-            return false;
-        }
-        return EjectaRays.isOnRayOf(x, z, crater.get().centerX(), crater.get().centerZ(), crater.get().radius(),
+        return EjectaRays.isOnRayOf(x, z, crater.centerX(), crater.centerZ(), crater.radius(),
                 rays(cellX, cellZ, rolls));
     }
 
-    private static Iterable<Crater> cratersNear(int x, int z, CraterField.CellRolls rolls, CentreGround ground) {
+    private static Iterable<Crater> cratersNear(int x, int z, LunarRolls.CellRolls rolls, CentreGround ground) {
         int cellX = Math.floorDiv(x, CELL);
         int cellZ = Math.floorDiv(z, CELL);
         List<Crater> near = new ArrayList<>();
         for (int dx = -NEIGHBOUR_REACH; dx <= NEIGHBOUR_REACH; dx++) {
             for (int dz = -NEIGHBOUR_REACH; dz <= NEIGHBOUR_REACH; dz++) {
-                craterIn(cellX + dx, cellZ + dz, rolls, ground).ifPresent(near::add);
+                near.add(craterIn(cellX + dx, cellZ + dz, rolls, ground));
             }
         }
         return near;
@@ -405,13 +407,13 @@ public record GiantCraterField(Noise noise, Noise maria, Noise basins) implement
     }
 
     /**
-     * The giant crater a cell of this field holds, if it holds one.
+     * The giant crater a cell of this field holds; every cell holds one.
      *
      * @param cellX the cell's x
      * @param cellZ the cell's z
-     * @return the crater, or empty
+     * @return the crater
      */
-    public Optional<Crater> craterInCell(int cellX, int cellZ) {
+    public Crater craterInCell(int cellX, int cellZ) {
         return craterIn(cellX, cellZ, this::roll, this, true);
     }
 
@@ -440,8 +442,19 @@ public record GiantCraterField(Noise noise, Noise maria, Noise basins) implement
         return isOnRay(x, z, this::roll, this);
     }
 
+    /**
+     * Whether a column lies outside every giant crater in this field, past each one's rim fall.
+     *
+     * @param x the column's x
+     * @param z the column's z
+     * @return true on ground no giant crater reaches
+     */
+    public boolean isOpenGroundAt(int x, int z) {
+        return !reachesBand(x, z, this::roll, 0.0, 1.0 + RIM_REACH, 0.0, this);
+    }
+
     private double roll(int cellX, int cellZ, int roll) {
-        return CraterField.rollFrom(noise, cellX, cellZ, roll);
+        return LunarRolls.rollFrom(noise, CELL, cellX, cellZ, roll);
     }
 
     @Override

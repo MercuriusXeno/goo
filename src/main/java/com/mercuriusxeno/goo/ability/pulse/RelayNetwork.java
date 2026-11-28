@@ -71,7 +71,7 @@ public final class RelayNetwork {
      * @param relay the relay's position
      * @return the signal entering it, 0 to 15
      */
-    static int entering(ServerLevel level, BlockPos relay) {
+    public static int entering(ServerLevel level, BlockPos relay) {
         int ownSignal = level.getBlockState(relay).getOptionalValue(BlockStateProperties.POWER).orElse(0);
         int entering = 0;
         for (Direction side : Direction.values()) {
