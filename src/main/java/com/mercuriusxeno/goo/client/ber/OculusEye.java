@@ -24,6 +24,8 @@ public final class OculusEye {
     static final int TOP_LID_ROWS = 4;
     /** The pixel rows the bottom lid covers when shut, the smaller half. */
     static final int BOTTOM_LID_ROWS = 3;
+    /** The rows each lid keeps over the eye fully open. */
+    static final int OPEN_LID_ROWS = 1;
     /** One pixel, in blocks: a lid closes a whole row at a time, so it never squeezes a texel. */
     static final float ROW = 1f / 16f;
     /** Where the eye's front starts, in the eye model's blocks. */
@@ -64,13 +66,40 @@ public final class OculusEye {
         poseStack.rotate(Axis.YP.rotationDegrees(frame.yaw()));
         poseStack.translate(-HALF, -HALF, -HALF);
         GooSubmitter.submitBakedBody(poseStack, nodeCollector, frame.light(), OculusModels.eye());
-        for (int row = 0; row < lidRows(frame.lidClosure(), TOP_LID_ROWS); row++) {
-            submitLidRow(frame.light(), poseStack, nodeCollector, EYE_TOP - (row + 1) * ROW);
+        int upper = lidRows(frame.lidClosure(), TOP_LID_ROWS);
+        for (int drawn = 0; drawn < upper; drawn++) {
+            submitLidRow(frame.light(), poseStack, nodeCollector, EYE_TOP - (drawn + 1) * ROW,
+                    upperLidRow(upper, drawn));
         }
-        for (int row = 0; row < lidRows(frame.lidClosure(), BOTTOM_LID_ROWS); row++) {
-            submitLidRow(frame.light(), poseStack, nodeCollector, EYE_BOTTOM + row * ROW);
+        int lower = lidRows(frame.lidClosure(), BOTTOM_LID_ROWS);
+        for (int drawn = 0; drawn < lower; drawn++) {
+            submitLidRow(frame.light(), poseStack, nodeCollector, EYE_BOTTOM + drawn * ROW, lowerLidRow(lower, drawn));
         }
         poseStack.popPose();
+    }
+
+    /**
+     * The hide row an upper lid row draws: the lid slides down, so its leading edge, the seam, always shows.
+     * decision oculus-eyelid-is-shaded-hide-with-a-seam
+     *
+     * @param shown the rows the upper lid covers
+     * @param drawn the row being drawn, 0 at the eye's top
+     * @return the hide row, 0 the brow to TOP_LID_ROWS - 1 the seam
+     */
+    static int upperLidRow(int shown, int drawn) {
+        return TOP_LID_ROWS - shown + drawn;
+    }
+
+    /**
+     * The hide row a lower lid row draws: the lid slides up, so its leading edge, the seam, always shows.
+     * decision oculus-eyelid-is-shaded-hide-with-a-seam
+     *
+     * @param shown the rows the lower lid covers
+     * @param drawn the row being drawn, 0 at the eye's bottom
+     * @return the hide row, TOP_LID_ROWS the seam to the lid's last row at its bottom
+     */
+    static int lowerLidRow(int shown, int drawn) {
+        return TOP_LID_ROWS + shown - 1 - drawn;
     }
 
     /**
@@ -80,23 +109,26 @@ public final class OculusEye {
      * @param poseStack     the pose in the eye's frame
      * @param nodeCollector the submit collector
      * @param bottom        the row's bottom edge, in blocks
+     * @param hideRow       the row of hide it draws
      */
-    private static void submitLidRow(int light, PoseStack poseStack, SubmitNodeCollector nodeCollector, float bottom) {
+    private static void submitLidRow(int light, PoseStack poseStack, SubmitNodeCollector nodeCollector, float bottom,
+                                     int hideRow) {
         poseStack.pushPose();
         poseStack.translate(0f, bottom, 0f);
-        GooSubmitter.submitBakedBody(poseStack, nodeCollector, light, OculusModels.lid());
+        GooSubmitter.submitBakedBody(poseStack, nodeCollector, light, OculusModels.lidRow(hideRow));
         poseStack.popPose();
     }
 
     /**
-     * How many pixel rows a lid covers at a closure.
+     * How many pixel rows a lid covers at a closure: never fewer than one, so an open eye keeps the last row of each
+     * lid rather than peeling it back to nothing (operator ruling 2026-11-28).
      *
      * @param shut     how shut the lids stand, 0 to 1
      * @param mostRows the rows the lid covers shut
-     * @return the rows, 0 open to mostRows shut
+     * @return the rows, 1 open to mostRows shut
      */
     static int lidRows(float shut, int mostRows) {
-        return Math.round(Math.clamp(shut, 0f, 1f) * mostRows);
+        return Math.max(OPEN_LID_ROWS, Math.round(Math.clamp(shut, 0f, 1f) * mostRows));
     }
 
     /**

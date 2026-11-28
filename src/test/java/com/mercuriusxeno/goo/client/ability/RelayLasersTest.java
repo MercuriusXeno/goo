@@ -1,17 +1,53 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import net.minecraft.core.BlockPos;
+import net.minecraft.util.ARGB;
+import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * A carried signal shows brighter than an idle link; the laser joins relays
- * through RelayNetwork.inLinkReach, the server's own test
- * (decision relay-prism-carries-the-signal-through-air).
+ * A link carrying a signal plainly outshines an idle one, so the beam shows whether a signal crosses it
+ * (decision diagnose-and-correct-relay-ignoring-torch-and-metronome).
  */
 class RelayLasersTest {
 
+    /** How many times an idle link's glow a carrying link's must reach for the two to read apart at a glance. */
+    private static final int GLOW_CONTRAST = 4;
+
     @Test
-    void aCarriedSignalShowsBrighterThanAnIdleLink() {
-        assertTrue(RelayLasers.CARRYING_ALPHA > RelayLasers.IDLE_ALPHA);
+    void aCarryingLinkGlowsFourTimesAnIdleOne() {
+        int carrying = glow(RelayLasers.laserColor(true));
+        int idle = glow(RelayLasers.laserColor(false));
+        assertTrue(carrying >= GLOW_CONTRAST * idle,
+                "A carrying link should glow " + GLOW_CONTRAST + " times an idle one; carrying " + carrying
+                        + ", idle " + idle);
+    }
+
+    /** decision relay-shrinks-so-its-tip-sits-centered-and-beams-join-tips */
+    @Test
+    void aLinkRunsFromOneTipsGlowEdgeToTheOthers() {
+        BlockPos from = new BlockPos(1, 2, 3);
+        BlockPos to = new BlockPos(1, 2, 9);
+        Vec3 glowEdge = new Vec3(0, 0, RelayLasers.TIP_GLOW_REACH);
+        assertArrayEquals(new Vec3[] {Vec3.atCenterOf(from).add(glowEdge), Vec3.atCenterOf(to).subtract(glowEdge)},
+                RelayLasers.linkLine(from, to));
+    }
+
+    /** operator ruling 2026-11-28: the beam thins with distance rather than reading thicker far off */
+    @Test
+    void theBeamThinsWithDistanceToAPixel() {
+        double pixelsPerBlockAtOne = 700;
+        float near = RelayLasers.lineWidthAt(4, pixelsPerBlockAtOne);
+        float twiceAsFar = RelayLasers.lineWidthAt(8, pixelsPerBlockAtOne);
+        assertEquals(near / 2, twiceAsFar, 1e-4f);
+        assertEquals(RelayLasers.THINNEST_PIXELS, RelayLasers.lineWidthAt(1000, pixelsPerBlockAtOne), 1e-4f);
+    }
+
+    /** The light an additive line adds: its alpha times the sum of its channels. */
+    private static int glow(int argb) {
+        return ARGB.alpha(argb) * (ARGB.red(argb) + ARGB.green(argb) + ARGB.blue(argb));
     }
 }

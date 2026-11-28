@@ -1,0 +1,531 @@
+{
+  "parent": "minecraft:block/block",
+  "ambientocclusion": false,
+  "textures": {
+    "particle": "goo:block/relay_trim",
+    "body": "goo:block/relay_body",
+    "trim": "goo:block/relay_trim",
+    "torch": "goo:block/relay_tip_lit"
+  },
+  "elements": [
+    {
+      "from": [
+        4,
+        0,
+        4
+      ],
+      "to": [
+        12,
+        1,
+        12
+      ],
+      "faces": {
+        "down": {
+          "uv": [
+            4,
+            4,
+            12,
+            12
+          ],
+          "texture": "#trim",
+          "cullface": "down"
+        },
+        "up": {
+          "uv": [
+            4,
+            4,
+            12,
+            12
+          ],
+          "texture": "#trim"
+        },
+        "north": {
+          "uv": [
+            4,
+            14,
+            12,
+            15
+          ],
+          "texture": "#trim"
+        },
+        "south": {
+          "uv": [
+            4,
+            14,
+            12,
+            15
+          ],
+          "texture": "#trim"
+        },
+        "east": {
+          "uv": [
+            4,
+            14,
+            12,
+            15
+          ],
+          "texture": "#trim"
+        },
+        "west": {
+          "uv": [
+            4,
+            14,
+            12,
+            15
+          ],
+          "texture": "#trim"
+        }
+      }
+    },
+    {
+      "from": [
+        7,
+        1,
+        7
+      ],
+      "to": [
+        9,
+        5,
+        9
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            7,
+            1,
+            9,
+            5
+          ],
+          "texture": "#body"
+        },
+        "south": {
+          "uv": [
+            7,
+            1,
+            9,
+            5
+          ],
+          "texture": "#body"
+        },
+        "east": {
+          "uv": [
+            7,
+            1,
+            9,
+            5
+          ],
+          "texture": "#body"
+        },
+        "west": {
+          "uv": [
+            7,
+            1,
+            9,
+            5
+          ],
+          "texture": "#body"
+        }
+      }
+    },
+    {
+      "from": [
+        7,
+        5,
+        7
+      ],
+      "to": [
+        9,
+        6,
+        9
+      ],
+      "shade_direction_override": "up",
+      "faces": {
+        "north": {
+          "uv": [
+            6,
+            4,
+            7,
+            5
+          ],
+          "texture": "#torch"
+        },
+        "south": {
+          "uv": [
+            6,
+            4,
+            7,
+            5
+          ],
+          "texture": "#torch"
+        },
+        "east": {
+          "uv": [
+            6,
+            4,
+            7,
+            5
+          ],
+          "texture": "#torch"
+        },
+        "west": {
+          "uv": [
+            6,
+            4,
+            7,
+            5
+          ],
+          "texture": "#torch"
+        }
+      }
+    },
+    {
+      "from": [
+        5,
+        1.5,
+        5
+      ],
+      "to": [
+        11,
+        2.5,
+        11
+      ],
+      "faces": {
+        "down": {
+          "uv": [
+            5,
+            5,
+            11,
+            11
+          ],
+          "texture": "#trim"
+        },
+        "up": {
+          "uv": [
+            5,
+            5,
+            11,
+            11
+          ],
+          "texture": "#trim"
+        },
+        "north": {
+          "uv": [
+            5,
+            14,
+            11,
+            15
+          ],
+          "texture": "#trim"
+        },
+        "south": {
+          "uv": [
+            5,
+            14,
+            11,
+            15
+          ],
+          "texture": "#trim"
+        },
+        "east": {
+          "uv": [
+            5,
+            14,
+            11,
+            15
+          ],
+          "texture": "#trim"
+        },
+        "west": {
+          "uv": [
+            5,
+            14,
+            11,
+            15
+          ],
+          "texture": "#trim"
+        }
+      }
+    },
+    {
+      "from": [
+        6,
+        3.5,
+        6
+      ],
+      "to": [
+        10,
+        4.5,
+        10
+      ],
+      "faces": {
+        "down": {
+          "uv": [
+            6,
+            6,
+            10,
+            10
+          ],
+          "texture": "#trim"
+        },
+        "up": {
+          "uv": [
+            6,
+            6,
+            10,
+            10
+          ],
+          "texture": "#trim"
+        },
+        "north": {
+          "uv": [
+            6,
+            14,
+            10,
+            15
+          ],
+          "texture": "#trim"
+        },
+        "south": {
+          "uv": [
+            6,
+            14,
+            10,
+            15
+          ],
+          "texture": "#trim"
+        },
+        "east": {
+          "uv": [
+            6,
+            14,
+            10,
+            15
+          ],
+          "texture": "#trim"
+        },
+        "west": {
+          "uv": [
+            6,
+            14,
+            10,
+            15
+          ],
+          "texture": "#trim"
+        }
+      }
+    },
+    {
+      "from": [
+        6,
+        6,
+        6
+      ],
+      "to": [
+        10,
+        10,
+        10
+      ],
+      "shade_direction_override": "up",
+      "faces": {
+        "down": {
+          "uv": [
+            6,
+            6,
+            10,
+            10
+          ],
+          "texture": "#torch"
+        },
+        "up": {
+          "uv": [
+            6,
+            6,
+            10,
+            10
+          ],
+          "texture": "#torch"
+        },
+        "north": {
+          "uv": [
+            6,
+            6,
+            10,
+            10
+          ],
+          "texture": "#torch"
+        },
+        "south": {
+          "uv": [
+            6,
+            6,
+            10,
+            10
+          ],
+          "texture": "#torch"
+        },
+        "east": {
+          "uv": [
+            6,
+            6,
+            10,
+            10
+          ],
+          "texture": "#torch"
+        },
+        "west": {
+          "uv": [
+            6,
+            6,
+            10,
+            10
+          ],
+          "texture": "#torch"
+        }
+      }
+    },
+    {
+      "from": [
+        5.5,
+        5.5,
+        5.5
+      ],
+      "to": [
+        10.5,
+        5.5,
+        10.5
+      ],
+      "shade_direction_override": "up",
+      "faces": {
+        "up": {
+          "uv": [
+            6,
+            4,
+            7,
+            5
+          ],
+          "texture": "#torch"
+        }
+      }
+    },
+    {
+      "from": [
+        5.5,
+        10.5,
+        5.5
+      ],
+      "to": [
+        10.5,
+        10.5,
+        10.5
+      ],
+      "shade_direction_override": "up",
+      "faces": {
+        "down": {
+          "uv": [
+            6,
+            4,
+            7,
+            5
+          ],
+          "texture": "#torch"
+        }
+      }
+    },
+    {
+      "from": [
+        5.5,
+        5.5,
+        5.5
+      ],
+      "to": [
+        10.5,
+        10.5,
+        5.5
+      ],
+      "shade_direction_override": "up",
+      "faces": {
+        "south": {
+          "uv": [
+            6,
+            4,
+            7,
+            5
+          ],
+          "texture": "#torch"
+        }
+      }
+    },
+    {
+      "from": [
+        10.5,
+        5.5,
+        5.5
+      ],
+      "to": [
+        10.5,
+        10.5,
+        10.5
+      ],
+      "shade_direction_override": "up",
+      "faces": {
+        "west": {
+          "uv": [
+            6,
+            4,
+            7,
+            5
+          ],
+          "texture": "#torch"
+        }
+      }
+    },
+    {
+      "from": [
+        5.5,
+        5.5,
+        10.5
+      ],
+      "to": [
+        10.5,
+        10.5,
+        10.5
+      ],
+      "shade_direction_override": "up",
+      "faces": {
+        "north": {
+          "uv": [
+            6,
+            4,
+            7,
+            5
+          ],
+          "texture": "#torch"
+        }
+      }
+    },
+    {
+      "from": [
+        5.5,
+        5.5,
+        5.5
+      ],
+      "to": [
+        5.5,
+        10.5,
+        10.5
+      ],
+      "shade_direction_override": "up",
+      "faces": {
+        "east": {
+          "uv": [
+            6,
+            4,
+            7,
+            5
+          ],
+          "texture": "#torch"
+        }
+      }
+    }
+  ]
+}

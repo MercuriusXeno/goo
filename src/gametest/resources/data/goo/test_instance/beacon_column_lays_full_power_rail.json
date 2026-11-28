@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:beacon_column_lays_full_power_rail",
+  "environment": "minecraft:default",
+  "structure": "goo:shaft_bay",
+  "max_ticks": 300,
+  "setup_ticks": 0,
+  "required": true
+}
