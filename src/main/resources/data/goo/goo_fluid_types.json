@@ -97,10 +97,10 @@
       { "position": 0.0, "color": "#040707" },
       { "position": 0.25, "color": "#0B1416" },
       { "position": 0.45, "color": "#12302F" },
-      { "position": 0.6, "color": "#165450" },
-      { "position": 0.75, "color": "#1E8A80" },
-      { "position": 0.9, "color": "#3CC0B0" },
-      { "position": 1.0, "color": "#8AEEDD" }
+      { "position": 0.6, "color": "#12302F" },
+      { "position": 0.75, "color": "#165450" },
+      { "position": 0.9, "color": "#8AEEDD" },
+      { "position": 1.0, "color": "#E6FFFA" }
     ]
   },
   {
