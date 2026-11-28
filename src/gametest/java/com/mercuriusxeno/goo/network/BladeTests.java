@@ -22,6 +22,7 @@ import net.minecraft.world.entity.animal.cow.Cow;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameType;
 import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.Optional;
 import java.util.function.Consumer;
 
 /**
@@ -36,8 +37,12 @@ public final class BladeTests {
             "blade_strike_drains_osseous_and_hurts_a_cow";
     private static final String BLADE_DISSOLVES_ON_A_STRIKE_SHORT_OF_OSSEOUS =
             "blade_dissolves_on_a_strike_short_of_osseous";
+    private static final String BLADE_REFUSES_ANOTHER_CAST_WHILE_IT_STANDS =
+            "blade_refuses_another_cast_while_it_stands";
+    private static final String BLADE_DISSOLVES_ON_THE_NEXT_RIGHT_CLICK = "blade_dissolves_on_the_next_right_click";
 
     private static final Identifier OSSEOUS_BLADE = Identifier.fromNamespaceAndPath(Goo.MODID, "osseous_blade");
+    private static final Identifier OSSEOUS_SPEAR = Identifier.fromNamespaceAndPath(Goo.MODID, "osseous_spear");
     private static final BlockPos COW_POS = new BlockPos(1, 1, 2);
 
     private static final String NOT_LATCHED = "Blade held through its form time should latch a shotel";
@@ -45,6 +50,10 @@ public final class BladeTests {
     private static final String NOT_DRAINED = "A shotel strike should drain %d Osseous: %d before, %d after";
     private static final String STILL_STANDS = "A strike with %d Osseous, under the drain %d, should dissolve the"
             + " shotel";
+    private static final String CAST_ANOTHER = "A hand holding the shotel should cast nothing else: Spear's hold"
+            + " began %s";
+    private static final String STANDS_PAST_THE_CLICK = "Blade's next right click should dissolve the shotel, and"
+            + " it stands";
 
     private BladeTests() {
     }
@@ -59,6 +68,46 @@ public final class BladeTests {
                 BladeTests::bladeStrikeDrainsOsseousAndHurtsACow);
         GooTestFunctions.registerTest(registrar, BLADE_DISSOLVES_ON_A_STRIKE_SHORT_OF_OSSEOUS,
                 BladeTests::bladeDissolvesOnAStrikeShortOfOsseous);
+        GooTestFunctions.registerTest(registrar, BLADE_REFUSES_ANOTHER_CAST_WHILE_IT_STANDS,
+                BladeTests::bladeRefusesAnotherCastWhileItStands);
+        GooTestFunctions.registerTest(registrar, BLADE_DISSOLVES_ON_THE_NEXT_RIGHT_CLICK,
+                BladeTests::bladeDissolvesOnTheNextRightClick);
+    }
+
+    /**
+     * A hand holding the shotel casts nothing else: Spear's hold, sent through the server's hold handler by a player
+     * who knows Spear and holds its goo, begins no hold.
+     *
+     * @param helper the gametest helper
+     */
+    public static void bladeRefusesAnotherCastWhileItStands(GameTestHelper helper) {
+        ServerPlayer player = bladed(helper);
+        KnownRecipes.teachRequires(player, AbilityRegistry.of(helper.getLevel()).getAbility(OSSEOUS_SPEAR));
+
+        KnivesHoldHandler.hold(player, new KnivesHoldPayload(true, GooTypes.id(GooTypes.OSSEOUS),
+                OSSEOUS_SPEAR.toString()));
+
+        Optional<KnifeHolds.Held> spear = GooServerState.of(helper.getLevel().getServer()).knifeHolds().heldBy(player);
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        helper.assertTrue(spear.isEmpty(), String.format(CAST_ANOTHER, spear.map(held -> held.ability().id())));
+        helper.succeed();
+    }
+
+    /**
+     * Blade's next right click, held through its form time and let go through the server's charge handler as the
+     * first was, dissolves the shotel and forms no other.
+     *
+     * @param helper the gametest helper
+     */
+    public static void bladeDissolvesOnTheNextRightClick(GameTestHelper helper) {
+        ServerPlayer player = bladed(helper);
+
+        releaseBlade(helper, player);
+
+        boolean stands = blades(helper).bladeOf(player.getUUID()).isPresent();
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        helper.assertFalse(stands, STANDS_PAST_THE_CLICK);
+        helper.succeed();
     }
 
     /**
@@ -119,12 +168,17 @@ public final class BladeTests {
         // the mock player helper makes a creative player, whom the game treats apart in combat
         player.setGameMode(GameType.SURVIVAL);
         player.connection.markClientLoaded();
-        AbilityDefinition blade = AbilityRegistry.of(helper.getLevel()).getAbility(OSSEOUS_BLADE);
-        KnownRecipes.teachRequires(player, blade);
-        GooThrowHandler.releaseCharge(player, new GooChargePayload(GooTypes.id(GooTypes.OSSEOUS),
-                OSSEOUS_BLADE.toString(), blade.delivery().chargeTicks()));
+        KnownRecipes.teachRequires(player, AbilityRegistry.of(helper.getLevel()).getAbility(OSSEOUS_BLADE));
+        releaseBlade(helper, player);
         helper.assertTrue(blades(helper).bladeOf(player.getUUID()).isPresent(), NOT_LATCHED);
         return player;
+    }
+
+    // Blade's right click held through its form time and let go, through the server's charge handler.
+    private static void releaseBlade(GameTestHelper helper, ServerPlayer player) {
+        AbilityDefinition blade = AbilityRegistry.of(helper.getLevel()).getAbility(OSSEOUS_BLADE);
+        GooThrowHandler.releaseCharge(player, new GooChargePayload(GooTypes.id(GooTypes.OSSEOUS),
+                OSSEOUS_BLADE.toString(), blade.delivery().chargeTicks()));
     }
 
     private static int drainOf(GameTestHelper helper) {
