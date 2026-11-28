@@ -50,6 +50,7 @@ import com.mercuriusxeno.goo.client.ability.SpikesRise;
 import com.mercuriusxeno.goo.client.ability.Tomes;
 import com.mercuriusxeno.goo.client.ability.TransformationRenderer;
 import com.mercuriusxeno.goo.client.ability.WindLines;
+import com.mercuriusxeno.goo.client.ability.WirelessBeams;
 import com.mercuriusxeno.goo.client.ability.WispGlow;
 import com.mercuriusxeno.goo.client.ability.ZapBolts;
 import com.mercuriusxeno.goo.client.ber.BeaconBeams;
@@ -118,6 +119,8 @@ public final class TranslucentVisualPath {
                     Drawing.IN_THE_OIT_PHASE),
             new Registration(LaserScorch.class, SortRoute.ON_OPAQUE_FACES, LaserScorch::collect),
             new Registration(RelayLasers.class, SortRoute.FAR_TO_NEAR, RelayLasers::collect,
+                    Drawing.IN_THE_OIT_PHASE),
+            new Registration(WirelessBeams.class, SortRoute.FAR_TO_NEAR, WirelessBeams::collect,
                     Drawing.IN_THE_OIT_PHASE),
             new Registration(ZapBolts.class, SortRoute.FAR_TO_NEAR, ZapBolts::collect,
                     Drawing.IN_THE_OIT_PHASE),

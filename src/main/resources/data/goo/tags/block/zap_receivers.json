@@ -47,6 +47,7 @@
     "goo:plexer",
     "goo:reactor",
     "goo:unstable_nitro",
-    "goo:volatile_crystal"
+    "goo:volatile_crystal",
+    "goo:wireless_emitter"
   ]
 }

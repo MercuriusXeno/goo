@@ -41,6 +41,8 @@ import com.mercuriusxeno.goo.fluid.MoltenIronBlock;
 import com.mercuriusxeno.goo.lunar.MonolithMarkerBlock;
 import com.mercuriusxeno.goo.lunar.ResonatorBlock;
 import com.mercuriusxeno.goo.lunar.VolatileCrystalBlock;
+import com.mercuriusxeno.goo.lunar.WirelessEmitterBlock;
+import com.mercuriusxeno.goo.lunar.WirelessSignalBlock;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.ColorRGBA;
 import net.minecraft.world.level.BlockGetter;
@@ -823,6 +825,26 @@ public class GooBlocks {
                     .strength(STONE_HARDNESS, STONE_RESISTANCE).sound(SoundType.SCULK_SENSOR).noOcclusion()
                     .lightLevel(state -> state.getValue(ResonatorBlock.PHASE) == SculkSensorPhase.ACTIVE
                             ? RESONATOR_ACTIVE_LIGHT : 0));
+
+    /**
+     * Wireless emitter: alien tech in a simple entityless block that beams the signal it takes to the closest block
+     * within 16 Manhattan that takes a signal, at the level it takes, a redstone relay.
+     * decision wireless-emitter-beams-its-signal-to-the-closest-receiver
+     */
+    public static final DeferredBlock<WirelessEmitterBlock> WIRELESS_EMITTER = BLOCKS.registerBlock(
+            "wireless_emitter", WirelessEmitterBlock::new, () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_PURPLE).strength(STONE_HARDNESS, STONE_RESISTANCE)
+                    .sound(SoundType.AMETHYST));
+
+    /**
+     * Wireless signal: the source a wireless emitter stands beside its receiver, holding the emitter's level until the
+     * emitter lets it go.
+     * decision wireless-emitter-beams-its-signal-to-the-closest-receiver
+     */
+    public static final DeferredBlock<WirelessSignalBlock> WIRELESS_SIGNAL = BLOCKS.registerBlock(
+            "wireless_signal", WirelessSignalBlock::new, () -> BlockBehaviour.Properties.of()
+                    .noCollision().instabreak().noLootTable().noOcclusion().replaceable()
+                    .pushReaction(PushReaction.POPPED));
 
     /**
      * Impact glass: lunar's regolith melted where meteorites struck, dark glass that holds back light as tinted

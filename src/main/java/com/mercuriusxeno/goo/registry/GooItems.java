@@ -89,6 +89,8 @@ public class GooItems {
             GooBlocks.ALIEN_TILE);
     public static final DeferredItem<BlockItem> VOLATILE_CRYSTAL = ITEMS.registerSimpleBlockItem("volatile_crystal",
             GooBlocks.VOLATILE_CRYSTAL);
+    public static final DeferredItem<BlockItem> WIRELESS_EMITTER = ITEMS.registerSimpleBlockItem("wireless_emitter",
+            GooBlocks.WIRELESS_EMITTER);
     public static final DeferredItem<BlockItem> RESONATOR = ITEMS.registerSimpleBlockItem("resonator",
             GooBlocks.RESONATOR);
     public static final DeferredItem<BlockItem> IMPACT_GLASS = ITEMS.registerSimpleBlockItem("impact_glass",

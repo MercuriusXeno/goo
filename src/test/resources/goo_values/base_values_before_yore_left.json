@@ -803,6 +803,7 @@
     "goo:alien_tile": "$mundane_block + $lunar + 2 $xeno",
     "goo:volatile_crystal": {"crystal": "8 $base", "unstable": "8 $base"},
     "goo:resonator": "$mundane_block + 8 $pulse",
+    "goo:wireless_emitter": "$mundane_block + 8 $pulse",
     "goo:impact_glass": "$mundane_block + 2 $quartz + 2 $lunar",
     "goo:breccia": "$mundane_block + 4 $iron_nugget + $lunar",
     "goo:crater_ice": "ice + $lunar",

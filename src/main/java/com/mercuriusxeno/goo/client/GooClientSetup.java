@@ -44,6 +44,7 @@ import com.mercuriusxeno.goo.client.ability.Transformations;
 import com.mercuriusxeno.goo.client.ability.UpdraftWind;
 import com.mercuriusxeno.goo.client.ability.ViewportRipples;
 import com.mercuriusxeno.goo.client.ability.WindLines;
+import com.mercuriusxeno.goo.client.ability.WirelessBeams;
 import com.mercuriusxeno.goo.client.ability.ZapBolts;
 import com.mercuriusxeno.goo.client.ber.*;
 import com.mercuriusxeno.goo.client.entity.BlockHunkRenderer;
@@ -626,6 +627,7 @@ public final class GooClientSetup {
         ZapBolts.clear();
         SignalRings.clear();
         RelayLasers.clear();
+        WirelessBeams.clear();
         ChainBurnouts.CLIENT.clear();
         MobCoats.CLIENT.clear();
         MobAilments.CLIENT.clear();

@@ -70,6 +70,8 @@
   "block.goo.alien_tile": "Alien Tile",
   "block.goo.volatile_crystal": "Volatile Crystal",
   "block.goo.resonator": "Resonator",
+  "block.goo.wireless_emitter": "Wireless Emitter",
+  "block.goo.wireless_signal": "Wireless Signal",
   "block.goo.impact_glass": "Impact Glass",
   "block.goo.breccia": "Breccia",
   "block.goo.crater_ice": "Crater Ice",

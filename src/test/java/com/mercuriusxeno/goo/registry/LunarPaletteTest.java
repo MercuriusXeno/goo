@@ -202,7 +202,8 @@ class LunarPaletteTest {
     static final List<String> WARREN_SPRITES = Stream.of(
             Stream.of("monolith_marker", "monolith_marker_polished_glass", "monolith_marker_xeno_seam"),
             alienStructureSprites(),
-            Stream.of("resonator_ring", "resonator_ring_active", "resonator_tip", "resonator_tip_active"))
+            Stream.of("resonator_ring", "resonator_ring_active", "resonator_tip", "resonator_tip_active",
+                    "wireless_emitter", "wireless_emitter_active"))
             .flatMap(sprites -> sprites).toList();
 
     /**
