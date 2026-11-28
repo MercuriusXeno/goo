@@ -1,9 +1,12 @@
 package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.lunar.AirGeyserFeature;
 import com.mercuriusxeno.goo.lunar.BoulderFeature;
 import com.mercuriusxeno.goo.lunar.CraterPoolsFeature;
 import com.mercuriusxeno.goo.lunar.CrystalClusters;
+import com.mercuriusxeno.goo.lunar.DepositGooPocketFeature;
+import com.mercuriusxeno.goo.lunar.GooPocketFeature;
 import com.mercuriusxeno.goo.lunar.NativeIronLodeFeature;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.registries.Registries;
@@ -56,6 +59,27 @@ public final class GooFeatures {
      */
     public static final DeferredHolder<MapCodec<? extends Feature>, MapCodec<NativeIronLodeFeature>> NATIVE_IRON_LODE =
             FEATURES.register("native_iron_lode", () -> NativeIronLodeFeature.CODEC);
+
+    /**
+     * {@code goo:air_geyser}, a hole in lunar's ground holding Updraft goo, with trace Updraft around it.
+     * decision air-geysers-of-updraft-goo-dot-lunar
+     */
+    public static final DeferredHolder<MapCodec<? extends Feature>, MapCodec<AirGeyserFeature>> AIR_GEYSER =
+            FEATURES.register("air_geyser", () -> AirGeyserFeature.CODEC);
+
+    /**
+     * {@code goo:goo_pocket}, a few cells of the world goo lunar's biome rule rolls, laid on open ground.
+     * decision frost-astral-and-xeno-goo-spawn-periodically-on-lunar
+     */
+    public static final DeferredHolder<MapCodec<? extends Feature>, MapCodec<GooPocketFeature>> GOO_POCKET =
+            FEATURES.register("goo_pocket", () -> GooPocketFeature.CODEC);
+
+    /**
+     * {@code goo:deposit_goo_pocket}, a pocket of astral world goo on the cave floor beside one of lunar's deposits.
+     * decision frost-astral-and-xeno-goo-spawn-periodically-on-lunar
+     */
+    public static final DeferredHolder<MapCodec<? extends Feature>, MapCodec<DepositGooPocketFeature>> DEPOSIT_GOO_POCKET =
+            FEATURES.register("deposit_goo_pocket", () -> DepositGooPocketFeature.CODEC);
 
     private GooFeatures() {
     }

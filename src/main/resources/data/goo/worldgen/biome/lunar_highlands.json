@@ -47,7 +47,11 @@
       "goo:astral_crystal_cluster"
     ],
     [],
-    [],
+    [
+      "goo:air_geysers",
+      "goo:goo_pockets",
+      "goo:deposit_goo_pockets"
+    ],
     [
       "goo:void_crystal_cluster"
     ],

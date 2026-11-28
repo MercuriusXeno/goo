@@ -1,0 +1,15 @@
+{
+  "type": "goo:goo_pocket",
+  "cells": {
+    "type": "minecraft:uniform",
+    "min_inclusive": 2,
+    "max_inclusive": 5
+  },
+  "layers": {
+    "type": "minecraft:uniform",
+    "min_inclusive": 3,
+    "max_inclusive": 8
+  },
+  "volume": 24,
+  "reach": 2
+}
