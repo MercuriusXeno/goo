@@ -18,12 +18,15 @@ public final class OculusLids {
     static final double LOOKED_AT_DEGREES = 8;
     /** The farthest a viewer may stand and still be looking at the eye, in blocks. */
     static final double LOOKED_AT_RANGE = 64;
-    /** How much of the way open the lids move each tick. */
-    static final float OPEN_PER_TICK = 0.25f;
+    /**
+     * How much of the way open the lids move each tick: open or shut in about twelve ticks, slowed from four, which
+     * read too fast both ways (operator ruling 2026-11-28).
+     */
+    static final float OPEN_PER_TICK = 0.08f;
     /** Ticks between one blink of an open eye and the next. */
     static final int BLINK_PERIOD = 100;
-    /** Ticks a blink takes to close and open again. */
-    static final int BLINK_TICKS = 6;
+    /** Ticks a blink takes to close and open again, slowed from six, which read too fast (operator ruling 2026-11-28). */
+    static final int BLINK_TICKS = 14;
     private static final float HALF = 0.5f;
     private static final double LOOKED_AT_COS = Math.cos(Math.toRadians(LOOKED_AT_DEGREES));
 
