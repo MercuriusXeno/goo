@@ -203,6 +203,7 @@ class StepCodecTest {
             Map.entry("infest", new InfestStep(Identifier.fromNamespaceAndPath("goo", "decay"), 20, 2f)),
             Map.entry("nitro", new NitroStep(1.0, 0.2, 4)),
             Map.entry("gloom", new GloomStep()),
+            Map.entry("fortune", new FortuneStep(5, 3)),
             Map.entry("ooze", new OozeStep(8, 20, List.of(new AilmentOverlayStep(AilmentKind.HEX,
                     Expr.literal(60))))),
             Map.entry("phase_goo", new PhaseGooStep(2)),

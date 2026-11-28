@@ -177,6 +177,14 @@ public record BlendPalette(float lightRed, float lightGreen, float lightBlue,
             0x92 / 255f, 0x82 / 255f, 0xF5 / 255f, 0x6A / 255f, 0x5A / 255f, 0xCD / 255f);
 
     /**
+     * Fortune's spray drips, from ornate's edge gold, FFEC4F, to its wheel
+     * gold, D8901A, the two the ornate goo type's definition names.
+     * fortune-is-ornates-residual-that-makes-things-drop-more
+     */
+    public static final BlendPalette FORTUNE_ORNATE_GOLDS = new BlendPalette(
+            0xFF / 255f, 0xEC / 255f, 0x4F / 255f, 0xD8 / 255f, 0x90 / 255f, 0x1A / 255f);
+
+    /**
      * The color a share of the way from the light end to the dark.
      *
      * @param blend the share, 0 at the light end and 1 at the dark

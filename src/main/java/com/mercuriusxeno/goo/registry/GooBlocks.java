@@ -588,6 +588,26 @@ public class GooBlocks {
                     .noLootTable()
                     .pushReaction(PushReaction.POPPED));
     /**
+     * Fortune: the volume cell bound to Ornate's goo, the gold goo Fortune
+     * sprays onto a block's top, one to fifteen layers, ordinary ground
+     * underfoot and sounding as goo does; a block broken with it holding on
+     * a face drops as if by Fortune and a mob killed in it as if by Looting,
+     * dropping the ornate goo its layers cost through VolumeCellBlock.getDrops,
+     * no loot table (decisions fortune-is-ornates-residual-that-makes-things-drop-more,
+     * each-goo-type-ships-a-world-goo-on-the-volume-cell).
+     */
+    public static final DeferredBlock<VolumeCellBlock> ORNATE_FORTUNE = BLOCKS.registerBlock(
+            "ornate_fortune", properties -> new VolumeCellBlock(properties, CellBinding.FORTUNE),
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.GOLD)
+                    .friction(CellBinding.FORTUNE.surface().friction())
+                    .sound(SoundType.SLIME_BLOCK)
+                    .instabreak()
+                    .noOcclusion()
+                    .replaceable()
+                    .noLootTable()
+                    .pushReaction(PushReaction.POPPED));
+    /**
      * Statue: a petrified mob, mined like cobblestone for cobblestone and the
      * mob's experience (decision petrify-stone-encasement-and-calcify-map).
      */

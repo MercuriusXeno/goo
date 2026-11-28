@@ -228,6 +228,14 @@ public class GooParticles {
         PARTICLE_TYPES.register("ooze_spray_drip", () -> new SimpleParticleType(false));
 
     /**
+     * Fortune's spray drip: the mod's blocky goo drip in ornate's golds,
+     * flying its arc until it strikes, where it splats and the Fortune goo lands.
+     * fortune-is-ornates-residual-that-makes-things-drop-more
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> FORTUNE_SPRAY_DRIP =
+        PARTICLE_TYPES.register("fortune_spray_drip", () -> new SimpleParticleType(false));
+
+    /**
      * A snowflake crystal flitting weightlessly along Cold's wind (decision
      * cold-streams-wind-lines-and-snowflakes).
      */

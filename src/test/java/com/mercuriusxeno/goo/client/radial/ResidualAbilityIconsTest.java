@@ -53,7 +53,8 @@ class ResidualAbilityIconsTest {
     static final List<String> RESIDUAL_ICONS = List.of("weird_goop", "kinetic_slick", "blaze_molten", "sculk_creep",
             "crystal_shatter", "hex_leech", "typhoon_updraft", "jelly_nectar", "pulse_signal",
             "metal_spikes", "zombie_infest", "leaf_vines", "unstable_nitro", "quantum_phase", "rock_mortar",
-            "yarn_stitch", "nether_gloom", "astral_dowsing", "frost_rime", "glow_wisps", "xeno_ooze");
+            "yarn_stitch", "nether_gloom", "astral_dowsing", "frost_rime", "glow_wisps", "xeno_ooze",
+            "ornate_fortune");
 
     private static final String WISPS = "glow_wisps";
     private static final String SHATTER = "crystal_shatter";
@@ -64,6 +65,7 @@ class ResidualAbilityIconsTest {
     private static final String DOWSING = "astral_dowsing";
     private static final String GLOOM = "nether_gloom";
     private static final String OOZE = "xeno_ooze";
+    private static final String FORTUNE = "ornate_fortune";
     private static final String GOO_TYPE = "/data/goo/goo/goo_type/%s.json";
     private static final int HEX = 16;
     /** How far a goo texel's hue may lie from its type's wheel hue, as a share of the hue circle: 40 degrees. */
@@ -160,14 +162,14 @@ class ResidualAbilityIconsTest {
     }
 
     /**
-     * Nitro's goo, Gloom's, Dowsing's, Rime's, Wisps' and Ooze's, each icon's texels in its type's
+     * Nitro's goo, Gloom's, Dowsing's, Rime's, Wisps', Ooze's and Fortune's, each icon's texels in its type's
      * goo colors outside the shared block, take a shape no other residual
      * icon's goo takes, drawn or mirrored, whatever mark sits over it.
      * each-residual-icon-draws-its-goo-in-its-own-shape
      * dowsing-icon-is-a-dowsing-rod
      */
     @ParameterizedTest
-    @ValueSource(strings = {NITRO, GLOOM, DOWSING, RIME, WISPS, OOZE})
+    @ValueSource(strings = {NITRO, GLOOM, DOWSING, RIME, WISPS, OOZE, FORTUNE})
     void itsGooTakesAShapeNoOtherResidualIconsGooTakes(String ability) throws IOException {
         String own = gooMask(ability, false);
         List<String> copies = new ArrayList<>();

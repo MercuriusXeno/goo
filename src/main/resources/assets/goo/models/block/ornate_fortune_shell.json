@@ -1,0 +1,6 @@
+{
+  "parent": "goo:block/volume_cell_shell",
+  "textures": {
+    "goo": {"sprite": "goo:fluid/ornate_fluid", "force_translucent": true}
+  }
+}

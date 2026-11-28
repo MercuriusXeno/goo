@@ -100,7 +100,8 @@ class VolumeCellLookTest {
                 new Cell("rock_mortar", CellBinding.MORTAR, "goo:fluid/rock_fluid", 0x8A6A50),
                 new Cell("yarn_stitch", CellBinding.STITCH, "goo:fluid/yarn_fluid", 0xCBAE88),
                 new Cell("astral_dowsing", CellBinding.DOWSING, "goo:fluid/astral_fluid", 0x2A3C9A),
-                new Cell("xeno_ooze", CellBinding.OOZE, "goo:fluid/xeno_fluid", 0x7969DC));
+                new Cell("xeno_ooze", CellBinding.OOZE, "goo:fluid/xeno_fluid", 0x7969DC),
+                new Cell("ornate_fortune", CellBinding.FORTUNE, "goo:fluid/ornate_fluid", 0xE9B115));
     }
 
     @Nested
