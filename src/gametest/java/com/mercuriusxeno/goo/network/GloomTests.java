@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
-import com.mercuriusxeno.goo.ability.program.GloomStep;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
@@ -35,7 +34,7 @@ import java.util.function.Consumer;
  * Nether's Gloom as a world goo through the real paths: its stream's drip
  * lays a Gloom cell, the level's own natural spawn puts a hostile mob on
  * that cell in a lit room, spending none of its goo, and the noon sun spares
- * a zombie standing on it.
+ * a zombie standing on it, and a slime standing on it stays a slime.
  * gloom-spawns-regardless-of-light-and-mobs-on-it-ignore-daylight
  */
 @RegistersGameTests
@@ -70,14 +69,15 @@ public final class GloomTests {
     private static final String ZOMBIE_ON_GLOOM_BURNS = "The zombie on Gloom caught fire under the noon sun";
     private static final String ZOMBIE_ON_STONE_UNLIT = "The zombie on bare stone should catch fire under the noon sun";
     private static final String GLOOM_GONE = "The Gloom cell under the shaded zombie is gone";
-    private static final String SLIME_BECOMES_A_HOSTILE = "slime_on_gloom_becomes_a_random_hostile_mob";
-    /** The full Gloom cell the slime is set on, in the middle of the bay's floor. */
+    /** The Gloom cell the slime is set on, in the middle of the bay's floor. */
     private static final BlockPos SLIME_CELL = new BlockPos(2, 1, 2);
-    /** A second and a half, the slime's turn and its morph with room to spare. */
+    /** A second and a half, past the 20 ticks a slime's morph on Ooze takes. */
     private static final int TURN_TICKS = 30;
-    private static final String SLIME_SHOULD_TURN = "The slime should be gone and one hostile mob stand in its "
-            + "place: %d slimes, %d hostile mobs";
-    private static final String CELL_SHOULD_SPEND = "The cell should be lower by the turn's %d layers, holds %d";
+    private static final String SLIME_STAYS_A_SLIME = "a_slime_on_gloom_stays_a_slime";
+    /** A Gloom cell's layers past the 8 a slime's turn on Ooze spends. */
+    private static final int PAST_A_TURN = 9;
+    private static final String SLIME_SHOULD_STAND = "The slime on Gloom should stand a slime, %d slimes stand";
+    private static final String CELL_SHOULD_KEEP = "The Gloom cell should keep its %d layers, holds %d";
 
     private GloomTests() {
     }
@@ -90,48 +90,46 @@ public final class GloomTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, SPAWNS_IN_THE_LIGHT, GloomTests::gloomCellSpawnsAHostileMobInALitRoom);
         GooTestFunctions.registerTest(registrar, SPARES_FROM_THE_SUN, GloomTests::aZombieOnGloomDoesNotBurnAtNoon);
-        GooTestFunctions.registerTest(registrar, SLIME_BECOMES_A_HOSTILE, GloomTests::slimeOnGloomBecomesARandomHostileMob);
+        GooTestFunctions.registerTest(registrar, SLIME_STAYS_A_SLIME, GloomTests::aSlimeOnGloomStaysASlime);
     }
 
     /**
-     * A small slime set on a full Gloom cell set into a dirt path floor is
-     * gone after the morph: one mob of the monster category stands there,
-     * and the cell is lower by the turn's layers nether_gloom.json carries.
-     * gloom-turns-slimes-into-random-hostiles-in-place-of-spawn
+     * A small slime set on a Gloom cell of 9 layers, past the 8 Ooze's turn
+     * spends, still stands a slime after the 20 ticks a morph would take, and
+     * the cell keeps all 9.
+     * ooze-is-xenos-world-goo-that-turns-slimes-into-random-hostiles
      *
      * @param helper the gametest helper
      */
-    public static void slimeOnGloomBecomesARandomHostileMob(GameTestHelper helper) {
-        // dirt path closes the cell in, so it pours none of its layers away
+    public static void aSlimeOnGloomStaysASlime(GameTestHelper helper) {
+        layTheClosedFloor(helper);
+        helper.setBlock(SLIME_CELL, GooBlocks.NETHER_GLOOM.get().defaultBlockState()
+                .setValue(VolumeCellBlock.LAYERS, PAST_A_TURN));
+        Slime slime = helper.spawnWithNoFreeWill(EntityTypes.SLIME, Vec3.atBottomCenterOf(SLIME_CELL.above()));
+        slime.setSize(1, true);
+        AABB around = new AABB(helper.absolutePos(SLIME_CELL)).inflate(2);
+        helper.runAfterDelay(TURN_TICKS, () -> {
+            List<Slime> slimes = helper.getLevel().getEntitiesOfClass(Slime.class, around);
+            BlockState cell = helper.getBlockState(SLIME_CELL);
+            int left = cell.is(GooBlocks.NETHER_GLOOM.get()) ? cell.getValue(VolumeCellBlock.LAYERS) : 0;
+            helper.assertTrue(slimes.size() == 1 && !slime.isRemoved(),
+                    String.format(SLIME_SHOULD_STAND, slimes.size()));
+            helper.assertTrue(left == PAST_A_TURN, String.format(CELL_SHOULD_KEEP, PAST_A_TURN, left));
+            helper.succeed();
+        });
+    }
+
+    /** A stone floor under dirt path, which closes a cell in; stone, since bedrock refuses every spawn. */
+    private static void layTheClosedFloor(GameTestHelper helper) {
         for (int x = 0; x <= ROOM_EDGE; x++) {
             for (int z = 0; z <= ROOM_EDGE; z++) {
-                helper.setBlock(new BlockPos(x, 0, z), Blocks.BEDROCK);
+                helper.setBlock(new BlockPos(x, 0, z), Blocks.STONE);
                 helper.setBlock(new BlockPos(x, 1, z), Blocks.DIRT_PATH);
                 for (int y = 2; y <= ROOF; y++) {
                     helper.setBlock(new BlockPos(x, y, z), Blocks.AIR);
                 }
             }
         }
-        AbilityDefinition gloom = AbilityRegistry.of(helper.getLevel()).getAbility(GLOOM);
-        helper.assertTrue(gloom != null, ABILITY_REQUIRED);
-        int turnLayers = GloomStep.in(gloom.behaviors()).orElseThrow().slimeTurnLayers();
-        helper.setBlock(SLIME_CELL, GooBlocks.NETHER_GLOOM.get().defaultBlockState()
-                .setValue(VolumeCellBlock.LAYERS, VolumeCellBlock.MAX_LAYERS));
-        Slime slime = helper.spawnWithNoFreeWill(EntityTypes.SLIME, Vec3.atBottomCenterOf(SLIME_CELL.above()));
-        slime.setSize(1, true);
-        AABB around = new AABB(helper.absolutePos(SLIME_CELL)).inflate(2);
-        helper.runAfterDelay(TURN_TICKS, () -> {
-            List<Slime> slimes = helper.getLevel().getEntitiesOfClass(Slime.class, around);
-            List<Mob> born = helper.getLevel().getEntitiesOfClass(Mob.class, around,
-                    mob -> mob.getType().getCategory() == MobCategory.MONSTER && !(mob instanceof Slime));
-            BlockState cell = helper.getBlockState(SLIME_CELL);
-            int left = cell.is(GooBlocks.NETHER_GLOOM.get()) ? cell.getValue(VolumeCellBlock.LAYERS) : 0;
-            helper.assertTrue(slimes.isEmpty() && born.size() == 1,
-                    String.format(SLIME_SHOULD_TURN, slimes.size(), born.size()));
-            helper.assertTrue(left == VolumeCellBlock.MAX_LAYERS - turnLayers,
-                    String.format(CELL_SHOULD_SPEND, turnLayers, left));
-            helper.succeed();
-        });
     }
 
     /**

@@ -47,24 +47,24 @@ public final class NaturalSpawns {
      *
      * @param level      the level
      * @param cell       the cell the mob would stand in
+     * @param feet       where the mob's feet would stand in the cell, on any goo lying in it
      * @param random     the draw
      * @param categories the categories the draw takes from
      * @param allowed    the types the caller allows
      * @return the type, or empty where nothing the biome spawns fits
      */
-    public static Optional<EntityType<?>> drawAt(ServerLevel level, BlockPos cell, RandomSource random,
+    public static Optional<EntityType<?>> drawAt(ServerLevel level, BlockPos cell, Vec3 feet, RandomSource random,
                                                  Predicate<MobCategory> categories,
                                                  Predicate<EntityType<?>> allowed) {
         MobSpawnSettings settings = level.environmentAttributes().getValue(EnvironmentAttributes.NATURAL_MOB_SPAWNS, cell);
         Stream<EntityType<?>> listed = Arrays.stream(MobCategory.values()).filter(categories)
                 .flatMap(category -> settings.getMobsToSpawn(category).unwrap().stream())
                 .map(weighted -> weighted.value().type());
-        List<EntityType<?>> pool = pool(listed, type -> allowed.test(type) && fits(level, cell, type));
+        List<EntityType<?>> pool = pool(listed, type -> allowed.test(type) && fits(level, cell, feet, type));
         return pool.isEmpty() ? Optional.empty() : Optional.of(pool.get(random.nextInt(pool.size())));
     }
 
-    private static boolean fits(ServerLevel level, BlockPos cell, EntityType<?> type) {
-        Vec3 feet = Vec3.atBottomCenterOf(cell);
+    private static boolean fits(ServerLevel level, BlockPos cell, Vec3 feet, EntityType<?> type) {
         return SpawnPlacements.isSpawnPositionOk(type, level, cell)
                 && level.noCollision(type.getSpawnAABB(feet.x, feet.y, feet.z));
     }
