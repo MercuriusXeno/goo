@@ -61,8 +61,11 @@ public final class LunarSky {
 
     /**
      * The hand-drawn sprite the planet draws in a phase, named as vanilla names its moon's: the waning phases lit on
-     * the left, the waxing on the right, the full and the new by their own names.
+     * the left, the waxing on the right, the full and the new by their own names. Each holds its ice inland and darkens
+     * toward every lit edge as vanilla's moon darkens toward its rim.
      * decision planet-face-is-eight-hand-drawn-phase-sprites
+     * decision overworld-ice-moves-inland-off-the-edge
+     * decision overworld-rim-darkens-like-the-moons
      *
      * @param planetPhase the planet's phase
      * @return the sprite's texture
