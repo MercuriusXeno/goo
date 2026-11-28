@@ -15,6 +15,8 @@ import com.mercuriusxeno.goo.ability.LeadRelease;
 import com.mercuriusxeno.goo.ability.StreamSound;
 import com.mercuriusxeno.goo.ability.program.BlinkLanding;
 import com.mercuriusxeno.goo.ability.program.ChannelAim;
+import com.mercuriusxeno.goo.ability.program.MiasmaVortexStep;
+import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.yarn.Led;
 import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.client.ability.CameraEye;
@@ -58,6 +60,7 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
+import java.util.List;
 import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.OptionalInt;
@@ -157,14 +160,15 @@ public final class GloveThrowSender {
         }
         var connection = Minecraft.getInstance().getConnection();
         Vec3 drawnFrom = throwOrigin();
-        Vec3 origin = heldTickOrigin(selectedDelivery(abilityId), drawnFrom, lineOrigin());
+        Vec3 origin = heldTickOrigin(selectedDelivery(abilityId), selectedBehaviors(abilityId), drawnFrom,
+                lineOrigin());
         if (connection != null) {
             // decision outlined-target-is-the-one-pick: the tick names the entity the glove outlines
             connection.send(new ServerboundCustomPayloadPacket(
                     held(GooTypes.id(gooType), abilityId, origin, heldAimPoint(player, abilityId))
                             .targeting(outlinedEntityId())));
         }
-        // every-ability-casts-from-the-lifted-palm-blob: the server's cone keeps the glove, the drawn effect leaves the blob
+        // every-ability-casts-from-the-lifted-palm-blob: the drawn effect leaves the blob
         // spray-abilities-render-procedurally-bound-to-their-cone: the glove's fog and wind fill its delivery's cone
         SprayCone cone = SprayCone.ofGlove(selectedDelivery(abilityId), drawnFrom, player.getLookAngle());
         HealVisual.drawFog(player, abilityId, cone);
@@ -177,17 +181,20 @@ public final class GloveThrowSender {
     /**
      * Where a held tick tells the server its cast leaves: the lifted blob
      * for a stream throwing drips, so the server's drips leave where the
-     * drawn ones do, and the glove for any other held cast.
+     * drawn ones do, and for a stream drawing the vortex, so its cone opens
+     * where the vortex is drawn opening; the glove for any other held cast.
      * residual-spray-cone-centers-on-the-look-from-the-blob: a spray's drips leave the blob, server's and drawn alike
+     * ability-goes-where-the-look-intersects: Drain's cone opens where its vortex is drawn opening
      * every-ability-casts-from-the-lifted-palm-blob: any other server cone keeps the glove
      *
-     * @param delivery the held ability's delivery
-     * @param blob     where the lifted blob stands
-     * @param glove    the goo in the glove as the glove last drew it
+     * @param delivery  the held ability's delivery
+     * @param behaviors the held ability's top-level steps
+     * @param blob      where the lifted blob stands
+     * @param glove     the goo in the glove as the glove last drew it
      * @return the origin the tick sends
      */
-    static Vec3 heldTickOrigin(Delivery delivery, Vec3 blob, Vec3 glove) {
-        return delivery.throwsDrips() ? blob : glove;
+    static Vec3 heldTickOrigin(Delivery delivery, List<Step> behaviors, Vec3 blob, Vec3 glove) {
+        return delivery.throwsDrips() || MiasmaVortexStep.drawnIn(behaviors) ? blob : glove;
     }
 
     /**
@@ -803,6 +810,17 @@ public final class GloveThrowSender {
     public static Delivery selectedDelivery(@Nullable String abilityId) {
         ClientAbility ability = abilityId == null ? null : AbilitySyncHandler.findAbility(abilityId);
         return ability == null ? Delivery.ARC : ability.delivery();
+    }
+
+    /**
+     * The program of the selected ability.
+     *
+     * @param abilityId the selected ability id string
+     * @return its top-level steps, none for an ability the client does not hold
+     */
+    private static List<Step> selectedBehaviors(@Nullable String abilityId) {
+        ClientAbility ability = abilityId == null ? null : AbilitySyncHandler.findAbility(abilityId);
+        return ability == null ? List.of() : ability.behaviors();
     }
 
     /**

@@ -54,7 +54,7 @@ import java.util.function.Consumer;
  * the model draws.
  * palm-blob-lifts-as-the-spray-source
  * every-ability-casts-from-the-lifted-palm-blob
- * centered-abilities-float-the-blob-below-the-crosshair
+ * decision no-ability-floats-its-blob-to-the-center-line
  */
 public final class LiftedPalmBlob {
 
@@ -513,7 +513,6 @@ public final class LiftedPalmBlob {
      * @return the source, in the world
      */
     private static Vec3 sourceOf(int casterId, Lift lift, float partialTick, double now) {
-        // centered-abilities-float-the-blob-below-the-crosshair: a centered ability rests on the center line
         // bore-blob-eases-to-place-the-drill-at-the-crosshair: Bore's blob eases forward from that rest
         return BoreBlobPlace.of(casterId, BlobRest.of(casterId, lift.sentGlove(), partialTick), partialTick, now);
     }

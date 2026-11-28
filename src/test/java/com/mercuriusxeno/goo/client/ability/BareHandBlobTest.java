@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.ability.AbilityTags;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -12,12 +11,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
-import static org.mockito.Mockito.when;
 
 /**
  * A caster with no glove who holds raw goo in the right hand lifts and rests the palm blob as a glove does: the
- * lifted blob stands in the held goo's type straight above that hand, a centered ability's blob rests below
- * the crosshair, and a hand holding neither glove nor raw goo lifts no blob. The gloved hand's answers stand in
+ * lifted blob stands in the held goo's type straight above that hand, every ability's blob resting there, and a
+ * hand holding neither glove nor raw goo lifts no blob. The gloved hand's answers stand in
  * LiftedPalmBlobTest and BlobRestTest.
  * decision raw-goo-items-work-bare-handed-for-the-held-type
  */
@@ -37,9 +35,7 @@ class BareHandBlobTest {
         assertTrue(expected.distanceTo(actual) <= DELTA, "expected " + expected + ", was " + actual);
     }
 
-    private static MockedStatic<AbilitySyncHandler> syncedAbility(boolean centered) {
-        ClientAbility ability = mock(ClientAbility.class);
-        when(ability.hasTag(AbilityTags.CENTERED)).thenReturn(centered);
+    private static MockedStatic<AbilitySyncHandler> synced(ClientAbility ability) {
         MockedStatic<AbilitySyncHandler> synced = mockStatic(AbilitySyncHandler.class);
         synced.when(() -> AbilitySyncHandler.findAbility(SprayingClient.BARE_HAND_ABILITY)).thenReturn(ability);
         return synced;
@@ -58,21 +54,23 @@ class BareHandBlobTest {
         }
     }
 
+    // decision no-ability-floats-its-blob-to-the-center-line
     @Test
-    void aBareHandsCenteredAbilityRestsTheBlobBelowTheCrosshair() {
-        try (SprayingClient client = SprayingClient.bareHanded(GooTypes.ASTRAL);
-             MockedStatic<AbilitySyncHandler> synced = syncedAbility(true)) {
-            Vec3 rest = BlobRest.of(SprayingClient.CASTER, SprayingClient.SENT_GLOVE, 0f);
+    void aBareHandsOnceCenteredAbilityRestsTheBlobStraightAboveThatHand() {
+        for (String name : SyncedAbilities.ONCE_CENTERED) {
+            try (SprayingClient client = SprayingClient.bareHanded(GooTypes.ASTRAL);
+                 MockedStatic<AbilitySyncHandler> synced = synced(SyncedAbilities.of(name))) {
+                Vec3 rest = BlobRest.of(SprayingClient.CASTER, SprayingClient.SENT_GLOVE, 0f);
 
-            assertNear(BlobRest.inView(SprayingClient.EYE, SprayingClient.PITCH, SprayingClient.YAW, true,
-                    BlobRest.Rest.CENTER_LINE), rest);
+                assertNear(SpraySource.of(SprayingClient.CASTER, SprayingClient.SENT_GLOVE, 0f), rest);
+            }
         }
     }
 
     @Test
     void aBareHandsUncenteredAbilityRestsTheBlobStraightAboveThatHand() {
         try (SprayingClient client = SprayingClient.bareHanded(GooTypes.ASTRAL);
-             MockedStatic<AbilitySyncHandler> synced = syncedAbility(false)) {
+             MockedStatic<AbilitySyncHandler> synced = synced(mock(ClientAbility.class))) {
             Vec3 rest = BlobRest.of(SprayingClient.CASTER, SprayingClient.SENT_GLOVE, 0f);
 
             assertNear(SpraySource.of(SprayingClient.CASTER, SprayingClient.SENT_GLOVE, 0f), rest);

@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import com.mojang.serialization.MapCodec;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Stream;
 
@@ -24,6 +25,16 @@ public record MiasmaVortexStep() implements TakesNoEntity {
      * The registered type.
      */
     public static final StepType<MiasmaVortexStep> TYPE = new StepType<>(NAME, CODEC);
+
+    /**
+     * Whether a stream's program draws the vortex.
+     *
+     * @param behaviors the stream's top-level steps
+     * @return true where a vortex step stands among them
+     */
+    public static boolean drawnIn(List<Step> behaviors) {
+        return behaviors.stream().anyMatch(MiasmaVortexStep.class::isInstance);
+    }
 
     @Override
     public StepType<MiasmaVortexStep> type() {
