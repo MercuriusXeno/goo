@@ -6,7 +6,7 @@ import org.lwjgl.openal.AL10;
  * Sets an OpenAL source's gain, as a sound channel's volume reaches it. A
  * source clamps its gain to its AL_MAX_GAIN, one by default, so a gain
  * lifted past one raises that ceiling to itself first.
- * drain-plays-its-chosen-sounds-as-loud-as-blaze-fire
+ * drain-lifts-its-chosen-sounds-past-the-volume-cap
  */
 public final class ChannelGain {
 

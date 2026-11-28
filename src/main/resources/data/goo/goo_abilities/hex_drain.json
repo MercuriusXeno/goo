@@ -21,7 +21,7 @@
             { "type": "damage", "amount": 2, "source": "attack", "knockback": false, "invulnerable_ticks": 10 }
           ],
           "on_leech": [
-            { "type": "sound", "id": "minecraft:particle.soul_escape", "at": "target", "source": "players", "volume": 0.7 }
+            { "type": "sound", "id": "minecraft:particle.soul_escape", "at": "target", "source": "players", "volume": 8.0 }
           ]
         },
         { "type": "ailment_overlay", "kind": "hex", "duration": 20 }

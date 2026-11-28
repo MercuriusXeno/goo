@@ -15,7 +15,7 @@ import com.llamalad7.mixinextras.sugar.Local;
  * too quietly to be heard under that clamp, wherever the engine reads a
  * playing sound's gain: as it starts the sound and each tick after. The
  * lift multiplies vanilla's clamped gain, so the sliders still scale it.
- * drain-plays-its-chosen-sounds-as-loud-as-blaze-fire
+ * drain-lifts-its-chosen-sounds-past-the-volume-cap
  */
 @Mixin(SoundEngine.class)
 public abstract class SoundEngineLiftedGainMixin {

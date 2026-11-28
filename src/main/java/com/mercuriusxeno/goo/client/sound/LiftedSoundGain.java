@@ -6,22 +6,28 @@ import java.util.Map;
 
 /**
  * The gain the client hands a sound's channel: vanilla's, its volume and its
- * slider each clamped to one, and for a sound recorded too quietly to reach
- * Blaze's fire loop under that clamp, vanilla's gain times that sound's lift.
- * drain-plays-its-chosen-sounds-as-loud-as-blaze-fire
+ * slider each clamped to one, and for a sound recorded too quietly to be
+ * heard under that clamp, vanilla's gain times that sound's lift.
+ * drain-lifts-its-chosen-sounds-past-the-volume-cap
  */
 public final class LiftedSoundGain {
 
     /**
-     * Each lift brings its sound's recording to Blaze fire's -34.0 dBFS RMS
-     * (fire/fire.ogg at volume 1.0), measured as the mono RMS of vanilla's
-     * Ogg takes: the wind loop's one take reads -49.6 at its 0.85 entry
-     * volume and Drain's 1.0; soul_escape's 13 takes average -41.5 at their
-     * 0.25 entry volume and Drain's 0.7.
+     * The lifts, measured as the mono RMS of each sound's recordings. The
+     * wind's brings ambience.ogg, -49.6 dBFS at its 0.85 entry volume and
+     * Drain's 1.0, to Bore's whir, earth_rumble's takes at rock_bore.json's
+     * 0.35, -17.8. The hit's raises soul_escape's 13 takes 9 dB at a mob 3
+     * blocks off over their level at 613cd1118, where they played lifted
+     * 13.46 times at Drain's 0.7 and fell off over vanilla's 12 blocks;
+     * Drain's leech now plays it at 8.0, whose clamp leaves the gain to this
+     * lift and whose volume widens the fall-off to 24 blocks, so its loudest
+     * take peaks at -0.6 dBFS at 1 block.
+     * drain-plays-its-wind-as-loud-as-bore-whir
+     * drain-hit-plays-twice-as-loud
      */
     private static final Map<Identifier, Float> LIFTS = Map.of(
-            Identifier.withDefaultNamespace("ambient.soul_sand_valley.loop"), 7.10f,
-            Identifier.withDefaultNamespace("particle.soul_escape"), 13.46f);
+            Identifier.withDefaultNamespace("ambient.soul_sand_valley.loop"), 45.83f,
+            Identifier.withDefaultNamespace("particle.soul_escape"), 5.69f);
 
     private LiftedSoundGain() {
     }

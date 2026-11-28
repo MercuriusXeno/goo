@@ -147,7 +147,7 @@ dependencies {
 tasks.withType(Test).configureEach {
     useJUnitPlatform()
     // Vanilla's recordings, measured where goo lifts a sound's gain, live in the asset cache downloadAssets fills
-    // and names in this file (decision drain-plays-its-chosen-sounds-as-loud-as-blaze-fire).
+    // and names in this file (decision drain-lifts-its-chosen-sounds-past-the-volume-cap).
     dependsOn 'downloadAssets'
     systemProperty 'goo.minecraftAssets',
             layout.buildDirectory.file('moddev/minecraft_assets.properties').get().asFile.absolutePath

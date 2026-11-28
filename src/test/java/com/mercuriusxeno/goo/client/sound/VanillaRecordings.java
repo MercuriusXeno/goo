@@ -9,6 +9,7 @@ import org.lwjgl.system.MemoryUtil;
 import org.lwjgl.system.libc.LibCStdlib;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
@@ -21,25 +22,45 @@ import java.util.List;
 import java.util.Properties;
 
 /**
- * Vanilla's sound recordings as the asset cache holds them, found through
- * the asset index the build's downloadAssets task names, each take's
- * loudness read as its mono RMS in dBFS.
- * drain-plays-its-chosen-sounds-as-loud-as-blaze-fire
+ * Sound recordings and the sounds.json entries that play them: vanilla's
+ * from the asset cache, found through the asset index the build's
+ * downloadAssets task names, and goo's from the classpath. Each take's
+ * loudness reads as its mono RMS and peak in dBFS.
+ * drain-lifts-its-chosen-sounds-past-the-volume-cap
  */
 final class VanillaRecordings {
 
     /** The system property the build sets to the file naming the asset cache. */
     private static final String ASSETS_PROPERTY = "goo.minecraftAssets";
     private static final String SOUNDS_JSON = "minecraft/sounds.json";
+    private static final String GOO_SOUNDS_JSON = "assets/goo/sounds.json";
+    private static final String GOO_PREFIX = "goo:";
     private static final float FULL_SCALE = 32768f;
     private static final float DEFAULT_ENTRY_VOLUME = 1f;
+    /** The attenuation distance a sounds.json entry naming none plays with. */
+    private static final int DEFAULT_ATTENUATION_DISTANCE = 16;
 
     private final Path root;
     private final JsonObject objects;
     private final JsonObject sounds;
 
-    /** One take of a sound event: its recording's path and the volume its sounds.json entry plays it at. */
-    record Take(String name, float entryVolume) {
+    /**
+     * One take of a sound event.
+     *
+     * @param name                the recording's name, as sounds.json writes it
+     * @param entryVolume         the volume its sounds.json entry plays it at
+     * @param attenuationDistance the distance its entry falls off over
+     */
+    record Take(String name, float entryVolume, int attenuationDistance) {
+    }
+
+    /**
+     * A recording's loudness.
+     *
+     * @param rmsDecibels  its mono RMS over full scale, in dB
+     * @param peakDecibels its loudest mono sample over full scale, in dB
+     */
+    record Loudness(double rmsDecibels, double peakDecibels) {
     }
 
     private VanillaRecordings(Path root, JsonObject objects) throws IOException {
@@ -80,39 +101,74 @@ final class VanillaRecordings {
      * @return its takes
      */
     List<Take> takesOf(String event) {
+        return takesIn(sounds, event);
+    }
+
+    /**
+     * A vanilla take's loudness.
+     *
+     * @param take the take
+     * @return its loudness
+     * @throws IOException where the recording cannot be read or decoded
+     */
+    Loudness loudnessOf(Take take) throws IOException {
+        return loudnessOf(Files.readAllBytes(objectPath("minecraft/sounds/" + take.name() + ".ogg")), take.name());
+    }
+
+    /**
+     * The takes goo's sounds.json lists for one of goo's sound events.
+     *
+     * @param event the event's path, such as {@code effects.earth_rumble}
+     * @return its takes
+     * @throws IOException where goo's sounds.json cannot be read
+     */
+    static List<Take> gooTakesOf(String event) throws IOException {
+        try (Reader reader = new InputStreamReader(resource(GOO_SOUNDS_JSON), StandardCharsets.UTF_8)) {
+            return takesIn(JsonParser.parseReader(reader).getAsJsonObject(), event);
+        }
+    }
+
+    /**
+     * One of goo's takes' loudness, its recording read from the classpath.
+     *
+     * @param take the take, its name namespaced {@code goo:}
+     * @return its loudness
+     * @throws IOException where the recording cannot be read or decoded
+     */
+    static Loudness gooLoudnessOf(Take take) throws IOException {
+        String path = "assets/goo/sounds/" + take.name().substring(GOO_PREFIX.length()) + ".ogg";
+        try (InputStream in = resource(path)) {
+            return loudnessOf(in.readAllBytes(), take.name());
+        }
+    }
+
+    private static List<Take> takesIn(JsonObject soundsJson, String event) {
         List<Take> takes = new ArrayList<>();
-        for (JsonElement entry : sounds.getAsJsonObject(event).getAsJsonArray("sounds")) {
+        for (JsonElement entry : soundsJson.getAsJsonObject(event).getAsJsonArray("sounds")) {
             if (entry.isJsonPrimitive()) {
-                takes.add(new Take(entry.getAsString(), DEFAULT_ENTRY_VOLUME));
+                takes.add(new Take(entry.getAsString(), DEFAULT_ENTRY_VOLUME, DEFAULT_ATTENUATION_DISTANCE));
             } else {
                 JsonObject take = entry.getAsJsonObject();
                 takes.add(new Take(take.get("name").getAsString(),
-                        take.has("volume") ? take.get("volume").getAsFloat() : DEFAULT_ENTRY_VOLUME));
+                        take.has("volume") ? take.get("volume").getAsFloat() : DEFAULT_ENTRY_VOLUME,
+                        take.has("attenuation_distance") ? take.get("attenuation_distance").getAsInt()
+                                : DEFAULT_ATTENUATION_DISTANCE));
             }
         }
         return takes;
     }
 
-    /**
-     * A take's loudness: its channels averaged to mono, then its RMS over
-     * full scale, in decibels.
-     *
-     * @param take the take
-     * @return its RMS in dBFS
-     * @throws IOException where the recording cannot be read or decoded
-     */
-    double rmsDecibelsOf(Take take) throws IOException {
-        byte[] ogg = Files.readAllBytes(objectPath("minecraft/sounds/" + take.name() + ".ogg"));
+    private static Loudness loudnessOf(byte[] ogg, String name) throws IOException {
         ByteBuffer encoded = MemoryUtil.memAlloc(ogg.length).put(ogg).flip();
         try (MemoryStack stack = MemoryStack.stackPush()) {
             IntBuffer channels = stack.mallocInt(1);
             IntBuffer rate = stack.mallocInt(1);
             ShortBuffer pcm = STBVorbis.stb_vorbis_decode_memory(encoded, channels, rate);
             if (pcm == null) {
-                throw new IOException("stb_vorbis decodes no " + take.name());
+                throw new IOException("stb_vorbis decodes no " + name);
             }
             try {
-                return rmsDecibels(pcm, channels.get(0));
+                return loudness(pcm, channels.get(0));
             } finally {
                 // stb_vorbis allocates the decoded samples with libc's malloc, not LWJGL's allocator
                 LibCStdlib.free(pcm);
@@ -122,9 +178,10 @@ final class VanillaRecordings {
         }
     }
 
-    private static double rmsDecibels(ShortBuffer pcm, int channels) {
+    private static Loudness loudness(ShortBuffer pcm, int channels) {
         int frames = pcm.remaining() / channels;
         double sumOfSquares = 0;
+        double peak = 0;
         for (int frame = 0; frame < frames; frame++) {
             double mono = 0;
             for (int channel = 0; channel < channels; channel++) {
@@ -132,8 +189,17 @@ final class VanillaRecordings {
             }
             mono /= channels;
             sumOfSquares += mono * mono;
+            peak = Math.max(peak, Math.abs(mono));
         }
-        return 10 * Math.log10(sumOfSquares / frames);
+        return new Loudness(10 * Math.log10(sumOfSquares / frames), 20 * Math.log10(peak));
+    }
+
+    private static InputStream resource(String path) throws IOException {
+        InputStream in = VanillaRecordings.class.getClassLoader().getResourceAsStream(path);
+        if (in == null) {
+            throw new IOException("the classpath holds no " + path);
+        }
+        return in;
     }
 
     private Path objectPath(String asset) throws IOException {

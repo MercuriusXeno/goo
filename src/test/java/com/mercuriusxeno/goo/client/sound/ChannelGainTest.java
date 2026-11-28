@@ -22,7 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
  * gain goo's client answers for Drain's wind loop renders louder than at
  * gain 1.0 by that gain, on a loopback device rendering to a buffer with no
  * audio hardware and no output limiter.
- * drain-plays-its-chosen-sounds-as-loud-as-blaze-fire
+ * drain-lifts-its-chosen-sounds-past-the-volume-cap
  */
 class ChannelGainTest {
 
@@ -34,7 +34,7 @@ class ChannelGainTest {
     private static final int STEREO = 2;
     private static final double TONE_HERTZ = 440;
     /** Quiet enough that the lifted tone stays under full scale. */
-    private static final double TONE_AMPLITUDE = 0.05;
+    private static final double TONE_AMPLITUDE = 0.01;
     /** Frames rendered and thrown away while the source's gain settles. */
     private static final int SETTLE_FRAMES = 4_800;
     private static final int MEASURED_FRAMES = 9_600;

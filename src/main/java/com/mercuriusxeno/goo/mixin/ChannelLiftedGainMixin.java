@@ -12,7 +12,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 /**
  * Sets a sound channel's gain through goo's, which raises the source's
  * gain ceiling to a gain lifted past one, so the lift reaches the mix.
- * drain-plays-its-chosen-sounds-as-loud-as-blaze-fire
+ * drain-lifts-its-chosen-sounds-past-the-volume-cap
  */
 @Mixin(Channel.class)
 public abstract class ChannelLiftedGainMixin {
