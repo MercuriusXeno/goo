@@ -86,6 +86,7 @@
     "LevelExtractorGateViewMixin",
     "EntityScryOutlineColorMixin",
     "MinecraftScryOutlineMixin",
-    "MouseHandlerLunarHoldMixin"
+    "MouseHandlerLunarHoldMixin",
+    "ViewAreaLunarCrossingMixin"
   ]
 }
