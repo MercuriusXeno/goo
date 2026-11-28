@@ -58,6 +58,7 @@
   ],
   "client": [
     "AvatarRendererInvertMixin",
+    "ChannelLiftedGainMixin",
     "ClientChunkCachePocketBiomeMixin",
     "ClientLevelGooValuesMixin",
     "ClientLevelMeltKeepsMixin",
@@ -88,6 +89,7 @@
     "EntityScryOutlineColorMixin",
     "MinecraftScryOutlineMixin",
     "MouseHandlerLunarHoldMixin",
+    "SoundEngineLiftedGainMixin",
     "ViewAreaLunarCrossingMixin"
   ]
 }
