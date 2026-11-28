@@ -15,6 +15,7 @@ import com.mercuriusxeno.goo.client.ability.GroundShake;
 import com.mercuriusxeno.goo.client.ability.GrowthBreeze;
 import com.mercuriusxeno.goo.client.ability.HeadMarks;
 import com.mercuriusxeno.goo.client.ability.HeatWaveEffect;
+import com.mercuriusxeno.goo.client.ability.HeldBlades;
 import com.mercuriusxeno.goo.client.ability.HeldJavelins;
 import com.mercuriusxeno.goo.client.ability.HeldSweepVisual;
 import com.mercuriusxeno.goo.client.ability.HoveringKnives;
@@ -163,7 +164,8 @@ class TranslucentVisualPathTest {
     @Test
     void theBeamBoltAndWindVisualsDrawInTheOitPhase() {
         List<Class<?>> moved = List.of(LaserVisual.class, RelayLasers.class, ZapBolts.class, ReapSlashBlades.class,
-                GlassKnives.class, HoveringKnives.class, HeldJavelins.class, WindLines.class, AirbornWind.class,
+                GlassKnives.class, HoveringKnives.class, HeldJavelins.class, HeldBlades.class, WindLines.class,
+                AirbornWind.class,
                 PneumaWind.class, GrowthBreeze.class, WispEchoes.class, WispGlow.class,
                 com.mercuriusxeno.goo.client.ber.BeaconBeams.class,
                 com.mercuriusxeno.goo.client.ber.ReflectorBeams.class);

@@ -1,0 +1,15 @@
+{
+  "gooType": "osseous",
+  "displayName": "goo.ability.osseous.chitin",
+  "cost_mechanics": "goo.ability.cost_mechanics.upkeep",
+  "badge": "durative",
+  "order": 50,
+  "upkeep": 1,
+  "requires": ["minecraft:bone_block", "minecraft:bone"],
+  "delivery": { "kind": "self" },
+  "behaviors": [
+    { "type": "heart_overlay", "kind": "chitin" },
+    { "type": "sound", "id": "minecraft:block.bone_block.place", "at": "target", "source": "players", "volume": 1, "pitch": 0.8 }
+  ],
+  "tags": ["self"]
+}

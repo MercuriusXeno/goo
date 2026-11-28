@@ -53,7 +53,7 @@ class ResidualAbilityIconsTest {
     static final List<String> RESIDUAL_ICONS = List.of("weird_goop", "kinetic_slick", "blaze_molten", "sculk_creep",
             "crystal_shatter", "hex_leech", "typhoon_updraft", "jelly_nectar", "pulse_signal",
             "metal_spikes", "zombie_infest", "leaf_vines", "unstable_nitro", "quantum_phase", "rock_mortar",
-            "yarn_stitch", "nether_gloom", "astral_dowsing", "frost_rime", "glow_wisps", "xeno_ooze");
+            "yarn_stitch", "nether_gloom", "astral_dowsing", "frost_rime", "glow_wisps", "xeno_ooze", "osseous_spurs");
 
     private static final String WISPS = "glow_wisps";
     private static final String SHATTER = "crystal_shatter";

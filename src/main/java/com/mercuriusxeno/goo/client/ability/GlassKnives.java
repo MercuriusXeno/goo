@@ -84,6 +84,8 @@ public final class GlassKnives {
         private final long startTick;
         /** The goo a javelin draws in, null for a glass knife. */
         private final @Nullable ResourceKey<GooTypeDefinition> javelin;
+        /** The form a javelin draws in, Dart's or Spear's. */
+        private final TravelForm form;
         private Vec3 velocity;
         private GlassKnifePayload.@Nullable Ending ending;
 
@@ -94,10 +96,15 @@ public final class GlassKnives {
             this.startTick = startTick;
             this.javelin = GlassKnifePayload.GLASS.equals(thrown.javelinType()) ? null
                     : GooTypes.known(thrown.javelinType());
+            this.form = thrown.form();
         }
 
         int ticks() {
             return path.size() - 1;
+        }
+
+        TravelForm form() {
+            return form;
         }
 
         /**
@@ -301,7 +308,7 @@ public final class GlassKnives {
         poseStack.pushPose();
         poseStack.translate(at.x, at.y, at.z);
         GooFlightRenderer.emitTravelForm(poseStack.last(), buffers.getBuffer(GooSubmitter.renderType()),
-                knife.javelin, TravelForm.DART, placement.heading(), 1f);
+                knife.javelin, knife.form(), placement.heading(), 1f);
         poseStack.popPose();
     }
 

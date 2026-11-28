@@ -1,0 +1,34 @@
+{
+  "gooType": "osseous",
+  "displayName": "goo.ability.osseous.spurs",
+  "cost_mechanics": "goo.ability.osseous.spurs.cost_mechanics",
+  "badge": "residual",
+  "order": 0,
+  "cost": 96,
+  "cost_formula": "%s/m³",
+  "delivery": {
+    "kind": "stream",
+    "drains_on_placement": true,
+    "throw_speed": 0.84,
+    "drips_per_tick": 2,
+    "cone": 15,
+    "ticks_per_charge": 20,
+    "particle": "goo:spurs_spray_drip",
+    "sound": { "id": "minecraft:block.honey_block.slide", "every": 10, "volume": 1.0, "pitch": 1.0, "pitch_spread": 0.1 }
+  },
+  "behaviors": [
+    {
+      "type": "spurs",
+      "where": ["living", "alive", "not_item", "not_sneaking"],
+      "cooldown": 20,
+      "spend_chance": 0.25,
+      "shot_speed": 0.6,
+      "strike": [
+        { "type": "damage", "amount": 5, "source": "stalagmite", "knockback": false },
+        { "type": "particles", "id": "minecraft:crit", "at": "target", "count": 6, "spread": 0.3, "speed": 0.15 },
+        { "type": "sound", "id": "minecraft:entity.skeleton.hurt", "at": "target", "source": "blocks", "volume": 0.8, "pitch": 1.4 }
+      ]
+    }
+  ],
+  "tags": ["stream"]
+}

@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.OwnMinions;
+import com.mercuriusxeno.goo.ability.TravelForm;
 import com.mercuriusxeno.goo.ability.crystal.ThrownKnife;
 import com.mercuriusxeno.goo.ability.program.SoundCue;
 import com.mercuriusxeno.goo.registry.GooServerState;
@@ -41,12 +42,13 @@ public final class ThrownKnives {
      * @param thrower   the throwing player
      * @param gooType   the ability's goo type
      * @param abilityId the ability the knife lands
+     * @param form      the form it flies in, the blob for a glass knife
      * @param position  where it stands
      * @param velocity  its velocity, blocks per tick
      * @param ticks     the ticks it has flown
      */
     public record Flight(ServerPlayer thrower, ResourceKey<GooTypeDefinition> gooType, String abilityId,
-                         Vec3 position, Vec3 velocity, int ticks) {
+                         TravelForm form, Vec3 position, Vec3 velocity, int ticks) {
     }
 
     /**
@@ -57,14 +59,15 @@ public final class ThrownKnives {
      * @param abilityId the ability the knife lands
      * @param start     where it leaves
      * @param velocity  its launch velocity, blocks per tick
-     * @param javelin   whether it is Dart's javelin rather than a knife, which watching clients draw
+     * @param form      the form it flies in, a javelin's Dart or Spear and a glass knife's blob, which watching
+     *                  clients draw
      * @param sound     the sound the throw makes as it leaves, which watching clients play
      */
     public void launch(ServerPlayer thrower, ResourceKey<GooTypeDefinition> gooType, String abilityId, Vec3 start,
-                       Vec3 velocity, boolean javelin, Optional<SoundCue> sound) {
-        flying.add(new Flight(thrower, gooType, abilityId, start, velocity, 0));
+                       Vec3 velocity, TravelForm form, Optional<SoundCue> sound) {
+        flying.add(new Flight(thrower, gooType, abilityId, form, start, velocity, 0));
         EntityVisuals.sendToWatchers(thrower, new GlassKnifePayload(thrower.getId(), start, velocity,
-                javelin ? GooTypes.id(gooType) : GlassKnifePayload.GLASS, sound));
+                form.morphs() ? GooTypes.id(gooType) : GlassKnifePayload.GLASS, form, sound));
     }
 
     /**
@@ -102,7 +105,7 @@ public final class ThrownKnives {
         if (step.ended() || flight.ticks() + 1 >= ThrownKnife.MOST_FLIGHT_TICKS) {
             return Optional.empty();
         }
-        return Optional.of(new Flight(flight.thrower(), flight.gooType(), flight.abilityId(),
+        return Optional.of(new Flight(flight.thrower(), flight.gooType(), flight.abilityId(), flight.form(),
                 step.position(), step.velocity(), flight.ticks() + 1));
     }
 

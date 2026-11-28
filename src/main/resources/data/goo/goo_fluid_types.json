@@ -313,8 +313,8 @@
     ]
   },
   {
-    "id": "ornate",
-    "seed": 40991,
+    "id": "osseous",
+    "seed": 41015,
     "genParams": {
       "viscosity": 2.2,
       "decayRate": 0.02,
@@ -325,15 +325,15 @@
       "neighborhoodReach": 1
     },
     "frametime": 4,
-    "shadowHue": 0.08,
+    "shadowHue": 0.1,
     "palette": [
-      { "position": 0.0, "color": "#6A3A08" },
-      { "position": 0.2, "color": "#B26411" },
-      { "position": 0.4, "color": "#DC9613" },
-      { "position": 0.6, "color": "#F9BD23" },
-      { "position": 0.75, "color": "#FFD83E" },
-      { "position": 0.9, "color": "#FFEC4F" },
-      { "position": 1.0, "color": "#FFFD90" }
+      { "position": 0.0, "color": "#7A6A50" },
+      { "position": 0.2, "color": "#A8966F" },
+      { "position": 0.4, "color": "#C8B68C" },
+      { "position": 0.55, "color": "#D9CBA8" },
+      { "position": 0.7, "color": "#E9DFC6" },
+      { "position": 0.85, "color": "#CFE0E2" },
+      { "position": 1.0, "color": "#F7F1E1" }
     ]
   },
   {

@@ -1,0 +1,17 @@
+{
+  "gooType": "osseous",
+  "displayName": "goo.ability.osseous.spear",
+  "badge": "held",
+  "order": 20,
+  "cost": 750,
+  "delivery": { "kind": "arc", "transform_at": 0, "form": "spear", "throw_speed": 3.2, "range": 96,
+    "charge": { "max_ticks": 0, "stack": 6, "stack_ticks": 10, "throw_ticks": 5 },
+    "form_sound": { "id": "minecraft:block.bone_block.place", "volume": 0.8, "pitch": 1.4 },
+    "revert_sound": { "id": "minecraft:block.bone_block.break", "volume": 0.8, "pitch": 1.0 },
+    "throw_sound": { "id": "minecraft:item.trident.throw", "volume": 0.8, "pitch": 1.2 },
+    "throw_pitch_spread": 0.3 },
+  "behaviors": [
+    { "type": "damage", "amount": 6.0, "source": "attack" }
+  ],
+  "tags": ["entity", "harmful"]
+}

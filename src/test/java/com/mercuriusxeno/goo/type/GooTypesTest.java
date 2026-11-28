@@ -41,7 +41,7 @@ class GooTypesTest {
             GooTypes.REGISTRY, Identifier.fromNamespaceAndPath("gootest", "seventeenth"));
     private static final List<String> BUNDLED_IDS = List.of(
             "astral", "blaze", "crystal", "ender", "frost", "glow", "hex", "infinity", "jelly", "kinetic", "leaf",
-            "metal", "nether", "ornate", "pulse", "quantum", "rock", "sculk", "typhoon", "unstable", "void", "weird", "xeno", "yarn",
+            "metal", "nether", "osseous", "pulse", "quantum", "rock", "sculk", "typhoon", "unstable", "void", "weird", "xeno", "yarn",
             "zombie");
     private static final String TYPE_DIR = "data/goo/goo/goo_type";
     private static final String JSON_SUFFIX = ".json";

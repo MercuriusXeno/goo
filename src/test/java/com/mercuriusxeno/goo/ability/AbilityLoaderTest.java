@@ -439,6 +439,7 @@ class AbilityLoaderTest {
      * decision abilities-leaving-the-shared-range-start-at-sixteen-blocks
      * decision zap-starts-at-thirty-two-blocks
      * decision meteo-range-is-thirty-two-blocks
+     * decision spear-is-a-barbed-javelin-in-the-dart-family
      */
     @Test
     void everyShippedThrownOrCastAbilityNamesItsRange() {
@@ -455,6 +456,7 @@ class AbilityLoaderTest {
         named.keySet().forEach(name -> expected.put(name, switch (name) {
             case "pulse_zap", "rock_build", "quantum_portal", "astral_meteo" -> 32.0;
             case "crystal_knives", "metal_dart" -> 0.0;
+            case "osseous_spear" -> 96.0;
             default -> 16.0;
         }));
 

@@ -19,8 +19,8 @@ import java.util.function.ToIntFunction;
 public enum AilmentKind {
     /** Revert's stasis: a gold outline. */
     STASIS(0xFFD447),
-    /** Scales: diamond blue, faceted. */
-    SCALES(0x4AEDD9, AilmentPattern.FACETS),
+    /** Scales, laid by Chitin: Osseous ivory, faceted (decision chitin-is-scales-moved-from-crystal). */
+    SCALES(0xD9CBA8, AilmentPattern.FACETS),
     /** Seal: an ender shimmer. */
     SEAL(0xB05CFF, AilmentPattern.SHIMMER),
     /** Elude: the seal shimmer. */

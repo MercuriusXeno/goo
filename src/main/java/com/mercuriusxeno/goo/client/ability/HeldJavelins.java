@@ -10,6 +10,7 @@ import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
+import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.throwing.GooFlightRenderer;
 import com.mercuriusxeno.goo.item.GooCasters;
 import com.mercuriusxeno.goo.network.StackFormedPayload;
@@ -256,9 +257,10 @@ public final class HeldJavelins {
         ImmediateBuffers buffers = ImmediateBuffers.shared();
         drawn.forEach((caster, pieces) -> {
             ResourceKey<GooTypeDefinition> type = gooTypeOf(caster);
+            TravelForm form = formOf(caster);
             layStack(frame.poseStack(), caster, pieces, partial, camera,
                     (at, heading, scale) -> GooFlightRenderer.emitTravelForm(at.last(),
-                            buffers.getBuffer(GooSubmitter.renderType()), type, TravelForm.DART, heading, scale));
+                            buffers.getBuffer(GooSubmitter.renderType()), type, form, heading, scale));
             drawCuboids(frame.poseStack().last(), buffers.getBuffer(GooSubmitter.renderType()), caster, pieces,
                     camera);
         });
@@ -321,10 +323,11 @@ public final class HeldJavelins {
             return;
         }
         ResourceKey<GooTypeDefinition> type = gooTypeOf(caster);
+        TravelForm form = formOf(caster);
         List<HoveringKnives.Piece> pieces = piecesOf(caster, caster.level().getGameTime() + partial, partial);
         layStack(poseStack, caster, pieces, partial, camera,
                 (at, heading, scale) -> collector.submitCustomGeometry(at, GooSubmitter.renderType(),
-                        (pose, consumer) -> GooFlightRenderer.emitTravelForm(pose, consumer, type, TravelForm.DART,
+                        (pose, consumer) -> GooFlightRenderer.emitTravelForm(pose, consumer, type, form,
                                 heading, scale)));
         collector.submitCustomGeometry(poseStack, GooSubmitter.renderType(),
                 (pose, consumer) -> drawCuboids(pose, consumer, caster, pieces, camera));
@@ -373,6 +376,13 @@ public final class HeldJavelins {
                 poseStack.popPose();
             }
         }
+    }
+
+    // The form a caster's javelins draw in: the selected ability's, Dart's where none is synced.
+    // spear-is-a-barbed-javelin-in-the-dart-family
+    private static TravelForm formOf(Player caster) {
+        AbilitySyncHandler.ClientAbility ability = BlobRest.selectedAbility(caster);
+        return ability == null || !ability.delivery().form().morphs() ? TravelForm.DART : ability.delivery().form();
     }
 
     // The goo a caster's javelins draw in: the glove's selected type, Metal's where it names none.

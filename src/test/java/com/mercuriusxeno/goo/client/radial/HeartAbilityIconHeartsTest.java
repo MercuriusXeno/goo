@@ -97,8 +97,8 @@ class HeartAbilityIconHeartsTest {
         return Stream.of(
                 Arguments.of("blaze_kindle", List.of(whole(sprite("ember_full")), whole(sprite("ash_full")),
                         halfOver(sprite("ash_half"), empty()))),
-                Arguments.of("crystal_scales", List.of(whole(sprite("crystal_full")),
-                        halfOver(sprite("crystal_half"), red()), halfOver(redHalf(), empty()))),
+                Arguments.of("osseous_chitin", List.of(whole(sprite("chitin_full")),
+                        halfOver(sprite("chitin_half"), red()), halfOver(redHalf(), empty()))),
                 Arguments.of("leaf_barkskin", List.of(whole(sprite("bark_full")),
                         halfOver(sprite("bark_half"), red()), halfOver(redHalf(), empty()))),
                 Arguments.of("zombie_undead", List.of(whole(sprite("zombie_full")), whole(sprite("nether_full")),

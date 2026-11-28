@@ -118,6 +118,8 @@ public final class GooNetworking {
         r.playToClient(MeteorScorchPayload.TYPE, MeteorScorchPayload.STREAM_CODEC);
         r.playToClient(GlassKnifePayload.TYPE, GlassKnifePayload.STREAM_CODEC);
         r.playToClient(StackFormedPayload.TYPE, StackFormedPayload.STREAM_CODEC);
+        // blade-forms-a-bone-shotel-in-hand: every client draws the server's shotel
+        r.playToClient(BoneBladePayload.TYPE, BoneBladePayload.STREAM_CODEC);
         r.playToClient(PalmBufferPayload.TYPE, PalmBufferPayload.STREAM_CODEC);
         r.playToClient(ArmPosePayload.TYPE, ArmPosePayload.STREAM_CODEC);
         r.playToClient(PalmBlobLiftPayload.TYPE, PalmBlobLiftPayload.STREAM_CODEC);

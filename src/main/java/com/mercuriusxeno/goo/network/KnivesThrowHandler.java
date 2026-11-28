@@ -84,7 +84,7 @@ public final class KnivesThrowHandler {
                 // knives-and-javelins-sound-as-each-forms-and-is-thrown: a volley sounds once
                 state.thrownKnives().launch(player, held.gooType(), held.ability().id().toString(), start,
                         ThrownKnife.launchVelocityToward(start, crosshair, delivery.throwSpeed()),
-                        delivery.stacksJavelins(), leaving == 0 ? delivery.formSounds().thrownWith(player.getRandom())
+                        delivery.form(), leaving == 0 ? delivery.formSounds().thrownWith(player.getRandom())
                                 : Optional.empty());
             }
             holds.threw(player, count);

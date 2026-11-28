@@ -19,6 +19,7 @@ import com.mercuriusxeno.goo.client.ability.GroundShake;
 import com.mercuriusxeno.goo.client.ability.GrowthBreeze;
 import com.mercuriusxeno.goo.client.ability.HeadMarks;
 import com.mercuriusxeno.goo.client.ability.HeatWaveEffect;
+import com.mercuriusxeno.goo.client.ability.HeldBlades;
 import com.mercuriusxeno.goo.client.ability.HeldJavelins;
 import com.mercuriusxeno.goo.client.ability.HeldSweepVisual;
 import com.mercuriusxeno.goo.client.ability.HoveringKnives;
@@ -133,6 +134,8 @@ public final class TranslucentVisualPath {
             new Registration(HoveringKnives.class, SortRoute.FAR_TO_NEAR, HoveringKnives::collect,
                     Drawing.IN_THE_OIT_PHASE),
             new Registration(HeldJavelins.class, SortRoute.FAR_TO_NEAR, HeldJavelins::collect,
+                    Drawing.IN_THE_OIT_PHASE),
+            new Registration(HeldBlades.class, SortRoute.FAR_TO_NEAR, HeldBlades::collect,
                     Drawing.IN_THE_OIT_PHASE),
             new Registration(WindLines.class, SortRoute.FAR_TO_NEAR, WindLines::collect,
                     Drawing.IN_THE_OIT_PHASE),

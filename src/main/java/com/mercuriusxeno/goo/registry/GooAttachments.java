@@ -249,6 +249,15 @@ public final class GooAttachments {
             ATTACHMENT_TYPES.register("spikes_struck_at", () -> AttachmentType.builder(() -> -1L).build());
 
     /**
+     * The game time Spurs goo last shot a bone spike at an entity, so a thing
+     * walking on it is shot at again only once the spurs step's cooldown has
+     * passed, however many cells it crosses; never saved.
+     * spurs-shoots-bone-spikes-at-walkers
+     */
+    public static final Supplier<AttachmentType<Long>> SPURS_SHOT_AT =
+            ATTACHMENT_TYPES.register("spurs_shot_at", () -> AttachmentType.builder(() -> -1L).build());
+
+    /**
      * Where an entity stood before its latest goo teleport, kept for the
      * steps after the teleport in the same program, a ghost trail among
      * them, and never saved (decision ghost-trail-spans-the-blink).

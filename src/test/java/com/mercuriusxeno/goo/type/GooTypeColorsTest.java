@@ -60,6 +60,17 @@ class GooTypeColorsTest {
         assertTrue(distance >= 90f, "kinetic's wheel sits " + distance + " degrees from jelly's");
     }
 
+    /**
+     * Osseous wears palette 1, bone ivory and nacre.
+     * decision osseous-is-ivory-and-nacre-seen-in-game-first
+     */
+    @Test
+    void osseousWearsBoneIvoryAndNacre() throws IOException {
+        JsonObject osseous = typeJson("osseous");
+        assertEquals(List.of("D9CBA8", "F7F1E1", "C8B68C", "CFE0E2"),
+                CHANNELS.stream().map(name -> osseous.get(name).getAsString()).toList());
+    }
+
     @Test
     void xenoWearsQuantumsFormerPurples() throws IOException {
         // xeno-takes-quantums-purple

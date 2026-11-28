@@ -55,6 +55,10 @@ public final class GooFlightRenderer {
     private static final int SHELL_ALPHA = 0x4C;
     /** Half a cuboid's edge. */
     private static final float HALF_EDGE = 0.5f;
+    /** How near straight up or down a shotel's heading leans before its blade stands along world north. */
+    private static final float STRAIGHT_UP = 0.99f;
+    /** World north's z, the way a shotel's blade stands under a look straight up or down. */
+    private static final float NORTH_Z = -1f;
     /**
      * The core's color: 50% opaque over its fluid sprite's own colors.
      * slime-core-draws-translucent-at-the-shells-opacity
@@ -888,6 +892,26 @@ public final class GooFlightRenderer {
         Vec3 dir = vel.normalize();
         TravelFormGeometry.emit(new RenderContext(pose, c, GooSubmitter.fullbrightLight()), form,
                 new Vector3f((float) dir.x, (float) dir.y, (float) dir.z), morphFrac, spriteToUv(type));
+    }
+
+    /**
+     * Emits Blade's bone shotel about the pose's origin, its hilt there, leaning along the heading; the consumer
+     * takes {@link GooSubmitter#renderType()} geometry.
+     * decision blade-forms-a-bone-shotel-in-hand
+     *
+     * @param pose    the pose at the shotel's hilt
+     * @param c       a consumer of the translucent goo render type
+     * @param type    the goo type, whose fluid sprite the shotel wears
+     * @param heading the direction the shotel leans along
+     */
+    public static void emitShotel(PoseStack.Pose pose, VertexConsumer c, ResourceKey<GooTypeDefinition> type,
+                                  Vec3 heading) {
+        Vector3f forward = new Vector3f((float) heading.x, (float) heading.y, (float) heading.z).normalize();
+        // a look straight up or down leaves no world up square to it, so the blade stands along world north
+        Vector3f worldUp = Math.abs(forward.y) > STRAIGHT_UP ? new Vector3f(0f, 0f, NORTH_Z) : new Vector3f(0f, 1f, 0f);
+        Vector3f up = worldUp.sub(new Vector3f(forward).mul(worldUp.dot(forward))).normalize();
+        ShotelGeometry.emit(new RenderContext(pose, c, GooSubmitter.fullbrightLight()), forward, up,
+                spriteToUv(type));
     }
 
     /**

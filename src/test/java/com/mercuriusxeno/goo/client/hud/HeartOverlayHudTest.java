@@ -108,12 +108,12 @@ class HeartOverlayHudTest {
         assertEquals("goo:hud/heart/stone_full", HeartOverlayHud.crawlSprite(HeartKind.STONESKIN).toString());
     }
 
-    // scales-crystal-hearts-diamond-blue-overlay: crystal hearts lie over present hearts only
+    // chitin-is-scales-moved-from-crystal: bone-plated hearts lie over present hearts only
     @Test
-    void scalesLaysCrystalOverPresentHalvesAndCrawlsCrystal() {
-        assertEquals(List.of("goo:hud/heart/crystal_full"), sprites(HeartKind.SCALES, 2, 2));
-        assertEquals(List.of("goo:hud/heart/crystal_half"), sprites(HeartKind.SCALES, 2, 1));
-        assertEquals("goo:hud/heart/crystal_full", HeartOverlayHud.crawlSprite(HeartKind.SCALES).toString());
+    void chitinLaysBoneOverPresentHalvesAndCrawlsBone() {
+        assertEquals(List.of("goo:hud/heart/chitin_full"), sprites(HeartKind.CHITIN, 2, 2));
+        assertEquals(List.of("goo:hud/heart/chitin_half"), sprites(HeartKind.CHITIN, 2, 1));
+        assertEquals("goo:hud/heart/chitin_full", HeartOverlayHud.crawlSprite(HeartKind.CHITIN).toString());
     }
 
     // undead-normal-hearts-become-the-zombie-heart: the real hearts read zombie, the missing ones nether

@@ -81,6 +81,8 @@ public record CellBinding(ResourceKey<GooTypeDefinition> gooType, Identifier lay
 
     /** The ability laying Metal's goo, Spikes, whose cost prices a whole block of it. */
     public static final Identifier SPIKES_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "metal_spikes");
+    /** The ability laying Osseous's goo, Spurs, whose cost prices a whole block of it. */
+    public static final Identifier SPURS_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "osseous_spurs");
 
     /** The ability laying Leaf's goo, Vines, whose cost prices a whole block of it. */
     public static final Identifier VINES_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "leaf_vines");
@@ -159,6 +161,13 @@ public record CellBinding(ResourceKey<GooTypeDefinition> gooType, Identifier lay
      * spikes-is-a-coat-of-metal-goo-that-impales-what-walks-on-it
      */
     public static final CellBinding SPIKES = new CellBinding(GooTypes.METAL, SPIKES_ABILITY, CellSurface.IMPALE,
+            FluidFooting.NONE);
+    /**
+     * Osseous's goo: Spurs lays it, it stands as ordinary ground, and it
+     * shoots bone spikes at what walks on it.
+     * spurs-shoots-bone-spikes-at-walkers
+     */
+    public static final CellBinding SPURS = new CellBinding(GooTypes.OSSEOUS, SPURS_ABILITY, CellSurface.POOL,
             FluidFooting.NONE);
     /**
      * Zombie's goo: Infest lays it, and it stands as ordinary ground.

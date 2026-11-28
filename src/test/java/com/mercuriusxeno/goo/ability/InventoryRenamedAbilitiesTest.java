@@ -93,7 +93,7 @@ class InventoryRenamedAbilitiesTest {
     static Stream<Arguments> renamedTypes() {
         return Stream.of(
                 Arguments.of("blaze", Set.of("blaze_flames", "blaze_ignite", "blaze_kindle", "blaze_molten")),
-                Arguments.of("crystal", Set.of("crystal_glimmer", "crystal_knives", "crystal_scales",
+                Arguments.of("crystal", Set.of("crystal_glimmer", "crystal_knives",
                         "crystal_shatter")),
                 // gouge-is-cut-and-its-code-kept-for-the-grab-combo
                 Arguments.of("rock", Set.of("rock_bore", "rock_build", "rock_level", "rock_mortar", "rock_petrify",

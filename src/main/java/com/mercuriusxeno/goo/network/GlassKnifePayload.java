@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.TravelForm;
 import com.mercuriusxeno.goo.ability.program.SoundCue;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
@@ -21,11 +22,12 @@ import java.util.Optional;
  * @param throwerId the thrower's entity id, whom the knife passes through
  * @param start     where it left its hover slot
  * @param velocity  its launch velocity, blocks per tick
- * @param javelinType the goo type id of Dart's javelin, which draws in that goo, or {@link #GLASS} for a glass knife
+ * @param javelinType the goo type id of a javelin, which draws in that goo, or {@link #GLASS} for a glass knife
+ * @param form        the form a javelin draws in, Dart's or Spear's, the blob for a glass knife
  * @param thrownSound the sound the throw makes as it leaves, empty for none
  * decision knives-and-javelins-sound-as-each-forms-and-is-thrown
  */
-public record GlassKnifePayload(int throwerId, Vec3 start, Vec3 velocity, String javelinType,
+public record GlassKnifePayload(int throwerId, Vec3 start, Vec3 velocity, String javelinType, TravelForm form,
                                 Optional<SoundCue> thrownSound) implements CustomPacketPayload {
 
     /** The javelin type of a glass knife, which is no javelin. */
@@ -51,6 +53,7 @@ public record GlassKnifePayload(int throwerId, Vec3 start, Vec3 velocity, String
             Vec3.STREAM_CODEC, GlassKnifePayload::start,
             Vec3.STREAM_CODEC, GlassKnifePayload::velocity,
             ByteBufCodecs.STRING_UTF8, GlassKnifePayload::javelinType,
+            TravelForm.STREAM_CODEC, GlassKnifePayload::form,
             ByteBufCodecs.optional(SoundCue.STREAM_CODEC), GlassKnifePayload::thrownSound,
             GlassKnifePayload::new);
 
