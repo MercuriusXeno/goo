@@ -31,9 +31,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class MaterialFamiliesTest {
 
-    /** The materials: the two refined ones the operator kept and the four marker-draft families. */
-    static final Set<String> MATERIALS = Set.of("glazed", "iridescent", "polished_glass",
+    /** The six families landed before the new varietals: the two refined ones and the four marker-draft families. */
+    static final Set<String> LANDED_BEFORE_VARIETALS = Set.of("glazed", "iridescent", "polished_glass",
             "xeno_runes", "xeno_seam", "framed_panels");
+    /** The new black varietals the operator picked from the drafts page. */
+    static final Set<String> NEW_VARIETALS = Set.of("smooth", "chiseled", "inlaid", "hex_cells");
+    /** Every material: the families landed before and the new varietals. */
+    static final Set<String> MATERIALS = java.util.stream.Stream.concat(LANDED_BEFORE_VARIETALS.stream(),
+            NEW_VARIETALS.stream()).collect(Collectors.toSet());
+    private static final int FEWEST_NEW_VARIETALS = 4;
     /** The marker's looks: its first, and drafts A and D. */
     static final Set<String> MARKER_LOOKS = Set.of("xeno_runes", "polished_glass", "xeno_seam");
 
@@ -58,7 +64,7 @@ class MaterialFamiliesTest {
     class AlienMaterials {
 
         @Test
-        void theMaterialStateHoldsTheSixMaterials() {
+        void theMaterialStateHoldsEveryFamily() {
             assertEquals(MATERIALS, Arrays.stream(AlienMaterial.values()).map(AlienMaterial::getSerializedName)
                     .collect(Collectors.toSet()));
         }
@@ -86,6 +92,61 @@ class MaterialFamiliesTest {
             assertEquals(materials * PillarStyle.values().length, Set.copyOf(pillars).size());
             assertTrue(pillars.stream().allMatch(look -> look.keySet().equals(Set.of(AlienLooks.MATERIAL,
                     AlienLooks.STYLE))), String.valueOf(pillars));
+        }
+    }
+
+    /**
+     * The new black varietals join the families as looks: at least four stand beyond the six landed before them, each
+     * on all four blocks with its blockstate entries, its item model case and its own creative stack.
+     * decision black-runic-material-families-grow-from-the-marker-drafts
+     * decision alien-looks-are-block-states-never-separate-blocks
+     */
+    @Nested
+    class NewVarietals {
+
+        private static Set<String> materialsBeyondTheLanded() {
+            return Arrays.stream(AlienMaterial.values()).map(AlienMaterial::getSerializedName)
+                    .filter(name -> !LANDED_BEFORE_VARIETALS.contains(name)).collect(Collectors.toSet());
+        }
+
+        @Test
+        void atLeastFourStandBeyondTheSixLandedBefore() {
+            Set<String> beyond = materialsBeyondTheLanded();
+            assertTrue(beyond.size() >= FEWEST_NEW_VARIETALS, "only " + beyond + " stand beyond the landed six");
+        }
+
+        @ParameterizedTest
+        @CsvSource({"alien_stone", "alien_tile", "alien_glyph"})
+        void eachNewVarietalHasItsBlockstateAndItemModel(String block) throws IOException {
+            JsonObject variants = resourceJson("/assets/goo/blockstates/" + block + ".json").getAsJsonObject("variants");
+            String items = resourceJson("/assets/goo/items/" + block + ".json").toString();
+            for (String material : materialsBeyondTheLanded()) {
+                assertTrue(variants.has("material=" + material), block + " has no blockstate for " + material);
+                assertTrue(items.contains("\"when\":\"" + material + "\""), block + " has no item model for " + material);
+            }
+        }
+
+        @Test
+        void eachNewVarietalHasItsPillarBlockstatesAndItemModel() throws IOException {
+            JsonObject variants = resourceJson("/assets/goo/blockstates/alien_pillar.json").getAsJsonObject("variants");
+            String items = resourceJson("/assets/goo/items/alien_pillar.json").toString();
+            for (String material : materialsBeyondTheLanded()) {
+                for (PillarStyle style : PillarStyle.values()) {
+                    for (String axis : List.of("x", "y", "z")) {
+                        String key = "axis=" + axis + ",material=" + material + ",style=" + style.getSerializedName();
+                        assertTrue(variants.has(key), "alien_pillar has no blockstate " + key);
+                    }
+                }
+                assertTrue(items.contains("\"when\":\"" + material + "\""), "alien_pillar has no item model for "
+                        + material);
+            }
+        }
+
+        @Test
+        void eachNewVarietalHasItsOwnCreativeStack() {
+            Set<String> listed = AlienLooks.materialLooks().stream().map(look -> look.get(AlienLooks.MATERIAL))
+                    .collect(Collectors.toSet());
+            assertTrue(listed.containsAll(materialsBeyondTheLanded()), "the creative tab lists only " + listed);
         }
     }
 

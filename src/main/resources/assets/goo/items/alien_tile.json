@@ -45,6 +45,34 @@
           "type": "minecraft:model",
           "model": "goo:block/alien_tile_framed_panels"
         }
+      },
+      {
+        "when": "smooth",
+        "model": {
+          "type": "minecraft:model",
+          "model": "goo:block/alien_tile_smooth"
+        }
+      },
+      {
+        "when": "chiseled",
+        "model": {
+          "type": "minecraft:model",
+          "model": "goo:block/alien_tile_chiseled"
+        }
+      },
+      {
+        "when": "inlaid",
+        "model": {
+          "type": "minecraft:model",
+          "model": "goo:block/alien_tile_inlaid"
+        }
+      },
+      {
+        "when": "hex_cells",
+        "model": {
+          "type": "minecraft:model",
+          "model": "goo:block/alien_tile_hex_cells"
+        }
       }
     ],
     "fallback": {

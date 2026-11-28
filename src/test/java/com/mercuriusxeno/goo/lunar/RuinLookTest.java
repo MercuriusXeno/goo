@@ -17,15 +17,17 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * The warrens' ruins place material families by design, never by roll: within one placement every part takes one
  * material and every pillar one style, and across placements the ruins lay at least three
- * materials, a marker-draft family among them.
+ * materials, a marker-draft family and a new black varietal among them.
  * decision buildings-place-material-families-by-design-never-by-roll
  */
 class RuinLookTest {
 
     private static final int PLACEMENTS = 200;
     private static final int FEWEST_MATERIALS = 3;
-    private static final Set<AlienMaterial> MARKER_DRAFT_FAMILIES = EnumSet.complementOf(EnumSet.of(
-            AlienMaterial.GLAZED, AlienMaterial.IRIDESCENT));
+    private static final Set<AlienMaterial> MARKER_DRAFT_FAMILIES = EnumSet.of(AlienMaterial.POLISHED_GLASS,
+            AlienMaterial.XENO_RUNES, AlienMaterial.XENO_SEAM, AlienMaterial.FRAMED_PANELS);
+    /** The new black varietals, by name, so this test compiles before they land. */
+    private static final Set<String> NEW_VARIETALS = Set.of("smooth", "chiseled", "inlaid", "hex_cells");
 
     @Test
     void eachPlacementFixesItsPartsAndTheRuinsVaryAcrossPlacements() {
@@ -41,6 +43,8 @@ class RuinLookTest {
         assertTrue(laidMaterials.size() >= FEWEST_MATERIALS, "the ruins laid only " + laidMaterials);
         assertTrue(laidMaterials.stream().anyMatch(MARKER_DRAFT_FAMILIES::contains),
                 "no ruin laid a marker-draft family: " + laidMaterials);
+        assertTrue(laidMaterials.stream().map(AlienMaterial::getSerializedName).anyMatch(NEW_VARIETALS::contains),
+                "no ruin laid a new varietal: " + laidMaterials);
     }
 
     private static void assertOnePerPart(Shape shape, int seed, List<LaidBlock> laid) {

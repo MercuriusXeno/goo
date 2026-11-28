@@ -17,6 +17,18 @@
     },
     "material=framed_panels": {
       "model": "goo:block/alien_tile_framed_panels"
+    },
+    "material=smooth": {
+      "model": "goo:block/alien_tile_smooth"
+    },
+    "material=chiseled": {
+      "model": "goo:block/alien_tile_chiseled"
+    },
+    "material=inlaid": {
+      "model": "goo:block/alien_tile_inlaid"
+    },
+    "material=hex_cells": {
+      "model": "goo:block/alien_tile_hex_cells"
     }
   }
 }

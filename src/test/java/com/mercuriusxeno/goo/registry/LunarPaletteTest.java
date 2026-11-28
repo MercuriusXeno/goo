@@ -141,7 +141,19 @@ class LunarPaletteTest {
                         0x342e46),
                 drawnBy("alien xeno seam",
                         0x09090c, 0x0c0d10, 0x0f1013, 0x111216, 0x16171b, 0x1d1e23, 0x212228, 0x25262c,
-                        0x2d2e35, 0x4f43a6, 0xaa9eff))
+                        0x2d2e35, 0x4f43a6, 0xaa9eff),
+                drawnBy("alien smooth",
+                        0x06080c, 0x0a0d13, 0x0d1017, 0x0f131b, 0x151a24, 0x1c222e, 0x202734, 0x242c3a,
+                        0x2c3546, 0x3a3080),
+                drawnBy("alien chiseled",
+                        0x060908, 0x0a0f0d, 0x0d1310, 0x0f1613, 0x151e1a, 0x1c2722, 0x202c27, 0x24312b,
+                        0x2c3b34, 0x3a3080),
+                drawnBy("alien inlaid",
+                        0x07070d, 0x0b0b13, 0x0e0e17, 0x10101b, 0x161624, 0x1d1d2e, 0x212134, 0x252539,
+                        0x2e2e45),
+                drawnBy("alien hex cells",
+                        0x050a0b, 0x081012, 0x0a1316, 0x0c1619, 0x101c1f, 0x111e21, 0x152428, 0x17272b,
+                        0x1b2c31, 0x1e3136, 0x253b41))
                 .flatMap(colors -> colors);
     }
 
@@ -201,7 +213,7 @@ class LunarPaletteTest {
      */
     private static Stream<String> alienStructureSprites() {
         List<String> materials = List.of("glazed", "iridescent", "polished_glass", "xeno_runes", "xeno_seam",
-                "framed_panels");
+                "framed_panels", "smooth", "chiseled", "inlaid", "hex_cells");
         Stream<String> cut = materials.stream().flatMap(material -> material.equals("xeno_runes")
                 ? Stream.of("alien_stone_xeno_runes_angular", "alien_stone_xeno_runes_diagonal",
                         "alien_glyph_xeno_runes_gate", "alien_glyph_xeno_runes_fork", "alien_tile_xeno_runes")

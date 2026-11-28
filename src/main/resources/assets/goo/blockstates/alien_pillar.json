@@ -215,6 +215,150 @@
     "axis=z,material=framed_panels,style=runed": {
       "model": "goo:block/alien_pillar_framed_panels_runed",
       "x": 90
+    },
+    "axis=x,material=smooth,style=fluted": {
+      "model": "goo:block/alien_pillar_smooth_fluted",
+      "x": 90,
+      "y": 90
+    },
+    "axis=y,material=smooth,style=fluted": {
+      "model": "goo:block/alien_pillar_smooth_fluted"
+    },
+    "axis=z,material=smooth,style=fluted": {
+      "model": "goo:block/alien_pillar_smooth_fluted",
+      "x": 90
+    },
+    "axis=x,material=smooth,style=banded": {
+      "model": "goo:block/alien_pillar_smooth_banded",
+      "x": 90,
+      "y": 90
+    },
+    "axis=y,material=smooth,style=banded": {
+      "model": "goo:block/alien_pillar_smooth_banded"
+    },
+    "axis=z,material=smooth,style=banded": {
+      "model": "goo:block/alien_pillar_smooth_banded",
+      "x": 90
+    },
+    "axis=x,material=smooth,style=runed": {
+      "model": "goo:block/alien_pillar_smooth_runed",
+      "x": 90,
+      "y": 90
+    },
+    "axis=y,material=smooth,style=runed": {
+      "model": "goo:block/alien_pillar_smooth_runed"
+    },
+    "axis=z,material=smooth,style=runed": {
+      "model": "goo:block/alien_pillar_smooth_runed",
+      "x": 90
+    },
+    "axis=x,material=chiseled,style=fluted": {
+      "model": "goo:block/alien_pillar_chiseled_fluted",
+      "x": 90,
+      "y": 90
+    },
+    "axis=y,material=chiseled,style=fluted": {
+      "model": "goo:block/alien_pillar_chiseled_fluted"
+    },
+    "axis=z,material=chiseled,style=fluted": {
+      "model": "goo:block/alien_pillar_chiseled_fluted",
+      "x": 90
+    },
+    "axis=x,material=chiseled,style=banded": {
+      "model": "goo:block/alien_pillar_chiseled_banded",
+      "x": 90,
+      "y": 90
+    },
+    "axis=y,material=chiseled,style=banded": {
+      "model": "goo:block/alien_pillar_chiseled_banded"
+    },
+    "axis=z,material=chiseled,style=banded": {
+      "model": "goo:block/alien_pillar_chiseled_banded",
+      "x": 90
+    },
+    "axis=x,material=chiseled,style=runed": {
+      "model": "goo:block/alien_pillar_chiseled_runed",
+      "x": 90,
+      "y": 90
+    },
+    "axis=y,material=chiseled,style=runed": {
+      "model": "goo:block/alien_pillar_chiseled_runed"
+    },
+    "axis=z,material=chiseled,style=runed": {
+      "model": "goo:block/alien_pillar_chiseled_runed",
+      "x": 90
+    },
+    "axis=x,material=inlaid,style=fluted": {
+      "model": "goo:block/alien_pillar_inlaid_fluted",
+      "x": 90,
+      "y": 90
+    },
+    "axis=y,material=inlaid,style=fluted": {
+      "model": "goo:block/alien_pillar_inlaid_fluted"
+    },
+    "axis=z,material=inlaid,style=fluted": {
+      "model": "goo:block/alien_pillar_inlaid_fluted",
+      "x": 90
+    },
+    "axis=x,material=inlaid,style=banded": {
+      "model": "goo:block/alien_pillar_inlaid_banded",
+      "x": 90,
+      "y": 90
+    },
+    "axis=y,material=inlaid,style=banded": {
+      "model": "goo:block/alien_pillar_inlaid_banded"
+    },
+    "axis=z,material=inlaid,style=banded": {
+      "model": "goo:block/alien_pillar_inlaid_banded",
+      "x": 90
+    },
+    "axis=x,material=inlaid,style=runed": {
+      "model": "goo:block/alien_pillar_inlaid_runed",
+      "x": 90,
+      "y": 90
+    },
+    "axis=y,material=inlaid,style=runed": {
+      "model": "goo:block/alien_pillar_inlaid_runed"
+    },
+    "axis=z,material=inlaid,style=runed": {
+      "model": "goo:block/alien_pillar_inlaid_runed",
+      "x": 90
+    },
+    "axis=x,material=hex_cells,style=fluted": {
+      "model": "goo:block/alien_pillar_hex_cells_fluted",
+      "x": 90,
+      "y": 90
+    },
+    "axis=y,material=hex_cells,style=fluted": {
+      "model": "goo:block/alien_pillar_hex_cells_fluted"
+    },
+    "axis=z,material=hex_cells,style=fluted": {
+      "model": "goo:block/alien_pillar_hex_cells_fluted",
+      "x": 90
+    },
+    "axis=x,material=hex_cells,style=banded": {
+      "model": "goo:block/alien_pillar_hex_cells_banded",
+      "x": 90,
+      "y": 90
+    },
+    "axis=y,material=hex_cells,style=banded": {
+      "model": "goo:block/alien_pillar_hex_cells_banded"
+    },
+    "axis=z,material=hex_cells,style=banded": {
+      "model": "goo:block/alien_pillar_hex_cells_banded",
+      "x": 90
+    },
+    "axis=x,material=hex_cells,style=runed": {
+      "model": "goo:block/alien_pillar_hex_cells_runed",
+      "x": 90,
+      "y": 90
+    },
+    "axis=y,material=hex_cells,style=runed": {
+      "model": "goo:block/alien_pillar_hex_cells_runed"
+    },
+    "axis=z,material=hex_cells,style=runed": {
+      "model": "goo:block/alien_pillar_hex_cells_runed",
+      "x": 90
     }
   }
 }

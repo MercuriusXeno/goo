@@ -22,6 +22,18 @@
     },
     "material=framed_panels": {
       "model": "goo:block/alien_stone_framed_panels"
+    },
+    "material=smooth": {
+      "model": "goo:block/alien_stone_smooth"
+    },
+    "material=chiseled": {
+      "model": "goo:block/alien_stone_chiseled"
+    },
+    "material=inlaid": {
+      "model": "goo:block/alien_stone_inlaid"
+    },
+    "material=hex_cells": {
+      "model": "goo:block/alien_stone_hex_cells"
     }
   }
 }

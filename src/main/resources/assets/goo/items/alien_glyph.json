@@ -45,6 +45,34 @@
           "type": "minecraft:model",
           "model": "goo:block/alien_glyph_framed_panels"
         }
+      },
+      {
+        "when": "smooth",
+        "model": {
+          "type": "minecraft:model",
+          "model": "goo:block/alien_glyph_smooth"
+        }
+      },
+      {
+        "when": "chiseled",
+        "model": {
+          "type": "minecraft:model",
+          "model": "goo:block/alien_glyph_chiseled"
+        }
+      },
+      {
+        "when": "inlaid",
+        "model": {
+          "type": "minecraft:model",
+          "model": "goo:block/alien_glyph_inlaid"
+        }
+      },
+      {
+        "when": "hex_cells",
+        "model": {
+          "type": "minecraft:model",
+          "model": "goo:block/alien_glyph_hex_cells"
+        }
       }
     ],
     "fallback": {
