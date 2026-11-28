@@ -32,7 +32,7 @@ import java.util.function.Consumer;
  * clinging where nothing is under it; a full cell petrifies the mob standing
  * on it and hardens the block it lies on a stage along the calcify map.
  * mortar-is-rocks-residual-a-petrification-and-hardening-goo
- * rock-goo-has-max-adhesion-and-just-below-max-cohesion
+ * rock-goo-has-max-adhesion-and-thick-cohesion
  * mortar-has-a-chance-to-deplete-as-it-petrifies-and-hardens
  */
 @RegistersGameTests
@@ -69,6 +69,18 @@ public final class MortarTests {
     private static final String NOT_HARDENED = "The block under the Mortar should be %s, stands %s";
     private static final String HELD_BY_A_STATUE = "The cell beside the statue should hold no Mortar on it, stands %s";
     private static final String SIDE_NOT_HELD = "The cell beside the wall should be Mortar attached east, stands %s";
+    private static final String POURS_PAST_FOUR_LAYERS = "rock_goo_pours_past_four_layers";
+    /** The cell laid at 8 layers, on stone, which the calcify map hardens no further. */
+    private static final BlockPos TALL_CELL = new BlockPos(2, 2, 2);
+    /** The empty stone-floored cell beside it, east. */
+    private static final BlockPos EMPTY_BESIDE = TALL_CELL.east();
+    private static final int TALL_LAYERS = 8;
+    /** The step thick goo holds over its neighbour. */
+    private static final int THICK_STEP = 4;
+    /** Ticks for the pair to settle, past several of Mortar's waits between pours. */
+    private static final int SETTLE_TICKS = 60;
+    private static final String STEP_TOO_TALL = "Mortar laid at %d layers beside an empty cell should pour to stand"
+            + " no more than %d above it, holding %d of %d layers between the pair; the pair stands %d and %d";
 
     private MortarTests() {
     }
@@ -84,6 +96,44 @@ public final class MortarTests {
         GooTestFunctions.registerTest(registrar, NO_HOLD_ON_A_STATUE, MortarTests::dripHoldsNoStatueSide);
         GooTestFunctions.registerTest(registrar, PETRIFIES_AT_PETRIFYS_PACE, MortarTests::petrifiesAtPetrifysPace);
         GooTestFunctions.registerTest(registrar, PETRIFIES_AND_HARDENS, MortarTests::petrifiesItsMobAndHardensItsBlock);
+        GooTestFunctions.registerTest(registrar, POURS_PAST_FOUR_LAYERS, MortarTests::rockGooPoursPastFourLayers);
+    }
+
+    /**
+     * A Mortar cell of 8 layers on stone beside an empty stone-floored cell,
+     * the pair walled in, pours until it stands no more than 4 layers above
+     * its neighbour, the pair keeping all 8: rock's goo is thick.
+     * rock-goo-has-max-adhesion-and-thick-cohesion
+     * cohesion-is-the-step-the-goo-holds
+     *
+     * @param helper the gametest helper
+     */
+    public static void rockGooPoursPastFourLayers(GameTestHelper helper) {
+        for (BlockPos cell : new BlockPos[] {TALL_CELL, EMPTY_BESIDE}) {
+            helper.setBlock(cell.below(), Blocks.STONE);
+            helper.setBlock(cell, Blocks.AIR);
+            helper.setBlock(cell.above(), Blocks.AIR);
+            for (Direction side : Direction.Plane.HORIZONTAL) {
+                BlockPos wall = cell.relative(side);
+                if (!wall.equals(TALL_CELL) && !wall.equals(EMPTY_BESIDE)) {
+                    helper.setBlock(wall, Blocks.STONE);
+                }
+            }
+        }
+        helper.setBlock(TALL_CELL, GooBlocks.ROCK_MORTAR.get().defaultBlockState()
+                .setValue(VolumeCellBlock.LAYERS, TALL_LAYERS));
+        helper.runAfterDelay(SETTLE_TICKS, () -> {
+            int tall = layersIn(helper, TALL_CELL);
+            int beside = layersIn(helper, EMPTY_BESIDE);
+            helper.assertTrue(tall - beside <= THICK_STEP && tall + beside == TALL_LAYERS,
+                    String.format(STEP_TOO_TALL, TALL_LAYERS, THICK_STEP, tall + beside, TALL_LAYERS, tall, beside));
+            helper.succeed();
+        });
+    }
+
+    private static int layersIn(GameTestHelper helper, BlockPos cell) {
+        BlockState state = helper.getBlockState(cell);
+        return state.is(GooBlocks.ROCK_MORTAR.get()) ? state.getValue(VolumeCellBlock.LAYERS) : 0;
     }
 
     /**

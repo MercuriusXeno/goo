@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
@@ -62,15 +63,15 @@ class GooTypeDefinitionTest {
     private static final Pattern COHESION_FIELD = Pattern.compile("\"cohesion\": [^,]+");
     private static final Pattern ADHESION_FIELD = Pattern.compile("\"adhesion\": [^,]+");
     private static final Cohesion WEIRD_COHESION = Cohesion.THICK;
-    /** Jelly's cohesion, the stiff rung just below firm (operator ruling 2026-11-17). */
-    private static final Cohesion JELLY_COHESION = Cohesion.STIFF;
+    /** Jelly's cohesion, the thick rung, the top of the ladder. */
+    private static final Cohesion JELLY_COHESION = Cohesion.THICK;
     /** Metal's cohesion, the soft rung, so a Spikes coat keeps some thickness where it lands (operator ruling 2026-11-17). */
     private static final Cohesion METAL_COHESION = Cohesion.SOFT;
     /**
-     * Leaf's cohesion, the stiff rung Jelly holds (operator ruling 2026-11-17). Yarn starts from leaf's, its
+     * Leaf's cohesion, the thick rung Jelly holds. Yarn starts from leaf's, its
      * residual to be the animal equivalent of leaf.
      */
-    private static final Cohesion LEAF_COHESION = Cohesion.STIFF;
+    private static final Cohesion LEAF_COHESION = Cohesion.THICK;
     private static final Adhesion WEIRD_ADHESION = Adhesion.CLINGS;
     private static final Adhesion LEAF_ADHESION = Adhesion.CLINGS;
     private static final Adhesion GLOW_ADHESION = Adhesion.HANGS;
@@ -78,8 +79,8 @@ class GooTypeDefinitionTest {
     private static final Cohesion BLAZE_COHESION = Cohesion.THICK;
     private static final Adhesion BLAZE_ADHESION = Adhesion.HANGS;
     private static final Adhesion COMMON_ADHESION = Adhesion.TOPS;
-    /** Pulse's goo holds where it is laid, firm and clinging to an underside, so its layers set its signal at will. */
-    private static final Cohesion PULSE_COHESION = Cohesion.FIRM;
+    /** Pulse's goo is thick and clings to an underside; its network signals at its highest layer. */
+    private static final Cohesion PULSE_COHESION = Cohesion.THICK;
     private static final Adhesion PULSE_ADHESION = Adhesion.HANGS;
     /** Nether's goo pours past two layers of step, the soft rung (operator ruling 2026-11-17). */
     private static final Cohesion NETHER_COHESION = Cohesion.SOFT;
@@ -90,12 +91,12 @@ class GooTypeDefinitionTest {
     /** Astral's goo holds a block's underside where it strikes, the hangs rung (decision astral-goo-hangs-and-is-loose). */
     private static final Adhesion ASTRAL_ADHESION = Adhesion.HANGS;
     /**
-     * Rock's goo hangs, the adhesion ladder's top rung, and is stiff, the cohesion rung one below firm, so Mortar
+     * Rock's goo hangs, the adhesion ladder's top rung, and is thick, the cohesion ladder's top rung, so Mortar
      * clings to sides and keeps its shape.
-     * rock-goo-has-max-adhesion-and-just-below-max-cohesion
+     * rock-goo-has-max-adhesion-and-thick-cohesion
      */
     private static final Adhesion ROCK_ADHESION = Adhesion.HANGS;
-    private static final Cohesion ROCK_COHESION = Cohesion.STIFF;
+    private static final Cohesion ROCK_COHESION = Cohesion.THICK;
 
     static Stream<ResourceKey<GooTypeDefinition>> bundledKeys() {
         return GooTypes.BUNDLED.stream();
@@ -308,7 +309,7 @@ class GooTypeDefinitionTest {
     }
 
     /**
-     * Every bundled type names a cohesion rung: weird and blaze thick, jelly, leaf and rock stiff, pulse firm,
+     * Every bundled type names a cohesion rung: weird, blaze, jelly, leaf, yarn, rock and pulse thick,
      * metal, nether and zombie soft, astral loose, and every other type, kinetic among them, runny; zombie
      * starts from nether's physical values.
      * cohesion-is-the-step-the-goo-holds
@@ -335,7 +336,7 @@ class GooTypeDefinitionTest {
      * cohesion-is-the-step-the-goo-holds
      */
     @ParameterizedTest
-    @CsvSource({"runny, 0", "loose, 1", "soft, 2", "thick, 4", "stiff, 8", "firm, 15"})
+    @CsvSource({"runny, 0", "loose, 1", "soft, 2", "thick, 4"})
     void aCohesionRungDecodesToItsThreshold(String rung, int layers) {
         assertEquals(layers, decode(withCohesion("\"" + rung + "\"")).cohesion().threshold(), rung);
     }
@@ -346,6 +347,16 @@ class GooTypeDefinitionTest {
     @Test
     void refusesCohesionAsANumber() {
         assertTrue(parse(withCohesion("4")).isError());
+    }
+
+    /**
+     * A type naming the stiff or firm rung fails to load, as any rung off the ladder does.
+     * cohesion-is-the-step-the-goo-holds
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {"stiff", "firm"})
+    void refusesARungOffTheLadder(String rung) {
+        assertTrue(parse(withCohesion("\"" + rung + "\"")).isError(), rung);
     }
 
     /**

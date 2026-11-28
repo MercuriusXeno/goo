@@ -34,17 +34,13 @@ public final class SignalTests {
 
     private static final String SIGNAL_CELL_SENDS_ITS_LAYERS = "signal_cell_sends_its_layers";
     private static final String SIGNAL_LIGHTS_A_LAMP_BESIDE_IT = "signal_lights_a_lamp_beside_it";
-    private static final String SIGNAL_HOLDS_ITS_LAYERS_ON_OPEN_GROUND = "signal_holds_its_layers_on_open_ground";
     private static final String SIGNAL_DRIP_UNDER_A_CEILING_CLINGS_TO_IT = "signal_drip_under_a_ceiling_clings_to_it";
-    /** The open ground's middle cell, where every drip of the open ground test lands. */
-    private static final BlockPos OPEN_CELL = new BlockPos(3, 1, 3);
     /** A stone block hung in open air, three blocks over the floor, whose underside a drip strikes. */
     private static final BlockPos HUNG_BLOCK = new BlockPos(3, 4, 3);
     /** The open cell under the hung block, below its struck underside. */
     private static final BlockPos UNDER_THE_HUNG_BLOCK = HUNG_BLOCK.below();
     /** Ticks a laid cell is watched for a pour or a fall, past several of a cell's waits between pours. */
     private static final int SETTLING_TICKS = 60;
-    private static final String SPREAD = "Signal on open ground should keep all %d layers in its cell, the cross reads %s";
     private static final String NOT_ON_THE_CEILING = "A Signal drip striking a block's underside should leave a cell"
             + " attached to that ceiling, stands %s";
     private static final Identifier SIGNAL = Identifier.parse("goo:pulse_signal");
@@ -92,8 +88,6 @@ public final class SignalTests {
         GooTestFunctions.registerTest(registrar, SIGNAL_CELL_SENDS_ITS_LAYERS, SignalTests::signalCellSendsItsLayers);
         GooTestFunctions.registerTest(registrar, SIGNAL_LIGHTS_A_LAMP_BESIDE_IT,
                 SignalTests::signalLightsALampBesideIt);
-        GooTestFunctions.registerTest(registrar, SIGNAL_HOLDS_ITS_LAYERS_ON_OPEN_GROUND,
-                SignalTests::signalHoldsItsLayersOnOpenGround);
         GooTestFunctions.registerTest(registrar, SIGNAL_DRIP_UNDER_A_CEILING_CLINGS_TO_IT,
                 SignalTests::signalDripUnderACeilingClingsToIt);
         GooTestFunctions.registerTest(registrar, SIGNAL_NETWORK_SIGNALS_AT_ITS_HIGHEST_LAYER,
@@ -219,31 +213,6 @@ public final class SignalTests {
                 })
                 .thenExecute(() -> helper.getLevel().getServer().getPlayerList().remove(caster))
                 .thenSucceed();
-    }
-
-    /**
-     * Fifteen Signal drips landing on one cell of open stone ground fill it,
-     * and sixty ticks on the cell still holds all fifteen and its four side
-     * cells hold none: pulse's goo is firm, so the layers a player lays are
-     * the signal the cell sends.
-     * pulse-goo-network-signals-at-its-highest-layer
-     * cohesion-is-the-step-the-goo-holds
-     *
-     * @param helper the gametest helper
-     */
-    public static void signalHoldsItsLayersOnOpenGround(GameTestHelper helper) {
-        OpenFloor.layAround(helper, OPEN_CELL);
-        AbilityDefinition signal = signalAbility(helper);
-        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.PULSE);
-        KnownRecipes.teachRequires(caster, signal);
-        LandedDrips.landOn(helper, caster, signal, OPEN_CELL, VolumeCellBlock.MAX_LAYERS);
-        helper.getLevel().getServer().getPlayerList().remove(caster);
-        List<Integer> heldWhole = List.of(VolumeCellBlock.MAX_LAYERS, 0, 0, 0, 0);
-        helper.runAfterDelay(SETTLING_TICKS, () -> {
-            List<Integer> cross = OpenFloor.layersIn(helper, OpenFloor.crossAt(OPEN_CELL));
-            helper.assertTrue(heldWhole.equals(cross), String.format(SPREAD, VolumeCellBlock.MAX_LAYERS, cross));
-            helper.succeed();
-        });
     }
 
     /**

@@ -8,7 +8,7 @@
   "density": 2000,
   "viscosity": 2000,
   "elasticity": 0.05,
-  "cohesion": "stiff",
+  "cohesion": "thick",
   "adhesion": "hangs",
   "temperature": 300,
   "extinguishes": false,
