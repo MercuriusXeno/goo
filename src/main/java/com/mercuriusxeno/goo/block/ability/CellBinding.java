@@ -147,9 +147,9 @@ public record CellBinding(ResourceKey<GooTypeDefinition> gooType, Identifier lay
             FluidFooting.NONE);
     /**
      * Pulse's goo: Signal lays it, it stands as ordinary ground, and it sends
-     * a redstone signal equal to its layers.
+     * the highest layer count of its network as a redstone signal.
      * extend-is-dropped-for-signal-an-in-world-pulse-goo
-     * signal-goo-sends-a-redstone-signal-equal-to-its-layers
+     * pulse-goo-network-signals-at-its-highest-layer
      */
     public static final CellBinding SIGNAL = new CellBinding(GooTypes.PULSE, SIGNAL_ABILITY, CellSurface.POOL,
             FluidFooting.NONE);

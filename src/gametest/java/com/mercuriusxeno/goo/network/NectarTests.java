@@ -77,8 +77,8 @@ public final class NectarTests {
     private static final BlockPos CALF_FLOOR = new BlockPos(2, 1, 2);
     /** The drips the wall hold test lands on one wall, more than one wall holds. */
     private static final int WALL_DRIPS = 12;
-    /** The layers one wall holds of jelly's goo: a layer plus one for each point of its stiff cohesion of 8. */
-    private static final int ONE_WALL_HOLDS = 9;
+    /** The layers one wall holds of jelly's goo: a layer plus one for each point of its thick cohesion of 4. */
+    private static final int ONE_WALL_HOLDS = 5;
     /** Ticks for the wall's goo to run down whatever its hold lets go, past a few of jelly's pours. */
     private static final int WALL_SETTLE_TICKS = 60;
     /** The column test's wall: three stone blocks stacked over the bay's floor. */
@@ -489,9 +489,9 @@ public final class NectarTests {
     /**
      * Twelve Nectar drips striking a stone wall's east side, clear of any
      * floor, leave the wall coated: once the goo has had time to run, the
-     * cell east of the wall still holds the nine layers one wall holds of
-     * jelly's stiff goo, attached to its west side, the rest run down.
-     * operator ruling 2026-11-17: jelly's cohesion is the stiff rung, just below firm
+     * cell east of the wall still holds the five layers one wall holds of
+     * jelly's thick goo, attached to its west side, the rest run down.
+     * cohesion-is-the-step-the-goo-holds
      *
      * @param helper the gametest helper
      */
