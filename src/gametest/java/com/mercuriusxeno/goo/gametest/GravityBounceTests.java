@@ -30,8 +30,11 @@ public final class GravityBounceTests {
     private static final String HELD_BOUNCES_PEAK_PROPORTIONATELY_TO_GRAVITY =
             "held_bounces_peak_proportionately_to_gravity";
 
-    /** Where each dimension's site stands, far from every other test's ground and high over any terrain. */
-    private static final int SITE_X = 2184;
+    /**
+     * Where each dimension's site stands, high over any terrain and on a column apart from every other lunar site
+     * along z 8, which lay ground under lunar's top that a shared column's bounce would strike.
+     */
+    private static final int SITE_X = 2312;
     private static final int SITE_Z = 8;
     private static final int SITE_Y = 90;
     /** The chunks each way of the site that stand loaded before its own chunk's entities tick. */
