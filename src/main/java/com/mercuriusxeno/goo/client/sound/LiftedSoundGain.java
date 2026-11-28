@@ -17,13 +17,13 @@ public final class LiftedSoundGain {
      * RMS at a mob 3 blocks off: Drain's leech plays it at 8.0, whose clamp
      * leaves the gain to this lift and whose volume widens the fall-off to 24
      * blocks, so its loudest take peaks at -0.6 dBFS at 1 block. The wind's
-     * is three quarters of the 7.52 it played at in 6e53293ad, the operator's
-     * ruling after hearing it there.
+     * brings ambience.ogg, -49.6 dBFS at its 0.85 entry volume and Drain's
+     * 1.0, 6 dB under that hit, to -33.5, where the operator heard it work.
      * drain-hit-plays-at-its-a46598f59-level
      * drain-wind-plays-6-db-under-its-hit
      */
     private static final Map<Identifier, Float> LIFTS = Map.of(
-            Identifier.withDefaultNamespace("ambient.soul_sand_valley.loop"), 5.64f,
+            Identifier.withDefaultNamespace("ambient.soul_sand_valley.loop"), 7.52f,
             Identifier.withDefaultNamespace("particle.soul_escape"), 5.69f);
 
     private LiftedSoundGain() {

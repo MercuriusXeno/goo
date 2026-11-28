@@ -18,8 +18,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Covers the gain goo's client hands a sound's channel: Drain's wind loop
- * plays at three quarters of the gain it played at in 6e53293ad, its
- * soul_escape hit plays at its a46598f59 level with no take clipping, every
+ * plays about 6 dB under its soul_escape hit, the hit plays at its a46598f59
+ * level with no take clipping, every
  * other sound keeps vanilla's clamp, and the sliders still turn Drain's two
  * down. The loudness cases read vanilla's recordings from the asset cache the
  * build's downloadAssets task fills.
@@ -35,22 +35,40 @@ class LiftedSoundGainTest {
     private static final float HALF = 0.5f;
 
     /**
-     * Drain's wind plays at three quarters of the gain it played at in
-     * 6e53293ad, the operator's ruling after hearing it there.
+     * Drain's wind plays about 6 dB under its hit at a mob 3 blocks off, by
+     * the wind's mono RMS against the mean over the hit's takes.
      * drain-wind-plays-6-db-under-its-hit
      */
     @Nested
-    class WindAtThreeQuarters {
+    class WindUnderItsHit {
 
-        /** The wind's lift in 6e53293ad. */
-        private static final float LIFT_AT_6E53293AD = 7.52f;
-        private static final float THREE_QUARTERS = 0.75f;
-        private static final float WITHIN = 0.01f;
+        private static final double LEAST_MARGIN = 4.5;
+        private static final double MOST_MARGIN = 7.5;
+        private static final float MOB_DISTANCE = 3f;
 
         @Test
-        void drainsWindPlaysAtThreeQuartersOfItsLastGain() {
-            assertEquals(THREE_QUARTERS * LIFT_AT_6E53293AD, LiftedSoundGain.gainFor(SOUL_SAND_VALLEY_LOOP, 1f, 1f, 1f),
-                    WITHIN);
+        void drainsHitPlaysAboutSixDecibelsOverItsWind() throws IOException {
+            VanillaRecordings recordings = VanillaRecordings.fromBuild();
+            float held = drain().delivery().sound().orElseThrow().volume();
+            double wind = 0;
+            List<VanillaRecordings.Take> windTakes = recordings.takesOf(SOUL_SAND_VALLEY_LOOP.getPath());
+            for (VanillaRecordings.Take take : windTakes) {
+                float gain = LiftedSoundGain.gainFor(SOUL_SAND_VALLEY_LOOP, held * take.entryVolume(), 1f, 1f);
+                wind += recordings.loudnessOf(take).rmsDecibels() + decibels(gain);
+            }
+            wind /= windTakes.size();
+            float leech = leechVolume();
+            double hit = 0;
+            List<VanillaRecordings.Take> hitTakes = recordings.takesOf(SOUL_ESCAPE.getPath());
+            for (VanillaRecordings.Take take : hitTakes) {
+                hit += recordings.loudnessOf(take).rmsDecibels()
+                        + decibels(hitGainOf(take, leech) * fallOff(MOB_DISTANCE, attenuationOf(take, leech)));
+            }
+            hit /= hitTakes.size();
+            double margin = hit - wind;
+            assertTrue(margin >= LEAST_MARGIN && margin <= MOST_MARGIN, "Drain's hit plays at " + hit + " dBFS RMS"
+                    + " at 3 blocks against its wind at " + wind + ", " + margin + " dB over, outside "
+                    + LEAST_MARGIN + " to " + MOST_MARGIN);
         }
     }
 
