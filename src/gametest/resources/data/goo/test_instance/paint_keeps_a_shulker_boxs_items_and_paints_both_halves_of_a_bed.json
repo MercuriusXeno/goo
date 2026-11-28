@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:paint_keeps_a_shulker_boxs_items_and_paints_both_halves_of_a_bed",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 60,
+  "setup_ticks": 0,
+  "required": true
+}

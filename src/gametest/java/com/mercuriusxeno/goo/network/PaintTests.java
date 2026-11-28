@@ -9,6 +9,7 @@ import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
@@ -19,8 +20,12 @@ import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.block.BedBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.entity.ShulkerBoxBlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BedPart;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
@@ -29,7 +34,8 @@ import java.util.function.Consumer;
  * Ornate's Paint through the real held stream: a caster holding red dye in
  * the off hand paints the white wool and the white sheep in its cone red,
  * keeps the dye, and pays the cost ornate_paint.json names for each thing
- * painted; with no dye held the stream paints nothing and spends nothing.
+ * painted; with no dye held the stream paints nothing and spends nothing. A
+ * painted shulker box keeps its items and a painted bed turns red in both halves.
  * paint-recolors-dyeable-things-to-the-off-hand-dye
  */
 @RegistersGameTests
@@ -38,6 +44,8 @@ public final class PaintTests {
     private static final String PAINTS_WOOL_AND_A_SHEEP = "paint_turns_white_wool_and_a_white_sheep_red";
     private static final String PAYS_PER_THING = "paint_keeps_the_dye_and_pays_per_block_painted";
     private static final String NO_DYE_PAINTS_NOTHING = "paint_with_no_dye_paints_nothing_and_spends_nothing";
+    private static final String KEEPS_CONTENTS_AND_BOTH_BED_HALVES =
+            "paint_keeps_a_shulker_boxs_items_and_paints_both_halves_of_a_bed";
     private static final Identifier PAINT = Identifier.parse("goo:ornate_paint");
     private static final String ABILITY_REQUIRED = "The ability registry must hold ornate_paint";
     /** The caster's feet, on the bay's west side. */
@@ -52,6 +60,16 @@ public final class PaintTests {
     private static final Block RED_WOOL = Blocks.WOOL.pick(DyeColor.RED);
     private static final Item RED_DYE = Items.DYE.pick(DyeColor.RED);
     private static final float FACING_EAST = -90f;
+    /** Two blocks east, on the floor: the bed's foot, on the cone's axis. */
+    private static final BlockPos BED_FOOT = STAND.east(2);
+    /** North of the foot: the bed's head, past the cone's side, so only the foot's paint reaches it. */
+    private static final BlockPos BED_HEAD = BED_FOOT.north();
+    /** Down from level onto the bed's foot, the shulker box at four blocks well inside the cone. */
+    private static final float TOWARD_THE_BED_FOOT = 29f;
+    /** The diamonds the box holds in its first slot. */
+    private static final int BOXED_DIAMONDS = 7;
+    private static final String BOX_EMPTIED = "The shulker box should still hold %s in its first slot, holds %s";
+    private static final String BED_HALF_WRONG = "The bed's %s should stand a red bed facing %s, stands %s";
     /** Down from level toward the sheep and the low wool both. */
     private static final float TOWARD_THE_SHEEP_AND_THE_WOOL = 20f;
     /** Down from level toward the middle of the two stacked wool blocks. */
@@ -78,6 +96,8 @@ public final class PaintTests {
         GooTestFunctions.registerTest(registrar, PAYS_PER_THING, PaintTests::paintKeepsTheDyeAndPaysPerBlockPainted);
         GooTestFunctions.registerTest(registrar, NO_DYE_PAINTS_NOTHING,
                 PaintTests::paintWithNoDyePaintsNothingAndSpendsNothing);
+        GooTestFunctions.registerTest(registrar, KEEPS_CONTENTS_AND_BOTH_BED_HALVES,
+                PaintTests::paintKeepsAShulkerBoxsItemsAndPaintsBothHalvesOfABed);
     }
 
     /**
@@ -142,6 +162,40 @@ public final class PaintTests {
             int spent = before - ornateHeld(painter);
             helper.assertTrue(spent == 0, String.format(SPENT_WRONG, 0, spent));
         });
+    }
+
+    /**
+     * A caster holding red dye holds Paint on a white shulker box holding
+     * seven diamonds and a placed white bed whose head lies past the cone's
+     * side: the box stands a red shulker box still holding the diamonds, and
+     * both halves stand a red bed, each facing north and keeping its part.
+     *
+     * @param helper the gametest helper
+     */
+    public static void paintKeepsAShulkerBoxsItemsAndPaintsBothHalvesOfABed(GameTestHelper helper) {
+        clearABay(helper);
+        helper.setBlock(LOW_WOOL, Blocks.DYED_SHULKER_BOX.pick(DyeColor.WHITE));
+        ItemStack boxed = new ItemStack(Items.DIAMOND, BOXED_DIAMONDS);
+        helper.getBlockEntity(LOW_WOOL, ShulkerBoxBlockEntity.class).setItem(0, boxed.copy());
+        BlockState foot = Blocks.BED.pick(DyeColor.WHITE).defaultBlockState()
+                .setValue(BedBlock.FACING, Direction.NORTH).setValue(BedBlock.PART, BedPart.FOOT);
+        helper.setBlock(BED_FOOT, foot);
+        helper.setBlock(BED_HEAD, foot.setValue(BedBlock.PART, BedPart.HEAD));
+        ServerPlayer painter = painterAt(helper, TOWARD_THE_BED_FOOT, new ItemStack(RED_DYE, DYE_HELD));
+        holdThen(helper, painter, () -> {
+            assertStands(helper, LOW_WOOL, Blocks.DYED_SHULKER_BOX.pick(DyeColor.RED));
+            ItemStack held = helper.getBlockEntity(LOW_WOOL, ShulkerBoxBlockEntity.class).getItem(0);
+            helper.assertTrue(ItemStack.matches(held, boxed), String.format(BOX_EMPTIED, boxed, held));
+            assertRedBedHalf(helper, BED_FOOT, BedPart.FOOT);
+            assertRedBedHalf(helper, BED_HEAD, BedPart.HEAD);
+        });
+    }
+
+    private static void assertRedBedHalf(GameTestHelper helper, BlockPos pos, BedPart part) {
+        BlockState half = helper.getBlockState(pos);
+        boolean red = half.is(Blocks.BED.pick(DyeColor.RED)) && half.getValue(BedBlock.FACING) == Direction.NORTH
+                && half.getValue(BedBlock.PART) == part;
+        helper.assertTrue(red, String.format(BED_HALF_WRONG, part.getSerializedName(), Direction.NORTH, half));
     }
 
     private static void clearABay(GameTestHelper helper) {
