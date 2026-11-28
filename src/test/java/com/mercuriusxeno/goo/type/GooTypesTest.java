@@ -40,7 +40,7 @@ class GooTypesTest {
     private static final ResourceKey<GooTypeDefinition> SEVENTEENTH = ResourceKey.create(
             GooTypes.REGISTRY, Identifier.fromNamespaceAndPath("gootest", "seventeenth"));
     private static final List<String> BUNDLED_IDS = List.of(
-            "astral", "blaze", "crystal", "ender", "frost", "glow", "hex", "infinity", "jelly", "kinetic", "leaf",
+            "astral", "blaze", "crystal", "dire", "ender", "frost", "glow", "hex", "infinity", "jelly", "kinetic", "leaf",
             "metal", "nether", "ornate", "pulse", "quantum", "rock", "sculk", "typhoon", "unstable", "void", "weird", "xeno", "yarn",
             "zombie");
     private static final String TYPE_DIR = "data/goo/goo/goo_type";
@@ -53,12 +53,13 @@ class GooTypesTest {
     private static final String EN_US = "/assets/goo/lang/en_us.json";
 
     /**
-     * No bundled type's id starts with d: Deep is dropped and the letter is free for a type yet to be designed.
-     * decision sculker-moves-to-sculk
+     * Dire takes D: it is the one bundled type whose id starts with d.
+     * decision dire-takes-the-letter-d
      */
     @Test
-    void noBundledTypeStartsWithD() {
-        assertEquals(List.of(), GooTypes.BUNDLED.stream().map(GooTypes::id).filter(id -> id.startsWith("d")).toList());
+    void direTakesD() {
+        assertEquals(List.of("dire"),
+                GooTypes.BUNDLED.stream().map(GooTypes::id).filter(id -> id.startsWith("d")).toList());
     }
 
     /**

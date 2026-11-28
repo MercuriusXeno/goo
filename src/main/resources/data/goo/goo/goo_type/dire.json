@@ -1,0 +1,26 @@
+{
+  "light_level": 0,
+  "saturation_fill": 0.5,
+  "wheel": "12302F",
+  "bright": "3CC0B0",
+  "highlight": "165450",
+  "edge": "1E8A80",
+  "density": 1000,
+  "viscosity": 1500,
+  "elasticity": 0.1,
+  "cohesion": "runny",
+  "adhesion": "tops",
+  "temperature": 260,
+  "extinguishes": false,
+  "levity": 1.0,
+  "base_flight_time": 3,
+  "map_color": "terracotta_cyan",
+  "textures": {
+    "goo_tiny": "goo:item/dire_goo_tiny",
+    "goo_small": "goo:item/dire_goo_small",
+    "goo_base": "goo:item/dire_goo_base",
+    "goo_large": "goo:item/dire_goo_large",
+    "fluid_still": "goo:fluid/dire_fluid",
+    "fluid_flowing": "goo:fluid/dire_fluid"
+  }
+}

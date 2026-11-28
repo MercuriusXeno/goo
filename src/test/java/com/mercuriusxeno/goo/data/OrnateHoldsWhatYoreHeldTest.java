@@ -5,11 +5,15 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonPrimitive;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -21,9 +25,11 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
  * drops where ornate already stood beside it, item by item and type by type. The values before are
  * base_values.json as it stood at 25fb0499b, with shroom and deep moved to standing types as thread
  * sculk-goo-replaces-shroom-and-deep moved them, kept as a fixture. The fixture predates Opulent's rename to Ornate,
- * so its opulent terms read as ornate, and predates zoo leaving, so its zoo terms load as nothing.
+ * so its opulent terms read as ornate, and predates zoo leaving, so its zoo terms load as nothing. It predates
+ * Dire, so the shipped dire terms, and the items holding dire alone, stand outside the comparison.
  * decision yore-leaves-and-rewind-moves-to-xeno-as-revert
  * decision opulent-is-renamed-ornate
+ * decision dire-is-found-in-ominous-and-deadly-things
  */
 class OrnateHoldsWhatYoreHeldTest {
 
@@ -52,14 +58,28 @@ class OrnateHoldsWhatYoreHeldTest {
         }
         JsonElement before = JsonParser.parseString(beforeText);
         Map<Identifier, GooValue> expected = GooBaseValuesPreview.load(yoreMoved(before).toString()).baseValues();
-        Map<Identifier, GooValue> shipped = GooBaseValuesPreview.load(read(SHIPPED)).baseValues();
+        Map<Identifier, Map<ResourceKey<GooTypeDefinition>, GooFraction>> shipped =
+                withoutDire(GooBaseValuesPreview.load(read(SHIPPED)).baseValues());
 
         assertEquals(expected.keySet(), shipped.keySet());
         List<String> differing = expected.keySet().stream()
-                .filter(item -> !expected.get(item).exactAll().equals(shipped.get(item).exactAll()))
+                .filter(item -> !expected.get(item).exactAll().equals(shipped.get(item)))
                 .map(item -> item + " expected " + expected.get(item) + " but ships " + shipped.get(item))
                 .toList();
         assertEquals(List.of(), differing);
+    }
+
+    private static Map<Identifier, Map<ResourceKey<GooTypeDefinition>, GooFraction>> withoutDire(
+            Map<Identifier, GooValue> values) {
+        Map<Identifier, Map<ResourceKey<GooTypeDefinition>, GooFraction>> kept = new HashMap<>();
+        values.forEach((item, value) -> {
+            Map<ResourceKey<GooTypeDefinition>, GooFraction> amounts = new HashMap<>(value.exactAll());
+            amounts.remove(GooTypes.DIRE);
+            if (!amounts.isEmpty()) {
+                kept.put(item, amounts);
+            }
+        });
+        return kept;
     }
 
     /**

@@ -60,6 +60,18 @@ class GooTypeColorsTest {
         assertTrue(distance >= 90f, "kinetic's wheel sits " + distance + " degrees from jelly's");
     }
 
+    /**
+     * Dire's bright is teal, green and blue each above red.
+     * decision dire-is-ominous-trial-teal-black
+     */
+    @Test
+    void direBrightIsTeal() throws IOException {
+        int bright = Integer.parseInt(channel("dire", "bright"), 16);
+        int red = bright >> 16 & 0xFF;
+        assertTrue((bright >> 8 & 0xFF) > red && (bright & 0xFF) > red,
+                () -> "dire's bright is not teal: " + Integer.toHexString(bright));
+    }
+
     @Test
     void xenoWearsQuantumsFormerPurples() throws IOException {
         // xeno-takes-quantums-purple
