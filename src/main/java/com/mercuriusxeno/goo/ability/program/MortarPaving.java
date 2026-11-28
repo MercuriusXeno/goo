@@ -10,6 +10,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -21,13 +22,19 @@ import java.util.Set;
  * side rather than breaking it, each gap on its near side takes a stone block
  * for a layer, and the layers left lie back over the disc where the cursor
  * rests now, so the goo travels with the cursor and stands where it was let go.
+ * The disc carries a 3x3 of piles of fifteen at most.
  * level-dragged-under-rock-goo-carries-it-and-deposits-stone-under-the-disc
+ * level-scoops-up-to-three-by-three-piles-of-fifteen-layers
  * layer-of-rock-goo-is-a-stone-block
  */
 public final class MortarPaving {
 
     /** How many layers out from the face the disc carries Mortar, as deep as Level's swath reaches. */
     private static final int CARRY_DEPTH = 3;
+    /** The most piles the disc carries: a 3x3. */
+    private static final int MOST_PILES = 9;
+    /** The most layers the disc carries: a 3x3 of piles of fifteen. */
+    private static final int MOST_CARRIED = MOST_PILES * VolumeCellBlock.MAX_LAYERS;
 
     private MortarPaving() {
     }
@@ -53,6 +60,42 @@ public final class MortarPaving {
     public static Deposit deposit(List<BlockPos> gaps, int carried) {
         int paving = Math.min(gaps.size(), Math.max(0, carried));
         return new Deposit(List.copyOf(gaps.subList(0, paving)), carried - paving);
+    }
+
+    /**
+     * What the disc scoops from the Mortar over it.
+     *
+     * @param pickedUp each pile the disc takes layers from, with the layers taken
+     * @param leftOut  each pile left holding layers, with the layers it keeps
+     */
+    public record Scoop(Map<BlockPos, Integer> pickedUp, Map<BlockPos, Integer> leftOut) {
+    }
+
+    /**
+     * Scoops the Mortar over the disc in turn until the disc carries a 3x3 of
+     * piles of fifteen, taking only part of the pile that fills it; the rest
+     * stays where it lies, to be come back for.
+     * level-scoops-up-to-three-by-three-piles-of-fifteen-layers
+     *
+     * @param piles     the piles over the disc, each with its layers, the first scooped first
+     * @param carriedIn the layers the disc already carries
+     * @return the layers picked up and the layers left out
+     */
+    public static Scoop scoop(Map<BlockPos, Integer> piles, int carriedIn) {
+        Map<BlockPos, Integer> pickedUp = new LinkedHashMap<>();
+        Map<BlockPos, Integer> leftOut = new LinkedHashMap<>();
+        int room = Math.max(0, MOST_CARRIED - carriedIn);
+        for (Map.Entry<BlockPos, Integer> pile : piles.entrySet()) {
+            int taken = Math.min(pile.getValue(), room);
+            room -= taken;
+            if (taken > 0) {
+                pickedUp.put(pile.getKey(), taken);
+            }
+            if (pile.getValue() > taken) {
+                leftOut.put(pile.getKey(), pile.getValue() - taken);
+            }
+        }
+        return new Scoop(pickedUp, leftOut);
     }
 
     /**
@@ -93,21 +136,62 @@ public final class MortarPaving {
         }
         HoldMarks marks = host.holdMarks();
         List<BlockPos> overDisc = overDisc(plane, aimed);
-        Map<BlockPos, Integer> lifted = lifted(host, marks.carriedMortar(), overDisc);
-        if (lifted.isEmpty()) {
+        Lift lift = lift(host, marks.carriedMortar(), overDisc);
+        if (lift.layers() == 0) {
             marks.carryMortarAt(List.of());
             return;
         }
-        int carried = lifted.values().stream().mapToInt(Integer::intValue).sum();
         List<BlockPos> gaps = middleFirst(plane.layer(aimed, 0), plane.face().getAxis()).stream()
                 .filter(pos -> host.reaches(pos) && isGap(host.stateAt(pos))).toList();
-        Deposit deposit = deposit(gaps, carried);
-        Map<BlockPos, Integer> laid = lay(slots(host, overDisc, lifted.keySet()), deposit.layersLeft());
-        lifted.keySet().stream().filter(pos -> !laid.containsKey(pos))
+        Deposit deposit = deposit(gaps, lift.layers());
+        Map<BlockPos, Integer> laid = lay(slots(host, overDisc, lift.emptied()), deposit.layersLeft());
+        lift.emptied().stream().filter(pos -> !laid.containsKey(pos))
                 .forEach(pos -> host.level().setBlock(pos, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL));
+        lift.keeps().forEach((pos, layers) -> layMortar(host, pos, layers));
         deposit.paved().forEach(pos -> host.transformBlock(pos, Blocks.STONE.defaultBlockState()));
         laid.forEach((pos, layers) -> layMortar(host, pos, layers));
         marks.carryMortarAt(laid.keySet());
+    }
+
+    /**
+     * What the disc lifts this tick.
+     *
+     * @param emptied the cells the lift takes every layer of
+     * @param keeps   each pile the lift takes part of, with the layers it keeps
+     * @param layers  the layers lifted
+     */
+    private record Lift(Set<BlockPos> emptied, Map<BlockPos, Integer> keeps, int layers) {
+    }
+
+    /**
+     * Lifts the hold's carry, wherever it lies now, and scoops the piles over
+     * the disc in reach on top of it, as far as the carry has room.
+     * level-scoops-up-to-three-by-three-piles-of-fifteen-layers
+     *
+     * @param host     the channel host
+     * @param carried  the cells the hold laid its carry in last tick
+     * @param overDisc the cells over the disc
+     * @return the lift
+     */
+    private static Lift lift(ChannelHost host, Set<BlockPos> carried, List<BlockPos> overDisc) {
+        Map<BlockPos, Integer> carriedIn = mortarIn(host, carried);
+        Map<BlockPos, Integer> piles = mortarIn(host, overDisc.stream()
+                .filter(pos -> host.reaches(pos) && !carriedIn.containsKey(pos)).toList());
+        Scoop scoop = scoop(piles, layersIn(carriedIn));
+        Set<BlockPos> emptied = new LinkedHashSet<>(carriedIn.keySet());
+        Map<BlockPos, Integer> keeps = new LinkedHashMap<>();
+        scoop.pickedUp().keySet().forEach(pos -> {
+            if (scoop.leftOut().containsKey(pos)) {
+                keeps.put(pos, scoop.leftOut().get(pos));
+            } else {
+                emptied.add(pos);
+            }
+        });
+        return new Lift(emptied, keeps, layersIn(carriedIn) + layersIn(scoop.pickedUp()));
+    }
+
+    private static int layersIn(Map<BlockPos, Integer> cells) {
+        return cells.values().stream().mapToInt(Integer::intValue).sum();
     }
 
     /**
@@ -142,46 +226,42 @@ public final class MortarPaving {
     }
 
     /**
-     * The Mortar the disc lifts this tick, each cell with its layers: what
-     * the hold laid last tick, wherever it lies now, and what lies over the
-     * disc in reach.
+     * The Mortar standing in some cells, each cell holding it with its layers;
+     * the hold's carry, wherever it lies now, or the piles over the disc.
      *
-     * @param host     the channel host
-     * @param carried  the cells the hold laid last tick
-     * @param overDisc the cells over the disc
-     * @return the cells lifted, each with its layers
+     * @param host  the channel host
+     * @param cells the cells read
+     * @return the cells holding Mortar, each with its layers, in the order read
      */
-    private static Map<BlockPos, Integer> lifted(ChannelHost host, Set<BlockPos> carried, List<BlockPos> overDisc) {
-        Map<BlockPos, Integer> lifted = new LinkedHashMap<>();
-        Set<BlockPos> reached = new LinkedHashSet<>(carried);
-        overDisc.stream().filter(host::reaches).forEach(reached::add);
-        for (BlockPos pos : reached) {
+    private static Map<BlockPos, Integer> mortarIn(ChannelHost host, Collection<BlockPos> cells) {
+        Map<BlockPos, Integer> mortar = new LinkedHashMap<>();
+        for (BlockPos pos : cells) {
             BlockState state = host.stateAt(pos);
             if (state.getBlock() instanceof MortarCellBlock) {
-                lifted.put(pos, MortarCellBlock.layersOf(state));
+                mortar.put(pos, MortarCellBlock.layersOf(state));
             }
         }
-        return lifted;
+        return mortar;
     }
 
     /**
      * The cells the carry may lie in: those over the disc standing open or
-     * lifted, then any lifted cell off the disc, so a carry with no room over
-     * the disc stays where it lay.
+     * emptied by the lift, then any emptied cell off the disc, so a carry with
+     * no room over the disc stays where it lay.
      *
      * @param host     the channel host
      * @param overDisc the cells over the disc
-     * @param lifted   the cells lifted
+     * @param emptied  the cells the lift empties
      * @return the slots, the first filled first
      */
-    private static List<BlockPos> slots(ChannelHost host, List<BlockPos> overDisc, Set<BlockPos> lifted) {
+    private static List<BlockPos> slots(ChannelHost host, List<BlockPos> overDisc, Set<BlockPos> emptied) {
         List<BlockPos> slots = new ArrayList<>();
         for (BlockPos pos : overDisc) {
-            if (lifted.contains(pos) || host.airAt(pos)) {
+            if (emptied.contains(pos) || host.airAt(pos)) {
                 slots.add(pos);
             }
         }
-        lifted.stream().filter(pos -> !slots.contains(pos)).forEach(slots::add);
+        emptied.stream().filter(pos -> !slots.contains(pos)).forEach(slots::add);
         return slots;
     }
 
