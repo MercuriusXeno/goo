@@ -1,0 +1,39 @@
+{
+  "variants": {
+    "material=glazed": {
+      "model": "goo:block/alien_glyph_glazed"
+    },
+    "material=iridescent": {
+      "model": "goo:block/alien_glyph_iridescent"
+    },
+    "material=polished_glass": {
+      "model": "goo:block/alien_glyph_polished_glass"
+    },
+    "material=xeno_runes": [
+      {
+        "model": "goo:block/alien_glyph_xeno_runes_gate"
+      },
+      {
+        "model": "goo:block/alien_glyph_xeno_runes_fork"
+      }
+    ],
+    "material=xeno_seam": {
+      "model": "goo:block/alien_glyph_xeno_seam"
+    },
+    "material=framed_panels": {
+      "model": "goo:block/alien_glyph_framed_panels"
+    },
+    "material=smooth": {
+      "model": "goo:block/alien_glyph_smooth"
+    },
+    "material=chiseled": {
+      "model": "goo:block/alien_glyph_chiseled"
+    },
+    "material=inlaid": {
+      "model": "goo:block/alien_glyph_inlaid"
+    },
+    "material=hex_cells": {
+      "model": "goo:block/alien_glyph_hex_cells"
+    }
+  }
+}

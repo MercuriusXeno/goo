@@ -2,8 +2,10 @@ package com.mercuriusxeno.goo.entity;
 
 import com.mercuriusxeno.goo.ISidedProxy;
 import com.mercuriusxeno.goo.ability.GooHitCredit;
+import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.lunar.LunarGravity;
 import com.mercuriusxeno.goo.registry.GooAttachments;
+import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooEntities;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
@@ -27,6 +29,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.ValueInput;
@@ -79,6 +82,9 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
     private static final String TAG_RISE_TICKS = "RiseTicks";
     private static final String TAG_AGE = "Age";
     private static final String TAG_HOME = "Home";
+    private static final String TAG_RIDING = "RidingMortar";
+    private static final String TAG_RIDING_SHED = "RidingMortarShed";
+    private static final String TAG_LIFTED_AGE = "LiftedAge";
     private static final int DUST_PER_BLOCK = 6;
     private static final double DUST_SPREAD = 0.4;
     private static final double DUST_SPEED = 0.1;
@@ -149,6 +155,12 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
     /** The player holding a lifted hunk, so their own client draws it on their look. */
     private static final EntityDataAccessor<Integer> HOLDER =
             SynchedEntityData.defineId(BlockHunk.class, EntityDataSerializers.INT);
+    /**
+     * The layers of the Mortar riding the hunk that have shed, so the client draws what still rides.
+     * decision leftover-mortar-quivers-and-drips-down-off-the-lifted-piece
+     */
+    private static final EntityDataAccessor<Integer> RIDING_SHED =
+            SynchedEntityData.defineId(BlockHunk.class, EntityDataSerializers.INT);
 
     /**
      * One block of a hunk.
@@ -189,6 +201,10 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
     private int atSeatTicks;
     /** By block index, whether a shattering hunk has dropped that block. */
     private boolean[] dropped = new boolean[0];
+    /** The Mortar a Grab lift left riding the hunk at the grab, before any layer shed. */
+    private List<LeftoverMortar.Riding> ridingAtTheGrab = List.of();
+    /** The game time a Grab lifted the hunk, which its riding Mortar quivers and sheds from. */
+    private long liftedAt;
 
     /**
      * The constructor the entity type builds a loaded or synced hunk with.
@@ -239,8 +255,27 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
      * @return the lifted hunk, added to the level
      */
     public static BlockHunk lift(ServerLevel level, BlockPos origin, List<HunkBlock> blocks) {
+        return lift(level, origin, blocks, List.of());
+    }
+
+    /**
+     * Lifts blocks out of their cells as a hunk standing where they stood,
+     * carrying the Mortar a Grab lift left on them, which quivers and then
+     * drips off; the caller empties the cells, the Mortar's included.
+     * decision leftover-mortar-quivers-and-drips-down-off-the-lifted-piece
+     *
+     * @param level  the server level
+     * @param origin the hunk's origin cell
+     * @param blocks the blocks, each by its offset from the origin cell
+     * @param riding the Mortar riding the blocks
+     * @return the lifted hunk, added to the level
+     */
+    public static BlockHunk lift(ServerLevel level, BlockPos origin, List<HunkBlock> blocks,
+                                 List<LeftoverMortar.Riding> riding) {
         BlockHunk hunk = new BlockHunk(GooEntities.BLOCK_HUNK.get(), level);
         hunk.blocks = List.copyOf(blocks);
+        hunk.ridingAtTheGrab = List.copyOf(riding);
+        hunk.liftedAt = level.getGameTime();
         hunk.becomeLifted();
         hunk.home = origin.immutable();
         hunk.setPos(Vec3.atBottomCenterOf(origin));
@@ -274,6 +309,91 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
      */
     public List<HunkBlock> blocks() {
         return blocks;
+    }
+
+    /**
+     * The layers of Mortar riding the hunk.
+     *
+     * @return the layers
+     */
+    public int ridingLayers() {
+        return LeftoverMortar.layersOf(ridingNow());
+    }
+
+    /**
+     * The Mortar still riding the hunk, each rider at the layers it has left.
+     * decision leftover-mortar-quivers-and-drips-down-off-the-lifted-piece
+     *
+     * @return the riders
+     */
+    public List<LeftoverMortar.Riding> ridingNow() {
+        return LeftoverMortar.ridingAfter(ridingAtTheGrab, entityData.get(RIDING_SHED));
+    }
+
+    /**
+     * The ticks since a Grab lifted the hunk, which its riding Mortar quivers by.
+     *
+     * @param time the game time, with the partial tick where drawn
+     * @return the age
+     */
+    public double liftedAge(double time) {
+        return time - liftedAt;
+    }
+
+    /**
+     * Sheds the riding Mortar as its age has come due, a layer at a time
+     * evenly over the two seconds after the quiver, or all of it at once once
+     * no hold stands on the hunk.
+     * decision leftover-mortar-quivers-and-drips-down-off-the-lifted-piece
+     *
+     * @param server the server level
+     */
+    private void shedRidingMortar(ServerLevel server) {
+        int total = LeftoverMortar.layersOf(ridingAtTheGrab);
+        int shed = entityData.get(RIDING_SHED);
+        if (shed >= total) {
+            return;
+        }
+        boolean held = hasData(GooAttachments.GRABBED)
+                && !getData(GooAttachments.GRABBED).releasedAt(server.getGameTime());
+        int due = held ? LeftoverMortar.shedBy(server.getGameTime() - liftedAt, total) : total;
+        for (; shed < due; shed++) {
+            dripOneLayer(server, LeftoverMortar.ridingAfter(ridingAtTheGrab, shed));
+        }
+        entityData.set(RIDING_SHED, shed);
+    }
+
+    /**
+     * Drips one riding layer off the hunk: a fall from the open cell beside
+     * the face it rides, leaving at the hunk's surface there, straight down to
+     * the first top below wherever the hunk is held; a layer finding no top
+     * below is given back as goo.
+     * decision leftover-mortar-quivers-and-drips-down-off-the-lifted-piece
+     *
+     * @param server the server level
+     * @param riding the Mortar still riding, holding a layer at least
+     */
+    private void dripOneLayer(ServerLevel server, List<LeftoverMortar.Riding> riding) {
+        LeftoverMortar.Riding from = riding.get(LeftoverMortar.nextToShed(riding));
+        Vec3 face = surfaceOf(position(), from);
+        BlockPos open = BlockPos.containing(face.add(from.face().getUnitVec3().scale(HALF)));
+        VolumeCellBlock mortar = GooBlocks.ROCK_MORTAR.get();
+        if (!mortar.beginFall(server, open, face.y, null)) {
+            mortar.landFallNow(server, open, null);
+        }
+    }
+
+    /**
+     * The middle of the face riding Mortar coats, on the hunk at a position.
+     *
+     * @param position the hunk's position
+     * @param riding   the riding Mortar
+     * @return the face's middle
+     */
+    public static Vec3 surfaceOf(Vec3 position, LeftoverMortar.Riding riding) {
+        Vec3 middle = cornerOf(position, new HunkBlock(riding.offset(), Blocks.AIR.defaultBlockState()))
+                .add(HALF, HALF, HALF);
+        return middle.add(riding.face().getUnitVec3().scale(HALF));
     }
 
     /**
@@ -317,6 +437,7 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
         entityData.define(SHATTER_FACE, Direction.DOWN);
         entityData.define(THROWN, false);
         entityData.define(PLACED_AT, WHOLE);
+        entityData.define(RIDING_SHED, 0);
     }
 
     /**
@@ -446,6 +567,10 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
     public void markThrownBy(Player thrower) {
         entityData.set(THROWN, true);
         throwerId = thrower.getUUID();
+        if (level() instanceof ServerLevel server) {
+            // decision leftover-mortar-quivers-and-drips-down-off-the-lifted-piece: a throw sheds what rides from where it stood
+            shedRidingMortar(server);
+        }
     }
 
     /**
@@ -774,6 +899,7 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
     }
 
     private void liftedTick(ServerLevel server) {
+        shedRidingMortar(server);
         long placedAt = entityData.get(PLACED_AT);
         if (placedAt != WHOLE) {
             if (server.getGameTime() - placedAt >= SETTLE_LINGER_TICKS) {
@@ -1148,6 +1274,13 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
         // How far into the rise, not when it began: the client counts on from its own clock, which may not match.
         buffer.writeVarInt((int) Math.max(0, level().getGameTime() - riseStartTime));
         buffer.writeBlockPos(home);
+        buffer.writeVarInt(ridingAtTheGrab.size());
+        for (LeftoverMortar.Riding riding : ridingAtTheGrab) {
+            buffer.writeBlockPos(riding.offset());
+            buffer.writeVarInt(riding.face().get3DDataValue());
+            buffer.writeVarInt(riding.layers());
+        }
+        buffer.writeVarInt((int) Math.max(0, level().getGameTime() - liftedAt));
     }
 
     @Override
@@ -1166,6 +1299,14 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
         riseTicks = buffer.readVarInt();
         riseStartTime = level().getGameTime() - buffer.readVarInt();
         home = buffer.readBlockPos();
+        int riders = buffer.readVarInt();
+        List<LeftoverMortar.Riding> riding = new ArrayList<>(riders);
+        for (int index = 0; index < riders; index++) {
+            riding.add(new LeftoverMortar.Riding(buffer.readBlockPos(), Direction.from3DDataValue(buffer.readVarInt()),
+                    buffer.readVarInt()));
+        }
+        ridingAtTheGrab = List.copyOf(riding);
+        liftedAt = level().getGameTime() - buffer.readVarInt();
         if (rising) {
             setPos(positionAt(level().getGameTime()));
         }
@@ -1192,6 +1333,9 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
         riseTicks = Math.max(1, input.getIntOr(TAG_RISE_TICKS, 1));
         riseStartTime = level().getGameTime() - input.getIntOr(TAG_AGE, 0);
         home = input.read(TAG_HOME, BlockPos.CODEC).orElse(blockPosition());
+        ridingAtTheGrab = input.read(TAG_RIDING, LeftoverMortar.Riding.CODEC.listOf()).orElse(List.of());
+        entityData.set(RIDING_SHED, input.getIntOr(TAG_RIDING_SHED, 0));
+        liftedAt = level().getGameTime() - input.getIntOr(TAG_LIFTED_AGE, 0);
         setPos(position());
     }
 
@@ -1204,5 +1348,8 @@ public class BlockHunk extends Entity implements IEntityWithComplexSpawn {
         output.putInt(TAG_RISE_TICKS, riseTicks);
         output.putInt(TAG_AGE, (int) (level().getGameTime() - riseStartTime));
         output.store(TAG_HOME, BlockPos.CODEC, home);
+        output.store(TAG_RIDING, LeftoverMortar.Riding.CODEC.listOf(), ridingAtTheGrab);
+        output.putInt(TAG_RIDING_SHED, entityData.get(RIDING_SHED));
+        output.putInt(TAG_LIFTED_AGE, (int) (level().getGameTime() - liftedAt));
     }
 }

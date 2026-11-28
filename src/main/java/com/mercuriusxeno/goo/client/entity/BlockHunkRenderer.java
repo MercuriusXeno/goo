@@ -1,7 +1,11 @@
 package com.mercuriusxeno.goo.client.entity;
 
+import com.mercuriusxeno.goo.block.ability.SideCoat;
+import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.entity.BlockHunk;
+import com.mercuriusxeno.goo.entity.LeftoverMortar;
+import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -14,11 +18,13 @@ import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -54,13 +60,25 @@ public final class BlockHunkRenderer extends EntityRenderer<BlockHunk, BlockHunk
     private static final double TREMBLE_SLOW = 1.7;
     /** Offsets the tremble's z from its x, so the pillar shakes in a wobble rather than along a line. */
     private static final double TREMBLE_PHASE = 1.3;
+    /** How far a top's Mortar shakes along z for each step along x, so it shivers on a slant rather than a line. */
+    private static final double QUIVER_SLANT = 0.6;
     /** The hunk's blocks as this frame draws them, each with its offset from the hunk's drawn position. */
     public static final class HunkRenderState extends EntityRenderState {
         final List<MovingBlockRenderState> blocks = new ArrayList<>();
         final List<Vec3> offsets = new ArrayList<>();
         final List<Faded> faded = new ArrayList<>();
+        final List<RidingDraw> riding = new ArrayList<>();
         float swell = WHOLE;
         float fade = WHOLE;
+    }
+
+    /**
+     * Mortar riding a held piece, as this frame draws it on the face it coats.
+     *
+     * @param view   the level it meshes against
+     * @param offset its cell's corner from the pose's position, shaken by the quiver
+     */
+    record RidingDraw(RidingMortarView view, Vec3 offset) {
     }
 
     /**
@@ -91,6 +109,7 @@ public final class BlockHunkRenderer extends EntityRenderer<BlockHunk, BlockHunk
         super.extractRenderState(hunk, state, partialTick);
         state.blocks.clear();
         state.offsets.clear();
+        state.riding.clear();
         if (!(hunk.level() instanceof ClientLevel level) || hunk.shattering()) {
             return;
         }
@@ -112,6 +131,70 @@ public final class BlockHunkRenderer extends EntityRenderer<BlockHunk, BlockHunk
             // The pose stands at the lerped position, so a block drawn elsewhere is offset from it.
             state.offsets.add(corner.subtract(lerped));
         });
+        extractRiding(hunk, state, level, position, lerped, level.getGameTime() + partialTick);
+    }
+
+    /**
+     * Gathers the Mortar riding a held piece, each rider drawn in the cell
+     * beside the face it coats, as Mortar on that block, shaken by the quiver
+     * across the face for the first half second after the grab.
+     * decision leftover-mortar-quivers-and-drips-down-off-the-lifted-piece
+     *
+     * @param hunk     the hunk
+     * @param state    the render state
+     * @param level    the client level
+     * @param position where the hunk draws
+     * @param lerped   where the pose stands
+     * @param time     the game time with the partial tick
+     */
+    private static void extractRiding(BlockHunk hunk, HunkRenderState state, ClientLevel level, Vec3 position,
+                                      Vec3 lerped, double time) {
+        double quiver = LeftoverMortar.quiverOffset(hunk.liftedAge(time));
+        for (LeftoverMortar.Riding riding : hunk.ridingNow()) {
+            BlockHunk.HunkBlock block = blockAt(hunk, riding.offset());
+            if (riding.layers() <= 0 || block == null) {
+                continue;
+            }
+            Direction face = riding.face();
+            Vec3 corner = BlockHunk.cornerOf(position, block).add(face.getUnitVec3());
+            BlockPos cell = BlockPos.containing(corner.add(HALF, HALF, HALF));
+            RidingMortarView view = new RidingMortarView(level, cell, mortarOn(face, riding.layers()),
+                    cell.relative(face.getOpposite()), block.state());
+            state.riding.add(new RidingDraw(view, corner.subtract(lerped).add(acrossTheFace(face).scale(quiver))));
+        }
+    }
+
+    private static BlockHunk.@Nullable HunkBlock blockAt(BlockHunk hunk, BlockPos offset) {
+        return hunk.blocks().stream().filter(block -> block.offset().equals(offset)).findFirst().orElse(null);
+    }
+
+    /**
+     * Mortar of some layers coating a block on one of its faces: lying on its
+     * top, clinging to a side, or hanging from its underside.
+     *
+     * @param face   the block's face the Mortar coats
+     * @param layers the layers
+     * @return the Mortar's state, in the cell beside that face
+     */
+    private static BlockState mortarOn(Direction face, int layers) {
+        BlockState mortar = GooBlocks.ROCK_MORTAR.get().defaultBlockState().setValue(VolumeCellBlock.LAYERS,
+                Math.min(layers, VolumeCellBlock.MAX_LAYERS));
+        return switch (face) {
+            case UP -> mortar;
+            case DOWN -> mortar.setValue(VolumeCellBlock.CEILING, true);
+            default -> mortar.setValue(VolumeCellBlock.coatProperty(face.getOpposite()), SideCoat.ATTACHED);
+        };
+    }
+
+    /**
+     * The way riding Mortar shakes across the face it coats: along the face,
+     * never off it.
+     *
+     * @param face the face
+     * @return the shake's direction
+     */
+    private static Vec3 acrossTheFace(Direction face) {
+        return face.getAxis() == Direction.Axis.Y ? new Vec3(1, 0, QUIVER_SLANT) : new Vec3(0, 1, 0);
     }
 
     /**
@@ -225,10 +308,39 @@ public final class BlockHunkRenderer extends EntityRenderer<BlockHunk, BlockHunk
         }
     }
 
+    /**
+     * Draws the Mortar riding a held piece, each rider tesselated as the
+     * world tesselates Mortar on that block, in the cell beside its face.
+     * decision leftover-mortar-quivers-and-drips-down-off-the-lifted-piece
+     *
+     * @param state     the render state
+     * @param poseStack the pose stack, at the hunk
+     * @param collector the submit collector
+     */
+    private static void submitRiding(HunkRenderState state, PoseStack poseStack, SubmitNodeCollector collector) {
+        if (state.riding.isEmpty()) {
+            return;
+        }
+        Minecraft mc = Minecraft.getInstance();
+        ModelBlockRenderer tesselator = new ModelBlockRenderer(mc.options.ambientOcclusion().get(), true,
+                mc.getBlockColors());
+        for (RidingDraw riding : state.riding) {
+            RidingMortarView view = riding.view();
+            BlockStateModel model = mc.getModelManager().getBlockStateModelSet().get(view.mortar());
+            poseStack.pushPose();
+            poseStack.translate(riding.offset().x, riding.offset().y, riding.offset().z);
+            collector.submitCustomGeometry(poseStack, GooSubmitter.movingBlockTranslucent(), (pose, buffer) ->
+                    tesselator.tesselateBlock((x, y, z, quad, instance) -> buffer.putBakedQuad(pose, quad, instance),
+                            0f, 0f, 0f, view, view.cell(), view.mortar(), model, view.mortar().getSeed(view.cell())));
+            poseStack.popPose();
+        }
+    }
+
     @Override
     public void submit(HunkRenderState state, PoseStack poseStack, SubmitNodeCollector collector,
                        CameraRenderState camera) {
         submitFaded(state, poseStack, collector);
+        submitRiding(state, poseStack, collector);
         for (int index = 0; index < state.blocks.size(); index++) {
             Vec3 offset = state.offsets.get(index);
             poseStack.pushPose();

@@ -216,9 +216,8 @@ class LunarSkyTest {
         private static final float[] BLACK = {0F, 0F, 0F};
         /** How squarely the lit edge has to face the sun's side, as a share of a head-on facing. */
         private static final double LIT_EDGE_SHARE = 0.5;
-        /** The texels across vanilla's moon sprite, and across the planet's, as basic as the moon's eight-texel face. */
-        private static final float MOON_SPRITE_TEXELS = 32F;
-        private static final float PLANET_SPRITE_TEXELS = 8F;
+        /** The texels across vanilla's moon disc, eight of its sprite's thirty-two. */
+        private static final double MOON_DISC_TEXELS = 8.0;
 
         @Test
         void theDiscStandsFourVanillaMoonDiscsWide() {
@@ -283,10 +282,30 @@ class LunarSkyTest {
                     Arguments.of(MoonPhase.WANING_CRESCENT, "waxing_gibbous"));
         }
 
+        /**
+         * The planet's sprite, read as the game reads it, spans the sky at the moon's texel: the moon's eight-texel disc
+         * one moon wide, the planet's disc, filling its sprite, four moons wide.
+         * decision overworld-phases-are-32x32-at-the-moons-lod-ratio
+         */
         @Test
-        void aPlanetTexelIsFourMoonTexelsWide() {
-            assertEquals(MOONS_WIDE * VANILLA_MOON_SIZE * 2 / MOON_SPRITE_TEXELS,
-                    LunarSky.PLANET_HALF_SIZE * 2 / PLANET_SPRITE_TEXELS, QUAD_TOLERANCE);
+        void aPlanetTexelSpansTheSkyAMoonTexelSpans() throws IOException {
+            double moonTexel = 2.0 * LunarSky.VANILLA_MOON_HALF_WIDTH * LunarSky.MOON_DISC_SHARE / MOON_DISC_TEXELS;
+            double planetTexel = 2.0 * LunarSky.PLANET_HALF_SIZE / spriteImage(MoonPhase.FULL_MOON).getWidth();
+            assertEquals(moonTexel, planetTexel, QUAD_TOLERANCE, "a moon texel spans " + moonTexel
+                    + " sky units, a planet texel " + planetTexel);
+            double restingMoonHalfTangent = LunarSky.VANILLA_MOON_HALF_WIDTH / PocketStarSkyRenderer.SKY_DISTANCE
+                    * LunarSky.MOON_DISC_SHARE;
+            assertEquals(MOONS_WIDE * restingMoonHalfTangent,
+                    LunarSky.PLANET_HALF_SIZE / PocketStarSkyRenderer.SKY_DISTANCE, TOLERANCE);
+        }
+
+        private static BufferedImage spriteImage(MoonPhase planetPhase) throws IOException {
+            Identifier sprite = LunarSky.planetSprite(planetPhase);
+            String resource = "/assets/" + sprite.getNamespace() + "/" + sprite.getPath();
+            try (InputStream stream = LunarSkyTest.class.getResourceAsStream(resource)) {
+                assertNotNull(stream, resource + " is not on the classpath");
+                return ImageIO.read(stream);
+            }
         }
 
         /**
@@ -336,26 +355,21 @@ class LunarSkyTest {
         }
 
         private static boolean brighterOnTheRight(MoonPhase planetPhase) throws IOException {
-            Identifier sprite = LunarSky.planetSprite(planetPhase);
-            String resource = "/assets/" + sprite.getNamespace() + "/" + sprite.getPath();
-            try (InputStream stream = LunarSkyTest.class.getResourceAsStream(resource)) {
-                assertNotNull(stream, resource + " is not on the classpath");
-                BufferedImage image = ImageIO.read(stream);
-                long left = 0;
-                long right = 0;
-                for (int y = 0; y < image.getHeight(); y++) {
-                    for (int x = 0; x < image.getWidth(); x++) {
-                        int lit = brightness(image.getRGB(x, y));
-                        if (x < image.getWidth() / 2) {
-                            left += lit;
-                        } else {
-                            right += lit;
-                        }
+            BufferedImage image = spriteImage(planetPhase);
+            long left = 0;
+            long right = 0;
+            for (int y = 0; y < image.getHeight(); y++) {
+                for (int x = 0; x < image.getWidth(); x++) {
+                    int lit = brightness(image.getRGB(x, y));
+                    if (x < image.getWidth() / 2) {
+                        left += lit;
+                    } else {
+                        right += lit;
                     }
                 }
-                assertNotEquals(left, right, resource + " lights both halves alike");
-                return right > left;
             }
+            assertNotEquals(left, right, planetPhase + "'s sprite lights both halves alike");
+            return right > left;
         }
 
         private static int brightness(int argb) {

@@ -1,0 +1,363 @@
+{
+  "model": {
+    "type": "minecraft:select",
+    "property": "minecraft:block_state",
+    "block_state_property": "material",
+    "cases": [
+      {
+        "when": "glazed",
+        "model": {
+          "type": "minecraft:select",
+          "property": "minecraft:block_state",
+          "block_state_property": "style",
+          "cases": [
+            {
+              "when": "fluted",
+              "model": {
+                "type": "minecraft:model",
+                "model": "goo:block/alien_pillar_glazed_fluted"
+              }
+            },
+            {
+              "when": "banded",
+              "model": {
+                "type": "minecraft:model",
+                "model": "goo:block/alien_pillar_glazed_banded"
+              }
+            },
+            {
+              "when": "runed",
+              "model": {
+                "type": "minecraft:model",
+                "model": "goo:block/alien_pillar_glazed_runed"
+              }
+            }
+          ],
+          "fallback": {
+            "type": "minecraft:model",
+            "model": "goo:block/alien_pillar_glazed_fluted"
+          }
+        }
+      },
+      {
+        "when": "iridescent",
+        "model": {
+          "type": "minecraft:select",
+          "property": "minecraft:block_state",
+          "block_state_property": "style",
+          "cases": [
+            {
+              "when": "fluted",
+              "model": {
+                "type": "minecraft:model",
+                "model": "goo:block/alien_pillar_iridescent_fluted"
+              }
+            },
+            {
+              "when": "banded",
+              "model": {
+                "type": "minecraft:model",
+                "model": "goo:block/alien_pillar_iridescent_banded"
+              }
+            },
+            {
+              "when": "runed",
+              "model": {
+                "type": "minecraft:model",
+                "model": "goo:block/alien_pillar_iridescent_runed"
+              }
+            }
+          ],
+          "fallback": {
+            "type": "minecraft:model",
+            "model": "goo:block/alien_pillar_iridescent_fluted"
+          }
+        }
+      },
+      {
+        "when": "polished_glass",
+        "model": {
+          "type": "minecraft:select",
+          "property": "minecraft:block_state",
+          "block_state_property": "style",
+          "cases": [
+            {
+              "when": "fluted",
+              "model": {
+                "type": "minecraft:model",
+                "model": "goo:block/alien_pillar_polished_glass_fluted"
+              }
+            },
+            {
+              "when": "banded",
+              "model": {
+                "type": "minecraft:model",
+                "model": "goo:block/alien_pillar_polished_glass_banded"
+              }
+            },
+            {
+              "when": "runed",
+              "model": {
+                "type": "minecraft:model",
+                "model": "goo:block/alien_pillar_polished_glass_runed"
+              }
+            }
+          ],
+          "fallback": {
+            "type": "minecraft:model",
+            "model": "goo:block/alien_pillar_polished_glass_fluted"
+          }
+        }
+      },
+      {
+        "when": "xeno_runes",
+        "model": {
+          "type": "minecraft:select",
+          "property": "minecraft:block_state",
+          "block_state_property": "style",
+          "cases": [
+            {
+              "when": "fluted",
+              "model": {
+                "type": "minecraft:model",
+                "model": "goo:block/alien_pillar_xeno_runes_fluted"
+              }
+            },
+            {
+              "when": "banded",
+              "model": {
+                "type": "minecraft:model",
+                "model": "goo:block/alien_pillar_xeno_runes_banded"
+              }
+            },
+            {
+              "when": "runed",
+              "model": {
+                "type": "minecraft:model",
+                "model": "goo:block/alien_pillar_xeno_runes_runed"
+              }
+            }
+          ],
+          "fallback": {
+            "type": "minecraft:model",
+            "model": "goo:block/alien_pillar_xeno_runes_fluted"
+          }
+        }
+      },
+      {
+        "when": "xeno_seam",
+        "model": {
+          "type": "minecraft:select",
+          "property": "minecraft:block_state",
+          "block_state_property": "style",
+          "cases": [
+            {
+              "when": "fluted",
+              "model": {
+                "type": "minecraft:model",
+                "model": "goo:block/alien_pillar_xeno_seam_fluted"
+              }
+            },
+            {
+              "when": "banded",
+              "model": {
+                "type": "minecraft:model",
+                "model": "goo:block/alien_pillar_xeno_seam_banded"
+              }
+            },
+            {
+              "when": "runed",
+              "model": {
+                "type": "minecraft:model",
+                "model": "goo:block/alien_pillar_xeno_seam_runed"
+              }
+            }
+          ],
+          "fallback": {
+            "type": "minecraft:model",
+            "model": "goo:block/alien_pillar_xeno_seam_fluted"
+          }
+        }
+      },
+      {
+        "when": "framed_panels",
+        "model": {
+          "type": "minecraft:select",
+          "property": "minecraft:block_state",
+          "block_state_property": "style",
+          "cases": [
+            {
+              "when": "fluted",
+              "model": {
+                "type": "minecraft:model",
+                "model": "goo:block/alien_pillar_framed_panels_fluted"
+              }
+            },
+            {
+              "when": "banded",
+              "model": {
+                "type": "minecraft:model",
+                "model": "goo:block/alien_pillar_framed_panels_banded"
+              }
+            },
+            {
+              "when": "runed",
+              "model": {
+                "type": "minecraft:model",
+                "model": "goo:block/alien_pillar_framed_panels_runed"
+              }
+            }
+          ],
+          "fallback": {
+            "type": "minecraft:model",
+            "model": "goo:block/alien_pillar_framed_panels_fluted"
+          }
+        }
+      },
+      {
+        "when": "smooth",
+        "model": {
+          "type": "minecraft:select",
+          "property": "minecraft:block_state",
+          "block_state_property": "style",
+          "cases": [
+            {
+              "when": "fluted",
+              "model": {
+                "type": "minecraft:model",
+                "model": "goo:block/alien_pillar_smooth_fluted"
+              }
+            },
+            {
+              "when": "banded",
+              "model": {
+                "type": "minecraft:model",
+                "model": "goo:block/alien_pillar_smooth_banded"
+              }
+            },
+            {
+              "when": "runed",
+              "model": {
+                "type": "minecraft:model",
+                "model": "goo:block/alien_pillar_smooth_runed"
+              }
+            }
+          ],
+          "fallback": {
+            "type": "minecraft:model",
+            "model": "goo:block/alien_pillar_smooth_fluted"
+          }
+        }
+      },
+      {
+        "when": "chiseled",
+        "model": {
+          "type": "minecraft:select",
+          "property": "minecraft:block_state",
+          "block_state_property": "style",
+          "cases": [
+            {
+              "when": "fluted",
+              "model": {
+                "type": "minecraft:model",
+                "model": "goo:block/alien_pillar_chiseled_fluted"
+              }
+            },
+            {
+              "when": "banded",
+              "model": {
+                "type": "minecraft:model",
+                "model": "goo:block/alien_pillar_chiseled_banded"
+              }
+            },
+            {
+              "when": "runed",
+              "model": {
+                "type": "minecraft:model",
+                "model": "goo:block/alien_pillar_chiseled_runed"
+              }
+            }
+          ],
+          "fallback": {
+            "type": "minecraft:model",
+            "model": "goo:block/alien_pillar_chiseled_fluted"
+          }
+        }
+      },
+      {
+        "when": "inlaid",
+        "model": {
+          "type": "minecraft:select",
+          "property": "minecraft:block_state",
+          "block_state_property": "style",
+          "cases": [
+            {
+              "when": "fluted",
+              "model": {
+                "type": "minecraft:model",
+                "model": "goo:block/alien_pillar_inlaid_fluted"
+              }
+            },
+            {
+              "when": "banded",
+              "model": {
+                "type": "minecraft:model",
+                "model": "goo:block/alien_pillar_inlaid_banded"
+              }
+            },
+            {
+              "when": "runed",
+              "model": {
+                "type": "minecraft:model",
+                "model": "goo:block/alien_pillar_inlaid_runed"
+              }
+            }
+          ],
+          "fallback": {
+            "type": "minecraft:model",
+            "model": "goo:block/alien_pillar_inlaid_fluted"
+          }
+        }
+      },
+      {
+        "when": "hex_cells",
+        "model": {
+          "type": "minecraft:select",
+          "property": "minecraft:block_state",
+          "block_state_property": "style",
+          "cases": [
+            {
+              "when": "fluted",
+              "model": {
+                "type": "minecraft:model",
+                "model": "goo:block/alien_pillar_hex_cells_fluted"
+              }
+            },
+            {
+              "when": "banded",
+              "model": {
+                "type": "minecraft:model",
+                "model": "goo:block/alien_pillar_hex_cells_banded"
+              }
+            },
+            {
+              "when": "runed",
+              "model": {
+                "type": "minecraft:model",
+                "model": "goo:block/alien_pillar_hex_cells_runed"
+              }
+            }
+          ],
+          "fallback": {
+            "type": "minecraft:model",
+            "model": "goo:block/alien_pillar_hex_cells_fluted"
+          }
+        }
+      }
+    ],
+    "fallback": {
+      "type": "minecraft:model",
+      "model": "goo:block/alien_pillar_glazed_fluted"
+    }
+  }
+}

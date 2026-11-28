@@ -96,7 +96,7 @@ public class MortarCellBlock extends VolumeCellBlock {
      * @param limit    the most cells read
      * @return the network in the order it was reached, empty where the start is outside it
      */
-    static Set<BlockPos> networkFrom(BlockPos start, Predicate<BlockPos> inNetwork, int limit) {
+    public static Set<BlockPos> networkFrom(BlockPos start, Predicate<BlockPos> inNetwork, int limit) {
         Set<BlockPos> network = new LinkedHashSet<>();
         if (!inNetwork.test(start)) {
             return network;

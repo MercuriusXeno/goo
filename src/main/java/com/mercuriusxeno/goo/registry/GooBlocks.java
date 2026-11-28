@@ -20,6 +20,8 @@ import com.mercuriusxeno.goo.block.ability.VinesCellBlock;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.block.ability.WispBlock;
 import com.mercuriusxeno.goo.block.ability.ZapPulseBlock;
+import com.mercuriusxeno.goo.block.alienstructure.AlienMaterialBlock;
+import com.mercuriusxeno.goo.block.alienstructure.AlienPillarBlock;
 import com.mercuriusxeno.goo.block.alientech.LightBeaconBlock;
 import com.mercuriusxeno.goo.block.alientech.MetronomeBlock;
 import com.mercuriusxeno.goo.block.alientech.OculusBlock;
@@ -36,6 +38,11 @@ import com.mercuriusxeno.goo.block.vat.VatBlock;
 import com.mercuriusxeno.goo.block.zone.DimensionDoorBlock;
 import com.mercuriusxeno.goo.fluid.GooFluidBlock;
 import com.mercuriusxeno.goo.fluid.MoltenIronBlock;
+import com.mercuriusxeno.goo.lunar.MonolithMarkerBlock;
+import com.mercuriusxeno.goo.lunar.ResonatorBlock;
+import com.mercuriusxeno.goo.lunar.VolatileCrystalBlock;
+import com.mercuriusxeno.goo.lunar.WirelessEmitterBlock;
+import com.mercuriusxeno.goo.lunar.WirelessSignalBlock;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.ColorRGBA;
 import net.minecraft.world.level.BlockGetter;
@@ -50,6 +57,7 @@ import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.TintedGlassBlock;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.SculkSensorPhase;
 import net.minecraft.world.level.material.MapColor;
 import net.minecraft.world.level.material.PushReaction;
 import net.neoforged.neoforge.registries.DeferredBlock;
@@ -768,6 +776,97 @@ public class GooBlocks {
                     .pushReaction(PushReaction.POPPED));
 
     /**
+     * Monolith marker: a short black standing stone found alone on the warrens' tunnel floors, rich in xeno, mined
+     * like stone.
+     * decision warrens-hold-xeno-rich-alien-blocks
+     */
+    public static final DeferredBlock<MonolithMarkerBlock> MONOLITH_MARKER = BLOCKS.registerBlock("monolith_marker",
+            MonolithMarkerBlock::new, () -> BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_BLACK)
+                    .requiresCorrectToolForDrops().strength(STONE_HARDNESS, STONE_RESISTANCE).sound(SoundType.STONE)
+                    .noOcclusion());
+
+    /**
+     * Alien stone: the plain block of the ancient alien structure family, the refined material the warrens' mini
+     * structures and the eldritch ground's buildings are built from, rich in xeno, mined like stone; its material is
+     * a block state.
+     * decision warrens-hold-xeno-rich-alien-blocks
+     */
+    public static final DeferredBlock<AlienMaterialBlock> ALIEN_STONE = BLOCKS.registerBlock("alien_stone",
+            AlienMaterialBlock::new, GooBlocks::alienStructureProperties);
+
+    /**
+     * Alien pillar: the alien structure family's column, standing along the axis it is placed on, its carving a block
+     * state.
+     * decision warrens-hold-xeno-rich-alien-blocks
+     */
+    public static final DeferredBlock<AlienPillarBlock> ALIEN_PILLAR = BLOCKS.registerBlock("alien_pillar",
+            AlienPillarBlock::new, GooBlocks::alienStructureProperties);
+
+    /**
+     * Alien glyph: the alien structure family's rune block, each material bearing its own rune, the material a block state.
+     * decision warrens-hold-xeno-rich-alien-blocks
+     */
+    public static final DeferredBlock<AlienMaterialBlock> ALIEN_GLYPH = BLOCKS.registerBlock("alien_glyph",
+            AlienMaterialBlock::new, GooBlocks::alienStructureProperties);
+
+    /**
+     * Alien tile: the alien structure family's floor tile, its material a block state.
+     * decision warrens-hold-xeno-rich-alien-blocks
+     */
+    public static final DeferredBlock<AlienMaterialBlock> ALIEN_TILE = BLOCKS.registerBlock("alien_tile",
+            AlienMaterialBlock::new, GooBlocks::alienStructureProperties);
+
+    /** A volatile crystal's height and width in pixels, and the faint light its unstable core gives. */
+    private static final float VOLATILE_CRYSTAL_HEIGHT = 7.0F;
+    private static final float VOLATILE_CRYSTAL_WIDTH = 10.0F;
+    private static final int VOLATILE_CRYSTAL_LIGHT = 4;
+
+    /**
+     * Volatile crystal: a crystal growing in clusters from the warrens' rock, rich in crystal and unstable, which
+     * shatters and explodes when a redstone signal reaches it and drops whole when mined quiet.
+     * decision volatile-crystals-are-rich-in-crystal-and-unstable
+     */
+    public static final DeferredBlock<VolatileCrystalBlock> VOLATILE_CRYSTAL = BLOCKS.registerBlock("volatile_crystal",
+            properties -> new VolatileCrystalBlock(VOLATILE_CRYSTAL_HEIGHT, VOLATILE_CRYSTAL_WIDTH, properties),
+            () -> BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_LIGHT_GREEN).forceSolidOn().noOcclusion()
+                    .sound(SoundType.AMETHYST_CLUSTER).strength(1.5F).lightLevel(state -> VOLATILE_CRYSTAL_LIGHT)
+                    .pushReaction(PushReaction.POPPED));
+
+    /** The light a resonator's lit tip gives while it carries an echo. */
+    private static final int RESONATOR_ACTIVE_LIGHT = 6;
+
+    /**
+     * Resonator: alien tech in a simple entityless block that hears a vibration and echoes it from where it stands,
+     * a sound relay, rich in pulse.
+     * decision resonator-echoes-a-vibration-as-a-sound-relay
+     */
+    public static final DeferredBlock<ResonatorBlock> RESONATOR = BLOCKS.registerBlock("resonator",
+            ResonatorBlock::new, () -> BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_CYAN)
+                    .strength(STONE_HARDNESS, STONE_RESISTANCE).sound(SoundType.SCULK_SENSOR).noOcclusion()
+                    .lightLevel(state -> state.getValue(ResonatorBlock.PHASE) == SculkSensorPhase.ACTIVE
+                            ? RESONATOR_ACTIVE_LIGHT : 0));
+
+    /**
+     * Wireless emitter: alien tech in a simple entityless block that beams the signal it takes to the closest block
+     * within 16 Manhattan that takes a signal, at the level it takes, a redstone relay.
+     * decision wireless-emitter-beams-its-signal-to-the-closest-receiver
+     */
+    public static final DeferredBlock<WirelessEmitterBlock> WIRELESS_EMITTER = BLOCKS.registerBlock(
+            "wireless_emitter", WirelessEmitterBlock::new, () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_PURPLE).strength(STONE_HARDNESS, STONE_RESISTANCE)
+                    .sound(SoundType.AMETHYST));
+
+    /**
+     * Wireless signal: the source a wireless emitter stands beside its receiver, holding the emitter's level until the
+     * emitter lets it go.
+     * decision wireless-emitter-beams-its-signal-to-the-closest-receiver
+     */
+    public static final DeferredBlock<WirelessSignalBlock> WIRELESS_SIGNAL = BLOCKS.registerBlock(
+            "wireless_signal", WirelessSignalBlock::new, () -> BlockBehaviour.Properties.of()
+                    .noCollision().instabreak().noLootTable().noOcclusion().replaceable()
+                    .pushReaction(PushReaction.POPPED));
+
+    /**
      * Void crystal: the moon's source of void, growing in clusters on the dark side's surface, shaped, lit and mined
      * as astral crystal is.
      * decision void-crystals-spawn-on-the-moon
@@ -883,5 +982,15 @@ public class GooBlocks {
      */
     private static boolean never(BlockState state, BlockGetter level, BlockPos pos) {
         return false;
+    }
+
+    /**
+     * The properties every alien structure family member shares: a black material, mined like stone with a pickaxe.
+     *
+     * @return the properties
+     */
+    private static BlockBehaviour.Properties alienStructureProperties() {
+        return BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_BLACK).requiresCorrectToolForDrops()
+                .strength(STONE_HARDNESS, STONE_RESISTANCE).sound(SoundType.DEEPSLATE);
     }
 }
