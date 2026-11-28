@@ -6,21 +6,22 @@ import java.util.stream.Collectors;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
- * The shipped abilities whose lifted blob floats to the center line: Click,
- * Orb, Drain, Reap, Zap, Glimmer and Magnet, and no other; Bore's blob rests
- * by the glove.
- * centered-abilities-float-the-blob-below-the-crosshair
- * bore-blob-lifts-by-the-glove-and-the-drill-extends-from-that-hand
+ * No shipped ability floats its lifted blob to the center line: none carries
+ * the tag that once sent it there, so Click, Orb, Drain, Reap, Zap, Glimmer and
+ * Magnet rest their blob over the hand as every other ability does.
+ * decision no-ability-floats-its-blob-to-the-center-line
  */
 class CenteredAbilitiesTest {
 
+    /** The tag that floated a blob to the center line. */
+    private static final String CENTER_LINE_TAG = "centered";
+
     @Test
-    void theShippedCenteredAbilitiesAreTheSevenTheOperatorNamed() {
-        Set<String> centered = AbilityJson.files().stream().map(AbilityJson::decode)
-                .filter(ability -> ability.hasTag(AbilityTags.CENTERED))
+    void noShippedAbilityCarriesTheCenterLineTag() {
+        Set<String> tagged = AbilityJson.files().stream().map(AbilityJson::decode)
+                .filter(ability -> ability.hasTag(CENTER_LINE_TAG))
                 .map(ability -> ability.id().getPath()).collect(Collectors.toSet());
 
-        assertEquals(Set.of("pulse_click", "frost_orb", "hex_drain", "leaf_reap", "pulse_zap",
-                "crystal_glimmer", "metal_magnet"), centered);
+        assertEquals(Set.of(), tagged, "no shipped ability should float its blob to the center line");
     }
 }

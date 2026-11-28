@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.throwing.GloveAim;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
+import com.mercuriusxeno.goo.throwing.LookAim;
 import com.mercuriusxeno.goo.throwing.VortexCone;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.client.Camera;
@@ -22,10 +23,11 @@ import java.util.function.Consumer;
 /**
  * Drain's cast look: while right click holds a stream naming
  * {@link MiasmaVortexStep}, a filled, turning, rifled vortex of miasma fills
- * the cone the stream pours through, the glove's from the hand along the
- * player's whole look, redrawn every frame so it turns with the look, spawning nothing.
+ * the cone the stream pours through, the glove's from the lifted blob at
+ * what the player's look intersects, redrawn every frame so it turns with the look, spawning nothing.
  * drain-casts-a-filled-tornadic-miasma-vortex-along-the-look
  * decision spray-abilities-render-procedurally-bound-to-their-cone
+ * decision ability-goes-where-the-look-intersects
  */
 public final class MiasmaVortex {
 
@@ -89,8 +91,8 @@ public final class MiasmaVortex {
     }
 
     /**
-     * Pours the glove's vortex while right click holds it: the round cone of its delivery, from the hand along the
-     * look this frame.
+     * Pours the glove's vortex while right click holds it: the round cone of its delivery, from the lifted blob at
+     * what the look intersects this frame.
      * decision spray-abilities-render-procedurally-bound-to-their-cone
      *
      * @param mc          the client
@@ -103,8 +105,11 @@ public final class MiasmaVortex {
             return;
         }
         lastColors = colorsOf(GloveAim.selectedGooType(player));
-        ConeVisuals.pour(held.id().toString(), SprayCone.ofGlove(held.delivery(), CastOrigin.ofLocal(mc),
-                player.getViewVector(partialTick)));
+        Vec3 blob = CastOrigin.ofLocal(mc);
+        // ability-goes-where-the-look-intersects
+        Vec3 axis = VortexCone.aimed(blob, player.getEyePosition(partialTick), player.getViewVector(partialTick),
+                held.delivery().range(), held.delivery().coneDegrees(), LookAim.blocksAndLivingSeenBy(player)).axis();
+        ConeVisuals.pour(held.id().toString(), SprayCone.ofGlove(held.delivery(), blob, axis));
     }
 
     private static SortedDraw sortedDrawOf(VortexCone vortex, MiasmaVortexPass.Colors colors,
@@ -124,7 +129,7 @@ public final class MiasmaVortex {
         String abilityId = GloveAim.selectedAbilityId(player);
         ClientAbility ability = abilityId == null ? null : AbilitySyncHandler.findAbility(abilityId);
         boolean swirls = ability != null
-                && ability.behaviors().stream().anyMatch(MiasmaVortexStep.class::isInstance);
+                && MiasmaVortexStep.drawnIn(ability.behaviors());
         return swirls && GloveUseTracker.runsHeld(player) ? ability : null;
     }
 
