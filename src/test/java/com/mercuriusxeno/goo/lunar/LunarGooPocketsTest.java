@@ -25,8 +25,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * The rule choosing a lunar goo pocket's goo type answers astral in every lunar surface biome, frost in the shadowed
- * basins alone and xeno on eldritch ground alone; and each surface biome names the goo pockets, spaced apart.
+ * basins alone, xeno on eldritch ground alone, crystal in the highlands alone and metal in maria alone; and each
+ * surface biome names the goo pockets, spaced apart.
  * decision frost-astral-and-xeno-goo-spawn-periodically-on-lunar
+ * decision crystal-and-metal-goo-spawn-in-the-highlands-and-maria
  */
 class LunarGooPocketsTest {
 
@@ -34,14 +36,20 @@ class LunarGooPocketsTest {
     private static final long SEED = 1838L;
     private static final String GOO_POCKETS = "goo:goo_pockets";
 
+    /**
+     * decision crystal-and-metal-goo-spawn-in-the-highlands-and-maria
+     */
     @Test
-    void mariaAnswersAstralAlone() {
-        assertEquals(Set.of(GooTypes.ASTRAL), rolledTypes(LunarGooPockets.MARIA));
+    void mariaAnswersAstralAndMetal() {
+        assertEquals(Set.of(GooTypes.ASTRAL, GooTypes.METAL), rolledTypes(LunarGooPockets.MARIA));
     }
 
+    /**
+     * decision crystal-and-metal-goo-spawn-in-the-highlands-and-maria
+     */
     @Test
-    void highlandsAnswerAstralAlone() {
-        assertEquals(Set.of(GooTypes.ASTRAL), rolledTypes(LunarGooPockets.HIGHLANDS));
+    void highlandsAnswerAstralAndCrystal() {
+        assertEquals(Set.of(GooTypes.ASTRAL, GooTypes.CRYSTAL), rolledTypes(LunarGooPockets.HIGHLANDS));
     }
 
     @Test

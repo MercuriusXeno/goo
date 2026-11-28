@@ -28,6 +28,7 @@ import java.util.function.Supplier;
  * layers, and stand until something takes them; the pockets recur across the landscape as the feature's spacing
  * places them.
  * decision frost-astral-and-xeno-goo-spawn-periodically-on-lunar
+ * decision crystal-and-metal-goo-spawn-in-the-highlands-and-maria
  *
  * @param cells  how many cells the pocket tries to lay
  * @param layers the layers each cell tries to hold
@@ -56,7 +57,9 @@ public record GooPocketFeature(IntProvider cells, IntProvider layers, int volume
     private static final Map<ResourceKey<GooTypeDefinition>, Supplier<? extends Block>> WORLD_GOO = Map.of(
             GooTypes.ASTRAL, GooBlocks.ASTRAL_DOWSING,
             GooTypes.FROST, GooBlocks.FROST_RIME,
-            GooTypes.XENO, GooBlocks.XENO_OOZE);
+            GooTypes.XENO, GooBlocks.XENO_OOZE,
+            GooTypes.CRYSTAL, GooBlocks.CRYSTAL_SHATTER,
+            GooTypes.METAL, GooBlocks.METAL_SPIKES);
 
     @Override
     public MapCodec<GooPocketFeature> codec() {

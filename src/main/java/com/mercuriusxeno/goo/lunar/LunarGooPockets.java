@@ -15,6 +15,7 @@ import java.util.Optional;
 /**
  * The rule choosing which goo type a world goo pocket on lunar holds, one pure function of the spot's biome.
  * decision frost-astral-and-xeno-goo-spawn-periodically-on-lunar
+ * decision crystal-and-metal-goo-spawn-in-the-highlands-and-maria
  */
 public final class LunarGooPockets {
 
@@ -24,10 +25,14 @@ public final class LunarGooPockets {
     public static final ResourceKey<Biome> SHADOWED_BASINS = lunarBiome("lunar_shadowed_basins");
     public static final ResourceKey<Biome> ELDRITCH_GROUND = lunarBiome("lunar_eldritch_ground");
 
-    /** Astral can be anywhere on lunar; frost keeps to the shadowed basins and xeno to eldritch ground. */
+    /**
+     * Astral can be anywhere on lunar; frost keeps to the shadowed basins, xeno to eldritch ground, crystal to the
+     * highlands and metal to maria.
+     * decision crystal-and-metal-goo-spawn-in-the-highlands-and-maria
+     */
     private static final Map<ResourceKey<Biome>, List<ResourceKey<GooTypeDefinition>>> GOO_TYPES_BY_BIOME = Map.of(
-            MARIA, List.of(GooTypes.ASTRAL),
-            HIGHLANDS, List.of(GooTypes.ASTRAL),
+            MARIA, List.of(GooTypes.ASTRAL, GooTypes.METAL),
+            HIGHLANDS, List.of(GooTypes.ASTRAL, GooTypes.CRYSTAL),
             SHADOWED_BASINS, List.of(GooTypes.ASTRAL, GooTypes.FROST),
             ELDRITCH_GROUND, List.of(GooTypes.ASTRAL, GooTypes.XENO));
 
