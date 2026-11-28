@@ -26,6 +26,7 @@ import com.mercuriusxeno.goo.lunar.LunarGravity;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.throwing.AimReach;
 import com.mercuriusxeno.goo.throwing.GateArc;
+import com.mercuriusxeno.goo.throwing.LookAim;
 import com.mercuriusxeno.goo.throwing.ThrowArc;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -37,6 +38,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
@@ -492,8 +494,9 @@ public final class GooThrowHandler {
     }
 
     /**
-     * Sets a rolling goo off from the hand along the player's look, when the
-     * player holds its cost: it pays and takes its reagents as any throw does.
+     * Sets a rolling goo off from the hand toward what the player's look
+     * intersects, when the player holds its cost: it pays and takes its
+     * reagents as any throw does.
      * orb-carries-a-swirling-nova
      *
      * @param player  the throwing player
@@ -511,7 +514,25 @@ public final class GooThrowHandler {
         Vec3 hand = ThrowArc.clampToReach(player.getEyePosition(), payload.origin(),
                 ThrowArc.HAND_REACH * player.getScale());
         GooEffectScheduler.playThrowSound(player, ability.delivery());
-        RollingGoo.roll(player.level(), player, ability, hand, player.getLookAngle());
+        Vec3 heading = rollHeading(hand, player.getEyePosition(), player.getLookAngle(), ability.delivery().range(),
+                (from, to) -> player.level().clip(new ClipContext(from, to, ClipContext.Block.OUTLINE,
+                        ClipContext.Fluid.NONE, player)).getLocation());
+        RollingGoo.roll(player.level(), player, ability, hand, heading);
+    }
+
+    /**
+     * The direction a rolling goo leaving the hand rolls along.
+     *
+     * @param hand   where it leaves, the lifted blob
+     * @param eye    the thrower's eye
+     * @param look   the thrower's look
+     * @param range  the rolling ability's range in blocks
+     * @param blocks the first block face a line meets
+     * @return the unit heading
+     */
+    static Vec3 rollHeading(Vec3 hand, Vec3 eye, Vec3 look, double range, LookAim.LookClip blocks) {
+        // ability-goes-where-the-look-intersects
+        return LookAim.heading(hand, eye, look, range, blocks);
     }
 
     /**

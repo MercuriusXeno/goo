@@ -2,6 +2,8 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityJson;
+import com.mercuriusxeno.goo.ability.program.ScanVisualStep;
+import com.mercuriusxeno.goo.client.ability.BlobRest;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Holder;
@@ -13,6 +15,7 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -53,6 +56,24 @@ class ScanWavesTest {
         waves.schedule(ScanWaves.thrown(level, EYE, landing, click.delivery(), click.id(), click.behaviors(),
                 THROW_TICK));
         return waves;
+    }
+
+    /**
+     * From the blob's rest above the hand the drawn wave leaves the blob and ends on the wall the look hits
+     * (decision no-ability-floats-its-blob-to-the-center-line).
+     */
+    @Test
+    void theWaveDrawnFromTheBlobsRestAboveTheHandEndsOnTheWallTheLookHits() {
+        Vec3 hit = EYE.add(0, 0, 8);
+        Vec3 rest = BlobRest.inView(EYE, 0f, 0f, true, BlobRest.Rest.ABOVE_THE_HAND);
+        Vec3 landsAt = GooScanHandler.landingAt(EYE, hit, click.delivery().range());
+        ScanWaves.Wave wave = ScanWaves.thrown(level, EYE, landsAt, click.delivery(), click.id(), click.behaviors(),
+                THROW_TICK);
+        ScanWavePayload drawn = GooScanHandler.drawnWave(rest, List.of(wave), THROW_TICK,
+                ScanVisualStep.in(click.behaviors()).orElseThrow());
+        assertEquals(rest, drawn.from());
+        assertTrue(drawn.to().distanceTo(hit) <= AT_THE_FACE, "the wave should end on the wall's face at " + hit
+                + ", ended at " + drawn.to());
     }
 
     @Test

@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.ability.AbilityTags;
 import com.mercuriusxeno.goo.ability.GloveRest;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.crystal.StackHover;
@@ -15,23 +14,19 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * Where a caster's lifted palm blob rests, chosen by the selected ability's
- * data: on the center line ahead of the eye, settled below the crosshair so
- * it never covers it, for an ability tagged centered; at the glove rest for
- * Bore, which eases forward from there; and for every other ability at the
- * spray source Goop and Slick drip from, straight above where the hand rests.
+ * data: at the glove rest for Bore, which eases forward from there; just over
+ * the palm for Knives and Dart; and for every other ability at the spray
+ * source Goop and Slick drip from, straight above where the hand rests, so
+ * no ability's blob floats to the center line.
  * Each point moves and turns with the caster's view and never bobs with the hand.
  * That is first person's; a caster drawn in third person rests every
  * ability's blob above the palm the model draws.
- * centered-abilities-float-the-blob-below-the-crosshair
+ * decision no-ability-floats-its-blob-to-the-center-line
  * palm-blob-lifts-as-the-spray-source
  * decision third-person-blob-stands-above-the-drawn-palm
  */
 public final class BlobRest {
 
-    /** How far ahead of the eye the centered blob rests, along the look. */
-    static final double CENTER_AHEAD = 0.7;
-    /** How far below the look the centered blob rests, clear of the crosshair. */
-    static final double CENTER_BELOW = 0.15;
     /** A quarter turn, in degrees. */
     private static final float QUARTER_TURN = 90f;
 
@@ -39,9 +34,7 @@ public final class BlobRest {
     }
 
     /** The rests a lifted blob takes. */
-    enum Rest {
-        /** On the center line below the crosshair, for an ability tagged centered. */
-        CENTER_LINE,
+    public enum Rest {
         /** At the glove rest, for Bore, whose drill extends from that hand. */
         BY_THE_GLOVE,
         /** Just over the palm, for Knives and Dart, whose stacks stand over the hand. */
@@ -58,9 +51,6 @@ public final class BlobRest {
         static Rest of(@Nullable ClientAbility ability) {
             if (ability == null) {
                 return ABOVE_THE_HAND;
-            }
-            if (ability.hasTag(AbilityTags.CENTERED)) {
-                return CENTER_LINE;
             }
             if (ability.delivery() != null && ability.delivery().charge().stacks()) {
                 return OVER_THE_PALM;
@@ -80,11 +70,10 @@ public final class BlobRest {
      * @param rest       the rest the selected ability lifts its blob to
      * @return the rest point
      */
-    static Vec3 inView(Vec3 eye, float xRot, float yRot, boolean gloveRight, Rest rest) {
+    public static Vec3 inView(Vec3 eye, float xRot, float yRot, boolean gloveRight, Rest rest) {
         Vec3 ahead = Vec3.directionFromRotation(xRot, yRot);
         Vec3 up = Vec3.directionFromRotation(xRot - QUARTER_TURN, yRot);
         return switch (rest) {
-            case CENTER_LINE -> eye.add(ahead.scale(CENTER_AHEAD)).subtract(up.scale(CENTER_BELOW));
             case BY_THE_GLOVE -> eye.add(ahead.scale(GloveRest.AHEAD))
                     .add(Vec3.directionFromRotation(0f, yRot + QUARTER_TURN)
                             .scale(gloveRight ? GloveRest.TO_THE_GLOVE_SIDE : -GloveRest.TO_THE_GLOVE_SIDE))
@@ -96,11 +85,9 @@ public final class BlobRest {
 
     /**
      * The rest point of a caster drawn in third person: above the drawn palm
-     * along the drawn model's up, by the rise the rest names. No center line
-     * stands there; a centered ability's blob and Bore's stand above the palm
-     * as every other ability's does.
+     * along the drawn model's up, by the rise the rest names; Bore's blob
+     * stands above the palm as every other ability's does.
      * decision third-person-blob-stands-above-the-drawn-palm
-     * centered-abilities-float-the-blob-below-the-crosshair
      *
      * @param palm the drawn palm
      * @param rest the rest the selected ability lifts its blob to
