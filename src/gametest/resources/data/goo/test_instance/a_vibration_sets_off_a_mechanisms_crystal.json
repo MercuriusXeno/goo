@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:a_vibration_sets_off_a_mechanisms_crystal",
+  "environment": "minecraft:default",
+  "structure": "goo:march_bay",
+  "max_ticks": 200,
+  "setup_ticks": 0,
+  "required": true
+}

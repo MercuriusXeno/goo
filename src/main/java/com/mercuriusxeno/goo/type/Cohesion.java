@@ -6,7 +6,7 @@ import java.util.Arrays;
 import java.util.Locale;
 
 /**
- * How much a goo type's world goo spreads, one of six rungs, each the layers a cell stands
+ * How much a goo type's world goo spreads, one of four rungs, each the layers a cell stands
  * above its neighbour before it pours. A type's JSON names its rung by its lowercase name.
  * cohesion-is-the-step-the-goo-holds
  */
@@ -17,18 +17,13 @@ public enum Cohesion {
     LOOSE(1),
     /** Holds two layers of step. */
     SOFT(2),
-    /** Holds four layers of step. */
-    THICK(4),
-    /** Holds eight layers of step. */
-    STIFF(8),
-    /** Holds a whole cell of fifteen layers: goo this firm never pours. */
-    FIRM(15);
+    /** Holds four layers of step, the top rung. */
+    THICK(4);
 
-    private static final String NOT_A_RUNG = "Not a cohesion rung, expected one of runny, loose, soft, thick, "
-            + "stiff or firm: ";
+    private static final String NOT_A_RUNG = "Not a cohesion rung, expected one of runny, loose, soft or thick: ";
 
     /**
-     * A rung spelled by its lowercase name; a number, or a name off the six rungs, is refused.
+     * A rung spelled by its lowercase name; a number, or a name off the four rungs, is refused.
      */
     public static final Codec<Cohesion> CODEC = Codec.STRING.comapFlatMap(Cohesion::parse, Cohesion::spelling);
 
@@ -41,7 +36,7 @@ public enum Cohesion {
     /**
      * The layers a cell of this rung stands above its neighbour before it pours.
      *
-     * @return the threshold in layers, 0 to 15
+     * @return the threshold in layers, 0 to 4
      */
     public int threshold() {
         return threshold;

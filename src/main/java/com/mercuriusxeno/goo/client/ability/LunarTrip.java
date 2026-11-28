@@ -166,15 +166,17 @@ final class LunarTrip {
 
     /**
      * The blue planet's half width as a tangent, as the swell takes it on the way home: its size in lunar's sky at the
-     * hold's start, growing from the first tick as the moon does until it covers the view.
+     * hold's start, growing by the moon's factor at every moment of the hold, so it covers the view before the hold
+     * ends and keeps growing past it.
      * decision gate-on-the-blue-star-returns-you-exactly-where-you-left
      * decision blue-star-is-a-planet-four-moons-wide-drawn-in-phases
+     * decision home-swell-feels-as-far-as-the-moon-pull
      *
      * @param progress the share of the fixation run, zero to one
      * @return the half width's tangent
      */
     static double planetHalfTangent(float progress) {
-        return swollen(progress, RESTING_PLANET_HALF_TANGENT);
+        return RESTING_PLANET_HALF_TANGENT * moonHalfTangent(progress) / RESTING_MOON_HALF_TANGENT;
     }
 
     /**

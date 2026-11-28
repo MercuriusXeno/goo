@@ -4,8 +4,6 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.GooHitCredit;
 import com.mercuriusxeno.goo.ability.hex.Charmed;
-import com.mercuriusxeno.goo.ability.kinetic.GrabEvents;
-import com.mercuriusxeno.goo.ability.program.GougeStep;
 import com.mercuriusxeno.goo.ability.yarn.Led;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.network.GooChargePayload;
@@ -42,7 +40,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.function.Consumer;
 
 /**
- * Gametests for the goo hits a player causes directly: Flames' burn, Nova's ring, Kindle's retaliation, a goo explosion and a hucked Gouge hunk, each driven through its shipped path by a mock
+ * Gametests for the goo hits a player causes directly: Flames' burn, Nova's ring, Kindle's retaliation and a goo explosion, each driven through its shipped path by a mock
  * player at a mob, each hurt with its own damage type naming that player as its cause
  * (decisions direct-goo-hit-credits-its-caster, goo-hit-keeps-its-kind-and-names-the-player-behind-it). Each
  * hit driven the same way at a mob the player led and a mob the player charmed lands on both and leaves the
@@ -55,17 +53,14 @@ public final class GooCasterHitTests {
     private static final String KINDLE_RETALIATION_NAMES_THE_PLAYER =
             "goo_caster_hit_kindle_retaliation_names_the_player";
     private static final String GOO_EXPLOSION_NAMES_THE_PLAYER = "goo_caster_hit_goo_explosion_names_the_player";
-    private static final String BLOCK_HUNK_NAMES_THE_PLAYER = "goo_caster_hit_block_hunk_names_the_player";
     private static final String FLAMES_KEEPS_LEAD_AND_CHARM = "goo_caster_hit_flames_keeps_lead_and_charm";
     private static final String NOVA_KEEPS_LEAD_AND_CHARM = "goo_caster_hit_nova_keeps_lead_and_charm";
     private static final String KINDLE_RETALIATION_KEEPS_LEAD_AND_CHARM =
             "goo_caster_hit_kindle_retaliation_keeps_lead_and_charm";
-    private static final String BLOCK_HUNK_KEEPS_LEAD_AND_CHARM = "goo_caster_hit_block_hunk_keeps_lead_and_charm";
 
     private static final Identifier BLAZE_FLAMES = Identifier.parse("goo:blaze_flames");
     private static final Identifier FROST_NOVA = Identifier.parse("goo:frost_nova");
     private static final Identifier BLAZE_KINDLE = Identifier.parse("goo:blaze_kindle");
-    private static final Identifier ROCK_GOUGE = Identifier.parse("goo:rock_gouge");
     /** The gametests' own thrown blast, a plain explosion landing on a block. */
     private static final String TEST_BLAST = "goo:test_blast";
 
@@ -85,16 +80,6 @@ public final class GooCasterHitTests {
     private static final BlockPos BLAST_MOB_POS = BLAST_STONE.south(3);
     /** Far outside the blast's reach, where the caster stands clear of it. */
     private static final BlockPos FAR_FROM_THE_BLAST = new BlockPos(0, 1, -16);
-    /** Gouge's slab of stone, one block deep along x and three wide, the level look striking its middle. */
-    private static final int SLAB_X = 2;
-    private static final int SLAB_LOW_Y = 1;
-    private static final int SLAB_HIGH_Y = 2;
-    private static final int SLAB_LOW_Z = 1;
-    private static final int SLAB_HIGH_Z = 3;
-    /** Where the hucked hunk flies into the mob, past the hold. */
-    private static final BlockPos HUNK_MOB_POS = new BlockPos(5, 1, 2);
-    /** Beside the first mob the hunk flies into, inside the hunk's three block width. */
-    private static final BlockPos HUNK_SECOND_MOB_POS = HUNK_MOB_POS.south();
 
     private static final float FACING_EAST = -90f;
     private static final float LEVEL = 0f;
@@ -103,8 +88,6 @@ public final class GooCasterHitTests {
     private static final int SETTLE_TICKS = 1;
     private static final int NO_ENTITY = -1;
     private static final int CASTER_GOO = 100 * GooStacks.THOUSAND;
-    /** Through Gouge's wind-up, then long enough for the hunk to rise out of its hole and reach the hold. */
-    private static final int GOUGE_HOLD_TICKS = GougeStep.WINDUP_TICKS + 14;
     private static final float LEAD_DAMAGE = 6f;
     private static final String LEAD = "lead";
     private static final String CHARM = "charm";
@@ -132,14 +115,11 @@ public final class GooCasterHitTests {
                 GooCasterHitTests::kindleRetaliationNamesThePlayer);
         GooTestFunctions.registerTest(registrar, GOO_EXPLOSION_NAMES_THE_PLAYER,
                 GooCasterHitTests::gooExplosionNamesThePlayer);
-        GooTestFunctions.registerTest(registrar, BLOCK_HUNK_NAMES_THE_PLAYER, GooCasterHitTests::blockHunkNamesThePlayer);
         GooTestFunctions.registerTest(registrar, FLAMES_KEEPS_LEAD_AND_CHARM,
                 GooCasterHitTests::flamesKeepsLeadAndCharm);
         GooTestFunctions.registerTest(registrar, NOVA_KEEPS_LEAD_AND_CHARM, GooCasterHitTests::novaKeepsLeadAndCharm);
         GooTestFunctions.registerTest(registrar, KINDLE_RETALIATION_KEEPS_LEAD_AND_CHARM,
                 GooCasterHitTests::kindleRetaliationKeepsLeadAndCharm);
-        GooTestFunctions.registerTest(registrar, BLOCK_HUNK_KEEPS_LEAD_AND_CHARM,
-                GooCasterHitTests::blockHunkKeepsLeadAndCharm);
     }
 
     /**
@@ -206,20 +186,6 @@ public final class GooCasterHitTests {
     }
 
     /**
-     * A mock player holding Gouge on a slab of stone lifts it as a hunk and hucks it into a husk, which the hunk
-     * crushes as falling_block naming the player.
-     *
-     * @param helper the gametest helper
-     */
-    public static void blockHunkNamesThePlayer(GameTestHelper helper) {
-        layGougeSlab(helper);
-        Mob husk = helper.spawnWithNoFreeWill(EntityTypes.HUSK, HUNK_MOB_POS);
-        ServerPlayer player = casterFacingEast(helper, GooTypes.ROCK, ROCK_GOUGE);
-        gougeAndHuck(helper, player);
-        succeedOnceHit(helper, player, husk, "A hucked hunk", DamageTypes.FALLING_BLOCK);
-    }
-
-    /**
      * A mock player holding Flames on a husk it led and a husk behind it that it charmed burns both with
      * in_fire and leaves the lead and the charm standing. The player holds the stream tick after tick, as a player
      * does: one pulse's random rays can miss the husk at the cone's far edge, so the test reads both burns over the
@@ -273,25 +239,6 @@ public final class GooCasterHitTests {
         led.doHurtTarget(helper.getLevel(), player);
         charmed.doHurtTarget(helper.getLevel(), player);
         assertKeptAndLeave(helper, player, "Kindle's retaliation", DamageTypes.IN_FIRE, led, charmed);
-    }
-
-    /**
-     * A mock player holding Gouge on a slab of stone hucks the hunk into a husk it led and a husk beside it
-     * that it charmed, which the hunk crushes as falling_block, leaving the lead and the charm standing.
-     *
-     * @param helper the gametest helper
-     */
-    public static void blockHunkKeepsLeadAndCharm(GameTestHelper helper) {
-        layGougeSlab(helper);
-        Mob led = helper.spawnWithNoFreeWill(EntityTypes.HUSK, HUNK_MOB_POS);
-        Mob charmed = helper.spawnWithNoFreeWill(EntityTypes.HUSK, HUNK_SECOND_MOB_POS);
-        ServerPlayer player = casterFacingEast(helper, GooTypes.ROCK, ROCK_GOUGE);
-        makeOwn(player, led, charmed);
-        // a led mob walks to its leader and a charmed one to its charmer, out of the hunk's flight, over the hold
-        led.setNoAi(true);
-        charmed.setNoAi(true);
-        gougeAndHuck(helper, player);
-        succeedOnceKept(helper, player, "A hucked hunk", DamageTypes.FALLING_BLOCK, led, charmed);
     }
 
     /**
@@ -389,51 +336,6 @@ public final class GooCasterHitTests {
     private static @Nullable DamageSource latestHit(LivingEntity mob, @Nullable DamageSource held) {
         DamageSource now = mob.getLastDamageSource();
         return now != null ? now : held;
-    }
-
-    private static void layGougeSlab(GameTestHelper helper) {
-        for (int y = SLAB_LOW_Y; y <= SLAB_HIGH_Y; y++) {
-            for (int z = SLAB_LOW_Z; z <= SLAB_HIGH_Z; z++) {
-                helper.setBlock(new BlockPos(SLAB_X, y, z), Blocks.STONE);
-            }
-        }
-    }
-
-    /**
-     * Holds Gouge on the slab each tick until its hunk reaches the hold, then hucks the hunk along the look.
-     *
-     * @param helper the gametest helper
-     * @param player the player holding Gouge
-     */
-    private static void gougeAndHuck(GameTestHelper helper, ServerPlayer player) {
-        for (int held = 1; held <= GOUGE_HOLD_TICKS; held++) {
-            helper.runAfterDelay(held, () ->
-                    GooStreamHandler.streamTick(player, heldTick(player, GooTypes.ROCK, ROCK_GOUGE)));
-        }
-        helper.runAfterDelay(GOUGE_HOLD_TICKS + 1, () -> helper.assertTrue(GrabEvents.throwHeld(player),
-                "The player should hold the hunk to huck it"));
-    }
-
-    /**
-     * Passes the test once the mob's latest hit holds the damage type and names the player, checked each tick
-     * against the latest hit the mob took, which outlasts the mob's own record of it.
-     *
-     * @param helper the gametest helper
-     * @param player the player behind the hit
-     * @param mob    the struck mob
-     * @param hit    the hit, for the failure message
-     * @param type   the damage type the hit keeps
-     */
-    private static void succeedOnceHit(GameTestHelper helper, ServerPlayer player, LivingEntity mob, String hit,
-                                       ResourceKey<DamageType> type) {
-        DamageSource[] latest = {null};
-        helper.succeedWhen(() -> {
-            DamageSource now = mob.getLastDamageSource();
-            if (now != null) {
-                latest[0] = now;
-            }
-            assertNamesThePlayer(helper, player, mob, hit, type, latest[0]);
-        });
     }
 
     /**

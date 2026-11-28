@@ -1,0 +1,30 @@
+{
+  "variants": {
+    "facing=up": {
+      "model": "goo:block/volatile_crystal"
+    },
+    "facing=down": {
+      "model": "goo:block/volatile_crystal",
+      "x": 180
+    },
+    "facing=north": {
+      "model": "goo:block/volatile_crystal",
+      "x": 90
+    },
+    "facing=south": {
+      "model": "goo:block/volatile_crystal",
+      "x": 90,
+      "y": 180
+    },
+    "facing=east": {
+      "model": "goo:block/volatile_crystal",
+      "x": 90,
+      "y": 90
+    },
+    "facing=west": {
+      "model": "goo:block/volatile_crystal",
+      "x": 90,
+      "y": 270
+    }
+  }
+}

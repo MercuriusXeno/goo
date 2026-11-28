@@ -1,0 +1,83 @@
+{
+  "model": {
+    "type": "minecraft:select",
+    "property": "minecraft:block_state",
+    "block_state_property": "material",
+    "cases": [
+      {
+        "when": "glazed",
+        "model": {
+          "type": "minecraft:model",
+          "model": "goo:block/alien_glyph_glazed"
+        }
+      },
+      {
+        "when": "iridescent",
+        "model": {
+          "type": "minecraft:model",
+          "model": "goo:block/alien_glyph_iridescent"
+        }
+      },
+      {
+        "when": "polished_glass",
+        "model": {
+          "type": "minecraft:model",
+          "model": "goo:block/alien_glyph_polished_glass"
+        }
+      },
+      {
+        "when": "xeno_runes",
+        "model": {
+          "type": "minecraft:model",
+          "model": "goo:block/alien_glyph_xeno_runes_gate"
+        }
+      },
+      {
+        "when": "xeno_seam",
+        "model": {
+          "type": "minecraft:model",
+          "model": "goo:block/alien_glyph_xeno_seam"
+        }
+      },
+      {
+        "when": "framed_panels",
+        "model": {
+          "type": "minecraft:model",
+          "model": "goo:block/alien_glyph_framed_panels"
+        }
+      },
+      {
+        "when": "smooth",
+        "model": {
+          "type": "minecraft:model",
+          "model": "goo:block/alien_glyph_smooth"
+        }
+      },
+      {
+        "when": "chiseled",
+        "model": {
+          "type": "minecraft:model",
+          "model": "goo:block/alien_glyph_chiseled"
+        }
+      },
+      {
+        "when": "inlaid",
+        "model": {
+          "type": "minecraft:model",
+          "model": "goo:block/alien_glyph_inlaid"
+        }
+      },
+      {
+        "when": "hex_cells",
+        "model": {
+          "type": "minecraft:model",
+          "model": "goo:block/alien_glyph_hex_cells"
+        }
+      }
+    ],
+    "fallback": {
+      "type": "minecraft:model",
+      "model": "goo:block/alien_glyph_glazed"
+    }
+  }
+}

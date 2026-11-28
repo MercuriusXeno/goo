@@ -76,6 +76,7 @@ public class Goo {
         GooStructures.STRUCTURE_TYPES.register(modEventBus);
         GooStructures.PLACEMENT_TYPES.register(modEventBus);
         GooFeatures.FEATURES.register(modEventBus);
+        GooPoiTypes.POI_TYPES.register(modEventBus);
         GooStructures.PIECE_TYPES.register(modEventBus);
     }
 

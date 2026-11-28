@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.network;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.client.ability.AbilityPoses;
 import com.mercuriusxeno.goo.client.ability.BlastShards;
+import com.mercuriusxeno.goo.client.ability.CarriedMortarRenderer;
 import com.mercuriusxeno.goo.client.ability.ClientGateCarry;
 import com.mercuriusxeno.goo.client.ability.ClientPalmBuffers;
 import com.mercuriusxeno.goo.client.ability.ClientPortals;
@@ -62,6 +63,7 @@ import com.mercuriusxeno.goo.network.LunarCrossingPayload;
 import com.mercuriusxeno.goo.network.MeteorScorchPayload;
 import com.mercuriusxeno.goo.network.MobHitPayload;
 import com.mercuriusxeno.goo.network.ModelShrinkPayload;
+import com.mercuriusxeno.goo.network.MortarCarryPayload;
 import com.mercuriusxeno.goo.network.NovaRingPayload;
 import com.mercuriusxeno.goo.network.OpenNamingScreenPayload;
 import com.mercuriusxeno.goo.network.OpenValuesManagerPayload;
@@ -169,6 +171,7 @@ public final class GooClientNetworking {
         event.register(StreamMotesPayload.TYPE, StreamMotes::handle);
         event.register(SprayMistPayload.TYPE, SprayMist::handle);
         event.register(BlockAfterimagePayload.TYPE, AfterimageHandler::handleBlock);
+        event.register(MortarCarryPayload.TYPE, CarriedMortarRenderer::onPayload);
     }
 
     /**

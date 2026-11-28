@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.client.ability.AfterimageRenderer;
 import com.mercuriusxeno.goo.client.ability.AirbornWind;
 import com.mercuriusxeno.goo.client.ability.BlockMingleRenderer;
 import com.mercuriusxeno.goo.client.ability.BoreDrill;
+import com.mercuriusxeno.goo.client.ability.CarriedMortarRenderer;
 import com.mercuriusxeno.goo.client.ability.ChainBurnoutRenderer;
 import com.mercuriusxeno.goo.client.ability.ClickRings;
 import com.mercuriusxeno.goo.client.ability.CrystalShatterVisual;
@@ -51,6 +52,7 @@ import com.mercuriusxeno.goo.client.ability.SpikesRise;
 import com.mercuriusxeno.goo.client.ability.Tomes;
 import com.mercuriusxeno.goo.client.ability.TransformationRenderer;
 import com.mercuriusxeno.goo.client.ability.WindLines;
+import com.mercuriusxeno.goo.client.ability.WirelessBeams;
 import com.mercuriusxeno.goo.client.ability.WispGlow;
 import com.mercuriusxeno.goo.client.ability.ZapBolts;
 import com.mercuriusxeno.goo.client.ber.BeaconBeams;
@@ -120,6 +122,8 @@ public final class TranslucentVisualPath {
             new Registration(LaserScorch.class, SortRoute.ON_OPAQUE_FACES, LaserScorch::collect),
             new Registration(RelayLasers.class, SortRoute.FAR_TO_NEAR, RelayLasers::collect,
                     Drawing.IN_THE_OIT_PHASE),
+            new Registration(WirelessBeams.class, SortRoute.FAR_TO_NEAR, WirelessBeams::collect,
+                    Drawing.IN_THE_OIT_PHASE),
             new Registration(ZapBolts.class, SortRoute.FAR_TO_NEAR, ZapBolts::collect,
                     Drawing.IN_THE_OIT_PHASE),
             new Registration(FireStream.class, SortRoute.FAR_TO_NEAR, FireStream::collect),
@@ -186,6 +190,9 @@ public final class TranslucentVisualPath {
             new Registration(AfterimageRenderer.class, SortRoute.FAR_TO_NEAR, AfterimageRenderer::collect),
             new Registration(BlockMingleRenderer.class, SortRoute.ON_OPAQUE_FACES, BlockMingleRenderer::collectCoat),
             new Registration(BlockMingleRenderer.class, SortRoute.FAR_TO_NEAR, BlockMingleRenderer::collect,
+                    Drawing.IN_THE_OIT_PHASE),
+            new Registration(CarriedMortarRenderer.class, SortRoute.OPAQUE_SHAPE, CarriedMortarRenderer::collectSolid),
+            new Registration(CarriedMortarRenderer.class, SortRoute.FAR_TO_NEAR, CarriedMortarRenderer::collect,
                     Drawing.IN_THE_OIT_PHASE),
             new Registration(LiftedPalmBlob.class, SortRoute.FAR_TO_NEAR, LiftedPalmBlob::collect,
                     Drawing.IN_THE_OIT_PHASE),

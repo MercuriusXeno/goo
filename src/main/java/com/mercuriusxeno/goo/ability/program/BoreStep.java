@@ -8,6 +8,7 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 import java.util.List;
@@ -109,10 +110,27 @@ public record BoreStep(TagKey<Block> breaks, BreakPace pace, BoreDrillShape shap
         Predicate<BlockPos> breakable = pos -> host.blockIn(pos, breaks);
         host.channelAim().ifPresent(aim -> {
             BorePick pick = BorePick.of(host.eye(), shape, host.gloveOnTheRight(), aim, host::airAt, breakable);
-            host.gradualBreak().progress(pace.ratesByGroup(List.of(pick.blocks())), host, true);
+            host.gradualBreak().progress(pace.ratesByGroup(List.of(pick.blocks())), host,
+                    pos -> breakWithItsSound(host, pos));
             strikeIn(host, pick.tunnel());
         });
         return true;
+    }
+
+    /**
+     * Breaks a block Bore finished, with no break particles, since Bore's
+     * particles spit from where its drill meets the block, and plays the
+     * block's own break sound at its cell over Bore's rumble.
+     * decision each-block-bore-breaks-plays-its-own-break-sound
+     * decision bore-shows-a-big-drill-from-the-glove
+     *
+     * @param host the host breaking it
+     * @param pos  the block
+     */
+    private static void breakWithItsSound(BlockBreakHost host, BlockPos pos) {
+        BlockState broken = host.stateAt(pos);
+        host.breakBlockQuietly(pos);
+        host.playBreakSound(pos, broken);
     }
 
     /**

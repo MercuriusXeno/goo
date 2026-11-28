@@ -1,0 +1,21 @@
+{
+  "parent": "minecraft:block/block",
+  "textures": {
+    "marker": "goo:block/monolith_marker",
+    "particle": "goo:block/monolith_marker"
+  },
+  "elements": [
+    {
+      "from": [4, 0, 7],
+      "to": [12, 16, 9],
+      "faces": {
+        "north": { "uv": [0, 0, 8, 16], "texture": "#marker" },
+        "south": { "uv": [0, 0, 8, 16], "texture": "#marker" },
+        "east": { "uv": [8, 0, 10, 16], "texture": "#marker" },
+        "west": { "uv": [8, 0, 10, 16], "texture": "#marker" },
+        "up": { "uv": [10, 0, 12, 8], "rotation": 90, "texture": "#marker" },
+        "down": { "uv": [10, 8, 12, 16], "rotation": 90, "texture": "#marker", "cullface": "down" }
+      }
+    }
+  ]
+}

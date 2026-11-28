@@ -18,8 +18,10 @@ import java.util.stream.Stream;
  * earth and its builds, and stands in reach, progresses toward broken at
  * once through the hold's gradual break, which breaks each with its drops.
  * The outermost layer progresses at the pace its JSON names and each layer
- * nearer the face slower, so the swath clears from the outside in.
+ * nearer the face slower, so the swath clears from the outside in. Mortar
+ * over the disc rides with the cursor, paving the gaps under the disc.
  * decision flatten-disc-cursor-breaks-above-the-plane
+ * decision level-dragged-under-rock-goo-carries-it-and-deposits-stone-under-the-disc
  * decision flatten-progresses-its-whole-swath-outermost-fastest
  * decision bore-and-flatten-json-carry-two-pace-values
  *
@@ -52,7 +54,11 @@ public record LevelStep(TagKey<Block> breaks, BreakPace pace) implements TakesNo
     @Override
     public boolean tick(StepContext context) {
         ChannelHost host = context.hostAs(ChannelHost.class);
-        host.channelAim().ifPresent(aim -> breakUnderCursor(host, aim));
+        host.channelAim().ifPresent(aim -> {
+            breakUnderCursor(host, aim);
+            // level-dragged-under-rock-goo-carries-it-and-deposits-stone-under-the-disc
+            host.carryMortarUnderDisc(aim, aim.aimedBlock(host.eye()));
+        });
         return true;
     }
 

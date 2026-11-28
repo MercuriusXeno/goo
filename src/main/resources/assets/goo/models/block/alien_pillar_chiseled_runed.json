@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/cube_column",
+  "textures": {
+    "side": "goo:block/alien_pillar_chiseled_runed",
+    "end": "goo:block/alien_pillar_chiseled_top"
+  }
+}

@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.program.GradualBreak;
+import com.mercuriusxeno.goo.ability.program.MortarCarry;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
@@ -27,6 +28,17 @@ public final class HoldMarks {
     /** The hold tick the swarm's gnats reach the mob they chase. */
     private int reachedOn;
     private final GradualBreak gradualBreak = new GradualBreak();
+    private final MortarCarry mortarCarry = new MortarCarry();
+
+    /**
+     * The Mortar the hold carries over Level's disc.
+     * carried-mortar-stops-being-a-block-on-the-level-plane
+     *
+     * @return the hold's carry
+     */
+    public MortarCarry mortarCarry() {
+        return mortarCarry;
+    }
 
     /**
      * The blocks the hold is breaking over several ticks, each with its progress

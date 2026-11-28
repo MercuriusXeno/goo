@@ -29,6 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * decision spire-is-renamed-build
  * decision kin-becomes-herd-and-rally-becomes-lead-on-yarn
  * decision yore-leaves-and-rewind-moves-to-xeno-as-revert
+ * decision gouge-is-cut-and-its-code-kept-for-the-grab-combo
  */
 class InventoryRenamedAbilitiesTest {
 
@@ -94,7 +95,8 @@ class InventoryRenamedAbilitiesTest {
                 Arguments.of("blaze", Set.of("blaze_flames", "blaze_ignite", "blaze_kindle", "blaze_molten")),
                 Arguments.of("crystal", Set.of("crystal_glimmer", "crystal_knives",
                         "crystal_shatter")),
-                Arguments.of("rock", Set.of("rock_bore", "rock_build", "rock_gouge", "rock_level", "rock_mortar", "rock_petrify",
+                // gouge-is-cut-and-its-code-kept-for-the-grab-combo
+                Arguments.of("rock", Set.of("rock_bore", "rock_build", "rock_level", "rock_mortar", "rock_petrify",
                         "rock_stoneskin")),
                 Arguments.of("jelly", Set.of("jelly_gluttony", "jelly_heal", "jelly_nectar", "jelly_reserve")),
                 Arguments.of("void", Set.of("void_cancel", "void_hole", "void_vacuum", "void_zone")),
