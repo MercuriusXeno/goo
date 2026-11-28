@@ -29,11 +29,26 @@ class OculusEyeTest {
         assertEquals(0f, OculusEye.hover(0f), EPSILON);
     }
 
+    /** operator ruling 2026-11-28: an open eye keeps the last row of each lid */
     @Test
-    void theLidsCloseInWholePixelRows() {
-        assertEquals(0, OculusEye.lidRows(0f, OculusEye.TOP_LID_ROWS));
+    void theLidsCloseInWholePixelRowsAndKeepARowOpen() {
+        assertEquals(OculusEye.OPEN_LID_ROWS, OculusEye.lidRows(0f, OculusEye.TOP_LID_ROWS));
         assertEquals(OculusEye.TOP_LID_ROWS + OculusEye.BOTTOM_LID_ROWS,
                 OculusEye.lidRows(1f, OculusEye.TOP_LID_ROWS) + OculusEye.lidRows(1f, OculusEye.BOTTOM_LID_ROWS));
         assertEquals(2, OculusEye.lidRows(0.6f, OculusEye.BOTTOM_LID_ROWS));
+    }
+
+    /** decision oculus-eyelid-is-shaded-hide-with-a-seam */
+    @Test
+    void eachLidsLeadingRowIsTheSeamAtEveryClosure() {
+        for (int shown = 1; shown <= OculusEye.TOP_LID_ROWS; shown++) {
+            assertEquals(OculusEye.TOP_LID_ROWS - 1, OculusEye.upperLidRow(shown, shown - 1));
+            assertEquals(0, OculusEye.upperLidRow(OculusEye.TOP_LID_ROWS, 0));
+        }
+        for (int shown = 1; shown <= OculusEye.BOTTOM_LID_ROWS; shown++) {
+            assertEquals(OculusEye.TOP_LID_ROWS, OculusEye.lowerLidRow(shown, shown - 1));
+        }
+        assertEquals(OculusEye.TOP_LID_ROWS + OculusEye.BOTTOM_LID_ROWS - 1,
+                OculusEye.lowerLidRow(OculusEye.BOTTOM_LID_ROWS, 0));
     }
 }

@@ -229,6 +229,8 @@ public final class VacuumTests {
     private static final Vec3 STRAY_OFFSET = new Vec3(-0.037, 0.936, 0.785);
     private static final int STRAY_VOLUME = 5;
 
+    private static final String TAKES_OOZE_UP = "vacuum_breaks_an_ooze_cell_and_returns_its_xeno_goo";
+
     private static final String TAKES_NITRO_UP = "vacuum_takes_nitro_up_without_a_blast";
     private static final String NITRO_NOT_RETURNED = "Vacuum should return %d mb of unstable goo for the Nitro cell,"
             + " %d mb came back";
@@ -278,6 +280,7 @@ public final class VacuumTests {
         GooTestFunctions.registerTest(registrar, CLEAR_OF_DROPS,
                 VacuumTests::vacuumLaysEachWorldGooClearOfTheLastTurnsDrops);
         GooTestFunctions.registerTest(registrar, TAKES_NITRO_UP, VacuumTests::vacuumTakesNitroUpWithoutABlast);
+        GooTestFunctions.registerTest(registrar, TAKES_OOZE_UP, VacuumTests::vacuumBreaksAnOozeCellAndReturnsItsXenoGoo);
         GooTestFunctions.registerTest(registrar, THREE_PARTICLES_PER_LAYER,
                 VacuumTests::vacuumThrowsThreeBreakParticlesPerLayer);
     }
@@ -375,6 +378,27 @@ public final class VacuumTests {
         helper.runAfterDelay(STRAY_TURN_FROM - 1, () -> strayOverTheCell(helper));
         vacuumOneWorldGoo(helper, vacuumer, GooBlocks.UNSTABLE_NITRO.get(), STRAY_TURN_FROM, left::add);
         helper.runAfterDelay(STRAY_TURN_FROM + worldGooTurn(helper), () -> {
+            helper.getLevel().getServer().getPlayerList().remove(vacuumer);
+            helper.assertTrue(left.isEmpty(), String.format(WORLD_GOOS_LEFT, left));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Vacuum held over an Ooze cell of eleven layers on the every-goo lane
+     * breaks it to air and returns the xeno goo its layers cost, as it does
+     * every goo on the volume cell.
+     * vacuum-is-voids-held-cone-that-breaks-residuals-in-a-wave
+     * ooze-is-xenos-world-goo-that-turns-slimes-into-random-hostiles
+     *
+     * @param helper the gametest helper
+     */
+    public static void vacuumBreaksAnOozeCellAndReturnsItsXenoGoo(GameTestHelper helper) {
+        layTheWorldGooLane(helper);
+        ServerPlayer vacuumer = vacuumer(helper);
+        List<String> left = new ArrayList<>();
+        vacuumOneWorldGoo(helper, vacuumer, GooBlocks.XENO_OOZE.get(), 0, left::add);
+        helper.runAfterDelay(worldGooTurn(helper), () -> {
             helper.getLevel().getServer().getPlayerList().remove(vacuumer);
             helper.assertTrue(left.isEmpty(), String.format(WORLD_GOOS_LEFT, left));
             helper.succeed();

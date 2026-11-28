@@ -15,6 +15,7 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
@@ -31,9 +32,20 @@ public class RelayBlock extends FaceMountedBlock {
 
     /** The signal the relay gives, its network's strongest. */
     public static final IntegerProperty POWER = BlockStateProperties.POWER;
-    /** The coil tower's widest ring, and its height off the face to the top of its cap, in pixels. */
+    /**
+     * Whether the relay gives or receives a signal, which lights its torch tip.
+     * decision relay-tip-resembles-a-redstone-torch
+     */
+    public static final BooleanProperty LIT = BlockStateProperties.LIT;
+    /** A lit redstone torch's light, which a lit relay gives. */
+    private static final int TIP_LIGHT = 7;
+    /**
+     * The coil tower's foot, and its height off the face to the top of its tip's glow, in pixels: the tip sits on
+     * the cell's center.
+     * decision relay-shrinks-so-its-tip-sits-centered-and-beams-join-tips
+     */
     private static final float WIDTH = 8f;
-    private static final float HEIGHT = 14f;
+    private static final float HEIGHT = 11f;
     private static final float CELL = 16f;
     private static final BlockEntityTicks<RelayBlockEntity> TICKS =
             BlockEntityTicks.onServer(GooBlockEntities.RELAY, RelayBlock::carry);
@@ -45,11 +57,22 @@ public class RelayBlock extends FaceMountedBlock {
      */
     public RelayBlock(Properties properties) {
         super(properties, boxZ(WIDTH, CELL - HEIGHT, CELL));
-        registerDefaultState(defaultBlockState().setValue(POWER, 0));
+        registerDefaultState(defaultBlockState().setValue(POWER, 0).setValue(LIT, false));
     }
 
     /**
-     * Gives the strongest signal reaching any other relay the relay links to, each tick.
+     * The light a relay gives: a lit torch's while lit, none otherwise.
+     *
+     * @param state the relay's state
+     * @return the light level
+     */
+    public static int lightLevel(BlockState state) {
+        return state.getValue(LIT) ? TIP_LIGHT : 0;
+    }
+
+    /**
+     * Gives the strongest signal reaching any other relay the relay links to, and lights the relay while it gives a
+     * signal or one enters it, each tick.
      *
      * @param level the level
      * @param pos   the relay's position
@@ -59,8 +82,10 @@ public class RelayBlock extends FaceMountedBlock {
     private static void carry(Level level, BlockPos pos, BlockState state, RelayBlockEntity relay) {
         if (level instanceof ServerLevel server) {
             int carried = RelayNetwork.carriedTo(server, pos);
-            if (state.getValue(POWER) != carried) {
-                level.setBlock(pos, state.setValue(POWER, carried), UPDATE_ALL);
+            boolean lit = carried > 0 || RelayNetwork.entering(server, pos) > 0;
+            BlockState next = state.setValue(POWER, carried).setValue(LIT, lit);
+            if (next != state) {
+                level.setBlock(pos, next, UPDATE_ALL);
             }
         }
     }
@@ -100,6 +125,6 @@ public class RelayBlock extends FaceMountedBlock {
     @Override
     protected void createBlockStateDefinition(StateDefinition.@NonNull Builder<Block, BlockState> builder) {
         super.createBlockStateDefinition(builder);
-        builder.add(POWER);
+        builder.add(POWER, LIT);
     }
 }

@@ -7,6 +7,8 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import java.util.List;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Nested;
@@ -14,6 +16,9 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * BeaconBeams: the light beacon's column leaves the block's center along the facing the block holds, up from a
@@ -29,12 +34,24 @@ class BeaconBeamsTest {
     private static final Vector3f CENTER = new Vector3f(0.5f, 0.5f, 0.5f);
     private static final BlockPos BEACON = new BlockPos(10, 64, -3);
     private static final int REACH = 2048;
+    private static final int STONE_CELLS_UP = 5;
+    private static final double FADE_OUT = 192;
 
     /** Where a point along the column, at a height up its +y, lands in the cell for a facing. */
     private static Vector3f alongColumn(Direction facing, float height) {
         PoseStack poseStack = new PoseStack();
         BeaconBeams.standAtFoot(poseStack, facing);
         return poseStack.last().pose().transformPosition(new Vector3f(0f, height, 0f));
+    }
+
+    /** A level of loaded air everywhere the test does not set a block. */
+    private static Level openLevel() {
+        Level level = mock(Level.class);
+        BlockState air = mock(BlockState.class);
+        when(air.isAir()).thenReturn(true);
+        when(level.isLoaded(any(BlockPos.class))).thenReturn(true);
+        when(level.getBlockState(any(BlockPos.class))).thenReturn(air);
+        return level;
     }
 
     private static void assertNear(Vector3f expected, Vector3f actual, String message) {
@@ -60,7 +77,8 @@ class BeaconBeamsTest {
     private static List<RecordingVertexConsumer.Vertex> emitBeacon(float breath) {
         RecordingVertexConsumer consumer = new RecordingVertexConsumer();
         for (GlowBeamMesh.Layer layer : GlowBeamMesh.LAYERS) {
-            BeaconBeams.emitBeaconLayer(new PoseStack().last(), consumer, layer, RADIUS_SCALE, 0f, breath);
+            BeaconBeams.emitBeaconLayer(new PoseStack().last(), consumer, layer, RADIUS_SCALE, 0f, breath,
+                    new float[] {0f, BeaconBeams.BEAM_REACH}, new float[] {1f, 1f});
         }
         return consumer.vertices();
     }
@@ -93,6 +111,42 @@ class BeaconBeamsTest {
         void beamBoundsStretchAlongAWallBeaconsFace() {
             assertEquals(new AABB(10 - REACH, 64, -3, 11, 65, -2),
                     BeaconBeams.drawnBounds(BEACON, Direction.WEST, REACH));
+        }
+
+        /** decision beacon-column-into-a-reflector-counts-as-max-light */
+        @Test
+        void aColumnStopsAtTheFaceOfTheFirstSolidBlock() {
+            Level level = openLevel();
+            BlockState stone = mock(BlockState.class);
+            when(level.getBlockState(BEACON.above(STONE_CELLS_UP))).thenReturn(stone);
+            assertEquals(STONE_CELLS_UP - 0.5f, BeaconBeams.columnLength(level, BEACON, Direction.UP), TOLERANCE);
+        }
+
+        /** decision beacon-column-into-a-reflector-counts-as-max-light */
+        @Test
+        void aColumnThroughOpenAirDrawsItsWholeReach() {
+            assertEquals(BeaconBeams.BEAM_REACH, BeaconBeams.columnLength(openLevel(), BEACON, Direction.UP),
+                    TOLERANCE);
+        }
+
+        /** operator ruling 2026-11-28: the beam fades by a power law from about half the render distance */
+        @Test
+        void aColumnStaysWholeToHalfTheFadeOutDistance() {
+            assertEquals(1f, BeaconBeams.distanceShare(FADE_OUT / 2, FADE_OUT), TOLERANCE);
+        }
+
+        /** operator ruling 2026-11-28: the beam fades by a power law from about half the render distance */
+        @Test
+        void aColumnFadesAsTheSquareOfWhatIsLeftAndIsGoneAtTheFadeOutDistance() {
+            assertEquals(0.25f, BeaconBeams.distanceShare(FADE_OUT * 0.75, FADE_OUT), TOLERANCE);
+            assertEquals(0f, BeaconBeams.distanceShare(FADE_OUT, FADE_OUT), TOLERANCE);
+            assertEquals(0f, BeaconBeams.distanceShare(FADE_OUT * 2, FADE_OUT), TOLERANCE);
+        }
+
+        @Test
+        void aColumnDrawsNoFartherThanAnyOfItCanShow() {
+            float[] stops = BeaconBeams.fadeStops(BeaconBeams.BEAM_REACH, FADE_OUT);
+            assertEquals(FADE_OUT, stops[stops.length - 1], TOLERANCE);
         }
 
         @Test

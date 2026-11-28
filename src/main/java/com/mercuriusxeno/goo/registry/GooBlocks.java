@@ -568,6 +568,26 @@ public class GooBlocks {
                     .noLootTable()
                     .pushReaction(PushReaction.POPPED));
     /**
+     * Ooze: the volume cell bound to Xeno's goo, the slate goo Ooze sprays
+     * onto a block's top, one to fifteen layers, ordinary ground underfoot
+     * and sounding as goo does, turning a slime standing on it into a random
+     * hostile mob, dropping the xeno goo its layers cost through
+     * VolumeCellBlock.getDrops, no loot table
+     * (decisions ooze-is-xenos-world-goo-that-turns-slimes-into-random-hostiles,
+     * each-goo-type-ships-a-world-goo-on-the-volume-cell).
+     */
+    public static final DeferredBlock<VolumeCellBlock> XENO_OOZE = BLOCKS.registerBlock(
+            "xeno_ooze", properties -> new VolumeCellBlock(properties, CellBinding.OOZE),
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.WARPED_NYLIUM)
+                    .friction(CellBinding.OOZE.surface().friction())
+                    .sound(SoundType.SLIME_BLOCK)
+                    .instabreak()
+                    .noOcclusion()
+                    .replaceable()
+                    .noLootTable()
+                    .pushReaction(PushReaction.POPPED));
+    /**
      * Statue: a petrified mob, mined like cobblestone for cobblestone and the
      * mob's experience (decision petrify-stone-encasement-and-calcify-map).
      */
@@ -827,7 +847,7 @@ public class GooBlocks {
     public static final DeferredBlock<RelayBlock> RELAY = BLOCKS.registerBlock("relay",
             RelayBlock::new, () -> BlockBehaviour.Properties.of().mapColor(MapColor.FIRE)
                     .strength(REFLECTOR_HARDNESS).sound(SoundType.METAL).noOcclusion()
-                    .pushReaction(PushReaction.POPPED));
+                    .pushReaction(PushReaction.POPPED).lightLevel(RelayBlock::lightLevel));
     /**
      * Oculus: a base on a solid face with an ender eye hovering off it, the stable node Blink snaps to, dropping
      * itself so a crucible can melt it.

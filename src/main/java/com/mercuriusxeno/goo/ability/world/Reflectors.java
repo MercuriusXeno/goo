@@ -3,10 +3,14 @@ package com.mercuriusxeno.goo.ability.world;
 import com.mercuriusxeno.goo.block.ability.CellPlacers;
 import com.mercuriusxeno.goo.block.ability.LightRailBlock;
 import com.mercuriusxeno.goo.block.ability.RailLine;
+import com.mercuriusxeno.goo.block.alientech.FaceMountedBlock;
+import com.mercuriusxeno.goo.block.alientech.LightBeaconBlock;
+import com.mercuriusxeno.goo.block.alientech.LightBeaconColumn;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import org.jspecify.annotations.Nullable;
@@ -199,11 +203,55 @@ public final class Reflectors {
      * @return the light level
      */
     private static int networkLight(ServerLevel level, Set<BlockPos> network) {
-        int brightest = DIMMEST_RAIL;
+        int brightest = 0;
+        boolean struck = false;
         for (BlockPos member : network) {
             brightest = Math.max(brightest, level.getMaxLocalRawBrightness(member));
+            struck = struck || struckByAColumn(level, member);
         }
-        return brightest;
+        return networkLightOf(brightest, struck);
+    }
+
+    /**
+     * The light a network's rails carry from what its reflectors read: max light where a light beacon's column
+     * strikes any of them, from any distance, or else the brightest light any reads, never below the dimmest rail.
+     * decision beacon-column-into-a-reflector-counts-as-max-light
+     *
+     * @param brightest the brightest light any of its reflectors reads at its own cell
+     * @param struck    whether a light beacon's column strikes any of its reflectors
+     * @return the light level
+     */
+    static int networkLightOf(int brightest, boolean struck) {
+        return struck ? LightBeaconBlock.LIGHT : Math.max(DIMMEST_RAIL, brightest);
+    }
+
+    /**
+     * Whether a light beacon's column strikes a reflector: out of one of its open lenses, through air and rail, the
+     * first other block is a light beacon pointing back along that line.
+     * decision beacon-column-into-a-reflector-counts-as-max-light
+     *
+     * @param level     the level
+     * @param reflector the reflector's position
+     * @return true where a column strikes it
+     */
+    public static boolean struckByAColumn(Level level, BlockPos reflector) {
+        if (!(level.getBlockEntity(reflector) instanceof LightRailEnd end)) {
+            return false;
+        }
+        for (Direction lens : Direction.values()) {
+            if (end.lensOpen(lens)) {
+                BlockPos stop = LightBeaconColumn.stoppedAt(level, reflector, lens, LightBeaconColumn.REACH);
+                if (stop != null && pointsBack(level.getBlockState(stop), lens)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static boolean pointsBack(BlockState state, Direction lens) {
+        return state.getBlock() instanceof LightBeaconBlock
+                && state.getValue(FaceMountedBlock.FACING) == lens.getOpposite();
     }
 
     private static boolean isClear(ServerLevel level, List<BlockPos> line) {

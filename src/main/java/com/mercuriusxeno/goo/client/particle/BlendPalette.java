@@ -169,6 +169,14 @@ public record BlendPalette(float lightRed, float lightGreen, float lightBlue,
             0xFF / 255f, 0xF4 / 255f, 0xB0 / 255f, 0x2A / 255f, 0x3C / 255f, 0x9A / 255f);
 
     /**
+     * Ooze's spray drips, from xeno's bright slate, 9282F5, to its wheel
+     * slate, 6A5ACD, the two the xeno goo type's definition names.
+     * ooze-is-xenos-world-goo-that-turns-slimes-into-random-hostiles
+     */
+    public static final BlendPalette OOZE_XENO_SLATES = new BlendPalette(
+            0x92 / 255f, 0x82 / 255f, 0xF5 / 255f, 0x6A / 255f, 0x5A / 255f, 0xCD / 255f);
+
+    /**
      * The color a share of the way from the light end to the dark.
      *
      * @param blend the share, 0 at the light end and 1 at the dark

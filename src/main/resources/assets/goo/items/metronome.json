@@ -1,6 +1,6 @@
 {
   "model": {
     "type": "minecraft:model",
-    "model": "goo:block/metronome_inventory"
+    "model": "goo:item/metronome"
   }
 }
