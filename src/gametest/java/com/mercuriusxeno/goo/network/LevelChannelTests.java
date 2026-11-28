@@ -78,7 +78,15 @@ public final class LevelChannelTests {
                 LevelChannelTests::levelFillsAOneLayerMortarHole);
         GooTestFunctions.registerTest(registrar, LEVEL_PAVING_SOUNDS_ONCE_A_TICK,
                 LevelChannelTests::levelPavingSoundsOnceATick);
+        GooTestFunctions.registerTest(registrar, LEVEL_CARRY_SETS_DOWN_WHEN_VACUUM_TAKES_THE_HOLD,
+                LevelChannelTests::levelCarrySetsDownWhenVacuumTakesTheHold);
     }
+
+    private static final String LEVEL_CARRY_SETS_DOWN_WHEN_VACUUM_TAKES_THE_HOLD =
+            "level_carry_sets_down_when_vacuum_takes_the_hold";
+    private static final Identifier VOID_VACUUM = Identifier.parse("goo:void_vacuum");
+    private static final String SHOULD_SET_DOWN_ON_THE_SWITCH = "Level's carry should stand as Mortar once Vacuum"
+            + " holds, the carry holds %d and the cell over the disc holds %s";
 
     private static final String LEVEL_PAVING_SOUNDS_ONCE_A_TICK = "level_paving_sounds_once_a_tick";
     /** The floor block the sounding test's cursor rests on, the disc's middle. */
@@ -547,6 +555,38 @@ public final class LevelChannelTests {
             assertHeardOnce(helper, heard, mortarPlace, setDownMiddle);
             NeoForge.EVENT_BUS.unregister(listener);
             helper.getLevel().getServer().getPlayerList().remove(player);
+        });
+    }
+
+    /**
+     * A mock player carries a 6 layer Mortar cell with Level for a few ticks,
+     * then holds Vacuum on the tick after Level's last, so the server's hold
+     * runs on unbroken: once Vacuum holds, Level is let go, so its carry
+     * stands as Mortar over its disc rather than riding hidden in the hold
+     * (decision carried-mortar-stops-being-a-block-on-the-level-plane).
+     *
+     * @param helper the gametest helper
+     */
+    public static void levelCarrySetsDownWhenVacuumTakesTheHold(GameTestHelper helper) {
+        ServerPlayer player = holeFiller(helper);
+        player.getInventory().add(GooStacks.createForOutput(GooTypes.VOID, HELD_GOO * GooStacks.THOUSAND));
+        KnownRecipes.teachRequires(player, AbilityRegistry.of(helper.getLevel()).getAbility(VOID_VACUUM));
+        layMortar(helper, SOUNDING_REST.above(), SIX_LAYERS);
+        GooStreamPayload level = levelTick(helper, player, SOUNDING_REST, SOUNDING_REST);
+        for (int held = 1; held <= FILLING_TICKS; held++) {
+            helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(player, level));
+        }
+        GooStreamPayload vacuum = GooStreamPayload.unplaned(GooTypes.id(GooTypes.VOID), VOID_VACUUM.toString(),
+                player.getEyePosition(), player.getEyePosition().add(0, 0, -1));
+        helper.runAfterDelay(FILLING_TICKS + 1, () -> {
+            GooStreamHandler.streamTick(player, vacuum);
+            int carried = carryOf(helper, player).layers();
+            BlockState over = helper.getBlockState(SOUNDING_REST.above());
+            helper.assertTrue(carried == 0 && over.is(GooBlocks.ROCK_MORTAR.get())
+                            && over.getValue(VolumeCellBlock.LAYERS) == SIX_LAYERS,
+                    String.format(SHOULD_SET_DOWN_ON_THE_SWITCH, carried, over));
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            helper.succeed();
         });
     }
 

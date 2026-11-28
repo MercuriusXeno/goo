@@ -19,6 +19,7 @@ import com.mercuriusxeno.goo.ability.program.FloorReach;
 import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.LeafStep;
 import com.mercuriusxeno.goo.ability.program.LeafSteps;
+import com.mercuriusxeno.goo.ability.program.LevelStep;
 import com.mercuriusxeno.goo.ability.program.MiasmaVortexStep;
 import com.mercuriusxeno.goo.ability.program.PlacementPrice;
 import com.mercuriusxeno.goo.ability.program.PlayerHost;
@@ -153,6 +154,7 @@ public final class GooStreamHandler {
         if (held == 0) {
             return;
         }
+        setDownLevelsCarryUnless(player, ability);
         runHeldTick(player, payload, ability, held);
         // every-ability-casts-from-the-lifted-palm-blob: each held tick the server runs keeps the blob lifted
         PalmBlobChargePayload.sendLift(player);
@@ -189,6 +191,7 @@ public final class GooStreamHandler {
         if (held == 0) {
             return;
         }
+        setDownLevelsCarryUnless(player, ability);
         strikeCone(player, origin, ability, held, new HeldSpray(PaysFrom.SPRAYER_CANISTER, setting.flow().rate(),
                 setting.nozzle()));
         ability.delivery().sound().filter(sound -> sound.playsOn(held))
@@ -214,6 +217,22 @@ public final class GooStreamHandler {
                 ability.delivery().ticksPerCharge(), held);
         return AbilityCharges.charge(player, PaysFrom.SPRAYER_CANISTER, ability.gooType(), GooFraction.of(share))
                 ? held : 0;
+    }
+
+    /**
+     * Sets down the Mortar Level's disc carries once the hold runs an ability
+     * that is no Level: a hold continues across a change of ability, so this
+     * tick is Level let go, as a lapse is.
+     * carried-mortar-stops-being-a-block-on-the-level-plane
+     *
+     * @param player  the holding player
+     * @param ability the ability this held tick runs
+     */
+    private static void setDownLevelsCarryUnless(ServerPlayer player, AbilityDefinition ability) {
+        if (ability.behaviors().stream().noneMatch(LevelStep.class::isInstance)) {
+            GooServerState.of(player.level().getServer()).streamHolds().marks(player.getUUID()).mortarCarry()
+                    .release();
+        }
     }
 
     /**
