@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.lunar.CraterPoolsFeature;
 import com.mercuriusxeno.goo.lunar.MonolithMarkerFeature;
 import com.mercuriusxeno.goo.lunar.NativeIronLodeFeature;
 import com.mercuriusxeno.goo.lunar.VolatileCrystalClusterFeature;
+import com.mercuriusxeno.goo.lunar.WarrenMechanismFeature;
 import com.mercuriusxeno.goo.lunar.WarrenRuinFeature;
 import com.mercuriusxeno.goo.lunar.WarrenSculkPatchFeature;
 import com.mojang.serialization.MapCodec;
@@ -75,6 +76,14 @@ public final class GooFeatures {
     public static final DeferredHolder<MapCodec<? extends Feature>, MapCodec<VolatileCrystalClusterFeature>>
             VOLATILE_CRYSTAL_CLUSTER = FEATURES.register("volatile_crystal_cluster",
                     () -> VolatileCrystalClusterFeature.CODEC);
+
+    /**
+     * {@code goo:warren_mechanism}, one of the warrens' armed sculk mechanisms: a sculk sensor wired through a wireless
+     * emitter to volatile crystals, sometimes with a resonator.
+     * decision sculk-sensors-wire-to-pulse-emitter-crystals-that-set-off-volatile-crystals
+     */
+    public static final DeferredHolder<MapCodec<? extends Feature>, MapCodec<WarrenMechanismFeature>>
+            WARREN_MECHANISM = FEATURES.register("warren_mechanism", () -> WarrenMechanismFeature.CODEC);
 
     /**
      * {@code goo:warren_sculk_patch}, a deep dark sculk patch in the warrens growing sensors and catalysts, no
