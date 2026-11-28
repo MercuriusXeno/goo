@@ -18,7 +18,8 @@ class VineHoldTest {
     private static final double EPSILON = 1e-9;
 
     @ParameterizedTest
-    @CsvSource({"1, 1", "2, 1", "3, 2", "5, 2", "6, 3", "9, 3", "10, 4", "14, 4", "15, 5"})
+    @CsvSource({"1, 1", "2, 2", "3, 2", "4, 3", "5, 3", "6, 4", "7, 4", "8, 5", "9, 5", "10, 5", "11, 5", "12, 5",
+        "13, 5", "14, 5", "15, 5"})
     void aCellGivesVinesByItsLayers(int layers, int vines) {
         assertEquals(vines, VineHold.vinesFrom(layers));
     }
