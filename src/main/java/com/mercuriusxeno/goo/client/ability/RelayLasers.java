@@ -51,6 +51,8 @@ public final class RelayLasers {
     private static final int RELAYS_IN_A_LINK = 2;
     private static final int LASER_RGB = 0xFF2A1A;
     private static final float WIDTH_SCALE = 2f;
+    /** How far a lit tip's glow reaches from the cell center, in blocks: its 4 pixel head and half a pixel of glow. */
+    static final double TIP_GLOW_REACH = 2.5 / 16;
 
     private static List<BlockPos> relays = List.of();
     private static int ticksToScan;
@@ -116,7 +118,9 @@ public final class RelayLasers {
     }
 
     /**
-     * The line a link draws: from one relay's cell center, where its tip sits, to the other's.
+     * The line a link draws: from the edge of one relay's tip glow to the edge of the other's, along the line
+     * between their cell centers, where their tips sit. Drawn from the centers, the line ran inside the head and its
+     * glow and showed over them (operator ruling 2026-11-28).
      * decision relay-shrinks-so-its-tip-sits-centered-and-beams-join-tips
      *
      * @param from one relay
@@ -124,7 +128,10 @@ public final class RelayLasers {
      * @return the link's two ends
      */
     static Vec3[] linkLine(BlockPos from, BlockPos to) {
-        return new Vec3[] {Vec3.atCenterOf(from), Vec3.atCenterOf(to)};
+        Vec3 start = Vec3.atCenterOf(from);
+        Vec3 end = Vec3.atCenterOf(to);
+        Vec3 glowEdge = end.subtract(start).normalize().scale(TIP_GLOW_REACH);
+        return new Vec3[] {start.add(glowEdge), end.subtract(glowEdge)};
     }
 
     /**

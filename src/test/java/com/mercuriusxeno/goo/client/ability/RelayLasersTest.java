@@ -27,10 +27,12 @@ class RelayLasersTest {
 
     /** decision relay-shrinks-so-its-tip-sits-centered-and-beams-join-tips */
     @Test
-    void aLinkRunsFromOneRelaysCellCenterToTheOthers() {
+    void aLinkRunsFromOneTipsGlowEdgeToTheOthers() {
         BlockPos from = new BlockPos(1, 2, 3);
         BlockPos to = new BlockPos(1, 2, 9);
-        assertArrayEquals(new Vec3[] {Vec3.atCenterOf(from), Vec3.atCenterOf(to)}, RelayLasers.linkLine(from, to));
+        Vec3 glowEdge = new Vec3(0, 0, RelayLasers.TIP_GLOW_REACH);
+        assertArrayEquals(new Vec3[] {Vec3.atCenterOf(from).add(glowEdge), Vec3.atCenterOf(to).subtract(glowEdge)},
+                RelayLasers.linkLine(from, to));
     }
 
     /** The light an additive line adds: its alpha times the sum of its channels. */
