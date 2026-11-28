@@ -3,9 +3,8 @@
   "textures": {
     "particle": "goo:block/metronome_top",
     "top": "goo:block/metronome_top",
-    "side": "goo:block/metronome_side",
-    "switch": "goo:block/metronome_switch",
-    "button": "goo:block/metronome_button"
+    "slab": "minecraft:block/smooth_stone",
+    "torch": "minecraft:block/redstone_torch_off"
   },
   "elements": [
     {
@@ -27,7 +26,7 @@
             16,
             16
           ],
-          "texture": "#side",
+          "texture": "#slab",
           "cullface": "down"
         },
         "up": {
@@ -46,8 +45,7 @@
             16,
             16
           ],
-          "texture": "#side",
-          "cullface": "north"
+          "texture": "#slab"
         },
         "south": {
           "uv": [
@@ -56,8 +54,7 @@
             16,
             16
           ],
-          "texture": "#side",
-          "cullface": "south"
+          "texture": "#slab"
         },
         "east": {
           "uv": [
@@ -66,8 +63,7 @@
             16,
             16
           ],
-          "texture": "#side",
-          "cullface": "east"
+          "texture": "#slab"
         },
         "west": {
           "uv": [
@@ -76,8 +72,7 @@
             16,
             16
           ],
-          "texture": "#side",
-          "cullface": "west"
+          "texture": "#slab"
         }
       }
     },
@@ -89,219 +84,115 @@
       ],
       "to": [
         9,
-        5,
-        9
+        7,
+        10
       ],
       "faces": {
-        "north": {
+        "up": {
           "uv": [
             7,
-            5,
+            6,
             9,
             8
           ],
-          "texture": "#switch"
+          "texture": "#torch"
+        },
+        "north": {
+          "uv": [
+            7,
+            6,
+            9,
+            11
+          ],
+          "texture": "#torch"
         },
         "south": {
           "uv": [
             7,
-            5,
+            6,
             9,
-            8
+            11
           ],
-          "texture": "#switch"
+          "texture": "#torch"
         },
         "east": {
           "uv": [
             7,
-            5,
-            8,
-            8
+            6,
+            9,
+            11
           ],
-          "texture": "#switch"
+          "texture": "#torch"
         },
         "west": {
           "uv": [
             7,
-            5,
-            8,
-            8
-          ],
-          "texture": "#switch"
-        },
-        "up": {
-          "uv": [
-            7,
-            5,
+            6,
             9,
-            6
+            11
           ],
-          "texture": "#switch"
+          "texture": "#torch"
         }
       }
     },
     {
       "from": [
-        6,
+        7,
         2,
         2
       ],
       "to": [
-        10,
-        4,
-        6
+        9,
+        5,
+        4
       ],
       "faces": {
+        "up": {
+          "uv": [
+            7,
+            6,
+            9,
+            8
+          ],
+          "texture": "#torch"
+        },
         "north": {
           "uv": [
+            7,
             6,
-            14,
-            10,
-            16
+            9,
+            9
           ],
-          "texture": "#button"
+          "texture": "#torch"
         },
         "south": {
           "uv": [
+            7,
             6,
-            14,
-            10,
-            16
+            9,
+            9
           ],
-          "texture": "#button"
+          "texture": "#torch"
         },
         "east": {
           "uv": [
+            7,
             6,
-            14,
-            10,
-            16
+            9,
+            9
           ],
-          "texture": "#button"
+          "texture": "#torch"
         },
         "west": {
           "uv": [
+            7,
             6,
-            14,
-            10,
-            16
+            9,
+            9
           ],
-          "texture": "#button"
-        },
-        "up": {
-          "uv": [
-            6,
-            2,
-            10,
-            6
-          ],
-          "texture": "#button"
+          "texture": "#torch"
         }
       }
     }
-  ],
-  "display": {
-    "gui": {
-      "rotation": [
-        30,
-        225,
-        0
-      ],
-      "translation": [
-        0,
-        3,
-        0
-      ],
-      "scale": [
-        0.625,
-        0.625,
-        0.625
-      ]
-    },
-    "ground": {
-      "rotation": [
-        0,
-        0,
-        0
-      ],
-      "translation": [
-        0,
-        3,
-        0
-      ],
-      "scale": [
-        0.25,
-        0.25,
-        0.25
-      ]
-    },
-    "fixed": {
-      "rotation": [
-        90,
-        0,
-        0
-      ],
-      "translation": [
-        0,
-        0,
-        -6
-      ],
-      "scale": [
-        0.5,
-        0.5,
-        0.5
-      ]
-    },
-    "thirdperson_righthand": {
-      "rotation": [
-        75,
-        45,
-        0
-      ],
-      "translation": [
-        0,
-        2.5,
-        0
-      ],
-      "scale": [
-        0.375,
-        0.375,
-        0.375
-      ]
-    },
-    "firstperson_righthand": {
-      "rotation": [
-        0,
-        45,
-        0
-      ],
-      "translation": [
-        0,
-        4,
-        0
-      ],
-      "scale": [
-        0.4,
-        0.4,
-        0.4
-      ]
-    },
-    "firstperson_lefthand": {
-      "rotation": [
-        0,
-        225,
-        0
-      ],
-      "translation": [
-        0,
-        4,
-        0
-      ],
-      "scale": [
-        0.4,
-        0.4,
-        0.4
-      ]
-    }
-  }
+  ]
 }
