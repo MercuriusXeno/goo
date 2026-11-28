@@ -118,6 +118,7 @@ public final class LunarClientMeshes {
         tickTheLightMove();
     }
 
+
     /**
      * Ends the light's move: a kept section that took no lifted mesh, because the renderer's hook is missing or it had
      * none, is marked dirty then, so it builds one as vanilla's sections do.

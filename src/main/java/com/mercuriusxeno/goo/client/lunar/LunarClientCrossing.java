@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.lunar.Lunar;
 import com.mercuriusxeno.goo.lunar.LunarCrossingShift;
 import com.mercuriusxeno.goo.network.LunarCrossingMovedPayload;
 import com.mercuriusxeno.goo.network.LunarCrossingPayload;
+import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientChunkCache;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -65,6 +66,7 @@ public final class LunarClientCrossing {
         try {
             List<ChunkPos> moved = moveHeldChunks(level, shift);
             moveEntitiesInView(level, shift);
+            moveTheCamera(minecraft, level, shift);
             LunarClientMeshes.expect(shift, moved, level);
             LunarClientMeshes.jumpTheView(shift);
             context.reply(LunarCrossingMovedPayload.of(shift, moved));
@@ -160,6 +162,15 @@ public final class LunarClientCrossing {
         }
         level.setSectionRangeDirty(landed.x() - 1, level.getMinSectionY(), landed.z() - 1, landed.x() + 1,
                 level.getMaxSectionY(), landed.z() + 1);
+    }
+
+    // Moves the camera with the view, and samples the sky's surroundings there at once: the camera's probe ticks from
+    // the last frame's position, which would read the side just left, where no chunk stands any more, and draw the
+    // default sky for a tick.
+    private static void moveTheCamera(Minecraft minecraft, ClientLevel level, LunarCrossingShift shift) {
+        Camera camera = minecraft.gameRenderer.mainCamera();
+        camera.setPosition(shift.apply(camera.position()));
+        camera.attributeProbe().tick(level, camera.position());
     }
 
     // Moves every entity the client draws by the shift, with nothing to interpolate across the jump.
