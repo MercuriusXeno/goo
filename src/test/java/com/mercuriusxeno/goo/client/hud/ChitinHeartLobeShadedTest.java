@@ -11,17 +11,17 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Covers that the crystal heart's top-right lobe is lit from the top-left,
+ * Covers that the chitin heart's top-right lobe is lit from the top-left,
  * a highlight at its top-left and the darker mid tone down its right edge,
- * in the HUD sprite and in the Scales icon's front heart alike
- * (decision scales-heart-top-right-lobe-is-shaded).
+ * in the HUD sprite and in the Chitin icon's front heart alike
+ * (decisions scales-heart-top-right-lobe-is-shaded and chitin-is-scales-moved-from-crystal).
  */
-class ScalesHeartLobeShadedTest {
+class ChitinHeartLobeShadedTest {
 
-    private static final String CRYSTAL_FULL = "/assets/goo/textures/gui/sprites/hud/heart/crystal_full.png";
-    private static final String SCALES_ICON = "/assets/goo/textures/goo/ability/crystal_scales.png";
-    private static final Set<Integer> HIGHLIGHTS = Set.of(0xA8FAF2, 0xF0FFFF);
-    private static final int SHADE = 0x26A8AA;
+    private static final String CHITIN_FULL = "/assets/goo/textures/gui/sprites/hud/heart/chitin_full.png";
+    private static final String CHITIN_ICON = "/assets/goo/textures/goo/ability/osseous_chitin.png";
+    private static final Set<Integer> HIGHLIGHTS = Set.of(0xEDE3C8, 0xFFFBF0);
+    private static final int SHADE = 0xB3A27E;
     private static final int RGB = 0xFFFFFF;
     /** The lobe's top-left texel in the 9x9 sprite, and its right column's rows. */
     private static final int SPRITE_LOBE_LEFT = 5;
@@ -33,13 +33,13 @@ class ScalesHeartLobeShadedTest {
     private static final int ICON_SHIFT_Y = 8;
 
     @Test
-    void hudCrystalHeartLobeIsShaded() throws IOException {
-        assertLobeShaded(read(CRYSTAL_FULL), 0, 0);
+    void hudChitinHeartLobeIsShaded() throws IOException {
+        assertLobeShaded(read(CHITIN_FULL), 0, 0);
     }
 
     @Test
-    void scalesIconCrystalHeartLobeIsShaded() throws IOException {
-        assertLobeShaded(read(SCALES_ICON), ICON_SHIFT_X, ICON_SHIFT_Y);
+    void chitinIconHeartLobeIsShaded() throws IOException {
+        assertLobeShaded(read(CHITIN_ICON), ICON_SHIFT_X, ICON_SHIFT_Y);
     }
 
     private static void assertLobeShaded(BufferedImage image, int shiftX, int shiftY) {
@@ -49,11 +49,11 @@ class ScalesHeartLobeShadedTest {
         for (int y = SPRITE_LOBE_TOP; y <= SPRITE_LOBE_BOTTOM; y++) {
             shadedRightEdge |= (image.getRGB(SPRITE_LOBE_RIGHT + shiftX, y + shiftY) & RGB) == SHADE;
         }
-        assertTrue(shadedRightEdge, "lobe right edge holds no 26a8aa");
+        assertTrue(shadedRightEdge, "lobe right edge holds no b3a27e");
     }
 
     private static BufferedImage read(String path) throws IOException {
-        try (InputStream in = ScalesHeartLobeShadedTest.class.getResourceAsStream(path)) {
+        try (InputStream in = ChitinHeartLobeShadedTest.class.getResourceAsStream(path)) {
             assertNotNull(in, path + " is missing");
             return ImageIO.read(in);
         }

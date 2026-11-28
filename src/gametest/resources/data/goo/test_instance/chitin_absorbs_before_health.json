@@ -1,6 +1,6 @@
 {
   "type": "minecraft:function",
-  "function": "goo:scales_absorbs_before_health",
+  "function": "goo:chitin_absorbs_before_health",
   "environment": "minecraft:default",
   "structure": "goo:test_bay",
   "max_ticks": 40,

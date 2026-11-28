@@ -62,8 +62,8 @@ public final class HeartOverlayHud {
     private static final Identifier STONE_HALF = sprite("stone_half");
     private static final Identifier NETHER_FULL = sprite("nether_full");
     private static final Identifier NETHER_HALF = sprite("nether_half");
-    private static final Identifier CRYSTAL_FULL = sprite("crystal_full");
-    private static final Identifier CRYSTAL_HALF = sprite("crystal_half");
+    private static final Identifier CHITIN_FULL = sprite("chitin_full");
+    private static final Identifier CHITIN_HALF = sprite("chitin_half");
     private static final Identifier ZOMBIE_FULL = sprite("zombie_full");
     private static final Identifier ZOMBIE_HALF = sprite("zombie_half");
     private static final Identifier RESERVE_FULL = sprite("reserve_full");
@@ -278,8 +278,8 @@ public final class HeartOverlayHud {
     /**
      * The half and full sprites of a kind whose shields lie over present
      * hearts only and leave the rest to vanilla's red heart: bark for
-     * Barkskin (barkskin-bark-hearts-thorn-and-burn) and crystal for Scales
-     * (scales-crystal-hearts-diamond-blue-overlay).
+     * Barkskin (barkskin-bark-hearts-thorn-and-burn) and bone plating for Chitin
+     * (chitin-is-scales-moved-from-crystal).
      *
      * @param kind the overlay's kind
      * @return the half then the full sprite, or empty for a kind laid otherwise
@@ -287,7 +287,7 @@ public final class HeartOverlayHud {
     static Optional<Identifier[]> overPresentSprites(HeartKind kind) {
         return switch (kind) {
             case BARKSKIN -> Optional.of(new Identifier[]{BARK_HALF, BARK_FULL});
-            case SCALES -> Optional.of(new Identifier[]{CRYSTAL_HALF, CRYSTAL_FULL});
+            case CHITIN -> Optional.of(new Identifier[]{CHITIN_HALF, CHITIN_FULL});
             default -> Optional.empty();
         };
     }
@@ -615,7 +615,7 @@ public final class HeartOverlayHud {
     }
     /**
      * The sprite a crawl paints over a heart: stone for Stoneskin, nether for
-     * Undead, crystal for Scales, bark otherwise (decision heart-effects-crawl-while-held).
+     * Undead, bone plating for Chitin, bark otherwise (decision heart-effects-crawl-while-held).
      *
      * @param kind the overlay's kind
      * @return the sprite
@@ -623,7 +623,7 @@ public final class HeartOverlayHud {
     static Identifier crawlSprite(HeartKind kind) {
         return switch (kind) {
             case STONESKIN, UNDEAD -> missingFull(kind);
-            case SCALES -> CRYSTAL_FULL;
+            case CHITIN -> CHITIN_FULL;
             default -> BARK_FULL;
         };
     }

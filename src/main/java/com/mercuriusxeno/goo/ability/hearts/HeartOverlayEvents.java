@@ -139,7 +139,7 @@ public final class HeartOverlayEvents {
     /**
      * Runs a hit through the overlay by its kind's rules: Kindle's embers burn
      * on fire, a hit a kind is weak to aggravates, a brittle kind takes a
-     * scaled share, and every other hit, any hit on crystal Scales among them,
+     * scaled share, and every other hit, any hit on Chitin's plated hearts among them,
      * drains the shields at a heart's worth before real health.
      * decision scales-crystal-hearts-diamond-blue-overlay
      *

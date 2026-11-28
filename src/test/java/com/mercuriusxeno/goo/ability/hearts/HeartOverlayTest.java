@@ -141,15 +141,16 @@ class HeartOverlayTest {
     }
 
     /**
-     * Crystal Scales: hearts of crystal over present hearts that take every
+     * Osseous Chitin: hearts plated in bone over present hearts that take every
      * hit, fire, blast and armor-piercing alike, at a heart's worth before
-     * real health, with no weakness (decision scales-crystal-hearts-diamond-blue-overlay).
+     * real health, with no weakness (decisions scales-crystal-hearts-diamond-blue-overlay and
+     * chitin-is-scales-moved-from-crystal).
      */
     @Nested
-    class Scales {
+    class Chitin {
 
-        private HeartOverlay crystal() {
-            return HeartOverlay.NONE.hold(HeartKind.SCALES, FULL_HEALTH, FULL_HEALTH, HeartOverlay.WHOLE_HIT, NOW);
+        private HeartOverlay chitin() {
+            return HeartOverlay.NONE.hold(HeartKind.CHITIN, FULL_HEALTH, FULL_HEALTH, HeartOverlay.WHOLE_HIT, NOW);
         }
 
         private DamageSource source(TagKey<DamageType> tag) {
@@ -161,14 +162,14 @@ class HeartOverlayTest {
         }
 
         @Test
-        void crystalLaysOverPresentHearts() {
-            assertTrue(crystal().stands());
-            assertFalse(HeartKind.SCALES.fillsMissing());
+        void chitinLaysOverPresentHearts() {
+            assertTrue(chitin().stands());
+            assertFalse(HeartKind.CHITIN.fillsMissing());
         }
 
         @Test
-        void everyHitTakesCrystalAtAHeartsWorthBeforeHealth() {
-            HeartOverlay laid = crystal();
+        void everyHitTakesChitinAtAHeartsWorthBeforeHealth() {
+            HeartOverlay laid = chitin();
             List<TagKey<DamageType>> kinds = new ArrayList<>(List.of(DamageTypeTags.IS_FIRE,
                     DamageTypeTags.IS_EXPLOSION, DamageTypeTags.BYPASSES_ARMOR));
             kinds.add(null);
@@ -180,8 +181,8 @@ class HeartOverlayTest {
         }
 
         @Test
-        void aHitPastTheCrystalLandsOnHealthUnscaled() {
-            HeartOverlay laid = crystal();
+        void aHitPastTheChitinLandsOnHealthUnscaled() {
+            HeartOverlay laid = chitin();
             float past = laid.shieldHalves() + 3f;
             HeartOverlay.Drained drained = HeartOverlayEvents.strikeAt(laid, source(null), past, FULL_HEALTH, NOW);
             assertEquals(3f, drained.remainder(), DELTA);

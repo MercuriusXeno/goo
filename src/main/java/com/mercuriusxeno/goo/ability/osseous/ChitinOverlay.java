@@ -1,4 +1,4 @@
-package com.mercuriusxeno.goo.ability.crystal;
+package com.mercuriusxeno.goo.ability.osseous;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.hearts.HeartKind;
@@ -17,14 +17,15 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Crystal Scales on a player's model: while the player's crystal hearts
- * stand on the glove, every watcher draws the diamond-blue
+ * Osseous Chitin on a player's model: while the player's bone-plated hearts
+ * stand on the glove, every watcher draws the ivory
  * faceted overlay over the player, a pattern of its own; it clears
- * once the crystal hearts are gone.
+ * once the plated hearts are gone.
  * decision scales-crystal-hearts-diamond-blue-overlay
+ * decision chitin-is-scales-moved-from-crystal
  */
 @EventBusSubscriber(modid = Goo.MODID)
-public final class ScalesOverlay {
+public final class ChitinOverlay {
 
     /** Ticks between one overlay refresh and the next, so a player who starts watching sees it within a second. */
     static final int OVERLAY_REFRESH_TICKS = 20;
@@ -33,14 +34,14 @@ public final class ScalesOverlay {
     private static final int OVERLAY_CLEARED = 0;
 
     /** The players whose watchers draw the overlay now. */
-    private static final Set<UUID> SCALED = new HashSet<>();
+    private static final Set<UUID> PLATED = new HashSet<>();
 
-    private ScalesOverlay() {
+    private ChitinOverlay() {
     }
 
     /**
-     * Refreshes the overlay of each player wearing crystal hearts, and clears
-     * it from a player the tick their crystal hearts are gone, so its fade
+     * Refreshes the overlay of each player wearing plated hearts, and clears
+     * it from a player the tick their plated hearts are gone, so its fade
      * starts at the end.
      * brew-effect-visuals-linger-and-fade-over-a-second-after-the-effect-ends
      *
@@ -51,12 +52,12 @@ public final class ScalesOverlay {
         if (!(event.getEntity() instanceof ServerPlayer player)) {
             return;
         }
-        if (!wearsScales(player)) {
-            if (SCALED.remove(player.getUUID())) {
+        if (!wearsChitin(player)) {
+            if (PLATED.remove(player.getUUID())) {
                 send(player, OVERLAY_CLEARED);
             }
         } else if (player.tickCount % OVERLAY_REFRESH_TICKS == 0) {
-            SCALED.add(player.getUUID());
+            PLATED.add(player.getUUID());
             send(player, OVERLAY_TICKS);
         }
     }
@@ -68,21 +69,21 @@ public final class ScalesOverlay {
      */
     @SubscribeEvent
     public static void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
-        SCALED.remove(event.getEntity().getUUID());
+        PLATED.remove(event.getEntity().getUUID());
     }
 
     /**
-     * Whether a player's crystal hearts stand.
+     * Whether a player's plated hearts stand.
      *
      * @param player the player
-     * @return true while a Scales heart overlay stands
+     * @return true while a Chitin heart overlay stands
      */
-    public static boolean wearsScales(ServerPlayer player) {
+    public static boolean wearsChitin(ServerPlayer player) {
         if (!player.hasData(GooAttachments.HEART_OVERLAY)) {
             return false;
         }
         HeartOverlay overlay = player.getData(GooAttachments.HEART_OVERLAY);
-        return overlay.kind() == HeartKind.SCALES && overlay.stands();
+        return overlay.kind() == HeartKind.CHITIN && overlay.stands();
     }
 
     private static void send(ServerPlayer player, int ticks) {

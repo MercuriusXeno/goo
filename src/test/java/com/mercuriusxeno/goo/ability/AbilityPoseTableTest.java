@@ -28,7 +28,7 @@ class AbilityPoseTableTest {
             Map.entry("blaze_molten", ArmPose.HELD_OUT),
             Map.entry("crystal_shatter", ArmPose.HELD_OUT),
             Map.entry("crystal_glimmer", ArmPose.HELD_UP),
-            Map.entry("crystal_scales", ArmPose.HELD_UP),
+            Map.entry("osseous_chitin", ArmPose.HELD_UP),
             Map.entry("crystal_knives", ArmPose.RESTING),
             Map.entry("pulse_click", ArmPose.RESTING),
             Map.entry("sculk_creep", ArmPose.HELD_OUT),

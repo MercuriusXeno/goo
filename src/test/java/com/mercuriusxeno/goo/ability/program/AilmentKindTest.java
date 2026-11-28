@@ -29,7 +29,7 @@ class AilmentKindTest {
                 AilmentKind.HEX, AilmentKind.PETRIFY, AilmentKind.FROZEN)
                 .collect(Collectors.toMap(Function.identity(), AilmentKind::rgb));
 
-        assertEquals(Map.of(AilmentKind.STASIS, 0xFFD447, AilmentKind.SCALES, 0x4AEDD9, AilmentKind.SEAL, 0xB05CFF,
+        assertEquals(Map.of(AilmentKind.STASIS, 0xFFD447, AilmentKind.SCALES, 0xD9CBA8, AilmentKind.SEAL, 0xB05CFF,
                 AilmentKind.HEX, 0x6A1FB0, AilmentKind.PETRIFY, 0x8C8A86, AilmentKind.FROZEN, 0xC4ECFF), named);
     }
 
@@ -40,10 +40,10 @@ class AilmentKindTest {
     }
 
     @Test
-    void scalesIsDiamondBlueWithAPatternOfItsOwn() {
+    void scalesWearsOsseousIvoryWithAPatternOfItsOwn() {
         assertEquals(AilmentPattern.FACETS, AilmentKind.SCALES.pattern());
         int rgb = AilmentKind.SCALES.rgb();
-        assertTrue((rgb & 0xFF) > (rgb >> 16), "scales is not blue over red");
+        assertTrue(rgb >> 16 > (rgb & 0xFF), "scales is not ivory, red over blue");
     }
 
     @Test
