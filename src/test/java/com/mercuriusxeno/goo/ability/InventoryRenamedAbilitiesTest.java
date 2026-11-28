@@ -101,7 +101,7 @@ class InventoryRenamedAbilitiesTest {
                 // zoo-leaves-and-zombie-goo-replaces-it-as-z
                 Arguments.of("zoo", Set.of()),
                 Arguments.of("yarn", Set.of("yarn_herd", "yarn_lead", "yarn_stitch")),
-                Arguments.of("xeno", Set.of("xeno_revert", "xeno_unveil", "xeno_shriek")));
+                Arguments.of("xeno", Set.of("xeno_revert", "xeno_unveil", "xeno_shriek", "xeno_ooze")));
     }
 
     @Test

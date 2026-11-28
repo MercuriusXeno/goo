@@ -17,15 +17,7 @@
     "sound": { "id": "minecraft:block.honey_block.slide", "every": 10, "volume": 1.0, "pitch": 1.0, "pitch_spread": 0.1 }
   },
   "behaviors": [
-    {
-      "type": "gloom",
-      "slime_turn_layers": 8,
-      "morph_ticks": 20,
-      "steps": [
-        { "type": "sound", "id": "minecraft:entity.slime.squish", "source": "players", "volume": 0.9, "pitch": 0.7 },
-        { "type": "sound", "id": "minecraft:entity.evoker.prepare_summon", "source": "players", "volume": 0.8, "pitch": 1.2 }
-      ]
-    }
+    { "type": "gloom" }
   ],
   "tags": ["stream"]
 }

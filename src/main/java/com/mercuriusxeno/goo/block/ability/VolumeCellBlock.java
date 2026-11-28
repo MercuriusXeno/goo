@@ -5,12 +5,11 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.GooHitCredit;
 import com.mercuriusxeno.goo.ability.LoadedAbilityCost;
-import com.mercuriusxeno.goo.ability.nether.GloomEvents;
 import com.mercuriusxeno.goo.ability.program.BlockCooking;
 import com.mercuriusxeno.goo.ability.program.ChannelHost;
-import com.mercuriusxeno.goo.ability.program.GloomStep;
 import com.mercuriusxeno.goo.ability.program.LeechGooStep;
 import com.mercuriusxeno.goo.ability.program.MoltenStep;
+import com.mercuriusxeno.goo.ability.program.OozeStep;
 import com.mercuriusxeno.goo.ability.program.ShatterStep;
 import com.mercuriusxeno.goo.ability.program.SlickStep;
 import com.mercuriusxeno.goo.ability.program.Step;
@@ -20,6 +19,7 @@ import com.mercuriusxeno.goo.ability.program.WispShed;
 import com.mercuriusxeno.goo.ability.program.WispsStep;
 import com.mercuriusxeno.goo.ability.root.RootEvents;
 import com.mercuriusxeno.goo.ability.root.Rooted;
+import com.mercuriusxeno.goo.ability.xeno.OozeEvents;
 import com.mercuriusxeno.goo.ability.yarn.StitchEvents;
 import com.mercuriusxeno.goo.block.ability.SlimeFlow.Side;
 import com.mercuriusxeno.goo.data.GooFraction;
@@ -42,6 +42,7 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.InsideBlockEffectApplier;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.monster.cubemob.Slime;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
@@ -2111,10 +2112,10 @@ public class VolumeCellBlock extends Block {
     }
 
     /**
-     * Runs a darkening cell on a slime in it or standing on it, by its
-     * laying ability's gloom step: the slime becomes a random hostile mob
-     * where the cell holds the turn's layers.
-     * gloom-turns-slimes-into-random-hostiles-in-place-of-spawn
+     * Runs a cell on a slime in it or standing on it, by its laying
+     * ability's ooze step: the slime becomes a random hostile mob where the
+     * cell holds the turn's layers.
+     * ooze-is-xenos-world-goo-that-turns-slimes-into-random-hostiles
      *
      * @param level  the level the cell stands in
      * @param pos    the cell
@@ -2122,9 +2123,8 @@ public class VolumeCellBlock extends Block {
      * @param entity the entity in or on the cell
      */
     private void turnSlime(Level level, BlockPos pos, BlockState state, Entity entity) {
-        if (surface().darkens() && level instanceof ServerLevel server) {
-            GloomStep.in(layingProgram(server)).ifPresent(gloom -> GloomEvents.touch(server, entity, pos, state,
-                    gloom));
+        if (entity instanceof Slime && level instanceof ServerLevel server) {
+            OozeStep.in(layingProgram(server)).ifPresent(ooze -> OozeEvents.touch(server, entity, pos, state, ooze));
         }
     }
 

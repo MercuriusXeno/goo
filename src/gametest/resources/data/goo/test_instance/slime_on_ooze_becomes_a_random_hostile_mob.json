@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:slime_on_ooze_becomes_a_random_hostile_mob",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 80,
+  "setup_ticks": 0,
+  "required": true
+}
