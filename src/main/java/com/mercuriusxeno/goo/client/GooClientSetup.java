@@ -288,7 +288,8 @@ public final class GooClientSetup {
                 GooBlocks.METAL_SPIKES.get(), GooBlocks.ZOMBIE_INFEST.get(), GooBlocks.LEAF_VINES.get(),
                 GooBlocks.UNSTABLE_NITRO.get(), GooBlocks.QUANTUM_PHASE.get(),
                 GooBlocks.NETHER_GLOOM.get(),
-                GooBlocks.ROCK_MORTAR.get(), GooBlocks.YARN_STITCH.get(), GooBlocks.ASTRAL_DOWSING.get())) {
+                GooBlocks.ROCK_MORTAR.get(), GooBlocks.YARN_STITCH.get(), GooBlocks.ASTRAL_DOWSING.get(),
+                GooBlocks.XENO_OOZE.get())) {
             event.register(VolumeCellTint.sources(cell.binding().gooType(), ClientGooTypes::color), cell);
         }
     }
@@ -391,6 +392,7 @@ public final class GooClientSetup {
      * mortar-is-rocks-residual-a-petrification-and-hardening-goo
      * stitch-is-yarns-residual-that-turns-slimes-into-passive-mobs
      * astral-world-goo-is-dowsing-an-x-ray-of-ore
+     * ooze-is-xenos-world-goo-that-turns-slimes-into-random-hostiles
      *
      * @param event the event instance
      */
@@ -413,6 +415,7 @@ public final class GooClientSetup {
         registerSprayDrip(event, GooParticles.MORTAR_SPRAY_DRIP.get(), BlendPalette.MORTAR_ROCK_GRAYS);
         registerSprayDrip(event, GooParticles.STITCH_SPRAY_DRIP.get(), BlendPalette.STITCH_YARN_TANS);
         registerSprayDrip(event, GooParticles.DOWSING_SPRAY_DRIP.get(), BlendPalette.DOWSING_STARLIGHT_BLUES);
+        registerSprayDrip(event, GooParticles.OOZE_SPRAY_DRIP.get(), BlendPalette.OOZE_XENO_SLATES);
         event.registerSpriteSet(GooParticles.MOLTEN_SPRAY_DRIP.get(),
                 sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.MOLTEN_BLAZE_ORANGES,
                         CellBinding.MOLTEN.fluidFooting()));

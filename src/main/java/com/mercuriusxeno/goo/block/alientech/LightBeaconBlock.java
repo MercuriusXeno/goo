@@ -1,10 +1,16 @@
 package com.mercuriusxeno.goo.block.alientech;
 
+import com.mercuriusxeno.goo.block.BlockEntityTicks;
+import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityTicker;
+import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.shapes.Shapes;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The light beacon: a block that connects to a solid face, gives the max light where it stands and sends its
@@ -22,6 +28,8 @@ public class LightBeaconBlock extends FaceMountedBlock {
     private static final float PILLAR_TOP = 3f;
     private static final float TIP_TOP = 1f;
     private static final float CELL = 16f;
+    private static final BlockEntityTicks<LightBeaconBlockEntity> TICKS =
+            BlockEntityTicks.onServer(GooBlockEntities.LIGHT_BEACON, LightBeaconBlockEntity::serverTick);
 
     /**
      * Creates the block, pointing up off a floor.
@@ -36,5 +44,12 @@ public class LightBeaconBlock extends FaceMountedBlock {
     @Override
     public BlockEntity newBlockEntity(@NonNull BlockPos pos, @NonNull BlockState state) {
         return new LightBeaconBlockEntity(pos, state);
+    }
+
+    @Override
+    public <T extends BlockEntity> @Nullable BlockEntityTicker<T> getTicker(@NonNull Level level,
+                                                                           @NonNull BlockState state,
+                                                                           @NonNull BlockEntityType<T> type) {
+        return TICKS.tickerFor(level, type);
     }
 }

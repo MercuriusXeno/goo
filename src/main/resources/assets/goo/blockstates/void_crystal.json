@@ -1,0 +1,120 @@
+{
+  "variants": {
+    "facing=up": [
+      {
+        "model": "goo:block/void_crystal"
+      },
+      {
+        "model": "goo:block/void_crystal_2"
+      },
+      {
+        "model": "goo:block/void_crystal_3"
+      },
+      {
+        "model": "goo:block/void_crystal_4"
+      }
+    ],
+    "facing=down": [
+      {
+        "model": "goo:block/void_crystal",
+        "x": 180
+      },
+      {
+        "model": "goo:block/void_crystal_2",
+        "x": 180
+      },
+      {
+        "model": "goo:block/void_crystal_3",
+        "x": 180
+      },
+      {
+        "model": "goo:block/void_crystal_4",
+        "x": 180
+      }
+    ],
+    "facing=north": [
+      {
+        "model": "goo:block/void_crystal",
+        "x": 90
+      },
+      {
+        "model": "goo:block/void_crystal_2",
+        "x": 90
+      },
+      {
+        "model": "goo:block/void_crystal_3",
+        "x": 90
+      },
+      {
+        "model": "goo:block/void_crystal_4",
+        "x": 90
+      }
+    ],
+    "facing=south": [
+      {
+        "model": "goo:block/void_crystal",
+        "x": 90,
+        "y": 180
+      },
+      {
+        "model": "goo:block/void_crystal_2",
+        "x": 90,
+        "y": 180
+      },
+      {
+        "model": "goo:block/void_crystal_3",
+        "x": 90,
+        "y": 180
+      },
+      {
+        "model": "goo:block/void_crystal_4",
+        "x": 90,
+        "y": 180
+      }
+    ],
+    "facing=east": [
+      {
+        "model": "goo:block/void_crystal",
+        "x": 90,
+        "y": 90
+      },
+      {
+        "model": "goo:block/void_crystal_2",
+        "x": 90,
+        "y": 90
+      },
+      {
+        "model": "goo:block/void_crystal_3",
+        "x": 90,
+        "y": 90
+      },
+      {
+        "model": "goo:block/void_crystal_4",
+        "x": 90,
+        "y": 90
+      }
+    ],
+    "facing=west": [
+      {
+        "model": "goo:block/void_crystal",
+        "x": 90,
+        "y": 270
+      },
+      {
+        "model": "goo:block/void_crystal_2",
+        "x": 90,
+        "y": 270
+      },
+      {
+        "model": "goo:block/void_crystal_3",
+        "x": 90,
+        "y": 270
+      },
+      {
+        "model": "goo:block/void_crystal_4",
+        "x": 90,
+        "y": 270
+      }
+    ]
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "animation": {
+    "interpolate": true,
+    "frames": [
+      {
+        "index": 0,
+        "time": 105
+      },
+      {
+        "index": 0,
+        "time": 2
+      },
+      {
+        "index": 1,
+        "time": 3
+      },
+      {
+        "index": 2,
+        "time": 4
+      },
+      {
+        "index": 3,
+        "time": 6
+      },
+      {
+        "index": 2,
+        "time": 4
+      },
+      {
+        "index": 1,
+        "time": 3
+      }
+    ]
+  },
+  "texture": {
+    "mipmap_strategy": "strict_cutout"
+  }
+}

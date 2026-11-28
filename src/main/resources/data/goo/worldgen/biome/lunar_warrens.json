@@ -52,7 +52,9 @@
       "goo:warren_mechanism",
       "goo:monolith_marker"
     ],
-    [],
+    [
+      "goo:deposit_goo_pockets"
+    ],
     [],
     []
   ],

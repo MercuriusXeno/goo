@@ -34,6 +34,20 @@ class ZapBoltsTest {
             assertEquals(ZapBolts.SEGMENTS + 1, bolt.length);
         }
 
+        /**
+         * From the blob's rest above the hand the bolt ends on the point the look hits
+         * (decision no-ability-floats-its-blob-to-the-center-line).
+         */
+        @Test
+        void aBoltFromTheBlobsRestAboveTheHandEndsOnTheHit() {
+            Vec3 eye = new Vec3(0.5, 65.62, 0.5);
+            Vec3 hit = eye.add(Vec3.directionFromRotation(0f, 0f).scale(8));
+            Vec3 rest = BlobRest.inView(eye, 0f, 0f, true, BlobRest.Rest.ABOVE_THE_HAND);
+            Vec3[] bolt = ZapBolts.boltPoints(rest, hit, ZapBolts.SEGMENTS, ZapBolts.JITTER, new Random(7));
+            assertEquals(rest, bolt[0]);
+            assertEquals(hit, bolt[bolt.length - 1]);
+        }
+
         @Test
         void eachKinkStaysWithinTheJitterOfTheStraightLine() {
             Vec3[] bolt = ZapBolts.boltPoints(HAND, STRIKE, ZapBolts.SEGMENTS, ZapBolts.JITTER, new Random(7));

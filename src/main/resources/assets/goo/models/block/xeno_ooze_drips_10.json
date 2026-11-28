@@ -1,0 +1,6 @@
+{
+  "parent": "goo:block/volume_cell_drips_10",
+  "textures": {
+    "goo": {"sprite": "goo:fluid/xeno_fluid", "force_translucent": true}
+  }
+}

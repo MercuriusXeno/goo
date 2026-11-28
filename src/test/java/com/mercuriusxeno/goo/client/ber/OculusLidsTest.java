@@ -38,13 +38,23 @@ class OculusLidsTest {
     @Test
     void theLidsOpenOverAFewTicksWhileLookedAt() {
         BlockPos cell = new BlockPos(5, 64, 10);
-        OculusLids.closure(cell, true, SINCE + OculusLids.BLINK_TICKS);
-        assertEquals(0f, OculusLids.closure(cell, true, SINCE + OculusLids.BLINK_TICKS + 20), EPSILON);
+        int afterTheBlink = OculusLids.BLINK_SHUT_TICKS + OculusLids.BLINK_OPEN_TICKS;
+        OculusLids.closure(cell, true, SINCE + afterTheBlink);
+        assertEquals(0f, OculusLids.closure(cell, true, SINCE + afterTheBlink + 20), EPSILON);
+    }
+
+    /** operator ruling 2026-11-28: the lids part a lot at first and slow, and open more slowly than they close */
+    @Test
+    void theLidsPartMostOnTheFirstTickAndShutFasterThanTheyOpen() {
+        float firstTick = OculusLids.eased(0f, 1f, 1f);
+        float secondTick = OculusLids.eased(firstTick, 1f, 1f) - firstTick;
+        assertTrue(firstTick > secondTick, "the first tick should part the lids most");
+        assertTrue(1f - OculusLids.eased(1f, 0f, 1f) > firstTick, "a tick should shut more than it opens");
     }
 
     @Test
-    void anOpenEyeBlinksShutAtTheMiddleOfABlink() {
-        assertEquals(1f, OculusLids.blinkClosure(OculusLids.BLINK_TICKS / 2f), EPSILON);
+    void anOpenEyeBlinksShutThenEasesOpen() {
+        assertEquals(1f, OculusLids.blinkClosure(OculusLids.BLINK_SHUT_TICKS), EPSILON);
         assertEquals(0f, OculusLids.blinkClosure(OculusLids.BLINK_PERIOD / 2f), EPSILON);
     }
 }

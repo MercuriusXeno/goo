@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooEntities;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.Holder;
 import net.minecraft.core.HolderSet;
 import net.minecraft.core.registries.Registries;
@@ -95,10 +96,35 @@ public final class LunarLandmarkTests {
 
     private static final String LUNAR_REQUIRED = "The server should hold goo:lunar";
     private static final String PLACED = "The %s structure should generate at %s: %s";
-    private static final String LUMP_HOLDS = "The meteorite's lump at %s should hold meteoric iron and impact glass, "
-            + "holds iron %s and glass %s";
+    private static final String LUMP_HOLDS = "The meteorite's lump at %s should hold meteoric iron";
     private static final String ON_BASALT = "The meteorite's lump at %s should sit on a basalt floor at y %d, sits on %s";
     private static final String SET_PLACES = "The %s structure set should place %s in one of goo:lunar's surface biomes";
+    private static final String METEORITE_HOLDS_A_NATIVE_IRON_LODE = "meteorite_holds_a_native_iron_lode";
+    /** The lode's meteorite generates here, apart from the scorched crater test's. */
+    private static final BlockPos LODE_SPOT = new BlockPos(1400, 0, 1000);
+    /** The scan for native iron reaches this far from the lump's centre. */
+    private static final int LODE_SCAN_REACH = 4;
+    private static final String LODE_AT_HEART = "The meteorite's lump spanning y %d to %d at %s should hold native iron "
+            + "at its centre, holds %s";
+    private static final String NEST_HOLDS_A_GUARDED_CACHE = "nest_holds_a_guarded_cache";
+    /** The cache's nest generates here, apart from the gathering test's. */
+    private static final BlockPos CACHE_SPOT = new BlockPos(1400, 0, 1200);
+    private static final ResourceKey<LootTable> NEST_LOOT = ResourceKey.create(Registries.LOOT_TABLE,
+            Identifier.fromNamespaceAndPath(Goo.MODID, "chests/lunar_nest"));
+    private static final String NEST_CACHE = "The nest at %s should hold a container on its floor at its centre reading "
+            + "%s, holds %s";
+    private static final String MONOLITH_GROWS_ASTRAL_CRYSTAL_AND_POOLS_ASTRAL_GOO =
+            "monolith_grows_astral_crystal_and_pools_astral_goo";
+    /** The prize's monolith generates here, apart from the standing test's. */
+    private static final BlockPos PRIZE_SPOT = new BlockPos(1400, 0, 1400);
+    /** The slab's lowest course is read this far either side of its centre. */
+    private static final int SLAB_SCAN_REACH = 3;
+    /** Astral goo is sought this far from the slab's centre, in blocks, across and up and down. */
+    private static final int POOL_REACH = 5;
+    private static final String CRYSTAL_AT_BASE = "The monolith at %s should grow astral crystal beside its lowest "
+            + "course at y %d, grows none";
+    private static final String GOO_BESIDE = "The monolith at %s should pool astral goo within %d blocks, pools none";
+    private static final String LODE_ENCLOSED = "The meteorite's native iron at %s should be enclosed, touches air at %s";
 
     private LunarLandmarkTests() {
     }
@@ -115,11 +141,109 @@ public final class LunarLandmarkTests {
         GooTestFunctions.registerTest(registrar, MONOLITH_STANDS_OVER_THE_SURFACE,
                 LunarLandmarkTests::monolithStandsOverTheSurface);
         GooTestFunctions.registerTest(registrar, RUIN_LIES_HALF_BURIED, LunarLandmarkTests::ruinLiesHalfBuried);
+        GooTestFunctions.registerTest(registrar, METEORITE_HOLDS_A_NATIVE_IRON_LODE,
+                LunarLandmarkTests::meteoriteHoldsANativeIronLode);
+        GooTestFunctions.registerTest(registrar, NEST_HOLDS_A_GUARDED_CACHE, LunarLandmarkTests::nestHoldsAGuardedCache);
+        GooTestFunctions.registerTest(registrar, MONOLITH_GROWS_ASTRAL_CRYSTAL_AND_POOLS_ASTRAL_GOO,
+                LunarLandmarkTests::monolithGrowsAstralCrystalAndPoolsAstralGoo);
+    }
+
+    /**
+     * The monolith generated at a spot in goo:lunar grows astral crystal beside its slab's lowest course, and pools
+     * astral world goo on the ground within a few blocks of it.
+     * decision each-lunar-landmark-holds-its-own-prize
+     *
+     * @param helper the gametest helper
+     */
+    public static void monolithGrowsAstralCrystalAndPoolsAstralGoo(GameTestHelper helper) {
+        ServerLevel lunar = place(helper, MONOLITH, PRIZE_SPOT);
+        ChunkPos chunk = ChunkPos.containing(PRIZE_SPOT);
+        BlockPos column = new BlockPos(chunk.getMiddleBlockX(), 0, chunk.getMiddleBlockZ());
+        int base = lunar.getHeight(Heightmap.Types.WORLD_SURFACE, column.getX(), column.getZ()) - 1;
+        while (lunar.getBlockState(column.atY(base - 1)).is(GooBlocks.IMPACT_GLASS.get())) {
+            base--;
+        }
+        BlockPos center = column.atY(base);
+        boolean crystal = false;
+        for (BlockPos at : BlockPos.betweenClosed(center.offset(-SLAB_SCAN_REACH, 0, -SLAB_SCAN_REACH),
+                center.offset(SLAB_SCAN_REACH, 0, SLAB_SCAN_REACH))) {
+            if (lunar.getBlockState(at).is(GooBlocks.IMPACT_GLASS.get())) {
+                for (Direction side : Direction.Plane.HORIZONTAL) {
+                    crystal |= lunar.getBlockState(at.relative(side)).is(GooBlocks.ASTRAL_CRYSTAL.get());
+                }
+            }
+        }
+        helper.assertTrue(crystal, String.format(CRYSTAL_AT_BASE, column, base));
+        boolean goo = false;
+        for (BlockPos at : BlockPos.betweenClosed(center.offset(-POOL_REACH, -POOL_REACH, -POOL_REACH),
+                center.offset(POOL_REACH, POOL_REACH, POOL_REACH))) {
+            goo |= lunar.getBlockState(at).is(GooBlocks.ASTRAL_DOWSING.get());
+        }
+        helper.assertTrue(goo, String.format(GOO_BESIDE, column, POOL_REACH));
+        helper.succeed();
+    }
+
+    /**
+     * The eldritch nest generated at a spot in goo:lunar holds, on the floor of its hollow down its chunk's centre
+     * column, one container reading the lunar nest loot table.
+     * decision each-lunar-landmark-holds-its-own-prize
+     *
+     * @param helper the gametest helper
+     */
+    public static void nestHoldsAGuardedCache(GameTestHelper helper) {
+        ServerLevel lunar = place(helper, NEST, CACHE_SPOT);
+        ChunkPos chunk = ChunkPos.containing(CACHE_SPOT);
+        BlockPos column = new BlockPos(chunk.getMiddleBlockX(), 0, chunk.getMiddleBlockZ());
+        int top = lunar.getHeight(Heightmap.Types.WORLD_SURFACE, column.getX(), column.getZ()) - 1;
+        int y = top - 1;
+        while (lunar.getBlockState(column.atY(y)).isAir()) {
+            y--;
+        }
+        String cacheLoot = lunar.getBlockEntity(column.atY(y)) instanceof RandomizableContainerBlockEntity cache
+                && cache.getLootTable() != null ? cache.getLootTable().identifier().toString()
+                : lunar.getBlockState(column.atY(y)).toString();
+        helper.assertTrue(cacheLoot.equals(NEST_LOOT.identifier().toString()),
+                String.format(NEST_CACHE, column.atY(y), NEST_LOOT.identifier(), cacheLoot));
+        helper.succeed();
+    }
+
+    /**
+     * The meteorite generated at a spot in goo:lunar holds native iron at the centre of its lump, down its chunk's
+     * centre column, and no native iron block of it touches air.
+     * decision each-lunar-landmark-holds-its-own-prize
+     *
+     * @param helper the gametest helper
+     */
+    public static void meteoriteHoldsANativeIronLode(GameTestHelper helper) {
+        ServerLevel lunar = place(helper, METEORITE, LODE_SPOT);
+        ChunkPos chunk = ChunkPos.containing(LODE_SPOT);
+        BlockPos column = new BlockPos(chunk.getMiddleBlockX(), 0, chunk.getMiddleBlockZ());
+        int top = lunar.getHeight(Heightmap.Types.WORLD_SURFACE, column.getX(), column.getZ()) - 1;
+        int bottom = top;
+        while (bottom > top - LUMP_SCAN_DEPTH && !lunar.getBlockState(column.atY(bottom - 1)).is(Blocks.BASALT)) {
+            bottom--;
+        }
+        BlockPos heart = column.atY((top + bottom) / 2);
+        BlockState atHeart = lunar.getBlockState(heart);
+        helper.assertTrue(atHeart.is(GooBlocks.NATIVE_IRON.get()), String.format(LODE_AT_HEART, bottom, top, column,
+                atHeart));
+        for (BlockPos at : BlockPos.betweenClosed(heart.offset(-LODE_SCAN_REACH, -LODE_SCAN_REACH, -LODE_SCAN_REACH),
+                heart.offset(LODE_SCAN_REACH, LODE_SCAN_REACH, LODE_SCAN_REACH))) {
+            if (!lunar.getBlockState(at).is(GooBlocks.NATIVE_IRON.get())) {
+                continue;
+            }
+            for (Direction side : Direction.values()) {
+                BlockPos beside = at.relative(side);
+                helper.assertTrue(!lunar.getBlockState(beside).isAir(), String.format(LODE_ENCLOSED, at.immutable(),
+                        beside));
+            }
+        }
+        helper.succeed();
     }
 
     /**
      * The meteorite generated at a spot in goo:lunar leaves, down its chunk's centre column, a lump holding meteoric
-     * iron and impact glass on a basalt floor; and the meteorites structure set places the meteorite in goo:lunar's
+     * iron on a basalt floor; and the meteorites structure set places the meteorite in goo:lunar's
      * biome.
      *
      * @param helper the gametest helper
@@ -130,18 +254,16 @@ public final class LunarLandmarkTests {
         BlockPos column = new BlockPos(chunk.getMiddleBlockX(), 0, chunk.getMiddleBlockZ());
         int top = lunar.getHeight(Heightmap.Types.WORLD_SURFACE, column.getX(), column.getZ()) - 1;
         boolean iron = false;
-        boolean glass = false;
         int y = top;
         while (y > top - LUMP_SCAN_DEPTH) {
             BlockState block = lunar.getBlockState(column.atY(y));
-            if (!block.is(GooBlocks.METEORIC_IRON.get()) && !block.is(GooBlocks.IMPACT_GLASS.get())) {
+            if (!block.is(GooBlocks.METEORIC_IRON.get()) && !block.is(GooBlocks.NATIVE_IRON.get())) {
                 break;
             }
             iron |= block.is(GooBlocks.METEORIC_IRON.get());
-            glass |= block.is(GooBlocks.IMPACT_GLASS.get());
             y--;
         }
-        helper.assertTrue(iron && glass, String.format(LUMP_HOLDS, column.atY(top), iron, glass));
+        helper.assertTrue(iron, String.format(LUMP_HOLDS, column.atY(top)));
         BlockState floor = lunar.getBlockState(column.atY(y));
         helper.assertTrue(floor.is(Blocks.BASALT), String.format(ON_BASALT, column.atY(top), y, floor));
         assertSetPlacesInLunar(helper, lunar, METEORITES, METEORITE);
@@ -150,7 +272,7 @@ public final class LunarLandmarkTests {
 
     /**
      * The eldritch nest generated at a spot in goo:lunar leaves, down its chunk's centre column, a sculk roof over a
-     * hollow over a sculk floor; its spawn overrides weigh the monstrosity over the lunar biome's spawner; and its
+     * hollow, its cache standing in it, over a sculk floor; its spawn overrides weigh the monstrosity over the lunar biome's spawner; and its
      * structure set places it in goo:lunar's biome.
      *
      * @param helper the gametest helper
@@ -162,7 +284,7 @@ public final class LunarLandmarkTests {
         int top = lunar.getHeight(Heightmap.Types.WORLD_SURFACE, column.getX(), column.getZ()) - 1;
         BlockState roof = lunar.getBlockState(column.atY(top));
         int y = top - 1;
-        while (lunar.getBlockState(column.atY(y)).isAir()) {
+        while (lunar.getBlockState(column.atY(y)).isAir() || lunar.getBlockState(column.atY(y)).is(Blocks.CHEST)) {
             y--;
         }
         int hollow = top - 1 - y;

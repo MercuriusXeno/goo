@@ -65,6 +65,7 @@ public class GooCreativeTabs {
                 output.accept(GooItems.VOLATILE_CRYSTAL.get());
                 output.accept(GooItems.RESONATOR.get());
                 output.accept(GooItems.WIRELESS_EMITTER.get());
+                output.accept(GooItems.VOID_CRYSTAL.get());
                 output.accept(GooItems.IMPACT_GLASS.get());
                 output.accept(GooItems.BRECCIA.get());
                 output.accept(GooItems.CRATER_ICE.get());

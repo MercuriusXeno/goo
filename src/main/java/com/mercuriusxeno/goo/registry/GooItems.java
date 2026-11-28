@@ -93,6 +93,8 @@ public class GooItems {
             GooBlocks.WIRELESS_EMITTER);
     public static final DeferredItem<BlockItem> RESONATOR = ITEMS.registerSimpleBlockItem("resonator",
             GooBlocks.RESONATOR);
+    public static final DeferredItem<BlockItem> VOID_CRYSTAL = ITEMS.registerSimpleBlockItem("void_crystal",
+            GooBlocks.VOID_CRYSTAL);
     public static final DeferredItem<BlockItem> IMPACT_GLASS = ITEMS.registerSimpleBlockItem("impact_glass",
             GooBlocks.IMPACT_GLASS);
     public static final DeferredItem<BlockItem> BRECCIA = ITEMS.registerSimpleBlockItem("breccia", GooBlocks.BRECCIA);

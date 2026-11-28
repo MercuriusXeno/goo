@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:beacon_column_blocked_leaves_the_reflector_dark",
+  "environment": "minecraft:default",
+  "structure": "goo:shaft_bay",
+  "max_ticks": 200,
+  "setup_ticks": 0,
+  "required": true
+}

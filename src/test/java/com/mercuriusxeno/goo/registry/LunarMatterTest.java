@@ -39,6 +39,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * decision astral-matter-values-carry-the-dimensions-types
  * decision native-iron-lodes-are-worth-whole-iron-blocks
  * decision astral-crystal-is-lunars-scarce-rich-block
+ * decision void-crystals-spawn-on-the-moon
  */
 class LunarMatterTest {
 
@@ -87,7 +88,7 @@ class LunarMatterTest {
             assertTrue(registeredIds(GooBlocks.BLOCKS).containsAll(List.of(
                     goo("anorthosite"), goo("regolith"), goo("iron_core"), goo("molten_iron"), goo("meteoric_iron"),
                     goo("impact_glass"), goo("breccia"), goo("crater_ice"), goo("native_iron"),
-                    goo("astral_crystal"))),
+                    goo("astral_crystal"), goo("void_crystal"))),
                     String.valueOf(registeredIds(GooBlocks.BLOCKS)));
         }
 
@@ -119,14 +120,14 @@ class LunarMatterTest {
             assertTrue(registeredIds(GooItems.ITEMS).containsAll(List.of(
                     goo("anorthosite"), goo("regolith"), goo("iron_core"), goo("molten_iron_bucket"),
                     goo("meteoric_iron"), goo("impact_glass"), goo("breccia"),
-                    goo("crater_ice"), goo("native_iron"), goo("astral_crystal"))),
+                    goo("crater_ice"), goo("native_iron"), goo("astral_crystal"), goo("void_crystal"))),
                     String.valueOf(registeredIds(GooItems.ITEMS)));
         }
     }
 
-    /** Native iron and astral crystal each drop themselves when mined. */
+    /** Native iron, astral crystal and void crystal each drop themselves when mined. */
     @ParameterizedTest
-    @ValueSource(strings = {"native_iron", "astral_crystal"})
+    @ValueSource(strings = {"native_iron", "astral_crystal", "void_crystal"})
     void lunarFindsDropThemselves(String block) throws IOException {
         JsonObject entry = resourceJson("/data/goo/loot_table/blocks/" + block + ".json").getAsJsonArray("pools").get(0)
                 .getAsJsonObject().getAsJsonArray("entries").get(0).getAsJsonObject();
@@ -304,6 +305,24 @@ class LunarMatterTest {
                 assertTrue(crystal.exact(type).compareTo(floor.exact(type)) >= 0,
                         "goo:astral_crystal " + crystal + " carries under eight anorthosite's " + type.identifier());
             }
+        }
+
+        /**
+         * Void crystal is the moon's source of void: one yields void alone, more of it than a shulker shell or a
+         * chorus fruit yields.
+         * decision void-crystals-spawn-on-the-moon
+         */
+        @ParameterizedTest
+        @ValueSource(strings = {"shulker_shell", "chorus_fruit"})
+        void voidCrystalYieldsVoidAloneAboveTheEndsVoidSources(String endSource) throws IOException {
+            Map<Identifier, GooValue> values = shippedBaseValues();
+            GooValue crystal = values.get(goo("void_crystal"));
+            GooValue rival = values.get(Identifier.withDefaultNamespace(endSource));
+            assertNotNull(crystal, "base_values.json values no goo:void_crystal");
+            assertNotNull(rival, "base_values.json values no " + endSource);
+            assertEquals(Set.of(GooTypes.VOID), crystal.exactAll().keySet(), "goo:void_crystal " + crystal);
+            assertTrue(crystal.exact(GooTypes.VOID).compareTo(rival.exact(GooTypes.VOID)) > 0,
+                    "goo:void_crystal " + crystal + " yields no more void than " + endSource + " " + rival);
         }
 
         /** Regolith is glass dust and impact glass is the regolith melted, so both carry crystal. */

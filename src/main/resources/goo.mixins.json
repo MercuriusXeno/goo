@@ -7,6 +7,10 @@
   "compatibilityLevel": "JAVA_21",
   "mixins": [
     "BlockStateGatePassageMixin",
+    "ChunkGeneratorLunarSeamMixin",
+    "ChunkHolderLunarMirrorMixin",
+    "ChunkMapLunarCrossingMixin",
+    "ChunkMapLunarRandomStateMixin",
     "ContainerShiftClickMergeMixin",
     "EntityCellLiftMixin",
     "EntityHunkRiderLiftMixin",
@@ -24,6 +28,7 @@
     "EntitySlimeCoatUnderfootMixin",
     "FoodPropertiesGluttonyMixin",
     "InventoryPickupMergeMixin",
+    "LevelLunarSeamMixin",
     "LevelLunarSunlightMixin",
     "ItemEntityFleckMotionMixin",
     "LivingEntityHeldFallsMixin",
@@ -39,7 +44,9 @@
     "PlayerInvertMixin",
     "PlayerSculkerMixin",
     "PlayerSculkerSilenceMixin",
+    "PlayerChunkSenderLunarMirrorMixin",
     "PlayerGluttonyEatMixin",
+    "RandomStateLunarRepeatsMixin",
     "GooQuickCraftMixin",
     "ReloadableServerResourcesGooMixin",
     "ServerGamePacketListenerInvertMixin",
@@ -77,8 +84,10 @@
     "GuiPhasedHeartsMixin",
     "PlayerModelAbilityPoseMixin",
     "LevelExtractorGateViewMixin",
+    "LevelExtractorLunarCrossingMixin",
     "EntityScryOutlineColorMixin",
     "MinecraftScryOutlineMixin",
-    "MouseHandlerLunarHoldMixin"
+    "MouseHandlerLunarHoldMixin",
+    "ViewAreaLunarCrossingMixin"
   ]
 }

@@ -17,22 +17,27 @@ import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
  * The metronome: a plate like a repeater that pulses out its front at the cadence dialed on it, with no memory of
  * signals. FACING holds its back, the side its input reads, as a repeater's does. The gap switch steps the cadence
- * through the repeater's four, a pulse every 2, 4, 6 and 8 ticks; each pulse powers the front for half the cadence
- * and rests for the other half. The button flips the invert toggle: a plain metronome runs until a signal reaches its
+ * through five, a pulse every 2, 4, 8, 16 and 32 ticks; each pulse powers the front for half the cadence and rests
+ * for the other half. The button flips the invert toggle: a plain metronome runs until a signal reaches its
  * back, an inverted one runs only while one does.
  * decision metronome-prism-pulses-at-the-learned-rate
  * decision all-utilities-are-redesigned-as-alien-tech-blocks
  */
 public class MetronomeBlock extends DiodeBlock {
 
-    /** The cadence in the repeater's own steps: a pulse every two ticks per step. */
-    public static final IntegerProperty CADENCE = BlockStateProperties.DELAY;
+    /**
+     * The cadence step, 1 to 5: a pulse every 2, 4, 8, 16 or 32 ticks, doubling each step, the switch torch standing
+     * a pixel further toward the output each step (operator ruling 2026-11-28).
+     */
+    public static final IntegerProperty CADENCE = IntegerProperty.create("cadence", 1, 5);
     /** Whether the button is pressed, so the metronome runs only while its back is powered. */
     public static final BooleanProperty INVERTED = BlockStateProperties.INVERTED;
     /** The ticks before the first beat of a newly placed or restarted metronome. */
@@ -50,15 +55,34 @@ public class MetronomeBlock extends DiodeBlock {
     }
 
     /**
-     * The ticks between the front's turns on and off: half the cadence, which a cadence step of two ticks makes one
-     * tick per step.
+     * The shape its model draws, the switch torch and the button standing on the plate, which a look lands on.
+     * operator ruling 2026-11-28: the model is what a click hits
+     */
+    @Override
+    protected @NonNull VoxelShape getShape(@NonNull BlockState state, @NonNull BlockGetter level,
+                                           @NonNull BlockPos pos, @NonNull CollisionContext context) {
+        return MetronomeShape.of(state.getValue(FACING), state.getValue(CADENCE), state.getValue(INVERTED));
+    }
+
+    /**
+     * The plate alone, which a walker stands on, as a repeater's is.
+     */
+    @Override
+    protected @NonNull VoxelShape getCollisionShape(@NonNull BlockState state, @NonNull BlockGetter level,
+                                                    @NonNull BlockPos pos, @NonNull CollisionContext context) {
+        return super.getShape(state, level, pos, context);
+    }
+
+    /**
+     * The ticks between the front's turns on and off: half the cadence, 1 tick at the first step and doubling each
+     * step after.
      *
      * @param state the block state
      * @return the half-cadence in ticks
      */
     @Override
     protected int getDelay(@NonNull BlockState state) {
-        return state.getValue(CADENCE);
+        return 1 << state.getValue(CADENCE) - 1;
     }
 
     /**
