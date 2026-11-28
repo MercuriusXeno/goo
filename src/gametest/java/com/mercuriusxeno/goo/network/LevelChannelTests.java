@@ -2,6 +2,8 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
+import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooItems;
@@ -47,7 +49,26 @@ public final class LevelChannelTests {
         GooTestFunctions.registerTest(registrar, LEVEL_BREAKS_ABOVE_THE_PLANE, LevelChannelTests::levelBreaksAboveThePlane);
         GooTestFunctions.registerTest(registrar, LEVEL_CLEARS_THE_OUTER_LAYER_FIRST,
                 LevelChannelTests::levelClearsTheOuterLayerFirst);
+        GooTestFunctions.registerTest(registrar, LEVEL_UNDER_MORTAR_BRIDGES_A_GAP_WITH_STONE,
+                LevelChannelTests::levelUnderMortarBridgesAGapWithStone);
     }
+
+    private static final String LEVEL_UNDER_MORTAR_BRIDGES_A_GAP_WITH_STONE = "level_under_mortar_bridges_a_gap_with_stone";
+    /** Where the paving test's player stands, off the disc's path. */
+    private static final BlockPos PAVER_STAND = new BlockPos(1, 1, 1);
+    /** The floor's far corner, the floor laid from the bay's corner to it. */
+    private static final int FLOOR_EDGE = 5;
+    /** The floor block the hold begins on, a full Mortar cell lying on it. */
+    private static final BlockPos PAVING_START = new BlockPos(2, 0, 3);
+    /** The one block gap in the floor beside the start. */
+    private static final BlockPos FLOOR_GAP = PAVING_START.east();
+    /** The floor block past the gap, where the drag ends. */
+    private static final BlockPos PAVING_END = FLOOR_GAP.east();
+    /** The ticks the cursor rests on each block of the drag. */
+    private static final int TICKS_PER_DRAG_STEP = 5;
+    private static final double TOP_FACE = 1.0;
+    private static final String SHOULD_PAVE_THE_GAP = "The gap the disc crossed should hold stone, %s stands there";
+    private static final String SHOULD_CARRY_THE_MORTAR = "Mortar should stand over the cursor's last block, %s stands there";
 
 
     private static final BlockPos STAND_POS = new BlockPos(1, 1, 3);
@@ -170,6 +191,57 @@ public final class LevelChannelTests {
         });
     }
 
+    /**
+     * A mock player begins the hold on a floor block under a full Mortar cell
+     * and drags Level's disc east across a one block gap in the floor and onto
+     * the block past it: the gap holds stone, no goo item lies about, and the
+     * Mortar stands over the block the cursor last rested on
+     * (decision level-dragged-under-rock-goo-carries-it-and-deposits-stone-under-the-disc).
+     *
+     * @param helper the gametest helper
+     */
+    public static void levelUnderMortarBridgesAGapWithStone(GameTestHelper helper) {
+        AbilityDefinition levelAbility = AbilityRegistry.of(helper.getLevel()).getAbility(ROCK_LEVEL);
+        helper.assertTrue(levelAbility != null, ABILITY_REQUIRED);
+        for (int x = 0; x <= FLOOR_EDGE; x++) {
+            for (int z = 0; z <= FLOOR_EDGE; z++) {
+                helper.setBlock(new BlockPos(x, 0, z), Blocks.STONE);
+            }
+        }
+        helper.setBlock(FLOOR_GAP, Blocks.AIR);
+        helper.setBlock(PAVING_START.above(), GooBlocks.ROCK_MORTAR.get().defaultBlockState()
+                .setValue(VolumeCellBlock.LAYERS, VolumeCellBlock.MAX_LAYERS));
+        ServerPlayer player = leveler(helper, PAVER_STAND);
+        KnownRecipes.teachRequires(player, levelAbility);
+        List<BlockPos> drag = List.of(PAVING_START, FLOOR_GAP, PAVING_END);
+        int held = 0;
+        for (BlockPos rest : drag) {
+            GooStreamPayload tick = new GooStreamPayload(GooTypes.id(GooTypes.ROCK), ROCK_LEVEL.toString(),
+                    player.getEyePosition(), topFace(helper, rest), helper.absolutePos(PAVING_START),
+                    Direction.UP.get3DDataValue());
+            for (int step = 0; step < TICKS_PER_DRAG_STEP; step++) {
+                held++;
+                helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(player, tick));
+            }
+        }
+        boolean[] dragged = {false};
+        helper.runAfterDelay(held + 1, () -> dragged[0] = true);
+        helper.succeedWhen(() -> {
+            helper.assertTrue(dragged[0], "The drag should finish");
+            helper.assertTrue(helper.getBlockState(FLOOR_GAP).is(Blocks.STONE),
+                    String.format(SHOULD_PAVE_THE_GAP, helper.getBlockState(FLOOR_GAP)));
+            helper.assertTrue(helper.getBlockState(PAVING_END.above()).is(GooBlocks.ROCK_MORTAR.get()),
+                    String.format(SHOULD_CARRY_THE_MORTAR, helper.getBlockState(PAVING_END.above())));
+            helper.assertItemEntityNotPresent(GooItems.GOO.get(), PAVING_START, ITEM_SEARCH_RADIUS);
+            helper.getLevel().getServer().getPlayerList().remove(player);
+        });
+    }
+
+    private static Vec3 topFace(GameTestHelper helper, BlockPos relative) {
+        BlockPos pos = helper.absolutePos(relative);
+        return new Vec3(pos.getX() + FACE_CENTER, pos.getY() + TOP_FACE, pos.getZ() + FACE_CENTER);
+    }
+
     private static boolean layerAir(GameTestHelper helper, int up) {
         return columns().stream().allMatch(column -> helper.getBlockState(column.above(up)).isAir());
     }
@@ -194,10 +266,14 @@ public final class LevelChannelTests {
         return new Vec3(pos.getX(), pos.getY() + FACE_CENTER, pos.getZ() + FACE_CENTER);
     }
 
-    @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
     private static ServerPlayer leveler(GameTestHelper helper) {
+        return leveler(helper, STAND_POS);
+    }
+
+    @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
+    private static ServerPlayer leveler(GameTestHelper helper, BlockPos standOn) {
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
-        Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(STAND_POS));
+        Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(standOn));
         player.setPos(stand.x, stand.y, stand.z);
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GooItems.GOO_GLOVE.get()));
         player.getInventory().add(GooStacks.createForOutput(GooTypes.ROCK, HELD_GOO * GooStacks.THOUSAND));

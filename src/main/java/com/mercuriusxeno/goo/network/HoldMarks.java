@@ -5,8 +5,10 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 
@@ -27,6 +29,30 @@ public final class HoldMarks {
     /** The hold tick the swarm's gnats reach the mob they chase. */
     private int reachedOn;
     private final GradualBreak gradualBreak = new GradualBreak();
+    /** The cells the hold laid the Mortar it carries in, last tick. */
+    private final Set<BlockPos> carriedMortar = new LinkedHashSet<>();
+
+    /**
+     * The cells the hold laid the Mortar it carries in, which the disc lifts
+     * again wherever the cursor rests next.
+     * level-dragged-under-rock-goo-carries-it-and-deposits-stone-under-the-disc
+     *
+     * @return the cells, as a copy
+     */
+    public Set<BlockPos> carriedMortar() {
+        return Set.copyOf(carriedMortar);
+    }
+
+    /**
+     * Remembers the cells the hold laid its carried Mortar in this tick, in place of last tick's.
+     * level-dragged-under-rock-goo-carries-it-and-deposits-stone-under-the-disc
+     *
+     * @param cells the cells
+     */
+    public void carryMortarAt(Collection<BlockPos> cells) {
+        carriedMortar.clear();
+        cells.forEach(cell -> carriedMortar.add(cell.immutable()));
+    }
 
     /**
      * The blocks the hold is breaking over several ticks, each with its progress
