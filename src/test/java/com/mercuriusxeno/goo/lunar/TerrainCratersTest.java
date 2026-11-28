@@ -76,7 +76,7 @@ class TerrainCratersTest {
     @Test
     void everySunkColumnLiesInsideAGiantCratersRim() {
         Noise noise = LunarTestNoises.crater();
-        LunarRolls.CellRolls rolls = (cellX, cellZ, roll) -> LunarRolls.rollFrom(noise, cellX, cellZ, roll);
+        LunarRolls.CellRolls rolls = (cellX, cellZ, roll) -> LunarRolls.rollFrom(noise, GiantCraterField.CELL, cellX, cellZ, roll);
         GROUNDS.forEach((biome, ground) -> {
             int sunk = 0;
             for (int x = 0; x < AREA; x += STEP) {

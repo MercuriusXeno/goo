@@ -61,7 +61,9 @@ public record GiantCraterField(Noise noise, Noise maria, Noise basins) implement
      * A cell's side in blocks, and how far a crater's centre strays from its cell's middle along each axis: the
      * nearest two centres stand at least a cell less twice the stray apart, 1,100 blocks, and every crater's nearest
      * stands within a cell and twice the stray along one axis and twice the stray across it, under 1,950 blocks.
+     * The cell divides the moon's way around, so the seam falls on a cell's edge.
      * decision craters-are-rare-giant-landmarks-only
+     * decision moon-wraps-at-its-border-like-the-zone
      */
     public static final int CELL = 1500;
     static final double CENTRE_STRAY = 200.0;
@@ -452,7 +454,7 @@ public record GiantCraterField(Noise noise, Noise maria, Noise basins) implement
     }
 
     private double roll(int cellX, int cellZ, int roll) {
-        return LunarRolls.rollFrom(noise, cellX, cellZ, roll);
+        return LunarRolls.rollFrom(noise, CELL, cellX, cellZ, roll);
     }
 
     @Override

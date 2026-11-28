@@ -34,8 +34,12 @@ public final class FieldMasks {
     private FieldMasks() {
     }
 
+    // A mask reads its noise a wavelength to the step, so the noise it reads repeats the moon's way around in
+    // those steps, and the mask meets itself at the seam.
+    // decision moon-wraps-at-its-border-like-the-zone
     private static double maskAt(Noise noise, double maskY, double x, double z) {
-        return noise.get(x / MASK_WAVELENGTH + MASK_OFFSET, maskY, z / MASK_WAVELENGTH + MASK_OFFSET);
+        return RepeatingNoise.repeating(noise, LunarSeam.PERIOD / MASK_WAVELENGTH)
+                .get(x / MASK_WAVELENGTH + MASK_OFFSET, maskY, z / MASK_WAVELENGTH + MASK_OFFSET);
     }
 
     private static double share(double mask, double floor, double ramp) {
@@ -57,12 +61,13 @@ public final class FieldMasks {
         double thickness = share(maskAt(craterNoise, BOULDER_MASK_Y, minX + CHUNK_MIDDLE, minZ + CHUNK_MIDDLE),
                 BOULDER_FIELD_FLOOR, BOULDER_FIELD_RAMP);
         int count = (int) Math.floor(thickness * BOULDERS_PER_CHUNK
-                + LunarRolls.rollFrom(craterNoise, chunkX, chunkZ, BOULDER_COUNT_ROLL));
+                + LunarRolls.rollFrom(craterNoise, CHUNK_SIDE, chunkX, chunkZ, BOULDER_COUNT_ROLL));
         List<BlockPos> spots = new ArrayList<>(count);
         for (int boulder = 0; boulder < Math.min(count, BOULDERS_PER_CHUNK) && thickness > 0.0; boulder++) {
             int roll = BOULDER_ROLLS + boulder * ROLLS_PER_BOULDER;
-            spots.add(new BlockPos(minX + (int) (LunarRolls.rollFrom(craterNoise, chunkX, chunkZ, roll) * CHUNK_SIDE),
-                    0, minZ + (int) (LunarRolls.rollFrom(craterNoise, chunkX, chunkZ, roll + 1) * CHUNK_SIDE)));
+            double alongX = LunarRolls.rollFrom(craterNoise, CHUNK_SIDE, chunkX, chunkZ, roll);
+            double alongZ = LunarRolls.rollFrom(craterNoise, CHUNK_SIDE, chunkX, chunkZ, roll + 1);
+            spots.add(new BlockPos(minX + (int) (alongX * CHUNK_SIDE), 0, minZ + (int) (alongZ * CHUNK_SIDE)));
         }
         return spots;
     }

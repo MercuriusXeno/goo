@@ -126,9 +126,12 @@ public final class EjectaRays {
      * @return true where the ray flecks the column
      */
     static boolean flecks(int x, int z, double run) {
+        // decision moon-wraps-at-its-border-like-the-zone
+        int wrappedX = LunarSeam.wrap(x);
+        int wrappedZ = LunarSeam.wrap(z);
         double clumpKeep = CLUMP_KEEP_AT_RIM * (1.0 - CLUMP_FADE * run);
-        return hash(Math.floorDiv(x, CLUMP_SIZE), Math.floorDiv(z, CLUMP_SIZE), CLUMP_SALT) < clumpKeep
-                && hash(x, z, FLECK_SALT) < FLECK_KEEP;
+        return hash(Math.floorDiv(wrappedX, CLUMP_SIZE), Math.floorDiv(wrappedZ, CLUMP_SIZE), CLUMP_SALT) < clumpKeep
+                && hash(wrappedX, wrappedZ, FLECK_SALT) < FLECK_KEEP;
     }
 
     /**
