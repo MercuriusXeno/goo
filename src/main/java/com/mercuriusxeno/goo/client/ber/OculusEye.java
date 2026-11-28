@@ -24,6 +24,8 @@ public final class OculusEye {
     static final int TOP_LID_ROWS = 4;
     /** The pixel rows the bottom lid covers when shut, the smaller half. */
     static final int BOTTOM_LID_ROWS = 3;
+    /** The rows each lid keeps over the eye fully open. */
+    static final int OPEN_LID_ROWS = 1;
     /** One pixel, in blocks: a lid closes a whole row at a time, so it never squeezes a texel. */
     static final float ROW = 1f / 16f;
     /** Where the eye's front starts, in the eye model's blocks. */
@@ -118,14 +120,15 @@ public final class OculusEye {
     }
 
     /**
-     * How many pixel rows a lid covers at a closure.
+     * How many pixel rows a lid covers at a closure: never fewer than one, so an open eye keeps the last row of each
+     * lid rather than peeling it back to nothing (operator ruling 2026-11-28).
      *
      * @param shut     how shut the lids stand, 0 to 1
      * @param mostRows the rows the lid covers shut
-     * @return the rows, 0 open to mostRows shut
+     * @return the rows, 1 open to mostRows shut
      */
     static int lidRows(float shut, int mostRows) {
-        return Math.round(Math.clamp(shut, 0f, 1f) * mostRows);
+        return Math.max(OPEN_LID_ROWS, Math.round(Math.clamp(shut, 0f, 1f) * mostRows));
     }
 
     /**
