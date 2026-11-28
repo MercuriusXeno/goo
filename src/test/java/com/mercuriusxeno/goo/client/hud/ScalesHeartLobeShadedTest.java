@@ -19,7 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ScalesHeartLobeShadedTest {
 
     private static final String CRYSTAL_FULL = "/assets/goo/textures/gui/sprites/hud/heart/crystal_full.png";
-    private static final String SCALES_ICON = "/assets/goo/textures/goo/ability/crystal_scales.png";
+    private static final String SCALES_ICON = "/assets/goo/textures/goo/ability/durable_scales.png";
     private static final Set<Integer> HIGHLIGHTS = Set.of(0xA8FAF2, 0xF0FFFF);
     private static final int SHADE = 0x26A8AA;
     private static final int RGB = 0xFFFFFF;

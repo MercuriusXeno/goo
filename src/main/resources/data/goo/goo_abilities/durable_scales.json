@@ -1,6 +1,6 @@
 {
-  "gooType": "crystal",
-  "displayName": "goo.ability.crystal.scales",
+  "gooType": "durable",
+  "displayName": "goo.ability.durable.scales",
   "cost_mechanics": "goo.ability.cost_mechanics.upkeep",
   "badge": "durative",
   "order": 50,

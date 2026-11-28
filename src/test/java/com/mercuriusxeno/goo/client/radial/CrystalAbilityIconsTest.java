@@ -13,14 +13,15 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
- * Covers that each crystal ability shows a drawn icon rather than the goo
- * droplet placeholder, read by its silhouette, and that the crystal held
- * effect has an icon.
+ * Covers that each crystal-drawn ability shows a drawn icon rather than the
+ * goo droplet placeholder, read by its silhouette, Scales among them though
+ * Durable now grants it, and that Durable's held effect, Scales', has an icon.
+ * scales-moves-from-crystal-to-durable
  */
 class CrystalAbilityIconsTest {
 
     private static final String ABILITY_ICONS = "/assets/goo/textures/goo/ability/";
-    private static final String CRYSTAL_HELD = "/assets/goo/textures/mob_effect/crystal_held.png";
+    private static final String SCALES_HELD = "/assets/goo/textures/mob_effect/durable_held.png";
     private static final int SIDE = 16;
     private static final int ALPHA_SHIFT = 24;
 
@@ -44,15 +45,15 @@ class CrystalAbilityIconsTest {
             ".......##.......");
 
     @ParameterizedTest
-    @ValueSource(strings = {"crystal_shatter", "crystal_scales", "crystal_glimmer"})
+    @ValueSource(strings = {"crystal_shatter", "durable_scales", "crystal_glimmer"})
     void crystalIconIsDrawnRatherThanThePlaceholder(String ability) throws IOException {
         BufferedImage icon = read(ABILITY_ICONS + ability + ".png");
         assertNotEquals(PLACEHOLDER, silhouette(icon), ability + " still shows the goo droplet placeholder");
     }
 
     @Test
-    void crystalHeldEffectHasASixteenPixelIcon() throws IOException {
-        BufferedImage icon = read(CRYSTAL_HELD);
+    void scalesHeldEffectHasASixteenPixelIcon() throws IOException {
+        BufferedImage icon = read(SCALES_HELD);
         assertEquals(SIDE, icon.getWidth());
         assertEquals(SIDE, icon.getHeight());
     }

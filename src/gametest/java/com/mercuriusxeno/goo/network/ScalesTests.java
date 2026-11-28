@@ -14,10 +14,11 @@ import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
- * Gametests for Crystal's Scales: the glove lays crystal hearts over the
+ * Gametests for Durable's Scales: the glove lays crystal hearts over the
  * player's present hearts that take hits before real health, fire among
  * them, and the player wears the faceted diamond-blue overlay while they stand.
  * decision scales-crystal-hearts-diamond-blue-overlay
+ * decision scales-moves-from-crystal-to-durable
  */
 @RegistersGameTests
 public final class ScalesTests {
@@ -33,7 +34,7 @@ public final class ScalesTests {
     }
 
 
-    private static final Identifier CRYSTAL_SCALES = Identifier.fromNamespaceAndPath(Goo.MODID, "crystal_scales");
+    private static final Identifier DURABLE_SCALES = Identifier.fromNamespaceAndPath(Goo.MODID, "durable_scales");
     private static final String SHOULD_LAY = "Scales should lay crystal hearts, overlay %s";
 
     private ScalesTests() {
@@ -45,7 +46,7 @@ public final class ScalesTests {
      * @param helper the gametest helper
      */
     public static void scalesAbsorbsBeforeHealth(GameTestHelper helper) {
-        ServerPlayer player = HeartOverlayTests.selfInvoked(helper, GooTypes.CRYSTAL, CRYSTAL_SCALES);
+        ServerPlayer player = HeartOverlayTests.selfInvoked(helper, GooTypes.DURABLE, DURABLE_SCALES);
         HeartOverlay overlay = player.getData(GooAttachments.HEART_OVERLAY);
         helper.assertTrue(overlay.kind() == HeartKind.SCALES && overlay.stands(), String.format(SHOULD_LAY, overlay));
         helper.getLevel().getServer().getPlayerList().remove(player);
