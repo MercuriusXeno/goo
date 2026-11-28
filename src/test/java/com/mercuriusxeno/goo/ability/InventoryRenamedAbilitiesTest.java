@@ -103,7 +103,7 @@ class InventoryRenamedAbilitiesTest {
                 Arguments.of("yarn", Set.of("yarn_herd", "yarn_lead", "yarn_stitch")),
                 Arguments.of("xeno", Set.of("xeno_revert", "xeno_unveil", "xeno_shriek", "xeno_ooze")),
                 // durable-goo-is-a-protective-coating-that-blocks-damage
-                Arguments.of("durable", Set.of("durable_coat", "durable_scales")));
+                Arguments.of("durable", Set.of("durable_coat", "durable_scales", "durable_shield")));
     }
 
     @Test

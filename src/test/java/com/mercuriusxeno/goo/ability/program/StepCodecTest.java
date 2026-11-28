@@ -204,6 +204,7 @@ class StepCodecTest {
             Map.entry("nitro", new NitroStep(1.0, 0.2, 4)),
             Map.entry("gloom", new GloomStep()),
             Map.entry("coat", new CoatStep(20)),
+            Map.entry("shield", new ShieldStep(25, 100, 6f, 1f)),
             Map.entry("ooze", new OozeStep(8, 20, List.of(new AilmentOverlayStep(AilmentKind.HEX,
                     Expr.literal(60))))),
             Map.entry("phase_goo", new PhaseGooStep(2)),

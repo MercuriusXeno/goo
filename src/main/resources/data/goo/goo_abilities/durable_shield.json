@@ -1,0 +1,15 @@
+{
+  "gooType": "durable",
+  "displayName": "goo.ability.durable.shield",
+  "cost_mechanics": "goo.ability.durable.shield.cost_mechanics",
+  "badge": "held",
+  "order": 20,
+  "cost": 0,
+  "cost_formula": "%s",
+  "delivery": { "kind": "self", "ticks_per_charge": 20, "form": "shield", "transform_at": 0 },
+  "behaviors": [
+    { "type": "shield", "cost_per_point_blocked": 25, "bash_cost": 100, "bash_damage": 6, "bash_knockback": 1.0 }
+  ],
+  "tags": ["self"],
+  "pose": "held_out"
+}

@@ -26,6 +26,19 @@ public final class TravelFormGeometry {
 
     private static final float TWO_PI = (float) (2 * Math.PI);
     private static final float HALF = 0.5f;
+    /** World up in the form's frame, which a plate stands upright along. */
+    private static final Vector3f UP = new Vector3f(0f, 1f, 0f);
+    /** Below this a direction lies along up, and a plate takes the x axis for across. */
+    private static final float TINY = 1e-6f;
+    /** How far under the plate's middle its shoulders end, as a share of its height. */
+    private static final float SHOULDER_DROP = 0.1f;
+    /** The width the plate's foot keeps, as a share of its half width. */
+    private static final float FOOT_SHARE = 0.25f;
+    /**
+     * A plate face's two quads as corners of its outline: the shoulders'
+     * rectangle, then the foot narrowing under it.
+     */
+    private static final int[][] PLATE_FACE_QUADS = {{0, 1, 2, 5}, {5, 2, 3, 4}};
 
     /**
      * One flat fin as the quad it draws, its corners in winding order.
@@ -78,6 +91,10 @@ public final class TravelFormGeometry {
      */
     public static void emit(RenderContext ctx, TravelForm form, Vector3f dir, float morphFrac,
                             GooRenderUtil.UvRect uv) {
+        if (form.plate().stands()) {
+            emitPlate(ctx, form.plate(), dir, morphFrac, uv);
+            return;
+        }
         Body body = Body.of(form, morphFrac);
         if (body.length() <= 0f || body.radius() <= 0f) {
             return;
@@ -223,6 +240,75 @@ public final class TravelFormGeometry {
             ctx.vertexColored(GooRenderUtil.OPAQUE_WHITE, at.x, at.y, at.z, uOf(uv, axial + body.tail()),
                     vOf(uv, out - body.radiusAt(axial)), normal.x, normal.y, normal.z);
         }
+    }
+
+    /**
+     * The outline of a heater shield plate at a morph, in its own frame:
+     * across to the right and up, the plate's middle at the origin; square
+     * shoulders over a foot narrowing to a quarter of the width, corners in
+     * order around it.
+     * decision durable-goo-forms-a-shield-at-will-and-shield-bashes
+     *
+     * @param plate     the plate's whole size
+     * @param morphFrac how far the plate has grown, 0 to 1
+     * @return each corner as {across, up}
+     */
+    static float[][] plateOutline(TravelForm.Plate plate, float morphFrac) {
+        float half = plate.width() * HALF * morphFrac;
+        float top = plate.height() * HALF * morphFrac;
+        float shoulder = -plate.height() * SHOULDER_DROP * morphFrac;
+        float foot = -top;
+        float heel = half * FOOT_SHARE;
+        return new float[][]{{-half, top}, {half, top}, {half, shoulder}, {heel, foot}, {-heel, foot},
+                {-half, shoulder}};
+    }
+
+    // A heater shield plate square to the direction: its front and back faces and the edges joining them.
+    private static void emitPlate(RenderContext ctx, TravelForm.Plate plate, Vector3f dir, float morphFrac,
+                                  GooRenderUtil.UvRect uv) {
+        if (morphFrac <= 0f) {
+            return;
+        }
+        Vector3f right = new Vector3f(dir).cross(UP);
+        if (right.lengthSquared() < TINY) {
+            right.set(1f, 0f, 0f);
+        }
+        right.normalize();
+        Vector3f up = new Vector3f(right).cross(dir).normalize();
+        float[][] outline = plateOutline(plate, morphFrac);
+        float half = plate.width() * HALF * morphFrac;
+        float top = plate.height() * HALF * morphFrac;
+        float depth = plate.depth() * HALF * morphFrac;
+        for (float side : new float[]{depth, -depth}) {
+            Vector3f normal = new Vector3f(dir).mul(Math.signum(side));
+            // The face as two quads: the shoulders' rectangle and the narrowing foot.
+            for (int[] quad : PLATE_FACE_QUADS) {
+                for (int corner : quad) {
+                    float[] at = outline[corner];
+                    Vector3f point = platePoint(right, up, dir, at, side);
+                    ctx.vertexColored(GooRenderUtil.OPAQUE_WHITE, point.x, point.y, point.z,
+                            uOf(uv, at[0] + half), vOf(uv, top - at[1]), normal.x, normal.y, normal.z);
+                }
+            }
+        }
+        for (int edge = 0; edge < outline.length; edge++) {
+            float[] from = outline[edge];
+            float[] to = outline[(edge + 1) % outline.length];
+            Vector3f along = new Vector3f(right).mul(to[0] - from[0]).fma(to[1] - from[1], up);
+            Vector3f normal = new Vector3f(along).cross(dir).normalize();
+            float length = along.length();
+            float[][] corners = {{0f, depth}, {length, depth}, {length, -depth}, {0f, -depth}};
+            for (float[] corner : corners) {
+                float[] at = corner[0] == 0f ? from : to;
+                Vector3f point = platePoint(right, up, dir, at, corner[1]);
+                ctx.vertexColored(GooRenderUtil.OPAQUE_WHITE, point.x, point.y, point.z,
+                        uOf(uv, corner[0]), vOf(uv, corner[1] + depth), normal.x, normal.y, normal.z);
+            }
+        }
+    }
+
+    private static Vector3f platePoint(Vector3f right, Vector3f up, Vector3f dir, float[] at, float along) {
+        return new Vector3f(right).mul(at[0]).fma(at[1], up).fma(along, dir);
     }
 
     // The sprite's U a distance in blocks into it, one sprite a block.

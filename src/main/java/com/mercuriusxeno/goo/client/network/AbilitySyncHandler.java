@@ -17,6 +17,7 @@ import com.mercuriusxeno.goo.ability.ShownFace;
 import com.mercuriusxeno.goo.ability.program.BlinkLanding;
 import com.mercuriusxeno.goo.ability.program.BuildStep;
 import com.mercuriusxeno.goo.ability.program.GougeStep;
+import com.mercuriusxeno.goo.ability.program.ShieldStep;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.ZoneStep;
 import com.mercuriusxeno.goo.client.ClientGooValues;
@@ -834,7 +835,8 @@ public final class AbilitySyncHandler {
 
         /**
          * The price a step names for itself: Gouge its fixed price a tear,
-         * Zone its entry; any other none.
+         * Shield its price a point blocked and a bash, Zone its entry; any
+         * other none.
          * decision outsider-cost-text-reads-the-new-mechanics
          *
          * @return the arguments, formatted
@@ -843,6 +845,12 @@ public final class AbilitySyncHandler {
             Optional<GougeStep> gouge = gouge();
             if (gouge.isPresent()) {
                 return List.of(GooFormat.formatAmount(gouge.get().cost()));
+            }
+            // durable-goo-forms-a-shield-at-will-and-shield-bashes: Shield names a price a point blocked and a bash
+            Optional<ShieldStep> shield = ShieldStep.in(behaviors);
+            if (shield.isPresent()) {
+                return List.of(GooFormat.formatAmount(shield.get().costPerPointBlocked()),
+                        GooFormat.formatAmount(shield.get().bashCost()));
             }
             return zone().map(step -> List.of(GooFormat.formatAmount(step.entryCost()))).orElse(List.of());
         }

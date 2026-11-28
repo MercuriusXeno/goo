@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:no_bash_without_the_shield_raised",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 80,
+  "setup_ticks": 0,
+  "required": true
+}
