@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ber;
 
 import com.mercuriusxeno.goo.block.alientech.LightBeaconColumn;
+import com.mercuriusxeno.goo.block.alientech.ReflectorBlock;
 import com.mercuriusxeno.goo.client.GlowQueue;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
@@ -67,7 +68,13 @@ public final class BeaconBeams {
      */
     public static float columnLength(Level level, BlockPos beacon, Direction facing) {
         BlockPos stop = LightBeaconColumn.stoppedAt(level, beacon, facing, BEAM_REACH);
-        return stop == null ? BEAM_REACH : stop.distManhattan(beacon) - HALF;
+        if (stop == null) {
+            return BEAM_REACH;
+        }
+        // a reflector takes the column into its middle, as its own rails run, rather than stopping it at its cell's
+        // face short of its glass (operator ruling 2026-11-28: no gap between the beam and the reflector)
+        return level.getBlockState(stop).getBlock() instanceof ReflectorBlock ? stop.distManhattan(beacon)
+                : stop.distManhattan(beacon) - HALF;
     }
 
     /**
@@ -86,8 +93,9 @@ public final class BeaconBeams {
 
     /**
      * Queues one beacon's column: still, as a reflector's beam is, rather than spinning as a vanilla beacon's does,
-     * and fading with the camera's distance.
-     * operator ruling 2026-11-28: the beam stands still and fades out toward the render distance
+     * and fading along its length from the beacon, so the farther it runs the fainter it draws and none of it shows
+     * past the render distance, where its beacon's chunk unloads and the column would cut off.
+     * operator ruling 2026-11-28: the beam stands still and fades out the farther it goes
      *
      * @param poseStack     the pose at the beacon's cell corner, camera-relative
      * @param center        the beacon's center in the world, which the column sorts by
@@ -95,17 +103,19 @@ public final class BeaconBeams {
      * @param animationTime the column's scroll and breath clock, in ticks
      * @param radiusScale   the factor the column's radii take, widening it with the camera's distance
      * @param length        how far the column draws from the beacon's center, in blocks
-     * @param camera        the camera's position in the world
-     * @param fadeOut       the camera distance the column has faded to nothing by, in blocks
+     * @param fadeOut       the distance along the column it has faded to nothing by: the render distance, in blocks
      */
     public static void queue(PoseStack poseStack, Vec3 center, Direction facing, float animationTime,
-                             float radiusScale, float length, Vec3 camera, double fadeOut) {
+                             float radiusScale, float length, double fadeOut) {
         poseStack.pushPose();
         standAtFoot(poseStack, facing);
         float scroll = Mth.frac(-animationTime * SCROLL_PER_TICK);
         float breath = GlowBeamMesh.breath(animationTime);
-        float[] stops = fadeStops(center.distanceTo(camera), length, fadeOut);
-        float[] shares = distanceShares(stops, center, Vec3.atLowerCornerOf(facing.getUnitVec3i()), camera, fadeOut);
+        float[] stops = fadeStops(length, fadeOut);
+        float[] shares = new float[stops.length];
+        for (int i = 0; i < stops.length; i++) {
+            shares[i] = distanceShare(stops[i], fadeOut);
+        }
         QUEUED.queue(poseStack.last().copy(), center, GooRenderTypes.glowBeam(BeaconRenderer.BEAM_LOCATION),
                 (pose, buffer) -> {
                     for (GlowBeamMesh.Layer layer : GlowBeamMesh.LAYERS) {
@@ -116,13 +126,13 @@ public final class BeaconBeams {
     }
 
     /**
-     * The share of its alpha a column keeps at a camera distance: whole out to half the fade-out distance, then
-     * falling as the square of what is left of the way, to nothing at the fade-out distance, so it thins gently at
-     * first and is gone before its beacon's chunk unloads.
+     * The share of its alpha a column keeps a distance along it from its beacon: whole out to half the fade-out
+     * distance, then falling as the square of what is left of the way, to nothing at the fade-out distance, so it
+     * thins gently at first.
      * operator ruling 2026-11-28: the beam fades by a power law from about half the render distance
      *
-     * @param distance the camera's distance from a point of the column, in blocks
-     * @param fadeOut  the camera distance the column has faded to nothing by, in blocks
+     * @param distance how far along the column from its beacon, in blocks
+     * @param fadeOut  the distance along the column it has faded to nothing by, in blocks
      * @return the alpha share, from 0 to 1
      */
     public static float distanceShare(double distance, double fadeOut) {
@@ -135,29 +145,20 @@ public final class BeaconBeams {
     }
 
     /**
-     * Where the column's rings stand along it: evenly out to its length, or to as far as any of it can still show,
-     * the camera's distance from its foot plus the fade-out distance, if that is nearer.
+     * Where the column's rings stand along it: evenly out to its length, or to the fade-out distance, past which none
+     * of it shows, if that is nearer.
      *
-     * @param footDistance the camera's distance from the column's foot, in blocks
-     * @param length       how far the column draws, in blocks
-     * @param fadeOut      the camera distance the column has faded to nothing by, in blocks
+     * @param length  how far the column draws, in blocks
+     * @param fadeOut the distance along the column it has faded to nothing by, in blocks
      * @return the rings' distances along the column, rising from 0
      */
-    static float[] fadeStops(double footDistance, float length, double fadeOut) {
-        float drawn = (float) Math.min(length, footDistance + fadeOut);
+    static float[] fadeStops(float length, double fadeOut) {
+        float drawn = (float) Math.min(length, fadeOut);
         float[] stops = new float[FADE_SEGMENTS + 1];
         for (int i = 0; i <= FADE_SEGMENTS; i++) {
             stops[i] = drawn * i / FADE_SEGMENTS;
         }
         return stops;
-    }
-
-    private static float[] distanceShares(float[] stops, Vec3 foot, Vec3 along, Vec3 camera, double fadeOut) {
-        float[] shares = new float[stops.length];
-        for (int i = 0; i < stops.length; i++) {
-            shares[i] = distanceShare(foot.add(along.scale(stops[i])).distanceTo(camera), fadeOut);
-        }
-        return shares;
     }
 
     /**

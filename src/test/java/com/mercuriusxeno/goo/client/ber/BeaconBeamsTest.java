@@ -145,8 +145,8 @@ class BeaconBeamsTest {
 
         @Test
         void aColumnDrawsNoFartherThanAnyOfItCanShow() {
-            float[] stops = BeaconBeams.fadeStops(10, BeaconBeams.BEAM_REACH, FADE_OUT);
-            assertEquals(10 + FADE_OUT, stops[stops.length - 1], TOLERANCE);
+            float[] stops = BeaconBeams.fadeStops(BeaconBeams.BEAM_REACH, FADE_OUT);
+            assertEquals(FADE_OUT, stops[stops.length - 1], TOLERANCE);
         }
 
         @Test

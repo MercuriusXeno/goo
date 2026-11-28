@@ -46,7 +46,6 @@ public class LightBeaconRenderer implements BlockEntityRenderer<LightBeaconBlock
                 (float) cameraPos.subtract(Vec3.atCenterOf(state.blockPos)).horizontalDistance());
         state.columnLength = beacon.getLevel() == null ? BeaconBeams.BEAM_REACH
                 : BeaconBeams.columnLength(beacon.getLevel(), state.blockPos, state.facing);
-        state.camera = cameraPos;
         state.fadeOut = getViewDistance();
     }
 
@@ -54,7 +53,7 @@ public class LightBeaconRenderer implements BlockEntityRenderer<LightBeaconBlock
     public void submit(LightBeaconRenderState state, PoseStack poseStack, SubmitNodeCollector nodeCollector,
                        CameraRenderState cameraState) {
         BeaconBeams.queue(poseStack, Vec3.atCenterOf(state.blockPos), state.facing, state.animationTime,
-                state.radiusScale, state.columnLength, state.camera, state.fadeOut);
+                state.radiusScale, state.columnLength, state.fadeOut);
     }
 
     @Override
