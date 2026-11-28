@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.ber;
 
 import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
 import net.minecraft.core.Direction;
+import net.minecraft.world.phys.Vec3;
 
 /**
  * Render state snapshot for a light beacon: the side its column leaves by, the column's clock and its widening.
@@ -20,4 +21,10 @@ public class LightBeaconRenderState extends BlockEntityRenderState {
 
     /** How far the column draws from the beacon's center, to the first block that stops it. */
     public float columnLength = BeaconBeams.BEAM_REACH;
+
+    /** The camera's position in the world, which the column fades by. */
+    public Vec3 camera = Vec3.ZERO;
+
+    /** The camera distance the column has faded to nothing by: the render distance, in blocks. */
+    public double fadeOut = BeaconBeams.BEAM_REACH;
 }

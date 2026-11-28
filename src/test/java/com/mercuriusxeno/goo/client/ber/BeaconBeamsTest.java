@@ -35,6 +35,7 @@ class BeaconBeamsTest {
     private static final BlockPos BEACON = new BlockPos(10, 64, -3);
     private static final int REACH = 2048;
     private static final int STONE_CELLS_UP = 5;
+    private static final double FADE_OUT = 192;
 
     /** Where a point along the column, at a height up its +y, lands in the cell for a facing. */
     private static Vector3f alongColumn(Direction facing, float height) {
@@ -77,7 +78,7 @@ class BeaconBeamsTest {
         RecordingVertexConsumer consumer = new RecordingVertexConsumer();
         for (GlowBeamMesh.Layer layer : GlowBeamMesh.LAYERS) {
             BeaconBeams.emitBeaconLayer(new PoseStack().last(), consumer, layer, RADIUS_SCALE, 0f, breath,
-                    BeaconBeams.BEAM_REACH);
+                    new float[] {0f, BeaconBeams.BEAM_REACH}, new float[] {1f, 1f});
         }
         return consumer.vertices();
     }
@@ -126,6 +127,26 @@ class BeaconBeamsTest {
         void aColumnThroughOpenAirDrawsItsWholeReach() {
             assertEquals(BeaconBeams.BEAM_REACH, BeaconBeams.columnLength(openLevel(), BEACON, Direction.UP),
                     TOLERANCE);
+        }
+
+        /** operator ruling 2026-11-28: the beam fades by a power law from about half the render distance */
+        @Test
+        void aColumnStaysWholeToHalfTheFadeOutDistance() {
+            assertEquals(1f, BeaconBeams.distanceShare(FADE_OUT / 2, FADE_OUT), TOLERANCE);
+        }
+
+        /** operator ruling 2026-11-28: the beam fades by a power law from about half the render distance */
+        @Test
+        void aColumnFadesAsTheSquareOfWhatIsLeftAndIsGoneAtTheFadeOutDistance() {
+            assertEquals(0.25f, BeaconBeams.distanceShare(FADE_OUT * 0.75, FADE_OUT), TOLERANCE);
+            assertEquals(0f, BeaconBeams.distanceShare(FADE_OUT, FADE_OUT), TOLERANCE);
+            assertEquals(0f, BeaconBeams.distanceShare(FADE_OUT * 2, FADE_OUT), TOLERANCE);
+        }
+
+        @Test
+        void aColumnDrawsNoFartherThanAnyOfItCanShow() {
+            float[] stops = BeaconBeams.fadeStops(10, BeaconBeams.BEAM_REACH, FADE_OUT);
+            assertEquals(10 + FADE_OUT, stops[stops.length - 1], TOLERANCE);
         }
 
         @Test

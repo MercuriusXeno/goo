@@ -6,6 +6,8 @@ import net.minecraft.core.Direction;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import org.jspecify.annotations.Nullable;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Where a light beacon's column runs: straight out the side opposite the face the beacon attaches by, through air and
@@ -42,6 +44,29 @@ public final class LightBeaconColumn {
             }
         }
         return null;
+    }
+
+    /**
+     * The cells a column runs through, out from the cell it starts beside to the first that stops it, reading only
+     * loaded cells inside the build height.
+     *
+     * @param level  the level
+     * @param from   the cell the line starts beside
+     * @param toward the direction it runs
+     * @param most   the most cells it runs
+     * @return the cells it runs through, nearest first
+     */
+    public static List<BlockPos> cellsRunThrough(Level level, BlockPos from, Direction toward, int most) {
+        List<BlockPos> cells = new ArrayList<>();
+        BlockPos.MutableBlockPos cell = from.mutable();
+        for (int step = 1; step <= most; step++) {
+            cell.move(toward);
+            if (level.isOutsideBuildHeight(cell) || !level.isLoaded(cell) || !passes(level.getBlockState(cell))) {
+                break;
+            }
+            cells.add(cell.immutable());
+        }
+        return cells;
     }
 
     /**
