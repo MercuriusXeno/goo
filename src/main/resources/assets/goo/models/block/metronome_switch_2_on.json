@@ -9,12 +9,12 @@
       "from": [
         7,
         2,
-        4.5
+        5
       ],
       "to": [
         9,
         7,
-        6.5
+        7
       ],
       "faces": {
         "up": {
@@ -69,12 +69,12 @@
       "from": [
         6.5,
         4.5,
-        4.0
+        4.5
       ],
       "to": [
         9.5,
         4.5,
-        7.0
+        7.5
       ],
       "shade_direction_override": "up",
       "faces": {
@@ -93,12 +93,12 @@
       "from": [
         6.5,
         7.5,
-        4.0
+        4.5
       ],
       "to": [
         9.5,
         7.5,
-        7.0
+        7.5
       ],
       "shade_direction_override": "up",
       "faces": {
@@ -117,12 +117,12 @@
       "from": [
         6.5,
         4.5,
-        4.0
+        4.5
       ],
       "to": [
         9.5,
         7.5,
-        4.0
+        4.5
       ],
       "shade_direction_override": "up",
       "faces": {
@@ -141,12 +141,12 @@
       "from": [
         6.5,
         4.5,
-        7.0
+        7.5
       ],
       "to": [
         9.5,
         7.5,
-        7.0
+        7.5
       ],
       "shade_direction_override": "up",
       "faces": {
@@ -165,12 +165,12 @@
       "from": [
         6.5,
         4.5,
-        4.0
+        4.5
       ],
       "to": [
         6.5,
         7.5,
-        7.0
+        7.5
       ],
       "shade_direction_override": "up",
       "faces": {
@@ -189,12 +189,12 @@
       "from": [
         9.5,
         4.5,
-        4.0
+        4.5
       ],
       "to": [
         9.5,
         7.5,
-        7.0
+        7.5
       ],
       "shade_direction_override": "up",
       "faces": {

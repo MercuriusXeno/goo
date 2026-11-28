@@ -13,7 +13,7 @@
     {
       "when": {
         "facing": "south",
-        "delay": "1",
+        "cadence": "1",
         "powered": "false"
       },
       "apply": {
@@ -24,7 +24,7 @@
     {
       "when": {
         "facing": "south",
-        "delay": "2",
+        "cadence": "2",
         "powered": "false"
       },
       "apply": {
@@ -35,7 +35,7 @@
     {
       "when": {
         "facing": "south",
-        "delay": "3",
+        "cadence": "3",
         "powered": "false"
       },
       "apply": {
@@ -46,11 +46,22 @@
     {
       "when": {
         "facing": "south",
-        "delay": "4",
+        "cadence": "4",
         "powered": "false"
       },
       "apply": {
         "model": "goo:block/metronome_switch_4",
+        "y": 0
+      }
+    },
+    {
+      "when": {
+        "facing": "south",
+        "cadence": "5",
+        "powered": "false"
+      },
+      "apply": {
+        "model": "goo:block/metronome_switch_5",
         "y": 0
       }
     },
@@ -67,7 +78,7 @@
     {
       "when": {
         "facing": "south",
-        "delay": "1",
+        "cadence": "1",
         "powered": "true"
       },
       "apply": {
@@ -78,7 +89,7 @@
     {
       "when": {
         "facing": "south",
-        "delay": "2",
+        "cadence": "2",
         "powered": "true"
       },
       "apply": {
@@ -89,7 +100,7 @@
     {
       "when": {
         "facing": "south",
-        "delay": "3",
+        "cadence": "3",
         "powered": "true"
       },
       "apply": {
@@ -100,11 +111,22 @@
     {
       "when": {
         "facing": "south",
-        "delay": "4",
+        "cadence": "4",
         "powered": "true"
       },
       "apply": {
         "model": "goo:block/metronome_switch_4_on",
+        "y": 0
+      }
+    },
+    {
+      "when": {
+        "facing": "south",
+        "cadence": "5",
+        "powered": "true"
+      },
+      "apply": {
+        "model": "goo:block/metronome_switch_5_on",
         "y": 0
       }
     },
@@ -121,7 +143,7 @@
     {
       "when": {
         "facing": "west",
-        "delay": "1",
+        "cadence": "1",
         "powered": "false"
       },
       "apply": {
@@ -132,7 +154,7 @@
     {
       "when": {
         "facing": "west",
-        "delay": "2",
+        "cadence": "2",
         "powered": "false"
       },
       "apply": {
@@ -143,7 +165,7 @@
     {
       "when": {
         "facing": "west",
-        "delay": "3",
+        "cadence": "3",
         "powered": "false"
       },
       "apply": {
@@ -154,11 +176,22 @@
     {
       "when": {
         "facing": "west",
-        "delay": "4",
+        "cadence": "4",
         "powered": "false"
       },
       "apply": {
         "model": "goo:block/metronome_switch_4",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "facing": "west",
+        "cadence": "5",
+        "powered": "false"
+      },
+      "apply": {
+        "model": "goo:block/metronome_switch_5",
         "y": 90
       }
     },
@@ -175,7 +208,7 @@
     {
       "when": {
         "facing": "west",
-        "delay": "1",
+        "cadence": "1",
         "powered": "true"
       },
       "apply": {
@@ -186,7 +219,7 @@
     {
       "when": {
         "facing": "west",
-        "delay": "2",
+        "cadence": "2",
         "powered": "true"
       },
       "apply": {
@@ -197,7 +230,7 @@
     {
       "when": {
         "facing": "west",
-        "delay": "3",
+        "cadence": "3",
         "powered": "true"
       },
       "apply": {
@@ -208,11 +241,22 @@
     {
       "when": {
         "facing": "west",
-        "delay": "4",
+        "cadence": "4",
         "powered": "true"
       },
       "apply": {
         "model": "goo:block/metronome_switch_4_on",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "facing": "west",
+        "cadence": "5",
+        "powered": "true"
+      },
+      "apply": {
+        "model": "goo:block/metronome_switch_5_on",
         "y": 90
       }
     },
@@ -229,7 +273,7 @@
     {
       "when": {
         "facing": "north",
-        "delay": "1",
+        "cadence": "1",
         "powered": "false"
       },
       "apply": {
@@ -240,7 +284,7 @@
     {
       "when": {
         "facing": "north",
-        "delay": "2",
+        "cadence": "2",
         "powered": "false"
       },
       "apply": {
@@ -251,7 +295,7 @@
     {
       "when": {
         "facing": "north",
-        "delay": "3",
+        "cadence": "3",
         "powered": "false"
       },
       "apply": {
@@ -262,11 +306,22 @@
     {
       "when": {
         "facing": "north",
-        "delay": "4",
+        "cadence": "4",
         "powered": "false"
       },
       "apply": {
         "model": "goo:block/metronome_switch_4",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "facing": "north",
+        "cadence": "5",
+        "powered": "false"
+      },
+      "apply": {
+        "model": "goo:block/metronome_switch_5",
         "y": 180
       }
     },
@@ -283,7 +338,7 @@
     {
       "when": {
         "facing": "north",
-        "delay": "1",
+        "cadence": "1",
         "powered": "true"
       },
       "apply": {
@@ -294,7 +349,7 @@
     {
       "when": {
         "facing": "north",
-        "delay": "2",
+        "cadence": "2",
         "powered": "true"
       },
       "apply": {
@@ -305,7 +360,7 @@
     {
       "when": {
         "facing": "north",
-        "delay": "3",
+        "cadence": "3",
         "powered": "true"
       },
       "apply": {
@@ -316,11 +371,22 @@
     {
       "when": {
         "facing": "north",
-        "delay": "4",
+        "cadence": "4",
         "powered": "true"
       },
       "apply": {
         "model": "goo:block/metronome_switch_4_on",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "facing": "north",
+        "cadence": "5",
+        "powered": "true"
+      },
+      "apply": {
+        "model": "goo:block/metronome_switch_5_on",
         "y": 180
       }
     },
@@ -337,7 +403,7 @@
     {
       "when": {
         "facing": "east",
-        "delay": "1",
+        "cadence": "1",
         "powered": "false"
       },
       "apply": {
@@ -348,7 +414,7 @@
     {
       "when": {
         "facing": "east",
-        "delay": "2",
+        "cadence": "2",
         "powered": "false"
       },
       "apply": {
@@ -359,7 +425,7 @@
     {
       "when": {
         "facing": "east",
-        "delay": "3",
+        "cadence": "3",
         "powered": "false"
       },
       "apply": {
@@ -370,11 +436,22 @@
     {
       "when": {
         "facing": "east",
-        "delay": "4",
+        "cadence": "4",
         "powered": "false"
       },
       "apply": {
         "model": "goo:block/metronome_switch_4",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "facing": "east",
+        "cadence": "5",
+        "powered": "false"
+      },
+      "apply": {
+        "model": "goo:block/metronome_switch_5",
         "y": 270
       }
     },
@@ -391,7 +468,7 @@
     {
       "when": {
         "facing": "east",
-        "delay": "1",
+        "cadence": "1",
         "powered": "true"
       },
       "apply": {
@@ -402,7 +479,7 @@
     {
       "when": {
         "facing": "east",
-        "delay": "2",
+        "cadence": "2",
         "powered": "true"
       },
       "apply": {
@@ -413,7 +490,7 @@
     {
       "when": {
         "facing": "east",
-        "delay": "3",
+        "cadence": "3",
         "powered": "true"
       },
       "apply": {
@@ -424,11 +501,22 @@
     {
       "when": {
         "facing": "east",
-        "delay": "4",
+        "cadence": "4",
         "powered": "true"
       },
       "apply": {
         "model": "goo:block/metronome_switch_4_on",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "facing": "east",
+        "cadence": "5",
+        "powered": "true"
+      },
+      "apply": {
+        "model": "goo:block/metronome_switch_5_on",
         "y": 270
       }
     },

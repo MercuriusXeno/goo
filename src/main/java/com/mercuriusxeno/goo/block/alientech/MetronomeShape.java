@@ -23,7 +23,7 @@ final class MetronomeShape {
     private static final float TORCH_TOP = 7f;
     private static final float TORCH_DEPTH = 2f;
     /** Where the switch torch's front face stands at each cadence step, in pixels along the model's z. */
-    private static final float[] TORCH_FRONT = {6f, 4.5f, 3f, 1.5f};
+    private static final float[] TORCH_FRONT = {6f, 5f, 4f, 3f, 2f};
     private static final float BUTTON_LEFT = 6f;
     private static final float BUTTON_RIGHT = 10f;
     private static final float BUTTON_FRONT = 10f;

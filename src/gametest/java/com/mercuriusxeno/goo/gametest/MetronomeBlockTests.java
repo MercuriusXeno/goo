@@ -69,9 +69,11 @@ public final class MetronomeBlockTests {
     /** Every pulse the dust shows in a window is counted; three gaps are the fewest that show a steady beat. */
     private static final int FEWEST_GAPS = 3;
     /** The cadences the gap switch steps through from placement, in ticks between pulses, and back to the first. */
-    private static final int[] CADENCES = {2, 4, 6, 8, 2};
-    /** Ticks each cadence is watched: long enough for several of its slowest pulses. */
-    private static final int WINDOW = 50;
+    private static final int[] CADENCES = {2, 4, 8, 16, 32, 2};
+    /** Ticks each cadence is watched: long enough, past its settle, for three gaps of its slowest, 32 ticks. */
+    private static final int WINDOW = 150;
+    /** Ticks after a click on the gap switch left for the old cadence's last beat to land. */
+    private static final int STEP_SETTLE = 20;
     /** The tick the back is powered in the silence test, after the plate has pulsed freely. */
     private static final int BACK_POWERED_AT = 20;
     private static final int SILENT_WATCH = 30;
@@ -114,8 +116,8 @@ public final class MetronomeBlockTests {
     }
 
     /**
-     * A placed metronome pulses every 2 ticks, and each right-click on its gap switch steps it to 4, 6, 8 and back
-     * to 2.
+     * A placed metronome pulses every 2 ticks, and each right-click on its gap switch steps it to 4, 8, 16, 32 and
+     * back to 2 (operator ruling 2026-11-28).
      *
      * @param helper the gametest helper
      */
@@ -127,7 +129,7 @@ public final class MetronomeBlockTests {
         }
         helper.runAfterDelay(WINDOW * CADENCES.length + 1, () -> {
             for (int window = 0; window < CADENCES.length; window++) {
-                List<Integer> counted = within(onsets, WINDOW * window + SETTLE, WINDOW * (window + 1));
+                List<Integer> counted = within(onsets, WINDOW * window + STEP_SETTLE, WINDOW * (window + 1));
                 helper.assertTrue(beatsEvery(counted, CADENCES[window]),
                         String.format(WRONG_CADENCE, window, CADENCES[window], counted));
             }
