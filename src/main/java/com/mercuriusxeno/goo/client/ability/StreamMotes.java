@@ -44,25 +44,32 @@ public final class StreamMotes {
 
     /** The ability whose spores are registered in {@link ConeVisuals}. */
     static final String MYCOSIS_ID = "goo:sculk_mycosis";
+    /**
+     * The ability whose paint motes are registered in {@link ConeVisuals}.
+     * paint-recolors-dyeable-things-to-the-off-hand-dye
+     */
+    static final String PAINT_ID = "goo:ornate_paint";
 
     private StreamMotes() {
     }
 
     /**
-     * Launches a tick of Mycosis' spores through a cone a nozzle pours, as the server's tick launches the glove's:
-     * each inside the cone's shape, coming to rest at its reach.
+     * Launches a tick of a mote stream's motes, Mycosis' spores or Paint's
+     * paint, through a cone a nozzle pours, as the server's tick launches the
+     * glove's: each inside the cone's shape, coming to rest at its reach.
      * decision spray-abilities-render-procedurally-bound-to-their-cone
      *
-     * @param cone the cone poured through
+     * @param abilityId the stream ability's id, whose particle the motes are
+     * @param cone      the cone poured through
      */
-    static void pour(SprayCone cone) {
+    static void pour(String abilityId, SprayCone cone) {
         Minecraft mc = Minecraft.getInstance();
-        AbilitySyncHandler.ClientAbility mycosis = AbilitySyncHandler.findAbility(MYCOSIS_ID);
-        if (mc.player == null || mycosis == null) {
+        AbilitySyncHandler.ClientAbility stream = AbilitySyncHandler.findAbility(abilityId);
+        if (mc.player == null || stream == null) {
             return;
         }
         int casterId = mc.player.getId();
-        mycosis.delivery().particle().ifPresent(id -> SimpleParticles.resolve(id).ifPresent(particle -> launch(
+        stream.delivery().particle().ifPresent(id -> SimpleParticles.resolve(id).ifPresent(particle -> launch(
                 GooStreamHandler.motesOf(casterId, cone.apex(), cone.axis(), id,
                         new GooStreamHandler.SprayedCone(cone.shape(), cone.reach()), Delivery.NO_THROW_SPEED),
                 particle)));

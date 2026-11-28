@@ -106,6 +106,7 @@ class AbilityPoseTableTest {
             Map.entry("xeno_revert", ArmPose.RESTING),
             Map.entry("xeno_ooze", ArmPose.HELD_OUT),
             Map.entry("ornate_fortune", ArmPose.HELD_OUT),
+            Map.entry("ornate_paint", ArmPose.HELD_OUT),
             Map.entry("yarn_herd", ArmPose.HELD_UP),
             Map.entry("yarn_lead", ArmPose.RESTING),
             Map.entry("yarn_stitch", ArmPose.HELD_OUT));

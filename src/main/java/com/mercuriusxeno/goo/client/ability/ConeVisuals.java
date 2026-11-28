@@ -30,7 +30,8 @@ public final class ConeVisuals {
             visual(SignalRings.TICK_ID, SignalRings::pour),
             visual(BoreDrill.BORE_ID, BoreDrill::pour),
             visual(GnatSeek.DECAY_ID, GnatSeek::pour),
-            visual(StreamMotes.MYCOSIS_ID, StreamMotes::pour));
+            visual(StreamMotes.MYCOSIS_ID, cone -> StreamMotes.pour(StreamMotes.MYCOSIS_ID, cone)),
+            visual(StreamMotes.PAINT_ID, cone -> StreamMotes.pour(StreamMotes.PAINT_ID, cone)));
 
     private ConeVisuals() {
     }

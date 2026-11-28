@@ -1,0 +1,15 @@
+{
+  "gooType": "ornate",
+  "displayName": "goo.ability.ornate.paint",
+  "cost_mechanics": "goo.ability.ornate.paint.cost_mechanics",
+  "badge": "channeled",
+  "order": 10,
+  "cost": 8,
+  "delivery": { "kind": "stream", "range": 6, "cone": 40, "ticks_per_charge": 20, "drains_on_placement": true,
+    "particle": "goo:fortune_spray_drip",
+    "sound": { "id": "minecraft:block.honey_block.slide", "every": 10, "volume": 0.6, "pitch": 1.4, "pitch_spread": 0.1 } },
+  "behaviors": [
+    { "type": "paint" }
+  ],
+  "tags": ["stream"]
+}

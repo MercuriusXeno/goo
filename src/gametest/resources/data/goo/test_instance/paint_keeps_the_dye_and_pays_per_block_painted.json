@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:paint_keeps_the_dye_and_pays_per_block_painted",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 60,
+  "setup_ticks": 0,
+  "required": true
+}

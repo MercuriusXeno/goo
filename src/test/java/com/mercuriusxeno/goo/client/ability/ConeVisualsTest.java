@@ -23,8 +23,11 @@ import static org.junit.jupiter.api.Assertions.assertNotSame;
  */
 class ConeVisualsTest {
 
-    /** The coned streams shipped when the review closed. */
-    private static final int SHIPPED_CONED_STREAMS = 12;
+    /**
+     * The coned streams shipped: the twelve standing when the review closed, and Paint.
+     * paint-recolors-dyeable-things-to-the-off-hand-dye
+     */
+    private static final int SHIPPED_CONED_STREAMS = 13;
     private static final List<String> GLOVE_HELD = List.of("frost_cold", "typhoon_gust", "void_vacuum", "jelly_heal");
     private static final Vec3 HAND = new Vec3(3, 65.2, -1.4);
     private static final Vec3 LOOK = new Vec3(0, 0, 1);

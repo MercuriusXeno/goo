@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:paint_with_no_dye_paints_nothing_and_spends_nothing",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 60,
+  "setup_ticks": 0,
+  "required": true
+}
