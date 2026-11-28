@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.particle;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
@@ -31,5 +32,32 @@ class HomingPathTest {
     @Test
     void progressPastTheEndStaysOnTheTarget() {
         assertEquals(new Vec3(4, 0, 0), path.at(new Vec3(4, 0, 0), 1.5));
+    }
+
+    /**
+     * A drained-life wisp's flight home steps farther each tick than the one
+     * before and ends on the target.
+     * drained-life-arcs-home-speeding-up
+     */
+    @Test
+    void aSpeedingFlightCoversMoreGroundEachTickAndLandsOnTheTarget() {
+        int flight = 5;
+        Vec3 target = new Vec3(4, 0, 0);
+        double lastProgress = 0;
+        double lastStep = 0;
+        double lastStride = 0;
+        Vec3 lastAt = path.at(target, 0);
+        for (int tick = 1; tick <= flight; tick++) {
+            double progress = HomingPath.speedingUp(tick, flight);
+            assertTrue(progress - lastProgress > lastStep, "tick " + tick + " at " + progress);
+            Vec3 at = path.at(target, progress);
+            assertTrue(at.distanceTo(lastAt) > lastStride, "tick " + tick + " at " + at);
+            lastStep = progress - lastProgress;
+            lastStride = at.distanceTo(lastAt);
+            lastProgress = progress;
+            lastAt = at;
+        }
+        assertEquals(1, lastProgress, DELTA);
+        assertEquals(target, lastAt);
     }
 }

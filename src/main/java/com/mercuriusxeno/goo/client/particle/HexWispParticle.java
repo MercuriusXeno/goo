@@ -16,10 +16,14 @@ import java.util.function.Supplier;
  * A wisp of drawn life in hex purple: after its delay it scatters from where
  * it spawned, darting and slowing as the nether's gnats do, then curls toward
  * a target it reads again every tick along a bent path, swaying across it,
- * its sway dying out as it lands. Each wisp draws its own shade, size, pace
- * and sway, so a cloud of them never moves as one.
+ * its sway dying out as it lands. A drained-life wisp hovers between its
+ * scatter and its flight and speeds up along its bend as it closes in. Each
+ * wisp draws its own shade, size, pace and sway, so a cloud of them never
+ * moves as one.
  * lifetap-trades-regen-for-leech
  * drain-field-heals-with-the-lifetap-visuals
+ * drained-mobs-show-stream-burst-and-tether
+ * drained-life-arcs-home-speeding-up
  */
 public final class HexWispParticle extends SingleQuadParticle {
 
@@ -35,6 +39,8 @@ public final class HexWispParticle extends SingleQuadParticle {
     private static final float BURST_FADE_SHARE = 0.6f;
     /** Each tick of the scatter keeps this share of its speed. */
     private static final double SCATTER_DRAG = 0.78;
+    /** Each tick of the hover keeps this share of its speed, so the scatter glides to a stop. */
+    private static final double HOVER_DRAG = 0.35;
     /** How far a dart may change the wisp's speed each tick, on each axis. */
     private static final double DART_SPAN = 0.03;
     /** The darkest and brightest hex purple a wisp may take. */
@@ -57,11 +63,11 @@ public final class HexWispParticle extends SingleQuadParticle {
     /** Below this squared length a heading has no direction to sway across. */
     private static final double NO_HEADING = 1e-6;
     /**
-     * How much larger a streamed wisp draws, so its sprite's purple rim and
-     * pink core read, and the dimmest it shades its sprite's own colors.
+     * How much larger a drained-life wisp draws, so its sprite's purple rim
+     * and pink core read, and the dimmest it shades its sprite's own colors.
      */
-    private static final float STREAM_SIZE = 1.8f;
-    private static final float STREAM_DIMMEST = 0.8f;
+    private static final float DRAINED_SIZE = 1.8f;
+    private static final float DRAINED_DIMMEST = 0.8f;
 
     private final RandomSource random;
     private final SpriteSet sprites;
@@ -70,12 +76,14 @@ public final class HexWispParticle extends SingleQuadParticle {
     private final double sways;
     private int delayTicks;
     private int scatterTicks;
+    private int hoverTicks;
     private int flightTicks;
     private Supplier<Vec3> target;
     private @Nullable HomingPath path;
     private int flightAge;
     private boolean fadesWhereItScatters;
-    private boolean streamed;
+    private boolean speedsUp;
+    private float fadeInTicks = FADE_IN_TICKS;
 
     private HexWispParticle(ClientLevel level, double x, double y, double z, SpriteSet sprites) {
         super(level, x, y, z, sprites.get(0, 1));
@@ -121,31 +129,31 @@ public final class HexWispParticle extends SingleQuadParticle {
     }
 
     /**
-     * Streams the wisp as Decay's gnats fly: after its delay it bursts off
-     * with the velocity given, then darts, swirls and is pulled in by the
-     * target every tick as {@link WispStream} steps it, until it lands there.
-     * It wears the stream's own sprite, a pink core in a purple rim after
-     * Drain's icon, in its own colors, shaded a little.
-     * drain-casts-a-filled-tornadic-miasma-vortex-along-the-look
+     * Sends the wisp off as drained life: it shows at once and scatters with
+     * the velocity given, slows to a hover for its hover ticks, then flies
+     * home along its bend, speeding up as it closes in. It wears the sprite
+     * after Drain's icon, a pink core in a purple rim, shaded a little.
+     * drained-mobs-show-stream-burst-and-tether
+     * drained-life-arcs-home-speeding-up
      *
-     * @param delay  ticks it waits unseen before it shows
-     * @param launch the velocity it bursts off with, blocks per tick
-     * @param home   where it lands, read every tick
+     * @param scatter    the velocity it scatters with, blocks per tick
+     * @param scatterFor ticks it scatters
+     * @param hoverFor   ticks it hovers before it sets off home
+     * @param flightFor  ticks its flight home takes
+     * @param home       where it lands, read every tick
      */
-    public void stream(int delay, Vec3 launch, Supplier<Vec3> home) {
-        this.delayTicks = delay;
-        this.target = home;
-        this.streamed = true;
+    public void drainHome(Vec3 scatter, int scatterFor, int hoverFor, int flightFor, Supplier<Vec3> home) {
+        launch(0, scatter, scatterFor + hoverFor, flightFor, home);
+        this.scatterTicks = scatterFor;
+        this.hoverTicks = hoverFor;
+        this.speedsUp = true;
+        this.fadeInTicks = 1f;
         this.setSprite(sprites.get(1, 1));
-        this.quadSize *= STREAM_SIZE;
-        float shade = Mth.lerp(random.nextFloat(), STREAM_DIMMEST, 1f);
+        this.quadSize *= DRAINED_SIZE;
+        float shade = Mth.lerp(random.nextFloat(), DRAINED_DIMMEST, 1f);
         this.rCol = shade;
         this.gCol = shade;
         this.bCol = shade;
-        this.xd = launch.x;
-        this.yd = launch.y;
-        this.zd = launch.z;
-        this.lifetime = delay + WispStream.MOST_TICKS;
     }
 
     /**
@@ -178,16 +186,14 @@ public final class HexWispParticle extends SingleQuadParticle {
             return;
         }
         int shown = this.age - delayTicks;
-        if (streamed) {
-            streamTick(shown);
-            return;
-        }
         if (shown <= scatterTicks) {
             scatterTick();
+        } else if (shown <= scatterTicks + hoverTicks) {
+            hoverTick();
         } else {
             flyHomeTick();
         }
-        this.alpha = ALPHA * Math.min(1f, shown / FADE_IN_TICKS) * fadeOut();
+        this.alpha = ALPHA * Math.min(1f, shown / fadeInTicks) * fadeOut();
     }
 
     private void scatterTick() {
@@ -197,26 +203,11 @@ public final class HexWispParticle extends SingleQuadParticle {
         this.setPos(this.x + this.xd, this.y + this.yd, this.z + this.zd);
     }
 
-    /**
-     * Steps a streamed wisp, fading it in as it shows and out as it nears its
-     * landing, and gone once it lands.
-     *
-     * @param shown ticks since it showed
-     */
-    private void streamTick(int shown) {
-        Vec3 home = target.get();
-        Vec3 velocity = WispStream.step(new Vec3(this.xd, this.yd, this.zd), new Vec3(this.x, this.y, this.z),
-                home, shown, random, swayPhase);
-        this.xd = velocity.x;
-        this.yd = velocity.y;
-        this.zd = velocity.z;
+    private void hoverTick() {
+        this.xd = this.xd * HOVER_DRAG + dart();
+        this.yd = this.yd * HOVER_DRAG + dart();
+        this.zd = this.zd * HOVER_DRAG + dart();
         this.setPos(this.x + this.xd, this.y + this.yd, this.z + this.zd);
-        double gap = home.distanceTo(new Vec3(this.x, this.y, this.z));
-        if (gap <= WispStream.LANDS_WITHIN) {
-            this.remove();
-            return;
-        }
-        this.alpha = ALPHA * Math.min(1f, shown / FADE_IN_TICKS) * (float) Math.min(1, gap / WispStream.FADES_WITHIN);
     }
 
     private double dart() {
@@ -230,7 +221,8 @@ public final class HexWispParticle extends SingleQuadParticle {
             path = new HomingPath(here, bendPoint(here, home));
         }
         flightAge++;
-        double progress = Math.min(1.0, (double) flightAge / flightTicks);
+        double progress = speedsUp ? HomingPath.speedingUp(flightAge, flightTicks)
+                : Math.min(1.0, (double) flightAge / flightTicks);
         Vec3 along = path.at(home, progress);
         Vec3 across = acrossOf(home.subtract(path.start()));
         double sway = Math.sin(progress * Math.PI * sways + swayPhase) * swayReach * (1 - progress);

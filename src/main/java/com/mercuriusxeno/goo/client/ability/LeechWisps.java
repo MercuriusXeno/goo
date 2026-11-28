@@ -9,45 +9,38 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Drained life's look, which Drain and Leech goo share: life drawn from a
- * victim to the one it heals as hex wisps. A strike on a victim in Leech goo
- * splashes once per point of health healed, each
- * splash a burst of wisps scattering off the victim before they curl home,
- * the splashes a beat apart; Drain streams its wisps from the drained mob's
- * chest into the player in one tight, steady stream, and bursts a few on the
- * victim at each strike.
+ * victim to the one it heals as hex wisps. Every leech bursts one fixed set
+ * of wisps off the victim's body at once, whatever it healed and whichever
+ * drew it; they scatter, slow to a hover around the mob, then set off home
+ * a tick or so apart, each on its own bend and speeding up as it closes in,
+ * the last landing on the healed one's chest before Drain's next strike.
  * lifetap-trades-regen-for-leech
  * drain-field-heals-with-the-lifetap-visuals
  * drained-mobs-show-stream-burst-and-tether
+ * drained-life-arcs-home-speeding-up
  * damage-dealt-to-a-mob-in-leech-goo-becomes-drained-life-for-its-source
  */
 public final class LeechWisps {
 
-    /** Wisps in one splash. */
-    static final int WISPS_PER_SPLASH = 9;
-    /** Ticks between one splash and the next. */
-    static final int SPLASH_STAGGER = 3;
-    /** The most splashes one heal plays. */
-    static final int MOST_SPLASHES = 8;
-    /** Wisps in one trickle, enough over its spread to read as one stream from the mob to the caster. */
-    static final int WISPS_PER_TRICKLE = 16;
-    /** Wisps a strike bursts on the victim's body, scattering and fading there. */
-    static final int WISPS_PER_BURST = 6;
-    /** Ticks over which a trickle's wisps set off, a strike's interval in a held field. */
-    static final int TRICKLE_SPREAD = 10;
-    private static final double BURST_SPEED = 0.09;
-    private static final int BURST_TICKS = 6;
-    private static final int BURST_VARIANCE = 4;
-    private static final double SCATTER_SPEED = 0.16;
-    private static final double SCATTER_LIFT = 0.06;
-    private static final int SCATTER_TICKS = 5;
+    /** Wisps in one burst, the same for every leech. */
+    static final int WISPS_PER_BURST = 12;
+    /** Ticks a burst wisp scatters off the body before it hovers. */
+    static final int SCATTER_TICKS = 2;
+    /** The fewest ticks a burst wisp hovers before it sets off home. */
+    static final int FEWEST_HOVER_TICKS = 1;
+    /** Ticks across which a burst's wisps set off home, one after another. */
+    static final int SET_OFF_SPREAD = 3;
+    /** Ticks a burst wisp's flight home takes. */
+    static final int FLIGHT_TICKS = 5;
+    private static final double SCATTER_SPEED = 0.22;
+    private static final double SCATTER_LIFT = 0.05;
     /** The slowest a wisp scatters, as a share of the scatter speed. */
     private static final double SLOWEST_SCATTER = 0.5;
-    private static final int SCATTER_VARIANCE = 4;
-    private static final int BASE_FLIGHT = 14;
-    private static final int FLIGHT_VARIANCE = 10;
     private static final double BODY_CENTER = 0.5;
     /** How fast a shed wisp sets off upward at the least, blocks a tick; it sets off up to twice this. */
     private static final double SHED_RISE = 0.04;
@@ -58,58 +51,41 @@ public final class LeechWisps {
     /** The ticks beyond the fewest a shed wisp may drift. */
     private static final int SHED_VARIANCE = 8;
     private static final double CHEST = 0.7;
-    private static final double SPAWN_SPREAD = 0.3;
-
-    /** Blocks around the drained mob's chest a streamed wisp may leave from. */
-    static final double STREAM_SPREAD = 0.25;
-    /** The slowest and fastest a streamed wisp bursts off the mob, blocks per tick. */
-    private static final double STREAM_LAUNCH = 0.06;
-    private static final double STREAM_LAUNCH_VARIANCE = 0.1;
-    /** How far a streamed wisp's burst leans up, so the stream rises off the mob before it pours in. */
-    private static final double STREAM_LAUNCH_LIFT = 0.04;
 
     private LeechWisps() {
     }
 
     /**
-     * The tick a trickle's wisp sets off, the wisps one after another evenly
-     * across the strike's interval, so the stream runs steady.
-     * drain-casts-a-filled-tornadic-miasma-vortex-along-the-look
+     * One wisp of a burst's schedule, in ticks from the leech's arrival.
      *
-     * @param wisp the wisp's place in its trickle
-     * @return ticks it waits before it sets off
+     * @param spawnDelay   ticks before it shows
+     * @param scatterTicks ticks it scatters off the body
+     * @param hoverTicks   ticks it hovers before it sets off home
+     * @param flightTicks  ticks its flight home takes
      */
-    static int streamDelay(int wisp) {
-        return wisp * TRICKLE_SPREAD / WISPS_PER_TRICKLE;
+    record BurstWisp(int spawnDelay, int scatterTicks, int hoverTicks, int flightTicks) {
     }
 
     /**
-     * Where a trickle's wisp leaves from: close around the drained mob's
-     * chest.
-     * drain-casts-a-filled-tornadic-miasma-vortex-along-the-look
+     * The burst a leech plays: one fixed count of wisps, Drain's and Leech
+     * goo's alike at any heal, every one showing on the arrival tick and
+     * setting off home one after another across SET_OFF_SPREAD ticks.
+     * drained-mobs-show-stream-burst-and-tether
      *
-     * @param chest  the drained mob's chest
-     * @param random the random source
-     * @return the point it leaves from
+     * @param payload the leech payload
+     * @return each wisp's schedule
      */
-    static Vec3 streamStart(Vec3 chest, RandomSource random) {
-        Vec3 way = new Vec3(random.nextGaussian(), random.nextGaussian(), random.nextGaussian()).normalize();
-        return chest.add(way.scale(STREAM_SPREAD * random.nextDouble()));
+    static List<BurstWisp> burstOf(LeechPayload payload) {
+        List<BurstWisp> burst = new ArrayList<>(WISPS_PER_BURST);
+        for (int wisp = 0; wisp < WISPS_PER_BURST; wisp++) {
+            int lateBy = wisp * SET_OFF_SPREAD / WISPS_PER_BURST;
+            burst.add(new BurstWisp(0, SCATTER_TICKS, FEWEST_HOVER_TICKS + lateBy, FLIGHT_TICKS));
+        }
+        return burst;
     }
 
     /**
-     * The splashes a heal plays: one per point of health healed, at least
-     * one, at most MOST_SPLASHES.
-     *
-     * @param healed the health healed
-     * @return the splash count
-     */
-    static int splashesFor(float healed) {
-        return Math.clamp(Math.round(healed), 1, MOST_SPLASHES);
-    }
-
-    /**
-     * Plays a leech's wisps on the client thread.
+     * Plays a leech's burst on the client thread.
      *
      * @param payload the leech payload
      * @param context the network context
@@ -124,15 +100,7 @@ public final class LeechWisps {
             }
             // touched-mobs-show-hearts-or-a-count-over-max
             TouchedMobs.CLIENT.touch(victim.getId(), level.getGameTime());
-            Vec3 from = victim.position().add(0, victim.getBbHeight() * BODY_CENTER, 0);
-            if (payload.splash()) {
-                for (int splash = 0; splash < splashesFor(payload.healed()); splash++) {
-                    splash(mc, level.getRandom(), from, healed, splash * SPLASH_STAGGER);
-                }
-            } else {
-                trickle(mc, level.getRandom(), victim.position().add(0, victim.getBbHeight() * CHEST, 0), healed);
-                burst(mc, level.getRandom(), victim);
-            }
+            burst(mc, level.getRandom(), victim, healed, burstOf(payload));
         });
     }
 
@@ -170,68 +138,29 @@ public final class LeechWisps {
     }
 
     /**
-     * Bursts wisps over the victim's body at a strike, so the hit itself shows.
+     * Bursts a leech's wisps off the victim's body, each scattering outward,
+     * hovering and flying home to the healed one's chest on its schedule.
      * drained-mobs-show-stream-burst-and-tether
+     * drained-life-arcs-home-speeding-up
      *
      * @param mc     the client
      * @param random the random source
-     * @param victim the mob struck
+     * @param victim the mob drained
+     * @param healed the one the life goes to
+     * @param burst  each wisp's schedule
      */
-    private static void burst(Minecraft mc, RandomSource random, Entity victim) {
-        for (int wisp = 0; wisp < WISPS_PER_BURST; wisp++) {
+    private static void burst(Minecraft mc, RandomSource random, Entity victim, Entity healed,
+                              List<BurstWisp> burst) {
+        for (BurstWisp scheduled : burst) {
             Vec3 at = victim.position().add((random.nextDouble() - BODY_CENTER) * victim.getBbWidth(),
                     random.nextDouble() * victim.getBbHeight(), (random.nextDouble() - BODY_CENTER) * victim.getBbWidth());
-            Vec3 scatter = new Vec3(random.nextGaussian(), random.nextGaussian(), random.nextGaussian())
-                    .normalize().scale(BURST_SPEED * (SLOWEST_SCATTER + random.nextDouble()));
+            Vec3 scatter = new Vec3(random.nextGaussian(), random.nextGaussian(), random.nextGaussian()).normalize()
+                    .scale(SCATTER_SPEED * (SLOWEST_SCATTER + random.nextDouble())).add(0, SCATTER_LIFT, 0);
             if (mc.particleEngine.createParticle(GooParticles.HEX_WISP.get(), at.x, at.y, at.z, 0, 0, 0)
-                    instanceof HexWispParticle spark) {
-                spark.burst(scatter, BURST_TICKS + random.nextInt(BURST_VARIANCE));
-            }
-        }
-    }
-
-    private static void splash(Minecraft mc, RandomSource random, Vec3 from, Entity healed, int delay) {
-        for (int wisp = 0; wisp < WISPS_PER_SPLASH; wisp++) {
-            Vec3 scatter = new Vec3(random.nextGaussian(), random.nextGaussian(), random.nextGaussian())
-                    .normalize().scale(SCATTER_SPEED * (SLOWEST_SCATTER + random.nextDouble())).add(0, SCATTER_LIFT, 0);
-            launch(mc, random, from, healed, delay, scatter, SCATTER_TICKS + random.nextInt(SCATTER_VARIANCE));
-        }
-    }
-
-    /**
-     * Streams a strike's wisps from the drained mob's chest into the player,
-     * one after another, each bursting off in its own way and then darting,
-     * swirling and pulled in as Decay's gnats fly, a chaotic flow of life
-     * pouring into the player.
-     * drain-casts-a-filled-tornadic-miasma-vortex-along-the-look
-     *
-     * @param mc     the client
-     * @param random the random source
-     * @param chest  the drained mob's chest
-     * @param healed the player the life goes to
-     */
-    private static void trickle(Minecraft mc, RandomSource random, Vec3 chest, Entity healed) {
-        for (int wisp = 0; wisp < WISPS_PER_TRICKLE; wisp++) {
-            Vec3 at = streamStart(chest, random);
-            if (mc.particleEngine.createParticle(GooParticles.HEX_WISP.get(), at.x, at.y, at.z, 0, 0, 0)
-                    instanceof HexWispParticle streamed) {
-                Vec3 burst = new Vec3(random.nextGaussian(), random.nextGaussian(), random.nextGaussian()).normalize()
-                        .scale(STREAM_LAUNCH + STREAM_LAUNCH_VARIANCE * random.nextDouble())
-                        .add(0, STREAM_LAUNCH_LIFT, 0);
-                streamed.stream(streamDelay(wisp), burst,
+                    instanceof HexWispParticle wisp) {
+                wisp.drainHome(scatter, scheduled.scatterTicks(), scheduled.hoverTicks(), scheduled.flightTicks(),
                         () -> healed.position().add(0, healed.getBbHeight() * CHEST, 0));
             }
-        }
-    }
-
-    private static void launch(Minecraft mc, RandomSource random, Vec3 from, Entity healed, int delay,
-                               Vec3 scatter, int scatterFor) {
-        Vec3 at = from.add(random.nextGaussian() * SPAWN_SPREAD, random.nextGaussian() * SPAWN_SPREAD,
-                random.nextGaussian() * SPAWN_SPREAD);
-        if (mc.particleEngine.createParticle(GooParticles.HEX_WISP.get(), at.x, at.y, at.z, 0, 0, 0)
-                instanceof HexWispParticle wisp) {
-            wisp.launch(delay, scatter, scatterFor, BASE_FLIGHT + random.nextInt(FLIGHT_VARIANCE),
-                    () -> healed.position().add(0, healed.getBbHeight() * CHEST, 0));
         }
     }
 }

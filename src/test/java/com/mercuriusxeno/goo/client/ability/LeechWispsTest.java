@@ -2,8 +2,10 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.program.LeechGooStep;
-import net.minecraft.util.RandomSource;
-import net.minecraft.world.phys.Vec3;
+import com.mercuriusxeno.goo.network.LeechPayload;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
@@ -12,9 +14,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Covers Leech goo's splash count and Drain's trickle and burst: the trickle
- * sets off evenly from close around the drained mob's chest, a tight stream
- * (decision drain-casts-a-filled-tornadic-miasma-vortex-along-the-look).
+ * Covers the wisps a mob in Leech goo sheds and the drained-life burst every
+ * leech by Drain or Leech goo plays, read from its schedule.
  */
 class LeechWispsTest {
 
@@ -47,61 +48,62 @@ class LeechWispsTest {
         }
     }
 
+    /**
+     * Every leech, Drain's or Leech goo's, bursts one fixed set of wisps at
+     * once that hovers, sets off home a tick or so apart and lands within
+     * Drain's strike interval.
+     * drained-mobs-show-stream-burst-and-tether
+     * drained-life-arcs-home-speeding-up
+     */
     @Nested
-    class Splashes {
+    class Burst {
 
-        @Test
-        void eachPointHealedSplashesOnce() {
-            assertEquals(3, LeechWisps.splashesFor(3.2f));
+        /** Drain's strike interval at invulnerable_ticks 10, which a burst ends inside. */
+        private static final int STRIKE_INTERVAL = 10;
+        private static final float[] HEALS = {0.5f, 3f, 40f};
+        private static final boolean[] SOURCES = {false, true};
+
+        private List<LeechWisps.BurstWisp> burstOf(float healed, boolean splash) {
+            return LeechWisps.burstOf(new LeechPayload(1, 2, healed, splash));
         }
 
         @Test
-        void aSliverOfHealingStillSplashes() {
-            assertEquals(1, LeechWisps.splashesFor(0.2f));
-        }
-
-        @Test
-        void aHugeHealSplashesUpToTheCap() {
-            assertEquals(LeechWisps.MOST_SPLASHES, LeechWisps.splashesFor(40f));
-        }
-    }
-
-    @Nested
-    class Trickle {
-
-        /** The wisps a trickle launched before Drain's stream thickened. */
-        private static final int FORMER_TRICKLE = 5;
-        private static final int DRAWS = 2000;
-
-        @Test
-        void aStrikeStreamsMoreWispsThanBefore() {
-            assertTrue(LeechWisps.WISPS_PER_TRICKLE > FORMER_TRICKLE);
-        }
-
-        @Test
-        void aStrikeBurstsWispsOnTheVictim() {
-            assertTrue(LeechWisps.WISPS_PER_BURST > 0);
-        }
-
-        @Test
-        void aTrickleSetsOffEvenlyAcrossTheStrike() {
-            int previous = -1;
-            for (int wisp = 0; wisp < LeechWisps.WISPS_PER_TRICKLE; wisp++) {
-                int delay = LeechWisps.streamDelay(wisp);
-                assertTrue(delay >= previous && delay - previous <= 1, "wisp " + wisp + " at " + delay);
-                assertTrue(delay < LeechWisps.TRICKLE_SPREAD, "wisp " + wisp + " at " + delay);
-                previous = delay;
+        void everyLeechBurstsOneCountAllOnItsArrivalTick() {
+            Set<Integer> counts = new HashSet<>();
+            for (boolean splash : SOURCES) {
+                for (float healed : HEALS) {
+                    List<LeechWisps.BurstWisp> burst = burstOf(healed, splash);
+                    counts.add(burst.size());
+                    for (LeechWisps.BurstWisp wisp : burst) {
+                        assertEquals(0, wisp.spawnDelay(), "splash " + splash + " healed " + healed);
+                    }
+                }
             }
-            assertEquals(LeechWisps.TRICKLE_SPREAD - 1, previous);
+            assertEquals(1, counts.size(), counts::toString);
+            assertTrue(counts.iterator().next() > 1, counts::toString);
         }
 
         @Test
-        void aTrickleLeavesCloseAroundTheChest() {
-            Vec3 chest = new Vec3(3, 70.2, -8);
-            RandomSource random = RandomSource.create(11L);
-            for (int draw = 0; draw < DRAWS; draw++) {
-                Vec3 at = LeechWisps.streamStart(chest, random);
-                assertTrue(at.distanceTo(chest) <= LeechWisps.STREAM_SPREAD, at::toString);
+        void everyWispHoversBeforeItSetsOff() {
+            for (LeechWisps.BurstWisp wisp : burstOf(3f, false)) {
+                assertTrue(wisp.hoverTicks() >= 1, wisp::toString);
+            }
+        }
+
+        @Test
+        void theWispsSetOffOverMoreThanOneTick() {
+            Set<Integer> setOffs = new HashSet<>();
+            for (LeechWisps.BurstWisp wisp : burstOf(3f, false)) {
+                setOffs.add(wisp.scatterTicks() + wisp.hoverTicks());
+            }
+            assertTrue(setOffs.size() >= 2, setOffs::toString);
+        }
+
+        @Test
+        void theLastWispLandsWithinAStrike() {
+            for (LeechWisps.BurstWisp wisp : burstOf(3f, true)) {
+                assertTrue(wisp.spawnDelay() + wisp.scatterTicks() + wisp.hoverTicks() + wisp.flightTicks()
+                        <= STRIKE_INTERVAL, wisp::toString);
             }
         }
     }

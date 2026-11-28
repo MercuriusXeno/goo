@@ -26,4 +26,20 @@ public record HomingPath(Vec3 start, Vec3 control) {
         double fromTarget = p * p;
         return start.scale(fromStart).add(control.scale(fromControl)).add(target.scale(fromTarget));
     }
+
+    /**
+     * The share of a flight flown at a tick when the mote speeds up as it
+     * closes in: the square of the ticks flown over the flight's ticks, so
+     * each tick covers more of the flight than the one before and the last
+     * lands it.
+     * drained-life-arcs-home-speeding-up
+     *
+     * @param tick  ticks flown
+     * @param ticks ticks the whole flight takes
+     * @return the share flown, zero to one
+     */
+    static double speedingUp(int tick, int ticks) {
+        double flown = Math.clamp((double) tick / ticks, 0.0, 1.0);
+        return flown * flown;
+    }
 }

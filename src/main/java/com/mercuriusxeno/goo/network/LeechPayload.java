@@ -10,16 +10,17 @@ import org.jspecify.annotations.NonNull;
 /**
  * Server-to-client payload: a leech heal, life drawn from a victim to the
  * entity it heals, sent to the players tracking the victim so every client
- * draws hex wisps flowing from one to the other. A strike on a victim in
- * Leech goo splashes a burst per point of health healed; Drain's field
- * trickles.
+ * draws hex wisps flowing from one to the other: one burst of one size,
+ * Drain's or Leech goo's, whatever it healed, that hovers and then arcs home.
  * lifetap-trades-regen-for-leech
  * drain-field-heals-with-the-lifetap-visuals
+ * drained-mobs-show-stream-burst-and-tether
+ * drained-life-arcs-home-speeding-up
  *
  * @param victimId the id of the entity the life is drawn from
  * @param healedId the id of the entity it heals
  * @param healed   the health the leech healed
- * @param splash   true for Leech goo's splashes, false for Drain's trickle
+ * @param splash   true where Leech goo drew the life, false where Drain did
  */
 public record LeechPayload(int victimId, int healedId, float healed, boolean splash) implements CustomPacketPayload {
 
