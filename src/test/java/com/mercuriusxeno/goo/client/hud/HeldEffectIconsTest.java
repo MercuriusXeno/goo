@@ -37,7 +37,8 @@ class HeldEffectIconsTest {
 
     private static final List<ResourceKey<GooTypeDefinition>> GRANTING_NONE = List.of(
             GooTypes.ASTRAL, GooTypes.FROST, GooTypes.HEX, GooTypes.INFINITY, GooTypes.METAL,
-            GooTypes.ORNATE, GooTypes.PULSE, GooTypes.QUANTUM, GooTypes.UNSTABLE, GooTypes.VOID, GooTypes.WEIRD);
+            GooTypes.ORNATE, GooTypes.OSSEOUS, GooTypes.PULSE, GooTypes.QUANTUM, GooTypes.UNSTABLE, GooTypes.VOID,
+            GooTypes.WEIRD);
 
     private static AbilityRegistry shipped;
     private Map<ResourceKey<GooTypeDefinition>, IClientMobEffectExtensions> extensions;

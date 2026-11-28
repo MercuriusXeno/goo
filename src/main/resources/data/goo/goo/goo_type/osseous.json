@@ -1,0 +1,26 @@
+{
+  "light_level": 4,
+  "saturation_fill": 0.5,
+  "wheel": "D9CBA8",
+  "bright": "F7F1E1",
+  "highlight": "C8B68C",
+  "edge": "CFE0E2",
+  "density": 1400,
+  "viscosity": 3000,
+  "elasticity": 0.25,
+  "cohesion": "runny",
+  "adhesion": "tops",
+  "temperature": 300,
+  "extinguishes": false,
+  "levity": 1.0,
+  "base_flight_time": 3,
+  "map_color": "sand",
+  "textures": {
+    "goo_tiny": "goo:item/osseous_goo_tiny",
+    "goo_small": "goo:item/osseous_goo_small",
+    "goo_base": "goo:item/osseous_goo_base",
+    "goo_large": "goo:item/osseous_goo_large",
+    "fluid_still": "goo:fluid/osseous_fluid",
+    "fluid_flowing": "goo:fluid/osseous_fluid"
+  }
+}

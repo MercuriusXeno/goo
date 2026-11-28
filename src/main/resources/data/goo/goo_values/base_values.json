@@ -761,7 +761,7 @@
     "rotten_flesh": {"jelly": "$food.jelly + 2 $saturation.jelly", "zombie": "3 $food.jelly + 6 $saturation.jelly"},
     "spider_eye": "2 $food + 32 $saturation + 2 $magic",
 
-    "bone": {"zombie": "$base / 4"},
+    "bone": {"osseous": "$base / 4"},
     "lapis_lazuli": {"crystal": "$dye.ornate", "hex": "$dye.ornate", "ornate": "$dye.ornate"},
 
     "leather": {"yarn": "6 $base"},
@@ -829,9 +829,9 @@
     "turtle_egg":{"ornate":"$base / 8"},
     "sniffer_egg": {"ornate":"$base / 8"},
     "zombie_head": {"zombie":"$base"},
-    "piglin_head": {"nether":"$base"},
-    "skeleton_skull": {"zombie":"$base"},
-    "wither_skeleton_skull": {"zombie":"$base", "hex":"$base"},
+    "piglin_head": {"osseous":"$base", "nether":"$base"},
+    "skeleton_skull": {"osseous":"$base"},
+    "wither_skeleton_skull": {"osseous":"$base", "hex":"$base"},
     "dragon_head": {"ender": "36 $base", "ornate": "$base", "astral": "36 $base"},
     "dragon_egg": {"ender": "36 $base", "ornate": "$base", "astral": "36 $base"},
 
@@ -854,7 +854,7 @@
     "nether_star": {"astral": "36 $base", "nether": "36 $base", "glow": "12 $base"},
     "prismarine_crystals": {"glow":"$base","crystal":"2 $base"},
     "prismarine_shard": {"crystal": "2 $base"},
-    "creeper_head": {"hex":"$base","nether":"$base","unstable":"$base"},
+    "creeper_head": {"osseous":"$base", "unstable":"$base"},
     "heart_of_the_sea": {"ornate": "18 $base", "astral": "18 $base"},
     "nautilus_shell": {"ornate":"$base / 8", "jelly":"$base"},
     "glow_ink_sac": {"glow": "6 $base", "ornate": "$base"},

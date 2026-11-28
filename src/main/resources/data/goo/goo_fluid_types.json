@@ -337,6 +337,30 @@
     ]
   },
   {
+    "id": "osseous",
+    "seed": 41015,
+    "genParams": {
+      "viscosity": 2.2,
+      "decayRate": 0.02,
+      "ignitionChance": 0.006,
+      "ignitionStrength": 1.2,
+      "potHeatRate": 0.01,
+      "potInfluence": 0.85,
+      "neighborhoodReach": 1
+    },
+    "frametime": 4,
+    "shadowHue": 0.1,
+    "palette": [
+      { "position": 0.0, "color": "#7A6A50" },
+      { "position": 0.2, "color": "#A8966F" },
+      { "position": 0.4, "color": "#C8B68C" },
+      { "position": 0.55, "color": "#D9CBA8" },
+      { "position": 0.7, "color": "#E9DFC6" },
+      { "position": 0.85, "color": "#CFE0E2" },
+      { "position": 1.0, "color": "#F7F1E1" }
+    ]
+  },
+  {
     "id": "pulse",
     "seed": 40972,
     "genParams": {

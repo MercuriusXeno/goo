@@ -38,7 +38,7 @@ class UndeadValuesTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"rotten_flesh", "bone"})
+    @ValueSource(strings = {"rotten_flesh", "zombie_head"})
     void undeadMatterGivesZombieAndNoNether(String item) {
         GooValue value = valueOf(item);
         assertTrue(value.exact(GooTypes.ZOMBIE).isPositive(), item + " gives no zombie: " + value);

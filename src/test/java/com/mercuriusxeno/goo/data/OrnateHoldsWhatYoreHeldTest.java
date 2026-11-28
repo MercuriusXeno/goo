@@ -13,6 +13,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
@@ -21,9 +22,11 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
  * drops where ornate already stood beside it, item by item and type by type. The values before are
  * base_values.json as it stood at 25fb0499b, with shroom and deep moved to standing types as thread
  * sculk-goo-replaces-shroom-and-deep moved them, kept as a fixture. The fixture predates Opulent's rename to Ornate,
- * so its opulent terms read as ornate, and predates zoo leaving, so its zoo terms load as nothing.
+ * so its opulent terms read as ornate, and predates zoo leaving, so its zoo terms load as nothing. It predates
+ * Osseous, so bone and the skulls Osseous revalued stand outside the comparison.
  * decision yore-leaves-and-rewind-moves-to-xeno-as-revert
  * decision opulent-is-renamed-ornate
+ * decision bone-is-osseous-alone-and-skulls-are-bone-plus-mob
  */
 class OrnateHoldsWhatYoreHeldTest {
 
@@ -34,6 +37,8 @@ class OrnateHoldsWhatYoreHeldTest {
     private static final String ORNATE = "ornate";
     private static final String YORE_TARGET = "-> yore";
     private static final String ORNATE_TARGET = "-> ornate";
+    private static final Set<String> OSSEOUS_REVALUED = Set.of(
+            "bone", "skeleton_skull", "wither_skeleton_skull", "creeper_head", "piglin_head");
     /**
      * Dead coral's nether read coral's zoo, and zoo left the mod; the shipped file writes each amount out, so the
      * fixture's reads do the same. Its other zoo terms load as nothing, as a type the game holds no longer does.
@@ -56,6 +61,7 @@ class OrnateHoldsWhatYoreHeldTest {
 
         assertEquals(expected.keySet(), shipped.keySet());
         List<String> differing = expected.keySet().stream()
+                .filter(item -> !OSSEOUS_REVALUED.contains(item.getPath()))
                 .filter(item -> !expected.get(item).exactAll().equals(shipped.get(item).exactAll()))
                 .map(item -> item + " expected " + expected.get(item) + " but ships " + shipped.get(item))
                 .toList();
