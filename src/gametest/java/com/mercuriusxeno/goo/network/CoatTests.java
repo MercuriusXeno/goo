@@ -2,7 +2,12 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.LoadedAbilityCost;
+import com.mercuriusxeno.goo.ability.durable.CoatRepair;
+import com.mercuriusxeno.goo.ability.program.CoatStep;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
+import com.mercuriusxeno.goo.data.GooFraction;
+import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
@@ -14,7 +19,10 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityTypes;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.item.PrimedTnt;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -73,6 +81,19 @@ public final class CoatTests {
     private static final String UNDERSIDE_FELL = "The Coat drip under the hung block should still hold there once"
             + " it settles, stands %s";
 
+    private static final String REPAIRS_A_DAMAGED_PICKAXE = "coat_repairs_a_damaged_pickaxe_by_a_layer";
+    private static final String SPARES_AN_UNDAMAGED_PICKAXE = "coat_spends_nothing_on_an_undamaged_pickaxe";
+    /** The Coat cell the pickaxe lies in, walled in stone on a stone floor so it pours nowhere. */
+    private static final BlockPos REPAIR_CELL = new BlockPos(2, 1, 2);
+    /** The repair cell's layers, more than the one a repair spends. */
+    private static final int REPAIR_CELL_LAYERS = 8;
+    /** The damage the dropped pickaxe carries. */
+    private static final int PICKAXE_DAMAGE = 200;
+    /** Ticks past one repair period, short of a second. */
+    private static final int PAST_THE_PERIOD = 3;
+    private static final String DAMAGE_WRONG = "The pickaxe in Coat should carry %d damage after one repair, carries %d";
+    private static final String LAYERS_WRONG = "The Coat cell should hold %d layers, holds %d";
+
     private CoatTests() {
     }
 
@@ -85,6 +106,69 @@ public final class CoatTests {
         GooTestFunctions.registerTest(registrar, RESISTS_AS_OBSIDIAN, CoatTests::coatCellResistsAsObsidianDoes);
         GooTestFunctions.registerTest(registrar, KEEPS_A_BLOCK_THROUGH_TNT, CoatTests::oneLayerOfCoatKeepsABlockThroughTnt);
         GooTestFunctions.registerTest(registrar, HOLDS_ON_A_SIDE_AND_UNDERSIDE, CoatTests::coatHoldsOnASideAndAnUnderside);
+        GooTestFunctions.registerTest(registrar, REPAIRS_A_DAMAGED_PICKAXE, CoatTests::coatRepairsADamagedPickaxeByALayer);
+        GooTestFunctions.registerTest(registrar, SPARES_AN_UNDAMAGED_PICKAXE,
+                CoatTests::coatSpendsNothingOnAnUndamagedPickaxe);
+    }
+
+    /**
+     * A damaged iron pickaxe lying in a Coat cell, once a repair period has run, carries the damage less what
+     * CoatRepair answers for a layer of the cell's goo on the pickaxe's worth, and the cell holds a layer less.
+     * items-dropped-in-durable-goo-are-repaired-by-their-worth
+     *
+     * @param helper the gametest helper
+     */
+    public static void coatRepairsADamagedPickaxeByALayer(GameTestHelper helper) {
+        ItemStack pickaxe = new ItemStack(Items.IRON_PICKAXE);
+        pickaxe.setDamageValue(PICKAXE_DAMAGE);
+        GooFraction layer = VolumeCellBlock.layerPrice(LoadedAbilityCost.of(helper.getLevel(), COAT).orElseThrow());
+        GooFraction worth = GooValues.of(helper.getLevel()).lookup(pickaxe).totalExact();
+        int restored = CoatRepair.pointsRestored(layer, worth, pickaxe.getMaxDamage(), PICKAXE_DAMAGE);
+        dropIntoACoatCell(helper, pickaxe, (lying, layers) -> {
+            helper.assertTrue(lying.getDamageValue() == PICKAXE_DAMAGE - restored,
+                    String.format(DAMAGE_WRONG, PICKAXE_DAMAGE - restored, lying.getDamageValue()));
+            helper.assertTrue(layers == REPAIR_CELL_LAYERS - 1,
+                    String.format(LAYERS_WRONG, REPAIR_CELL_LAYERS - 1, layers));
+        });
+    }
+
+    /**
+     * An undamaged iron pickaxe lying in a Coat cell for a repair period leaves the cell's layers as they stood.
+     * items-dropped-in-durable-goo-are-repaired-by-their-worth
+     *
+     * @param helper the gametest helper
+     */
+    public static void coatSpendsNothingOnAnUndamagedPickaxe(GameTestHelper helper) {
+        dropIntoACoatCell(helper, new ItemStack(Items.IRON_PICKAXE), (lying, layers) ->
+                helper.assertTrue(layers == REPAIR_CELL_LAYERS, String.format(LAYERS_WRONG, REPAIR_CELL_LAYERS, layers)));
+    }
+
+    // Walls a Coat cell in on stone, drops the stack into it and reads the stack and the cell's layers once one
+    // repair period, as durable_coat.json names it, has run.
+    private static void dropIntoACoatCell(GameTestHelper helper, ItemStack stack, Repaired check) {
+        Block coat = coatBlock(helper);
+        AbilityDefinition ability = coatAbility(helper);
+        int period = CoatStep.in(ability.behaviors()).orElseThrow().repairTicks();
+        helper.setBlock(REPAIR_CELL.below(), Blocks.STONE);
+        for (Direction side : Direction.Plane.HORIZONTAL) {
+            helper.setBlock(REPAIR_CELL.relative(side), Blocks.STONE);
+        }
+        helper.setBlock(REPAIR_CELL.above(), Blocks.AIR);
+        helper.setBlock(REPAIR_CELL, coat.defaultBlockState().setValue(VolumeCellBlock.LAYERS, REPAIR_CELL_LAYERS));
+        ItemEntity lying = helper.spawnItem(stack.getItem(), Vec3.atBottomCenterOf(REPAIR_CELL).add(0, 0.6, 0));
+        lying.setItem(stack);
+        lying.setDeltaMovement(Vec3.ZERO);
+        helper.runAfterDelay(period + PAST_THE_PERIOD, () -> {
+            BlockState cell = helper.getBlockState(REPAIR_CELL);
+            check.read(lying.getItem(), cell.is(coat) ? cell.getValue(VolumeCellBlock.LAYERS) : 0);
+            helper.succeed();
+        });
+    }
+
+    /** What a repair test reads: the stack lying in the cell and the cell's layers. */
+    @FunctionalInterface
+    private interface Repaired {
+        void read(ItemStack lying, int layers);
     }
 
     /**

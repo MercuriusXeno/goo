@@ -1,9 +1,16 @@
 package com.mercuriusxeno.goo.block.ability;
 
+import com.mercuriusxeno.goo.ability.durable.CoatRepair;
+import com.mercuriusxeno.goo.ability.program.CoatStep;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.InsideBlockEffectApplier;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.NonNull;
@@ -46,6 +53,36 @@ public class CoatCellBlock extends VolumeCellBlock {
     public boolean canEntityDestroy(@NonNull BlockState state, @NonNull BlockGetter level, @NonNull BlockPos pos,
                                     @NonNull Entity entity) {
         return false;
+    }
+
+    /**
+     * Repairs a damaged item lying in the cell once each period its laying
+     * step names: the cell spends a layer and the item regains what
+     * CoatRepair answers for that layer's worth on the item's.
+     * items-dropped-in-durable-goo-are-repaired-by-their-worth
+     */
+    @Override
+    protected void entityInside(@NonNull BlockState state, @NonNull Level level, @NonNull BlockPos pos,
+                                @NonNull Entity entity, @NonNull InsideBlockEffectApplier effects,
+                                boolean pastEdges) {
+        super.entityInside(state, level, pos, entity, effects, pastEdges);
+        if (level instanceof ServerLevel server && entity instanceof ItemEntity item && item.blockPosition().equals(pos)
+                && item.tickCount > 0) {
+            CoatStep.in(layingProgram(server))
+                    .filter(coat -> item.tickCount % coat.repairTicks() == 0)
+                    .ifPresent(coat -> repair(server, pos, state, item));
+        }
+    }
+
+    private void repair(ServerLevel level, BlockPos pos, BlockState state, ItemEntity item) {
+        ItemStack stack = item.getItem();
+        int restored = CoatRepair.layerRestores(level, binding().layingAbility(), stack);
+        if (restored > 0) {
+            ItemStack repaired = stack.copy();
+            repaired.setDamageValue(stack.getDamageValue() - restored);
+            item.setItem(repaired);
+            spendLayers(level, pos, state, 1);
+        }
     }
 
     /**

@@ -1349,7 +1349,7 @@ public class VolumeCellBlock extends Block {
      * @param state the cell's state
      * @param spent the layers the melt or cook spent
      */
-    private static void spendLayers(ServerLevel level, BlockPos pos, BlockState state, int spent) {
+    static void spendLayers(ServerLevel level, BlockPos pos, BlockState state, int spent) {
         int left = state.getValue(LAYERS) - spent;
         level.setBlock(pos, left > 0 ? state.setValue(LAYERS, left) : Blocks.AIR.defaultBlockState(), UPDATE_ALL);
     }

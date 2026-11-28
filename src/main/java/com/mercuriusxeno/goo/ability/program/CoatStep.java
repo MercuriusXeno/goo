@@ -2,7 +2,10 @@ package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.throwing.CoatRay;
+import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
@@ -12,23 +15,43 @@ import java.util.stream.Stream;
  * drips strikes, one layer for each drip, through the volume cell's one
  * landing. Runny and hanging, it spreads thin over tops, sides and
  * undersides and wraps what it is sprayed on; its cell resists blasts and
- * picks as obsidian does and keeps the block it stands against.
+ * picks as obsidian does and keeps the block it stands against. A damaged
+ * item lying in it is repaired each period the step names, the cell
+ * spending a layer: {@code coat repair_ticks=20}.
  * durable-goo-is-a-protective-coating-that-blocks-damage
+ * items-dropped-in-durable-goo-are-repaired-by-their-worth
  * each-goo-type-ships-a-world-goo-on-the-volume-cell
+ *
+ * @param repairTicks the ticks between the repairs an item lying in the cell takes
  */
-public record CoatStep() implements TakesNoEntity, DripLanding {
+public record CoatStep(int repairTicks) implements TakesNoEntity, DripLanding {
 
     private static final String NAME = "coat";
+    private static final String FIELD_REPAIR_TICKS = "repair_ticks";
+    /** The longest period between repairs, ten minutes. */
+    private static final int MOST_REPAIR_TICKS = 12_000;
 
     /**
-     * Codec for the step, which carries no params.
+     * Codec for the step's params.
      */
-    public static final MapCodec<CoatStep> CODEC = MapCodec.unit(CoatStep::new);
+    public static final MapCodec<CoatStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
+            Codec.intRange(1, MOST_REPAIR_TICKS).fieldOf(FIELD_REPAIR_TICKS).forGetter(CoatStep::repairTicks)
+    ).apply(inst, CoatStep::new));
 
     /**
      * The registered type.
      */
     public static final StepType<CoatStep> TYPE = new StepType<>(NAME, CODEC);
+
+    /**
+     * The coat step a program carries, the first where it carries several.
+     *
+     * @param program the ability's steps
+     * @return the coat step, empty where the program lays no Coat
+     */
+    public static Optional<CoatStep> in(List<Step> program) {
+        return program.stream().filter(CoatStep.class::isInstance).map(CoatStep.class::cast).findFirst();
+    }
 
     @Override
     public StepType<CoatStep> type() {
