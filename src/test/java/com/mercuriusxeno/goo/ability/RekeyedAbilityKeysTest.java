@@ -51,7 +51,6 @@ class RekeyedAbilityKeysTest {
                 Arguments.of("glow_wisps", "Wisps"),
                 Arguments.of("glow_laser", "Laser"),
                 Arguments.of("rock_level", "Level"),
-                Arguments.of("rock_gouge", "Gouge"),
                 Arguments.of("metal_dart", "Dart"),
                 Arguments.of("metal_spikes", "Spikes"),
                 Arguments.of("pulse_tick", "Tick"),

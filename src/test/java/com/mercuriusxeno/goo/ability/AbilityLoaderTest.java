@@ -558,7 +558,7 @@ class AbilityLoaderTest {
     class CostFormula {
 
         private static final List<String> DYNAMIC_ABILITIES = List.of("ender_blink",
-                "unstable_blast", "rock_build", "rock_gouge");
+                "unstable_blast", "rock_build");
 
         @Test
         void eachDynamicAbilityCarriesItsFormula() {
@@ -580,11 +580,10 @@ class AbilityLoaderTest {
 
         @Test
         void zeroCostAbilityNamingCostMechanicsAndNoFormulaFailsNamingTheField() {
-            String json = AbilityJson.read("rock_gouge")
-                    .replaceAll("\\s*\"cost_formula\"\\s*:\\s*\"[^\"]*\",?", "");
+            String json = ZeroCostFixture.JSON.replaceAll("\\s*\"cost_formula\"\\s*:\\s*\"[^\"]*\",?", "");
 
             IllegalStateException refusal = assertThrows(IllegalStateException.class,
-                    () -> AbilityJson.decodeText("rock_gouge", json));
+                    () -> AbilityJson.decodeText(ZeroCostFixture.NAME, json));
 
             assertTrue(refusal.getMessage().contains("cost_formula"), refusal.getMessage());
         }
@@ -598,39 +597,38 @@ class AbilityLoaderTest {
     @Nested
     class CostMechanics {
 
-        private static final String GOUGE = "rock_gouge";
-        private static final String GOUGE_KEY = "goo.ability.rock.gouge.cost_mechanics";
-        private static final String NAMED_KEY = "\"cost_mechanics\": \"" + GOUGE_KEY + "\",";
+        private static final String NAMED_KEY = "\"cost_mechanics\": \"" + ZeroCostFixture.COST_MECHANICS + "\",";
 
-        private static String gougeNamingNoCostMechanics() {
-            return AbilityJson.read(GOUGE).replaceAll("\\s*\"cost_mechanics\"\\s*:\\s*\"[^\"]*\",?", "");
+        private static String zeroCostNamingNoCostMechanics() {
+            return ZeroCostFixture.JSON.replaceAll("\\s*\"cost_mechanics\"\\s*:\\s*\"[^\"]*\",?", "");
         }
 
         @Test
         void zeroCostAbilityNamingNoCostMechanicsFailsNamingTheField() {
-            String json = gougeNamingNoCostMechanics();
+            String json = zeroCostNamingNoCostMechanics();
 
             IllegalStateException refusal = assertThrows(IllegalStateException.class,
-                    () -> AbilityJson.decodeText(GOUGE, json));
+                    () -> AbilityJson.decodeText(ZeroCostFixture.NAME, json));
 
             assertTrue(refusal.getMessage().contains("cost_mechanics"), refusal.getMessage());
         }
 
         @Test
         void absentCostNamingNoCostMechanicsFailsNamingTheField() {
-            String json = gougeNamingNoCostMechanics().replaceAll("\"cost\"\\s*:\\s*0,", "");
+            String json = zeroCostNamingNoCostMechanics().replaceAll("\"cost\"\\s*:\\s*0,", "");
 
             IllegalStateException refusal = assertThrows(IllegalStateException.class,
-                    () -> AbilityJson.decodeText(GOUGE, json));
+                    () -> AbilityJson.decodeText(ZeroCostFixture.NAME, json));
 
             assertTrue(refusal.getMessage().contains("cost_mechanics"), refusal.getMessage());
         }
 
         @Test
         void zeroCostAbilityNamingCostMechanicsLoadsWithThatKey() {
-            String json = gougeNamingNoCostMechanics().replaceFirst("\\{", "{ " + NAMED_KEY);
+            String json = zeroCostNamingNoCostMechanics().replaceFirst("\\{", "{ " + NAMED_KEY);
 
-            assertEquals(Optional.of(GOUGE_KEY), AbilityJson.decodeText(GOUGE, json).costMechanics());
+            assertEquals(Optional.of(ZeroCostFixture.COST_MECHANICS),
+                    AbilityJson.decodeText(ZeroCostFixture.NAME, json).costMechanics());
         }
 
         @Test
