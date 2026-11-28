@@ -392,11 +392,11 @@ public class GooBlocks {
     /**
      * Signal: the volume cell bound to Pulse's goo, the red goo Signal sprays
      * onto a block's top, one to fifteen layers, ordinary ground underfoot
-     * and sounding as goo does, sending a redstone signal equal to its layers
-     * as a redstone block sends its own, carried by no block it lies against,
+     * and sounding as goo does, sending its network's highest layer count as
+     * a redstone signal, carried by no block it lies against,
      * dropping the pulse goo its layers cost through VolumeCellBlock.getDrops,
      * no loot table (decisions extend-is-dropped-for-signal-an-in-world-pulse-goo,
-     * signal-goo-sends-a-redstone-signal-equal-to-its-layers,
+     * pulse-goo-network-signals-at-its-highest-layer,
      * each-goo-type-ships-a-world-goo-on-the-volume-cell).
      */
     public static final DeferredBlock<SignalCellBlock> PULSE_SIGNAL = BLOCKS.registerBlock(

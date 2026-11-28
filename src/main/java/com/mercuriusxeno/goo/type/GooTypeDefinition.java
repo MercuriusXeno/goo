@@ -38,7 +38,7 @@ import java.util.Locale;
  * @param elasticity     the share of its speed into a block face a fleck of the type keeps rebounding off it,
  *                       0 landing dead to 1 keeping all of it
  * @param cohesion       the rung naming the step in layers the type's world goo holds over a neighbour
- *                       before pouring, runny levelling flat to firm never pouring
+ *                       before pouring, runny levelling flat to thick holding four layers
  * @param adhesion       the rung of the adhesion ladder the type's world goo clings at, slips clinging to
  *                       nothing to hangs holding a block's underside where it strikes
  */
