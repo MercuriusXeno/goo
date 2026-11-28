@@ -200,7 +200,9 @@ public final class MortarLift {
     /**
      * Lifts the blocks a grab of a Mortar cell selects out of the world as
      * one hunk, its origin the block behind the grabbed cell's patch nearest
-     * the face; the Mortar itself stays where it lay.
+     * the face, each lifted column's Mortar paying one layer for each block
+     * it lifted; what Mortar is left stays where it lay.
+     * decision mortar-lift-spends-one-layer-per-block-lifted
      *
      * @param level   the server level
      * @param grabbed the Mortar cell grabbed and the side it coats
@@ -216,10 +218,27 @@ public final class MortarLift {
         BlockPos origin = cells.getFirst();
         List<BlockHunk.HunkBlock> blocks = cells.stream()
                 .map(cell -> new BlockHunk.HunkBlock(cell.subtract(origin), level.getBlockState(cell))).toList();
+        columns.forEach((cell, column) -> spendLayers(level, cell, column.size()));
         cells.forEach(cell -> level.setBlock(cell, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL));
         BlockHunk hunk = BlockHunk.lift(level, origin, blocks);
         SoundPlays.play(level, hunk.getBoundingBox().getCenter(), GougeStep.TEAR);
         return hunk;
+    }
+
+    /**
+     * Lowers a Mortar cell by the blocks its column lifted, a layer for each,
+     * leaving air where nothing is left.
+     * decision mortar-lift-spends-one-layer-per-block-lifted
+     *
+     * @param level  the server level
+     * @param cell   the Mortar cell
+     * @param lifted the blocks its column lifted
+     */
+    private static void spendLayers(ServerLevel level, BlockPos cell, int lifted) {
+        BlockState mortar = level.getBlockState(cell);
+        int left = MortarCellBlock.layersAt(level, cell) - lifted;
+        level.setBlock(cell, left > 0 ? mortar.setValue(VolumeCellBlock.LAYERS, left) : Blocks.AIR.defaultBlockState(),
+                Block.UPDATE_ALL);
     }
 
     /**

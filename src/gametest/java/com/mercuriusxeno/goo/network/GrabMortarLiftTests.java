@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.network;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.kinetic.GrabEvents;
+import com.mercuriusxeno.goo.block.ability.MortarCellBlock;
 import com.mercuriusxeno.goo.block.ability.SideCoat;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.entity.BlockHunk;
@@ -22,6 +23,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
@@ -84,6 +86,28 @@ public final class GrabMortarLiftTests {
     /** Channel ticks enough for the held piece to slide out of the wall and rise to the hold. */
     private static final int WALL_HOLD_TICKS = 40;
 
+    private static final String SPENDS_A_LAYER_PER_BLOCK = "grab_spends_a_mortar_layer_per_block_lifted";
+    /** Raised ground two blocks of stone deep, its top at y 4, over a gap of air at y 1 on the bay's own floor. */
+    private static final int RAISED_LOW_Y = 2;
+    private static final int RAISED_HIGH_Y = 3;
+    private static final int FLOOR_Y = 0;
+    private static final BlockPos RAISED_STAND_POS = STAND_POS.above();
+    /** Thirteen layers of Mortar on the raised ground, more than the two blocks of it the lift can take. */
+    private static final BlockPos DEEP_MORTAR_CELL = MORTAR_CELL.above();
+    private static final int DEEP_LAYERS = 13;
+    private static final List<BlockPos> RAISED_COLUMN = List.of(DEEP_MORTAR_CELL.below(), DEEP_MORTAR_CELL.below(2));
+    private static final int DEEP_LAYERS_LEFT = DEEP_LAYERS - RAISED_COLUMN.size();
+    /** Channel ticks enough for the hunk to rise and the Mortar it leaves to fall and land. */
+    private static final int HOLD_TILL_LANDED_TICKS = 60;
+
+    private static final String LEAVES_A_STUCK_COLUMN_UNSPENT = "grab_leaves_a_stuck_mortar_column_unspent";
+    /** Three joined Mortar cells in a row on the ground, a stone block standing over the middle one. */
+    private static final BlockPos STUCK_MORTAR_CELL = MORTAR_CELL;
+    private static final List<BlockPos> OUTER_MORTAR_CELLS = List.of(MORTAR_CELL.west(), MORTAR_CELL.east());
+    private static final BlockPos OVER_THE_STUCK_CELL = STUCK_MORTAR_CELL.above();
+    /** What the bay's Mortar totals once the outer cells pay a layer for each block lifted: the middle cell's. */
+    private static final int STUCK_LAYERS_LEFT = MORTAR_LAYERS;
+
     private GrabMortarLiftTests() {
     }
 
@@ -95,6 +119,108 @@ public final class GrabMortarLiftTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, LIFTS_THE_PAINTED_GROUND, GrabMortarLiftTests::liftsTheGroundMortarPaints);
         GooTestFunctions.registerTest(registrar, LIFTS_THE_PAINTED_WALL, GrabMortarLiftTests::liftsTheWallMortarPaints);
+        GooTestFunctions.registerTest(registrar, SPENDS_A_LAYER_PER_BLOCK,
+                GrabMortarLiftTests::spendsAMortarLayerPerBlockLifted);
+        GooTestFunctions.registerTest(registrar, LEAVES_A_STUCK_COLUMN_UNSPENT,
+                GrabMortarLiftTests::leavesAStuckMortarColumnUnspent);
+    }
+
+    /**
+     * A mock player Grabbing at 13 layers of Mortar over two blocks of stone with air below holds the two blocks,
+     * and the Mortar left in the bay totals 11, one layer spent for each block lifted.
+     * decision mortar-lift-spends-one-layer-per-block-lifted
+     *
+     * @param helper the gametest helper
+     */
+    public static void spendsAMortarLayerPerBlockLifted(GameTestHelper helper) {
+        layStone(helper, FLOOR_Y, FLOOR_Y);
+        layStone(helper, RAISED_LOW_Y, RAISED_HIGH_Y);
+        helper.setBlock(DEEP_MORTAR_CELL, GooBlocks.ROCK_MORTAR.get().defaultBlockState()
+                .setValue(VolumeCellBlock.LAYERS, DEEP_LAYERS));
+        ServerPlayer player = grabber(helper, RAISED_STAND_POS, FACING_EAST);
+        player.lookAt(EntityAnchorArgument.Anchor.EYES, Vec3.atBottomCenterOf(helper.absolutePos(DEEP_MORTAR_CELL)));
+        channel(helper, player, HOLD_TILL_LANDED_TICKS, LEVEL);
+        helper.runAfterDelay(HOLD_TILL_LANDED_TICKS + 1, () -> {
+            BlockHunk hunk = theOneHunk(helper, player);
+            helper.assertTrue(hunk.blocks().size() == RAISED_COLUMN.size()
+                            && hunk.blocks().stream().allMatch(block -> block.state().is(Blocks.STONE)),
+                    "The hunk should hold the two stone blocks under the Mortar, held " + hunk.blocks());
+            int left = bayMortarLayers(helper);
+            helper.assertTrue(left == DEEP_LAYERS_LEFT,
+                    "The bay's Mortar should total " + DEEP_LAYERS_LEFT + " layers after the lift, totals " + left);
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A mock player Grabbing at three joined two-layer Mortar cells, a stone block over the middle one, leaves the
+     * middle cell's 2 layers on its unmoved stone and lifts the outer columns, which pay their 2 layers each.
+     * decision grab-lift-leaves-out-a-column-that-would-get-stuck
+     * decision mortar-lift-spends-one-layer-per-block-lifted
+     *
+     * @param helper the gametest helper
+     */
+    public static void leavesAStuckMortarColumnUnspent(GameTestHelper helper) {
+        layGround(helper);
+        helper.setBlock(OVER_THE_STUCK_CELL, Blocks.STONE);
+        BlockState twoLayers = GooBlocks.ROCK_MORTAR.get().defaultBlockState()
+                .setValue(VolumeCellBlock.LAYERS, MORTAR_LAYERS);
+        helper.setBlock(STUCK_MORTAR_CELL, twoLayers);
+        OUTER_MORTAR_CELLS.forEach(cell -> helper.setBlock(cell, twoLayers));
+        ServerPlayer player = grabber(helper, STAND_POS, FACING_EAST);
+        player.lookAt(EntityAnchorArgument.Anchor.EYES,
+                Vec3.atBottomCenterOf(helper.absolutePos(OUTER_MORTAR_CELLS.getFirst())));
+        channel(helper, player, HOLD_TILL_LANDED_TICKS, LEVEL);
+        helper.runAfterDelay(HOLD_TILL_LANDED_TICKS + 1, () -> {
+            helper.assertTrue(MortarCellBlock.layersAt(helper.getLevel(), helper.absolutePos(STUCK_MORTAR_CELL))
+                    == MORTAR_LAYERS, "The stuck middle cell should keep its " + MORTAR_LAYERS + " layers");
+            helper.assertBlockPresent(Blocks.STONE, STUCK_MORTAR_CELL.below());
+            helper.assertBlockPresent(Blocks.STONE, STUCK_MORTAR_CELL.below(2));
+            for (BlockPos outer : OUTER_MORTAR_CELLS) {
+                helper.assertBlockPresent(Blocks.AIR, outer.below());
+                helper.assertBlockPresent(Blocks.AIR, outer.below(2));
+            }
+            BlockHunk hunk = theOneHunk(helper, player);
+            helper.assertTrue(hunk.blocks().size() == OUTER_MORTAR_CELLS.size() * MORTAR_LAYERS,
+                    "The hunk should hold the outer columns' four stone blocks, held " + hunk.blocks());
+            int left = bayMortarLayers(helper);
+            helper.assertTrue(left == STUCK_LAYERS_LEFT,
+                    "The bay's Mortar should total " + STUCK_LAYERS_LEFT + " layers after the lift, totals " + left);
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            helper.succeed();
+        });
+    }
+
+    /** Channels Grab for a run of stream ticks, the look turned to a pitch on the second, once the grab takes. */
+    private static void channel(GameTestHelper helper, ServerPlayer player, int ticks, float pitchOnceTaken) {
+        for (int held = 1; held <= ticks; held++) {
+            int tick = held;
+            helper.runAfterDelay(tick, () -> {
+                if (tick == 2) {
+                    player.setXRot(pitchOnceTaken);
+                }
+                GooStreamHandler.streamTick(player, aimTick(player));
+            });
+        }
+    }
+
+    private static int bayMortarLayers(GameTestHelper helper) {
+        int layers = 0;
+        for (BlockPos cell : BlockPos.betweenClosed(BlockPos.ZERO, BAY_FAR_CORNER)) {
+            layers += MortarCellBlock.layersAt(helper.getLevel(), helper.absolutePos(cell));
+        }
+        return layers;
+    }
+
+    private static void layStone(GameTestHelper helper, int lowY, int highY) {
+        for (int x = GROUND_LOW_X; x <= GROUND_HIGH_X; x++) {
+            for (int y = lowY; y <= highY; y++) {
+                for (int z = GROUND_LOW_Z; z <= GROUND_HIGH_Z; z++) {
+                    helper.setBlock(new BlockPos(x, y, z), Blocks.STONE);
+                }
+            }
+        }
     }
 
     /**
@@ -195,13 +321,7 @@ public final class GrabMortarLiftTests {
     }
 
     private static void layGround(GameTestHelper helper) {
-        for (int x = GROUND_LOW_X; x <= GROUND_HIGH_X; x++) {
-            for (int y = GROUND_LOW_Y; y <= GROUND_HIGH_Y; y++) {
-                for (int z = GROUND_LOW_Z; z <= GROUND_HIGH_Z; z++) {
-                    helper.setBlock(new BlockPos(x, y, z), Blocks.STONE);
-                }
-            }
-        }
+        layStone(helper, GROUND_LOW_Y, GROUND_HIGH_Y);
     }
 
     private static AABB bay(GameTestHelper helper) {
