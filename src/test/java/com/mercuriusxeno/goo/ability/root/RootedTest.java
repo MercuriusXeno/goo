@@ -72,7 +72,7 @@ class RootedTest {
 
         @Test
         void heldVinesSlowByTheirCountAndReleasedVinesNone() {
-            Rooted rooted = latched(6);
+            Rooted rooted = latched(4);
 
             assertEquals(VineHold.speedOf(3), rooted.speedAt(NOW), EPSILON);
             assertEquals(1.0, rooted.releasedAt(NOW).speedAt(NOW), EPSILON);
