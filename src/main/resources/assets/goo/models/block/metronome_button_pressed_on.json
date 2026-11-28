@@ -1,0 +1,68 @@
+{
+  "ambientocclusion": false,
+  "textures": {
+    "particle": "goo:block/metronome_button_on",
+    "button": "goo:block/metronome_button_on"
+  },
+  "elements": [
+    {
+      "from": [
+        6,
+        2,
+        2
+      ],
+      "to": [
+        10,
+        3,
+        6
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            6,
+            15,
+            10,
+            16
+          ],
+          "texture": "#button"
+        },
+        "south": {
+          "uv": [
+            6,
+            15,
+            10,
+            16
+          ],
+          "texture": "#button"
+        },
+        "east": {
+          "uv": [
+            6,
+            15,
+            10,
+            16
+          ],
+          "texture": "#button"
+        },
+        "west": {
+          "uv": [
+            6,
+            15,
+            10,
+            16
+          ],
+          "texture": "#button"
+        },
+        "up": {
+          "uv": [
+            6,
+            2,
+            10,
+            6
+          ],
+          "texture": "#button"
+        }
+      }
+    }
+  ]
+}

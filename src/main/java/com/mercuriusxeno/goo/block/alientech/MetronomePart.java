@@ -15,6 +15,12 @@ public enum MetronomePart {
 
     /** The plate's center along either horizontal axis, in block units. */
     private static final double CENTER = 0.5;
+    /**
+     * Where the button's half ends toward the back, in blocks from the center: a pixel short of it, between the
+     * button's back face two pixels in front of the center and the switch torch's front face on it, so a click on the
+     * torch's front face presses no button (operator ruling 2026-11-28).
+     */
+    private static final double BUTTON_HALF_ENDS = -1.0 / 16;
 
     /**
      * Answers the part a click on the plate lands on.
@@ -26,6 +32,6 @@ public enum MetronomePart {
      */
     public static MetronomePart at(Direction back, double localX, double localZ) {
         double towardBack = (localX - CENTER) * back.getStepX() + (localZ - CENTER) * back.getStepZ();
-        return towardBack > 0 ? GAP_SWITCH : BUTTON;
+        return towardBack > BUTTON_HALF_ENDS ? GAP_SWITCH : BUTTON;
     }
 }

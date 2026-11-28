@@ -1,8 +1,8 @@
 {
   "ambientocclusion": false,
   "textures": {
-    "particle": "goo:block/metronome_button_pressed",
-    "button": "goo:block/metronome_button_pressed"
+    "particle": "goo:block/metronome_button",
+    "button": "goo:block/metronome_button"
   },
   "elements": [
     {
