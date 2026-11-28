@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.ability.kinetic.GrabEvents;
 import com.mercuriusxeno.goo.ability.quantum.Gate;
 import com.mercuriusxeno.goo.ability.quantum.GatePassage;
 import com.mercuriusxeno.goo.ability.quantum.GateRay;
+import com.mercuriusxeno.goo.entity.BlockHunk;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
@@ -12,6 +13,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
@@ -20,6 +22,7 @@ import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
@@ -49,6 +52,11 @@ import java.util.stream.Stream;
  * decision grab-holds-the-mob-against-the-surface-you-look-at
  * decision grab-holds-slightly-closer-in-open-space
  * decision grab-cone-picks-more-aggressively-than-other-goo-types
+ *
+ * A press taking no entity, aimed at ground painted with Mortar, lifts that
+ * ground out as one hunk (MortarLift) and holds it as it holds a body.
+ * decision grab-lifts-what-contiguous-rock-goo-paints-as-one-unit
+ * decision grab-lift-of-rock-goo-is-always-vertical
  *
  * @param range        how far the look reaches for an entity to lift, in blocks, which Remote doubles while it holds
  * @param holdDistance how far from the eye the held entity hangs where the look meets no block
@@ -118,14 +126,45 @@ public record GrabStep(double range, double holdDistance, double throwSpeed, dou
         }
         Entity held = GrabEvents.heldBy(player);
         if (held == null) {
-            held = takenThisTick(player, sentTarget(player, context.hostAs(ChannelHost.class)));
+            held = takenOrLifted(player, context.hostAs(ChannelHost.class));
         }
-        if (held != null) {
+        holdOrPull(player, held);
+        return true;
+    }
+
+    /**
+     * What a press holding nothing takes this tick: the entity the tick sent,
+     * or, where it sent none and the press locks no item, the ground under
+     * the Mortar the look strikes.
+     *
+     * @param player  the channeling player
+     * @param channel the channel's host, carrying the tick's aim
+     * @return the body or hunk to hold, or null where the press holds none
+     */
+    private @Nullable Entity takenOrLifted(ServerPlayer player, ChannelHost channel) {
+        Entity sent = sentTarget(player, channel);
+        Entity taken = takenThisTick(player, sent);
+        if (taken != null || sent != null || GrabEvents.locksItems(player)) {
+            return taken;
+        }
+        return liftPaintedGround(player);
+    }
+
+    /**
+     * Holds what the press holds this tick, a hunk by its own blocks, or
+     * pulls the items it locks where it holds nothing.
+     *
+     * @param player the channeling player
+     * @param held   what the press holds, or null
+     */
+    private void holdOrPull(ServerPlayer player, @Nullable Entity held) {
+        if (held instanceof BlockHunk hunk) {
+            holdHunk(player, hunk);
+        } else if (held != null) {
             holdBody(player, held);
         } else {
             GrabEvents.lockedItemsOf(player).forEach(item -> pullLocked(player, item));
         }
-        return true;
     }
 
     /**
@@ -358,6 +397,19 @@ public record GrabStep(double range, double holdDistance, double throwSpeed, dou
      * @return the feet position
      */
     private Vec3 holdPoint(ServerPlayer player, Entity held) {
+        return heldMiddle(player, held.getBbWidth(), held.getBbHeight()).subtract(0, held.getBbHeight() * HALF, 0);
+    }
+
+    /**
+     * Where a held body's middle hangs for the holder's look, rested against
+     * the surface the look meets and clear of each linked gate's face.
+     *
+     * @param player the holding player
+     * @param width  the body's width
+     * @param height the body's height
+     * @return the middle
+     */
+    private Vec3 heldMiddle(ServerPlayer player, double width, double height) {
         MinecraftServer server = player.level().getServer();
         List<GatePassage.Pair> pairs = GatePassage.pairsOf(server);
         LookClip clip = (dimension, from, to) -> {
@@ -367,8 +419,45 @@ public record GrabStep(double range, double holdDistance, double throwSpeed, dou
                             CollisionContext.empty()));
         };
         Vec3 middle = restingMiddle(pairs, player.level().dimension(), player.getEyePosition(),
-                player.getLookAngle(), clip, held.getBbWidth(), held.getBbHeight());
-        return clearOfTheFaces(pairs, middle, held.getBbWidth()).subtract(0, held.getBbHeight() * HALF, 0);
+                player.getLookAngle(), clip, width, height);
+        return clearOfTheFaces(pairs, middle, width);
+    }
+
+    /**
+     * Lifts the ground under the Mortar the look strikes within reach, out of
+     * the world as one hunk: a hidden interaction, which nothing tells of.
+     * decision grab-lifts-what-contiguous-rock-goo-paints-as-one-unit
+     * decision grab-lift-of-rock-goo-is-always-vertical
+     *
+     * @param player the channeling player
+     * @return the lifted hunk, or null where the look strikes no Mortar lying on ground the lift takes
+     */
+    private @Nullable BlockHunk liftPaintedGround(ServerPlayer player) {
+        ServerLevel level = player.level();
+        Vec3 eye = player.getEyePosition();
+        BlockHitResult hit = level.clip(new ClipContext(eye,
+                eye.add(player.getLookAngle().scale(reachWith(Remote.entityReachLaid(player)))),
+                ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, player));
+        BlockPos grabbed = hit.getType() == HitResult.Type.BLOCK
+                ? MortarLift.grabbedCell(hit, cell -> MortarLift.coatIn(level, cell)) : null;
+        return grabbed == null ? null : MortarLift.lift(level, grabbed);
+    }
+
+    /**
+     * Holds a lifted hunk one tick toward Grab's hold point, moved by its own
+     * blocks against the world, so it rises out of its hole and is set down
+     * as the hunk sets itself down once the hold lets go.
+     * decision rock-grabs-hunks-of-rock-goo-blocks-as-a-huckable-entity
+     *
+     * @param player the holding player
+     * @param hunk   the held hunk
+     */
+    private void holdHunk(ServerPlayer player, BlockHunk hunk) {
+        AABB box = hunk.getBoundingBox();
+        Vec3 middle = heldMiddle(player, Math.max(box.getXsize(), box.getZsize()), box.getYsize());
+        Vec3 position = middle.subtract(box.getCenter().subtract(hunk.position()));
+        GrabEvents.hold(player, hunk, hunk.holdStep(position), throwSpeed);
+        hunk.holdBy(player);
     }
 
     /**
