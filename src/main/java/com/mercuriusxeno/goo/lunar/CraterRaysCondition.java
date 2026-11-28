@@ -11,11 +11,12 @@ import net.minecraft.world.level.levelgen.synth.Noise;
 import net.minecraft.world.level.levelgen.synth.NormalNoise;
 
 /**
- * The {@code goo:crater_rays} surface rule condition: it passes a column on an ejecta ray of a large crater or a
- * giant one, read from the same seeded crater noise lunar's terrain sinks its craters from.
+ * The {@code goo:crater_rays} surface rule condition: it passes a column on an ejecta ray of a fresh giant crater,
+ * read from the same seeded crater noise lunar's terrain sinks its giant craters from.
  * decision lunar-surface-gains-giant-craters-mountains-rilles-and-boulder-fields
+ * decision craters-are-rare-giant-landmarks-only
  *
- * @param noise the crater noise the fields roll their cells from
+ * @param noise the crater noise the field rolls its cells from
  */
 public record CraterRaysCondition(ResourceKey<NormalNoise> noise)
         implements MaterialCondition {
@@ -33,8 +34,7 @@ public record CraterRaysCondition(ResourceKey<NormalNoise> noise)
     @Override
     public ConditionEvaluator compile(MaterialRuleContext context) {
         Noise craterNoise = context.randomState.getOrCreateNoise(noise);
-        CraterField craters = CraterField.seeded(craterNoise);
-        GiantCraterField giants = GiantCraterField.seeded(craterNoise);
-        return new ColumnTest(context, (x, z) -> craters.isOnRayAt(x, z) || giants.isOnRayAt(x, z));
+        GiantCraterField giants = GiantCraterField.seeded(craterNoise, context.randomState);
+        return new ColumnTest(context, giants::isOnRayAt);
     }
 }

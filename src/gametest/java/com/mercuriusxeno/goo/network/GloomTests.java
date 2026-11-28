@@ -16,13 +16,15 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobCategory;
-import net.minecraft.world.entity.monster.Enemy;
+import net.minecraft.world.entity.monster.cubemob.Slime;
 import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.NaturalSpawner;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.LevelData;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.ArrayList;
 import java.util.List;
@@ -32,7 +34,7 @@ import java.util.function.Consumer;
  * Nether's Gloom as a world goo through the real paths: its stream's drip
  * lays a Gloom cell, the level's own natural spawn puts a hostile mob on
  * that cell in a lit room, spending none of its goo, and the noon sun spares
- * a zombie standing on it.
+ * a zombie standing on it, and a slime standing on it stays a slime.
  * gloom-spawns-regardless-of-light-and-mobs-on-it-ignore-daylight
  */
 @RegistersGameTests
@@ -67,6 +69,15 @@ public final class GloomTests {
     private static final String ZOMBIE_ON_GLOOM_BURNS = "The zombie on Gloom caught fire under the noon sun";
     private static final String ZOMBIE_ON_STONE_UNLIT = "The zombie on bare stone should catch fire under the noon sun";
     private static final String GLOOM_GONE = "The Gloom cell under the shaded zombie is gone";
+    /** The Gloom cell the slime is set on, in the middle of the bay's floor. */
+    private static final BlockPos SLIME_CELL = new BlockPos(2, 1, 2);
+    /** A second and a half, past the 20 ticks a slime's morph on Ooze takes. */
+    private static final int TURN_TICKS = 30;
+    private static final String SLIME_STAYS_A_SLIME = "a_slime_on_gloom_stays_a_slime";
+    /** A Gloom cell's layers past the 8 a slime's turn on Ooze spends. */
+    private static final int PAST_A_TURN = 9;
+    private static final String SLIME_SHOULD_STAND = "The slime on Gloom should stand a slime, %d slimes stand";
+    private static final String CELL_SHOULD_KEEP = "The Gloom cell should keep its %d layers, holds %d";
 
     private GloomTests() {
     }
@@ -79,6 +90,46 @@ public final class GloomTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, SPAWNS_IN_THE_LIGHT, GloomTests::gloomCellSpawnsAHostileMobInALitRoom);
         GooTestFunctions.registerTest(registrar, SPARES_FROM_THE_SUN, GloomTests::aZombieOnGloomDoesNotBurnAtNoon);
+        GooTestFunctions.registerTest(registrar, SLIME_STAYS_A_SLIME, GloomTests::aSlimeOnGloomStaysASlime);
+    }
+
+    /**
+     * A small slime set on a Gloom cell of 9 layers, past the 8 Ooze's turn
+     * spends, still stands a slime after the 20 ticks a morph would take, and
+     * the cell keeps all 9.
+     * ooze-is-xenos-world-goo-that-turns-slimes-into-random-hostiles
+     *
+     * @param helper the gametest helper
+     */
+    public static void aSlimeOnGloomStaysASlime(GameTestHelper helper) {
+        layTheClosedFloor(helper);
+        helper.setBlock(SLIME_CELL, GooBlocks.NETHER_GLOOM.get().defaultBlockState()
+                .setValue(VolumeCellBlock.LAYERS, PAST_A_TURN));
+        Slime slime = helper.spawnWithNoFreeWill(EntityTypes.SLIME, Vec3.atBottomCenterOf(SLIME_CELL.above()));
+        slime.setSize(1, true);
+        AABB around = new AABB(helper.absolutePos(SLIME_CELL)).inflate(2);
+        helper.runAfterDelay(TURN_TICKS, () -> {
+            List<Slime> slimes = helper.getLevel().getEntitiesOfClass(Slime.class, around);
+            BlockState cell = helper.getBlockState(SLIME_CELL);
+            int left = cell.is(GooBlocks.NETHER_GLOOM.get()) ? cell.getValue(VolumeCellBlock.LAYERS) : 0;
+            helper.assertTrue(slimes.size() == 1 && !slime.isRemoved(),
+                    String.format(SLIME_SHOULD_STAND, slimes.size()));
+            helper.assertTrue(left == PAST_A_TURN, String.format(CELL_SHOULD_KEEP, PAST_A_TURN, left));
+            helper.succeed();
+        });
+    }
+
+    /** A stone floor under dirt path, which closes a cell in; stone, since bedrock refuses every spawn. */
+    private static void layTheClosedFloor(GameTestHelper helper) {
+        for (int x = 0; x <= ROOM_EDGE; x++) {
+            for (int z = 0; z <= ROOM_EDGE; z++) {
+                helper.setBlock(new BlockPos(x, 0, z), Blocks.STONE);
+                helper.setBlock(new BlockPos(x, 1, z), Blocks.DIRT_PATH);
+                for (int y = 2; y <= ROOF; y++) {
+                    helper.setBlock(new BlockPos(x, y, z), Blocks.AIR);
+                }
+            }
+        }
     }
 
     /**
@@ -134,7 +185,9 @@ public final class GloomTests {
             }
             helper.assertFalse(spawned.isEmpty(), NO_MOB);
             Mob mob = spawned.getFirst();
-            helper.assertTrue(mob instanceof Enemy && mob.blockPosition().equals(helper.absolutePos(CELL)),
+            // defect row 26: the monster spawn puts a zombie horse, no Enemy, on the cell about one draw in 140
+            helper.assertTrue(mob.getType().getCategory() == MobCategory.MONSTER
+                            && mob.blockPosition().equals(helper.absolutePos(CELL)),
                     String.format(MOB_OFF_THE_CELL, mob.getType(), helper.absolutePos(CELL), mob.blockPosition()));
             assertOneLayer(helper);
             helper.getLevel().getServer().getPlayerList().remove(caster);

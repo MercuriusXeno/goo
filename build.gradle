@@ -202,6 +202,21 @@ tasks.register('heldSweepTiming', Test) {
     outputs.upToDateWhen { false }
 }
 
+// One ten second Sculker hold timed headless, each part of its echo by its profiler section
+// (decision diagnose-and-correct-the-lag-on-four-sense-abilities).
+tasks.register('sculkerEchoTiming', Test) {
+    description = 'Times each part of a Sculker echo over a fixed synthetic world and stream of sounds and ranks the parts'
+    group = 'verification'
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    useJUnitPlatform { includeTags 'timing' }
+    filter { includeTestsMatching '*SculkerEchoTimingTest' }
+    jacoco.enabled = false
+    maxHeapSize = '4g'
+    testLogging.showStandardStreams = true
+    outputs.upToDateWhen { false }
+}
+
 // The name test-conventions.md and the acceptance criteria run; the pure unit suite is the test task.
 tasks.register('gooTest') {
     description = 'Runs the pure unit tests without bootstrapping a Minecraft server'

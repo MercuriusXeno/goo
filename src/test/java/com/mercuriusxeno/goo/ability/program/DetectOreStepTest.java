@@ -1,6 +1,9 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.AbilityMath;
+import com.mercuriusxeno.goo.network.OreRevealPayload;
+import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import org.junit.jupiter.api.Test;
 import java.util.HashSet;
@@ -10,9 +13,24 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * The bands a sweep's held ticks walk hold every block of the sphere
- * exactly once (decision glitter-sphere-icons-gem-ore-groups).
+ * exactly once (decision glitter-sphere-icons-gem-ore-groups), and the
+ * shipped Magnet and Glimmer each name their own goo type on the reveal
+ * they send (decision ore-glow-takes-the-casting-goos-color).
  */
 class DetectOreStepTest {
+
+    @Test
+    void theShippedMagnetRevealsAsMetalAndTheShippedGlimmerAsCrystal() {
+        assertEquals(GooTypes.METAL, firstRevealOf("metal_magnet").gooType(), "magnet");
+        assertEquals(GooTypes.CRYSTAL, firstRevealOf("crystal_glimmer").gooType(), "glimmer");
+    }
+
+    /** The reveal a shipped ability's ore sense sends on its pulse's first tick over the synthetic world. */
+    private static OreRevealPayload firstRevealOf(String ability) {
+        DetectOreStep sense = AbilityJson.decode(ability).behaviors().stream()
+                .filter(DetectOreStep.class::isInstance).map(DetectOreStep.class::cast).findFirst().orElseThrow();
+        return sense.revealAt(HeldSweepWorld.ORES, HeldSweepWorld.CASTER, 1);
+    }
 
     @Test
     void theBandsOfAHoldHoldEverySphereBlockExactlyOnce() {

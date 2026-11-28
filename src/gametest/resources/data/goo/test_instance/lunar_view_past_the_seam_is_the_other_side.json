@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:lunar_view_past_the_seam_is_the_other_side",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 600,
+  "setup_ticks": 0,
+  "required": true
+}

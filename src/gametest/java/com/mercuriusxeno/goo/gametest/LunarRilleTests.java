@@ -1,7 +1,8 @@
 package com.mercuriusxeno.goo.gametest;
 
-import com.mercuriusxeno.goo.lunar.CraterField;
+import com.mercuriusxeno.goo.lunar.GiantCraterField;
 import com.mercuriusxeno.goo.lunar.Lunar;
+import com.mercuriusxeno.goo.lunar.LunarRolls;
 import com.mercuriusxeno.goo.lunar.RilleField;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -12,6 +13,7 @@ import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.RandomState;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 /**
  * Gametests for lunar's rilles: at a generated rille, found through the seeded rille field, the surface on the
@@ -33,6 +35,9 @@ public final class LunarRilleTests {
             + "every crater";
     private static final String SINKS_BELOW_BANKS = "The rille line %s at y %d should stand lower than its banks %s at "
             + "y %d and %s at y %d";
+
+    /** Banks within this many blocks of each other stand level, ground a rille cuts deeper than it slopes. */
+    private static final int LEVEL_BANKS = 1;
 
     private LunarRilleTests() {
     }
@@ -59,11 +64,13 @@ public final class LunarRilleTests {
         helper.assertTrue(lunar != null, LUNAR_REQUIRED);
         RandomState randomState = lunar.getChunkSource().randomState();
         RilleField rilles = RilleField.seeded(randomState.getOrCreateNoise(RilleField.LINE_NOISE),
-                randomState.getOrCreateNoise(RilleField.MARIA_NOISE));
-        CraterField craters = CraterField.seeded(randomState.getOrCreateNoise(CraterField.NOISE));
-        BlockPos[] rille = findRille(rilles, craters);
-        helper.assertTrue(rille != null, String.format(NO_RILLE, SEARCH_REACH));
+                randomState.getOrCreateNoise(RilleField.MARIA_NOISE),
+                randomState.getOrCreateNoise(RilleField.ELDRITCH_NOISE));
+        GiantCraterField giants = GiantCraterField.seeded(randomState.getOrCreateNoise(LunarRolls.CRATER_NOISE),
+                randomState);
         ChunkGenerator generator = lunar.getChunkSource().getGenerator();
+        BlockPos[] rille = findRille(rilles, giants, banks -> standLevel(generator, lunar, randomState, banks));
+        helper.assertTrue(rille != null, String.format(NO_RILLE, SEARCH_REACH));
         int lineY = surfaceY(generator, lunar, randomState, rille[0]);
         int firstBankY = surfaceY(generator, lunar, randomState, rille[1]);
         int secondBankY = surfaceY(generator, lunar, randomState, rille[2]);
@@ -76,18 +83,28 @@ public final class LunarRilleTests {
         return generator.getBaseHeight(column.getX(), column.getZ(), Heightmap.Types.WORLD_SURFACE_WG, lunar, randomState);
     }
 
-    /** A line column and its two banks, or null where the search finds none. */
-    private static BlockPos[] findRille(RilleField rilles, CraterField craters) {
+    /**
+     * Whether a rille's two banks stand level with each other, so the ground the rille cuts stands no lower on one
+     * side than the cut is deep, and the line reads lower than both banks wherever it sinks below the ground.
+     */
+    private static boolean standLevel(ChunkGenerator generator, ServerLevel lunar, RandomState randomState,
+                                      BlockPos[] banks) {
+        return Math.abs(surfaceY(generator, lunar, randomState, banks[0])
+                - surfaceY(generator, lunar, randomState, banks[1])) <= LEVEL_BANKS;
+    }
+
+    /** A line column and its two banks standing level, or null where the search finds none. */
+    private static BlockPos[] findRille(RilleField rilles, GiantCraterField giants, Predicate<BlockPos[]> levelBanks) {
         for (int x = -SEARCH_REACH; x <= SEARCH_REACH; x += SEARCH_STEP) {
             for (int z = -SEARCH_REACH; z <= SEARCH_REACH; z += SEARCH_STEP) {
-                if (!rilles.isOnLineAt(x, z) || !craters.isOpenGroundAt(x, z)) {
+                if (!rilles.isOnLineAt(x, z) || !giants.isOpenGroundAt(x, z)) {
                     continue;
                 }
                 BlockPos line = new BlockPos(x, 0, z);
                 for (Direction across : new Direction[] {Direction.EAST, Direction.SOUTH}) {
-                    BlockPos first = bank(rilles, craters, line, across);
-                    BlockPos second = bank(rilles, craters, line, across.getOpposite());
-                    if (first != null && second != null) {
+                    BlockPos first = bank(rilles, giants, line, across);
+                    BlockPos second = bank(rilles, giants, line, across.getOpposite());
+                    if (first != null && second != null && levelBanks.test(new BlockPos[] {first, second})) {
                         return new BlockPos[] {line, first, second};
                     }
                 }
@@ -96,11 +113,11 @@ public final class LunarRilleTests {
         return null;
     }
 
-    private static BlockPos bank(RilleField rilles, CraterField craters, BlockPos line, Direction across) {
+    private static BlockPos bank(RilleField rilles, GiantCraterField giants, BlockPos line, Direction across) {
         for (int step = 1; step <= BANK_REACH; step++) {
             BlockPos column = line.relative(across, step);
             if (rilles.cutAt(column.getX(), column.getZ()) == 0.0) {
-                return craters.isOpenGroundAt(column.getX(), column.getZ()) ? column : null;
+                return giants.isOpenGroundAt(column.getX(), column.getZ()) ? column : null;
             }
         }
         return null;

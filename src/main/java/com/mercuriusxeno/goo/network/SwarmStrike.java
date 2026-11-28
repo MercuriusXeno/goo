@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.registry.GooServerState;
+import com.mercuriusxeno.goo.throwing.ConeShape;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.AABB;
@@ -35,9 +36,36 @@ final class SwarmStrike {
     static void send(ServerPlayer player, Vec3 glove, Vec3 aim, Delivery delivery, List<LivingEntity> chased,
                      BlockHitResult crosshair) {
         int preyId = chased.isEmpty() ? GnatSeekPayload.NO_PREY : chased.getFirst().getId();
-        AABB block = SwarmMotes.moteTarget(crosshair);
-        EntityVisuals.sendToWatchers(player, new GnatSeekPayload(player.getId(), glove, aim, delivery.coneDegrees(),
-                preyId, new Vec3(block.minX, block.minY, block.minZ), new Vec3(block.maxX, block.maxY, block.maxZ)));
+        // cone-style-abilities-are-reviewed-for-consistency: the glove's cast, its round cone out to the living reach
+        EntityVisuals.sendToWatchers(player, payloadOf(new SwarmCast(player.getId(), glove, aim,
+                GooStreamHandler.gloveShapeOf(delivery), delivery.livingReach()), preyId,
+                SwarmMotes.moteTarget(crosshair)));
+    }
+
+    /**
+     * A cast of the swarm: who casts it, from where, along what heading, through what cone and how far.
+     *
+     * @param casterId the streaming player
+     * @param glove    the glove hand the gnats leave from
+     * @param aim      the heading from the glove onto the crosshair
+     * @param shape    the cone the gnats fan across
+     * @param reach    how far from the glove the gnats seek
+     */
+    record SwarmCast(int casterId, Vec3 glove, Vec3 aim, ConeShape shape, double reach) {
+    }
+
+    /**
+     * A tick of the swarm as its watchers are told it: the cast's shape and reach, and where the gnats converge.
+     * decision cone-style-abilities-are-reviewed-for-consistency
+     *
+     * @param cast   the swarm's cast
+     * @param preyId the mob the swarm chases, or {@link GnatSeekPayload#NO_PREY}
+     * @param block  the box the gnats converge on with no prey
+     * @return the payload
+     */
+    static GnatSeekPayload payloadOf(SwarmCast cast, int preyId, AABB block) {
+        return new GnatSeekPayload(cast.casterId(), cast.glove(), cast.aim(), cast.shape(), cast.reach(), preyId,
+                new Vec3(block.minX, block.minY, block.minZ), new Vec3(block.maxX, block.maxY, block.maxZ));
     }
 
     /**

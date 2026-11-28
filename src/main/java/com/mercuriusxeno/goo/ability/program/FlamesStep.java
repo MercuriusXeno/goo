@@ -197,7 +197,7 @@ public record FlamesStep(Expr damage, int every, int burnSeconds, int cookTicks,
         Vec3 look = aim.aimPoint().subtract(eye);
         double range = look.length();
         Vec3 axis = range > 0 ? look.scale(1 / range) : new Vec3(0, 0, 1);
-        return FlameRays.spray(eye, axis, aim.coneDegrees(), range, host.level().getRandom(),
+        return FlameRays.spray(eye, axis, aim.shape(), range, host.level().getRandom(),
                 FlameRays.clipIn(host.level()));
     }
 
@@ -212,7 +212,9 @@ public record FlamesStep(Expr damage, int every, int burnSeconds, int cookTicks,
      */
     private static List<BlockPos> cellsAround(Vec3 eye, ChannelAim aim) {
         double range = aim.aimPoint().distanceTo(eye);
-        double widest = range * Math.tan(Math.toRadians(aim.coneDegrees() * HALF)) + 1;
+        // the corner of a band reaches farthest off the axis, so both half widths together bound any shape
+        double widest = range * Math.hypot(Math.tan(Math.toRadians(aim.shape().sideDegrees() * HALF)),
+                Math.tan(Math.toRadians(aim.shape().liftDegrees() * HALF))) + 1;
         AABB reach = new AABB(eye, aim.aimPoint()).inflate(widest);
         List<BlockPos> cells = new ArrayList<>();
         for (BlockPos cell : BlockPos.betweenClosed(BlockPos.containing(reach.minX, reach.minY, reach.minZ),

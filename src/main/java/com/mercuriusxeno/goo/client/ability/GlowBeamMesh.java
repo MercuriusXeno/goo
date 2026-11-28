@@ -11,7 +11,7 @@ import org.joml.Vector3f;
 import java.util.List;
 
 /**
- * Glow's beam of light, shared by Bulb's prism beacon, Reflector's rails and Laser's ray: a
+ * Glow's beam of light, shared by the light beacon, Reflector's rails and Laser's ray: a
  * thin near-white core inside wider, fainter glow-yellow shells, each a
  * square tube blended additively so the layers stack into a bloom and stay
  * see-through.
@@ -24,9 +24,9 @@ public final class GlowBeamMesh {
      * last; slimmed and dimmed after UAT found them too bright and too thick
      * (operator ruling 2026-10-09), then made smaller with the layers drawn
      * tighter together (operator ruling 2026-11-08). Each fades out past a
-     * prism-bound end by a depth, the core deepest, every depth under half a
-     * block so the bloom stays inside the prism's block whether the beam stops
-     * on its face or runs into its middle, as a reflector rail does.
+     * reflector-bound end by a depth, the core deepest, every depth under half
+     * a block so the bloom stays inside the reflector's block as a rail runs
+     * into its middle.
      * decision reflector-rail-blooms-out-inside-the-prism
      */
     public static final List<Layer> LAYERS = List.of(
@@ -139,6 +139,28 @@ public final class GlowBeamMesh {
         emitFadingLayer(pose, buffer, radius, color, scroll, length, depth);
     }
 
+    /**
+     * Emits one layer in segments, its alpha scaled at each ring by a share: a tube from its origin through each stop,
+     * the layer's alpha times the stop's share at each, so the tube fades along its length as the shares fall.
+     *
+     * @param pose   the pose, its +y along the beam
+     * @param buffer the vertex consumer
+     * @param radius the tube's half-width in blocks
+     * @param color  the layer's packed ARGB color
+     * @param scroll the texture's scroll offset in [0, 1)
+     * @param stops  the distances along the beam each ring stands at, in blocks, rising from 0
+     * @param shares the share of its alpha the layer keeps at each stop, from 0 to 1
+     */
+    public static void emitLayerShaded(PoseStack.Pose pose, VertexConsumer buffer, float radius, int color,
+                                       float scroll, float[] stops, float[] shares) {
+        for (int i = 1; i < stops.length; i++) {
+            if (shares[i - 1] > 0f || shares[i] > 0f) {
+                emitFaces(pose, buffer, radius, ring(stops[i - 1], breathed(color, shares[i - 1]), scroll),
+                        ring(stops[i], breathed(color, shares[i]), scroll));
+            }
+        }
+    }
+
     private static Ring ring(float y, int color, float scroll) {
         return new Ring(y, color, scroll + y / BLOCKS_PER_TILE);
     }
@@ -186,7 +208,7 @@ public final class GlowBeamMesh {
      *
      * @param radius the layer's half-width in blocks before any widening
      * @param color  the layer's packed ARGB color, its alpha how strongly it adds
-     * @param depth  how far past a prism-bound end the layer fades out, in blocks
+     * @param depth  how far past a reflector-bound end the layer fades out, in blocks
      */
     public record Layer(float radius, int color, float depth) {
 

@@ -15,20 +15,25 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
  * Zombie's Infest as a world goo through the real paths: its stream's drips
  * lay a layer of an Infest cell each, a cell gnaws the block under it a
  * stage along the goo:decay map, and it bites a living thing standing in it
- * and heals an undead one. Each test walls its cells in stone so no cell
- * pours its layers away.
+ * and heals an undead one, each gnaw and each bite costing the cell a layer.
+ * Each test walls its cells so no cell pours its layers away.
  * infest-is-nethers-goo-the-decay-effect-localized-around-the-goo
  * infest-gnaws-the-blocks-it-lies-on-and-bites-what-stands-in-it
+ * infest-has-a-chance-to-deplete-as-it-gnaws-and-bites
  */
 @RegistersGameTests
 public final class InfestTests {
@@ -51,6 +56,16 @@ public final class InfestTests {
     private static final String COW_NOT_BITTEN = "The cow standing in Infest should fall from %.1f health, reads %.1f";
     private static final String ZOMBIE_NOT_HEALED = "The wounded zombie standing in Infest should rise from %.1f health,"
             + " reads %.1f";
+    private static final String GNAW_COSTS_A_LAYER = "infest_gnaw_costs_a_layer";
+    private static final String BITE_COSTS_A_LAYER = "infest_bite_costs_a_layer";
+    /** The full cell each cost test lays, its one gnaw or its one bite the only cost a cadence takes. */
+    private static final BlockPos COST_CELL = new BlockPos(2, 2, 2);
+    /** A full cell less the one layer a single gnaw or bite costs. */
+    private static final int ONE_LAYER_SPENT = VolumeCellBlock.MAX_LAYERS - 1;
+    private static final String LAYERS_WRONG = "The Infest cell should read %d layers after its first act, read %d";
+    private static final String NOT_ACTED = "The Infest cell has not gnawed or bitten yet";
+    /** What a first act leaves to complain of when it left what it should. */
+    private static final String FIRST_ACT_RIGHT = "";
 
     private InfestTests() {
     }
@@ -64,6 +79,73 @@ public final class InfestTests {
         GooTestFunctions.registerTest(registrar, DRIP_LAYS_A_LAYER, InfestTests::dripLaysALayer);
         GooTestFunctions.registerTest(registrar, GNAWS_THE_BLOCK_UNDER_IT, InfestTests::gnawsTheBlockUnderIt);
         GooTestFunctions.registerTest(registrar, BITES_A_COW_AND_HEALS_A_ZOMBIE, InfestTests::bitesACowAndHealsAZombie);
+        GooTestFunctions.registerTest(registrar, GNAW_COSTS_A_LAYER, InfestTests::gnawCostsALayer);
+        GooTestFunctions.registerTest(registrar, BITE_COSTS_A_LAYER, InfestTests::biteCostsALayer);
+    }
+
+    /**
+     * A full Infest cell coating no side, on stone and holding no mob, gnaws
+     * the stone under it to cobblestone and stands one layer lower for it.
+     * infest-has-a-chance-to-deplete-as-it-gnaws-and-bites
+     *
+     * @param helper the gametest helper
+     */
+    public static void gnawCostsALayer(GameTestHelper helper) {
+        layBareCostCell(helper, Blocks.STONE);
+        succeedOnFirstAct(helper, () -> !helper.getBlockState(COST_CELL.below()).is(Blocks.STONE), () -> {
+            BlockState under = helper.getBlockState(COST_CELL.below());
+            return under.is(Blocks.COBBLESTONE) ? FIRST_ACT_RIGHT : String.format(NOT_GNAWED, under);
+        });
+    }
+
+    /**
+     * A full Infest cell coating no side, on obsidian the goo:decay map
+     * leaves alone, bites the cow standing in it and stands one layer lower
+     * for the bite.
+     * infest-has-a-chance-to-deplete-as-it-gnaws-and-bites
+     *
+     * @param helper the gametest helper
+     */
+    public static void biteCostsALayer(GameTestHelper helper) {
+        layBareCostCell(helper, Blocks.OBSIDIAN);
+        Mob cow = helper.spawnWithNoFreeWill(EntityTypes.COW, Vec3.atBottomCenterOf(COST_CELL.above()));
+        float cowStart = cow.getHealth();
+        succeedOnFirstAct(helper, () -> cow.getHealth() < cowStart, () -> FIRST_ACT_RIGHT);
+    }
+
+    /**
+     * Grades the cost cell on the first tick it acts, so a later cadence
+     * cannot stand in for the first: the act must have left what it should
+     * and the cell must read a full cell less one layer.
+     *
+     * @param helper    the gametest helper
+     * @param acted     whether the cell has gnawed or bitten yet
+     * @param actProblem what is wrong with what the act left, FIRST_ACT_RIGHT where nothing is
+     */
+    private static void succeedOnFirstAct(GameTestHelper helper, BooleanSupplier acted, Supplier<String> actProblem) {
+        AtomicReference<String> firstActProblem = new AtomicReference<>();
+        helper.onEachTick(() -> {
+            if (firstActProblem.get() == null && acted.getAsBoolean()) {
+                int layers = layersOf(helper.getBlockState(COST_CELL));
+                String problem = actProblem.get();
+                firstActProblem.set(!problem.isEmpty() || layers == ONE_LAYER_SPENT ? problem
+                        : String.format(LAYERS_WRONG, ONE_LAYER_SPENT, layers));
+            }
+        });
+        helper.succeedWhen(() -> {
+            helper.assertTrue(firstActProblem.get() != null, NOT_ACTED);
+            helper.assertTrue(firstActProblem.get().isEmpty(), firstActProblem.get());
+        });
+    }
+
+    /**
+     * The layers an Infest cell stands at, none where the cell is gone.
+     *
+     * @param state the block state at the cell
+     * @return the cell's layers, 0 where no Infest stands
+     */
+    private static int layersOf(BlockState state) {
+        return state.is(GooBlocks.ZOMBIE_INFEST.get()) ? state.getValue(VolumeCellBlock.LAYERS) : 0;
     }
 
     /**
@@ -112,9 +194,34 @@ public final class InfestTests {
      * @param cell   the cell, relative to the test
      */
     private static void layFullCell(GameTestHelper helper, BlockPos cell) {
-        helper.setBlock(cell.below(), Blocks.STONE);
+        layFullCell(helper, cell, Blocks.STONE, Blocks.STONE);
+    }
+
+    /**
+     * Lays a full Infest cell coating no side on the floor given, walled in
+     * iron bars, which hold its layers in and offer no sturdy face for its
+     * goo to cling to.
+     *
+     * @param helper the gametest helper
+     * @param floor  the block under the cell
+     */
+    private static void layBareCostCell(GameTestHelper helper, Block floor) {
+        layFullCell(helper, COST_CELL, floor, Blocks.IRON_BARS);
+    }
+
+    /**
+     * Lays a full Infest cell on the floor given, walled on its four sides
+     * so no layer pours away.
+     *
+     * @param helper the gametest helper
+     * @param cell   the cell, relative to the test
+     * @param floor  the block under the cell
+     * @param wall   the block on each of its four sides
+     */
+    private static void layFullCell(GameTestHelper helper, BlockPos cell, Block floor, Block wall) {
+        helper.setBlock(cell.below(), floor);
         for (Direction side : Direction.Plane.HORIZONTAL) {
-            helper.setBlock(cell.relative(side), Blocks.STONE);
+            helper.setBlock(cell.relative(side), wall);
         }
         helper.setBlock(cell, GooBlocks.ZOMBIE_INFEST.get().defaultBlockState()
                 .setValue(VolumeCellBlock.LAYERS, VolumeCellBlock.MAX_LAYERS));

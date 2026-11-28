@@ -220,6 +220,14 @@ public class GooParticles {
         PARTICLE_TYPES.register("dowsing_spray_drip", () -> new SimpleParticleType(false));
 
     /**
+     * Ooze's spray drip: the mod's blocky goo drip in xeno's slates, flying
+     * its arc until it strikes, where it splats and the Ooze goo lands.
+     * ooze-is-xenos-world-goo-that-turns-slimes-into-random-hostiles
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> OOZE_SPRAY_DRIP =
+        PARTICLE_TYPES.register("ooze_spray_drip", () -> new SimpleParticleType(false));
+
+    /**
      * A snowflake crystal flitting weightlessly along Cold's wind (decision
      * cold-streams-wind-lines-and-snowflakes).
      */
@@ -227,14 +235,7 @@ public class GooParticles {
         PARTICLE_TYPES.register("snowflake", () -> new SimpleParticleType(false));
 
     /**
-     * A ring of Pulse Click's sound wave, the shriek held square to its line
-     * (decision click-is-a-hit-scan-drawn-as-a-delayed-wave).
-     */
-    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> CLICK_WAVE =
-        PARTICLE_TYPES.register("click_wave", () -> new SimpleParticleType(false));
-
-    /**
-     * The particle a ability block's explosion names in place of vanilla's
+     * The particle an ability's explosion names in place of vanilla's
      * explosion particles; its client provider spawns nothing, so the goo
      * type's own burnout explosion is the one seen (decision
      * elemental-explosion-per-type).

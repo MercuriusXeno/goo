@@ -51,12 +51,6 @@ public enum AbilityBadge implements StringRepresentable {
     FREE("free"),
 
     /**
-     * Refracts through a prism.
-     * badge-vocabulary-gains-free-prism-tap-brew
-     */
-    PRISM("prism"),
-
-    /**
      * Prepares on right click and throws on left click, running while held. Declared last so the
      * network ordinal of every badge before it stays put.
      * decision held-badge-marks-abilities-that-prepare-and-throw
@@ -86,9 +80,9 @@ public enum AbilityBadge implements StringRepresentable {
      * residual-tier-leads-the-fan
      */
     private static final List<AbilityBadge> FAN_RANK =
-            List.of(RESIDUAL, CHANNELED, HELD, MOB, WORLD, FREE, PRISM, SELF, DURATIVE);
+            List.of(RESIDUAL, CHANNELED, HELD, MOB, WORLD, FREE, SELF, DURATIVE);
 
-    private static final Set<AbilityBadge> AIMS_A_POINT = EnumSet.of(FREE, CHANNELED, HELD, PRISM, RESIDUAL);
+    private static final Set<AbilityBadge> AIMS_A_POINT = EnumSet.of(FREE, CHANNELED, HELD, RESIDUAL);
 
     private final String serializedName;
 
@@ -113,7 +107,7 @@ public enum AbilityBadge implements StringRepresentable {
      * held-badge-marks-abilities-that-prepare-and-throw
      * residual-badge-marks-the-four-goo-sprays
      *
-     * @return true for free, channeled, held, prism and residual
+     * @return true for free, channeled, held and residual
      */
     public boolean aimsAPoint() {
         return AIMS_A_POINT.contains(this);

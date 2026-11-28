@@ -9,9 +9,8 @@ import net.minecraft.world.phys.Vec3;
 /**
  * A looping sound kept alive by whatever makes it: each tick it is fed it
  * swells toward its full volume, and once the feeding stops it fades to
- * silence and stops, so a buzz never cuts off mid-clip. Decay's gnats and a
- * hive prism's swarm buzz with one (decision decay-gnats-degrade-each-block-once,
- * decision hive-prism-pillar-eats-the-living).
+ * silence and stops, so a buzz never cuts off mid-clip. Decay's gnats buzz
+ * with one (decision decay-gnats-degrade-each-block-once).
  */
 public final class FadingLoopSound extends AbstractTickableSoundInstance {
 

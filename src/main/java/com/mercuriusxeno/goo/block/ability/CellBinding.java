@@ -15,7 +15,7 @@ import net.minecraft.resources.ResourceKey;
  * Crystal's shatter, Sculk's creep, Frost's rime, Glow's wisps, Hex's leech,
  * Typhoon's updraft, Jelly's nectar, Pulse's signal, Metal's spikes,
  * Zombie's infest, Nether's gloom, Leaf's vines, Unstable's nitro, Quantum's
- * phase, Rock's mortar, Yarn's stitch and Astral's Dowsing are bound so far,
+ * phase, Rock's mortar, Yarn's stitch, Astral's Dowsing and Xeno's ooze are bound so far,
  * and another goo type ships its world goo as another binding.
  * slime-and-slick-are-one-volume-cell-tech
  * each-goo-type-ships-a-world-goo-on-the-volume-cell
@@ -38,6 +38,7 @@ import net.minecraft.resources.ResourceKey;
  * gloom-spawns-regardless-of-light-and-mobs-on-it-ignore-daylight
  * mortar-is-rocks-residual-a-petrification-and-hardening-goo
  * astral-world-goo-is-dowsing-an-x-ray-of-ore
+ * ooze-is-xenos-world-goo-that-turns-slimes-into-random-hostiles
  *
  * @param gooType      the goo type the cell holds and drops when broken
  * @param layingAbility the ability laying the goo, whose cost prices a whole block of it
@@ -96,6 +97,8 @@ public record CellBinding(ResourceKey<GooTypeDefinition> gooType, Identifier lay
     public static final Identifier WISPS_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "glow_wisps");
     /** The ability laying Astral's Dowsing goo, whose cost prices a whole block of it. */
     public static final Identifier DOWSING_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "astral_dowsing");
+    /** The ability laying Xeno's goo, Ooze, whose cost prices a whole block of it and whose step names its turn. */
+    public static final Identifier OOZE_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "xeno_ooze");
 
     /** Weird's slime: Goop lays it, and it bounces what lands on it. */
     public static final CellBinding SLIME = new CellBinding(GooTypes.WEIRD, GOOP_ABILITY, CellSurface.BOUNCE,
@@ -210,5 +213,12 @@ public record CellBinding(ResourceKey<GooTypeDefinition> gooType, Identifier lay
      * astral-world-goo-is-dowsing-an-x-ray-of-ore
      */
     public static final CellBinding DOWSING = new CellBinding(GooTypes.ASTRAL, DOWSING_ABILITY, CellSurface.LENS,
+            FluidFooting.NONE);
+    /**
+     * Xeno's goo: Ooze lays it, ordinary ground to stand on, and a slime
+     * standing on it turns into a random hostile mob.
+     * ooze-is-xenos-world-goo-that-turns-slimes-into-random-hostiles
+     */
+    public static final CellBinding OOZE = new CellBinding(GooTypes.XENO, OOZE_ABILITY, CellSurface.POOL,
             FluidFooting.NONE);
 }

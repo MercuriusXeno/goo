@@ -69,9 +69,9 @@ public final class AstralLunarTests {
      * Where the noon return stands its caster on lunar's light side, far enough off x 0 that the planet leans well off
      * the zenith, past the reach of a look straight up.
      */
-    private static final Vec3 OFF_THE_ZENITH_ON_LUNAR = new Vec3(1_000_000.5, 160, 0.5);
+    private static final Vec3 OFF_THE_ZENITH_ON_LUNAR = new Vec3(1_000_000.5, 80, 0.5);
     /** Where the hidden planet test stands its caster on lunar, high over the ground. */
-    private static final Vec3 ON_LUNAR = new Vec3(0.5, 160, 0.5);
+    private static final Vec3 ON_LUNAR = new Vec3(0.5, 80, 0.5);
 
     private static final Identifier ASTRAL_LUNAR = Identifier.parse("goo:astral_lunar");
     /** astral_lunar.json's fixation, the held ticks a full pull takes. */

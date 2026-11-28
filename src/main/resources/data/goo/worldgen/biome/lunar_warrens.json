@@ -36,9 +36,7 @@
   "features": [
     [],
     [],
-    [
-      "goo:boulder_field"
-    ],
+    [],
     [],
     [],
     [],
@@ -48,11 +46,11 @@
       "goo:ore_lunar_ancient_debris"
     ],
     [],
-    [],
-    [],
     [
-      "goo:crater_pools"
-    ]
+      "goo:deposit_goo_pockets"
+    ],
+    [],
+    []
   ],
   "has_precipitation": false,
   "temperature": 0.0

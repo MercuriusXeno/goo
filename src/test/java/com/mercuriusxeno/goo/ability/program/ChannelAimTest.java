@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.throwing.ConeShape;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.phys.Vec3;
@@ -8,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -20,6 +22,31 @@ class ChannelAimTest {
 
     private static final BlockPos GROUND = new BlockPos(10, 63, 0);
     private static final BlockPos WALL = new BlockPos(14, 64, 0);
+
+    /**
+     * The aim carries the cone's shape to the block pass, which takes a block off to the side of a cone wide across
+     * and thin up and down and leaves one the same angle above the axis
+     * (decision cone-style-abilities-are-reviewed-for-consistency).
+     */
+    @Nested
+    class Shape {
+
+        private static final Vec3 EYE = new Vec3(0.5, 64.5, 0.5);
+        private static final ConeShape WIDE_AND_THIN = new ConeShape(60, 8, false);
+        /** Five blocks out and two to the side, about 22 degrees: inside the 30 either side. */
+        private static final BlockPos OFF_TO_THE_SIDE = new BlockPos(5, 64, 2);
+        /** Five blocks out and two up, the same angle above: outside the 4 up and down. */
+        private static final BlockPos AS_FAR_ABOVE = new BlockPos(5, 66, 0);
+
+        @Test
+        void theBlockPassTakesABlockOffToTheSideAndLeavesOneAsFarAbove() {
+            ChannelAim aim = new ChannelAim(EYE.add(8, 0, 0), null, WIDE_AND_THIN, ChannelAim.FIRST_TICK, true);
+            assertEquals(WIDE_AND_THIN, aim.shape());
+            List<BlockPos> taken = CalcifyStep.blocksInCone(EYE, aim.aimPoint(), aim.shape());
+            assertTrue(taken.contains(OFF_TO_THE_SIDE), "the side block is left");
+            assertFalse(taken.contains(AS_FAR_ABOVE), "the block above is taken");
+        }
+    }
 
     @Nested
     class Swath {

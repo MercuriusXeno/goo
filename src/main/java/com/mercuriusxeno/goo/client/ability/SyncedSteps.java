@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.ability.program.Step;
-import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import java.util.List;
@@ -9,9 +8,9 @@ import java.util.Optional;
 import java.util.stream.Stream;
 
 /**
- * Finds a step in the program of the ability a marker runs, read from the
- * ability definitions the server synced, so a renderer reads the step's
- * params rather than a copy the marker syncs every tick (decision
+ * Finds a step in the program of an ability, read from the ability
+ * definitions the server synced, so a renderer reads the step's params
+ * rather than a copy synced every tick (decision
  * capability-interfaces-derive-host-kind).
  */
 public final class SyncedSteps {
@@ -20,22 +19,8 @@ public final class SyncedSteps {
     }
 
     /**
-     * Finds the first step of a type in the marker's ability program,
-     * searching container steps' children after the step itself.
-     *
-     * @param be   the ability block block entity
-     * @param type the step type
-     * @param <S>  the step class
-     * @return the step, or empty when no ability is synced under the
-     *         marker's id or its program holds no such step
-     */
-    public static <S extends Step> Optional<S> first(AbilityBlockEntity be, Class<S> type) {
-        return first(be.getAbilityId(), type);
-    }
-
-    /**
-     * Finds the first step of a type in an ability's program, for a marker
-     * already gone, such as one that burned out.
+     * Finds the first step of a type in an ability's program, such as the
+     * one a burnout names.
      *
      * @param abilityId the ability id
      * @param type      the step type

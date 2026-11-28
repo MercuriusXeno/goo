@@ -19,12 +19,10 @@ import java.nio.file.Path;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -38,11 +36,6 @@ class AbilityBadgeTest {
 
     /** The name the residual fixture loads under, which its refusal names. */
     private static final String RESIDUAL_FIXTURE = "residual_fixture";
-    /** A residual stream naming a prism reaction, with the badge left for the test to write. */
-    private static final String STREAM_REACTING_TO_PRISMS = """
-            { "gooType": "typhoon", "displayName": "goo.ability.fixture", "badge": "%s", "cost": 96,
-              "delivery": { "kind": "stream" }, "behaviors": [],
-              "on_prism": [ { "type": "coat" } ] }""";
     /** A stream naming a required item, with the badge left for the test to write. */
     private static final String STREAM_REQUIRING_AN_ITEM = """
             { "gooType": "blaze", "displayName": "goo.ability.fixture", "badge": "%s", "cost": 96,
@@ -54,7 +47,7 @@ class AbilityBadgeTest {
 
     @ParameterizedTest
     @CsvSource({"world, WORLD", "mob, MOB", "instant, SELF", "channeled, CHANNELED", "durative, DURATIVE",
-            "free, FREE", "prism, PRISM", "held, HELD", "residual, RESIDUAL"})
+            "free, FREE", "held, HELD", "residual, RESIDUAL"})
     void eachVocabularyWordParsesToItsBadge(String word, AbilityBadge expected) {
         assertEquals(expected, AbilityBadge.CODEC.parse(JsonOps.INSTANCE, new JsonPrimitive(word)).getOrThrow());
     }
@@ -68,7 +61,7 @@ class AbilityBadgeTest {
     @Test
     void everyBadgeKeepsItsNetworkOrdinal() {
         assertEquals(List.of(AbilityBadge.WORLD, AbilityBadge.MOB, AbilityBadge.SELF, AbilityBadge.CHANNELED,
-                AbilityBadge.DURATIVE, AbilityBadge.FREE, AbilityBadge.PRISM, AbilityBadge.HELD,
+                AbilityBadge.DURATIVE, AbilityBadge.FREE, AbilityBadge.HELD,
                 AbilityBadge.RESIDUAL), List.of(AbilityBadge.values()));
     }
 
@@ -85,46 +78,6 @@ class AbilityBadgeTest {
         assertTrue(badge.aimsAPoint(), badge + " aims no point");
     }
 
-    /**
-     * Grab and Gouge prepare on right click and throw on left click, so they wear held; Flames,
-     * Gust and Cold stay channeled; Goop, Slick, Molten, Host and Rime spray a goo in world and
-     * wear residual.
-     * decision held-badge-marks-abilities-that-prepare-and-throw
-     * decision residual-badge-marks-the-four-goo-sprays
-     * decision rime-wears-the-residual-badge
-     *
-     * @param ability the shipped ability's file name
-     * @param badge   the badge it wears
-     */
-    @ParameterizedTest
-    @CsvSource({"kinetic_grab, HELD", "rock_gouge, HELD", "blaze_flames, CHANNELED", "sculk_mycosis, CHANNELED", "typhoon_gust, CHANNELED",
-            "frost_cold, CHANNELED", "weird_goop, RESIDUAL", "kinetic_slick, RESIDUAL", "blaze_molten, RESIDUAL",
-            "sculk_creep, RESIDUAL", "frost_rime, RESIDUAL", "hex_leech, RESIDUAL", "typhoon_updraft, RESIDUAL",
-            "jelly_nectar, RESIDUAL", "pulse_signal, RESIDUAL", "metal_spikes, RESIDUAL",
-            "zombie_infest, RESIDUAL", "leaf_vines, RESIDUAL", "unstable_nitro, RESIDUAL",
-            "quantum_phase, RESIDUAL", "rock_mortar, RESIDUAL", "yarn_stitch, RESIDUAL", "nether_gloom, RESIDUAL"})
-    void shippedAbilityWearsItsControlBadge(String ability, AbilityBadge badge) {
-        assertEquals(badge, AbilityJson.decode(ability).badge(), ability);
-    }
-
-    /**
-     * decision residual-badge-marks-the-four-goo-sprays
-     * decision rime-wears-the-residual-badge
-     * updraft-wears-the-residual-badge
-     * operator ruling 2026-11-17: Nectar wears the residual badge
-     * every-residual-goo-ability-wears-the-residual-badge-and-takes-the-residual-icon
-     */
-    @Test
-    void residualIsWornByExactlyTheGooSprays() {
-        Set<String> wearers = AbilityJson.files().stream().map(AbilityJson::decode)
-                .filter(definition -> definition.badge() == AbilityBadge.RESIDUAL)
-                .map(definition -> definition.id().getPath()).collect(Collectors.toSet());
-        assertEquals(Set.of("weird_goop", "kinetic_slick", "blaze_molten", "sculk_creep", "frost_rime", "hex_leech",
-                "typhoon_updraft", "jelly_nectar", "pulse_signal", "metal_spikes", "zombie_infest",
-                "leaf_vines", "unstable_nitro", "quantum_phase", "rock_mortar", "yarn_stitch", "nether_gloom"),
-                wearers);
-    }
-
     /** decision self-badge-becomes-instant-with-a-noita-trigger-star */
     @Test
     void theOneShotBadgeSpellsInstant() {
@@ -133,7 +86,7 @@ class AbilityBadgeTest {
 
     /**
      * Each badge holds its own tier, ranked residual, channeled, held, mob, world, free,
-     * prism, self, durative, at orders that reverse that rank if order alone
+     * self, durative, at orders that reverse that rank if order alone
      * decided; a shared badge falls back to order (decisions
      * fan-sorts-badge-then-order, held-badge-marks-abilities-that-prepare-and-throw,
      * residual-tier-leads-the-fan).
@@ -148,7 +101,6 @@ class AbilityBadgeTest {
                 new Ranked("durative", AbilityBadge.DURATIVE, -3),
                 new Ranked("world", AbilityBadge.WORLD, 3),
                 new Ranked("self", AbilityBadge.SELF, -2),
-                new Ranked("prism", AbilityBadge.PRISM, 1),
                 new Ranked("mob_late", AbilityBadge.MOB, 5),
                 new Ranked("free", AbilityBadge.FREE, 2),
                 new Ranked("channeled", AbilityBadge.CHANNELED, 6),
@@ -157,7 +109,7 @@ class AbilityBadgeTest {
         // an unranked badge answers -1 and sorts first by accident, so every badge holds its own rank
         assertEquals(IntStream.range(0, AbilityBadge.values().length).boxed().toList(),
                 Stream.of(AbilityBadge.values()).map(AbilityBadge::fanRank).sorted().toList());
-        assertEquals(List.of("residual", "channeled", "held", "mob_early", "mob_late", "world", "free", "prism", "self", "durative"),
+        assertEquals(List.of("residual", "channeled", "held", "mob_early", "mob_late", "world", "free", "self", "durative"),
                 shuffled.stream().sorted(AbilityBadge.fanOrder(Ranked::badge, Ranked::order)).map(Ranked::name).toList());
     }
 
@@ -174,9 +126,9 @@ class AbilityBadgeTest {
     /**
      * The badges a shipped ability may wear, read from its own fields: channeled or held for any delivery that charges, its charge sizing no cast, or writes a hold's ticks
      * per charge, channeled or residual for a stream, save the charm-like cast, which takes a mob and wears mob, durative for a self delivery paying upkeep, instant for any other self delivery,
-     * and for a thrown ability mob where it targets entities and world elsewhere. Free and
-     * prism are carried by the badge alone, since no field marks them, so a thrown ability
-     * wearing either passes on its badge.
+     * and for a thrown ability mob where it targets entities and world elsewhere. Free is
+     * carried by the badge alone, since no field marks it, so a thrown ability wearing it
+     * passes on its badge.
      *
      * @param definition the shipped ability
      * @param delivery   the ability's delivery block as written in its JSON
@@ -211,7 +163,7 @@ class AbilityBadgeTest {
      * @return the badges it may wear
      */
     private static Set<AbilityBadge> releasedBadges(AbilityDefinition definition) {
-        Set<AbilityBadge> allowed = EnumSet.of(AbilityBadge.FREE, AbilityBadge.PRISM);
+        Set<AbilityBadge> allowed = EnumSet.of(AbilityBadge.FREE);
         if (!definition.hasTag(AbilityTags.ENTITY)) {
             allowed.add(AbilityBadge.WORLD);
             return allowed;
@@ -232,26 +184,6 @@ class AbilityBadgeTest {
         }
     }
 
-    /**
-     * A prism card folded into its host's on_prism reaction loads no
-     * definition of its own, so the wheel holds no card for it, and the host
-     * carries the reaction in its place.
-     * decision thrown-hosts-absorb-their-prism-combos
-     *
-     * @param card the folded card's file name
-     * @param host the host ability's file name
-     */
-    @ParameterizedTest
-    @CsvSource({"pulse_relay, pulse_zap", "pulse_metronome, pulse_tick",
-            "nether_hive, zombie_decay", "glow_reflector, glow_laser",
-            "leaf_verdant, leaf_growth", "frost_glacial, frost_cold", "ender_oculus, ender_blink",
-            "blaze_heater, blaze_flames"})
-    void aFoldedPrismCardLoadsNoDefinitionAndItsHostReacts(String card, String host) {
-        assertTrue(AbilityJson.files().stream().map(AbilityJson::decode)
-                .noneMatch(definition -> definition.id().getPath().equals(card)), card + " loads");
-        assertFalse(AbilityJson.decode(host).onPrism().isEmpty(), host + " carries no on_prism reaction");
-    }
-
     @Test
     void shippedAbilitiesWearMobExactlyWhereTheyTargetEntities() {
         for (Path file : AbilityJson.files()) {
@@ -259,25 +191,6 @@ class AbilityBadgeTest {
             assertTrue(allowedBadges(definition, writtenDelivery(file)).contains(definition.badge()),
                     definition.id() + " wears " + definition.badge());
         }
-    }
-
-    /**
-     * An ability wearing the residual badge that names a prism reaction
-     * fails to load, its error naming the ability, the badge and on_prism,
-     * while the same JSON wearing another badge loads.
-     * no-residual-ability-carries-a-prism-reaction
-     */
-    @Test
-    void aResidualAbilityNamingAPrismReactionFailsToLoad() {
-        IllegalStateException refusal = assertThrows(IllegalStateException.class,
-                () -> AbilityJson.decodeText(RESIDUAL_FIXTURE, STREAM_REACTING_TO_PRISMS.formatted("residual")));
-        String message = refusal.getMessage();
-
-        assertTrue(message.contains(RESIDUAL_FIXTURE), message);
-        assertTrue(message.contains("residual badge"), message);
-        assertTrue(message.contains("on_prism"), message);
-        assertFalse(AbilityJson.decodeText(RESIDUAL_FIXTURE, STREAM_REACTING_TO_PRISMS.formatted("free"))
-                .onPrism().isEmpty(), "a free stream keeps its prism reaction");
     }
 
     /**
@@ -296,19 +209,5 @@ class AbilityBadgeTest {
         assertTrue(message.contains("requires"), message);
         assertEquals(List.of(Identifier.withDefaultNamespace("lava_bucket")),
                 AbilityJson.decodeText(RESIDUAL_FIXTURE, STREAM_REQUIRING_AN_ITEM.formatted("free")).requires());
-    }
-
-    /**
-     * Every shipped ability wearing the residual badge decodes with no prism reaction.
-     * no-residual-ability-carries-a-prism-reaction
-     */
-    @Test
-    void shippedResidualAbilitiesCarryNoPrismReaction() {
-        for (Path file : AbilityJson.files()) {
-            AbilityDefinition definition = AbilityJson.decode(file);
-            if (definition.badge() == AbilityBadge.RESIDUAL) {
-                assertTrue(definition.onPrism().isEmpty(), definition.id() + " carries an on_prism reaction");
-            }
-        }
     }
 }

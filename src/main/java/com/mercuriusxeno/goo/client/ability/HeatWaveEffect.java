@@ -1,13 +1,8 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.ability.program.FlamesStep;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
-import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
-import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
-import com.mercuriusxeno.goo.client.throwing.GloveAim;
-import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
 import com.mojang.blaze3d.buffers.Std140Builder;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
@@ -30,7 +25,7 @@ import org.lwjgl.system.MemoryStack;
 import java.util.function.Consumer;
 
 /**
- * Flames' heat wave: while right click holds Flames, the view shimmers like
+ * Flames' heat wave: while Flames pours, the view shimmers like
  * air over a fire in a small box around the point the flame reaches, the
  * heated block or the burning mob, easing in as the hold starts and out
  * after it ends, through {@code goo:heat_wave}.
@@ -52,8 +47,6 @@ public final class HeatWaveEffect {
      * decision heat-wave-shrinks-to-a-local-shimmer
      */
     static final float SHIMMER_SHARE = 0.25f;
-    /** Flames' reach when no synced Flames names one, as blaze_flames.json ships it. */
-    private static final double FLAMES_RANGE = 6;
     /** The share of the gap to full or no heat the wave closes each tick. */
     static final float EASE_PER_TICK = 0.25f;
     private static final float TICKS_PER_SECOND = 20f;
@@ -65,9 +58,22 @@ public final class HeatWaveEffect {
     private static final Vector4f HEAT_PARAMS = new Vector4f();
     private static final Vector4f HEAT_REGION = new Vector4f();
     private static float heat;
-    private static double range = FLAMES_RANGE;
+    /** The cone Flames poured through since the last frame, taken by the frame, or null once the pour stops. */
+    private static @Nullable SprayCone poured;
+    /** The cone Flames last poured through, which the shimmer eases out at once the pour stops. */
+    private static @Nullable SprayCone heating;
 
     private HeatWaveEffect() {
+    }
+
+    /**
+     * Hands the wave the cone Flames pours through this frame, the glove's or a nozzle's.
+     * decision spray-abilities-render-procedurally-bound-to-their-cone
+     *
+     * @param cone the cone poured through
+     */
+    static void pour(SprayCone cone) {
+        poured = cone;
     }
 
     /**
@@ -95,14 +101,15 @@ public final class HeatWaveEffect {
     public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
-        heat = easedHeat(heat, player != null && heatsUp(player), mc.getDeltaTracker().getRealtimeDeltaTicks());
-        if (heat < COLD || mc.level == null || player == null) {
+        heat = easedHeat(heat, heatsUp(), mc.getDeltaTracker().getRealtimeDeltaTicks());
+        SprayCone cone = heating;
+        if (heat < COLD || mc.level == null || player == null || cone == null) {
             SLOT.hide(mc.gameRenderer);
             return;
         }
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         ShimmerRegion region = regionThisFrame(mc, player, frame.levelRenderState().cameraRenderState,
-                partialTick);
+                partialTick, cone);
         if (region == null) {
             SLOT.hide(mc.gameRenderer);
             return;
@@ -113,24 +120,24 @@ public final class HeatWaveEffect {
     }
 
     /**
-     * Whether Flames runs this frame, keeping its reach for the shimmer to
-     * ease out at once the hold ends.
+     * Whether Flames pours this frame, keeping its cone for the shimmer to
+     * ease out at once the pour stops.
      *
-     * @param player the local player
-     * @return true while right click holds Flames
+     * @return true while Flames pours
      */
-    private static boolean heatsUp(LocalPlayer player) {
-        ClientAbility selected = runningAbility(player);
-        if (selected == null || !holdsFlames(selected, GloveUseTracker.runsHeld(player))) {
+    private static boolean heatsUp() {
+        SprayCone cone = poured;
+        poured = null;
+        if (cone == null) {
             return false;
         }
-        range = selected.delivery().range();
+        heating = cone;
         return true;
     }
 
     private static @Nullable ShimmerRegion regionThisFrame(Minecraft mc, LocalPlayer player, CameraRenderState sight,
-                                                           float partialTick) {
-        Vec3 fromCamera = reachPoint(player, partialTick, range).subtract(sight.pos);
+                                                           float partialTick, SprayCone cone) {
+        Vec3 fromCamera = reachPoint(player, partialTick, cone).subtract(sight.pos);
         return shimmerAround(new Vector3f((float) fromCamera.x, (float) fromCamera.y, (float) fromCamera.z),
                 sight.viewRotationMatrix, sight.projectionMatrix, mc.getWindow().getWidth(),
                 mc.getWindow().getHeight());
@@ -178,11 +185,11 @@ public final class HeatWaveEffect {
      *
      * @param player      the local player
      * @param partialTick the frame's partial tick
-     * @param reach       the stream's reach
+     * @param cone        the cone Flames pours through
      * @return the point, in world coordinates
      */
-    private static Vec3 reachPoint(LocalPlayer player, float partialTick, double reach) {
-        return reachAlong(CameraEye.of(Minecraft.getInstance(), player, partialTick), reach,
+    private static Vec3 reachPoint(LocalPlayer player, float partialTick, SprayCone cone) {
+        return reachAlong(CameraEye.of(Minecraft.getInstance(), player, partialTick), cone,
                 CameraEye.blocksSeenBy(player), (from, to) -> {
                     EntityHitResult mob = ProjectileUtil.getEntityHitResult(player, from, to,
                             new AABB(from, to).inflate(1), LivingEntity.class::isInstance, from.distanceToSqr(to));
@@ -208,18 +215,19 @@ public final class HeatWaveEffect {
 
     /**
      * Where the flame reaches along a sight: the first living thing or block
-     * the sight line meets within the reach, or the reach's end in open air.
+     * the sight line meets within the cone's reach, or the reach's end in open air.
      * decision diagnose-and-correct-eye-aimed-visuals-jumping-on-sneak
+     * decision spray-abilities-render-procedurally-bound-to-their-cone
      *
      * @param sight  the eye and look the line leaves from, {@link CameraEye#of}'s
-     * @param reach  the stream's reach
+     * @param cone   the cone Flames pours through
      * @param blocks the clip the line is traced against
      * @param mobs   the living things the line is traced against
      * @return the point, in world coordinates
      */
-    static Vec3 reachAlong(CameraEye.Sight sight, double reach, CameraEye.ViewClip blocks, MobClip mobs) {
+    static Vec3 reachAlong(CameraEye.Sight sight, SprayCone cone, CameraEye.ViewClip blocks, MobClip mobs) {
         Vec3 eye = sight.eye();
-        Vec3 end = eye.add(sight.look().scale(reach));
+        Vec3 end = eye.add(sight.look().scale(cone.reach()));
         BlockHitResult block = blocks.clip(eye, end);
         Vec3 stop = block.getType() == HitResult.Type.BLOCK ? block.getLocation() : end;
         Vec3 mob = mobs.firstMob(eye, stop);
@@ -238,21 +246,5 @@ public final class HeatWaveEffect {
     static float easedHeat(float heat, boolean running, float deltaTicks) {
         float target = running ? 1f : 0f;
         return heat + (target - heat) * Math.min(1f, deltaTicks * EASE_PER_TICK);
-    }
-
-    private static @Nullable ClientAbility runningAbility(LocalPlayer player) {
-        String abilityId = GloveAim.selectedAbilityId(player);
-        return abilityId == null ? null : AbilitySyncHandler.findAbility(abilityId);
-    }
-
-    /**
-     * Whether Flames runs: the selected ability runs a flame and right click holds it.
-     *
-     * @param ability the selected ability's synced copy, or null when none
-     * @param useHeld whether right click holds a live press
-     * @return true while Flames runs
-     */
-    static boolean holdsFlames(@Nullable ClientAbility ability, boolean useHeld) {
-        return useHeld && ability != null && ability.behaviors().stream().anyMatch(FlamesStep.class::isInstance);
     }
 }

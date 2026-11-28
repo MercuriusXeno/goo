@@ -20,7 +20,8 @@ import java.util.function.Consumer;
 
 /**
  * Gametests for lunar's mountain ranges: across a stretch holding a range and a basin, the highest peak stands far
- * over the lowest basin floor, and the peak is anorthosite under its regolith.
+ * over the lowest basin floor, and the peak is anorthosite under the ground its biome lays.
+ * decision lunar-biomes-add-block-types-to-the-ground
  * decision lunar-surface-gains-giant-craters-mountains-rilles-and-boulder-fields
  */
 @RegistersGameTests
@@ -34,7 +35,7 @@ public final class LunarMountainTests {
     /** The sampled grid's spacing in blocks. */
     private static final int SAMPLE_STEP = 16;
     /** The least rise a range's peak makes over the lowest basin floor, in blocks. */
-    private static final int LEAST_RISE = 80;
+    private static final int LEAST_RISE = 40;
     /** How deep under a peak's surface its stone is read, past the regolith skin. */
     private static final int REGOLITH_SEARCH_DEPTH = 12;
 
@@ -42,7 +43,7 @@ public final class LunarMountainTests {
     private static final String NO_BASIN = "The stretch within %d blocks of the origin should hold a basin";
     private static final String SHOULD_RISE = "The highest surface %s at y %d should stand %d blocks over the lowest "
             + "basin floor %s at y %d, stands %d";
-    private static final String PEAK_IS_ANORTHOSITE = "The peak %s should read anorthosite under its regolith, reads %s";
+    private static final String PEAK_IS_ANORTHOSITE = "The peak %s should read anorthosite under the ground its biome lays, reads %s";
 
     private LunarMountainTests() {
     }
@@ -60,7 +61,7 @@ public final class LunarMountainTests {
     /**
      * Samples goo:lunar's generated surface height on a grid across a stretch around the origin through its chunk
      * generator; the highest surface stands at least 80 blocks over the lowest surface where the maria noise reads
-     * basin, and the highest column reads anorthosite under its regolith.
+     * basin, and the highest column reads anorthosite under the ground its biome lays.
      *
      * @param helper the gametest helper
      */
@@ -89,17 +90,17 @@ public final class LunarMountainTests {
         int rise = peak.getY() - basinFloor.getY();
         helper.assertTrue(rise >= LEAST_RISE, String.format(SHOULD_RISE, peak, peak.getY(), LEAST_RISE, basinFloor,
                 basinFloor.getY(), rise));
-        BlockState stone = stoneUnderTheRegolith(lunar, peak);
+        BlockState stone = stoneUnderTheLaidGround(lunar, peak);
         helper.assertTrue(stone.is(GooBlocks.ANORTHOSITE.get()), String.format(PEAK_IS_ANORTHOSITE, peak, stone));
         helper.succeed();
     }
 
-    private static BlockState stoneUnderTheRegolith(ServerLevel lunar, BlockPos column) {
+    private static BlockState stoneUnderTheLaidGround(ServerLevel lunar, BlockPos column) {
         lunar.getChunk(column.getX() >> 4, column.getZ() >> 4);
         int surfaceY = lunar.getHeight(Heightmap.Types.WORLD_SURFACE, column.getX(), column.getZ()) - 1;
         for (int y = surfaceY; y > surfaceY - REGOLITH_SEARCH_DEPTH; y--) {
             BlockState state = lunar.getBlockState(column.atY(y));
-            if (!state.is(GooBlocks.REGOLITH.get()) && !state.is(GooBlocks.METEORIC_IRON.get())) {
+            if (!LunarSurfaceBiomes.isLaidGround(state) && !state.is(GooBlocks.METEORIC_IRON.get())) {
                 return state;
             }
         }

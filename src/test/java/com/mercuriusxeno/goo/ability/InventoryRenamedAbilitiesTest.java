@@ -92,15 +92,16 @@ class InventoryRenamedAbilitiesTest {
     static Stream<Arguments> renamedTypes() {
         return Stream.of(
                 Arguments.of("blaze", Set.of("blaze_flames", "blaze_ignite", "blaze_kindle", "blaze_molten")),
-                Arguments.of("crystal", Set.of("crystal_glimmer", "crystal_knives", "crystal_prism", "crystal_scales",
+                Arguments.of("crystal", Set.of("crystal_glimmer", "crystal_knives", "crystal_scales",
                         "crystal_shatter")),
                 Arguments.of("rock", Set.of("rock_bore", "rock_build", "rock_gouge", "rock_level", "rock_mortar", "rock_petrify",
                         "rock_stoneskin")),
                 Arguments.of("jelly", Set.of("jelly_gluttony", "jelly_heal", "jelly_nectar", "jelly_reserve")),
                 Arguments.of("void", Set.of("void_cancel", "void_hole", "void_vacuum", "void_zone")),
-                Arguments.of("zoo", Set.of("zoo_allure", "zoo_shape", "zoo_spawn")),
+                // zoo-leaves-and-zombie-goo-replaces-it-as-z
+                Arguments.of("zoo", Set.of()),
                 Arguments.of("yarn", Set.of("yarn_herd", "yarn_lead", "yarn_stitch")),
-                Arguments.of("xeno", Set.of("xeno_revert", "xeno_unveil", "xeno_shriek")));
+                Arguments.of("xeno", Set.of("xeno_revert", "xeno_unveil", "xeno_shriek", "xeno_ooze")));
     }
 
     @Test

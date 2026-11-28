@@ -67,7 +67,6 @@ public final class StepTypes {
         register(BreakBlocksStep.TYPE);
         register(ExtinguishStep.TYPE);
         register(TravelingStep.TYPE);
-        register(GlacialStep.TYPE);
         register(LeafSteps.SET_AI.type());
         register(LeafSteps.SET_INVULNERABLE.type());
         register(LeafSteps.REVERT_HOLD.type());
@@ -76,7 +75,6 @@ public final class StepTypes {
         register(DropItemStep.TYPE);
         register(LeafSteps.IGNITE.type());
         register(LeafSteps.LIGHT_FIRE.type());
-        register(LeafSteps.DETONATE_EXPLOSIVE.type());
         register(MoltenStep.TYPE);
         register(ShatterStep.TYPE);
         register(CreepStep.TYPE);
@@ -92,7 +90,6 @@ public final class StepTypes {
         register(PlaceBlockStep.TYPE);
         register(SetStateStep.TYPE);
         register(FieldEffectStep.TYPE);
-        register(LingerStep.TYPE);
         register(CounterStep.TYPE);
         register(BranchStep.TYPE);
         register(LeafSteps.DISCARD.type());
@@ -108,7 +105,6 @@ public final class StepTypes {
         register(UnveilStep.TYPE);
         register(WispsStep.TYPE);
         register(SpikesStep.TYPE);
-        register(ReflectorStep.TYPE);
         register(ScryStep.TYPE);
         register(RayStep.TYPE);
         register(UndeadStep.TYPE);
@@ -122,12 +118,8 @@ public final class StepTypes {
         register(CalcifyStep.TYPE);
         register(DegradeStep.TYPE);
         register(FlamesStep.TYPE);
-        register(HeaterStep.TYPE);
         register(LeafSteps.HEAL.type());
-        register(LeafSteps.COURT.type());
         register(LeafSteps.POWER_PULSE.type());
-        register(MetronomeStep.TYPE);
-        register(RelayStep.TYPE);
         register(LeafSteps.STUN.type());
         register(SignalWaveStep.TYPE);
         register(TickToggleStep.TYPE);
@@ -154,7 +146,6 @@ public final class StepTypes {
         register(TickPlantsStep.TYPE);
         register(TendFungiStep.TYPE);
         register(ToxinStep.TYPE);
-        register(VerdantStep.TYPE);
         register(HastenRegrowStep.TYPE);
         register(SlashStep.TYPE);
         register(CharmStep.TYPE);
@@ -174,6 +165,7 @@ public final class StepTypes {
         register(StitchStep.TYPE);
         register(NitroStep.TYPE);
         register(GloomStep.TYPE);
+        register(OozeStep.TYPE);
         register(MortarStep.TYPE);
         register(GrabStep.TYPE);
         register(GougeStep.TYPE);

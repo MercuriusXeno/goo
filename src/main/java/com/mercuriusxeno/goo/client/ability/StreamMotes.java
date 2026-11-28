@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.program.SimpleParticles;
+import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.particle.GloveMote;
 import com.mercuriusxeno.goo.client.particle.GloveSwing;
 import com.mercuriusxeno.goo.client.particle.SprayDripParticle;
@@ -41,7 +42,30 @@ public final class StreamMotes {
     /** Motes off the arc launched each tick of a stream throwing no drips; a spray draws the drips its server threw. */
     static final int MOTES_PER_TICK = 6;
 
+    /** The ability whose spores are registered in {@link ConeVisuals}. */
+    static final String MYCOSIS_ID = "goo:sculk_mycosis";
+
     private StreamMotes() {
+    }
+
+    /**
+     * Launches a tick of Mycosis' spores through a cone a nozzle pours, as the server's tick launches the glove's:
+     * each inside the cone's shape, coming to rest at its reach.
+     * decision spray-abilities-render-procedurally-bound-to-their-cone
+     *
+     * @param cone the cone poured through
+     */
+    static void pour(SprayCone cone) {
+        Minecraft mc = Minecraft.getInstance();
+        AbilitySyncHandler.ClientAbility mycosis = AbilitySyncHandler.findAbility(MYCOSIS_ID);
+        if (mc.player == null || mycosis == null) {
+            return;
+        }
+        int casterId = mc.player.getId();
+        mycosis.delivery().particle().ifPresent(id -> SimpleParticles.resolve(id).ifPresent(particle -> launch(
+                GooStreamHandler.motesOf(casterId, cone.apex(), cone.axis(), id,
+                        new GooStreamHandler.SprayedCone(cone.shape(), cone.reach()), Delivery.NO_THROW_SPEED),
+                particle)));
     }
 
     /**

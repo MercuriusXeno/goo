@@ -1,0 +1,288 @@
+package com.mercuriusxeno.goo.gametest;
+
+import com.mercuriusxeno.goo.ability.world.Reflectors;
+import com.mercuriusxeno.goo.block.ability.LightRailBlock;
+import com.mercuriusxeno.goo.block.alientech.LightBeaconBlock;
+import com.mercuriusxeno.goo.block.alientech.ReflectorBlock;
+import com.mercuriusxeno.goo.data.GooValues;
+import com.mercuriusxeno.goo.data.IGooValueLookup;
+import com.mercuriusxeno.goo.registry.GooBlocks;
+import com.mercuriusxeno.goo.registry.GooItems;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.EntityTypes;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.LightLayer;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.List;
+import java.util.function.Consumer;
+
+/**
+ * Gametests for the reflector block: it registers and drops itself unrestricted from melting; two reflectors with
+ * air between them, open lens to open lens, join by a light rail that lights its cells and lets a block be placed in
+ * them; a solid block between two reflectors leaves them unjoined; the closed lens on the side a reflector attaches
+ * by joins nothing; and a light beacon's column lights the reflector it strikes, unless a block stops it first.
+ * decision reflector-rails-carry-the-brightest-light
+ * decision beacon-column-into-a-reflector-counts-as-max-light
+ * decision utility-blocks-found-in-lunar-are-learned-and-recreated-at-will
+ */
+@RegistersGameTests
+public final class ReflectorBlockTests {
+    private static final String REFLECTOR_REGISTERS_AND_DROPS = "reflector_registers_and_drops";
+    private static final String REFLECTORS_JOIN_BY_A_LIT_RAIL = "reflectors_join_by_a_lit_rail";
+    private static final String SOLID_BLOCK_ENDS_THE_RAIL = "reflector_solid_block_ends_the_rail";
+    private static final String CLOSED_LENS_JOINS_NOTHING = "reflector_closed_lens_joins_nothing";
+    private static final String BEACON_COLUMN_LIGHTS = "beacon_column_lights_the_reflector_it_strikes";
+    private static final String BEACON_COLUMN_BLOCKED = "beacon_column_blocked_leaves_the_reflector_dark";
+    private static final String BEACON_COLUMN_RAIL = "beacon_column_lays_full_power_rail";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, REFLECTOR_REGISTERS_AND_DROPS, ReflectorBlockTests::registersAndDrops);
+        GooTestFunctions.registerTest(registrar, REFLECTORS_JOIN_BY_A_LIT_RAIL, ReflectorBlockTests::joinByALitRail);
+        GooTestFunctions.registerTest(registrar, SOLID_BLOCK_ENDS_THE_RAIL, ReflectorBlockTests::solidBlockEndsTheRail);
+        GooTestFunctions.registerTest(registrar, CLOSED_LENS_JOINS_NOTHING, ReflectorBlockTests::closedLensJoinsNothing);
+        GooTestFunctions.registerTest(registrar, BEACON_COLUMN_LIGHTS,
+                ReflectorBlockTests::beaconColumnLightsTheReflectorItStrikes);
+        GooTestFunctions.registerTest(registrar, BEACON_COLUMN_BLOCKED,
+                ReflectorBlockTests::beaconColumnBlockedLeavesTheReflectorDark);
+        GooTestFunctions.registerTest(registrar, BEACON_COLUMN_RAIL, ReflectorBlockTests::beaconColumnLaysFullPowerRail);
+    }
+
+    private static final BlockPos NEAR = new BlockPos(0, 1, 2);
+    private static final BlockPos FAR = new BlockPos(5, 1, 2);
+    private static final BlockPos MIDDLE = new BlockPos(2, 1, 2);
+    /** The closed-lens column: a reflector on a raised support, a second on the floor below it. */
+    private static final BlockPos RAISED = new BlockPos(2, 3, 2);
+    private static final BlockPos BELOW_RAISED = RAISED.below();
+    private static final BlockPos FLOOR_REFLECTOR = BELOW_RAISED.below();
+    private static final double DROP_REACH = 2.0;
+    /** Ticks watched: past a reflector's first refresh and its next, a second apart. */
+    private static final int WATCH_TICKS = 45;
+
+    private static final String NOT_REGISTERED = "goo:reflector should be a ReflectorBlock with its BlockItem";
+    private static final String WRONG_DROP = "A broken reflector should drop one reflector, but dropped %s";
+    private static final String RESTRICTED = "goo:reflector should be neither restricted nor denied from melting";
+    private static final String NO_RAIL = "%s between the reflectors should be light rail, it is %s";
+    private static final String UNLIT = "A rail cell should light to its rail's level %d, it reads %d";
+    private static final String NOT_REPLACEABLE = "A rail cell should take a placed block";
+    private static final String RAIL_ACROSS = "No rail should join reflectors with stone between, %s is rail";
+    /** A rail laid through the closed lens knocks the raised reflector off its emptied support, so either shows it. */
+    private static final String CLOSED_LENS_RAIL = "No rail should leave the lens a reflector attaches by: on tick %d "
+            + "the raised cell held %s and the cell below it %s";
+
+    private static final String COLUMN_UNLIT = "A reflector a beacon's column strikes should light its rail to 15, the "
+            + "rail reads %d";
+    private static final String NOT_STRUCK = "The column should strike the reflector 20 cells above the beacon";
+    private static final String STRUCK_THROUGH_STONE = "A column stopped by stone should strike no reflector beyond it";
+    private static final String COLUMN_RAIL = "Column cell %s should hold full-power rail %b, it holds %s";
+    /** The shaft bay: 24 tall, the reflectors hanging from its top cells. */
+    private static final int SHAFT_HEIGHT = 24;
+    private static final BlockPos BEACON = new BlockPos(3, 1, 3);
+    /** Under the shaft's top, 20 cells of air above the beacon. */
+    private static final BlockPos STRUCK = new BlockPos(3, SHAFT_HEIGHT - 2, 3);
+    private static final BlockPos LINKED = new BlockPos(3, SHAFT_HEIGHT - 2, 5);
+    private static final BlockPos SHAFT_RAIL = new BlockPos(3, SHAFT_HEIGHT - 2, 4);
+    private static final BlockPos COLUMN_BLOCK = new BlockPos(3, SHAFT_HEIGHT / 2, 3);
+
+    private ReflectorBlockTests() {
+    }
+
+    /**
+     * The registries hold goo:reflector and its BlockItem, a broken reflector drops one reflector, and the live goo
+     * value table reads it neither restricted nor denied.
+     *
+     * @param helper the gametest helper
+     */
+    public static void registersAndDrops(GameTestHelper helper) {
+        Block block = BuiltInRegistries.BLOCK.getValue(GooBlocks.REFLECTOR.getId());
+        helper.assertTrue(block instanceof ReflectorBlock
+                && BuiltInRegistries.ITEM.getValue(GooItems.REFLECTOR.getId()) instanceof BlockItem item
+                && item.getBlock() == block, NOT_REGISTERED);
+        standOnFloor(helper, NEAR);
+        ServerLevel level = helper.getLevel();
+        BlockPos pos = helper.absolutePos(NEAR);
+        Block.dropResources(level.getBlockState(pos), level, pos, level.getBlockEntity(pos), null, ItemStack.EMPTY);
+        List<ItemEntity> drops = helper.getEntities(EntityTypes.ITEM, NEAR, DROP_REACH);
+        helper.assertTrue(drops.size() == 1 && drops.getFirst().getItem().is(GooItems.REFLECTOR.get())
+                && drops.getFirst().getItem().getCount() == 1,
+                String.format(WRONG_DROP, drops.stream().map(ItemEntity::getItem).toList()));
+        drops.forEach(ItemEntity::discard);
+        IGooValueLookup values = GooValues.of(level);
+        helper.assertFalse(values.isRestricted(GooItems.REFLECTOR.getId())
+                || values.isDenied(GooItems.REFLECTOR.getId()), RESTRICTED);
+        helper.succeed();
+    }
+
+    /**
+     * Two floor reflectors with air between them join by rail: every cell between is light rail, lit to its level,
+     * and replaceable as air is.
+     *
+     * @param helper the gametest helper
+     */
+    public static void joinByALitRail(GameTestHelper helper) {
+        standOnFloor(helper, NEAR);
+        standOnFloor(helper, FAR);
+        helper.succeedWhen(() -> {
+            for (int x = NEAR.getX() + 1; x < FAR.getX(); x++) {
+                BlockPos cell = new BlockPos(x, NEAR.getY(), NEAR.getZ());
+                helper.assertTrue(helper.getBlockState(cell).is(GooBlocks.LIGHT_RAIL.get()),
+                        String.format(NO_RAIL, cell, helper.getBlockState(cell)));
+            }
+            BlockState rail = helper.getBlockState(MIDDLE);
+            int level = rail.getValue(LightRailBlock.LEVEL);
+            int light = helper.getLevel().getBrightness(LightLayer.BLOCK, helper.absolutePos(MIDDLE));
+            helper.assertTrue(light == level && light > 0, String.format(UNLIT, level, light));
+            helper.assertTrue(rail.canBeReplaced(), NOT_REPLACEABLE);
+        });
+    }
+
+    /**
+     * Two floor reflectors with stone between them stay unjoined: no cell between holds rail.
+     *
+     * @param helper the gametest helper
+     */
+    public static void solidBlockEndsTheRail(GameTestHelper helper) {
+        helper.setBlock(MIDDLE, Blocks.STONE);
+        standOnFloor(helper, NEAR);
+        standOnFloor(helper, FAR);
+        helper.runAfterDelay(WATCH_TICKS, () -> {
+            for (int x = NEAR.getX() + 1; x < FAR.getX(); x++) {
+                BlockPos cell = new BlockPos(x, NEAR.getY(), NEAR.getZ());
+                helper.assertFalse(helper.getBlockState(cell).is(GooBlocks.LIGHT_RAIL.get()),
+                        String.format(RAIL_ACROSS, cell));
+            }
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A reflector standing on a raised support, with a second reflector on the floor below the support, joins
+     * nothing through the closed lens it attaches by. The support is taken away without telling its neighbors, so
+     * only air lies between the two and the lens alone keeps them apart; the cell between is watched every tick,
+     * since a rail laid there would tell the raised reflector it lost its support and both would go.
+     *
+     * @param helper the gametest helper
+     */
+    public static void closedLensJoinsNothing(GameTestHelper helper) {
+        helper.setBlock(BELOW_RAISED, Blocks.STONE);
+        helper.setBlock(RAISED, reflectorFacing(Direction.UP));
+        standOnFloor(helper, FLOOR_REFLECTOR);
+        helper.getLevel().setBlock(helper.absolutePos(BELOW_RAISED), Blocks.AIR.defaultBlockState(),
+                Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE);
+        for (int tick = 1; tick <= WATCH_TICKS; tick++) {
+            int at = tick;
+            helper.runAfterDelay(tick, () -> helper.assertTrue(
+                    helper.getBlockState(RAISED).is(GooBlocks.REFLECTOR.get())
+                            && !helper.getBlockState(BELOW_RAISED).is(GooBlocks.LIGHT_RAIL.get()),
+                    String.format(CLOSED_LENS_RAIL, at, helper.getBlockState(RAISED),
+                            helper.getBlockState(BELOW_RAISED))));
+        }
+        helper.runAfterDelay(WATCH_TICKS + 1, helper::succeed);
+    }
+
+    /**
+     * A floor light beacon's column climbs 20 cells of air to a hanging reflector linked to a second: the server reads
+     * the first struck, and the rail between the two carries max light.
+     * decision beacon-column-into-a-reflector-counts-as-max-light
+     *
+     * @param helper the gametest helper
+     */
+    public static void beaconColumnLightsTheReflectorItStrikes(GameTestHelper helper) {
+        standBeaconAndReflectors(helper);
+        helper.succeedWhen(() -> {
+            helper.assertTrue(Reflectors.struckByAColumn(helper.getLevel(), helper.absolutePos(STRUCK)), NOT_STRUCK);
+            int level = railLevel(helper);
+            helper.assertTrue(level == LightBeaconBlock.LIGHT, String.format(COLUMN_UNLIT, level));
+        });
+    }
+
+    /**
+     * The same column with stone midway up it: the server reads no reflector struck.
+     * decision beacon-column-into-a-reflector-counts-as-max-light
+     *
+     * @param helper the gametest helper
+     */
+    public static void beaconColumnBlockedLeavesTheReflectorDark(GameTestHelper helper) {
+        standBeaconAndReflectors(helper);
+        helper.setBlock(COLUMN_BLOCK, Blocks.STONE);
+        helper.runAfterDelay(WATCH_TICKS, () -> {
+            helper.assertFalse(Reflectors.struckByAColumn(helper.getLevel(), helper.absolutePos(STRUCK)),
+                    STRUCK_THROUGH_STONE);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A light beacon's column is a reflector's rail at full power: every cell of air up to the reflector it strikes
+     * holds rail at the max light; stone set across the column takes the rail back past it; and the rail goes with
+     * the beacon.
+     * operator ruling 2026-11-28: the beacon's beam works as a reflector's beam does, at full power
+     *
+     * @param helper the gametest helper
+     */
+    public static void beaconColumnLaysFullPowerRail(GameTestHelper helper) {
+        standBeaconAndReflectors(helper);
+        helper.startSequence()
+                .thenWaitUntil(() -> assertColumnRail(helper, BEACON.getY() + 1, STRUCK.getY(), true))
+                .thenExecute(() -> helper.setBlock(COLUMN_BLOCK, Blocks.STONE))
+                .thenWaitUntil(() -> assertColumnRail(helper, COLUMN_BLOCK.getY() + 1, STRUCK.getY(), false))
+                .thenExecute(() -> assertColumnRail(helper, BEACON.getY() + 1, COLUMN_BLOCK.getY(), true))
+                .thenExecute(() -> helper.setBlock(BEACON, Blocks.AIR))
+                .thenWaitUntil(() -> assertColumnRail(helper, BEACON.getY() + 1, COLUMN_BLOCK.getY(), false))
+                .thenSucceed();
+    }
+
+    /** Every column cell from one height up to below another holds full-power rail, or none does. */
+    private static void assertColumnRail(GameTestHelper helper, int fromY, int belowY, boolean railed) {
+        for (int y = fromY; y < belowY; y++) {
+            BlockPos cell = new BlockPos(BEACON.getX(), y, BEACON.getZ());
+            BlockState state = helper.getBlockState(cell);
+            boolean fullRail = state.is(GooBlocks.LIGHT_RAIL.get())
+                    && state.getValue(LightRailBlock.LEVEL) == LightRailBlock.BRIGHTEST;
+            helper.assertTrue(railed ? fullRail : state.isAir(), String.format(COLUMN_RAIL, cell, railed, state));
+        }
+    }
+
+    /**
+     * Stands a light beacon on stone pointing up and two reflectors hanging from stone at the shaft's top, the first
+     * above the beacon.
+     */
+    private static void standBeaconAndReflectors(GameTestHelper helper) {
+        helper.setBlock(BEACON.below(), Blocks.STONE);
+        helper.setBlock(BEACON, GooBlocks.LIGHT_BEACON.get().defaultBlockState()
+                .setValue(LightBeaconBlock.FACING, Direction.UP));
+        for (BlockPos hanging : new BlockPos[] {STRUCK, LINKED}) {
+            helper.setBlock(hanging.above(), Blocks.STONE);
+            helper.setBlock(hanging, reflectorFacing(Direction.DOWN));
+        }
+    }
+
+    private static int railLevel(GameTestHelper helper) {
+        BlockState rail = helper.getBlockState(SHAFT_RAIL);
+        helper.assertTrue(rail.is(GooBlocks.LIGHT_RAIL.get()), String.format(NO_RAIL, SHAFT_RAIL, rail));
+        return rail.getValue(LightRailBlock.LEVEL);
+    }
+
+    /** Stands a reflector on stone, pointing up, its closed lens on the floor. */
+    private static void standOnFloor(GameTestHelper helper, BlockPos at) {
+        helper.setBlock(at.below(), Blocks.STONE);
+        helper.setBlock(at, reflectorFacing(Direction.UP));
+    }
+
+    private static BlockState reflectorFacing(Direction facing) {
+        return GooBlocks.REFLECTOR.get().defaultBlockState().setValue(ReflectorBlock.FACING, facing);
+    }
+}

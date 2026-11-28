@@ -18,9 +18,11 @@ import net.minecraft.world.level.levelgen.structure.BoundingBox;
 
 /**
  * The one piece of a fallen meteorite: a bowl sunk into the ground around its centre, its floor scorched to basalt,
- * and the meteorite's lump resting on the floor's middle, an iron shell holding a glass core and crusted with glass
- * on its upper face. The bowl follows each column's own ground, so it sits in the terrain wherever it falls.
+ * and the meteorite's lump resting on the floor's middle, a meteoric iron shell wrapping a lode of native iron at its
+ * heart and crusted with glass on its upper face, the crust kept off the lode so iron alone encloses it. The bowl
+ * follows each column's own ground, so it sits in the terrain wherever it falls.
  * decision lunar-holds-meteorites-eldritch-nests-monoliths-and-ruins
+ * decision each-lunar-landmark-holds-its-own-prize
  */
 public final class MeteoritePiece extends LandmarkPiece {
 
@@ -29,9 +31,11 @@ public final class MeteoritePiece extends LandmarkPiece {
     static final int CRATER_DEPTH = 3;
     /** How deep the scorched basalt runs under the bowl's floor. */
     static final int SCORCH_DEPTH = 2;
-    /** The lump's radius, and its glass core's. */
+    /** The lump's radius, and its native iron lode's. */
     static final double LUMP_RADIUS = 2.5;
-    static final double CORE_RADIUS = 1.2;
+    static final double LODE_RADIUS = 1.2;
+    /** The crust keeps past this distance from the centre, so no glass touches the lode. */
+    private static final double CRUST_FROM = LODE_RADIUS + 1;
     /** The lump's centre stands this far over the bowl's floor at the middle. */
     static final int LUMP_LIFT = 2;
     /** The box reaches this far over the centre's ground, for the slopes the bowl cuts into. */
@@ -95,6 +99,14 @@ public final class MeteoritePiece extends LandmarkPiece {
         placeLump(level, chunkBox, at);
     }
 
+    private static BlockState lumpBlockAt(int dx, int dy, int dz, double distance) {
+        if (distance <= LODE_RADIUS) {
+            return GooBlocks.NATIVE_IRON.get().defaultBlockState();
+        }
+        boolean crust = dy > 0 && distance > CRUST_FROM && Math.floorMod(dx + dy + dz, CRUST_SPACING) == 0;
+        return (crust ? GooBlocks.IMPACT_GLASS : GooBlocks.METEORIC_IRON).get().defaultBlockState();
+    }
+
     private void placeLump(WorldGenLevel level, BoundingBox chunkBox, BlockPos.MutableBlockPos at) {
         int lumpY = groundY - CRATER_DEPTH + LUMP_LIFT;
         int reach = (int) Math.ceil(LUMP_RADIUS);
@@ -105,10 +117,7 @@ public final class MeteoritePiece extends LandmarkPiece {
                     if (distance > LUMP_RADIUS || !chunkBox.isInside(at.set(centerX + dx, lumpY + dy, centerZ + dz))) {
                         continue;
                     }
-                    boolean core = distance <= CORE_RADIUS;
-                    boolean crust = dy > 0 && Math.floorMod(dx + dy + dz, CRUST_SPACING) == 0;
-                    level.setBlock(at, (core || crust ? GooBlocks.IMPACT_GLASS : GooBlocks.METEORIC_IRON).get()
-                            .defaultBlockState(), PLACE_FLAGS);
+                    level.setBlock(at, lumpBlockAt(dx, dy, dz, distance), PLACE_FLAGS);
                 }
             }
         }

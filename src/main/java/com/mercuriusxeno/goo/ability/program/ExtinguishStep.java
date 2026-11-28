@@ -44,7 +44,7 @@ public record ExtinguishStep() implements Step {
         ChannelHost host = context.hostAs(ChannelHost.class);
         ServerLevel level = context.hostAs(FrostHost.class).level();
         host.channelAim().ifPresent(aim -> {
-            List<BlockPos> cone = CalcifyStep.blocksInCone(host.eye(), aim.aimPoint(), aim.coneDegrees());
+            List<BlockPos> cone = CalcifyStep.blocksInCone(host.eye(), aim.aimPoint(), aim.shape());
             for (BlockPos pos : cone) {
                 BlockState state = level.getBlockState(pos);
                 if (FrostFire.burns(state)) {

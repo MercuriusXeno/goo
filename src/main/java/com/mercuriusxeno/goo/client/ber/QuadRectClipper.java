@@ -10,7 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Cuts a quad to a rectangle in the plane of two axes, the prism those two bounded and the
+ * Cuts a quad to a rectangle in the plane of two axes, the box those two bounded and the
  * third free, so a shard's run of texel cells draws exactly its own piece of a face of the
  * item's model (decision tiles-of-the-items-image). A cut edge interpolates position, UV and color.
  */

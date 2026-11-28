@@ -8,7 +8,7 @@ import java.util.Set;
 
 /**
  * The cells a straight line between two blocks' centers passes through,
- * the ends left out: where a light rail runs between two reflector prisms
+ * the ends left out: where a light rail runs between two reflectors
  * linked in any direction.
  * decision reflector-rails-carry-the-brightest-light
  */

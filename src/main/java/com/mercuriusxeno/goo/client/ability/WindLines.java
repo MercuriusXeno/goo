@@ -1,18 +1,20 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.ability.AbilityArea;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.WindStep;
+import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.ImmediateBuffers;
 import com.mercuriusxeno.goo.client.LineContext;
 import com.mercuriusxeno.goo.client.TranslucentVisual.LevelFrame;
 import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
+import com.mercuriusxeno.goo.client.particle.SnowflakeParticle;
 import com.mercuriusxeno.goo.client.particle.VoidMoteParticle;
 import com.mercuriusxeno.goo.registry.GooParticles;
+import com.mercuriusxeno.goo.throwing.ConeShape;
+import com.mercuriusxeno.goo.throwing.StreamCone;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.rendertype.RenderType;
-import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.resources.sounds.AbstractTickableSoundInstance;
 import net.minecraft.client.resources.sounds.SoundInstance;
 import net.minecraft.sounds.SoundEvents;
@@ -21,6 +23,7 @@ import net.minecraft.util.ARGB;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
+import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -67,8 +70,6 @@ public final class WindLines {
     static final double CURL_STARTS = 0.5;
     /** The ticks a line rushes straight before it curls. */
     static final double STRAIGHT_TICKS = LIFE_TICKS * CURL_STARTS;
-    /** The share of the cone's length a line rushes straight before it curls. */
-    static final double STRAIGHT_SHARE = 0.6;
     /** The ticks a line twists for after its straight run, until it fades. */
     static final double TWIST_TICKS = LIFE_TICKS - STRAIGHT_TICKS;
     /** How far off its axis a line has twisted when it fades, in blocks: slight. */
@@ -105,7 +106,20 @@ public final class WindLines {
     private static final WindStep RISING_WIND = new WindStep(false);
     private static final double TWO_PI = 2 * Math.PI;
     private static final double HALF = 0.5;
+    /** How far a twisting line carries on past its straight run, as a share of that run. */
+    private static final double TWIST_CARRY = (1 - LAUNCH_SURGE) * TWIST_TICKS / STRAIGHT_TICKS
+            * (1 - TWIST_EASE * HALF);
+    /** The longest straight run a line draws, as a share of its middling one. */
+    private static final double LONGEST_RUN = 1.5;
+    /**
+     * The share of the cone's reach a middling line rushes straight before it curls: the longest line's twist
+     * ends at the reach.
+     * decision spray-abilities-render-procedurally-bound-to-their-cone
+     */
+    static final double STRAIGHT_SHARE = 1 / (LONGEST_RUN * (1 + TWIST_CARRY));
     private static final double NEAR_VERTICAL = 0.99;
+    /** Below this squared length a line runs down the look itself and leans no way. */
+    private static final double NO_LEAN = 1e-12;
     /** How far toward a column's edge an updraft's line may leave, as a share of its half width. */
     static final double RISE_INSET = 0.8;
     /** The narrow cone an updraft's lines rise through, in degrees, so they lean a little as they climb. */
@@ -156,13 +170,13 @@ public final class WindLines {
      */
     record Line(Vec3 origin, Vec3 axis, Vec3 outward, Vec3 across, double straight, Sway sway, double winding,
                 float gray, boolean snowflakes, long startTick, boolean inward,
-                WindStep.LineColors colors, boolean followsTheBlob) {
+                WindStep.LineColors colors, boolean followsTheBlob, @Nullable SprayCone cone) {
 
         Line(Vec3 origin, Vec3 axis, Vec3 outward, Vec3 across, double straight, Sway sway, double winding,
              float gray, boolean snowflakes, long startTick, boolean inward,
              WindStep.LineColors colors) {
             this(origin, axis, outward, across, straight, sway, winding, gray, snowflakes, startTick, inward,
-                    colors, false);
+                    colors, false, null);
         }
 
         /**
@@ -173,7 +187,7 @@ public final class WindLines {
          */
         Line followingTheBlob() {
             return new Line(origin, axis, outward, across, straight, sway, winding, gray, snowflakes, startTick,
-                    inward, colors, true);
+                    inward, colors, true, cone);
         }
 
         /**
@@ -245,7 +259,11 @@ public final class WindLines {
     static Vec3 pathPoint(Line line, double age) {
         double clamped = line.inward() ? Math.clamp(age, -TAIL_TICKS, arrivalTicks(line))
                 : Math.clamp(age, 0, LIFE_TICKS);
-        return coursePoint(line, clamped).add(swayAt(line, clamped));
+        Vec3 point = coursePoint(line, clamped).add(swayAt(line, clamped));
+        SprayCone cone = line.cone();
+        // decision spray-abilities-render-procedurally-bound-to-their-cone: a sway or a twist past the rim keeps to it
+        return cone == null ? point
+                : StreamCone.pulledInside(line.origin(), cone.axis(), cone.reach(), cone.shape(), point);
     }
 
     private static Vec3 coursePoint(Line line, double age) {
@@ -379,32 +397,35 @@ public final class WindLines {
 
     /**
      * Where a loose void mote starts: a random point inside the stream's
-     * cone, out to its range and within its half angle of the look, spread
+     * cone, out to its reach and inside its shape, spread
      * across the cone rather than bunched at its tip.
      * vacuum-motes-fly-loose-from-the-cone-to-the-blob
+     * decision spray-abilities-render-procedurally-bound-to-their-cone
      *
-     * @param gust   the stream's cone
+     * @param cone   the stream's cone
      * @param random the random source
      * @return the mote's start
      */
-    static Vec3 moteStart(Gust gust, RandomSource random) {
-        double off = Math.toRadians(gust.coneDegrees() * HALF) * Math.sqrt(random.nextDouble());
-        Vec3 direction = tilt(gust.axis(), off, random.nextDouble() * TWO_PI);
-        double out = gust.range() * Math.sqrt(MOTE_NEAREST_SHARE + (1 - MOTE_NEAREST_SHARE) * random.nextDouble());
-        return gust.origin().add(direction.scale(out));
+    static Vec3 moteStart(SprayCone cone, RandomSource random) {
+        Vec3 direction = StreamCone.launchDirection(cone.axis(), cone.shape(), Math.sqrt(random.nextDouble()),
+                random.nextDouble());
+        double out = cone.reach() * Math.sqrt(MOTE_NEAREST_SHARE + (1 - MOTE_NEAREST_SHARE) * random.nextDouble());
+        return cone.apex().add(direction.scale(out));
     }
 
     /**
      * How far a line rushes straight before it twists: a random share of its
-     * gust's range, inward or out, so Vacuum's streak runs the length Gust's does.
+     * cone's reach, inward or out, so Vacuum's streak runs the length Gust's does,
+     * and the longest line's whole course, straight run and twist, ends at the reach.
      * vacuum-wind-lines-are-gusts-streaks-flying-into-the-blob
+     * decision spray-abilities-render-procedurally-bound-to-their-cone
      *
-     * @param range  the gust's range, in blocks
+     * @param reach  the cone's reach, in blocks
      * @param spread a random draw from 0 to 1 sizing the run
      * @return the straight run, in blocks
      */
-    static double runOf(double range, double spread) {
-        return range * STRAIGHT_SHARE * (HALF + spread);
+    static double runOf(double reach, double spread) {
+        return reach * STRAIGHT_SHARE * (HALF + spread);
     }
 
     /**
@@ -480,20 +501,32 @@ public final class WindLines {
      *
      * @param player    the streaming player
      * @param abilityId the streamed ability
-     * @param area      the ability's area, whose size and angle the wind fills
-     * @param apex      the glove hand the stream leaves from
+     * @param cone      the cone the wind blows through, from the glove hand or a nozzle
      */
-    public static void blow(Player player, String abilityId, AbilityArea area, Vec3 apex) {
+    public static void blow(Player player, String abilityId, SprayCone cone) {
         windOf(abilityId).ifPresent(wind -> {
             Minecraft mc = Minecraft.getInstance();
-            Gust gust = new Gust(apex, player.getLookAngle(), area.size(), area.angle());
-            CLIENT.add(player.level().getRandom(), gust, wind, player.level().getGameTime(), true);
+            CLIENT.add(player.level().getRandom(), cone, wind, player.level().getGameTime(), true);
             if (wind.voidMotes()) {
-                flyLooseMotes(mc, player.level().getRandom(), gust);
+                flyLooseMotes(mc, player.level().getRandom(), cone);
             }
             CLIENT.windPitch = wind.pitch();
             CLIENT.keepWindBlowing(player);
         });
+    }
+
+    /**
+     * Blows this held tick's wind for the local player through a cone, the glove's or a nozzle's.
+     * decision spray-abilities-render-procedurally-bound-to-their-cone
+     *
+     * @param abilityId the streamed ability
+     * @param cone      the cone the wind blows through
+     */
+    static void blowLocal(String abilityId, SprayCone cone) {
+        Player player = Minecraft.getInstance().player;
+        if (player != null) {
+            blow(player, abilityId, cone);
+        }
     }
 
     /**
@@ -529,21 +562,10 @@ public final class WindLines {
      * @param alongZ where across the floor it leaves on z, -1 to 1 of the width inside the edge
      * @return the gust
      */
-    static Gust riseGust(Vec3 base, double radius, double height, double alongX, double alongZ) {
+    static SprayCone riseGust(Vec3 base, double radius, double height, double alongX, double alongZ) {
         double reach = radius * RISE_INSET;
         Vec3 origin = base.add(alongX * reach, 0, alongZ * reach);
-        return new Gust(origin, new Vec3(0, 1, 0), height, RISE_CONE);
-    }
-
-    /**
-     * Where a held tick's wind blows from and along.
-     *
-     * @param origin      where the lines leave, in the world
-     * @param axis        the unit direction they rush along
-     * @param range       how far the cone they fill reaches, in blocks
-     * @param coneDegrees the cone's apex angle, in degrees
-     */
-    record Gust(Vec3 origin, Vec3 axis, double range, double coneDegrees) {
+        return new SprayCone(origin, new Vec3(0, 1, 0), ConeShape.round(RISE_CONE), height);
     }
 
     /**
@@ -615,27 +637,40 @@ public final class WindLines {
         }
     }
 
-    private void add(RandomSource random, Gust gust, WindStep wind, long now) {
-        add(random, gust, wind, now, false);
+    private void add(RandomSource random, SprayCone cone, WindStep wind, long now) {
+        add(random, cone, wind, now, false);
     }
 
-    private void add(RandomSource random, Gust gust, WindStep wind, long now, boolean fromTheBlob) {
+    private void add(RandomSource random, SprayCone cone, WindStep wind, long now, boolean fromTheBlob) {
         if (!blowsOn(now)) {
             return;
         }
-        Vec3 apex = gust.origin();
-        Vec3 look = gust.axis();
-        double range = gust.range();
-        double spread = Math.toRadians(gust.coneDegrees() * HALF);
-        double about = random.nextDouble() * TWO_PI;
-        Vec3 axis = tilt(look, spread * Math.sqrt(random.nextDouble()), about);
-        Vec3 outward = radial(look, about);
-        Vec3 across = look.cross(outward).normalize();
-        double straight = runOf(range, random.nextDouble());
-        double winding = random.nextBoolean() ? CLOCKWISE : COUNTERCLOCKWISE;
-        Line line = new Line(apex, axis, outward, across, straight, sway(random, axis), winding, random.nextFloat(),
-                wind.snowflakes(), now, wind.inward(), wind.colors());
+        Line line = lineIn(cone, random, wind, now);
         live.add(fromTheBlob ? line.followingTheBlob() : line);
+    }
+
+    /**
+     * A line blown through a cone: leaving its apex along a direction drawn inside its shape, curling out from the
+     * look the way it leans, its whole course within the reach and its every point held inside the cone.
+     * decision spray-abilities-render-procedurally-bound-to-their-cone
+     *
+     * @param cone   the cone the wind blows through
+     * @param random the random source
+     * @param wind   the ability's wind
+     * @param now    the game time
+     * @return the line
+     */
+    static Line lineIn(SprayCone cone, RandomSource random, WindStep wind, long now) {
+        Vec3 look = cone.axis().normalize();
+        double about = random.nextDouble();
+        Vec3 axis = StreamCone.launchDirection(look, cone.shape(), Math.sqrt(random.nextDouble()), about);
+        Vec3 leaning = axis.subtract(look.scale(axis.dot(look)));
+        Vec3 outward = leaning.lengthSqr() > NO_LEAN ? leaning.normalize() : radial(look, about * TWO_PI);
+        Vec3 across = look.cross(outward).normalize();
+        double straight = runOf(cone.reach(), random.nextDouble());
+        double winding = random.nextBoolean() ? CLOCKWISE : COUNTERCLOCKWISE;
+        return new Line(cone.apex(), axis, outward, across, straight, sway(random, axis), winding,
+                random.nextFloat(), wind.snowflakes(), now, wind.inward(), wind.colors(), false, cone);
     }
 
     /**
@@ -779,7 +814,7 @@ public final class WindLines {
     private static void drawLines(Minecraft mc, LevelFrame frame, List<Line> live, LinesAt at) {
         Vec3 blob = CastOrigin.ofLocal(mc);
         ImmediateBuffers buffers = ImmediateBuffers.shared();
-        RenderType type = RenderTypes.linesTranslucent();
+        RenderType type = GooRenderTypes.TRANSLUCENT_LINES;
         LineContext lines = new LineContext(frame.poseStack().last(), buffers.getBuffer(type));
         for (Line line : live) {
             double age = at.gameTime() - line.startTick();
@@ -841,12 +876,28 @@ public final class WindLines {
         RandomSource random = mc.level.getRandom();
         for (Line line : live) {
             if (line.snowflakes() && random.nextFloat() < SNOWFLAKES_PER_LINE_TICK) {
-                double age = now - line.startTick();
-                Vec3 at = pathPoint(line, age);
-                Vec3 along = at.subtract(pathPoint(line, age - 1));
-                mc.level.addParticle(GooParticles.SNOWFLAKE.get(), at.x, at.y, at.z, along.x, along.y, along.z);
+                SnowflakeParticle.Flight drop = snowflakeDropOf(line, now - line.startTick());
+                Vec3 at = drop.at();
+                Vec3 along = drop.velocity();
+                if (mc.particleEngine.createParticle(GooParticles.SNOWFLAKE.get(), at.x, at.y, at.z, along.x,
+                        along.y, along.z) instanceof SnowflakeParticle flake) {
+                    // decision spray-abilities-render-procedurally-bound-to-their-cone: the flake drifts inside the cone
+                    flake.keepInside(line.cone());
+                }
             }
         }
+    }
+
+    /**
+     * Where a snowflake a line drops leaves from and how fast: at the line's head, carried at that tick's travel.
+     *
+     * @param line the line dropping it
+     * @param age  ticks since the line left the glove
+     * @return the flake's first flight
+     */
+    static SnowflakeParticle.Flight snowflakeDropOf(Line line, double age) {
+        Vec3 at = pathPoint(line, age);
+        return new SnowflakeParticle.Flight(at, at.subtract(pathPoint(line, age - 1)));
     }
 
     /**
@@ -856,11 +907,11 @@ public final class WindLines {
      *
      * @param mc     the client
      * @param random the random source
-     * @param gust   the stream's cone
+     * @param cone   the stream's cone
      */
-    private static void flyLooseMotes(Minecraft mc, RandomSource random, Gust gust) {
+    private static void flyLooseMotes(Minecraft mc, RandomSource random, SprayCone cone) {
         for (int mote = 0; mote < MOTES_PER_TICK; mote++) {
-            Vec3 at = moteStart(gust, random);
+            Vec3 at = moteStart(cone, random);
             if (mc.particleEngine.createParticle(GooParticles.VOID_MOTE.get(), at.x, at.y, at.z, 0, 0, 0)
                     instanceof VoidMoteParticle flying) {
                 flying.flyInto(() -> CastOrigin.ofLocal(mc));

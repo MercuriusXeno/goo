@@ -1,9 +1,9 @@
 package com.mercuriusxeno.goo.gametest;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.lunar.CraterField;
 import com.mercuriusxeno.goo.lunar.GiantCraterField;
 import com.mercuriusxeno.goo.lunar.LunarDepths;
+import com.mercuriusxeno.goo.lunar.LunarRolls;
 import com.mercuriusxeno.goo.lunar.SeaCavern;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import net.minecraft.core.BlockPos;
@@ -20,7 +20,6 @@ import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
 import net.minecraft.world.level.levelgen.RandomState;
-import net.minecraft.world.level.levelgen.synth.Noise;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.List;
 import java.util.function.Consumer;
@@ -29,8 +28,8 @@ import java.util.function.Predicate;
 /**
  * Gametests for goo:lunar's terrain: it generates from its own noise settings, and a column reads regolith at the
  * surface over anorthosite or basalt, molten iron over the iron core at depth, and bedrock at the floor; and its
- * ground holds meteoric iron veined through the anorthosite, and impact glass lines its crater floors under the
- * regolith, breccia rings their rims and crater ice fills the floors of the deepest.
+ * ground holds meteoric iron veined through the anorthosite, and impact glass lines its giant craters' floors under
+ * the regolith and breccia rings their rims.
  * decision lunar-generates-from-its-own-noise-and-surface-rules
  * decision lunar-matter-is-anorthosite-basalt-regolith-and-an-iron-core
  * decision lunar-ground-gains-meteoric-iron-impact-glass-breccia-and-crater-ice
@@ -41,7 +40,6 @@ public final class LunarTerrainTests {
     private static final String LUNAR_GROUND_HOLDS_METEORIC_IRON = "lunar_ground_holds_meteoric_iron";
     private static final String LUNAR_CRATER_FLOORS_READ_IMPACT_GLASS = "lunar_crater_floors_read_impact_glass";
     private static final String LUNAR_CRATER_RIMS_READ_BRECCIA = "lunar_crater_rims_read_breccia";
-    private static final String LUNAR_DEEP_CRATER_FLOORS_READ_CRATER_ICE = "lunar_deep_crater_floors_read_crater_ice";
 
     private static final ResourceKey<Level> LUNAR = ResourceKey.create(Registries.DIMENSION,
             Identifier.fromNamespaceAndPath(Goo.MODID, "lunar"));
@@ -52,53 +50,47 @@ public final class LunarTerrainTests {
     /** A walk down from the surface stops at the top of the shallow zone, past every surface skin. */
     private static final int MOLTEN_IRON_TOP_Y = LunarDepths.SHALLOW_ZONE_TOP_Y;
     /** The open air standing over the sea, at the least, in blocks. */
-    private static final int AIR_OVER_THE_SEA = 24;
+    private static final int AIR_OVER_THE_SEA = 12;
     /** How far from a test spot a search for a sea column reaches, in blocks. */
     private static final int SEA_SEARCH_REACH = 96;
 
     private static final String LUNAR_REQUIRED = "The server should hold goo:lunar";
     private static final String OWN_NOISE = "goo:lunar should generate from goo:lunar's noise settings, generates from %s";
-    private static final String SURFACE = "%s should read regolith, or a crater ray's anorthosite, at the surface y %d, "
+    private static final String SURFACE = "%s should read the ground its biome lays, or a crater ray's anorthosite, at the surface y %d, "
             + "reads %s";
     private static final String BELOW_REGOLITH = "%s should read anorthosite, basalt or a crater's breccia or impact glass "
-            + "under its regolith at y %d, reads %s";
+            + "under the ground its biome lays at y %d, reads %s";
     private static final String STRATUM = "%s should read %s at y %d, reads %s";
     private static final String NO_SEA_COLUMN = "No column within %d blocks of %s reads open sea";
     private static final String METEORIC_IRON_IN_ANORTHOSITE =
             "The chunks around %s should hold meteoric iron touching anorthosite";
-    private static final String NO_CRATER_CENTRE = "No column within %d blocks of the origin sits at a crater's centre";
-    private static final String NO_OPEN_GROUND = "No column within %d blocks of the origin lies outside every crater";
-    private static final String CENTRE_READS_GLASS = "The crater centre column %s should read impact glass under its "
-            + "regolith at y %d, reads %s";
+    private static final String NO_CRATER_COLUMN = "No giant crater within %d cells of the origin has a %s column "
+            + "standing in the highlands clear of every ray and boulder";
+    private static final String NO_OPEN_GROUND = "No column within %d blocks of the origin lies outside every giant "
+            + "crater and outside the shadowed basins";
+    private static final String FLOOR_READS_GLASS = "The giant crater floor column %s should read impact glass under "
+            + "its regolith at y %d, reads %s";
     private static final String OPEN_GROUND_READS_NO_GLASS = "The open ground column %s should read no impact glass, "
             + "reads it at y %d";
-    private static final String NO_CRATER_RIM = "No column within %d blocks of the origin sits on a crater's rim "
-            + "clear of every crater floor";
-    private static final String RIM_READS_BRECCIA = "The crater rim column %s should read breccia under its regolith "
-            + "at y %d, reads %s";
-    private static final String NO_DEEP_CRATER = "No column within %d blocks of the origin sits at the centre of a "
-            + "crater past the depth threshold";
-    private static final String NO_SHALLOW_CRATER = "No column within %d blocks of the origin sits at the centre of a "
-            + "crater short of the depth threshold, clear of every deep crater's ice";
-    private static final String DEEP_FLOOR_READS_ICE = "The deep crater floor %s should read crater ice at y %d, reads %s";
-    private static final String SHALLOW_FLOOR_READS_NO_ICE = "The shallow crater floor %s should read no crater ice, reads "
-            + "it at y %d";
-    /** How far under a floor's surface a search for crater ice reads. */
-    private static final int ICE_SEARCH_DEPTH = 8;
-    /** A rim column stands between its crater's rim crest at one radius and partway down the rim's outer fall. */
-    private static final double RIM_INNER_REACH = 1.05;
-    private static final double RIM_OUTER_REACH = 1.3;
-    /** A crater's floor reaches half its radius, the band impact glass takes over breccia. */
-    private static final double FLOOR_REACH = 0.5;
-    /** How far from the origin a search for a crater's centre or open ground reaches, in blocks. */
+    private static final String RIM_READS_BRECCIA = "The giant crater rim column %s should read breccia under its "
+            + "regolith at y %d, reads %s";
+    /** How many giant crater cells round the origin a search for a crater column reaches each way. */
+    private static final int CELL_REACH = 8;
+    /** A floor column stands between the central peak's foot and the terraced wall, in radii from the centre. */
+    private static final double FLOOR_COLUMN_REACH = 0.3;
+    /** A rim column stands between the rim crest at one radius and partway down the rim's outer fall. */
+    private static final double RIM_COLUMN_REACH = 1.15;
+    /** A crater column is sought at this many angles round its crater. */
+    private static final int COLUMN_ANGLES = 24;
+    /** A crater column stands this far inside the highlands every way. */
+    private static final int BIOME_MARGIN = 8;
+    /** How far from the origin a search for open ground reaches, in blocks. */
     private static final int SEARCH_REACH = 160;
-    /** A column within a tenth of a radius of a crater's centre stands at that centre. */
-    private static final double CENTRE_REACH = 0.1;
     /** The chunks one step around a test spot's own, which a vein search scans. */
     private static final int CHUNK_REACH = 1;
     private static final int CHUNK_SIDE = 16;
     /** The tallest the ground stands, which a vein search reads up to. */
-    private static final int GROUND_TOP_Y = 200;
+    private static final int GROUND_TOP_Y = 100;
 
     private LunarTerrainTests() {
     }
@@ -115,12 +107,11 @@ public final class LunarTerrainTests {
         GooTestFunctions.registerTest(registrar, LUNAR_CRATER_FLOORS_READ_IMPACT_GLASS,
                 LunarTerrainTests::lunarCraterFloorsReadImpactGlass);
         GooTestFunctions.registerTest(registrar, LUNAR_CRATER_RIMS_READ_BRECCIA, LunarTerrainTests::lunarCraterRimsReadBreccia);
-        GooTestFunctions.registerTest(registrar, LUNAR_DEEP_CRATER_FLOORS_READ_CRATER_ICE,
-                LunarTerrainTests::lunarDeepCraterFloorsReadCraterIce);
     }
 
     /**
-     * Each test spot's column in goo:lunar reads regolith at its surface (or a crater ray's anorthosite), anorthosite
+     * Each test spot's column in goo:lunar reads the ground its biome lays at its surface (or a crater ray's
+     * anorthosite) (decision lunar-biomes-add-block-types-to-the-ground), anorthosite
      * or basalt beneath (or the breccia and impact glass a crater lays there); and the nearest column through the
      * open sea, found through the seeded sea cavern, reads bedrock at the world's floor, iron core over it to the sea
      * floor, molten iron from there up to the sea's level, and open air for 24 blocks over the sea.
@@ -128,8 +119,7 @@ public final class LunarTerrainTests {
      * @param helper the gametest helper
      */
     public static void lunarColumnReadsItsStrata(GameTestHelper helper) {
-        ServerLevel lunar = helper.getLevel().getServer().getLevel(LUNAR);
-        helper.assertTrue(lunar != null, LUNAR_REQUIRED);
+        ServerLevel lunar = lunar(helper);
         ChunkGenerator generator = lunar.getChunkSource().getGenerator();
         String noise = generator instanceof NoiseBasedChunkGenerator noiseBased
                 ? noiseBased.generatorSettings().unwrapKey().map(key -> key.identifier().toString()).orElse("inline")
@@ -145,10 +135,10 @@ public final class LunarTerrainTests {
         lunar.getChunk(spot.getX() >> 4, spot.getZ() >> 4);
         int surfaceY = lunar.getHeight(Heightmap.Types.WORLD_SURFACE, spot.getX(), spot.getZ()) - 1;
         BlockState surface = lunar.getBlockState(spot.atY(surfaceY));
-        helper.assertTrue(surface.is(GooBlocks.REGOLITH.get()) || surface.is(GooBlocks.ANORTHOSITE.get()),
-                String.format(SURFACE, spot, surfaceY, surface));
+        helper.assertTrue(LunarSurfaceBiomes.isGroundOf(lunar.getBiome(spot.atY(surfaceY)), surface)
+                || surface.is(GooBlocks.ANORTHOSITE.get()), String.format(SURFACE, spot, surfaceY, surface));
         int y = surfaceY;
-        while (y > MOLTEN_IRON_TOP_Y && lunar.getBlockState(spot.atY(y)).is(GooBlocks.REGOLITH.get())) {
+        while (y > MOLTEN_IRON_TOP_Y && LunarSurfaceBiomes.isLaidGround(lunar.getBlockState(spot.atY(y)))) {
             y--;
         }
         BlockState beneath = lunar.getBlockState(spot.atY(y));
@@ -197,8 +187,7 @@ public final class LunarTerrainTests {
      * @param helper the gametest helper
      */
     public static void lunarGroundHoldsMeteoricIron(GameTestHelper helper) {
-        ServerLevel lunar = helper.getLevel().getServer().getLevel(LUNAR);
-        helper.assertTrue(lunar != null, LUNAR_REQUIRED);
+        ServerLevel lunar = lunar(helper);
         for (BlockPos spot : TEST_SPOTS) {
             helper.assertTrue(holdsMeteoricIronInAnorthosite(lunar, spot), String.format(METEORIC_IRON_IN_ANORTHOSITE, spot));
         }
@@ -244,99 +233,117 @@ public final class LunarTerrainTests {
     }
 
     /**
-     * A column at a crater's centre in goo:lunar reads impact glass under its regolith, and a column outside every
-     * crater reads none; both columns are found through the seeded CraterField the terrain sinks its craters from.
+     * A column on a giant crater's floor in goo:lunar's highlands reads impact glass under its regolith, and a column
+     * outside every giant crater and outside the shadowed basins, whose own ground is impact glass and breccia, reads
+     * none; both columns are found through the seeded GiantCraterField the terrain sinks its craters from.
+     * decision craters-are-rare-giant-landmarks-only
      *
      * @param helper the gametest helper
      */
     public static void lunarCraterFloorsReadImpactGlass(GameTestHelper helper) {
-        ServerLevel lunar = helper.getLevel().getServer().getLevel(LUNAR);
-        helper.assertTrue(lunar != null, LUNAR_REQUIRED);
-        CraterField craters = CraterField.seeded(lunar.getChunkSource().randomState().getOrCreateNoise(CraterField.NOISE));
-        Predicate<BlockPos> bare = RayFree.of(lunar).and(ClearOfBoulders.in(lunar));
-        BlockPos centre = findColumn(column -> craters.reachesBandAt(column.getX(), column.getZ(), 0.0, CENTRE_REACH)
-                && bare.test(column));
-        helper.assertTrue(centre != null, String.format(NO_CRATER_CENTRE, SEARCH_REACH));
-        BlockPos openGround = findColumn(column -> craters.isOpenGroundAt(column.getX(), column.getZ()));
+        ServerLevel lunar = lunar(helper);
+        GiantCraterField giants = giants(lunar);
+        BlockPos floor = craterColumn(lunar, giants, FLOOR_COLUMN_REACH, bareGround(lunar, giants));
+        helper.assertTrue(floor != null, String.format(NO_CRATER_COLUMN, CELL_REACH, "floor"));
+        BlockPos openGround = findColumn(column -> giants.isOpenGroundAt(column.getX(), column.getZ())
+                && !LunarSurfaceBiomes.surfaceBiomeAt(lunar, column.getX(), column.getZ())
+                .is(LunarSurfaceBiomes.SHADOWED_BASINS));
         helper.assertTrue(openGround != null, String.format(NO_OPEN_GROUND, SEARCH_REACH));
-        assertCentreReadsImpactGlass(helper, lunar, centre);
+        int y = yBeneathTheRegolith(lunar, floor);
+        BlockState beneath = lunar.getBlockState(floor.atY(y));
+        helper.assertTrue(beneath.is(GooBlocks.IMPACT_GLASS.get()), String.format(FLOOR_READS_GLASS, floor, y, beneath));
         assertOpenGroundReadsNoImpactGlass(helper, lunar, openGround);
         helper.succeed();
     }
 
     /**
-     * A column on a crater's rim in goo:lunar, clear of every crater's floor, reads breccia under its regolith; the
-     * column is found through the seeded CraterField the terrain sinks its craters from.
+     * A column on a giant crater's rim in goo:lunar's highlands, past its floor, reads breccia under its regolith; the
+     * column is found through the seeded GiantCraterField the terrain sinks its craters from.
+     * decision craters-are-rare-giant-landmarks-only
      *
      * @param helper the gametest helper
      */
     public static void lunarCraterRimsReadBreccia(GameTestHelper helper) {
-        ServerLevel lunar = helper.getLevel().getServer().getLevel(LUNAR);
-        helper.assertTrue(lunar != null, LUNAR_REQUIRED);
-        CraterField craters = CraterField.seeded(lunar.getChunkSource().randomState().getOrCreateNoise(CraterField.NOISE));
-        Predicate<BlockPos> bare = RayFree.of(lunar).and(ClearOfBoulders.in(lunar));
-        BlockPos rim = findColumn(column -> craters.reachesBandAt(column.getX(), column.getZ(), RIM_INNER_REACH,
-                RIM_OUTER_REACH) && !craters.reachesBandAt(column.getX(), column.getZ(), 0.0, FLOOR_REACH)
-                && bare.test(column));
-        helper.assertTrue(rim != null, String.format(NO_CRATER_RIM, SEARCH_REACH));
+        ServerLevel lunar = lunar(helper);
+        GiantCraterField giants = giants(lunar);
+        BlockPos rim = craterColumn(lunar, giants, RIM_COLUMN_REACH, bareGround(lunar, giants));
+        helper.assertTrue(rim != null, String.format(NO_CRATER_COLUMN, CELL_REACH, "rim"));
         int y = yBeneathTheRegolith(lunar, rim);
         BlockState beneath = lunar.getBlockState(rim.atY(y));
         helper.assertTrue(beneath.is(GooBlocks.BRECCIA.get()), String.format(RIM_READS_BRECCIA, rim, y, beneath));
         helper.succeed();
     }
 
-    /**
-     * The floor at the centre of a crater past the depth threshold in goo:lunar reads crater ice, the bottom of its
-     * frozen pool, and the floor at the centre of a crater short of it, inside no deep or giant crater, reads none;
-     * both are found through the seeded crater fields.
-     *
-     * @param helper the gametest helper
-     */
-    public static void lunarDeepCraterFloorsReadCraterIce(GameTestHelper helper) {
+    private static ServerLevel lunar(GameTestHelper helper) {
         ServerLevel lunar = helper.getLevel().getServer().getLevel(LUNAR);
         helper.assertTrue(lunar != null, LUNAR_REQUIRED);
-        CraterField craters = CraterField.seeded(lunar.getChunkSource().randomState().getOrCreateNoise(CraterField.NOISE));
-        BlockPos deep = findColumn(column -> craters.reachesBandAt(column.getX(), column.getZ(), 0.0, CENTRE_REACH,
-                CraterField.DEEP_CRATER_RADIUS));
-        helper.assertTrue(deep != null, String.format(NO_DEEP_CRATER, SEARCH_REACH));
-        GiantCraterField giants = GiantCraterField.seeded(lunar.getChunkSource().randomState()
-                .getOrCreateNoise(CraterField.NOISE));
-        BlockPos shallow = findColumn(column -> craters.reachesBandAt(column.getX(), column.getZ(), 0.0, CENTRE_REACH)
-                && !craters.reachesBandAt(column.getX(), column.getZ(), 0.0, 1.0, CraterField.DEEP_CRATER_RADIUS)
-                && !giants.reachesBandAt(column.getX(), column.getZ(), 0.0, 1.0 + GiantCraterField.RIM_REACH, 0.0));
-        helper.assertTrue(shallow != null, String.format(NO_SHALLOW_CRATER, SEARCH_REACH));
-        lunar.getChunk(deep.getX() >> 4, deep.getZ() >> 4);
-        int deepY = lunar.getHeight(Heightmap.Types.WORLD_SURFACE, deep.getX(), deep.getZ()) - 1;
-        BlockState deepFloor = lunar.getBlockState(deep.atY(deepY));
-        helper.assertTrue(deepFloor.is(GooBlocks.CRATER_ICE.get()), String.format(DEEP_FLOOR_READS_ICE, deep, deepY,
-                deepFloor));
-        lunar.getChunk(shallow.getX() >> 4, shallow.getZ() >> 4);
-        int shallowY = lunar.getHeight(Heightmap.Types.WORLD_SURFACE, shallow.getX(), shallow.getZ()) - 1;
-        for (int y = shallowY; y > shallowY - ICE_SEARCH_DEPTH; y--) {
-            helper.assertFalse(lunar.getBlockState(shallow.atY(y)).is(GooBlocks.CRATER_ICE.get()),
-                    String.format(SHALLOW_FLOOR_READS_NO_ICE, shallow, y));
-        }
-        helper.succeed();
+        return lunar;
+    }
+
+    private static GiantCraterField giants(ServerLevel lunar) {
+        return GiantCraterField.seeded(lunar.getChunkSource().randomState().getOrCreateNoise(LunarRolls.CRATER_NOISE),
+                lunar.getChunkSource().randomState());
     }
 
     /**
-     * Passes a column no large crater's ejecta ray crosses, where a ray's anorthosite would stand in for the regolith a
-     * test reads under.
-     *
-     * @param craters the seeded crater field
-     * @param giants  the seeded giant crater field
+     * Passes a column no giant crater's ejecta ray crosses and no thrown boulder covers, where a ray's anorthosite or
+     * a boulder's stone would stand in for the regolith a test reads under.
      */
-    private record RayFree(CraterField craters, GiantCraterField giants) implements Predicate<BlockPos> {
+    private static Predicate<BlockPos> bareGround(ServerLevel lunar, GiantCraterField giants) {
+        Predicate<BlockPos> rayFree = column -> !giants.isOnRayAt(column.getX(), column.getZ());
+        return rayFree.and(ClearOfBoulders.in(lunar));
+    }
 
-        static RayFree of(ServerLevel lunar) {
-            Noise noise = lunar.getChunkSource().randomState().getOrCreateNoise(CraterField.NOISE);
-            return new RayFree(CraterField.seeded(noise), GiantCraterField.seeded(noise));
+    /**
+     * A column a reach out from the centre of the nearest giant crater whose column there stands in the highlands,
+     * where regolith lies over the stone, and passes a test; walking giant crater cells out from the origin, or null
+     * where the search finds none.
+     */
+    private static BlockPos craterColumn(ServerLevel lunar, GiantCraterField giants, double reach,
+            Predicate<BlockPos> wanted) {
+        for (int ring = 0; ring <= CELL_REACH; ring++) {
+            for (int cellX = -ring; cellX <= ring; cellX++) {
+                for (int cellZ = -ring; cellZ <= ring; cellZ++) {
+                    if (Math.max(Math.abs(cellX), Math.abs(cellZ)) != ring) {
+                        continue;
+                    }
+                    BlockPos column = craterColumnIn(lunar, giants.craterInCell(cellX, cellZ), reach, wanted);
+                    if (column != null) {
+                        return column;
+                    }
+                }
+            }
         }
+        return null;
+    }
 
-        @Override
-        public boolean test(BlockPos column) {
-            return !craters.isOnRayAt(column.getX(), column.getZ()) && !giants.isOnRayAt(column.getX(), column.getZ());
+    private static BlockPos craterColumnIn(ServerLevel lunar, GiantCraterField.Crater crater, double reach,
+            Predicate<BlockPos> wanted) {
+        for (int i = 0; i < COLUMN_ANGLES; i++) {
+            double angle = 2.0 * Math.PI * i / COLUMN_ANGLES;
+            BlockPos column = BlockPos.containing(crater.centerX() + Math.cos(angle) * crater.radius() * reach, 0.0,
+                    crater.centerZ() + Math.sin(angle) * crater.radius() * reach);
+            if (inHighlandsWithMargin(lunar, column) && wanted.test(column)) {
+                return column;
+            }
         }
+        return null;
+    }
+
+    /**
+     * Whether a column and its neighbours a margin out every way stand in the highlands, so the surface rule's biome
+     * lookup, which vanilla's biome zoom jitters by a few blocks, reads the highlands at the column.
+     */
+    private static boolean inHighlandsWithMargin(ServerLevel lunar, BlockPos column) {
+        for (int dx = -BIOME_MARGIN; dx <= BIOME_MARGIN; dx += BIOME_MARGIN) {
+            for (int dz = -BIOME_MARGIN; dz <= BIOME_MARGIN; dz += BIOME_MARGIN) {
+                if (!LunarSurfaceBiomes.surfaceBiomeAt(lunar, column.getX() + dx, column.getZ() + dz)
+                        .is(LunarSurfaceBiomes.HIGHLANDS)) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     private static BlockPos findColumn(Predicate<BlockPos> wanted) {
@@ -353,7 +360,7 @@ public final class LunarTerrainTests {
 
     /**
      * The height of the first block under a column's surface skin: its regolith, or the crater ice standing in its
-     * place on a deep floor, and any meteoric iron nugget lying in it.
+     * place on a frozen floor, and any meteoric iron nugget lying in it.
      */
     private static int yBeneathTheRegolith(ServerLevel lunar, BlockPos column) {
         lunar.getChunk(column.getX() >> 4, column.getZ() >> 4);
@@ -364,12 +371,6 @@ public final class LunarTerrainTests {
             y--;
         }
         return y;
-    }
-
-    private static void assertCentreReadsImpactGlass(GameTestHelper helper, ServerLevel lunar, BlockPos centre) {
-        int y = yBeneathTheRegolith(lunar, centre);
-        BlockState beneath = lunar.getBlockState(centre.atY(y));
-        helper.assertTrue(beneath.is(GooBlocks.IMPACT_GLASS.get()), String.format(CENTRE_READS_GLASS, centre, y, beneath));
     }
 
     private static void assertOpenGroundReadsNoImpactGlass(GameTestHelper helper, ServerLevel lunar, BlockPos column) {

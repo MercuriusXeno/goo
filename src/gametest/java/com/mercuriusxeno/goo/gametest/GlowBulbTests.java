@@ -3,8 +3,6 @@ package com.mercuriusxeno.goo.gametest;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
-import com.mercuriusxeno.goo.block.ability.PrismBlock;
-import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.network.GooEffectScheduler;
 import com.mercuriusxeno.goo.network.GooEffectScheduler.PendingEffect;
 import com.mercuriusxeno.goo.network.GooThrowHandler;
@@ -23,14 +21,12 @@ import java.util.function.Consumer;
 
 /**
  * Gametests for glow's Bulb through the real landing path: it places its
- * crystal on the face it lands on, and a Bulb landing on a prism lights it
- * as a beacon.
+ * crystal on the face it lands on.
  * decision bulb-one-model-max-light-beacon-combo
  */
 @RegistersGameTests
 public final class GlowBulbTests {
     private static final String BULB_IS_ONE_SIZE_LIGHT_15 = "bulb_is_one_size_light_15";
-    private static final String BULB_ON_PRISM_BEACONS = "bulb_on_prism_beacons";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -39,7 +35,6 @@ public final class GlowBulbTests {
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, BULB_IS_ONE_SIZE_LIGHT_15, GlowBulbTests::bulbIsOneSizeLight15);
-        GooTestFunctions.registerTest(registrar, BULB_ON_PRISM_BEACONS, GlowBulbTests::bulbOnPrismBeacons);
         GooTestFunctions.registerTest(registrar, BULB_FORMS_AT_THE_AIMED_PLACE, GlowBulbTests::bulbFormsAtTheAimedPlace);
     }
 
@@ -56,7 +51,7 @@ public final class GlowBulbTests {
         AbilityDefinition bulb = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(BULB));
         helper.assertTrue(bulb != null, "Ability registry must hold " + BULB);
         helper.setBlock(FLOOR_POS, Blocks.STONE);
-        ServerPlayer player = StackKeyTests.makeThrower(helper, GooTypes.GLOW);
+        ServerPlayer player = MockThrowers.makeThrower(helper, GooTypes.GLOW);
         KnownRecipes.teachRequires(player, bulb);
         GooThrowHandler.execute(player, new GooThrowPayload(GooTypes.id(GooTypes.GLOW), NO_ENTITY,
                 helper.absolutePos(FLOOR_POS), Direction.UP.ordinal(), false, BULB, player.getEyePosition()));
@@ -74,9 +69,6 @@ public final class GlowBulbTests {
     private static final String BULB = "goo:glow_bulb";
     private static final int NO_ENTITY = -1;
 
-    private static final String WRONG_COMBO = "The prism should hold Bulb's beacon combo, held '%s'";
-    private static final String NOT_LIT = "Bulb's beacon should light the prism";
-
     private GlowBulbTests() {
     }
 
@@ -92,23 +84,6 @@ public final class GlowBulbTests {
         helper.succeedWhen(() -> {
             helper.assertBlockPresent(GooBlocks.GLOW_CRYSTAL.get(), LANDED_POS);
             helper.assertBlockProperty(LANDED_POS, GlowCrystalBlock.FACING, Direction.UP);
-        });
-    }
-
-    /**
-     * A Bulb landing on a prism runs its on_prism reaction: the prism holds
-     * Bulb's beacon combo and stands lit; PrismBlockTest holds a lit prism's light.
-     *
-     * @param helper the gametest helper
-     */
-    public static void bulbOnPrismBeacons(GameTestHelper helper) {
-        helper.setBlock(FLOOR_POS, Blocks.STONE);
-        helper.setBlock(LANDED_POS, GooBlocks.PRISM.get());
-        land(helper, LANDED_POS);
-        helper.succeedWhen(() -> {
-            PrismBlockEntity prism = helper.getBlockEntity(LANDED_POS, PrismBlockEntity.class);
-            helper.assertTrue(BULB.equals(prism.getCombo()), String.format(WRONG_COMBO, prism.getCombo()));
-            helper.assertTrue(helper.getBlockState(LANDED_POS).getValue(PrismBlock.LIT), NOT_LIT);
         });
     }
 

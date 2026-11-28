@@ -52,34 +52,6 @@ class AbilityRegistryTest {
     }
 
     /**
-     * A goo landing on a prism runs its type's prism-badged ability lowest by
-     * order, and a type wearing none has no prism combo
-     * (decision prism-hosts-the-combos).
-     */
-    @Nested
-    class PrismAbility {
-
-        @Test
-        void lowestOrderPrismBadgedAbilityIsTheTypesPrismAbility() {
-            AbilityRegistry registry = registryOf(Stream.of(
-                    ability("rock_world", 0, AbilityBadge.WORLD),
-                    ability("rock_prism_late", 9, AbilityBadge.PRISM),
-                    ability("rock_prism_early", 3, AbilityBadge.PRISM)));
-
-            AbilityDefinition prism = registry.prismAbilityFor(GooTypes.ROCK);
-
-            assertEquals("rock_prism_early", prism == null ? null : prism.id().getPath());
-        }
-
-        @Test
-        void typeWithoutAPrismBadgedAbilityHasNoPrismAbility() {
-            AbilityRegistry registry = registryOf(Stream.of(ability("rock_world", 0, AbilityBadge.WORLD)));
-
-            assertNull(registry.prismAbilityFor(GooTypes.ROCK));
-        }
-    }
-
-    /**
      * A type's held effect is its self ability wearing the durative badge, and a
      * type wearing none holds none (decision brew-grants-the-self-ability-for-an-hour).
      */
@@ -121,18 +93,19 @@ class AbilityRegistryTest {
     }
 
     /**
-     * Xeno's fan holds Revert before Unveil, then Shriek ordered after Unveil, and no Mutate.
+     * Xeno's fan holds Revert before Unveil, then Shriek ordered after Unveil, and Ooze, and no Mutate.
      * xeno-blob-mutates-the-struck
      * yore-leaves-and-rewind-moves-to-xeno-as-revert
      * shriek-moves-to-xeno
+     * ooze-is-xenos-world-goo-that-turns-slimes-into-random-hostiles
      */
     @Test
-    void shippedXenoFanHoldsRevertUnveilAndShriek() {
+    void shippedXenoFanHoldsRevertUnveilShriekAndOoze() {
         AbilityRegistry registry = registryOf(AbilityJson.files().stream().map(AbilityJson::decode));
         List<AbilityDefinition> fan = registry.getAbilitiesForType(GooTypes.XENO);
 
         assertEquals(Set.of(AbilityJson.idOf("xeno_revert.json"), AbilityJson.idOf("xeno_unveil.json"),
-                AbilityJson.idOf("xeno_shriek.json")), fan.stream().map(AbilityDefinition::id).collect(Collectors.toSet()));
+                AbilityJson.idOf("xeno_shriek.json"), AbilityJson.idOf("xeno_ooze.json")), fan.stream().map(AbilityDefinition::id).collect(Collectors.toSet()));
         assertTrue(AbilityJson.decode("xeno_revert").order() < AbilityJson.decode("xeno_unveil").order());
         assertTrue(AbilityJson.decode("xeno_shriek").order() > AbilityJson.decode("xeno_unveil").order());
     }

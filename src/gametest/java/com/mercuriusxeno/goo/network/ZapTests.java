@@ -219,7 +219,7 @@ public final class ZapTests {
         helper.setBlock(FLOOR, Blocks.STONE);
         FedPlexer.place(helper, ON_FLOOR, HATCH, PLEXER_CRAFTS);
         BlockPos cell = helper.absolutePos(ON_FLOOR);
-        LandingHost host = new LandingHost(helper.getLevel(), cell, Direction.UP, false, GooTypes.PULSE, ZAP,
+        LandingHost host = new LandingHost(helper.getLevel(), cell, Direction.UP, GooTypes.PULSE, ZAP,
                 Vec3.atCenterOf(cell), 0, null);
         ProgramBehavior.forHost(zap(helper).behaviors(), HostKind.LANDING).tick(host);
         assertCraftedOnce(helper);

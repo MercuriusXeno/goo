@@ -26,6 +26,9 @@ public final class GnatSeek {
     /** Gnats launched each tick of the swarm. */
     private static final int GNATS_PER_TICK = 6;
 
+    /** The ability the swarm is registered under in {@link ConeVisuals}. */
+    static final String DECAY_ID = "goo:zombie_decay";
+
     private GnatSeek() {
     }
 
@@ -47,19 +50,44 @@ public final class GnatSeek {
         }
         Supplier<Vec3> prey = preyOf(level, payload);
         Vec3 glove = CastOrigin.of(payload.casterId(), CasterPoses.gloveOf(payload.casterId(), payload.glove()), 0f);
-        RandomSource random = level.getRandom();
-        for (int i = 0; i < GNATS_PER_TICK; i++) {
-            Vec3 launch = GnatSteering.launch(payload.aim(), payload.sprayDegrees(), random.nextDouble(),
-                    random.nextDouble());
-            if (mc.particleEngine.createParticle(GooParticles.GNAT.get(), glove.x, glove.y, glove.z, launch.x,
-                    launch.y, launch.z) instanceof GnatParticle gnat) {
-                Vec3 rest = pointIn(payload.targetMin(), payload.targetMax(), random);
-                gnat.seek(prey != null ? prey : () -> rest);
+        for (GnatSteering.Launch launch : GnatSteering.launchesOf(payload, glove, GNATS_PER_TICK, level.getRandom())) {
+            Vec3 velocity = launch.velocity();
+            if (mc.particleEngine.createParticle(GooParticles.GNAT.get(), glove.x, glove.y, glove.z, velocity.x,
+                    velocity.y, velocity.z) instanceof GnatParticle gnat) {
+                // cone-style-abilities-are-reviewed-for-consistency: the chased mob is sought no farther than the reach
+                gnat.seek(prey != null ? () -> GnatSteering.seekWithin(glove, prey.get(), payload.reach())
+                        : launch::rest);
                 // every-ability-casts-from-the-lifted-palm-blob: the gnat leaves the lifted blob where it stands then
                 gnat.leaveFrom(() -> CastOrigin.of(payload.casterId(), CasterPoses.gloveOf(payload.casterId(),
                         payload.glove()), 0f));
                 // glove-stream-motes-swing-with-the-glove-at-launch
                 gnat.swingWith(new GloveSwing.Tracker(payload.casterId(), CasterPoses::poseOf));
+            }
+        }
+    }
+
+    /**
+     * Launches a tick of the swarm through a cone with no crosshair to converge on, as a nozzle pours it: each gnat
+     * fanned inside the cone's shape, seeking its own point at the cone's reach along the way it left.
+     * decision spray-abilities-render-procedurally-bound-to-their-cone
+     *
+     * @param cone the cone poured through
+     */
+    static void pour(SprayCone cone) {
+        Minecraft mc = Minecraft.getInstance();
+        ClientLevel level = mc.level;
+        if (level == null) {
+            return;
+        }
+        RandomSource random = level.getRandom();
+        Vec3 apex = cone.apex();
+        for (int i = 0; i < GNATS_PER_TICK; i++) {
+            Vec3 velocity = GnatSteering.launch(cone.axis(), cone.shape(), Math.sqrt(random.nextDouble()),
+                    random.nextDouble());
+            Vec3 rest = apex.add(velocity.normalize().scale(cone.reach()));
+            if (mc.particleEngine.createParticle(GooParticles.GNAT.get(), apex.x, apex.y, apex.z, velocity.x,
+                    velocity.y, velocity.z) instanceof GnatParticle gnat) {
+                gnat.seek(() -> rest);
             }
         }
     }
@@ -76,10 +104,5 @@ public final class GnatSeek {
             return null;
         }
         return () -> mob.getBoundingBox().getCenter();
-    }
-
-    private static Vec3 pointIn(Vec3 min, Vec3 max, RandomSource random) {
-        return new Vec3(min.x + random.nextDouble() * (max.x - min.x), min.y + random.nextDouble() * (max.y - min.y),
-                min.z + random.nextDouble() * (max.z - min.z));
     }
 }

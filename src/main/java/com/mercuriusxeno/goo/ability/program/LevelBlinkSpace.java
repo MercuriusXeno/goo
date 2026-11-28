@@ -1,7 +1,5 @@
 package com.mercuriusxeno.goo.ability.program;
 
-import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
-import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
@@ -34,14 +32,5 @@ public record LevelBlinkSpace(Level level, Entity blinker) implements BlinkSpace
         return hit != null && hit.getType() == HitResult.Type.BLOCK
                 ? Optional.of(new FaceHit(hit.getLocation(), hit.getBlockPos(), hit.getDirection()))
                 : Optional.empty();
-    }
-
-    @Override
-    public Optional<BlockPos> barePrismOnLine(Vec3 from, Vec3 to) {
-        BlockHitResult hit = level.clip(new ClipContext(from, to, ClipContext.Block.OUTLINE,
-                ClipContext.Fluid.NONE, blinker));
-        return hit != null && hit.getType() == HitResult.Type.BLOCK
-                && level.getBlockEntity(hit.getBlockPos()) instanceof PrismBlockEntity prism && !prism.hasCombo()
-                ? Optional.of(hit.getBlockPos()) : Optional.empty();
     }
 }

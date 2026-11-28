@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.ability.program.BoreDrillShape;
+import com.mercuriusxeno.goo.throwing.ConeShape;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
@@ -103,6 +104,49 @@ class BoreDrillTest {
         void itStandsAtTheEndOfReachWhereTheSightMeetsNoBlock() {
             Vec3 point = BoreDrill.pointOf(SIGHT, REACH, SHIPPED, true, NOTHING.negate(), NOTHING);
             assertEquals(0, point.distanceTo(EYE.add(LOOK.scale(REACH))), 1e-6);
+        }
+    }
+
+    /**
+     * The drill draws from the cone it is handed: out to its reach, its section scaled across and up and down by
+     * the shape against Bore's own round cone (decision spray-abilities-render-procedurally-bound-to-their-cone).
+     */
+    @Nested
+    class BoundToTheCone {
+
+        /** rock_bore.json's cone. */
+        private static final double OWN_DEGREES = 15;
+        private static final double CONE_REACH = 3;
+        /** The width across whose half tangent is twice the round cone's. */
+        private static final double TWICE_ACROSS = Math.toDegrees(2 * Math.atan(2 * Math.tan(Math.toRadians(OWN_DEGREES / 2))));
+        private static final SprayCone OWN = new SprayCone(RIGHT_HAND_REST, LOOK, ConeShape.round(OWN_DEGREES),
+                CONE_REACH);
+        private static final SprayCone WIDE = new SprayCone(RIGHT_HAND_REST, LOOK,
+                new ConeShape(TWICE_ACROSS, OWN_DEGREES, false), CONE_REACH);
+        private static final int DISTANCES = 8;
+
+        @Test
+        void aShapeTwiceAsWideAcrossDrawsADrillTwiceAsWideAndAsTall() {
+            BoreDrill.Drill own = drillThrough(OWN);
+            BoreDrill.Drill wide = drillThrough(WIDE);
+            for (int step = 0; step <= DISTANCES; step++) {
+                double distance = own.volume().range() * step / DISTANCES;
+                assertEquals(2 * own.halfWidthAcrossAt(distance), wide.halfWidthAcrossAt(distance), 1e-9,
+                        "across at " + distance);
+                assertEquals(own.halfHeightAt(distance), wide.halfHeightAt(distance), 1e-9, "tall at " + distance);
+            }
+        }
+
+        @Test
+        void inOpenAirTheDrillRunsToTheReach() {
+            assertEquals(0, drillThrough(WIDE).point().distanceTo(EYE.add(LOOK.scale(CONE_REACH))), 1e-6);
+            SprayCone farther = new SprayCone(WIDE.apex(), WIDE.axis(), WIDE.shape(), REACH);
+            assertEquals(0, drillThrough(farther).point().distanceTo(EYE.add(LOOK.scale(REACH))), 1e-6);
+        }
+
+        private BoreDrill.Drill drillThrough(SprayCone cone) {
+            return BoreDrill.drillThrough(cone, OWN_DEGREES, SIGHT,
+                    new BoreDrill.DrillAim(SHIPPED, YAW, true, NOTHING.negate(), NOTHING));
         }
     }
 

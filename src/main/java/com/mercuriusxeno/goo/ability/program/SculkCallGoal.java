@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.ability.program;
 
-import com.mercuriusxeno.goo.registry.GooBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.goal.Goal;
@@ -8,10 +7,13 @@ import net.minecraft.world.phys.Vec3;
 import java.util.EnumSet;
 
 /**
- * A called mob's walk to the shriek blob that called it, ahead of every
- * other move the mob would make: it holds while the blob stands and the mob
- * has not arrived, re-pathing as it walks, and lies idle once the blob goes.
+ * A called mob's walk to the landing the shriek rang out from, ahead of
+ * every other move the mob would make: it holds for the ticks the shriek
+ * lasts, counted from the shriek, while the mob has not arrived, re-pathing
+ * as it walks, and lies idle once its time runs out. No block stands at the
+ * landing to hold it.
  * decision shriek-is-a-sculk-call-that-draws-every-mob-it-reaches
+ * decision shriek-blob-cries-once-and-calls-earshot
  */
 final class SculkCallGoal extends Goal {
 
@@ -21,37 +23,50 @@ final class SculkCallGoal extends Goal {
     private final Mob mob;
     private final BlockPos blobCell;
     private final Vec3 blob;
+    /** The game tick the walk's time runs out on, the shriek's tick plus the ticks it lasts. */
+    private final long endsOn;
     private int ticksSincePath;
 
     /**
-     * @param mob      the called mob
-     * @param blobCell the blob's cell
+     * @param mob        the called mob
+     * @param blobCell   the landing cell the shriek rang out from
+     * @param shriekTick the game tick the shriek rang out on
+     * @param lasts      the ticks the walk holds, counted from the shriek
      */
-    SculkCallGoal(Mob mob, BlockPos blobCell) {
+    SculkCallGoal(Mob mob, BlockPos blobCell, long shriekTick, int lasts) {
         this.mob = mob;
         this.blobCell = blobCell.immutable();
         this.blob = Vec3.atBottomCenterOf(blobCell);
+        this.endsOn = shriekTick + lasts;
         setFlags(EnumSet.of(Flag.MOVE));
     }
 
     /**
-     * @param cell a blob's cell
-     * @return true where this walk leads to that blob
+     * @param cell a landing cell
+     * @return true where this walk leads to that landing
      */
     boolean leadsTo(BlockPos cell) {
         return blobCell.equals(cell);
     }
 
     /**
-     * @return true while the blob that called the mob still stands
+     * @param gameTick a game tick
+     * @return true where the walk still holds on that tick, the last tick before its time runs out included
      */
-    boolean blobStands() {
-        return mob.level().getBlockState(blobCell).is(GooBlocks.ABILITY_BLOCK.get());
+    boolean holdsAt(long gameTick) {
+        return gameTick < endsOn;
+    }
+
+    /**
+     * @return true while the walk still holds on the mob's level's current tick
+     */
+    boolean holds() {
+        return holdsAt(mob.level().getGameTime());
     }
 
     @Override
     public boolean canUse() {
-        return blobStands() && mob.position().distanceTo(blob) > SculkCall.ARRIVED_WITHIN;
+        return holds() && mob.position().distanceTo(blob) > SculkCall.ARRIVED_WITHIN;
     }
 
     @Override

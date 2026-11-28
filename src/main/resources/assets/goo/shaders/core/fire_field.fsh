@@ -15,17 +15,19 @@
 // cuts the fire off at its face: nothing burns behind it, and nothing turns
 // off it. Each voxel is colored in hard steps from a white-yellow core through
 // orange to red. TRANSLUCENT blend; the nearest voxel drawn writes the depth.
+// The cone's two widths, across and up and down, size the fire: its outer edge averages the cone's rim and
+// undulates slightly past and shy of it (decision spray-abilities-render-procedurally-bound-to-their-cone).
 
 // Must match FireField.pack: eight std140 rows.
 layout(std140) uniform FireField {
-    vec4 ApexTan;     // the spout, and the tangent of half the cone's angle
-    vec4 AxisReach;   // the way the fire pours, and blocks to the reach or the face the look meets
-    vec4 SideTail;    // the unit direction across the cone, and blocks from the spout the burning starts
-    vec4 NormalFront; // the met face's normal, and blocks from the spout the burning has reached
-    vec4 HitWall;     // the met point, and blocks from the spout to it, negative with no wall
-    vec4 BoxLowDepth; // the box's low corner, and whether depth runs 0 to 1
-    vec4 BoxHigh;
-    vec4 Grid;        // the camera's world position modulo 16, so the voxels hold to the world
+    vec4 ApexSideTan;    // the spout, and the tangent of half the cone's width across
+    vec4 AxisReach;      // the way the fire pours, and blocks to the reach or the face the look meets
+    vec4 SideTail;       // the unit direction across the cone, and blocks from the spout the burning starts
+    vec4 NormalFront;    // the met face's normal, and blocks from the spout the burning has reached
+    vec4 HitWall;        // the met point, and blocks from the spout to it, negative with no wall
+    vec4 BoxLowDepth;    // the box's low corner, and whether depth runs 0 to 1
+    vec4 BoxHighLiftTan; // the box's high corner, and the tangent of half the cone's width up and down
+    vec4 Grid;           // the camera's world position modulo 16, so the voxels hold to the world
 };
 
 layout(location = 0) in vec3 rayPoint;
@@ -45,8 +47,9 @@ const int LICK_LANES = 4;
 // The share of the lanes a wave fills at the spout and at the reach.
 const float NEAR_PRESENCE = 0.95;
 const float FAR_PRESENCE = 0.35;
-// How far out across the cone a lick's lane may sit, as a share of the cone's radius there.
-const float LANE_SPREAD = 0.85;
+// How far past and shy of the cone's rim the fire's edge undulates, as a share of the rim, and how fast.
+const float RIM_UNDULATION = 0.15;
+const float UNDULATE_PER_TICK = 0.35;
 // A lick's radius at the spout and once swollen, the share of its life it swells over, how much it shrinks by
 // its end, and how many radii long it stretches down its lane.
 const float LICK_OPENING_RADIUS = 0.04;
@@ -57,20 +60,21 @@ const float LICK_STRETCH = 2.2;
 // Tongues burn taller above their middle than below.
 const float STRETCH_ABOVE = 0.6;
 const float SQUASH_BELOW = 1.5;
-// Blocks a lick climbs per block it travels, and how far it sways across its lane.
-const float LICK_CLIMB_PER_BLOCK = 0.12;
+// How far a lick climbs per block it travels, as a share of the cone's up and down radius, and how far it sways
+// across its lane.
+const float LICK_CLIMB_SHARE = 0.68;
 const float LICK_SWAY = 0.05;
 const float SWAY_PER_TICK = 0.8;
 
 // Embers: blocks a tick they drift out, blocks between waves, lanes per wave, the share of lanes lit, how far
-// out across the cone they wander, how much faster they climb than the licks, and their radius, enough that
-// each lights at least one voxel.
+// out across the cone they wander as a share of its rim, how far they climb as a share of the cone's up and
+// down radius, and their radius, enough that each lights at least one voxel.
 const float EMBER_POUR_PER_TICK = 0.3;
 const float EMBER_SPACING = 0.5;
 const int EMBER_LANES = 2;
 const float EMBER_PRESENCE = 0.55;
 const float EMBER_SPREAD = 1.15;
-const float EMBER_CLIMB_PER_BLOCK = 0.32;
+const float EMBER_CLIMB_SHARE = 1.8;
 const float EMBER_RADIUS = 0.06;
 
 // The noise that breaks each lick's edge into pixels as it climbs.
@@ -116,10 +120,19 @@ bool burningAt(float travelled) {
     return travelled >= SideTail.w && travelled <= NormalFront.w && travelled <= AxisReach.w;
 }
 
-// A point on a lane across the cone: the given share of the cone's radius out, turned the given share of a circle.
-vec2 laneAt(float spread, float turn, float travelled) {
+// The cone's rim the given blocks out, turned the given share of a circle, widened or narrowed as it undulates.
+vec2 rimAt(float turn, float travelled, float ticks, float seed) {
     float angle = turn * TWO_PI;
-    return vec2(cos(angle), sin(angle)) * spread * travelled * ApexTan.w;
+    float undulate = 1.0 + RIM_UNDULATION * sin(ticks * UNDULATE_PER_TICK + seed * TWO_PI);
+    return vec2(cos(angle) * ApexSideTan.w, sin(angle) * BoxHighLiftTan.w) * travelled * undulate;
+}
+
+// A lick's center across the cone: its lane's share of the way out to the undulating rim, less the lick's own
+// radius, so the outermost licks' edges average the rim.
+vec2 lickLaneAt(float share, float turn, float travelled, float radius, float ticks, float seed) {
+    vec2 rim = rimAt(turn, travelled, ticks, seed);
+    float rimLength = length(rim);
+    return rimLength > 1e-4 ? rim / rimLength * max(rimLength - radius, 0.0) * share : vec2(0.0);
 }
 
 // The hottest lick at a point, from the waves nearest it, by how deep inside a lick the point stands.
@@ -137,11 +150,12 @@ float lickHeat(vec2 across, float along, float ticks) {
             if (!burningAt(travelled) || hash(seed + 3.1) > mix(NEAR_PRESENCE, FAR_PRESENCE, life)) {
                 continue;
             }
-            vec2 center = laneAt(LANE_SPREAD * sqrt(hash(seed + 7.3)), hash(seed + 11.9), travelled);
-            center.x += sin(ticks * SWAY_PER_TICK + hash(seed + 5.7) * TWO_PI) * LICK_SWAY * travelled;
-            center.y += travelled * LICK_CLIMB_PER_BLOCK;
             float swell = smoothstep(0.0, LICK_SWELL_SHARE, life);
             float radius = mix(LICK_OPENING_RADIUS, LICK_RADIUS, swell) * (1.0 - LICK_SHRINK * life * life);
+            vec2 center = lickLaneAt(sqrt(hash(seed + 7.3)), hash(seed + 11.9), travelled, radius, ticks,
+                    hash(seed + 13.1));
+            center.x += sin(ticks * SWAY_PER_TICK + hash(seed + 5.7) * TWO_PI) * LICK_SWAY * travelled;
+            center.y += travelled * BoxHighLiftTan.w * LICK_CLIMB_SHARE;
             vec2 off = across - center;
             float shaped = off.y > 0.0 ? off.y * STRETCH_ABOVE : off.y * SQUASH_BELOW;
             float depth = 1.0 - length(vec3(off.x, shaped, (along - travelled) / LICK_STRETCH)) / max(radius, 1e-3);
@@ -165,8 +179,9 @@ float emberGlow(vec2 across, float along, float ticks) {
             if (!burningAt(travelled) || hash(seed + 2.3) > EMBER_PRESENCE) {
                 continue;
             }
-            vec2 center = laneAt(EMBER_SPREAD * sqrt(hash(seed + 6.1)), hash(seed + 9.7), travelled);
-            center.y += travelled * EMBER_CLIMB_PER_BLOCK;
+            vec2 center = rimAt(hash(seed + 9.7), travelled, ticks, hash(seed + 4.3))
+                    * EMBER_SPREAD * sqrt(hash(seed + 6.1));
+            center.y += travelled * BoxHighLiftTan.w * EMBER_CLIMB_SHARE;
             vec3 off = vec3(across - center, along - travelled);
             if (length(off) < EMBER_RADIUS) {
                 float flicker = step(0.25, hash(seed + floor(ticks * 2.0)));
@@ -182,7 +197,7 @@ vec4 voxelAt(vec3 p, float ticks) {
     if (HitWall.w >= 0.0 && dot(p - HitWall.xyz, NormalFront.xyz) < 0.0) {
         return vec4(0.0);
     }
-    vec3 fromSpout = p - ApexTan.xyz;
+    vec3 fromSpout = p - ApexSideTan.xyz;
     float along = dot(fromSpout, AxisReach.xyz);
     if (along < 0.0 || along > AxisReach.w + LICK_RADIUS * LICK_STRETCH) {
         return vec4(0.0);
@@ -223,7 +238,7 @@ void main() {
     // Where the ray enters the box; a camera inside it starts at the eye.
     vec3 inverse = 1.0 / ray;
     vec3 toLow = (BoxLowDepth.xyz) * inverse;
-    vec3 toHigh = (BoxHigh.xyz) * inverse;
+    vec3 toHigh = (BoxHighLiftTan.xyz) * inverse;
     vec3 nearest = min(toLow, toHigh);
     float enter = max(max(max(nearest.x, nearest.y), nearest.z), 0.05);
     if (enter >= far) {

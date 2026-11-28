@@ -13,7 +13,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * The core a glow beam emanates from inside its prism is brighter and
+ * The core a glow beam emanates from inside its reflector is brighter and
  * larger than the beam, and softens outward: each layer wider and fainter
  * than the one inside it.
  * decision diagnose-and-correct-the-sunbeam-prism-depth

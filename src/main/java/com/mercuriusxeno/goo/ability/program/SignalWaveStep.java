@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.throwing.ConeShape;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.BlockPos;
@@ -63,7 +64,8 @@ public record SignalWaveStep(Expr range, Expr cone) implements TakesNoEntity {
      */
     public static List<BlockPos> cellsBehind(BlockPos cell, Direction face, double range, double coneDegrees) {
         Vec3 apex = Vec3.atCenterOf(cell);
-        return AimedCells.along(apex, apex.add(face.getOpposite().getUnitVec3().scale(range)), coneDegrees);
+        return AimedCells.along(apex, apex.add(face.getOpposite().getUnitVec3().scale(range)),
+                ConeShape.round(coneDegrees));
     }
 
     @Override

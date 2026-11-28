@@ -6,7 +6,6 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.Level;
 import java.util.List;
 import java.util.Optional;
-import java.util.OptionalInt;
 import java.util.Set;
 import java.util.stream.Stream;
 
@@ -101,16 +100,6 @@ public interface Step {
     }
 
     /**
-     * Answers whether the marker stands against a punch while this step
-     * runs, as a field effect's trap does.
-     *
-     * @return true when breaking the marker is refused
-     */
-    default boolean standsAgainstBreaking() {
-        return false;
-    }
-
-    /**
      * Answers whether the step can act on its host now; a self ability runs
      * and drains only when every step admits, so Transmit aimed at no
      * connected mycelium costs nothing (decision transmit-reaches-only-connected-mycelial-blocks-you-touch).
@@ -130,17 +119,6 @@ public interface Step {
      */
     default Optional<SoundCue> refusal() {
         return Optional.empty();
-    }
-
-    /**
-     * The RGB a bare prism's quartz warms toward while a stream charges it
-     * into this step's combo, the color the converted prism wears.
-     * prism-conversion-creeps-over-the-hold
-     *
-     * @return the tint, or empty where the combo keeps the plain quartz
-     */
-    default OptionalInt prismTint() {
-        return OptionalInt.empty();
     }
 
     /**

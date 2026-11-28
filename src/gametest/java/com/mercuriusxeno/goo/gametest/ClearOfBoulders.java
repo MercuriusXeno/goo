@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.gametest;
 
-import com.mercuriusxeno.goo.lunar.CraterField;
 import com.mercuriusxeno.goo.lunar.GiantCraterField;
+import com.mercuriusxeno.goo.lunar.LunarRolls;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import java.util.function.Predicate;
@@ -30,7 +30,7 @@ final class ClearOfBoulders implements Predicate<BlockPos> {
      */
     static ClearOfBoulders in(ServerLevel lunar) {
         return new ClearOfBoulders(GiantCraterField.seeded(lunar.getChunkSource().randomState()
-                .getOrCreateNoise(CraterField.NOISE)));
+                .getOrCreateNoise(LunarRolls.CRATER_NOISE), lunar.getChunkSource().randomState()));
     }
 
     @Override
@@ -39,9 +39,9 @@ final class ClearOfBoulders implements Predicate<BlockPos> {
         int cellZ = Math.floorDiv(column.getZ(), GiantCraterField.CELL);
         for (int dx = -1; dx <= 1; dx++) {
             for (int dz = -1; dz <= 1; dz++) {
-                boolean covered = giants.craterInCell(cellX + dx, cellZ + dz).map(crater -> crater.boulderSpots()
-                        .stream().anyMatch(spot -> Math.hypot(spot.getX() - column.getX(), spot.getZ() - column.getZ())
-                                <= BOULDER_REACH)).orElse(false);
+                boolean covered = giants.craterInCell(cellX + dx, cellZ + dz).boulderSpots().stream()
+                        .anyMatch(spot -> Math.hypot(spot.getX() - column.getX(), spot.getZ() - column.getZ())
+                                <= BOULDER_REACH);
                 if (covered) {
                     return false;
                 }

@@ -125,8 +125,27 @@ final class SlotOutlineDrawing {
         }
         int color = renderState.highContrast() ? HC_PRIMARY_COLOR : ARGB.black(OUTLINE_BLACK_ALPHA);
         float lineWidth = Minecraft.getInstance().getWindow().getAppropriateLineWidth();
-        renderShapeOutline(poseStack, collector, RenderTypes.lines(), shape, pos, camPos, color, lineWidth,
-                afterTerrain);
+        renderShapeOutline(poseStack, collector,
+                selectionOutlineType(renderState.highContrast(),
+                        Minecraft.getInstance().gameRenderer.useImprovedTransparency()),
+                shape, pos, camPos, color, lineWidth, afterTerrain);
+    }
+
+    /**
+     * The line type a selection outline draws through, as vanilla 26.3 picks its own block outline's: a
+     * translucent outline draws in the OIT phase under improved transparency, so its type there carries an OIT
+     * set (defect row 8).
+     * decision goo-translucency-draws-through-order-independent-transparency
+     *
+     * @param highContrast         whether the high-contrast outline is on
+     * @param improvedTransparency whether the client draws translucency through order-independent transparency
+     * @return the outline's render type
+     */
+    static RenderType selectionOutlineType(boolean highContrast, boolean improvedTransparency) {
+        if (highContrast) {
+            return RenderTypes.linesDepthBias();
+        }
+        return improvedTransparency ? RenderTypes.linesTranslucentNoDepthWrite() : RenderTypes.linesTranslucent();
     }
 
     /**
@@ -147,8 +166,22 @@ final class SlotOutlineDrawing {
             (float) offset.minX, (float) offset.maxX,
             (float) offset.minZ, (float) offset.maxZ,
             (float) offset.minY, (float) offset.maxY);
-        collector.submitCustomGeometry(poseStack, RenderTypes.lines(),
+        collector.submitCustomGeometry(poseStack,
+                wireframeType(Minecraft.getInstance().gameRenderer.useImprovedTransparency()),
                 (pose, consumer) -> new LineContext(pose, consumer).emitWireframe(cuboid, color, lineWidth));
+    }
+
+    /**
+     * The line type a slot's placement preview and removal indicator draw through. The indicator sits on a
+     * canister's own edges, so under improved transparency it draws in the OIT phase beside the canister's
+     * translucent faces and blends with them, where opaque lines written from the solid phase z-fight them.
+     * decision goo-translucency-draws-through-order-independent-transparency
+     *
+     * @param improvedTransparency whether the client draws translucency through order-independent transparency
+     * @return the wireframe's render type
+     */
+    static RenderType wireframeType(boolean improvedTransparency) {
+        return improvedTransparency ? RenderTypes.linesTranslucentNoDepthWrite() : RenderTypes.lines();
     }
 
     /**

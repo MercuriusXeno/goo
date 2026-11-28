@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.ability.program;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.throwing.CoatRay;
 import com.mojang.serialization.MapCodec;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
@@ -10,9 +11,10 @@ import java.util.stream.Stream;
 /**
  * Nether's Gloom block step: nether goo lands where each of the stream's
  * drips strikes, one layer for each drip, through the volume cell's one
- * landing, as Nitro lays its unstable goo. The step names nothing: what Gloom
- * does is its surface, reading dark to the mobs spawning on it: {@code gloom}.
+ * landing, as Nitro lays its unstable goo. Its surface reads dark to the
+ * mobs spawning on it; the slime's turn is Ooze's.
  * gloom-spawns-regardless-of-light-and-mobs-on-it-ignore-daylight
+ * ooze-is-xenos-world-goo-that-turns-slimes-into-random-hostiles
  * each-goo-type-ships-a-world-goo-on-the-volume-cell
  * drip-creates-a-volume-cell-immediately
  * drip-on-a-standing-cell-increases-it
@@ -30,6 +32,16 @@ public record GloomStep() implements TakesNoEntity, DripLanding {
      * The registered type.
      */
     public static final StepType<GloomStep> TYPE = new StepType<>(NAME, CODEC);
+
+    /**
+     * The gloom step a program carries, the first where it carries several.
+     *
+     * @param program the ability's steps
+     * @return the gloom step, empty where the program lays no Gloom goo
+     */
+    public static Optional<GloomStep> in(List<Step> program) {
+        return program.stream().filter(GloomStep.class::isInstance).map(GloomStep.class::cast).findFirst();
+    }
 
     @Override
     public StepType<GloomStep> type() {

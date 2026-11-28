@@ -1,0 +1,31 @@
+{
+  "gooType": "xeno",
+  "displayName": "goo.ability.xeno.ooze",
+  "cost_mechanics": "goo.ability.xeno.ooze.cost_mechanics",
+  "badge": "residual",
+  "order": 50,
+  "cost": 96,
+  "cost_formula": "%s/m³",
+  "delivery": {
+    "kind": "stream",
+    "drains_on_placement": true,
+    "throw_speed": 0.84,
+    "drips_per_tick": 2,
+    "cone": 16,
+    "ticks_per_charge": 20,
+    "particle": "goo:ooze_spray_drip",
+    "sound": { "id": "minecraft:block.honey_block.slide", "every": 10, "volume": 1.0, "pitch": 1.0, "pitch_spread": 0.1 }
+  },
+  "behaviors": [
+    {
+      "type": "ooze",
+      "slime_turn_layers": 8,
+      "morph_ticks": 20,
+      "steps": [
+        { "type": "sound", "id": "minecraft:entity.slime.squish", "source": "players", "volume": 0.9, "pitch": 0.7 },
+        { "type": "sound", "id": "minecraft:entity.evoker.prepare_summon", "source": "players", "volume": 0.8, "pitch": 1.2 }
+      ]
+    }
+  ],
+  "tags": ["stream"]
+}

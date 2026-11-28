@@ -190,15 +190,20 @@ public final class GloveUseTracker {
 
     /**
      * Roots a charge-sized selection's charge at the crosshair's target as
-     * the press begins, so its spheroid and its release hold that spot.
+     * the press begins, so its spheroid and its release hold that spot, and
+     * the release carries where the caster's eye stood then.
      * decision blast-roots-to-the-spot-the-cast-began
+     * decision what-starts-in-range-resolves-out-of-range
      *
      * @param player the local player, or null where none stands
      */
     private static void rootASizedCharge(@Nullable LocalPlayer player) {
-        GloveSelection selection = player == null ? null : GooCasters.heldSelection(player);
+        if (player == null) {
+            return;
+        }
+        GloveSelection selection = GooCasters.heldSelection(player);
         if (selection != null && GloveThrowSender.selectedSizesByCharge(selection.abilityId())) {
-            GloveThrowSender.rootTheCharge();
+            GloveThrowSender.rootTheCharge(player.getEyePosition());
         }
     }
 

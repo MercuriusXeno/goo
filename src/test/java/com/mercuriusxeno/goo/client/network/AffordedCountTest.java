@@ -191,7 +191,7 @@ class AffordedCountTest {
             ClientAbility blink = new ClientAbility(Identifier.fromNamespaceAndPath(Goo.MODID, "blink"),
                     "ability.goo.blink", "", 0, List.of(), List.of(), 0, Delivery.of(DeliveryKind.SELF),
                     AbilityBadge.SELF, List.of(), AbilityArea.NONE, IndicatorShowing.HELD, List.of(), 0,
-                    DistancePrice.NONE, List.of(), ArmPose.defaultFor(DeliveryKind.SELF), "ability.goo.blink.description",
+                    DistancePrice.NONE, ArmPose.defaultFor(DeliveryKind.SELF), "ability.goo.blink.description",
                     Optional.empty(), Optional.of("200 + 100/block"));
             assertEquals("200 + 100/block", blink.petalLabel(THOUSAND, NO_REAGENTS));
         }
@@ -203,7 +203,7 @@ class AffordedCountTest {
                     "ability.goo.gouge", "", 0, List.of(),
                     List.of(new GougeStep(12, 1.5, 2.5, 3.5, 2.5, 1000)), 0, Delivery.of(DeliveryKind.SELF),
                     AbilityBadge.CHANNELED, List.of(), AbilityArea.NONE, IndicatorShowing.HELD, List.of(), 0,
-                    DistancePrice.NONE, List.of(), ArmPose.HELD_OUT, "ability.goo.gouge.description",
+                    DistancePrice.NONE, ArmPose.HELD_OUT, "ability.goo.gouge.description",
                     Optional.of("ability.goo.gouge.cost_mechanics"), Optional.of("%s"));
             assertEquals("1K", gouge.petalLabel(THOUSAND, NO_REAGENTS));
         }

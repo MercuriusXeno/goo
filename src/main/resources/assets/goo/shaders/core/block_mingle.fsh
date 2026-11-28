@@ -5,6 +5,7 @@
 #include <minecraft:dynamictransforms.glsl>
 #include <minecraft:globals.glsl>
 #include <goo:mingle_noise.glsl>
+#include <minecraft:oit.glsl>
 
 // The block transform of decision petrify-stone-encasement-and-calcify-map:
 // the old block mingles into the new. The mingle noise field over world
@@ -24,7 +25,12 @@ layout(location = 5) in vec3 mingleWorldPos;
 layout(location = 6) flat in float mingleProgress;
 layout(location = 7) flat in float mingleSeed;
 
+// Under improved transparency the depth bounds and transmittance phases take the alpha alone, and the
+// accumulate phase weights the color by the transmittance in front of it
+// (decision goo-translucency-draws-through-order-independent-transparency).
+#ifndef OIT_ALPHA_ONLY
 layout(location = 0) out vec4 fragColor;
+#endif
 
 // Noise cells per block: a block face breaks into several patches, each
 // several texels across (decision mingle-noise-snaps-to-texels).
@@ -52,5 +58,15 @@ void main() {
     color *= lightMapColor;
     float seam = 1.0 - step(threshold + SEAM_BAND, field);
     color.rgb *= mix(1.0, SEAM_SHADE, seam);
-    fragColor = apply_fog(color, sphericalVertexDistance, cylindricalVertexDistance, FogEnvironmentalStart, FogEnvironmentalEnd, FogRenderDistanceStart, FogRenderDistanceEnd, FogColor);
+#ifdef OIT_ALPHA_ONLY
+    executeAlphaOnlyPhase(gl_FragCoord.z, color.a);
+#else
+    #ifdef OIT_ACCUMULATE
+    color = sampleColorForAccumulation(color);
+    vec4 fogColor = vec4(FogColor.rgb * color.a, FogColor.a);
+    #else
+    vec4 fogColor = FogColor;
+    #endif
+    fragColor = apply_fog(color, sphericalVertexDistance, cylindricalVertexDistance, FogEnvironmentalStart, FogEnvironmentalEnd, FogRenderDistanceStart, FogRenderDistanceEnd, fogColor);
+#endif
 }

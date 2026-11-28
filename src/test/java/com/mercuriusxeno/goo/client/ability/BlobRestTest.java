@@ -96,7 +96,7 @@ class BlobRestTest {
 
     @Test
     void aCasterDrawnInThirdPersonRestsAboveTheirDrawnPalm() {
-        try (SprayingClient client = SprayingClient.another(com.mercuriusxeno.goo.type.GooTypes.ZOO)) {
+        try (SprayingClient client = SprayingClient.another(com.mercuriusxeno.goo.type.GooTypes.ZOMBIE)) {
             client.drawsThePalm(DRAWN);
 
             Vec3 rest = BlobRest.of(SprayingClient.CASTER, SprayingClient.SENT_GLOVE, 0f);
@@ -110,7 +110,7 @@ class BlobRestTest {
     @Test
     void aCasterDrawnUpsideDownRestsBelowTheirDrawnPalmTowardTheHead() {
         DrawnPalm.Palm hanging = new DrawnPalm.Palm(DRAWN.place(), new Vec3(0, -1, 0), new Vec3(0, -1, 0));
-        try (SprayingClient client = SprayingClient.another(com.mercuriusxeno.goo.type.GooTypes.ZOO)) {
+        try (SprayingClient client = SprayingClient.another(com.mercuriusxeno.goo.type.GooTypes.ZOMBIE)) {
             client.drawsThePalm(hanging);
 
             Vec3 rest = BlobRest.of(SprayingClient.CASTER, SprayingClient.SENT_GLOVE, 0f);

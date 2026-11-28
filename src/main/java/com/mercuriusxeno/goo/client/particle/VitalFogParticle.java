@@ -5,6 +5,7 @@ import net.minecraft.client.particle.ParticleProvider;
 import net.minecraft.client.particle.SpriteSet;
 import net.minecraft.core.particles.SimpleParticleType;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -20,18 +21,50 @@ public final class VitalFogParticle extends DriftingGlowParticle {
     private static final float SWELL = 1.5f;
     /** Peak opacity, faint so overlapping puffs build to a fog. */
     private static final float PEAK_ALPHA = 0.12f;
+    /** The share of its speed a puff keeps each tick. */
+    public static final float FRICTION = 0.92f;
+    private static final int BASE_LIFETIME = 18;
+    private static final int LIFETIME_VARIANCE = 10;
+    /** The most ticks a puff lives. */
+    public static final int LONGEST_LIFE = BASE_LIFETIME + LIFETIME_VARIANCE - 1;
     /** A wide puff in jelly amber, opening unseen and fading in. */
-    private static final Look PUFF = new Look(0.92f, 0.01f, 18, 10, 0.35f, 0.2f,
+    private static final Look PUFF = new Look(FRICTION, 0.01f, BASE_LIFETIME, LIFETIME_VARIANCE, 0.35f, 0.2f,
             new float[] {1.0f, 0.7f, 0.3f}, 0f);
+
+    private final Vec3 spawn;
+    private final Vec3 launch;
 
     private VitalFogParticle(ClientLevel level, double[] position, double[] velocity, SpriteSet sprites) {
         super(level, position, velocity, sprites, PUFF);
+        this.spawn = new Vec3(this.x, this.y, this.z);
+        this.launch = new Vec3(this.xd, this.yd, this.zd);
+    }
+
+    /**
+     * Where a puff stands a number of ticks after it spawned: carried by its launch speed, which the fog's friction
+     * sheds each tick, so its whole drift stays short of its launch speed over one less the friction.
+     *
+     * @param spawn    where it spawned
+     * @param velocity its launch speed a tick
+     * @param ticks    ticks since it spawned
+     * @return where it stands
+     */
+    public static Vec3 driftedTo(Vec3 spawn, Vec3 velocity, int ticks) {
+        return spawn.add(velocity.scale((1 - Math.pow(FRICTION, ticks)) / (1 - FRICTION)));
     }
 
     /** Drifts the puff and fades it in over the first half of its life and out over the second. */
     @Override
     public void tick() {
-        super.tick();
+        this.xo = this.x;
+        this.yo = this.y;
+        this.zo = this.z;
+        if (this.age++ >= this.lifetime) {
+            this.remove();
+            return;
+        }
+        Vec3 at = driftedTo(spawn, launch, age);
+        this.setPos(at.x, at.y, at.z);
         float progress = lifeProgress();
         this.alpha = PEAK_ALPHA * (float) Math.sin(Math.PI * Math.min(1f, progress));
     }

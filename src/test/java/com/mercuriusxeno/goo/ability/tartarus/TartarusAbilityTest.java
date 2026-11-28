@@ -6,13 +6,11 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.program.TartarusStep;
 import com.mercuriusxeno.goo.type.GooTypes;
-import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
-import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -20,7 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Nether's Tartarus loads from nether_tartarus.json as a channeled gate requiring the netherrack recipe, and en_us
+ * Nether's Tartarus loads from nether_tartarus.json as a channeled gate, and en_us
  * names it with a description, both read from the classpath.
  */
 class TartarusAbilityTest {
@@ -32,9 +30,8 @@ class TartarusAbilityTest {
 
     /** decision tartarus-summons-a-gate-to-the-nether-like-end-and-zone */
     @Test
-    void isANetherAbilityRequiringTheNetherrackRecipe() {
+    void isANetherAbility() {
         assertEquals(GooTypes.NETHER, tartarus.gooType());
-        assertEquals(List.of(Identifier.withDefaultNamespace("netherrack")), tartarus.requires());
     }
 
     /** decision tartarus-summons-a-gate-to-the-nether-like-end-and-zone */

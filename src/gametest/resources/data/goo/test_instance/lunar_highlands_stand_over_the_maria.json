@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:lunar_highlands_stand_over_the_maria",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 600,
+  "setup_ticks": 0,
+  "required": true
+}

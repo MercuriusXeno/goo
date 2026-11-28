@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.client.overlay;
 
 import com.mercuriusxeno.goo.ability.AbilityBadge;
-import com.mercuriusxeno.goo.ability.AbilityJson;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -17,7 +16,7 @@ class AimIndicatorTest {
 
     @ParameterizedTest
     @CsvSource({"MOB, ENTITY_OUTLINE", "WORLD, BLOCK_OUTLINE", "SELF, NONE", "DURATIVE, NONE",
-            "FREE, NONE", "CHANNELED, NONE", "PRISM, NONE", "RESIDUAL, NONE"})
+            "FREE, NONE", "CHANNELED, NONE", "RESIDUAL, NONE"})
     void eachBadgeDrawsItsOwnMark(AbilityBadge badge, AimIndicator expected) {
         assertEquals(expected, AimIndicator.of(badge, false));
     }
@@ -25,27 +24,6 @@ class AimIndicatorTest {
     @Test
     void anUnsyncedAbilityDrawsNothing() {
         assertEquals(AimIndicator.NONE, AimIndicator.of(null, false));
-    }
-
-    /**
-     * Prism, cast at the face directed, keeps the block outline with its face
-     * rings while aiming (decision spontaneous-abilities-cast-at-the-target-with-no-thrown-blob).
-     */
-    @Test
-    void prismDrawsTheBlockOutline() {
-        assertEquals(AimIndicator.BLOCK_OUTLINE, AimIndicator.of(AbilityJson.decode("crystal_prism").badge(), false));
-    }
-
-    /**
-     * With Prism selected, the outline and face rings draw only on a face a
-     * prism can grow from; every other ability's mark stands on any face
-     * (decision prism-highlight-draws-only-on-a-face-a-prism-grows-from).
-     */
-    @ParameterizedTest
-    @CsvSource({"true, true, BLOCK_OUTLINE", "true, false, NONE", "false, false, BLOCK_OUTLINE",
-            "false, true, BLOCK_OUTLINE"})
-    void prismDrawsItsMarkOnlyOnAFaceItGrowsFrom(boolean growsAPrism, boolean growableFace, AimIndicator expected) {
-        assertEquals(expected, AimIndicator.onFace(AimIndicator.BLOCK_OUTLINE, growsAPrism, growableFace));
     }
 
     /** Grab, a channeled badge, outlines the mob its press holds (decision grab-hides-the-reticle-once-a-mob-is-held). */

@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.gametest;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
-import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooRemainders;
 import com.mercuriusxeno.goo.data.GooValueTable;
@@ -11,7 +10,6 @@ import com.mercuriusxeno.goo.item.GooItem;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.network.GooThrowHandler;
 import com.mercuriusxeno.goo.network.GooThrowPayload;
-import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooCreativeTabs;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
 import com.mercuriusxeno.goo.registry.GooItems;
@@ -36,7 +34,6 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import java.util.Collection;
 import java.util.List;
-import java.util.Objects;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
 
@@ -96,13 +93,13 @@ public final class GooItemTests {
      * @param helper the gametest helper
      */
     public static void gooHoldsItsPartUnderOneMb(GameTestHelper helper) {
-        ItemStack mixed = GooStacks.createForOutput(GooTypes.ZOO, SIXTY_FOUR_THIRDS);
+        ItemStack mixed = GooStacks.createForOutput(GooTypes.ZOMBIE, SIXTY_FOUR_THIRDS);
         GooFraction mixedPart = mixed.getOrDefault(GooDataComponents.REMAINDERS.get(), GooRemainders.EMPTY)
-                .of(GooTypes.ZOO);
+                .of(GooTypes.ZOMBIE);
         helper.assertTrue(GooStacks.volumeOf(mixed) == TWENTY_ONE && ONE_THIRD.equals(mixedPart)
                         && SIXTY_FOUR_THIRDS.equals(GooStacks.exactValueOf(mixed)),
                 MIXED_NOT_HELD + GooStacks.volumeOf(mixed) + " and " + mixedPart);
-        ItemStack partOnly = GooStacks.createForOutput(GooTypes.ZOO, ONE_THIRD);
+        ItemStack partOnly = GooStacks.createForOutput(GooTypes.ZOMBIE, ONE_THIRD);
         helper.assertTrue(!partOnly.isEmpty() && GooStacks.volumeOf(partOnly) == 0
                         && ONE_THIRD.equals(GooStacks.exactValueOf(partOnly)),
                 PART_ONLY_NOT_LIVE + "empty " + partOnly.isEmpty() + ", exact " + GooStacks.exactValueOf(partOnly));
@@ -116,8 +113,8 @@ public final class GooItemTests {
      * @param helper the gametest helper
      */
     public static void gooDrawnDryKeepsItsPart(GameTestHelper helper) {
-        ItemStack goo = GooStacks.createForOutput(GooTypes.ZOO, GooFraction.of(FIVE).plus(ONE_HALF));
-        int drawn = ((GooItem) goo.getItem()).drawGoo(goo, GooTypes.ZOO, FIVE);
+        ItemStack goo = GooStacks.createForOutput(GooTypes.ZOMBIE, GooFraction.of(FIVE).plus(ONE_HALF));
+        int drawn = ((GooItem) goo.getItem()).drawGoo(goo, GooTypes.ZOMBIE, FIVE);
         helper.assertTrue(drawn == FIVE && !goo.isEmpty() && ONE_HALF.equals(GooStacks.exactValueOf(goo)),
                 DRAWN_DRY_LOST_PART + drawn + ", the stack empty " + goo.isEmpty()
                         + ", exact " + GooStacks.exactValueOf(goo));
@@ -321,7 +318,7 @@ public final class GooItemTests {
     @SuppressWarnings(REMOVAL) // vanilla marks the mock server player helper for removal and names no replacement
     public static void gooIsPickedUp(GameTestHelper helper) {
         layStoneFloor(helper);
-        ItemEntity goo = CrucibleSpawns.spawnAt(helper, GooStacks.createForOutput(GooTypes.ZOO, DROPPED_VOLUME),
+        ItemEntity goo = CrucibleSpawns.spawnAt(helper, GooStacks.createForOutput(GooTypes.ZOMBIE, DROPPED_VOLUME),
                 PICKUP_SPOT);
         goo.setNoPickUpDelay();
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
@@ -334,7 +331,7 @@ public final class GooItemTests {
         });
         helper.succeedWhen(() -> {
             boolean held = player.getInventory().getNonEquipmentItems().stream().anyMatch(stack ->
-                    GooTypes.ZOO.equals(GooStacks.keyOf(stack)) && GooStacks.volumeOf(stack) == DROPPED_VOLUME);
+                    GooTypes.ZOMBIE.equals(GooStacks.keyOf(stack)) && GooStacks.volumeOf(stack) == DROPPED_VOLUME);
             helper.assertTrue(held && goo.isRemoved(), NOT_PICKED_UP + "held " + held + ", removed "
                     + goo.isRemoved());
             helper.getLevel().getServer().getPlayerList().remove(player);
@@ -367,12 +364,12 @@ public final class GooItemTests {
      */
     public static void gooTwoBlocksApartJoins(GameTestHelper helper) {
         layStoneFloor(helper);
-        CrucibleSpawns.spawnAt(helper, GooStacks.createForOutput(GooTypes.ZOO, NEAR_VOLUME), NEAR_GOO);
-        CrucibleSpawns.spawnAt(helper, GooStacks.createForOutput(GooTypes.ZOO, FAR_VOLUME), FAR_GOO);
+        CrucibleSpawns.spawnAt(helper, GooStacks.createForOutput(GooTypes.ZOMBIE, NEAR_VOLUME), NEAR_GOO);
+        CrucibleSpawns.spawnAt(helper, GooStacks.createForOutput(GooTypes.ZOMBIE, FAR_VOLUME), FAR_GOO);
         helper.succeedWhen(() -> {
             List<Integer> volumes = helper.getLevel().getEntitiesOfClass(ItemEntity.class,
                             new AABB(helper.absolutePos(BlockPos.ZERO)).inflate(6),
-                            item -> item.isAlive() && GooTypes.ZOO.equals(GooStacks.keyOf(item.getItem())))
+                            item -> item.isAlive() && GooTypes.ZOMBIE.equals(GooStacks.keyOf(item.getItem())))
                     .stream().map(item -> GooStacks.volumeOf(item.getItem())).toList();
             helper.assertTrue(volumes.equals(List.of(NEAR_VOLUME + FAR_VOLUME)), GOO_NOT_JOINED + volumes);
         });
@@ -394,24 +391,24 @@ public final class GooItemTests {
      */
     public static void gooPartsJoinExactly(GameTestHelper helper) {
         layStoneFloor(helper);
-        CrucibleSpawns.spawnAt(helper, GooStacks.createForOutput(GooTypes.ZOO, ONE_HALF), NEAR_GOO);
-        CrucibleSpawns.spawnAt(helper, GooStacks.createForOutput(GooTypes.ZOO, TWO_THIRDS), FAR_GOO);
+        CrucibleSpawns.spawnAt(helper, GooStacks.createForOutput(GooTypes.ZOMBIE, ONE_HALF), NEAR_GOO);
+        CrucibleSpawns.spawnAt(helper, GooStacks.createForOutput(GooTypes.ZOMBIE, TWO_THIRDS), FAR_GOO);
         helper.succeedWhen(() -> {
             List<GooFraction> values = helper.getLevel().getEntitiesOfClass(ItemEntity.class,
                             new AABB(helper.absolutePos(BlockPos.ZERO)).inflate(6),
-                            item -> item.isAlive() && GooTypes.ZOO.equals(GooStacks.keyOf(item.getItem())))
+                            item -> item.isAlive() && GooTypes.ZOMBIE.equals(GooStacks.keyOf(item.getItem())))
                     .stream().map(item -> GooStacks.exactValueOf(item.getItem())).toList();
             helper.assertTrue(values.equals(List.of(SEVEN_SIXTHS)), PARTS_NOT_JOINED + values);
         });
     }
 
     private static final BlockPos XENO_WALL = new BlockPos(1, 1, 1);
-    private static final BlockPos METAL_WALL = new BlockPos(3, 1, 1);
+    private static final BlockPos BLAZE_WALL = new BlockPos(3, 1, 1);
     private static final BlockPos PLAYER_POS = new BlockPos(2, 1, 5);
     private static final Direction THROW_FACE = Direction.SOUTH;
     private static final int NO_TARGET_ENTITY = -1;
     private static final String XENO_SHRIEK = "goo:xeno_shriek";
-    private static final String SPIKE_TRAP = "goo:test_spike_trap";
+    private static final String BLAZE_IGNITE = "goo:blaze_ignite";
     private static final String REMOVAL = "removal";
     /**
      * Ticks past the arc from the player to either wall, four blocks at one
@@ -424,8 +421,6 @@ public final class GooItemTests {
             GooTypes.REGISTRY, Identifier.fromNamespaceAndPath(TEST_PACK_NAMESPACE, "seventeenth"));
 
     private static final String GOO_NOT_SPENT = "Throwing should spend the goo of the thrown type: ";
-    private static final String NO_MARKER = "Thrown goo should land a ability block beside the wall at ";
-    private static final String WRONG_MARKER_TYPE = "Ability block should carry the thrown goo's type at ";
     private static final String EXO_NOT_FIRE_RESISTANT = "A fresh exo gauntlet should resist fire damage";
     private static final String TAB_LACKS_THOUSAND = "Creative tab should offer a one-goo of the datapack type";
     private static final String TAB_LACKS_GOO = "Creative tab should offer a goo of the datapack type";
@@ -435,10 +430,9 @@ public final class GooItemTests {
     }
 
     /**
-     * A player holding a glove, with xeno goo and metal goo made through
+     * A player holding a glove, with xeno goo and blaze goo made through
      * GooStacks to each ability's live cost, throws each at its own stone
-     * wall; each throw spends that goo and lands a ability block of that type
-     * beside its wall.
+     * wall, and each throw spends the goo of its own type.
      *
      * @param helper the gametest helper
      */
@@ -460,9 +454,9 @@ public final class GooItemTests {
     }
 
     /**
-     * A mock player holding the thrower throws a xeno and a metal goo, each
-     * holding its ability's live cost, each at its own stone wall, then leaves the level once the markers are
-     * read, so a later thrower's tracking broadcast never reaches its mock
+     * A mock player holding the thrower throws a xeno and a blaze goo, each
+     * holding its ability's live cost, each at its own stone wall, then leaves the level once both have
+     * landed, so a later thrower's tracking broadcast never reaches its mock
      * connection, which never negotiated the mod's channels.
      *
      * @param helper  the gametest helper
@@ -471,29 +465,27 @@ public final class GooItemTests {
     @SuppressWarnings(REMOVAL) // vanilla marks the mock server player helper for removal and names no replacement
     private static void throwGooFrom(GameTestHelper helper, Item thrower) {
         helper.setBlock(XENO_WALL, Blocks.STONE);
-        helper.setBlock(METAL_WALL, Blocks.STONE);
+        helper.setBlock(BLAZE_WALL, Blocks.STONE);
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         BlockPos stand = helper.absolutePos(PLAYER_POS);
         player.setPos(stand.getX(), stand.getY(), stand.getZ());
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(thrower));
         AbilityRegistry abilities = AbilityRegistry.of(helper.getLevel());
         AbilityDefinition shriek = abilities.getAbility(Identifier.parse(XENO_SHRIEK));
-        AbilityDefinition spikes = abilities.getAbility(Identifier.parse(SPIKE_TRAP));
+        AbilityDefinition ignite = abilities.getAbility(Identifier.parse(BLAZE_IGNITE));
         ItemStack xeno = GooStacks.createForOutput(GooTypes.XENO, shriek.cost().in(GooValueTable.EMPTY));
-        ItemStack metal = GooStacks.createForOutput(GooTypes.METAL, spikes.cost().in(GooValueTable.EMPTY));
+        ItemStack blaze = GooStacks.createForOutput(GooTypes.BLAZE, ignite.cost().in(GooValueTable.EMPTY));
         player.getInventory().add(xeno);
-        player.getInventory().add(metal);
+        player.getInventory().add(blaze);
         KnownRecipes.teachRequires(player, shriek);
-        KnownRecipes.teachRequires(player, spikes);
+        KnownRecipes.teachRequires(player, ignite);
 
         GooThrowHandler.execute(player, throwAt(helper, GooTypes.XENO, XENO_SHRIEK, XENO_WALL));
-        GooThrowHandler.execute(player, throwAt(helper, GooTypes.METAL, SPIKE_TRAP, METAL_WALL));
+        GooThrowHandler.execute(player, throwAt(helper, GooTypes.BLAZE, BLAZE_IGNITE, BLAZE_WALL));
         helper.assertTrue(xeno.isEmpty(), GOO_NOT_SPENT + GooTypes.id(GooTypes.XENO));
-        helper.assertTrue(metal.isEmpty(), GOO_NOT_SPENT + GooTypes.id(GooTypes.METAL));
+        helper.assertTrue(blaze.isEmpty(), GOO_NOT_SPENT + GooTypes.id(GooTypes.BLAZE));
 
         helper.runAfterDelay(ARRIVAL_TICKS, () -> {
-            assertMarker(helper, XENO_WALL.relative(THROW_FACE), GooTypes.XENO);
-            assertMarker(helper, METAL_WALL.relative(THROW_FACE), GooTypes.METAL);
             helper.getLevel().getServer().getPlayerList().remove(player);
             helper.succeed();
         });
@@ -529,9 +521,4 @@ public final class GooItemTests {
                 THROW_FACE.ordinal(), false, abilityId, Vec3.ZERO);
     }
 
-    private static void assertMarker(GameTestHelper helper, BlockPos pos, ResourceKey<GooTypeDefinition> type) {
-        helper.assertTrue(helper.getBlockState(pos).is(GooBlocks.ABILITY_BLOCK.get()), NO_MARKER + pos);
-        AbilityBlockEntity marker = helper.getBlockEntity(pos, AbilityBlockEntity.class);
-        helper.assertTrue(Objects.equals(type, marker.getGooType()), WRONG_MARKER_TYPE + pos);
-    }
 }

@@ -7,16 +7,11 @@ import com.mercuriusxeno.goo.ability.DurativeRoute;
 import com.mercuriusxeno.goo.ability.HeldEffectIcon;
 import com.mercuriusxeno.goo.ability.HeldEffectName;
 import com.mercuriusxeno.goo.ability.StandingDimension;
-import com.mercuriusxeno.goo.ability.nether.HiveSwarm;
-import com.mercuriusxeno.goo.ability.oculus.OculusNodes;
-import com.mercuriusxeno.goo.ability.program.Step;
-import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.block.ability.CellBinding;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.client.ability.AbilityPoses;
 import com.mercuriusxeno.goo.client.ability.Afterimages;
 import com.mercuriusxeno.goo.client.ability.AilmentOverlayLayer;
-import com.mercuriusxeno.goo.client.ability.BeatRings;
 import com.mercuriusxeno.goo.client.ability.BlockTransforms;
 import com.mercuriusxeno.goo.client.ability.ChainBurnouts;
 import com.mercuriusxeno.goo.client.ability.ClientPalmBuffers;
@@ -41,7 +36,6 @@ import com.mercuriusxeno.goo.client.ability.MobShells;
 import com.mercuriusxeno.goo.client.ability.NovaRings;
 import com.mercuriusxeno.goo.client.ability.PhaseLook;
 import com.mercuriusxeno.goo.client.ability.PhasedSight;
-import com.mercuriusxeno.goo.client.ability.PrismFormingSounds;
 import com.mercuriusxeno.goo.client.ability.RelayLasers;
 import com.mercuriusxeno.goo.client.ability.SignalRings;
 import com.mercuriusxeno.goo.client.ability.TangleLayer;
@@ -52,15 +46,6 @@ import com.mercuriusxeno.goo.client.ability.ViewportRipples;
 import com.mercuriusxeno.goo.client.ability.WindLines;
 import com.mercuriusxeno.goo.client.ability.ZapBolts;
 import com.mercuriusxeno.goo.client.ber.*;
-import com.mercuriusxeno.goo.client.ber.style.GlacialPrismStyle;
-import com.mercuriusxeno.goo.client.ber.style.GlowBeaconStyle;
-import com.mercuriusxeno.goo.client.ber.style.GlowReflectorStyle;
-import com.mercuriusxeno.goo.client.ber.style.HeaterPrismStyle;
-import com.mercuriusxeno.goo.client.ber.style.HivePrismStyle;
-import com.mercuriusxeno.goo.client.ber.style.OculusStyle;
-import com.mercuriusxeno.goo.client.ber.style.PrismComboStyles;
-import com.mercuriusxeno.goo.client.ber.style.PulsePrismStyle;
-import com.mercuriusxeno.goo.client.ber.style.VerdantPrismStyle;
 import com.mercuriusxeno.goo.client.entity.BlockHunkRenderer;
 import com.mercuriusxeno.goo.client.entity.CompressionSphereRenderer;
 import com.mercuriusxeno.goo.client.entity.DriftingWispRenderer;
@@ -74,7 +59,6 @@ import com.mercuriusxeno.goo.client.overlay.AimTracker;
 import com.mercuriusxeno.goo.client.overlay.OreSightings;
 import com.mercuriusxeno.goo.client.particle.*;
 import com.mercuriusxeno.goo.client.radial.CutItemRenderer;
-import com.mercuriusxeno.goo.client.sound.FadingLoops;
 import com.mercuriusxeno.goo.client.throwing.GooFlightManager;
 import com.mercuriusxeno.goo.client.throwing.GooSizeProperty;
 import com.mercuriusxeno.goo.client.throwing.GooVolumeDecorator;
@@ -156,7 +140,6 @@ public final class GooClientSetup {
 
     static {
         ISidedProxy.INSTANCE[0] = new ClientProxy();
-        AbilityBlockEntity.installClientSteps(GooClientSetup::syncedSteps);
         GooTypes.readConnectionOrderFrom(GooClientSetup::connectionTypeOrder);
         // lunar-reads-as-terran-while-you-are-on-the-moon: a held effect shows its ability's face where the player stands
         StandingDimension.readFrom(ClientDimension::standingIn);
@@ -164,7 +147,6 @@ public final class GooClientSetup {
                 .map(ability -> ability.shownIn(ClientDimension.standingIn()).displayName()).orElse(null));
         HeldEffectIcon.readConnectionIconsFrom(type -> syncedDurativeAbility(type)
                 .map(ability -> ability.shownIn(ClientDimension.standingIn()).icon()).orElse(null));
-        HiveSwarm.installBuzzLoops(FadingLoops::keepAlive);
     }
 
     /**
@@ -183,17 +165,6 @@ public final class GooClientSetup {
                 .min(Comparator.comparingInt(ClientAbility::order));
     }
 
-    /**
-     * Answers a marker's steps from the abilities the server synced
-     * (decision diagnose-then-fix-marker-server-gate).
-     *
-     * @param abilityId the ability resource id string
-     * @return the synced ability's steps, or null when none synced under that id
-     */
-    private static @Nullable List<Step> syncedSteps(String abilityId) {
-        ClientAbility ability = AbilitySyncHandler.findAbility(abilityId);
-        return ability != null ? ability.behaviors() : null;
-    }
 
     private GooClientSetup() {
     }
@@ -207,8 +178,6 @@ public final class GooClientSetup {
     public static void registerEntityRenderers(EntityRenderersEvent.RegisterRenderers event) {
         registerMachineRenderers(event);
         registerEffectRenderers(event);
-        // verdant-prism-greens-blocks-slowly: a verdant prism draws its crystal leaf-green
-        PrismComboStyles.register(VerdantPrismStyle.COMBO, new VerdantPrismStyle());
     }
 
     /**
@@ -255,23 +224,15 @@ public final class GooClientSetup {
      * @param event the renderer registration event
      */
     private static void registerEffectRenderers(EntityRenderersEvent.RegisterRenderers event) {
-        event.registerBlockEntityRenderer(GooBlockEntities.ABILITY_BLOCK.get(),
-                AbilityBlockRenderer::new);
-        event.registerBlockEntityRenderer(GooBlockEntities.PRISM.get(), PrismRenderer::new);
         event.registerBlockEntityRenderer(GooBlockEntities.WISP.get(), WispRenderer::new);
-        PrismComboStyles.register(GlowBeaconStyle.COMBO, new GlowBeaconStyle());
-        PrismComboStyles.register(GlowReflectorStyle.COMBO, new GlowReflectorStyle());
-        PrismComboStyles.register(HivePrismStyle.COMBO, new HivePrismStyle());
+        // reflector-rails-carry-the-brightest-light: the reflector block draws its rails
+        event.registerBlockEntityRenderer(GooBlockEntities.REFLECTOR.get(), ReflectorRenderer::new);
+        // bulb-one-model-max-light-beacon-combo: the light beacon draws its far-seen column
+        event.registerBlockEntityRenderer(GooBlockEntities.LIGHT_BEACON.get(), LightBeaconRenderer::new);
+        // oculus-prism-becomes-a-hovering-eye: the oculus block draws its hovering eye
+        event.registerBlockEntityRenderer(GooBlockEntities.OCULUS.get(), OculusRenderer::new);
         // room-door-wears-the-end-portal-starfield: the room's doorway draws as the End portal's starfield
         event.registerBlockEntityRenderer(GooBlockEntities.DIMENSION_DOOR.get(), DimensionDoorRenderer::new);
-        // oculus-prism-becomes-a-hovering-eye: an oculus prism draws as the hovering eye
-        PrismComboStyles.register(OculusNodes.OCULUS, new OculusStyle());
-        // metronome-prism-pulses-at-the-learned-rate, relay-prism-carries-the-signal-through-air
-        PrismComboStyles.register(PulsePrismStyle.METRONOME_COMBO, PulsePrismStyle.METRONOME);
-        PrismComboStyles.register(PulsePrismStyle.RELAY_COMBO, PulsePrismStyle.RELAY);
-        PrismComboStyles.register(GlacialPrismStyle.COMBO, new GlacialPrismStyle());
-        // heater-prism-flames-nearby-creatures: a heater prism glows ember
-        PrismComboStyles.register(HeaterPrismStyle.COMBO, new HeaterPrismStyle());
         event.registerBlockEntityRenderer(GooBlockEntities.STATUE.get(), StatueRenderer::new);
         // decision flecks-move-by-flexible-goo-physics-and-stay-items: a dropped goo item draws as its cuboid, still
         event.registerEntityRenderer(EntityTypes.ITEM, GooItemEntityRenderer::new);
@@ -326,7 +287,8 @@ public final class GooClientSetup {
                 GooBlocks.METAL_SPIKES.get(), GooBlocks.ZOMBIE_INFEST.get(), GooBlocks.LEAF_VINES.get(),
                 GooBlocks.UNSTABLE_NITRO.get(), GooBlocks.QUANTUM_PHASE.get(),
                 GooBlocks.NETHER_GLOOM.get(),
-                GooBlocks.ROCK_MORTAR.get(), GooBlocks.YARN_STITCH.get(), GooBlocks.ASTRAL_DOWSING.get())) {
+                GooBlocks.ROCK_MORTAR.get(), GooBlocks.YARN_STITCH.get(), GooBlocks.ASTRAL_DOWSING.get(),
+                GooBlocks.XENO_OOZE.get())) {
             event.register(VolumeCellTint.sources(cell.binding().gooType(), ClientGooTypes::color), cell);
         }
     }
@@ -397,7 +359,6 @@ public final class GooClientSetup {
         event.registerSpriteSet(GooParticles.GNAT.get(), GnatParticle.Provider::new);
         registerSprayDrips(event);
         event.registerSpriteSet(GooParticles.SNOWFLAKE.get(), SnowflakeParticle.Provider::new);
-        event.registerSpriteSet(GooParticles.CLICK_WAVE.get(), ClickWaveParticle.Provider::new);
         event.registerSpriteSet(GooParticles.RESTORE_MOTE.get(), RestoreMoteParticle.Provider::new);
         event.registerSpriteSet(GooParticles.LIGHT_MOTE.get(), LightMoteParticle.Provider::new);
         event.registerSpriteSet(GooParticles.VOID_MOTE.get(), VoidMoteParticle.Provider::new);
@@ -430,6 +391,7 @@ public final class GooClientSetup {
      * mortar-is-rocks-residual-a-petrification-and-hardening-goo
      * stitch-is-yarns-residual-that-turns-slimes-into-passive-mobs
      * astral-world-goo-is-dowsing-an-x-ray-of-ore
+     * ooze-is-xenos-world-goo-that-turns-slimes-into-random-hostiles
      *
      * @param event the event instance
      */
@@ -452,6 +414,7 @@ public final class GooClientSetup {
         registerSprayDrip(event, GooParticles.MORTAR_SPRAY_DRIP.get(), BlendPalette.MORTAR_ROCK_GRAYS);
         registerSprayDrip(event, GooParticles.STITCH_SPRAY_DRIP.get(), BlendPalette.STITCH_YARN_TANS);
         registerSprayDrip(event, GooParticles.DOWSING_SPRAY_DRIP.get(), BlendPalette.DOWSING_STARLIGHT_BLUES);
+        registerSprayDrip(event, GooParticles.OOZE_SPRAY_DRIP.get(), BlendPalette.OOZE_XENO_SLATES);
         event.registerSpriteSet(GooParticles.MOLTEN_SPRAY_DRIP.get(),
                 sprites -> new SprayDripParticle.Provider(sprites, BlendPalette.MOLTEN_BLAZE_ORANGES,
                         CellBinding.MOLTEN.fluidFooting()));
@@ -664,10 +627,8 @@ public final class GooClientSetup {
         TunerAwaitState.clear();
         GooFlightManager.clear();
         ZapBolts.clear();
-        BeatRings.clear();
         SignalRings.clear();
         RelayLasers.clear();
-        PrismBeats.clear();
         ChainBurnouts.CLIENT.clear();
         MobCoats.CLIENT.clear();
         MobAilments.CLIENT.clear();
@@ -684,7 +645,7 @@ public final class GooClientSetup {
         WispEchoes.CLIENT.clear();
     }
 
-    /** Clears Crystal's glass knives in flight and hovering, ore sightings, held sweeps, Meteo's scorches, arm poses and forming prisms. */
+    /** Clears Crystal's glass knives in flight and hovering, ore sightings, held sweeps, Meteo's scorches and arm poses. */
     private static void clearCrystalVisuals() {
         OreSightings.CLIENT.clear();
         HeldSweepVisual.clear();
@@ -694,7 +655,6 @@ public final class GooClientSetup {
         ClientPalmBuffers.clear();
         HeldJavelins.clear();
         AbilityPoses.clear();
-        PrismFormingSounds.CLIENT.clear();
     }
 
     /**

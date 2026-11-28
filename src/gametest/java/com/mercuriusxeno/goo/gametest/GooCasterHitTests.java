@@ -221,7 +221,10 @@ public final class GooCasterHitTests {
 
     /**
      * A mock player holding Flames on a husk it led and a husk behind it that it charmed burns both with
-     * in_fire and leaves the lead and the charm standing.
+     * in_fire and leaves the lead and the charm standing. The player holds the stream tick after tick, as a player
+     * does: one pulse's random rays can miss the husk at the cone's far edge, so the test reads both burns over the
+     * hold rather than off its first pulse.
+     * decision flames-burns-by-a-spray-of-rays
      *
      * @param helper the gametest helper
      */
@@ -231,8 +234,8 @@ public final class GooCasterHitTests {
         ServerPlayer player = casterFacingEast(helper, GooTypes.BLAZE, BLAZE_FLAMES);
         makeOwn(player, led, charmed);
         helper.runAfterDelay(SETTLE_TICKS, () -> {
-            GooStreamHandler.streamTick(player, heldTick(player, GooTypes.BLAZE, BLAZE_FLAMES));
-            assertKeptAndLeave(helper, player, "Flames", DamageTypes.IN_FIRE, led, charmed);
+            helper.onEachTick(() -> GooStreamHandler.streamTick(player, heldTick(player, GooTypes.BLAZE, BLAZE_FLAMES)));
+            succeedOnceKept(helper, player, "Flames", DamageTypes.IN_FIRE, led, charmed);
         });
     }
 

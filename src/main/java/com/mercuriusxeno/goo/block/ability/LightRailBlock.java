@@ -19,10 +19,10 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.NonNull;
 
 /**
- * One cell of the light rail between two linked reflector prisms: replaceable
+ * One cell of the light rail between two linked reflectors: replaceable
  * so it counts as air for placement, shapeless and without collision, lit at
  * the level its network carries, and burning the undead that cross it with
- * a Laser's radiant hit. The prisms' renderer draws the beam; the rail
+ * a Laser's radiant hit. The reflectors' renderer draws the beam; the rail
  * itself draws nothing.
  * decision reflector-rails-carry-the-brightest-light
  */

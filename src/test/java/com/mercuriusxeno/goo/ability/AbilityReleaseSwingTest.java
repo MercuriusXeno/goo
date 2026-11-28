@@ -23,7 +23,6 @@ class AbilityReleaseSwingTest {
     private static final Map<String, ArmPoseKind> THROWS_NO_BLOB = Map.ofEntries(
             Map.entry("unstable_blast", ArmPoseKind.NONE),
             Map.entry("astral_meteo", ArmPoseKind.NONE),
-            Map.entry("crystal_prism", ArmPoseKind.NONE),
             Map.entry("void_hole", ArmPoseKind.NONE),
             Map.entry("pulse_click", ArmPoseKind.NONE),
             Map.entry("rock_build", ArmPoseKind.NONE),
@@ -31,8 +30,6 @@ class AbilityReleaseSwingTest {
             Map.entry("typhoon_shulk", ArmPoseKind.NONE),
             Map.entry("xeno_revert", ArmPoseKind.NONE),
             Map.entry("yarn_lead", ArmPoseKind.NONE),
-            Map.entry("zoo_shape", ArmPoseKind.NONE),
-            Map.entry("zoo_spawn", ArmPoseKind.NONE),
             Map.entry("glow_bulb", ArmPoseKind.HOLD_OUT),
             Map.entry("quantum_portal", ArmPoseKind.HOLD_OUT),
             Map.entry("crystal_knives", ArmPoseKind.NONE));
@@ -42,7 +39,7 @@ class AbilityReleaseSwingTest {
             "blaze_ignite", "xeno_shriek", "ender_seal",
             "frost_orb", "leaf_bio", "leaf_bloom", "metal_dart",
             "quantum_tunnel",
-            "void_cancel", "weird_mitosis", "zoo_allure");
+            "void_cancel", "weird_mitosis");
 
     static Stream<String> abilitiesThrowingNoBlob() {
         return THROWS_NO_BLOB.keySet().stream().sorted();

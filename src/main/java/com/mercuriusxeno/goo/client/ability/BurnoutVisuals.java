@@ -20,7 +20,7 @@ public final class BurnoutVisuals {
      * fire is its landing's whole visual (idea ignite-plays-no-burnout). Void's
      * Hole and Cancel draw no explosion, and Nether carries none
      * (decision anti-moves-from-nether-to-void). Crystal carries none since
-     * Shatter became a spray, its prism dome unplugged and kept in
+     * Shatter became a spray, its voronoi dome unplugged and kept in
      * CrystalExplosionVisual (decision prismatic-voronoi-code-stays-and-is-unplugged-from-shatter).
      */
     public static final List<ResourceKey<GooTypeDefinition>> CHAIN_TYPES = List.of(

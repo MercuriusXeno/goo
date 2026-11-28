@@ -737,9 +737,9 @@ public final class PortalTests {
     }
 
     private static final String THROW_LANDS_THROUGH_A_LINKED_PAIR = "portal_throw_lands_through_a_linked_pair";
-    private static final Identifier CRYSTAL_PRISM = Identifier.fromNamespaceAndPath("goo", "crystal_prism");
-    /** The thousands of mB of crystal goo a prism thrower carries, as StackKeyTests' thrower does. */
-    private static final int PRISM_GOO = 10;
+    private static final Identifier GLOW_BULB = Identifier.fromNamespaceAndPath("goo", "glow_bulb");
+    /** The thousands of mB of goo a heavy thrower carries, as MockThrowers' thrower does. */
+    private static final int THROWER_GOO = 10;
     /** How far south of the far partner the floor the throw lands on stands. */
     private static final int PAST_THE_PARTNER = 3;
 
@@ -753,10 +753,8 @@ public final class PortalTests {
      */
     public static void throwLandsThroughALinkedPair(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
-        ServerPlayer player = SelfDeliveryTests.invoker(helper, GooTypes.CRYSTAL);
-        // A prism costs more than the invoker's two thousand mB holds, so the thrower carries a prism thrower's goo.
-        player.getInventory().add(GooStacks.createForOutput(GooTypes.CRYSTAL, PRISM_GOO * GooStacks.THOUSAND));
-        KnownRecipes.teachRequires(player, AbilityRegistry.of(level).getAbility(CRYSTAL_PRISM));
+        ServerPlayer player = SelfDeliveryTests.invoker(helper, GooTypes.GLOW);
+        KnownRecipes.teachRequires(player, AbilityRegistry.of(level).getAbility(GLOW_BULB));
         standAt(helper, player, A_BLOCK_OFF);
         Portal near = castAt(helper, player, FIRST, Direction.SOUTH, PortalColor.BLUE);
         BlockPos farBlock = helper.absolutePos(FIRST).east(FAR);
@@ -768,16 +766,16 @@ public final class PortalTests {
         Portal far = new Portal(GlobalPos.of(level.dimension(), farBlock), Direction.SOUTH, Direction.UP,
                 PortalColor.ORANGE);
         PortalPairs.place(level, player.getUUID(), far);
-        GooThrowPayload thrown = new GooThrowPayload(GooTypes.id(GooTypes.CRYSTAL), NO_ENTITY, floor,
-                Direction.UP.ordinal(), false, CRYSTAL_PRISM.toString(), player.getEyePosition(),
+        GooThrowPayload thrown = new GooThrowPayload(GooTypes.id(GooTypes.GLOW), NO_ENTITY, floor,
+                Direction.UP.ordinal(), false, GLOW_BULB.toString(), player.getEyePosition(),
                 Vec3.atCenterOf(floor).add(0, 0.5, 0)).through(near.gate(), near.gate().center());
         GooThrowHandler.execute(player, thrown);
         helper.succeedWhen(() -> {
-            helper.assertTrue(level.getBlockState(floor.above()).is(GooBlocks.PRISM.get()), "A throw through the "
-                    + "linked pair should land on the floor past the partner, found "
+            helper.assertTrue(level.getBlockState(floor.above()).is(GooBlocks.GLOW_CRYSTAL.get()), "A throw through "
+                    + "the linked pair should land on the floor past the partner, found "
                     + level.getBlockState(floor.above()));
-            helper.assertBlockNotPresent(GooBlocks.PRISM.get(), FIRST.south());
-            helper.assertBlockNotPresent(GooBlocks.PRISM.get(), FIRST.above().south());
+            helper.assertBlockNotPresent(GooBlocks.GLOW_CRYSTAL.get(), FIRST.south());
+            helper.assertBlockNotPresent(GooBlocks.GLOW_CRYSTAL.get(), FIRST.above().south());
             level.getServer().getPlayerList().remove(player);
         });
     }
@@ -801,7 +799,7 @@ public final class PortalTests {
     public static void slimeSpawnsInPlaceThroughAPair(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         ServerPlayer player = SelfDeliveryTests.invoker(helper, GooTypes.WEIRD);
-        player.getInventory().add(GooStacks.createForOutput(GooTypes.WEIRD, PRISM_GOO * GooStacks.THOUSAND));
+        player.getInventory().add(GooStacks.createForOutput(GooTypes.WEIRD, THROWER_GOO * GooStacks.THOUSAND));
         KnownRecipes.teachRequires(player, AbilityRegistry.of(level).getAbility(WEIRD_MITOSIS));
         standAt(helper, player, A_BLOCK_OFF);
         Portal near = castAt(helper, player, FIRST, Direction.SOUTH, PortalColor.BLUE);

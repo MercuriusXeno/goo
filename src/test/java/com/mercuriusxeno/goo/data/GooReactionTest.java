@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.serialization.JsonOps;
 import net.minecraft.SharedConstants;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.Bootstrap;
 import net.neoforged.fml.loading.FMLLoader;
 import org.junit.jupiter.api.BeforeAll;
@@ -28,7 +29,6 @@ import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Answers.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mockStatic;
 
@@ -39,6 +39,7 @@ import static org.mockito.Mockito.mockStatic;
 class GooReactionTest {
 
     private static final String REACTIONS_DIRECTORY = "/data/goo/goo_reactions";
+    private static final String TYPES_DIRECTORY = "/data/goo/goo/goo_type";
     private static final String JSON_SUFFIX = ".json";
 
     @BeforeAll
@@ -50,19 +51,22 @@ class GooReactionTest {
     }
 
     /**
-     * Zoo's twins of the reactions that made or ate the deleted type load, each naming zoo
-     * (decision zoo-ships-from-animal-items).
+     * Every goo input and output of every shipped reaction names a goo type the jar ships a definition for; a
+     * vanilla fluid such as water is no goo type.
+     * decision zoo-leaves-and-zombie-goo-replaces-it-as-z
      */
     @Test
-    void zooReactionsLoad() throws IOException, URISyntaxException {
-        Map<String, GooReaction> shipped = shippedReactions();
-        for (String name : List.of("zoo_from_unstable_sculk", "sculk_from_sculk_zoo",
-                "nether_from_zoo_nether", "leaf_from_unstable_zoo")) {
-            GooReaction reaction = shipped.get(name);
-            assertNotNull(reaction, name + " is not shipped");
-            assertTrue(names(reaction.inputs()).contains(GooTypes.ZOO) || names(reaction.outputs()).contains(GooTypes.ZOO),
-                    name + " names no zoo");
+    void everyReactionNamesOnlyShippedTypes() throws IOException, URISyntaxException {
+        Set<Object> shippedTypes = Set.copyOf(shippedTypeKeys());
+        List<String> offending = new ArrayList<>();
+        for (Map.Entry<String, GooReaction> entry : shippedReactions().entrySet()) {
+            List<Object> named = new ArrayList<>(names(entry.getValue().inputs()));
+            named.addAll(names(entry.getValue().outputs()));
+            named.stream().filter(type -> type instanceof ResourceKey<?> && !shippedTypes.contains(type))
+                    .forEach(type -> offending.add(entry.getKey() + " names " + type));
         }
+        offending.sort(null);
+        assertEquals(List.of(), offending);
     }
 
     /**
@@ -130,6 +134,15 @@ class GooReactionTest {
             amounts.merge(entry.fluid().map(key -> key, fluid -> fluid), entry.amount(), Integer::sum);
         }
         return amounts;
+    }
+
+    private static List<Object> shippedTypeKeys() throws IOException, URISyntaxException {
+        URL directory = Objects.requireNonNull(GooReactionTest.class.getResource(TYPES_DIRECTORY), TYPES_DIRECTORY);
+        try (Stream<Path> files = Files.list(Path.of(directory.toURI()))) {
+            return files.map(file -> file.getFileName().toString()).filter(name -> name.endsWith(JSON_SUFFIX))
+                    .map(name -> (Object) GooTypes.bundled(name.substring(0, name.length() - JSON_SUFFIX.length())))
+                    .toList();
+        }
     }
 
     private static Map<String, GooReaction> shippedReactions() throws IOException, URISyntaxException {

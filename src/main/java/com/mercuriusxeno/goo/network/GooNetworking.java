@@ -55,6 +55,7 @@ public final class GooNetworking {
         r.playToClient(PartnerChunkPayload.TYPE, PartnerChunkPayload.STREAM_CODEC);
         r.playToClient(PartnerChunksDropPayload.TYPE, PartnerChunksDropPayload.STREAM_CODEC);
         r.playToClient(PortableHolesSyncPayload.TYPE, PortableHolesSyncPayload.STREAM_CODEC);
+        r.playToClient(LunarCrossingPayload.TYPE, LunarCrossingPayload.STREAM_CODEC);
         registerAbilityVisualPayloads(r);
     }
 
@@ -111,8 +112,6 @@ public final class GooNetworking {
         r.playToClient(TomePayload.TYPE, TomePayload.STREAM_CODEC);
         r.playToClient(NovaRingPayload.TYPE, NovaRingPayload.STREAM_CODEC);
         r.playToClient(GrudgeRingPayload.TYPE, GrudgeRingPayload.STREAM_CODEC);
-        r.playToClient(HeaterFlamePayload.TYPE, HeaterFlamePayload.STREAM_CODEC);
-        r.playToClient(ReapSwellPayload.TYPE, ReapSwellPayload.STREAM_CODEC);
         r.playToClient(ReapSlashPayload.TYPE, ReapSlashPayload.STREAM_CODEC);
         r.playToClient(OreRevealPayload.TYPE, OreRevealPayload.STREAM_CODEC);
         r.playToClient(MeteorScorchPayload.TYPE, MeteorScorchPayload.STREAM_CODEC);
@@ -147,5 +146,7 @@ public final class GooNetworking {
                 WorkbenchRequestHandler::handle);
         r.playToServer(PortalShotPayload.TYPE, PortalShotPayload.STREAM_CODEC, PortalShotPayload::handle);
         r.playToServer(GateCrossedPayload.TYPE, GateCrossedPayload.STREAM_CODEC, GateCrossedPayload::handle);
+        r.playToServer(LunarCrossingMovedPayload.TYPE, LunarCrossingMovedPayload.STREAM_CODEC,
+                LunarCrossingMovedPayload::handle);
     }
 }

@@ -34,7 +34,7 @@ class GooItemReequipTest {
         stacks = mockStatic(GooStacks.class);
         stacks.when(() -> GooStacks.keyOf(before)).thenReturn(GooTypes.ASTRAL);
         stacks.when(() -> GooStacks.keyOf(drained)).thenReturn(GooTypes.ASTRAL);
-        stacks.when(() -> GooStacks.keyOf(otherType)).thenReturn(GooTypes.ZOO);
+        stacks.when(() -> GooStacks.keyOf(otherType)).thenReturn(GooTypes.ZOMBIE);
     }
 
     @AfterEach

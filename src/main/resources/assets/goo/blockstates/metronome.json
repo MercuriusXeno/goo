@@ -1,0 +1,700 @@
+{
+  "multipart": [
+    {
+      "when": {
+        "facing": "south",
+        "powered": "false"
+      },
+      "apply": {
+        "model": "goo:block/metronome",
+        "y": 0
+      }
+    },
+    {
+      "when": {
+        "facing": "south",
+        "cadence": "1",
+        "powered": "false"
+      },
+      "apply": {
+        "model": "goo:block/metronome_switch_1",
+        "y": 0
+      }
+    },
+    {
+      "when": {
+        "facing": "south",
+        "cadence": "2",
+        "powered": "false"
+      },
+      "apply": {
+        "model": "goo:block/metronome_switch_2",
+        "y": 0
+      }
+    },
+    {
+      "when": {
+        "facing": "south",
+        "cadence": "3",
+        "powered": "false"
+      },
+      "apply": {
+        "model": "goo:block/metronome_switch_3",
+        "y": 0
+      }
+    },
+    {
+      "when": {
+        "facing": "south",
+        "cadence": "4",
+        "powered": "false"
+      },
+      "apply": {
+        "model": "goo:block/metronome_switch_4",
+        "y": 0
+      }
+    },
+    {
+      "when": {
+        "facing": "south",
+        "cadence": "5",
+        "powered": "false"
+      },
+      "apply": {
+        "model": "goo:block/metronome_switch_5",
+        "y": 0
+      }
+    },
+    {
+      "when": {
+        "facing": "south",
+        "powered": "true"
+      },
+      "apply": {
+        "model": "goo:block/metronome_on",
+        "y": 0
+      }
+    },
+    {
+      "when": {
+        "facing": "south",
+        "cadence": "1",
+        "powered": "true"
+      },
+      "apply": {
+        "model": "goo:block/metronome_switch_1_on",
+        "y": 0
+      }
+    },
+    {
+      "when": {
+        "facing": "south",
+        "cadence": "2",
+        "powered": "true"
+      },
+      "apply": {
+        "model": "goo:block/metronome_switch_2_on",
+        "y": 0
+      }
+    },
+    {
+      "when": {
+        "facing": "south",
+        "cadence": "3",
+        "powered": "true"
+      },
+      "apply": {
+        "model": "goo:block/metronome_switch_3_on",
+        "y": 0
+      }
+    },
+    {
+      "when": {
+        "facing": "south",
+        "cadence": "4",
+        "powered": "true"
+      },
+      "apply": {
+        "model": "goo:block/metronome_switch_4_on",
+        "y": 0
+      }
+    },
+    {
+      "when": {
+        "facing": "south",
+        "cadence": "5",
+        "powered": "true"
+      },
+      "apply": {
+        "model": "goo:block/metronome_switch_5_on",
+        "y": 0
+      }
+    },
+    {
+      "when": {
+        "facing": "west",
+        "powered": "false"
+      },
+      "apply": {
+        "model": "goo:block/metronome",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "facing": "west",
+        "cadence": "1",
+        "powered": "false"
+      },
+      "apply": {
+        "model": "goo:block/metronome_switch_1",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "facing": "west",
+        "cadence": "2",
+        "powered": "false"
+      },
+      "apply": {
+        "model": "goo:block/metronome_switch_2",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "facing": "west",
+        "cadence": "3",
+        "powered": "false"
+      },
+      "apply": {
+        "model": "goo:block/metronome_switch_3",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "facing": "west",
+        "cadence": "4",
+        "powered": "false"
+      },
+      "apply": {
+        "model": "goo:block/metronome_switch_4",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "facing": "west",
+        "cadence": "5",
+        "powered": "false"
+      },
+      "apply": {
+        "model": "goo:block/metronome_switch_5",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "facing": "west",
+        "powered": "true"
+      },
+      "apply": {
+        "model": "goo:block/metronome_on",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "facing": "west",
+        "cadence": "1",
+        "powered": "true"
+      },
+      "apply": {
+        "model": "goo:block/metronome_switch_1_on",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "facing": "west",
+        "cadence": "2",
+        "powered": "true"
+      },
+      "apply": {
+        "model": "goo:block/metronome_switch_2_on",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "facing": "west",
+        "cadence": "3",
+        "powered": "true"
+      },
+      "apply": {
+        "model": "goo:block/metronome_switch_3_on",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "facing": "west",
+        "cadence": "4",
+        "powered": "true"
+      },
+      "apply": {
+        "model": "goo:block/metronome_switch_4_on",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "facing": "west",
+        "cadence": "5",
+        "powered": "true"
+      },
+      "apply": {
+        "model": "goo:block/metronome_switch_5_on",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "facing": "north",
+        "powered": "false"
+      },
+      "apply": {
+        "model": "goo:block/metronome",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "facing": "north",
+        "cadence": "1",
+        "powered": "false"
+      },
+      "apply": {
+        "model": "goo:block/metronome_switch_1",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "facing": "north",
+        "cadence": "2",
+        "powered": "false"
+      },
+      "apply": {
+        "model": "goo:block/metronome_switch_2",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "facing": "north",
+        "cadence": "3",
+        "powered": "false"
+      },
+      "apply": {
+        "model": "goo:block/metronome_switch_3",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "facing": "north",
+        "cadence": "4",
+        "powered": "false"
+      },
+      "apply": {
+        "model": "goo:block/metronome_switch_4",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "facing": "north",
+        "cadence": "5",
+        "powered": "false"
+      },
+      "apply": {
+        "model": "goo:block/metronome_switch_5",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "facing": "north",
+        "powered": "true"
+      },
+      "apply": {
+        "model": "goo:block/metronome_on",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "facing": "north",
+        "cadence": "1",
+        "powered": "true"
+      },
+      "apply": {
+        "model": "goo:block/metronome_switch_1_on",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "facing": "north",
+        "cadence": "2",
+        "powered": "true"
+      },
+      "apply": {
+        "model": "goo:block/metronome_switch_2_on",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "facing": "north",
+        "cadence": "3",
+        "powered": "true"
+      },
+      "apply": {
+        "model": "goo:block/metronome_switch_3_on",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "facing": "north",
+        "cadence": "4",
+        "powered": "true"
+      },
+      "apply": {
+        "model": "goo:block/metronome_switch_4_on",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "facing": "north",
+        "cadence": "5",
+        "powered": "true"
+      },
+      "apply": {
+        "model": "goo:block/metronome_switch_5_on",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "facing": "east",
+        "powered": "false"
+      },
+      "apply": {
+        "model": "goo:block/metronome",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "facing": "east",
+        "cadence": "1",
+        "powered": "false"
+      },
+      "apply": {
+        "model": "goo:block/metronome_switch_1",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "facing": "east",
+        "cadence": "2",
+        "powered": "false"
+      },
+      "apply": {
+        "model": "goo:block/metronome_switch_2",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "facing": "east",
+        "cadence": "3",
+        "powered": "false"
+      },
+      "apply": {
+        "model": "goo:block/metronome_switch_3",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "facing": "east",
+        "cadence": "4",
+        "powered": "false"
+      },
+      "apply": {
+        "model": "goo:block/metronome_switch_4",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "facing": "east",
+        "cadence": "5",
+        "powered": "false"
+      },
+      "apply": {
+        "model": "goo:block/metronome_switch_5",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "facing": "east",
+        "powered": "true"
+      },
+      "apply": {
+        "model": "goo:block/metronome_on",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "facing": "east",
+        "cadence": "1",
+        "powered": "true"
+      },
+      "apply": {
+        "model": "goo:block/metronome_switch_1_on",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "facing": "east",
+        "cadence": "2",
+        "powered": "true"
+      },
+      "apply": {
+        "model": "goo:block/metronome_switch_2_on",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "facing": "east",
+        "cadence": "3",
+        "powered": "true"
+      },
+      "apply": {
+        "model": "goo:block/metronome_switch_3_on",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "facing": "east",
+        "cadence": "4",
+        "powered": "true"
+      },
+      "apply": {
+        "model": "goo:block/metronome_switch_4_on",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "facing": "east",
+        "cadence": "5",
+        "powered": "true"
+      },
+      "apply": {
+        "model": "goo:block/metronome_switch_5_on",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "facing": "south",
+        "inverted": "false",
+        "powered": "false"
+      },
+      "apply": {
+        "model": "goo:block/metronome_button",
+        "y": 0
+      }
+    },
+    {
+      "when": {
+        "facing": "south",
+        "inverted": "false",
+        "powered": "true"
+      },
+      "apply": {
+        "model": "goo:block/metronome_button_on",
+        "y": 0
+      }
+    },
+    {
+      "when": {
+        "facing": "south",
+        "inverted": "true",
+        "powered": "false"
+      },
+      "apply": {
+        "model": "goo:block/metronome_button_pressed",
+        "y": 0
+      }
+    },
+    {
+      "when": {
+        "facing": "south",
+        "inverted": "true",
+        "powered": "true"
+      },
+      "apply": {
+        "model": "goo:block/metronome_button_pressed_on",
+        "y": 0
+      }
+    },
+    {
+      "when": {
+        "facing": "west",
+        "inverted": "false",
+        "powered": "false"
+      },
+      "apply": {
+        "model": "goo:block/metronome_button",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "facing": "west",
+        "inverted": "false",
+        "powered": "true"
+      },
+      "apply": {
+        "model": "goo:block/metronome_button_on",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "facing": "west",
+        "inverted": "true",
+        "powered": "false"
+      },
+      "apply": {
+        "model": "goo:block/metronome_button_pressed",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "facing": "west",
+        "inverted": "true",
+        "powered": "true"
+      },
+      "apply": {
+        "model": "goo:block/metronome_button_pressed_on",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "facing": "north",
+        "inverted": "false",
+        "powered": "false"
+      },
+      "apply": {
+        "model": "goo:block/metronome_button",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "facing": "north",
+        "inverted": "false",
+        "powered": "true"
+      },
+      "apply": {
+        "model": "goo:block/metronome_button_on",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "facing": "north",
+        "inverted": "true",
+        "powered": "false"
+      },
+      "apply": {
+        "model": "goo:block/metronome_button_pressed",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "facing": "north",
+        "inverted": "true",
+        "powered": "true"
+      },
+      "apply": {
+        "model": "goo:block/metronome_button_pressed_on",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "facing": "east",
+        "inverted": "false",
+        "powered": "false"
+      },
+      "apply": {
+        "model": "goo:block/metronome_button",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "facing": "east",
+        "inverted": "false",
+        "powered": "true"
+      },
+      "apply": {
+        "model": "goo:block/metronome_button_on",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "facing": "east",
+        "inverted": "true",
+        "powered": "false"
+      },
+      "apply": {
+        "model": "goo:block/metronome_button_pressed",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "facing": "east",
+        "inverted": "true",
+        "powered": "true"
+      },
+      "apply": {
+        "model": "goo:block/metronome_button_pressed_on",
+        "y": 270
+      }
+    }
+  ]
+}

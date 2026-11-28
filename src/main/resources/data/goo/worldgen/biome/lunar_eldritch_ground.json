@@ -1,0 +1,62 @@
+{
+  "attributes": {
+    "minecraft:gameplay/natural_mob_spawns": {
+      "argument": {
+        "spawn_costs": {},
+        "spawns_by_category": {
+          "ambient": [],
+          "axolotls": [],
+          "creature": [],
+          "misc": [],
+          "monster": [
+            {
+              "type": "goo:eldritch_monstrosity",
+              "count": {
+                "type": "minecraft:uniform",
+                "max_inclusive": 3,
+                "min_inclusive": 1
+              },
+              "weight": 100
+            }
+          ],
+          "underground_water_creature": [],
+          "water_ambient": [],
+          "water_creature": []
+        }
+      },
+      "modifier": "overlay"
+    },
+    "minecraft:visual/sky_color": "#000000"
+  },
+  "carvers": [],
+  "downfall": 0.0,
+  "effects": {
+    "water_color": "#3f76e4"
+  },
+  "features": [
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [
+      "goo:ore_meteoric_iron",
+      "goo:meteoric_iron_nuggets",
+      "goo:ore_native_iron",
+      "goo:astral_crystal_cluster"
+    ],
+    [],
+    [
+      "goo:air_geysers",
+      "goo:goo_pockets",
+      "goo:deposit_goo_pockets"
+    ],
+    [
+      "goo:void_crystal_cluster"
+    ],
+    []
+  ],
+  "has_precipitation": false,
+  "temperature": 0.0
+}

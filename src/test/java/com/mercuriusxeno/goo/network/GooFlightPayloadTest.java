@@ -42,7 +42,7 @@ class GooFlightPayloadTest {
                 new AABB(new BlockPos(0, 0, 0)).minmax(new AABB(new BlockPos(0, 1, 0))), Direction.NORTH,
                 Direction.UP.getUnitVec3());
         GooFlightPayload sent = new GooFlightPayload(1, 2, 3, "goo:crystal", -1, new BlockPos(4, 5, 6), 1,
-                7, false, "goo:crystal_prism", Delivery.ARC, new Vec3(4.5, 6.0, 6.5), Optional.of(gate),
+                7, false, "goo:crystal_knives", Delivery.ARC, new Vec3(4.5, 6.0, 6.5), Optional.of(gate),
                 new Vec3(0.5, 1.0, 0.0), Vec3.ZERO);
         FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
 
@@ -57,7 +57,7 @@ class GooFlightPayloadTest {
     void theThrowersTravelVelocityRoundTripsThroughTheStreamCodec() {
         Vec3 travel = new Vec3(0.28, -0.08, 0.1);
         GooFlightPayload sent = new GooFlightPayload(1, 2, 3, "goo:crystal", -1, new BlockPos(4, 5, 6), 1,
-                7, false, "goo:crystal_prism", Delivery.ARC, new Vec3(4.5, 6.0, 6.5), Optional.empty(), Vec3.ZERO,
+                7, false, "goo:crystal_knives", Delivery.ARC, new Vec3(4.5, 6.0, 6.5), Optional.empty(), Vec3.ZERO,
                 travel);
         FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
 

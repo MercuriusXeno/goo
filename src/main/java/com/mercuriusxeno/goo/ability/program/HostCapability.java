@@ -45,11 +45,6 @@ public enum HostCapability {
      */
     FIELD_EFFECT(FieldEffectHost.class),
     /**
-     * A landing where the ability can stand its own block, which runs the
-     * steps handed to it (decision lingering-abilities-place-their-own-thing).
-     */
-    LINGER(LingerHost.class),
-    /**
      * A one-tick host anchored at a point, which can run steps on each open
      * floor around it (decision colonize-blob-grows-the-network).
      */
@@ -69,11 +64,6 @@ public enum HostCapability {
      * bulb-one-model-max-light-beacon-combo).
      */
     STATE_WRITE(StateWriteHost.class),
-    /**
-     * The server level the host stands in, read and written around its
-     * position (decision reflector-rails-carry-the-brightest-light).
-     */
-    LEVEL(LevelHost.class),
     /**
      * A spot a sculk call rings out from, every mob it crosses walking to it (decision
      * shriek-is-a-sculk-call-that-draws-every-mob-it-reaches).
@@ -120,30 +110,10 @@ public enum HostCapability {
      */
     METEOR(MeteorHost.class),
     /**
-     * The world around a lasting host to green tick after tick (decision
-     * verdant-prism-greens-blocks-slowly).
-     */
-    GREENING(GreeningHost.class),
-    /**
      * A landing that can tick the redstone device it landed on (decision
      * zap-ticks-the-device-and-stuns).
      */
     POWER_PULSE(PowerPulseHost.class),
-    /**
-     * A host whose own block can give redstone power to its neighbors
-     * (decision metronome-prism-pulses-at-the-learned-rate).
-     */
-    EMIT_POWER(PowerEmitHost.class),
-    /**
-     * A host that hears the redstone signals reaching its block and keeps
-     * their beat (decision metronome-prism-pulses-at-the-learned-rate).
-     */
-    BEAT(BeatHost.class),
-    /**
-     * A host that carries redstone signals between relays linked through air
-     * (decision relay-prism-carries-the-signal-through-air).
-     */
-    RELAY(RelayHost.class),
     /**
      * The level and the point frost spreads out of (decisions
      * nova-ring-grows-with-the-hold, nova-drip-pulses-a-short-lasting-freeze).
@@ -160,8 +130,8 @@ public enum HostCapability {
      */
     RAISE_GROUND(RaiseGroundHost.class),
     /**
-     * A landing that lights a fire in its cell and sets off the explosive
-     * ability block it struck (decision ignite-fire-and-explosive-combo).
+     * A landing that lights a fire in its cell (decision
+     * ignite-fire-and-explosive-combo).
      */
     IGNITE(IgniteHost.class),
     /**

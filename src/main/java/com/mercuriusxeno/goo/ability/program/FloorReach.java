@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.throwing.ConeShape;
 import com.mercuriusxeno.goo.throwing.StreamCone;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -39,16 +40,17 @@ public final class FloorReach {
      * @param apex        the cone's apex
      * @param axis        the cone's axis
      * @param range       the cone's reach in blocks
-     * @param coneDegrees the cone's apex angle in degrees
+     * @param shape       the cone's widths across and up and down
      * @param rays        how many rays the spray casts
      * @param random      the random source turning each ray
      * @return the distinct floors struck
      */
     public static List<BlockPos> struckInCone(Level level, Entity shooter, Vec3 apex, Vec3 axis, double range,
-                                              double coneDegrees, int rays, RandomSource random) {
+                                              ConeShape shape, int rays, RandomSource random) {
         Set<BlockPos> floors = new LinkedHashSet<>();
         for (int i = 0; i < rays; i++) {
-            Vec3 heading = StreamCone.launchDirection(axis, coneDegrees, Math.sqrt(random.nextDouble()),
+            // cone-style-abilities-are-reviewed-for-consistency: each ray heads out inside the shape
+            Vec3 heading = StreamCone.launchDirection(axis, shape, Math.sqrt(random.nextDouble()),
                     random.nextDouble());
             BlockHitResult hit = level.clip(new ClipContext(apex, apex.add(heading.scale(range)),
                     ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, shooter));

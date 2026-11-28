@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mojang.datafixers.util.Unit;
 import org.junit.jupiter.api.Test;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -13,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class HitOrMissStepTest {
 
     private static final Step HIT = LeafSteps.IGNITE.step(Expr.literal(5));
-    private static final Step MISS = new LingerStep(List.of());
+    private static final Step MISS = LeafSteps.LIGHT_FIRE.step(Unit.INSTANCE);
     private static final HitOrMissStep SPLIT = new HitOrMissStep(List.of(HIT), List.of(MISS));
 
     @Test

@@ -1,0 +1,17 @@
+{
+  "type": "goo:deposit_goo_pocket",
+  "deposits": "goo:lunar_cave_deposits",
+  "seek": 6,
+  "cells": {
+    "type": "minecraft:uniform",
+    "min_inclusive": 2,
+    "max_inclusive": 4
+  },
+  "layers": {
+    "type": "minecraft:uniform",
+    "min_inclusive": 3,
+    "max_inclusive": 8
+  },
+  "volume": 20,
+  "reach": 2
+}

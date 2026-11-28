@@ -86,8 +86,9 @@ import java.util.stream.Stream;
  * (decision flatten-disc-cursor-breaks-above-the-plane). A stream whose
  * program needs the channel runs a block pass instead of striking entities:
  * its programs run on the player, aimed at the end of its reach along the
- * look, Bore's reach being its caster's block reach
- * (decisions bore-vortex-with-a-worldspace-shake, bore-reaches-as-far-as-your-block-reach).
+ * look, Bore's reach being its own range, three blocks, whatever its caster's block reach, since
+ * rock_bore.json sets no reaches_block_reach (decision bore-vortex-with-a-worldspace-shake; operator ruling
+ * 2026-11-14, replacing decision bore-reaches-as-far-as-your-block-reach).
  */
 public final class GooStreamHandler {
 
@@ -152,7 +153,7 @@ public final class GooStreamHandler {
         if (held == 0) {
             return;
         }
-        runHeldTick(player, payload, gooType, ability, held);
+        runHeldTick(player, payload, ability, held);
         // every-ability-casts-from-the-lifted-palm-blob: each held tick the server runs keeps the blob lifted
         PalmBlobChargePayload.sendLift(player);
         // mycosis-spore-stream-buds-and-poisons
@@ -216,22 +217,20 @@ public final class GooStreamHandler {
     }
 
     /**
-     * Runs a paid tick of a held ability: a channel runs on the player, a
-     * stream converting a prism charges it, and any other stream strikes its cone.
+     * Runs a paid tick of a held ability: a channel runs on the player, and
+     * a stream strikes its cone.
      *
      * @param player  the holding player
      * @param payload the held tick
-     * @param gooType the ability's goo type
      * @param ability the held ability
      * @param held    the hold's tick count, 1 on its first tick
      */
-    private static void runHeldTick(ServerPlayer player, GooStreamPayload payload,
-                                    ResourceKey<GooTypeDefinition> gooType, AbilityDefinition ability, int held) {
+    private static void runHeldTick(ServerPlayer player, GooStreamPayload payload, AbilityDefinition ability,
+                                    int held) {
         if (HeldRoute.channelsOnSelf(ability.delivery(), ability.badge())) {
             channelOnPlayer(player, new ChannelAim(payload.aimPoint(), payload.plane(), 0, held, true,
                     payload.targetEntityId()), ability);
-            StreamPrismCharge.chargeByRay(player, payload.aimPoint(), gooType, ability);
-        } else if (!StreamPrismCharge.charges(player, payload.origin(), gooType, ability)) {
+        } else {
             strikeCone(player, payload.origin(), ability, held, HeldSpray.GLOVE);
         }
     }
@@ -413,7 +412,7 @@ public final class GooStreamHandler {
     private static void strikeCone(ServerPlayer player, Vec3 origin, AbilityDefinition ability, int held,
                                    HeldSpray spray) {
         ServerLevel level = player.level();
-        // bore-reaches-as-far-as-your-block-reach
+        // a stream setting reaches_block_reach reaches its caster's block reach; Bore sets none, so keeps its range
         Delivery delivery = ability.delivery().reachingTo(player.blockInteractionRange());
         StrikeLine line = strikeLineOf(ability, origin, player.getEyePosition(), player.getLookAngle(),
                 player.getScale(), delivery, LookAim.blocksAndLivingSeenBy(player));
@@ -497,8 +496,8 @@ public final class GooStreamHandler {
             SwarmStrike.send(player, apex, aim, delivery, struck, crosshair);
             return SwarmStrike.reached(player, apex, struck, held);
         }
-        sprayParticles(player, apex, aim, delivery,
-                crosshairSpeed(delivery.range(), apex.distanceTo(crosshair.getLocation())));
+        sprayParticles(player, apex, aim, delivery, new SprayedCone(gloveShapeOf(delivery),
+                crosshairReach(delivery.range(), apex.distanceTo(crosshair.getLocation()))));
         return struck;
     }
 
@@ -833,7 +832,7 @@ public final class GooStreamHandler {
         }
         ServerLevel level = player.level();
         SprayPrograms.runOnFloors(level, FloorReach.struckInCone(level, player, apex, axis, delivery.range(),
-                delivery.coneDegrees(), FLOOR_RAYS_PER_TICK, level.getRandom()), apex, ability);
+                gloveShapeOf(delivery), FLOOR_RAYS_PER_TICK, level.getRandom()), apex, ability);
     }
 
     /**
@@ -856,7 +855,7 @@ public final class GooStreamHandler {
             return;
         }
         ServerPlayer player = cast.player();
-        ChannelAim aim = new ChannelAim(reachEnd, null, delivery.coneDegrees(), held, reaching);
+        ChannelAim aim = new ChannelAim(reachEnd, null, gloveShapeOf(delivery), held, reaching);
         runSteps(PlayerHost.channeling(player.level(), player, aim, placementPrice(player, ability, cast.spray().paysFrom())),
                 HostKind.PLAYER, blockSteps, cast);
     }
@@ -919,38 +918,50 @@ public final class GooStreamHandler {
      * rewind-fills-while-held: the glove's cone runs parallel to the look a hand's width aside, so a
      * narrow cone alone misses the mob under the crosshair
      *
-     * @param level    the server level
-     * @param player   the streaming player
-     * @param apex     the cone's apex at the glove
-     * @param axis     the cone's axis
-     * @param delivery the stream delivery
+     * @param level  the server level
+     * @param player the streaming player
+     * @param apex   the cone's apex at the glove
+     * @param axis   the cone's axis
+     * @param shape  the cone's widths across and up and down
+     * @param reach  how far the stream reaches the living
      * @return the entities the stream reaches
      */
     static List<LivingEntity> livingInCone(ServerLevel level, ServerPlayer player, Vec3 apex, Vec3 axis,
-                                           Delivery delivery) {
+                                           ConeShape shape, double reach) {
         Vec3 eye = player.getEyePosition();
-        double living = delivery.livingReach();
-        AABB reach = new AABB(apex, apex).inflate(living).minmax(new AABB(eye, eye).inflate(living));
-        return level.getEntitiesOfClass(LivingEntity.class, reach, entity -> entity != player && entity.isAlive()
-                && (inCone(apex, axis, delivery, entity) || inCone(eye, axis, delivery, entity)));
+        AABB around = new AABB(apex, apex).inflate(reach).minmax(new AABB(eye, eye).inflate(reach));
+        return level.getEntitiesOfClass(LivingEntity.class, around, entity -> entity != player && entity.isAlive()
+                && (inCone(apex, axis, shape, reach, entity) || inCone(eye, axis, shape, reach, entity)));
     }
 
     /**
      * Whether a living entity stands inside the stream's cone cast from an
      * apex, out to how far the stream reaches the living, or crosses the
      * cone's axis within that reach.
+     * decision cone-style-abilities-are-reviewed-for-consistency: the cone is the shape handed, by the shared test
      *
-     * @param apex     the cone's apex
-     * @param axis     the cone's axis
-     * @param delivery the stream delivery
-     * @param living   the candidate
+     * @param apex   the cone's apex
+     * @param axis   the cone's axis
+     * @param shape  the cone's widths across and up and down
+     * @param reach  how far the stream reaches the living
+     * @param living the candidate
      * @return true when the stream reaches the entity from the apex
      */
-    static boolean inCone(Vec3 apex, Vec3 axis, Delivery delivery, LivingEntity living) {
-        // decay-gnats-degrade-each-block-once: a stream may seek the living past the blocks it works
-        double reach = delivery.livingReach();
-        return StreamCone.contains(apex, axis, reach, delivery.coneDegrees(), living.getBoundingBox().getCenter())
+    static boolean inCone(Vec3 apex, Vec3 axis, ConeShape shape, double reach, LivingEntity living) {
+        return StreamCone.containsTheMiddleOf(apex, axis, reach, shape, living.getBoundingBox())
                 || living.getBoundingBox().clip(apex, apex.add(axis.normalize().scale(reach))).isPresent();
+    }
+
+    /**
+     * The cone the glove's stream strikes through: the round cone of its delivery's angle, so each coned stream
+     * strikes from the glove what it struck before, a nozzle's shape coming in its place.
+     * decision cone-style-abilities-are-reviewed-for-consistency
+     *
+     * @param delivery the stream's delivery
+     * @return the cone's shape
+     */
+    static ConeShape gloveShapeOf(Delivery delivery) {
+        return ConeShape.round(delivery.coneDegrees());
     }
 
     /**
@@ -970,7 +981,9 @@ public final class GooStreamHandler {
      */
     private static List<LivingEntity> runPasses(CastOn cast, Vec3 apex, Vec3 axis, AbilityDefinition ability,
                                                 Delivery delivery, int held) {
-        List<LivingEntity> inCone = livingInCone(cast.level(), cast.player(), apex, axis, delivery);
+        // decay-gnats-degrade-each-block-once: a stream may seek the living past the blocks it works
+        List<LivingEntity> inCone = livingInCone(cast.level(), cast.player(), apex, axis, gloveShapeOf(delivery),
+                delivery.livingReach());
         // decay-gnats-degrade-each-block-once: a mob in the cone takes the swarm, else the blocks do;
         // the operator's ruling: blocks already painted keep stepping while the swarm bites
         boolean mobFirst = ability.hasTag(AbilityTags.MOB_FIRST);
@@ -1013,12 +1026,23 @@ public final class GooStreamHandler {
      * @param player   the spraying player
      * @param apex     the cone's apex
      * @param axis     the cone's axis
-     * @param delivery the stream delivery
-     * @param speed    each mote's launch speed along its heading, blocks per tick
+     * @param delivery the stream delivery, whose particle the motes are
+     * @param cone     the cone the motes fly through and how far off they rest
      */
-    static void sprayParticles(ServerPlayer player, Vec3 apex, Vec3 axis, Delivery delivery, double speed) {
+    static void sprayParticles(ServerPlayer player, Vec3 apex, Vec3 axis, Delivery delivery, SprayedCone cone) {
         delivery.particle().ifPresent(particle -> EntityVisuals.sendToWatchers(player, motesOf(player.getId(), apex,
-                axis, particle, delivery, speed, exitSpeedOf(player, delivery))));
+                axis, particle, cone, exitSpeedOf(player, delivery))));
+    }
+
+    /**
+     * The cone a stream's motes fly through, its shape and reach together, so a mote launches inside the shape and
+     * rests at the reach.
+     * decision cone-style-abilities-are-reviewed-for-consistency
+     *
+     * @param shape the cone's widths across and up and down
+     * @param reach how far off the motes rest, in blocks
+     */
+    public record SprayedCone(ConeShape shape, double reach) {
     }
 
     /**
@@ -1102,20 +1126,20 @@ public final class GooStreamHandler {
     /**
      * The payload that launches a tick's drawn motes off the arc about an axis.
      *
-     * @param casterId the caster's entity id
-     * @param apex     the cone's apex
-     * @param axis     the cone's axis
-     * @param particle the mote's particle
-     * @param delivery the stream delivery
-     * @param speed    each mote's launch speed along its heading, blocks per tick
+     * decision cone-style-abilities-are-reviewed-for-consistency: the motes fly the cone's shape and rest at its reach
+     *
+     * @param casterId  the caster's entity id
+     * @param apex      the cone's apex
+     * @param axis      the cone's axis
+     * @param particle  the mote's particle
+     * @param cone      the cone the motes fly through and how far off they rest
      * @param exitSpeed a drawn drip's exit speed, blocks per tick
      * @return the payload
      */
-    static StreamMotesPayload motesOf(int casterId, Vec3 apex, Vec3 axis, Identifier particle, Delivery delivery,
-                                      double speed, double exitSpeed) {
-        return new StreamMotesPayload(casterId, apex, axis, particle, ConeShape.round(delivery.coneDegrees()), speed,
-                exitSpeed,
-                false, 0, NO_DRIPS, apex, 0);
+    public static StreamMotesPayload motesOf(int casterId, Vec3 apex, Vec3 axis, Identifier particle,
+                                             SprayedCone cone, double exitSpeed) {
+        return new StreamMotesPayload(casterId, apex, axis, particle, cone.shape(), restingSpeed(cone.reach()),
+                exitSpeed, false, 0, NO_DRIPS, apex, 0);
     }
 
     /**
@@ -1182,16 +1206,15 @@ public final class GooStreamHandler {
     }
 
     /**
-     * The launch speed of a mote: it rests as far off as the
-     * crosshair lands, or at the stream's range past it
+     * How far off a mote rests: as far off as the crosshair lands, or at the stream's range past it
      * (decision mycosis-spore-stream-buds-and-poisons).
      *
      * @param range             the stream's reach in blocks
      * @param crosshairDistance the distance from the glove to where the crosshair lands
-     * @return the launch speed, blocks per tick
+     * @return the distance the mote rests at, in blocks
      */
-    static double crosshairSpeed(double range, double crosshairDistance) {
-        return restingSpeed(Math.min(range, crosshairDistance));
+    static double crosshairReach(double range, double crosshairDistance) {
+        return Math.min(range, crosshairDistance);
     }
 
     /**

@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.throwing.ConeShape;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.phys.Vec3;
@@ -17,21 +18,36 @@ import java.util.List;
  *
  * @param aimPoint    the world point under the client's cursor, or a stream's reach along the look
  * @param plane       the face the hold began on, or null where it began on none or the hold is a stream
- * @param coneDegrees a stream's cone, apex to rim, in degrees; zero for a channel aiming one point
+ * @param shape       a stream's cone, its widths across and up and down; a point's for a channel aiming one point
  * @param held        the hold's tick count, 1 on its first tick; zero where the hold is uncounted
  * @param reaching    whether the swarm reaches new blocks this tick; false while a mob-first stream bites a mob,
  *                    when blocks already reached keep working but none is reached anew
  * @param targetEntityId the id of the entity the glove outlines, or NO_ENTITY; a grab takes it
  *                    (decision outlined-target-is-the-one-pick)
  */
-public record ChannelAim(Vec3 aimPoint, @Nullable FacePlane plane, double coneDegrees, int held,
+public record ChannelAim(Vec3 aimPoint, @Nullable FacePlane plane, ConeShape shape, int held,
                          boolean reaching, int targetEntityId) {
 
     /** The target a channel outlining no entity carries. */
     public static final int NO_ENTITY = -1;
 
     /**
-     * The aim of a counted hold through a cone, reaching the blocks in it.
+     * The aim of a hold through a round cone.
+     *
+     * @param aimPoint       the stream's reach along the look, or the point under the cursor
+     * @param plane          the face the hold began on, or null
+     * @param coneDegrees    the cone, apex to rim, in degrees
+     * @param held           the hold's tick count, 1 on its first tick
+     * @param reaching       whether the swarm reaches new blocks this tick
+     * @param targetEntityId the id of the entity the glove outlines, or NO_ENTITY
+     */
+    public ChannelAim(Vec3 aimPoint, @Nullable FacePlane plane, double coneDegrees, int held, boolean reaching,
+                      int targetEntityId) {
+        this(aimPoint, plane, ConeShape.round(coneDegrees), held, reaching, targetEntityId);
+    }
+
+    /**
+     * The aim of a counted hold through a round cone, reaching the blocks in it.
      *
      * @param aimPoint    the stream's reach along the look
      * @param plane       the face the hold began on, or null
@@ -43,7 +59,7 @@ public record ChannelAim(Vec3 aimPoint, @Nullable FacePlane plane, double coneDe
     }
 
     /**
-     * The aim of a counted hold through a cone, its reach this tick named.
+     * The aim of a counted hold through a round cone, its reach this tick named.
      *
      * @param aimPoint    the stream's reach along the look
      * @param plane       the face the hold began on, or null
@@ -53,6 +69,20 @@ public record ChannelAim(Vec3 aimPoint, @Nullable FacePlane plane, double coneDe
      */
     public ChannelAim(Vec3 aimPoint, @Nullable FacePlane plane, double coneDegrees, int held, boolean reaching) {
         this(aimPoint, plane, coneDegrees, held, reaching, NO_ENTITY);
+    }
+
+    /**
+     * The aim of a counted hold through a cone of a shape, its reach this tick named.
+     * decision cone-style-abilities-are-reviewed-for-consistency
+     *
+     * @param aimPoint the stream's reach along the look
+     * @param plane    the face the hold began on, or null
+     * @param shape    the cone's widths across and up and down
+     * @param held     the hold's tick count, 1 on its first tick
+     * @param reaching whether the swarm reaches new blocks this tick
+     */
+    public ChannelAim(Vec3 aimPoint, @Nullable FacePlane plane, ConeShape shape, int held, boolean reaching) {
+        this(aimPoint, plane, shape, held, reaching, NO_ENTITY);
     }
 
     /** The age a hold reads on its first counted tick. */

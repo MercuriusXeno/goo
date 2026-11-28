@@ -4,7 +4,6 @@ import com.mercuriusxeno.goo.client.TranslucentVisual.SortedDraw;
 import com.mercuriusxeno.goo.client.TranslucentVisualPath.Registration;
 import com.mercuriusxeno.goo.client.ability.AfterimageRenderer;
 import com.mercuriusxeno.goo.client.ability.AirbornWind;
-import com.mercuriusxeno.goo.client.ability.BeatRings;
 import com.mercuriusxeno.goo.client.ability.BlockMingleRenderer;
 import com.mercuriusxeno.goo.client.ability.BoreDrill;
 import com.mercuriusxeno.goo.client.ability.ChainBurnoutRenderer;
@@ -106,18 +105,141 @@ class TranslucentVisualPathTest {
      * the Fabulous blend after the main pass, and GameRenderer posts
      * AfterLevel once renderLevel returns, so a visual drawn there has the
      * clouds and weather already behind it; the path subscribes to each
-     * stage a route names and no other.
+     * stage a route names, and to 26.3's OIT stage with the buffer
+     * preparation before it, where the far-to-near visuals moved onto order-
+     * independent transparency draw, and no other.
      * decision diagnose-and-correct-translucent-goo-visuals-that-depth-sort-wrong
+     * decision goo-translucency-draws-through-order-independent-transparency
      */
     @Test
     void drawsAfterTheCloudsAndTheWeather() {
         Set<Class<?>> stages = Arrays.stream(TranslucentVisualPath.class.getDeclaredMethods())
                 .filter(method -> method.isAnnotationPresent(SubscribeEvent.class))
                 .map(method -> method.getParameterTypes()[0]).collect(Collectors.toSet());
+        Set<Class<?>> expected = Arrays.stream(SortRoute.values()).map(SortRoute::stage)
+                .collect(Collectors.toSet());
+        expected.add(RenderLevelStageEvent.OitTranslucent.class);
+        expected.add(net.neoforged.neoforge.client.event.PrepareRenderBuffersEvent.class);
         assertAll(
                 () -> assertEquals(RenderLevelStageEvent.AfterLevel.class, SortRoute.FAR_TO_NEAR.stage()),
-                () -> assertEquals(Arrays.stream(SortRoute.values()).map(SortRoute::stage)
-                        .collect(Collectors.toSet()), stages));
+                () -> assertEquals(expected, stages));
+    }
+
+    /**
+     * The glow shell's immediate draws register far to near, draw through ImmediateBuffers alone, so the path draws
+     * them inside the OIT stages' open pass, and draw through GLOW_SHELL_TYPE, whose set the path draws there.
+     * WispEchoes queues onto WispGlow's queue as it collects, so it collects with it.
+     * decision goo-translucency-draws-through-order-independent-transparency
+     */
+    @Test
+    void theGlowShellsImmediateDrawsDrawInTheOitPhase() {
+        List<Class<?>> glowShells = List.of(ReapSlashBlades.class, WispGlow.class,
+                com.mercuriusxeno.goo.client.ber.ReflectorBeams.class,
+                com.mercuriusxeno.goo.client.entity.MeteorRenderer.class, HeldSweepVisual.class,
+                com.mercuriusxeno.goo.client.model.GloveSpecialRenderer.class);
+        com.tngtech.archunit.core.domain.JavaClasses imported = new com.tngtech.archunit.core.importer
+                .ClassFileImporter().importClasses(glowShells);
+        assertAll(Stream.concat(Stream.of(() -> assertTrue(
+                        PipelineReads.oitPipelines(GooRenderTypes.GLOW_SHELL_TYPE) != null, "GLOW_SHELL_TYPE's set"),
+                () -> assertTrue(TranslucentVisualPath.REGISTRATIONS.stream().anyMatch(registration ->
+                        registration.visual() == WispEchoes.class
+                                && registration.drawing() == TranslucentVisualPath.Drawing.IN_THE_OIT_PHASE),
+                        "WispEchoes collects with WispGlow")),
+                glowShells.stream().map(visual -> () -> assertAll(
+                        () -> assertTrue(TranslucentVisualPath.REGISTRATIONS.stream().anyMatch(registration ->
+                                registration.visual() == visual && registration.route() == SortRoute.FAR_TO_NEAR
+                                        && registration.drawing() == TranslucentVisualPath.Drawing.IN_THE_OIT_PHASE),
+                                visual.getSimpleName() + " registers far to near, drawing through ImmediateBuffers alone"),
+                        () -> assertTrue(imported.get(visual).getFieldAccessesFromSelf().stream().anyMatch(access ->
+                                access.getTarget().getName().equals("GLOW_SHELL_TYPE")),
+                                visual.getSimpleName() + " draws through GLOW_SHELL_TYPE")))));
+    }
+
+    /**
+     * The beam, bolt and wind visuals draw through ImmediateBuffers alone, so the path draws their far-to-near draws
+     * in the OIT phase; Flames' fire writes its own depth through a pass of its own, so it stays where it draws.
+     * decision goo-translucency-draws-through-order-independent-transparency
+     */
+    @Test
+    void theBeamBoltAndWindVisualsDrawInTheOitPhase() {
+        List<Class<?>> moved = List.of(LaserVisual.class, RelayLasers.class, ZapBolts.class, ReapSlashBlades.class,
+                GlassKnives.class, HoveringKnives.class, HeldJavelins.class, WindLines.class, AirbornWind.class,
+                PneumaWind.class, GrowthBreeze.class, WispEchoes.class, WispGlow.class,
+                com.mercuriusxeno.goo.client.ber.BeaconBeams.class,
+                com.mercuriusxeno.goo.client.ber.ReflectorBeams.class);
+        assertAll(Stream.concat(moved.stream().map(visual -> () -> assertTrue(TranslucentVisualPath.REGISTRATIONS
+                                .stream().anyMatch(registration -> registration.visual() == visual
+                                        && registration.drawing() == TranslucentVisualPath.Drawing.IN_THE_OIT_PHASE),
+                        visual.getSimpleName() + " draws in the OIT phase")),
+                Stream.of(() -> assertTrue(TranslucentVisualPath.REGISTRATIONS.stream().noneMatch(registration ->
+                                registration.visual() == FireStream.class
+                                        && registration.drawing() == TranslucentVisualPath.Drawing.IN_THE_OIT_PHASE),
+                        "FireStream stays where it draws"))));
+    }
+
+    /**
+     * The ring, marker, ghost and ground visuals draw through ImmediateBuffers alone, so the path draws their
+     * far-to-near draws in the OIT phase.
+     * decision goo-translucency-draws-through-order-independent-transparency
+     */
+    @Test
+    void theRingMarkerGhostAndGroundVisualsDrawInTheOitPhase() {
+        List<Class<?>> moved = List.of(com.mercuriusxeno.goo.client.entity.MeteorRenderer.class,
+                com.mercuriusxeno.goo.client.model.GloveSpecialRenderer.class,
+                com.mercuriusxeno.goo.client.ability.GhostTrailRenderer.class, NovaRings.class,
+                NovaChargeGhost.class, SignalRings.class, PetrifyFog.class, FloatPlatform.class,
+                CrystalShatterVisual.class, HeldSweepVisual.class, LevelCursor.class);
+        assertAll(moved.stream().map(visual -> () -> assertTrue(TranslucentVisualPath.REGISTRATIONS.stream()
+                        .anyMatch(registration -> registration.visual() == visual
+                                && registration.route() == SortRoute.FAR_TO_NEAR
+                                && registration.drawing() == TranslucentVisualPath.Drawing.IN_THE_OIT_PHASE),
+                visual.getSimpleName() + " draws in the OIT phase")));
+    }
+
+    /**
+     * The blob, body, portal and zone visuals draw in the OIT phase, the vortex, the drill and the partner meshes
+     * through their own pass taking the stage's pipeline; the afterimage draws into a target of its own and the room
+     * copy writes its own depth, so each stays where it draws.
+     * decision goo-translucency-draws-through-order-independent-transparency
+     */
+    @Test
+    void theBlobBodyPortalAndZoneVisualsDrawInTheOitPhase() {
+        List<Class<?>> moved = List.of(BlockMingleRenderer.class, LiftedPalmBlob.class, RollingGooRenderer.class,
+                TransformationRenderer.class, Tomes.class, PartnerMeshes.class, BoreDrill.class, PortalFaces.class,
+                QuantumBlobDarts.class, HoleMouths.class, MiasmaVortex.class);
+        List<Class<?>> staying = List.of(AfterimageRenderer.class, RoomCopyRenderer.class);
+        assertAll(Stream.concat(moved.stream().map(visual -> () -> assertTrue(TranslucentVisualPath.REGISTRATIONS
+                                .stream().anyMatch(registration -> registration.visual() == visual
+                                        && registration.route() == SortRoute.FAR_TO_NEAR
+                                        && registration.drawing() == TranslucentVisualPath.Drawing.IN_THE_OIT_PHASE),
+                        visual.getSimpleName() + " draws in the OIT phase")),
+                staying.stream().map(visual -> () -> assertTrue(TranslucentVisualPath.REGISTRATIONS.stream()
+                                .noneMatch(registration -> registration.visual() == visual
+                                        && registration.drawing() == TranslucentVisualPath.Drawing.IN_THE_OIT_PHASE),
+                        visual.getSimpleName() + " stays where it draws"))));
+    }
+
+    /**
+     * The overlay, flight and join visuals draw in the OIT phase; the aimed mob's mark and Blink's cursor draw through
+     * the afterimage's post effect over a target of its own, and the in-world panels are HUD draws, so each stays where
+     * it draws.
+     * decision goo-translucency-draws-through-order-independent-transparency
+     */
+    @Test
+    void theOverlayFlightAndJoinVisualsDrawInTheOitPhase() {
+        List<Class<?>> moved = List.of(GooFlightRenderer.class, GooJoins.class, ChainBurnoutRenderer.class,
+                GooTargetHighlighter.class);
+        List<Class<?>> staying = List.of(AimedMobRipple.class, BlinkCursor.class, CanisterHudRenderer.class,
+                CrucibleHudRenderer.class, PlexerHudRenderer.class, VatHudRenderer.class);
+        assertAll(Stream.concat(moved.stream().map(visual -> () -> assertTrue(TranslucentVisualPath.REGISTRATIONS
+                                .stream().anyMatch(registration -> registration.visual() == visual
+                                        && registration.route() == SortRoute.FAR_TO_NEAR
+                                        && registration.drawing() == TranslucentVisualPath.Drawing.IN_THE_OIT_PHASE),
+                        visual.getSimpleName() + " draws in the OIT phase")),
+                staying.stream().map(visual -> () -> assertTrue(TranslucentVisualPath.REGISTRATIONS.stream()
+                                .noneMatch(registration -> registration.visual() == visual
+                                        && registration.drawing() == TranslucentVisualPath.Drawing.IN_THE_OIT_PHASE),
+                        visual.getSimpleName() + " stays where it draws"))));
     }
 
     /**
@@ -192,8 +314,8 @@ class TranslucentVisualPathTest {
      */
     @Test
     void theMainPassGlowsDrawFarToNearOnThePath() {
-        List<String> glows = List.of("ber.style.GlowColumn", "ber.style.GlowBeaconStyle",
-                "ber.style.GlowReflectorStyle", "entity.MeteorRenderer", "ability.ReapSwells",
+        List<String> glows = List.of("ber.BeaconBeams",
+                "ber.ReflectorBeams", "entity.MeteorRenderer",
                 "ability.GhostTrailRenderer");
         assertAll(glows.stream().map(glow -> () -> assertEquals(List.of(SortRoute.FAR_TO_NEAR),
                 TranslucentVisualPath.REGISTRATIONS.stream()
@@ -244,12 +366,12 @@ class TranslucentVisualPathTest {
         /**
          * The held ghost's through-blocks pass draws before its over-blocks
          * pass, as it did inside one draw (decision held-visual-ghosts-the-landing-in-two-passes),
-         * and the explosions and the ghost draw once a prism's crystal, a
-         * translucent feature writing depth, stands, so it draws under an
-         * explosion standing in front of it: the level is drawn by AfterLevel.
+         * and the explosions and the ghost draw once a translucent feature
+         * writing depth stands, so it draws under an explosion standing in
+         * front of it: the level is drawn by AfterLevel.
          */
         @Test
-        void theHeldGhostDrawsThroughThenOverAfterThePrismsDepth() {
+        void theHeldGhostDrawsThroughThenOverAfterTheLevelsDepth() {
             List<SortRoute> afterLevel = Arrays.stream(SortRoute.values())
                     .filter(route -> route.stage() == RenderLevelStageEvent.AfterLevel.class).toList();
             assertAll(
@@ -291,7 +413,7 @@ class TranslucentVisualPathTest {
         @Test
         void eachRegistersUnderItsRoutes() {
             Map<Class<?>, Set<SortRoute>> routes = new LinkedHashMap<>();
-            routes.put(PortalFaces.class, Set.of(SortRoute.FAR_TO_NEAR));
+            routes.put(PortalFaces.class, Set.of(SortRoute.ON_OPAQUE_FACES, SortRoute.FAR_TO_NEAR));
             routes.put(PortalView.class, Set.of(SortRoute.SKY));
             routes.put(HoleMouths.class, Set.of(SortRoute.FAR_TO_NEAR));
             routes.put(HolePits.class, Set.of(SortRoute.OPAQUE_SHAPE));
@@ -395,7 +517,6 @@ class TranslucentVisualPathTest {
         @Test
         void eachRegistersUnderItsRoutes() {
             Map<Class<?>, List<SortRoute>> routes = new LinkedHashMap<>();
-            routes.put(BeatRings.class, List.of(SortRoute.FAR_TO_NEAR));
             routes.put(NovaRings.class, List.of(SortRoute.FAR_TO_NEAR));
             routes.put(NovaChargeGhost.class, List.of(SortRoute.FAR_TO_NEAR));
             routes.put(SignalRings.class, List.of(SortRoute.FAR_TO_NEAR));
@@ -412,6 +533,27 @@ class TranslucentVisualPathTest {
                     Set.copyOf(routesOf(entry.getKey())), entry.getKey().getSimpleName())));
         }
 
+        /**
+         * Click's rings are sounds, the exception to Sculker's vision: they draw on the path through blocks, a
+         * route drawn after the sense view's dim, so the dim never darkens them. Named as a string, so the test
+         * reads the same against a tree where the rings were vanilla particles drawn before the dim.
+         * decision click-rings-are-the-exception-to-sculkers-vision
+         * decision submerged-click-ripples-through-the-ground-to-its-range
+         */
+        @Test
+        void clicksRingsDrawThroughBlocksAfterSculkersDim() {
+            List<SortRoute> afterLevel = Arrays.stream(SortRoute.values())
+                    .filter(route -> route.stage() == RenderLevelStageEvent.AfterLevel.class).toList();
+            List<SortRoute> clickRings = TranslucentVisualPath.REGISTRATIONS.stream()
+                    .filter(registration -> registration.visual().getName()
+                            .equals("com.mercuriusxeno.goo.client.ability.ClickRings"))
+                    .map(Registration::route).toList();
+            assertAll(
+                    () -> assertEquals(List.of(SortRoute.THROUGH_BLOCKS), clickRings, "Click's rings' routes"),
+                    () -> assertTrue(afterLevel.indexOf(SortRoute.SCREEN_SPACE)
+                            < afterLevel.indexOf(SortRoute.THROUGH_BLOCKS), afterLevel.toString()));
+        }
+
         @Test
         void eachSortedPartTestsDepthAgainstTheLevel() {
             List<RenderPipeline> sorted = List.of(GooRenderTypes.LINES_ADDITIVE_GLOW, GooRenderTypes.FROST_EXPLOSION,
@@ -425,12 +567,15 @@ class TranslucentVisualPathTest {
          * Scry's revealed faces show through walls (decision
          * held-sweeps-share-one-fast-shell-visual), and so do the head marks,
          * so a mark never clips into the wall it stands near (operator
-         * ruling 2026-11-18).
+         * ruling 2026-11-18), and Click's rings, rippling through the ground
+         * (decision submerged-click-ripples-through-the-ground-to-its-range).
          */
         @Test
         void theThroughBlocksPartsPassEveryDepthTest() {
             assertAll(
                     () -> assertEquals(CompareOp.ALWAYS_PASS, GooRenderTypes.SCRY_FACES.getDepthStencilState().depthTest()),
+                    () -> assertEquals(CompareOp.ALWAYS_PASS,
+                            GooRenderTypes.CLICK_WAVE_THROUGH_BLOCKS.getDepthStencilState().depthTest()),
                     () -> assertTrue(RenderPipelines.TEXT_SEE_THROUGH.getDepthStencilState() == null));
         }
     }

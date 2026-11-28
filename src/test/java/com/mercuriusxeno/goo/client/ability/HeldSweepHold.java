@@ -15,16 +15,13 @@ import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart;
 import net.minecraft.client.resources.model.geometry.BakedQuad;
-import net.minecraft.client.resources.model.sprite.Material;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.phys.AABB;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
-import org.jspecify.annotations.Nullable;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -46,7 +43,7 @@ final class HeldSweepHold {
     static final int FRAMES_A_TICK = 3;
     /** Ticks a ten second hold runs. */
     static final int TEN_SECONDS = 200;
-    /** Scry's reach, as astral_scry.json sets it. */
+    /** The reach the lag thread measured Scry at, where its two second crossing runs 48 blocks a second. */
     static final double SCRY_REACH = 96;
     /** The ore sense's radius, as crystal_glimmer.json and metal_magnet.json set it. */
     static final int ORE_RADIUS = 64;
@@ -62,6 +59,10 @@ final class HeldSweepHold {
     private final LiveSweeps sweeps = new LiveSweeps();
     private final CountingVertexConsumer consumer = new CountingVertexConsumer();
     private final List<BlockStateModelPart> cube = List.of(new CubePart(List.of(mock(BakedQuad.class))));
+    /** Each lit wall's quads, kept across frames as the game keeps them. */
+    private final EchoQuads wallQuads = new EchoQuads();
+    /** The fixed world as an echo draw reads it: every block a whole cube with one quad on each side. */
+    private final SculkerEchoRenderer.EchoWorld cubeWorld = new CubeEchoWorld(cube);
     /**
      * The mobs the client paints: none unless a test hands it some, since a
      * mocked mob answers each call through Mockito, which would time Mockito
@@ -165,7 +166,7 @@ final class HeldSweepHold {
         for (HeldSweepPulses.Pulse pulse : live) {
             if (walked.add(pulse.origin())) {
                 OreRevealPayload reveal = ore.revealAt(HeldSweepWorld.ORES, pulse.origin(), pulse.ageAt(gameTime));
-                OreSightings.CLIENT.reveal(gameTime, reveal.veins(), reveal.life());
+                OreSightings.CLIENT.reveal(gameTime, reveal.veins(), reveal.life(), reveal.gooType());
             }
         }
     }
@@ -180,13 +181,12 @@ final class HeldSweepHold {
         double now = gameTime + (double) frame / FRAMES_A_TICK;
         Vec3 camera = casterAt.add(0, EYE, 0);
         PoseStack poseStack = new PoseStack();
-        HeldSweepVisual.upkeepFronts(new HeldSweepVisual.Upkeep(sweeps, this::countedIsAir,
-                this::countedShapeOf), now, entities, null);
+        HeldSweepVisual.upkeepFronts(new HeldSweepVisual.Upkeep(sweeps, countedWorld()), now, entities, null);
         List<HeldSweepVisual.WallGlow> lit = HeldSweepVisual.wallsToDraw(sweeps.walls(), now);
         walls = lit.size();
         SortedDraw wallDraw = HeldSweepVisual.sortedByNearest(lit.stream()
                 .map(wall -> wall.face().middle()), camera,
-                () -> HeldSweepVisual.drawWalls(poseStack.last(), consumer.pass(), camera, lit));
+                () -> HeldSweepVisual.drawWalls(poseStack, consumer.pass(), camera, lit, pos -> wallQuads.at(cubeWorld, pos)));
         List<HeldSweepPulse> travelling = sweeps.pulses().values().stream().filter(pulse -> pulse.travelling(now)).toList();
         SortedDraw frontDraw = HeldSweepVisual.sortedByNearest(travelling.stream()
                 .map(pulse -> pulse.field().center()), camera,
@@ -200,7 +200,7 @@ final class HeldSweepHold {
         List<OreSightings.Sighting> showing = OreXray.showingAt(now);
         if (!showing.isEmpty()) {
             OreXray.sortedByNearest(showing, camera, () -> OreXray.drawOre(pos -> cube, poseStack, camera, showing,
-                    pass -> consumer.pass())).draw().run();
+                    gooType -> 0, pass -> consumer.pass())).draw().run();
         }
     }
 
@@ -228,8 +228,7 @@ final class HeldSweepHold {
     void settle(int ticks) {
         for (int tick = 0; tick < ticks; tick++) {
             tick();
-            HeldSweepVisual.upkeepFronts(new HeldSweepVisual.Upkeep(sweeps, this::countedIsAir,
-                    this::countedShapeOf), gameTime, entities, null);
+            HeldSweepVisual.upkeepFronts(new HeldSweepVisual.Upkeep(sweeps, countedWorld()), gameTime, entities, null);
         }
     }
 
@@ -264,12 +263,12 @@ final class HeldSweepHold {
         return HeldSweepWorld.isAir(pos);
     }
 
-    private List<AABB> countedShapeOf(BlockPos pos) {
-        blockReads++;
-        return HeldSweepWorld.shapeOf(pos);
+    /** The fixed world with each block read counted, whether the walk asks if it lights or lets the front by. */
+    private WallWorld countedWorld() {
+        return new WallWorld(pos -> !countedIsAir(pos), this::countedIsAir);
     }
 
-    /** @return the block reads every walk of the client's fields so far made, air and shape alike */
+    /** @return the block reads every walk of the client's fields so far made, lit and passed alike */
     long blockReads() {
         return blockReads;
     }
@@ -304,28 +303,29 @@ final class HeldSweepHold {
         return payloads;
     }
 
-    /** A whole block's model part: one quad on each side, none unculled, each side's list held as a model holds it. */
-    private record CubePart(List<BakedQuad> side) implements BlockStateModelPart {
+    /**
+     * The fixed world as an echo draw reads it: every block that is not air
+     * stands as one state drawing the cube's parts.
+     *
+     * @param parts the cube's parts
+     */
+    record CubeEchoWorld(List<BlockStateModelPart> parts) implements SculkerEchoRenderer.EchoWorld {
+
+        private static final BlockState SOLID = mock(BlockState.class);
 
         @Override
-        public List<BakedQuad> getQuads(@Nullable Direction direction) {
-            return direction == null ? List.of() : side;
+        public BlockState stateAt(BlockPos pos) {
+            return SOLID;
         }
 
         @Override
-        @Deprecated
-        public boolean useAmbientOcclusion() {
-            return false;
+        public void collectParts(BlockPos pos, BlockState state, List<BlockStateModelPart> collected) {
+            collected.addAll(parts);
         }
 
         @Override
-        public Material.Baked particleMaterial() {
-            throw new UnsupportedOperationException("a counted part draws no particle");
-        }
-
-        @Override
-        public int materialFlags() {
-            return 0;
+        public boolean passesSound(BlockPos pos) {
+            return HeldSweepWorld.isAir(pos);
         }
     }
 }

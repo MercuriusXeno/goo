@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.throwing.ConeShape;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
@@ -27,14 +28,14 @@ public final class AimedCells {
     /**
      * The cells along the aim and inside its cone, nearest first.
      *
-     * @param apex        the eye, where the aim starts
-     * @param reach       the end of the aim
-     * @param coneDegrees the cone, apex to rim, in degrees
+     * @param apex  the eye, where the aim starts
+     * @param reach the end of the aim
+     * @param shape the cone's widths across and up and down
      * @return the cells, the aim line's first, then the cone's
      */
-    public static List<BlockPos> along(Vec3 apex, Vec3 reach, double coneDegrees) {
+    public static List<BlockPos> along(Vec3 apex, Vec3 reach, ConeShape shape) {
         Set<BlockPos> cells = new LinkedHashSet<>(onTheLine(apex, reach));
-        cells.addAll(CalcifyStep.blocksInCone(apex, reach, coneDegrees));
+        cells.addAll(CalcifyStep.blocksInCone(apex, reach, shape));
         return new ArrayList<>(cells);
     }
 

@@ -108,7 +108,7 @@ class CrosshairFuelPanelTest {
         void dynamicAbilityReadsTheLiveMbAtTheAim() {
             ClientAbility counted = new ClientAbility(Identifier.fromNamespaceAndPath(Goo.MODID, "counted"),
                     "ability.goo.counted", "", 0, List.of(), List.of(), THOUSAND, Delivery.ARC, AbilityBadge.WORLD,
-                    List.of(), AbilityArea.NONE, IndicatorShowing.HELD, List.of(), 0, DistancePrice.NONE, List.of(),
+                    List.of(), AbilityArea.NONE, IndicatorShowing.HELD, List.of(), 0, DistancePrice.NONE,
                     ArmPose.defaultFor(DeliveryKind.ARC), "ability.goo.counted.description", Optional.empty(),
                     Optional.of("1K x r³"));
             assertEquals(concat(head(counted), new Count("700")),

@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.mixin;
 
+import com.mercuriusxeno.goo.client.ability.HeldSweepVisual;
 import com.mercuriusxeno.goo.client.ability.SculkerSenses;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
@@ -18,7 +19,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class ClientLevelSculkerEchoMixin {
 
     /**
-     * Passes a block change on to the echoes' kept quads.
+     * Passes a block change on to the kept quads of the echoes and of the held sweeps' lit walls.
      *
      * @param pos         the block
      * @param old         the block that stood there
@@ -30,5 +31,6 @@ public abstract class ClientLevelSculkerEchoMixin {
     private void goo$forgetEchoQuads(BlockPos pos, BlockState old, BlockState current, int updateFlags,
                                      CallbackInfo ci) {
         SculkerSenses.blockChanged(pos);
+        HeldSweepVisual.blockChanged(pos);
     }
 }

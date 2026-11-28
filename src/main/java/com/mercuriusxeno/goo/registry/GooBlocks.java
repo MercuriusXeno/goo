@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.block.ability.AbilityBlock;
 import com.mercuriusxeno.goo.block.ability.CellBinding;
 import com.mercuriusxeno.goo.block.ability.CreepCellBlock;
 import com.mercuriusxeno.goo.block.ability.FungalBudBlock;
@@ -13,7 +12,6 @@ import com.mercuriusxeno.goo.block.ability.MoltenCellBlock;
 import com.mercuriusxeno.goo.block.ability.MortarCellBlock;
 import com.mercuriusxeno.goo.block.ability.NectarCellBlock;
 import com.mercuriusxeno.goo.block.ability.NitroCellBlock;
-import com.mercuriusxeno.goo.block.ability.PrismBlock;
 import com.mercuriusxeno.goo.block.ability.RimeCellBlock;
 import com.mercuriusxeno.goo.block.ability.SignalCellBlock;
 import com.mercuriusxeno.goo.block.ability.SpikesCellBlock;
@@ -22,6 +20,11 @@ import com.mercuriusxeno.goo.block.ability.VinesCellBlock;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.block.ability.WispBlock;
 import com.mercuriusxeno.goo.block.ability.ZapPulseBlock;
+import com.mercuriusxeno.goo.block.alientech.LightBeaconBlock;
+import com.mercuriusxeno.goo.block.alientech.MetronomeBlock;
+import com.mercuriusxeno.goo.block.alientech.OculusBlock;
+import com.mercuriusxeno.goo.block.alientech.ReflectorBlock;
+import com.mercuriusxeno.goo.block.alientech.RelayBlock;
 import com.mercuriusxeno.goo.block.canister.CanisterBlock;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlock;
 import com.mercuriusxeno.goo.block.gasket.ChoralGasketBlock;
@@ -34,10 +37,12 @@ import com.mercuriusxeno.goo.block.zone.DimensionDoorBlock;
 import com.mercuriusxeno.goo.fluid.GooFluidBlock;
 import com.mercuriusxeno.goo.fluid.MoltenIronBlock;
 import net.minecraft.core.BlockPos;
+import net.minecraft.util.ColorRGBA;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.AmethystClusterBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.ColoredFallingBlock;
 import net.minecraft.world.level.block.IceBlock;
 import net.minecraft.world.level.block.IronBarsBlock;
 import net.minecraft.world.level.block.LiquidBlock;
@@ -62,7 +67,6 @@ public class GooBlocks {
     /** Obsidian's blast resistance. */
     private static final float EXORITE_BARS_BLAST_RESISTANCE = 1200.0F;
     /** An amethyst cluster's hardness. */
-    private static final float PRISM_HARDNESS = 1.5F;
     /** Cobblestone's hardness and blast resistance, which a statue mines like. */
     private static final float COBBLESTONE_HARDNESS = 2.0F;
     private static final float COBBLESTONE_RESISTANCE = 6.0F;
@@ -75,17 +79,6 @@ public class GooBlocks {
     /** The light the dimension door gives, enough to find it in the dark. */
     private static final int DOOR_GLOW = 10;
 
-    /**
-     * Ability block: short-lived block a world ability runs its program from.
-     */
-    public static final DeferredBlock<AbilityBlock> ABILITY_BLOCK = BLOCKS.registerBlock(
-            "ability_block", AbilityBlock::new,
-            () -> BlockBehaviour.Properties.of()
-                    .noCollision()
-                    .instabreak()
-                    .noLootTable()
-                    .noOcclusion()
-                    .pushReaction(net.minecraft.world.level.material.PushReaction.POPPED));
 
     /**
      * Exorite bars: iron bars retextured to exorite and obsidian tier, hardness
@@ -100,7 +93,7 @@ public class GooBlocks {
 
     // --- Machine blocks ---
     /**
-     * Glow crystal: permanent light source a glow ability block places.
+     * Glow crystal: permanent light source a glow ability places.
      */
     /**
      * A wisp of light Wisps leaves in dark air: lit, replaceable, without
@@ -118,7 +111,7 @@ public class GooBlocks {
                     .pushReaction(net.minecraft.world.level.material.PushReaction.POPPED)
                     .lightLevel(WispBlock::lightLevel));
     /**
-     * One cell of the light rail between linked reflector prisms: lit,
+     * One cell of the light rail between linked reflectors: lit,
      * replaceable, shapeless and without collision, burning the undead that
      * cross it (decision reflector-rails-carry-the-brightest-light).
      */
@@ -575,9 +568,25 @@ public class GooBlocks {
                     .noLootTable()
                     .pushReaction(PushReaction.POPPED));
     /**
-     * Prism: the milky quartz crystal Crystal's Prism grows, the host every
-     * prism combo grows on (decision prism-blob-becomes-a-milky-quartz-crystal).
+     * Ooze: the volume cell bound to Xeno's goo, the slate goo Ooze sprays
+     * onto a block's top, one to fifteen layers, ordinary ground underfoot
+     * and sounding as goo does, turning a slime standing on it into a random
+     * hostile mob, dropping the xeno goo its layers cost through
+     * VolumeCellBlock.getDrops, no loot table
+     * (decisions ooze-is-xenos-world-goo-that-turns-slimes-into-random-hostiles,
+     * each-goo-type-ships-a-world-goo-on-the-volume-cell).
      */
+    public static final DeferredBlock<VolumeCellBlock> XENO_OOZE = BLOCKS.registerBlock(
+            "xeno_ooze", properties -> new VolumeCellBlock(properties, CellBinding.OOZE),
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.WARPED_NYLIUM)
+                    .friction(CellBinding.OOZE.surface().friction())
+                    .sound(SoundType.SLIME_BLOCK)
+                    .instabreak()
+                    .noOcclusion()
+                    .replaceable()
+                    .noLootTable()
+                    .pushReaction(PushReaction.POPPED));
     /**
      * Statue: a petrified mob, mined like cobblestone for cobblestone and the
      * mob's experience (decision petrify-stone-encasement-and-calcify-map).
@@ -590,16 +599,6 @@ public class GooBlocks {
                     .strength(COBBLESTONE_HARDNESS, COBBLESTONE_RESISTANCE)
                     .noOcclusion()
                     .sound(SoundType.STONE));
-    public static final DeferredBlock<PrismBlock> PRISM = BLOCKS.registerBlock(
-            "prism", PrismBlock::new,
-            () -> BlockBehaviour.Properties.of()
-                    .mapColor(MapColor.QUARTZ)
-                    .strength(PRISM_HARDNESS)
-                    .noLootTable()
-                    .noOcclusion()
-                    .sound(SoundType.AMETHYST_CLUSTER)
-                    .pushReaction(net.minecraft.world.level.material.PushReaction.POPPED)
-                    .lightLevel(PrismBlock::lightLevel));
     /**
      * Voidstone: the unbreakable block at the center of each Zone room,
      * the one block there nothing can take away (decision
@@ -723,8 +722,15 @@ public class GooBlocks {
             () -> BlockBehaviour.Properties.of().mapColor(MapColor.QUARTZ).requiresCorrectToolForDrops()
                     .strength(STONE_HARDNESS, STONE_RESISTANCE).sound(SoundType.STONE));
 
-    /** Regolith: lunar's grey glass dust over the stone. */
-    public static final DeferredBlock<Block> REGOLITH = BLOCKS.registerSimpleBlock("regolith",
+    /** The grey of the dust regolith sheds as it hangs over air, its map color's grey. */
+    private static final int REGOLITH_DUST_COLOR = 0x999999;
+
+    /**
+     * Regolith: lunar's grey glass dust over the stone, falling as sand does.
+     * decision regolith-falls-like-sand-and-generates-on-solid-ground
+     */
+    public static final DeferredBlock<ColoredFallingBlock> REGOLITH = BLOCKS.registerBlock("regolith",
+            properties -> new ColoredFallingBlock(new ColorRGBA(REGOLITH_DUST_COLOR), properties),
             () -> BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_LIGHT_GRAY).strength(SAND_HARDNESS)
                     .sound(SoundType.SAND));
 
@@ -762,7 +768,18 @@ public class GooBlocks {
                     .pushReaction(PushReaction.POPPED));
 
     /**
-     * Impact glass: lunar's regolith melted where meteorites struck, dark glass that holds back light as tinted
+     * Void crystal: the moon's source of void, growing in clusters on the dark side's surface, shaped, lit and mined
+     * as astral crystal is.
+     * decision void-crystals-spawn-on-the-moon
+     */
+    public static final DeferredBlock<AmethystClusterBlock> VOID_CRYSTAL = BLOCKS.registerBlock("void_crystal",
+            properties -> new AmethystClusterBlock(ASTRAL_CRYSTAL_HEIGHT, ASTRAL_CRYSTAL_WIDTH, properties),
+            () -> BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_PURPLE).forceSolidOn().noOcclusion()
+                    .sound(SoundType.AMETHYST_CLUSTER).strength(1.5F).lightLevel(state -> ASTRAL_CRYSTAL_LIGHT)
+                    .pushReaction(PushReaction.POPPED));
+
+    /**
+     * Impact glass:lunar's regolith melted where meteorites struck, dark glass that holds back light as tinted
      * glass does, mined like glass.
      * decision lunar-ground-gains-meteoric-iron-impact-glass-breccia-and-crater-ice
      */
@@ -782,12 +799,65 @@ public class GooBlocks {
                     .strength(STONE_HARDNESS, STONE_RESISTANCE).sound(SoundType.TUFF));
 
     /**
-     * Crater ice: the ice lying in the floors of lunar's deepest craters, its only water; it melts and breaks to water
-     * as vanilla ice does.
+     * Crater ice: the ice lying in the lows of lunar's shadowed basins and the floors of its giant craters there, its
+     * only water; it melts and breaks to water as vanilla ice does.
      * decision lunar-ground-gains-meteoric-iron-impact-glass-breccia-and-crater-ice
      */
     public static final DeferredBlock<IceBlock> CRATER_ICE = BLOCKS.registerBlock("crater_ice", IceBlock::new,
             () -> BlockBehaviour.Properties.ofFullCopy(Blocks.ICE));
+
+    // --- Alien tech (decision all-utilities-are-redesigned-as-alien-tech-blocks) ---
+    /**
+     * Metronome: a plate like a repeater pulsing out its front at the cadence dialed on it, broken as fast as a
+     * repeater and dropping itself so a crucible can melt it.
+     * decision metronome-prism-pulses-at-the-learned-rate
+     * decision utility-blocks-found-in-lunar-are-learned-and-recreated-at-will
+     */
+    public static final DeferredBlock<MetronomeBlock> METRONOME = BLOCKS.registerBlock("metronome",
+            MetronomeBlock::new, () -> BlockBehaviour.Properties.of().mapColor(MapColor.METAL).instabreak()
+                    .sound(SoundType.METAL).pushReaction(PushReaction.POPPED));
+    /** A lantern's hardness, which the reflector breaks like. */
+    private static final float REFLECTOR_HARDNESS = 3.5F;
+    /**
+     * Reflector: a lensed cuboid held off a solid face, joined by light rails to the next reflector each open lens
+     * meets, dropping itself so a crucible can melt it.
+     * decision reflector-rails-carry-the-brightest-light
+     * decision utility-blocks-found-in-lunar-are-learned-and-recreated-at-will
+     */
+    public static final DeferredBlock<ReflectorBlock> REFLECTOR = BLOCKS.registerBlock("reflector",
+            ReflectorBlock::new, () -> BlockBehaviour.Properties.of().mapColor(MapColor.METAL)
+                    .strength(REFLECTOR_HARDNESS).sound(SoundType.LANTERN).noOcclusion()
+                    .pushReaction(PushReaction.POPPED));
+    /**
+     * Light Beacon: a block on a solid face giving the max light, its far-seen column leaving the side opposite that
+     * face, dropping itself so a crucible can melt it.
+     * decision bulb-one-model-max-light-beacon-combo
+     * decision utility-blocks-found-in-lunar-are-learned-and-recreated-at-will
+     */
+    public static final DeferredBlock<LightBeaconBlock> LIGHT_BEACON = BLOCKS.registerBlock("light_beacon",
+            LightBeaconBlock::new, () -> BlockBehaviour.Properties.of().mapColor(MapColor.METAL)
+                    .strength(REFLECTOR_HARDNESS).sound(SoundType.LANTERN).noOcclusion()
+                    .pushReaction(PushReaction.POPPED).lightLevel(state -> LightBeaconBlock.LIGHT));
+    /**
+     * Relay: a block on a solid face carrying the strongest redstone signal reaching any relay in its linked network,
+     * the reflector's twin in mechanism alone, dropping itself so a crucible can melt it.
+     * decision relay-prism-carries-the-signal-through-air
+     * decision utility-blocks-found-in-lunar-are-learned-and-recreated-at-will
+     */
+    public static final DeferredBlock<RelayBlock> RELAY = BLOCKS.registerBlock("relay",
+            RelayBlock::new, () -> BlockBehaviour.Properties.of().mapColor(MapColor.FIRE)
+                    .strength(REFLECTOR_HARDNESS).sound(SoundType.METAL).noOcclusion()
+                    .pushReaction(PushReaction.POPPED).lightLevel(RelayBlock::lightLevel));
+    /**
+     * Oculus: a base on a solid face with an ender eye hovering off it, the stable node Blink snaps to, dropping
+     * itself so a crucible can melt it.
+     * decision oculus-prism-becomes-a-hovering-eye
+     * decision utility-blocks-found-in-lunar-are-learned-and-recreated-at-will
+     */
+    public static final DeferredBlock<OculusBlock> OCULUS = BLOCKS.registerBlock("oculus",
+            OculusBlock::new, () -> BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_PURPLE)
+                    .strength(REFLECTOR_HARDNESS).sound(SoundType.LANTERN).noOcclusion()
+                    .pushReaction(PushReaction.POPPED));
 
     /** Molten iron's liquid block, glowing as lava does. */
     public static final DeferredBlock<LiquidBlock> MOLTEN_IRON = BLOCKS.registerBlock(GooFluids.MOLTEN_IRON_PATH,

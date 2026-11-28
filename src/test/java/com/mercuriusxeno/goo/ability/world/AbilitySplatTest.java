@@ -5,15 +5,13 @@ import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 
 /**
  * AbilitySplat announces a landing's burnout before its program runs, so
  * the burnout reaches clients in the arrival tick ahead of anything the
  * program does (decisions elemental-explosion-per-type,
- * splat-runs-the-program-no-fuse); a program whose standing block explodes
- * later announces none at the splat, since that block plays the burnout as it
- * explodes.
+ * splat-runs-the-program-no-fuse); a blob turning into its own block
+ * announces none.
  */
 class AbilitySplatTest {
 
@@ -23,15 +21,13 @@ class AbilitySplatTest {
     /**
      * Records each world action in the order the splat takes it.
      *
-     * @param calls   the actions taken, in order
-     * @param explodesLater whether the recorded program's standing block explodes later
+     * @param calls             the actions taken, in order
      * @param turnsIntoItsBlock whether the recorded blob turns into the block its program places
      */
-    private record RecordingSplat(List<String> calls, boolean explodesLater, boolean turnsIntoItsBlock)
-            implements AbilitySplat {
+    private record RecordingSplat(List<String> calls, boolean turnsIntoItsBlock) implements AbilitySplat {
 
-        RecordingSplat(boolean explodesLater) {
-            this(new ArrayList<>(), explodesLater, false);
+        RecordingSplat(boolean turnsIntoItsBlock) {
+            this(new ArrayList<>(), turnsIntoItsBlock);
         }
 
         @Override
@@ -53,45 +49,12 @@ class AbilitySplatTest {
     }
 
     /**
-     * Shriek's trap lingers and never explodes, so its burnout plays at the splat.
+     * Ignite's blob turns into the fire it lights, so no burst plays at its splat.
+     * idea ignite-plays-no-burnout
      */
     @Test
-    void aLingeringCloudThatNeverExplodesAnnouncesItsBurnoutBeforeItsProgramRuns() {
-        RecordingSplat splat = new RecordingSplat(AbilityImpact.explodesLater(AbilityJson.decode("xeno_shriek")));
-        AbilitySplat.resolve(splat);
-        assertEquals(List.of(ANNOUNCE, RUN), splat.calls());
-    }
-
-    /**
-     * A standing block that explodes after the splat plays its burnout when it explodes, not at the splat.
-     */
-    @Test
-    void aBlockThatExplodesLaterRunsWithNoBurnoutAtTheSplat() {
-        RecordingSplat splat = new RecordingSplat(true);
-        AbilitySplat.resolve(splat);
-        assertEquals(List.of(RUN), splat.calls());
-    }
-
-    /**
-     * Prism's blob morphs into the column it places, so no burst plays at its splat.
-     * decision prism-is-one-pointed-quartz-column
-     */
-    @Test
-    void aBlobTurningIntoThePrismRunsWithNoBurnoutAtTheSplat() {
-        RecordingSplat splat = new RecordingSplat(new ArrayList<>(), false,
-                AbilityImpact.turnsIntoAPrism(AbilityJson.decode("crystal_prism")));
-        AbilitySplat.resolve(splat);
-        assertEquals(List.of(RUN), splat.calls());
-    }
-
-    @Test
-    void anotherCrystalLandingStillTurnsIntoNoPrism() {
-        assertFalse(AbilityImpact.turnsIntoAPrism(AbilityJson.decode("crystal_knives")));
-    }
-
-    @Test
-    void aProgramThatExplodesLaterRunsWithNoBurnoutAtTheSplat() {
-        RecordingSplat splat = new RecordingSplat(true);
+    void aBlobTurningIntoItsBlockRunsWithNoBurnoutAtTheSplat() {
+        RecordingSplat splat = new RecordingSplat(AbilityImpact.lightsItsFire(AbilityJson.decode("blaze_ignite")));
         AbilitySplat.resolve(splat);
         assertEquals(List.of(RUN), splat.calls());
     }

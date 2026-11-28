@@ -15,7 +15,6 @@ import com.mercuriusxeno.goo.ability.program.EntityFilter;
 import com.mercuriusxeno.goo.ability.program.GhostTrailStep;
 import com.mercuriusxeno.goo.ability.program.GluttonyStep;
 import com.mercuriusxeno.goo.ability.program.HostKind;
-import com.mercuriusxeno.goo.ability.program.LingerStep;
 import com.mercuriusxeno.goo.ability.program.MoltenStep;
 import com.mercuriusxeno.goo.ability.program.PlaceBlockStep;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
@@ -85,7 +84,7 @@ class AbilityLoaderTest {
     /** The one durative that starts silent (decision rally-drops-its-sound-and-gets-its-sprite). */
     private static final Identifier SILENT_DURATIVE = Identifier.fromNamespaceAndPath(Goo.MODID, "yarn_lead");
     /** The proving example of a world ability that stays after its blob lands. */
-    private static final String LINGERING = "xeno_shriek";
+    private static final String LINGERING = "glow_bulb";
     /** The ability whose program ends the tick it lands. */
     private static final String BLAST = "unstable_blast";
 
@@ -283,7 +282,7 @@ class AbilityLoaderTest {
 
     private static boolean placesItsOwnThing(AbilityDefinition ability) {
         return ability.behaviors().stream().flatMap(AbilityLoaderTest::withDescendants)
-                .anyMatch(step -> step instanceof LingerStep || step instanceof PlaceBlockStep);
+                .anyMatch(PlaceBlockStep.class::isInstance);
     }
 
     private static Stream<Step> withDescendants(Step step) {
@@ -309,15 +308,15 @@ class AbilityLoaderTest {
     }
 
     /**
-     * Crystal's Prism and Glimmer take no item cost (operator ruling
-     * 2026-10-10), and an ability naming no reagent consumes nothing
+     * Crystal's Glimmer takes no item cost (operator ruling 2026-10-10), and
+     * an ability naming no reagent consumes nothing
      * (decisions ability-json-names-its-reagent, glitter-sphere-icons-gem-ore-groups).
      */
     @Test
-    void prismAndGlimmerConsumeNothing() {
+    void glimmerAndShatterConsumeNothing() {
         Map<Identifier, AbilityDefinition> scanned = shippedById();
 
-        for (String path : List.of("crystal_prism", "crystal_glimmer", "crystal_shatter")) {
+        for (String path : List.of("crystal_glimmer", "crystal_shatter")) {
             assertEquals(List.of(), scanned.get(Identifier.fromNamespaceAndPath(Goo.MODID, path)).consumes(), path);
         }
     }
@@ -433,11 +432,13 @@ class AbilityLoaderTest {
 
     /**
      * Every shipped arc, beam, spontaneous cast and envelop names its range:
-     * Zap, Build and Portal 32, Knives and Dart none, every other 16; Portal's 32
-     * reaches the far wall its shots land on (operator ruling 2026-11-17).
+     * Zap, Build, Portal and Meteo 32, Knives and Dart none, every other 16;
+     * Portal's 32 reaches the far wall its shots land on (operator ruling
+     * 2026-11-17).
      * decision each-ability-names-its-range-and-the-shared-throw-range-retires
      * decision abilities-leaving-the-shared-range-start-at-sixteen-blocks
      * decision zap-starts-at-thirty-two-blocks
+     * decision meteo-range-is-thirty-two-blocks
      */
     @Test
     void everyShippedThrownOrCastAbilityNamesItsRange() {
@@ -452,13 +453,12 @@ class AbilityLoaderTest {
         }
         Map<String, Double> expected = new TreeMap<>();
         named.keySet().forEach(name -> expected.put(name, switch (name) {
-            case "pulse_zap", "rock_build", "quantum_portal" -> 32.0;
+            case "pulse_zap", "rock_build", "quantum_portal", "astral_meteo" -> 32.0;
             case "crystal_knives", "metal_dart" -> 0.0;
             default -> 16.0;
         }));
 
-        assertTrue(named.keySet().containsAll(Set.of("weird_mitosis", "pulse_zap", "void_hole", "zoo_spawn",
-                "crystal_knives", "metal_dart")), "the walk missed the shipped inventory: " + named.keySet());
+        assertTrue(named.keySet().containsAll(Set.of("weird_mitosis", "pulse_zap", "void_hole", "crystal_knives", "metal_dart")), "the walk missed the shipped inventory: " + named.keySet());
         assertEquals(expected, named);
     }
 
@@ -740,8 +740,7 @@ class AbilityLoaderTest {
 
             Set<String> seventeenth = held.abilityRegistry().getAbilitiesForType(SEVENTEENTH).stream()
                     .map(def -> def.id().getPath()).collect(Collectors.toSet());
-            assertEquals(Set.of("seventeenth_probe", "seventeenth_bulb_probe", "seventeenth_prism_probe",
-                    "seventeenth_late_prism_probe"), seventeenth);
+            assertEquals(Set.of("seventeenth_probe"), seventeenth);
             assertNull(held.abilityRegistry().durativeAbilityFor(SEVENTEENTH));
         }
 
@@ -864,11 +863,6 @@ class AbilityLoaderTest {
         void vacuumIsAVoidStream() {
             assertEquals(GooTypes.VOID, vacuum.gooType());
             assertEquals(DeliveryKind.STREAM, vacuum.delivery().kind());
-        }
-
-        @Test
-        void vacuumRequiresNoItem() {
-            assertEquals(List.of(), vacuum.requires());
         }
 
         @Test

@@ -5,12 +5,9 @@ package com.mercuriusxeno.goo.ability.world;
  * the order holds under test: the burnout reaches the tracking players
  * first, then the ability's program runs its first tick on the landing,
  * with no fuse between (decisions elemental-explosion-per-type,
- * splat-runs-the-program-no-fuse). A program whose standing block explodes
- * later fires no burnout at the splat: the block plays it as it explodes, so
- * the explosion's visual lands with the explosion. A program that lingers
- * without exploding, Shatter's cloud, plays it at the splat. A blob that
- * turns into its own block, Prism's, fires none: its morph into the block
- * is its landing (decision prism-is-one-pointed-quartz-column).
+ * splat-runs-the-program-no-fuse). A blob that turns into its own block,
+ * Ignite's fire, fires none: its block is its landing (idea
+ * ignite-plays-no-burnout).
  */
 interface AbilitySplat {
 
@@ -19,13 +16,6 @@ interface AbilitySplat {
 
     /** Runs the ability's program on the landing host. */
     void runProgram();
-
-    /**
-     * Whether the program stands its own block that explodes after the splat.
-     *
-     * @return true for a program whose standing block explodes later
-     */
-    boolean explodesLater();
 
     /**
      * Whether the blob turns into the block its program places, so the morph
@@ -38,13 +28,13 @@ interface AbilitySplat {
     }
 
     /**
-     * Resolves a landing: announces the burnout unless the program explodes
-     * later or the blob turns into its block, then runs the program.
+     * Resolves a landing: announces the burnout unless the blob turns into
+     * its block, then runs the program.
      *
      * @param splat the landing's world actions
      */
     static void resolve(AbilitySplat splat) {
-        if (!splat.explodesLater() && !splat.turnsIntoItsBlock()) {
+        if (!splat.turnsIntoItsBlock()) {
             splat.announceBurnout();
         }
         splat.runProgram();

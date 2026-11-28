@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.program.BoreDrillShape;
 import com.mercuriusxeno.goo.ability.program.BorePoint;
 import com.mercuriusxeno.goo.ability.program.BoreStep;
@@ -61,9 +62,13 @@ public final class BoreDrill {
     /** How much of the vortex shows, 0 to 1, and the game time it was last drawn at. */
     private static double presence;
     private static double lastDrawn = Double.NaN;
-    /** The bore last held, which the vortex keeps drawing from while it disperses. */
-    private static @Nullable BoreStep lastStep;
-    private static double lastReach;
+    /** The ability the drill is registered under in {@link ConeVisuals}. */
+    static final String BORE_ID = "goo:rock_bore";
+
+    /** The cone poured through this frame, the glove's or a nozzle's, taken by the frame's draw. */
+    private static @Nullable SprayCone poured;
+    /** The bore last poured, which the vortex keeps drawing from as it disperses. */
+    private static @Nullable PouredBore lastPoured;
 
     private BoreDrill() {
     }
@@ -104,6 +109,105 @@ public final class BoreDrill {
         double length = toTip.length();
         return new ConeSections.Volume(mouth, toTip.normalize(), yaw, 0, length, RINGS,
                 distance -> shape.taper() * Math.max(0, length - distance));
+    }
+
+    /**
+     * The drill drawn from a cone: its round volume, the cross section's center it runs through, and how far its
+     * section stretches across and up and down against that round volume.
+     * decision spray-abilities-render-procedurally-bound-to-their-cone
+     *
+     * @param volume      the round drill, the cone the break reads
+     * @param point       the cross section's center
+     * @param acrossScale how many times the round drill's width its section stands across
+     * @param upDownScale how many times the round drill's width its section stands up and down
+     */
+    record Drill(ConeSections.Volume volume, Vec3 point, double acrossScale, double upDownScale) {
+
+        /**
+         * Half the drill's width across a distance along it.
+         *
+         * @param distance blocks from its mouth along it
+         * @return the half width in blocks
+         */
+        double halfWidthAcrossAt(double distance) {
+            return volume.radiusAt().applyAsDouble(distance) * acrossScale;
+        }
+
+        /**
+         * Half the drill's height up and down a distance along it.
+         *
+         * @param distance blocks from its mouth along it
+         * @return the half height in blocks
+         */
+        double halfHeightAt(double distance) {
+            return volume.radiusAt().applyAsDouble(distance) * upDownScale;
+        }
+
+        /**
+         * The drill part way poured out, its section stretched as the full drill's is.
+         *
+         * @param share how far it has poured out, 0 to 1
+         * @return the drill
+         */
+        Drill emerged(double share) {
+            return new Drill(BoreDrill.emerged(volume, share), point, acrossScale, upDownScale);
+        }
+
+        /**
+         * The drill laid out about a camera.
+         *
+         * @param camera the camera's place, in world space
+         * @return the drill, camera relative
+         */
+        Drill about(Vec3 camera) {
+            ConeSections.Volume relative = new ConeSections.Volume(volume.apex().subtract(camera), volume.axis(),
+                    volume.yaw(), volume.near(), volume.range(), volume.sections(), volume.radiusAt());
+            return new Drill(relative, point.subtract(camera), acrossScale, upDownScale);
+        }
+    }
+
+    /**
+     * A bore poured through a cone.
+     *
+     * @param step       its bore step, whose drill and tag the vortex draws
+     * @param cone       the cone it was poured through
+     * @param ownDegrees the cone angle of Bore's own delivery, the round cone the poured shape is scaled against
+     */
+    private record PouredBore(BoreStep step, SprayCone cone, double ownDegrees) {
+    }
+
+    /**
+     * What a drill aims with besides its cone: the drill's own dimensions, the look's yaw, the glove's hand, and
+     * the blocks along the sight.
+     *
+     * @param shape      the drill cone, the bore step's
+     * @param yaw        the look's yaw in degrees
+     * @param gloveRight whether the glove is in the right hand
+     * @param air        whether a cell holds air
+     * @param breakable  whether a cell holds a block the bore breaks
+     */
+    record DrillAim(BoreDrillShape shape, float yaw, boolean gloveRight, Predicate<BlockPos> air,
+                    Predicate<BlockPos> breakable) {
+    }
+
+    /**
+     * The drill drawn from the cone it is handed: from the cone's apex, its cross section out along the sight to
+     * the cone's reach, and its section scaled across and up and down by the cone's shape against the round cone
+     * of Bore's own degrees, so Bore's own cone draws the drill the break reads.
+     * decision spray-abilities-render-procedurally-bound-to-their-cone
+     *
+     * @param cone       the cone the drill is poured through
+     * @param ownDegrees the cone angle of Bore's own delivery
+     * @param sight      the sight the bore aims along
+     * @param aim        the drill's dimensions, the yaw, the hand and the blocks
+     * @return the drill
+     */
+    static Drill drillThrough(SprayCone cone, double ownDegrees, CameraEye.Sight sight, DrillAim aim) {
+        Vec3 point = pointOf(sight, cone.reach(), aim.shape(), aim.gloveRight(), aim.air(), aim.breakable());
+        double ownTan = Math.tan(Math.toRadians(ownDegrees * HALF));
+        return new Drill(volume(cone.apex(), point, aim.shape(), aim.yaw()), point,
+                Math.tan(Math.toRadians(cone.shape().sideDegrees() * HALF)) / ownTan,
+                Math.tan(Math.toRadians(cone.shape().liftDegrees() * HALF)) / ownTan);
     }
 
     /**
@@ -190,49 +294,86 @@ public final class BoreDrill {
             return;
         }
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        boolean held = holdsBore(player);
+        pourTheGlovesDrill(mc, player, partialTick);
+        boolean held = takePoured();
         updatePresence(held, mc.level.getGameTime() + partialTick);
-        BoreStep step = lastStep;
-        if (presence <= 0 || step == null) {
+        PouredBore drawn = lastPoured;
+        if (presence <= 0 || drawn == null) {
             return;
         }
-        draws.accept(sortedDrawOf(vortexOf(mc, player, step, partialTick, held), presence, frame.modelView()));
-    }
-
-    private static ConeSections.Volume vortexOf(Minecraft mc, LocalPlayer player, BoreStep step, float partialTick,
-                                                boolean held) {
-        Vec3 camera = mc.gameRenderer.mainCamera().position();
-        ConeSections.Volume full = volume(CastOrigin.ofLocal(mc).subtract(camera),
-                pointAhead(mc.level, CameraEye.of(mc, player, partialTick), step,
-                        GooCasters.casterOnTheRight(player), lastReach).subtract(camera),
-                step.shape(), player.getViewYRot(partialTick));
-        double poured = held ? emergedShare(GloveUseTracker.channelTicks() + partialTick) : 1;
-        return emerged(full, poured);
-    }
-
-    // The vortex is laid out about the camera, so its middle's length is its distance from the camera.
-    private static SortedDraw sortedDrawOf(ConeSections.Volume vortex, double shown, Matrix4fc modelView) {
-        Vec3 middle = vortex.apex().add(vortex.axis().scale(vortex.range() * HALF));
-        return new SortedDraw(middle.lengthSqr(), () -> BoreDrillPass.draw(vortex, shown, modelView));
+        draws.accept(sortedDrawOf(drillOf(mc, player, drawn, partialTick, held), presence, frame.modelView()));
     }
 
     /**
-     * Whether the local player runs a bore now, remembering its step and
-     * reach so the vortex can keep drawing from them while it disperses.
+     * Pours the drill through a cone this frame, the glove's or a nozzle's.
+     * decision spray-abilities-render-procedurally-bound-to-their-cone
      *
-     * @param player the local player
-     * @return true while a bore runs
+     * @param cone the cone poured through, in world space
      */
-    private static boolean holdsBore(LocalPlayer player) {
+    static void pour(SprayCone cone) {
+        poured = cone;
+    }
+
+    /**
+     * Pours the glove's drill while right click holds a bore: the round cone of its delivery, from the blob along
+     * the look this frame, out to Bore's own range whatever the caster's block reach.
+     * operator ruling 2026-11-14: Bore drills only up to its own range, whatever the caster's block reach
+     *
+     * @param mc          the client
+     * @param player      the local player
+     * @param partialTick the frame's partial tick
+     */
+    private static void pourTheGlovesDrill(Minecraft mc, LocalPlayer player, float partialTick) {
         ClientAbility bore = runningBore(player);
+        if (bore != null) {
+            Delivery reaching = bore.delivery().reachingTo(player.blockInteractionRange());
+            ConeVisuals.pour(bore.id().toString(), SprayCone.ofGlove(reaching, CastOrigin.ofLocal(mc),
+                    player.getViewVector(partialTick)));
+        }
+    }
+
+    /**
+     * Takes the cone poured through this frame, if any.
+     *
+     * @return true where a cone was poured and the client holds Bore's synced copy
+     */
+    private static boolean takePoured() {
+        SprayCone cone = poured;
+        poured = null;
+        return cone != null && takeBore(cone);
+    }
+
+    /**
+     * Takes the cone the drill is poured through, remembering Bore's step and own cone angle with it so the
+     * vortex can keep drawing from them while it disperses.
+     *
+     * @param cone the cone poured through
+     * @return true where the client holds Bore's synced copy
+     */
+    private static boolean takeBore(SprayCone cone) {
+        ClientAbility bore = AbilitySyncHandler.findAbility(BORE_ID);
         BoreStep step = bore == null ? null : stepOf(bore).orElse(null);
         if (step == null) {
             return false;
         }
-        lastStep = step;
-        // bore-reaches-as-far-as-your-block-reach
-        lastReach = bore.delivery().reachingTo(player.blockInteractionRange()).range();
+        lastPoured = new PouredBore(step, cone, bore.delivery().coneDegrees());
         return true;
+    }
+
+    private static Drill drillOf(Minecraft mc, LocalPlayer player, PouredBore bore, float partialTick, boolean held) {
+        BoreStep step = bore.step();
+        Drill full = drillThrough(bore.cone(), bore.ownDegrees(), CameraEye.of(mc, player, partialTick),
+                new DrillAim(step.shape(), player.getViewYRot(partialTick), GooCasters.casterOnTheRight(player),
+                        airIn(mc.level), breakableIn(mc.level, step)));
+        double share = held ? emergedShare(GloveUseTracker.channelTicks() + partialTick) : 1;
+        return full.emerged(share).about(mc.gameRenderer.mainCamera().position());
+    }
+
+    // The vortex is laid out about the camera, so its middle's length is its distance from the camera.
+    private static SortedDraw sortedDrawOf(Drill drill, double shown, Matrix4fc modelView) {
+        ConeSections.Volume vortex = drill.volume();
+        Vec3 middle = vortex.apex().add(vortex.axis().scale(vortex.range() * HALF));
+        return new SortedDraw(middle.lengthSqr(), () -> BoreDrillPass.draw(drill, shown, modelView));
     }
 
     private static void updatePresence(boolean held, double now) {

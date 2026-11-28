@@ -1,13 +1,19 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.google.gson.JsonParser;
+import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.program.AilmentKind;
+import com.mercuriusxeno.goo.ability.program.HeldSweepPace;
+import com.mercuriusxeno.goo.ability.program.HeldSweepPulses;
+import com.mercuriusxeno.goo.ability.program.HeldSweepStep;
 import com.mercuriusxeno.goo.ability.program.HeldSweepWorld;
+import com.mercuriusxeno.goo.client.BufferedPass;
 import com.mercuriusxeno.goo.client.RecordingVertexConsumer;
 import com.mercuriusxeno.goo.type.GooColors;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.serialization.JsonOps;
 import java.io.IOException;
 import java.io.InputStream;
@@ -19,21 +25,33 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.ToIntFunction;
+import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart;
+import net.minecraft.client.resources.model.geometry.BakedQuad;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * HeldSweepVisual's shell traces a block's voxel shape: a revealed side is
- * drawn on each of the shape's boxes, at the box's own bounds rather than
+ * HeldSweepVisual's sonar return: its fronts, the walls they light by the
+ * sculker echo's rules drawn as each block's own model quads, and the box
+ * face Meteo's scorch draws through it at the box's own bounds rather than
  * the cube's; and Scry's sphere, faces and glisten take the casting goo
  * type's color, read from the bundled type JSON.
  * decision scry-sphere-reveals-faces-and-glistens-mobs
@@ -56,13 +74,13 @@ class HeldSweepVisualTest {
 
         /** A world of air over one floor of solid blocks just under the caster's feet. */
         private static final Predicate<BlockPos> OVER_A_FLOOR = pos -> pos.getY() != -1;
-        private static final Function<BlockPos, List<AABB>> CUBES = pos -> List.of(new AABB(0, 0, 0, 1, 1, 1));
         private static final Vec3 CENTER = new Vec3(0.5, 0.9, 0.5);
         private static final double SCRY_RANGE = 96;
         private static final int TINT = 0x8866FF;
         private static final int ROOM = 100_000;
         private static final double BLOCKS_A_TICK = 2.4;
         private static final long HEARD_AT = 100;
+        private static final int SCRY_CROSSING_TICKS = 40;
 
         /**
          * A hit wall holds full brightness for three seconds, then fades
@@ -78,9 +96,9 @@ class HeldSweepVisualTest {
 
         @Test
         void aWallWhoseGlowReachedNothingLeavesTheRevealSet() {
-            HeldSweepPulse pulse = new HeldSweepPulse(new EchoField(CENTER), SCRY_RANGE, TINT);
+            HeldSweepPulse pulse = new HeldSweepPulse(new EchoField(CENTER), SCRY_RANGE, BLOCKS_A_TICK, TINT);
             pulse.heard(12, HEARD_AT);
-            pulse.advance(HEARD_AT + 1, OVER_A_FLOOR, CUBES, ROOM);
+            pulse.advance(HEARD_AT + 1, CubeWalls.of(OVER_A_FLOOR), ROOM);
             assertTrue(!pulse.lit().isEmpty(), "the floor the front crossed lights");
 
             pulse.fadeOut(HEARD_AT + 1 + 120);
@@ -90,7 +108,7 @@ class HeldSweepVisualTest {
 
         @Test
         void aLetGoFrontRunsOnToItsRangeAndNeverSnapsBack() {
-            HeldSweepPulse pulse = new HeldSweepPulse(new EchoField(CENTER), SCRY_RANGE, TINT);
+            HeldSweepPulse pulse = new HeldSweepPulse(new EchoField(CENTER), SCRY_RANGE, BLOCKS_A_TICK, TINT);
             pulse.heard(24, HEARD_AT);
 
             assertEquals(24, pulse.drawnRadius(HEARD_AT + 1), 1e-9, "the last radius the server sent");
@@ -104,17 +122,39 @@ class HeldSweepVisualTest {
             assertEquals(SCRY_RANGE, drawn, 1e-9, "on to its range");
         }
 
+        /**
+         * The shipped Scry's front, heard once as it leaves and then left
+         * unheard, draws on each tick of its two second crossing the radius
+         * the server strikes mobs at on that tick.
+         * decision scry-ring-crosses-its-reach-in-two-seconds
+         */
+        @Test
+        void theShippedScrysDrawnFrontKeepsToTheRadiusTheServerStrikesAt() {
+            HeldSweepStep scry = AbilityJson.decode("astral_scry").behaviors().stream()
+                    .filter(HeldSweepStep.class::isInstance).map(HeldSweepStep.class::cast).findFirst().orElseThrow();
+            HeldSweepPace pace = scry.pace();
+            LiveSweeps sweeps = new LiveSweeps();
+            HeldSweepPulses.Pulse leaving = new HeldSweepPulses.Pulse(1, HeldSweepWorld.CASTER, HEARD_AT);
+
+            sweeps.hear(scry.sweepOf(leaving, HEARD_AT), HEARD_AT, type -> TINT);
+            HeldSweepPulse drawn = sweeps.pulses().get(1);
+
+            for (int age = 1; age <= SCRY_CROSSING_TICKS; age++) {
+                assertEquals(pace.radiusAt(age), drawn.drawnRadius(HEARD_AT + age), 1e-5, "age " + age);
+            }
+        }
+
         @Test
         void twoPulsesWallsDrawInOneFrameEachAtItsOwnFront() {
             EchoField field = new EchoField(CENTER);
-            HeldSweepPulse first = new HeldSweepPulse(field, SCRY_RANGE, TINT);
-            HeldSweepPulse second = new HeldSweepPulse(field, SCRY_RANGE, TINT);
+            HeldSweepPulse first = new HeldSweepPulse(field, SCRY_RANGE, BLOCKS_A_TICK, TINT);
+            HeldSweepPulse second = new HeldSweepPulse(field, SCRY_RANGE, BLOCKS_A_TICK, TINT);
             first.heard(11 * BLOCKS_A_TICK, HEARD_AT);
             second.heard(BLOCKS_A_TICK, HEARD_AT);
             double frame = HEARD_AT + 1;
 
-            first.advance(frame, OVER_A_FLOOR, CUBES, ROOM);
-            second.advance(frame, OVER_A_FLOOR, CUBES, ROOM);
+            first.advance(frame, CubeWalls.of(OVER_A_FLOOR), ROOM);
+            second.advance(frame, CubeWalls.of(OVER_A_FLOOR), ROOM);
 
             assertFront(first, frame);
             assertFront(second, frame);
@@ -128,15 +168,15 @@ class HeldSweepVisualTest {
         @Test
         void aNewPulseLightsNearWallsWhileAnOlderOneHasLitItsMost() {
             EchoField field = new EchoField(CENTER);
-            HeldSweepPulse older = new HeldSweepPulse(field, SCRY_RANGE, TINT);
-            HeldSweepPulse newer = new HeldSweepPulse(field, SCRY_RANGE, TINT);
+            HeldSweepPulse older = new HeldSweepPulse(field, SCRY_RANGE, BLOCKS_A_TICK, TINT);
+            HeldSweepPulse newer = new HeldSweepPulse(field, SCRY_RANGE, BLOCKS_A_TICK, TINT);
             older.heard(SCRY_RANGE, HEARD_AT);
             newer.heard(BLOCKS_A_TICK, HEARD_AT);
             Map<Integer, HeldSweepPulse> live = new LinkedHashMap<>();
             live.put(1, older);
             live.put(2, newer);
 
-            HeldSweepVisual.advanceAll(live, HEARD_AT + 1, OVER_A_FLOOR, CUBES);
+            HeldSweepVisual.advanceAll(live, HEARD_AT + 1, CubeWalls.of(OVER_A_FLOOR));
 
             assertEquals(HeldSweepVisual.MOST_BLOCKS, older.lit().size(), "the older front lit its most, far out");
             assertTrue(!newer.lit().isEmpty(), "the newer front still lights the floor beside the caster");
@@ -151,12 +191,12 @@ class HeldSweepVisualTest {
         void aWallTwoFrontsLitDrawsOnceAtItsBrighterGlow() {
             EchoField field = new EchoField(CENTER);
             LitWalls lit = new LitWalls();
-            HeldSweepPulse first = new HeldSweepPulse(field, SCRY_RANGE, TINT, false, lit);
-            HeldSweepPulse second = new HeldSweepPulse(field, SCRY_RANGE, TINT, false, lit);
+            HeldSweepPulse first = new HeldSweepPulse(field, SCRY_RANGE, BLOCKS_A_TICK, TINT, false, lit);
+            HeldSweepPulse second = new HeldSweepPulse(field, SCRY_RANGE, BLOCKS_A_TICK, TINT, false, lit);
             first.heard(4 * BLOCKS_A_TICK, HEARD_AT);
-            first.advance(HEARD_AT + 1, OVER_A_FLOOR, CUBES, ROOM);
+            first.advance(HEARD_AT + 1, CubeWalls.of(OVER_A_FLOOR), ROOM);
             second.heard(4 * BLOCKS_A_TICK, HEARD_AT + 10);
-            second.advance(HEARD_AT + 11, OVER_A_FLOOR, CUBES, ROOM);
+            second.advance(HEARD_AT + 11, CubeWalls.of(OVER_A_FLOOR), ROOM);
 
             List<HeldSweepVisual.WallGlow> walls = HeldSweepVisual.wallsToDraw(lit, HEARD_AT + 11);
 
@@ -172,6 +212,207 @@ class HeldSweepVisualTest {
             double farthest = pulse.lit().stream().mapToDouble(lit -> lit.face().distance()).max().orElse(-1);
             assertTrue(farthest <= front && farthest > front - BLOCKS_A_TICK,
                     "the farthest lit wall " + farthest + " stands at the front " + front);
+        }
+    }
+
+    /**
+     * A wall the caster can already see takes only the ring, lighting as the
+     * front crosses it and fading at once; a wall of a hollow hidden behind
+     * blocks holds for three seconds and fades over three more.
+     * decision scry-shows-only-hidden-hollows-and-mobs
+     * decision scry-visible-blocks-take-only-the-fading-ring
+     */
+    @Nested
+    class OutOfSight {
+
+        private static final Vec3 BODY = new Vec3(0.5, 0.9, 0.5);
+        private static final Vec3 EYE = new Vec3(0.5, 1.62, 0.5);
+        private static final double RANGE = 12;
+        private static final int TINT = 0x8866FF;
+        private static final long HEARD_AT = 100;
+        private static final double HIT_AT = HEARD_AT + 1;
+        private static final int ROOM = HeldSweepVisual.MOST_BLOCKS;
+        /** The open wall's face toward the caster, ten blocks east of the eye. */
+        private static final BlockPos OPEN_WALL = new BlockPos(10, 1, 0);
+        /** The closed cave's far wall, its face toward the caster behind a two block wall. */
+        private static final BlockPos CAVE_WALL = new BlockPos(9, 1, 0);
+
+        @Test
+        void aWallTheCasterSeesLightsAsTheRingCrossesAndIsUnlitTwentyTicksLater() {
+            Predicate<BlockPos> stone = pos -> pos.getX() == OPEN_WALL.getX() && Math.abs(pos.getZ()) <= 2
+                    && pos.getY() >= -1 && pos.getY() <= 3;
+            HeldSweepPulse.LitFace wall = hitAt(OPEN_WALL, stone);
+
+            assertTrue(wall.glowAt(HIT_AT) > 0f, "lit as the front crosses it");
+            assertEquals(0f, wall.glowAt(HIT_AT + 20), 0f, "unlit twenty ticks later");
+        }
+
+        @Test
+        void aHiddenCavesWallHoldsFullForThreeSecondsAndIsUnlitAtSix() {
+            Predicate<BlockPos> stone = pos -> !inBox(pos, -2, 2) && !inBox(pos, 5, 8);
+            HeldSweepPulse.LitFace wall = hitAt(CAVE_WALL, stone);
+
+            assertEquals(1f, wall.glowAt(HIT_AT + 59), 0f, "full 59 ticks after the hit");
+            assertTrue(wall.glowAt(HIT_AT + 90) < 1f, "fading at 90");
+            assertEquals(0f, wall.glowAt(HIT_AT + 120), 0f, "unlit at 120");
+        }
+
+        /** Air from one x to another, the caster's height and a little either side. */
+        private static boolean inBox(BlockPos pos, int fromX, int toX) {
+            return pos.getX() >= fromX && pos.getX() <= toX && pos.getY() >= -1 && pos.getY() <= 3
+                    && Math.abs(pos.getZ()) <= 2;
+        }
+
+        /** The hit a front crossing its whole range on one tick leaves on a block of a world of stone and air. */
+        private static HeldSweepPulse.LitFace hitAt(BlockPos pos, Predicate<BlockPos> stone) {
+            HeldSweepPulse pulse = new HeldSweepPulse(new EchoField(BODY), RANGE, RANGE, TINT);
+            pulse.heard(RANGE, HEARD_AT);
+            pulse.advance(HIT_AT, new WallWorld(stone, stone.negate()), FaceSight.from(EYE, stone), ROOM);
+            return pulse.lit().stream().filter(hit -> hit.face().pos().equals(pos)).findFirst().orElseThrow();
+        }
+    }
+
+    /**
+     * The sweep reads blocks by the sculker echo's rules: its front passes
+     * through a block that does not fill its cell and lights the wall behind
+     * it, lights only a block with a collision shape, and draws each lit
+     * block's own model quads on its sides open to sound.
+     * decision scry-shows-surfaces-as-the-sculker-echo-does
+     */
+    @Nested
+    class SculkerRules {
+
+        private static final Vec3 CENTER = new Vec3(0.5, 0.9, 0.5);
+        /** Between the caster and the wall behind it, a block east of the caster. */
+        private static final BlockPos BETWEEN = new BlockPos(3, 0, 0);
+        private static final BlockPos BEHIND = new BlockPos(4, 0, 0);
+        private static final double RANGE = 8;
+        private static final int TINT = 0x8866FF;
+        private static final long HEARD_AT = 100;
+        private static final int ROOM = HeldSweepVisual.MOST_BLOCKS;
+
+        /** The walls the last pulse a test sent holds lit. */
+        private LitWalls lit = new LitWalls();
+        private final BlockState air = state(true, false, false);
+        private final BlockState stone = state(false, true, true);
+        private final BlockState slab = state(false, false, true);
+        private final BlockState fence = state(false, false, true);
+        private final BlockState stair = state(false, false, true);
+        private final BlockState tallGrass = state(false, false, false);
+
+        @Test
+        void aFullBlockBehindASlabLightsItsSideFacingTheSlab() {
+            List<HeldSweepPulse.LitFace> lit = litBy(Map.of(BETWEEN, slab, BEHIND, stone));
+
+            assertTrue(sidesLitAt(lit, BEHIND).contains(Direction.WEST), "the side behind the slab");
+        }
+
+        @Test
+        void aFullBlockBehindAFenceLightsItsSideFacingTheFence() {
+            List<HeldSweepPulse.LitFace> lit = litBy(Map.of(BETWEEN, fence, BEHIND, stone));
+
+            assertTrue(sidesLitAt(lit, BEHIND).contains(Direction.WEST), "the side behind the fence");
+        }
+
+        @Test
+        void tallGrassInTheFrontsPathLightsNothing() {
+            List<HeldSweepPulse.LitFace> lit = litBy(Map.of(BETWEEN, tallGrass));
+
+            assertTrue(lit.stream().noneMatch(face -> face.face().pos().equals(BETWEEN)), "no face of the grass");
+        }
+
+        /** A lit stair, stone below it and west of it, draws its own quads on the four sides open to sound. */
+        @Test
+        void aLitStairDrawsItsOwnModelQuadsOnItsSidesOpenToSound() {
+            BlockPos below = BETWEEN.below();
+            BlockPos west = BETWEEN.west();
+            BlockGetter level = levelOf(Map.of(BETWEEN, stair, below, stone, west, stone));
+            Map<Direction, BakedQuad> sideQuads = new LinkedHashMap<>();
+            BlockStateModelPart stairPart = mock(BlockStateModelPart.class);
+            for (Direction side : Direction.values()) {
+                BakedQuad quad = mock(BakedQuad.class);
+                sideQuads.put(side, quad);
+                when(stairPart.getQuads(side)).thenReturn(List.of(quad));
+            }
+            BakedQuad inner = mock(BakedQuad.class);
+            when(stairPart.getQuads(null)).thenReturn(List.of(inner));
+            SculkerEchoRenderer.EchoWorld world = echoWorld(level, Map.of(BETWEEN, stairPart));
+            EchoQuads quads = new EchoQuads();
+            pulseThrough(level);
+            VertexConsumer consumer = mock(VertexConsumer.class);
+
+            HeldSweepVisual.drawWalls(new PoseStack(), new BufferedPass(consumer, () -> { }), Vec3.ZERO,
+                    HeldSweepVisual.wallsToDraw(lit, HEARD_AT + 1), pos -> quads.at(world, pos));
+
+            ArgumentCaptor<BakedQuad> drawn = ArgumentCaptor.forClass(BakedQuad.class);
+            verify(consumer, atLeastOnce()).putBakedQuad(any(), drawn.capture(), any());
+            List<BakedQuad> expected = List.of(sideQuads.get(Direction.UP), sideQuads.get(Direction.NORTH),
+                    sideQuads.get(Direction.SOUTH), sideQuads.get(Direction.EAST), inner);
+            assertEquals(expected, quads.at(world, BETWEEN), "the quads EchoQuads collects for the stair");
+            assertEquals(expected, drawn.getAllValues(), "the quads the frame submits");
+        }
+
+        private List<HeldSweepPulse.LitFace> litBy(Map<BlockPos, BlockState> blocks) {
+            return List.copyOf(pulseThrough(levelOf(blocks)).lit());
+        }
+
+        /** A pulse whose front crosses its whole range on its first tick, through a level. */
+        private HeldSweepPulse pulseThrough(BlockGetter level) {
+            lit = new LitWalls();
+            HeldSweepPulse pulse = new HeldSweepPulse(new EchoField(CENTER), RANGE, RANGE, TINT, false, lit);
+            pulse.heard(RANGE, HEARD_AT);
+            pulse.advance(HEARD_AT + 1, WallWorld.of(level, AirSections.NONE), ROOM);
+            return pulse;
+        }
+
+        private static List<Direction> sidesLitAt(List<HeldSweepPulse.LitFace> lit, BlockPos pos) {
+            return lit.stream().filter(face -> face.face().pos().equals(pos)).findFirst()
+                    .map(face -> face.face().sides()).orElse(List.of());
+        }
+
+        private BlockGetter levelOf(Map<BlockPos, BlockState> blocks) {
+            BlockGetter level = mock(BlockGetter.class);
+            when(level.getBlockState(any(BlockPos.class))).thenAnswer(call -> blocks.getOrDefault(call.getArgument(0), air));
+            return level;
+        }
+
+        /** The level's blocks as an echo draw reads them, each block's model the one part a map names, else none. */
+        private static SculkerEchoRenderer.EchoWorld echoWorld(BlockGetter level, Map<BlockPos, BlockStateModelPart> parts) {
+            return new SculkerEchoRenderer.EchoWorld() {
+                @Override
+                public BlockState stateAt(BlockPos pos) {
+                    return level.getBlockState(pos);
+                }
+
+                @Override
+                public void collectParts(BlockPos pos, BlockState state, List<BlockStateModelPart> collected) {
+                    if (parts.containsKey(pos)) {
+                        collected.add(parts.get(pos));
+                    }
+                }
+
+                @Override
+                public boolean passesSound(BlockPos pos) {
+                    return SculkerSenses.passesSound(level, pos);
+                }
+            };
+        }
+
+        /**
+         * A block's state as the walk reads it: whether it is air, whether
+         * its collision shape fills its cell, whether it has one at all.
+         */
+        private static BlockState state(boolean isAir, boolean full, boolean collides) {
+            BlockState state = mock(BlockState.class);
+            when(state.isAir()).thenReturn(isAir);
+            when(state.isCollisionShapeFullBlock(any(BlockGetter.class), any(BlockPos.class))).thenReturn(full);
+            VoxelShape collision = mock(VoxelShape.class);
+            when(collision.isEmpty()).thenReturn(!collides);
+            when(state.getCollisionShape(any(BlockGetter.class), any(BlockPos.class))).thenReturn(collision);
+            VoxelShape shape = mock(VoxelShape.class);
+            when(shape.toAabbs()).thenReturn(isAir ? List.of() : List.of(new AABB(0, 0, 0, 1, 1, 1)));
+            when(state.getShape(any(BlockGetter.class), any(BlockPos.class))).thenReturn(shape);
+            return state;
         }
     }
 
@@ -192,6 +433,8 @@ class HeldSweepVisualTest {
         private static final int SKY_FROM = 16;
         private static final int SECTION = 16;
         private static final double SKY_WALK = 30;
+        private static final double SIGHT_RANGE = 16;
+        private static final int FRAMES = 100;
 
         private final HeldSweepWorld world = new HeldSweepWorld();
         private int blockReads;
@@ -201,9 +444,9 @@ class HeldSweepVisualTest {
             return HeldSweepWorld.isAir(pos);
         }
 
-        private List<AABB> countedShapeOf(BlockPos pos) {
-            blockReads++;
-            return HeldSweepWorld.shapeOf(pos);
+        /** The fixed world with each block read counted, whether the walk asks if it lights or lets the front by. */
+        private WallWorld countedWorld() {
+            return new WallWorld(pos -> !countedIsAir(pos), this::countedIsAir);
         }
 
         /**
@@ -213,13 +456,13 @@ class HeldSweepVisualTest {
          */
         private long[] workOfTheLastTickTo(double range) {
             EchoField field = new EchoField(BODY);
-            HeldSweepPulse pulse = new HeldSweepPulse(field, range, TINT);
+            HeldSweepPulse pulse = new HeldSweepPulse(field, range, ONE_TICK, TINT);
             pulse.heard(range - ONE_TICK, HEARD_AT);
-            pulse.advance(HEARD_AT + 1, this::countedIsAir, this::countedShapeOf, ROOM);
+            pulse.advance(HEARD_AT + 1, countedWorld(), ROOM);
             blockReads = 0;
             long walkedBefore = field.shellPositions();
             pulse.heard(range, HEARD_AT + 1);
-            pulse.advance(HEARD_AT + 2, this::countedIsAir, this::countedShapeOf, ROOM);
+            pulse.advance(HEARD_AT + 2, countedWorld(), ROOM);
             return new long[] {field.shellPositions() - walkedBefore, blockReads};
         }
 
@@ -255,12 +498,12 @@ class HeldSweepVisualTest {
         void aWalkPassesOverSectionsOfAirAloneAndFindsTheSameWalls() {
             Predicate<BlockPos> openSky = pos -> pos.getY() >= SKY_FROM || HeldSweepWorld.isAir(pos);
             EchoField everyBlock = new EchoField(BODY);
-            everyBlock.reachTo(SKY_WALK, pos -> countedRead(openSky, pos), this::countedShapeOf);
+            everyBlock.reachTo(SKY_WALK, new WallWorld(pos -> !countedRead(openSky, pos), pos -> countedRead(openSky, pos)));
             int readEveryBlock = blockReads;
             blockReads = 0;
             EchoField bySection = new EchoField(BODY);
-            bySection.reachTo(SKY_WALK, pos -> countedRead(openSky, pos), this::countedShapeOf,
-                    (sectionX, sectionY, sectionZ) -> sectionY >= SKY_FROM / SECTION);
+            bySection.reachTo(SKY_WALK, new WallWorld(pos -> !countedRead(openSky, pos), pos -> countedRead(openSky, pos),
+                    (sectionX, sectionY, sectionZ) -> sectionY >= SKY_FROM / SECTION));
 
             System.out.println("AIR SECTIONS reads every block " + readEveryBlock + ", by section " + blockReads);
             assertEquals(walls(everyBlock), walls(bySection), "the same walls, in the same order");
@@ -280,11 +523,34 @@ class HeldSweepVisualTest {
             return walls;
         }
 
+        /**
+         * The sight test runs once for each face as it lights and never
+         * again, however many frames draw the pulse after its front landed.
+         * decision scry-shows-only-hidden-hollows-and-mobs
+         */
+        @Test
+        void aHundredFramesOfALandedPulseRunTheSightTestOncePerFaceLit() {
+            int[] sightTests = new int[1];
+            FaceSight counted = face -> {
+                sightTests[0]++;
+                return false;
+            };
+            HeldSweepPulse pulse = new HeldSweepPulse(new EchoField(BODY), SIGHT_RANGE, SIGHT_RANGE, TINT);
+            pulse.heard(SIGHT_RANGE, HEARD_AT);
+
+            for (int frame = 0; frame < FRAMES; frame++) {
+                pulse.advance(HEARD_AT + 1 + frame / 3.0, CubeWalls.of(HeldSweepWorld::isAir), counted, ROOM);
+            }
+
+            assertTrue(!pulse.lit().isEmpty(), "the pulse lit faces");
+            assertEquals(pulse.lit().size(), sightTests[0], "sight tests across a hundred frames");
+        }
+
         /** The faces the field around the caster holds once the first front has walked out to Scry's reach. */
         @Test
         void aFieldWalkedOutToScrysReachHoldsTheMostFacesItKeeps() {
             EchoField field = new EchoField(BODY);
-            field.reachTo(HeldSweepHold.SCRY_REACH, HeldSweepWorld::isAir, HeldSweepWorld::shapeOf);
+            field.reachTo(HeldSweepHold.SCRY_REACH, CubeWalls.of(HeldSweepWorld::isAir));
 
             assertEquals(EchoField.MOST_FACES, field.size(), "faces the field keeps");
             assertEquals(HeldSweepHold.SCRY_REACH, field.face(field.size() - 1).distance(), 0.5,

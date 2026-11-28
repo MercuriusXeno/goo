@@ -34,7 +34,7 @@ public record WakeStatueStep() implements TakesNoEntity {
     public boolean tick(StepContext context) {
         ChannelHost host = context.hostAs(ChannelHost.class);
         host.channelAim().ifPresent(aim -> {
-            for (BlockPos pos : CalcifyStep.blocksInCone(host.eye(), aim.aimPoint(), aim.coneDegrees())) {
+            for (BlockPos pos : CalcifyStep.blocksInCone(host.eye(), aim.aimPoint(), aim.shape())) {
                 if (host.statueAt(pos)) {
                     host.wakeStatue(pos);
                 }

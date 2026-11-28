@@ -7,8 +7,8 @@ import org.jspecify.annotations.Nullable;
 import java.util.UUID;
 
 /**
- * A block entity a marker host stands at: the ability block a lingering
- * ability stands, or the prism a combo runs on. The host reads the face,
+ * A block entity a marker host stands at, which a program runs on. The
+ * host reads the face,
  * the goo type and the ability from it, and keeps its program's state in it.
  * decision prism-hosts-the-combos
  */

@@ -5,7 +5,6 @@ import com.mercuriusxeno.goo.ability.program.ExplodeStep;
 import com.mercuriusxeno.goo.ability.program.ExplosionMarch;
 import com.mercuriusxeno.goo.ability.program.ExplosionMode;
 import com.mercuriusxeno.goo.ability.program.Expr;
-import com.mercuriusxeno.goo.ability.program.LingerStep;
 import com.mercuriusxeno.goo.ability.program.SelectionShape;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.data.GooBaseValuesPreview;
@@ -23,11 +22,9 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EnumSource;
 import java.nio.file.Path;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 import java.util.regex.Pattern;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -70,29 +67,6 @@ class AbilityDefinitionTest {
         assertEquals(written, AbilityDefinition.previewAtMaxReach(written, explodes));
     }
 
-    @Test
-    void spawnConsumesNoItemAndNeedsNoRecipe() {
-        // ability-json-names-its-reagent
-        // spawn-hostile-shape-peaceful-from-a-slime
-        AbilityDefinition spawn = AbilityJson.decode("zoo_spawn");
-        assertEquals(List.of(), spawn.consumes());
-        assertEquals(List.of(), spawn.requires());
-    }
-
-    // decision blast-keeps-its-explosion-gated-on-gunpowder
-    @Test
-    void blastRequiresGunpowder() {
-        assertEquals(List.of(Identifier.withDefaultNamespace("gunpowder")),
-                AbilityJson.decode("unstable_blast").requires());
-    }
-
-    // decision razor-keeps-its-look-gated-on-glass
-    @Test
-    void razorRequiresGlassAndSand() {
-        assertEquals(List.of(Identifier.withDefaultNamespace("glass"), Identifier.withDefaultNamespace("sand")),
-                AbilityJson.decode("crystal_shatter").requires());
-    }
-
     private static AbilityDefinition requiring(String requires) {
         return AbilityJson.decodeText("made_up", "{\"gooType\": \"rock\", \"displayName\": \"made_up\","
                 + " \"cost\": 10, \"badge\": \"world\", \"behaviors\": [], \"delivery\": {\"kind\": \"arc\"},"
@@ -116,26 +90,6 @@ class AbilityDefinitionTest {
     void anAbilityIsKnownToAPlayerWhoKnowsEveryItemItRequires() {
         assertEquals(true, requiring("[\"minecraft:gunpowder\"]")
                 .isKnownTo(KnownItems.NONE.with(Identifier.withDefaultNamespace("gunpowder"))));
-    }
-
-    // decision no-residual-is-locked-behind-recipes
-    // decision updraft-blob-stands-a-column-of-wind
-    // decision vines-unpack-root-and-thorn
-    @Test
-    void everyShippedResidualIsUnlockedWithNothingLearned() {
-        Set<String> residualsChecked = new HashSet<>();
-        for (Path file : AbilityJson.files()) {
-            AbilityDefinition definition = AbilityJson.decode(file);
-            if (definition.badge() == AbilityBadge.RESIDUAL) {
-                assertTrue(definition.isKnownTo(KnownItems.NONE), definition.id() + " is locked behind "
-                        + definition.requires());
-                residualsChecked.add(definition.id().getPath());
-            }
-        }
-        assertTrue(residualsChecked.containsAll(Set.of("blaze_molten", "sculk_creep", "frost_rime", "hex_leech",
-                "leaf_vines", "typhoon_updraft", "unstable_nitro", "weird_goop", "kinetic_slick", "jelly_nectar",
-                "pulse_signal", "metal_spikes", "zombie_infest", "quantum_phase", "yarn_stitch", "nether_gloom")),
-                residualsChecked.toString());
     }
 
     /**
@@ -330,7 +284,8 @@ class AbilityDefinitionTest {
 
         @Test
         void throwWithNoRadiusDrawsNoArea() {
-            assertEquals(AbilityArea.NONE, AbilityJson.decode("crystal_prism").area());
+            assertEquals(AbilityArea.NONE,
+                    AbilityDefinition.heldArea(AbilityArea.NONE, Delivery.ARC, AbilityBadge.WORLD, List.of()));
         }
 
         private static boolean isInstantAreaThrow(Path file) {
@@ -356,21 +311,21 @@ class AbilityDefinitionTest {
 
         @Test
         void mobThrowOverAFieldStepDrawsNoArea() {
-            List<Step> field = SpikeTrapFixture.definition().behaviors();
+            List<Step> field = FieldEffectFixture.definition().behaviors();
             assertEquals(AbilityArea.NONE,
                     AbilityDefinition.heldArea(AbilityArea.NONE, Delivery.ARC, AbilityBadge.MOB, field));
         }
 
         @Test
         void beamOverAFieldStepDrawsNoArea() {
-            List<Step> field = SpikeTrapFixture.definition().behaviors();
+            List<Step> field = FieldEffectFixture.definition().behaviors();
             assertEquals(AbilityArea.NONE,
                     AbilityDefinition.heldArea(AbilityArea.NONE, Delivery.BEAM, AbilityBadge.WORLD, field));
         }
 
         @Test
         void freeThrowOverAFieldStepDrawsItsSphere() {
-            List<Step> field = SpikeTrapFixture.definition().behaviors();
+            List<Step> field = FieldEffectFixture.definition().behaviors();
             assertEquals(AbilityArea.Shape.SPHERE,
                     AbilityDefinition.heldArea(AbilityArea.NONE, Delivery.ARC, AbilityBadge.FREE, field).shape());
         }

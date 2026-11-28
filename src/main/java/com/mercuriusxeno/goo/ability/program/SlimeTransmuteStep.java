@@ -9,6 +9,7 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
@@ -34,10 +35,11 @@ import java.util.stream.Stream;
  * spawns naturally, hostile or peaceful, and finishes: the slime is
  * consumed, no egg is spent, and the players watching see the goo morph
  * into the mob where the slime stood; the steps under it then run on the
- * new mob. A blob on anything but a slime does nothing. Zoo's Spawn is
- * {@code transmute_slime goo=zoo hostile=true}, Shape the same with
- * {@code hostile=false}.
+ * new mob. A blob on anything but a slime does nothing. Ooze's turn of a
+ * slime standing on it is {@code transmute_slime goo=xeno hostile=true};
+ * {@code hostile=false} draws a peaceful mob.
  * spawn-hostile-shape-peaceful-from-a-slime
+ * ooze-is-xenos-world-goo-that-turns-slimes-into-random-hostiles
  * model-transformation-is-one-animation
  *
  * @param goo        the goo type that morphs into the mob
@@ -85,20 +87,39 @@ public record SlimeTransmuteStep(ResourceKey<GooTypeDefinition> goo, boolean hos
         TargetHost host = context.hostAs(TargetHost.class);
         LivingEntity target = host.target();
         if (takesEntity(target) && target.level() instanceof ServerLevel level) {
-            Slime slime = (Slime) target;
-            NaturalSpawns.drawAt(level, slime.blockPosition(), level.getRandom(), categoryFilter(hostile),
-                    type -> type != EntityTypes.SLIME)
-                    .flatMap(type -> transmute(level, slime, type, goo, morphTicks))
-                    .ifPresent(born -> runOn(level, born, host.thrower()));
+            transmuteDrawn(level, (Slime) target, host.thrower());
         }
         return true;
     }
 
     /**
+     * Transmutes a slime into a mob drawn from what its biome spawns
+     * naturally, of the step's side, and runs the step's steps on the mob
+     * born. The draw fits each type where the slime's feet stand, on any goo
+     * lying in its block, so a slime on a cell short of a whole block draws as
+     * one on bare ground. A slime standing on Ooze turns this way.
+     * spawn-hostile-shape-peaceful-from-a-slime
+     * ooze-is-xenos-world-goo-that-turns-slimes-into-random-hostiles
+     *
+     * @param level   the level
+     * @param slime   the slime
+     * @param thrower the entity behind the goo, or null where none is known
+     * @return the mob born, empty where the biome spawns nothing that fits
+     */
+    public Optional<Entity> transmuteDrawn(ServerLevel level, Slime slime, @Nullable Entity thrower) {
+        Optional<Entity> born = NaturalSpawns.drawAt(level, slime.blockPosition(), slime.position(),
+                        level.getRandom(), categoryFilter(hostile), type -> type != EntityTypes.SLIME)
+                .flatMap(type -> transmute(level, slime, type, goo, morphTicks));
+        born.ifPresent(mob -> runOn(level, mob, thrower));
+        return born;
+    }
+
+    /**
      * Transmutes a slime into a mob of a type: the slime is consumed, and a
-     * mob of the type stands in its cell while the players watching see the
-     * goo morph into it from where the slime stood. Shape's blob and a slime
-     * standing on Stitch both turn a slime this way.
+     * mob of the type stands in its cell, its feet where the slime's stood,
+     * while the players watching see the goo morph into it from where the
+     * slime stood. A slime standing on Stitch and one standing on Ooze both
+     * turn this way.
      * spawn-hostile-shape-peaceful-from-a-slime
      * stitch-is-yarns-residual-that-turns-slimes-into-passive-mobs
      * model-transformation-is-one-animation
@@ -119,7 +140,8 @@ public record SlimeTransmuteStep(ResourceKey<GooTypeDefinition> goo, boolean hos
         BlockPos cell = slime.blockPosition();
         Vec3 morphFrom = slime.getBoundingBox().getCenter();
         slime.discard();
-        Vec3 feet = Vec3.atBottomCenterOf(cell);
+        // the feet stay where the slime's stood, over any goo the cell keeps, so the mob stands on it
+        Vec3 feet = Vec3.atBottomCenterOf(cell).with(Direction.Axis.Y, slime.getY());
         entity.snapTo(feet.x, feet.y, feet.z, level.getRandom().nextFloat() * FULL_TURN_DEGREES, 0f);
         if (entity instanceof Mob mob) {
             EventHooks.finalizeMobSpawn(mob, level, level.getCurrentDifficultyAt(cell), EntitySpawnReason.MOB_SUMMONED,

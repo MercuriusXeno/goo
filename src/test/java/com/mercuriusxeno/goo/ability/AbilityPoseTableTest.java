@@ -28,7 +28,6 @@ class AbilityPoseTableTest {
             Map.entry("blaze_molten", ArmPose.HELD_OUT),
             Map.entry("crystal_shatter", ArmPose.HELD_OUT),
             Map.entry("crystal_glimmer", ArmPose.HELD_UP),
-            Map.entry("crystal_prism", ArmPose.RESTING),
             Map.entry("crystal_scales", ArmPose.HELD_UP),
             Map.entry("crystal_knives", ArmPose.RESTING),
             Map.entry("pulse_click", ArmPose.RESTING),
@@ -105,12 +104,10 @@ class AbilityPoseTableTest {
             Map.entry("weird_mitosis", ArmPose.SWUNG),
             Map.entry("xeno_unveil", ArmPose.HELD_UP),
             Map.entry("xeno_revert", ArmPose.RESTING),
-            Map.entry("zoo_allure", ArmPose.SWUNG),
+            Map.entry("xeno_ooze", ArmPose.HELD_OUT),
             Map.entry("yarn_herd", ArmPose.HELD_UP),
             Map.entry("yarn_lead", ArmPose.RESTING),
-            Map.entry("yarn_stitch", ArmPose.HELD_OUT),
-            Map.entry("zoo_shape", ArmPose.RESTING),
-            Map.entry("zoo_spawn", ArmPose.RESTING));
+            Map.entry("yarn_stitch", ArmPose.HELD_OUT));
 
     static Stream<Path> shippedAbilities() {
         return AbilityJson.files().stream();

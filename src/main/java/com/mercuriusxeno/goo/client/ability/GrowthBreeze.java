@@ -21,8 +21,10 @@ import java.util.function.Consumer;
  * leaf green streak out from the glove along the look and drift outward
  * through its cone, brighter bands pulsing out about twice a second. The cone
  * is drawn from the glove as stacked cross-sections square to the look, each
- * filled by {@code growth_breeze.fsh}, as Petrify's fog is.
+ * filled by {@code growth_breeze.fsh}, as Petrify's fog is; the cone is the one
+ * the breeze is poured through, the glove's or a nozzle's.
  * growth-breeze-ticks-plants
+ * decision spray-abilities-render-procedurally-bound-to-their-cone
  */
 public final class GrowthBreeze {
 
@@ -32,11 +34,38 @@ public final class GrowthBreeze {
     static final double FROM_THE_GLOVE = 0.05;
     private static final double HALF = 0.5;
 
+    /** The ability the breeze is registered under in {@link ConeVisuals}. */
+    static final String GROWTH_ID = "goo:leaf_growth";
+
+    /** The cone poured through this frame, the glove's or a nozzle's, taken by the frame's draw. */
+    private static @Nullable SprayCone poured;
+
     private GrowthBreeze() {
     }
 
     /**
-     * Hands the shared path the breeze while Growth is held, sorted by the
+     * Pours the breeze through a cone this frame, the glove's or a nozzle's.
+     * decision spray-abilities-render-procedurally-bound-to-their-cone
+     *
+     * @param cone the cone poured through, in world space
+     */
+    static void pour(SprayCone cone) {
+        poured = cone;
+    }
+
+    /**
+     * The breeze filling a cone: its sections cut from the cone's shape out to its reach.
+     * decision spray-abilities-render-procedurally-bound-to-their-cone
+     *
+     * @param cone the cone, camera relative
+     * @return the breeze's sections
+     */
+    static ConeSections.Shaped breezeOf(SprayCone cone) {
+        return new ConeSections.Shaped(cone, FROM_THE_GLOVE, SECTIONS);
+    }
+
+    /**
+     * Hands the shared path the breeze while it is poured, sorted by the
      * middle of its cone.
      * decision translucent-goo-visuals-draw-through-one-checked-sorting-path
      *
@@ -46,23 +75,40 @@ public final class GrowthBreeze {
     public static void collect(LevelFrame frame, Consumer<SortedDraw> draws) {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
-        ClientAbility growth = player == null ? null : heldGrowth(player);
-        if (growth == null) {
+        if (player == null) {
             return;
         }
-        float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
+        pourTheGlovesBreeze(mc, player, mc.getDeltaTracker().getGameTimeDeltaPartialTick(false));
+        SprayCone cone = poured;
+        poured = null;
+        if (cone == null) {
+            return;
+        }
         Vec3 camera = mc.gameRenderer.mainCamera().position();
-        Vec3 apex = CastOrigin.ofLocal(mc).subtract(camera);
-        Vec3 axis = player.getViewVector(partialTick);
-        double range = growth.delivery().range();
-        double tan = Math.tan(Math.toRadians(growth.delivery().coneDegrees() * HALF));
-        ConeSections.Volume volume = new ConeSections.Volume(apex, axis, player.getViewYRot(partialTick),
-                FROM_THE_GLOVE, range, SECTIONS, distance -> distance * tan);
-        draws.accept(new SortedDraw(apex.add(axis.normalize().scale(range * HALF)).lengthSqr(),
-                () -> drawBreeze(mc, frame, volume)));
+        SprayCone seen = new SprayCone(cone.apex().subtract(camera), cone.axis(), cone.shape(), cone.reach());
+        Vec3 middle = seen.apex().add(seen.axis().normalize().scale(seen.reach() * HALF));
+        ConeSections.Shaped breeze = breezeOf(seen);
+        draws.accept(new SortedDraw(middle.lengthSqr(), () -> drawBreeze(frame, breeze)));
     }
 
-    private static void drawBreeze(Minecraft mc, LevelFrame frame, ConeSections.Volume volume) {
+    /**
+     * Pours the glove's breeze while right click holds Growth: the round cone of its delivery, from the hand along
+     * the look this frame.
+     * decision spray-abilities-render-procedurally-bound-to-their-cone
+     *
+     * @param mc          the client
+     * @param player      the local player
+     * @param partialTick the frame's partial tick
+     */
+    private static void pourTheGlovesBreeze(Minecraft mc, LocalPlayer player, float partialTick) {
+        ClientAbility growth = heldGrowth(player);
+        if (growth != null) {
+            ConeVisuals.pour(growth.id().toString(), SprayCone.ofGlove(growth.delivery(), CastOrigin.ofLocal(mc),
+                    player.getViewVector(partialTick)));
+        }
+    }
+
+    private static void drawBreeze(LevelFrame frame, ConeSections.Shaped volume) {
         ImmediateBuffers buffers = ImmediateBuffers.shared();
         FlatQuadContext quads = new FlatQuadContext(frame.poseStack().last(),
                 buffers.getBuffer(GooRenderTypes.GROWTH_BREEZE_TYPE));

@@ -9,7 +9,7 @@ import java.util.Set;
  */
 public enum HostKind {
     /**
-     * The ability block block: a placed face, a tick driver, the
+     * A marker block a program runs on: a placed face, a tick driver, the
      * world around the block, the block position itself to write, the
      * field-effect state a trap keeps while its budget lasts, and the size
      * a drag-sized cast was dragged to.
@@ -21,11 +21,10 @@ public enum HostKind {
      */
     ENTITY("struck entity", EntityHost.class,
             Set.of(HostVariables.HEALTH, HostVariables.MAX_HEALTH, HostVariables.DISTANCE,
-                    HostVariables.UNDEAD, HostVariables.SPRINTING, HostVariables.SHARE)),
+                    HostVariables.UNDEAD, HostVariables.SPRINTING)),
     /**
      * The cell a thrown world ability's blob lands in: the world around it,
-     * the cell itself to write, and the ability's own block to stand there,
-     * acted on in the landing tick with no driver for later ticks (decisions
+     * and the cell itself to write, acted on in the landing tick with no driver for later ticks (decisions
      * splat-runs-the-program-no-fuse, lingering-abilities-place-their-own-thing).
      */
     LANDING("blob landing", LandingHost.class, Set.of(HostVariables.SIZE)),
