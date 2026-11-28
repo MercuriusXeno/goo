@@ -98,14 +98,14 @@ public final class RelayLasers {
 
     private static void drawLinks(Minecraft mc, LevelFrame frame, List<BlockPos> standing, Vec3 camera) {
         ImmediateBuffers buffers = ImmediateBuffers.shared();
-        LineContext lines = new LineContext(frame.poseStack().last(), buffers.getBuffer(GooRenderTypes.LINES_GLOW));
+        LineContext lines = new LineContext(frame.poseStack().last(), buffers.getBuffer(GooRenderTypes.LINES_ADDED_GLOW));
         float width = mc.getWindow().getAppropriateLineWidth() * WIDTH_SCALE;
         for (int i = 0; i < standing.size(); i++) {
             for (int j = i + 1; j < standing.size(); j++) {
                 drawLink(mc.level, lines, standing.get(i), standing.get(j), camera, width);
             }
         }
-        buffers.endBatch(GooRenderTypes.LINES_GLOW);
+        buffers.endBatch(GooRenderTypes.LINES_ADDED_GLOW);
     }
 
     private static void drawLink(ClientLevel level, LineContext lines, BlockPos from, BlockPos to, Vec3 camera,

@@ -116,6 +116,25 @@ public final class GooRenderTypes {
     );
 
     /**
+     * The relay laser's OIT phases: its glow lines add their light to what is drawn behind them under improved
+     * transparency, as vanilla's energy swirl does, rather than lying over it as a see-through layer. Laid over a lit
+     * relay tip's red glow as a layer, the laser averaged with it and read as running behind it.
+     * operator ruling 2026-11-28: the relay laser adds its light, at least the brighter of it and what it crosses
+     */
+    public static final OitPipelineSet LINES_ADDED_GLOW_OIT = OitPipelineSet.builder(
+            Identifier.fromNamespaceAndPath(NAMESPACE, "lines_added_glow"),
+            LINES_ADDITIVE_GLOW.toBuilder().withUnusedColorTargetState(0).withShaderDefine("OIT_ADDITIVE")).build();
+
+    /** RenderType that draws the relay laser's lines, adding their light under improved transparency as well. */
+    public static final RenderType LINES_ADDED_GLOW = RenderType.create(
+            "goo_lines_added_glow",
+            RenderSetup.builder(LINES_ADDITIVE_GLOW)
+                    .setOitPipelines(LINES_ADDED_GLOW_OIT)
+                    .setLayeringTransform(LayeringTransform.VIEW_OFFSET_Z_LAYERING)
+                    .createRenderSetup()
+    );
+
+    /**
      * Vanilla's translucent lines with vanilla's OIT set beside them, which vanilla's own translucent lines type
      * lacks, so the winds drawn through them draw in the OIT phase under improved transparency.
      * decision goo-translucency-draws-through-order-independent-transparency
@@ -2128,7 +2147,7 @@ public final class GooRenderTypes {
      */
     private static void registerSubmittedOitSets(RegisterRenderPipelinesEvent event) {
         List.of(GLOW_SHELL_OIT, GLOW_BEAM_OIT,
-                LINES_ADDITIVE_GLOW_OIT, GROWTH_BREEZE_OIT, GOO_GHOST_OIT, PETRIFY_FOG_OIT,
+                LINES_ADDITIVE_GLOW_OIT, LINES_ADDED_GLOW_OIT, GROWTH_BREEZE_OIT, GOO_GHOST_OIT, PETRIFY_FOG_OIT,
                 FROST_EXPLOSION_OIT, ROCK_EXPLOSION_OIT, PORTABLE_HOLE_MOUTH_OIT, GOO_PORTAL_HALO_OIT,
                 GOO_PORTAL_SWIRL_BAND_OIT, BLOCK_MINGLE_TRANSLUCENT_OIT, MIASMA_VORTEX_OIT, BORE_DRILL_OIT,
                 CRYSTAL_EXPLOSION_OIT, METAL_EXPLOSION_OIT, GLOW_EXPLOSION_OIT, UNSTABLE_EXPLOSION_OIT, LEAF_GHOST_OIT,
