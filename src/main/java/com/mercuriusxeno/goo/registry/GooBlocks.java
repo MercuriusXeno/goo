@@ -827,7 +827,7 @@ public class GooBlocks {
     public static final DeferredBlock<RelayBlock> RELAY = BLOCKS.registerBlock("relay",
             RelayBlock::new, () -> BlockBehaviour.Properties.of().mapColor(MapColor.FIRE)
                     .strength(REFLECTOR_HARDNESS).sound(SoundType.METAL).noOcclusion()
-                    .pushReaction(PushReaction.POPPED));
+                    .pushReaction(PushReaction.POPPED).lightLevel(RelayBlock::lightLevel));
     /**
      * Oculus: a base on a solid face with an ender eye hovering off it, the stable node Blink snaps to, dropping
      * itself so a crucible can melt it.

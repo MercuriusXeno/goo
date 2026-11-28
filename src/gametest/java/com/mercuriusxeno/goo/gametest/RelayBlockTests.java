@@ -19,6 +19,8 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.RedstoneWireBlock;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.List;
 import java.util.function.Consumer;
@@ -40,6 +42,7 @@ public final class RelayBlockTests {
     private static final String GOES_DARK_ONCE_CUT = "relays_go_dark_once_the_feed_is_cut";
     private static final String TORCH_BESIDE_POWERS = "relay_torch_beside_powers_the_linked_relay";
     private static final String METRONOME_FRONT_POWERS = "relay_metronome_front_powers_the_linked_relay";
+    private static final String TIP_LIGHTS_WHILE_CARRYING = "relay_tip_lights_while_carrying";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -54,6 +57,7 @@ public final class RelayBlockTests {
         GooTestFunctions.registerTest(registrar, TORCH_BESIDE_POWERS, RelayBlockTests::torchBesidePowersTheLinkedRelay);
         GooTestFunctions.registerTest(registrar, METRONOME_FRONT_POWERS,
                 RelayBlockTests::metronomeFrontPowersTheLinkedRelay);
+        GooTestFunctions.registerTest(registrar, TIP_LIGHTS_WHILE_CARRYING, RelayBlockTests::tipLightsWhileCarrying);
     }
 
     private static final BlockPos NEAR = new BlockPos(1, 1, 2);
@@ -80,6 +84,10 @@ public final class RelayBlockTests {
             + "15, it gives %d";
     private static final String PULSE_NOT_CARRIED = "The far relay should give a signal while the metronome's front is "
             + "powered and none while it rests; metronome powered %b, far relay %d";
+    private static final String WRONG_TIP = "The relay at %s should read lit %b with light %d, it reads lit %b with "
+            + "light %d";
+    /** A lit redstone torch's light, which a relay carrying a signal gives. */
+    private static final int TIP_LIGHT = 7;
     /** The metronome's cadence step: its front holds each half of the beat this many ticks, long enough to read. */
     private static final int SLOW_CADENCE = 4;
 
@@ -208,6 +216,36 @@ public final class RelayBlockTests {
             last[0] = powered;
         });
         helper.succeedWhen(() -> helper.assertTrue(seen[0] && seen[1], "Both halves of the beat should be seen"));
+    }
+
+    /**
+     * A fed pair lights both relays, the one the feed enters and the one it leaves, each giving light 7; once the feed
+     * is cut both go unlit and give no light.
+     * decision relay-tip-resembles-a-redstone-torch
+     *
+     * @param helper the gametest helper
+     */
+    public static void tipLightsWhileCarrying(GameTestHelper helper) {
+        standPair(helper);
+        boolean[] cut = {false};
+        helper.succeedWhen(() -> {
+            if (!cut[0]) {
+                assertTip(helper, true, TIP_LIGHT);
+                helper.setBlock(SOURCE, Blocks.AIR);
+                cut[0] = true;
+            }
+            assertTip(helper, false, 0);
+        });
+    }
+
+    private static void assertTip(GameTestHelper helper, boolean lit, int light) {
+        for (BlockPos relay : new BlockPos[] {NEAR, FAR}) {
+            BlockState state = helper.getBlockState(relay);
+            boolean litNow = state.getOptionalValue(BlockStateProperties.LIT).orElse(false);
+            int lightNow = state.getLightEmission(helper.getLevel(), helper.absolutePos(relay));
+            helper.assertTrue(litNow == lit && lightNow == light,
+                    String.format(WRONG_TIP, relay, lit, light, litNow, lightNow));
+        }
     }
 
     /** Stands the two floor relays, the feed beside the near one and the dust beside the far one. */

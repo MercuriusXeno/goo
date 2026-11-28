@@ -1,7 +1,10 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.util.ARGB;
+import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -20,6 +23,14 @@ class RelayLasersTest {
         assertTrue(carrying >= GLOW_CONTRAST * idle,
                 "A carrying link should glow " + GLOW_CONTRAST + " times an idle one; carrying " + carrying
                         + ", idle " + idle);
+    }
+
+    /** decision relay-shrinks-so-its-tip-sits-centered-and-beams-join-tips */
+    @Test
+    void aLinkRunsFromOneRelaysCellCenterToTheOthers() {
+        BlockPos from = new BlockPos(1, 2, 3);
+        BlockPos to = new BlockPos(1, 2, 9);
+        assertArrayEquals(new Vec3[] {Vec3.atCenterOf(from), Vec3.atCenterOf(to)}, RelayLasers.linkLine(from, to));
     }
 
     /** The light an additive line adds: its alpha times the sum of its channels. */

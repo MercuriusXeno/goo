@@ -111,8 +111,20 @@ public final class RelayLasers {
         if (!RelayNetwork.inLinkReach(from, to) || !RelayNetwork.links(level, from, to)) {
             return;
         }
-        lines.emitPolyline(camera, new Vec3[] {Vec3.atCenterOf(from), Vec3.atCenterOf(to)},
-                laserColor(carrying(level, from) || carrying(level, to)), width);
+        lines.emitPolyline(camera, linkLine(from, to), laserColor(carrying(level, from) || carrying(level, to)),
+                width);
+    }
+
+    /**
+     * The line a link draws: from one relay's cell center, where its tip sits, to the other's.
+     * decision relay-shrinks-so-its-tip-sits-centered-and-beams-join-tips
+     *
+     * @param from one relay
+     * @param to   the other
+     * @return the link's two ends
+     */
+    static Vec3[] linkLine(BlockPos from, BlockPos to) {
+        return new Vec3[] {Vec3.atCenterOf(from), Vec3.atCenterOf(to)};
     }
 
     /**
@@ -126,8 +138,7 @@ public final class RelayLasers {
     }
 
     private static boolean carrying(ClientLevel level, BlockPos relay) {
-        return level.getBlockState(relay).getOptionalValue(BlockStateProperties.POWER).orElse(0) > 0
-                || level.hasNeighborSignal(relay);
+        return level.getBlockState(relay).getOptionalValue(BlockStateProperties.LIT).orElse(false);
     }
 
     private static List<BlockPos> relaysNear(ClientLevel level, BlockPos center) {
