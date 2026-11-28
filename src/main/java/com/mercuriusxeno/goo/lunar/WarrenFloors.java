@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.lunar;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.SectionPos;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.WorldGenLevel;
 import java.util.ArrayList;
@@ -21,6 +22,8 @@ final class WarrenFloors {
     static final int COLUMN_REACH = 7;
     /** How many columns across the square the search draws from, each way. */
     private static final int COLUMN_SPAN = 2 * COLUMN_REACH + 1;
+    /** A chunk's width in blocks. */
+    private static final int CHUNK_WIDTH = 16;
     /** How far from a spot, each way, a monolith marker would touch it, diagonals included. */
     private static final int TOUCH_REACH = 1;
 
@@ -50,6 +53,28 @@ final class WarrenFloors {
             int x = origin.getX() + random.nextInt(COLUMN_SPAN) - COLUMN_REACH;
             int z = origin.getZ() + random.nextInt(COLUMN_SPAN) - COLUMN_REACH;
             List<BlockPos> floors = openSpotsIn(level, x, z);
+            if (!floors.isEmpty()) {
+                return floors.get(random.nextInt(floors.size()));
+            }
+        }
+        return null;
+    }
+
+    /**
+     * One open floor spot from the columns of the origin's own chunk, searched in random order, so a feature that
+     * spreads from it, as vanilla's sculk spread does, stays within the chunks a feature may touch.
+     *
+     * @param level  the level being generated
+     * @param random the feature's random
+     * @param origin the placed origin, inside the chunk being generated
+     * @return an open spot over a floor with no monolith marker touching it, or null where no tried column holds one
+     */
+    static BlockPos findInChunk(WorldGenLevel level, RandomSource random, BlockPos origin) {
+        int chunkX = SectionPos.blockToSectionCoord(origin.getX()) * CHUNK_WIDTH;
+        int chunkZ = SectionPos.blockToSectionCoord(origin.getZ()) * CHUNK_WIDTH;
+        for (int attempt = 0; attempt < COLUMN_TRIES; attempt++) {
+            List<BlockPos> floors = openSpotsIn(level, chunkX + random.nextInt(CHUNK_WIDTH),
+                    chunkZ + random.nextInt(CHUNK_WIDTH));
             if (!floors.isEmpty()) {
                 return floors.get(random.nextInt(floors.size()));
             }

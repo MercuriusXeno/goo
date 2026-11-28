@@ -4,7 +4,6 @@ import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.SectionPos;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.block.Block;
@@ -15,10 +14,11 @@ import net.minecraft.world.level.levelgen.feature.Feature;
 import net.minecraft.world.level.levelgen.feature.SculkPatchFeature;
 
 /**
- * A sculk patch in the warrens, after vanilla's deep dark patch: from an open spot on a tunnel floor, sculk and its
- * veins spread over the warrens' anorthosite and regolith, growing sculk sensors as they go, and a sculk catalyst
- * stands on the floor at the patch's heart by the deep dark's chance. The warrens home sensors and catalysts alone, so
- * every shrieker the spread grows becomes a sensor, and no sensor stands over the warrens' band.
+ * A sculk patch in the warrens, after vanilla's deep dark patch: from an open spot on a tunnel floor inside the chunk
+ * being generated, where vanilla places its own patch so its spread stays within the chunks a feature may touch,
+ * sculk and its veins spread over the warrens' anorthosite and regolith, growing sculk sensors as they go, and a sculk
+ * catalyst stands on the floor at the patch's heart by the deep dark's chance. The warrens home sensors and catalysts
+ * alone, so every shrieker the spread grows becomes a sensor, and no sensor stands over the warrens' band.
  * decision warren-sculk-homes-sensors-and-catalysts-and-grows-in-lunar-rock
  */
 public final class WarrenSculkPatchFeature implements Feature {
@@ -52,7 +52,7 @@ public final class WarrenSculkPatchFeature implements Feature {
 
     @Override
     public boolean place(WorldGenLevel level, ChunkGenerator chunkGenerator, RandomSource random, BlockPos origin) {
-        BlockPos heart = WarrenFloors.findNear(level, random, origin);
+        BlockPos heart = WarrenFloors.findInChunk(level, random, origin);
         if (heart == null || !DEEP_DARK_SPREAD.place(level, chunkGenerator, random, heart)) {
             return false;
         }
@@ -61,24 +61,27 @@ public final class WarrenSculkPatchFeature implements Feature {
                 && level.getBlockState(floor).isFaceSturdy(level, floor, Direction.UP)) {
             level.setBlock(heart, Blocks.SCULK_CATALYST.defaultBlockState(), PLACE_FLAGS);
         }
-        sweepGrowths(level, heart);
+        sweepGrowths(level, origin, heart);
         return true;
     }
 
     /**
      * Turns every shrieker around a patch's heart into a sensor, and clears every growth standing over the warrens'
-     * band and every growth or vein standing on a monolith marker, so each marker keeps open air over it; it reaches
-     * only the chunks the feature may write.
+     * band and every growth or vein standing on a monolith marker, so each marker keeps open air over it. It reaches
+     * only the chunks a feature may read and write while one chunk generates: the origin's chunk and one chunk out each
+     * way, so the warrens generate with no unsafe terrain read.
      *
-     * @param level the level being generated
-     * @param heart the patch's heart
+     * @param level  the level being generated
+     * @param origin the placed origin, inside the chunk being generated
+     * @param heart  the patch's heart
      */
-    private static void sweepGrowths(WorldGenLevel level, BlockPos heart) {
-        for (BlockPos at : BlockPos.betweenClosed(heart.offset(-SWEEP_REACH, -SWEEP_HEIGHT, -SWEEP_REACH),
-                heart.offset(SWEEP_REACH, SWEEP_HEIGHT, SWEEP_REACH))) {
-            if (!level.hasChunk(SectionPos.blockToSectionCoord(at.getX()), SectionPos.blockToSectionCoord(at.getZ()))) {
-                continue;
-            }
+    private static void sweepGrowths(WorldGenLevel level, BlockPos origin, BlockPos heart) {
+        int minX = Math.max(heart.getX() - SWEEP_REACH, WritableFence.writableMin(origin.getX()));
+        int maxX = Math.min(heart.getX() + SWEEP_REACH, WritableFence.writableMax(origin.getX()));
+        int minZ = Math.max(heart.getZ() - SWEEP_REACH, WritableFence.writableMin(origin.getZ()));
+        int maxZ = Math.min(heart.getZ() + SWEEP_REACH, WritableFence.writableMax(origin.getZ()));
+        for (BlockPos at : BlockPos.betweenClosed(minX, heart.getY() - SWEEP_HEIGHT, minZ,
+                maxX, heart.getY() + SWEEP_HEIGHT, maxZ)) {
             BlockState state = level.getBlockState(at);
             if (clears(level, at, state)) {
                 level.setBlock(at, Blocks.AIR.defaultBlockState(), PLACE_FLAGS);
