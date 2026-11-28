@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.throwing;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.mercuriusxeno.goo.client.ability.BlobRest;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Nested;
@@ -77,6 +78,7 @@ class VortexConeTest {
         private static final double ON_THE_AXIS = 0.05;
         /** Inside Drain's reach, so the look meets the wall. */
         private static final double WALL_OUT = 3;
+        private static final float NORTH_YAW = 180f;
 
         @Test
         void aVortexBesideTheEyePointsAtTheBlockTheLookHits() {
@@ -96,6 +98,21 @@ class VortexConeTest {
             assertTrue(offAxis(far, vortex) < ON_THE_AXIS,
                     "The vortex's axis should pass within a twentieth of a block of the look's point at Drain's "
                             + "reach, passed " + offAxis(far, vortex) + " off it");
+        }
+
+        /**
+         * From the blob's rest above the hand the vortex still points at the block the look hits
+         * (decision no-ability-floats-its-blob-to-the-center-line).
+         */
+        @Test
+        void aVortexAtTheBlobsRestAboveTheHandPointsAtTheBlockTheLookHits() {
+            Vec3 look = Vec3.directionFromRotation(0f, NORTH_YAW);
+            Vec3 rest = BlobRest.inView(EYE, 0f, NORTH_YAW, true, BlobRest.Rest.ABOVE_THE_HAND);
+            Vec3 hit = wallNorth(EYE, EYE.add(look.scale(range)));
+            VortexCone vortex = VortexCone.aimed(rest, EYE, look, range, coneDegrees, AimFromTheBlob::wallNorth);
+            assertTrue(offAxis(hit, vortex) < ON_THE_AXIS,
+                    "The vortex's axis from the blob's rest should pass within a twentieth of a block of the look's "
+                            + "hit point, passed " + offAxis(hit, vortex) + " off it");
         }
 
         private static Vec3 wallNorth(Vec3 from, Vec3 to) {

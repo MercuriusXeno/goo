@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.ThrowRange;
 import com.mercuriusxeno.goo.ability.quantum.Gate;
 import com.mercuriusxeno.goo.ability.quantum.GatePassage;
+import com.mercuriusxeno.goo.client.ability.BlobRest;
 import com.mercuriusxeno.goo.item.ReagentScanner;
 import com.mercuriusxeno.goo.throwing.GateArc;
 import net.minecraft.core.BlockPos;
@@ -173,6 +174,8 @@ class GooThrowHandlerTest {
         private static final Vec3 LOOK_NORTH = new Vec3(0, 0, -1);
         private static final Vec3 HALF_A_BLOCK_RIGHT = EYE.add(0.5, 0, 0);
         private static final double WALL_OUT = 10;
+        private static final double REST_WALL_OUT = 8;
+        private static final float NORTH_YAW = 180f;
 
         @Test
         void anOrbStartedBesideTheEyeHeadsAtTheBlockTheLookHits() {
@@ -193,6 +196,30 @@ class GooThrowHandlerTest {
             assertTrue(offLine(far, HALF_A_BLOCK_RIGHT, heading) < ON_THE_LINE,
                     "The orb's path should pass within a twentieth of a block of the look's point at its range, "
                             + "passed " + offLine(far, HALF_A_BLOCK_RIGHT, heading) + " off it");
+        }
+
+        /**
+         * From the blob's rest above the hand the orb still heads at the block the look hits
+         * (decision no-ability-floats-its-blob-to-the-center-line).
+         */
+        @Test
+        void anOrbStartedAtTheBlobsRestAboveTheHandHeadsAtTheBlockTheLookHits() {
+            Vec3 look = Vec3.directionFromRotation(0f, NORTH_YAW);
+            Vec3 rest = BlobRest.inView(EYE, 0f, NORTH_YAW, true, BlobRest.Rest.ABOVE_THE_HAND);
+            double range = rangeOf("frost_orb");
+            Vec3 hit = wallEightBlocksNorth(EYE, EYE.add(look.scale(range)));
+            Vec3 heading = GooThrowHandler.rollHeading(rest, EYE, look, range, OrbHeading::wallEightBlocksNorth);
+            assertTrue(offLine(hit, rest, heading) < ON_THE_LINE,
+                    "The orb's path from the blob's rest should pass within a twentieth of a block of the look's "
+                            + "hit point, passed " + offLine(hit, rest, heading) + " off it");
+        }
+
+        private static Vec3 wallEightBlocksNorth(Vec3 from, Vec3 to) {
+            double wallZ = EYE.z - REST_WALL_OUT;
+            if (to.z > wallZ || from.z <= wallZ) {
+                return to;
+            }
+            return from.lerp(to, (from.z - wallZ) / (from.z - to.z));
         }
 
         private static Vec3 wallTenBlocksNorth(Vec3 from, Vec3 to) {
