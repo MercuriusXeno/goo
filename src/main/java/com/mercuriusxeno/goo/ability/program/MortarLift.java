@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.block.ability.MortarCellBlock;
 import com.mercuriusxeno.goo.block.ability.SideCoat;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
 import com.mercuriusxeno.goo.entity.BlockHunk;
+import com.mercuriusxeno.goo.entity.LeftoverMortar;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
@@ -19,6 +20,7 @@ import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -201,8 +203,9 @@ public final class MortarLift {
      * Lifts the blocks a grab of a Mortar cell selects out of the world as
      * one hunk, its origin the block behind the grabbed cell's patch nearest
      * the face, each lifted column's Mortar paying one layer for each block
-     * it lifted; what Mortar is left stays where it lay.
+     * it lifted; what Mortar is left leaves its cell to ride the piece.
      * decision mortar-lift-spends-one-layer-per-block-lifted
+     * decision leftover-mortar-quivers-and-drips-down-off-the-lifted-piece
      *
      * @param level   the server level
      * @param grabbed the Mortar cell grabbed and the side it coats
@@ -218,27 +221,35 @@ public final class MortarLift {
         BlockPos origin = cells.getFirst();
         List<BlockHunk.HunkBlock> blocks = cells.stream()
                 .map(cell -> new BlockHunk.HunkBlock(cell.subtract(origin), level.getBlockState(cell))).toList();
-        columns.forEach((cell, column) -> spendLayers(level, cell, column.size()));
+        List<LeftoverMortar.Riding> riding = new ArrayList<>();
+        columns.forEach((cell, column) -> leftoverOf(level, cell, column, origin, grabbed.pull())
+                .ifPresent(riding::add));
+        columns.keySet().forEach(cell -> level.setBlock(cell, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL));
         cells.forEach(cell -> level.setBlock(cell, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL));
-        BlockHunk hunk = BlockHunk.lift(level, origin, blocks);
+        BlockHunk hunk = BlockHunk.lift(level, origin, blocks, riding);
         SoundPlays.play(level, hunk.getBoundingBox().getCenter(), GougeStep.TEAR);
         return hunk;
     }
 
     /**
-     * Lowers a Mortar cell by the blocks its column lifted, a layer for each,
-     * leaving air where nothing is left.
+     * What a lifted column's Mortar leaves once it pays a layer for each
+     * block its column lifted: the layers left, riding the column's block
+     * nearest the face on the face it coated.
      * decision mortar-lift-spends-one-layer-per-block-lifted
+     * decision leftover-mortar-quivers-and-drips-down-off-the-lifted-piece
      *
      * @param level  the server level
-     * @param cell   the Mortar cell
-     * @param lifted the blocks its column lifted
+     * @param cell   the column's Mortar cell
+     * @param column the blocks its column lifted, nearest the face first
+     * @param origin the hunk's origin cell
+     * @param pull   the way the piece leaves its hole, the face the Mortar coats
+     * @return the riding Mortar, or none where the cost took every layer
      */
-    private static void spendLayers(ServerLevel level, BlockPos cell, int lifted) {
-        BlockState mortar = level.getBlockState(cell);
-        int left = MortarCellBlock.layersAt(level, cell) - lifted;
-        level.setBlock(cell, left > 0 ? mortar.setValue(VolumeCellBlock.LAYERS, left) : Blocks.AIR.defaultBlockState(),
-                Block.UPDATE_ALL);
+    private static Optional<LeftoverMortar.Riding> leftoverOf(ServerLevel level, BlockPos cell, List<BlockPos> column,
+                                                             BlockPos origin, Direction pull) {
+        int left = MortarCellBlock.layersAt(level, cell) - column.size();
+        return left > 0 ? Optional.of(new LeftoverMortar.Riding(column.getFirst().subtract(origin), pull, left))
+                : Optional.empty();
     }
 
     /**

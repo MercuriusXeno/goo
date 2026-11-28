@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.network;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.kinetic.GrabEvents;
+import com.mercuriusxeno.goo.block.ability.LayerFalls;
 import com.mercuriusxeno.goo.block.ability.MortarCellBlock;
 import com.mercuriusxeno.goo.block.ability.SideCoat;
 import com.mercuriusxeno.goo.block.ability.VolumeCellBlock;
@@ -13,6 +14,7 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooItems;
+import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.commands.arguments.EntityAnchorArgument;
 import net.minecraft.core.BlockPos;
@@ -91,7 +93,6 @@ public final class GrabMortarLiftTests {
     private static final int RAISED_LOW_Y = 2;
     private static final int RAISED_HIGH_Y = 3;
     private static final int FLOOR_Y = 0;
-    private static final BlockPos RAISED_STAND_POS = STAND_POS.above();
     /** Thirteen layers of Mortar on the raised ground, more than the two blocks of it the lift can take. */
     private static final BlockPos DEEP_MORTAR_CELL = MORTAR_CELL.above();
     private static final int DEEP_LAYERS = 13;
@@ -108,6 +109,33 @@ public final class GrabMortarLiftTests {
     /** What the bay's Mortar totals once the outer cells pay a layer for each block lifted: the middle cell's. */
     private static final int STUCK_LAYERS_LEFT = MORTAR_LAYERS;
 
+    /**
+     * Where the player stands on the raised ground for a grab whose hold hangs the piece straight over its hole:
+     * Grab holds three blocks along the look, so a look turned down 25 degrees from here ends over the hole's middle.
+     */
+    private static final Vec3 OVER_THE_HOLE_STAND = new Vec3(1.781, RAISED_HIGH_Y + 1, 2.5);
+    private static final float LOOKING_DOWN_OVER_THE_HOLE = 25f;
+    private static final String LEFTOVER_RIDES_AND_DRIPS = "grab_leftover_mortar_rides_and_drips_off";
+    private static final String RELEASE_SHEDS_AT_ONCE = "grab_release_sheds_riding_mortar_at_once";
+    private static final String WALL_LEFTOVER_DRIPS_DOWN = "grab_wall_leftover_mortar_drips_down";
+    /** Test ticks at which the grab's age reads 1, 9 and past 50, the grab taking on test tick 1. */
+    private static final int AFTER_THE_GRAB = 2;
+    private static final int STILL_QUIVERING = 10;
+    private static final int ALL_SHED = 52;
+    /** Channel ticks enough for every shed layer's drip to land. */
+    private static final int HOLD_TILL_DRIPS_LAND = 80;
+    /** The last channel tick of a hold that ends before the leftover sheds. */
+    private static final int RELEASE_AFTER = 5;
+    /** The latest test tick a released hold has let go by: its last channel tick and its grace. */
+    private static final int RELEASED_BY = RELEASE_AFTER + GrabEvents.HOLD_GRACE_TICKS + 2;
+    /** Five layers of Mortar on the wall's east face, high on a wall standing over a floor three blocks below. */
+    private static final int HIGH_WALL_Y = 5;
+    private static final BlockPos HIGH_WALL_MORTAR_CELL = new BlockPos(2, 4, 2);
+    private static final int WALL_LAYERS = 5;
+    private static final int WALL_LAYERS_LEFT = WALL_LAYERS - PAINTED_ROW.size();
+    /** The floor cells, the open row over the bay's stone floor at y 0. */
+    private static final int ON_THE_FLOOR_Y = FLOOR_Y + 1;
+
     private GrabMortarLiftTests() {
     }
 
@@ -123,6 +151,153 @@ public final class GrabMortarLiftTests {
                 GrabMortarLiftTests::spendsAMortarLayerPerBlockLifted);
         GooTestFunctions.registerTest(registrar, LEAVES_A_STUCK_COLUMN_UNSPENT,
                 GrabMortarLiftTests::leavesAStuckMortarColumnUnspent);
+        GooTestFunctions.registerTest(registrar, LEFTOVER_RIDES_AND_DRIPS,
+                GrabMortarLiftTests::leftoverMortarRidesAndDripsOff);
+        GooTestFunctions.registerTest(registrar, RELEASE_SHEDS_AT_ONCE,
+                GrabMortarLiftTests::releaseShedsRidingMortarAtOnce);
+        GooTestFunctions.registerTest(registrar, WALL_LEFTOVER_DRIPS_DOWN,
+                GrabMortarLiftTests::wallLeftoverMortarDripsDown);
+    }
+
+    /**
+     * A mock player Grabbing at 13 layers of Mortar over two blocks of stone, holding the piece over its hole,
+     * carries the 11 leftover layers on the piece, none dripping before the grab's tick 10 and all dripped off by its
+     * tick 50, and they land as Mortar on the hole's floor.
+     * decision leftover-mortar-quivers-and-drips-down-off-the-lifted-piece
+     *
+     * @param helper the gametest helper
+     */
+    public static void leftoverMortarRidesAndDripsOff(GameTestHelper helper) {
+        ServerPlayer player = grabOverTheHole(helper, HOLD_TILL_DRIPS_LAND);
+        helper.runAfterDelay(AFTER_THE_GRAB, () -> {
+            helper.assertTrue(MortarCellBlock.layersAt(helper.getLevel(), helper.absolutePos(DEEP_MORTAR_CELL)) == 0,
+                    "The grabbed Mortar's cell should hold no Mortar once the leftover rides the piece");
+            assertRiding(helper, player, DEEP_LAYERS_LEFT);
+        });
+        helper.runAfterDelay(STILL_QUIVERING, () -> {
+            assertRiding(helper, player, DEEP_LAYERS_LEFT);
+            int falling = fallsInTheBay(helper);
+            helper.assertTrue(falling == 0, "No layer should drip off before tick 10, " + falling + " fall");
+        });
+        helper.runAfterDelay(ALL_SHED, () -> assertRiding(helper, player, 0));
+        helper.runAfterDelay(HOLD_TILL_DRIPS_LAND + 1, () -> {
+            int pooled = mortarLayersAtY(helper, ON_THE_FLOOR_Y);
+            helper.assertTrue(pooled == DEEP_LAYERS_LEFT,
+                    "The hole's floor should hold the " + DEEP_LAYERS_LEFT + " dripped layers, holds " + pooled);
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A mock player Grabbing at 13 layers of Mortar over two blocks of stone and letting go at tick 5 sheds the 11
+     * riding layers at once, each falling from a cell within or beside the piece.
+     * decision leftover-mortar-quivers-and-drips-down-off-the-lifted-piece
+     *
+     * @param helper the gametest helper
+     */
+    public static void releaseShedsRidingMortarAtOnce(GameTestHelper helper) {
+        ServerPlayer player = grabOverTheHole(helper, RELEASE_AFTER);
+        // The leftover rides the piece while the hold stands, so every fall after the release is a shed layer.
+        helper.runAfterDelay(RELEASE_AFTER, () -> assertRiding(helper, player, DEEP_LAYERS_LEFT));
+        for (int tick = RELEASE_AFTER + 1; tick <= RELEASED_BY; tick++) {
+            int checked = tick;
+            helper.runAfterDelay(tick, () -> checkShedOnRelease(helper, player, checked));
+        }
+    }
+
+    private static void checkShedOnRelease(GameTestHelper helper, ServerPlayer player, int tick) {
+        BlockHunk hunk = onlyHunk(helper);
+        if (hunk.ridingLayers() > 0 && tick < RELEASED_BY) {
+            return;
+        }
+        helper.assertTrue(hunk.ridingLayers() == 0, "The released piece should shed every riding layer by tick "
+                + RELEASED_BY + ", " + hunk.ridingLayers() + " still ride");
+        AABB beside = hunk.getBoundingBox().inflate(1);
+        AABB bay = bay(helper);
+        List<LayerFalls.Fall> falls = GooServerState.of(helper.getLevel().getServer()).layerFalls().held().stream()
+                .filter(fall -> bay.contains(Vec3.atCenterOf(fall.start()))).toList();
+        long near = falls.stream().filter(fall -> beside.contains(Vec3.atCenterOf(fall.start()))).count();
+        helper.assertTrue(near == DEEP_LAYERS_LEFT && falls.size() == DEEP_LAYERS_LEFT, "The " + DEEP_LAYERS_LEFT
+                + " shed layers should fall from beside the piece, " + near + " of " + falls.size() + " do");
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        helper.succeed();
+    }
+
+    /**
+     * A mock player Grabbing at five layers of Mortar on a stone wall's east face over two blocks of wall, a floor
+     * three blocks below, sees the 3 leftover layers drip straight down off the held piece onto the floor.
+     * decision leftover-mortar-quivers-and-drips-down-off-the-lifted-piece
+     *
+     * @param helper the gametest helper
+     */
+    public static void wallLeftoverMortarDripsDown(GameTestHelper helper) {
+        layStone(helper, FLOOR_Y, FLOOR_Y);
+        for (int x = WALL_LOW_X; x <= WALL_HIGH_X; x++) {
+            for (int y = WALL_LOW_Y; y <= HIGH_WALL_Y; y++) {
+                for (int z = GROUND_LOW_Z; z <= GROUND_HIGH_Z; z++) {
+                    helper.setBlock(new BlockPos(x, y, z), Blocks.STONE);
+                }
+            }
+        }
+        helper.setBlock(HIGH_WALL_MORTAR_CELL, GooBlocks.ROCK_MORTAR.get().defaultBlockState()
+                .setValue(VolumeCellBlock.coatProperty(Direction.WEST), SideCoat.ATTACHED)
+                .setValue(VolumeCellBlock.LAYERS, WALL_LAYERS));
+        ServerPlayer player = grabber(helper, Vec3.atBottomCenterOf(WALL_STAND_POS), FACING_WEST);
+        player.lookAt(EntityAnchorArgument.Anchor.EYES, Vec3.atCenterOf(helper.absolutePos(HIGH_WALL_MORTAR_CELL)));
+        channel(helper, player, HOLD_TILL_DRIPS_LAND, LOOKING_UP);
+        helper.runAfterDelay(AFTER_THE_GRAB, () -> assertRiding(helper, player, WALL_LAYERS_LEFT));
+        helper.runAfterDelay(ALL_SHED, () -> assertRiding(helper, player, 0));
+        helper.runAfterDelay(HOLD_TILL_DRIPS_LAND + 1, () -> {
+            int pooled = mortarLayersAtY(helper, ON_THE_FLOOR_Y);
+            helper.assertTrue(pooled == WALL_LAYERS_LEFT,
+                    "The floor below the piece should hold the " + WALL_LAYERS_LEFT + " dripped layers, holds "
+                            + pooled);
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Lays 13 layers of Mortar on raised ground over air and has a mock player grab them, the look turned down so
+     * Grab holds the piece straight over its hole.
+     */
+    private static ServerPlayer grabOverTheHole(GameTestHelper helper, int channelTicks) {
+        layStone(helper, FLOOR_Y, FLOOR_Y);
+        layStone(helper, RAISED_LOW_Y, RAISED_HIGH_Y);
+        helper.setBlock(DEEP_MORTAR_CELL, GooBlocks.ROCK_MORTAR.get().defaultBlockState()
+                .setValue(VolumeCellBlock.LAYERS, DEEP_LAYERS));
+        ServerPlayer player = grabber(helper, OVER_THE_HOLE_STAND, FACING_EAST);
+        player.lookAt(EntityAnchorArgument.Anchor.EYES, Vec3.atBottomCenterOf(helper.absolutePos(DEEP_MORTAR_CELL)));
+        channel(helper, player, channelTicks, LOOKING_DOWN_OVER_THE_HOLE);
+        return player;
+    }
+
+    private static void assertRiding(GameTestHelper helper, ServerPlayer player, int layers) {
+        BlockHunk hunk = theOneHunk(helper, player);
+        helper.assertTrue(hunk.ridingLayers() == layers,
+                "The piece should carry " + layers + " riding layers, carries " + hunk.ridingLayers());
+    }
+
+    private static BlockHunk onlyHunk(GameTestHelper helper) {
+        List<BlockHunk> hunks = helper.getLevel().getEntitiesOfClass(BlockHunk.class, bay(helper));
+        helper.assertTrue(hunks.size() == 1, "One hunk should hold the painted blocks, found " + hunks.size());
+        return hunks.getFirst();
+    }
+
+    private static int fallsInTheBay(GameTestHelper helper) {
+        AABB bay = bay(helper);
+        return (int) GooServerState.of(helper.getLevel().getServer()).layerFalls().held().stream()
+                .filter(fall -> bay.contains(Vec3.atCenterOf(fall.start()))).count();
+    }
+
+    private static int mortarLayersAtY(GameTestHelper helper, int y) {
+        int layers = 0;
+        for (BlockPos cell : BlockPos.betweenClosed(new BlockPos(0, y, 0), new BlockPos(BAY_FAR_CORNER.getX(), y,
+                BAY_FAR_CORNER.getZ()))) {
+            layers += MortarCellBlock.layersAt(helper.getLevel(), helper.absolutePos(cell));
+        }
+        return layers;
     }
 
     /**
@@ -133,19 +308,13 @@ public final class GrabMortarLiftTests {
      * @param helper the gametest helper
      */
     public static void spendsAMortarLayerPerBlockLifted(GameTestHelper helper) {
-        layStone(helper, FLOOR_Y, FLOOR_Y);
-        layStone(helper, RAISED_LOW_Y, RAISED_HIGH_Y);
-        helper.setBlock(DEEP_MORTAR_CELL, GooBlocks.ROCK_MORTAR.get().defaultBlockState()
-                .setValue(VolumeCellBlock.LAYERS, DEEP_LAYERS));
-        ServerPlayer player = grabber(helper, RAISED_STAND_POS, FACING_EAST);
-        player.lookAt(EntityAnchorArgument.Anchor.EYES, Vec3.atBottomCenterOf(helper.absolutePos(DEEP_MORTAR_CELL)));
-        channel(helper, player, HOLD_TILL_LANDED_TICKS, LEVEL);
-        helper.runAfterDelay(HOLD_TILL_LANDED_TICKS + 1, () -> {
+        ServerPlayer player = grabOverTheHole(helper, HOLD_TILL_DRIPS_LAND);
+        helper.runAfterDelay(HOLD_TILL_DRIPS_LAND + 1, () -> {
             BlockHunk hunk = theOneHunk(helper, player);
             helper.assertTrue(hunk.blocks().size() == RAISED_COLUMN.size()
                             && hunk.blocks().stream().allMatch(block -> block.state().is(Blocks.STONE)),
                     "The hunk should hold the two stone blocks under the Mortar, held " + hunk.blocks());
-            int left = bayMortarLayers(helper);
+            int left = bayMortarLayers(helper) + hunk.ridingLayers();
             helper.assertTrue(left == DEEP_LAYERS_LEFT,
                     "The bay's Mortar should total " + DEEP_LAYERS_LEFT + " layers after the lift, totals " + left);
             helper.getLevel().getServer().getPlayerList().remove(player);
@@ -168,7 +337,7 @@ public final class GrabMortarLiftTests {
                 .setValue(VolumeCellBlock.LAYERS, MORTAR_LAYERS);
         helper.setBlock(STUCK_MORTAR_CELL, twoLayers);
         OUTER_MORTAR_CELLS.forEach(cell -> helper.setBlock(cell, twoLayers));
-        ServerPlayer player = grabber(helper, STAND_POS, FACING_EAST);
+        ServerPlayer player = grabber(helper, Vec3.atBottomCenterOf(STAND_POS), FACING_EAST);
         player.lookAt(EntityAnchorArgument.Anchor.EYES,
                 Vec3.atBottomCenterOf(helper.absolutePos(OUTER_MORTAR_CELLS.getFirst())));
         channel(helper, player, HOLD_TILL_LANDED_TICKS, LEVEL);
@@ -234,7 +403,7 @@ public final class GrabMortarLiftTests {
         helper.setBlock(WALL_MORTAR_CELL, GooBlocks.ROCK_MORTAR.get().defaultBlockState()
                 .setValue(VolumeCellBlock.coatProperty(Direction.WEST), SideCoat.ATTACHED)
                 .setValue(VolumeCellBlock.LAYERS, MORTAR_LAYERS));
-        ServerPlayer player = grabber(helper, WALL_STAND_POS, FACING_WEST);
+        ServerPlayer player = grabber(helper, Vec3.atBottomCenterOf(WALL_STAND_POS), FACING_WEST);
         player.lookAt(EntityAnchorArgument.Anchor.EYES, Vec3.atCenterOf(helper.absolutePos(WALL_MORTAR_CELL)));
         for (int held = 1; held <= WALL_HOLD_TICKS; held++) {
             int tick = held;
@@ -289,7 +458,7 @@ public final class GrabMortarLiftTests {
         layGround(helper);
         helper.setBlock(MORTAR_CELL, GooBlocks.ROCK_MORTAR.get().defaultBlockState()
                 .setValue(VolumeCellBlock.LAYERS, MORTAR_LAYERS));
-        ServerPlayer player = grabber(helper, STAND_POS, FACING_EAST);
+        ServerPlayer player = grabber(helper, Vec3.atBottomCenterOf(STAND_POS), FACING_EAST);
         Vec3 painted = Vec3.atBottomCenterOf(helper.absolutePos(MORTAR_CELL));
         player.lookAt(EntityAnchorArgument.Anchor.EYES, painted);
         for (int held = 1; held <= HOLD_TICKS; held++) {
@@ -335,11 +504,11 @@ public final class GrabMortarLiftTests {
     }
 
     @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
-    private static ServerPlayer grabber(GameTestHelper helper, BlockPos standPos, float facing) {
+    private static ServerPlayer grabber(GameTestHelper helper, Vec3 standAt, float facing) {
         AbilityDefinition grab = AbilityRegistry.of(helper.getLevel()).getAbility(KINETIC_GRAB);
         helper.assertTrue(grab != null, ABILITY_REQUIRED);
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
-        Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(standPos));
+        Vec3 stand = helper.absoluteVec(standAt);
         player.setPos(stand.x, stand.y, stand.z);
         player.setYRot(facing);
         player.setYHeadRot(facing);
