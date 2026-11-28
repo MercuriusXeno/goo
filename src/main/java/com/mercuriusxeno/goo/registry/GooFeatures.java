@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.lunar.AirGeyserFeature;
 import com.mercuriusxeno.goo.lunar.BoulderFeature;
 import com.mercuriusxeno.goo.lunar.CraterPoolsFeature;
 import com.mercuriusxeno.goo.lunar.CrystalClusters;
+import com.mercuriusxeno.goo.lunar.DepositGooPocketFeature;
 import com.mercuriusxeno.goo.lunar.GooPocketFeature;
 import com.mercuriusxeno.goo.lunar.NativeIronLodeFeature;
 import com.mojang.serialization.MapCodec;
@@ -72,6 +73,13 @@ public final class GooFeatures {
      */
     public static final DeferredHolder<MapCodec<? extends Feature>, MapCodec<GooPocketFeature>> GOO_POCKET =
             FEATURES.register("goo_pocket", () -> GooPocketFeature.CODEC);
+
+    /**
+     * {@code goo:deposit_goo_pocket}, a pocket of astral world goo on the cave floor beside one of lunar's deposits.
+     * decision frost-astral-and-xeno-goo-spawn-periodically-on-lunar
+     */
+    public static final DeferredHolder<MapCodec<? extends Feature>, MapCodec<DepositGooPocketFeature>> DEPOSIT_GOO_POCKET =
+            FEATURES.register("deposit_goo_pocket", () -> DepositGooPocketFeature.CODEC);
 
     private GooFeatures() {
     }

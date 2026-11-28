@@ -46,7 +46,9 @@
       "goo:ore_lunar_ancient_debris"
     ],
     [],
-    [],
+    [
+      "goo:deposit_goo_pockets"
+    ],
     [],
     []
   ],

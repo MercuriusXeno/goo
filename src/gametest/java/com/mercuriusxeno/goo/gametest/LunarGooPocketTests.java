@@ -87,7 +87,8 @@ public final class LunarGooPocketTests {
         Map<BlockPos, Integer> laid = pocketCells(lunar, origin);
         helper.assertFalse(laid.isEmpty(), String.format(NO_CELLS, origin));
         int held = laid.values().stream().mapToInt(Integer::intValue).sum();
-        helper.assertTrue(held <= pocket.volume(), String.format(OVER_VOLUME, pocket.volume(), held, laid));
+        int volume = pocket.shape().volume();
+        helper.assertTrue(held <= volume, String.format(OVER_VOLUME, volume, held, laid));
         int[] watched = {-1};
         helper.onEachTick(() -> {
             if (watched[0] < 0) {
