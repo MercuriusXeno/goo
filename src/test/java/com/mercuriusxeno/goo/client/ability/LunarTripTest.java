@@ -224,14 +224,25 @@ class LunarTripTest {
         }
 
         /**
+         * The fully swollen planet's quad stands centered on the fixation's direction and in front of vanilla's near
+         * plane: each corner's depth along the direction the view holds, not its distance from the camera, clears it.
          * decision home-swell-feels-as-far-as-the-moon-pull
          */
         @Test
-        void theFullySwollenPlanetDrawsInFrontOfTheNearPlane() {
+        void theFullySwollenPlanetDrawsCenteredInFrontOfTheNearPlane() {
             List<Vector3f> corners = LunarTripBodies.planetCorners(FIXATION_DIRECTION, LunarTrip.planetHalfTangent(1F));
+            Vector3f center = new Vector3f();
+            corners.forEach(center::add);
+            center.div(corners.size());
+            Vector3f along = new Vector3f(center).normalize();
+            assertEquals(FIXATION_DIRECTION.x(), along.x(), QUAD_TOLERANCE, "center " + center);
+            assertEquals(FIXATION_DIRECTION.y(), along.y(), QUAD_TOLERANCE, "center " + center);
+            assertEquals(FIXATION_DIRECTION.z(), along.z(), QUAD_TOLERANCE, "center " + center);
             for (Vector3f corner : corners) {
-                assertTrue(corner.length() > VANILLA_NEAR_PLANE, "corner " + corner + " stands "
-                        + corner.length() + " from the camera, inside vanilla's near plane " + VANILLA_NEAR_PLANE);
+                double depth = corner.x() * FIXATION_DIRECTION.x() + corner.y() * FIXATION_DIRECTION.y()
+                        + corner.z() * FIXATION_DIRECTION.z();
+                assertTrue(depth > VANILLA_NEAR_PLANE, "corner " + corner + " stands " + depth
+                        + " deep along the fixation's direction, inside vanilla's near plane " + VANILLA_NEAR_PLANE);
             }
         }
 
