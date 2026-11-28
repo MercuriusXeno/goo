@@ -18,11 +18,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Covers the gain goo's client hands a sound's channel: Drain's wind loop
- * plays about 6 dB under its soul_escape hit, the hit keeps its a46598f59
- * level, about twice as loud as it modeled at 613cd1118 with no take
- * clipping, every other sound keeps vanilla's clamp, and the sliders still
- * turn Drain's two down. The loudness cases read vanilla's recordings from
- * the asset cache the build's downloadAssets task fills.
+ * plays at three quarters of the gain it played at in 6e53293ad, its
+ * soul_escape hit plays at its a46598f59 level with no take clipping, every
+ * other sound keeps vanilla's clamp, and the sliders still turn Drain's two
+ * down. The loudness cases read vanilla's recordings from the asset cache the
+ * build's downloadAssets task fills.
  * drain-lifts-its-chosen-sounds-past-the-volume-cap
  */
 class LiftedSoundGainTest {
@@ -35,47 +35,29 @@ class LiftedSoundGainTest {
     private static final float HALF = 0.5f;
 
     /**
-     * Drain's wind plays about 6 dB under its hit at a mob 3 blocks off, by
-     * the wind's mono RMS against the mean over the hit's takes.
+     * Drain's wind plays at three quarters of the gain it played at in
+     * 6e53293ad, the operator's ruling after hearing it there.
      * drain-wind-plays-6-db-under-its-hit
      */
     @Nested
-    class WindUnderItsHit {
+    class WindAtThreeQuarters {
 
-        private static final double LEAST_MARGIN = 4.5;
-        private static final double MOST_MARGIN = 7.5;
-        private static final float MOB_DISTANCE = 3f;
+        /** The wind's lift in 6e53293ad. */
+        private static final float LIFT_AT_6E53293AD = 7.52f;
+        private static final float THREE_QUARTERS = 0.75f;
+        private static final float WITHIN = 0.01f;
 
         @Test
-        void drainsHitPlaysAboutSixDecibelsOverItsWind() throws IOException {
-            VanillaRecordings recordings = VanillaRecordings.fromBuild();
-            float held = drain().delivery().sound().orElseThrow().volume();
-            double wind = 0;
-            List<VanillaRecordings.Take> windTakes = recordings.takesOf(SOUL_SAND_VALLEY_LOOP.getPath());
-            for (VanillaRecordings.Take take : windTakes) {
-                float gain = LiftedSoundGain.gainFor(SOUL_SAND_VALLEY_LOOP, held * take.entryVolume(), 1f, 1f);
-                wind += recordings.loudnessOf(take).rmsDecibels() + decibels(gain);
-            }
-            wind /= windTakes.size();
-            float leech = leechVolume();
-            double hit = 0;
-            List<VanillaRecordings.Take> hitTakes = recordings.takesOf(SOUL_ESCAPE.getPath());
-            for (VanillaRecordings.Take take : hitTakes) {
-                hit += recordings.loudnessOf(take).rmsDecibels()
-                        + decibels(hitGainOf(take, leech) * fallOff(MOB_DISTANCE, attenuationOf(take, leech)));
-            }
-            hit /= hitTakes.size();
-            double margin = hit - wind;
-            assertTrue(margin >= LEAST_MARGIN && margin <= MOST_MARGIN, "Drain's hit plays at " + hit + " dBFS RMS"
-                    + " at 3 blocks against its wind at " + wind + ", " + margin + " dB over, outside "
-                    + LEAST_MARGIN + " to " + MOST_MARGIN);
+        void drainsWindPlaysAtThreeQuartersOfItsLastGain() {
+            assertEquals(THREE_QUARTERS * LIFT_AT_6E53293AD, LiftedSoundGain.gainFor(SOUL_SAND_VALLEY_LOOP, 1f, 1f, 1f),
+                    WITHIN);
         }
     }
 
     /**
      * The hit keeps the lift, leech volume and attenuation distance it played
      * with at a46598f59.
-     * drain-wind-plays-6-db-under-its-hit
+     * drain-hit-plays-at-its-a46598f59-level
      */
     @Nested
     class HitKeepsItsLevel {
@@ -96,41 +78,31 @@ class LiftedSoundGainTest {
     }
 
     /**
-     * soul_escape at a mob 3 blocks off rises 8 to 12 dB over its level at
-     * 613cd1118, by the mean RMS over its takes, and no take's peak at 1
-     * block reaches full scale.
-     * drain-hit-plays-twice-as-loud
+     * soul_escape at a mob 3 blocks off plays at -27.5 dBFS within 1 dB, by
+     * the mean RMS over its takes, and no take's peak at 1 block reaches full
+     * scale.
+     * drain-hit-plays-at-its-a46598f59-level
      */
     @Nested
-    class HitTwiceAsLoud {
+    class HitAtItsLevel {
 
-        /** soul_escape's lift at 613cd1118. */
-        private static final float LIFT_AT_613CD1118 = 13.46f;
-        /** The volume Drain's leech played soul_escape at, at 613cd1118. */
-        private static final float LEECH_VOLUME_AT_613CD1118 = 0.7f;
-        /** The distance soul_escape fell off over at 613cd1118, vanilla's entry at that volume. */
-        private static final float ATTENUATION_AT_613CD1118 = 12f;
+        private static final double HIT_DECIBELS = -27.5;
+        private static final double WITHIN_DECIBELS = 1;
         private static final float MOB_DISTANCE = 3f;
         private static final float NEAREST_DISTANCE = 1f;
-        private static final double LEAST_RISE = 8;
-        private static final double MOST_RISE = 12;
 
         @Test
-        void drainsHitRisesAboutTwiceAsLoud() throws IOException {
+        void drainsHitPlaysAtItsLevel() throws IOException {
             VanillaRecordings recordings = VanillaRecordings.fromBuild();
             float leech = leechVolume();
-            double then = 0;
-            double now = 0;
+            double hit = 0;
             List<VanillaRecordings.Take> takes = recordings.takesOf(SOUL_ESCAPE.getPath());
             for (VanillaRecordings.Take take : takes) {
-                double rms = recordings.loudnessOf(take).rmsDecibels();
-                then += rms + decibels(LEECH_VOLUME_AT_613CD1118 * take.entryVolume() * LIFT_AT_613CD1118
-                        * fallOff(MOB_DISTANCE, ATTENUATION_AT_613CD1118));
-                now += rms + decibels(hitGainOf(take, leech) * fallOff(MOB_DISTANCE, attenuationOf(take, leech)));
+                hit += recordings.loudnessOf(take).rmsDecibels()
+                        + decibels(hitGainOf(take, leech) * fallOff(MOB_DISTANCE, attenuationOf(take, leech)));
             }
-            double rise = (now - then) / takes.size();
-            assertTrue(rise >= LEAST_RISE && rise <= MOST_RISE, "Drain's hit rises " + rise + " dB at 3 blocks over"
-                    + " 613cd1118, outside " + LEAST_RISE + " to " + MOST_RISE);
+            hit /= takes.size();
+            assertEquals(HIT_DECIBELS, hit, WITHIN_DECIBELS, "Drain's hit plays at " + hit + " dBFS RMS at 3 blocks");
         }
 
         @Test
