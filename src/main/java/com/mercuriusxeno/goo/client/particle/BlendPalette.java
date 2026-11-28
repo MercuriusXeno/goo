@@ -177,6 +177,14 @@ public record BlendPalette(float lightRed, float lightGreen, float lightBlue,
             0x92 / 255f, 0x82 / 255f, 0xF5 / 255f, 0x6A / 255f, 0x5A / 255f, 0xCD / 255f);
 
     /**
+     * Coat's spray drips, from durable's bright bronze, 9C7C50, to its wheel
+     * gunmetal, 3A3230, the two the durable goo type's definition names.
+     * durable-goo-is-a-protective-coating-that-blocks-damage
+     */
+    public static final BlendPalette COAT_DURABLE_GUNMETALS = new BlendPalette(
+            0x9C / 255f, 0x7C / 255f, 0x50 / 255f, 0x3A / 255f, 0x32 / 255f, 0x30 / 255f);
+
+    /**
      * The color a share of the way from the light end to the dark.
      *
      * @param blend the share, 0 at the light end and 1 at the dark

@@ -99,6 +99,11 @@ public record CellBinding(ResourceKey<GooTypeDefinition> gooType, Identifier lay
     public static final Identifier DOWSING_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "astral_dowsing");
     /** The ability laying Xeno's goo, Ooze, whose cost prices a whole block of it and whose step names its turn. */
     public static final Identifier OOZE_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "xeno_ooze");
+    /**
+     * Durable's residual, laying Coat.
+     * durable-goo-is-a-protective-coating-that-blocks-damage
+     */
+    public static final Identifier COAT_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "durable_coat");
 
     /** Weird's slime: Goop lays it, and it bounces what lands on it. */
     public static final CellBinding SLIME = new CellBinding(GooTypes.WEIRD, GOOP_ABILITY, CellSurface.BOUNCE,
@@ -220,5 +225,11 @@ public record CellBinding(ResourceKey<GooTypeDefinition> gooType, Identifier lay
      * ooze-is-xenos-world-goo-that-turns-slimes-into-random-hostiles
      */
     public static final CellBinding OOZE = new CellBinding(GooTypes.XENO, OOZE_ABILITY, CellSurface.POOL,
+            FluidFooting.NONE);
+    /**
+     * Coat: Durable's goo on the volume cell, ordinary ground to stand on, a coating that blocks damage.
+     * durable-goo-is-a-protective-coating-that-blocks-damage
+     */
+    public static final CellBinding COAT = new CellBinding(GooTypes.DURABLE, COAT_ABILITY, CellSurface.POOL,
             FluidFooting.NONE);
 }

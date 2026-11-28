@@ -49,11 +49,13 @@ class ResidualAbilityIconsTest {
     // operator pick 2026-11-25: Rime takes draft B3, a deep-outlined snowflake frozen into a wide sheet of frost goo
     // operator pick 2026-11-26: Wisps takes draft A, a beaded glaze of glow goo with two wisps rising off the beads
     // ooze-is-xenos-world-goo-that-turns-slimes-into-random-hostiles: Ooze draws a red-eyed slime sunk in a xeno pool
+    // durable-goo-is-a-protective-coating-that-blocks-damage: Coat wraps the block in gunmetal under a bronze shield
     /** The icons drawing the residual style; a later residual joins by its icon's name. */
     static final List<String> RESIDUAL_ICONS = List.of("weird_goop", "kinetic_slick", "blaze_molten", "sculk_creep",
             "crystal_shatter", "hex_leech", "typhoon_updraft", "jelly_nectar", "pulse_signal",
             "metal_spikes", "zombie_infest", "leaf_vines", "unstable_nitro", "quantum_phase", "rock_mortar",
-            "yarn_stitch", "nether_gloom", "astral_dowsing", "frost_rime", "glow_wisps", "xeno_ooze");
+            "yarn_stitch", "nether_gloom", "astral_dowsing", "frost_rime", "glow_wisps", "xeno_ooze",
+            "durable_coat");
 
     private static final String WISPS = "glow_wisps";
     private static final String SHATTER = "crystal_shatter";
@@ -64,6 +66,7 @@ class ResidualAbilityIconsTest {
     private static final String DOWSING = "astral_dowsing";
     private static final String GLOOM = "nether_gloom";
     private static final String OOZE = "xeno_ooze";
+    private static final String COAT = "durable_coat";
     private static final String GOO_TYPE = "/data/goo/goo/goo_type/%s.json";
     private static final int HEX = 16;
     /** How far a goo texel's hue may lie from its type's wheel hue, as a share of the hue circle: 40 degrees. */
@@ -160,14 +163,14 @@ class ResidualAbilityIconsTest {
     }
 
     /**
-     * Nitro's goo, Gloom's, Dowsing's, Rime's, Wisps' and Ooze's, each icon's texels in its type's
+     * Nitro's goo, Gloom's, Dowsing's, Rime's, Wisps', Ooze's and Coat's, each icon's texels in its type's
      * goo colors outside the shared block, take a shape no other residual
      * icon's goo takes, drawn or mirrored, whatever mark sits over it.
      * each-residual-icon-draws-its-goo-in-its-own-shape
      * dowsing-icon-is-a-dowsing-rod
      */
     @ParameterizedTest
-    @ValueSource(strings = {NITRO, GLOOM, DOWSING, RIME, WISPS, OOZE})
+    @ValueSource(strings = {NITRO, GLOOM, DOWSING, RIME, WISPS, OOZE, COAT})
     void itsGooTakesAShapeNoOtherResidualIconsGooTakes(String ability) throws IOException {
         String own = gooMask(ability, false);
         List<String> copies = new ArrayList<>();

@@ -47,7 +47,7 @@ class StepCodecTest {
                     Expr.parse("4 + 12 * charge").getOrThrow(), 0.05f, 0.4f, new FrostCurve(300, 0.005f, 0.5f, 3f))),
             Map.entry("grudge", new GrudgeStep(Expr.parse("2 + 6 * charge").getOrThrow())),
             Map.entry("freeze_blocks", new FreezeBlocksStep(Expr.literal(2))),
-            Map.entry("coat", new CoatStep()),
+            Map.entry("goop", new GoopStep()),
             Map.entry("slick", new SlickStep(1.03, 1.08, 40, 1, 0.3)),
             Map.entry("dowse", new DowseStep()),
             Map.entry("vacuum", new VacuumStep(3, 6, 20)),
@@ -203,6 +203,7 @@ class StepCodecTest {
             Map.entry("infest", new InfestStep(Identifier.fromNamespaceAndPath("goo", "decay"), 20, 2f)),
             Map.entry("nitro", new NitroStep(1.0, 0.2, 4)),
             Map.entry("gloom", new GloomStep()),
+            Map.entry("coat", new CoatStep()),
             Map.entry("ooze", new OozeStep(8, 20, List.of(new AilmentOverlayStep(AilmentKind.HEX,
                     Expr.literal(60))))),
             Map.entry("phase_goo", new PhaseGooStep(2)),
@@ -356,10 +357,10 @@ class StepCodecTest {
 
     // goop-stops-turning-lava-into-magma
     @Test
-    void aStepListCarryingCoolLavaLoadsTheCoatAlone() {
-        String json = "[{\"type\": \"cool_lava\"}, {\"type\": \"coat\"}]";
+    void aStepListCarryingCoolLavaLoadsTheGoopAlone() {
+        String json = "[{\"type\": \"cool_lava\"}, {\"type\": \"goop\"}]";
         List<Step> steps = StepTypes.LIST_CODEC.parse(JsonOps.INSTANCE, JsonParser.parseString(json)).getOrThrow();
-        assertEquals(List.of(new CoatStep()), steps);
+        assertEquals(List.of(new GoopStep()), steps);
     }
 
     // floatstone-lift-leaves-the-mod

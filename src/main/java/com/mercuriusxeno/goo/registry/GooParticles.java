@@ -228,6 +228,15 @@ public class GooParticles {
         PARTICLE_TYPES.register("ooze_spray_drip", () -> new SimpleParticleType(false));
 
     /**
+     * Coat's spray drip: the mod's blocky goo drip in durable's gunmetal and
+     * bronze, flying its arc until it strikes, where it splats and the Coat
+     * goo lands.
+     * durable-goo-is-a-protective-coating-that-blocks-damage
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> COAT_SPRAY_DRIP =
+        PARTICLE_TYPES.register("coat_spray_drip", () -> new SimpleParticleType(false));
+
+    /**
      * A snowflake crystal flitting weightlessly along Cold's wind (decision
      * cold-streams-wind-lines-and-snowflakes).
      */

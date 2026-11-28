@@ -55,7 +55,7 @@ public final class StepTypes {
         register(NovaStep.TYPE);
         register(GrudgeStep.TYPE);
         register(FreezeBlocksStep.TYPE);
-        register(CoatStep.TYPE);
+        register(GoopStep.TYPE);
         register(SlickStep.TYPE);
         register(DowseStep.TYPE);
         register(VacuumStep.TYPE);
@@ -166,6 +166,7 @@ public final class StepTypes {
         register(NitroStep.TYPE);
         register(GloomStep.TYPE);
         register(OozeStep.TYPE);
+        register(CoatStep.TYPE);
         register(MortarStep.TYPE);
         register(GrabStep.TYPE);
         register(GougeStep.TYPE);

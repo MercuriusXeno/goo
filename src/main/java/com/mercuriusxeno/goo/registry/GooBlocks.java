@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.block.ability.CellBinding;
+import com.mercuriusxeno.goo.block.ability.CoatCellBlock;
 import com.mercuriusxeno.goo.block.ability.CreepCellBlock;
 import com.mercuriusxeno.goo.block.ability.FungalBudBlock;
 import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
@@ -583,6 +584,28 @@ public class GooBlocks {
                     .friction(CellBinding.OOZE.surface().friction())
                     .sound(SoundType.SLIME_BLOCK)
                     .instabreak()
+                    .noOcclusion()
+                    .replaceable()
+                    .noLootTable()
+                    .pushReaction(PushReaction.POPPED));
+    /**
+     * Coat: the volume cell bound to Durable's goo, the netherite gunmetal
+     * goo Coat sprays over a block's tops, sides and undersides, one to
+     * fifteen layers, ordinary ground underfoot and sounding as goo does,
+     * resisting a blast and a pick as obsidian does at any fill, mined
+     * slowly with a diamond pickaxe or better, dropping the durable goo its
+     * layers cost through VolumeCellBlock.getDrops, no loot table
+     * (decisions durable-goo-is-a-protective-coating-that-blocks-damage,
+     * each-goo-type-ships-a-world-goo-on-the-volume-cell).
+     */
+    public static final DeferredBlock<CoatCellBlock> DURABLE_COAT = BLOCKS.registerBlock(
+            "durable_coat", properties -> new CoatCellBlock(properties, CellBinding.COAT),
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.TERRACOTTA_BLACK)
+                    .friction(CellBinding.COAT.surface().friction())
+                    .sound(SoundType.SLIME_BLOCK)
+                    .strength(CoatCellBlock.HARDNESS, CoatCellBlock.BLAST_RESISTANCE)
+                    .requiresCorrectToolForDrops()
                     .noOcclusion()
                     .replaceable()
                     .noLootTable()
