@@ -27,6 +27,7 @@ import com.mercuriusxeno.goo.client.ability.SprayMist;
 import com.mercuriusxeno.goo.client.ability.StreamMotes;
 import com.mercuriusxeno.goo.client.ability.Tomes;
 import com.mercuriusxeno.goo.client.hole.ClientPortableHoles;
+import com.mercuriusxeno.goo.client.lunar.LunarClientCrossing;
 import com.mercuriusxeno.goo.client.model.GooJoins;
 import com.mercuriusxeno.goo.client.sound.ListenerSounds;
 import com.mercuriusxeno.goo.client.zone.ClientConjuredDoors;
@@ -55,6 +56,7 @@ import com.mercuriusxeno.goo.network.KnownItemsSyncPayload;
 import com.mercuriusxeno.goo.network.LaserPayload;
 import com.mercuriusxeno.goo.network.LeechPayload;
 import com.mercuriusxeno.goo.network.ListenerSoundPayload;
+import com.mercuriusxeno.goo.network.LunarCrossingPayload;
 import com.mercuriusxeno.goo.network.MeteorScorchPayload;
 import com.mercuriusxeno.goo.network.MobHitPayload;
 import com.mercuriusxeno.goo.network.ModelShrinkPayload;
@@ -125,6 +127,7 @@ public final class GooClientNetworking {
         event.register(PartnerChunkPayload.TYPE, PartnerView::handle);
         event.register(PartnerChunksDropPayload.TYPE, PartnerView::handleDrop);
         event.register(PortableHolesSyncPayload.TYPE, ClientPortableHoles::handle);
+        event.register(LunarCrossingPayload.TYPE, LunarClientCrossing::handle);
         registerAbilityVisualHandlers(event);
     }
 

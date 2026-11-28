@@ -1,7 +1,15 @@
 package com.mercuriusxeno.goo.gametest;
 
 import com.mercuriusxeno.goo.lunar.Lunar;
+import com.mercuriusxeno.goo.lunar.LunarCrossingShift;
+import com.mercuriusxeno.goo.lunar.LunarCrossingViews;
+import com.mercuriusxeno.goo.network.LunarCrossingMovedPayload;
 import net.minecraft.core.Holder;
+import net.minecraft.network.protocol.game.ClientboundForgetLevelChunkPacket;
+import net.minecraft.server.level.ChunkTrackingView;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.tick.PlayerTickEvent;
+import java.util.ArrayList;
 import net.minecraft.core.QuartPos;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerLevel;
@@ -77,6 +85,33 @@ public final class LunarSeamTests {
             + " other side, reads %s there";
     private static final String NOT_PLACED_PAST_THE_SEAM = "A block placed at %s should land on the other side, not"
             + " past the seam, reads %s past it";
+    private static final String LUNAR_CROSSING_KEEPS_THE_VIEW_THE_CLIENT_HOLDS =
+            "lunar_crossing_keeps_the_view_the_client_holds";
+    private static final String LUNAR_CROSSING_RESENDS_THE_VIEW_A_CLIENT_DID_NOT_MOVE =
+            "lunar_crossing_resends_the_view_a_client_did_not_move";
+    private static final String LUNAR_CROSSING_WAITS_ON_NO_GENERATION = "lunar_crossing_waits_on_no_generation";
+    /** Each crossing test stands on its own row of chunks, clear of every other test's tickets. */
+    private static final int KEEPS_THE_VIEW_CHUNK_Z = 100;
+    private static final int RESENDS_THE_VIEW_CHUNK_Z = 200;
+    private static final int WAITS_ON_NO_GENERATION_CHUNK_Z = 300;
+    /**
+     * Ticks a mock client waits to receive its whole view, and ticks it waits after crossing for what follows, both
+     * well inside a portal ticket's lapse, so the chunks it holds keep ticking throughout.
+     */
+    private static final int RECEIVE_TICKS = 200;
+    private static final int SETTLE_TICKS = 40;
+    /** A ticket ticks a chunk one short of its radius, and a view holds chunks three out, so five ticks them all. */
+    private static final int CROSSING_TICKET_RADIUS = 5;
+    private static final double CROSSING_HEIGHT = 200.0;
+    private static final double CHUNK_MIDDLE = 8.5;
+    private static final String NOTHING_RECEIVED = "The mock client should receive its view before it crosses";
+    private static final String FORGOT_MOVED = "The crossing should tell the client to forget no chunk it moved,"
+            + " forgets %s: %s";
+    private static final String RESENT_MOVED = "The crossing should resend no chunk the client moved, resends %s: %s";
+    private static final String LANDING_UNSENT = "A client that moved nothing should be sent its whole landing view,"
+            + " %s go unsent: %s";
+    private static final String LANDING_UNLOADED = "A player by the seam should hold its whole landing view loaded,"
+            + " %s stand unloaded: %s";
     private static final int SEAM = 7_500_000;
     private static final int[] PAST_THE_SEAM = {0, 1, 7, 40, 333, 641, 1_919};
     private static final int[] ACROSS = {0, 2_345, -SEAM + 3};
@@ -105,6 +140,184 @@ public final class LunarSeamTests {
                 LunarSeamTests::lunarViewPastTheSeamIsTheOtherSide);
         GooTestFunctions.registerTest(registrar, LUNAR_BLOCK_PLACED_ACROSS_THE_SEAM_LANDS_ON_THE_OTHER_SIDE,
                 LunarSeamTests::lunarBlockPlacedAcrossTheSeamLandsOnTheOtherSide);
+        GooTestFunctions.registerTest(registrar, LUNAR_CROSSING_KEEPS_THE_VIEW_THE_CLIENT_HOLDS,
+                LunarSeamTests::lunarCrossingKeepsTheViewTheClientHolds);
+        GooTestFunctions.registerTest(registrar, LUNAR_CROSSING_RESENDS_THE_VIEW_A_CLIENT_DID_NOT_MOVE,
+                LunarSeamTests::lunarCrossingResendsTheViewAClientDidNotMove);
+        GooTestFunctions.registerTest(registrar, LUNAR_CROSSING_WAITS_ON_NO_GENERATION,
+                LunarSeamTests::lunarCrossingWaitsOnNoGeneration);
+    }
+
+    /**
+     * A mock client by the east seam receives its whole view, is carried across, confirms it moved what it held by
+     * the crossing's shift, and accepts the teleport; the server then tells it to forget no chunk it moved and sends
+     * none of the landing view's chunks it moved there.
+     *
+     * @param helper the gametest helper
+     */
+    public static void lunarCrossingKeepsTheViewTheClientHolds(GameTestHelper helper) {
+        CrossingClient client = CrossingClient.standingBy(helper, KEEPS_THE_VIEW_CHUNK_Z);
+        helper.runAfterDelay(RECEIVE_TICKS, () -> client.cross(true));
+        helper.runAfterDelay(RECEIVE_TICKS + SETTLE_TICKS, () -> {
+            client.leave();
+            helper.assertTrue(client.received > 0, NOTHING_RECEIVED);
+            List<ChunkPos> forgotten = client.forgottenAfter.stream()
+                    .filter(pos -> client.landing.contains(client.shift.apply(pos))).toList();
+            helper.assertTrue(forgotten.isEmpty(), String.format(FORGOT_MOVED, forgotten.size(), forgotten));
+            List<ChunkPos> resent = client.sentAfter.stream()
+                    .filter(pos -> client.held.contains(client.shift.undo(pos))).toList();
+            helper.assertTrue(resent.isEmpty(), String.format(RESENT_MOVED, resent.size(), resent));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A mock client by the east seam receives its whole view and is carried across without confirming a move; the
+     * server sends it every chunk of the landing view, as a crossing did before the client could move its chunks.
+     *
+     * @param helper the gametest helper
+     */
+    public static void lunarCrossingResendsTheViewAClientDidNotMove(GameTestHelper helper) {
+        CrossingClient client = CrossingClient.standingBy(helper, RESENDS_THE_VIEW_CHUNK_Z);
+        helper.runAfterDelay(RECEIVE_TICKS, () -> client.cross(false));
+        helper.runAfterDelay(RECEIVE_TICKS + SETTLE_TICKS, () -> {
+            client.leave();
+            helper.assertTrue(client.received > 0, NOTHING_RECEIVED);
+            List<ChunkPos> unsent = new ArrayList<>();
+            client.landing.forEach(pos -> {
+                if (!client.sentAfter.contains(pos)) {
+                    unsent.add(pos);
+                }
+            });
+            helper.assertTrue(unsent.isEmpty(), String.format(LANDING_UNSENT, unsent.size(), unsent));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A mock player standing by the east seam for one hold cycle holds every chunk of the view it would land in
+     * loaded at full status, past the far edge included, before any crossing carries it there.
+     *
+     * @param helper the gametest helper
+     */
+    public static void lunarCrossingWaitsOnNoGeneration(GameTestHelper helper) {
+        ServerLevel lunar = helper.getLevel().getServer().getLevel(Lunar.LEVEL);
+        helper.assertTrue(lunar != null, LUNAR_REQUIRED);
+        ServerPlayer player = standingIn(helper, lunar, standingSpot(WAITS_ON_NO_GENERATION_CHUNK_Z));
+        NeoForge.EVENT_BUS.post(new PlayerTickEvent.Post(player));
+        ChunkTrackingView landing = landingViewOf(player, WAITS_ON_NO_GENERATION_CHUNK_Z);
+        helper.succeedWhen(() -> {
+            List<ChunkPos> unloaded = new ArrayList<>();
+            landing.forEach(pos -> {
+                if (lunar.getChunkSource().getChunkNow(pos.x(), pos.z()) == null) {
+                    unloaded.add(pos);
+                }
+            });
+            helper.assertTrue(unloaded.isEmpty(), String.format(LANDING_UNLOADED, unloaded.size(), unloaded));
+            helper.getLevel().getServer().getPlayerList().remove(player);
+        });
+    }
+
+    private static Vec3 standingSpot(int chunkZ) {
+        return new Vec3(SEAM - HALF_BLOCK, CROSSING_HEIGHT, (chunkZ << CHUNK_SHIFT) + CHUNK_MIDDLE);
+    }
+
+    private static ChunkTrackingView landingViewOf(ServerPlayer player, int chunkZ) {
+        int viewDistance = player.getChunkTrackingView() instanceof ChunkTrackingView.Positioned view
+                ? view.viewDistance() : 2;
+        return ChunkTrackingView.of(new ChunkPos(-SEAM_CHUNK, chunkZ), viewDistance);
+    }
+
+    /**
+     * A mock client standing just inside the east seam: it takes every chunk the server sends it each tick, as a
+     * client acknowledging each batch does, and keeps what the server sent and forgot after its crossing.
+     */
+    private static final class CrossingClient {
+
+        private final GameTestHelper helper;
+        private final ServerLevel lunar;
+        private final ServerPlayer player;
+        private final EmbeddedChannel channel;
+        private final List<ChunkPos> sentAfter = new ArrayList<>();
+        private final List<ChunkPos> forgottenAfter = new ArrayList<>();
+        private int received;
+        private boolean crossed;
+        private ChunkTrackingView held = ChunkTrackingView.EMPTY;
+        private ChunkTrackingView landing = ChunkTrackingView.EMPTY;
+        private LunarCrossingShift shift = new LunarCrossingShift(0, 0);
+
+        private CrossingClient(GameTestHelper helper, ServerLevel lunar, ServerPlayer player) {
+            this.helper = helper;
+            this.lunar = lunar;
+            this.player = player;
+            this.channel = (EmbeddedChannel) player.connection.getConnection().channel();
+        }
+
+        /** Stands a client by the seam with both sides of its crossing loaded and ticking, so every chunk sends. */
+        static CrossingClient standingBy(GameTestHelper helper, int chunkZ) {
+            ServerLevel lunar = helper.getLevel().getServer().getLevel(Lunar.LEVEL);
+            helper.assertTrue(lunar != null, LUNAR_REQUIRED);
+            for (ChunkPos centre : List.of(new ChunkPos(SEAM_CHUNK - 1, chunkZ), new ChunkPos(-SEAM_CHUNK, chunkZ))) {
+                for (int dx = -CROSSING_TICKET_RADIUS; dx <= CROSSING_TICKET_RADIUS; dx++) {
+                    for (int dz = -CROSSING_TICKET_RADIUS; dz <= CROSSING_TICKET_RADIUS; dz++) {
+                        lunar.getChunk(centre.x() + dx, centre.z() + dz);
+                    }
+                }
+                lunar.getChunkSource().addTicketWithRadius(TicketType.PORTAL, centre, CROSSING_TICKET_RADIUS);
+            }
+            CrossingClient client = new CrossingClient(helper, lunar, standingIn(helper, lunar,
+                    standingSpot(chunkZ)));
+            helper.onEachTick(client::takeWhatIsSent);
+            return client;
+        }
+
+        private void takeWhatIsSent() {
+            acknowledgeEveryBatch(player);
+            player.connection.chunkSender.sendNextChunks(player);
+            player.connection.getConnection().flushChannel();
+            for (Object sent = channel.readOutbound(); sent != null; sent = channel.readOutbound()) {
+                Iterable<?> packets = sent instanceof BundlePacket<?> bundle ? bundle.subPackets() : List.of(sent);
+                for (Object packet : packets) {
+                    take(packet);
+                }
+            }
+        }
+
+        private void take(Object packet) {
+            if (packet instanceof ClientboundLevelChunkWithLightPacket chunk) {
+                received++;
+                if (crossed) {
+                    sentAfter.add(new ChunkPos(chunk.x(), chunk.z()));
+                }
+            } else if (packet instanceof ClientboundForgetLevelChunkPacket forget && crossed) {
+                forgottenAfter.add(forget.pos());
+            }
+        }
+
+        /** Carries the client across the seam, confirms its move where asked, and accepts the teleport. */
+        void cross(boolean confirmsTheMove) {
+            takeWhatIsSent();
+            held = player.getChunkTrackingView();
+            List<ChunkPos> heldChunks = new ArrayList<>();
+            held.forEach(heldChunks::add);
+            Vec3 stood = player.position();
+            player.setPos(stood.x + 1.0, stood.y, stood.z);
+            crossed = true;
+            NeoForge.EVENT_BUS.post(new PlayerTickEvent.Post(player));
+            shift = LunarCrossingShift.between(stood, player.position());
+            if (confirmsTheMove) {
+                LunarCrossingViews.confirmed(player, LunarCrossingMovedPayload.of(shift,
+                        heldChunks.stream().map(shift::apply).toList()));
+            }
+            lunar.getChunkSource().move(player);
+            landing = player.getChunkTrackingView();
+            takeWhatIsSent();
+        }
+
+        void leave() {
+            takeWhatIsSent();
+            helper.getLevel().getServer().getPlayerList().remove(player);
+        }
     }
 
     /**

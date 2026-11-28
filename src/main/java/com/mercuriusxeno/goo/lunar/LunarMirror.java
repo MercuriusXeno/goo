@@ -7,7 +7,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.level.TicketType;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.chunk.LevelChunk;
-import java.util.OptionalInt;
 
 /**
  * The view past lunar's seam: a player seeing a chunk past the seam is sent the chunk it wraps to, labelled where they
@@ -21,8 +20,12 @@ public final class LunarMirror {
     private static final int CHUNK_SIDE = 16;
     /** The chunks from the moon's middle to either edge. */
     private static final int HALF_CHUNKS = LunarSeam.PERIOD / CHUNK_SIDE / 2;
-    /** The other side loads a little wider than the view, so it stands loaded before a player sees it. */
-    private static final int LOAD_MARGIN = 2;
+    /**
+     * The other side loads wider than the view, so the landing view stands ticking, and so ready to send, before a
+     * crossing reaches it: a view holds chunks two past its distance, a crossing lands a chunk beyond the twin, and a
+     * ticket ticks chunks one short of its radius.
+     */
+    private static final int LOAD_MARGIN = 4;
 
     private LunarMirror() {
     }
@@ -40,7 +43,7 @@ public final class LunarMirror {
         if (level.dimension() != Lunar.LEVEL || !LunarSeam.pastTheSeam(pos)) {
             return new ClientboundLevelChunkWithLightPacket(seen, level.getLightEngine(), null, null);
         }
-        return labelledAt(pos, otherSideOf(level, pos), level);
+        return labelledAt(pos, otherSideOf(level, seen), level);
     }
 
     /**
@@ -62,8 +65,9 @@ public final class LunarMirror {
     }
 
     /**
-     * Holds the other side loaded for a lunar player within view of the seam: the strip in from the other edge they
-     * see past the seam, and the corner across both seams where they see past two.
+     * Holds the other side loaded for a lunar player within view of the seam: the view they would hold standing at
+     * their twin across the seam, which is the view a crossing lands them in, past the far edge included, so the
+     * crossing waits on no generation. A player by a corner holds the twin across each seam and across both.
      *
      * @param player the player
      */
@@ -72,13 +76,17 @@ public final class LunarMirror {
             return;
         }
         int reach = reachOf(level);
-        ChunkPos standing = LunarSeam.wrap(player.chunkPosition());
-        OptionalInt otherX = otherSide(standing.x(), reach);
-        OptionalInt otherZ = otherSide(standing.z(), reach);
-        otherX.ifPresent(x -> hold(level, new ChunkPos(x, standing.z()), reach));
-        otherZ.ifPresent(z -> hold(level, new ChunkPos(standing.x(), z), reach));
-        if (otherX.isPresent() && otherZ.isPresent()) {
-            hold(level, new ChunkPos(otherX.getAsInt(), otherZ.getAsInt()), reach);
+        ChunkPos wrapped = LunarSeam.wrap(player.chunkPosition());
+        int twinX = twinShift(wrapped.x(), reach);
+        int twinZ = twinShift(wrapped.z(), reach);
+        if (twinX != 0) {
+            hold(level, new ChunkPos(wrapped.x() + twinX, wrapped.z()), reach);
+        }
+        if (twinZ != 0) {
+            hold(level, new ChunkPos(wrapped.x(), wrapped.z() + twinZ), reach);
+        }
+        if (twinX != 0 && twinZ != 0) {
+            hold(level, new ChunkPos(wrapped.x() + twinX, wrapped.z() + twinZ), reach);
         }
     }
 
@@ -91,28 +99,30 @@ public final class LunarMirror {
     }
 
     /**
-     * Where the other side's strip centres along one axis for a chunk within reach of the seam: a reach in from the
-     * far edge, so the strip covers what the player sees past the seam and stops at the edge.
+     * How far along one axis a chunk within reach of the seam stands from its twin across it: one period, toward the
+     * other edge.
      *
      * @param chunk the chunk's index along x or z, inside the moon's span
      * @param reach how far a player sees, in chunks
-     * @return the strip's centre, or empty for a chunk beyond reach of the seam
+     * @return the move to the twin, or 0 for a chunk beyond reach of the seam
      */
-    static OptionalInt otherSide(int chunk, int reach) {
+    static int twinShift(int chunk, int reach) {
         if (HALF_CHUNKS - 1 - chunk < reach) {
-            return OptionalInt.of(-HALF_CHUNKS + reach);
+            return -LunarCrossingShift.PERIOD_CHUNKS;
         }
-        return chunk + HALF_CHUNKS < reach ? OptionalInt.of(HALF_CHUNKS - 1 - reach) : OptionalInt.empty();
+        return chunk + HALF_CHUNKS < reach ? LunarCrossingShift.PERIOD_CHUNKS : 0;
     }
 
     private static boolean nearTheSeam(ChunkPos chunk, int reach) {
         ChunkPos wrapped = LunarSeam.wrap(chunk);
-        return otherSide(wrapped.x(), reach).isPresent() || otherSide(wrapped.z(), reach).isPresent();
+        return twinShift(wrapped.x(), reach) != 0 || twinShift(wrapped.z(), reach) != 0;
     }
 
-    private static LevelChunk otherSideOf(ServerLevel level, ChunkPos pastTheSeam) {
-        ChunkPos wrapped = LunarSeam.wrap(pastTheSeam);
-        return level.getChunk(wrapped.x(), wrapped.z());
+    // The other side's chunk as it stands loaded; the seen chunk itself where the other side has yet to load.
+    private static LevelChunk otherSideOf(ServerLevel level, LevelChunk seen) {
+        ChunkPos wrapped = LunarSeam.wrap(seen.getPos());
+        LevelChunk otherSide = level.getChunkSource().getChunkNow(wrapped.x(), wrapped.z());
+        return otherSide == null ? seen : otherSide;
     }
 
     private static ClientboundLevelChunkWithLightPacket labelledAt(ChunkPos seenAt, LevelChunk source,

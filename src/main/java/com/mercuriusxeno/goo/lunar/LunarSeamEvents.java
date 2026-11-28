@@ -13,8 +13,9 @@ import java.util.EnumSet;
 import java.util.Set;
 
 /**
- * Lunar's seam on the server: every tick a body past the seam is carried across it, and once a second a player within
- * view of the seam holds the other side loaded.
+ * Lunar's seam on the server: every tick a body past the seam is carried across it, a carried player's client first
+ * told the crossing's shift so it moves what it holds, and once a second a player within view of the seam holds the
+ * other side loaded.
  * decision moon-wraps-at-its-border-like-the-zone
  */
 @EventBusSubscriber(modid = Goo.MODID)
@@ -45,8 +46,14 @@ public final class LunarSeamEvents {
             return;
         }
         LunarCrossing.across(entity.position(), entity.getDeltaMovement(), entity.getYRot(), entity.getXRot())
-                .ifPresent(carry -> entity.teleportTo(level, carry.position().x, carry.position().y,
-                        carry.position().z, KEEPS_FACING_AND_MOTION, 0.0F, 0.0F, false));
+                .ifPresent(carry -> {
+                    if (entity instanceof ServerPlayer player) {
+                        LunarCrossingViews.carrying(player,
+                                LunarCrossingShift.between(entity.position(), carry.position()));
+                    }
+                    entity.teleportTo(level, carry.position().x, carry.position().y, carry.position().z,
+                            KEEPS_FACING_AND_MOTION, 0.0F, 0.0F, false);
+                });
     }
 
     /**
