@@ -583,7 +583,7 @@ class VariablesPaneTest {
                 amountLineOf("\"384\"", "\"kind\": \"scalar\", \"value\": \"384\"")));
     }
 
-    private static final List<String> PREVIEWED_TYPES = List.of("rock", "yarn", "ornate", "crystal");
+    private static final List<String> PREVIEWED_TYPES = List.of("rock", "yarn", "osseous", "crystal");
 
     // A prefab summing two others whose preview reads four goo types, the screenshot's $mundane_trim.
     private static VariablesPane typedPreview() {
@@ -598,7 +598,7 @@ class VariablesPaneTest {
         VariablesTab prefabs = new VariablesTab(draft);
         prefabs.readEvaluated("""
                 {"constants": [{"name": "trim", "kind": "tree", "tree": {"rock": "192", "yarn": "336",
-                                "ornate": "32256", "crystal": "96768"}, "value": null, "error": null,
+                                "osseous": "32256", "crystal": "96768"}, "value": null, "error": null,
                                 "direct": [], "usedBy": [], "readers": []}]}
                 """);
         ManagerActions actions = mock(ManagerActions.class);

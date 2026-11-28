@@ -37,14 +37,14 @@ class GooConversionTest {
     class FormulaParsing {
 
         /**
-         * Basic formula: "metal / 4 -> ornate / 2".
+         * Basic formula: "metal / 4 -> osseous / 2".
          */
         @Test
         void parseBasicFormula() {
-            GooConversion.Formula f = GooConversion.parseFormula("metal / 4 -> ornate / 2");
+            GooConversion.Formula f = GooConversion.parseFormula("metal / 4 -> osseous / 2");
             assertEquals(GooTypes.METAL, f.sourceType());
             assertEquals(4, f.sourceDivisor());
-            assertEquals(GooTypes.ORNATE, f.targetType());
+            assertEquals(GooTypes.OSSEOUS, f.targetType());
             assertEquals(2, f.targetDivisor());
         }
 
@@ -124,42 +124,42 @@ class GooConversionTest {
     class ApplicationMath {
 
         /**
-         * 1x oxidation on metal=160: removes 40, adds 20 ornate.
+         * 1x oxidation on metal=160: removes 40, adds 20 osseous.
          */
         @Test
         void singleApplication() {
-            GooConversion.Formula oxidation = GooConversion.parseFormula("metal / 4 -> ornate / 2");
+            GooConversion.Formula oxidation = GooConversion.parseFormula("metal / 4 -> osseous / 2");
             GooValue copper = goo(GooTypes.METAL, 160);
 
             GooValue result = GooConversion.apply(copper, oxidation, 1);
             assertEquals(GooFraction.of(120), result.exact(GooTypes.METAL)); // 160 - 40
-            assertEquals(GooFraction.of(20), result.exact(GooTypes.ORNATE));    // 40 / 2
+            assertEquals(GooFraction.of(20), result.exact(GooTypes.OSSEOUS));    // 40 / 2
         }
 
         /**
-         * 2x oxidation on metal=160: removes 80, adds 40 ornate (simultaneous).
+         * 2x oxidation on metal=160: removes 80, adds 40 osseous (simultaneous).
          */
         @Test
         void doubleApplicationSimultaneous() {
-            GooConversion.Formula oxidation = GooConversion.parseFormula("metal / 4 -> ornate / 2");
+            GooConversion.Formula oxidation = GooConversion.parseFormula("metal / 4 -> osseous / 2");
             GooValue copper = goo(GooTypes.METAL, 160);
 
             GooValue result = GooConversion.apply(copper, oxidation, 2);
             assertEquals(GooFraction.of(80), result.exact(GooTypes.METAL));  // 160 - 2*40
-            assertEquals(GooFraction.of(40), result.exact(GooTypes.ORNATE));    // 2 * (40/2)
+            assertEquals(GooFraction.of(40), result.exact(GooTypes.OSSEOUS));    // 2 * (40/2)
         }
 
         /**
-         * 3x oxidation on metal=160: removes 120, adds 60 ornate.
+         * 3x oxidation on metal=160: removes 120, adds 60 osseous.
          */
         @Test
         void tripleApplicationSimultaneous() {
-            GooConversion.Formula oxidation = GooConversion.parseFormula("metal / 4 -> ornate / 2");
+            GooConversion.Formula oxidation = GooConversion.parseFormula("metal / 4 -> osseous / 2");
             GooValue copper = goo(GooTypes.METAL, 160);
 
             GooValue result = GooConversion.apply(copper, oxidation, 3);
             assertEquals(GooFraction.of(40), result.exact(GooTypes.METAL));  // 160 - 3*40
-            assertEquals(GooFraction.of(60), result.exact(GooTypes.ORNATE));    // 3 * (40/2)
+            assertEquals(GooFraction.of(60), result.exact(GooTypes.OSSEOUS));    // 3 * (40/2)
         }
 
         /**
@@ -167,12 +167,12 @@ class GooConversionTest {
          */
         @Test
         void otherTypesPreserved() {
-            GooConversion.Formula oxidation = GooConversion.parseFormula("metal / 4 -> ornate / 2");
+            GooConversion.Formula oxidation = GooConversion.parseFormula("metal / 4 -> osseous / 2");
             GooValue copper = goo(GooTypes.METAL, 160, GooTypes.ROCK, 50);
 
             GooValue result = GooConversion.apply(copper, oxidation, 1);
             assertEquals(GooFraction.of(120), result.exact(GooTypes.METAL));
-            assertEquals(GooFraction.of(20), result.exact(GooTypes.ORNATE));
+            assertEquals(GooFraction.of(20), result.exact(GooTypes.OSSEOUS));
             assertEquals(GooFraction.of(50), result.exact(GooTypes.ROCK)); // untouched
         }
 
@@ -181,13 +181,13 @@ class GooConversionTest {
          */
         @Test
         void missingSourceTypeNoOp() {
-            GooConversion.Formula oxidation = GooConversion.parseFormula("metal / 4 -> ornate / 2");
+            GooConversion.Formula oxidation = GooConversion.parseFormula("metal / 4 -> osseous / 2");
             GooValue noMetal = goo(GooTypes.ROCK, 100);
 
             GooValue result = GooConversion.apply(noMetal, oxidation, 1);
             assertEquals(GooFraction.of(100), result.exact(GooTypes.ROCK));
             assertEquals(GooFraction.of(0), result.exact(GooTypes.METAL));
-            assertEquals(GooFraction.of(0), result.exact(GooTypes.ORNATE));
+            assertEquals(GooFraction.of(0), result.exact(GooTypes.OSSEOUS));
         }
 
         /**
@@ -196,11 +196,11 @@ class GooConversionTest {
          */
         @Test
         void sourceDivisionWithARemainderMovesTheExactShare() {
-            GooConversion.Formula f = GooConversion.parseFormula("metal / 3 -> ornate / 1");
+            GooConversion.Formula f = GooConversion.parseFormula("metal / 3 -> osseous / 1");
             GooValue result = GooConversion.apply(goo(GooTypes.METAL, 100), f, 1);
 
             assertEquals(GooFraction.of(200, 3), result.exact(GooTypes.METAL));
-            assertEquals(GooFraction.of(100, 3), result.exact(GooTypes.ORNATE));
+            assertEquals(GooFraction.of(100, 3), result.exact(GooTypes.OSSEOUS));
         }
 
         /**
@@ -209,11 +209,11 @@ class GooConversionTest {
          */
         @Test
         void targetDivisionWithARemainderAddsTheExactShare() {
-            GooConversion.Formula f = GooConversion.parseFormula("metal / 4 -> ornate / 3");
+            GooConversion.Formula f = GooConversion.parseFormula("metal / 4 -> osseous / 3");
             GooValue result = GooConversion.apply(goo(GooTypes.METAL, 160), f, 1);
 
             assertEquals(GooFraction.of(120), result.exact(GooTypes.METAL));
-            assertEquals(GooFraction.of(40, 3), result.exact(GooTypes.ORNATE));
+            assertEquals(GooFraction.of(40, 3), result.exact(GooTypes.OSSEOUS));
         }
     }
 
@@ -228,7 +228,7 @@ class GooConversionTest {
         @Test
         void parseFullBlock() {
             Map<String, String> entries = new LinkedHashMap<>();
-            entries.put("oxidation", "metal / 4 -> ornate / 2");
+            entries.put("oxidation", "metal / 4 -> osseous / 2");
             entries.put("exposed", "@oxidation");
             entries.put("weathered", "2 @oxidation");
             entries.put("oxidized", "3 @oxidation");
@@ -246,7 +246,7 @@ class GooConversionTest {
         @Test
         void deniedAssignmentSkipped() {
             Map<String, String> entries = new LinkedHashMap<>();
-            entries.put("oxidation", "metal / 4 -> ornate / 2");
+            entries.put("oxidation", "metal / 4 -> osseous / 2");
             entries.put("exposed", "@oxidation");
             entries.put("#copper_stuff", "@exposed");
             entries.put("#iron_stuff", "denied");
@@ -280,7 +280,7 @@ class GooConversionTest {
         @Test
         void parseScaleWithChain() {
             Map<String, String> entries = new LinkedHashMap<>();
-            entries.put("decay", "leaf / 2 -> ornate / 4");
+            entries.put("decay", "leaf / 2 -> osseous / 4");
             entries.put("#wood", "#logs * 3 / 4 @decay");
 
             GooConversion.ParsedConversions parsed = GooConversion.parseBlock(entries);
@@ -297,7 +297,7 @@ class GooConversionTest {
         @Test
         void deniedFormulaRemoved() {
             Map<String, String> entries = new LinkedHashMap<>();
-            entries.put("oxidation", "metal / 4 -> ornate / 2");
+            entries.put("oxidation", "metal / 4 -> osseous / 2");
             entries.put("oxidation", "denied"); // override removes it
 
             GooConversion.ParsedConversions parsed = GooConversion.parseBlock(entries);
@@ -319,7 +319,7 @@ class GooConversionTest {
             effective.put(id("minecraft:weathered_copper"), goo(GooTypes.METAL, 160, GooTypes.ROCK, 50));
             effective.put(id("minecraft:weathered_cut_copper"), goo(GooTypes.METAL, 160));
 
-            GooConversion.Formula oxidation = GooConversion.parseFormula("metal / 4 -> ornate / 2");
+            GooConversion.Formula oxidation = GooConversion.parseFormula("metal / 4 -> osseous / 2");
             GooConversion.Stack weatheredStack = new GooConversion.Stack("oxidation", 2);
             Map<String, GooConversion.Formula> formulas = Map.of("oxidation", oxidation);
 
@@ -333,7 +333,7 @@ class GooConversionTest {
 
             GooValue copper = effective.get(id("minecraft:weathered_copper"));
             assertEquals(GooFraction.of(80), copper.exact(GooTypes.METAL));
-            assertEquals(GooFraction.of(40), copper.exact(GooTypes.ORNATE));
+            assertEquals(GooFraction.of(40), copper.exact(GooTypes.OSSEOUS));
             assertEquals(GooFraction.of(50), copper.exact(GooTypes.ROCK));
         }
 
@@ -349,7 +349,7 @@ class GooConversionTest {
             effective.put(id("minecraft:exposed_copper"), GooValue.EMPTY);
             effective.put(id("minecraft:exposed_cut_copper"), GooValue.EMPTY);
 
-            GooConversion.Formula oxidation = GooConversion.parseFormula("metal / 4 -> ornate / 2");
+            GooConversion.Formula oxidation = GooConversion.parseFormula("metal / 4 -> osseous / 2");
             Map<String, GooConversion.Formula> formulas = Map.of("oxidation", oxidation);
 
             java.util.List<Identifier> sources = java.util.List.of(
@@ -365,12 +365,12 @@ class GooConversionTest {
             // copper_block (160 metal) copied to exposed_copper, then 1x oxidation
             GooValue exposed = effective.get(id("minecraft:exposed_copper"));
             assertEquals(GooFraction.of(120), exposed.exact(GooTypes.METAL)); // 160 - 40
-            assertEquals(GooFraction.of(20), exposed.exact(GooTypes.ORNATE));    // 40 / 2
+            assertEquals(GooFraction.of(20), exposed.exact(GooTypes.OSSEOUS));    // 40 / 2
 
             // cut_copper (80 metal) copied to exposed_cut_copper, then 1x oxidation
             GooValue exposedCut = effective.get(id("minecraft:exposed_cut_copper"));
             assertEquals(GooFraction.of(60), exposedCut.exact(GooTypes.METAL)); // 80 - 20
-            assertEquals(GooFraction.of(10), exposedCut.exact(GooTypes.ORNATE));   // 20 / 2
+            assertEquals(GooFraction.of(10), exposedCut.exact(GooTypes.OSSEOUS));   // 20 / 2
         }
 
         /**

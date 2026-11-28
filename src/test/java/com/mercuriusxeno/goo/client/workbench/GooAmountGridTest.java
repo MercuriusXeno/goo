@@ -119,7 +119,7 @@ class GooAmountGridTest {
 
     /**
      * Decision row-amount-grid-fills-the-width-and-wraps-past-it: a row's column is as wide as its own widest cell, so
-     * a short amount after a long one stands one column gap from the next icon, as ornate's 6 before metal's icon.
+     * a short amount after a long one stands one column gap from the next icon, as osseous's 6 before metal's icon.
      */
     @Test
     void rowColumnTakesItsOwnWidestCell() {

@@ -45,7 +45,7 @@ class ShippedValuesNameOnlyShippedTypesTest {
     private static final String RESERVED_PREFIX = "_";
     /** A type read off a referent, as in {@code $coral.jelly} or {@code crimson_planks.leaf}. */
     private static final Pattern TYPE_READ = Pattern.compile("[a-z0-9_$]\\.([a-z_]+)");
-    /** A conversion formula's source or target type, as in {@code metal / 4 -> ornate / 9}. */
+    /** A conversion formula's source or target type, as in {@code metal / 4 -> osseous / 9}. */
     private static final Pattern FORMULA_TYPE = Pattern.compile("([a-z_]+)\\s*[/*]");
     private static final ResourceKey<GooTypeDefinition> ZOO = GooTypes.bundled("zoo");
     private static Map<Identifier, GooValue> shipped;
@@ -131,24 +131,22 @@ class ShippedValuesNameOnlyShippedTypesTest {
                 "brain_coral", "brain_coral_block", "brain_coral_fan", "breeze_spawn_egg", "bubble_coral",
                 "bubble_coral_block", "bubble_coral_fan", "camel_husk_spawn_egg", "camel_spawn_egg", "cat_spawn_egg",
                 "cave_spider_spawn_egg", "chicken_spawn_egg", "cod_spawn_egg", "copper_golem_spawn_egg",
-                "cow_spawn_egg", "creaking_spawn_egg", "creeper_head", "creeper_spawn_egg", "dolphin_spawn_egg",
-                "donkey_spawn_egg", "dragon_egg", "dragon_head", "drowned_spawn_egg", "elder_guardian_spawn_egg",
+                "cow_spawn_egg", "creaking_spawn_egg", "creeper_head", "creeper_spawn_egg", "donkey_spawn_egg",
+                "dragon_egg", "dragon_head", "drowned_spawn_egg", "elder_guardian_spawn_egg",
                 "ender_dragon_spawn_egg", "enderman_spawn_egg", "endermite_spawn_egg", "evoker_spawn_egg",
                 "fire_coral", "fire_coral_block", "fire_coral_fan", "fox_spawn_egg", "frog_spawn_egg", "frogspawn",
                 "ghast_spawn_egg", "glow_squid_spawn_egg", "goat_horn", "goat_spawn_egg", "guardian_spawn_egg",
                 "happy_ghast_spawn_egg", "hoglin_spawn_egg", "horn_coral", "horn_coral_block", "horn_coral_fan",
                 "horse_spawn_egg", "husk_spawn_egg", "iron_golem_spawn_egg", "llama_spawn_egg",
-                "magma_cube_spawn_egg", "mooshroom_spawn_egg", "mule_spawn_egg", "nautilus_spawn_egg",
-                "ocelot_spawn_egg", "panda_spawn_egg", "parched_spawn_egg", "parrot_spawn_egg", "phantom_spawn_egg",
-                "pig_spawn_egg", "piglin_brute_spawn_egg", "piglin_head", "piglin_spawn_egg", "pillager_spawn_egg",
-                "polar_bear_spawn_egg", "pufferfish_spawn_egg", "rabbit_foot", "rabbit_spawn_egg",
-                "ravager_spawn_egg", "salmon_spawn_egg", "sheep_spawn_egg", "shulker_spawn_egg",
-                "silverfish_spawn_egg", "skeleton_horse_spawn_egg", "skeleton_spawn_egg", "slime_spawn_egg",
-                "sniffer_egg", "sniffer_spawn_egg", "snow_golem_spawn_egg", "spider_spawn_egg", "squid_spawn_egg",
-                "stray_spawn_egg", "strider_spawn_egg", "tadpole_spawn_egg", "trader_llama_spawn_egg",
-                "tropical_fish_spawn_egg", "tube_coral", "tube_coral_block", "tube_coral_fan", "turtle_egg",
-                "turtle_scute", "turtle_spawn_egg", "vex_spawn_egg", "villager_spawn_egg", "vindicator_spawn_egg",
-                "wandering_trader_spawn_egg", "warden_spawn_egg", "wet_sponge", "witch_spawn_egg",
+                "magma_cube_spawn_egg", "mooshroom_spawn_egg", "mule_spawn_egg", "ocelot_spawn_egg",
+                "panda_spawn_egg", "parched_spawn_egg", "parrot_spawn_egg", "phantom_spawn_egg", "pig_spawn_egg",
+                "piglin_brute_spawn_egg", "piglin_head", "piglin_spawn_egg", "polar_bear_spawn_egg",
+                "pufferfish_spawn_egg", "rabbit_foot", "rabbit_spawn_egg", "salmon_spawn_egg", "sheep_spawn_egg",
+                "shulker_spawn_egg", "silverfish_spawn_egg", "skeleton_horse_spawn_egg", "skeleton_spawn_egg",
+                "slime_spawn_egg", "sniffer_egg", "sniffer_spawn_egg", "snow_golem_spawn_egg", "spider_spawn_egg",
+                "squid_spawn_egg", "stray_spawn_egg", "strider_spawn_egg", "tadpole_spawn_egg", "tube_coral",
+                "tube_coral_block", "tube_coral_fan", "turtle_egg", "turtle_scute", "vex_spawn_egg",
+                "villager_spawn_egg", "warden_spawn_egg", "wet_sponge", "witch_spawn_egg",
                 "wither_skeleton_spawn_egg", "wither_spawn_egg", "wolf_spawn_egg", "zoglin_spawn_egg",
                 "zombie_horse_spawn_egg", "zombie_nautilus_spawn_egg", "zombie_spawn_egg",
                 "zombie_villager_spawn_egg", "zombified_piglin_spawn_egg");

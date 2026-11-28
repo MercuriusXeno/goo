@@ -186,7 +186,7 @@ class WorkbenchOperationsTest {
         @Test
         void modelReplyCarriesNoChecks() throws IOException {
             JsonObject read = answeredJson(WorkbenchOperations.MODEL, "");
-            JsonObject saved = answeredJson(WorkbenchOperations.SAVE_MODEL, posted(SampleDrafts.diamondLackingOrnate()));
+            JsonObject saved = answeredJson(WorkbenchOperations.SAVE_MODEL, posted(SampleDrafts.diamondLackingOsseous()));
             assertTrue(saved.has("members"));
             assertFalse(read.has("checks"), read.keySet().toString());
             assertFalse(saved.has("checks"), saved.keySet().toString());
@@ -198,7 +198,7 @@ class WorkbenchOperationsTest {
          */
         @Test
         void promoteOverAnyDraftAnswersOnce() throws IOException {
-            answered(WorkbenchOperations.SAVE_MODEL, posted(SampleDrafts.diamondLackingOrnate()));
+            answered(WorkbenchOperations.SAVE_MODEL, posted(SampleDrafts.diamondLackingOsseous()));
             String drafted = Files.readString(paths.draft());
             answered(WorkbenchOperations.PROMOTE, "{}");
             assertEquals(drafted, Files.readString(paths.baseValues()));
@@ -955,10 +955,10 @@ class WorkbenchOperationsTest {
             WorkbenchReply reply = named(WorkbenchOperations.CONSTANT_HOVER, "gold_nugget", sample());
             assertEquals(200, reply.status(), reply.text());
             JsonObject hover = JsonParser.parseString(reply.text()).getAsJsonObject();
-            assertEquals("{\"metal\": \"4 $iron_nugget.metal\", \"glow\": 1440, \"ornate\": \"$wealth.ornate\"}",
+            assertEquals("{\"metal\": \"4 $iron_nugget.metal\", \"glow\": 1440, \"osseous\": \"$wealth.osseous\"}",
                     hover.get("expression").getAsString());
             JsonObject tree = hover.getAsJsonObject("tree");
-            assertEquals(Map.of("metal", "4608", "glow", "1440", "ornate", "192"), tree.keySet().stream()
+            assertEquals(Map.of("metal", "4608", "glow", "1440", "osseous", "192"), tree.keySet().stream()
                     .collect(Collectors.toMap(type -> type, type -> tree.get(type).getAsString())));
             assertEquals(BaseValuesModel.parse(sample()).terminusOf("gold_nugget", Map.of()),
                     hover.getAsJsonArray("usedBy").asList().stream().map(JsonElement::getAsString).toList());

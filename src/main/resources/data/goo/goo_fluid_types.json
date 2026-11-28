@@ -313,30 +313,6 @@
     ]
   },
   {
-    "id": "ornate",
-    "seed": 40991,
-    "genParams": {
-      "viscosity": 2.2,
-      "decayRate": 0.02,
-      "ignitionChance": 0.006,
-      "ignitionStrength": 1.2,
-      "potHeatRate": 0.01,
-      "potInfluence": 0.85,
-      "neighborhoodReach": 1
-    },
-    "frametime": 4,
-    "shadowHue": 0.08,
-    "palette": [
-      { "position": 0.0, "color": "#6A3A08" },
-      { "position": 0.2, "color": "#B26411" },
-      { "position": 0.4, "color": "#DC9613" },
-      { "position": 0.6, "color": "#F9BD23" },
-      { "position": 0.75, "color": "#FFD83E" },
-      { "position": 0.9, "color": "#FFEC4F" },
-      { "position": 1.0, "color": "#FFFD90" }
-    ]
-  },
-  {
     "id": "osseous",
     "seed": 41015,
     "genParams": {

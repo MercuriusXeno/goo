@@ -72,7 +72,6 @@ public final class GooTypes {
     public static final ResourceKey<GooTypeDefinition> LEAF = bundled("leaf");
     public static final ResourceKey<GooTypeDefinition> METAL = bundled("metal");
     public static final ResourceKey<GooTypeDefinition> NETHER = bundled("nether");
-    public static final ResourceKey<GooTypeDefinition> ORNATE = bundled("ornate");
     /**
      * The goo of bone and shell, in bone ivory and nacre.
      * decision osseous-replaces-ornate-as-the-o-goo
@@ -131,7 +130,7 @@ public final class GooTypes {
      */
     public static final List<ResourceKey<GooTypeDefinition>> BUNDLED = List.of(
             ASTRAL, BLAZE, CRYSTAL, ENDER, FROST, GLOW, HEX, INFINITY, JELLY, KINETIC, LEAF,
-            METAL, NETHER, ORNATE, OSSEOUS, PULSE, QUANTUM, ROCK, SCULK, TYPHOON, UNSTABLE, VOID, WEIRD, XENO, YARN,
+            METAL, NETHER, OSSEOUS, PULSE, QUANTUM, ROCK, SCULK, TYPHOON, UNSTABLE, VOID, WEIRD, XENO, YARN,
             ZOMBIE);
 
 

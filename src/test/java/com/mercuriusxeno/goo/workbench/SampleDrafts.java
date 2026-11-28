@@ -12,8 +12,8 @@ public final class SampleDrafts {
     private static final String SAMPLE = "/workbench/sample_base_values.json";
     private static final String SHIPPED = "/data/goo/goo_values/base_values.json";
     private static final String DIAMOND_ENTRY =
-            "\"diamond\": {\"crystal\": \"$ultra\", \"ornate\": \"24 $wealth.ornate\"}";
-    private static final String DIAMOND_WITHOUT_ORNATE =
+            "\"diamond\": {\"crystal\": \"$ultra\", \"osseous\": \"24 $wealth.osseous\"}";
+    private static final String DIAMOND_WITHOUT_OSSEOUS =
             "\"diamond\": {\"crystal\": \"$ultra\"}";
 
     private SampleDrafts() {
@@ -41,14 +41,14 @@ public final class SampleDrafts {
     }
 
     /**
-     * @return the sample with diamond valued in crystal alone, no ornate
+     * @return the sample with diamond valued in crystal alone, no osseous
      * @throws IOException where the sample is off the classpath
      */
-    public static String diamondLackingOrnate() throws IOException {
+    public static String diamondLackingOsseous() throws IOException {
         String sample = sample();
         if (!sample.contains(DIAMOND_ENTRY)) {
             throw new IllegalStateException("The sample's diamond entry no longer reads " + DIAMOND_ENTRY);
         }
-        return sample.replace(DIAMOND_ENTRY, DIAMOND_WITHOUT_ORNATE);
+        return sample.replace(DIAMOND_ENTRY, DIAMOND_WITHOUT_OSSEOUS);
     }
 }

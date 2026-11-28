@@ -498,7 +498,7 @@ class GooValueRegistryTest {
         void negativeDerivationExcludedFromEffective() {
             Map<ResourceKey<GooTypeDefinition>, Integer> negMap = new HashMap<>();
             negMap.put(GooTypes.METAL, -10);
-            negMap.put(GooTypes.ORNATE, 5);
+            negMap.put(GooTypes.OSSEOUS, 5);
             GooValue negValue = new GooValue(negMap);
 
             Map<Identifier, GooValue> base = Map.of();
@@ -1172,7 +1172,7 @@ class GooValueRegistryTest {
                     {
                         "minecraft:copper_ingot": { "metal": 160, "rock": 40 },
                         "_conversions": {
-                            "oxidation": "metal / 4 -> ornate / 2",
+                            "oxidation": "metal / 4 -> osseous / 2",
                             "exposed": "@oxidation",
                             "minecraft:copper_ingot": "@exposed"
                         }
@@ -1181,7 +1181,7 @@ class GooValueRegistryTest {
             GooValue val = registry.table().lookup(id("minecraft:copper_ingot"));
             assertNotNull(val);
             assertEquals(GooFraction.of(120), val.exact(GooTypes.METAL)); // 160 - 40
-            assertEquals(GooFraction.of(20), val.exact(GooTypes.ORNATE));    // 40 / 2
+            assertEquals(GooFraction.of(20), val.exact(GooTypes.OSSEOUS));    // 40 / 2
             assertEquals(GooFraction.of(40), val.exact(GooTypes.ROCK));    // untouched
         }
 
@@ -1194,7 +1194,7 @@ class GooValueRegistryTest {
                     {
                         "minecraft:copper_ingot": { "metal": 160 },
                         "_conversions": {
-                            "oxidation": "metal / 4 -> ornate / 2",
+                            "oxidation": "metal / 4 -> osseous / 2",
                             "weathered": "2 @oxidation",
                             "minecraft:copper_ingot": "@weathered"
                         }
@@ -1203,7 +1203,7 @@ class GooValueRegistryTest {
             GooValue val = registry.table().lookup(id("minecraft:copper_ingot"));
             assertNotNull(val);
             assertEquals(GooFraction.of(80), val.exact(GooTypes.METAL));  // 160 - 2*40
-            assertEquals(GooFraction.of(40), val.exact(GooTypes.ORNATE));    // 2 * 20
+            assertEquals(GooFraction.of(40), val.exact(GooTypes.OSSEOUS));    // 2 * 20
         }
 
         /**
@@ -1222,7 +1222,7 @@ class GooValueRegistryTest {
                         "minecraft:weathered_copper": { "metal": 160 },
                         "minecraft:weathered_cut_copper": { "metal": 160 },
                         "_conversions": {
-                            "oxidation": "metal / 4 -> ornate / 2",
+                            "oxidation": "metal / 4 -> osseous / 2",
                             "weathered": "2 @oxidation",
                             "#weathered_copper": "@weathered"
                         }
@@ -1233,9 +1233,9 @@ class GooValueRegistryTest {
             assertNotNull(copper);
             assertNotNull(cut);
             assertEquals(GooFraction.of(80), copper.exact(GooTypes.METAL));
-            assertEquals(GooFraction.of(40), copper.exact(GooTypes.ORNATE));
+            assertEquals(GooFraction.of(40), copper.exact(GooTypes.OSSEOUS));
             assertEquals(GooFraction.of(80), cut.exact(GooTypes.METAL));
-            assertEquals(GooFraction.of(40), cut.exact(GooTypes.ORNATE));
+            assertEquals(GooFraction.of(40), cut.exact(GooTypes.OSSEOUS));
         }
 
         /**
@@ -1247,7 +1247,7 @@ class GooValueRegistryTest {
                     {
                         "minecraft:copper_ingot": { "metal": 160 },
                         "_conversions": {
-                            "oxidation": "metal / 4 -> ornate / 2",
+                            "oxidation": "metal / 4 -> osseous / 2",
                             "oxidized": "3 @oxidation",
                             "minecraft:copper_ingot": "@oxidized"
                         }
@@ -1256,7 +1256,7 @@ class GooValueRegistryTest {
             GooValue val = registry.table().lookup(id("minecraft:copper_ingot"));
             assertNotNull(val);
             assertEquals(GooFraction.of(40), val.exact(GooTypes.METAL));   // 160 - 3*40
-            assertEquals(GooFraction.of(60), val.exact(GooTypes.ORNATE));     // 3 * 20
+            assertEquals(GooFraction.of(60), val.exact(GooTypes.OSSEOUS));     // 3 * 20
         }
 
         /**
@@ -1274,7 +1274,7 @@ class GooValueRegistryTest {
                             {
                                 "minecraft:copper_ingot": { "metal": 160 },
                                 "%s": {
-                                    "oxidation": "metal / 4 -> ornate / 2",
+                                    "oxidation": "metal / 4 -> osseous / 2",
                                     "minecraft:copper_ingot": "@oxidation"
                                 }
                             }
@@ -1298,7 +1298,7 @@ class GooValueRegistryTest {
             GooValue ingot = registry.table().lookup(id("minecraft:copper_ingot"));
             assertNotNull(ingot);
             assertEquals(GooFraction.of(120), ingot.exact(GooTypes.METAL)); // 160 - 40
-            assertEquals(GooFraction.of(20), ingot.exact(GooTypes.ORNATE));    // 40 / 2
+            assertEquals(GooFraction.of(20), ingot.exact(GooTypes.OSSEOUS));    // 40 / 2
         }
 
         /**
@@ -1315,7 +1315,7 @@ class GooValueRegistryTest {
                         "minecraft:copper_block": { "metal": 160 },
                         "minecraft:cut_copper": { "metal": 80 },
                         "_post_conversions": {
-                            "oxidation": "metal / 4 -> ornate / 2",
+                            "oxidation": "metal / 4 -> osseous / 2",
                             "exposed": "@oxidation",
                             "#exposed": "#originals @exposed"
                         }
@@ -1325,13 +1325,13 @@ class GooValueRegistryTest {
             GooValue exposed = registry.table().lookup(id("minecraft:exposed_copper"));
             assertNotNull(exposed);
             assertEquals(GooFraction.of(120), exposed.exact(GooTypes.METAL)); // 160 - 40
-            assertEquals(GooFraction.of(20), exposed.exact(GooTypes.ORNATE));    // 40 / 2
+            assertEquals(GooFraction.of(20), exposed.exact(GooTypes.OSSEOUS));    // 40 / 2
 
             // exposed_cut_copper gets cut_copper's value (80 metal), then 1x oxidation
             GooValue exposedCut = registry.table().lookup(id("minecraft:exposed_cut_copper"));
             assertNotNull(exposedCut);
             assertEquals(GooFraction.of(60), exposedCut.exact(GooTypes.METAL)); // 80 - 20
-            assertEquals(GooFraction.of(10), exposedCut.exact(GooTypes.ORNATE));   // 20 / 2
+            assertEquals(GooFraction.of(10), exposedCut.exact(GooTypes.OSSEOUS));   // 20 / 2
         }
 
         /**
@@ -1348,7 +1348,7 @@ class GooValueRegistryTest {
                         },
                         "minecraft:copper_block": { "metal": 160 },
                         "_post_conversions": {
-                            "oxidation": "metal / 4 -> ornate / 2",
+                            "oxidation": "metal / 4 -> osseous / 2",
                             "exposed_conv": "@oxidation",
                             "weathered_conv": "2 @oxidation",
                             "#exposed": "#originals @exposed_conv",
@@ -1356,18 +1356,18 @@ class GooValueRegistryTest {
                         }
                     }
                     """);
-            // exposed_copper: copy 160 metal, 1x oxidation -> 120 metal, 20 ornate
+            // exposed_copper: copy 160 metal, 1x oxidation -> 120 metal, 20 osseous
             GooValue exposed = registry.table().lookup(id("minecraft:exposed_copper"));
             assertNotNull(exposed);
             assertEquals(GooFraction.of(120), exposed.exact(GooTypes.METAL));
-            assertEquals(GooFraction.of(20), exposed.exact(GooTypes.ORNATE));
+            assertEquals(GooFraction.of(20), exposed.exact(GooTypes.OSSEOUS));
 
-            // weathered_copper: copy from exposed (120 metal, 20 ornate), 2x oxidation
+            // weathered_copper: copy from exposed (120 metal, 20 osseous), 2x oxidation
             // 2 * (120/4) = 60 removed, 2 * (120/4/2) = 30 added
             GooValue weathered = registry.table().lookup(id("minecraft:weathered_copper"));
             assertNotNull(weathered);
             assertEquals(GooFraction.of(60), weathered.exact(GooTypes.METAL));  // 120 - 60
-            assertEquals(GooFraction.of(50), weathered.exact(GooTypes.ORNATE));    // 20 + 30
+            assertEquals(GooFraction.of(50), weathered.exact(GooTypes.OSSEOUS));    // 20 + 30
         }
 
         /**
@@ -1713,7 +1713,7 @@ class GooValueRegistryTest {
         void implicitMultiplicationInAddition() throws IOException {
             loadJson("""
                     {
-                        "minecraft:lapis_lazuli": { "crystal": 20, "ornate": 10 },
+                        "minecraft:lapis_lazuli": { "crystal": 20, "osseous": 10 },
                         "minecraft:obsidian": { "rock": 100 },
                         "minecraft:crying_obsidian": "obsidian + 4 lapis_lazuli"
                     }
@@ -1721,7 +1721,7 @@ class GooValueRegistryTest {
             GooValue val = registry.table().lookup(id("minecraft:crying_obsidian"));
             assertEquals(GooFraction.of(100), val.exact(GooTypes.ROCK));
             assertEquals(GooFraction.of(80), val.exact(GooTypes.CRYSTAL));
-            assertEquals(GooFraction.of(40), val.exact(GooTypes.ORNATE));
+            assertEquals(GooFraction.of(40), val.exact(GooTypes.OSSEOUS));
         }
 
         /**
@@ -1752,14 +1752,14 @@ class GooValueRegistryTest {
             loadJson("""
                     {
                         "_constants": { "drain": { "metal": 64 } },
-                        "minecraft:copper_ingot": { "metal": 200, "ornate": 30 },
+                        "minecraft:copper_ingot": { "metal": 200, "osseous": 30 },
                         "minecraft:exposed_copper": "copper_ingot + -$drain"
                     }
                     """);
             GooValue val = registry.table().lookup(id("minecraft:exposed_copper"));
             assertNotNull(val);
             assertEquals(GooFraction.of(136), val.exact(GooTypes.METAL)); // 200 - 64
-            assertEquals(GooFraction.of(30), val.exact(GooTypes.ORNATE));   // unchanged
+            assertEquals(GooFraction.of(30), val.exact(GooTypes.OSSEOUS));   // unchanged
         }
 
         /**
@@ -1769,7 +1769,7 @@ class GooValueRegistryTest {
         void treeConstantWithNegativeType() throws IOException {
             loadJson("""
                     {
-                        "_constants": { "exposed": { "ornate": 32, "metal": -64 } },
+                        "_constants": { "exposed": { "osseous": 32, "metal": -64 } },
                         "minecraft:copper_ingot": { "metal": 200, "rock": 50 },
                         "minecraft:exposed_copper": "copper_ingot + $exposed"
                     }
@@ -1777,7 +1777,7 @@ class GooValueRegistryTest {
             GooValue val = registry.table().lookup(id("minecraft:exposed_copper"));
             assertNotNull(val);
             assertEquals(GooFraction.of(136), val.exact(GooTypes.METAL)); // 200 - 64
-            assertEquals(GooFraction.of(32), val.exact(GooTypes.ORNATE));   // 0 + 32
+            assertEquals(GooFraction.of(32), val.exact(GooTypes.OSSEOUS));   // 0 + 32
             assertEquals(GooFraction.of(50), val.exact(GooTypes.ROCK));   // unchanged
         }
 

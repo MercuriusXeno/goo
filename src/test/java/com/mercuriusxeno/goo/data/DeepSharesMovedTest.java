@@ -25,19 +25,19 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Deep's shares leave every item for standing types: deepslate is rock, the sculk family is sculk, ocean animals are
- * jelly and ocean dyes ornate, and void's source is its items; reads the shipped base values through the classpath,
+ * jelly and ocean dyes leaf, and void's source is its items; reads the shipped base values through the classpath,
  * derived over no recipe so the conversions apply.
  * decision deepslate-is-valued-as-rock
  * decision ocean-items-follow-animals-to-jelly-and-dyes-to-opulent
  * decision void-reaction-leaves-with-deep
+ * decision flowers-take-leaf-and-dyes-inherit
+ * decision shells-take-osseous-and-ornates-share-drops
  */
 class DeepSharesMovedTest {
 
     private static final String BASE_VALUES = "/data/goo/goo_values/base_values.json";
     private static final ResourceKey<GooTypeDefinition> DEEP = GooTypes.bundled("deep");
     private static final ResourceKey<GooTypeDefinition> SCULK = GooTypes.bundled("sculk");
-    /** The dolphin egg's types before this change, deep among them. */
-    private static final Set<String> DOLPHIN_EGG_BEFORE = Set.of("zoo", "ornate", "deep");
     private static Map<Identifier, GooValue> shipped;
 
     @BeforeAll
@@ -83,7 +83,7 @@ class DeepSharesMovedTest {
 
     @ParameterizedTest
     @MethodSource("oceanItems")
-    void oceanItemsFollowAnimalsToJellyAndDyesToOrnate(String item, Set<String> types) {
+    void oceanItemsFollowAnimalsToJellyAndDyesToLeaf(String item, Set<String> types) {
         assertTrue(typesOf(item).containsAll(types), item + " holds " + typesOf(item) + ", wants " + types);
     }
 
@@ -93,19 +93,10 @@ class DeepSharesMovedTest {
                 Arguments.of("dead_tube_coral", Set.of("jelly")),
                 Arguments.of("dead_tube_coral_block", Set.of("jelly")),
                 Arguments.of("nautilus_shell", Set.of("jelly")),
-                Arguments.of("sea_pickle", Set.of("ornate", "glow")),
-                Arguments.of("heart_of_the_sea", Set.of("ornate", "astral")),
+                Arguments.of("sea_pickle", Set.of("leaf", "glow")),
+                Arguments.of("heart_of_the_sea", Set.of("astral")),
                 Arguments.of("wet_sponge", Set.of("yarn")),
-                Arguments.of("ink_sac", Set.of("ornate")));
-    }
-
-    @Test
-    void dolphinEggDropsItsOceanTraitAndGainsNone() {
-        Set<String> less = new TreeSet<>(DOLPHIN_EGG_BEFORE);
-        less.remove("deep");
-        // zoo-leaves-and-zombie-goo-replaces-it-as-z
-        less.remove("zoo");
-        assertEquals(less, typesOf("dolphin_spawn_egg"));
+                Arguments.of("ink_sac", Set.of("void")));
     }
 
     @ParameterizedTest
